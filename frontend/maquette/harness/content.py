@@ -128,7 +128,7 @@ async def main():
         # The hour is derived from the cron the cadence line prints, so the two
         # can never disagree about when the next search happens.
         hour = await pg.evaluate(
-            "()=>prochaineRechercheFR(CADENCE_CRON, new Date())")
+            "()=>nextSearchFR(CADENCE_CRON, new Date())")
         cadence = await pg.evaluate("()=>cadenceFR(CADENCE_CRON)")
         check("the hour announced is the cadence's own",
               bool(hour) and hour in cadence, f"{hour} in « {cadence} »")
@@ -138,7 +138,7 @@ async def main():
 
         # ── the library says what a medium is ABOUT ─────────────────────────
         for lens, name in (("cat", "Médias"), ("rec", "Récents")):
-            await pg.evaluate("(l)=>{window.__magasin.ecrire({page: 'lib',"
+            await pg.evaluate("(l)=>{window.__magasin.write({page: 'lib',"
                               " libLens: l, libMode: 'list'}); render();}", lens)
             await pg.wait_for_timeout(650)
             seen = await pg.evaluate("""()=>{
@@ -177,7 +177,7 @@ async def main():
               if (!st) { st = document.createElement('style'); st.id = 'clamptrial';
                          document.head.appendChild(st); }
               st.textContent = '.cov{-webkit-line-clamp:' + n + ' !important}';}""", n)
-            await pg.evaluate("()=>{window.__magasin.ecrire({page: 'lib',"
+            await pg.evaluate("()=>{window.__magasin.write({page: 'lib',"
                               " libLens: 'cat', libMode: 'list'}); render();}")
             await pg.wait_for_timeout(520)
             return await pg.evaluate(
@@ -194,7 +194,7 @@ async def main():
               (await cards_that_grow(lines + 1)) > 0, f"at {lines + 1} lines")
         await pg.evaluate("""()=>{const st = document.querySelector('#clamptrial');
                                if (st) st.remove();}""")
-        await pg.evaluate("()=>{window.__magasin.ecrire({page: 'lib',"
+        await pg.evaluate("()=>{window.__magasin.write({page: 'lib',"
                           " libLens: 'cat', libMode: 'list'}); render();}")
         await pg.wait_for_timeout(520)
 
@@ -229,7 +229,7 @@ async def main():
         for mode in ("list", "grid"):
             starts = {}
             for lens in ("cat", "rec", "inc"):
-                await pg.evaluate("([l, m])=>{window.__magasin.ecrire({page: 'lib',"
+                await pg.evaluate("([l, m])=>{window.__magasin.write({page: 'lib',"
                                   " libLens: l, libMode: m}); render();}", [lens, mode])
                 await pg.wait_for_timeout(620)
                 starts[lens] = await pg.evaluate("""()=>{

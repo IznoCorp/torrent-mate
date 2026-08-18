@@ -12,7 +12,7 @@ import { useReference } from "../data";
 
 export function AccountPage(): ReactElement {
   const { t } = useTranslation();
-  const { factRowsHTML, emptyInner, COMPTE } = useReference();
+  const { factRowsHTML, emptyInner, ACCOUNT } = useReference();
   const facts = (rows: Parameters<typeof factRowsHTML>[0]) => (
     <ol
       className="flux"
@@ -30,13 +30,13 @@ export function AccountPage(): ReactElement {
       {facts([
         {
           l: t("screens.accountPage.identifier"),
-          v: COMPTE.nom,
+          v: ACCOUNT.nom,
           k: "web.username",
           s: t("screens.accountPage.identifierSub"),
         },
         {
           l: t("screens.accountPage.address"),
-          v: COMPTE.mail,
+          v: ACCOUNT.mail,
           s: t("screens.accountPage.addressSub"),
         },
       ])}
@@ -61,7 +61,7 @@ export function AccountPage(): ReactElement {
           s: t("screens.accountPage.whereSub"),
         },
       ])}
-      <button className="cfoot" data-deconnexion="1">
+      <button className="cfoot" data-signout="1">
         {t("screens.accountPage.signOut")}
       </button>
 

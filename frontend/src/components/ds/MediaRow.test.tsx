@@ -51,9 +51,9 @@ describe("MediaRow", () => {
     const { container } = render(<MediaRow {...base} journey={{ stage: "pris" }} />);
     const top = screen.getByTestId("acq-card-top");
     // The strip is the card's last block, a sibling of the top row.
-    const frise = container.querySelector('[data-testid="acq-card"] > :last-child');
-    expect(frise).not.toBeNull();
-    expect(top.contains(frise)).toBe(false);
+    const trailingStrip = container.querySelector('[data-testid="acq-card"] > :last-child');
+    expect(trailingStrip).not.toBeNull();
+    expect(top.contains(trailingStrip)).toBe(false);
   });
 
   it("le panneau ne prend QUE des faits : une note, une puce, une jauge", () => {

@@ -49,20 +49,20 @@ export function PendingRunLine({ pending }: PendingRunLineProps): ReactElement |
   }, []);
 
   if (pending == null) return null;
-  const actifs = pending.active_downloads ?? 0;
-  if (actifs > 0) {
+  const activeDownloads = pending.active_downloads ?? 0;
+  if (activeDownloads > 0) {
     return (
       <p data-testid="pending-run-line" className="text-xs text-muted-foreground">
-        {actifs} téléchargement{actifs > 1 ? "s" : ""} en cours · l&apos;ingestion
+        {activeDownloads} téléchargement{activeDownloads > 1 ? "s" : ""} en cours · l&apos;ingestion
         démarrera une fois le dernier terminé
       </p>
     );
   }
   if (pending.fires_at != null) {
-    const restant = Math.max(0, Math.round(pending.fires_at - now));
+    const secondsLeft = Math.max(0, Math.round(pending.fires_at - now));
     return (
       <p data-testid="pending-run-line" className="text-xs text-muted-foreground">
-        Ingestion dans {restant} s · toute nouvelle arrivée relance le délai
+        Ingestion dans {secondsLeft} s · toute nouvelle arrivée relance le délai
       </p>
     );
   }

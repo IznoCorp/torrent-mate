@@ -17,7 +17,7 @@ staging tinted over the background is tinted again, with the same coverage, in
 yellow — which reproduces the exact shape including its antialiasing.
 
 Maskable icons are the exception, and the reason is worth stating. A launcher
-crops a maskable icon to its own shape, and everything outside the centre
+crops a maskable icon to its own shape, and everything outside the center
 circle of 80 % diameter may be cut. The staging set answers that by carrying no
 ring at all on its maskable variants — it can afford to, because it also
 recolours the mark. This set does not recolour anything, so a ringless maskable
@@ -41,46 +41,46 @@ from PIL import Image, ImageDraw
 PUBLIC = Path(__file__).resolve().parent.parent / "public"
 # Read from `public` (the app's own icons are the model), written beside the
 # prototype so the bundle never carries them.
-SORTIE = Path(__file__).resolve().parent.parent / "maquette" / "assets"
+OUTPUT = Path(__file__).resolve().parent.parent / "maquette" / "assets"
 
 # The icons' flat background, and the colour staging's ring is drawn in. Both
 # are read back from the files below and only declared here to be checked.
-FOND = (26, 26, 30)
+BACKGROUND = (26, 26, 30)
 CYAN = (45, 184, 212)
 
 # The design host's ring. Yellow rather than amber: the mark inside the icon is
 # already amber, and a ring in the same hue would read as a highlight of it
 # rather than as a different application.
-JAUNE = (255, 212, 0)
+YELLOW = (255, 212, 0)
 
 # Icons that keep a rectangular ring, and the staging file the shape is read
 # from.
-BORDEES = [
+BORDERED = [
     ("pwa-192.png", "pwa-192-staging.png", "pwa-192-design.png"),
     ("pwa-512.png", "pwa-512-staging.png", "pwa-512-design.png"),
     ("apple-touch-icon.png", "apple-touch-icon-staging.png", "apple-touch-icon-design.png"),
 ]
 
 # Icons a launcher may crop, which take a circular ring inside the safe zone.
-MASQUABLES = [
+MASKABLE = [
     ("maskable-192.png", "maskable-192-design.png"),
     ("maskable-512.png", "maskable-512-design.png"),
 ]
 
-# The safe zone is the centre circle of 80 % diameter, so its radius is 40 % of
+# The safe zone is the center circle of 80 % diameter, so its radius is 40 % of
 # the side. The ring sits inside it, and its thickness is the one measured on
 # the staging set: 15/512 of the side.
-RAYON_ANNEAU = 0.37
-EPAISSEUR = 15 / 512
+RING_RADIUS = 0.37
+RING_WIDTH = 15 / 512
 
 
-def anneau_depuis_staging(prod: Path, staging: Path, sortie: Path) -> int:
+def ring_from_staging(prod: Path, staging: Path, output: Path) -> int:
     """Repaints staging's ring in yellow over the app's icon.
 
     Args:
         prod: The app's icon.
         staging: The same icon with the cyan ring.
-        sortie: Where to write the result.
+        output: Where to write the result.
 
     Returns:
         The number of pixels the ring covers.
@@ -97,7 +97,7 @@ def anneau_depuis_staging(prod: Path, staging: Path, sortie: Path) -> int:
 
     pixels_base = base.load()
     pixels_ref = ref.load()
-    touches = 0
+    touched = 0
     for y in range(base.height):
         for x in range(base.width):
             r0, g0, b0, a0 = pixels_base[x, y]
@@ -105,51 +105,51 @@ def anneau_depuis_staging(prod: Path, staging: Path, sortie: Path) -> int:
             # The ring is what staging painted over the BACKGROUND. Where the
             # app's icon already carries its mark, a difference is staging's
             # recolouring, which this set does not reproduce.
-            if (r0, g0, b0) != FOND or (r1, g1, b1) == (r0, g0, b0):
+            if (r0, g0, b0) != BACKGROUND or (r1, g1, b1) == (r0, g0, b0):
                 continue
             # How far the pixel travelled from the background towards the full
             # ring colour — that is its coverage, antialiasing included.
-            numerateur = max(abs(r1 - r0), abs(g1 - g0), abs(b1 - b0))
-            denominateur = max(
-                abs(CYAN[0] - FOND[0]), abs(CYAN[1] - FOND[1]), abs(CYAN[2] - FOND[2])
+            numerator = max(abs(r1 - r0), abs(g1 - g0), abs(b1 - b0))
+            denominator = max(
+                abs(CYAN[0] - BACKGROUND[0]), abs(CYAN[1] - BACKGROUND[1]), abs(CYAN[2] - BACKGROUND[2])
             )
-            couverture = min(1.0, numerateur / denominateur)
+            coverage = min(1.0, numerator / denominator)
             pixels_base[x, y] = (
-                round(r0 + couverture * (JAUNE[0] - r0)),
-                round(g0 + couverture * (JAUNE[1] - g0)),
-                round(b0 + couverture * (JAUNE[2] - b0)),
+                round(r0 + coverage * (YELLOW[0] - r0)),
+                round(g0 + coverage * (YELLOW[1] - g0)),
+                round(b0 + coverage * (YELLOW[2] - b0)),
                 a0,
             )
-            touches += 1
-    base.save(sortie)
-    return touches
+            touched += 1
+    base.save(output)
+    return touched
 
 
-def anneau_circulaire(prod: Path, sortie: Path) -> None:
+def circular_ring(prod: Path, output: Path) -> None:
     """Draws a circular ring inside the safe zone of a maskable icon.
 
     Args:
         prod: The app's maskable icon.
-        sortie: Where to write the result.
+        output: Where to write the result.
     """
     base = Image.open(prod).convert("RGBA")
-    cote = base.width
+    side = base.width
     # Drawn at 4× and downsampled: PIL has no antialiasing of its own, and a
     # hard-edged ring reads as a jagged one at home-screen size.
-    echelle = 4
-    calque = Image.new("RGBA", (cote * echelle, cote * echelle), (0, 0, 0, 0))
-    dessin = ImageDraw.Draw(calque)
-    rayon = RAYON_ANNEAU * cote * echelle
-    epaisseur = max(1, round(EPAISSEUR * cote * echelle))
-    centre = cote * echelle / 2
-    dessin.ellipse(
-        [centre - rayon, centre - rayon, centre + rayon, centre + rayon],
-        outline=(*JAUNE, 255),
-        width=epaisseur,
+    scale = 4
+    layer = Image.new("RGBA", (side * scale, side * scale), (0, 0, 0, 0))
+    drawing = ImageDraw.Draw(layer)
+    radius = RING_RADIUS * side * scale
+    width = max(1, round(RING_WIDTH * side * scale))
+    center = side * scale / 2
+    drawing.ellipse(
+        [center - radius, center - radius, center + radius, center + radius],
+        outline=(*YELLOW, 255),
+        width=width,
     )
-    calque = calque.resize((cote, cote), Image.LANCZOS)
-    base.alpha_composite(calque)
-    base.save(sortie)
+    layer = layer.resize((side, side), Image.LANCZOS)
+    base.alpha_composite(layer)
+    base.save(output)
 
 
 def main() -> int:
@@ -158,12 +158,12 @@ def main() -> int:
     Returns:
         Process exit status.
     """
-    for prod, staging, sortie in BORDEES:
-        touches = anneau_depuis_staging(PUBLIC / prod, PUBLIC / staging, SORTIE / sortie)
-        print(f"{sortie}: {touches} pixels of ring, shape read from {staging}")
-    for prod, sortie in MASQUABLES:
-        anneau_circulaire(PUBLIC / prod, SORTIE / sortie)
-        print(f"{sortie}: circular ring inside the safe zone")
+    for prod, staging, output in BORDERED:
+        touched = ring_from_staging(PUBLIC / prod, PUBLIC / staging, OUTPUT / output)
+        print(f"{output}: {touched} pixels of ring, shape read from {staging}")
+    for prod, output in MASKABLE:
+        circular_ring(PUBLIC / prod, OUTPUT / output)
+        print(f"{output}: circular ring inside the safe zone")
     return 0
 
 

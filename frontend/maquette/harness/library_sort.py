@@ -29,7 +29,7 @@ from common import Journal, open_page
 from playwright.async_api import async_playwright
 
 # The rendered rows, read through the TITLE each one draws — not through
-# `data-fiche`, which a first version used and which is only on the rows whose
+# `data-mediasheet`, which a first version used and which is only on the rows whose
 # title resolves to an embedded media sheet: measured, one end of the library
 # had twenty-four of them and the other end none, so the rule read an empty
 # list and called it a failed reversal. The title is the row's identity
@@ -39,7 +39,7 @@ TITLES = """()=>[...document.querySelectorAll('#libitems .ctitle, #libitems .til
 
 PANEL = """()=>[...document.querySelectorAll('.sheetacts .sact')].map((button) => ({
   text: button.textContent.trim(),
-  sort: button.dataset.settri || null,
+  sort: button.dataset.setsort || null,
   reversed: button.dataset.reversed === '1',
   current: button.className.split(' ').includes('primary'),
 }))"""
@@ -79,7 +79,7 @@ async def main():
         # that is asserted rather than assumed.
         # french-ok: a French search WORD, typed into the app's own search.
         await page.evaluate(
-            "()=>{window.__magasin.ecrire({q: 'star', libCount: 24}); render();}")
+            "()=>{window.__magasin.write({q: 'star', libCount: 24}); render();}")
         await page.wait_for_timeout(700)
         narrowed = await page.evaluate(TITLES)
         journal.check(
@@ -132,7 +132,7 @@ async def main():
                 if not await page.evaluate(
                         "()=>!!document.querySelector('#sheet.open')"):
                     await open_sort_panel(page)
-                selector = (f"#sheet .sact[data-settri='{key}']"
+                selector = (f"#sheet .sact[data-setsort='{key}']"
                             + ("[data-reversed='1']" if reversed_
                                else ":not([data-reversed])"))
                 control = page.locator(selector).first
@@ -166,7 +166,7 @@ async def main():
         # leaves none — neither is visible from the resting state, where the
         # normal direction is in force.
         await page.evaluate(
-            "()=>{window.__magasin.ecrire({tri: 'az', sortReversed: true}); render();}")
+            "()=>{window.__magasin.write({tri: 'az', sortReversed: true}); render();}")
         await page.wait_for_timeout(400)
         marked = await open_sort_panel(page)
         current = [entry for entry in marked if entry["current"]]
@@ -175,7 +175,7 @@ async def main():
             len(current) == 1 and current[0]["sort"] == "az"
             and current[0]["reversed"],
             str([(entry["text"], entry["current"]) for entry in marked]))
-        await page.evaluate("()=>window.__panneau.fermer()")
+        await page.evaluate("()=>window.__panel.close()")
         await page.wait_for_timeout(300)
 
         # AND THE NORMAL DIRECTION IS NOT MERELY THE OTHER ONE: « A → Z » says
@@ -184,7 +184,7 @@ async def main():
         # the reverse of the other — true of any comparator, and of a broken
         # one.
         await page.evaluate(
-            "()=>{window.__magasin.ecrire({tri: 'az', sortReversed: false}); render();}")
+            "()=>{window.__magasin.write({tri: 'az', sortReversed: false}); render();}")
         await page.wait_for_timeout(500)
         alphabetical = await page.evaluate(TITLES)
         # Sorted by the PLATFORM's French collation, not by the app's — and not
@@ -205,12 +205,12 @@ async def main():
         # grid mode (`tileHTML`, not `libRowHTML`), so a direction that reached
         # only the list would be a working sort on one half of the page.
         await page.evaluate(
-            "()=>{window.__magasin.ecrire({libMode: 'grid', tri: 'az',"
+            "()=>{window.__magasin.write({libMode: 'grid', tri: 'az',"
             " sortReversed: false}); render();}")
         await page.wait_for_timeout(600)
         grid_normal = await page.evaluate(TITLES)
         await page.evaluate(
-            "()=>{window.__magasin.ecrire({sortReversed: true}); render();}")
+            "()=>{window.__magasin.write({sortReversed: true}); render();}")
         await page.wait_for_timeout(600)
         grid_reversed = await page.evaluate(TITLES)
         journal.check(
@@ -219,7 +219,7 @@ async def main():
             and grid_reversed == list(reversed(grid_normal)),
             f"{len(grid_normal)} tiles — {grid_normal[:1]}…{grid_normal[-1:]} "
             f"became {grid_reversed[:1]}…{grid_reversed[-1:]}")
-        await page.evaluate("()=>{window.__magasin.ecrire({libMode: 'list'}); render();}")
+        await page.evaluate("()=>{window.__magasin.write({libMode: 'list'}); render();}")
         await page.wait_for_timeout(400)
 
         # A PREFERENCE, NOT A PLACE. The panel's own note says the sort stays on

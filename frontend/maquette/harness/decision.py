@@ -42,12 +42,12 @@ def check(name, condition, detail=""):
 SCREEN = """() => {
   // The arbitration screen left `#screen` for a real route
   // (`/resolution/$dossier`, rendered inside `#coquille`), so it answers to
-  // its own identity now, the way the fiche and the add screen already do.
+  // its own identity now, the way the mediaSheet and the add screen already do.
   // The identity rather than a bare `.screen.open`: two screens can carry
   // `open` at once, and this rule must measure THIS one. An absent screen
   // reads as an empty one, so every check below falls on its own number —
   // readable — instead of on a TypeError, which is not.
-  const s = document.querySelector('.screen.open[data-cle^="resolution:"]')
+  const s = document.querySelector('.screen.open[data-key^="resolution:"]')
     ?? document.createElement('div');
   const cards = [...s.querySelectorAll('.card')];
   const decisions = cards.filter(c => c.dataset.nonmedia === 'decision');
@@ -63,7 +63,7 @@ SCREEN = """() => {
       poster: (c.querySelector('.poster img') || {}).src || null,
       noPoster: !!c.querySelector('.poster .pfall'),
       plot: (c.querySelector('.cov') || {}).textContent || null,
-      link: c.querySelectorAll('a, [data-fiche]').length,
+      link: c.querySelectorAll('a, [data-mediasheet]').length,
     })),
     decisions: decisions.map(c => ({
       folder: (c.querySelector('.ctitle') || {}).textContent || '',
@@ -169,7 +169,7 @@ async def main():
         # ── answering empties the queue, on BOTH lists ────────────────────
         for state_, list_, exit_ in (
             ("arr-decision", "blocked", "[data-resolve]"),
-            ("arr-repos", "stuck", "[data-laisser]"),
+            ("arr-repos", "stuck", "[data-leave]"),
         ):
             await pg.evaluate("(s)=>window.__go(s)", state_)
             await pg.wait_for_timeout(420)

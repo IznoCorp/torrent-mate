@@ -31,10 +31,10 @@ async def main():
     await pg.wait_for_timeout(700)
     # The media sheet left `#screen` for a real route (`/fiche/$titre`, rendered
     # inside `#coquille`), so it is read by the identity it carries —
-    # `data-cle="fiche:…"` — rather than by a layer id it no longer uses, or by
+    # `data-key="mediaSheet:…"` — rather than by a layer id it no longer uses, or by
     # a bare `.screen.open` that cannot tell two stacked screens apart.
     r = await pg.evaluate("""()=>({sheet:document.querySelector('#sheet').classList.contains('open'),
-      screen:!!document.querySelector('.screen.open[data-cle^="fiche:"]')})""")
+      screen:!!document.querySelector('.screen.open[data-key^="mediaSheet:"]')})""")
     chk("2. media sheet from a follow sheet", r["screen"] and not r["sheet"], str(r))
 
     # 2b — from Découvrir
@@ -43,13 +43,13 @@ async def main():
     await pg.evaluate("()=>[...document.querySelectorAll('#sheet .sact')].find(x=>x.textContent.includes('Voir la fiche')).click()")
     await pg.wait_for_timeout(700)
     r = await pg.evaluate("""()=>({sheet:document.querySelector('#sheet').classList.contains('open'),
-      screen:!!document.querySelector('.screen.open[data-cle^="fiche:"]')})""")
+      screen:!!document.querySelector('.screen.open[data-key^="mediaSheet:"]')})""")
     chk("2b. the same from Découvrir", r["screen"] and not r["sheet"], str(r))
 
     # 3 — changing page closes the media sheet
     await pg.evaluate("()=>window.__go('fiche-serie')"); await pg.wait_for_timeout(400)
     await pg.evaluate("()=>document.querySelector('[data-page=lib]').click()"); await pg.wait_for_timeout(400)
-    r = await pg.evaluate("""()=>({screen:!!document.querySelector('.screen.open[data-cle^="fiche:"]'),
+    r = await pg.evaluate("""()=>({screen:!!document.querySelector('.screen.open[data-key^="mediaSheet:"]'),
       page:state.page})""")
     chk("3. navigating closes the media sheet", not r["screen"] and r["page"]=="lib", str(r))
 
@@ -63,13 +63,13 @@ async def main():
     chk("5. cast portraits", n >= 4, f"{n} photos")
 
     # 6 — the last action is no longer glued to the bar
-    r = await pg.evaluate("""()=>{const sc=document.querySelector('.screen.open[data-cle^="fiche:"] .port');
+    r = await pg.evaluate("""()=>{const sc=document.querySelector('.screen.open[data-key^="mediaSheet:"] .port');
       const btn=[...sc.querySelectorAll('.sact')].pop();
       const bar=document.querySelector('.bottombar').getBoundingClientRect();
       sc.scrollTop=sc.scrollHeight;
       return {gap:Math.round(bar.top-btn.getBoundingClientRect().bottom)};}""")
     await pg.wait_for_timeout(200)
-    r2 = await pg.evaluate("""()=>{const sc=document.querySelector('.screen.open[data-cle^="fiche:"] .port');
+    r2 = await pg.evaluate("""()=>{const sc=document.querySelector('.screen.open[data-key^="mediaSheet:"] .port');
       const btn=[...sc.querySelectorAll('.sact')].pop();
       return Math.round(document.querySelector('.bottombar').getBoundingClientRect().top - btn.getBoundingClientRect().bottom);}""")
     chk("6. gap under the last action", r2 >= 12, f"{r2}px at maximum scroll")
@@ -77,10 +77,10 @@ async def main():
 
     # 7 — a search result leads to its media sheet
     await pg.evaluate("()=>window.__go('acq-ajout-resultats')"); await pg.wait_for_timeout(450)
-    has = await pg.evaluate("()=>!!document.querySelector('.reslist .card .poster[data-fiche]')")
-    await pg.evaluate("()=>document.querySelector('.reslist .card .poster[data-fiche]').click()"); await pg.wait_for_timeout(600)
+    has = await pg.evaluate("()=>!!document.querySelector('.reslist .card .poster[data-mediasheet]')")
+    await pg.evaluate("()=>document.querySelector('.reslist .card .poster[data-mediasheet]').click()"); await pg.wait_for_timeout(600)
     title = await pg.evaluate(
-        """()=>document.querySelector('.screen.open[data-cle^="fiche:"] .ht')?.textContent""")
+        """()=>document.querySelector('.screen.open[data-key^="mediaSheet:"] .ht')?.textContent""")
     chk("7. result → media sheet", has and bool(title), f"→ « {title} »")
 
     # 8 — the resolution screen's way out exists
@@ -128,7 +128,7 @@ async def main():
     # (« Suivre » / « Ajouter »), which is what makes the footer exist.
     # The add screen left `#screen` for a real route (`/ajout`, rendered
     # inside `#coquille`): its results list is now `.screen.open`, not
-    # literally `#screen`. This journey opens no fiche, so no key is matched
+    # literally `#screen`. This journey opens no mediaSheet, so no key is matched
     # here — the one control on screen is the result's own panel trigger.
     await pg.evaluate("()=>document.querySelector('.screen.open [data-panel^=\"add:\"]').click()")
     await pg.wait_for_timeout(450)
@@ -157,7 +157,7 @@ async def main():
         chk("10b. « Voir mes suivis » lands", not r["screen"] and r["page"]=="acq", str(r))
         # 10c — B-025: the entry-count half of the fix. `toFollows` REPLACES
         # the add screen's own entry (same "the layer's entry becomes the
-        # arrival" semantics `data-go`'s comment describes — ajout.tsx's own
+        # arrival" semantics `data-go`'s comment describes — add.tsx's own
         # doc comment) instead of pushing beside it. A single real Back must
         # therefore leave `/ajout` in ONE step: no buried layer entry, no
         # stale `/ajout` still one hop under the landing. The comparison is

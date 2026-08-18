@@ -59,7 +59,7 @@ async def main():
 
         # (a) A migrated page is drawn, and drawn ONCE.
         for identifier in SHELL_OWNED:
-            await page.evaluate(f"()=>window.__magasin.ecrire({{page: {identifier!r}}})")
+            await page.evaluate(f"()=>window.__magasin.write({{page: {identifier!r}}})")
             await page.evaluate("()=>window.__referentiel.render()")
             await page.wait_for_timeout(300)
             seen = await page.evaluate(READ)
@@ -96,7 +96,7 @@ async def main():
             f"the fragment still draws: {drawn_by_legacy}" if drawn_by_legacy
             else f"{len(SHELL_OWNED)} shell-owned, none left to the fragment")
         for identifier in LEGACY_OWNED:
-            await page.evaluate(f"()=>window.__magasin.ecrire({{page: {identifier!r}}})")
+            await page.evaluate(f"()=>window.__magasin.write({{page: {identifier!r}}})")
             await page.evaluate("()=>window.__referentiel.render()")
             await page.wait_for_timeout(300)
             seen = await page.evaluate(READ)
@@ -120,7 +120,7 @@ async def main():
         residue = []
         absent = []
         for identifier in walk:
-            await page.evaluate(f"()=>window.__magasin.ecrire({{page: {identifier!r}}})")
+            await page.evaluate(f"()=>window.__magasin.write({{page: {identifier!r}}})")
             await page.evaluate("()=>window.__referentiel.render()")
             await page.wait_for_timeout(300)
             seen = await page.evaluate(READ)
@@ -175,20 +175,20 @@ async def main():
         # wave that moves the emitter owes these two holds, or a component that
         # stopped writing one of those attributes would break the page while
         # every existing rule stayed green.
-        await page.evaluate("()=>window.__magasin.ecrire({page: 'maint', maintRub: null})")
+        await page.evaluate("()=>window.__magasin.write({page: 'maint', maintTopic: null})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(300)
-        refused = await tap("#view .topic[data-maintrub='scan']")
+        refused = await tap("#view .topic[data-maintopic='scan']")
         opened = await page.evaluate("""()=>({
-          rubrique: window.__magasin.lire().etat.maintRub,
-          back: !!document.querySelector('#view .crossref[data-maintrub=""]'),
+          rubrique: window.__magasin.read().state.maintTopic,
+          back: !!document.querySelector('#view .crossref[data-maintopic=""]'),
           rows: document.querySelectorAll('#view .flux .fx').length,
         })""")
         journal.check(
             "a real tap on a rubric row opens that rubric",
             not refused and opened["rubrique"] == "scan" and opened["back"]
             and opened["rows"] > 0,
-            str(opened) if not refused else f"data-maintrub='scan' {refused}")
+            str(opened) if not refused else f"data-maintopic='scan' {refused}")
 
         # Looked up rather than clicked blind, and identified: the panel must be
         # THAT command's. « a panel opened » is satisfied by
@@ -212,7 +212,7 @@ async def main():
             and panel["title"] == wanted["title"],
             f"{wanted} → {panel}" if not refused
             else f"data-maintact {refused}")
-        await page.evaluate("()=>window.__panneau.fermer()")
+        await page.evaluate("()=>window.__panel.close()")
         await page.wait_for_timeout(300)
 
         # (c-ter) THE SAME DEBT, on the page that carries the most of it. The
@@ -220,45 +220,45 @@ async def main():
         # acts on, and R60 reaches every one of its states through
         # `window.__go(...)` — never through a tap. So the whole delegation
         # path was unmeasured: a component that stopped writing
-        # `data-rubrique` would leave a page of rows nothing opens, with R60
+        # `data-topic` would leave a page of rows nothing opens, with R60
         # entirely green. Each control is LOOKED UP before it is tapped: a
         # click on a selector that matches nothing times out and crashes the
         # script, which reads as a broken rule instead of a named defect.
         await page.evaluate(
-            "()=>{REG_ETAT.rubrique = null; REG_ETAT.q = '';"
-            " REG_ETAT.modifs.clear(); REG_ETAT.redemarrage = false;}")
-        await page.evaluate("()=>window.__magasin.ecrire({page: 'cfg'})")
+            "()=>{SETTINGS_STATE.rubrique = null; SETTINGS_STATE.q = '';"
+            " SETTINGS_STATE.modifs.clear(); SETTINGS_STATE.redemarrage = false;}")
+        await page.evaluate("()=>window.__magasin.write({page: 'cfg'})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(300)
 
         topic = await page.evaluate(
-            "()=>{const b = document.querySelector('#view .topic[data-rubrique]');"
-            " return b ? b.dataset.rubrique : null;}")
-        refused = await tap("#view .topic[data-rubrique]") if topic else "absent"
+            "()=>{const b = document.querySelector('#view .topic[data-topic]');"
+            " return b ? b.dataset.topic : null;}")
+        refused = await tap("#view .topic[data-topic]") if topic else "absent"
         opened = await page.evaluate("""()=>({
-          rubrique: REG_ETAT.rubrique,
-          rows: document.querySelectorAll('#view .settingrow[data-reglage]').length,
+          rubrique: SETTINGS_STATE.rubrique,
+          rows: document.querySelectorAll('#view .settingrow[data-setting]').length,
         })""")
         journal.check(
             "a real tap on a settings topic opens THAT topic",
             not refused and opened["rubrique"] == topic and opened["rows"] > 0,
-            f"{topic} → {opened}" if not refused else f"data-rubrique {refused}")
+            f"{topic} → {opened}" if not refused else f"data-topic {refused}")
 
         # The row's own identity, compared against the field the panel opens on:
         # « a panel opened » would be satisfied by every row opening the same
         # one. The panel's META carries the identity for EVERY type, while
-        # `data-champ` exists only for the types that offer a field — a
+        # `data-field` exists only for the types that offer a field — a
         # structure or a list would fail this hold for the wrong reason.
         identity = await page.evaluate(
-            "()=>{const b = document.querySelector('#view .settingrow[data-reglage]');"
-            " return b ? b.dataset.reglage : null;}")
-        refused = (await tap("#view .settingrow[data-reglage]")
+            "()=>{const b = document.querySelector('#view .settingrow[data-setting]');"
+            " return b ? b.dataset.setting : null;}")
+        refused = (await tap("#view .settingrow[data-setting]")
                    if identity else "absent")
         edited = await page.evaluate("""()=>{
-          const field = document.querySelector('#sheetin [data-champ]');
+          const field = document.querySelector('#sheetin [data-field]');
           const meta = document.querySelector('#sheet .sheetmeta');
           return {open: !!document.querySelector('#sheet.open'),
-                  field: field ? field.dataset.champ : null,
+                  field: field ? field.dataset.field : null,
                   meta: meta ? meta.textContent.trim() : null};}""")
         named = identity and edited["meta"] and all(
             part in edited["meta"] for part in identity.split(":"))
@@ -266,8 +266,8 @@ async def main():
             "and a real tap on a setting opens THAT setting",
             not refused and edited["open"] and bool(named)
             and (edited["field"] is None or edited["field"] == identity),
-            f"{identity} → {edited}" if not refused else f"data-reglage {refused}")
-        await page.evaluate("()=>window.__panneau.fermer()")
+            f"{identity} → {edited}" if not refused else f"data-setting {refused}")
+        await page.evaluate("()=>window.__panel.close()")
         await page.wait_for_timeout(300)
 
         # The save bar is the page's second host, and its button is the only
@@ -275,54 +275,54 @@ async def main():
         # the legacy's own verb rather than typed, because what is held here is
         # the tap, not the field.
         staged = await page.evaluate("""()=>{
-          const setting = window.__referentiel.tousLesReglages()
+          const setting = window.__referentiel.allSettings()
             .find((x) => x.type === 'booleen');
           if (!setting) return null;
-          const id = window.__referentiel.reglageId(setting);
-          window.__referentiel.modifierReglage(id, !setting.brut);
+          const id = window.__referentiel.settingId(setting);
+          window.__referentiel.changeSetting(id, !setting.brut);
           window.__referentiel.render();
           return id;}""")
         await page.wait_for_timeout(300)
-        refused = (await tap("#savebar [data-enregistrer]") if staged else "absent")
+        refused = (await tap("#savebar [data-save]") if staged else "absent")
         saved = await page.evaluate(
-            "()=>({pending: REG_ETAT.modifs.size, restart: REG_ETAT.redemarrage,"
+            "()=>({pending: SETTINGS_STATE.modifs.size, restart: SETTINGS_STATE.redemarrage,"
             " bar: !!document.querySelector('#savebar')})")
         journal.check(
             "a real tap on the save bar files the change and asks for a restart",
             not refused and saved["pending"] == 0 and saved["restart"]
             and not saved["bar"],
-            str(saved) if not refused else f"data-enregistrer {refused}")
+            str(saved) if not refused else f"data-save {refused}")
 
-        await page.evaluate("()=>{REG_ETAT.rubrique = null;}")
+        await page.evaluate("()=>{SETTINGS_STATE.rubrique = null;}")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(300)
-        refused = await tap("#view [data-redemarrer]")
+        refused = await tap("#view [data-restart]")
         # The restart offer only exists because the save above raised it, so a
-        # lost `data-enregistrer` reaches this hold as « absent ». The detail
+        # lost `data-save` reaches this hold as « absent ». The detail
         # says what was MEASURED either way — a line that reads « restart
         # cleared » under a FAIL tells a reader the opposite of what happened.
-        restart_left = await page.evaluate("()=>REG_ETAT.redemarrage")
+        restart_left = await page.evaluate("()=>SETTINGS_STATE.redemarrage")
         journal.check(
             "and a real tap on the restart offer takes it",
             not refused and not restart_left,
             f"redemarrage={restart_left}" if not refused
-            else f"data-redemarrer {refused} (the save above raises it)")
+            else f"data-restart {refused} (the save above raises it)")
 
-        refused = await tap("#view .topic[data-rubrique='secrets']")
+        refused = await tap("#view .topic[data-topic='secrets']")
         listed = await page.evaluate(
-            "()=>({rubrique: REG_ETAT.rubrique,"
+            "()=>({rubrique: SETTINGS_STATE.rubrique,"
             " rows: document.querySelectorAll('#view [data-secret]').length})")
         journal.check(
             "a real tap on the secrets topic lists the secrets",
             not refused and listed["rubrique"] == "secrets" and listed["rows"] > 0,
-            str(listed) if not refused else f"data-rubrique='secrets' {refused}")
+            str(listed) if not refused else f"data-topic='secrets' {refused}")
 
         # THAT secret's panel: the key it carries has to appear in the panel it
         # opened, or every secret row opening one panel would pass.
         key = await page.evaluate(
             "()=>{const b = document.querySelector('#view [data-secret]');"
             " return b ? b.dataset.secret : null;}")
-        await page.evaluate("()=>window.__panneau.fermer()")
+        await page.evaluate("()=>window.__panel.close()")
         await page.wait_for_timeout(250)
         refused = await tap("#view [data-secret]") if key else "absent"
         sheet = await page.evaluate("""()=>({
@@ -334,7 +334,7 @@ async def main():
             not refused and sheet["open"] and bool(key) and key in sheet["text"],
             f"{key} → open={sheet['open']}, named={bool(key) and key in sheet['text']}"
             if not refused else f"data-secret {refused}")
-        await page.evaluate("()=>window.__panneau.fermer()")
+        await page.evaluate("()=>window.__panel.close()")
         await page.wait_for_timeout(300)
 
         # The search's clear button exists only while something is searched
@@ -342,35 +342,35 @@ async def main():
         await page.evaluate(
             # french-ok: a French search WORD, typed into the app's own search
             # — the data a French interface is searched with, not a name.
-            "()=>{REG_ETAT.rubrique = null; REG_ETAT.q = 'espace';}")
+            "()=>{SETTINGS_STATE.rubrique = null; SETTINGS_STATE.q = 'espace';}")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(300)
-        refused = await tap("#view [data-qreg]")
+        refused = await tap("#view [data-qsettings]")
         cleared = await page.evaluate(
-            "()=>({q: REG_ETAT.q,"
-            " clear: !!document.querySelector('#view [data-qreg]')})")
+            "()=>({q: SETTINGS_STATE.q,"
+            " clear: !!document.querySelector('#view [data-qsettings]')})")
         journal.check(
             "a real tap on the search's cross clears the search",
             not refused and cleared["q"] == "" and not cleared["clear"],
-            str(cleared) if not refused else f"data-qreg {refused}")
+            str(cleared) if not refused else f"data-qsettings {refused}")
 
         # And the one row that leaves the page entirely: the quality profile is
         # a ROUTE, so what proves the tap landed is the address — the address
         # the ROW NAMED, and only if it was not already there before the tap.
         profile = await page.evaluate(
-            "()=>{const b = document.querySelector('#view .topic[data-profil]');"
-            " return b ? b.dataset.profil : null;}")
+            "()=>{const b = document.querySelector('#view .topic[data-profile]');"
+            " return b ? b.dataset.profile : null;}")
         before_address = await page.evaluate("()=>location.pathname")
-        refused = await tap("#view .topic[data-profil]") if profile else "absent"
+        refused = await tap("#view .topic[data-profile]") if profile else "absent"
         await page.wait_for_timeout(400)
         address = await page.evaluate("()=>location.pathname")
         journal.check(
             "a real tap on the quality-profile row goes to ITS address",
             not refused and profile is not None
             and address == f"/profil/{profile}" and before_address != address,
-            f"{before_address} → {address} for data-profil={profile!r}"
-            if not refused else f"data-profil {refused}")
-        await page.evaluate("()=>window.__pont.retour()")
+            f"{before_address} → {address} for data-profile={profile!r}"
+            if not refused else f"data-profile {refused}")
+        await page.evaluate("()=>window.__bridge.back()")
         await page.wait_for_timeout(420)
 
         # (c-sexies) THE MÉDIATHÈQUE'S OWN DELEGATION. This page carries more
@@ -378,14 +378,14 @@ async def main():
         # selection, the deletion and the search's cross — and R63 drives it
         # through the store, never through a tap.
         await page.evaluate("()=>window.__reset()")
-        await page.evaluate("()=>window.__magasin.ecrire({page: 'lib', phase: 'prete',"
+        await page.evaluate("()=>window.__magasin.write({page: 'lib', phase: 'prete',"
                             " libLens: 'cat', libMode: 'list', libCat: 'all', q: ''})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(400)
 
         refused = await tap("#view .seg [data-lens='rec']")
         lens = await page.evaluate("""()=>({
-          lens: window.__magasin.lire().etat.libLens,
+          lens: window.__magasin.read().state.libLens,
           drawn: (document.querySelector('#view .countline')||{}).textContent || '',
         })""")
         journal.check(
@@ -393,7 +393,7 @@ async def main():
             not refused and lens["lens"] == "rec" and "index" in lens["drawn"],
             str(lens)[:120] if not refused else f"data-lens {refused}")
 
-        await page.evaluate("()=>window.__magasin.ecrire({libLens: 'cat'})")
+        await page.evaluate("()=>window.__magasin.write({libLens: 'cat'})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(400)
         wanted = await page.evaluate(
@@ -401,7 +401,7 @@ async def main():
             ".find((x) => x.dataset.cat !== 'all'); return b ? b.dataset.cat : null;}")
         refused = (await tap(f"#view .pill[data-cat='{wanted}']") if wanted else "absent")
         chosen = await page.evaluate(
-            "()=>({cat: window.__magasin.lire().etat.libCat,"
+            "()=>({cat: window.__magasin.read().state.libCat,"
             " pressed: (document.querySelector('#view .pill[aria-pressed=true]')||{})"
             ".dataset?.cat || null})")
         journal.check(
@@ -411,14 +411,14 @@ async def main():
 
         refused = await tap("#view [data-lmode='grid']")
         mode = await page.evaluate("""()=>({
-          mode: window.__magasin.lire().etat.libMode,
+          mode: window.__magasin.read().state.libMode,
           drawn: (document.querySelector('#libitems')||{}).className || null,
         })""")
         journal.check(
             "a real tap on the view switch really switches the view",
             not refused and mode["mode"] == "grid" and mode["drawn"] == "grid",
             str(mode) if not refused else f"data-lmode {refused}")
-        await page.evaluate("()=>window.__magasin.ecrire({libMode: 'list', libCat: 'all'})")
+        await page.evaluate("()=>window.__magasin.write({libMode: 'list', libCat: 'all'})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(400)
 
@@ -426,7 +426,7 @@ async def main():
         # entry proves the seam still works across the two worlds.
         refused = await tap("#view [data-selmode='1']")
         selecting = await page.evaluate("""()=>({
-          mode: !!window.__magasin.lire().etat.selMode,
+          mode: !!window.__magasin.read().state.selMode,
           bar: !!document.querySelector('#device .selbar'),
           rows: document.querySelectorAll('#libitems .selrow[data-tile]').length,
         })""")
@@ -435,7 +435,7 @@ async def main():
             not refused and selecting["mode"] and selecting["bar"]
             and selecting["rows"] > 0,
             str(selecting) if not refused else f"data-selmode {refused}")
-        await page.evaluate("()=>window.__magasin.ecrire({selMode: false})")
+        await page.evaluate("()=>window.__magasin.write({selMode: false})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(400)
 
@@ -457,12 +457,12 @@ async def main():
 
         await page.evaluate(
             # french-ok: a French search WORD, typed into the app's own search.
-            "()=>{window.__magasin.ecrire({q: 'stargate'});}")
+            "()=>{window.__magasin.write({q: 'stargate'});}")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(400)
         refused = await tap("#view [data-clearq]")
         cleared = await page.evaluate("""()=>({
-          q: window.__magasin.lire().etat.q,
+          q: window.__magasin.read().state.q,
           field: (document.querySelector('#libq')||{}).value,
           cross: !!document.querySelector('#view [data-clearq]'),
         })""")
@@ -484,28 +484,28 @@ async def main():
         console_errors: list[str] = []
         page.on("console", lambda message: console_errors.append(message.text)
                 if message.type == "error" else None)
-        await page.evaluate("()=>{REG_ETAT.rubrique = null; REG_ETAT.q = '';"
-                            " REG_ETAT.modifs.clear(); REG_ETAT.redemarrage = false;}")
-        await page.evaluate("()=>window.__magasin.ecrire({page: 'cfg'})")
+        await page.evaluate("()=>{SETTINGS_STATE.rubrique = null; SETTINGS_STATE.q = '';"
+                            " SETTINGS_STATE.modifs.clear(); SETTINGS_STATE.redemarrage = false;}")
+        await page.evaluate("()=>window.__magasin.write({page: 'cfg'})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(300)
         await page.evaluate("""()=>{
-          const setting = window.__referentiel.tousLesReglages()
+          const setting = window.__referentiel.allSettings()
             .find((x) => x.type === 'booleen');
-          window.__referentiel.modifierReglage(
-            window.__referentiel.reglageId(setting), !setting.brut);
+          window.__referentiel.changeSetting(
+            window.__referentiel.settingId(setting), !setting.brut);
           window.__referentiel.render();}""")
         await page.wait_for_timeout(300)
         raised = await page.evaluate("()=>!!document.querySelector('#savebar')")
-        await page.evaluate("()=>{window.__magasin.ecrire({page: 'lib'});"
+        await page.evaluate("()=>{window.__magasin.write({page: 'lib'});"
                             " window.__referentiel.render();}")
         await page.wait_for_timeout(500)
-        await page.evaluate("()=>{window.__magasin.ecrire({page: 'cfg'});"
+        await page.evaluate("()=>{window.__magasin.write({page: 'cfg'});"
                             " window.__referentiel.render();}")
         await page.wait_for_timeout(500)
         returned = await page.evaluate("""()=>({
           roots: [...document.querySelector('#view').children].map((x) => x.className),
-          rows: document.querySelectorAll('#view .topic[data-rubrique]').length,
+          rows: document.querySelectorAll('#view .topic[data-topic]').length,
         })""")
         journal.check(
             "leaving a migrated page with an unsaved change, and coming back, "
@@ -521,14 +521,14 @@ async def main():
         # obligations. R63 and the audit reach this page through `__go`; none of
         # them taps.
         await page.evaluate("()=>window.__reset()")
-        await page.evaluate("()=>window.__magasin.ecrire({page: 'acq',"
+        await page.evaluate("()=>window.__magasin.write({page: 'acq',"
                             " acqTab: 'maintenant', phase: 'prete'})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(400)
 
         refused = await tap("#view .seg [data-acqtab='suivis']")
         opened = await page.evaluate("""()=>({
-          tab: window.__magasin.lire().etat.acqTab,
+          tab: window.__magasin.read().state.acqTab,
           field: !!document.querySelector('#view #follq'),
           rows: document.querySelectorAll('#view .card').length,
         })""")
@@ -543,7 +543,7 @@ async def main():
             ".find((x) => x.dataset.pill !== 'tout'); return b ? b.dataset.pill : null;}")
         refused = (await tap(f"#view .pill[data-pill='{wanted}']") if wanted else "absent")
         filtered = await page.evaluate(
-            "()=>({pill: window.__magasin.lire().etat.pill,"
+            "()=>({pill: window.__magasin.read().state.pill,"
             " pressed: (document.querySelector('#view .pill[aria-pressed=true]')||{})"
             ".dataset?.pill || null})")
         journal.check(
@@ -554,20 +554,20 @@ async def main():
 
         refused = await tap("#view [data-fmode='grid']")
         mode = await page.evaluate(
-            "()=>({mode: window.__magasin.lire().etat.followMode,"
+            "()=>({mode: window.__magasin.read().state.followMode,"
             " tiles: document.querySelectorAll('#view .grid .tile').length})")
         journal.check(
             "a real tap on a display mode really changes the display",
             not refused and mode["mode"] == "grid" and mode["tiles"] > 0,
             str(mode) if not refused else f"data-fmode {refused}")
 
-        await page.evaluate("()=>window.__magasin.ecrire({acqTab: 'decouvrir',"
+        await page.evaluate("()=>window.__magasin.write({acqTab: 'decouvrir',"
                             " followMode: 'list', sugMode: 'list'})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(500)
         refused = await tap("#view [data-sugmode='poster']")
         suggestions = await page.evaluate(
-            "()=>({mode: window.__magasin.lire().etat.sugMode,"
+            "()=>({mode: window.__magasin.read().state.sugMode,"
             " grid: (document.querySelector('#sugitems')||{}).className,"
             " tiles: document.querySelectorAll('#sugitems .tile').length})")
         journal.check(
@@ -579,10 +579,10 @@ async def main():
         # THE CONTAINERS ARE THE FRAGMENT'S TO FILL, and that seam is what this
         # wave chose deliberately — so it is held: React draws them, the
         # fragment fills them, and a re-render does not empty them.
-        await page.evaluate("()=>window.__magasin.ecrire({page: 'lib'})")
+        await page.evaluate("()=>window.__magasin.write({page: 'lib'})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(300)
-        await page.evaluate("()=>window.__magasin.ecrire({page: 'acq'})")
+        await page.evaluate("()=>window.__magasin.write({page: 'acq'})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(600)
         # WHO FILLED IT, not merely whether it is full: « some children »
@@ -606,10 +606,10 @@ async def main():
             str(refilled))
 
         # AND THE PAGE FOLLOWS THE WORLD. Every action this page offers
-        # mutates the world IN PLACE and signals with `toucher()`, which
+        # mutates the world IN PLACE and signals with `touch()`, which
         # leaves the state's identity unchanged — a component subscribed to
         # the state alone bails out, and the page keeps drawing what it
-        # drew. Measured before it was held: « Récupérer maintenant » moved
+        # drew. Measured before it was held: « Récupérer now » moved
         # a medium from one list to the other and left every counter on
         # screen unchanged.
         await page.evaluate("()=>window.__go('acq-encours-charge')")
@@ -620,7 +620,7 @@ async def main():
         moved = await page.evaluate(
             "()=>{const first = window.__referentiel.derivedTakeable()[0];"
             " if (!first) return null;"
-            " window.__referentiel.actionRecuperer(first.t);"
+            " window.__referentiel.actionTake(first.t);"
             " return first.t;}")
         await page.wait_for_timeout(700)
         after_action = await page.evaluate(
@@ -643,13 +643,13 @@ async def main():
         # naming half of it is what makes a hold measure a surface nobody asked
         # for.
         await page.evaluate("()=>window.__reset()")
-        await page.evaluate("()=>window.__magasin.ecrire({page: 'arr',"
+        await page.evaluate("()=>window.__magasin.write({page: 'arr',"
                             " phase: 'prete', pipe: 'repos', scen: 'charge'})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(320)
         refused = await tap("#view .pipeline [data-pipe='lancer']")
         started = await page.evaluate(
-            "()=>({pipe: window.__magasin.lire().etat.pipe,"
+            "()=>({pipe: window.__magasin.read().state.pipe,"
             " controls: [...document.querySelectorAll('#view [data-pipe]')]"
             ".map((x) => x.dataset.pipe)})")
         journal.check(
@@ -662,7 +662,7 @@ async def main():
         # is QUEUED — visibly — never refused with « busy, try again ».
         refused = await tap("#view .pipeline [data-pipe='lancer']")
         queued = await page.evaluate(
-            "()=>({pipe: window.__magasin.lire().etat.pipe,"
+            "()=>({pipe: window.__magasin.read().state.pipe,"
             " live: !!document.querySelector('#view .pipeline .live')})")
         journal.check(
             "and asked again DURING a run, the next pass is queued, not refused",
@@ -674,7 +674,7 @@ async def main():
         # running bar over a stopped pipeline satisfies the store alone — which
         # is the half its two siblings above already read.
         stopped = await page.evaluate("""()=>({
-          pipe: window.__magasin.lire().etat.pipe,
+          pipe: window.__magasin.read().state.pipe,
           idle: !!document.querySelector('#view .pipeline .pip.neutral'),
           start: !!document.querySelector('#view .pipeline .cfoot.solid'),
           controls: [...document.querySelectorAll('#view [data-pipe]')]
@@ -691,7 +691,7 @@ async def main():
         # drawn only outside the real-data scenario, which the block named at
         # its head.
         refused = await tap("#view .crossref[data-go='acq']")
-        landed = await page.evaluate("()=>window.__magasin.lire().etat.page")
+        landed = await page.evaluate("()=>window.__magasin.read().state.page")
         journal.check(
             "a real tap on the crossref lands on Acquisition",
             not refused and landed == "acq",
@@ -737,7 +737,7 @@ async def main():
         # — the store named one page, `#view` held another page's roots,
         # and the rule that hit it reported a MISSING BUTTON rather than a stale
         # page, which is what makes this worth a source-level hold. The door is
-        # the store (`window.__magasin.ecrire`), or `applyState` / `__go`, which
+        # the store (`window.__magasin.write`), or `applyState` / `__go`, which
         # go through it.
         #
         # THREE SHAPES, not one. A first version matched `state.x =` on a single
@@ -773,7 +773,7 @@ async def main():
         # `?page=arr` reaches a migrated page only if what that parser reads
         # crosses into the store the component reads. The engine reads it once
         # at boot, through the one in-place write left anywhere
-        # (`Object.assign(state, etatDeLURL())`), which is why this is measured
+        # (`Object.assign(state, stateFromUrl())`), which is why this is measured
         # rather than assumed. Measured, it holds for a sturdier reason than the
         # ordering alone: the address write that follows re-renders the shell,
         # which re-reads the mutated object — starting the engine AFTER React's
@@ -785,7 +785,7 @@ async def main():
         await cold.evaluate("()=>document.querySelector('#toastx')?.click()")
         await cold.wait_for_timeout(500)
         landed = await cold.evaluate("""()=>({
-          page: window.__magasin.lire().etat.page,
+          page: window.__magasin.read().state.page,
           roots: [...document.querySelector('#view').children].map((x) => x.className),
           bar: !!document.querySelector('#view .pipeline [data-pipe]'),
         })""")
@@ -915,7 +915,7 @@ async def main():
           const counted = writes - drawn.writes;
           delete view.innerHTML;
           return {...drawn, counted,
-                  page: window.__magasin.lire().etat.page};}""")
+                  page: window.__magasin.read().state.page};}""")
         journal.check(
             "redrawing a shell-owned page writes #view zero times, and the "
             "spy that says so is alive",

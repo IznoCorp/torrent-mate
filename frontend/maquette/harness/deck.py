@@ -23,7 +23,7 @@ async def main():
     await pg.evaluate("()=>window.__measure(true)")
 
     async def deck():
-        await pg.evaluate('()=>{window.__reset(); applyState({page:"acq",acqTab:"decouvrir",phase:"prete"}); window.__magasin.ecrire({sugMode: "deck"}); render();}')
+        await pg.evaluate('()=>{window.__reset(); applyState({page:"acq",acqTab:"decouvrir",phase:"prete"}); window.__magasin.write({sugMode: "deck"}); render();}')
         await pg.wait_for_timeout(600)
 
     async def title():
@@ -49,7 +49,7 @@ async def main():
     t0 = await title(); n0 = await pg.evaluate("()=>state.sugGone.size")
     await swipe(-170)
     t1 = await title(); n1 = await pg.evaluate("()=>state.sugGone.size")
-    comes_back = await pg.evaluate("(t)=>deckOrdre().map(i=>SUGGESTIONS[i].t).includes(t)", t0)
+    comes_back = await pg.evaluate("(t)=>deckOrder().map(i=>SUGGESTIONS[i].t).includes(t)", t0)
     print(f"LEFT   « {t0[:26]} » → « {t1[:26]} »")
     print(f"       dismissed {n0} → {n1} · comes round again: {comes_back}")
 

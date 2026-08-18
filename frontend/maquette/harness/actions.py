@@ -38,7 +38,7 @@ async def main():
     await pg.wait_for_timeout(450)
     assert await pg.evaluate("()=>document.querySelectorAll('[data-nonmedia=candidat]').length")==0, \
         "a folder with no provider answer must offer no candidate"
-    await pg.evaluate("()=>document.querySelector('[data-laisser]').click()"); await pg.wait_for_timeout(700)
+    await pg.evaluate("()=>document.querySelector('[data-leave]').click()"); await pg.wait_for_timeout(700)
     b2=await pg.evaluate(cnt); print("after « laisser »    :", {k:b2[k] for k in ('stuck','moving')})
     assert b2["stuck"]==a["stuck"]-1, "the item stayed stuck"
     print("  → out of « Ça coince » with nothing re-scraped")

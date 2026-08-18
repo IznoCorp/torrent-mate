@@ -191,7 +191,7 @@ function inactiveShow(): FollowedSeriesItem {
 }
 
 /** A show being verified — no verdict yet, badge should read "?". */
-function verificationEnCoursShow(): FollowedSeriesItem {
+function verificationRunningShow(): FollowedSeriesItem {
   return {
     id: 10,
     title: "Verifying Show",
@@ -582,7 +582,7 @@ describe("FollowsPanel", () => {
   });
 
   it("mode grille : verification_en_cours ⇒ « ? », pas de verdict", () => {
-    renderPanel([verificationEnCoursShow()]);
+    renderPanel([verificationRunningShow()]);
     fireEvent.click(screen.getByRole("button", { name: /Grille/ }));
 
     // Verifying Show (id=10): verification_en_cours, aired_count=0, owned_count=0 →

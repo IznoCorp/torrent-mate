@@ -28,7 +28,7 @@ import AcquisitionPage from "@/pages/AcquisitionPage";
 import Dashboard from "@/pages/Dashboard";
 import Login from "@/pages/Login";
 import MediaSheetPage from "@/pages/MediaSheetPage";
-import Medias from "@/pages/Medias";
+import MediaLibrary from "@/pages/MediaLibrary";
 import Config from "@/pages/Config";
 import NotFound from "@/pages/NotFound";
 import Pipeline from "@/pages/Pipeline";
@@ -64,7 +64,7 @@ export const routes: RouteObject[] = [
               },
               {
                 path: "medias",
-                element: <Medias />,
+                element: <MediaLibrary />,
               },
               {
                 path: "scraping",

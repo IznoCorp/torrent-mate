@@ -761,6 +761,156 @@ fails on drift; re-pointing it is SP5's opening move.
 `resync.py` did move with its subject: both things it rewrites — the `FOLLOWS` counters and the
 drawer's « Version déployée » footer — are the engine's, not the fragment's.
 
+## English names — the operator saw what four waves had not
+
+Branch `refactor/english-names`, versions 0.97.26 → 0.97.31. The operator's whole message was
+« data-suivante, trierLib, …. encore beaucoup d'éléments utilise des noms français », and both
+examples were real: **141 of the engine's 446 declared names (31 %) were French**, and so were
+nineteen `data-*` contracts.
+
+**And the guard said « no violation » throughout.** Its French detection was a hand-written
+list of 156 words with holes in it — `suivante`, `trier`, `fermer`, `afficher`, `masquer`,
+`chargement`, `compte`, `monde` were all invisible — so its verdict meant « none among the
+words we thought of ». That is this session's recurring defect, arrived at one last time: a
+pattern answering a narrower question than the one being asked.
+
+### What moved
+
+| | |
+| --- | --- |
+| pure identifiers | 106 |
+| names that are also properties | 29 |
+| `etat` and the store API (`lire`, `ecrire`, `adopterEtat`, `adopterMonde`, `toucher`, `monde`) | 7 |
+| `data-*` contracts | 19 |
+| the login form's fields | 2, across seven sites |
+| the last names the vocabulary surfaced | 27 |
+
+Every batch proven the same way: **0 divergence on 82 states**, or — where the markup changes
+on purpose — the rename map applied to the RECORDING and exact equality required, which says
+« every difference is a rename and nothing else ». The rule suite green at 568 holds, unchanged
+from `main`, at every step.
+
+### The detector now asks the opposite question
+
+`scripts/code-vocabulary.txt` holds **522 words** — the ones this codebase's names are built
+from. « Is this word one we use? » has no holes by construction: a name built from a word
+nobody wrote down is refused, whatever language it comes from. The arm reads `.js` too, which
+is what finally puts the legacy engine under a guard.
+
+It justified itself immediately. Seeded from the code, it contained **thirteen French words** —
+meaning twenty-seven more French names, `trierLib` among them, that a dictionary sweep had
+missed because *trier*, *carte*, *sortie* and *note* are English as well.
+
+### Nine shapes that look like an identifier and are not
+
+Each one cost a red gate, and each is now in `scripts/rename-identifiers.py` with its reason:
+
+| Shape | What it really is |
+| --- | --- |
+| `"un compte, un identifiant."` | interface copy |
+| `mode === "clair"` inside `${…}` | a string NESTED IN an interpolation — an interpolation is code, and code contains strings |
+| `reglages-modifie` | a hyphen-composed state id |
+| `"ajout:suivi"` | a colon-composed data key — renaming it rewrote a rule's own EXPECTED value |
+| `f"/profil/{titre}"` | a route path; a slash delimits an address |
+| `[data-go=profil]` | a bracketed selector — an attribute AND the value it must carry |
+| `liste:` in `t("…", {…})` | an i18n placeholder named in `fr.json` |
+| `PAGES = { profil: … }` | a key that IS a page id |
+| `"PLANIFICATEURS"` | …but this one IS an identifier, told apart by CASE |
+
+The tool carries its own proof: **an empty map must round-trip every file byte-identically**.
+That is what caught two bisect errors of mine — one measuring a single state out of the
+recorded order, one comparing slices instead of growing prefixes.
+
+### An inventory that could not see what it was inventorying
+
+Listing `data-*` names by searching for the literal text `data-x` misses every attribute the
+engine GENERATES: it writes `data-${nom}` where `nom` is a key of a data object, so
+`{ profil: "American Dad!" }` becomes `data-profil`. Renaming the reader without the data left
+forty states with a half-moved contract, and two names — `completer`, `retirer` — existed only
+in that generated form, where no inventory of literals could ever have found them. A third
+form again: a ternary, `{ settri: cle }`, inside no `target: { … }` block at all.
+
+### The mistake that merged two contracts
+
+Renaming `fiche` → `sheet` looked like the other 140. It was not: `data-fiche` is the media
+sheet, and **`data-sheet` already existed** as the sheet-opener (`utilisateur`, `plus`). After
+the merge the user menu answered with the media sheet's actions — seven rules said so. Measured,
+reverted, and `fiche` is now a NAMED DEBT in the frozen list: the obvious English name is taken,
+so it needs one of its own and its own step.
+
+The check this adds, and it belongs before any property-mode rename: **does the target name
+already exist as a contract?** Target collisions had been checked for bindings and for `data-*`
+names — not for a binding whose rename lands on an existing attribute.
+
+### The seams thawed, and the screen keys with them
+
+The operator read the frozen list and asked what the reasons actually were: « pourquoi des
+frozen-with-reason (ecrans, panneau, pont, refonte.html, fiche) ? » Three of the four did not
+survive the question. « The fragment spells them that way » is circular — the fragment, the
+engine and the harness are all in this repository, and a hundred and forty names the fragment
+spelled had already moved. `pont`, `ecrans` and `panneau` are `bridge`, `screens` and `panel`,
+with their eleven methods (`noter`→`record`, `coucher`→`pushLayer`, `surRetour`→`onBack`,
+`ouverte`→`isOpen`, …), and the media sheet is `mediaSheet` with a contract of its own,
+`data-mediasheet`, because `data-sheet` was already the panel opener. The `data-key` values
+moved on both sides in the same step: `fiche:` → `mediaSheet:`, `profil:` → `profile:`,
+`ajout:` → `add:`. What stays French is what an address is made of, and `refonte.html`, which
+R72 names and SP4-fin deletes.
+
+### The guarantor pass — what a green gate was still hiding
+
+Everything above was green — 12/12 in CI, every arm of the guard, 10 703 tests, 1 364 front —
+and a review before merge found **five things a green gate cannot see**. They are worth
+recording because each one is a shape, not an incident.
+
+**A vocabulary seeded FROM the codebase certifies the status quo.** The new arm was written to
+end « no violation means none among the words we thought of », and its own word list was
+generated from the names that existed on the day it was written — so the **twenty-five French
+words that twenty-nine names in `legacy.js` still needed came in with the rest**, and the arm
+that was meant to catch them licensed them instead. Removing those words reports the
+twenty-nine, every one in that single file. They live below a banner now, named as French on
+purpose, and `check_french_debt` refuses them to every file but the dying engine — the debt is
+declared, bounded, and it goes when the engine goes.
+
+**A rule with no arm is a sentence in a file.** `data-*` names were brought under the rule in
+the very wave that renamed nineteen of them, and nothing was written to read them, so
+`data-prendre`, `data-maintrub`, `data-qreg` and `data-apparence` simply stayed. The arm exists
+now and asks the vocabulary's question, which is the only one that can see `rub` for
+« rubrique ».
+
+**A scope is a claim, and it is checked the same way.** `frontend/scripts/` is not `scripts/`,
+and that one word of difference left an entire tool outside every arm — `SORTIE`, `JAUNE`,
+`BORDEES`, `anneau_depuis_staging`, eighteen names — while the gate reported no violation.
+
+**The word list still had the holes it was built to have.** `traiter`, `maintenant`,
+`controle`, `cherche`, `rien`, `faits`, `actifs`, `combien`, `frise`, `coupables` were all
+invisible, and under them sat the production app: a directory `components/controle/`, the files
+`ATraiterList.tsx`, `MaintenantPanel.tsx`, `Controle.test.tsx`, `Medias.tsx`, and nineteen
+identifiers. They are `control/`, `ToHandleList`, `NowPanel`, `Dashboard.test.tsx` and
+`MediaLibrary` now, and the measured words are in the list.
+
+**And the renaming tool corrupted interface copy, silently.** Two forms it did not know, plus
+two of its own:
+
+| Form | What it did |
+| --- | --- |
+| `/n'est plus cherché/i` | a REGEX literal holding an apostrophe opened a string that never closed — every literal after it in the file read as CODE, and « En attente de torrent » became « En pendingDecision de torrent » |
+| `<p>En attente de torrent</p>` | JSX text wears no quote, so a quote-aware scanner reads it as code |
+| `{ ...REGLEE }` | the SPREAD operator looks like a member access; the lookbehind that protects `x.name` skipped it, leaving a half-rename the type-checker found |
+| `[center - radius, …]` | in Python a bracket is also a LIST, and the hold that protects `[data-go=profil]` swallowed one |
+
+The first form had already fired in the committed work: `audit.py` carried
+`retrait:'Retirer le isFollowed'` and `library_sort.py` a hold named « add récent ». Both are
+restored. **Three heuristics for JSX text were tried and each traded a corruption for a silent
+half-rename** — prose between `}` and `{` also describes `} export function Name(): Thing {`.
+So the tool stopped guessing: `scripts/source-spans.mjs` asks TypeScript's own parser for the
+strings, template pieces, regexes and JSX text, and the renamer refuses to write a file whose
+protected spans moved. Measured on the finished diff: **0 of 19 files had a protected span
+change**.
+
+The lesson under all five: **a gate proves what it reads, and nothing about what it does not.**
+Every one of these was green — the question that found them was not « does it pass? » but
+« what does it look at? »
+
 ## SP4-fin wave 3 — the bridge dies, and the fixture leaves the product
 
 Branch `refactor/maquette-sp4fin3`, version 0.97.24. Four things the spec named for SP4-end,

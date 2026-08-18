@@ -36,7 +36,7 @@ import {
   shouldStartViewSwipe,
   viewSwipeResult,
 } from "@/components/acquisition/gestures";
-import { MaintenantPanel } from "@/components/acquisition/MaintenantPanel";
+import { NowPanel } from "@/components/acquisition/NowPanel";
 import { MqToaster, mqtoast } from "@/components/acquisition/MqToast";
 import {
   ACQ_EVENT_TYPES,
@@ -611,7 +611,7 @@ export default function AcquisitionPage(): ReactElement {
                 : ""}
           </p>
         </div>
-        {activeTab === "maintenant" && <MaintenantPanel />}
+        {activeTab === "maintenant" && <NowPanel />}
         {activeTab === "suivis" && <FollowsPanel />}
       </div>
 

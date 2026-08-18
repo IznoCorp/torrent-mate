@@ -24,23 +24,23 @@
    what `regions.json` names; the label is what the harness panel shows.
 */
 import {
-  REGLAGES,
-  REG_ETAT,
-  afficherConnexion,
-  afficherDemarrage,
-  afficherInstallation,
+  SETTINGS,
+  SETTINGS_STATE,
+  showSignIn,
+  showStartup,
+  showInstallation,
   applyState,
-  magasin,
+  store,
   openDeleteDialog,
   openFollowSheet,
   openJourneySheet,
-  openPlusSheet,
+  openMoreSheet,
   openUserSheet,
-  ouvrirActionMaintenance,
-  ouvrirReglage,
-  ouvrirTiroir,
-  reglageId,
-  reinitialiserReglages,
+  openActionMaintenance,
+  openSetting,
+  openDrawer,
+  settingId,
+  resetSettings,
   render,
 } from "./engine/legacy.js";
 
@@ -50,7 +50,7 @@ const STATES = [
       "Installation — Android et bureau",
       () => {
         applyState({ page: "acq", acqTab: "maintenant", phase: "prete" });
-        afficherInstallation("android");
+        showInstallation("android");
       },
     ],
     [
@@ -58,7 +58,7 @@ const STATES = [
       "Installation — iOS, méthode manuelle",
       () => {
         applyState({ page: "acq", acqTab: "maintenant", phase: "prete" });
-        afficherInstallation("ios");
+        showInstallation("ios");
       },
     ],
     [
@@ -66,14 +66,14 @@ const STATES = [
       "Démarrage — l'interface se charge",
       () => {
         applyState({ page: "acq", acqTab: "maintenant", phase: "prete" });
-        afficherDemarrage();
+        showStartup();
       },
     ],
-    ["connexion", "Connexion — écran d'entrée", () => afficherConnexion(false)],
+    ["connexion", "Connexion — écran d'entrée", () => showSignIn(false)],
     [
       "connexion-erreur",
       "Connexion — identifiants refusés",
-      () => afficherConnexion(true),
+      () => showSignIn(true),
     ],
     [
       "acq-encours-repos",
@@ -194,7 +194,7 @@ const STATES = [
       "Découvrir · affiches",
       () => {
         applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        magasin.ecrire({ sugMode: "poster" });
+        store.write({ sugMode: "poster" });
         render();
       },
     ],
@@ -203,7 +203,7 @@ const STATES = [
       "Découvrir · slide cards",
       () => {
         applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        magasin.ecrire({ sugMode: "deck" });
+        store.write({ sugMode: "deck" });
         render();
       },
     ],
@@ -241,7 +241,7 @@ const STATES = [
       "Écran d'ajout — au repos",
       () => {
         applyState({ page: "acq", phase: "prete" });
-        window.__ecrans.ajout("");
+        window.__screens.add("");
       },
     ],
     [
@@ -249,7 +249,7 @@ const STATES = [
       "Écran d'ajout — résultats réels",
       () => {
         applyState({ page: "acq", phase: "prete" });
-        window.__ecrans.ajout("star wars");
+        window.__screens.add("star wars");
       },
     ],
     [
@@ -273,10 +273,10 @@ const STATES = [
       "Recherche en mode IDENTIFIER (depuis une résolution)",
       () => {
         applyState({ page: "arr", phase: "prete", pipe: "repos" });
-        magasin.ecrire({
+        store.write({
           resolveTarget: "Backrooms.2026.MULTi.2160p.WEB-DL",
         });
-        window.__ecrans.ajout("Backrooms 2026", "identifier");
+        window.__screens.add("Backrooms 2026", "identifier");
       },
     ],
     [
@@ -284,7 +284,7 @@ const STATES = [
       "Écran — choisir une autre release",
       () => {
         applyState({ page: "acq", acqTab: "suivis", phase: "prete" });
-        window.__ecrans.releases("Silo");
+        window.__screens.releases("Silo");
       },
     ],
     [
@@ -292,7 +292,7 @@ const STATES = [
       "Écran — profil de qualité",
       () => {
         applyState({ page: "acq", acqTab: "suivis", phase: "prete" });
-        window.__ecrans.profil("Silo");
+        window.__screens.profile("Silo");
       },
     ],
     [
@@ -308,7 +308,7 @@ const STATES = [
       "Feuille « ⋮ » — veille et obligations",
       () => {
         applyState({ page: "acq", phase: "prete" });
-        openPlusSheet();
+        openMoreSheet();
       },
     ],
     [
@@ -372,7 +372,7 @@ const STATES = [
           phase: "prete",
           selMode: true,
         });
-        magasin.ecrire({ selected: new Set([0, 2, 5]) });
+        store.write({ selected: new Set([0, 2, 5]) });
         render();
       },
     ],
@@ -481,7 +481,7 @@ const STATES = [
       "Arrivées — résolution, aucun candidat",
       () => {
         applyState({ page: "arr", phase: "prete", pipe: "repos" });
-        window.__ecrans.resolution();
+        window.__screens.resolution();
       },
     ],
     [
@@ -494,7 +494,7 @@ const STATES = [
           phase: "prete",
           pipe: "repos",
         });
-        window.__ecrans.resolution("Lucky");
+        window.__screens.resolution("Lucky");
       },
     ],
     [
@@ -502,7 +502,7 @@ const STATES = [
       "Fiche — suggestion NON possédée (série)",
       () => {
         applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        window.__ecrans.fiche("The Venture Bros");
+        window.__screens.mediaSheet("The Venture Bros");
       },
     ],
     [
@@ -510,7 +510,7 @@ const STATES = [
       "Fiche — suggestion NON possédée (film)",
       () => {
         applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        window.__ecrans.fiche("Superman : L'Homme de demain");
+        window.__screens.mediaSheet("Superman : L'Homme de demain");
       },
     ],
     [
@@ -518,7 +518,7 @@ const STATES = [
       "Fiche — série avec épisodes datés",
       () => {
         applyState({ page: "lib", phase: "prete" });
-        window.__ecrans.fiche("Silo (2023)");
+        window.__screens.mediaSheet("Silo (2023)");
       },
     ],
     [
@@ -526,7 +526,7 @@ const STATES = [
       "Fiche — film",
       () => {
         applyState({ page: "lib", phase: "prete" });
-        window.__ecrans.fiche("Marjorie Prime");
+        window.__screens.mediaSheet("Marjorie Prime");
       },
     ],
     [
@@ -534,7 +534,7 @@ const STATES = [
       "Fiche — sans bande-annonce",
       () => {
         applyState({ page: "lib", phase: "prete" });
-        window.__ecrans.fiche("Broadchurch");
+        window.__screens.mediaSheet("Broadchurch");
       },
     ],
     [
@@ -542,7 +542,7 @@ const STATES = [
       "Tiroir de navigation (hamburger)",
       () => {
         applyState({ page: "acq", phase: "prete" });
-        ouvrirTiroir();
+        openDrawer();
       },
     ],
     [
@@ -578,19 +578,19 @@ const STATES = [
     [
       "maintenance",
       "Maintenance — les rubriques de commandes",
-      () => applyState({ page: "maint", phase: "prete", maintRub: null }),
+      () => applyState({ page: "maint", phase: "prete", maintTopic: null }),
     ],
     [
       "maintenance-rubrique",
       "Maintenance — une rubrique et ses commandes",
-      () => applyState({ page: "maint", phase: "prete", maintRub: "fix" }),
+      () => applyState({ page: "maint", phase: "prete", maintTopic: "fix" }),
     ],
     [
       "maintenance-suppression",
       "Maintenance — une commande qui supprime",
       () => {
-        applyState({ page: "maint", phase: "prete", maintRub: "clean" });
-        ouvrirActionMaintenance("library-clean");
+        applyState({ page: "maint", phase: "prete", maintTopic: "clean" });
+        openActionMaintenance("library-clean");
       },
     ],
     [
@@ -602,7 +602,7 @@ const STATES = [
       "reglages",
       "Réglages — les rubriques",
       () => {
-        reinitialiserReglages();
+        resetSettings();
         applyState({ page: "cfg", phase: "prete" });
       },
     ],
@@ -610,8 +610,8 @@ const STATES = [
       "reglages-rubrique",
       "Réglages — une rubrique",
       () => {
-        reinitialiserReglages();
-        REG_ETAT.rubrique = "acquisition";
+        resetSettings();
+        SETTINGS_STATE.rubrique = "acquisition";
         applyState({ page: "cfg", phase: "prete" });
       },
     ],
@@ -619,8 +619,8 @@ const STATES = [
       "reglages-recherche",
       "Réglages — recherche dans tous les réglages",
       () => {
-        reinitialiserReglages();
-        REG_ETAT.q = "espace";
+        resetSettings();
+        SETTINGS_STATE.q = "espace";
         applyState({ page: "cfg", phase: "prete" });
       },
     ],
@@ -628,23 +628,23 @@ const STATES = [
       "reglages-un",
       "Réglages — un réglage, dans son panneau",
       () => {
-        reinitialiserReglages();
-        REG_ETAT.rubrique = "acquisition";
+        resetSettings();
+        SETTINGS_STATE.rubrique = "acquisition";
         applyState({ page: "cfg", phase: "prete" });
-        ouvrirReglage("thresholds:thresholds.min_free_space_staging_gb");
+        openSetting("thresholds:thresholds.min_free_space_staging_gb");
       },
     ],
     [
       "reglages-modifie",
       "Réglages — modifications en attente",
       () => {
-        reinitialiserReglages();
-        REG_ETAT.rubrique = "acquisition";
-        REG_ETAT.modifs.set(
+        resetSettings();
+        SETTINGS_STATE.rubrique = "acquisition";
+        SETTINGS_STATE.modifs.set(
           "thresholds:thresholds.min_free_space_staging_gb",
           40,
         );
-        REG_ETAT.modifs.set("tracker:tracker.providers.c411.enabled", false);
+        SETTINGS_STATE.modifs.set("tracker:tracker.providers.c411.enabled", false);
         applyState({ page: "cfg", phase: "prete" });
       },
     ],
@@ -664,22 +664,22 @@ const STATES = [
       `reglages-champ-${genre}`,
       `Réglages — ${quoi}`,
       () => {
-        reinitialiserReglages();
-        const trouve = REGLAGES.flatMap((r) => r.r).find(
+        resetSettings();
+        const found = SETTINGS.flatMap((r) => r.r).find(
           (x) => x.type === genre,
         );
-        REG_ETAT.rubrique =
-          REGLAGES.find((r) => r.r.includes(trouve))?.id ?? null;
+        SETTINGS_STATE.rubrique =
+          SETTINGS.find((r) => r.r.includes(found))?.id ?? null;
         applyState({ page: "cfg", phase: "prete" });
-        if (trouve) ouvrirReglage(reglageId(trouve));
+        if (found) openSetting(settingId(found));
       },
     ]),
     [
       "reglages-secrets",
       "Réglages — secrets et accès",
       () => {
-        reinitialiserReglages();
-        REG_ETAT.rubrique = "secrets";
+        resetSettings();
+        SETTINGS_STATE.rubrique = "secrets";
         applyState({ page: "cfg", phase: "prete" });
       },
     ],
@@ -687,8 +687,8 @@ const STATES = [
       "reglages-lecture-seule",
       "Réglages — instance en lecture seule",
       () => {
-        reinitialiserReglages();
-        REG_ETAT.lectureSeule = true;
+        resetSettings();
+        SETTINGS_STATE.lectureSeule = true;
         applyState({ page: "cfg", phase: "prete" });
       },
     ],
@@ -696,8 +696,8 @@ const STATES = [
       "reglages-redemarrage",
       "Réglages — redémarrage nécessaire",
       () => {
-        reinitialiserReglages();
-        REG_ETAT.redemarrage = true;
+        resetSettings();
+        SETTINGS_STATE.redemarrage = true;
         applyState({ page: "cfg", phase: "prete" });
       },
     ],

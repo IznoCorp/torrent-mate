@@ -3,15 +3,15 @@
 // reborn as a real route (`/releases/$titre`) and a final component. Markup
 // is TRANSPLANTED, not translated: every tag, class and data-attribute below
 // is the one the legacy screen drew, so the same stylesheet applies
-// unchanged. `data-cle="releases:" + titre` is an identity this screen never
+// unchanged. `data-key="releases:" + titre` is an identity this screen never
 // had — the legacy `openScreen(html, undefined, () => openReleases(titre))`
 // passed no `cle` at all — added here because a router-owned screen needs one
-// to answer `.screen.open[data-cle^="releases:"]` the way every other
+// to answer `.screen.open[data-key^="releases:"]` the way every other
 // migrated screen already does (see `shell.tsx`'s dispatcher rewrite).
 //
 // The `.rel` rows are release CANDIDATES, not media cards — no poster, no
-// `data-fiche`/`data-panel`. `data-prendre` (pick this release) and
-// `data-profil` (open the quality profile) carry NO onClick: the
+// `data-mediasheet`/`data-panel`. `data-take` (pick this release) and
+// `data-profile` (open the quality profile) carry NO onClick: the
 // document-level click delegation the legacy engine still runs is the seam
 // this screen leans on, exactly as `media.tsx` and `profile.tsx`.
 import { useParams } from "@tanstack/react-router";
@@ -38,16 +38,16 @@ function Icon({ paths, strokeWidth }: { paths: string; strokeWidth?: number }) {
 
 export function ReleasesScreen() {
   const { titre: raw } = useParams({ from: "/releases/$titre" });
-  // Defensive: `__ecrans.releases` already normalises on write, but an entry
+  // Defensive: `__screens.releases` already normalises on write, but an entry
   // reached by a typed/bookmarked URL did not necessarily go through it.
   const title = raw.normalize("NFC");
   const { icons, baseTitle, RELEASES } = useReference();
   const { t } = useTranslation();
 
   return (
-    <section className="screen open" data-cle={`releases:${title}`}>
+    <section className="screen open" data-key={`releases:${title}`}>
       <div className="screenbar">
-        <button className="fback" onClick={() => window.__pont.retour()}>
+        <button className="fback" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.releases.back")}
         </button>{" "}
@@ -110,7 +110,7 @@ export function ReleasesScreen() {
               )}
               <button
                 className={`cfoot${index === 0 ? " solid" : ""}`}
-                data-prendre={index}
+                data-take={index}
               >
                 {index === 0
                   ? t("screens.releases.pickCurrent")
@@ -124,7 +124,7 @@ export function ReleasesScreen() {
             <button
               className="cfoot"
               style={{ marginTop: "10px" }}
-              data-profil={title}
+              data-profile={title}
             >
               {t("screens.releases.openProfile")}
             </button>

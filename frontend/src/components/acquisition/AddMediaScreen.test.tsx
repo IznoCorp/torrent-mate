@@ -211,7 +211,7 @@ function renderAdd(opts?: {
  * by-ID entry (disabled while its id field is empty) and the result card action.
  * Asserts exactly one is enabled, then clicks it.
  */
-function clickResultSuivre(): void {
+function clickResultFollow(): void {
   const enabled = screen
     .getAllByRole("button", { name: "Suivre" })
     .filter((b) => !(b as HTMLButtonElement).disabled);
@@ -289,8 +289,8 @@ describe("AddMediaScreen", () => {
     ).toBeInTheDocument();
     // Multiple « Suivre » buttons coexist (by-ID + result row) — at least one
     // must be present.
-    const suivreBtns = screen.getAllByRole("button", { name: "Suivre" });
-    expect(suivreBtns.length).toBeGreaterThanOrEqual(1);
+    const followButtons = screen.getAllByRole("button", { name: "Suivre" });
+    expect(followButtons.length).toBeGreaterThanOrEqual(1);
   });
 
   it("§5 — un film déjà en médiathèque demande AVANT de suivre", () => {
@@ -366,7 +366,7 @@ describe("AddMediaScreen", () => {
     });
     search("silo");
     // Follow it once — the onSuccess handler marks it done.
-    clickResultSuivre();
+    clickResultFollow();
     const btn = screen.getByRole("button", { name: "✓ Suivi" });
     expect(btn).toBeDisabled();
     // No redundant tag.
@@ -412,12 +412,12 @@ describe("AddMediaScreen", () => {
     expect(follow).not.toHaveBeenCalled();
 
     // The add stays one deliberate tap.
-    const suivre = screen
+    const followButton = screen
       .getAllByRole("button", { name: "Suivre" })
       .find((b) => b.className.includes("resbtn"));
-    expect(suivre).toBeDefined();
-    if (suivre === undefined) throw new Error("no result button");
-    fireEvent.click(suivre);
+    expect(followButton).toBeDefined();
+    if (followButton === undefined) throw new Error("no result button");
+    fireEvent.click(followButton);
     expect(follow).toHaveBeenCalledOnce();
   });
 
@@ -474,7 +474,7 @@ describe("AddMediaScreen", () => {
     // the screen the operator had just left reopened (operator, 2026-08-08).
     renderAdd({ results: [{ title: "Kaamelott", kind: "tv" }] });
     search("kaamelott");
-    clickResultSuivre();
+    clickResultFollow();
 
     fireEvent.click(screen.getByRole("button", { name: /Voir mes suivis/ }));
 

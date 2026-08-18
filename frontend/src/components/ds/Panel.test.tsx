@@ -45,8 +45,8 @@ describe("Panel", () => {
       </Panel>,
     );
     const el = screen.getByTestId("p");
-    for (const classe of SURFACE.split(" ")) {
-      expect(el.className).toContain(classe);
+    for (const cssClass of SURFACE.split(" ")) {
+      expect(el.className).toContain(cssClass);
     }
     expect(el.className).toContain("p-4");
     expect(el.tagName).toBe("DIV");
@@ -64,9 +64,9 @@ describe("Panel", () => {
   it("est le SEUL endroit qui écrit la surface", () => {
     // A surface has no content of its own to be recognised by, so a copy that
     // drifts by one token is invisible until it sits next to the original.
-    const coupables = files("src")
+    const offenders = files("src")
       .filter((f) => !EXCEPTIONS.has(f))
       .filter((f) => readFileSync(f, "utf8").includes(SURFACE));
-    expect(coupables).toEqual([]);
+    expect(offenders).toEqual([]);
   });
 });

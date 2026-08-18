@@ -45,10 +45,10 @@ async def main():
         # The add screen left `#screen` for a real route (`/ajout`, rendered
         # inside `#coquille`): its results list is `.screen.open`, not
         # literally `#screen` — and so is the FICHE this journey opens further
-        # down (`/fiche/$titre`). Each is named by its own `data-cle`.
+        # down (`/fiche/$titre`). Each is named by its own `data-key`.
         start = await pg.evaluate("""()=>({
             screen: !!document.querySelector('.screen.open'),
-            key: document.querySelector('.screen.open')?.dataset.cle,
+            key: document.querySelector('.screen.open')?.dataset.key,
             cards: document.querySelectorAll('.reslist .card').length,
             feet: document.querySelectorAll('.reslist .cfoot').length,
             query: document.querySelector('#addq')?.value})""")
@@ -74,14 +74,14 @@ async def main():
         # The poster's target is a MEDIA SHEET, and it left `#screen` for a
         # real route (`/fiche/$titre`, rendered inside `#coquille`) as the add
         # screen did before it. It is read by its own IDENTITY — the screen
-        # carrying `data-cle="fiche:…"` — and not by a bare `.screen.open`:
+        # carrying `data-key="mediaSheet:…"` — and not by a bare `.screen.open`:
         # two screens can carry `open` at once, and a selector that cannot
         # tell them apart is exactly the ambiguity the explicit reads below
         # exist to remove.
         sheet_screen = await pg.evaluate("""()=>{
-            const f = document.querySelector('.screen.open[data-cle^="fiche:"]');
+            const f = document.querySelector('.screen.open[data-key^="mediaSheet:"]');
             return {screen: !!f, hero: !!f?.querySelector('.herowrap'),
-                    key: f?.dataset.cle};}""")
+                    key: f?.dataset.key};}""")
         check("the poster opens the media sheet on the same layer",
               sheet_screen["screen"] and sheet_screen["hero"], f"key {sheet_screen['key']}")
 
@@ -89,19 +89,19 @@ async def main():
         await pg.wait_for_timeout(500)
         # R-7: `.screen.open` alone is AMBIGUOUS once two screens can carry
         # `open` at the same time — the arrival is therefore identified by its
-        # `data-cle` below, and the screen one is leaving is looked up by ITS
-        # own key rather than by a class shared with everything else. A fiche
+        # `data-key` below, and the screen one is leaving is looked up by ITS
+        # own key rather than by a class shared with everything else. A mediaSheet
         # that failed to close is what a bare `.screen.open` would mask, so it
         # is read explicitly, by identity.
         back = await pg.evaluate("""()=>({
             screen: !!document.querySelector('.screen.open'),
-            key: document.querySelector('.screen.open')?.dataset.cle,
+            key: document.querySelector('.screen.open')?.dataset.key,
             cards: document.querySelectorAll('.reslist .card').length,
             query: document.querySelector('#addq')?.value,
             scroll: document.querySelector('.screen.open .port')?.scrollTop,
-            sheetStillThere: !!document.querySelector('.screen.open[data-cle^="fiche:"]')})""")
+            sheetStillThere: !!document.querySelector('.screen.open[data-key^="mediaSheet:"]')})""")
         check("the back redraws the results list",
-              back["screen"] and (back["key"] or "").startswith("ajout:")
+              back["screen"] and (back["key"] or "").startswith("add:")
               and back["cards"] == start["cards"]
               and back["query"] == start["query"],
               f"{back['cards']} cards · query « {back['query']} »")
@@ -124,21 +124,21 @@ async def main():
         await pg.wait_for_timeout(400)
         await pg.evaluate("()=>document.querySelector('.reslist .poster').click()")
         await pg.wait_for_timeout(450)
-        # Same fiche as exit 1, and its own « Retour » is clicked on the screen
-        # identified as the fiche — never on whatever `.screen.open` happens to
+        # Same mediaSheet as exit 1, and its own « Retour » is clicked on the screen
+        # identified as the mediaSheet — never on whatever `.screen.open` happens to
         # resolve first.
         await pg.evaluate(
-            """()=>document.querySelector('.screen.open[data-cle^="fiche:"] .fback').click()""")
+            """()=>document.querySelector('.screen.open[data-key^="mediaSheet:"] .fback').click()""")
         await pg.wait_for_timeout(500)
-        # R-7: same read by identity as exit 1's `back` — a fiche that failed
+        # R-7: same read by identity as exit 1's `back` — a mediaSheet that failed
         # to close here is exactly what a bare `.screen.open` would miss.
         button = await pg.evaluate("""()=>({
             screen: !!document.querySelector('.screen.open'),
-            key: document.querySelector('.screen.open')?.dataset.cle,
+            key: document.querySelector('.screen.open')?.dataset.key,
             cards: document.querySelectorAll('.reslist .card').length,
-            sheetStillThere: !!document.querySelector('.screen.open[data-cle^="fiche:"]')})""")
+            sheetStillThere: !!document.querySelector('.screen.open[data-key^="mediaSheet:"]')})""")
         check("the sheet's « Retour » button does the same",
-              button["screen"] and (button["key"] or "").startswith("ajout:")
+              button["screen"] and (button["key"] or "").startswith("add:")
               and button["cards"] == start["cards"],
               f"{button['cards']} cards")
         check("and the media sheet is gone here too",

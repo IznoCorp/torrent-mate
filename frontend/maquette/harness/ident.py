@@ -31,7 +31,7 @@ async def where(pg):
     return await pg.evaluate("""()=>({
       address: location.pathname + location.search,
       page: state.page,
-      sheet: window.__panneau.ouverte(),
+      sheet: window.__panel.isOpen(),
       screen: document.querySelector('#screen').classList.contains('open'),
       message: (document.querySelector('#toastmsg')||{}).textContent || '',
       pops: window.__pops.length,
@@ -66,17 +66,17 @@ async def main():
     await pg.wait_for_timeout(420)
     # The arbitration screen left `#screen` for a real route
     # (`/resolution/$dossier`, rendered inside `#coquille`): it answers to its
-    # own identity now, `.screen.open[data-cle^="resolution:"]`, never to the
+    # own identity now, `.screen.open[data-key^="resolution:"]`, never to the
     # legacy host it used to live in.
     print("resolution screen        :", await pg.evaluate(
-        "()=>document.querySelector('.screen.open[data-cle^=\"resolution:\"] .h2')?.textContent"))
+        "()=>document.querySelector('.screen.open[data-key^=\"resolution:\"] .h2')?.textContent"))
 
     await pg.evaluate("()=>document.querySelector('[data-manual]').click()"); await pg.wait_for_timeout(600)
     # The manual search reached from « Chercher manuellement » is the add
     # screen at `/ajout`, also a real route now — read by its own identity,
     # falling back to an empty node so a screen that failed to open reports
     # its own absence instead of a TypeError.
-    r = await pg.evaluate("""()=>{const s=document.querySelector('.screen.open[data-cle^="ajout:"]')
+    r = await pg.evaluate("""()=>{const s=document.querySelector('.screen.open[data-key^="add:"]')
         ?? document.createElement('div');
       return {banner:(s.querySelector('.surferr b')||{}).textContent,
               query:s.querySelector('#addq')?.value,

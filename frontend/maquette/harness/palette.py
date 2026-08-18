@@ -111,7 +111,7 @@ async def main():
 
         # And nothing anywhere paints a background that resolved to nothing —
         # the visible symptom of a dangling property, on every named state.
-        transparents = []
+        transparent_states = []
         for state_ in await pg.evaluate("()=>window.__states()"):
             await pg.evaluate("(i)=>window.__go(i)", state_)
             await pg.wait_for_timeout(120)
@@ -123,9 +123,9 @@ async def main():
                   lost.push(e.className);
               }
               return lost;}""")
-            transparents += [f"{state_}:{v}" for v in seen]
+            transparent_states += [f"{state_}:{v}" for v in seen]
         check("no brand button renders a transparent background",
-                 not transparents, str(transparents[:3]))
+                 not transparent_states, str(transparent_states[:3]))
 
         check("no JS error", not errors, str(errors))
         await b.close()

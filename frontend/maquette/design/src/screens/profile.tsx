@@ -53,17 +53,17 @@ function countKept(profile: QualityProfile, releases: Release[]): number {
 
 export function ProfileScreen() {
   const { titre: raw } = useParams({ from: "/profil/$titre" });
-  // Defensive: `__ecrans.profil` already normalises on write, but an entry
+  // Defensive: `__screens.profil` already normalises on write, but an entry
   // reached by a typed/bookmarked URL did not necessarily go through it.
   const title = raw.normalize("NFC");
   const state = useUiState();
-  const profile = state.profil as QualityProfile;
-  const { RELEASES, RESOS, AUDIOS, icons, baseTitle } = useReference();
+  const profile = state.profile as QualityProfile;
+  const { RELEASES, RESOLUTIONS, AUDIOS, icons, baseTitle } = useReference();
   const { t } = useTranslation();
   const kept = countKept(profile, RELEASES);
 
   function writeProfile(patch: Partial<QualityProfile>): void {
-    writeUiState({ profil: { ...profile, ...patch } });
+    writeUiState({ profile: { ...profile, ...patch } });
   }
 
   function pickResolution(reso: Resolution | null): void {
@@ -82,9 +82,9 @@ export function ProfileScreen() {
   }
 
   return (
-    <section className="screen open" data-cle={`profil:${title}`}>
+    <section className="screen open" data-key={`profile:${title}`}>
       <div className="screenbar">
-        <button className="fback" onClick={() => window.__pont.retour()}>
+        <button className="fback" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.profile.back")}
         </button>
@@ -137,7 +137,7 @@ export function ProfileScreen() {
                   <small>{t("screens.profile.noFloorHint")}</small>
                 </span>
               </button>
-              {RESOS.map((reso) => (
+              {RESOLUTIONS.map((reso) => (
                 <button
                   key={reso}
                   className="opt radio"

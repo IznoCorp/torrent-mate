@@ -25,7 +25,7 @@ async def main():
         r=await pg.evaluate("""()=>{
           // Every screen migrated off `#screen` onto a real route takes its
           // place in this ladder through ONE generic rung — any OPEN screen
-          // carries a `data-cle`, so its presence is enough, never a
+          // carries a `data-key`, so its presence is enough, never a
           // per-identity prefix — placed LAST so every other case resolves
           // exactly as before. Without it, a state opening one of those
           // routes would fall through to `#view` and the rule would clear
@@ -34,7 +34,7 @@ async def main():
           const root=document.querySelector('#dlg').classList.contains('open')?document.querySelector('#dlg')
             :document.querySelector('#screen').classList.contains('open')?document.querySelector('#screen')
             :document.querySelector('#sheet').classList.contains('open')?document.querySelector('#sheet')
-            :document.querySelector('.screen.open[data-cle]')
+            :document.querySelector('.screen.open[data-key]')
             ??document.querySelector('#view');
           return [...root.querySelectorAll('button, a')]
             .filter(x=>x.getBoundingClientRect().height>0 && !x.disabled

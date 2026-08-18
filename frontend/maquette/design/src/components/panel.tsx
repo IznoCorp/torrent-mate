@@ -4,8 +4,8 @@
 // from a plain descriptor of facts — never ready-made markup — and this
 // component is that same constructor, transplanted: same tags, same
 // classes, same data-attribute vocabulary, so the document-level click
-// delegation the legacy engine still runs (`.sact[data-fiche]`,
-// `.ep[data-ep]`, `.field*[data-champ]`, …) keeps working unchanged.
+// delegation the legacy engine still runs (`.sact[data-mediasheet]`,
+// `.ep[data-ep]`, `.field*[data-field]`, …) keeps working unchanged.
 //
 // Markup is TRANSPLANTED, not translated: React escapes text nodes
 // natively, so there is no `escapeHtml` here — every plain string prop
@@ -13,7 +13,7 @@
 //
 // The DESCRIPTOR's own field names are the seam: the legacy producers build
 // those objects, so every key below (`titre`, `blocs`, a block's `type`, an
-// action's `cible`…) stays whatever the fragment writes.
+// action's `target`…) stays whatever the fragment writes.
 //
 // Prose — anything a reader reads as a sentence — goes through `t()`, so this
 // component re-renders when the language changes. HOW A SETTING IS NAMED is
@@ -78,13 +78,13 @@ function Poster({ poster }: { poster: { t: string; k?: string } }) {
 }
 
 // An ACTION is `{ texte, icone, cible, ton, desactive, mention, infobulle }`
-// — `cible` is a map of DATA ATTRIBUTES, never a handler and never markup;
+// — `target` is a map of DATA ATTRIBUTES, never a handler and never markup;
 // the click delegation reads those attributes, exactly as it does for a
 // card. This component adds NO `onClick` of its own for it.
 export type Action = {
   texte: string;
   icone?: string;
-  cible?: Record<string, string | number>;
+  target?: Record<string, string | number>;
   ton?: string;
   desactive?: boolean;
   mention?: string;
@@ -93,11 +93,11 @@ export type Action = {
 
 function ActionButton({ action }: { action: Action | null | undefined }) {
   if (!action) return null;
-  // The only dynamically-keyed attribute set in this file: `cible`'s keys
-  // are the action's own vocabulary (`fiche`, `go`, `toast`, …), decided by
+  // The only dynamically-keyed attribute set in this file: `target`'s keys
+  // are the action's own vocabulary (`mediaSheet`, `go`, `toast`, …), decided by
   // each call site, not by this component.
   const attributes = Object.fromEntries(
-    Object.entries(action.cible ?? {}).map(([name, value]) => [
+    Object.entries(action.target ?? {}).map(([name, value]) => [
       `data-${name}`,
       String(value),
     ]),
@@ -211,13 +211,13 @@ const EP_SWATCH: Record<string, string> = {
 };
 
 // The slice of a "follow" record the season blocks read: `t` for lookups
-// against the référentiel (`sheetFor`/`possedesDe`), `st` as the fallback
+// against the référentiel (`sheetFor`/`ownedFor`), `st` as the fallback
 // state when a season has no per-episode ownership data. Not an exported
-// data.ts type — the panel receives whatever the caller's `suivi` object
+// data.ts type — the panel receives whatever the caller's `isFollowed` object
 // is, and only ever reads these two fields.
 export type Follow = { t: string; st?: string };
 
-export type Season = ReturnType<Reference["saisonsDe"]>[number];
+export type Season = ReturnType<Reference["seasonsOf"]>[number];
 
 type EpisodeCatalog = { n: number; air?: string | null }[];
 
@@ -232,7 +232,7 @@ function epState(
   number: number,
   owned: number,
 ): string {
-  const held = reference.possedesDe(follow.t, seasonNum);
+  const held = reference.ownedFor(follow.t, seasonNum);
   if (held)
     return held.has(number)
       ? "en_mediatheque"
@@ -279,7 +279,7 @@ function SeasonDetails({
   const cells = Array.from({ length: total }, (_, index) => {
     const number = index + 1;
     const info = catalog?.find((entry) => entry.n === number) ?? null;
-    const upcoming = Boolean(info?.air && info.air > reference.AUJOURDHUI);
+    const upcoming = Boolean(info?.air && info.air > reference.TODAY);
     const state = upcoming
       ? "annonce"
       : epState(reference, follow, num, number, owned);
@@ -331,10 +331,10 @@ function SeasonsBlock({
   block: Extract<PanelBlock, { type: "saisons" }>;
 }) {
   const reference = useReference();
-  const { suivi: follow, saisons: seasons } = block;
+  const { isFollowed: follow, saisons: seasons } = block;
   const hasUpcoming = seasons.some((season) =>
     (catalogFor(reference, follow, season[0]) ?? []).some(
-      (episode) => episode.air && episode.air > reference.AUJOURDHUI,
+      (episode) => episode.air && episode.air > reference.TODAY,
     ),
   );
   const statesPresent = new Set<string>([
@@ -387,23 +387,23 @@ function FieldBlock({
   block: Extract<PanelBlock, { type: "champ" }>;
 }) {
   const {
-    reglageId,
-    valeurEnCours,
-    valeurSaisie,
-    modifierReglage,
-    ouvrirReglage,
+    settingId,
+    rawValue,
+    typedValue,
+    changeSetting,
+    openSetting,
     icons,
   } = useReference();
   const { t } = useTranslation();
-  const { reglage: setting } = block;
-  const id = reglageId(setting);
-  // The field draws what `valeurEnCours` answers — the pending edit if there
+  const { setting: setting } = block;
+  const id = settingId(setting);
+  // The field draws what `rawValue` answers — the pending edit if there
   // is one, the file's `brut` otherwise. Reading `.brut` alone would draw a
   // list one has just shortened at its old length, so a removal would look
   // like it did nothing. Never `.v`: that is a pre-formatted DISPLAY string
   // (a boolean's `.brut: false` reads `.v: "non"`, always truthy, which would
   // wedge the switch on).
-  const v = valeurEnCours(setting);
+  const v = rawValue(setting);
 
   if (setting.type === "structure")
     return (
@@ -424,8 +424,8 @@ function FieldBlock({
           className={`fieldtoggle${v ? " active" : ""}`}
           role="switch"
           aria-checked={v ? "true" : "false"}
-          data-champ={id}
-          data-vers={v ? "non" : "oui"}
+          data-field={id}
+          data-to={v ? "non" : "oui"}
         >
           <span className="fieldknob" />
         </button>
@@ -445,10 +445,10 @@ function FieldBlock({
               <span>{String(x)}</span>
               <button
                 className="lremove"
-                data-champsupp={id}
+                data-deletefield={id}
                 data-index={index}
                 aria-label={t("settings.field.removeAria", {
-                  valeur: String(x),
+                  value: String(x),
                 })}
               >
                 <Icon paths={icons.x} />
@@ -458,7 +458,7 @@ function FieldBlock({
         ) : (
           <p className="rulenote">{t("settings.field.emptyList")}</p>
         )}
-        <button className="ladd" data-champajout={id}>
+        <button className="ladd" data-addfield={id}>
           <Icon paths={icons.plus} />
           {t("settings.field.add")}
         </button>
@@ -486,7 +486,7 @@ function FieldBlock({
         // setting makes a different setting a different node.
         key={id}
         className={`fieldinput${mono ? " mono" : ""}`}
-        data-champ={id}
+        data-field={id}
         type={numeric ? "number" : "text"}
         inputMode={numeric ? "decimal" : undefined}
         defaultValue={empty ? "" : String(v)}
@@ -511,8 +511,8 @@ function FieldBlock({
         ref={(element) => {
           if (!element) return;
           const commit = () => {
-            modifierReglage(id, valeurSaisie(setting, element.value));
-            ouvrirReglage(id);
+            changeSetting(id, typedValue(setting, element.value));
+            openSetting(id);
           };
           element.addEventListener("change", commit);
           return () => element.removeEventListener("change", commit);
@@ -540,8 +540,8 @@ export type PanelBlock =
       actions: (Action | null | undefined)[];
       secondaire?: boolean;
     }
-  | { type: "saisons"; suivi: Follow; saisons: Season[] }
-  | { type: "champ"; reglage: Setting };
+  | { type: "saisons"; isFollowed: Follow; saisons: Season[] }
+  | { type: "champ"; setting: Setting };
 
 // The refusal itself, named, so the probe that exercises it
 // (`window.__panneauInconnu`, published by the shell) raises the SAME error
@@ -587,7 +587,7 @@ export type PanelDescriptor = {
   affiche?: { t: string; k?: string };
   avatar?: string;
   // A block may be ABSENT and say so in place: a caller writes
-  // `reglage.note ? { type: "note", … } : null` inline rather than assembling
+  // `setting.note ? { type: "note", … } : null` inline rather than assembling
   // the list conditionally, and `panneauBlocHTML` answered an empty string for
   // it. The same tolerance, expressed in the type instead of discovered at
   // render time.

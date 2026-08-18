@@ -69,6 +69,10 @@ const PAGES: Record<string, MigratedPage> = {
   lib: { Body: LibraryPage },
   maint: { Body: MaintenancePage, root: "body" },
   cfg: { Body: SettingsPage, root: "body" },
+  // french-ok: this key IS the page ID — the value of `state.page` and the
+  // `?page=` address. It is data, not a property name: renaming it left
+  // the shell unable to find the page at all, and the account surface
+  // drew nothing.
   profil: { Body: AccountPage, root: "body" },
   "404": { Body: NotFoundPage, root: "body" },
 };

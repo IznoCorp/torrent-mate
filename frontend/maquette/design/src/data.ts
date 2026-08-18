@@ -15,11 +15,11 @@ export function useStoreContent<T>(select: (c: StoreContent) => T): T {
   // `version` bumps on every write INCLUDING in-place world mutations, so a
   // selector over a mutated-in-place object still re-reads: the snapshot the
   // comparison sees is the selected value, re-derived per notification.
-  return useSyncExternalStore(subscribe, () => select(window.__magasin.lire()));
+  return useSyncExternalStore(subscribe, () => select(window.__magasin.read()));
 }
 
-export const useUiState = (): UiState => useStoreContent((c) => c.etat);
-export const useWorld = (): unknown => useStoreContent((c) => c.monde);
+export const useUiState = (): UiState => useStoreContent((c) => c.state);
+export const useWorld = (): unknown => useStoreContent((c) => c.world);
 
 // The single write door, matching the read side above: a component patches
 // the store through THIS function, never through `window.__magasin.ecrire`
@@ -30,7 +30,7 @@ export const useWorld = (): unknown => useStoreContent((c) => c.monde);
 // have no hook to go through; a component reaching around this accessor is
 // what would make that replacement touch component code too.
 export function writeUiState(patch: Partial<UiState>): void {
-  window.__magasin.ecrire(patch);
+  window.__magasin.write(patch);
 }
 
 export type Resolution = "720p" | "1080p" | "2160p";
@@ -79,7 +79,7 @@ export type CardDescriptor = {
   panel?: string;
 };
 
-// A media sheet, exactly as `FICHES_RAW` shapes one in refonte.html — a
+// A media sheet, exactly as `SHEETS_RAW` shapes one in refonte.html — a
 // movie and a show share most fields but not all (a show carries `saisons`
 // and `eps`, a movie carries `duree`), and the source stays untyped JS. A
 // loose index type is the honest shape here rather than a speculative
@@ -93,8 +93,8 @@ export type Trailer = {
   langue: string;
 };
 
-// One editable setting, as `tousLesReglages()` flattens one — the legacy
-// settings-panel row (see refonte.html's `REGLAGES`) merged with the
+// One editable setting, as `allSettings()` flattens one — the legacy
+// settings-panel row (see refonte.html's `SETTINGS`) merged with the
 // enclosing rubric it belongs to. `brut` / `v` stay untyped: a setting's
 // raw and current value can be a string, a number, or a nested structure
 // (e.g. the `disks` array), and the source never declares which.
@@ -110,7 +110,7 @@ export type Setting = {
 };
 
 // One TVDB/TMDB candidate offered for a decision still awaiting arbitration,
-// exactly as `DECISIONS_ATTENTE[].c` shapes one. `sans` marks a candidate
+// exactly as `PENDING_DECISIONS[].c` shapes one. `sans` marks a candidate
 // with no poster at the provider (the placeholder is what says so on the
 // card, never a truncating sentence); `resume` is the synopsis shown there.
 export type DecisionCandidate = {
@@ -137,33 +137,33 @@ export type DecisionChoice = {
 // Fields common to a decision whichever side of resolution it is on — the
 // folder's display name (`d`, always spelled `staging_path`-derived, never a
 // medium title), its kind, the title/year the automatic pass landed on, and
-// when the scrape ran. `motif` keys `MOTIF_LABEL` / `MOTIF_TON` /
-// `MOTIF_POURQUOI`.
+// when the scrape ran. `motif` keys `MOTIF_LABEL` / `REASON_TONE` /
+// `REASON_DETAIL`.
 type DecisionCommon = {
   d: string;
   k: "movie" | "show";
   t: string;
   y?: number;
   motif: string;
-  quand: string;
+  when: string;
 };
 
-// A folder still waiting on an operator's call, exactly as `DECISIONS_ATTENTE`
+// A folder still waiting on an operator's call, exactly as `PENDING_DECISIONS`
 // shapes one. `c` is empty when the provider returned no candidate at all
 // (see refonte.html's "Backrooms" row) — the other shape besides a populated
 // list, never absent outright.
 export type PendingDecision = DecisionCommon & { c: DecisionCandidate[] };
 
 // A decision already settled, exactly as `DECISIONS_REGLEES` shapes one.
-// `etat` keys `ETAT_DECISION` / `ETAT_DECISION_POURQUOI`. `choix` is present
+// `state` keys `DECISION_STATE` / `DECISION_STATE_DETAIL`. `choice` is present
 // only for a "resolved" row — a "superseded" or "dismissed" row never
 // recorded one, because no candidate was ever chosen.
 export type SettledDecision = DecisionCommon & {
-  etat: string;
-  choix?: DecisionChoice;
+  state: string;
+  choice?: DecisionChoice;
 };
 
-// A queue card exactly as `BLOCKED` / `STUCK` / `STUCK_REEL` shape one — the
+// A queue card exactly as `BLOCKED` / `STUCK` / `STUCK_REAL` shape one — the
 // source carries more fields (`s`, `chip`, `strip`, `noposter`…) than any one
 // reader needs, so this stays the same loose index shape as `MediaSheet`
 // rather than a speculative closed type: a caller narrows the fields it
@@ -225,7 +225,7 @@ export type CardFoot = {
 // no writer ever calling it.
 //
 // `cardHTML` / `addVerb` are reused VERBATIM rather than re-implemented in
-// JSX: a search-result card carries `data-panel="add:N"` / `data-fiche`
+// JSX: a search-result card carries `data-panel="add:N"` / `data-mediasheet`
 // attributes that the legacy document-level click delegation still reads
 // to open the panel or the media sheet (the strangler seam a migrated
 // screen leans on rather than replaces) — re-deriving that markup by hand
@@ -236,9 +236,9 @@ export type CardFoot = {
 // date the same way every other legacy navigation control already does,
 // since nothing subscribes the legacy side to the store automatically.
 //
-// One row of a fact list, exactly as `listeFaitsHTML` reads one. `ton` is the
+// One row of a fact list, exactly as `factsListHTML` reads one. `ton` is the
 // operator's vocabulary (`success` / `alert` / `warning` / `info`) and the
-// emitter maps it onto the stylesheet's; `cible` becomes the row's `data-*`
+// emitter maps it onto the stylesheet's; `target` becomes the row's `data-*`
 // attributes, which is what turns the row into the control.
 export type Fact = {
   l: string;
@@ -246,8 +246,8 @@ export type Fact = {
   s?: string;
   k?: string;
   ton?: string;
-  etat?: string;
-  cible?: Record<string, string>;
+  state?: string;
+  target?: Record<string, string>;
 };
 
 // One pipeline run, as `EXECUTIONS` shapes it: the question it answered, its
@@ -275,11 +275,11 @@ export type PipelineFact = {
 };
 
 export type Pipeline = {
-  etapes: PipelineStep[];
+  steps: PipelineStep[];
   declencheurs: Record<string, string>;
   dernier: {
     uid: string;
-    quand: string;
+    when: string;
     duree: string;
     declencheur: string;
     issue: string;
@@ -331,7 +331,7 @@ export type Secret = { k: string; l: string; def?: boolean };
 
 // The settings screen's own mutable state, owned by the fragment and written by
 // the document-level delegation: which rubric is open, the search text, the
-// PENDING edits (a Map keyed by `reglageId`), and the three banners. A component
+// PENDING edits (a Map keyed by `settingId`), and the three banners. A component
 // READS it — it never replaces it — and re-reads on every store bump.
 export type SettingsState = {
   modifs: Map<string, unknown>;
@@ -355,7 +355,7 @@ export type CodeErrors = {
 // these exact keys, so they stay whatever it publishes.
 export type Reference = {
   RELEASES: Release[];
-  RESOS: Resolution[];
+  RESOLUTIONS: Resolution[];
   AUDIOS: [string, string][];
   icons: Record<string, string>;
   baseTitle: (title: string) => string;
@@ -375,18 +375,18 @@ export type Reference = {
   // Media-sheet data: hero banners, posters, cast portraits, trailers and
   // episode-status labels, plus the lookup/formatting helpers a sheet or a
   // season list reads them through — see refonte.html's `sheetFor` /
-  // `saisonsDe` / `possedesDe` neighbourhood for the exact resolution rules
+  // `seasonsOf` / `ownedFor` neighbourhood for the exact resolution rules
   // (title normalisation, year-suffix stripping) a re-implementation would
   // otherwise silently diverge from.
-  HEROS: Record<string, string>;
+  HERO_IMAGES: Record<string, string>;
   POSTERS: Record<string, string>;
   // What the Système page draws. `factRowsHTML` emits the
   // ROWS of a fact list without the `<ol class="flux">` around them, because a
-  // component draws that element itself; `listeFaitsHTML` (still published, for
+  // component draws that element itself; `factsListHTML` (still published, for
   // every page the fragment keeps) emits both. `skelCardsInner` / `surfErrInner`
   // are the same split for the two non-ready surfaces. The data below is
   // read-only reference, never engine state.
-  listeFaitsHTML: (rows: Fact[]) => string;
+  factsListHTML: (rows: Fact[]) => string;
   factRowsHTML: (rows: Fact[]) => string;
   // What the Arrivées page draws. `secHTML` is the section emitter the
   // acquisition page's five sections still share; a migrated page draws the `<section class="sec">` itself and
@@ -407,7 +407,7 @@ export type Reference = {
   stLabel: (follow: Follow) => string;
   gridBadge: (follow: Follow) => { tone: string; text?: string } | null;
   cadenceFR: (cron: string) => string;
-  prochaineRechercheFR: (cron: string, now: Date) => string | null;
+  nextSearchFR: (cron: string, now: Date) => string | null;
   ST_TONE: Record<string, string>;
   URGENCY: Record<string, number>;
   GROUPS: FollowGroup[];
@@ -416,7 +416,7 @@ export type Reference = {
   // The one account this server has, and the escaper the fragment's emitters
   // use — a page that hands a string of markup to one of them escapes exactly
   // what the legacy escaped.
-  COMPTE: { nom: string; mail: string };
+  ACCOUNT: { nom: string; mail: string };
   escapeHtml: (text: string) => string;
   // The suggestion machinery. It stays the FRAGMENT's — the deck's gesture
   // mutates its own DOM and a replaced node cannot animate — and a migrated
@@ -468,72 +468,72 @@ export type Reference = {
   surfErrInner: (subject: string) => string;
   SERVICES: Fact[];
   SERVICES_PANNE: Fact[];
-  PLANIFICATEURS: Fact[];
-  PLANIFICATEURS_PANNE: Fact[];
+  SCHEDULERS: Fact[];
+  SCHEDULERS_DOWN: Fact[];
   EXECUTIONS: PipelineRun[];
-  DISQUES: Fact[];
+  DISKS: Fact[];
   INDEX: Fact[];
-  DEPENDANCES: Fact[];
-  ERREURS: CodeErrors;
-  MAINT_RUBRIQUES: MaintenanceTopic[];
+  DEPENDENCIES: Fact[];
+  ERRORS: CodeErrors;
+  MAINT_TOPICS: MaintenanceTopic[];
   MAINT_ACTIONS: MaintenanceAction[];
-  REGLAGES: SettingsTopic[];
-  REG_ETAT: SettingsState;
+  SETTINGS: SettingsTopic[];
+  SETTINGS_STATE: SettingsState;
   SECRETS: Secret[];
   emptyInner: (title: string, body: string) => string;
   chipHTML: (chip: [string, string] | null | undefined) => string;
-  valeurCourante: (setting: Setting) => unknown;
-  nomDeFichier: (file: string) => string;
-  fichiersModifies: () => string[];
+  displayedValue: (setting: Setting) => unknown;
+  fileName: (file: string) => string;
+  changedFiles: () => string[];
   RISQUES: Record<string, Risk>;
   JOURNAL: DeletionJournal;
-  ACTEURS: Record<string, string>;
+  CAST: Record<string, string>;
   trailerIds: Record<string, Trailer>;
   EP_LABEL: Record<string, string>;
   sheetFor: (titre: string) => MediaSheet | null;
-  saisonsDe: (titre: string) => [number, number | null, number][];
-  possedesDe: (titre: string, saison: number) => Set<number> | null;
+  seasonsOf: (titre: string) => [number, number | null, number][];
+  ownedFor: (titre: string, saison: number) => Set<number> | null;
   plages: (nums: number[]) => string;
   initials: (nom: string) => string;
   // `dateFR` returns null on a falsy `iso`, exactly like `sheetFor` on an
   // unresolved title — a sheet's air dates are frequently unset (an
   // announced-but-unaired episode) and the caller decides what to show.
   dateFR: (iso: string) => string | null;
-  AUJOURDHUI: string;
+  TODAY: string;
   svgIcon: (paths: string, strokeWidth?: number) => string;
   // Réglages (settings) panel actions — read the full setting list, derive
   // a setting's storage id, coerce a raw field input back to its stored
-  // type, and apply/open a pending edit. See refonte.html's `REGLAGES`
+  // type, and apply/open a pending edit. See refonte.html's `SETTINGS`
   // neighbourhood for the file/rubric structure `Setting.rubrique` carries.
-  tousLesReglages: () => Setting[];
-  reglageId: (reglage: Setting) => string;
+  allSettings: () => Setting[];
+  settingId: (setting: Setting) => string;
   // The value a field must DRAW: the pending edit when there is one, the
   // file's `brut` otherwise. The pending-edit overlay itself stays private to
   // the engine — this returns the value, never the map.
-  valeurEnCours: (reglage: Setting) => unknown;
-  valeurSaisie: (reglage: Setting, texte: string) => unknown;
-  modifierReglage: (id: string, valeur: unknown) => void;
-  ouvrirReglage: (id: string) => void;
+  rawValue: (setting: Setting) => unknown;
+  typedValue: (setting: Setting, texte: string) => unknown;
+  changeSetting: (id: string, value: unknown) => void;
+  openSetting: (id: string) => void;
   // The arbitration flow — decisions the scrape could not make on its own,
-  // spelled out for a folder rather than a medium. `DECISIONS_ATTENTE` /
+  // spelled out for a folder rather than a medium. `PENDING_DECISIONS` /
   // `DECISIONS_REGLEES` are the mock's twelve rows of `scrape_decision` (ten
   // réglées, two en attente), split by whether an operator has answered yet.
-  DECISIONS_ATTENTE: PendingDecision[];
+  PENDING_DECISIONS: PendingDecision[];
   DECISIONS_REGLEES: SettledDecision[];
   MOTIF_LABEL: Record<string, string>;
-  MOTIF_TON: Record<string, string>;
-  MOTIF_POURQUOI: Record<string, string>;
+  REASON_TONE: Record<string, string>;
+  REASON_DETAIL: Record<string, string>;
   // Unlike the other label maps here, each value is a [tone, label] pair —
-  // the same shape a chip carries — not a bare string: `ETAT_DECISION`
+  // the same shape a chip carries — not a bare string: `DECISION_STATE`
   // supplies both the chip's tone and its text in one lookup.
-  ETAT_DECISION: Record<string, [string, string]>;
-  ETAT_DECISION_POURQUOI: Record<string, string>;
+  DECISION_STATE: Record<string, [string, string]>;
+  DECISION_STATE_DETAIL: Record<string, string>;
   VIA_LABEL: Record<string, string>;
-  // `cible` is `state.resolveTarget`, which is `string | null` (see this
+  // `target` is `state.resolveTarget`, which is `string | null` (see this
   // module's `UiState`-cast comment below); a target absent from
-  // `DECISIONS_ATTENTE` — already resolved, or never a decision at all —
+  // `PENDING_DECISIONS` — already resolved, or never a decision at all —
   // answers `null` rather than throwing.
-  decisionEnAttente: (cible: string | null) => PendingDecision | null;
+  decisionPending: (target: string | null) => PendingDecision | null;
   // Thin arrows over `derived.blocked` / `derived.stuck`, published so the
   // FUNCTION REFERENCE stays stable across renders while the value each call
   // returns stays live — a component can pass these to a hook that expects a
@@ -546,15 +546,15 @@ export type Reference = {
   derivedInflight: () => QueueCard[];
   derivedNotfound: () => QueueCard[];
   derivedDoneToday: () => QueueCard[];
-  // Agreeing with the machine (`actionLaisser`) or with a candidate
-  // (`actionResoudre`, `choix` the chosen title when the operator picked
+  // Agreeing with the machine (`actionLeave`) or with a candidate
+  // (`actionResolve`, `choice` the chosen title when the operator picked
   // one) both remove the folder from wherever it is queued and hand it back
-  // to the pipeline; `actionRecuperer` restarts a takeable item instead.
-  // Each toasts and re-renders on success; `actionLaisser` also reports
+  // to the pipeline; `actionTake` restarts a takeable item instead.
+  // Each toasts and re-renders on success; `actionLeave` also reports
   // whether the folder was found at all.
-  actionResoudre: (titre: string, choix?: string) => void;
-  actionLaisser: (titre: string) => boolean;
-  actionRecuperer: (titre: string) => void;
+  actionResolve: (titre: string, choice?: string) => void;
+  actionLeave: (titre: string) => boolean;
+  actionTake: (titre: string) => void;
   toast: (msg: string) => void;
   posterBox: (
     title: string,
@@ -563,29 +563,29 @@ export type Reference = {
   ) => string;
 };
 
-// `etat.resolveTarget` (the folder currently open on the resolution screen)
-// and `etat.relTitre` (the item a "Récupérer" gesture targets) are both
+// `state.resolveTarget` (the folder currently open on the resolution screen)
+// and `state.relTitre` (the item a "Récupérer" gesture targets) are both
 // `string | null` at runtime. `UiState` itself stays the loose
 // `{ [key: string]: unknown }` shape (see store.ts) — a reader casts at the
 // point of use, exactly as `add.tsx` already does for `resolveTarget`.
 
 // The shell's bottom-panel API — what a legacy producer calls instead of the
-// dead `openSheet(html)`. `ouverte()` answers from the STORE, never from the
+// dead `openSheet(html)`. `isOpen()` answers from the STORE, never from the
 // DOM: a legacy caller asks mid-task ("is a layer up before I open a screen?")
 // and the store is already right at that instant, whatever React has committed.
 // The three member names are the seam the fragment calls by.
 export type Panel = {
-  ouvrir: (descripteur: PanelDescriptor) => void;
+  open: (descripteur: PanelDescriptor) => void;
   // `pop` mirrors the legacy `closeSheet(pop)`: truthy means the history entry
   // is ALREADY being popped, so the layer must not unwind one of its own.
-  fermer: (pop?: boolean) => void;
-  ouverte: () => boolean;
+  close: (pop?: boolean) => void;
+  isOpen: () => boolean;
 };
 
 declare global {
   interface Window {
     __referentiel: Reference;
-    __panneau: Panel;
+    __panel: Panel;
     // The engine's own multi-layer closer, published by refonte.html: the
     // scrim covers the drawer, the dialog and the sheet alike, and a tap on it
     // closes whichever is up. Optional for the same reason

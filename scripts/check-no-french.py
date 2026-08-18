@@ -66,6 +66,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 MAQUETTE = ROOT / "frontend" / "maquette"
+# The words this codebase's names are built from — see its own header.
+VOCABULARY = ROOT / "scripts" / "code-vocabulary.txt"
+# The line in that file below which the words are French on purpose, and the
+# one file allowed to need them.
+DEBT_BANNER = "# ── THE ENGINE'S LAST FRENCH WORDS"
+DEBT_FILE = "frontend/maquette/design/src/engine/legacy.js"
 SHELL = MAQUETTE / "design" / "src"
 HARNESS = MAQUETTE / "harness"
 REGIONS = MAQUETTE / "regions.json"
@@ -116,6 +122,20 @@ FRENCH_TOKENS = {
     "ecartees", "entete", "garde", "gardees", "harnais", "ordre", "parseur",
     "permis", "portee", "profondeur", "racine", "regle", "regles", "refusees",
     "selecteur", "sortie",
+    # Measured the same way, and by the campaign that found them missing: every
+    # word below named something in this repository while the gate read green.
+    # `suivante`, `trier` and `fermer` were the first three; a hundred and
+    # forty names sat under the rest. A word that reads the same in both
+    # languages is still NOT here — `centre`, `cote`, `sortie` and `rayon` are
+    # English too, and a gate that flagged them would teach its reader to stop
+    # believing it.
+    "actifs", "anneau", "apparence", "apparences", "bordees", "calque",
+    "candidats", "cherche", "chercher", "circulaire", "combien", "controle",
+    "coupables", "couverture", "denominateur", "depuis", "dessin", "faits",
+    "frise", "lignes", "maintenant", "masquables", "masquer", "mots",
+    "normaliser", "numerateur", "pilotage", "plages", "prendre", "reglee",
+    "remis", "restants", "retirer", "risques", "rubrique", "traiter",
+    "transparents", "tris", "trier", "trouve",
 }
 # Two tokens mean different things in different halves of the repository, and
 # scope — not a word list — is what settles them. Each entry names the reason.
@@ -173,21 +193,12 @@ FRENCH_UI_WORDS = {
 
 # Path segments that stay French. Read as data, not as names.
 FROZEN_PATH_SEGMENTS = {
-    "acteurs": (
-        "An artwork directory of the embedded référentiel. The paths under it are "
-        "DATA VALUES inside the prototype's own data (`assets/acteurs/<hash>.webp`) "
-        "and ADDRESSES served over HTTP — the same class the recorded ruling "
-        "freezes for `data-*` values and route paths. They settle when the artwork "
-        "is bound to the backend, never in a naming pass."
-    ),
-    "affiches": (
-        "Same family as `acteurs`: a poster path is a data value in the embedded "
-        "référentiel and an address served over HTTP."
-    ),
-    "heros": (
-        "Same family as `acteurs`: a hero-image path is a data value in the "
-        "embedded référentiel and an address served over HTTP."
-    ),
+    # `acteurs`, `affiches` and `heros` were frozen here as « data values and
+    # addresses », and the operator overturned that: a directory is a NAME
+    # someone chose, and the rule says file and directory names are English.
+    # They are `cast`, `posters-hd` and `heroes` now, with all 528 paths and
+    # the directories themselves moved in one step — and every one of the 925
+    # references still resolves, which is what R70 checks.
     "maquette": (
         "The design reference's own name, and the operator's word for the thing "
         "— it is named in the product constitution (§15), in CLAUDE.md and in "
@@ -209,24 +220,16 @@ FROZEN_IDENTIFIERS = {
         "Names the maquette DIRECTORY, whose own name is frozen above — a "
         "constant holding a path inherits that path's reason and nothing more."
     ),
-    # The three seams the legacy engine calls. Their names are the FRAGMENT's:
-    # the same objects are published as `window.__pont`, `window.__ecrans` and
-    # `window.__panneau`, which is how the rule harness drives them, and the
-    # engine's 61 call sites spell them that way. Renaming the TypeScript half
-    # would invent a second vocabulary for one thing, and leave every rule and
-    # every call site pointing at the old one.
-    "pont": (
-        "A seam NAME, spelled as the fragment spells it — the same object is "
-        "`window.__pont`, which the harness drives and the engine calls."
-    ),
-    "ecrans": (
-        "A seam NAME, spelled as the fragment spells it — the same object is "
-        "`window.__ecrans`, which the harness drives and the engine calls."
-    ),
-    "panneau": (
-        "A seam NAME, spelled as the fragment spells it — the same object is "
-        "`window.__panneau`, which the harness drives and the engine calls."
-    ),
+    # `ecrans`, `panneau`, `pont` and `fiche` were frozen here, and the
+    # operator asked what the reason actually was. It did not survive the
+    # question: « the fragment spells them that way » is circular — the
+    # fragment, the engine and the harness are all in this repository, and a
+    # hundred and forty names the fragment spelled had already moved. They are
+    # `screens`, `panel`, `bridge` now, with their eleven methods, and the
+    # media-sheet contract is `data-mediasheet` — a name of its own, because
+    # `data-sheet` belongs to the panel opener and merging them broke the user
+    # menu. A constraint on WHICH English name to pick was never a reason to
+    # keep the French one.
 }
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -384,6 +387,9 @@ examined: dict[str, int] = {
     "declared CSS classes / fragment": 0,
     "declared CSS classes / extracted": 0,
     "unread javascript / shell": 0,
+    "name words / shell": 0,
+    "data-* names / markup": 0,
+    "french debt words / vocabulary": 0,
 }
 
 
@@ -743,6 +749,11 @@ def check_identifiers(violations: list[str]) -> None:
               + sorted(HARNESS.glob("*.py"))
               + [p for p in sorted(SCRIPTS.glob("*.py"))
                  if p.name != Path(__file__).name]
+              # `frontend/scripts/` is not `scripts/`, and that one letter of
+              # scope left an entire tool — 18 French names, `SORTIE`, `JAUNE`,
+              # `anneau_depuis_staging` — outside every arm while the gate
+              # reported no violation.
+              + sorted((ROOT / "frontend" / "scripts").glob("*.py"))
               + sorted((ROOT / "personalscraper").rglob("*.py"))
               + sorted((ROOT / "tests").rglob("*.py")))
     for path in python:
@@ -959,6 +970,247 @@ def check_class_names(violations: list[str]) -> None:
                     "name shared by four worlds")
 
 
+def vocabulary(debt_only: bool = False) -> set[str]:
+    """Returns the words this codebase's names are built from.
+
+    Args:
+        debt_only: When true, returns only the words below the debt banner —
+            French on purpose, and owed by one file.
+
+    Returns:
+        The set of words, lower-cased.
+    """
+    words, below = set(), False
+    for line in VOCABULARY.read_text(encoding="utf-8").splitlines():
+        if line.startswith(DEBT_BANNER):
+            below = True
+        if not line.strip() or line.startswith("#"):
+            continue
+        # Without the flag this is the WHOLE vocabulary, debt included: the
+        # engine's names must still pass the arm that reads them. What the
+        # flag isolates is who may BORROW those words, which is one file.
+        if not debt_only or below:
+            words.add(line.strip().lower())
+    return words
+
+
+def check_french_debt(violations: list[str]) -> None:
+    """Refuses a debt word anywhere but the one file that owes it.
+
+    The vocabulary was seeded FROM the codebase, so every French name still
+    standing quietly contributed its own word and the arm reading that file
+    certified them. Naming the debt is only half of it — the other half is
+    that it must not grow: a new name built from `apparence` or `tris`
+    outside the dying engine would inherit an exemption nobody granted it.
+
+    Args:
+        violations: The accumulator every arm appends to.
+    """
+    owed = vocabulary(debt_only=True)
+    if not owed:
+        # Deleting the BANNER alone would fold every French word back into the
+        # general vocabulary and silence this arm without removing a thing —
+        # the section and the file it exists for go together, or neither does.
+        if (ROOT / DEBT_FILE).exists() and DEBT_BANNER not in VOCABULARY.read_text(
+                encoding="utf-8"):
+            violations.append(
+                f"{relative(VOCABULARY)}: the debt banner is gone while "
+                f"{DEBT_FILE} is still here — either the words below it moved "
+                "back in unmarked, or the section was removed before the file "
+                "it was written for")
+        return
+    examined["french debt words / vocabulary"] += len(owed)
+    # The app is read too: a debt word borrowed in `frontend/src` would be no
+    # less an exemption nobody granted, and it is not the engine's file.
+    sources = [p for p in SHELL.rglob("*")
+               if p.is_file() and p.suffix in {".ts", ".tsx", ".js"}
+               and "i18n" not in p.parts and relative(p) != DEBT_FILE]
+    sources += [p for p in (ROOT / "frontend" / "src").rglob("*")
+                if p.is_file() and p.suffix in {".ts", ".tsx"}]
+    for path in sorted(sources):
+        raw = read(path)
+        lines = raw.splitlines()
+        source = code_only(raw)
+        for match in re.finditer(
+                r"(?:function|const|let|var|class|type|interface)\s+"
+                r"([A-Za-z_$][\w$]*)", source):
+            name = match.group(1)
+            line_no = source[: match.start()].count("\n") + 1
+            if pragma_on(lines, line_no) is not None:
+                continue
+            borrowed = [w for w in split_identifier(name) if w.lower() in owed]
+            if borrowed:
+                violations.append(
+                    f"{relative(path)}:{line_no}: {name!r} borrows "
+                    f"{', '.join(repr(w) for w in borrowed)} from the French "
+                    f"words {DEBT_FILE} still owes — that exemption is the "
+                    "engine's alone, and it dies with it")
+
+
+def code_only(source: str) -> str:
+    """Returns the source with comments and string bodies blanked out.
+
+    A name extractor that reads prose invents declarations: « the type this
+    module exports » yields `this`, and eighty-four such phantoms buried the
+    four real findings on the first run. Newlines are preserved so a line
+    number still means what it says.
+
+    Args:
+        source: JavaScript or TypeScript.
+
+    Returns:
+        The same length of text, with everything that is not code replaced by
+        spaces.
+    """
+    out, index, size = [], 0, len(source)
+    in_line = in_block = in_string = False
+    quote = ""
+    while index < size:
+        char = source[index]
+        if in_line:
+            if char == "\n":
+                in_line = False
+                out.append(char)
+            else:
+                out.append(" ")
+            index += 1
+        elif in_block:
+            if source.startswith("*/", index):
+                in_block = False
+                out.append("  ")
+                index += 2
+            else:
+                out.append("\n" if char == "\n" else " ")
+                index += 1
+        elif in_string:
+            if char == "\\":
+                out.append("  ")
+                index += 2
+                continue
+            if char == quote:
+                in_string = False
+                out.append(char)
+            else:
+                out.append("\n" if char == "\n" else " ")
+            index += 1
+        elif source.startswith("//", index):
+            in_line = True
+            out.append("  ")
+            index += 2
+        elif source.startswith("/*", index):
+            in_block = True
+            out.append("  ")
+            index += 2
+        elif char in "\"'`":
+            in_string = True
+            quote = char
+            out.append(char)
+            index += 1
+        else:
+            out.append(char)
+            index += 1
+    return "".join(out)
+
+
+def check_vocabulary(violations: list[str]) -> None:
+    """Refuses a declared name built from a word this codebase does not use.
+
+    THE OTHER ARMS ASK « IS THIS FRENCH? », and that question is only ever as
+    good as the list of French words behind it. That list had holes — `suivante`,
+    `trier`, `fermer`, `afficher`, `chargement`, `compte`, `monde` were all
+    invisible to it — so « no violation » quietly meant « none among the words we
+    thought of », and a hundred and forty French names sat under it unremarked.
+
+    This arm asks the opposite: « is this word one we use? ». The vocabulary is
+    a file in the repository, so it has no holes by construction — a name built
+    from a word nobody wrote down is refused, whatever language it came from.
+
+    It reads `.js` as well as `.ts`/`.tsx`, which is what finally puts the
+    legacy engine under a guard: its identifiers are English now, so the words
+    they are made of are simply in the list.
+
+    Args:
+        violations: The accumulator every arm appends to.
+    """
+    words = vocabulary()
+    if not words:
+        violations.append(f"{relative(VOCABULARY)} is empty — the arm reading it "
+                          "would accept every name ever written")
+        return
+    sources = [p for p in SHELL.rglob("*")
+               if p.is_file() and p.suffix in {".ts", ".tsx", ".js"}
+               and "i18n" not in p.parts]
+    for path in sorted(sources):
+        raw = read(path)
+        lines = raw.splitlines()
+        # Comments and strings are blanked first: a name extractor that reads
+        # prose invents declarations — « the type this module exports » yields
+        # `this` — and eighty of those buried the four real findings.
+        source = code_only(raw)
+        for match in re.finditer(
+                r"(?:function|const|let|var|class|type|interface)\s+"
+                r"([A-Za-z_$][\w$]*)", source):
+            name = match.group(1)
+            if name in FROZEN_IDENTIFIERS:
+                continue
+            line_no = source[: match.start()].count("\n") + 1
+            if pragma_on(lines, line_no) is not None:
+                continue
+            examined["name words / shell"] += 1
+            unknown = [w for w in split_identifier(name)
+                       if len(w) > 1 and w.lower() not in words]
+            if unknown:
+                violations.append(
+                    f"{relative(path)}:{line_no}: {name!r} is built from "
+                    f"{', '.join(repr(w) for w in unknown)}, which "
+                    f"{'is' if len(unknown) == 1 else 'are'} not in "
+                    f"{relative(VOCABULARY)} — rename it in English, or add the "
+                    "word there if the codebase really speaks it")
+
+
+def check_data_attributes(violations: list[str]) -> None:
+    """Refuses a `data-*` attribute NAME built from a word this codebase lacks.
+
+    CLAUDE.md brings these names under the rule — a `data-*` name is a name
+    someone chose — and until now nothing read them. Nineteen were renamed by
+    hand in the same wave that wrote the rule, and four were missed:
+    `data-prendre`, `data-maintrub`, `data-qreg` and `data-apparence` stayed,
+    green, because no arm looked. A rule with no arm is a sentence in a file.
+
+    The VALUES are not read, and must not be: `data-go="profil"` names a page,
+    and a page id is an address.
+
+    It asks the vocabulary's question rather than « is this word French? »,
+    because the names here are abbreviations — `rub` for « rubrique » is
+    invisible to any list of French words, and `maintopic` is not.
+
+    Args:
+        violations: The accumulator every arm appends to.
+    """
+    words = vocabulary()
+    sources = [p for p in SHELL.rglob("*")
+               if p.is_file() and p.suffix in {".ts", ".tsx", ".js"}]
+    sources += [FRAGMENT]
+    sources += [p for p in (ROOT / "frontend" / "src").rglob("*")
+                if p.is_file() and p.suffix in {".ts", ".tsx", ".css"}]
+    for path in sorted(sources):
+        source = read(path)
+        for match in re.finditer(r"\bdata-([a-zA-Z][\w-]*)", source):
+            name = match.group(1)
+            examined["data-* names / markup"] += 1
+            line_no = source.count("\n", 0, match.start()) + 1
+            unknown = [w for w in split_identifier(name)
+                       if len(w) > 1 and w.lower() not in words]
+            if unknown:
+                violations.append(
+                    f"{relative(path)}:{line_no}: the attribute name "
+                    f"'data-{name}' is built from "
+                    f"{', '.join(repr(w) for w in unknown)}, which "
+                    f"{'is' if len(unknown) == 1 else 'are'} not in "
+                    f"{relative(VOCABULARY)} — name it in English, or add the "
+                    "word there if the codebase really speaks it")
+
+
 def check_unread_javascript(violations: list[str]) -> None:
     """Refuses a `.js` under the shell that no arm reads, except the engine.
 
@@ -1006,6 +1258,9 @@ def main() -> int:
     check_file_names(violations)
     check_class_names(violations)
     check_unread_javascript(violations)
+    check_vocabulary(violations)
+    check_data_attributes(violations)
+    check_french_debt(violations)
     for what, count in examined.items():
         if count == 0:
             violations.append(
@@ -1020,7 +1275,9 @@ def main() -> int:
               "a reader of the interface sees lives in the i18n resources.",
               file=sys.stderr)
         return 1
-    print("no-French guardrail: 4 arms + the unread-JavaScript ledger, no violation — read "
+    print("no-French guardrail: 4 arms + the vocabulary + the data-* names + "
+          "the engine's declared debt + the unread-JavaScript ledger, no "
+          "violation — read "
           + ", ".join(f"{count} {what}" for what, count in examined.items()))
     return 0
 

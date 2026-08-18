@@ -350,20 +350,20 @@ export function FollowsPanel(): ReactElement {
     // what annotates that state. In groupé mode (showStatus=false) the status
     // chip is omitted — it lives in the section header instead (§12: no
     // repetition).
-    const faits: MediaFact[] = [];
+    const facts: MediaFact[] = [];
     if (fraction != null) {
-      faits.push({ kind: "fraction", text: fraction });
+      facts.push({ kind: "fraction", text: fraction });
     }
     if (showStatus) {
-      faits.push({ kind: "chip", tone: FOLLOW_STATUS_TONE[item.status], text: label, hint });
+      facts.push({ kind: "chip", tone: FOLLOW_STATUS_TONE[item.status], text: label, hint });
     }
     if (caption != null) {
-      faits.push({ kind: "note", text: caption });
+      facts.push({ kind: "note", text: caption });
     }
     if (item.tvdb_unresolved) {
       // The identity gap, named on the card — the sheet explains what it
       // blocks; hiding it would let a « Non vérifié » read as a search issue.
-      faits.push({
+      facts.push({
         kind: "chip",
         tone: "warning",
         text: "Sans ID TVDB",
@@ -372,7 +372,7 @@ export function FollowsPanel(): ReactElement {
     }
     if (isNew(item)) {
       // Maquette order: the freshtag closes the facts row, after every chip.
-      faits.push({ kind: "fresh" });
+      facts.push({ kind: "fresh" });
     }
 
     const sheetHref = followMediaRef(item);
@@ -392,7 +392,7 @@ export function FollowsPanel(): ReactElement {
         <MediaRow
           title={item.title}
           posterUrl={item.poster_url ?? null}
-          facts={faits}
+          facts={facts}
           onOpen={() => {
             setSheet(item);
           }}

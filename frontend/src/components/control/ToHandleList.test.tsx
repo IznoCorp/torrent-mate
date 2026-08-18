@@ -1,5 +1,5 @@
 /**
- * Unit tests for ATraiterList (control-medias phase 5.2).
+ * Unit tests for ToHandleList (control-medias phase 5.2).
  *
  * Mocks useStagingMedia so the blocked-items list, empty state, FR reason
  * display, and resolve links are tested in isolation.
@@ -19,7 +19,7 @@ vi.mock("@/hooks/useStagingMedia", () => ({
   useStagingMedia: (params: unknown) => stagingMock(params),
 }));
 
-import { ATraiterList } from "@/components/controle/ATraiterList";
+import { ToHandleList } from "@/components/control/ToHandleList";
 
 /** Build a minimal StagingMediaItem with defaults sensible for blocked items. */
 function item(overrides: Partial<StagingMediaItem> = {}): StagingMediaItem {
@@ -83,7 +83,7 @@ function response(items: StagingMediaItem[]): StagingMediaResponse {
   };
 }
 
-/** Wrap ATraiterList in required providers. */
+/** Wrap ToHandleList in required providers. */
 function renderList(
   initialEntries: string[] = ["/"],
 ): ReturnType<typeof render> {
@@ -91,7 +91,7 @@ function renderList(
   return render(
     <MemoryRouter initialEntries={initialEntries}>
       <QueryClientProvider client={qc}>
-        <ATraiterList />
+        <ToHandleList />
       </QueryClientProvider>
     </MemoryRouter>,
   );
@@ -105,7 +105,7 @@ afterEach(() => {
   cleanup();
 });
 
-describe("ATraiterList", () => {
+describe("ToHandleList", () => {
   it("renders the empty state when no items are blocked", () => {
     stagingMock.mockReturnValue({
       data: response([]),

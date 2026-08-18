@@ -32,7 +32,7 @@ const FRENCH_TOKENS = [
 ];
 
 /** One real row, shaped as the API returns it. */
-const REGLEE = {
+const SETTLED = {
   staging_path: "/Volumes/disk/A TRIER/002-TVSHOWS/Lucky",
   media_kind: "tvshow",
   trigger: "ambiguous",
@@ -47,7 +47,7 @@ const REGLEE = {
 };
 
 /** The five candidates TVDB really returned for that folder — four of them tied. */
-const CANDIDATS = [
+const CANDIDATES = [
   { provider: "tvdb" as const, provider_id: 427619, title: "Lucky!", year: 2022, score: 1, poster_url: null, overview: "…" },
   { provider: "tvdb" as const, provider_id: 457437, title: "Lucky (2026)", year: 2026, score: 1, poster_url: null, overview: "…" },
   { provider: "tvdb" as const, provider_id: 317944, title: "Lucky (2006)", year: 2006, score: 1, poster_url: null, overview: "…" },
@@ -59,17 +59,17 @@ describe("R57 — une décision est un DOSSIER", () => {
   afterEach(cleanup);
 
   it("le dossier est le sujet, en chasse fixe, jamais le titre extrait", () => {
-    render(<DecisionRow {...decisionFacts(REGLEE)} />);
+    render(<DecisionRow {...decisionFacts(SETTLED)} />);
     const folder = screen.getByTestId("decision-folder");
     expect(folder).toHaveTextContent("Lucky");
     expect(folder.className).toContain("font-mono");
     // The full path is the tooltip; the row shows the folder.
-    expect(folder).toHaveAttribute("title", REGLEE.staging_path);
-    expect(folderName(REGLEE.staging_path)).toBe("Lucky");
+    expect(folder).toHaveAttribute("title", SETTLED.staging_path);
+    expect(folderName(SETTLED.staging_path)).toBe("Lucky");
   });
 
   it("ne promet ni fiche ni panneau", () => {
-    render(<DecisionRow {...decisionFacts(REGLEE)} />);
+    render(<DecisionRow {...decisionFacts(SETTLED)} />);
     const card = screen.getByTestId("decision-card");
     expect(card).toHaveAttribute("data-nonmedia", "decision");
     expect(within(card).queryByRole("link")).toBeNull();
@@ -78,14 +78,14 @@ describe("R57 — une décision est un DOSSIER", () => {
   });
 
   it("dit son motif ET ce qu'elle est devenue, en français", () => {
-    render(<DecisionRow {...decisionFacts(REGLEE)} />);
+    render(<DecisionRow {...decisionFacts(SETTLED)} />);
     expect(screen.getByText("Candidats ambigus")).toBeInTheDocument();
     expect(screen.getByText("Réglée")).toBeInTheDocument();
     expect(screen.getByText(/TVDB 457437 · choisi dans la liste/)).toBeInTheDocument();
   });
 
   it("aucun jeton du moteur n'atteint l'écran", () => {
-    const { container } = render(<DecisionRow {...decisionFacts(REGLEE)} />);
+    const { container } = render(<DecisionRow {...decisionFacts(SETTLED)} />);
     const text = container.textContent;
     const attributes = container.innerHTML;
     for (const token of FRENCH_TOKENS) {
@@ -95,8 +95,8 @@ describe("R57 — une décision est un DOSSIER", () => {
   });
 
   it("une décision en attente ne montre aucune affiche devinée", () => {
-    const attente = { ...REGLEE, status: "pending", resolution_json: null };
-    render(<DecisionRow {...decisionFacts(attente)} />);
+    const pendingDecision = { ...SETTLED, status: "pending", resolution_json: null };
+    render(<DecisionRow {...decisionFacts(pendingDecision)} />);
     const card = screen.getByTestId("decision-card");
     expect(card.querySelector("img")).toBeNull();
     expect(screen.queryByText("Réglée")).toBeNull();
@@ -107,19 +107,19 @@ describe("R57 — le score ne s'affiche que s'il sépare", () => {
   afterEach(cleanup);
 
   it("marque les meneurs à égalité, et eux seuls", () => {
-    expect(tiedLeaders(CANDIDATS)).toEqual([true, true, true, true, false]);
-    expect(tieNotice(CANDIDATS)).toContain("ne tranche pas");
+    expect(tiedLeaders(CANDIDATES)).toEqual([true, true, true, true, false]);
+    expect(tieNotice(CANDIDATES)).toContain("ne tranche pas");
   });
 
   it("un meneur SEUL garde son score", () => {
-    const seul = [{ score: 1 }, { score: 0.9 }, { score: 0.5 }];
-    expect(tiedLeaders(seul)).toEqual([false, false, false]);
-    expect(tieNotice(seul)).toBeNull();
+    const singleLeader = [{ score: 1 }, { score: 0.9 }, { score: 0.5 }];
+    expect(tiedLeaders(singleLeader)).toEqual([false, false, false]);
+    expect(tieNotice(singleLeader)).toBeNull();
   });
 
   it("une carte à égalité n'affiche pas de pourcentage", () => {
     render(
-      <CandidateCard candidate={CANDIDATS[0]} isSelected={false} tied onClick={vi.fn()} />,
+      <CandidateCard candidate={CANDIDATES[0]} isSelected={false} tied onClick={vi.fn()} />,
     );
     expect(screen.queryByText(/%/)).toBeNull();
     expect(screen.getByText(/le score ne tranche pas/i)).toBeInTheDocument();
@@ -127,7 +127,7 @@ describe("R57 — le score ne s'affiche que s'il sépare", () => {
 
   it("une carte qui se détache affiche le sien", () => {
     render(
-      <CandidateCard candidate={CANDIDATS[4]} isSelected={false} onClick={vi.fn()} />,
+      <CandidateCard candidate={CANDIDATES[4]} isSelected={false} onClick={vi.fn()} />,
     );
     // 90 also appears in the candidate's year (1990), so the assertion names
     // the percentage itself.
@@ -136,7 +136,7 @@ describe("R57 — le score ne s'affiche que s'il sépare", () => {
 
   it("aucun candidat n'invite à quitter l'écran pour décider", () => {
     const { container } = render(
-      <CandidateCard candidate={CANDIDATS[0]} isSelected={false} onClick={vi.fn()} />,
+      <CandidateCard candidate={CANDIDATES[0]} isSelected={false} onClick={vi.fn()} />,
     );
     expect(container.querySelector("a")).toBeNull();
   });

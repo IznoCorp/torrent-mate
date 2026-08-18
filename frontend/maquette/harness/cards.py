@@ -147,7 +147,7 @@ async def main():
                             panel:b?b.dataset.panel||null:null,
                             directSheet:b?b.dataset.sheet||null:null,
                             posterIsButton:p?p.tagName==='BUTTON':false,
-                            posterToSheet:p?p.dataset.fiche||null:null,
+                            posterToSheet:p?p.dataset.mediasheet||null:null,
                             posterToPanel:p?p.dataset.panel||null:null,
                             posterUnknown:p?(p.querySelector('.pfall b')||{}).textContent==='?':false};})"""
             )
@@ -537,13 +537,13 @@ async def main():
               // poster is a picture — a span — and promises nothing at all.
               for (const a of document.querySelectorAll('button.poster')) {
                 if (!a.getBoundingClientRect().width) continue;
-                if (!a.hasAttribute('data-fiche'))
-                  out.offending.push('pressable poster with no data-fiche: ' + a.className);
+                if (!a.hasAttribute('data-mediasheet'))
+                  out.offending.push('pressable poster with no data-mediasheet: ' + a.className);
               }
               for (const d of document.querySelectorAll('.folder')) {
                 if (!d.getBoundingClientRect().width) continue;
                 out.folders++;
-                if (!d.hasAttribute('data-panel') || d.hasAttribute('data-fiche') ||
+                if (!d.hasAttribute('data-panel') || d.hasAttribute('data-mediasheet') ||
                     d.closest('[data-nonmedia="dossier"]') === null)
                   out.offending.push('folder badly marked: ' + d.className);
               }

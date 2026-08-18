@@ -30,7 +30,7 @@ export function Sheet({
   close,
 }: {
   // The layer's own closer, handed down rather than reached for on
-  // `window.__panneau`: the shell owns the verb, this component only decides
+  // `window.__panel`: the shell owns the verb, this component only decides
   // WHEN a gesture amounts to a dismissal.
   close: (pop?: boolean) => void;
 }) {

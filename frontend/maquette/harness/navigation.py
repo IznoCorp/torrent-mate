@@ -23,7 +23,7 @@ What this holds to:
    `design/src/`: the glob read `.ts` and `.tsx`, so the sentence « exactly
    once under design/src/ » went on being printed about a scope that no
    longer covered the file most likely to break it.
-2. A round trip through the single door — `__ecrans.profil(t)` (the bridge
+2. A round trip through the single door — `__screens.profile(t)` (the bridge
    a legacy call site uses) onto the screen, then a navigation back to `/`
    — writes ONE entry per call and back walks them in reverse. `go()`
    itself is not exposed to `window` (by design — it is a module export,
@@ -34,7 +34,7 @@ What this holds to:
    never by `history.length` — a count that would still look right even if
    two pushes had merged into one and a third, unrelated entry happened to
    sit underneath.
-3. Two `__ecrans.profil(...)` calls issued in the SAME task — no `await`
+3. Two `__screens.profile(...)` calls issued in the SAME task — no `await`
    between them — still produce TWO separate entries, walked back one at a
    time and judged the same way: by which title's screen the walk reveals,
    not by a length that a merge would not visibly change.
@@ -59,7 +59,7 @@ SCREEN_STATE = """() => {
   const screen = document.querySelector('.screen.open');
   return {
     open: !!screen,
-    key: screen?.dataset.cle ?? null,
+    key: screen?.dataset.key ?? null,
     pathname: location.pathname,
   };
 }"""
@@ -219,11 +219,11 @@ async def main():
         journal.check("the starting point has no screen open",
                       not start_point["open"], start_point["pathname"])
 
-        await pg.evaluate(f"()=>window.__ecrans.profil({json.dumps(TITLE)})")
+        await pg.evaluate(f"()=>window.__screens.profile({json.dumps(TITLE)})")
         await pg.wait_for_timeout(300)
         on_profile = await pg.evaluate(SCREEN_STATE)
-        journal.check("__ecrans.profil() opens the screen through the single door",
-                         on_profile["open"] and on_profile["key"] == f"profil:{TITLE}",
+        journal.check("__screens.profile() opens the screen through the single door",
+                         on_profile["open"] and on_profile["key"] == f"profile:{TITLE}",
                          on_profile["pathname"])
 
         # go() itself is not on window — its own two-line body (navigate,
@@ -243,7 +243,7 @@ async def main():
         first_back = await pg.evaluate(SCREEN_STATE)
         journal.check(
             "the first back finds the profile screen again (counted by observed state)",
-            first_back["open"] and first_back["key"] == f"profil:{TITLE}",
+            first_back["open"] and first_back["key"] == f"profile:{TITLE}",
             first_back["pathname"])
 
         await pg.go_back()
@@ -262,13 +262,13 @@ async def main():
         # No await between the two calls: exactly the same-task condition
         # the microtask-batching risk described above concerns.
         await pg.evaluate(
-            f"()=>{{ window.__ecrans.profil({json.dumps(TITLE)}); "
-            f"window.__ecrans.profil({json.dumps(OTHER_TITLE)}); }}")
+            f"()=>{{ window.__screens.profile({json.dumps(TITLE)}); "
+            f"window.__screens.profile({json.dumps(OTHER_TITLE)}); }}")
         await pg.wait_for_timeout(300)
         double = await pg.evaluate(SCREEN_STATE)
         journal.check(
             "two calls in the same task keep the second one",
-            double["open"] and double["key"] == f"profil:{OTHER_TITLE}",
+            double["open"] and double["key"] == f"profile:{OTHER_TITLE}",
             double["pathname"])
 
         await pg.go_back()
@@ -276,7 +276,7 @@ async def main():
         one_back = await pg.evaluate(SCREEN_STATE)
         journal.check(
             "a first back reveals the FIRST title's entry — two entries, not one",
-            one_back["open"] and one_back["key"] == f"profil:{TITLE}",
+            one_back["open"] and one_back["key"] == f"profile:{TITLE}",
             one_back["pathname"])
 
         await pg.go_back()

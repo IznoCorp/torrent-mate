@@ -168,8 +168,8 @@ describe("FlowBoard", () => {
     expect(screen.getByRole("button", { name: /Tri/ })).toBeInTheDocument();
     // The compact quiet layout uses flex-row (icon+count+dot in one row)
     // rather than the expanded flex-col with a visible label row.
-    const triBtn = screen.getByRole("button", { name: /Tri/ });
-    expect(triBtn.className).toMatch(/\bflex-row\b/);
+    const sortButton = screen.getByRole("button", { name: /Tri/ });
+    expect(sortButton.className).toMatch(/\bflex-row\b/);
     // G7: quiet compact label text is NOT visible in the DOM.
     // queryByText returns null — the label row is hidden in compact quiet mode.
     expect(screen.queryByText("Tri")).not.toBeInTheDocument();

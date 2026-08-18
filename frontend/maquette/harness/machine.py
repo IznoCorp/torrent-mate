@@ -72,10 +72,10 @@ CONTRAST_FLOOR = 4.5
 # and the rung that follows is what makes a list that was not found say so.
 BLOCKS = (
     ("Services", "services", "service", "SERVICES"),
-    ("Planificateurs", "schedulers", "scheduler", "PLANIFICATEURS"),
-    ("Disques", "disks", "disk", "DISQUES"),
+    ("Planificateurs", "schedulers", "scheduler", "SCHEDULERS"),
+    ("Disques", "disks", "disk", "DISKS"),
     ("Index de la médiathèque", "index", "index row", "INDEX"),
-    ("Dépendances", "dependencies", "dependency", "DEPENDANCES"),
+    ("Dépendances", "dependencies", "dependency", "DEPENDENCIES"),
 )
 
 # TWO MORE LISTS CARRY A TONE, and no comparison against a declared field can
@@ -93,7 +93,7 @@ DERIVED = (
 
 # WHAT THE WORD-AGREEMENT HALF CANNOT REACH TODAY, named rather than assumed:
 # the runs list is all-success in the embedded data and has no fault twin —
-# `SERVICES_PANNE` and `PLANIFICATEURS_PANNE` exist, `EXECUTIONS_PANNE` does
+# `SERVICES_PANNE` and `SCHEDULERS_DOWN` exist, `EXECUTIONS_PANNE` does
 # not — so forcing every run's tone to `success` renders nothing different and
 # no hold can see it. The hold below still bites the reverse (a succeeded run
 # wearing an alert). Closing it properly is a change to the prototype's own
@@ -514,7 +514,7 @@ async def main():
                          fault["overflow"] <= 0, f"{fault['overflow']}px")
 
         # ── MAINTENANCE ────────────────────────────────────────────────────
-        maint = await on_page(pg, "maint", maintRub=None)
+        maint = await on_page(pg, "maint", maintTopic=None)
         journal.check("Maintenance is navigated by what one wants to DO",
                          len(maint["topics"]) >= 5, str(maint["topics"]))
         journal.check("the deletion journal is on Maintenance",
@@ -524,7 +524,7 @@ async def main():
         registry = real_commands()
         seen = set()
         for topic in ("query", "scan", "repair", "clean", "fix", "analyze"):
-            page = await on_page(pg, "maint", maintRub=topic)
+            page = await on_page(pg, "maint", maintTopic=topic)
             seen.update(page["commands"])
             journal.check(f"the « {topic} » topic draws commands",
                              len(page["commands"]) > 0, str(page["commands"]))
@@ -548,8 +548,8 @@ async def main():
         journal.check("the engine does have commands that delete",
                          len(destructive) > 0, f"{len(destructive)}")
         for action in destructive:
-            await on_page(pg, "maint", maintRub=action.category)
-            await pg.evaluate(f"()=>ouvrirActionMaintenance({json.dumps(action.id)})")
+            await on_page(pg, "maint", maintTopic=action.category)
+            await pg.evaluate(f"()=>openActionMaintenance({json.dumps(action.id)})")
             await pg.wait_for_timeout(320)
             panel = await pg.evaluate(PANEL)
             real_run = [a for a in panel["actions"] if "vrai" in a["text"]]

@@ -10,7 +10,7 @@
 //
 // WHAT THIS COMPONENT DRAWS AND NEVER FILLS: `#sugitems`, `#sugload` and the
 // deck's `.deckbody`. The suggestion machinery stays the fragment's, and that
-// is a measured decision rather than an unfinished one — `avancerDeck` mutates
+// is a measured decision rather than an unfinished one — `advanceDeck` mutates
 // the deck's own DOM in place (it inserts a card at the back, decrements every
 // `data-depth`, writes an inline transform on the outgoing one and removes it
 // 440 ms later), and its own comment says why: a replaced node cannot animate.
@@ -247,7 +247,7 @@ function FollowsTab(): ReactElement {
     stLabel,
     gridBadge,
     cadenceFR,
-    prochaineRechercheFR,
+    nextSearchFR,
     escapeHtml,
     render,
     ST_TONE,
@@ -300,7 +300,7 @@ function FollowsTab(): ReactElement {
     );
 
   // Read ONCE for the whole list: every card names the same next slot.
-  const next = prochaineRechercheFR(CADENCE_CRON, new Date());
+  const next = nextSearchFR(CADENCE_CRON, new Date());
 
   const seriesState = (follow: Follow) =>
     follow.k === "movie"
@@ -600,7 +600,7 @@ function DiscoverTab(): ReactElement {
       // ONLY IF THE PILE IS NOT ALREADY THERE. Rewriting it on every commit
       // destroys the gesture in flight: « Passer » writes the order to the
       // store, which re-renders this component, whose effect would then replace
-      // the very nodes `avancerDeck` is animating — and a replaced node cannot
+      // the very nodes `advanceDeck` is animating — and a replaced node cannot
       // animate, which is the whole reason this machinery stayed imperative.
       // Rebuilding a spent pile is `refreshDeck`'s business, and it does it.
       if (!deckBody.querySelector(".deck")) {
@@ -752,8 +752,8 @@ export function AcquisitionPage(): ReactElement | null {
   const state = useUiState();
   // THE WORLD IS MUTATED IN PLACE by every action this page offers — grabbing a
   // medium splices it out of one list and unshifts it into another, pausing a
-  // follow writes its status — and those actions signal with `toucher()`, which
-  // bumps the store's VERSION and leaves `etat` identical. Subscribing to the
+  // follow writes its status — and those actions signal with `touch()`, which
+  // bumps the store's VERSION and leaves `state` identical. Subscribing to the
   // state alone leaves React bailing out: measured, « Récupérer maintenant »
   // moved the medium and left every counter on screen unchanged. The two other
   // pages that read mutable data subscribe the same way, for the same reason.

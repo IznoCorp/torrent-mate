@@ -1,7 +1,7 @@
 import asyncio
 from playwright.async_api import async_playwright
 
-VIEWS = [("acq/maintenant",'[data-page="acq"]'), ("acq/suivis",'[data-acqtab="suivis"]'),
+VIEWS = [("acq/now",'[data-page="acq"]'), ("acq/suivis",'[data-acqtab="suivis"]'),
          ("acq/decouvrir",'[data-acqtab="decouvrir"]'), ("lib/categories",'[data-page="lib"]'),
          ("lib/incomplets",'[data-lens="inc"]'), ("lib/recents",'[data-lens="rec"]'),
          ("arrivees",'[data-page="arr"]'), ("systeme",'[data-page="sys"]')]

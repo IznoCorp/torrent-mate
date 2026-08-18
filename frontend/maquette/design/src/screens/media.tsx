@@ -51,7 +51,7 @@ function Icon({ paths, strokeWidth }: { paths: string; strokeWidth?: number }) {
   );
 }
 
-// The fields this screen reads off a `FICHES_RAW` entry. The source stays
+// The fields this screen reads off a `SHEETS_RAW` entry. The source stays
 // untyped JS and a movie and a show do not carry the same keys, so every
 // field is optional — a narrowed view of `MediaSheet`, never a claim about
 // what a sheet always has.
@@ -79,8 +79,8 @@ type MediaSheetFields = {
 type Follow = { t: string };
 
 // One row of the season list: an owned-seasons row (`[n, aired, own]` from
-// `saisonsDe`) and a catalogue row (`{ n, ep, air }` from the sheet) are
-// folded into the same shape before rendering, exactly as `saisonsFicheHTML`
+// `seasonsOf`) and a catalogue row (`{ n, ep, air }` from the sheet) are
+// folded into the same shape before rendering, exactly as `sheetSeasonsHTML`
 // folds them.
 type SeasonRow = {
   n: number;
@@ -102,7 +102,7 @@ function SeasonList({
   catalog: CatalogSeason[];
   title: string;
 }) {
-  const { possedesDe, plages, dateFR, EP_LABEL, AUJOURDHUI } = useReference();
+  const { ownedFor, plages, dateFR, EP_LABEL, TODAY } = useReference();
   const { t } = useTranslation();
   const eps = sheet?.eps ?? {};
   const rows: SeasonRow[] = owns
@@ -118,7 +118,7 @@ function SeasonList({
     <div style={{ marginTop: "10px" }}>
       {rows.map((row) => {
         const list = eps[String(row.n)] ?? null;
-        const held = owns ? possedesDe(title, row.n) : null;
+        const held = owns ? ownedFor(title, row.n) : null;
         /* The count is DERIVED from the owned numbers when they are known;
            a total that does not say where the holes are is no longer
            trusted. */
@@ -151,7 +151,7 @@ function SeasonList({
                  tone. The title stays neutral — it is what one reads
                  first, so it keeps maximum contrast. One colour signal
                  per row, not a Christmas tree. */
-              const upcoming = episode.air && episode.air > AUJOURDHUI;
+              const upcoming = episode.air && episode.air > TODAY;
               /* State comes from the LIST of owned numbers. A « number <=
                  owned count » threshold assumes the hole is always at the
                  end of the season: false for 35 series in this library. */
@@ -202,7 +202,7 @@ function SeasonList({
                     key={number}
                     aria-label={t("screens.media.episodeAria", {
                       n: number,
-                      etat: EP_LABEL[episodeState],
+                      state: EP_LABEL[episodeState],
                     })}
                   >
                     {String(number).padStart(2, "0")}
@@ -272,6 +272,9 @@ function SeasonList({
             {missingNums.length ? (
               <p className="missing">
                 {t("screens.media.missingList", {
+                  // french-ok: the INTERPOLATION placeholder, named by
+                  // `missingList` in fr.json — renaming this half alone
+                  // leaves « Manquants : {{liste}} » on screen.
                   liste: plages(missingNums),
                 })}
               </p>
@@ -290,10 +293,10 @@ function SeasonList({
 // and nothing at all when there is neither — same resolution order as the
 // legacy sheet, base title included.
 function artworkFor(reference: Reference, title: string): string | null {
-  const { HEROS, POSTERS, baseTitle } = reference;
+  const { HERO_IMAGES, POSTERS, baseTitle } = reference;
   return (
-    HEROS[title] ??
-    HEROS[baseTitle(title)] ??
+    HERO_IMAGES[title] ??
+    HERO_IMAGES[baseTitle(title)] ??
     POSTERS[title] ??
     POSTERS[baseTitle(title)] ??
     null
@@ -302,11 +305,11 @@ function artworkFor(reference: Reference, title: string): string | null {
 
 export function MediaScreen() {
   const { titre: raw } = useParams({ from: "/fiche/$titre" });
-  // Defensive: `__ecrans.fiche` already normalises on write, but an entry
+  // Defensive: `__screens.mediaSheet` already normalises on write, but an entry
   // reached by a typed/bookmarked URL did not necessarily go through it.
   const title = raw.normalize("NFC");
   // `world.follows` is MUTATED IN PLACE by the still-legacy follow act
-  // (`actionSuivre`, refonte.html) — the reference never changes, so
+  // (`actionFollow`, refonte.html) — the reference never changes, so
   // `useWorld()` alone would not notice. Subscribing to `version` forces the
   // re-render on that bump, and the read below then sees the mutated list
   // fresh: this is what flips the « Suivre » button to « Suivi » without the
@@ -320,8 +323,8 @@ export function MediaScreen() {
     icons,
     baseTitle,
     sheetFor,
-    saisonsDe,
-    ACTEURS,
+    seasonsOf,
+    CAST,
     trailerIds,
     initials,
   } = reference;
@@ -332,7 +335,7 @@ export function MediaScreen() {
      actually owned. A hand-written table gave seasons to 10 series only, and
      none of them to the INCOMPLETE ones — the very media the question is
      about. */
-  const sorted = saisonsDe(title)
+  const sorted = seasonsOf(title)
     .slice()
     .sort((slice, index) => index[0] - slice[0]);
   const own = sorted.reduce(
@@ -376,9 +379,9 @@ export function MediaScreen() {
   const trailer = trailerIds[title] ?? trailerIds[baseTitle(title)] ?? null;
 
   return (
-    <section className="screen open" data-cle={`fiche:${title}`}>
+    <section className="screen open" data-key={`mediaSheet:${title}`}>
       <div className="screenbar">
-        <button className="fback" onClick={() => window.__pont.retour()}>
+        <button className="fback" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.media.back")}
         </button>{" "}
@@ -514,8 +517,8 @@ export function MediaScreen() {
                 {sheet.cast.map((cast) => (
                   <figure key={cast.n}>
                     <span className="ca">
-                      {ACTEURS[cast.n] ? (
-                        <img src={ACTEURS[cast.n]} alt="" loading="lazy" />
+                      {CAST[cast.n] ? (
+                        <img src={CAST[cast.n]} alt="" loading="lazy" />
                       ) : (
                         initials(cast.n)
                       )}
@@ -688,7 +691,7 @@ export function MediaScreen() {
                   : t("screens.media.followed")}
               </button>
             ) : (
-              // No `data-refiche`: the legacy button asked the sheet to
+              // No sheet-refresh attribute: the legacy button asked the sheet to
               // REOPEN itself so the label would flip under the finger. This
               // screen re-renders from the store instead — the follow act
               // bumps it, and the button becomes `mediaadd done` in place.

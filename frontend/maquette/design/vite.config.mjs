@@ -6,9 +6,9 @@ import { readFileSync, rmSync, symlinkSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
 
-const RACINE = resolve(import.meta.dirname);
+const ROOT = resolve(import.meta.dirname);
 
-function injecteMaquette() {
+function injectPrototype() {
   return {
     name: "injecte-maquette",
     transformIndexHtml: {
@@ -16,7 +16,7 @@ function injecteMaquette() {
       // emitted untransformed — byte-for-byte the source file.
       order: "post",
       handler(html) {
-        const fragment = readFileSync(resolve(RACINE, "refonte.html"), "utf8");
+        const fragment = readFileSync(resolve(ROOT, "refonte.html"), "utf8");
         return html.replace("<!-- maquette -->", () => fragment);
       },
     },
@@ -24,14 +24,14 @@ function injecteMaquette() {
       // The fragment's image URLs are relative `assets/...`; the build links
       // the real files in rather than copying 10 MB per build. `dist/` is
       // gitignored, so the symlink never reaches the repository.
-      rmSync(resolve(RACINE, "dist/assets"), { force: true, recursive: true });
-      symlinkSync("../assets", resolve(RACINE, "dist/assets"));
+      rmSync(resolve(ROOT, "dist/assets"), { force: true, recursive: true });
+      symlinkSync("../assets", resolve(ROOT, "dist/assets"));
     },
   };
 }
 
 export default defineConfig({
-  root: RACINE,
+  root: ROOT,
   // The prototype references `assets/...` itself; nothing else is public.
   publicDir: false,
   build: {
@@ -41,5 +41,5 @@ export default defineConfig({
     assetsDir: "vite",
     emptyOutDir: true,
   },
-  plugins: [injecteMaquette()],
+  plugins: [injectPrototype()],
 });

@@ -35,10 +35,10 @@ async def main():
     # R11 — jargon, technical values and machine English in rendered text
     for e in states:
         await pg.evaluate("(i)=>window.__go(i)",e); await pg.wait_for_timeout(240)
-        # Every screen migrated off `#screen` onto a real route — the fiche,
+        # Every screen migrated off `#screen` onto a real route — the mediaSheet,
         # the add screen, the arbitration screen, the release picker, the
         # quality profile — answers to ONE generic rung: any OPEN screen
-        # carries a `data-cle`, so its presence is enough, its identity never
+        # carries a `data-key`, so its presence is enough, its identity never
         # read here. It sits LAST in the ladder — the same order `audit.py`,
         # `dest.py` and `states.py` use — so every pre-existing case resolves
         # exactly as before and a layer opened OVER a route is still what gets
@@ -49,7 +49,7 @@ async def main():
           const r=document.querySelector('#dlg').classList.contains('open')?'#dlg'
                  :document.querySelector('#screen').classList.contains('open')?'#screen'
                  :document.querySelector('#sheet').classList.contains('open')?'#sheet'
-                 :document.querySelector('.screen.open[data-cle]')?'.screen.open[data-cle]'
+                 :document.querySelector('.screen.open[data-key]')?'.screen.open[data-key]'
                  :'#view';
           const t=document.querySelector(r).innerText;
           const patterns=[[/\\bundefined\\b/,'undefined'],[/\\bNaN\\b/,'NaN'],[/\\bnull\\b/,'null'],
@@ -100,20 +100,20 @@ async def main():
     # suggestion, film and series.
     orders=await pg.evaluate("""async ()=>{
       const out={}, picks=[];
-      const titles=Object.keys(FICHES_RAW ?? {});
+      const titles=Object.keys(SHEETS_RAW ?? {});
       const take=(pred, n)=>titles.filter(pred).slice(0, n);
-      const incomplete=(t)=>{const s=POSSEDES[t]??POSSEDES[baseTitle(t)];
+      const incomplete=(t)=>{const s=OWNED[t]??OWNED[baseTitle(t)];
         if(!s) return false; const f=sheetFor(t); if(!f?.saisons) return false;
         return f.saisons.some(x=>x.ep && (s[String(x.n)]??[]).length < x.ep);};
       picks.push(...take(t=>sheetFor(t)?.k==='movie', 2));
       picks.push(...take(t=>sheetFor(t)?.k==='show' && !incomplete(t), 2));
       picks.push(...take(incomplete, 4));
-      picks.push(...take(t=>!(HEROS[t]??HEROS[baseTitle(t)]), 2));
+      picks.push(...take(t=>!(HERO_IMAGES[t]??HERO_IMAGES[baseTitle(t)]), 2));
       for (const t of [...new Set(picks)]) {
         window.__reset(); applyState({page:'lib', phase:'prete'});
-        window.__ecrans.fiche(t);
+        window.__screens.mediaSheet(t);
         await new Promise(r=>setTimeout(r,240));
-        const b=document.querySelector('.screen.open[data-cle^="fiche:"] .body');
+        const b=document.querySelector('.screen.open[data-key^="mediaSheet:"] .body');
         if (!b) { out[t]=['EMPTY SHEET']; continue; }
         out[t]=[...b.children]
           .filter(x=>x.getBoundingClientRect().height>0 && !x.classList.contains('note'))
@@ -144,15 +144,15 @@ async def main():
     #
     # `acq-ajout-resultats` and `fiche-serie` both left `#screen` for real
     # routes rendered inside `#coquille`: their open/close check is the screen
-    # itself, not the legacy layer id. The fiche is named by the identity it
-    # carries (`data-cle="fiche:…"`) rather than by a bare `.screen.open`,
+    # itself, not the legacy layer id. The mediaSheet is named by the identity it
+    # carries (`data-key="mediaSheet:…"`) rather than by a bare `.screen.open`,
     # which two stacked screens would both answer to. Every case closes the
     # same way from the operator's point of view (the screen's own « Retour »,
     # the scrim for a layer), so only the selector differs.
     R14_CASES = [
         ("feuille-suivi-trous", "#sheet", "scrim"),
         ("lib-suppression", "#dlg", "scrim"),
-        ("fiche-serie", '.screen.open[data-cle^="fiche:"]', "back"),
+        ("fiche-serie", '.screen.open[data-key^="mediaSheet:"]', "back"),
         ("acq-ajout-resultats", ".screen.open", "back"),
     ]
     for id_, sel, closing in R14_CASES:
@@ -181,7 +181,7 @@ async def main():
     ran('R16')
     # R16 — the badge is the sum it claims to be
     bad=await pg.evaluate("""async ()=>{const out=[];
-      for (const s of ['reel','charge']) { window.__magasin.ecrire({scen: s}); window.__go('acq-encours-'+(s==='reel'?'repos':'charge'));
+      for (const s of ['reel','charge']) { window.__magasin.write({scen: s}); window.__go('acq-encours-'+(s==='reel'?'repos':'charge'));
         await new Promise(r=>setTimeout(r,240));
         const badge=document.querySelector('[data-page=acq] .navbadge');
         const expected=derived.takeable().length+derived.blocked().length;
@@ -226,7 +226,7 @@ async def main():
           // by the identity it carries, or this rule about ALL media sheets
           // would stop seeing the very screen it is named after.
           const root=document.querySelector('#screen.open, #sheet.open')
-                  || document.querySelector('.screen.open[data-cle^="fiche:"]');
+                  || document.querySelector('.screen.open[data-key^="mediaSheet:"]');
           const hero=root && root.querySelector('.hero');
           if (!hero) continue;
           const name=`${s}/${theme||'dark'}`;
@@ -269,7 +269,7 @@ async def main():
         // Same reason as R26 above: the sheet is a route now, and it is where
         // the trailer lives — read it by its key or this rule goes quiet.
         const root=document.querySelector('#screen.open, #sheet.open')
-                || document.querySelector('.screen.open[data-cle^="fiche:"]');
+                || document.querySelector('.screen.open[data-key^="mediaSheet:"]');
         if (!root || !root.querySelector('.hero')) continue;
         const el=root.querySelector('.trailer');
         if (!el) continue;                       // declared absence: stated elsewhere
@@ -294,11 +294,11 @@ async def main():
       for (const s of window.__states()) {
         window.__go(s); await new Promise(r=>setTimeout(r,300));
         // The screen carrying the bar is the legacy layer when it is up, and
-        // otherwise the migrated fiche, named by its own key: leaving the
-        // fiche out would silently drop five states from this sweep, and a
+        // otherwise the migrated mediaSheet, named by its own key: leaving the
+        // mediaSheet out would silently drop five states from this sweep, and a
         // rule that has gone quiet is not a rule that passes.
         const screen=document.querySelector('#screen.open')
-                  || document.querySelector('.screen.open[data-cle^="fiche:"]');
+                  || document.querySelector('.screen.open[data-key^="mediaSheet:"]');
         const bar=screen?.querySelector('.screenbar');
         if (!bar) continue;
         const btn=bar.querySelector('.fback');
@@ -338,17 +338,17 @@ async def main():
       // ALL series with an INTERNAL hole, not a sample: that is where the
       // threshold and the list diverge, so that is where the rule has a chance
       // to bite.
-      const withHoles=Object.entries(POSSEDES).filter(([t,s])=>
+      const withHoles=Object.entries(OWNED).filter(([t,s])=>
         Object.values(s).some(l=>l.length && l.some((n,i)=>n!==i+1))).map(([t])=>t);
       if (!withHoles.length) return ['no series with an internal hole — the rule would be vacuous'];
       let inspected=0;
       for (const title of withHoles) {
         window.__reset(); applyState({page:'lib', phase:'prete'});
-        window.__ecrans.fiche(title);
+        window.__screens.mediaSheet(title);
         await new Promise(r=>setTimeout(r,240));
-        for (const det of document.querySelectorAll('.screen.open[data-cle^="fiche:"] details.season')) {
+        for (const det of document.querySelectorAll('.screen.open[data-key^="mediaSheet:"] details.season')) {
           const num=Number((det.querySelector('summary')?.textContent||'').match(/Saison\\s+(\\d+)/)?.[1]);
-          const owned=possedesDe(title, num);
+          const owned=ownedFor(title, num);
           if (!owned) continue;
           // BOTH renderings: titled rows AND the numbered matrix.
           const cells=[...det.querySelectorAll('.eprow')].map(r=>[
@@ -373,7 +373,7 @@ async def main():
     # must not have two faces depending on the data it happens to have.
     renders=await pg.evaluate("""async ()=>{
       const c={rows:[], matrix:[], mixed:[], neverOpened:[], noSeason:[]};
-      const series=Object.keys(FICHES_RAW).filter(t=>sheetFor(t)?.k!=='movie');
+      const series=Object.keys(SHEETS_RAW).filter(t=>sheetFor(t)?.k!=='movie');
       // The sheet is a ROUTE now: it commits a frame later than an `innerHTML`
       // assignment did. A FIXED wait makes this rule's coverage depend on how
       // loaded the host is — one too short and every sheet reads « no season »,
@@ -381,17 +381,17 @@ async def main():
       // exit code. Waiting for THE SCREEN ONE ASKED FOR — its own key — removes
       // the guess, and a timeout is reported instead of silently skipped.
       const waitFor=async(t)=>{
-        const key='fiche:'+t.normalize('NFC');
+        const key='mediaSheet:'+t.normalize('NFC');
         for (let i=0;i<40;i++) {
-          const el=document.querySelector('.screen.open[data-cle^="fiche:"]');
-          if (el && el.dataset.cle===key) return el;
+          const el=document.querySelector('.screen.open[data-key^="mediaSheet:"]');
+          if (el && el.dataset.key===key) return el;
           await new Promise(r=>setTimeout(r,25));
         }
         return null;
       };
       for (const t of series) {
         window.__reset(); applyState({page:'lib',phase:'prete'});
-        window.__ecrans.fiche(t);
+        window.__screens.mediaSheet(t);
         const s=await waitFor(t);
         if (!s) { c.neverOpened.push(t); continue; }
         const dets=[...s.querySelectorAll('details.season')];
@@ -431,7 +431,7 @@ async def main():
     # ONLY for a medium that is actually followed.
     #
     # What this guards has not changed, only where it is enforced. Offering
-    # « Mettre en pause » or « Retirer le suivi » from the library produced a
+    # « Mettre en pause » or « Retirer le isFollowed » from the library produced a
     # panel whose content varied with something the screen never showed —
     # whether the title happened to be followed. The panel is now built from
     # what is true about the medium, so the rule checks that derivation instead

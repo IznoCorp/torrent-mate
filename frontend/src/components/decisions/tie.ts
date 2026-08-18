@@ -45,7 +45,7 @@ export function tiedLeaders(candidates: readonly Scored[]): boolean[] {
 export function tieNotice(candidates: readonly Scored[]): string | null {
   const tied = tiedLeaders(candidates).filter(Boolean).length;
   if (tied < 2) return null;
-  const mots = ["", "Un", "Deux", "Trois", "Quatre", "Cinq"];
-  const combien = mots[tied] ?? String(tied);
-  return `${combien} candidats reviennent au même score. Le classement ne tranche pas — c'est pour cela que la question vous est posée.`;
+  const numberWords = ["", "Un", "Deux", "Trois", "Quatre", "Cinq"];
+  const howMany = numberWords[tied] ?? String(tied);
+  return `${howMany} candidats reviennent au même score. Le classement ne tranche pas — c'est pour cela que la question vous est posée.`;
 }

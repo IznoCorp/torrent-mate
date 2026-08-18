@@ -32,7 +32,7 @@
    because narrowing it means editing the instrument that measures the move.
 */
 
-import { ecrans, panneau, pont } from "../seams.js";
+import { screens, panel, bridge } from "../seams.js";
 
   /* TorrentMate — mobile-first redesign prototype
      Data: real library titles (1,861 items). */
@@ -223,7 +223,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   /* In the « réel » scenario: nothing to grab, nothing to resolve, nothing
      in flight — the four followed films are at the legitimate rest state «
      searched, found nothing ». */
-  const NOTFOUND_REEL = [
+  const NOTFOUND_REAL = [
     {
       t: "Kyma, l'onde mystérieuse",
       s: "2026 · film",
@@ -447,34 +447,34 @@ import { ecrans, panneau, pont } from "../seams.js";
     if (!exec)
       return `Recherche automatique : ${escapeHtml(cron)} (cadence non interprétée)`;
     const min = exec[1].padStart(2, "0");
-    const heures = exec[2].split(",").map((split) => `${split} h ${min}`);
-    const quand =
-      heures.length === 1
-        ? `à ${heures[0]}`
-        : `à ${heures.slice(0, -1).join(", ")} et ${heures[heures.length - 1]}`;
+    const hours = exec[2].split(",").map((split) => `${split} h ${min}`);
+    const when =
+      hours.length === 1
+        ? `à ${hours[0]}`
+        : `à ${hours.slice(0, -1).join(", ")} et ${hours[hours.length - 1]}`;
     const freq =
-      heures.length === 1
+      hours.length === 1
         ? "une fois par jour"
-        : `${heures.length} fois par jour`;
-    return `Recherche automatique : ${freq}, ${quand}`;
+        : `${hours.length} fois par jour`;
+    return `Recherche automatique : ${freq}, ${when}`;
   }
 
   /* The next slot that cron will fire, phrased as the cadence line phrases the
      others. Returns null when the expression cannot be read — a card then says
      nothing about the next search rather than inventing one. */
-  function prochaineRechercheFR(cron, maintenant) {
+  function nextSearchFR(cron, now) {
     const exec = /^(\d+)\s+([\d,]+)\s+\*\s+\*\s+\*$/.exec(String(cron).trim());
     if (!exec) return null;
     const min = Number(exec[1]);
-    const heures = exec[2]
+    const hours = exec[2]
       .split(",")
       .map(Number)
       .sort((a2, b) => a2 - b);
-    const h = maintenant.getHours(),
-      m = maintenant.getMinutes();
-    const suivante =
-      heures.find((x) => x > h || (x === h && min > m)) ?? heures[0];
-    return `${suivante} h ${String(min).padStart(2, "0")}`;
+    const h = now.getHours(),
+      m = now.getMinutes();
+    const next =
+      hours.find((x) => x > h || (x === h && min > m)) ?? hours[0];
+    return `${next} h ${String(min).padStart(2, "0")}`;
   }
 
   function stLabel(follow) {
@@ -1496,334 +1496,334 @@ import { ecrans, panneau, pont } from "../seams.js";
      that did not resemble each other. A slightly softer image EVERYWHERE
      beats a sharp image on one sheet in six. Out of 320 sheets, only 1
      genuinely has no visual on TMDB. */
-  const HEROS = {
-    Silo: "assets/heros/8ef63da2.webp",
-    "Furious (2026)": "assets/heros/34814a9a.webp",
-    "Ninja Turtles": "assets/heros/5e54b65f.webp",
-    "Marjorie Prime": "assets/heros/c9570c64.webp",
-    "American Dad!": "assets/heros/6cbe467e.webp",
-    "On l'appelait Robin des Bois": "assets/heros/5b579bb1.webp",
-    "Batman Caped Crusader (2024)": "assets/heros/32aa7c90.webp",
-    "The Bombing of Pan Am 103": "assets/heros/12f01a95.webp",
-    "Big Chicken Le complot de la malbouffe": "assets/heros/75238492.webp",
-    "Margin Call": "assets/heros/b85422a3.webp",
-    "President Curtis (2026)": "assets/heros/f689da4b.webp",
-    "Superman : L'Homme de demain": "assets/heros/f9b21ae9.webp",
-    "L'Incroyable Hulk": "assets/heros/e3df1517.webp",
-    "Ant-Man et la Guêpe : Quantumania": "assets/heros/01ae4fc6.webp",
-    "Fast Charlie": "assets/heros/ce28e0ed.webp",
-    Grimsburg: "assets/heros/4478eb26.webp",
-    "Green Lantern : Méfiez-vous de mon pouvoir": "assets/heros/70a46298.webp",
-    "Scary Movie": "assets/heros/f2707c3a.webp",
-    Chacal: "assets/heros/fef7b2f4.webp",
-    Manhunt: "assets/heros/80f94b75.webp",
-    "Spider-Noir": "assets/heros/658528a2.webp",
-    PONIES: "assets/heros/abd6306b.webp",
-    "Star City": "assets/heros/4656c244.webp",
-    "The Hack": "assets/heros/15c4849a.webp",
-    "Les Moutons détectives": "assets/heros/054c3129.webp",
-    "Dead Landes": "assets/heros/cb816c8c.webp",
-    "I Will Find You": "assets/heros/1518555e.webp",
-    "Les Groos": "assets/heros/aac6c253.webp",
-    "This City Is Ours": "assets/heros/e76d35bc.webp",
-    "La Liste de Schindler": "assets/heros/0466f6cf.webp",
-    Simpsley: "assets/heros/e6b3d274.webp",
-    "Smiling Friends": "assets/heros/821ddf50.webp",
+  const HERO_IMAGES = {
+    Silo: "assets/heroes/8ef63da2.webp",
+    "Furious (2026)": "assets/heroes/34814a9a.webp",
+    "Ninja Turtles": "assets/heroes/5e54b65f.webp",
+    "Marjorie Prime": "assets/heroes/c9570c64.webp",
+    "American Dad!": "assets/heroes/6cbe467e.webp",
+    "On l'appelait Robin des Bois": "assets/heroes/5b579bb1.webp",
+    "Batman Caped Crusader (2024)": "assets/heroes/32aa7c90.webp",
+    "The Bombing of Pan Am 103": "assets/heroes/12f01a95.webp",
+    "Big Chicken Le complot de la malbouffe": "assets/heroes/75238492.webp",
+    "Margin Call": "assets/heroes/b85422a3.webp",
+    "President Curtis (2026)": "assets/heroes/f689da4b.webp",
+    "Superman : L'Homme de demain": "assets/heroes/f9b21ae9.webp",
+    "L'Incroyable Hulk": "assets/heroes/e3df1517.webp",
+    "Ant-Man et la Guêpe : Quantumania": "assets/heroes/01ae4fc6.webp",
+    "Fast Charlie": "assets/heroes/ce28e0ed.webp",
+    Grimsburg: "assets/heroes/4478eb26.webp",
+    "Green Lantern : Méfiez-vous de mon pouvoir": "assets/heroes/70a46298.webp",
+    "Scary Movie": "assets/heroes/f2707c3a.webp",
+    Chacal: "assets/heroes/fef7b2f4.webp",
+    Manhunt: "assets/heroes/80f94b75.webp",
+    "Spider-Noir": "assets/heroes/658528a2.webp",
+    PONIES: "assets/heroes/abd6306b.webp",
+    "Star City": "assets/heroes/4656c244.webp",
+    "The Hack": "assets/heroes/15c4849a.webp",
+    "Les Moutons détectives": "assets/heroes/054c3129.webp",
+    "Dead Landes": "assets/heroes/cb816c8c.webp",
+    "I Will Find You": "assets/heroes/1518555e.webp",
+    "Les Groos": "assets/heroes/aac6c253.webp",
+    "This City Is Ours": "assets/heroes/e76d35bc.webp",
+    "La Liste de Schindler": "assets/heroes/0466f6cf.webp",
+    Simpsley: "assets/heroes/e6b3d274.webp",
+    "Smiling Friends": "assets/heroes/821ddf50.webp",
     "Benjamin Tranié - Félicitations et tout et tout":
-      "assets/heros/27d852ef.webp",
+      "assets/heroes/27d852ef.webp",
     "Guillermo Guiz - La formidable ascension sociale temporaire de Guy Verstraeten":
-      "assets/heros/f0fcc17c.webp",
-    "Le Réveil de la Momie": "assets/heros/7186c82c.webp",
-    Obsession: "assets/heros/0e0e05f3.webp",
+      "assets/heroes/f0fcc17c.webp",
+    "Le Réveil de la Momie": "assets/heroes/7186c82c.webp",
+    Obsession: "assets/heroes/0e0e05f3.webp",
     "Aymeric Lompret & Pierre-Emmanuel Barré Woke me up !":
-      "assets/heros/a5e249a0.webp",
-    Backrooms: "assets/heros/242d90d2.webp",
-    Lucky: "assets/heros/dca91114.webp",
+      "assets/heroes/a5e249a0.webp",
+    Backrooms: "assets/heroes/242d90d2.webp",
+    Lucky: "assets/heroes/dca91114.webp",
     "The Alabama Solution dans l’enfer de la prison":
-      "assets/heros/195d73b0.webp",
-    "Gone Girls The Long Island Serial Killer": "assets/heros/b9908d97.webp",
-    "Le Premier Jour du reste de ta vie": "assets/heros/61ce1edf.webp",
-    "Rick and Morty (2013)": "assets/heros/1e045d1a.webp",
-    "The Mandalorian and Grogu": "assets/heros/eeab1148.webp",
-    "Disclosure Day": "assets/heros/cd3b840c.webp",
-    "The Hawk": "assets/heros/95ae998e.webp",
-    Supergirl: "assets/heros/2424e446.webp",
-    "Alexandre Kominek Bâtard sensible": "assets/heros/cc07b56b.webp",
-    "Alison Wheeler La Promesse d'un soir": "assets/heros/10b3f8c6.webp",
-    Wicker: "assets/heros/1fb979d3.webp",
-    "Spider-Man : Brand New Day": "assets/heros/1ce5b3a5.webp",
-    "L'Odyssée": "assets/heros/562d8266.webp",
-    "Kyma, l'onde mystérieuse": "assets/heros/e80a860e.webp",
-    "House of the Dragon": "assets/heros/d639102c.webp",
-    "Star Trek: Strange New Worlds": "assets/heros/bd8a1e9b.webp",
-    "Ted Lasso": "assets/heros/b2bb6b95.webp",
-    Arrow: "assets/heros/da388c69.webp",
-    "Silo (2023)": "assets/heros/8ef63da2.webp",
-    "Les aventures de Tintin": "assets/heros/f187cb3f.webp",
-    "Alita : Battle Angel": "assets/heros/e2c08046.webp",
-    "Numéro quatre": "assets/heros/caeea073.webp",
-    "Avengers : Endgame": "assets/heros/da06fc2f.webp",
-    "Man of Steel": "assets/heros/c788098b.webp",
-    "X-Men : Dark Phoenix": "assets/heros/c0753a37.webp",
-    "Premier Contact": "assets/heros/8134594e.webp",
-    "The Venture Bros": "assets/heros/e263cfaf.webp",
-    "Solo: A Star Wars Story": "assets/heros/1ddb266f.webp",
-    "L'Assassin": "assets/heros/d4e084b3.webp",
-    "Power Rangers": "assets/heros/5349e84d.webp",
-    "Agent Elvis": "assets/heros/4655ef85.webp",
-    "Marvel's M.O.D.O.K.": "assets/heros/eaefd868.webp",
-    "Un Duplex pour 3": "assets/heros/2c98a54f.webp",
-    "Les Trois Corniauds": "assets/heros/5e3d1c8f.webp",
-    "L'Embrouille est dans le sac": "assets/heros/b4e54174.webp",
-    Impostor: "assets/heros/e517c693.webp",
-    "Green Lantern : Le Complot": "assets/heros/91f4f6eb.webp",
-    "Monsieur le député": "assets/heros/fe2f9eee.webp",
-    "Touche pas à mon gazon": "assets/heros/351cee3f.webp",
-    "LOL 2.0": "assets/heros/ef205858.webp",
-    Thunderstruck: "assets/heros/86b1a5a8.webp",
-    "American Dreamer": "assets/heros/b12e53b9.webp",
-    "Y-a-t'il quelqu'un pour l'ambulance ?": "assets/heros/cc025765.webp",
-    "Jim Gaffigan: Beyond the Pale": "assets/heros/7dc9a59c.webp",
+      "assets/heroes/195d73b0.webp",
+    "Gone Girls The Long Island Serial Killer": "assets/heroes/b9908d97.webp",
+    "Le Premier Jour du reste de ta vie": "assets/heroes/61ce1edf.webp",
+    "Rick and Morty (2013)": "assets/heroes/1e045d1a.webp",
+    "The Mandalorian and Grogu": "assets/heroes/eeab1148.webp",
+    "Disclosure Day": "assets/heroes/cd3b840c.webp",
+    "The Hawk": "assets/heroes/95ae998e.webp",
+    Supergirl: "assets/heroes/2424e446.webp",
+    "Alexandre Kominek Bâtard sensible": "assets/heroes/cc07b56b.webp",
+    "Alison Wheeler La Promesse d'un soir": "assets/heroes/10b3f8c6.webp",
+    Wicker: "assets/heroes/1fb979d3.webp",
+    "Spider-Man : Brand New Day": "assets/heroes/1ce5b3a5.webp",
+    "L'Odyssée": "assets/heroes/562d8266.webp",
+    "Kyma, l'onde mystérieuse": "assets/heroes/e80a860e.webp",
+    "House of the Dragon": "assets/heroes/d639102c.webp",
+    "Star Trek: Strange New Worlds": "assets/heroes/bd8a1e9b.webp",
+    "Ted Lasso": "assets/heroes/b2bb6b95.webp",
+    Arrow: "assets/heroes/da388c69.webp",
+    "Silo (2023)": "assets/heroes/8ef63da2.webp",
+    "Les aventures de Tintin": "assets/heroes/f187cb3f.webp",
+    "Alita : Battle Angel": "assets/heroes/e2c08046.webp",
+    "Numéro quatre": "assets/heroes/caeea073.webp",
+    "Avengers : Endgame": "assets/heroes/da06fc2f.webp",
+    "Man of Steel": "assets/heroes/c788098b.webp",
+    "X-Men : Dark Phoenix": "assets/heroes/c0753a37.webp",
+    "Premier Contact": "assets/heroes/8134594e.webp",
+    "The Venture Bros": "assets/heroes/e263cfaf.webp",
+    "Solo: A Star Wars Story": "assets/heroes/1ddb266f.webp",
+    "L'Assassin": "assets/heroes/d4e084b3.webp",
+    "Power Rangers": "assets/heroes/5349e84d.webp",
+    "Agent Elvis": "assets/heroes/4655ef85.webp",
+    "Marvel's M.O.D.O.K.": "assets/heroes/eaefd868.webp",
+    "Un Duplex pour 3": "assets/heroes/2c98a54f.webp",
+    "Les Trois Corniauds": "assets/heroes/5e3d1c8f.webp",
+    "L'Embrouille est dans le sac": "assets/heroes/b4e54174.webp",
+    Impostor: "assets/heroes/e517c693.webp",
+    "Green Lantern : Le Complot": "assets/heroes/91f4f6eb.webp",
+    "Monsieur le député": "assets/heroes/fe2f9eee.webp",
+    "Touche pas à mon gazon": "assets/heroes/351cee3f.webp",
+    "LOL 2.0": "assets/heroes/ef205858.webp",
+    Thunderstruck: "assets/heroes/86b1a5a8.webp",
+    "American Dreamer": "assets/heroes/b12e53b9.webp",
+    "Y-a-t'il quelqu'un pour l'ambulance ?": "assets/heroes/cc025765.webp",
+    "Jim Gaffigan: Beyond the Pale": "assets/heroes/7dc9a59c.webp",
     "Gabriel Iglesias: I'm Sorry for What I Said When I Was Hungry":
-      "assets/heros/65448551.webp",
-    "Eddie Murphy: Delirious": "assets/heros/dd792bd9.webp",
-    "SAV des émissions": "assets/heros/d2241f10.webp",
-    "La Guerre des étoiles": "assets/heros/500b9c5c.webp",
-    RoboCop: "assets/heros/c22c5789.webp",
-    Superman: "assets/heros/9c57e526.webp",
-    "Le Livre de la jungle": "assets/heros/d20c09c0.webp",
-    Pinocchio: "assets/heros/5b8b4401.webp",
-    "Le Temple du Soleil": "assets/heros/f8d84611.webp",
-    "La Petite Sirène": "assets/heros/ba9c96f8.webp",
-    Mulan: "assets/heros/ed3c460e.webp",
-    "Les Schtroumpfs": "assets/heros/0f32e925.webp",
-    "Lilo & Stitch": "assets/heros/e7b23505.webp",
-    "Dark Matter": "assets/heros/3a64298f.webp",
-    Friends: "assets/heros/769d9ebc.webp",
-    Scrubs: "assets/heros/7389c457.webp",
-    "Zero Day": "assets/heros/3dd2fe63.webp",
-    "Ça Bienvenue à Derry": "assets/heros/3912ca41.webp",
-    "The Big Bang Theory": "assets/heros/740766b2.webp",
-    "The Big Door Prize": "assets/heros/355692f6.webp",
-    "The Bridge": "assets/heros/c4fc2aeb.webp",
-    "The Crowded Room": "assets/heros/d03b346c.webp",
-    "The Deal": "assets/heros/0c4598bd.webp",
-    "The Fall": "assets/heros/c6c20719.webp",
-    "The Flight Attendant": "assets/heros/d4aeab6d.webp",
-    "The Inbetweeners": "assets/heros/215a3710.webp",
-    "The Island": "assets/heros/3acb5a02.webp",
-    "The Keepers": "assets/heros/60bd406a.webp",
-    "Derrière la façade": "assets/heros/2384a4bb.webp",
-    "Des gens bien": "assets/heros/39b3cf00.webp",
-    "Des vivants": "assets/heros/851ca404.webp",
-    Dexter: "assets/heros/9cdad951.webp",
-    "Dexter Les Origines": "assets/heros/8c10604d.webp",
-    "Dexter Resurrection": "assets/heros/ae54c02b.webp",
-    "Dope Girls": "assets/heros/8b199b99.webp",
-    "Dope Thief": "assets/heros/e58beefe.webp",
-    "Douglas Is Cancelled": "assets/heros/cb1f4e20.webp",
-    "Down Cemetery Road": "assets/heros/e781c1cb.webp",
-    "Dune Prophecy": "assets/heros/661bd0ff.webp",
-    "Défendre Jacob": "assets/heros/4ab42a1c.webp",
-    Désenchantées: "assets/heros/17016b00.webp",
-    Earl: "assets/heros/f823261a.webp",
-    Empathie: "assets/heros/c89deb7a.webp",
-    Engrenages: "assets/heros/70b4583b.webp",
-    "Enterrement de vie de garçon": "assets/heros/1f7fd88f.webp",
-    "Espion à l'ancienne": "assets/heros/3a7d70b7.webp",
-    "Esterno Notte": "assets/heros/8cb5997b.webp",
-    "Extra-Lucide": "assets/heros/6a87a2e6.webp",
-    Extrapolations: "assets/heros/f08812cf.webp",
-    Flashback: "assets/heros/5084fa40.webp",
-    "Florida Man": "assets/heros/459835b5.webp",
+      "assets/heroes/65448551.webp",
+    "Eddie Murphy: Delirious": "assets/heroes/dd792bd9.webp",
+    "SAV des émissions": "assets/heroes/d2241f10.webp",
+    "La Guerre des étoiles": "assets/heroes/500b9c5c.webp",
+    RoboCop: "assets/heroes/c22c5789.webp",
+    Superman: "assets/heroes/9c57e526.webp",
+    "Le Livre de la jungle": "assets/heroes/d20c09c0.webp",
+    Pinocchio: "assets/heroes/5b8b4401.webp",
+    "Le Temple du Soleil": "assets/heroes/f8d84611.webp",
+    "La Petite Sirène": "assets/heroes/ba9c96f8.webp",
+    Mulan: "assets/heroes/ed3c460e.webp",
+    "Les Schtroumpfs": "assets/heroes/0f32e925.webp",
+    "Lilo & Stitch": "assets/heroes/e7b23505.webp",
+    "Dark Matter": "assets/heroes/3a64298f.webp",
+    Friends: "assets/heroes/769d9ebc.webp",
+    Scrubs: "assets/heroes/7389c457.webp",
+    "Zero Day": "assets/heroes/3dd2fe63.webp",
+    "Ça Bienvenue à Derry": "assets/heroes/3912ca41.webp",
+    "The Big Bang Theory": "assets/heroes/740766b2.webp",
+    "The Big Door Prize": "assets/heroes/355692f6.webp",
+    "The Bridge": "assets/heroes/c4fc2aeb.webp",
+    "The Crowded Room": "assets/heroes/d03b346c.webp",
+    "The Deal": "assets/heroes/0c4598bd.webp",
+    "The Fall": "assets/heroes/c6c20719.webp",
+    "The Flight Attendant": "assets/heroes/d4aeab6d.webp",
+    "The Inbetweeners": "assets/heroes/215a3710.webp",
+    "The Island": "assets/heroes/3acb5a02.webp",
+    "The Keepers": "assets/heroes/60bd406a.webp",
+    "Derrière la façade": "assets/heroes/2384a4bb.webp",
+    "Des gens bien": "assets/heroes/39b3cf00.webp",
+    "Des vivants": "assets/heroes/851ca404.webp",
+    Dexter: "assets/heroes/9cdad951.webp",
+    "Dexter Les Origines": "assets/heroes/8c10604d.webp",
+    "Dexter Resurrection": "assets/heroes/ae54c02b.webp",
+    "Dope Girls": "assets/heroes/8b199b99.webp",
+    "Dope Thief": "assets/heroes/e58beefe.webp",
+    "Douglas Is Cancelled": "assets/heroes/cb1f4e20.webp",
+    "Down Cemetery Road": "assets/heroes/e781c1cb.webp",
+    "Dune Prophecy": "assets/heroes/661bd0ff.webp",
+    "Défendre Jacob": "assets/heroes/4ab42a1c.webp",
+    Désenchantées: "assets/heroes/17016b00.webp",
+    Earl: "assets/heroes/f823261a.webp",
+    Empathie: "assets/heroes/c89deb7a.webp",
+    Engrenages: "assets/heroes/70b4583b.webp",
+    "Enterrement de vie de garçon": "assets/heroes/1f7fd88f.webp",
+    "Espion à l'ancienne": "assets/heroes/3a7d70b7.webp",
+    "Esterno Notte": "assets/heroes/8cb5997b.webp",
+    "Extra-Lucide": "assets/heroes/6a87a2e6.webp",
+    Extrapolations: "assets/heroes/f08812cf.webp",
+    Flashback: "assets/heroes/5084fa40.webp",
+    "Florida Man": "assets/heroes/459835b5.webp",
     "Fonction Juré présente Le Séminaire d'Entreprise":
-      "assets/heros/bc8b96fd.webp",
-    "For All Mankind": "assets/heros/d585e36e.webp",
-    Foundation: "assets/heros/2e31289a.webp",
-    "La Meilleure Version de moi-même": "assets/heros/318a52a6.webp",
-    "La mer de la Tranquillité": "assets/heros/a1dcd223.webp",
+      "assets/heroes/bc8b96fd.webp",
+    "For All Mankind": "assets/heroes/d585e36e.webp",
+    Foundation: "assets/heroes/2e31289a.webp",
+    "La Meilleure Version de moi-même": "assets/heroes/318a52a6.webp",
+    "La mer de la Tranquillité": "assets/heroes/a1dcd223.webp",
     "La nuit où Laurier Gaudreault s’est réveillé":
-      "assets/heros/6b76d910.webp",
-    "La Réalité en face": "assets/heros/92e8dfa7.webp",
-    "La Résidence": "assets/heros/510f3248.webp",
-    "La Voisine danoise": "assets/heros/6a1a24f1.webp",
-    Landman: "assets/heros/6985d0dd.webp",
-    "Le Crime à la racine": "assets/heros/e05db924.webp",
-    "Le Garçon et l'Univers": "assets/heros/da552641.webp",
-    "Le Livre de Boba Fett": "assets/heros/0a1bff17.webp",
-    "Le Maître du Haut Château": "assets/heros/e6fb330a.webp",
-    "Le Problème à 3 corps": "assets/heros/ede53a9b.webp",
-    "Le Président foudroyé": "assets/heros/673ddd83.webp",
-    "Blue Lights": "assets/heros/04458c4c.webp",
-    Bodies: "assets/heros/140b603d.webp",
-    "Boglands, enquête en terre noire": "assets/heros/3ff05ad7.webp",
-    Boots: "assets/heros/7ee9d2fb.webp",
-    "bref.": "assets/heros/449898c6.webp",
-    Cassandra: "assets/heros/ef1ff0e1.webp",
-    "Casting(s)": "assets/heros/27a6af64.webp",
-    "Cent ans de solitude": "assets/heros/a63986f5.webp",
-    "Channel Zero": "assets/heros/5f80c776.webp",
-    "Chief of War": "assets/heros/e58b999e.webp",
-    "Chère petite": "assets/heros/5cefcf91.webp",
-    "Citoyens clandestins": "assets/heros/fbefde99.webp",
-    "City on Fire": "assets/heros/5e021be4.webp",
-    Arcane: "assets/heros/f4e23d24.webp",
-    Archer: "assets/heros/c36009da.webp",
-    "Regular Show": "assets/heros/1d0cd154.webp",
-    "The Staircase": "assets/heros/576e19bd.webp",
-    "Lucky Luke": "assets/heros/30844721.webp",
-    "Les Animaniacs": "assets/heros/6de660a0.webp",
-    "Le Grinch": "assets/heros/0a2e6334.webp",
-    "Parks and Recreation": "assets/heros/28bb803e.webp",
-    "Une affaire d'honneur": "assets/heros/b1bed653.webp",
-    "Une vie": "assets/heros/4f93c31c.webp",
-    Vermines: "assets/heros/30e9a5a3.webp",
-    "Chérie, j'ai agrandi le bébé": "assets/heros/bfa12393.webp",
-    "Chérie, j'ai rétréci les gosses": "assets/heros/4e701447.webp",
-    "Comme un prince": "assets/heros/c5afe649.webp",
-    "Daaaaaalí !": "assets/heros/1e39cd32.webp",
-    "Dune Deuxième Partie": "assets/heros/0e66d6fc.webp",
-    Breathe: "assets/heros/36df4e19.webp",
-    "Mothers' Instinct": "assets/heros/6ee2ae78.webp",
-    Sentinel: "assets/heros/d72090d5.webp",
-    "Ultraman Rising": "assets/heros/8902bf2c.webp",
-    "22.11.63": "assets/heros/83ca870b.webp",
-    "3%": "assets/heros/b4f6bd8f.webp",
-    "Anger Management": "assets/heros/8b090172.webp",
-    "Band of Brothers": "assets/heros/6240f933.webp",
-    "Battlestar Galactica": "assets/heros/808dbfa7.webp",
-    "Beacon 23": "assets/heros/7eedd3ee.webp",
-    "Better Call Saul": "assets/heros/45d2fc21.webp",
-    Bodkin: "assets/heros/1a56d150.webp",
-    Broadchurch: "assets/heros/d5f5b8cd.webp",
-    "Broute 24.": "assets/heros/e80fe8d5.webp",
-    Fiasco: "assets/heros/53071fd6.webp",
-    Furies: "assets/heros/645fd329.webp",
-    "Game of Thrones": "assets/heros/48c2ee61.webp",
-    "Go On": "assets/heros/62a93a4c.webp",
-    "Heeramandi Les diamants de la cour": "assets/heros/b239d652.webp",
-    "Hero Corp": "assets/heros/aef6423a.webp",
-    Joey: "assets/heros/2668ebc9.webp",
-    "Kaboul Kitchen": "assets/heros/c74a7abd.webp",
-    "Kevin Can Wait": "assets/heros/63d1a4e1.webp",
-    "La Brea": "assets/heros/bb219bf2.webp",
-    "La cape et l'épée": "assets/heros/13b21bc2.webp",
-    "La quatrième dimension": "assets/heros/f09d0932.webp",
-    "La Vie de famille": "assets/heros/fc5eb731.webp",
-    "Le Caméléon": "assets/heros/a6a2951a.webp",
-    "Le Régime": "assets/heros/8e3ed809.webp",
-    "Le Visiteur du Futur": "assets/heros/b6d1802c.webp",
-    "Les Papillons noirs": "assets/heros/85c432be.webp",
-    MacGyver: "assets/heros/9bcdda5a.webp",
-    "Man With A Plan": "assets/heros/7d5757e9.webp",
-    Misfits: "assets/heros/fa64ffbc.webp",
-    "Mon petit renne": "assets/heros/11a00765.webp",
-    "Mr. & Mrs. Smith": "assets/heros/2dab17e6.webp",
-    "Mr. Bean": "assets/heros/9af45e6b.webp",
-    "Only Murders in the Building": "assets/heros/6576359f.webp",
-    Rapa: "assets/heros/ca74040d.webp",
-    "Reine rouge": "assets/heros/f4e70ef2.webp",
-    Ripley: "assets/heros/5d96d665.webp",
-    Shameless: "assets/heros/9632c2a1.webp",
-    "Six Feet Under": "assets/heros/6596a20f.webp",
-    "Stargate Atlantis": "assets/heros/2fe9cc15.webp",
-    "Stargate SG-1": "assets/heros/5ad396c1.webp",
-    "Stargate Universe": "assets/heros/1b7752b7.webp",
-    Sugar: "assets/heros/d57957ba.webp",
-    Terminal: "assets/heros/18cbf067.webp",
-    "The Acolyte": "assets/heros/368e2edd.webp",
-    "The Big Cigar": "assets/heros/88f0eab0.webp",
-    "The Drew Carey Show": "assets/heros/8534213e.webp",
-    "The King of Queens": "assets/heros/4ea9e884.webp",
-    "The Last Man on Earth": "assets/heros/84a6377c.webp",
-    "The Lost Room": "assets/heros/4d2c7e69.webp",
-    "The Michael J. Fox Show": "assets/heros/03f660d7.webp",
-    "The OA": "assets/heros/7491ef1b.webp",
-    "The Odd Couple": "assets/heros/f89ccf2e.webp",
-    "The Wrong Mans": "assets/heros/97c5b9c6.webp",
-    "Time Traveling Bong": "assets/heros/0fd6a4d6.webp",
-    "Twin Peaks": "assets/heros/a1ef4dc0.webp",
-    "Un meurtre est-il facile": "assets/heros/9e50fbf9.webp",
-    Unbelievable: "assets/heros/f9c4a1e2.webp",
-    "United States of Tara": "assets/heros/21750623.webp",
-    Voilà: "assets/heros/a1c28389.webp",
-    "X-Files  Aux frontières du réel": "assets/heros/d3394a31.webp",
-    Caïn: "assets/heros/3057b826.webp",
-    Chernobyl: "assets/heros/66a57409.webp",
-    "Childhood's End": "assets/heros/5b9f9769.webp",
-    "Coupling - Six Sexy": "assets/heros/ba9a6eec.webp",
-    "Des gens bien ordinaires": "assets/heros/db36350b.webp",
-    "Doctor Who": "assets/heros/b9530257.webp",
-    Eric: "assets/heros/130e3a01.webp",
-    Eux: "assets/heros/359ffba6.webp",
-    Fallout: "assets/heros/b55106f3.webp",
-    "Family Business": "assets/heros/2c5ee424.webp",
-    "Caméra Café": "assets/heros/a258c202.webp",
-    Farscape: "assets/heros/0296a126.webp",
-    "That '70s Show": "assets/heros/2eb8d177.webp",
-    "L'Odyssée interstellaire": "assets/heros/d2c86f76.webp",
-    "Good Luck, Have Fun, Don't Die": "assets/heros/fe9d2219.webp",
-    "Andrew The Problem Prince": "assets/heros/5dd03644.webp",
-    Monk: "assets/heros/085f8fc8.webp",
-    "Squid Game": "assets/heros/9a81188a.webp",
-    "Dossier 137": "assets/heros/23f036e0.webp",
-    "I Origins": "assets/heros/65f522fe.webp",
-    "Dexter New Blood": "assets/heros/f660e487.webp",
-    "Imperfect Women": "assets/heros/cdff1d70.webp",
-    "Maximum Pleasure Guaranteed": "assets/heros/0f99fd73.webp",
-    "Stranger Things Tales from '85": "assets/heros/e46d47ff.webp",
-    "The Boroughs": "assets/heros/02d41bab.webp",
-    "De si remarquables créatures": "assets/heros/0baae8d0.webp",
-    "Projet Dernière Chance": "assets/heros/dd81adc7.webp",
-    "Le Bus Les Bleus en grève": "assets/heros/d40187b6.webp",
-    "The Killing": "assets/heros/9e91671c.webp",
-    "Les Griffes de la nuit": "assets/heros/443e120f.webp",
-    "Astérix Le Domaine des dieux": "assets/heros/ab143df7.webp",
+      "assets/heroes/6b76d910.webp",
+    "La Réalité en face": "assets/heroes/92e8dfa7.webp",
+    "La Résidence": "assets/heroes/510f3248.webp",
+    "La Voisine danoise": "assets/heroes/6a1a24f1.webp",
+    Landman: "assets/heroes/6985d0dd.webp",
+    "Le Crime à la racine": "assets/heroes/e05db924.webp",
+    "Le Garçon et l'Univers": "assets/heroes/da552641.webp",
+    "Le Livre de Boba Fett": "assets/heroes/0a1bff17.webp",
+    "Le Maître du Haut Château": "assets/heroes/e6fb330a.webp",
+    "Le Problème à 3 corps": "assets/heroes/ede53a9b.webp",
+    "Le Président foudroyé": "assets/heroes/673ddd83.webp",
+    "Blue Lights": "assets/heroes/04458c4c.webp",
+    Bodies: "assets/heroes/140b603d.webp",
+    "Boglands, enquête en terre noire": "assets/heroes/3ff05ad7.webp",
+    Boots: "assets/heroes/7ee9d2fb.webp",
+    "bref.": "assets/heroes/449898c6.webp",
+    Cassandra: "assets/heroes/ef1ff0e1.webp",
+    "Casting(s)": "assets/heroes/27a6af64.webp",
+    "Cent ans de solitude": "assets/heroes/a63986f5.webp",
+    "Channel Zero": "assets/heroes/5f80c776.webp",
+    "Chief of War": "assets/heroes/e58b999e.webp",
+    "Chère petite": "assets/heroes/5cefcf91.webp",
+    "Citoyens clandestins": "assets/heroes/fbefde99.webp",
+    "City on Fire": "assets/heroes/5e021be4.webp",
+    Arcane: "assets/heroes/f4e23d24.webp",
+    Archer: "assets/heroes/c36009da.webp",
+    "Regular Show": "assets/heroes/1d0cd154.webp",
+    "The Staircase": "assets/heroes/576e19bd.webp",
+    "Lucky Luke": "assets/heroes/30844721.webp",
+    "Les Animaniacs": "assets/heroes/6de660a0.webp",
+    "Le Grinch": "assets/heroes/0a2e6334.webp",
+    "Parks and Recreation": "assets/heroes/28bb803e.webp",
+    "Une affaire d'honneur": "assets/heroes/b1bed653.webp",
+    "Une vie": "assets/heroes/4f93c31c.webp",
+    Vermines: "assets/heroes/30e9a5a3.webp",
+    "Chérie, j'ai agrandi le bébé": "assets/heroes/bfa12393.webp",
+    "Chérie, j'ai rétréci les gosses": "assets/heroes/4e701447.webp",
+    "Comme un prince": "assets/heroes/c5afe649.webp",
+    "Daaaaaalí !": "assets/heroes/1e39cd32.webp",
+    "Dune Deuxième Partie": "assets/heroes/0e66d6fc.webp",
+    Breathe: "assets/heroes/36df4e19.webp",
+    "Mothers' Instinct": "assets/heroes/6ee2ae78.webp",
+    Sentinel: "assets/heroes/d72090d5.webp",
+    "Ultraman Rising": "assets/heroes/8902bf2c.webp",
+    "22.11.63": "assets/heroes/83ca870b.webp",
+    "3%": "assets/heroes/b4f6bd8f.webp",
+    "Anger Management": "assets/heroes/8b090172.webp",
+    "Band of Brothers": "assets/heroes/6240f933.webp",
+    "Battlestar Galactica": "assets/heroes/808dbfa7.webp",
+    "Beacon 23": "assets/heroes/7eedd3ee.webp",
+    "Better Call Saul": "assets/heroes/45d2fc21.webp",
+    Bodkin: "assets/heroes/1a56d150.webp",
+    Broadchurch: "assets/heroes/d5f5b8cd.webp",
+    "Broute 24.": "assets/heroes/e80fe8d5.webp",
+    Fiasco: "assets/heroes/53071fd6.webp",
+    Furies: "assets/heroes/645fd329.webp",
+    "Game of Thrones": "assets/heroes/48c2ee61.webp",
+    "Go On": "assets/heroes/62a93a4c.webp",
+    "Heeramandi Les diamants de la cour": "assets/heroes/b239d652.webp",
+    "Hero Corp": "assets/heroes/aef6423a.webp",
+    Joey: "assets/heroes/2668ebc9.webp",
+    "Kaboul Kitchen": "assets/heroes/c74a7abd.webp",
+    "Kevin Can Wait": "assets/heroes/63d1a4e1.webp",
+    "La Brea": "assets/heroes/bb219bf2.webp",
+    "La cape et l'épée": "assets/heroes/13b21bc2.webp",
+    "La quatrième dimension": "assets/heroes/f09d0932.webp",
+    "La Vie de famille": "assets/heroes/fc5eb731.webp",
+    "Le Caméléon": "assets/heroes/a6a2951a.webp",
+    "Le Régime": "assets/heroes/8e3ed809.webp",
+    "Le Visiteur du Futur": "assets/heroes/b6d1802c.webp",
+    "Les Papillons noirs": "assets/heroes/85c432be.webp",
+    MacGyver: "assets/heroes/9bcdda5a.webp",
+    "Man With A Plan": "assets/heroes/7d5757e9.webp",
+    Misfits: "assets/heroes/fa64ffbc.webp",
+    "Mon petit renne": "assets/heroes/11a00765.webp",
+    "Mr. & Mrs. Smith": "assets/heroes/2dab17e6.webp",
+    "Mr. Bean": "assets/heroes/9af45e6b.webp",
+    "Only Murders in the Building": "assets/heroes/6576359f.webp",
+    Rapa: "assets/heroes/ca74040d.webp",
+    "Reine rouge": "assets/heroes/f4e70ef2.webp",
+    Ripley: "assets/heroes/5d96d665.webp",
+    Shameless: "assets/heroes/9632c2a1.webp",
+    "Six Feet Under": "assets/heroes/6596a20f.webp",
+    "Stargate Atlantis": "assets/heroes/2fe9cc15.webp",
+    "Stargate SG-1": "assets/heroes/5ad396c1.webp",
+    "Stargate Universe": "assets/heroes/1b7752b7.webp",
+    Sugar: "assets/heroes/d57957ba.webp",
+    Terminal: "assets/heroes/18cbf067.webp",
+    "The Acolyte": "assets/heroes/368e2edd.webp",
+    "The Big Cigar": "assets/heroes/88f0eab0.webp",
+    "The Drew Carey Show": "assets/heroes/8534213e.webp",
+    "The King of Queens": "assets/heroes/4ea9e884.webp",
+    "The Last Man on Earth": "assets/heroes/84a6377c.webp",
+    "The Lost Room": "assets/heroes/4d2c7e69.webp",
+    "The Michael J. Fox Show": "assets/heroes/03f660d7.webp",
+    "The OA": "assets/heroes/7491ef1b.webp",
+    "The Odd Couple": "assets/heroes/f89ccf2e.webp",
+    "The Wrong Mans": "assets/heroes/97c5b9c6.webp",
+    "Time Traveling Bong": "assets/heroes/0fd6a4d6.webp",
+    "Twin Peaks": "assets/heroes/a1ef4dc0.webp",
+    "Un meurtre est-il facile": "assets/heroes/9e50fbf9.webp",
+    Unbelievable: "assets/heroes/f9c4a1e2.webp",
+    "United States of Tara": "assets/heroes/21750623.webp",
+    Voilà: "assets/heroes/a1c28389.webp",
+    "X-Files  Aux frontières du réel": "assets/heroes/d3394a31.webp",
+    Caïn: "assets/heroes/3057b826.webp",
+    Chernobyl: "assets/heroes/66a57409.webp",
+    "Childhood's End": "assets/heroes/5b9f9769.webp",
+    "Coupling - Six Sexy": "assets/heroes/ba9a6eec.webp",
+    "Des gens bien ordinaires": "assets/heroes/db36350b.webp",
+    "Doctor Who": "assets/heroes/b9530257.webp",
+    Eric: "assets/heroes/130e3a01.webp",
+    Eux: "assets/heroes/359ffba6.webp",
+    Fallout: "assets/heroes/b55106f3.webp",
+    "Family Business": "assets/heroes/2c5ee424.webp",
+    "Caméra Café": "assets/heroes/a258c202.webp",
+    Farscape: "assets/heroes/0296a126.webp",
+    "That '70s Show": "assets/heroes/2eb8d177.webp",
+    "L'Odyssée interstellaire": "assets/heroes/d2c86f76.webp",
+    "Good Luck, Have Fun, Don't Die": "assets/heroes/fe9d2219.webp",
+    "Andrew The Problem Prince": "assets/heroes/5dd03644.webp",
+    Monk: "assets/heroes/085f8fc8.webp",
+    "Squid Game": "assets/heroes/9a81188a.webp",
+    "Dossier 137": "assets/heroes/23f036e0.webp",
+    "I Origins": "assets/heroes/65f522fe.webp",
+    "Dexter New Blood": "assets/heroes/f660e487.webp",
+    "Imperfect Women": "assets/heroes/cdff1d70.webp",
+    "Maximum Pleasure Guaranteed": "assets/heroes/0f99fd73.webp",
+    "Stranger Things Tales from '85": "assets/heroes/e46d47ff.webp",
+    "The Boroughs": "assets/heroes/02d41bab.webp",
+    "De si remarquables créatures": "assets/heroes/0baae8d0.webp",
+    "Projet Dernière Chance": "assets/heroes/dd81adc7.webp",
+    "Le Bus Les Bleus en grève": "assets/heroes/d40187b6.webp",
+    "The Killing": "assets/heroes/9e91671c.webp",
+    "Les Griffes de la nuit": "assets/heroes/443e120f.webp",
+    "Astérix Le Domaine des dieux": "assets/heroes/ab143df7.webp",
     "Bob l'éponge - Le film Un héros sort de l'eau":
-      "assets/heros/67d4d19f.webp",
-    "L'Âge de glace 4 La dérive des continents": "assets/heros/ca525b56.webp",
-    Gourou: "assets/heros/1b071116.webp",
-    "Achtsam Morden": "assets/heros/7926aa94.webp",
-    "Lord of the Flies": "assets/heros/69196ecb.webp",
-    Prescott: "assets/heros/d52bfe36.webp",
-    Rafa: "assets/heros/a1685f20.webp",
-    "Widow's Bay (2026)": "assets/heros/4f013004.webp",
-    "Fantômes contre fantômes": "assets/heros/a77bb78f.webp",
-    "La Cité des Anges": "assets/heros/e3751361.webp",
-    "Les Griffes de la Nuit": "assets/heros/1c9c10d0.webp",
-    "Les Légendaires": "assets/heros/dd00f9a8.webp",
-    "Top Chef": "assets/heros/a8aafe72.webp",
-    "The Boys": "assets/heros/058950be.webp",
-    From: "assets/heros/a4bc588e.webp",
-    "Jack Ryan de Tom Clancy Guerre Fantôme": "assets/heros/57407200.webp",
-    Jumpers: "assets/heros/fffd89b1.webp",
-    "L'éléphant": "assets/heros/2db9a732.webp",
-    Marsupilami: "assets/heros/6c95a50c.webp",
-    "Marty Supreme": "assets/heros/965aa64f.webp",
-    Michael: "assets/heros/b498be1f.webp",
-    "Mortal Kombat II": "assets/heros/88ff6ac3.webp",
-    "Over Your Dead Body": "assets/heros/77cb2763.webp",
-    "Super Mario Galaxy, le film": "assets/heros/d2131034.webp",
-    "Une famille de bâtards": "assets/heros/170ae46f.webp",
-    "War Machine": "assets/heros/edcedcfc.webp",
-    "Among Us": "assets/heros/00d6c10a.webp",
-    "Dear Killer Nannies Criado por sicarios": "assets/heros/8c097202.webp",
-    "Due spicci": "assets/heros/a656ae0e.webp",
-    "Michael Jackson The Verdict": "assets/heros/7d9fbde4.webp",
-    "Qui a poussé Mélodie": "assets/heros/d97ed819.webp",
-    "Die Hart Die Harter": "assets/heros/36f45fcf.webp",
-    "Chris Rock: Kill the Messenger": "assets/heros/ca6551fd.webp",
-    "Esprits criminels": "assets/heros/2088b70b.webp",
-    "Avengers : Infinity War": "assets/heros/20be1457.webp",
-    "Avatar : De feu et de cendres": "assets/heros/81555f7f.webp",
-    Conclave: "assets/heros/e2bd6d31.webp",
-    "Les Zinzins de l'Espace": "assets/heros/ec980414.webp",
-    "La cour de récré": "assets/heros/3b59f596.webp",
-    "Star Wars : The Clone Wars": "assets/heros/56963378.webp",
-    "Star Wars : The Mandalorian and Grogu": "assets/heros/eeab1148.webp",
-    "Star Wars : Les Aventures des Petits Jedi": "assets/heros/dea23a6b.webp",
-    "Star Wars Vintage : Clone Wars": "assets/heros/ade1fa5c.webp",
-    "Jim Gaffigan: Mr. Universe": "assets/heros/ba97e0f1.webp",
+      "assets/heroes/67d4d19f.webp",
+    "L'Âge de glace 4 La dérive des continents": "assets/heroes/ca525b56.webp",
+    Gourou: "assets/heroes/1b071116.webp",
+    "Achtsam Morden": "assets/heroes/7926aa94.webp",
+    "Lord of the Flies": "assets/heroes/69196ecb.webp",
+    Prescott: "assets/heroes/d52bfe36.webp",
+    Rafa: "assets/heroes/a1685f20.webp",
+    "Widow's Bay (2026)": "assets/heroes/4f013004.webp",
+    "Fantômes contre fantômes": "assets/heroes/a77bb78f.webp",
+    "La Cité des Anges": "assets/heroes/e3751361.webp",
+    "Les Griffes de la Nuit": "assets/heroes/1c9c10d0.webp",
+    "Les Légendaires": "assets/heroes/dd00f9a8.webp",
+    "Top Chef": "assets/heroes/a8aafe72.webp",
+    "The Boys": "assets/heroes/058950be.webp",
+    From: "assets/heroes/a4bc588e.webp",
+    "Jack Ryan de Tom Clancy Guerre Fantôme": "assets/heroes/57407200.webp",
+    Jumpers: "assets/heroes/fffd89b1.webp",
+    "L'éléphant": "assets/heroes/2db9a732.webp",
+    Marsupilami: "assets/heroes/6c95a50c.webp",
+    "Marty Supreme": "assets/heroes/965aa64f.webp",
+    Michael: "assets/heroes/b498be1f.webp",
+    "Mortal Kombat II": "assets/heroes/88ff6ac3.webp",
+    "Over Your Dead Body": "assets/heroes/77cb2763.webp",
+    "Super Mario Galaxy, le film": "assets/heroes/d2131034.webp",
+    "Une famille de bâtards": "assets/heroes/170ae46f.webp",
+    "War Machine": "assets/heroes/edcedcfc.webp",
+    "Among Us": "assets/heroes/00d6c10a.webp",
+    "Dear Killer Nannies Criado por sicarios": "assets/heroes/8c097202.webp",
+    "Due spicci": "assets/heroes/a656ae0e.webp",
+    "Michael Jackson The Verdict": "assets/heroes/7d9fbde4.webp",
+    "Qui a poussé Mélodie": "assets/heroes/d97ed819.webp",
+    "Die Hart Die Harter": "assets/heroes/36f45fcf.webp",
+    "Chris Rock: Kill the Messenger": "assets/heroes/ca6551fd.webp",
+    "Esprits criminels": "assets/heroes/2088b70b.webp",
+    "Avengers : Infinity War": "assets/heroes/20be1457.webp",
+    "Avatar : De feu et de cendres": "assets/heroes/81555f7f.webp",
+    Conclave: "assets/heroes/e2bd6d31.webp",
+    "Les Zinzins de l'Espace": "assets/heroes/ec980414.webp",
+    "La cour de récré": "assets/heroes/3b59f596.webp",
+    "Star Wars : The Clone Wars": "assets/heroes/56963378.webp",
+    "Star Wars : The Mandalorian and Grogu": "assets/heroes/eeab1148.webp",
+    "Star Wars : Les Aventures des Petits Jedi": "assets/heroes/dea23a6b.webp",
+    "Star Wars Vintage : Clone Wars": "assets/heroes/ade1fa5c.webp",
+    "Jim Gaffigan: Mr. Universe": "assets/heroes/ba97e0f1.webp",
   };
 
   /* 288 REAL YouTube video ids, read from TMDB /videos (official trailer
@@ -3152,7 +3152,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      episodes. This is a LIST, not a count: « 21 of 26 » does not say which
      are missing, and 35 of these series have an INTERNAL hole — assuming
      the owned episodes are the first ones of the season is false for them. */
-  const POSSEDES = {
+  const OWNED = {
     "Les Minikeums": {
       0: [
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
@@ -4540,46 +4540,46 @@ import { ecrans, panneau, pont } from "../seams.js";
      cards format only. The 154px poster used everywhere else is right at
      thumbnail size and mush once blown up to fill a phone screen: a format
      that shows one poster full-screen needs its own source. */
-  const AFFICHES_HD = {
-    "Superman : L'Homme de demain": "assets/affiches/62e12311.webp",
-    "Alita : Battle Angel": "assets/affiches/b39c19c9.webp",
-    "Numéro quatre": "assets/affiches/0cb20ccb.webp",
-    "Avengers : Endgame": "assets/affiches/46844527.webp",
-    "L'Incroyable Hulk": "assets/affiches/97b46743.webp",
-    "Man of Steel": "assets/affiches/94def384.webp",
-    "X-Men : Dark Phoenix": "assets/affiches/da5a5404.webp",
-    "Premier Contact": "assets/affiches/f2c6e872.webp",
-    "Ant-Man et la Guêpe : Quantumania": "assets/affiches/55232278.webp",
-    "The Venture Bros": "assets/affiches/890d8f76.webp",
-    "Fast Charlie": "assets/affiches/01829da1.webp",
-    Grimsburg: "assets/affiches/db2a8861.webp",
-    "Solo: A Star Wars Story": "assets/affiches/d33616f2.webp",
-    "L'Assassin": "assets/affiches/41922de1.webp",
-    "Power Rangers": "assets/affiches/6bc13ec8.webp",
-    "Agent Elvis": "assets/affiches/26da5927.webp",
-    "Marvel's M.O.D.O.K.": "assets/affiches/5a40a4a5.webp",
-    "Un Duplex pour 3": "assets/affiches/b4bb05a1.webp",
-    "Les Trois Corniauds": "assets/affiches/9b1711ea.webp",
-    "L'Embrouille est dans le sac": "assets/affiches/e4bceec0.webp",
-    Impostor: "assets/affiches/d62c7202.webp",
-    "Green Lantern : Le Complot": "assets/affiches/c30fc907.webp",
+  const POSTERS_HD = {
+    "Superman : L'Homme de demain": "assets/posters-hd/62e12311.webp",
+    "Alita : Battle Angel": "assets/posters-hd/b39c19c9.webp",
+    "Numéro quatre": "assets/posters-hd/0cb20ccb.webp",
+    "Avengers : Endgame": "assets/posters-hd/46844527.webp",
+    "L'Incroyable Hulk": "assets/posters-hd/97b46743.webp",
+    "Man of Steel": "assets/posters-hd/94def384.webp",
+    "X-Men : Dark Phoenix": "assets/posters-hd/da5a5404.webp",
+    "Premier Contact": "assets/posters-hd/f2c6e872.webp",
+    "Ant-Man et la Guêpe : Quantumania": "assets/posters-hd/55232278.webp",
+    "The Venture Bros": "assets/posters-hd/890d8f76.webp",
+    "Fast Charlie": "assets/posters-hd/01829da1.webp",
+    Grimsburg: "assets/posters-hd/db2a8861.webp",
+    "Solo: A Star Wars Story": "assets/posters-hd/d33616f2.webp",
+    "L'Assassin": "assets/posters-hd/41922de1.webp",
+    "Power Rangers": "assets/posters-hd/6bc13ec8.webp",
+    "Agent Elvis": "assets/posters-hd/26da5927.webp",
+    "Marvel's M.O.D.O.K.": "assets/posters-hd/5a40a4a5.webp",
+    "Un Duplex pour 3": "assets/posters-hd/b4bb05a1.webp",
+    "Les Trois Corniauds": "assets/posters-hd/9b1711ea.webp",
+    "L'Embrouille est dans le sac": "assets/posters-hd/e4bceec0.webp",
+    Impostor: "assets/posters-hd/d62c7202.webp",
+    "Green Lantern : Le Complot": "assets/posters-hd/c30fc907.webp",
     "Green Lantern : Méfiez-vous de mon pouvoir":
-      "assets/affiches/fec17dad.webp",
-    "Monsieur le député": "assets/affiches/fe65e1aa.webp",
-    "Touche pas à mon gazon": "assets/affiches/10abc7cf.webp",
-    "LOL 2.0": "assets/affiches/83dc400c.webp",
-    Thunderstruck: "assets/affiches/41c67e3d.webp",
-    "American Dreamer": "assets/affiches/74c17774.webp",
-    "Y-a-t'il quelqu'un pour l'ambulance ?": "assets/affiches/6db670f4.webp",
-    "Jim Gaffigan: Beyond the Pale": "assets/affiches/3c3354da.webp",
-    "Eddie Murphy: Delirious": "assets/affiches/9c24447d.webp",
-    "Jim Gaffigan: Mr. Universe": "assets/affiches/608656ba.webp",
-    "Spider-Man : Brand New Day": "assets/affiches/8c3d11b6.webp",
-    "Esprits criminels": "assets/affiches/3f107d28.webp",
-    "Avengers : Infinity War": "assets/affiches/e1bc275f.webp",
-    Arrow: "assets/affiches/46781e16.webp",
-    "Avatar : De feu et de cendres": "assets/affiches/4587e6f0.webp",
-    Manhunt: "assets/affiches/05565116.webp",
+      "assets/posters-hd/fec17dad.webp",
+    "Monsieur le député": "assets/posters-hd/fe65e1aa.webp",
+    "Touche pas à mon gazon": "assets/posters-hd/10abc7cf.webp",
+    "LOL 2.0": "assets/posters-hd/83dc400c.webp",
+    Thunderstruck: "assets/posters-hd/41c67e3d.webp",
+    "American Dreamer": "assets/posters-hd/74c17774.webp",
+    "Y-a-t'il quelqu'un pour l'ambulance ?": "assets/posters-hd/6db670f4.webp",
+    "Jim Gaffigan: Beyond the Pale": "assets/posters-hd/3c3354da.webp",
+    "Eddie Murphy: Delirious": "assets/posters-hd/9c24447d.webp",
+    "Jim Gaffigan: Mr. Universe": "assets/posters-hd/608656ba.webp",
+    "Spider-Man : Brand New Day": "assets/posters-hd/8c3d11b6.webp",
+    "Esprits criminels": "assets/posters-hd/3f107d28.webp",
+    "Avengers : Infinity War": "assets/posters-hd/e1bc275f.webp",
+    Arrow: "assets/posters-hd/46781e16.webp",
+    "Avatar : De feu et de cendres": "assets/posters-hd/4587e6f0.webp",
+    Manhunt: "assets/posters-hd/05565116.webp",
   };
 
   /* The signed-in account. One place, hard-coded for now: this instance has a
@@ -4598,7 +4598,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      returns today, embedded because this prototype has no external resource —
      a page that reaches the network is a page that renders differently
      depending on where it is opened. */
-  const COMPTE = {
+  const ACCOUNT = {
     nom: "izno",
     mail: "iznogoudatall@gmail.com",
     avatar: "assets/avatar.webp",
@@ -5875,7 +5875,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      The switch lives in the harness, not in the app. */
 
   /* REAL contents of the staging directory. */
-  const STUCK_REEL = [
+  const STUCK_REAL = [
     {
       t: "Top Chef Le Concours Parallèle (2026)",
       s: "002-TVSHOWS · déposé à la main",
@@ -5939,13 +5939,13 @@ import { ecrans, panneau, pont } from "../seams.js";
     ambiguous: "Candidats ambigus",
     manual: "Envoi manuel",
   };
-  const MOTIF_TON = {
+  const REASON_TONE = {
     below_threshold: "danger",
     mid_band: "warning",
     ambiguous: "info",
     manual: "neutral",
   };
-  const MOTIF_POURQUOI = {
+  const REASON_DETAIL = {
     below_threshold:
       "Aucun candidat n'atteignait le seuil de confiance automatique.",
     mid_band:
@@ -5956,12 +5956,12 @@ import { ecrans, panneau, pont } from "../seams.js";
   };
   /* `dismissed` and `superseded` are spelled out: the raw words say what the
      code did, not what happened to the folder. */
-  const ETAT_DECISION = {
+  const DECISION_STATE = {
     resolved: ["success", "Réglée"],
     dismissed: ["neutral", "Laissée telle quelle"],
     superseded: ["info", "Remplacée depuis"],
   };
-  const ETAT_DECISION_POURQUOI = {
+  const DECISION_STATE_DETAIL = {
     resolved: "Un candidat a été choisi, et un re-scrapage ciblé a été lancé.",
     dismissed:
       "Le dossier a été laissé tel quel : le résultat automatique est conservé, rien n'a été re-scrapé.",
@@ -5980,8 +5980,8 @@ import { ecrans, panneau, pont } from "../seams.js";
       k: "movie",
       t: "The Odyssey",
       motif: "ambiguous",
-      etat: "superseded",
-      quand: "6 août, 09 h 24",
+      state: "superseded",
+      when: "6 août, 09 h 24",
       y: 2026,
     },
     {
@@ -5989,9 +5989,9 @@ import { ecrans, panneau, pont } from "../seams.js";
       k: "show",
       t: "The Bombing of Pan Am S01E03",
       motif: "below_threshold",
-      etat: "resolved",
-      quand: "4 août, 12 h 37",
-      choix: {
+      state: "resolved",
+      when: "4 août, 12 h 37",
+      choice: {
         t: "The Bombing of Pan Am S01E03",
         p: "tvdb",
         id: 456595,
@@ -6003,36 +6003,36 @@ import { ecrans, panneau, pont } from "../seams.js";
       k: "show",
       t: "Star Trek",
       motif: "mid_band",
-      etat: "superseded",
-      quand: "30 juillet, 15 h 42",
+      state: "superseded",
+      when: "30 juillet, 15 h 42",
     },
     {
       d: "The Hawk",
       k: "show",
       t: "The Hawk",
       motif: "ambiguous",
-      etat: "resolved",
-      quand: "22 juillet, 22 h 11",
-      choix: { t: "The Hawk", p: "tvdb", id: 450088, via: "pick" },
+      state: "resolved",
+      when: "22 juillet, 22 h 11",
+      choice: { t: "The Hawk", p: "tvdb", id: 450088, via: "pick" },
     },
     {
       d: "Lucky",
       k: "show",
       t: "Lucky",
       motif: "ambiguous",
-      etat: "resolved",
-      quand: "15 juillet, 14 h 55",
-      choix: { t: "Lucky (2026)", p: "tvdb", id: 457437, via: "pick" },
+      state: "resolved",
+      when: "15 juillet, 14 h 55",
+      choice: { t: "Lucky (2026)", p: "tvdb", id: 457437, via: "pick" },
     },
     {
       d: "Top Chef Le Concours Parallèle (2026)",
       k: "show",
       t: "Top Chef Le Concours Parallele",
       motif: "mid_band",
-      etat: "resolved",
-      quand: "13 juillet, 18 h 44",
+      state: "resolved",
+      when: "13 juillet, 18 h 44",
       y: 2026,
-      choix: {
+      choice: {
         t: "Top Chef Le Concours Parallele",
         p: "tvdb",
         id: 475278,
@@ -6044,10 +6044,10 @@ import { ecrans, panneau, pont } from "../seams.js";
       k: "movie",
       t: "Ferrari Tsamere Lecaplain La tournee du Trio",
       motif: "manual",
-      etat: "resolved",
-      quand: "13 juillet, 18 h 44",
+      state: "resolved",
+      when: "13 juillet, 18 h 44",
       y: 2025,
-      choix: {
+      choice: {
         t: "Ferrari, Tsamere, Lecaplain : La Tournée du Trio",
         p: "tmdb",
         id: 1433379,
@@ -6059,10 +6059,10 @@ import { ecrans, panneau, pont } from "../seams.js";
       k: "movie",
       t: "Aymeric Lompret et Pierre Emmanuel Barre Woke me up",
       motif: "manual",
-      etat: "resolved",
-      quand: "13 juillet, 18 h 44",
+      state: "resolved",
+      when: "13 juillet, 18 h 44",
       y: 2026,
-      choix: {
+      choice: {
         t: "Aymeric Lompret et Pierre Emmanuel Barre Woke me up",
         p: "tmdb",
         id: 1629753,
@@ -6074,20 +6074,20 @@ import { ecrans, panneau, pont } from "../seams.js";
       k: "movie",
       t: "Obsession",
       motif: "manual",
-      etat: "resolved",
-      quand: "13 juillet, 16 h 46",
+      state: "resolved",
+      when: "13 juillet, 16 h 46",
       y: 2026,
-      choix: { t: "Obsession", p: "tmdb", id: 1339713, via: "pick" },
+      choice: { t: "Obsession", p: "tmdb", id: 1339713, via: "pick" },
     },
     {
       d: "Remarkably Bright Creatures (2026)",
       k: "movie",
       t: "Remarkably Bright Creatures",
       motif: "manual",
-      etat: "resolved",
-      quand: "13 juillet, 16 h 05",
+      state: "resolved",
+      when: "13 juillet, 16 h 05",
       y: 2026,
-      choix: {
+      choice: {
         t: "Remarkably Bright Creatures",
         p: "tmdb",
         id: 1330021,
@@ -6108,13 +6108,13 @@ import { ecrans, panneau, pont } from "../seams.js";
      two of the ten rows in the base came back with no candidate at all. It
      hangs on the dense scenario's folder, whose stated reason already says
      precisely that. */
-  const DECISIONS_ATTENTE = [
+  const PENDING_DECISIONS = [
     {
       d: "Lucky",
       k: "show",
       t: "Lucky",
       motif: "ambiguous",
-      quand: "15 juillet, 14 h 52",
+      when: "15 juillet, 14 h 52",
       c: [
         {
           t: "Lucky!",
@@ -6174,7 +6174,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       t: "Backrooms",
       y: 2026,
       motif: "below_threshold",
-      quand: "aujourd'hui, 06 h 16",
+      when: "aujourd'hui, 06 h 16",
       c: [],
     },
   ];
@@ -6240,7 +6240,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      is the one the operator can act on, and it points at « Ça coince » just
      below rather than at a log. */
   const PIPELINE = {
-    etapes: [
+    steps: [
       {
         n: "ingest",
         l: "Récupération",
@@ -6298,7 +6298,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     /* The run of 14/08 07:08, exactly as `pipeline_run` recorded it. */
     dernier: {
       uid: "2b598104",
-      quand: "aujourd'hui à 07 h 08",
+      when: "aujourd'hui à 07 h 08",
       duree: "1 min 44 s",
       declencheur: "completion",
       issue: "success",
@@ -6342,7 +6342,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      write and can be undone, and six DELETE. A list that draws them alike
      asks the operator to remember which is which, and the one they will
      forget is the one that matters. */
-  const MAINT_RUBRIQUES = [
+  const MAINT_TOPICS = [
     {
       id: "query",
       t: "Regarder",
@@ -6721,7 +6721,7 @@ import { ecrans, panneau, pont } from "../seams.js";
 
      `ok` is « did it run when it was due », never « is the process alive »:
      between two passes the process is gone, and that is its healthy state. */
-  const PLANIFICATEURS = [
+  const SCHEDULERS = [
     {
       l: "Contrôle de santé",
       ton: "success",
@@ -6783,7 +6783,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       : service,
   );
 
-  const PLANIFICATEURS_PANNE = PLANIFICATEURS.map((planificateur, rang) =>
+  const SCHEDULERS_DOWN = SCHEDULERS.map((planificateur, rang) =>
     rang === 0
       ? {
           ...planificateur,
@@ -6797,7 +6797,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   /* The disks, read from `df`. The percentage is what fills, so it is what is
      printed; a disk at 92 % says so before it says how many gigabytes remain,
      because « 335 Go » sounds like a lot and is four days of this library. */
-  const DISQUES = [
+  const DISKS = [
     {
       l: "Disk1",
       ton: "success",
@@ -6866,7 +6866,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     },
   ];
 
-  const DEPENDANCES = [
+  const DEPENDENCIES = [
     {
       l: "Redis",
       ton: "success",
@@ -6890,7 +6890,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   /* Code errors, and only those: a medium the pipeline refused is not an
      error, it is a decision, and it belongs to Arrivées. What is counted here
      is a run that RAISED. */
-  const ERREURS = {
+  const ERRORS = {
     total: 14,
     sur: 425,
     derniere: "le 6 août à 08 h 08",
@@ -6952,7 +6952,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      « moved » are two different events for the operator — an episode joining
      a series they already have is not a new title on a disk — so they are not
      flattened into one word. */
-  const SETTLED_REEL = [
+  const SETTLED_REAL = [
     {
       t: "Stuart Fails to Save the Universe (2026)",
       s: "nouveau sur Disk1 · aujourd'hui à 07 h 10",
@@ -6981,7 +6981,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      reads `currentState().page` — the parentheses are the point, visible at
      every site, saying « this is a read, now » instead of looking like a
      module-level variable that someone must remember to refresh. */
-  const currentState = () => magasin.lire().etat;
+  const currentState = () => store.read().state;
 
   const INITIAL_STATE = {
     page: "acq",
@@ -6997,7 +6997,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     /* Maintenance: which rubric is open, and whether the blank run is on. A
        command that DELETES ignores the second — it is on until the dry run
        has named what would go. */
-    maintRub: null,
+    maintTopic: null,
     /* Shows the SIMULATED fault on Système. Everything on this machine is
        green, and a screen that can only be green cannot be judged. */
     panne: false,
@@ -7005,7 +7005,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     addMode: "suivi",
     relTitre: null,
     /* The backend defaults: permissive everywhere EXCEPT exclude_3d. */
-    profil: {
+    profile: {
       min_resolution: "1080p",
       required_audio: ["VF"],
       require_known_resolution: false,
@@ -7119,30 +7119,30 @@ import { ecrans, panneau, pont } from "../seams.js";
        Two DIFFERENT absences, and merging them was a defect: `noposter` says
        there is no artwork, `!aFiche` says there is no medium. A card with no
        artwork still has a sheet, and must still lead to it. */
-    const aFiche = sheetFor(descriptor.t) != null;
+    const hasSheet = sheetFor(descriptor.t) != null;
     const image = descriptor.noposter
       ? `<span class="pfall"><b>${escapeHtml(initials(descriptor.t))}</b></span>`
       : posterBox(descriptor.t, descriptor.k);
-    const poster = aFiche
-      ? `<button class="poster" aria-label="Fiche de ${escapeHtml(descriptor.t)}" data-fiche="${escapeHtml(descriptor.t)}">${image}</button>`
+    const poster = hasSheet
+      ? `<button class="poster" aria-label="Fiche de ${escapeHtml(descriptor.t)}" data-mediasheet="${escapeHtml(descriptor.t)}">${image}</button>`
       : `<button class="folder" aria-label="Actions pour le dossier ${escapeHtml(descriptor.t)}" data-panel="${escapeHtml(descriptor.panel || `dossier:${descriptor.t}`)}">${svgIcon(icons.folder, 1.6)}<span class="dlabel">Dossier</span></button>`;
     /* Two lines, because they answer two questions. The first says WHAT THIS
        MEDIUM IS — how much of it is owned, what state it is in, how it is
        rated. The second annotates that state: what is pending, what has just
        arrived. Mixed on one line they competed for the same row and the state
        stopped reading at a glance, which is the only thing that line is for. */
-    const ligneEtat = `${descriptor.f ? `<span class="frac">${escapeHtml(descriptor.f)}</span>` : ""}${chipHTML(descriptor.chip)}${descriptor.note != null ? `<span class="crating">${escapeHtml(String(descriptor.note))}</span>` : ""}`;
+    const stateRow = `${descriptor.f ? `<span class="frac">${escapeHtml(descriptor.f)}</span>` : ""}${chipHTML(descriptor.chip)}${descriptor.note != null ? `<span class="crating">${escapeHtml(String(descriptor.note))}</span>` : ""}`;
     const ligneAnnotations = `${descriptor.caption ? `<span class="caption">${escapeHtml(descriptor.caption)}</span>` : ""}${descriptor.fresh ? `<span class="freshtag">Nouveau</span>` : ""}`;
-    return `<div class="card${descriptor.fresh ? " fresh" : ""}"${aFiche ? "" : ' data-nonmedia="dossier"'}>
+    return `<div class="card${descriptor.fresh ? " fresh" : ""}"${hasSheet ? "" : ' data-nonmedia="dossier"'}>
     ${poster}
     <div class="ccol">
     <div class="ctop">
-      <button class="cbody" data-panel="${escapeHtml(descriptor.panel || (aFiche ? `media:${descriptor.t}` : `dossier:${descriptor.t}`))}">
+      <button class="cbody" data-panel="${escapeHtml(descriptor.panel || (hasSheet ? `media:${descriptor.t}` : `dossier:${descriptor.t}`))}">
         <span class="ctitle" title="${escapeHtml(descriptor.t)}">${escapeHtml(descriptor.t)}</span>
         ${descriptor.s ? `<span class="csub">${escapeHtml(descriptor.s)}</span>` : ""}
         ${descriptor.r ? `<span class="creason">${richText(descriptor.r)}</span>` : ""}
         ${descriptor.overview ? `<span class="cov">${escapeHtml(descriptor.overview)}</span>` : ""}
-        ${ligneEtat ? `<span class="cmeta">${ligneEtat}</span>` : ""}
+        ${stateRow ? `<span class="cmeta">${stateRow}</span>` : ""}
         ${ligneAnnotations ? `<span class="cannotations">${ligneAnnotations}</span>` : ""}
       </button>
     </div>
@@ -7183,16 +7183,16 @@ import { ecrans, panneau, pont } from "../seams.js";
   /* ONE bottom panel, and its shape follows the facts it is given — and it is
      built in the shell now: `src/components/panel.tsx` is that single
      constructor, `src/components/sheet.tsx` the layer it draws into, and
-     `panneau.ouvrir` the verb a producer here calls, on a descriptor.
+     `panel.ouvrir` the verb a producer here calls, on a descriptor.
 
      The DESCRIPTOR crosses unchanged (facts, never markup: `titre`, `meta`,
      `sousTitre`, `affiche`, `avatar`, `puce`, `blocs`, and the typed blocks
-     `note` / `faits` / `actions` / `saisons` / `champ`) — the vocabulary is
+     `note` / `faits` / `actions` / `saisons` / `field`) — the vocabulary is
      declared with the component, and a view wanting something outside it is
      describing a fact the panel does not know about yet. The fix is still to
      add the fact.
 
-     An ACTION's `cible` remains a map of DATA ATTRIBUTES, never a handler:
+     An ACTION's `target` remains a map of DATA ATTRIBUTES, never a handler:
      the click delegation below reads those attributes, exactly as it does for
      a card, and that is what keeps a panel opened by the shell answering to
      the engine's own acts. */
@@ -7239,7 +7239,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   let world = null;
   // The single owner of the mutable state, adopted at boot by
   // window.__demarrerMoteur — null until the shell calls it.
-  let magasin = null;
+  let store = null;
   function seedWorld() {
     const deepCopy = (value) => JSON.parse(JSON.stringify(value));
     world = {
@@ -7247,11 +7247,11 @@ import { ecrans, panneau, pont } from "../seams.js";
       blocked: deepCopy(BLOCKED),
       inflight: deepCopy(INFLIGHT),
       notfound: deepCopy(NOTFOUND),
-      notfoundReel: deepCopy(NOTFOUND_REEL),
+      notfoundReel: deepCopy(NOTFOUND_REAL),
       doneToday: deepCopy(DONE_TODAY),
       stuck: deepCopy(STUCK),
-      stuckReel: deepCopy(STUCK_REEL),
-      settledReel: deepCopy(SETTLED_REEL),
+      stuckReel: deepCopy(STUCK_REAL),
+      settledReel: deepCopy(SETTLED_REAL),
       moving: deepCopy(MOVING),
       settled: deepCopy(SETTLED),
       // The seed, NOT the current state — otherwise seed() clones itself.
@@ -7264,7 +7264,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     // `world` in place, and a store still holding the previous object would
     // hand a component a world nobody writes to anymore. Optional because the
     // first seed runs before the shell hands the store over.
-    magasin?.adopterMonde(world);
+    store?.adoptWorld(world);
   }
   seedWorld();
   /* Simulated behaviours
@@ -7272,7 +7272,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      is not « a toast appears » but « the card leaves À récupérer, appears
      in En vol at the taken step, and the badge loses 1 ». */
 
-  function actionRecuperer(titre) {
+  function actionTake(titre) {
     const findIndex = world.takeable.findIndex(
       (takeable) => takeable.t === titre,
     );
@@ -7297,16 +7297,16 @@ import { ecrans, panneau, pont } from "../seams.js";
      « Résoudre → » on an acquisition card used to change nothing at all: the
      button was there, the screen opened, the choice was made, and the item
      stayed exactly where it was. */
-  function sortirDeLaFile(titre) {
-    for (const [liste, versCharge] of [
+  function leaveQueue(titre) {
+    for (const [list, versCharge] of [
       [world.stuck, true],
       [world.stuckReel, false],
       [world.blocked, true],
     ]) {
-      if (!liste) continue;
-      const index = liste.findIndex((item) => item.t === titre);
+      if (!list) continue;
+      const index = list.findIndex((item) => item.t === titre);
       if (index < 0) continue;
-      const [sorti] = liste.splice(index, 1);
+      const [sorti] = list.splice(index, 1);
       return { sorti, versCharge };
     }
     return null;
@@ -7316,45 +7316,45 @@ import { ecrans, panneau, pont } from "../seams.js";
      re-scraped — and the folder LEAVES the queue, because the operator has
      answered. A queue that kept what has been answered would grow forever and
      stop meaning « what is waiting for me ». */
-  function actionLaisser(titre) {
-    const sortie = sortirDeLaFile(titre);
-    if (!sortie) return false;
-    const carte = {
-      t: sortie.sorti.t,
-      s: sortie.sorti.s,
+  function actionLeave(titre) {
+    const exit = leaveQueue(titre);
+    if (!exit) return false;
+    const card = {
+      t: exit.sorti.t,
+      s: exit.sorti.s,
       strip: [1, 1, 1, "now", 0],
       chip: ["neutral", "Laissé tel quel"],
     };
-    if (sortie.versCharge) world.moving.unshift(carte);
-    else (world.movingReel ??= []).unshift(carte);
+    if (exit.versCharge) world.moving.unshift(card);
+    else (world.movingReel ??= []).unshift(card);
     render();
     toast(
-      `« ${sortie.sorti.t} » laissé tel quel — le résultat automatique est conservé, rien n'a été re-scrapé.`,
+      `« ${exit.sorti.t} » laissé tel quel — le résultat automatique est conservé, rien n'a été re-scrapé.`,
     );
     return true;
   }
 
-  function actionResoudre(titre, choix) {
-    const sortie = sortirDeLaFile(titre);
-    if (!sortie) return;
-    const carte = {
-      t: choix ?? sortie.sorti.t,
-      s: sortie.sorti.s,
+  function actionResolve(titre, choice) {
+    const exit = leaveQueue(titre);
+    if (!exit) return;
+    const card = {
+      t: choice ?? exit.sorti.t,
+      s: exit.sorti.s,
       strip: [1, 1, 1, "now", 0],
       chip: ["info", "Scraping"],
     };
-    if (sortie.versCharge) world.moving.unshift(carte);
-    else (world.movingReel ??= []).unshift(carte);
+    if (exit.versCharge) world.moving.unshift(card);
+    else (world.movingReel ??= []).unshift(card);
     render();
     toast(
-      `Identifié comme « ${choix ?? sortie.sorti.t} » — le pipeline reprend jusqu'à la médiathèque.`,
+      `Identifié comme « ${choice ?? exit.sorti.t} » — le pipeline reprend jusqu'à la médiathèque.`,
     );
   }
 
   function actionPause(titre) {
     const found = world.follows.find((follow) => follow.t === titre);
     if (!found) return;
-    const avant = found.st;
+    const before = found.st;
     found.st =
       found.st === "disabled"
         ? found.k === "movie"
@@ -7368,7 +7368,7 @@ import { ecrans, panneau, pont } from "../seams.js";
         ? `« ${found.t} » réactivé.`
         : `« ${found.t} » ${found.k === "movie" ? "ne sera plus cherché" : "mis en pause"}.`,
       () => {
-        found.st = avant;
+        found.st = before;
         render();
       },
     );
@@ -7385,7 +7385,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     });
   }
 
-  function actionSuivre(titre, kind) {
+  function actionFollow(titre, kind) {
     if (
       world.follows.some((follow) => baseTitle(follow.t) === baseTitle(titre))
     )
@@ -7401,10 +7401,10 @@ import { ecrans, panneau, pont } from "../seams.js";
     );
   }
 
-  function actionSupprimer(titres) {
+  function actionDelete(titres) {
     titres.forEach((titre) => world.removedLib.add(titre));
     world.lib = world.lib.filter((lib) => !world.removedLib.has(lib.t));
-    magasin.ecrire({ selMode: false, selected: new Set() });
+    store.write({ selMode: false, selected: new Set() });
     render();
     toast(
       `${titres.length} média${titres.length > 1 ? "s" : ""} supprimé${titres.length > 1 ? "s" : ""} — simulation, aucun fichier touché.`,
@@ -7414,11 +7414,11 @@ import { ecrans, panneau, pont } from "../seams.js";
   /* The shell is static markup, so the avatar is placed once at boot — which is
      also what the app does, from its session payload. */
   const beforeReset = document.querySelector(".topbar .avatar img");
-  if (beforeReset) beforeReset.src = COMPTE.avatar;
+  if (beforeReset) beforeReset.src = ACCOUNT.avatar;
 
   window.__reset = () => {
     seedWorld();
-    magasin.ecrire({
+    store.write({
       /* The SCENARIO is state too, and the loudest kind: it decides which
          world every later reading is taken from. A state that switched to the
          dense scenario left it switched for the next one, so a surface
@@ -7446,11 +7446,11 @@ import { ecrans, panneau, pont } from "../seams.js";
     // of state. Reset here, or a measurement inherits the previous one's
     // spinner.
     if (window.__reposPTR) window.__reposPTR();
-    if (typeof reinitialiserReglages === "function") reinitialiserReglages();
+    if (typeof resetSettings === "function") resetSettings();
     // The screen stack is navigation state: a measurement must not inherit
     // the screens a previous journey left underneath the visible one.
-    pileEcrans.length = 0;
-    renduCourant = null;
+    screenStack.length = 0;
+    currentRender = null;
     // The router is navigation state too: `__go` states are DRIVEN, not a
     // journey — a measurement must not inherit whichever screen ROUTE a
     // previous one navigated to, for the exact reason it must
@@ -7524,7 +7524,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      label, a value, a sub-line, an optional state and an optional mono key —
      and a caller wanting something outside it adds a field rather than
      passing markup. An envelope guarantees nothing about what it carries. */
-  function listeFaitsHTML(lignes) {
+  function factsListHTML(lignes) {
     return `<ol class="flux">${factRowsHTML(lignes)}</ol>`;
   }
 
@@ -7532,25 +7532,25 @@ import { ecrans, panneau, pont } from "../seams.js";
      that `<ol class="flux">` as its own element — React cannot set the outer
      markup of a node it is also drawing — and fills it with these, so the rows
      stay one emitter shared by every fact list rather than two that drift.
-     `listeFaitsHTML` above keeps emitting exactly what it always did. */
+     `factsListHTML` above keeps emitting exactly what it always did. */
   function factRowsHTML(lignes) {
     return `${lignes
       .map((ligne) => {
         // No VALUE is what greys a line — a sub-line explaining why there is
         // nothing to report does not make the line a report.
-        const vide = !ligne.v;
+        const empty = !ligne.v;
         // A line that leads somewhere IS the control: a list of facts beside a
         // parallel column of buttons asks which of the two to aim at, and the
         // answer is never on screen.
-        const cible = ligne.cible
-          ? Object.entries(ligne.cible)
+        const target = ligne.target
+          ? Object.entries(ligne.target)
               .map(
-                ([nom, valeur]) =>
-                  ` data-${nom}="${escapeHtml(String(valeur))}"`,
+                ([nom, value]) =>
+                  ` data-${nom}="${escapeHtml(String(value))}"`,
               )
               .join("")
           : "";
-        const balise = ligne.cible ? "button" : "span";
+        const tag = ligne.target ? "button" : "span";
         /* A BADGE, and it carries the word rather than sitting beside it.
 
            A row whose value is a STATE — en ligne / hors ligne, connecté /
@@ -7565,7 +7565,7 @@ import { ecrans, panneau, pont } from "../seams.js";
            The tone is DERIVED from `ok`, never passed as a colour, so a row
            cannot show a green badge reading « hors ligne »: the two would be
            written in different places and would eventually disagree. */
-        const valeur = ligne.v ? escapeHtml(ligne.v) : "—";
+        const value = ligne.v ? escapeHtml(ligne.v) : "—";
         /* Four tones, and each answers a different question:
              · success — ça marche : en ligne, à l'heure, réussi, connecté ;
              · alert   — ça ne marche pas, et il faut agir maintenant ;
@@ -7581,17 +7581,17 @@ import { ecrans, panneau, pont } from "../seams.js";
           info: "info",
         };
         const badge = ligne.ton
-          ? `<span class="chip ${TONS[ligne.ton]}">${valeur}</span>`
-          : valeur;
-        return `<li class="fx${vide ? " fempty" : ""}${ligne.etat === "danger" ? " fblocked" : ""}${
-          ligne.cible ? " fclick" : ""
-        }"><${balise} class="fw"${cible}>
+          ? `<span class="chip ${TONS[ligne.ton]}">${value}</span>`
+          : value;
+        return `<li class="fx${empty ? " fempty" : ""}${ligne.state === "danger" ? " fblocked" : ""}${
+          ligne.target ? " fclick" : ""
+        }"><${tag} class="fw"${target}>
       <span class="fn">${escapeHtml(ligne.l)}</span>
       <span class="fr">${badge}</span>
       <span class="fs">${ligne.k ? `<span class="fk">${escapeHtml(ligne.k)}</span>` : ""}${
         ligne.k && ligne.s ? " · " : ""
       }${ligne.s ? escapeHtml(ligne.s) : ""}</span>
-    </${balise}></li>`;
+    </${tag}></li>`;
       })
       .join("")}`;
   }
@@ -7612,12 +7612,12 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   /* One command's panel. Derived from what is TRUE about the command — does
      it delete, can it run blank, is it long — never from a list of screens. */
-  function ouvrirActionMaintenance(id) {
+  function openActionMaintenance(id) {
     const action = MAINT_ACTIONS.find((a) => a.id === id);
     if (!action) return;
-    const supprime = action.r === "destructive";
-    const blanc = supprime ? true : !!currentState().maintBlanc;
-    panneau.ouvrir({
+    const deleted = action.r === "destructive";
+    const blanc = deleted ? true : !!currentState().maintBlanc;
+    panel.open({
       titre: action.l,
       sousTitre: action.id,
       meta: action.d,
@@ -7638,7 +7638,7 @@ import { ecrans, panneau, pont } from "../seams.js";
             },
           ],
         },
-        supprime
+        deleted
           ? {
               type: "note",
               texte:
@@ -7651,11 +7651,11 @@ import { ecrans, panneau, pont } from "../seams.js";
             {
               texte: action.blanc ? "Lancer à blanc" : "Lancer",
               ton: "solid",
-              cible: {
+              target: {
                 toast: `${action.l} — lancée${action.blanc ? " à blanc" : ""}. Le résultat s'affichera ici.`,
               },
             },
-            supprime
+            deleted
               ? {
                   texte: "Lancer pour de vrai",
                   desactive: true,
@@ -7690,12 +7690,12 @@ import { ecrans, panneau, pont } from "../seams.js";
      above the key in the file itself, which until now nobody could read
      without opening the file. */
 
-  const REGLAGES = [
+  const SETTINGS = [
     {
       id: "rangement",
       t: "Où vont les médias",
       s: "Les disques, les dossiers, et la catégorie dans laquelle chaque média atterrit.",
-      fichiers: ["paths", "disks", "categories"],
+      fileNames: ["paths", "disks", "categories"],
       r: [
         {
           f: "paths",
@@ -8067,7 +8067,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       id: "nommage",
       t: "Comment ils sont nommés",
       s: "Les motifs de renommage et l'encodage des noms de fichiers.",
-      fichiers: ["patterns", "encoding"],
+      fileNames: ["patterns", "encoding"],
       r: [
         {
           f: "patterns",
@@ -8174,7 +8174,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       id: "acquisition",
       t: "Ce qu'on va chercher",
       s: "Les trackers, le classement des releases, les seuils et les obligations de partage.",
-      fichiers: ["acquire", "tracker", "thresholds", "torrent", "watch_seed"],
+      fileNames: ["acquire", "tracker", "thresholds", "torrent", "watch_seed"],
       r: [
         {
           f: "acquire",
@@ -8435,7 +8435,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       id: "identite",
       t: "Ce qu'on en sait",
       s: "Les fournisseurs de métadonnées, le scrapage et les bandes-annonces.",
-      fichiers: ["metadata", "providers", "scraper", "trailers"],
+      fileNames: ["metadata", "providers", "scraper", "trailers"],
       r: [
         {
           f: "metadata",
@@ -8846,7 +8846,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       id: "service",
       t: "Ce qui tourne",
       s: "L'index, les notifications et le serveur web.",
-      fichiers: ["indexer", "notify", "web", "config"],
+      fileNames: ["indexer", "notify", "web", "config"],
       r: [
         {
           f: "indexer",
@@ -9085,7 +9085,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       id: "passages",
       t: "Les passages programmés",
       s: "À quelle heure le moteur cherche, récupère, et remet son index à jour.",
-      fichiers: ["ecosystem.config.js"],
+      fileNames: ["ecosystem.config.js"],
       r: [
         {
           f: "ecosystem.config.js",
@@ -9190,7 +9190,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      Nothing is written until the save bar is used. A setting changed here is
      PENDING, marked on its own row and counted in the bar, and the bar names
      the files it will write. */
-  const REG_ETAT = {
+  const SETTINGS_STATE = {
     modifs: new Map(),
     rubrique: null,
     q: "",
@@ -9202,22 +9202,22 @@ import { ecrans, panneau, pont } from "../seams.js";
   /* Every named state starts from the same place: pending edits, the rubric
      one is in and the search are all state, and a measurement must not inherit
      the one before it. */
-  function reinitialiserReglages() {
-    REG_ETAT.modifs.clear();
-    REG_ETAT.rubrique = null;
-    REG_ETAT.q = "";
-    REG_ETAT.lectureSeule = false;
-    REG_ETAT.redemarrage = false;
-    REG_ETAT.conflit = false;
+  function resetSettings() {
+    SETTINGS_STATE.modifs.clear();
+    SETTINGS_STATE.rubrique = null;
+    SETTINGS_STATE.q = "";
+    SETTINGS_STATE.lectureSeule = false;
+    SETTINGS_STATE.redemarrage = false;
+    SETTINGS_STATE.conflit = false;
   }
 
-  function reglageId(reglage) {
-    return `${reglage.f}:${reglage.c}`;
+  function settingId(setting) {
+    return `${setting.f}:${setting.c}`;
   }
 
-  function valeurCourante(reglage) {
-    const modif = REG_ETAT.modifs.get(reglageId(reglage));
-    return modif === undefined ? reglage.v : modif;
+  function displayedValue(setting) {
+    const change = SETTINGS_STATE.modifs.get(settingId(setting));
+    return change === undefined ? setting.v : change;
   }
 
   /* The file a setting really lives in. Nineteen of them are JSON5 overlays
@@ -9225,19 +9225,19 @@ import { ecrans, panneau, pont } from "../seams.js";
      live in `ecosystem.config.js`. Appending « .json5 » to every name would
      make the save bar promise a file that does not exist — and the save bar's
      whole job is to name what it will write. */
-  function nomDeFichier(f) {
+  function fileName(f) {
     return f.includes(".") ? f : f + ".json5";
   }
 
-  function fichiersModifies() {
+  function changedFiles() {
     return [
-      ...new Set([...REG_ETAT.modifs.keys()].map((id) => id.split(":")[0])),
+      ...new Set([...SETTINGS_STATE.modifs.keys()].map((id) => id.split(":")[0])),
     ];
   }
 
-  function tousLesReglages() {
-    return REGLAGES.flatMap((rubrique) =>
-      rubrique.r.map((reglage) => ({ ...reglage, rubrique })),
+  function allSettings() {
+    return SETTINGS.flatMap((rubrique) =>
+      rubrique.r.map((setting) => ({ ...setting, rubrique })),
     );
   }
 
@@ -9265,45 +9265,45 @@ import { ecrans, panneau, pont } from "../seams.js";
 
      A value that is not set (2) keeps the field its type asks for and says it
      is empty — never a zero, never an empty string standing in for « absent ». */
-  function valeurEnCours(reglage) {
-    const id = reglageId(reglage);
-    return REG_ETAT.modifs.has(id) ? REG_ETAT.modifs.get(id) : reglage.brut;
+  function rawValue(setting) {
+    const id = settingId(setting);
+    return SETTINGS_STATE.modifs.has(id) ? SETTINGS_STATE.modifs.get(id) : setting.brut;
   }
 
 
   /* Changing a value. The prototype does not draw a keyboard: what it draws is
      that the change is PENDING — marked on its row, counted in the bar, and
      written by nothing until the bar is used. */
-  function memeValeur(a, b) {
+  function sameValue(a, b) {
     return Array.isArray(a) || Array.isArray(b)
       ? JSON.stringify(a) === JSON.stringify(b)
       : a === b;
   }
 
-  function modifierReglage(id, valeur) {
-    const reglage = tousLesReglages().find((r) => reglageId(r) === id);
-    if (!reglage) return;
+  function changeSetting(id, value) {
+    const setting = allSettings().find((r) => settingId(r) === id);
+    if (!setting) return;
     // A value equal to the file's is not a pending change: it is no change, and
     // leaving it in the map would make the save bar name a file it would write
     // identically.
-    if (memeValeur(valeur, reglage.brut)) REG_ETAT.modifs.delete(id);
-    else REG_ETAT.modifs.set(id, valeur);
+    if (sameValue(value, setting.brut)) SETTINGS_STATE.modifs.delete(id);
+    else SETTINGS_STATE.modifs.set(id, value);
     render();
   }
 
   /* What a field's value BECOMES, read from the field itself. A number field
      returns a string; storing it as one would compare unequal to the file's
      number for ever, so the type it goes back as is the type it came from. */
-  function valeurSaisie(reglage, texte) {
-    if (reglage.type === "nombre") {
+  function typedValue(setting, texte) {
+    if (setting.type === "nombre") {
       const n = Number(texte);
-      return texte.trim() === "" ? null : Number.isNaN(n) ? reglage.brut : n;
+      return texte.trim() === "" ? null : Number.isNaN(n) ? setting.brut : n;
     }
     return texte === "" ? null : texte;
   }
 
-  function ouvrirSecret(secret) {
-    panneau.ouvrir({
+  function openSecret(secret) {
+    panel.open({
       titre: secret.l,
       meta: [{ m: secret.k }],
       puce: secret.def ? ["success", "définie"] : ["warning", "absente"],
@@ -9316,7 +9316,7 @@ import { ecrans, panneau, pont } from "../seams.js";
         {
           type: "actions",
           actions: [
-            REG_ETAT.lectureSeule
+            SETTINGS_STATE.lectureSeule
               ? {
                   texte: "Lecture seule sur cette instance",
                   icone: icons.x,
@@ -9326,7 +9326,7 @@ import { ecrans, panneau, pont } from "../seams.js";
                   texte: "Remplacer la valeur",
                   icone: icons.wrench,
                   ton: "primary",
-                  cible: {
+                  target: {
                     toast:
                       "Un champ masqué s'ouvre ici. Laissé vide, il n'efface rien.",
                   },
@@ -9336,7 +9336,7 @@ import { ecrans, panneau, pont } from "../seams.js";
                   texte: "Retirer la clé",
                   icone: icons.trash,
                   ton: "danger",
-                  cible: {
+                  target: {
                     toast:
                       "Retirer une clé coupe ce qu'elle autorisait — le service le dira avant.",
                   },
@@ -9351,24 +9351,24 @@ import { ecrans, panneau, pont } from "../seams.js";
   /* One setting, in the panel — the same panel as everywhere else, taking the
      same descriptor of facts. What it says: where the value comes from, what
      the file's own comment explains, and what it is now. */
-  function ouvrirReglage(id) {
-    const reglage = tousLesReglages().find((r) => reglageId(r) === id);
-    if (!reglage) return;
-    const courante = valeurCourante(reglage);
-    const modifie = REG_ETAT.modifs.has(id);
-    panneau.ouvrir({
-      titre: window.__settingLabels.label(reglage),
-      meta: [{ m: `${reglage.f}.json5 · ${reglage.c}` }],
-      ...(modifie ? { puce: ["info", "modifié, pas encore écrit"] } : {}),
+  function openSetting(id) {
+    const setting = allSettings().find((r) => settingId(r) === id);
+    if (!setting) return;
+    const courante = displayedValue(setting);
+    const changed = SETTINGS_STATE.modifs.has(id);
+    panel.open({
+      titre: window.__settingLabels.label(setting),
+      meta: [{ m: `${setting.f}.json5 · ${setting.c}` }],
+      ...(changed ? { puce: ["info", "modifié, pas encore écrit"] } : {}),
       blocs: [
-        reglage.note ? { type: "note", texte: reglage.note } : null,
-        REG_ETAT.lectureSeule ? null : { type: "champ", reglage },
+        setting.note ? { type: "note", texte: setting.note } : null,
+        SETTINGS_STATE.lectureSeule ? null : { type: "champ", setting },
         {
           type: "faits",
           lignes: [
             { c: "Valeur actuelle", v: String(courante) },
-            ...(modifie
-              ? [{ c: "Valeur écrite", v: String(reglage.v), terne: true }]
+            ...(changed
+              ? [{ c: "Valeur écrite", v: String(setting.v), terne: true }]
               : []),
             // The file is on the mono line above; a « Fichier » fact under it
             // says the same thing twice on a screen that has no room for it.
@@ -9377,18 +9377,18 @@ import { ecrans, panneau, pont } from "../seams.js";
         {
           type: "actions",
           actions: [
-            REG_ETAT.lectureSeule
+            SETTINGS_STATE.lectureSeule
               ? {
                   texte: "Lecture seule sur cette instance",
                   icone: icons.x,
                   desactive: true,
                 }
               : null,
-            modifie
+            changed
               ? {
                   texte: "Annuler la modification",
                   icone: icons.x,
-                  cible: { annulerreg: id },
+                  target: { cancelsetting: id },
                 }
               : null,
           ],
@@ -9525,14 +9525,14 @@ import { ecrans, panneau, pont } from "../seams.js";
   function render() {
     // Every action ends in render(): one bump here reaches React for every
     // simulated mutation, including the ones made in place on `world`
-    // (splice, unshift…) that never pass through `ecrire`.
-    magasin?.toucher();
+    // (splice, unshift…) that never pass through `write`.
+    store?.touch();
     /* An id no page carries is not a crash: it is the `*` route. Looking one
        up and calling `.render()` on nothing stopped the whole interface on a
        TypeError, which is the worst possible answer to a stale bookmark. */
     let found = PAGES_OF().find((element) => element.id === currentState().page);
     if (!found) {
-      magasin.ecrire({ introuvable: "/" + currentState().page, page: "404" });
+      store.write({ introuvable: "/" + currentState().page, page: "404" });
       found = PAGES_OF().find((element) => element.id === "404");
     }
     /* A page the SHELL owns draws itself, through a React portal into this very
@@ -9639,7 +9639,7 @@ import { ecrans, panneau, pont } from "../seams.js";
 
      A distinction never to lose: the profile FILTERS (it eliminates), the
      ranking ORDERS (it separates what remains). */
-  const RESOS = ["720p", "1080p", "2160p"];
+  const RESOLUTIONS = ["720p", "1080p", "2160p"];
   const AUDIOS = [
     ["VF", "Piste française (VF, VFF, VFQ, TRUEFRENCH)"],
     ["VOSTFR", "Sous-titres français"],
@@ -9654,7 +9654,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      well before the deferred module script (shell.tsx) runs. */
   window.__referentiel = {
     RELEASES,
-    RESOS,
+    RESOLUTIONS,
     AUDIOS,
     icons,
     baseTitle,
@@ -9662,15 +9662,15 @@ import { ecrans, panneau, pont } from "../seams.js";
     cardHTML,
     addVerb,
     render,
-    HEROS,
+    HERO_IMAGES,
     POSTERS,
-    /* What the Système page draws. `listeFaitsHTML` is the
+    /* What the Système page draws. `factsListHTML` is the
        emitter every fact list on this page and on Maintenance goes through;
        a component calls it VERBATIM rather than re-deriving its markup,
        because the delegated click handlers depend on that markup being
        byte-exact (the same reason `cardHTML` is reused above). `skelCards`
        and `surfErr` are the page's two non-ready surfaces. */
-    listeFaitsHTML,
+    factsListHTML,
     factRowsHTML,
     /* What the Arrivées page draws. `secHTML` is the section emitter the
        acquisition page's five sections still share — a migrated page draws the
@@ -9684,7 +9684,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     /* What the Acquisition page draws. The follow DESCRIPTORS and their
        vocabulary (`stFraction`, `stLabel`, `gridBadge`, `ST_TONE`, `URGENCY`,
        `GROUPS`) are the page's own language; `cadenceFR` and
-       `prochaineRechercheFR` turn a cron expression into a sentence — and the
+       `nextSearchFR` turn a cron expression into a sentence — and the
        page says out loud that the raw expression is a defect it inherited. The
        SUGGESTION machinery is NOT here: `#sugitems`, `#sugload` and
        `.deckbody` stay the fragment's to fill, because the deck's gesture
@@ -9693,7 +9693,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     stLabel,
     gridBadge,
     cadenceFR,
-    prochaineRechercheFR,
+    nextSearchFR,
     ST_TONE,
     URGENCY,
     GROUPS,
@@ -9702,7 +9702,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     /* The account the server really has, and the escaper the fragment's own
        emitters use — a migrated page that builds a fragment of markup has to
        escape exactly what the legacy escaped. */
-    COMPTE,
+    ACCOUNT,
     escapeHtml,
     /* The suggestion machinery, called by the page AFTER React has drawn its
        containers. `render()` calls these too, for as long as a legacy page can
@@ -9717,7 +9717,7 @@ import { ecrans, panneau, pont } from "../seams.js";
        two halves the way the swipe handler drives them, and reads what the
        animation is doing one frame later. */
     passerSug,
-    avancerDeck,
+    advanceDeck,
     /* The page table itself, published so a rule can compare it against the
        shell's: two independent lists that must agree, and a disagreement in
        one direction draws a page in both worlds at once. */
@@ -9748,7 +9748,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     SYNOPSIS,
     /* A GETTER: `LIB_PAGE` is a `const` declared further down this same script,
        so a plain shorthand would hit the temporal dead zone the instant this
-       literal is built — the same trap `ACTEURS` and `TRIS` are published
+       literal is built — the same trap `CAST` and `TRIS` are published
        around. */
     get LIB_PAGE() {
       return LIB_PAGE;
@@ -9769,31 +9769,31 @@ import { ecrans, panneau, pont } from "../seams.js";
     surfErrInner,
     SERVICES,
     SERVICES_PANNE,
-    PLANIFICATEURS,
-    PLANIFICATEURS_PANNE,
+    SCHEDULERS,
+    SCHEDULERS_DOWN,
     EXECUTIONS,
-    DISQUES,
+    DISKS,
     INDEX,
-    DEPENDANCES,
-    ERREURS,
-    /* What the Maintenance page draws. `ouvrirActionMaintenance`
+    DEPENDENCIES,
+    ERRORS,
+    /* What the Maintenance page draws. `openActionMaintenance`
        reste au fragment : c'est la délégation `data-maintact` qui l'appelle, pas
        un composant. */
-    MAINT_RUBRIQUES,
+    MAINT_TOPICS,
     MAINT_ACTIONS,
     /* What the Réglages page draws. REG_ETAT est l'objet
        MUTABLE que la délégation écrit : il reste la source, et le composant le
        relit à chaque bump de version du magasin (`render()` appelle
-       `magasin?.toucher()` en premier). Le NOM d'un réglage, lui, n'est plus
+       `store?.toucher()` en premier). Le NOM d'un réglage, lui, n'est plus
        ici : `settings-labels.ts` le porte pour la page comme pour le panneau,
        et le fragment le lit par `window.__settingLabels`. */
-    REGLAGES,
-    REG_ETAT,
+    SETTINGS,
+    SETTINGS_STATE,
     SECRETS,
     emptyInner,
-    valeurCourante,
-    nomDeFichier,
-    fichiersModifies,
+    displayedValue,
+    fileName,
+    changedFiles,
     RISQUES,
     JOURNAL,
     // ACTEURS and AUJOURDHUI are declared with `const` further down this
@@ -9801,48 +9801,48 @@ import { ecrans, panneau, pont } from "../seams.js";
     // reference would hit the temporal dead zone the instant this object is
     // built. A getter defers the read to first access, by which time the
     // whole script has finished running.
-    get ACTEURS() {
-      return ACTEURS;
+    get CAST() {
+      return CAST;
     },
     trailerIds,
     EP_LABEL,
     sheetFor,
-    saisonsDe,
-    possedesDe,
+    seasonsOf,
+    ownedFor,
     plages,
     initials,
     dateFR,
-    get AUJOURDHUI() {
-      return AUJOURDHUI;
+    get TODAY() {
+      return TODAY;
     },
     svgIcon,
-    tousLesReglages,
-    reglageId,
+    allSettings,
+    settingId,
     // What a field must DRAW: the pending edit if there is one, the file's
     // value otherwise. The pending-edit overlay itself stays private — a
     // reader of this returns the value, never the map — but a panel that drew
     // `.brut` instead would show a list one has just shortened at its old
     // length, and the removal would look like it did nothing.
-    valeurEnCours,
-    valeurSaisie,
-    modifierReglage,
-    ouvrirReglage,
-    // The arbitration flow. `DECISIONS_ATTENTE` / `DECISIONS_REGLEES` and the
+    rawValue,
+    typedValue,
+    changeSetting,
+    openSetting,
+    // The arbitration flow. `PENDING_DECISIONS` / `DECISIONS_REGLEES` and the
     // label maps are all `const` declared above this literal, so a plain
     // shorthand reference reads the finished value — no TDZ here. `toast` and
-    // `decisionEnAttente` are declared with `function` further down this same
+    // `decisionPending` are declared with `function` further down this same
     // script; a function declaration hoists its whole definition (unlike
     // `let`/`const`, which only hoist to a temporal dead zone), so a plain
     // shorthand reference to either is already callable at this point too.
-    DECISIONS_ATTENTE,
+    PENDING_DECISIONS,
     DECISIONS_REGLEES,
     MOTIF_LABEL,
-    MOTIF_TON,
-    MOTIF_POURQUOI,
-    ETAT_DECISION,
-    ETAT_DECISION_POURQUOI,
+    REASON_TONE,
+    REASON_DETAIL,
+    DECISION_STATE,
+    DECISION_STATE_DETAIL,
     VIA_LABEL,
-    decisionEnAttente,
+    decisionPending,
     // Thin arrows over `derived.blocked` / `derived.stuck` — `derived` itself
     // is already initialized above this literal, but the wrapper still earns
     // its keep: it publishes a STABLE function reference while the value each
@@ -9855,9 +9855,9 @@ import { ecrans, panneau, pont } from "../seams.js";
     derivedInflight: () => derived.inflight(),
     derivedNotfound: () => derived.notfound(),
     derivedDoneToday: () => derived.doneToday(),
-    actionResoudre,
-    actionLaisser,
-    actionRecuperer,
+    actionResolve,
+    actionLeave,
+    actionTake,
     toast,
     posterBox,
     chipHTML,
@@ -9916,7 +9916,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     const badge = opts.badge;
     // A rating is not a status: it reads over the picture without claiming a
     // meaning in the status palette, so it takes the neutral overlay.
-    const teinte = badge
+    const tone = badge
       ? badge.tone === "note"
         ? "tile-overlay"
         : badge.tone === "muted"
@@ -9927,9 +9927,9 @@ import { ecrans, panneau, pont } from "../seams.js";
               ? "info"
               : "warning"
       : null;
-    return `<button class="tile${opts.muted ? " off" : ""}" ${opts.index != null ? `data-tile="${opts.index}"` : ""} ${opts.dismiss != null ? `data-dismissable="${escapeHtml(String(opts.dismiss))}"` : ""} data-panel="${escapeHtml(opts.panel || `media:${descriptor.t}`)}" ${sel ? `aria-selected="${selected}"` : `data-fiche="${escapeHtml(descriptor.t)}"`}>
+    return `<button class="tile${opts.muted ? " off" : ""}" ${opts.index != null ? `data-tile="${opts.index}"` : ""} ${opts.dismiss != null ? `data-dismissable="${escapeHtml(String(opts.dismiss))}"` : ""} data-panel="${escapeHtml(opts.panel || `media:${descriptor.t}`)}" ${sel ? `aria-selected="${selected}"` : `data-mediasheet="${escapeHtml(descriptor.t)}"`}>
       <span class="p">${posterBox(descriptor.t, descriptor.k)}</span>
-      ${sel ? `<span class="sel">${svgIcon(icons.check, 3)}</span>` : badge ? `<span class="tilebadge" style="background:var(--${teinte})">${escapeHtml(badge.txt)}</span>` : ""}
+      ${sel ? `<span class="sel">${svgIcon(icons.check, 3)}</span>` : badge ? `<span class="tilebadge" style="background:var(--${tone})">${escapeHtml(badge.txt)}</span>` : ""}
       <span class="nm">${escapeHtml(descriptor.t)}</span>
       <span class="fr">${escapeHtml(sousLigne)}</span>
     </button>`;
@@ -9938,11 +9938,11 @@ import { ecrans, panneau, pont } from "../seams.js";
      so « Sélectionner » switched on in list mode with nothing selectable. A
      mode one can enter and do nothing in is worse than no mode at all. */
   /* THE PAGE'S OWN DERIVATION, and it stays HERE while the drawing leaves.
-     `trierLib` and `libFiltered` touch no DOM — they answer « which media, in
+     `sortLibrary` and `libFiltered` touch no DOM — they answer « which media, in
      which order », over the world and the state — so they are what a component
      asks rather than something it reproduces. A rule reads `libFiltered()` too,
      which is the other reason it stays reachable by name. */
-  function trierLib(items) {
+  function sortLibrary(items) {
     const slice = items.slice();
     /* REVERSING IS A SECOND PASS, never a second comparator: « ajout récent »
        has no comparator at all — its order is the source's — so the direction
@@ -9983,7 +9983,7 @@ import { ecrans, panneau, pont } from "../seams.js";
           .toLocaleLowerCase();
       items = items.filter((l) => norm(l.t).includes(norm(trim)));
     }
-    return trierLib(items);
+    return sortLibrary(items);
   }
 
   function libRowHTML(item, index) {
@@ -10033,9 +10033,15 @@ import { ecrans, panneau, pont } from "../seams.js";
      Split on the FIRST colon only: titles carry their own — « Dexter:
      Resurrection » would otherwise address a panel for « Dexter ». */
   function refPanel(element) {
-    const panel = element.dataset.panel;
-    const indexOf = panel.indexOf(":");
-    return { genre: panel.slice(0, indexOf), ref: panel.slice(indexOf + 1) };
+    // `panelName`, not `panel`: the seam the engine calls to OPEN a panel is
+    // named `panel`, and a local of the same name would shadow it silently
+    // inside this function. The value here is the attribute's text.
+    const panelName = element.dataset.panel;
+    const indexOf = panelName.indexOf(":");
+    return {
+      genre: panelName.slice(0, indexOf),
+      ref: panelName.slice(indexOf + 1),
+    };
   }
 
   /* Opens the panel an element addresses. One entry point, so a surface that
@@ -10074,10 +10080,10 @@ import { ecrans, panneau, pont } from "../seams.js";
      One note for whoever measures this: Chrome delivers NO `touchmove` for a
      drift this small, only `pointermove`. A tolerance written on the touch
      stream would never run. */
-  const APPUI_MS = 480;
-  const APPUI_TOLERANCE = 12;
-  let appui = null;
-  let clicAvaler = null;
+  const PRESS_MS = 480;
+  const PRESS_TOLERANCE = 12;
+  let press = null;
+  let swallowClick = null;
 
   /* Which panel a press addresses, from wherever the finger landed.
 
@@ -10085,28 +10091,28 @@ import { ecrans, panneau, pont } from "../seams.js";
      `data-panel`: it carries the sheet it opens on a tap. Its card knows the
      panel, so the search widens to the card the finger is in — one gesture,
      one meaning, on every part of a medium. */
-  function panneauSousLeDoigt(cible) {
+  function panelUnderFinger(target) {
     return (
-      cible.closest?.("[data-panel]") ??
-      cible.closest?.(".card, .sugwrap")?.querySelector("[data-panel]") ??
+      target.closest?.("[data-panel]") ??
+      target.closest?.(".card, .sugwrap")?.querySelector("[data-panel]") ??
       null
     );
   }
 
-  function armerAppui(point, cible) {
-    const element = panneauSousLeDoigt(cible);
+  function armPress(point, target) {
+    const element = panelUnderFinger(target);
     if (currentState().selMode || !element) return;
     /* A card body opens the panel on a simple TAP, so arming a timer on it
        would fire the panel twice — once on the press, once on the click. */
-    if (element.classList.contains("cbody") && cible.closest?.(".cbody"))
+    if (element.classList.contains("cbody") && target.closest?.(".cbody"))
       return;
-    annulerAppui();
-    appui = {
+    cancelPress();
+    press = {
       element,
       x: point.clientX,
       y: point.clientY,
       minuteur: window.setTimeout(() => {
-        appui = null;
+        press = null;
         /* The panel opens UNDER the finger, so the click that follows the lift
            is swallowed WHEREVER it lands — not only on what was pressed. On a
            204px tile the panel's primary action sits exactly under the thumb,
@@ -10120,22 +10126,22 @@ import { ecrans, panneau, pont } from "../seams.js";
            deliberate tap somewhere else never does. Measured: the click
            arrives 1 ms after the lift, which is why no timer can tell them
            apart. */
-        clicAvaler = { x: point.clientX, y: point.clientY };
+        swallowClick = { x: point.clientX, y: point.clientY };
         openPanel(element);
-      }, APPUI_MS),
+      }, PRESS_MS),
     };
   }
 
-  function suivreAppui(point) {
-    if (!appui) return;
-    const ecart = Math.hypot(point.clientX - appui.x, point.clientY - appui.y);
-    if (ecart > APPUI_TOLERANCE) annulerAppui();
+  function followPress(point) {
+    if (!press) return;
+    const distance = Math.hypot(point.clientX - press.x, point.clientY - press.y);
+    if (distance > PRESS_TOLERANCE) cancelPress();
   }
 
-  function annulerAppui() {
-    if (!appui) return;
-    clearTimeout(appui.minuteur);
-    appui = null;
+  function cancelPress() {
+    if (!press) return;
+    clearTimeout(press.minuteur);
+    press = null;
   }
 
   /* Bound to `document`, not `cadre` (`#device`, the phone frame). A
@@ -10146,30 +10152,30 @@ import { ecrans, panneau, pont } from "../seams.js";
      root so this keeps answering a card drawn by a migrated screen even if
      that placement ever changes again. `document` is the one ancestor
      guaranteed either way. Both handlers already gate on the TARGET
-     (`panneauSousLeDoigt`, the input/textarea/contenteditable check below),
+     (`panelUnderFinger`, the input/textarea/contenteditable check below),
      so the wider root changes nothing for content that was never meant to
      answer a press. */
   document.addEventListener(
     "pointerdown",
     (event) => {
       // A new gesture clears any mark the previous one left unconsumed.
-      clicAvaler = null;
-      if (event.isPrimary) armerAppui(event, event.target);
+      swallowClick = null;
+      if (event.isPrimary) armPress(event, event.target);
     },
     { passive: true },
   );
-  document.addEventListener("pointermove", (event) => suivreAppui(event), {
+  document.addEventListener("pointermove", (event) => followPress(event), {
     passive: true,
   });
   /* The mark is NEVER cleared on pointerup: for a real finger the click comes
      1 ms later, in a later task, so clearing there — even deferred by a
      macrotask — clears it before the click it exists for. */
-  window.addEventListener("pointerup", annulerAppui);
+  window.addEventListener("pointerup", cancelPress);
   window.addEventListener("pointercancel", () => {
     // The compositor claimed the gesture: it is a scroll, not a press — and no
     // click will follow it, so nothing is left waiting to be swallowed.
-    annulerAppui();
-    clicAvaler = null;
+    cancelPress();
+    swallowClick = null;
   });
 
   /* The browser's own menu is refused wherever the interface answers a press.
@@ -10199,13 +10205,13 @@ import { ecrans, panneau, pont } from "../seams.js";
   document.addEventListener(
     "click",
     (event) => {
-      if (!clicAvaler) return;
-      const ecart = Math.hypot(
-        event.clientX - clicAvaler.x,
-        event.clientY - clicAvaler.y,
+      if (!swallowClick) return;
+      const distance = Math.hypot(
+        event.clientX - swallowClick.x,
+        event.clientY - swallowClick.y,
       );
-      clicAvaler = null;
-      if (ecart > APPUI_TOLERANCE) return;
+      swallowClick = null;
+      if (distance > PRESS_TOLERANCE) return;
       event.preventDefault();
       event.stopPropagation();
     },
@@ -10219,10 +10225,10 @@ import { ecrans, panneau, pont } from "../seams.js";
      says why, rather than being absent: a menu that grows an item later teaches
      its shape twice. */
   function openUserSheet() {
-    panneau.ouvrir({
-      titre: COMPTE.nom,
-      sousTitre: COMPTE.mail,
-      avatar: COMPTE.avatar,
+    panel.open({
+      titre: ACCOUNT.nom,
+      sousTitre: ACCOUNT.mail,
+      avatar: ACCOUNT.avatar,
       blocs: [
         {
           type: "actions",
@@ -10231,13 +10237,13 @@ import { ecrans, panneau, pont } from "../seams.js";
             {
               texte: "Profil et préférences",
               icone: icons.user,
-              cible: { go: "profil" },
+              target: { go: "profil" },
             },
             {
               texte: "Se déconnecter",
               icone: icons.logout,
               ton: "danger",
-              cible: { deconnexion: "1" },
+              target: { signout: "1" },
             },
           ],
         },
@@ -10308,10 +10314,10 @@ import { ecrans, panneau, pont } from "../seams.js";
      panel it addresses and never how to build it. */
   function deckCardHTML(suggestion, index, depth) {
     return `<article class="dcard" data-deck="${index}" data-depth="${depth}" data-panel="sug:${index}">
-      <button class="p" data-fiche="${escapeHtml(suggestion.t)}" aria-label="Fiche de ${escapeHtml(suggestion.t)}">
+      <button class="p" data-mediasheet="${escapeHtml(suggestion.t)}" aria-label="Fiche de ${escapeHtml(suggestion.t)}">
         ${
-          AFFICHES_HD[suggestion.t]
-            ? `<img src="${AFFICHES_HD[suggestion.t]}" alt="" loading="lazy">`
+          POSTERS_HD[suggestion.t]
+            ? `<img src="${POSTERS_HD[suggestion.t]}" alt="" loading="lazy">`
             : posterBox(
                 suggestion.t,
                 suggestion.k === "Film" ? "movie" : "show",
@@ -10329,21 +10335,21 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   /* Deck order. « Passer » does not decide anything: it sends the card to the
      back, so it comes round again. « Pas intéressé » removes it, with an undo. */
-  function deckOrdre() {
+  function deckOrder() {
     if (!currentState().sugOrder)
-      magasin.ecrire({
+      store.write({
         sugOrder: SUGGESTIONS.map((SUGGESTIONS2, index) => index),
       });
     return currentState().sugOrder.filter((sugOrder) => !currentState().sugGone.has(sugOrder));
   }
 
   function passerSug(index) {
-    const filter = deckOrdre().filter((element) => element !== index);
-    magasin.ecrire({ sugOrder: [...filter, index] });
+    const filter = deckOrder().filter((element) => element !== index);
+    store.write({ sugOrder: [...filter, index] });
   }
 
   function deckHTML() {
-    const restants = deckOrdre().map((element) => [
+    const restants = deckOrder().map((element) => [
       SUGGESTIONS[element],
       element,
     ]);
@@ -10372,14 +10378,14 @@ import { ecrans, panneau, pont } from "../seams.js";
      new card is inserted at the back, rising from under the deck. Rebuilding
      the HTML would replace every node, and a replaced node cannot animate:
      that is what made the pile look like it was cutting rather than moving. */
-  function avancerDeck(index, vers) {
+  function advanceDeck(index, vers) {
     const deck = document.querySelector(".deck");
-    const sortante = deck?.querySelector('.dcard[data-depth="0"]');
-    if (!deck || !sortante) return;
+    const outgoing = deck?.querySelector('.dcard[data-depth="0"]');
+    if (!deck || !outgoing) return;
 
-    sortante.classList.add("out");
-    sortante.style.transform = `translateX(${vers > 0 ? 460 : -460}px) rotate(${vers > 0 ? 20 : -20}deg)`;
-    sortante.dataset.depth = "sortie";
+    outgoing.classList.add("out");
+    outgoing.style.transform = `translateX(${vers > 0 ? 460 : -460}px) rotate(${vers > 0 ? 20 : -20}deg)`;
+    outgoing.dataset.depth = "sortie";
 
     deck.querySelectorAll(".dcard[data-depth]").forEach((querySelectorAll) => {
       const depth = Number(querySelectorAll.dataset.depth);
@@ -10389,34 +10395,34 @@ import { ecrans, panneau, pont } from "../seams.js";
 
     // The card that takes the place of the top one becomes the swipeable one,
     // and needs the gesture labels the outgoing card carried.
-    const nouvelleTete = deck.querySelector('.dcard[data-depth="0"]');
-    if (nouvelleTete && !nouvelleTete.querySelector(".dhint")) {
-      nouvelleTete.insertAdjacentHTML(
+    const newHead = deck.querySelector('.dcard[data-depth="0"]');
+    if (newHead && !newHead.querySelector(".dhint")) {
+      newHead.insertAdjacentHTML(
         "beforeend",
         `<span class="dhint l">Passer</span><span class="dhint r">Pas intéressé</span>`,
       );
     }
 
     // Feed the back of the pile from the order, skipping what is already shown.
-    const affichees = new Set(
+    const shown = new Set(
       [...deck.querySelectorAll(".dcard")].map((element) =>
         Number(element.dataset.deck),
       ),
     );
-    const suivante = deckOrdre().find((element) => !affichees.has(element));
-    if (suivante != null) {
+    const next = deckOrder().find((element) => !shown.has(element));
+    if (next != null) {
       deck.insertAdjacentHTML(
         "afterbegin",
-        deckCardHTML(SUGGESTIONS[suivante], suivante, 3),
+        deckCardHTML(SUGGESTIONS[next], next, 3),
       );
-      const entrante = deck.querySelector('.dcard[data-depth="3"]');
+      const incoming = deck.querySelector('.dcard[data-depth="3"]');
       requestAnimationFrame(() =>
-        requestAnimationFrame(() => (entrante.dataset.depth = "2")),
+        requestAnimationFrame(() => (incoming.dataset.depth = "2")),
       );
     }
 
     setTimeout(() => {
-      sortante.remove();
+      outgoing.remove();
       if (!deck.querySelector(".dcard")) refreshDeck();
     }, 440);
   }
@@ -10432,14 +10438,14 @@ import { ecrans, panneau, pont } from "../seams.js";
     const element = document.querySelector(".deck");
     const port = document.querySelector("#port");
     if (!element || !port) return;
-    const haut =
+    const top =
       element.getBoundingClientRect().top - port.getBoundingClientRect().top;
-    let hauteur = Math.max(340, Math.round(port.clientHeight - haut - 12));
+    let hauteur = Math.max(340, Math.round(port.clientHeight - top - 12));
     element.style.height = hauteur + "px";
     // Self-correcting: whatever still overflows is taken back, once. A deck
     // that makes the page scroll is a deck that is not full-screen.
-    const trop = port.scrollHeight - port.clientHeight;
-    if (trop > 0) element.style.height = Math.max(340, hauteur - trop) + "px";
+    const overflow = port.scrollHeight - port.clientHeight;
+    if (overflow > 0) element.style.height = Math.max(340, hauteur - overflow) + "px";
   }
 
   window.addEventListener("resize", mountDeck, { passive: true });
@@ -10453,11 +10459,11 @@ import { ecrans, panneau, pont } from "../seams.js";
       mountDeck();
       return;
     }
-    const rendu = currentState().sugMode === "poster" ? sugTileHTML : sugCardHTML;
+    const cardTemplate = currentState().sugMode === "poster" ? sugTileHTML : sugCardHTML;
     box.className = currentState().sugMode === "poster" ? "grid" : "";
     box.innerHTML = SUGGESTIONS.slice(0, currentState().sugCount)
       .map((slice, index) =>
-        currentState().sugGone.has(index) ? "" : rendu(slice, index),
+        currentState().sugGone.has(index) ? "" : cardTemplate(slice, index),
       )
       .join("");
   }
@@ -10468,14 +10474,14 @@ import { ecrans, panneau, pont } from "../seams.js";
       // In the deck the whole pile changes, not one row: re-render, and the
       // undo restores both the suggestion and its place in the order.
       // `sugGone` is a Set mutated in place — refreshDeck() redraws the
-      // legacy deck directly, so React needs the explicit bump `ecrire`
+      // legacy deck directly, so React needs the explicit bump `write`
       // would otherwise have given it for free.
       currentState().sugGone.add(index);
-      magasin.toucher();
+      store.touch();
       refreshDeck();
       toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
         currentState().sugGone.delete(index);
-        magasin.toucher();
+        store.touch();
         refreshDeck();
       });
       return;
@@ -10483,13 +10489,13 @@ import { ecrans, panneau, pont } from "../seams.js";
     const element = document.querySelector(`[data-dismissable="${index}"]`);
     if (!element) return;
     currentState().sugGone.add(index);
-    magasin.toucher();
+    store.touch();
     element.style.height = element.getBoundingClientRect().height + "px";
     requestAnimationFrame(() => element.classList.add("gone"));
     setTimeout(() => element.remove(), 320);
     toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
       currentState().sugGone.delete(index);
-      magasin.toucher();
+      store.touch();
       fillSug();
       sugFoot();
     });
@@ -10497,7 +10503,7 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   function openSugSheet(index) {
     const suggestion = SUGGESTIONS[index];
-    panneau.ouvrir({
+    panel.open({
       titre: suggestion.t,
       meta: `${suggestion.y} · ${suggestion.k} · note TMDB ${suggestion.note}`,
       blocs: [
@@ -10509,12 +10515,12 @@ import { ecrans, panneau, pont } from "../seams.js";
               texte: sugVerb(suggestion),
               icone: icons.plus,
               ton: "primary",
-              cible: { follow: suggestion.t, sugidx: index },
+              target: { follow: suggestion.t, sugidx: index },
             },
             {
               texte: "Voir la fiche",
               icone: icons.eye,
-              cible: { fiche: suggestion.t },
+              target: { mediasheet: suggestion.t },
             },
           ],
         },
@@ -10526,7 +10532,7 @@ import { ecrans, panneau, pont } from "../seams.js";
               texte: "Pas intéressé",
               icone: icons.x,
               ton: "danger",
-              cible: { dropsug: index },
+              target: { dropsug: index },
             },
           ],
         },
@@ -10556,14 +10562,14 @@ import { ecrans, panneau, pont } from "../seams.js";
           ? "✓ Ajouté"
           : "✓ Suivi";
     }
-    const verbe = identifier
+    const verbLabel = identifier
       ? "Associer"
       : result.k === "Film"
         ? "Ajouter"
         : "Suivre";
     // The ellipsis warns that the act opens a question — it will replace
     // something already held — rather than happening on the spot.
-    return result.owned && !identifier ? `${verbe}…` : verbe;
+    return result.owned && !identifier ? `${verbLabel}…` : verbLabel;
   }
 
   /* A search result is not one of your media yet, so it has a panel of its own
@@ -10573,8 +10579,8 @@ import { ecrans, panneau, pont } from "../seams.js";
      what it lists. */
   function openAddSheet(index) {
     const result = SEARCH.results[index];
-    const fait = currentState().added.has(index);
-    panneau.ouvrir({
+    const done = currentState().added.has(index);
+    panel.open({
       titre: result.t,
       meta: `${result.y} · ${result.k} · TMDB`,
       blocs: [
@@ -10595,13 +10601,13 @@ import { ecrans, panneau, pont } from "../seams.js";
               texte: addVerb(result, index),
               icone: icons.plus,
               ton: "primary",
-              desactive: fait,
-              cible: { act: `add:${index}` },
+              desactive: done,
+              target: { act: `add:${index}` },
             },
             {
               texte: "Voir la fiche",
               icone: icons.eye,
-              cible: { fiche: result.t },
+              target: { mediasheet: result.t },
             },
           ],
         },
@@ -10629,10 +10635,10 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   function loadMoreSug() {
     if (currentState().sugLoading || currentState().sugCount >= SUGGESTIONS.length) return;
-    magasin.ecrire({ sugLoading: true });
+    store.write({ sugLoading: true });
     if (sugObserver) sugObserver.disconnect();
     setTimeout(() => {
-      magasin.ecrire({
+      store.write({
         sugLoading: false,
         sugCount: Math.min(SUGGESTIONS.length, currentState().sugCount + SUG_BATCH),
       });
@@ -10651,13 +10657,13 @@ import { ecrans, panneau, pont } from "../seams.js";
        draw. React keeps the node, so there is nothing to put back.
 
        `.fieldinput` is NOT bound here: a settings field only ever appears
-       inside the panel, and the panel's own `champ` block owns its
+       inside the panel, and the panel's own `field` block owns its
        commit-on-blur handler now (`src/components/panel.tsx`). Binding it
        from outside would put two writers on one field. */
     const element2 = document.querySelector("#follq");
     if (element2)
       element2.oninput = () => {
-        magasin.ecrire({ filtre: element2.value });
+        store.write({ filtre: element2.value });
         const pos = element2.selectionStart;
         render();
         const element3 = document.querySelector("#follq");
@@ -10713,13 +10719,13 @@ import { ecrans, panneau, pont } from "../seams.js";
       };
   }
 
-  /* The panel layer belongs to the shell now (`window.__panneau`, rendered by
+  /* The panel layer belongs to the shell now (`window.__panel`, rendered by
      `src/components/sheet.tsx`): a producer describes FACTS and the shell
      builds the panel. This function opens nothing anymore — it is a tripwire,
      kept so a producer nobody converted fails where it is written instead of
      quietly doing nothing. Every call site was converted with the layer. */
   function openSheet() {
-    throw new Error("openSheet est mort — passer par __panneau");
+    throw new Error("openSheet est mort — passer par __panel");
   }
   /* Closing WITHOUT touching history — the harness driver uses it to
      restart from a clean surface. Chaining the « normal » close functions
@@ -10729,9 +10735,9 @@ import { ecrans, panneau, pont } from "../seams.js";
     select("#drawer").classList.remove("open");
     select("#screen").classList.remove("open");
     // The sheet is the shell's layer: closing it without touching history is
-    // what `fermer(true)` means, the same contract this function has always
+    // what `close(true)` means, the same contract this function has always
     // had for every layer it resets.
-    panneau.fermer(true);
+    panel.close(true);
     // The scrim stays cleared HERE too: it is shared ground, raised by the
     // drawer and the dialog on their own, and the line above only clears it
     // for a sheet that was actually open.
@@ -10756,16 +10762,16 @@ import { ecrans, panneau, pont } from "../seams.js";
      · One unwind is in flight at a time. A back is asynchronous, so
        `history.state` still reads the entry we just asked to pop, and a second
        call within the same task would ask for one entry too many. */
-  let deroulementEnCours = 0;
+  let unwindInProgress = 0;
 
-  function deroulerCouche(nom) {
-    if (deroulementEnCours) return;
+  function unwindLayer(nom) {
+    if (unwindInProgress) return;
     if (!history.state || history.state.layer !== nom) return;
-    deroulementEnCours += 1;
+    unwindInProgress += 1;
     try {
-      __pont.retour();
+      __bridge.back();
     } catch (error) {
-      deroulementEnCours -= 1;
+      unwindInProgress -= 1;
     }
   }
 
@@ -10773,9 +10779,9 @@ import { ecrans, panneau, pont } from "../seams.js";
      and the named-entry check above are read by the popstate handler right
      below them, so they stay here, with the reader, and the shell borrows the
      verb rather than a copy of the bookkeeping. */
-  window.__derouler = deroulerCouche;
+  window.__derouler = unwindLayer;
 
-  /* A settlement of SEVERAL entries at once (`__pont.reculer`) announces itself
+  /* A settlement of SEVERAL entries at once (`__bridge.reculer`) announces itself
      through the same latch — and raises it by ONE, never by the number of
      entries: the browser coalesces a multi-entry traversal into a SINGLE
      popstate, fired at the destination. Measured, because the whole point of
@@ -10785,22 +10791,22 @@ import { ecrans, panneau, pont } from "../seams.js";
      surplus standing and swallow the operator's next real back — the mirror
      image of the defect this replaces, and just as invisible.
 
-     No named-entry check here, unlike `deroulerCouche`: what is being settled
+     No named-entry check here, unlike `unwindLayer`: what is being settled
      is a WALK of several entries whose top one is not necessarily a layer, so
      there is no single name to check it against. The caller counts what it
      stacked and is the only one that can. */
   window.__annoncerPops = (nombreDEntrees) => {
-    if (nombreDEntrees > 0) deroulementEnCours += 1;
+    if (nombreDEntrees > 0) unwindInProgress += 1;
   };
 
   /* Kept as a VERB the driver can still say: `touch.py`, `drag.py` and
      `machine.py` call `closeSheet()` from inside the page, and moving a layer
      to the shell must not take away the vocabulary that drives it. The layer
      state, the per-layer guard and the unwind all live in
-     `panneau.fermer` now — this is one line pointing there, not a
+     `panel.fermer` now — this is one line pointing there, not a
      second implementation. */
   function closeSheet(pop) {
-    panneau.fermer(pop);
+    panel.close(pop);
   }
   /* The dialog raises the SHARED scrim itself, on an element the shell renders
      — which is why the shell's own panel verbs commit synchronously: a caller
@@ -10837,35 +10843,35 @@ import { ecrans, panneau, pont } from "../seams.js";
      would lie about it. The « close then act » flows (answering a decision,
      picking a release) are not replacements — they empty the layer first,
      so nothing stacks and back keeps meaning « leave ». */
-  const pileEcrans = [];
-  let renduCourant = null;
-  let depilage = false;
+  const screenStack = [];
+  let currentRender = null;
+  let unwinding = false;
 
   function openScreen(html, cle, rendre) {
     const element = select("#screen");
-    const dejaOuvert = element.classList.contains("open");
-    const memeEcran = dejaOuvert && cle != null && element.dataset.cle === cle;
-    if (dejaOuvert && !memeEcran && !depilage && renduCourant) {
-      pileEcrans.push({
-        rendre: renduCourant,
+    const alreadyOpen = element.classList.contains("open");
+    const sameScreen = alreadyOpen && cle != null && element.dataset.key === cle;
+    if (alreadyOpen && !sameScreen && !unwinding && currentRender) {
+      screenStack.push({
+        rendre: currentRender,
         scrollY: element.querySelector(".port")?.scrollTop ?? 0,
       });
       try {
-        __pont.coucher("screen");
+        __bridge.pushLayer("screen");
       } catch (error) {}
     }
     let startY = 0;
-    let champ = null;
-    if (memeEcran) {
+    let field = null;
+    if (sameScreen) {
       startY = element.querySelector(".port")?.scrollTop ?? 0;
       const activeElement = document.activeElement;
       if (activeElement && element.contains(activeElement) && activeElement.id)
-        champ = { id: activeElement.id, pos: activeElement.selectionStart };
+        field = { id: activeElement.id, pos: activeElement.selectionStart };
     }
     element.innerHTML = html;
-    if (cle != null) element.dataset.cle = cle;
-    else delete element.dataset.cle;
-    if (memeEcran) {
+    if (cle != null) element.dataset.key = cle;
+    else delete element.dataset.key;
+    if (sameScreen) {
       const port = element.querySelector(".port");
       if (port && startY > 0) {
         /* Restoring ONCE is not enough: posters load after the content is
@@ -10891,52 +10897,52 @@ import { ecrans, panneau, pont } from "../seams.js";
           ),
         );
       }
-      if (champ) {
-        const element2 = element.querySelector("#" + champ.id);
+      if (field) {
+        const element2 = element.querySelector("#" + field.id);
         if (element2) {
           element2.focus();
           try {
-            element2.setSelectionRange(champ.pos, champ.pos);
+            element2.setSelectionRange(field.pos, field.pos);
           } catch (error) {}
         }
       }
     }
-    if (!dejaOuvert) {
+    if (!alreadyOpen) {
       element.classList.add("open");
       try {
-        __pont.coucher("screen");
+        __bridge.pushLayer("screen");
       } catch (error) {}
     }
-    renduCourant = rendre ?? null;
+    currentRender = rendre ?? null;
   }
   function closeScreen(pop) {
     if (!select("#screen").classList.contains("open")) return;
-    const precedent = pileEcrans.pop();
-    if (precedent) {
+    const previous = screenStack.pop();
+    if (previous) {
       // A screen above another one: this back REDRAWS what it covered
-      // instead of closing the layer. `depilage` keeps the redraw from
+      // instead of closing the layer. `unwinding` keeps the redraw from
       // stacking the screen being left on top of itself.
-      depilage = true;
+      unwinding = true;
       try {
-        precedent.rendre();
+        previous.rendre();
       } finally {
-        depilage = false;
+        unwinding = false;
       }
       const port = select("#screen").querySelector(".port");
-      if (port && precedent.scrollY > 0) {
+      if (port && previous.scrollY > 0) {
         // Same discipline as a same-key redraw: reapply once the frame and
         // the late-loading posters have settled, or the port snaps to 0.
-        port.scrollTop = precedent.scrollY;
+        port.scrollTop = previous.scrollY;
         requestAnimationFrame(() => {
-          port.scrollTop = precedent.scrollY;
+          port.scrollTop = previous.scrollY;
         });
       }
-      if (!pop) deroulerCouche("screen");
+      if (!pop) unwindLayer("screen");
       return;
     }
     select("#screen").classList.remove("open");
-    renduCourant = null;
-    if (!pop) deroulerCouche("screen");
+    currentRender = null;
+    if (!pop) unwindLayer("screen");
   }
 
   /* ── LE RETOUR SUIT LE CHEMIN PARCOURU ────────────────────────────────
@@ -10956,9 +10962,9 @@ import { ecrans, panneau, pont } from "../seams.js";
      it back, and lets the stack run out — which is what closes an installed
      app on Android. A page cannot close itself; exhausting its history is the
      only thing it can honestly do. */
-  const RETOUR_FENETRE = 5000;
+  const BACK_WINDOW = 5000;
   let pilotage = false;
-  let sortieArmee = 0;
+  let armedExit = 0;
   // The legacy engine's own address BASE — "/" in production, but whatever a
   // static host answers the document under otherwise (the rule harness's
   // 8899 server names it "/wrapped.html"). Computed once at boot by the
@@ -10968,7 +10974,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   // independently-maintained list. Defaulted to "/" so a call made before
   // the boot handshake (there should be none) fails toward the common case
   // rather than toward whatever the document happens to be opened from.
-  let adresseBase = "/";
+  let baseAddress = "/";
 
   /* ── L'URL PORTE L'ÉTAT (DOIT-10) ─────────────────────────────────────
      « Chaque détail a son URL » is a rule of the constitution, and the
@@ -10989,7 +10995,7 @@ import { ecrans, panneau, pont } from "../seams.js";
 
      Only what DIFFERS from the opening state is written, so the common case
      has a clean URL and a link carries only what it means to carry. */
-  const URL_DEFAUTS = {
+  const URL_DEFAULTS = {
     page: "acq",
     tab: "maintenant",
     lens: "cat",
@@ -10998,7 +11004,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     rub: "",
   };
 
-  function urlDeLEtat() {
+  function urlFromState() {
     // Built on adresseBase, never on location.pathname: writing over the
     // CURRENT pathname would either clobber a router-owned address (the
     // C1 hole) or, once it does not, still be redundant with what pushing
@@ -11006,7 +11012,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     // subscribes to that same history instance (Transitioner mounts
     // `router.history.subscribe(router.load)`) and re-derives its matches
     // from whatever URL lands there, regardless of who pushed it. A legacy
-    // nav writing `adresseBase + "?page=lib"` while the address reads
+    // nav writing `baseAddress + "?page=lib"` while the address reads
     // `/ajout` is exactly what makes the router notice the address no
     // longer matches `/ajout` and unmount the screen — no navigate() call
     // needed on this side of the bridge.
@@ -11016,14 +11022,14 @@ import { ecrans, panneau, pont } from "../seams.js";
       lens: currentState().libLens,
       mode: currentState().libMode,
       cat: currentState().libCat,
-      rub: currentState().maintRub || "",
+      rub: currentState().maintTopic || "",
     };
     const params = new URLSearchParams();
-    for (const [nom, valeur] of Object.entries(courant))
-      if (valeur && valeur !== URL_DEFAUTS[nom])
-        params.set(nom, String(valeur));
-    const requete = params.toString();
-    return adresseBase + (requete ? "?" + requete : "");
+    for (const [nom, value] of Object.entries(courant))
+      if (value && value !== URL_DEFAULTS[nom])
+        params.set(nom, String(value));
+    const query = params.toString();
+    return baseAddress + (query ? "?" + query : "");
   }
 
   /* Reads back what the URL carries. An absent parameter is not « empty »: it
@@ -11032,22 +11038,22 @@ import { ecrans, panneau, pont } from "../seams.js";
      `render()` is what turns an unknown id into the not-found surface, and
      silently rewriting it here would mean a mistyped address quietly became a
      different one. */
-  function etatDeLURL() {
+  function stateFromUrl() {
     const params = new URLSearchParams(location.search);
     const lu = {};
-    const prendre = (param, champ) => {
-      if (params.has(param) && params.get(param)) lu[champ] = params.get(param);
+    const take = (param, field) => {
+      if (params.has(param) && params.get(param)) lu[field] = params.get(param);
     };
-    prendre("page", "page");
-    prendre("tab", "acqTab");
-    prendre("lens", "libLens");
-    prendre("mode", "libMode");
-    prendre("cat", "libCat");
-    prendre("rub", "maintRub");
+    take("page", "page");
+    take("tab", "acqTab");
+    take("lens", "libLens");
+    take("mode", "libMode");
+    take("cat", "libCat");
+    take("rub", "maintTopic");
     return lu;
   }
 
-  function etatDeNavigation() {
+  function navigationState() {
     return {
       tm: "nav",
       page: currentState().page,
@@ -11071,10 +11077,10 @@ import { ecrans, panneau, pont } from "../seams.js";
      previous arrival. Pushing the state being left instead puts the history
      one step ahead of the interface, and every back then overshoots by one —
      measured, and it is the mistake this ordering exists to avoid. */
-  function noterLeChemin() {
+  function recordPath() {
     if (pilotage) return;
     try {
-      __pont.noter(etatDeNavigation(), urlDeLEtat());
+      __bridge.record(navigationState(), urlFromState());
     } catch (error) {
       console.error("noterLeChemin : écriture de navigation échouée", error);
       window.__navEchec = true;
@@ -11087,39 +11093,39 @@ import { ecrans, panneau, pont } from "../seams.js";
      `popstate` reported too, so the reading below is unchanged.
 
      The registration itself moved into window.__demarrerMoteur, below: like
-     every other `__pont` verb, it needs the REAL bridge to exist first, and
+     every other `__bridge` verb, it needs the REAL bridge to exist first, and
      nothing here forces that anymore — there is no pre-bridge queueing calls
      made before the module evaluates. */
-  function surRetourEngine(etatCourant) {
+  function onEngineBack(etatCourant) {
     // Our own unwind, announced by the layer that closed itself. It is not a
     // back gesture and carries no destination: consuming it is the whole
     // handling. Read before the layer guards, because the layer's class is
     // already gone by the time its pop lands.
-    if (deroulementEnCours) {
-      deroulementEnCours -= 1;
+    if (unwindInProgress) {
+      unwindInProgress -= 1;
       return;
     }
 
     // A layer first: it is what sits on top, and it is what a back closes.
-    if (select("#drawer").classList.contains("open")) return fermerTiroir(true);
+    if (select("#drawer").classList.contains("open")) return closeDrawer(true);
     if (select("#screen").classList.contains("open")) return closeScreen(true);
     // The sheet lives in the shell; it is asked, not inspected. Same rank in
     // the ladder as before — drawer, then screen, then sheet.
-    if (panneau.ouverte()) {
-      panneau.fermer(true);
+    if (panel.isOpen()) {
+      panel.close(true);
       return;
     }
 
-    const etat = etatCourant;
-    if (etat && etat.tm === "nav") {
-      sortieArmee = 0;
+    const state = etatCourant;
+    if (state && state.tm === "nav") {
+      armedExit = 0;
       pilotage = true;
       applyState({
-        page: etat.page,
-        acqTab: etat.acqTab,
-        libLens: etat.libLens,
-        libMode: etat.libMode,
-        libCat: etat.libCat,
+        page: state.page,
+        acqTab: state.acqTab,
+        libLens: state.libLens,
+        libMode: state.libMode,
+        libCat: state.libCat,
       });
       pilotage = false;
       return;
@@ -11127,7 +11133,7 @@ import { ecrans, panneau, pont } from "../seams.js";
 
     // Ownership, once more, decided by the entry's own SHAPE: only an entry
     // that carries the guard's own marker (written once, at boot, by
-    // __pont.remplacer({ tm: "garde" })) is the guard. Anything else that
+    // __bridge.remplacer({ tm: "garde" })) is the guard. Anything else that
     // falls through here — notably an entry the ROUTER wrote for /profil/$titre
     // or /ajout, which carries neither "layer" nor "tm" — is not ours to
     // react to: the router has already re-rendered by the new URL, so a true
@@ -11135,21 +11141,21 @@ import { ecrans, panneau, pont } from "../seams.js";
     // the exit guard". Reading it as the guard used to arm the exit warning
     // and rewrite the address via noterLeChemin()/urlDeLEtat() over whatever
     // the router had just written — destroying its search params.
-    if (!(etat && etat.tm === "garde")) return;
+    if (!(state && state.tm === "garde")) return;
 
     // The guard was popped: there is nowhere left to go back to.
-    const maintenant = Date.now();
-    if (sortieArmee && maintenant - sortieArmee < RETOUR_FENETRE) {
-      sortieArmee = 0;
+    const now = Date.now();
+    if (armedExit && now - armedExit < BACK_WINDOW) {
+      armedExit = 0;
       // Nothing is put back: from the guard, one more back leaves the
       // document — which is what closes an installed app on Android.
-      __pont.retour();
+      __bridge.back();
       return;
     }
-    sortieArmee = maintenant;
+    armedExit = now;
     // Where one IS is pushed back on, so the route does not change and the
     // next back lands on the guard again.
-    noterLeChemin();
+    recordPath();
     toast("Encore un retour pour quitter TorrentMate.");
   }
 
@@ -11159,13 +11165,13 @@ import { ecrans, panneau, pont } from "../seams.js";
      line runs — the shell calls this from its own `onClick`. */
   window.__fermerCouches = () => {
     closeDlg();
-    panneau.fermer();
-    fermerTiroir();
+    panel.close();
+    closeDrawer();
   };
 
   /* Design notes */
   select("#notesBtn").onclick = (event) => {
-    magasin.ecrire({ notes: !currentState().notes });
+    store.write({ notes: !currentState().notes });
     document.documentElement.classList.toggle("notes", currentState().notes);
     event.currentTarget.setAttribute("aria-pressed", String(currentState().notes));
     toast(currentState().notes ? "Notes de conception affichées." : "Notes masquées.");
@@ -11197,9 +11203,9 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   function applyState(patch) {
     hideLayers();
-    magasin.ecrire(patch);
+    store.write(patch);
     if (patch.page || patch.libLens || patch.q !== undefined)
-      magasin.ecrire({ libCount: LIB_PAGE });
+      store.write({ libCount: LIB_PAGE });
     port.scrollTop = 0;
     render();
   }
@@ -11210,13 +11216,13 @@ import { ecrans, panneau, pont } from "../seams.js";
      surface; who may see it is decided by the server that serves this file. A
      password written into a page is readable by everyone the page reaches,
      which is the opposite of what a password is for. */
-  function afficherConnexion(avecErreur) {
+  function showSignIn(avecErreur) {
     document.querySelector("#login").hidden = false;
     document.querySelector("#loginerr").hidden = !avecErreur;
     if (avecErreur) document.querySelector("#loginform").reset();
   }
 
-  function masquerConnexion() {
+  function hideSignIn() {
     document.querySelector("#login").hidden = true;
     document.querySelector("#loginerr").hidden = true;
   }
@@ -11231,12 +11237,12 @@ import { ecrans, panneau, pont } from "../seams.js";
      A failure is swallowed on purpose: served from a plain static server there
      is no such route, and a design reference that dead-ends on a 404 teaches
      nothing about the design. Nothing else here depends on the answer. */
-  async function deconnecter() {
-    panneau.fermer();
+  async function signOut() {
+    panel.close();
     try {
       await fetch("/deconnexion", { redirect: "manual" });
     } catch (error) {}
-    afficherConnexion(false);
+    showSignIn(false);
   }
 
   /* The startup screen, shown for as long as there is no interface to show.
@@ -11245,21 +11251,21 @@ import { ecrans, panneau, pont } from "../seams.js";
      thing in the frame — and comes off once the first render has run. Driving
      to its named state puts it back, so it can be judged like any other
      surface. */
-  function afficherDemarrage() {
-    const ecran = document.querySelector("#splash");
-    ecran.hidden = false;
+  function showStartup() {
+    const screen = document.querySelector("#splash");
+    screen.hidden = false;
     /* Restarted from zero every time the screen is shown, so driving to its
        named state twice does not measure a bar left where the previous visit
        stopped it. */
-    const barre = ecran.querySelector(".splashbar i");
-    if (barre) {
-      barre.style.animation = "none";
-      void barre.offsetWidth;
-      barre.style.animation = "";
+    const barNode = screen.querySelector(".splashbar i");
+    if (barNode) {
+      barNode.style.animation = "none";
+      void barNode.offsetWidth;
+      barNode.style.animation = "";
     }
   }
 
-  function masquerDemarrage() {
+  function hideStartup() {
     document.querySelector("#splash").hidden = true;
   }
 
@@ -11280,8 +11286,8 @@ import { ecrans, panneau, pont } from "../seams.js";
      budgeted, so a bar half full means half way. A load that ends sooner ends
      the screen sooner, and that is not a second path: it is the same promise
      resolving. */
-  const DEMARRAGE_MS = 5000;
-  let finDuChargement = null;
+  const STARTUP_MS = 5000;
+  let loadingEnd = null;
 
   /* Shows the screen and leaves it up until the wait it covers resolves.
 
@@ -11290,16 +11296,16 @@ import { ecrans, panneau, pont } from "../seams.js";
      PLAYED rather than observed — the sign-in inside the prototype, which
      fetches nothing and has to show what the real one looks like. */
   window.__chargementTermine = () => {
-    finDuChargement?.();
-    finDuChargement = null;
-    masquerDemarrage();
+    loadingEnd?.();
+    loadingEnd = null;
+    hideStartup();
   };
 
-  function couvrirLeChargement(duree = DEMARRAGE_MS) {
-    afficherDemarrage();
+  function coverLoading(duree = STARTUP_MS) {
+    showStartup();
     new Promise((resoudre) => {
-      finDuChargement = resoudre;
-    }).then(masquerDemarrage);
+      loadingEnd = resoudre;
+    }).then(hideStartup);
     window.setTimeout(() => window.__chargementTermine(), duree);
   }
 
@@ -11307,21 +11313,21 @@ import { ecrans, panneau, pont } from "../seams.js";
     .querySelector("#loginform")
     .addEventListener("submit", (evenement) => {
       evenement.preventDefault();
-      const champs = new FormData(evenement.currentTarget);
-      const identifiant = String(champs.get("identifiant") || "").trim();
-      const motDePasse = String(champs.get("motdepasse") || "");
+      const fields = new FormData(evenement.currentTarget);
+      const username = String(fields.get("username") || "").trim();
+      const password = String(fields.get("password") || "");
       // An empty field shows the refusal state; anything filled in walks
       // through, because this surface demonstrates the SCREEN and not the
       // check — the check lives where the file is served from.
-      if (!identifiant || !motDePasse) {
+      if (!username || !password) {
         document.querySelector("#loginerr").hidden = false;
         return;
       }
-      masquerConnexion();
+      hideSignIn();
       /* What actually follows a sign-in: the interface is not there yet, and
          the wait is covered rather than left blank — by the same screen, ended
          the same way, as the one a cold load puts up. */
-      couvrirLeChargement();
+      coverLoading();
     });
 
   /* Install proposal — two platforms, two paths.
@@ -11331,13 +11337,13 @@ import { ecrans, panneau, pont } from "../seams.js";
      wait for and no API to call, so the only honest thing a page can do is
      explain the manual route. A single banner that said « installez-moi » on
      both would be a dead end on one of them. */
-  function afficherInstallation(plateforme) {
-    const barre = document.querySelector("#installbar");
-    const surIOS = plateforme === "ios";
-    barre.hidden = false;
-    document.querySelector("#installsub").hidden = surIOS;
-    document.querySelector("#installsteps").hidden = !surIOS;
-    document.querySelector("#installgo").hidden = surIOS;
+  function showInstallation(plateforme) {
+    const barNode = document.querySelector("#installbar");
+    const onIOS = plateforme === "ios";
+    barNode.hidden = false;
+    document.querySelector("#installsub").hidden = onIOS;
+    document.querySelector("#installsteps").hidden = !onIOS;
+    document.querySelector("#installgo").hidden = onIOS;
   }
 
   function masquerInstallation() {
@@ -11349,21 +11355,21 @@ import { ecrans, panneau, pont } from "../seams.js";
     // Refused: not asked again this session. The next visit may ask again —
     // a banner that never returns after one dismissal is a feature nobody
     // finds twice.
-    installRefusee = true;
+    installRefused = true;
   });
   document.querySelector("#installgo").addEventListener("click", async () => {
     masquerInstallation();
-    if (!installEvenement) {
+    if (!installEvent) {
       toast("Installation demandée — le navigateur prend la main.");
       return;
     }
     /* The captured event is REPLAYED here, on a gesture, which is the only
        moment a browser accepts it. It can be used exactly once. */
-    installEvenement.prompt();
-    const choix = await installEvenement.userChoice.catch(() => null);
-    installEvenement = null;
+    installEvent.prompt();
+    const choice = await installEvent.userChoice.catch(() => null);
+    installEvent = null;
     toast(
-      choix && choix.outcome === "accepted"
+      choice && choice.outcome === "accepted"
         ? "Installation en cours — l'icône arrive sur votre écran d'accueil."
         : "Installation refusée — le bandeau reviendra à la prochaine visite.",
     );
@@ -11388,17 +11394,17 @@ import { ecrans, panneau, pont } from "../seams.js";
      Nobody is asked while already installed: `display-mode: standalone` means
      the icon is already on the home screen, and a banner there is noise about
      something already done. */
-  let installEvenement = null;
-  let installRefusee = false;
+  let installEvent = null;
+  let installRefused = false;
 
-  function dejaInstallee() {
+  function alreadyInstalled() {
     return (
       window.matchMedia("(display-mode: standalone)").matches ||
       window.navigator.standalone === true
     );
   }
 
-  function surIOSSafari() {
+  function onIOSSafari() {
     const ua = navigator.userAgent;
     const ios =
       /iPad|iPhone|iPod/.test(ua) ||
@@ -11410,29 +11416,29 @@ import { ecrans, panneau, pont } from "../seams.js";
   }
 
   function proposerInstallation(plateforme) {
-    if (installRefusee || dejaInstallee()) return;
+    if (installRefused || alreadyInstalled()) return;
     // Never over the entry screen: there is nothing to install yet, and the
     // banner would cover the only field on it.
     if (!document.querySelector("#login").hidden) return;
-    afficherInstallation(plateforme);
+    showInstallation(plateforme);
   }
 
   window.addEventListener("beforeinstallprompt", (evenement) => {
     // Without this the browser posts its own proposal and ours never runs.
     evenement.preventDefault();
-    installEvenement = evenement;
+    installEvent = evenement;
     proposerInstallation("android");
   });
 
   window.addEventListener("appinstalled", () => {
-    installEvenement = null;
+    installEvent = null;
     masquerInstallation();
     toast("TorrentMate est installé.");
   });
 
   /* iOS has no event to wait for, so the offer is made once the interface is
      there — after the startup screen, not over it. */
-  if (surIOSSafari()) {
+  if (onIOSSafari()) {
     window.setTimeout(() => proposerInstallation("ios"), 1200);
   }
 
@@ -11444,8 +11450,8 @@ import { ecrans, panneau, pont } from "../seams.js";
           ? "état inconnu : " + stateId
           : "aucun état enregistré — src/states.js n'a pas été chargé");
     closeHarness();
-    if (!stateId.startsWith("connexion")) masquerConnexion();
-    if (stateId !== "demarrage") masquerDemarrage();
+    if (!stateId.startsWith("connexion")) hideSignIn();
+    if (stateId !== "demarrage") hideStartup();
     if (!stateId.startsWith("pwa-")) masquerInstallation();
     // Reset to seed by DEFAULT: a measurement must never inherit the
     // mutations of a previous one. `__go(id, {keep:true})` preserves
@@ -11475,7 +11481,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      that keeps them OFF Système has to know their names, and a rule that
      cannot reach them compares against an empty list and passes whatever it
      is shown — which is what it did before this seam existed. */
-  window.__bloques = () => derived.stuck().map((carte) => carte.t);
+  window.__bloques = () => derived.stuck().map((card) => card.t);
 
   /* Clears ALL harness chrome before a capture or a pixel comparison:
      harness buttons float above the shell, which is a measured region and
@@ -11484,10 +11490,10 @@ import { ecrans, panneau, pont } from "../seams.js";
      a `:root` variable, and everything that must sit above it reads that.
      Magic numbers used to sit here — exactly the defect the app already
      fixed (« nothing positions itself by a distance to an edge »). */
-  function publierHauteurBarre() {
+  function publishBarHeight() {
     const bar = document.querySelector(".bottombar");
     if (!bar) return;
-    const publier = () => {
+    const publish = () => {
       const ceil = Math.ceil(bar.getBoundingClientRect().height);
       const cur =
         document.documentElement.style.getPropertyValue("--tm-bottom-bar-h");
@@ -11497,11 +11503,11 @@ import { ecrans, panneau, pont } from "../seams.js";
           ceil + "px",
         );
     };
-    publier();
+    publish();
     if (typeof ResizeObserver !== "undefined")
-      new ResizeObserver(publier).observe(bar);
+      new ResizeObserver(publish).observe(bar);
   }
-  publierHauteurBarre();
+  publishBarHeight();
 
   window.__measure = (enabled) => {
     document.documentElement.classList.toggle("measuring", enabled !== false);
@@ -11533,7 +11539,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     ["Configuration", [["cfg", "Réglages", icons.sort]]],
   ];
 
-  function ouvrirTiroir() {
+  function openDrawer() {
     const badges = Object.fromEntries(
       PAGES_OF().map((element2) => [element2.id, element2.badge]),
     );
@@ -11578,14 +11584,14 @@ import { ecrans, panneau, pont } from "../seams.js";
     element.classList.add("open");
     select("#scrim").classList.add("open");
     try {
-      __pont.coucher("drawer");
+      __bridge.pushLayer("drawer");
     } catch (error) {}
   }
-  function fermerTiroir(pop) {
+  function closeDrawer(pop) {
     if (!select("#drawer").classList.contains("open")) return;
     select("#drawer").classList.remove("open");
     select("#scrim").classList.remove("open");
-    if (!pop) deroulerCouche("drawer");
+    if (!pop) unwindLayer("drawer");
   }
 
   function closeHarness() {
@@ -11627,7 +11633,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   select("#fab").onclick = () => {
     // The « + » ALWAYS means « follow »: the mode must never stay
     // stuck from a previous resolution.
-    ecrans.ajout(currentState().addQ, "suivi");
+    screens.add(currentState().addQ, "suivi");
   };
   select("#scenBtn").onclick = () => {
     openHarness();
@@ -11646,16 +11652,16 @@ import { ecrans, panneau, pont } from "../seams.js";
     } catch (error) {}
     return "systeme";
   }
-  function appliquerApparence(mode) {
-    const clair =
+  function applyAppearance(mode) {
+    const light =
       mode === "clair" ||
       (mode === "systeme" &&
         matchMedia("(prefers-color-scheme: light)").matches);
-    if (clair) document.documentElement.setAttribute("data-theme", "light");
+    if (light) document.documentElement.setAttribute("data-theme", "light");
     else document.documentElement.removeAttribute("data-theme");
   }
   matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
-    if (apparenceCourante() === "systeme") appliquerApparence("systeme");
+    if (apparenceCourante() === "systeme") applyAppearance("systeme");
   });
 
   /* Global delegation */
@@ -11666,83 +11672,83 @@ import { ecrans, panneau, pont } from "../seams.js";
     if (!closest) return;
     if (closest.tagName === "A") event.preventDefault();
 
-    if (closest.dataset.rubrique) {
-      REG_ETAT.rubrique = closest.dataset.rubrique;
-      REG_ETAT.q = "";
+    if (closest.dataset.topic) {
+      SETTINGS_STATE.rubrique = closest.dataset.topic;
+      SETTINGS_STATE.q = "";
       port.scrollTop = 0;
       render();
-      noterLeChemin();
+      recordPath();
       return;
     }
-    if (closest.dataset.reglage) {
-      ouvrirReglage(closest.dataset.reglage);
+    if (closest.dataset.setting) {
+      openSetting(closest.dataset.setting);
       return;
     }
     if (closest.dataset.secret) {
       // A secret is never shown, so its panel offers the only act that exists:
       // replacing it. Nothing to read, nothing to copy.
       const secret = SECRETS.find((x) => x.k === closest.dataset.secret);
-      if (secret) ouvrirSecret(secret);
+      if (secret) openSecret(secret);
       return;
     }
-    if (closest.dataset.champ && closest.dataset.vers) {
-      const id = closest.dataset.champ;
-      const reglage = tousLesReglages().find((r) => reglageId(r) === id);
-      if (reglage) {
-        modifierReglage(id, closest.dataset.vers === "oui");
-        ouvrirReglage(id);
+    if (closest.dataset.field && closest.dataset.to) {
+      const id = closest.dataset.field;
+      const setting = allSettings().find((r) => settingId(r) === id);
+      if (setting) {
+        changeSetting(id, closest.dataset.to === "oui");
+        openSetting(id);
       }
       return;
     }
-    if (closest.dataset.champsupp) {
-      const id = closest.dataset.champsupp;
-      const reglage = tousLesReglages().find((r) => reglageId(r) === id);
-      if (reglage) {
-        const liste = [...(valeurEnCours(reglage) || [])];
-        liste.splice(Number(closest.dataset.index), 1);
-        modifierReglage(id, liste);
-        ouvrirReglage(id);
+    if (closest.dataset.deletefield) {
+      const id = closest.dataset.deletefield;
+      const setting = allSettings().find((r) => settingId(r) === id);
+      if (setting) {
+        const list = [...(rawValue(setting) || [])];
+        list.splice(Number(closest.dataset.index), 1);
+        changeSetting(id, list);
+        openSetting(id);
       }
       return;
     }
-    if (closest.dataset.champajout) {
-      const id = closest.dataset.champajout;
-      const reglage = tousLesReglages().find((r) => reglageId(r) === id);
-      if (reglage) {
+    if (closest.dataset.addfield) {
+      const id = closest.dataset.addfield;
+      const setting = allSettings().find((r) => settingId(r) === id);
+      if (setting) {
         // A prototype cannot show a keyboard; the added item is named after
         // what the list already holds, so the shape of the row is judgeable.
-        const liste = [...(valeurEnCours(reglage) || [])];
-        liste.push(`valeur ${liste.length + 1}`);
-        modifierReglage(id, liste);
-        ouvrirReglage(id);
+        const list = [...(rawValue(setting) || [])];
+        list.push(`valeur ${list.length + 1}`);
+        changeSetting(id, list);
+        openSetting(id);
       }
       return;
     }
-    if (closest.dataset.annulerreg) {
-      REG_ETAT.modifs.delete(closest.dataset.annulerreg);
-      panneau.fermer();
+    if (closest.dataset.cancelsetting) {
+      SETTINGS_STATE.modifs.delete(closest.dataset.cancelsetting);
+      panel.close();
       setTimeout(() => {
         render();
         toast("Modification annulée — rien n'avait été écrit.");
       }, 200);
       return;
     }
-    if (closest.dataset.enregistrer) {
-      const fichiers = fichiersModifies();
-      REG_ETAT.modifs.clear();
-      REG_ETAT.redemarrage = true;
+    if (closest.dataset.save) {
+      const fileNames = changedFiles();
+      SETTINGS_STATE.modifs.clear();
+      SETTINGS_STATE.redemarrage = true;
       render();
-      toast(`Enregistré — ${fichiers.map(nomDeFichier).join(", ")}.`);
+      toast(`Enregistré — ${fileNames.map(fileName).join(", ")}.`);
       return;
     }
-    if (closest.dataset.redemarrer) {
-      REG_ETAT.redemarrage = false;
+    if (closest.dataset.restart) {
+      SETTINGS_STATE.redemarrage = false;
       render();
       toast("Service redémarré — les réglages sont pris en compte.");
       return;
     }
-    if (closest.dataset.qreg != null) {
-      REG_ETAT.q = closest.dataset.qreg;
+    if (closest.dataset.qsettings != null) {
+      SETTINGS_STATE.q = closest.dataset.qsettings;
       render();
       return;
     }
@@ -11750,10 +11756,10 @@ import { ecrans, panneau, pont } from "../seams.js";
       // Navigating CLOSES whatever is open above: without this, one changed
       // page while staying stuck on the media sheet.
       hideLayers();
-      magasin.ecrire({ page: closest.dataset.page });
+      store.write({ page: closest.dataset.page });
       port.scrollTop = 0;
       render();
-      noterLeChemin();
+      recordPath();
       return;
     }
     if (closest.dataset.go) {
@@ -11767,12 +11773,12 @@ import { ecrans, panneau, pont } from "../seams.js";
          itself (see data-navgo): letting the close unwind and the arrival
          push would race, the asynchronous pop landing after the push and
          overwriting it. */
-      const surCouche = history.state && history.state.layer;
-      fermerTiroir(true);
-      panneau.fermer(true);
+      const onLayer = history.state && history.state.layer;
+      closeDrawer(true);
+      panel.close(true);
       // This empties the covered-screen STACK too, so the DOM ends up clean
       // however many screens were stacked — but that is DOM bookkeeping
-      // only, not history: `__pont.remplacer` below settles exactly ONE
+      // only, not history: `__bridge.remplacer` below settles exactly ONE
       // entry, on the assumption that at most one layer (drawer, sheet or a
       // covered-screen stack — never several at once) precedes a `data-go`
       // tap. B-024 found that assumption unenforced in code, then walked
@@ -11781,16 +11787,16 @@ import { ecrans, panneau, pont } from "../seams.js";
       // itself. Held there, not fixed here; settling by entry count is
       // owed if the ownership law lets more producers reach a buried layer
       // (data-go's own migration, SP4d).
-      pileEcrans.length = 0;
+      screenStack.length = 0;
       closeScreen(true);
-      magasin.ecrire({ page: closest.dataset.go });
+      store.write({ page: closest.dataset.go });
       if (closest.dataset.go === "acq")
-        magasin.ecrire({ acqTab: "maintenant" });
+        store.write({ acqTab: "maintenant" });
       port.scrollTop = 0;
       render();
       try {
-        if (surCouche) __pont.remplacer(etatDeNavigation(), urlDeLEtat());
-        else noterLeChemin();
+        if (onLayer) __bridge.replace(navigationState(), urlFromState());
+        else recordPath();
       } catch (error) {
         console.error("data-go : écriture de navigation échouée", error);
         window.__navEchec = true;
@@ -11798,26 +11804,26 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.acqtab) {
-      magasin.ecrire({ acqTab: closest.dataset.acqtab });
+      store.write({ acqTab: closest.dataset.acqtab });
       port.scrollTop = 0;
       render();
-      noterLeChemin();
+      recordPath();
       return;
     }
     if (closest.dataset.lens) {
       // Changing lens changes the list: start again from the first page.
-      magasin.ecrire({
+      store.write({
         libLens: closest.dataset.lens,
         libCount: LIB_PAGE,
         libErr: false,
       });
       port.scrollTop = 0;
       render();
-      noterLeChemin();
+      recordPath();
       return;
     }
     if (closest.dataset.cat) {
-      magasin.ecrire({
+      store.write({
         libCat: closest.dataset.cat,
         libCount: LIB_PAGE,
         libErr: false,
@@ -11827,22 +11833,22 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.lmode) {
-      magasin.ecrire({ libMode: closest.dataset.lmode });
+      store.write({ libMode: closest.dataset.lmode });
       render();
       return;
     }
     if (closest.dataset.pill) {
-      magasin.ecrire({ pill: closest.dataset.pill });
+      store.write({ pill: closest.dataset.pill });
       render();
       return;
     }
     if (closest.dataset.fmode) {
-      magasin.ecrire({ followMode: closest.dataset.fmode });
+      store.write({ followMode: closest.dataset.fmode });
       render();
       return;
     }
     if (closest.dataset.sugmode) {
-      magasin.ecrire({ sugMode: closest.dataset.sugmode });
+      store.write({ sugMode: closest.dataset.sugmode });
       render();
       return;
     }
@@ -11851,13 +11857,13 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.sugmore) {
-      magasin.ecrire({ sugGone: new Set(), sugOrder: null });
+      store.write({ sugGone: new Set(), sugOrder: null });
       render();
       toast("Nouveau lot chargé — 30 suggestions de plus.");
       return;
     }
-    if (closest.dataset.deconnexion) {
-      deconnecter();
+    if (closest.dataset.signout) {
+      signOut();
       return;
     }
     if (closest.dataset.toast) {
@@ -11871,7 +11877,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     }
     if (closest.dataset.dropsug) {
       const index = Number(closest.dataset.dropsug);
-      panneau.fermer();
+      panel.close();
       dismissSug(index);
       return;
     }
@@ -11887,13 +11893,13 @@ import { ecrans, panneau, pont } from "../seams.js";
         suggestion && suggestion.k === "Film"
           ? "ajouté à votre liste"
           : "ajouté à vos suivis";
-      panneau.fermer();
+      panel.close();
       if (idx != null) {
         // No render() follows on this branch: the sheet close and the
         // follow-up screens draw directly, so the bump has to be explicit
         // or React never learns this suggestion left the deck.
         currentState().sugGone.add(Number(idx));
-        magasin.toucher();
+        store.touch();
         const element = document.querySelector(`[data-dismissable="${idx}"]`);
         if (element) {
           element.style.height = element.getBoundingClientRect().height + "px";
@@ -11901,15 +11907,15 @@ import { ecrans, panneau, pont } from "../seams.js";
           setTimeout(() => element.remove(), 320);
         }
       }
-      actionSuivre(closest.dataset.follow, suggestion?.k ?? "Série");
+      actionFollow(closest.dataset.follow, suggestion?.k ?? "Série");
       // The media sheet used to REOPEN itself here so its button would toggle
       // under the finger — an action whose screen does not change reads as a
       // failed action. The sheet is a React screen now and re-renders from
-      // the store instead, but `actionSuivre` mutates `world.follows` IN
+      // the store instead, but `actionFollow` mutates `world.follows` IN
       // PLACE and no `render()` follows on this branch: the bump has to be
       // explicit, exactly as it is for the dismissed suggestion above, or
       // the button never learns the follow happened.
-      magasin.toucher();
+      store.touch();
       return;
     }
 
@@ -11926,13 +11932,13 @@ import { ecrans, panneau, pont } from "../seams.js";
         .replace(/\s{2,}/g, " ")
         .trim();
       // `/resolution` is a router-owned address now: leaving it is
-      // `__pont.retour()` — the same single pop `.fback` uses — unwinding the
-      // ONE entry `ecrans.resolution` pushed to get here. The
+      // `__bridge.retour()` — the same single pop `.fback` uses — unwinding the
+      // ONE entry `screens.resolution` pushed to get here. The
       // dispatcher no-ops that pop: the entry carries neither `layer` nor
       // `tm`, so the legacy popstate checks fall through it and the router has
       // already re-rendered by the time they run.
-      pont.retour();
-      setTimeout(() => ecrans.ajout(trim, "identifier"), 260);
+      bridge.back();
+      setTimeout(() => screens.add(trim, "identifier"), 260);
       return;
     }
     /* THE FOLDER IS `currentState().resolveTarget`, NEVER THE ATTRIBUTE: what
@@ -11942,29 +11948,29 @@ import { ecrans, panneau, pont } from "../seams.js";
        further down and never gets there, which is the order this rewire keeps
        exactly as it found it. */
     if (closest.dataset.resolve) {
-      const cible = currentState().resolveTarget;
-      pont.retour();
-      setTimeout(() => actionResoudre(cible, closest.dataset.resolve), 240);
+      const target = currentState().resolveTarget;
+      bridge.back();
+      setTimeout(() => actionResolve(target, closest.dataset.resolve), 240);
       return;
     }
     /* Agreeing with the machine. It keeps the automatic result and re-scrapes
        nothing — which is why it says what it did rather than « fait ». */
-    if (closest.dataset.laisser) {
-      const cible = currentState().resolveTarget;
-      pont.retour();
-      setTimeout(() => actionLaisser(cible), 240);
+    if (closest.dataset.leave) {
+      const target = currentState().resolveTarget;
+      bridge.back();
+      setTimeout(() => actionLeave(target), 240);
       return;
     }
     /* What the desktop deck's ⏎ did, without a keyboard: the next folder
        waiting, on the same screen. */
-    if (closest.dataset.suivante) {
+    if (closest.dataset.next) {
       const suite = derived
         .blocked()
         .concat(derived.stuck())
-        .map((bloque) => decisionEnAttente(bloque.t))
+        .map((bloque) => decisionPending(bloque.t))
         .find(
           (decision) =>
-            decision != null && decision.d !== closest.dataset.suivante,
+            decision != null && decision.d !== closest.dataset.next,
         );
       if (suite) {
         // Closing the screen and re-opening it on the next folder was a pop
@@ -11972,15 +11978,15 @@ import { ecrans, panneau, pont } from "../seams.js";
         // now, so the same depth is a REPLACE: one entry in, one entry out,
         // and a single back still leaves the arbitration rather than walking
         // the folders one has already answered.
-        setTimeout(() => ecrans.resolution(suite.d, true), 240);
+        setTimeout(() => screens.resolution(suite.d, true), 240);
       }
       return;
     }
     if (closest.dataset.sheetprim) {
       const [split, split2] = closest.dataset.sheetprim.split("|");
-      panneau.fermer();
+      panel.close();
       setTimeout(() => {
-        if (split2 === "a_recuperer") actionRecuperer(split);
+        if (split2 === "a_recuperer") actionTake(split);
         else
           toast(
             `Recherche lancée pour « ${baseTitle(split)} » — le résultat s'affichera sur la carte.`,
@@ -11990,28 +11996,28 @@ import { ecrans, panneau, pont } from "../seams.js";
     }
     if (closest.dataset.pause) {
       const pause = closest.dataset.pause;
-      panneau.fermer();
+      panel.close();
       setTimeout(() => actionPause(pause), 240);
       return;
     }
-    if (closest.dataset.retirer) {
-      const retirer = closest.dataset.retirer;
-      panneau.fermer();
+    if (closest.dataset.remove) {
+      const retirer = closest.dataset.remove;
+      panel.close();
       setTimeout(() => actionRetirer(retirer), 240);
       return;
     }
     if (closest.dataset.releases) {
-      panneau.fermer();
-      setTimeout(() => ecrans.releases(closest.dataset.releases), 260);
+      panel.close();
+      setTimeout(() => screens.releases(closest.dataset.releases), 260);
       return;
     }
     if (
-      closest.dataset.profil !== undefined &&
-      closest.dataset.profil !== null
+      closest.dataset.profile !== undefined &&
+      closest.dataset.profile !== null
     ) {
       // Route, not screen: the quality-profile surface left the legacy
       // fragment — and so, since this Task, has the release-choice screen
-      // that used to be the ONLY producer of `data-profil` inside `#screen`
+      // that used to be the ONLY producer of `data-profile` inside `#screen`
       // (its own « Ouvrir le profil de qualité → » button). `#screen` is no
       // longer a possible source of this attribute at all — the two
       // remaining producers (the Réglages rubric, a sheet action) were
@@ -12019,62 +12025,62 @@ import { ecrans, panneau, pont } from "../seams.js";
       // still needs the same close-then-open choreography its own trigger
       // was built against, and a router screen leaves no trace in
       // `#screen.classList`: test the router's own identity instead.
-      // `__ecrans.profil` does the navigating either way.
-      const profil = closest.dataset.profil;
-      if (document.querySelector('.screen.open[data-cle^="releases:"]')) {
-        pont.retour();
-        setTimeout(() => ecrans.profil(profil), 260);
+      // `__screens.profil` does the navigating either way.
+      const profile = closest.dataset.profile;
+      if (document.querySelector('.screen.open[data-key^="releases:"]')) {
+        bridge.back();
+        setTimeout(() => screens.profile(profile), 260);
       } else {
-        panneau.fermer();
-        setTimeout(() => ecrans.profil(profil), 260);
+        panel.close();
+        setTimeout(() => screens.profile(profile), 260);
       }
       return;
     }
-    if (closest.dataset.prendre) {
-      const release = RELEASES[Number(closest.dataset.prendre)];
+    if (closest.dataset.take) {
+      const release = RELEASES[Number(closest.dataset.take)];
       // One router pop — the release-choice screen is a route now, and the
       // dispatcher's own `layer`/`tm: "nav"` checks no-op harmlessly on the
       // entry it wrote, so the screen simply unmounts.
-      pont.retour();
+      bridge.back();
       setTimeout(() => {
-        actionRecuperer(currentState().relTitre);
+        actionTake(currentState().relTitre);
         toast(
           `« ${release.res} ${release.src} ${release.lang} » retenue — récupération lancée.`,
         );
       }, 260);
       return;
     }
-    if (closest.dataset.veille) {
-      panneau.fermer();
+    if (closest.dataset.standby) {
+      panel.close();
       toast(
         "Veille lancée — 12 suivis balayés, 0 nouvelle release conforme. Prochain passage à 15 h 20.",
       );
       return;
     }
     if (closest.dataset.ep) {
-      ouvrirPopEp(closest);
+      openPopEp(closest);
       return;
     }
     if (closest.dataset.drawer) {
-      ouvrirTiroir();
+      openDrawer();
       return;
     }
-    if (closest.dataset.maintrub !== undefined) {
-      magasin.ecrire({ maintRub: closest.dataset.maintrub || null });
+    if (closest.dataset.maintopic !== undefined) {
+      store.write({ maintTopic: closest.dataset.maintopic || null });
       port.scrollTop = 0;
       render();
-      noterLeChemin();
+      recordPath();
       return;
     }
     if (closest.dataset.maintact) {
-      ouvrirActionMaintenance(closest.dataset.maintact);
+      openActionMaintenance(closest.dataset.maintact);
       return;
     }
     if (closest.dataset.pipe) {
       /* Asked while a run is already going, a run is QUEUED and says so
          (DOIT-4). « Occupé, réessaie » is the answer this interface does not
          give: it puts the burden of remembering on the operator. */
-      magasin.ecrire({
+      store.write({
         pipe:
           closest.dataset.pipe === "arreter"
             ? "repos"
@@ -12103,14 +12109,14 @@ import { ecrans, panneau, pont } from "../seams.js";
          close unwind and the arrival push: a back is asynchronous, so its
          pop would land after the push and overwrite it. The close is
          therefore told not to touch history at all. */
-      const surLeTiroir = history.state && history.state.layer === "drawer";
-      fermerTiroir(true);
-      magasin.ecrire({ page: id });
+      const onDrawer = history.state && history.state.layer === "drawer";
+      closeDrawer(true);
+      store.write({ page: id });
       port.scrollTop = 0;
       render();
       try {
-        if (surLeTiroir) __pont.remplacer(etatDeNavigation(), urlDeLEtat());
-        else noterLeChemin();
+        if (onDrawer) __bridge.replace(navigationState(), urlFromState());
+        else recordPath();
       } catch (error) {
         console.error("data-navgo : écriture de navigation échouée", error);
         window.__navEchec = true;
@@ -12122,7 +12128,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       try {
         localStorage.setItem("tm-apparence", mode);
       } catch (error) {}
-      appliquerApparence(mode);
+      applyAppearance(mode);
       // Reflect in place: the drawer stays open — choosing an appearance is
       // not a navigation, and watching the theme change is the feedback.
       closest.parentElement
@@ -12144,25 +12150,25 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.hscen) {
-      magasin.ecrire({ scen: closest.dataset.hscen });
+      store.write({ scen: closest.dataset.hscen });
       render();
       openHarness();
       return;
     }
     if (closest.dataset.hphase) {
-      magasin.ecrire({ phase: closest.dataset.hphase });
+      store.write({ phase: closest.dataset.hphase });
       render();
       openHarness();
       return;
     }
     if (closest.dataset.htmdb) {
-      magasin.ecrire({ tmdb: closest.dataset.htmdb === "1" });
+      store.write({ tmdb: closest.dataset.htmdb === "1" });
       render();
       openHarness();
       return;
     }
     if (closest.dataset.sort) {
-      panneau.ouvrir({
+      panel.open({
         titre: "Trier la médiathèque",
         meta: "Le tri est une préférence, pas un emplacement : il reste sur cet appareil et n'entre pas dans l'URL (A7).",
         blocs: [
@@ -12177,10 +12183,10 @@ import { ecrans, panneau, pont } from "../seams.js";
                   currentState().sortReversed === (sens === "inverse")
                     ? "primary"
                     : null,
-                cible:
+                target:
                   sens === "inverse"
-                    ? { settri: cle, reversed: "1" }
-                    : { settri: cle },
+                    ? { setsort: cle, reversed: "1" }
+                    : { setsort: cle },
               })),
             ),
           },
@@ -12188,24 +12194,24 @@ import { ecrans, panneau, pont } from "../seams.js";
       });
       return;
     }
-    if (closest.dataset.settri) {
-      magasin.ecrire({
-        tri: closest.dataset.settri,
+    if (closest.dataset.setsort) {
+      store.write({
+        tri: closest.dataset.setsort,
         sortReversed: closest.dataset.reversed === "1",
         libCount: LIB_PAGE,
       });
-      panneau.fermer();
+      panel.close();
       render();
       toast(`Trié par ${sortLabel().toLowerCase()}.`);
       return;
     }
     if (closest.dataset.phase) {
-      magasin.ecrire({ phase: closest.dataset.phase });
+      store.write({ phase: closest.dataset.phase });
       render();
       return;
     }
     if (closest.dataset.tmdb) {
-      magasin.ecrire({ tmdb: true });
+      store.write({ tmdb: true });
       render();
       toast(
         "Compte TMDB connecté — la réserve se remplit, vos notes sont lues.",
@@ -12214,13 +12220,13 @@ import { ecrans, panneau, pont } from "../seams.js";
     }
     if (closest.dataset.clearq) {
       if (closest.dataset.clearq === "lib")
-        magasin.ecrire({ q: "", libCount: LIB_PAGE });
-      else magasin.ecrire({ filtre: "" });
+        store.write({ q: "", libCount: LIB_PAGE });
+      else store.write({ filtre: "" });
       render();
       return;
     }
     if (closest.dataset.selmode) {
-      magasin.ecrire({ selMode: closest.dataset.selmode === "1" });
+      store.write({ selMode: closest.dataset.selmode === "1" });
       // Set mutated in place; render() right below carries the bump.
       currentState().selected.clear();
       render();
@@ -12239,38 +12245,38 @@ import { ecrans, panneau, pont } from "../seams.js";
       else currentState().selected.add(index);
       // paintSelBar() below draws the bar directly, not through render():
       // the explicit bump is what tells React the selection changed.
-      magasin.toucher();
+      store.touch();
       closest.setAttribute("aria-selected", String(currentState().selected.has(index)));
       paintSelBar();
       return;
     }
     if (closest.dataset.del) {
-      panneau.fermer();
+      panel.close();
       openDeleteDialog(closest.dataset.del);
       return;
     }
-    if (closest.dataset.fiche) {
+    if (closest.dataset.mediasheet) {
       // An open sheet sits ABOVE a screen (z-47 against z-45):
       // opening the sheet without closing it left the sheet invisible below.
       // The delay lets the sheet finish leaving before the screen enters.
-      const fiche = closest.dataset.fiche;
+      const mediaSheet = closest.dataset.mediasheet;
       // Asked of the shell, not read off the DOM: the layer is the shell's,
       // and its store answers truthfully in the middle of this task.
-      const couche = panneau.ouverte();
-      if (couche) {
-        panneau.fermer();
-        setTimeout(() => ecrans.fiche(fiche), 260);
+      const layer = panel.isOpen();
+      if (layer) {
+        panel.close();
+        setTimeout(() => screens.mediaSheet(mediaSheet), 260);
       } else {
-        ecrans.fiche(fiche);
+        screens.mediaSheet(mediaSheet);
       }
       return;
     }
     if (closest.dataset.act === "resolve") {
-      ecrans.resolution();
+      screens.resolution();
       return;
     }
     if (closest.dataset.sheet === "plus") {
-      openPlusSheet();
+      openMoreSheet();
       return;
     }
     if (closest.dataset.act?.startsWith("add:")) {
@@ -12282,27 +12288,27 @@ import { ecrans, panneau, pont } from "../seams.js";
       if (currentState().addMode === "identifier") {
         // This ASSOCIATES: the stuck folder becomes this medium and the pipeline
         // resumes. No follow is created — that was not the request.
-        const cible = currentState().resolveTarget;
+        const target = currentState().resolveTarget;
         // No render() on this branch until the delayed actionResoudre()
         // fires — the bump is explicit so React sees the pick immediately.
         currentState().added.add(index);
-        magasin.toucher();
+        store.touch();
         /* ONE settlement for the TWO entries this journey stacked — the
            result's panel, and `/ajout` itself, a router-owned address (which
            is why no legacy screen is closed here: `#screen` was never its
            host). The panel is ASKED before it is closed, because the layer's
            own entry is what decides the count, and it is closed DOM-only
-           (`fermer(true)`) so it does not unwind on its own: its unwind plus a
-           raw `__pont.retour()` were two backs racing in the same task, only
+           (`close(true)`) so it does not unwind on its own: its unwind plus a
+           raw `__bridge.retour()` were two backs racing in the same task, only
            one of them announced, and the surplus pop was then read as the
            operator's own back gesture. */
-        const entrees = (panneau.ouverte() ? 1 : 0) + 1;
-        panneau.fermer(true);
-        pont.reculer(entrees);
+        const entries = (panel.isOpen() ? 1 : 0) + 1;
+        panel.close(true);
+        bridge.rewind(entries);
         setTimeout(() => {
-          actionResoudre(cible, result.t);
+          actionResolve(target, result.t);
           toast(
-            `« ${baseTitle(cible ?? "")} » identifié comme « ${result.t} » — le scrape reprend, aucun suivi créé.`,
+            `« ${baseTitle(target ?? "")} » identifié comme « ${result.t} » — le scrape reprend, aucun suivi créé.`,
           );
         }, 260);
         return;
@@ -12311,7 +12317,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       // behind what comes next — the dialog below, or the re-rendered list.
       // The identify branch above settles its own layer, with the entry count
       // its single settlement needs, so this close is the follow branches'.
-      panneau.fermer();
+      panel.close();
       if (result.owned) {
         openDlg(`<h3>Remplacer « ${escapeHtml(result.t)} » ?</h3>
           <p>Ce ${result.k === "Film" ? "film est déjà" : "média est déjà"} en médiathèque. L'acquisition <b>remplacera</b> la version en place par celle qui sera récupérée.</p>
@@ -12327,13 +12333,13 @@ import { ecrans, panneau, pont } from "../seams.js";
       // itself from this same store bump, so no redraw call belongs here
       // any more.
       currentState().added.add(index);
-      magasin.toucher();
-      actionSuivre(result.t, result.k);
+      store.touch();
+      actionFollow(result.t, result.k);
       return;
     }
     if (closest.dataset.confirmadd) {
       currentState().added.add(Number(closest.dataset.confirmadd));
-      magasin.toucher();
+      store.touch();
       closeDlg();
       toast(
         "Ajouté — la version en place sera remplacée une fois la nouvelle récupérée.",
@@ -12341,7 +12347,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.journey) {
-      panneau.fermer();
+      panel.close();
       setTimeout(() => openJourneySheet(closest.dataset.journey), 260);
       return;
     }
@@ -12359,12 +12365,12 @@ import { ecrans, panneau, pont } from "../seams.js";
       openPanel(closest);
       return;
     }
-    if (closest.dataset.completer) {
-      magasin.ecrire({ page: "acq", acqTab: "maintenant" });
-      panneau.fermer();
+    if (closest.dataset.complete) {
+      store.write({ page: "acq", acqTab: "maintenant" });
+      panel.close();
       render();
       toast(
-        `« ${baseTitle(closest.dataset.completer)} » : recherche des épisodes manquants lancée.`,
+        `« ${baseTitle(closest.dataset.complete)} » : recherche des épisodes manquants lancée.`,
       );
       return;
     }
@@ -12375,14 +12381,14 @@ import { ecrans, panneau, pont } from "../seams.js";
        this branch says the same verb as every other call site. */
     if (closest.dataset.resolve) {
       const resolve = closest.dataset.resolve;
-      panneau.fermer();
-      setTimeout(() => ecrans.resolution(resolve), 260);
+      panel.close();
+      setTimeout(() => screens.resolution(resolve), 260);
       return;
     }
-    if (closest.dataset.recuperer) {
-      const recuperer = closest.dataset.recuperer;
-      panneau.fermer();
-      setTimeout(() => actionRecuperer(recuperer), 260);
+    if (closest.dataset.take) {
+      const take = closest.dataset.take;
+      panel.close();
+      setTimeout(() => actionTake(take), 260);
       return;
     }
     if (closest.dataset.rescrape) {
@@ -12395,8 +12401,8 @@ import { ecrans, panneau, pont } from "../seams.js";
       const title =
         closest.closest(".card")?.querySelector(".ctitle")?.textContent ?? "";
       const lab = closest.textContent.trim();
-      if (lab.startsWith("Récupérer")) return actionRecuperer(title);
-      if (lab.startsWith("Résoudre")) return ecrans.resolution(title);
+      if (lab.startsWith("Récupérer")) return actionTake(title);
+      if (lab.startsWith("Résoudre")) return screens.resolution(title);
       toast("Action lancée — le résultat s'affichera ici.");
       return;
     }
@@ -12408,9 +12414,9 @@ import { ecrans, panneau, pont } from "../seams.js";
       // about where it rests — cannot drift from what is on screen. Clearing
       // the transform alone left the next drag resuming from a drawer that was
       // no longer open, which is the jump seen from the other side.
-      const carte = closest.closest(".swipe").querySelector(".card");
-      if (carteOuverte === carte) refermerCarte();
-      else carte.style.transform = "";
+      const card = closest.closest(".swipe").querySelector(".card");
+      if (openCard === card) collapseCard();
+      else card.style.transform = "";
       if (closest.classList.contains("remove"))
         return currentState().page === "lib"
           ? openDeleteDialog(textContent)
@@ -12483,7 +12489,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       .forEach((querySelectorAll) =>
         querySelectorAll.addEventListener("click", () => {
           closeDlg();
-          actionSupprimer(titles);
+          actionDelete(titles);
         }),
       );
   }
@@ -12495,180 +12501,180 @@ import { ecrans, panneau, pont } from "../seams.js";
      library. Missing data is written « inconnu » — never a mute dash,
      because an unknown step is stated as unknown, never as « not done ». */
   /* 55 real TMDB cast portraits, 74px WebP. */
-  const ACTEURS = {
-    "Rebecca Ferguson": "assets/acteurs/b08eae19.webp",
-    Common: "assets/acteurs/2d8b0e5a.webp",
-    "Chinaza Uche": "assets/acteurs/38f9ab07.webp",
-    "Ashley Zukerman": "assets/acteurs/e5765c7e.webp",
-    "Shane McRae": "assets/acteurs/ce703916.webp",
-    "Remmie Milner": "assets/acteurs/d28bd09c.webp",
-    "Emmy Rossum": "assets/acteurs/3a04104f.webp",
-    "Lola Petticrew": "assets/acteurs/d55aced0.webp",
-    "Scoot McNairy": "assets/acteurs/3a4be796.webp",
-    "Quincy Tyler Bernstine": "assets/acteurs/32bdd8f0.webp",
-    "Pete Ploszek": "assets/acteurs/48ce83b4.webp",
-    "Alan Ritchson": "assets/acteurs/a879aad5.webp",
-    "Jeremy Howard": "assets/acteurs/bdfad818.webp",
-    "Noel Fisher": "assets/acteurs/23d40e12.webp",
-    "Megan Fox": "assets/acteurs/6a263f95.webp",
-    "Will Arnett": "assets/acteurs/a57ca0f4.webp",
-    "Geena Davis": "assets/acteurs/e7ce908b.webp",
-    "Hannah Gross": "assets/acteurs/4558aa93.webp",
-    "Jon Hamm": "assets/acteurs/6b19fcec.webp",
-    "Leslie Lyles": "assets/acteurs/511b4c57.webp",
-    "Seth MacFarlane": "assets/acteurs/7991b0f4.webp",
-    "Wendy Schaal": "assets/acteurs/7353ec5b.webp",
-    "Rachael MacFarlane": "assets/acteurs/cc71e428.webp",
-    "Scott Grimes": "assets/acteurs/b878059d.webp",
-    "Dee Bradley Baker": "assets/acteurs/f7e509c7.webp",
-    "Thierry Wermuth": "assets/acteurs/d1cdadb9.webp",
-    "Christian Pelissier": "assets/acteurs/9977ca9f.webp",
-    "Henri Labussi\u00e8re": "assets/acteurs/611a7ade.webp",
-    "Yves Barsacq": "assets/acteurs/6fca4924.webp",
-    "Jean-Pierre Moulin": "assets/acteurs/53a5f252.webp",
-    "Susan Roman": "assets/acteurs/8711ac01.webp",
-    "Hugh Jackman": "assets/acteurs/680f4d6d.webp",
-    "Jodie Comer": "assets/acteurs/c648cef6.webp",
-    "Bill Skarsg\u00e5rd": "assets/acteurs/65d3a97e.webp",
-    "Murray Bartlett": "assets/acteurs/eabfc3be.webp",
-    "Noah Jupe": "assets/acteurs/113965ce.webp",
-    "Jade Croot": "assets/acteurs/ba194022.webp",
-    "Hamish Linklater": "assets/acteurs/9debc3fe.webp",
-    "Connor Swindells": "assets/acteurs/08e152c7.webp",
-    "Patrick J. Adams": "assets/acteurs/4921cf2c.webp",
-    "Tony Curran": "assets/acteurs/ecd59bf4.webp",
-    "Eddie Marsan": "assets/acteurs/8eb2eede.webp",
-    "Phyllis Logan": "assets/acteurs/285c5483.webp",
-    "Lauren Lyle": "assets/acteurs/afef3936.webp",
-    "Mo Gilligan": "assets/acteurs/93c57eed.webp",
-    "David Ajao": "assets/acteurs/ab3127cb.webp",
-    "Kevin Spacey": "assets/acteurs/8446a651.webp",
-    "Zachary Quinto": "assets/acteurs/2454b73f.webp",
-    "Paul Bettany": "assets/acteurs/5a036ce5.webp",
-    "Jeremy Irons": "assets/acteurs/9e035dea.webp",
-    "Simon Baker": "assets/acteurs/e93a9046.webp",
-    "Penn Badgley": "assets/acteurs/0b4445d9.webp",
-    "Keith David": "assets/acteurs/2ff09420.webp",
-    "Stephanie Beatriz": "assets/acteurs/c0e0ded4.webp",
-    "Jim Rash": "assets/acteurs/8af60ba5.webp",
-    "Darren Criss": "assets/acteurs/8f0a7ef3.webp",
-    "Ryan Hurst": "assets/acteurs/706add62.webp",
-    "Ike Amadi": "assets/acteurs/1df9cc35.webp",
-    "Rosa Salazar": "assets/acteurs/bf1b2f84.webp",
-    "Christoph Waltz": "assets/acteurs/f5196792.webp",
-    "Jennifer Connelly": "assets/acteurs/eedb113e.webp",
-    "Mahershala Ali": "assets/acteurs/00d7a96b.webp",
-    "Alex Pettyfer": "assets/acteurs/c88b05ed.webp",
-    "Dianna Agron": "assets/acteurs/dd2f5faf.webp",
-    "Teresa Palmer": "assets/acteurs/52d5c9c3.webp",
-    "Timothy Olyphant": "assets/acteurs/6a658b57.webp",
-    "Robert Downey Jr.": "assets/acteurs/7aeeaed2.webp",
-    "Chris Evans": "assets/acteurs/90d2cff8.webp",
-    "Mark Ruffalo": "assets/acteurs/6eed9d59.webp",
-    "Chris Hemsworth": "assets/acteurs/359c6a79.webp",
-    "Edward Norton": "assets/acteurs/912557e9.webp",
-    "Liv Tyler": "assets/acteurs/f18659d2.webp",
-    "Tim Roth": "assets/acteurs/6c8b59e3.webp",
-    "William Hurt": "assets/acteurs/42f1d67a.webp",
-    "Henry Cavill": "assets/acteurs/737d1603.webp",
-    "Amy Adams": "assets/acteurs/bba59d50.webp",
-    "Michael Shannon": "assets/acteurs/9961d819.webp",
-    "Diane Lane": "assets/acteurs/a46a49a8.webp",
-    "Sophie Turner": "assets/acteurs/0c64afd6.webp",
-    "James McAvoy": "assets/acteurs/8830b2b1.webp",
-    "Nicholas Hoult": "assets/acteurs/8a1fdf1a.webp",
-    "Tye Sheridan": "assets/acteurs/83cb50c0.webp",
-    "Jeremy Renner": "assets/acteurs/1084cff7.webp",
-    "Forest Whitaker": "assets/acteurs/28d109d3.webp",
-    "Michael Stuhlbarg": "assets/acteurs/1dd80a5c.webp",
-    "Paul Rudd": "assets/acteurs/414a75c8.webp",
-    "Evangeline Lilly": "assets/acteurs/16296cc2.webp",
-    "Michael Douglas": "assets/acteurs/82c16a19.webp",
-    "Michelle Pfeiffer": "assets/acteurs/a9a8e6e5.webp",
-    "Doc Hammer": "assets/acteurs/be4ff324.webp",
-    "Christopher McCulloch": "assets/acteurs/1daf2bb5.webp",
-    "Patrick Warburton": "assets/acteurs/5cbb3298.webp",
-    "James Urbaniak": "assets/acteurs/7a3fec22.webp",
-    "Pierce Brosnan": "assets/acteurs/91ff590e.webp",
-    "Morena Baccarin": "assets/acteurs/2d01287c.webp",
-    "James Caan": "assets/acteurs/a3284806.webp",
-    "Gbenga Akinnagbe": "assets/acteurs/65ad0129.webp",
-    "Erinn Hayes": "assets/acteurs/dcd9f582.webp",
-    "Rachel Dratch": "assets/acteurs/3eb465e8.webp",
-    "Alan Tudyk": "assets/acteurs/e81345ed.webp",
-    "Alden Ehrenreich": "assets/acteurs/13e5ab4a.webp",
-    "Joonas Suotamo": "assets/acteurs/a981b835.webp",
-    "Woody Harrelson": "assets/acteurs/da0245b1.webp",
-    "Emilia Clarke": "assets/acteurs/9cb95e27.webp",
-    "Keeley Hawes": "assets/acteurs/ba242ecf.webp",
-    "Freddie Highmore": "assets/acteurs/1eb74175.webp",
-    "Gerald Kyd": "assets/acteurs/847877f7.webp",
-    "Shalom Brune-Franklin": "assets/acteurs/93d721e2.webp",
-    "Dacre Montgomery": "assets/acteurs/c135b972.webp",
-    "RJ Cyler": "assets/acteurs/3210157b.webp",
-    "Ludi Lin": "assets/acteurs/2c1850d0.webp",
-    "Naomi Scott": "assets/acteurs/0e789592.webp",
-    "Matthew McConaughey": "assets/acteurs/bfd64cd4.webp",
-    "Kaitlin Olson": "assets/acteurs/2be9ee13.webp",
-    "Johnny Knoxville": "assets/acteurs/eeac228b.webp",
-    "Niecy Nash": "assets/acteurs/94569e8f.webp",
-    "Patton Oswalt": "assets/acteurs/b23c6a73.webp",
-    "Melissa Fumero": "assets/acteurs/6e139993.webp",
-    "Aimee Garcia": "assets/acteurs/bbdf67b8.webp",
-    "Ben Schwartz": "assets/acteurs/d303fef6.webp",
-    "Ben Stiller": "assets/acteurs/b851a056.webp",
-    "Drew Barrymore": "assets/acteurs/e0798611.webp",
-    "Eileen Essell": "assets/acteurs/635f7102.webp",
-    "Harvey Fierstein": "assets/acteurs/2c7d5ae2.webp",
-    "Sean Hayes": "assets/acteurs/4277d006.webp",
-    "Will Sasso": "assets/acteurs/c10ca2a0.webp",
-    "Chris Diamantopoulos": "assets/acteurs/7f517ac7.webp",
-    "Jane Lynch": "assets/acteurs/3547a46c.webp",
-    "Sylvester Stallone": "assets/acteurs/a1c2c791.webp",
-    "Marisa Tomei": "assets/acteurs/58e26f0f.webp",
-    "Vincent Spano": "assets/acteurs/996e3ad0.webp",
-    "Ornella Muti": "assets/acteurs/d907c78a.webp",
-    "Gary Sinise": "assets/acteurs/61744906.webp",
-    "Madeleine Stowe": "assets/acteurs/729283a3.webp",
-    "Mekhi Phifer": "assets/acteurs/efc96056.webp",
-    "Vincent D'Onofrio": "assets/acteurs/2c008acd.webp",
-    "Christopher Meloni": "assets/acteurs/c8c33c1b.webp",
-    "Victor Garber": "assets/acteurs/e905f82f.webp",
-    "Michael Madsen": "assets/acteurs/d5315abc.webp",
-    "Tricia Helfer": "assets/acteurs/b8801703.webp",
-    "Aldis Hodge": "assets/acteurs/6baeefc3.webp",
-    "Jimmi Simpson": "assets/acteurs/464eb9a3.webp",
-    "Brian Bloom": "assets/acteurs/800db502.webp",
-    "Eddie Murphy": "assets/acteurs/437daf50.webp",
-    "Lane Smith": "assets/acteurs/97fd5562.webp",
-    "Sheryl Lee Ralph": "assets/acteurs/af2e8511.webp",
-    "Joe Don Baker": "assets/acteurs/d3e47711.webp",
-    "George Segal": "assets/acteurs/5b4e1ddc.webp",
-    "Jane Fonda": "assets/acteurs/6ab361d7.webp",
-    "Ed McMahon": "assets/acteurs/ee8bd45b.webp",
-    "Richard Gautier": "assets/acteurs/fc641080.webp",
-    "Sophie Marceau": "assets/acteurs/7a165b62.webp",
-    "Tha\u00efs Alessandrin": "assets/acteurs/3617f8f6.webp",
-    "Vincent Elbaz": "assets/acteurs/09c37b0f.webp",
-    "Alexandre Astier": "assets/acteurs/a527823a.webp",
-    "Kevin Durant": "assets/acteurs/9925cf12.webp",
-    "Taylor Gray": "assets/acteurs/a6fca21d.webp",
-    "Jim Belushi": "assets/acteurs/db5b8298.webp",
-    "Brandon T. Jackson": "assets/acteurs/7984b919.webp",
-    "Peter Dinklage": "assets/acteurs/c0b1d052.webp",
-    "Shirley MacLaine": "assets/acteurs/619be771.webp",
-    "Kimberly Quinn": "assets/acteurs/608ddeae.webp",
-    "Danny Pudi": "assets/acteurs/3cd6ed60.webp",
-    "Mel Smith": "assets/acteurs/cbe82ead.webp",
-    "Bob Nelson": "assets/acteurs/7139afa7.webp",
-    "John Turturro": "assets/acteurs/2592b92f.webp",
-    "Teri Copley": "assets/acteurs/b6169227.webp",
-    "Jim Gaffigan": "assets/acteurs/eb996497.webp",
-    "Gabriel Iglesias": "assets/acteurs/de5ec0e5.webp",
-    "Martin Moreno": "assets/acteurs/b78ae8af.webp",
+  const CAST = {
+    "Rebecca Ferguson": "assets/cast/b08eae19.webp",
+    Common: "assets/cast/2d8b0e5a.webp",
+    "Chinaza Uche": "assets/cast/38f9ab07.webp",
+    "Ashley Zukerman": "assets/cast/e5765c7e.webp",
+    "Shane McRae": "assets/cast/ce703916.webp",
+    "Remmie Milner": "assets/cast/d28bd09c.webp",
+    "Emmy Rossum": "assets/cast/3a04104f.webp",
+    "Lola Petticrew": "assets/cast/d55aced0.webp",
+    "Scoot McNairy": "assets/cast/3a4be796.webp",
+    "Quincy Tyler Bernstine": "assets/cast/32bdd8f0.webp",
+    "Pete Ploszek": "assets/cast/48ce83b4.webp",
+    "Alan Ritchson": "assets/cast/a879aad5.webp",
+    "Jeremy Howard": "assets/cast/bdfad818.webp",
+    "Noel Fisher": "assets/cast/23d40e12.webp",
+    "Megan Fox": "assets/cast/6a263f95.webp",
+    "Will Arnett": "assets/cast/a57ca0f4.webp",
+    "Geena Davis": "assets/cast/e7ce908b.webp",
+    "Hannah Gross": "assets/cast/4558aa93.webp",
+    "Jon Hamm": "assets/cast/6b19fcec.webp",
+    "Leslie Lyles": "assets/cast/511b4c57.webp",
+    "Seth MacFarlane": "assets/cast/7991b0f4.webp",
+    "Wendy Schaal": "assets/cast/7353ec5b.webp",
+    "Rachael MacFarlane": "assets/cast/cc71e428.webp",
+    "Scott Grimes": "assets/cast/b878059d.webp",
+    "Dee Bradley Baker": "assets/cast/f7e509c7.webp",
+    "Thierry Wermuth": "assets/cast/d1cdadb9.webp",
+    "Christian Pelissier": "assets/cast/9977ca9f.webp",
+    "Henri Labussi\u00e8re": "assets/cast/611a7ade.webp",
+    "Yves Barsacq": "assets/cast/6fca4924.webp",
+    "Jean-Pierre Moulin": "assets/cast/53a5f252.webp",
+    "Susan Roman": "assets/cast/8711ac01.webp",
+    "Hugh Jackman": "assets/cast/680f4d6d.webp",
+    "Jodie Comer": "assets/cast/c648cef6.webp",
+    "Bill Skarsg\u00e5rd": "assets/cast/65d3a97e.webp",
+    "Murray Bartlett": "assets/cast/eabfc3be.webp",
+    "Noah Jupe": "assets/cast/113965ce.webp",
+    "Jade Croot": "assets/cast/ba194022.webp",
+    "Hamish Linklater": "assets/cast/9debc3fe.webp",
+    "Connor Swindells": "assets/cast/08e152c7.webp",
+    "Patrick J. Adams": "assets/cast/4921cf2c.webp",
+    "Tony Curran": "assets/cast/ecd59bf4.webp",
+    "Eddie Marsan": "assets/cast/8eb2eede.webp",
+    "Phyllis Logan": "assets/cast/285c5483.webp",
+    "Lauren Lyle": "assets/cast/afef3936.webp",
+    "Mo Gilligan": "assets/cast/93c57eed.webp",
+    "David Ajao": "assets/cast/ab3127cb.webp",
+    "Kevin Spacey": "assets/cast/8446a651.webp",
+    "Zachary Quinto": "assets/cast/2454b73f.webp",
+    "Paul Bettany": "assets/cast/5a036ce5.webp",
+    "Jeremy Irons": "assets/cast/9e035dea.webp",
+    "Simon Baker": "assets/cast/e93a9046.webp",
+    "Penn Badgley": "assets/cast/0b4445d9.webp",
+    "Keith David": "assets/cast/2ff09420.webp",
+    "Stephanie Beatriz": "assets/cast/c0e0ded4.webp",
+    "Jim Rash": "assets/cast/8af60ba5.webp",
+    "Darren Criss": "assets/cast/8f0a7ef3.webp",
+    "Ryan Hurst": "assets/cast/706add62.webp",
+    "Ike Amadi": "assets/cast/1df9cc35.webp",
+    "Rosa Salazar": "assets/cast/bf1b2f84.webp",
+    "Christoph Waltz": "assets/cast/f5196792.webp",
+    "Jennifer Connelly": "assets/cast/eedb113e.webp",
+    "Mahershala Ali": "assets/cast/00d7a96b.webp",
+    "Alex Pettyfer": "assets/cast/c88b05ed.webp",
+    "Dianna Agron": "assets/cast/dd2f5faf.webp",
+    "Teresa Palmer": "assets/cast/52d5c9c3.webp",
+    "Timothy Olyphant": "assets/cast/6a658b57.webp",
+    "Robert Downey Jr.": "assets/cast/7aeeaed2.webp",
+    "Chris Evans": "assets/cast/90d2cff8.webp",
+    "Mark Ruffalo": "assets/cast/6eed9d59.webp",
+    "Chris Hemsworth": "assets/cast/359c6a79.webp",
+    "Edward Norton": "assets/cast/912557e9.webp",
+    "Liv Tyler": "assets/cast/f18659d2.webp",
+    "Tim Roth": "assets/cast/6c8b59e3.webp",
+    "William Hurt": "assets/cast/42f1d67a.webp",
+    "Henry Cavill": "assets/cast/737d1603.webp",
+    "Amy Adams": "assets/cast/bba59d50.webp",
+    "Michael Shannon": "assets/cast/9961d819.webp",
+    "Diane Lane": "assets/cast/a46a49a8.webp",
+    "Sophie Turner": "assets/cast/0c64afd6.webp",
+    "James McAvoy": "assets/cast/8830b2b1.webp",
+    "Nicholas Hoult": "assets/cast/8a1fdf1a.webp",
+    "Tye Sheridan": "assets/cast/83cb50c0.webp",
+    "Jeremy Renner": "assets/cast/1084cff7.webp",
+    "Forest Whitaker": "assets/cast/28d109d3.webp",
+    "Michael Stuhlbarg": "assets/cast/1dd80a5c.webp",
+    "Paul Rudd": "assets/cast/414a75c8.webp",
+    "Evangeline Lilly": "assets/cast/16296cc2.webp",
+    "Michael Douglas": "assets/cast/82c16a19.webp",
+    "Michelle Pfeiffer": "assets/cast/a9a8e6e5.webp",
+    "Doc Hammer": "assets/cast/be4ff324.webp",
+    "Christopher McCulloch": "assets/cast/1daf2bb5.webp",
+    "Patrick Warburton": "assets/cast/5cbb3298.webp",
+    "James Urbaniak": "assets/cast/7a3fec22.webp",
+    "Pierce Brosnan": "assets/cast/91ff590e.webp",
+    "Morena Baccarin": "assets/cast/2d01287c.webp",
+    "James Caan": "assets/cast/a3284806.webp",
+    "Gbenga Akinnagbe": "assets/cast/65ad0129.webp",
+    "Erinn Hayes": "assets/cast/dcd9f582.webp",
+    "Rachel Dratch": "assets/cast/3eb465e8.webp",
+    "Alan Tudyk": "assets/cast/e81345ed.webp",
+    "Alden Ehrenreich": "assets/cast/13e5ab4a.webp",
+    "Joonas Suotamo": "assets/cast/a981b835.webp",
+    "Woody Harrelson": "assets/cast/da0245b1.webp",
+    "Emilia Clarke": "assets/cast/9cb95e27.webp",
+    "Keeley Hawes": "assets/cast/ba242ecf.webp",
+    "Freddie Highmore": "assets/cast/1eb74175.webp",
+    "Gerald Kyd": "assets/cast/847877f7.webp",
+    "Shalom Brune-Franklin": "assets/cast/93d721e2.webp",
+    "Dacre Montgomery": "assets/cast/c135b972.webp",
+    "RJ Cyler": "assets/cast/3210157b.webp",
+    "Ludi Lin": "assets/cast/2c1850d0.webp",
+    "Naomi Scott": "assets/cast/0e789592.webp",
+    "Matthew McConaughey": "assets/cast/bfd64cd4.webp",
+    "Kaitlin Olson": "assets/cast/2be9ee13.webp",
+    "Johnny Knoxville": "assets/cast/eeac228b.webp",
+    "Niecy Nash": "assets/cast/94569e8f.webp",
+    "Patton Oswalt": "assets/cast/b23c6a73.webp",
+    "Melissa Fumero": "assets/cast/6e139993.webp",
+    "Aimee Garcia": "assets/cast/bbdf67b8.webp",
+    "Ben Schwartz": "assets/cast/d303fef6.webp",
+    "Ben Stiller": "assets/cast/b851a056.webp",
+    "Drew Barrymore": "assets/cast/e0798611.webp",
+    "Eileen Essell": "assets/cast/635f7102.webp",
+    "Harvey Fierstein": "assets/cast/2c7d5ae2.webp",
+    "Sean Hayes": "assets/cast/4277d006.webp",
+    "Will Sasso": "assets/cast/c10ca2a0.webp",
+    "Chris Diamantopoulos": "assets/cast/7f517ac7.webp",
+    "Jane Lynch": "assets/cast/3547a46c.webp",
+    "Sylvester Stallone": "assets/cast/a1c2c791.webp",
+    "Marisa Tomei": "assets/cast/58e26f0f.webp",
+    "Vincent Spano": "assets/cast/996e3ad0.webp",
+    "Ornella Muti": "assets/cast/d907c78a.webp",
+    "Gary Sinise": "assets/cast/61744906.webp",
+    "Madeleine Stowe": "assets/cast/729283a3.webp",
+    "Mekhi Phifer": "assets/cast/efc96056.webp",
+    "Vincent D'Onofrio": "assets/cast/2c008acd.webp",
+    "Christopher Meloni": "assets/cast/c8c33c1b.webp",
+    "Victor Garber": "assets/cast/e905f82f.webp",
+    "Michael Madsen": "assets/cast/d5315abc.webp",
+    "Tricia Helfer": "assets/cast/b8801703.webp",
+    "Aldis Hodge": "assets/cast/6baeefc3.webp",
+    "Jimmi Simpson": "assets/cast/464eb9a3.webp",
+    "Brian Bloom": "assets/cast/800db502.webp",
+    "Eddie Murphy": "assets/cast/437daf50.webp",
+    "Lane Smith": "assets/cast/97fd5562.webp",
+    "Sheryl Lee Ralph": "assets/cast/af2e8511.webp",
+    "Joe Don Baker": "assets/cast/d3e47711.webp",
+    "George Segal": "assets/cast/5b4e1ddc.webp",
+    "Jane Fonda": "assets/cast/6ab361d7.webp",
+    "Ed McMahon": "assets/cast/ee8bd45b.webp",
+    "Richard Gautier": "assets/cast/fc641080.webp",
+    "Sophie Marceau": "assets/cast/7a165b62.webp",
+    "Tha\u00efs Alessandrin": "assets/cast/3617f8f6.webp",
+    "Vincent Elbaz": "assets/cast/09c37b0f.webp",
+    "Alexandre Astier": "assets/cast/a527823a.webp",
+    "Kevin Durant": "assets/cast/9925cf12.webp",
+    "Taylor Gray": "assets/cast/a6fca21d.webp",
+    "Jim Belushi": "assets/cast/db5b8298.webp",
+    "Brandon T. Jackson": "assets/cast/7984b919.webp",
+    "Peter Dinklage": "assets/cast/c0b1d052.webp",
+    "Shirley MacLaine": "assets/cast/619be771.webp",
+    "Kimberly Quinn": "assets/cast/608ddeae.webp",
+    "Danny Pudi": "assets/cast/3cd6ed60.webp",
+    "Mel Smith": "assets/cast/cbe82ead.webp",
+    "Bob Nelson": "assets/cast/7139afa7.webp",
+    "John Turturro": "assets/cast/2592b92f.webp",
+    "Teri Copley": "assets/cast/b6169227.webp",
+    "Jim Gaffigan": "assets/cast/eb996497.webp",
+    "Gabriel Iglesias": "assets/cast/de5ec0e5.webp",
+    "Martin Moreno": "assets/cast/b78ae8af.webp",
   };
 
-  const FICHES_RAW = {
+  const SHEETS_RAW = {
     "Silo (2023)": {
       k: "show",
       y: "2023",
@@ -33206,7 +33212,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       possede: true,
     },
   };
-  const FICHES_OLD = {
+  const SHEETS_OLD = {
     Silo: {
       y: "2023",
       kind: "Série",
@@ -33236,22 +33242,22 @@ import { ecrans, panneau, pont } from "../seams.js";
       .replace(/[^\p{L}\p{N}]+/gu, " ")
       .trim()
       .toLocaleLowerCase();
-  const FICHES_IDX = (() => {
-    const parNumero = new Map();
-    for (const [title, value] of Object.entries(FICHES_RAW)) {
+  const SHEETS_IDX = (() => {
+    const byNumber = new Map();
+    for (const [title, value] of Object.entries(SHEETS_RAW)) {
       const clef2 = normalisedKey(title);
-      if (!parNumero.has(clef2)) parNumero.set(clef2, value);
+      if (!byNumber.has(clef2)) byNumber.set(clef2, value);
     }
-    return parNumero;
+    return byNumber;
   })();
   function sheetFor(title) {
     if (title == null) return null;
-    const direct = FICHES_RAW[title] ?? FICHES_RAW[baseTitle(title)];
+    const direct = SHEETS_RAW[title] ?? SHEETS_RAW[baseTitle(title)];
     if (direct) return direct;
     const clef2 = normalisedKey(title);
-    if (FICHES_IDX.has(clef2)) return FICHES_IDX.get(clef2);
+    if (SHEETS_IDX.has(clef2)) return SHEETS_IDX.get(clef2);
     // Last resort: a title truncated by a list (« Big Chicken »).
-    for (const [key, value] of FICHES_IDX)
+    for (const [key, value] of SHEETS_IDX)
       if (key.startsWith(clef2 + " ") && clef2.length > 6) return value;
     return null;
   }
@@ -33274,7 +33280,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     const [map, map2, map3] = iso.split("-").map(Number);
     return `${map3} ${MOIS[map2 - 1]} ${map}`;
   }
-  const AUJOURDHUI = "2026-08-10";
+  const TODAY = "2026-08-10";
 
   /* Media sheet — ONE template, for every medium
      Fixed order: hero → trailer → synopsis → cast → library state → dated
@@ -33290,13 +33296,13 @@ import { ecrans, panneau, pont } from "../seams.js";
      provider catalogue; null when unknown — the sheet then shows « ? »
      rather than an invented total, because each question has a single
      derivation. */
-  function saisonsDe(titre) {
-    const fiche2 = sheetFor(titre);
-    const detenus = POSSEDES[titre] ?? POSSEDES[baseTitle(titre)] ?? null;
-    const cat = fiche2?.saisons ?? [];
+  function seasonsOf(titre) {
+    const sheetFound = sheetFor(titre);
+    const held = OWNED[titre] ?? OWNED[baseTitle(titre)] ?? null;
+    const cat = sheetFound?.saisons ?? [];
     if (cat.length) {
       return cat.map((cat2) => {
-        const ownedNumbers = detenus?.[String(cat2.n)] ?? [];
+        const ownedNumbers = held?.[String(cat2.n)] ?? [];
         const diffuses = typeof cat2.ep === "number" ? cat2.ep : null;
         const own = diffuses
           ? ownedNumbers.filter((l) => l <= diffuses).length
@@ -33304,12 +33310,12 @@ import { ecrans, panneau, pont } from "../seams.js";
         return [cat2.n, diffuses, own];
       });
     }
-    if (detenus) {
+    if (held) {
       // No catalogue: the owned seasons are known, the totals are not.
-      return Object.keys(detenus)
+      return Object.keys(held)
         .map(Number)
         .sort((map, index) => map - index)
-        .map((sort) => [sort, null, detenus[String(sort)].length]);
+        .map((sort) => [sort, null, held[String(sort)].length]);
     }
     return (SEASONS[titre] ?? SEASONS[baseTitle(titre)] ?? []).map(
       (element) => [element[0], element[1], element[2]],
@@ -33318,8 +33324,8 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   /* Owned episodes of a season, as a set. Null when the series is unknown
      to the library: claim nothing in that case. */
-  function possedesDe(titre, saison) {
-    const ownedBySeason = POSSEDES[titre] ?? POSSEDES[baseTitle(titre)] ?? null;
+  function ownedFor(titre, saison) {
+    const ownedBySeason = OWNED[titre] ?? OWNED[baseTitle(titre)] ?? null;
     if (!ownedBySeason) return null;
     const ownedNumbers = ownedBySeason[String(saison)];
     return ownedNumbers ? new Set(ownedNumbers) : new Set();
@@ -33342,7 +33348,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     return out.join(", ");
   }
 
-  function saisonsFicheHTML(sheet, seasons, possede, cat, title0) {
+  function sheetSeasonsHTML(sheet, seasons, possede, cat, title0) {
     const eps = sheet?.eps ?? {};
     const lignes = possede
       ? seasons.map(([number, aired, own]) => ({ n: number, aired, own }))
@@ -33355,13 +33361,13 @@ import { ecrans, panneau, pont } from "../seams.js";
     if (!lignes.length) return "";
     return `<div style="margin-top:10px">${lignes
       .map((ligne) => {
-        const liste = eps[String(ligne.n)] ?? null;
-        const detenus = possede ? possedesDe(title0, ligne.n) : null;
+        const list = eps[String(ligne.n)] ?? null;
+        const held = possede ? ownedFor(title0, ligne.n) : null;
         /* The count is DERIVED from the owned numbers when they are known;
            a total that does not say where the holes are is no longer
            trusted. */
-        const nbOwn = detenus
-          ? [...detenus].filter(
+        const nbOwn = held
+          ? [...held].filter(
               (element) => !ligne.aired || element <= ligne.aired,
             ).length
           : ligne.own;
@@ -33373,32 +33379,32 @@ import { ecrans, panneau, pont } from "../seams.js";
         const borne =
           ligne.aired === 0
             ? 0
-            : detenus && detenus.size
-              ? (ligne.aired ?? Math.max(...detenus))
+            : held && held.size
+              ? (ligne.aired ?? Math.max(...held))
               : ligne.aired || 0;
-        const numsManquants =
-          possede && detenus && ligne.aired
+        const missingNums =
+          possede && held && ligne.aired
             ? Array.from(
                 { length: ligne.aired },
                 (ignored, index) => index + 1,
-              ).filter((from) => !detenus.has(from))
+              ).filter((from) => !held.has(from))
             : [];
-        const corps = liste
-          ? `<div class="panel" style="margin-top:8px">${liste
+        const corps = list
+          ? `<div class="panel" style="margin-top:8px">${list
               .map((liste2) => {
                 /* SUBTLE state colour: a 6px dot and the number in the
                    tone. The title stays neutral — it is what one reads
                    first, so it keeps maximum contrast. One colour signal
                    per row, not a Christmas tree. */
-                const futur = liste2.air && liste2.air > AUJOURDHUI;
+                const future = liste2.air && liste2.air > TODAY;
                 /* State comes from the LIST of owned numbers. A « number <=
                    owned count » threshold assumes the hole is always at the
                    end of the season: false for 35 series in this library. */
-                const episodeState = futur
+                const episodeState = future
                   ? "annonce"
-                  : !possede || !detenus
+                  : !possede || !held
                     ? "non_verifie"
-                    : detenus.has(liste2.n)
+                    : held.has(liste2.n)
                       ? "en_mediatheque"
                       : "a_recuperer";
                 return `<div class="eprow ${episodeState}">
@@ -33409,7 +33415,7 @@ import { ecrans, panneau, pont } from "../seams.js";
                 </div>`;
               })
               .join("")}</div>`
-          : borne && detenus
+          : borne && held
             ? /* Pas de titres d'épisodes, mais on connaît les numéros : la
                  matrice répond quand même à « lesquels manquent ». Quand le
                  total diffusé est inconnu, on ne va que jusqu'au plus grand
@@ -33418,7 +33424,7 @@ import { ecrans, panneau, pont } from "../seams.js";
                 { length: borne },
                 (ignored, index) => {
                   const number = index + 1;
-                  const episodeState = detenus.has(number)
+                  const episodeState = held.has(number)
                     ? "en_mediatheque"
                     : "a_recuperer";
                   return `<span class="ep ${episodeState}" aria-label="Épisode ${number} — ${EP_LABEL[episodeState]}">${String(number).padStart(2, "0")}</span>`;
@@ -33444,8 +33450,8 @@ import { ecrans, panneau, pont } from "../seams.js";
             ${!possede && ligne.air ? `<span class="miss" style="background:transparent;color:var(--muted-foreground);font-weight:400">${dateFR(ligne.air)}</span>` : ""}
           </summary>
           ${
-            numsManquants.length
-              ? `<p class="missing">Manquants : ${plages(numsManquants)}</p>`
+            missingNums.length
+              ? `<p class="missing">Manquants : ${plages(missingNums)}</p>`
               : ""
           }
           ${corps}
@@ -33456,7 +33462,7 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   /* The media sheet moved to the shell with the rest of the screens:
      `src/screens/media.tsx` renders it as the route `/fiche/$titre`. The
-     verb a call site says is `ecrans.fiche(title)`; the template,
+     verb a call site says is `screens.mediaSheet(title)`; the template,
      the seasons and the actions live there, at identical markup — the
      click delegation below still reads their data attributes. */
   /* The resolution screen moved to the shell the same way:
@@ -33464,18 +33470,18 @@ import { ecrans, panneau, pont } from "../seams.js";
      `/resolution/$dossier`, and the design rationale it carries — what the
      screen is FOR, why a tied score is not printed, the three ways out —
      moved there with it. The verb a call site says is
-     `ecrans.resolution(dossier, remplacer)`: it resolves the same
+     `screens.resolution(dossier, remplacer)`: it resolves the same
      default this file used to (the first stuck folder) and writes
      `currentState().resolveTarget` before navigating, so the `data-resolve` and
-     `data-laisser` branches below still read the folder they always read.
-     `decisionEnAttente` stays here: it is the référentiel's own answer to
+     `data-leave` branches below still read the folder they always read.
+     `decisionPending` stays here: it is the référentiel's own answer to
      « does this folder have a pending decision », read by the screen AND by
      the « Passer à la suivante » branch below. */
   /* A folder either HAS a pending decision or it has none, and the screen must
      not borrow one. Showing another folder's candidates would be the worst
      possible lie on the one screen whose job is to name what is on disk. */
-  function decisionEnAttente(cible) {
-    return DECISIONS_ATTENTE.find((decision) => decision.d === cible) ?? null;
+  function decisionPending(target) {
+    return PENDING_DECISIONS.find((decision) => decision.d === target) ?? null;
   }
 
   /* Every medium opens the SAME panel, and this function exists only to say
@@ -33501,9 +33507,9 @@ import { ecrans, panneau, pont } from "../seams.js";
        of owned numbers, not from a « num <= owned » threshold that assumes
        the hole is at the end of the season. 35 series in this library have
        an internal hole. */
-    const detenus = possedesDe(follow.t, seasonNumber);
-    if (detenus)
-      return detenus.has(num)
+    const held = ownedFor(follow.t, seasonNumber);
+    if (held)
+      return held.has(num)
         ? "en_mediatheque"
         : follow && follow.st === "en_attente"
           ? "en_attente"
@@ -33519,43 +33525,43 @@ import { ecrans, panneau, pont } from "../seams.js";
   /* Tapping a cell: its air date, in French. The sentence follows the state
      — « Sortie prévue » for an announced episode, « Diffusé » otherwise —
      and a missing date is stated, not invented. */
-  function fermerPopEp() {
+  function closePopEp() {
     document
       .querySelectorAll(".eppop")
       .forEach((querySelectorAll) => querySelectorAll.remove());
   }
-  function ouvrirPopEp(btn) {
-    fermerPopEp();
-    const [titre, saison, episodeNumber, etat] = btn.dataset.ep.split("|");
-    const fiche2 = sheetFor(titre);
-    const liste = fiche2?.eps?.[saison] ?? null;
+  function openPopEp(btn) {
+    closePopEp();
+    const [titre, saison, episodeNumber, state] = btn.dataset.ep.split("|");
+    const sheetFound = sheetFor(titre);
+    const list = sheetFound?.eps?.[saison] ?? null;
     const episode =
-      liste?.find((liste2) => String(liste2.n) === episodeNumber) ?? null;
+      list?.find((liste2) => String(liste2.n) === episodeNumber) ?? null;
     const airDate = episode?.air ? dateFR(episode.air) : null;
-    const futur = episode?.air && episode.air > AUJOURDHUI;
+    const future = episode?.air && episode.air > TODAY;
     const phrase =
       airDate == null
         ? "Date de diffusion inconnue."
-        : futur || etat === "annonce"
+        : future || state === "annonce"
           ? `Sortie prévue le ${airDate}`
           : `Diffusé le ${airDate}`;
     const createElement = document.createElement("div");
     createElement.className = "eppop";
-    createElement.innerHTML = `<b>S${String(saison).padStart(2, "0")}E${String(episodeNumber).padStart(2, "0")}${episode?.t ? " · " + escapeHtml(episode.t) : ""}</b>${escapeHtml(phrase)}<br><span style="color:var(--muted-foreground)">${escapeHtml(EP_LABEL[etat] ?? "")}</span>`;
+    createElement.innerHTML = `<b>S${String(saison).padStart(2, "0")}E${String(episodeNumber).padStart(2, "0")}${episode?.t ? " · " + escapeHtml(episode.t) : ""}</b>${escapeHtml(phrase)}<br><span style="color:var(--muted-foreground)">${escapeHtml(EP_LABEL[state] ?? "")}</span>`;
     document.querySelector("#device").appendChild(createElement);
     const rect = btn.getBoundingClientRect();
     const dev = document.querySelector("#device").getBoundingClientRect();
     const popoverWidth = 220;
     let left = rect.left + rect.width / 2 - popoverWidth / 2;
     left = Math.max(dev.left + 8, Math.min(left, dev.right - popoverWidth - 8));
-    const haut = rect.top - dev.top > 120;
+    const top = rect.top - dev.top > 120;
     createElement.style.left = `${left}px`;
-    createElement.style.top = haut
+    createElement.style.top = top
       ? `${rect.top - createElement.offsetHeight - 8}px`
       : `${rect.bottom + 8}px`;
     setTimeout(
       () =>
-        document.addEventListener("pointerdown", fermerPopEp, { once: true }),
+        document.addEventListener("pointerdown", closePopEp, { once: true }),
       0,
     );
   }
@@ -33581,22 +33587,22 @@ import { ecrans, panneau, pont } from "../seams.js";
        derived from these three facts and nothing else — never from the screen
        the panel was opened from. That is what makes the panel the same object
        everywhere, instead of a family of look-alikes. */
-    const incomplet = INCOMPLETE.some((INCOMPLETE2) => INCOMPLETE2.t === title);
-    const suivi = world.follows.some((follow2) => follow2.t === title);
-    const enMediatheque = incomplet || LIBRARY.some((LIB) => LIB.t === title);
+    const incomplete = INCOMPLETE.some((INCOMPLETE2) => INCOMPLETE2.t === title);
+    const isFollowed = world.follows.some((follow2) => follow2.t === title);
+    const inLibrary = incomplete || LIBRARY.some((LIB) => LIB.t === title);
     /* Read from the SAME derivations the urgency sections read. A section that
        computes what to grab while the panel computes it separately is two
        answers to one question, and they part company on the first change. */
-    const aRecuperer = derived
+    const toTake = derived
       .takeable()
       .some((takeable) => takeable.t === title);
-    const aResoudre = derived
+    const toResolve = derived
       .blocked()
       .concat(derived.stuck())
       .some((concat) => concat.t === title);
     // An unidentified release has no sheet. Offering to open one is the same
     // broken promise as a poster that leads nowhere.
-    const aFiche = sheetFor(title) != null;
+    const hasSheet = sheetFor(title) != null;
     const own = seasons.reduce(
       (accumulator, element) => accumulator + element[2],
       0,
@@ -33612,7 +33618,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       : seasons.length
         ? `${own}/${aired}`
         : (stFraction(follow) ?? "—");
-    panneau.ouvrir({
+    panel.open({
       titre: follow.t,
       affiche: { t: follow.t, k: follow.k },
       meta: `${follow.y ? String(follow.y) + " · " : ""}${isFilm ? "Film" : "Série"}${frac ? " · " + frac + " épisodes" : ""}`,
@@ -33629,28 +33635,28 @@ import { ecrans, panneau, pont } from "../seams.js";
                A medium that is owned and whole has nothing left to chase, so
                the panel leads to its sheet rather than offering a search
                that would find nothing. */
-            aResoudre
+            toResolve
               ? {
                   texte: "Résoudre →",
                   icone: icons.play,
                   ton: "primary",
-                  cible: { resolve: follow.t },
+                  target: { resolve: follow.t },
                 }
-              : aRecuperer
+              : toTake
                 ? {
                     texte: "Récupérer maintenant",
                     icone: icons.play,
                     ton: "primary",
-                    cible: { recuperer: follow.t },
+                    target: { take: follow.t },
                   }
-                : incomplet
+                : incomplete
                   ? {
                       texte: "Compléter → Acquisitions",
                       icone: icons.play,
                       ton: "primary",
-                      cible: { completer: follow.t },
+                      target: { complete: follow.t },
                     }
-                  : suivi
+                  : isFollowed
                     ? {
                         texte:
                           follow.st === "a_recuperer"
@@ -33658,25 +33664,25 @@ import { ecrans, panneau, pont } from "../seams.js";
                             : "Chercher maintenant",
                         icone: icons.play,
                         ton: "primary",
-                        cible: { sheetprim: `${follow.t}|${follow.st}` },
+                        target: { sheetprim: `${follow.t}|${follow.st}` },
                       }
-                    : aFiche
+                    : hasSheet
                       ? {
                           texte: "Voir la fiche",
                           icone: icons.eye,
                           ton: "primary",
-                          cible: { fiche: follow.t },
+                          target: { mediasheet: follow.t },
                         }
                       : {
                           texte: "Voir le parcours",
                           icone: icons.refresh,
                           ton: "primary",
-                          cible: { journey: follow.t },
+                          target: { journey: follow.t },
                         },
           ],
         },
         seasons.length
-          ? { type: "saisons", suivi: follow, saisons: seasons }
+          ? { type: "saisons", isFollowed: follow, saisons: seasons }
           : isFilm
             ? {
                 type: "note",
@@ -33695,66 +33701,66 @@ import { ecrans, panneau, pont } from "../seams.js";
             /* « Voir la fiche » is reachable from the panel whenever a sheet
                exists. It is omitted only when it is ALREADY the primary
                action, which happens for a medium that is owned and whole. */
-            aFiche && (aResoudre || aRecuperer || incomplet || suivi)
+            hasSheet && (toResolve || toTake || incomplete || isFollowed)
               ? {
                   texte: "Voir la fiche",
                   icone: icons.eye,
-                  cible: { fiche: follow.t },
+                  target: { mediasheet: follow.t },
                 }
               : null,
             {
               texte: "Voir le parcours",
               icone: icons.refresh,
-              cible: { journey: follow.t },
+              target: { journey: follow.t },
             },
             /* Chasing a release only means something for a medium still
                being acquired. Offered on a complete one it is a button that
                can only disappoint. */
-            suivi || incomplet || aRecuperer
+            isFollowed || incomplete || toTake
               ? {
                   texte: "Chercher une autre release",
                   icone: icons.search,
-                  cible: { releases: follow.t },
+                  target: { releases: follow.t },
                 }
               : null,
-            suivi || incomplet || aRecuperer
+            isFollowed || incomplete || toTake
               ? {
                   texte: "Profil de qualité",
                   icone: icons.sort,
-                  cible: { profil: follow.t },
+                  target: { profile: follow.t },
                 }
               : null,
-            enMediatheque
+            inLibrary
               ? {
                   texte: "Re-scraper les métadonnées",
                   icone: icons.refresh,
-                  cible: { rescrape: follow.t },
+                  target: { rescrape: follow.t },
                 }
               : null,
             /* Pausing or dropping a follow requires a follow. An incomplete
                series in the library is not one: nothing is watching it, so
                there is nothing to stop. */
-            suivi
+            isFollowed
               ? {
                   texte: isFilm ? "Ne plus chercher" : "Mettre en pause",
                   icone: icons.x,
-                  cible: { pause: follow.t },
+                  target: { pause: follow.t },
                 }
               : null,
-            suivi
+            isFollowed
               ? {
                   texte: isFilm ? "Retirer de la liste" : "Retirer le suivi",
                   icone: icons.trash,
                   ton: "danger",
-                  cible: { retirer: follow.t },
+                  target: { remove: follow.t },
                 }
               : null,
-            enMediatheque
+            inLibrary
               ? {
                   texte: "Supprimer de la médiathèque",
                   icone: icons.trash,
                   ton: "danger",
-                  cible: { del: follow.t },
+                  target: { del: follow.t },
                 }
               : null,
           ],
@@ -33775,14 +33781,14 @@ import { ecrans, panneau, pont } from "../seams.js";
      « pas faite »; a step without a date is stated « inconnue », never
      given an invented date. */
   function openJourneySheet(title) {
-    const etapes = [
+    const steps = [
       ["Pris chez le tracker", "10 août, 03 h 21", "done"],
       ["Téléchargé", "10 août, 03 h 48", "done"],
       ["Ingéré dans le staging", "10 août, 04 h 02", "done"],
       ["Scrapé", "en cours depuis 4 min", "now"],
       ["Rangé en médiathèque", "à venir", "todo"],
     ];
-    panneau.ouvrir({
+    panel.open({
       titre: title,
       meta: [
         "Parcours de l'acquisition · release ",
@@ -33791,7 +33797,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       blocs: [
         {
           type: "faits",
-          lignes: etapes.map(([libelle, detail, ton]) => ({
+          lignes: steps.map(([libelle, detail, ton]) => ({
             c: libelle,
             v: detail,
             pip:
@@ -33810,7 +33816,7 @@ import { ecrans, panneau, pont } from "../seams.js";
             {
               texte: "Voir la fiche",
               icone: icons.eye,
-              cible: { fiche: title },
+              target: { mediasheet: title },
             },
           ],
         },
@@ -33833,8 +33839,8 @@ import { ecrans, panneau, pont } from "../seams.js";
      not an opinion. `RELEASES` stays defined here and crosses the handshake
      through `window.__referentiel` — same seam as `SEARCH`/`cardHTML` above. */
 
-  function openPlusSheet() {
-    panneau.ouvrir({
+  function openMoreSheet() {
+    panel.open({
       titre: "Veille et obligations",
       meta: "Second rang — consulté, pas surveillé.",
       blocs: [
@@ -33854,7 +33860,7 @@ import { ecrans, panneau, pont } from "../seams.js";
               texte: "Lancer la veille maintenant",
               icone: icons.refresh,
               ton: "primary",
-              cible: { veille: "1" },
+              target: { standby: "1" },
             },
           ],
         },
@@ -33869,9 +33875,9 @@ import { ecrans, panneau, pont } from "../seams.js";
   // own onClick unwinds — not a `closeScreen()` call, which is a harmless
   // no-op against an address it was never the host of.
   window.__close = (layer) => {
-    if (layer !== "screen") return panneau.fermer();
+    if (layer !== "screen") return panel.close();
     if (select("#screen").classList.contains("open")) return closeScreen();
-    if (document.querySelector(".screen.open")) return pont.retour();
+    if (document.querySelector(".screen.open")) return bridge.back();
   };
 
   /* Gestures — pointer events, so one path serves finger, mouse and pen.
@@ -33916,24 +33922,24 @@ import { ecrans, panneau, pont } from "../seams.js";
      sheet, the screen, the drawer — sits outside, and a row drawn in one of
      them would answer no gesture at all. */
   let cardDrag = null;
-  let carteOuverte = null;
+  let openCard = null;
   /* Where the open row RESTS, in pixels — negative for the right drawer,
      positive for the left. A drag beginning on an open row resumes from where
      the row actually is; deducing that origin from a side instead read every
      open row as if it were open on the RIGHT, so a row open on the left leapt
      the width of both drawers on the finger's first move. Measured at 252px
      of jump for a 15px step. */
-  let carteOuverteDx = 0;
-  let clicApresGlisse = null;
+  let openCardDx = 0;
+  let clickAfterDrag = null;
 
-  function refermerCarte() {
-    if (!carteOuverte) return;
-    carteOuverte.style.transform = "";
-    carteOuverte = null;
-    carteOuverteDx = 0;
+  function collapseCard() {
+    if (!openCard) return;
+    openCard.style.transform = "";
+    openCard = null;
+    openCardDx = 0;
   }
 
-  function largeurTiroir(sw, sens) {
+  function drawerWidth(sw, sens) {
     const cote = sw.querySelector(sens < 0 ? ".side.right" : ".side.left");
     return cote ? cote.querySelectorAll(".act").length * 84 : 0;
   }
@@ -33941,19 +33947,19 @@ import { ecrans, panneau, pont } from "../seams.js";
   cadre.addEventListener(
     "pointerdown",
     (event) => {
-      clicApresGlisse = null;
+      clickAfterDrag = null;
       const closest = event.target.closest(".swipe");
       if (!closest || !event.isPrimary) return;
       // A new gesture anywhere puts the previously opened row back.
-      if (carteOuverte && carteOuverte !== closest.querySelector(".card"))
-        refermerCarte();
+      if (openCard && openCard !== closest.querySelector(".card"))
+        collapseCard();
       cardDrag = {
         sw: closest,
         card: closest.querySelector(".card"),
         x: event.clientX,
         y: event.clientY,
         depart:
-          carteOuverte === closest.querySelector(".card") ? carteOuverteDx : 0,
+          openCard === closest.querySelector(".card") ? openCardDx : 0,
         axis: null,
         dx: 0,
       };
@@ -33986,8 +33992,8 @@ import { ecrans, panneau, pont } from "../seams.js";
             Math.max(cardDrag.depart, 0),
           )
         : Math.max(
-            -largeurTiroir(cardDrag.sw, -1),
-            Math.min(largeurTiroir(cardDrag.sw, 1), brut),
+            -drawerWidth(cardDrag.sw, -1),
+            Math.min(drawerWidth(cardDrag.sw, 1), brut),
           );
       cardDrag.card.style.transform = `translateX(${cardDrag.dx}px)`;
     },
@@ -34000,19 +34006,19 @@ import { ecrans, panneau, pont } from "../seams.js";
     if (drag.axis !== "x") return;
     drag.card.classList.remove("dragging");
     // Past a third of a drawer's width the row rests open on that side.
-    const gauche = largeurTiroir(drag.sw, 1);
-    const droite = largeurTiroir(drag.sw, -1);
+    const gauche = drawerWidth(drag.sw, 1);
+    const right = drawerWidth(drag.sw, -1);
     let repos = 0;
     if (drag.depart) {
       // Closing an open row takes a third of its own travel, so a thumb
       // brushing past one does not shut what it came to use.
       repos =
         Math.abs(drag.dx) > Math.abs(drag.depart) * (2 / 3) ? drag.depart : 0;
-    } else if (drag.dx < -droite / 2.4) repos = -droite;
+    } else if (drag.dx < -right / 2.4) repos = -right;
     else if (drag.dx > gauche / 2.4) repos = gauche;
     drag.card.style.transform = repos ? `translateX(${repos}px)` : "";
-    carteOuverte = repos ? drag.card : null;
-    carteOuverteDx = repos;
+    openCard = repos ? drag.card : null;
+    openCardDx = repos;
     // The release is followed by a click, and a drag must not also tap. The
     // click is identified by its POINT — the same answer the long press
     // already needed — because a bare flag stays armed until SOME click
@@ -34033,21 +34039,21 @@ import { ecrans, panneau, pont } from "../seams.js";
        hole — which is why the check for this asserts the click was actively
        SWALLOWED rather than that no panel appeared. A panel that fails to
        appear can be an accident of where the release landed. */
-    const parcouru = Math.hypot(
+    const travelled = Math.hypot(
       (drag.dernierX ?? drag.x) - drag.x,
       (drag.dernierY ?? drag.y) - drag.y,
     );
-    clicApresGlisse =
-      parcouru > 4 ? { x: drag.dernierX, y: drag.dernierY } : null;
+    clickAfterDrag =
+      travelled > 4 ? { x: drag.dernierX, y: drag.dernierY } : null;
   }
   window.addEventListener("pointerup", endCardDrag);
   window.addEventListener("pointercancel", endCardDrag);
   document.addEventListener(
     "click",
     (event) => {
-      if (!clicApresGlisse) return;
-      const mark = clicApresGlisse;
-      clicApresGlisse = null;
+      if (!clickAfterDrag) return;
+      const mark = clickAfterDrag;
+      clickAfterDrag = null;
       if (Math.hypot(event.clientX - mark.x, event.clientY - mark.y) > 24)
         return;
       event.preventDefault();
@@ -34175,16 +34181,16 @@ import { ecrans, panneau, pont } from "../seams.js";
         // avancerDeck() animates the DOM directly, never through render():
         // the bump is explicit so React learns the card left the deck.
         currentState().sugGone.add(index);
-        magasin.toucher();
-        avancerDeck(index, 1);
+        store.touch();
+        advanceDeck(index, 1);
         toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
           currentState().sugGone.delete(index);
-          magasin.toucher();
+          store.touch();
           refreshDeck();
         });
       } else {
         passerSug(index);
-        avancerDeck(index, -1);
+        advanceDeck(index, -1);
       }
       return;
     }
@@ -34242,14 +34248,14 @@ import { ecrans, panneau, pont } from "../seams.js";
     return true;
   };
 
-  function debutGestePage(point, cible) {
+  function startPageGesture(point, target) {
     if (
-      cible.closest?.(".swipe") ||
-      cible.closest?.(".sugwrap") ||
+      target.closest?.(".swipe") ||
+      target.closest?.(".sugwrap") ||
       // A drag born on a deck card belongs to the card: without this the
       // page-swipe handler also fires and navigates away mid-gesture.
-      cible.closest?.(".deck") ||
-      cible.closest?.(".pillscroll")
+      target.closest?.(".deck") ||
+      target.closest?.(".pillscroll")
     ) {
       pageDrag = null;
       return;
@@ -34268,7 +34274,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     };
   }
 
-  function avancerGestePage(point) {
+  function advancePageGesture(point) {
     if (!pageDrag) return;
     const deltaX = point.clientX - pageDrag.x,
       deltaY = point.clientY - pageDrag.y;
@@ -34293,7 +34299,7 @@ import { ecrans, panneau, pont } from "../seams.js";
         pageDrag = null;
         return;
       }
-      debutGestePage(event.touches[0], event.target);
+      startPageGesture(event.touches[0], event.target);
     },
     { passive: true },
   );
@@ -34301,7 +34307,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     "touchmove",
     (event) => {
       if (event.touches.length !== 1) return;
-      avancerGestePage(event.touches[0]);
+      advancePageGesture(event.touches[0]);
     },
     { passive: true },
   );
@@ -34315,7 +34321,7 @@ import { ecrans, panneau, pont } from "../seams.js";
         pageDrag = null;
         return;
       }
-      debutGestePage(event, event.target);
+      startPageGesture(event, event.target);
     },
     { passive: true },
   );
@@ -34323,7 +34329,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     "pointermove",
     (event) => {
       if (event.pointerType === "touch") return;
-      avancerGestePage(event);
+      advancePageGesture(event);
     },
     { passive: true },
   );
@@ -34391,40 +34397,40 @@ import { ecrans, panneau, pont } from "../seams.js";
      module that never evaluates leaves the startup screen on screen: a
      visible, truthful failure instead of an app with mute verbs. */
   window.__demarrerMoteur = function (deps) {
-    magasin = deps.magasin;
-    // Set before any write can happen (`adopterEtat`/`adopterMonde` below
+    store = deps.store;
+    // Set before any write can happen (`adoptState`/`adoptWorld` below
     // do not write to history, but the earliest legacy write is one line
     // away): urlDeLEtat() must never compose against the placeholder "/".
-    adresseBase = deps.base;
-    magasin.adopterEtat(INITIAL_STATE);
-    magasin.adopterMonde(world);
+    baseAddress = deps.base;
+    store.adoptState(INITIAL_STATE);
+    store.adoptWorld(world);
     /* No subscription here anymore. The only thing this one ever did was
        re-point the cached `state` binding at the store's object; with every
        read going to the store directly, there is nothing left to refresh. */
 
     /* The bridge announces a back the way `popstate` did. Registered HERE,
-       not at the engine's top level: it is a `__pont` verb like the writes
+       not at the engine's top level: it is a `__bridge` verb like the writes
        below, and the real bridge only exists from this call on — nothing
        upstream queues it anymore. */
-    __pont.surRetour(surRetourEngine);
+    __bridge.onBack(onEngineBack);
 
     /* The opening state comes from the ADDRESS, before the first paint: a
        reload that lands on the opening page rather than where one was is the
        defect DOIT-10 names, and it is fixed here rather than corrected after
        a frame the operator would see. */
-    Object.assign(state, etatDeLURL());
+    Object.assign(state, stateFromUrl());
     /* Kept from BEFORE the first render, because rendering an unknown id
        moves the state onto the not-found surface — and rewriting the
        address to match would make a mistyped link quietly become a
        different one. A browser answering 404 leaves the address alone; so
        does this. */
-    const adresseDArrivee = location.pathname + location.search;
+    const arrivalAddress = location.pathname + location.search;
     render();
     /* The address is put back on the entry one arrives on, so a back from
        anywhere reaches the page the link named rather than a bare
        document. */
     try {
-      __pont.remplacer(etatDeNavigation(), adresseDArrivee);
+      __bridge.replace(navigationState(), arrivalAddress);
     } catch (error) {}
     /* The interface exists from here on, so the startup screen has nothing
        left to cover — but it does not come off on that line. It comes off
@@ -34435,7 +34441,7 @@ import { ecrans, panneau, pont } from "../seams.js";
        It cannot be anywhere else: nothing can be inserted below the entry a
        document opens on, so the guard has to BE that entry. */
     try {
-      __pont.remplacer({ tm: "garde" });
+      __bridge.replace({ tm: "garde" });
     } catch (error) {}
     /* Pushed with the address one ARRIVED at rather than with the one the
        state now implies. Rendering an unknown id moves the state onto the
@@ -34444,7 +34450,7 @@ import { ecrans, panneau, pont } from "../seams.js";
        operator's address behind their back. A browser answering 404 leaves
        the address alone. */
     try {
-      __pont.noter(etatDeNavigation(), adresseDArrivee);
+      __bridge.record(navigationState(), arrivalAddress);
     } catch (error) {}
     /* The welcome hint disappears on first interaction: a bubble that
        returns over an open sheet is a nuisance, not help. */
@@ -34478,28 +34484,28 @@ import { ecrans, panneau, pont } from "../seams.js";
    nothing about what it actually depends on. Twenty names, listed, so the
    dependency is readable and a deletion breaks the build instead of a run.
 
-   `magasin` is among them, and it is assigned at boot: an ES export of a `let`
+   `store` is among them, and it is assigned at boot: an ES export of a `let`
    is a LIVE binding, so the importer reads what the engine currently holds
    rather than a copy taken at evaluation. That is the same property the
    getters below exist to give the `window` surface, obtained here for free. */
 export {
-  REGLAGES,
-  REG_ETAT,
-  afficherConnexion,
-  afficherDemarrage,
-  afficherInstallation,
+  SETTINGS,
+  SETTINGS_STATE,
+  showSignIn,
+  showStartup,
+  showInstallation,
   applyState,
-  magasin,
+  store,
   openDeleteDialog,
   openFollowSheet,
   openJourneySheet,
-  openPlusSheet,
+  openMoreSheet,
   openUserSheet,
-  ouvrirActionMaintenance,
-  ouvrirReglage,
-  ouvrirTiroir,
-  reglageId,
-  reinitialiserReglages,
+  openActionMaintenance,
+  openSetting,
+  openDrawer,
+  settingId,
+  resetSettings,
   render,
 };
 
@@ -34521,88 +34527,88 @@ export {
    the one being asked.
 
    The first count said 253, because the regex collecting the names knew
-   `function`, `const`, `let`, `var` and `class`, and `deconnecter` is an
+   `function`, `const`, `let`, `var` and `class`, and `signOut` is an
    `async function`. No state's markup depends on logging out, so a
    state-by-state comparison of the whole frame said « identical » while the
    rule suite said `ReferenceError`.
 
-   The first SPLIT put `deroulementEnCours` on the by-value side, because the
+   The first SPLIT put `unwindInProgress` on the by-value side, because the
    test for « does the engine rebind this » looked for `name =` — and this one
-   is only ever written `deroulementEnCours += 1` and `-= 1`. Published by
+   is only ever written `unwindInProgress += 1` and `-= 1`. Published by
    value it would have answered 0 forever, which is the same class of silent
    lie the getters exist to prevent, arrived at from the other direction. The
    forms that rebind without a bare `=` are compound assignment, `++`/`--`,
    destructuring on either side, and `for (name of …)`; all four were searched
    across all 254 names, and this is the only one. */
 Object.assign(window, {
-  ACTEURS, AFFICHES_HD, APPARENCES, APPUI_MS, APPUI_TOLERANCE, AUDIOS,
-  AUJOURDHUI, BLOCKED, CADENCE_CRON, CATS, COMPTE, DECISIONS_ATTENTE,
-  DECISIONS_REGLEES, DEMARRAGE_MS, DEPENDANCES, DISQUES, DONE_TODAY,
-  EP_LABEL, EP_ORDER, EP_SWATCH, ERREURS, ETAT_DECISION,
-  ETAT_DECISION_POURQUOI, EXECUTIONS, FICHES_IDX, FICHES_OLD, FICHES_RAW,
-  FOLLOWS, GROUPS, HEROS, INCOMPLETE, INDEX, INFLIGHT, JOURNAL, LIBRARY,
-  LIB_PAGE, LIB_TOTAL, MAINT_ACTIONS, MAINT_RUBRIQUES, MOIS, MOTIF_LABEL,
-  MOTIF_POURQUOI, MOTIF_TON, MOVING, NAVIGATION, NOTFOUND, NOTFOUND_REEL,
-  PAGES_OF, PIPELINE, PLANIFICATEURS, PLANIFICATEURS_PANNE, POSSEDES,
-  POSTERS, RECENT, REGLAGES, REG_ETAT, RELEASES, RESOS, RETOUR_FENETRE,
+  CAST, POSTERS_HD, APPARENCES, PRESS_MS, PRESS_TOLERANCE, AUDIOS,
+  TODAY, BLOCKED, CADENCE_CRON, CATS, ACCOUNT, PENDING_DECISIONS,
+  DECISIONS_REGLEES, STARTUP_MS, DEPENDENCIES, DISKS, DONE_TODAY,
+  EP_LABEL, EP_ORDER, EP_SWATCH, ERRORS, DECISION_STATE,
+  DECISION_STATE_DETAIL, EXECUTIONS, SHEETS_IDX, SHEETS_OLD, SHEETS_RAW,
+  FOLLOWS, GROUPS, HERO_IMAGES, INCOMPLETE, INDEX, INFLIGHT, JOURNAL, LIBRARY,
+  LIB_PAGE, LIB_TOTAL, MAINT_ACTIONS, MAINT_TOPICS, MOIS, MOTIF_LABEL,
+  REASON_DETAIL, REASON_TONE, MOVING, NAVIGATION, NOTFOUND, NOTFOUND_REAL,
+  PAGES_OF, PIPELINE, SCHEDULERS, SCHEDULERS_DOWN, OWNED,
+  POSTERS, RECENT, SETTINGS, SETTINGS_STATE, RELEASES, RESOLUTIONS, BACK_WINDOW,
   RISQUES, SEARCH, SEASONS, SECRETS, SERVICES, SERVICES_PANNE, SETTLED,
-  SETTLED_REEL, STRIP_LABELS, STUCK, STUCK_REEL, ST_LABEL,
+  SETTLED_REAL, STRIP_LABELS, STUCK, STUCK_REAL, ST_LABEL,
   ST_LABEL_MOVIE, ST_TONE, SUGGESTIONS, SUG_BATCH, SYNOPSIS, TAKEABLE,
-  TRIS, URGENCY, URL_DEFAUTS, VIA_LABEL, actionLaisser, actionPause,
-  actionRecuperer, actionResoudre, actionRetirer, actionSuivre,
-  actionSupprimer, addVerb, afficherConnexion, afficherDemarrage,
-  afficherInstallation, annulerAppui, apparenceCourante,
-  appliquerApparence, applyState, armerAppui, avancerDeck,
-  avancerGestePage, baseTitle, beforeReset, cadenceFR, cardHTML, chipHTML,
-  closeDlg, closeHarness, closeScreen, closeSheet, couvrirLeChargement,
-  dateFR, debutGestePage, decisionEnAttente, deckCardHTML, deckHTML,
-  deckOrdre, deconnecter, dejaInstallee, derived, deroulerCouche,
+  TRIS, URGENCY, URL_DEFAULTS, VIA_LABEL, actionLeave, actionPause,
+  actionTake, actionResolve, actionRetirer, actionFollow,
+  actionDelete, addVerb, showSignIn, showStartup,
+  showInstallation, cancelPress, apparenceCourante,
+  applyAppearance, applyState, armPress, advanceDeck,
+  advancePageGesture, baseTitle, beforeReset, cadenceFR, cardHTML, chipHTML,
+  closeDlg, closeHarness, closeScreen, closeSheet, coverLoading,
+  dateFR, startPageGesture, decisionPending, deckCardHTML, deckHTML,
+  deckOrder, signOut, alreadyInstalled, derived, unwindLayer,
   dismissSug, emptyInner, endCardDrag, endDeckDrag, endPageDrag,
-  endSugDrag, epState, escapeHtml, etatDeLURL, etatDeNavigation,
-  factRowsHTML, fermerPopEp, fermerTiroir, fichiersModifies, fillSug,
-  gridBadge, hideLayers, icons, initials, initialsOf, largeurTiroir,
-  libFiltered, libRowHTML, listeFaitsHTML, loadMoreSug, masquerConnexion,
-  masquerDemarrage, masquerInstallation, memeValeur, modifierReglage,
-  mountDeck, mountLoaders, mountSearch, nomDeFichier, normalisedKey,
-  noterLeChemin, openAddSheet, openDeleteDialog, openDetailSheet, openDlg,
-  openFollowSheet, openHarness, openJourneySheet, openPanel, openPlusSheet,
+  endSugDrag, epState, escapeHtml, stateFromUrl, navigationState,
+  factRowsHTML, closePopEp, closeDrawer, changedFiles, fillSug,
+  gridBadge, hideLayers, icons, initials, initialsOf, drawerWidth,
+  libFiltered, libRowHTML, factsListHTML, loadMoreSug, hideSignIn,
+  hideStartup, masquerInstallation, sameValue, changeSetting,
+  mountDeck, mountLoaders, mountSearch, fileName, normalisedKey,
+  recordPath, openAddSheet, openDeleteDialog, openDetailSheet, openDlg,
+  openFollowSheet, openHarness, openJourneySheet, openPanel, openMoreSheet,
   openScreen, openSheet, openSugSheet, openUserSheet,
-  ouvrirActionMaintenance, ouvrirPopEp, ouvrirReglage, ouvrirSecret,
-  ouvrirTiroir, paintSelBar, panneauSousLeDoigt, passerSug, pileEcrans,
-  plages, possedesDe, posterBox, prochaineRechercheFR,
-  proposerInstallation, ptr, publierHauteurBarre, refPanel, refermerCarte,
-  refreshDeck, reglageId, reinitialiserReglages, render, renderNav,
-  richText, saisonsDe, saisonsFicheHTML, secHTML, secInner, seedWorld,
+  openActionMaintenance, openPopEp, openSetting, openSecret,
+  openDrawer, paintSelBar, panelUnderFinger, passerSug, screenStack,
+  plages, ownedFor, posterBox, nextSearchFR,
+  proposerInstallation, ptr, publishBarHeight, refPanel, collapseCard,
+  refreshDeck, settingId, resetSettings, render, renderNav,
+  richText, seasonsOf, sheetSeasonsHTML, secHTML, secInner, seedWorld,
   select, sheetFor, skelCards, skelCardsInner, skelTiles, sortLabel,
-  sortirDeLaFile, stFraction, stLabel, stripHTML, sugCardHTML, sugFoot,
-  sugTileHTML, sugVerb, suivreAppui, surIOSSafari, surRetourEngine,
+  leaveQueue, stFraction, stLabel, stripHTML, sugCardHTML, sugFoot,
+  sugTileHTML, sugVerb, followPress, onIOSSafari, onEngineBack,
   surfErr, surfErrInner, svgIcon, swipeHTML, tileHTML, toast, toastUndo,
-  tousLesReglages, trailerIds, trierLib, urlDeLEtat, valeurCourante,
-  valeurEnCours, valeurSaisie, view,
+  allSettings, trailerIds, sortLibrary, urlFromState, displayedValue,
+  rawValue, typedValue, view,
 });
 
 // Read live, because the engine reassigns each of these.
 Object.defineProperties(window, {
-  adresseBase: { get: () => adresseBase, configurable: true },
-  appui: { get: () => appui, configurable: true },
+  baseAddress: { get: () => baseAddress, configurable: true },
+  press: { get: () => press, configurable: true },
   cardDrag: { get: () => cardDrag, configurable: true },
-  carteOuverte: { get: () => carteOuverte, configurable: true },
-  carteOuverteDx: { get: () => carteOuverteDx, configurable: true },
-  clicApresGlisse: { get: () => clicApresGlisse, configurable: true },
-  clicAvaler: { get: () => clicAvaler, configurable: true },
+  openCard: { get: () => openCard, configurable: true },
+  openCardDx: { get: () => openCardDx, configurable: true },
+  clickAfterDrag: { get: () => clickAfterDrag, configurable: true },
+  swallowClick: { get: () => swallowClick, configurable: true },
   deckDrag: { get: () => deckDrag, configurable: true },
-  depilage: { get: () => depilage, configurable: true },
-  deroulementEnCours: { get: () => deroulementEnCours, configurable: true },
-  finDuChargement: { get: () => finDuChargement, configurable: true },
-  installEvenement: { get: () => installEvenement, configurable: true },
-  installRefusee: { get: () => installRefusee, configurable: true },
+  unwinding: { get: () => unwinding, configurable: true },
+  unwindInProgress: { get: () => unwindInProgress, configurable: true },
+  loadingEnd: { get: () => loadingEnd, configurable: true },
+  installEvent: { get: () => installEvent, configurable: true },
+  installRefused: { get: () => installRefused, configurable: true },
   legacyNodes: { get: () => legacyNodes, configurable: true },
-  magasin: { get: () => magasin, configurable: true },
+  store: { get: () => store, configurable: true },
   pageDrag: { get: () => pageDrag, configurable: true },
   pilotage: { get: () => pilotage, configurable: true },
-  renduCourant: { get: () => renduCourant, configurable: true },
+  currentRender: { get: () => currentRender, configurable: true },
   shellOwnsView: { get: () => shellOwnsView, configurable: true },
-  sortieArmee: { get: () => sortieArmee, configurable: true },
+  armedExit: { get: () => armedExit, configurable: true },
   STATES: { get: () => STATES, configurable: true },
   // A LIVE READ, not an alias. There is no cached `state` binding left to
   // publish — the getter goes to the store, exactly as the engine's own

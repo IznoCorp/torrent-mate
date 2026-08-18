@@ -10,13 +10,13 @@
 // says where it comes from — that is what reading a log needs — but that is not
 // the map.
 //
-// `REG_ETAT` STAYS THE SOURCE, and this component never replaces it. The
-// document-level delegation writes it (`data-rubrique`, `data-reglage`,
-// `data-qreg`, `data-secret`, `data-enregistrer`, `data-redemarrer`) and then
-// calls `render()`, whose first act is `magasin?.toucher()` — so subscribing to
+// `SETTINGS_STATE` STAYS THE SOURCE, and this component never replaces it. The
+// document-level delegation writes it (`data-topic`, `data-setting`,
+// `data-qsettings`, `data-secret`, `data-save`, `data-restart`) and then
+// calls `render()`, whose first act is `store?.toucher()` — so subscribing to
 // the store's `version` is what re-reads the mutated object here. Two reasons it
 // must stay there and not become React state: the edits are PENDING data the
-// legacy save path owns, and R60 reads `REG_ETAT.modifs` directly in five holds.
+// legacy save path owns, and R60 reads `SETTINGS_STATE.modifs` directly in five holds.
 // Making it React-owned would leave those holds with nothing to read.
 //
 // The labels come from `settings-labels.ts` — the ONE implementation, shared
@@ -42,45 +42,45 @@ function SettingRow({
   setting: Setting;
   withFile?: boolean;
 }): ReactElement {
-  const { REG_ETAT, reglageId, valeurCourante, nomDeFichier } =
+  const { SETTINGS_STATE, settingId, displayedValue, fileName } =
     useReference();
-  const identity = reglageId(setting);
-  const edited = REG_ETAT.modifs.has(identity);
+  const identity = settingId(setting);
+  const edited = SETTINGS_STATE.modifs.has(identity);
   // `withFile` is false when a group header already names the file: repeating it
   // there prints the file twice on one line and wraps the origin onto two.
   const origin = withFile
-    ? `${nomDeFichier(setting.f)} · ${setting.c}`
+    ? `${fileName(setting.f)} · ${setting.c}`
     : setting.c;
   return (
     <button
       className={`settingrow${edited ? " modified" : ""}`}
-      data-reglage={identity}
+      data-setting={identity}
     >
       <span className="rl">
         {settingLabel(setting)}{" "}
         <span className="rf">{origin}</span>
       </span>
-      <span className="rv">{String(valeurCourante(setting))}</span>
+      <span className="rv">{String(displayedValue(setting))}</span>
     </button>
   );
 }
 
 function SearchField(): ReactElement {
-  const { REG_ETAT, icons } = useReference();
+  const { SETTINGS_STATE, icons } = useReference();
   const { t } = useTranslation();
   return (
     <div className="search" style={{ marginBottom: 12 }}>
       <Icon paths={icons.search} />
       <input
-        id="qreg"
-        key={REG_ETAT.q}
+        id="qsettings"
+        key={SETTINGS_STATE.q}
         type="search"
         placeholder={t("screens.settings.searchPlaceholder")}
-        defaultValue={REG_ETAT.q}
+        defaultValue={SETTINGS_STATE.q}
         autoComplete="off"
       />
-      {REG_ETAT.q ? (
-        <button className="searchclear" data-qreg="">
+      {SETTINGS_STATE.q ? (
+        <button className="searchclear" data-qsettings="">
           <Icon paths={icons.x} />
         </button>
       ) : null}
@@ -93,13 +93,13 @@ function SearchField(): ReactElement {
 // save. Its host is `#device`, a sibling of the page's own container, so this
 // page has a second portal: the one piece of it that renders outside its host.
 function SaveBar(): ReactElement | null {
-  const { REG_ETAT, fichiersModifies, nomDeFichier } = useReference();
+  const { SETTINGS_STATE, changedFiles, fileName } = useReference();
   const { t } = useTranslation();
-  const pending = REG_ETAT.modifs.size;
+  const pending = SETTINGS_STATE.modifs.size;
   if (pending === 0) return null;
   const device = document.getElementById("device");
   if (!device) return null;
-  const files = fichiersModifies().map(nomDeFichier).join(", ");
+  const files = changedFiles().map(fileName).join(", ");
   return createPortal(
     <div className="savebar" id="savebar">
       <span className="sn">
@@ -113,7 +113,7 @@ function SaveBar(): ReactElement | null {
         </b>{" "}
         {t("screens.settings.willWrite", { files })}
       </span>
-      <button data-enregistrer="1" disabled={REG_ETAT.lectureSeule}>
+      <button data-save="1" disabled={SETTINGS_STATE.lectureSeule}>
         {t("screens.settings.save")}
       </button>
     </div>,
@@ -148,22 +148,22 @@ function TopicView({ topic }: { topic: SettingsTopic }): ReactElement {
 }
 
 export function SettingsPage(): ReactElement | null {
-  // `REG_ETAT` is mutated IN PLACE by the delegation, which bumps the store's
+  // `SETTINGS_STATE` is mutated IN PLACE by the delegation, which bumps the store's
   // version through `render()` — subscribing to it is what makes this component
   // re-read the object it never owns.
   useStoreContent((content) => content.version);
   const { t } = useTranslation();
   const {
-    REGLAGES,
-    REG_ETAT,
+    SETTINGS,
+    SETTINGS_STATE,
     SECRETS,
     emptyInner,
     chipHTML,
-    tousLesReglages,
-    fichiersModifies,
+    allSettings,
+    changedFiles,
   } = useReference();
 
-  if (REG_ETAT.rubrique === "secrets") {
+  if (SETTINGS_STATE.rubrique === "secrets") {
     return (
       <>
         <h2 className="h2">{t("screens.settings.secretsTitle")}</h2>
@@ -201,8 +201,8 @@ export function SettingsPage(): ReactElement | null {
     );
   }
 
-  if (REG_ETAT.rubrique) {
-    const topic = REGLAGES.find((entry) => entry.id === REG_ETAT.rubrique);
+  if (SETTINGS_STATE.rubrique) {
+    const topic = SETTINGS.find((entry) => entry.id === SETTINGS_STATE.rubrique);
     if (!topic) {
       return (
         <>
@@ -224,9 +224,9 @@ export function SettingsPage(): ReactElement | null {
     );
   }
 
-  const query = REG_ETAT.q.trim().toLowerCase();
+  const query = SETTINGS_STATE.q.trim().toLowerCase();
   if (query) {
-    const all = tousLesReglages();
+    const all = allSettings();
     const found = all.filter(
       (setting) =>
         settingLabel(setting).toLowerCase().includes(query) ||
@@ -274,25 +274,25 @@ export function SettingsPage(): ReactElement | null {
   return (
     <>
       <SearchField />
-      {REG_ETAT.lectureSeule ? (
+      {SETTINGS_STATE.lectureSeule ? (
         <div className="loaderr">
           <b>{t("screens.settings.readOnlyLead")}</b>
           {t("screens.settings.readOnlyRest")}
         </div>
       ) : null}
-      {REG_ETAT.redemarrage ? (
+      {SETTINGS_STATE.redemarrage ? (
         <div className="loaderr">
           <b>{t("screens.settings.restartLead")}</b>{" "}
-          {fichiersModifies().join(", ") ||
+          {changedFiles().join(", ") ||
             t("screens.settings.restartSomeSettings")}
           {t("screens.settings.restartRest")}{" "}
-          <button data-redemarrer="1">
+          <button data-restart="1">
             {t("screens.settings.restartNow")}
           </button>
         </div>
       ) : null}
-      {REGLAGES.map((topic) => (
-        <button className="topic" data-rubrique={topic.id} key={topic.id}>
+      {SETTINGS.map((topic) => (
+        <button className="topic" data-topic={topic.id} key={topic.id}>
           <span style={{ minWidth: 0, flex: 1 }}>
             <span className="rt">{topic.t}</span>
             <span className="rs">{topic.s}</span>
@@ -300,7 +300,7 @@ export function SettingsPage(): ReactElement | null {
           <span className="rn">{topic.r.length}</span>
         </button>
       ))}
-      <button className="topic" data-rubrique="secrets">
+      <button className="topic" data-topic="secrets">
         <span style={{ minWidth: 0, flex: 1 }}>
           <span className="rt">{t("screens.settings.secretsTitle")}</span>
           <span className="rs">
@@ -309,7 +309,7 @@ export function SettingsPage(): ReactElement | null {
         </span>
         <span className="rn">{SECRETS.length}</span>
       </button>
-      <button className="topic" data-profil="global">
+      <button className="topic" data-profile="global">
         <span style={{ minWidth: 0, flex: 1 }}>
           <span className="rt">{t("screens.settings.rankingTitle")}</span>
           <span className="rs">

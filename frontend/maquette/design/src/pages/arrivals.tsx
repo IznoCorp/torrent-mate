@@ -53,7 +53,7 @@ function lastRunRows(
         : nothing
           ? t("screens.arrivals.nothingToDo")
           : fact.s || "",
-      etat: fact.bloque ? "danger" : "",
+      state: fact.bloque ? "danger" : "",
     };
   });
 }
@@ -67,7 +67,7 @@ function PipelineBar(): ReactElement {
   const { PIPELINE } = useReference();
 
   if (state.pipe === "encours" || state.pipe === "file") {
-    const step = PIPELINE.etapes[3];
+    const step = PIPELINE.steps[3];
     return (
       <section className="pipeline">
         <div className="ph">
@@ -75,7 +75,7 @@ function PipelineBar(): ReactElement {
           <span className="pt">{t("screens.arrivals.runningTitle")}</span>
           <span className="pq">
             {t("screens.arrivals.stepOf", {
-              count: PIPELINE.etapes.length,
+              count: PIPELINE.steps.length,
               label: step.l,
             })}
           </span>
@@ -121,7 +121,7 @@ function PipelineBar(): ReactElement {
         <span className="pt">{t("screens.arrivals.idleTitle")}</span>
         <span className="pq">
           {t("screens.arrivals.idleQualifier", {
-            when: PIPELINE.dernier.quand,
+            when: PIPELINE.dernier.when,
           })}
         </span>
       </div>
@@ -153,13 +153,13 @@ function LastRun(): ReactElement {
         <span>
           {t("screens.arrivals.triggeredBy")}
           <b>{PIPELINE.declencheurs[run.declencheur]}</b>
-          {t("screens.arrivals.triggeredWhen", { when: run.quand })}
+          {t("screens.arrivals.triggeredWhen", { when: run.when })}
         </span>
       </div>
       <ol
         className="flux"
         dangerouslySetInnerHTML={{
-          __html: factRowsHTML(lastRunRows(PIPELINE.etapes, run.faits, t)),
+          __html: factRowsHTML(lastRunRows(PIPELINE.steps, run.faits, t)),
         }}
       />
     </section>

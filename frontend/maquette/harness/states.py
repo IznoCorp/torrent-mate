@@ -26,17 +26,17 @@ async def main():
         await pg.wait_for_timeout(320)
         r=await pg.evaluate("""()=>{const v=document.querySelector('#view');
           const sh=document.querySelector('#sheet'), sc=document.querySelector('#screen'), dg=document.querySelector('#dlg');
-          // Every screen migrated off `#screen` onto a real route (the fiche
+          // Every screen migrated off `#screen` onto a real route (the mediaSheet
           // at `/fiche/$titre`, the add screen at `/ajout`, the arbitration
           // screen at `/resolution/$dossier`, the release picker at
           // `/releases/$titre`, the quality profile at `/profil/$titre`) is
           // read through ONE generic rung — any OPEN screen carries a
-          // `data-cle`, so its presence is enough, never a per-identity
+          // `data-key`, so its presence is enough, never a per-identity
           // prefix. Without it, a state opening one of those routes would
           // count as « no layer » and this rule would measure the page
           // UNDERNEATH — the overflow, the skeletons and the text of a
           // surface the state does not show.
-          const rt = document.querySelector('.screen.open[data-cle]');
+          const rt = document.querySelector('.screen.open[data-key]');
           const layer = sh.classList.contains('open')||sc.classList.contains('open')||dg.classList.contains('open')||!!rt;
           // The route rung comes LAST in the precedence, so every
           // pre-existing case resolves to exactly what it resolved to

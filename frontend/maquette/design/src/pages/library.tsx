@@ -10,7 +10,7 @@
 // Markup is TRANSPLANTED, not translated. The rows go through `libRowHTML` and
 // `tileHTML`, reused VERBATIM: they carry the `data-*` the document-level
 // delegation reads (`data-tile`, `data-del`, `data-swipeact`, `data-panel`,
-// `data-fiche`), and re-deriving that markup here would drift the one thing
+// `data-mediasheet`), and re-deriving that markup here would drift the one thing
 // that seam depends on being byte-exact.
 //
 // WHAT DOES NOT MOVE: the selection bar. `paintSelBar()` creates and removes a
@@ -297,7 +297,7 @@ function LibraryList(): ReactElement {
   // page while the 620 ms timer is in flight would then be overwritten with the
   // OLD count plus a page, jumping the list past what the count line promised.
   const loadMore = () => {
-    const live = () => window.__magasin.lire().etat;
+    const live = () => window.__magasin.read().state;
     if (live().libLoading || live().libErr) return;
     if ((live().libCount as number) >= libFiltered().length) return;
     // WHAT THE LOAD WAS ASKED FROM. Six hundred and twenty milliseconds is long
@@ -315,9 +315,9 @@ function LibraryList(): ReactElement {
     // then let a stale load through. Every write bumps the version, so anything
     // that happened while this load was in flight — a search, a sort, a lens,
     // another state driven by the harness — makes it stale by definition.
-    const askedAt = window.__magasin.lire().version;
+    const askedAt = window.__magasin.read().version;
     window.setTimeout(() => {
-      if (window.__magasin.lire().version !== askedAt) return;
+      if (window.__magasin.read().version !== askedAt) return;
       writeUiState({ libLoading: false });
       if (!live().libFailedOnce && asked >= LIB_PAGE * 3) {
         writeUiState({ libFailedOnce: true, libErr: true });
