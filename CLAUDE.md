@@ -227,13 +227,27 @@ enforced by `scripts/check-no-french.py` (four arms, in `make check` and in CI):
   `useTranslation()` — and the same file's `server` namespace for the pages `serve.py` serves.
   Extract strings, never retype them: a retyped string is a defect, because it renders
   correctly while the reference is broken.
+- **`data-*` attribute NAMES are code and follow the rule.** They were carved out here once,
+  and the operator overturned that: a `data-*` name is a name someone chose, so it is written
+  in English like any other. Their VALUES are not — `data-go="profil"` names a page, and a
+  page id is an address. A contract has three ends — the markup that emits it, the
+  `dataset.X` that reads it, and the rules that tap it — and they move in ONE step or the
+  interface half-works in a way no single file reveals.
 - **What is NOT French-in-the-code**, and must stay as it is: the French a harness hold
   ASSERTS (that is the app's rendered output — translating it would silently stop measuring
-  anything), data values and `data-*` names/values, route paths and addresses, and the config
-  keys the settings dictionaries are keyed by. Each such literal carries a
-  `# french-ok: <reason>` / `// french-ok: <reason>` pragma; a pragma with no reason is itself
-  a violation. The frozen CSS-class exceptions live in `frontend/maquette/regions.json`'s
-  `$vocabulary`, each with the reason it was kept.
+  anything), data VALUES, route paths and addresses, i18n interpolation placeholders, form
+  field names, and the config keys the settings dictionaries are keyed by. Each such literal
+  carries a `# french-ok: <reason>` / `// french-ok: <reason>` pragma; a pragma with no reason
+  is itself a violation. The frozen CSS-class exceptions live in
+  `frontend/maquette/regions.json`'s `$vocabulary`, each with the reason it was kept.
+- **The guard asks « is this word one we use? », not « is this word French? »** The second
+  question is only ever as good as its list of French words, and that list had holes —
+  `suivante`, `trier`, `fermer`, `chargement`, `compte`, `monde` were invisible to it, so
+  « no violation » meant « none among the words we thought of » while a hundred and forty
+  French names sat under it. `scripts/code-vocabulary.txt` holds the words this codebase's
+  names are built from; a name built from a word nobody wrote down is refused, whatever
+  language it comes from. **Adding a word is one line, and that is the point**: a French word
+  can only enter by someone typing it into a file under review.
 
 ## Reference Index (lazy-load when relevant)
 

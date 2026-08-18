@@ -51,6 +51,16 @@ Two consequences worth knowing before writing a rule:
   from `index.html` and inherits its STYLE from the fragment; `extract` raises on a missing
   marker, so pointing one at the wrong file fails the gate rather than serving a screen
   stripped of its design.
+- **Names are English, and the guard asks « is this word one we use? »** The other question —
+  « is this word French? » — is only as good as its list of French words, and that list had
+  holes: a hundred and forty French names sat under a green guard. `scripts/code-vocabulary.txt`
+  holds the 522 words this codebase's names are built from, and a name built from a word nobody
+  wrote down is refused whatever language it comes from. Adding a word is one line, deliberately.
+- **A `data-*` name is code; its VALUE is not.** `data-go="profil"` names a page, and a page id
+  is an address. A contract has three ends — the markup that emits it, the `dataset.X` that
+  reads it, the rules that tap it — and they move in ONE step. Beware the ones the engine
+  GENERATES: it writes `data-${nom}` from a data key, so no search for the literal `data-x`
+  will ever list them.
 - **The engine republishes its own surface.** A classic script's top-level declarations are
   global; a module's are not, and the harness drives the engine by bare name in some forty
   `page.evaluate` call sites. The block at the bottom of `legacy.js` republishes exactly
