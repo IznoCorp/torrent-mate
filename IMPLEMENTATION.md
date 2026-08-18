@@ -103,9 +103,36 @@ round trip, still filled. Four mutations, one run each.
 burger, which is static app shell, and the « Voir toutes les pages » crossref of the
 unknown-address page, which is React now and emits the same `data-drawer`.
 
+**And the review found four defects, the first of which made the page inert.** Every action this
+page offers mutates the world IN PLACE and signals with `toucher()`, which leaves the state's
+identity unchanged — and the component subscribed to the state alone, so React bailed out and the
+page kept drawing what it had drawn. Measured: « Récupérer maintenant » moved a medium from one
+list to the other and left every counter on screen unchanged, 2/1/3/2/4 before and after. The two
+other pages that read mutable data subscribe to the version; this one did not. `#follq` had no
+handler at all — migrated as markup, its binding left to `mountSearch`, which runs inside
+`render()` before React has put the field in the document: typing filtered nothing until some
+other control forced a second render, the clear cross emptied the list but left the word in the
+field, and the `value` attribute never followed. What the operator TYPES reached a
+`dangerouslySetInnerHTML` unescaped, where the legacy escaped it — on the one call site that was
+missed, in a wave that had exported `escapeHtml` for exactly this. And the deck's « Passer »
+swipe had stopped animating: it writes the order to the store, so it re-renders, and the
+dependency-less effect rewrote `.deckbody` on every commit — replacing the very nodes
+`avancerDeck` animates, which is what that function's own comment forbids in as many words.
+
+R77 gained the hold that would have caught the first: an action that moves a medium redraws the
+page it moved it on. Mutation: removing the version subscription fells it, showing the counters
+identical on both sides. **Three more holds were not measuring enough.** The seam hold accepted
+« there are children », which a component rendering one satisfies too — it now reads what only
+the FRAGMENT does: the `className` it sets and the `data-dismissable` rows no component emits.
+The ownership hold read a constant declared fifty lines above it in the same file and could never
+fail — it asks `PAGES_OF()` now. And the « the page is drawn » floor had been lowered for ALL
+eight pages to admit the smallest; it is per page, measured, so a Médiathèque reduced to its tab
+bar no longer passes. `emptyHTML`, whose last four callers left with the pages, was deleted — it
+had stayed, and had been declared in the shell's type as if exported, which would have answered
+« is not a function » to the first component that believed it.
+
 **Wave gate**: `resync.py` moved the drawer's deployed-version card to the branch's base (0.97.20,
-build `52f28213`), committed as data; the full suite is **51 scripts, 570 holds, zero FAIL** (562
-+ 8 for R77); `make check` green including `check-frontend`; `scripts/check-no-french.py` green;
+build `52f28213`), committed as data; the full suite is **51 scripts, 571 holds, zero FAIL** (562 + 9 for R77); `make check` green including `check-frontend`; `scripts/check-no-french.py` green;
 R59/R69/R71 byte-identical against the merge point. The fragment went from 39 889 to 39 560
 lines. Every page belongs to the shell: `sys`, `maint`, `cfg`, `arr`, `lib`, `acq`, `profil`,
 `404`.
