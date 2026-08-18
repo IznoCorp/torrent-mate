@@ -94,7 +94,7 @@ export type Trailer = {
 };
 
 // One editable setting, as `tousLesReglages()` flattens one — the legacy
-// settings-panel row (see refonte.html's `REGLAGES`) merged with the
+// settings-panel row (see refonte.html's `SETTINGS`) merged with the
 // enclosing rubric it belongs to. `brut` / `v` stay untyped: a setting's
 // raw and current value can be a string, a number, or a nested structure
 // (e.g. the `disks` array), and the source never declares which.
@@ -138,7 +138,7 @@ export type DecisionChoice = {
 // folder's display name (`d`, always spelled `staging_path`-derived, never a
 // medium title), its kind, the title/year the automatic pass landed on, and
 // when the scrape ran. `motif` keys `MOTIF_LABEL` / `MOTIF_TON` /
-// `MOTIF_POURQUOI`.
+// `REASON_DETAIL`.
 type DecisionCommon = {
   d: string;
   k: "movie" | "show";
@@ -155,7 +155,7 @@ type DecisionCommon = {
 export type PendingDecision = DecisionCommon & { c: DecisionCandidate[] };
 
 // A decision already settled, exactly as `DECISIONS_REGLEES` shapes one.
-// `etat` keys `ETAT_DECISION` / `ETAT_DECISION_POURQUOI`. `choix` is present
+// `etat` keys `ETAT_DECISION` / `DECISION_STATE_DETAIL`. `choix` is present
 // only for a "resolved" row — a "superseded" or "dismissed" row never
 // recorded one, because no candidate was ever chosen.
 export type SettledDecision = DecisionCommon & {
@@ -355,7 +355,7 @@ export type CodeErrors = {
 // these exact keys, so they stay whatever it publishes.
 export type Reference = {
   RELEASES: Release[];
-  RESOS: Resolution[];
+  RESOLUTIONS: Resolution[];
   AUDIOS: [string, string][];
   icons: Record<string, string>;
   baseTitle: (title: string) => string;
@@ -375,7 +375,7 @@ export type Reference = {
   // Media-sheet data: hero banners, posters, cast portraits, trailers and
   // episode-status labels, plus the lookup/formatting helpers a sheet or a
   // season list reads them through — see refonte.html's `sheetFor` /
-  // `saisonsDe` / `possedesDe` neighbourhood for the exact resolution rules
+  // `seasonsOf` / `possedesDe` neighbourhood for the exact resolution rules
   // (title normalisation, year-suffix stripping) a re-implementation would
   // otherwise silently diverge from.
   HEROS: Record<string, string>;
@@ -407,7 +407,7 @@ export type Reference = {
   stLabel: (follow: Follow) => string;
   gridBadge: (follow: Follow) => { tone: string; text?: string } | null;
   cadenceFR: (cron: string) => string;
-  prochaineRechercheFR: (cron: string, now: Date) => string | null;
+  nextSearchFR: (cron: string, now: Date) => string | null;
   ST_TONE: Record<string, string>;
   URGENCY: Record<string, number>;
   GROUPS: FollowGroup[];
@@ -468,30 +468,30 @@ export type Reference = {
   surfErrInner: (subject: string) => string;
   SERVICES: Fact[];
   SERVICES_PANNE: Fact[];
-  PLANIFICATEURS: Fact[];
-  PLANIFICATEURS_PANNE: Fact[];
+  SCHEDULERS: Fact[];
+  SCHEDULERS_DOWN: Fact[];
   EXECUTIONS: PipelineRun[];
-  DISQUES: Fact[];
+  DISKS: Fact[];
   INDEX: Fact[];
-  DEPENDANCES: Fact[];
-  ERREURS: CodeErrors;
-  MAINT_RUBRIQUES: MaintenanceTopic[];
+  DEPENDENCIES: Fact[];
+  ERRORS: CodeErrors;
+  MAINT_TOPICS: MaintenanceTopic[];
   MAINT_ACTIONS: MaintenanceAction[];
-  REGLAGES: SettingsTopic[];
+  SETTINGS: SettingsTopic[];
   REG_ETAT: SettingsState;
   SECRETS: Secret[];
   emptyInner: (title: string, body: string) => string;
   chipHTML: (chip: [string, string] | null | undefined) => string;
   valeurCourante: (setting: Setting) => unknown;
-  nomDeFichier: (file: string) => string;
-  fichiersModifies: () => string[];
+  fileName: (file: string) => string;
+  changedFiles: () => string[];
   RISQUES: Record<string, Risk>;
   JOURNAL: DeletionJournal;
-  ACTEURS: Record<string, string>;
+  CAST: Record<string, string>;
   trailerIds: Record<string, Trailer>;
   EP_LABEL: Record<string, string>;
   sheetFor: (titre: string) => MediaSheet | null;
-  saisonsDe: (titre: string) => [number, number | null, number][];
+  seasonsOf: (titre: string) => [number, number | null, number][];
   possedesDe: (titre: string, saison: number) => Set<number> | null;
   plages: (nums: number[]) => string;
   initials: (nom: string) => string;
@@ -503,7 +503,7 @@ export type Reference = {
   svgIcon: (paths: string, strokeWidth?: number) => string;
   // Réglages (settings) panel actions — read the full setting list, derive
   // a setting's storage id, coerce a raw field input back to its stored
-  // type, and apply/open a pending edit. See refonte.html's `REGLAGES`
+  // type, and apply/open a pending edit. See refonte.html's `SETTINGS`
   // neighbourhood for the file/rubric structure `Setting.rubrique` carries.
   tousLesReglages: () => Setting[];
   reglageId: (reglage: Setting) => string;
@@ -511,9 +511,9 @@ export type Reference = {
   // file's `brut` otherwise. The pending-edit overlay itself stays private to
   // the engine — this returns the value, never the map.
   valeurEnCours: (reglage: Setting) => unknown;
-  valeurSaisie: (reglage: Setting, texte: string) => unknown;
+  typedValue: (reglage: Setting, texte: string) => unknown;
   modifierReglage: (id: string, valeur: unknown) => void;
-  ouvrirReglage: (id: string) => void;
+  openSetting: (id: string) => void;
   // The arbitration flow — decisions the scrape could not make on its own,
   // spelled out for a folder rather than a medium. `DECISIONS_ATTENTE` /
   // `DECISIONS_REGLEES` are the mock's twelve rows of `scrape_decision` (ten
@@ -522,12 +522,12 @@ export type Reference = {
   DECISIONS_REGLEES: SettledDecision[];
   MOTIF_LABEL: Record<string, string>;
   MOTIF_TON: Record<string, string>;
-  MOTIF_POURQUOI: Record<string, string>;
+  REASON_DETAIL: Record<string, string>;
   // Unlike the other label maps here, each value is a [tone, label] pair —
   // the same shape a chip carries — not a bare string: `ETAT_DECISION`
   // supplies both the chip's tone and its text in one lookup.
   ETAT_DECISION: Record<string, [string, string]>;
-  ETAT_DECISION_POURQUOI: Record<string, string>;
+  DECISION_STATE_DETAIL: Record<string, string>;
   VIA_LABEL: Record<string, string>;
   // `cible` is `state.resolveTarget`, which is `string | null` (see this
   // module's `UiState`-cast comment below); a target absent from
@@ -546,14 +546,14 @@ export type Reference = {
   derivedInflight: () => QueueCard[];
   derivedNotfound: () => QueueCard[];
   derivedDoneToday: () => QueueCard[];
-  // Agreeing with the machine (`actionLaisser`) or with a candidate
+  // Agreeing with the machine (`actionLeave`) or with a candidate
   // (`actionResoudre`, `choix` the chosen title when the operator picked
   // one) both remove the folder from wherever it is queued and hand it back
   // to the pipeline; `actionRecuperer` restarts a takeable item instead.
-  // Each toasts and re-renders on success; `actionLaisser` also reports
+  // Each toasts and re-renders on success; `actionLeave` also reports
   // whether the folder was found at all.
   actionResoudre: (titre: string, choix?: string) => void;
-  actionLaisser: (titre: string) => boolean;
+  actionLeave: (titre: string) => boolean;
   actionRecuperer: (titre: string) => void;
   toast: (msg: string) => void;
   posterBox: (

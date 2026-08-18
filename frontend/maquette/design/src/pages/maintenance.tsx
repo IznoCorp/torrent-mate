@@ -28,7 +28,7 @@ export function MaintenancePage(): ReactElement | null {
     factRowsHTML,
     skelCardsInner,
     surfErrInner,
-    MAINT_RUBRIQUES,
+    MAINT_TOPICS,
     MAINT_ACTIONS,
     RISQUES,
     JOURNAL,
@@ -58,7 +58,7 @@ export function MaintenancePage(): ReactElement | null {
   );
 
   // One rubric open: its commands, and the way back to all of them.
-  const topic = MAINT_RUBRIQUES.find((entry) => entry.id === state.maintRub);
+  const topic = MAINT_TOPICS.find((entry) => entry.id === state.maintRub);
   if (topic) {
     const actions = MAINT_ACTIONS.filter((action) => action.g === topic.id);
     return (
@@ -94,7 +94,7 @@ export function MaintenancePage(): ReactElement | null {
         <b>{t("screens.maintenance.introLead")}</b>
         {t("screens.maintenance.introRest")}
       </div>
-      {MAINT_RUBRIQUES.map((entry) => {
+      {MAINT_TOPICS.map((entry) => {
         const inside = MAINT_ACTIONS.filter((action) => action.g === entry.id);
         const destructive = inside.filter(
           (action) => action.r === "destructive",

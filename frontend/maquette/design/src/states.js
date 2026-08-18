@@ -24,11 +24,11 @@
    what `regions.json` names; the label is what the harness panel shows.
 */
 import {
-  REGLAGES,
+  SETTINGS,
   REG_ETAT,
-  afficherConnexion,
-  afficherDemarrage,
-  afficherInstallation,
+  showSignIn,
+  showStartup,
+  showInstallation,
   applyState,
   magasin,
   openDeleteDialog,
@@ -36,11 +36,11 @@ import {
   openJourneySheet,
   openPlusSheet,
   openUserSheet,
-  ouvrirActionMaintenance,
-  ouvrirReglage,
-  ouvrirTiroir,
+  openActionMaintenance,
+  openSetting,
+  openDrawer,
   reglageId,
-  reinitialiserReglages,
+  resetSettings,
   render,
 } from "./engine/legacy.js";
 
@@ -50,7 +50,7 @@ const STATES = [
       "Installation — Android et bureau",
       () => {
         applyState({ page: "acq", acqTab: "maintenant", phase: "prete" });
-        afficherInstallation("android");
+        showInstallation("android");
       },
     ],
     [
@@ -58,7 +58,7 @@ const STATES = [
       "Installation — iOS, méthode manuelle",
       () => {
         applyState({ page: "acq", acqTab: "maintenant", phase: "prete" });
-        afficherInstallation("ios");
+        showInstallation("ios");
       },
     ],
     [
@@ -66,14 +66,14 @@ const STATES = [
       "Démarrage — l'interface se charge",
       () => {
         applyState({ page: "acq", acqTab: "maintenant", phase: "prete" });
-        afficherDemarrage();
+        showStartup();
       },
     ],
-    ["connexion", "Connexion — écran d'entrée", () => afficherConnexion(false)],
+    ["connexion", "Connexion — écran d'entrée", () => showSignIn(false)],
     [
       "connexion-erreur",
       "Connexion — identifiants refusés",
-      () => afficherConnexion(true),
+      () => showSignIn(true),
     ],
     [
       "acq-encours-repos",
@@ -542,7 +542,7 @@ const STATES = [
       "Tiroir de navigation (hamburger)",
       () => {
         applyState({ page: "acq", phase: "prete" });
-        ouvrirTiroir();
+        openDrawer();
       },
     ],
     [
@@ -590,7 +590,7 @@ const STATES = [
       "Maintenance — une commande qui supprime",
       () => {
         applyState({ page: "maint", phase: "prete", maintRub: "clean" });
-        ouvrirActionMaintenance("library-clean");
+        openActionMaintenance("library-clean");
       },
     ],
     [
@@ -602,7 +602,7 @@ const STATES = [
       "reglages",
       "Réglages — les rubriques",
       () => {
-        reinitialiserReglages();
+        resetSettings();
         applyState({ page: "cfg", phase: "prete" });
       },
     ],
@@ -610,7 +610,7 @@ const STATES = [
       "reglages-rubrique",
       "Réglages — une rubrique",
       () => {
-        reinitialiserReglages();
+        resetSettings();
         REG_ETAT.rubrique = "acquisition";
         applyState({ page: "cfg", phase: "prete" });
       },
@@ -619,7 +619,7 @@ const STATES = [
       "reglages-recherche",
       "Réglages — recherche dans tous les réglages",
       () => {
-        reinitialiserReglages();
+        resetSettings();
         REG_ETAT.q = "espace";
         applyState({ page: "cfg", phase: "prete" });
       },
@@ -628,17 +628,17 @@ const STATES = [
       "reglages-un",
       "Réglages — un réglage, dans son panneau",
       () => {
-        reinitialiserReglages();
+        resetSettings();
         REG_ETAT.rubrique = "acquisition";
         applyState({ page: "cfg", phase: "prete" });
-        ouvrirReglage("thresholds:thresholds.min_free_space_staging_gb");
+        openSetting("thresholds:thresholds.min_free_space_staging_gb");
       },
     ],
     [
       "reglages-modifie",
       "Réglages — modifications en attente",
       () => {
-        reinitialiserReglages();
+        resetSettings();
         REG_ETAT.rubrique = "acquisition";
         REG_ETAT.modifs.set(
           "thresholds:thresholds.min_free_space_staging_gb",
@@ -664,21 +664,21 @@ const STATES = [
       `reglages-champ-${genre}`,
       `Réglages — ${quoi}`,
       () => {
-        reinitialiserReglages();
-        const trouve = REGLAGES.flatMap((r) => r.r).find(
+        resetSettings();
+        const trouve = SETTINGS.flatMap((r) => r.r).find(
           (x) => x.type === genre,
         );
         REG_ETAT.rubrique =
-          REGLAGES.find((r) => r.r.includes(trouve))?.id ?? null;
+          SETTINGS.find((r) => r.r.includes(trouve))?.id ?? null;
         applyState({ page: "cfg", phase: "prete" });
-        if (trouve) ouvrirReglage(reglageId(trouve));
+        if (trouve) openSetting(reglageId(trouve));
       },
     ]),
     [
       "reglages-secrets",
       "Réglages — secrets et accès",
       () => {
-        reinitialiserReglages();
+        resetSettings();
         REG_ETAT.rubrique = "secrets";
         applyState({ page: "cfg", phase: "prete" });
       },
@@ -687,7 +687,7 @@ const STATES = [
       "reglages-lecture-seule",
       "Réglages — instance en lecture seule",
       () => {
-        reinitialiserReglages();
+        resetSettings();
         REG_ETAT.lectureSeule = true;
         applyState({ page: "cfg", phase: "prete" });
       },
@@ -696,7 +696,7 @@ const STATES = [
       "reglages-redemarrage",
       "Réglages — redémarrage nécessaire",
       () => {
-        reinitialiserReglages();
+        resetSettings();
         REG_ETAT.redemarrage = true;
         applyState({ page: "cfg", phase: "prete" });
       },

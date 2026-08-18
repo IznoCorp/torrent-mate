@@ -102,7 +102,7 @@ async def main():
       const out={}, picks=[];
       const titles=Object.keys(FICHES_RAW ?? {});
       const take=(pred, n)=>titles.filter(pred).slice(0, n);
-      const incomplete=(t)=>{const s=POSSEDES[t]??POSSEDES[baseTitle(t)];
+      const incomplete=(t)=>{const s=OWNED[t]??OWNED[baseTitle(t)];
         if(!s) return false; const f=sheetFor(t); if(!f?.saisons) return false;
         return f.saisons.some(x=>x.ep && (s[String(x.n)]??[]).length < x.ep);};
       picks.push(...take(t=>sheetFor(t)?.k==='movie', 2));
@@ -338,7 +338,7 @@ async def main():
       // ALL series with an INTERNAL hole, not a sample: that is where the
       // threshold and the list diverge, so that is where the rule has a chance
       // to bite.
-      const withHoles=Object.entries(POSSEDES).filter(([t,s])=>
+      const withHoles=Object.entries(OWNED).filter(([t,s])=>
         Object.values(s).some(l=>l.length && l.some((n,i)=>n!==i+1))).map(([t])=>t);
       if (!withHoles.length) return ['no series with an internal hole — the rule would be vacuous'];
       let inspected=0;

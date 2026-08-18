@@ -217,7 +217,7 @@ const EP_SWATCH: Record<string, string> = {
 // is, and only ever reads these two fields.
 export type Follow = { t: string; st?: string };
 
-export type Season = ReturnType<Reference["saisonsDe"]>[number];
+export type Season = ReturnType<Reference["seasonsOf"]>[number];
 
 type EpisodeCatalog = { n: number; air?: string | null }[];
 
@@ -389,9 +389,9 @@ function FieldBlock({
   const {
     reglageId,
     valeurEnCours,
-    valeurSaisie,
+    typedValue,
     modifierReglage,
-    ouvrirReglage,
+    openSetting,
     icons,
   } = useReference();
   const { t } = useTranslation();
@@ -511,8 +511,8 @@ function FieldBlock({
         ref={(element) => {
           if (!element) return;
           const commit = () => {
-            modifierReglage(id, valeurSaisie(setting, element.value));
-            ouvrirReglage(id);
+            modifierReglage(id, typedValue(setting, element.value));
+            openSetting(id);
           };
           element.addEventListener("change", commit);
           return () => element.removeEventListener("change", commit);

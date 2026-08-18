@@ -42,14 +42,14 @@ function SettingRow({
   setting: Setting;
   withFile?: boolean;
 }): ReactElement {
-  const { REG_ETAT, reglageId, valeurCourante, nomDeFichier } =
+  const { REG_ETAT, reglageId, valeurCourante, fileName } =
     useReference();
   const identity = reglageId(setting);
   const edited = REG_ETAT.modifs.has(identity);
   // `withFile` is false when a group header already names the file: repeating it
   // there prints the file twice on one line and wraps the origin onto two.
   const origin = withFile
-    ? `${nomDeFichier(setting.f)} · ${setting.c}`
+    ? `${fileName(setting.f)} · ${setting.c}`
     : setting.c;
   return (
     <button
@@ -93,13 +93,13 @@ function SearchField(): ReactElement {
 // save. Its host is `#device`, a sibling of the page's own container, so this
 // page has a second portal: the one piece of it that renders outside its host.
 function SaveBar(): ReactElement | null {
-  const { REG_ETAT, fichiersModifies, nomDeFichier } = useReference();
+  const { REG_ETAT, changedFiles, fileName } = useReference();
   const { t } = useTranslation();
   const pending = REG_ETAT.modifs.size;
   if (pending === 0) return null;
   const device = document.getElementById("device");
   if (!device) return null;
-  const files = fichiersModifies().map(nomDeFichier).join(", ");
+  const files = changedFiles().map(fileName).join(", ");
   return createPortal(
     <div className="savebar" id="savebar">
       <span className="sn">
@@ -154,13 +154,13 @@ export function SettingsPage(): ReactElement | null {
   useStoreContent((content) => content.version);
   const { t } = useTranslation();
   const {
-    REGLAGES,
+    SETTINGS,
     REG_ETAT,
     SECRETS,
     emptyInner,
     chipHTML,
     tousLesReglages,
-    fichiersModifies,
+    changedFiles,
   } = useReference();
 
   if (REG_ETAT.rubrique === "secrets") {
@@ -202,7 +202,7 @@ export function SettingsPage(): ReactElement | null {
   }
 
   if (REG_ETAT.rubrique) {
-    const topic = REGLAGES.find((entry) => entry.id === REG_ETAT.rubrique);
+    const topic = SETTINGS.find((entry) => entry.id === REG_ETAT.rubrique);
     if (!topic) {
       return (
         <>
@@ -283,7 +283,7 @@ export function SettingsPage(): ReactElement | null {
       {REG_ETAT.redemarrage ? (
         <div className="loaderr">
           <b>{t("screens.settings.restartLead")}</b>{" "}
-          {fichiersModifies().join(", ") ||
+          {changedFiles().join(", ") ||
             t("screens.settings.restartSomeSettings")}
           {t("screens.settings.restartRest")}{" "}
           <button data-redemarrer="1">
@@ -291,7 +291,7 @@ export function SettingsPage(): ReactElement | null {
           </button>
         </div>
       ) : null}
-      {REGLAGES.map((topic) => (
+      {SETTINGS.map((topic) => (
         <button className="topic" data-rubrique={topic.id} key={topic.id}>
           <span style={{ minWidth: 0, flex: 1 }}>
             <span className="rt">{topic.t}</span>

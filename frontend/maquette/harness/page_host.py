@@ -609,7 +609,7 @@ async def main():
         # mutates the world IN PLACE and signals with `toucher()`, which
         # leaves the state's identity unchanged — a component subscribed to
         # the state alone bails out, and the page keeps drawing what it
-        # drew. Measured before it was held: « Récupérer maintenant » moved
+        # drew. Measured before it was held: « Récupérer now » moved
         # a medium from one list to the other and left every counter on
         # screen unchanged.
         await page.evaluate("()=>window.__go('acq-encours-charge')")
@@ -773,7 +773,7 @@ async def main():
         # `?page=arr` reaches a migrated page only if what that parser reads
         # crosses into the store the component reads. The engine reads it once
         # at boot, through the one in-place write left anywhere
-        # (`Object.assign(state, etatDeLURL())`), which is why this is measured
+        # (`Object.assign(state, stateFromUrl())`), which is why this is measured
         # rather than assumed. Measured, it holds for a sturdier reason than the
         # ordering alone: the address write that follows re-renders the shell,
         # which re-reads the mutated object — starting the engine AFTER React's

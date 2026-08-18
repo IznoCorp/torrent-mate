@@ -447,33 +447,33 @@ import { ecrans, panneau, pont } from "../seams.js";
     if (!exec)
       return `Recherche automatique : ${escapeHtml(cron)} (cadence non interprétée)`;
     const min = exec[1].padStart(2, "0");
-    const heures = exec[2].split(",").map((split) => `${split} h ${min}`);
+    const hours = exec[2].split(",").map((split) => `${split} h ${min}`);
     const quand =
-      heures.length === 1
-        ? `à ${heures[0]}`
-        : `à ${heures.slice(0, -1).join(", ")} et ${heures[heures.length - 1]}`;
+      hours.length === 1
+        ? `à ${hours[0]}`
+        : `à ${hours.slice(0, -1).join(", ")} et ${hours[hours.length - 1]}`;
     const freq =
-      heures.length === 1
+      hours.length === 1
         ? "une fois par jour"
-        : `${heures.length} fois par jour`;
+        : `${hours.length} fois par jour`;
     return `Recherche automatique : ${freq}, ${quand}`;
   }
 
   /* The next slot that cron will fire, phrased as the cadence line phrases the
      others. Returns null when the expression cannot be read — a card then says
      nothing about the next search rather than inventing one. */
-  function prochaineRechercheFR(cron, maintenant) {
+  function nextSearchFR(cron, now) {
     const exec = /^(\d+)\s+([\d,]+)\s+\*\s+\*\s+\*$/.exec(String(cron).trim());
     if (!exec) return null;
     const min = Number(exec[1]);
-    const heures = exec[2]
+    const hours = exec[2]
       .split(",")
       .map(Number)
       .sort((a2, b) => a2 - b);
-    const h = maintenant.getHours(),
-      m = maintenant.getMinutes();
+    const h = now.getHours(),
+      m = now.getMinutes();
     const suivante =
-      heures.find((x) => x > h || (x === h && min > m)) ?? heures[0];
+      hours.find((x) => x > h || (x === h && min > m)) ?? hours[0];
     return `${suivante} h ${String(min).padStart(2, "0")}`;
   }
 
@@ -3152,7 +3152,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      episodes. This is a LIST, not a count: « 21 of 26 » does not say which
      are missing, and 35 of these series have an INTERNAL hole — assuming
      the owned episodes are the first ones of the season is false for them. */
-  const POSSEDES = {
+  const OWNED = {
     "Les Minikeums": {
       0: [
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
@@ -4540,7 +4540,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      cards format only. The 154px poster used everywhere else is right at
      thumbnail size and mush once blown up to fill a phone screen: a format
      that shows one poster full-screen needs its own source. */
-  const AFFICHES_HD = {
+  const POSTERS_HD = {
     "Superman : L'Homme de demain": "assets/affiches/62e12311.webp",
     "Alita : Battle Angel": "assets/affiches/b39c19c9.webp",
     "Numéro quatre": "assets/affiches/0cb20ccb.webp",
@@ -5945,7 +5945,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     ambiguous: "info",
     manual: "neutral",
   };
-  const MOTIF_POURQUOI = {
+  const REASON_DETAIL = {
     below_threshold:
       "Aucun candidat n'atteignait le seuil de confiance automatique.",
     mid_band:
@@ -5961,7 +5961,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     dismissed: ["neutral", "Laissée telle quelle"],
     superseded: ["info", "Remplacée depuis"],
   };
-  const ETAT_DECISION_POURQUOI = {
+  const DECISION_STATE_DETAIL = {
     resolved: "Un candidat a été choisi, et un re-scrapage ciblé a été lancé.",
     dismissed:
       "Le dossier a été laissé tel quel : le résultat automatique est conservé, rien n'a été re-scrapé.",
@@ -6342,7 +6342,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      write and can be undone, and six DELETE. A list that draws them alike
      asks the operator to remember which is which, and the one they will
      forget is the one that matters. */
-  const MAINT_RUBRIQUES = [
+  const MAINT_TOPICS = [
     {
       id: "query",
       t: "Regarder",
@@ -6721,7 +6721,7 @@ import { ecrans, panneau, pont } from "../seams.js";
 
      `ok` is « did it run when it was due », never « is the process alive »:
      between two passes the process is gone, and that is its healthy state. */
-  const PLANIFICATEURS = [
+  const SCHEDULERS = [
     {
       l: "Contrôle de santé",
       ton: "success",
@@ -6783,7 +6783,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       : service,
   );
 
-  const PLANIFICATEURS_PANNE = PLANIFICATEURS.map((planificateur, rang) =>
+  const SCHEDULERS_DOWN = SCHEDULERS.map((planificateur, rang) =>
     rang === 0
       ? {
           ...planificateur,
@@ -6797,7 +6797,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   /* The disks, read from `df`. The percentage is what fills, so it is what is
      printed; a disk at 92 % says so before it says how many gigabytes remain,
      because « 335 Go » sounds like a lot and is four days of this library. */
-  const DISQUES = [
+  const DISKS = [
     {
       l: "Disk1",
       ton: "success",
@@ -6866,7 +6866,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     },
   ];
 
-  const DEPENDANCES = [
+  const DEPENDENCIES = [
     {
       l: "Redis",
       ton: "success",
@@ -6890,7 +6890,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   /* Code errors, and only those: a medium the pipeline refused is not an
      error, it is a decision, and it belongs to Arrivées. What is counted here
      is a run that RAISED. */
-  const ERREURS = {
+  const ERRORS = {
     total: 14,
     sur: 425,
     derniere: "le 6 août à 08 h 08",
@@ -7131,7 +7131,7 @@ import { ecrans, panneau, pont } from "../seams.js";
        rated. The second annotates that state: what is pending, what has just
        arrived. Mixed on one line they competed for the same row and the state
        stopped reading at a glance, which is the only thing that line is for. */
-    const ligneEtat = `${descriptor.f ? `<span class="frac">${escapeHtml(descriptor.f)}</span>` : ""}${chipHTML(descriptor.chip)}${descriptor.note != null ? `<span class="crating">${escapeHtml(String(descriptor.note))}</span>` : ""}`;
+    const stateRow = `${descriptor.f ? `<span class="frac">${escapeHtml(descriptor.f)}</span>` : ""}${chipHTML(descriptor.chip)}${descriptor.note != null ? `<span class="crating">${escapeHtml(String(descriptor.note))}</span>` : ""}`;
     const ligneAnnotations = `${descriptor.caption ? `<span class="caption">${escapeHtml(descriptor.caption)}</span>` : ""}${descriptor.fresh ? `<span class="freshtag">Nouveau</span>` : ""}`;
     return `<div class="card${descriptor.fresh ? " fresh" : ""}"${aFiche ? "" : ' data-nonmedia="dossier"'}>
     ${poster}
@@ -7142,7 +7142,7 @@ import { ecrans, panneau, pont } from "../seams.js";
         ${descriptor.s ? `<span class="csub">${escapeHtml(descriptor.s)}</span>` : ""}
         ${descriptor.r ? `<span class="creason">${richText(descriptor.r)}</span>` : ""}
         ${descriptor.overview ? `<span class="cov">${escapeHtml(descriptor.overview)}</span>` : ""}
-        ${ligneEtat ? `<span class="cmeta">${ligneEtat}</span>` : ""}
+        ${stateRow ? `<span class="cmeta">${stateRow}</span>` : ""}
         ${ligneAnnotations ? `<span class="cannotations">${ligneAnnotations}</span>` : ""}
       </button>
     </div>
@@ -7297,7 +7297,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      « Résoudre → » on an acquisition card used to change nothing at all: the
      button was there, the screen opened, the choice was made, and the item
      stayed exactly where it was. */
-  function sortirDeLaFile(titre) {
+  function leaveQueue(titre) {
     for (const [liste, versCharge] of [
       [world.stuck, true],
       [world.stuckReel, false],
@@ -7316,8 +7316,8 @@ import { ecrans, panneau, pont } from "../seams.js";
      re-scraped — and the folder LEAVES the queue, because the operator has
      answered. A queue that kept what has been answered would grow forever and
      stop meaning « what is waiting for me ». */
-  function actionLaisser(titre) {
-    const sortie = sortirDeLaFile(titre);
+  function actionLeave(titre) {
+    const sortie = leaveQueue(titre);
     if (!sortie) return false;
     const carte = {
       t: sortie.sorti.t,
@@ -7335,7 +7335,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   }
 
   function actionResoudre(titre, choix) {
-    const sortie = sortirDeLaFile(titre);
+    const sortie = leaveQueue(titre);
     if (!sortie) return;
     const carte = {
       t: choix ?? sortie.sorti.t,
@@ -7354,7 +7354,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   function actionPause(titre) {
     const found = world.follows.find((follow) => follow.t === titre);
     if (!found) return;
-    const avant = found.st;
+    const before = found.st;
     found.st =
       found.st === "disabled"
         ? found.k === "movie"
@@ -7368,7 +7368,7 @@ import { ecrans, panneau, pont } from "../seams.js";
         ? `« ${found.t} » réactivé.`
         : `« ${found.t} » ${found.k === "movie" ? "ne sera plus cherché" : "mis en pause"}.`,
       () => {
-        found.st = avant;
+        found.st = before;
         render();
       },
     );
@@ -7385,7 +7385,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     });
   }
 
-  function actionSuivre(titre, kind) {
+  function actionFollow(titre, kind) {
     if (
       world.follows.some((follow) => baseTitle(follow.t) === baseTitle(titre))
     )
@@ -7401,7 +7401,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     );
   }
 
-  function actionSupprimer(titres) {
+  function actionDelete(titres) {
     titres.forEach((titre) => world.removedLib.add(titre));
     world.lib = world.lib.filter((lib) => !world.removedLib.has(lib.t));
     magasin.ecrire({ selMode: false, selected: new Set() });
@@ -7446,11 +7446,11 @@ import { ecrans, panneau, pont } from "../seams.js";
     // of state. Reset here, or a measurement inherits the previous one's
     // spinner.
     if (window.__reposPTR) window.__reposPTR();
-    if (typeof reinitialiserReglages === "function") reinitialiserReglages();
+    if (typeof resetSettings === "function") resetSettings();
     // The screen stack is navigation state: a measurement must not inherit
     // the screens a previous journey left underneath the visible one.
     pileEcrans.length = 0;
-    renduCourant = null;
+    currentRender = null;
     // The router is navigation state too: `__go` states are DRIVEN, not a
     // journey — a measurement must not inherit whichever screen ROUTE a
     // previous one navigated to, for the exact reason it must
@@ -7538,7 +7538,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       .map((ligne) => {
         // No VALUE is what greys a line — a sub-line explaining why there is
         // nothing to report does not make the line a report.
-        const vide = !ligne.v;
+        const empty = !ligne.v;
         // A line that leads somewhere IS the control: a list of facts beside a
         // parallel column of buttons asks which of the two to aim at, and the
         // answer is never on screen.
@@ -7550,7 +7550,7 @@ import { ecrans, panneau, pont } from "../seams.js";
               )
               .join("")
           : "";
-        const balise = ligne.cible ? "button" : "span";
+        const tag = ligne.cible ? "button" : "span";
         /* A BADGE, and it carries the word rather than sitting beside it.
 
            A row whose value is a STATE — en ligne / hors ligne, connecté /
@@ -7583,15 +7583,15 @@ import { ecrans, panneau, pont } from "../seams.js";
         const badge = ligne.ton
           ? `<span class="chip ${TONS[ligne.ton]}">${valeur}</span>`
           : valeur;
-        return `<li class="fx${vide ? " fempty" : ""}${ligne.etat === "danger" ? " fblocked" : ""}${
+        return `<li class="fx${empty ? " fempty" : ""}${ligne.etat === "danger" ? " fblocked" : ""}${
           ligne.cible ? " fclick" : ""
-        }"><${balise} class="fw"${cible}>
+        }"><${tag} class="fw"${cible}>
       <span class="fn">${escapeHtml(ligne.l)}</span>
       <span class="fr">${badge}</span>
       <span class="fs">${ligne.k ? `<span class="fk">${escapeHtml(ligne.k)}</span>` : ""}${
         ligne.k && ligne.s ? " · " : ""
       }${ligne.s ? escapeHtml(ligne.s) : ""}</span>
-    </${balise}></li>`;
+    </${tag}></li>`;
       })
       .join("")}`;
   }
@@ -7612,11 +7612,11 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   /* One command's panel. Derived from what is TRUE about the command — does
      it delete, can it run blank, is it long — never from a list of screens. */
-  function ouvrirActionMaintenance(id) {
+  function openActionMaintenance(id) {
     const action = MAINT_ACTIONS.find((a) => a.id === id);
     if (!action) return;
-    const supprime = action.r === "destructive";
-    const blanc = supprime ? true : !!currentState().maintBlanc;
+    const deleted = action.r === "destructive";
+    const blanc = deleted ? true : !!currentState().maintBlanc;
     panneau.ouvrir({
       titre: action.l,
       sousTitre: action.id,
@@ -7638,7 +7638,7 @@ import { ecrans, panneau, pont } from "../seams.js";
             },
           ],
         },
-        supprime
+        deleted
           ? {
               type: "note",
               texte:
@@ -7655,7 +7655,7 @@ import { ecrans, panneau, pont } from "../seams.js";
                 toast: `${action.l} — lancée${action.blanc ? " à blanc" : ""}. Le résultat s'affichera ici.`,
               },
             },
-            supprime
+            deleted
               ? {
                   texte: "Lancer pour de vrai",
                   desactive: true,
@@ -7690,7 +7690,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      above the key in the file itself, which until now nobody could read
      without opening the file. */
 
-  const REGLAGES = [
+  const SETTINGS = [
     {
       id: "rangement",
       t: "Où vont les médias",
@@ -9202,7 +9202,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   /* Every named state starts from the same place: pending edits, the rubric
      one is in and the search are all state, and a measurement must not inherit
      the one before it. */
-  function reinitialiserReglages() {
+  function resetSettings() {
     REG_ETAT.modifs.clear();
     REG_ETAT.rubrique = null;
     REG_ETAT.q = "";
@@ -9216,8 +9216,8 @@ import { ecrans, panneau, pont } from "../seams.js";
   }
 
   function valeurCourante(reglage) {
-    const modif = REG_ETAT.modifs.get(reglageId(reglage));
-    return modif === undefined ? reglage.v : modif;
+    const change = REG_ETAT.modifs.get(reglageId(reglage));
+    return change === undefined ? reglage.v : change;
   }
 
   /* The file a setting really lives in. Nineteen of them are JSON5 overlays
@@ -9225,18 +9225,18 @@ import { ecrans, panneau, pont } from "../seams.js";
      live in `ecosystem.config.js`. Appending « .json5 » to every name would
      make the save bar promise a file that does not exist — and the save bar's
      whole job is to name what it will write. */
-  function nomDeFichier(f) {
+  function fileName(f) {
     return f.includes(".") ? f : f + ".json5";
   }
 
-  function fichiersModifies() {
+  function changedFiles() {
     return [
       ...new Set([...REG_ETAT.modifs.keys()].map((id) => id.split(":")[0])),
     ];
   }
 
   function tousLesReglages() {
-    return REGLAGES.flatMap((rubrique) =>
+    return SETTINGS.flatMap((rubrique) =>
       rubrique.r.map((reglage) => ({ ...reglage, rubrique })),
     );
   }
@@ -9274,7 +9274,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   /* Changing a value. The prototype does not draw a keyboard: what it draws is
      that the change is PENDING — marked on its row, counted in the bar, and
      written by nothing until the bar is used. */
-  function memeValeur(a, b) {
+  function sameValue(a, b) {
     return Array.isArray(a) || Array.isArray(b)
       ? JSON.stringify(a) === JSON.stringify(b)
       : a === b;
@@ -9286,7 +9286,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     // A value equal to the file's is not a pending change: it is no change, and
     // leaving it in the map would make the save bar name a file it would write
     // identically.
-    if (memeValeur(valeur, reglage.brut)) REG_ETAT.modifs.delete(id);
+    if (sameValue(valeur, reglage.brut)) REG_ETAT.modifs.delete(id);
     else REG_ETAT.modifs.set(id, valeur);
     render();
   }
@@ -9294,7 +9294,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   /* What a field's value BECOMES, read from the field itself. A number field
      returns a string; storing it as one would compare unequal to the file's
      number for ever, so the type it goes back as is the type it came from. */
-  function valeurSaisie(reglage, texte) {
+  function typedValue(reglage, texte) {
     if (reglage.type === "nombre") {
       const n = Number(texte);
       return texte.trim() === "" ? null : Number.isNaN(n) ? reglage.brut : n;
@@ -9302,7 +9302,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     return texte === "" ? null : texte;
   }
 
-  function ouvrirSecret(secret) {
+  function openSecret(secret) {
     panneau.ouvrir({
       titre: secret.l,
       meta: [{ m: secret.k }],
@@ -9351,15 +9351,15 @@ import { ecrans, panneau, pont } from "../seams.js";
   /* One setting, in the panel — the same panel as everywhere else, taking the
      same descriptor of facts. What it says: where the value comes from, what
      the file's own comment explains, and what it is now. */
-  function ouvrirReglage(id) {
+  function openSetting(id) {
     const reglage = tousLesReglages().find((r) => reglageId(r) === id);
     if (!reglage) return;
     const courante = valeurCourante(reglage);
-    const modifie = REG_ETAT.modifs.has(id);
+    const changed = REG_ETAT.modifs.has(id);
     panneau.ouvrir({
       titre: window.__settingLabels.label(reglage),
       meta: [{ m: `${reglage.f}.json5 · ${reglage.c}` }],
-      ...(modifie ? { puce: ["info", "modifié, pas encore écrit"] } : {}),
+      ...(changed ? { puce: ["info", "modifié, pas encore écrit"] } : {}),
       blocs: [
         reglage.note ? { type: "note", texte: reglage.note } : null,
         REG_ETAT.lectureSeule ? null : { type: "champ", reglage },
@@ -9367,7 +9367,7 @@ import { ecrans, panneau, pont } from "../seams.js";
           type: "faits",
           lignes: [
             { c: "Valeur actuelle", v: String(courante) },
-            ...(modifie
+            ...(changed
               ? [{ c: "Valeur écrite", v: String(reglage.v), terne: true }]
               : []),
             // The file is on the mono line above; a « Fichier » fact under it
@@ -9384,7 +9384,7 @@ import { ecrans, panneau, pont } from "../seams.js";
                   desactive: true,
                 }
               : null,
-            modifie
+            changed
               ? {
                   texte: "Annuler la modification",
                   icone: icons.x,
@@ -9639,7 +9639,7 @@ import { ecrans, panneau, pont } from "../seams.js";
 
      A distinction never to lose: the profile FILTERS (it eliminates), the
      ranking ORDERS (it separates what remains). */
-  const RESOS = ["720p", "1080p", "2160p"];
+  const RESOLUTIONS = ["720p", "1080p", "2160p"];
   const AUDIOS = [
     ["VF", "Piste française (VF, VFF, VFQ, TRUEFRENCH)"],
     ["VOSTFR", "Sous-titres français"],
@@ -9654,7 +9654,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      well before the deferred module script (shell.tsx) runs. */
   window.__referentiel = {
     RELEASES,
-    RESOS,
+    RESOLUTIONS,
     AUDIOS,
     icons,
     baseTitle,
@@ -9684,7 +9684,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     /* What the Acquisition page draws. The follow DESCRIPTORS and their
        vocabulary (`stFraction`, `stLabel`, `gridBadge`, `ST_TONE`, `URGENCY`,
        `GROUPS`) are the page's own language; `cadenceFR` and
-       `prochaineRechercheFR` turn a cron expression into a sentence — and the
+       `nextSearchFR` turn a cron expression into a sentence — and the
        page says out loud that the raw expression is a defect it inherited. The
        SUGGESTION machinery is NOT here: `#sugitems`, `#sugload` and
        `.deckbody` stay the fragment's to fill, because the deck's gesture
@@ -9693,7 +9693,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     stLabel,
     gridBadge,
     cadenceFR,
-    prochaineRechercheFR,
+    nextSearchFR,
     ST_TONE,
     URGENCY,
     GROUPS,
@@ -9717,7 +9717,7 @@ import { ecrans, panneau, pont } from "../seams.js";
        two halves the way the swipe handler drives them, and reads what the
        animation is doing one frame later. */
     passerSug,
-    avancerDeck,
+    advanceDeck,
     /* The page table itself, published so a rule can compare it against the
        shell's: two independent lists that must agree, and a disagreement in
        one direction draws a page in both worlds at once. */
@@ -9748,7 +9748,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     SYNOPSIS,
     /* A GETTER: `LIB_PAGE` is a `const` declared further down this same script,
        so a plain shorthand would hit the temporal dead zone the instant this
-       literal is built — the same trap `ACTEURS` and `TRIS` are published
+       literal is built — the same trap `CAST` and `TRIS` are published
        around. */
     get LIB_PAGE() {
       return LIB_PAGE;
@@ -9769,17 +9769,17 @@ import { ecrans, panneau, pont } from "../seams.js";
     surfErrInner,
     SERVICES,
     SERVICES_PANNE,
-    PLANIFICATEURS,
-    PLANIFICATEURS_PANNE,
+    SCHEDULERS,
+    SCHEDULERS_DOWN,
     EXECUTIONS,
-    DISQUES,
+    DISKS,
     INDEX,
-    DEPENDANCES,
-    ERREURS,
-    /* What the Maintenance page draws. `ouvrirActionMaintenance`
+    DEPENDENCIES,
+    ERRORS,
+    /* What the Maintenance page draws. `openActionMaintenance`
        reste au fragment : c'est la délégation `data-maintact` qui l'appelle, pas
        un composant. */
-    MAINT_RUBRIQUES,
+    MAINT_TOPICS,
     MAINT_ACTIONS,
     /* What the Réglages page draws. REG_ETAT est l'objet
        MUTABLE que la délégation écrit : il reste la source, et le composant le
@@ -9787,13 +9787,13 @@ import { ecrans, panneau, pont } from "../seams.js";
        `magasin?.toucher()` en premier). Le NOM d'un réglage, lui, n'est plus
        ici : `settings-labels.ts` le porte pour la page comme pour le panneau,
        et le fragment le lit par `window.__settingLabels`. */
-    REGLAGES,
+    SETTINGS,
     REG_ETAT,
     SECRETS,
     emptyInner,
     valeurCourante,
-    nomDeFichier,
-    fichiersModifies,
+    fileName,
+    changedFiles,
     RISQUES,
     JOURNAL,
     // ACTEURS and AUJOURDHUI are declared with `const` further down this
@@ -9801,13 +9801,13 @@ import { ecrans, panneau, pont } from "../seams.js";
     // reference would hit the temporal dead zone the instant this object is
     // built. A getter defers the read to first access, by which time the
     // whole script has finished running.
-    get ACTEURS() {
-      return ACTEURS;
+    get CAST() {
+      return CAST;
     },
     trailerIds,
     EP_LABEL,
     sheetFor,
-    saisonsDe,
+    seasonsOf,
     possedesDe,
     plages,
     initials,
@@ -9824,9 +9824,9 @@ import { ecrans, panneau, pont } from "../seams.js";
     // `.brut` instead would show a list one has just shortened at its old
     // length, and the removal would look like it did nothing.
     valeurEnCours,
-    valeurSaisie,
+    typedValue,
     modifierReglage,
-    ouvrirReglage,
+    openSetting,
     // The arbitration flow. `DECISIONS_ATTENTE` / `DECISIONS_REGLEES` and the
     // label maps are all `const` declared above this literal, so a plain
     // shorthand reference reads the finished value — no TDZ here. `toast` and
@@ -9838,9 +9838,9 @@ import { ecrans, panneau, pont } from "../seams.js";
     DECISIONS_REGLEES,
     MOTIF_LABEL,
     MOTIF_TON,
-    MOTIF_POURQUOI,
+    REASON_DETAIL,
     ETAT_DECISION,
-    ETAT_DECISION_POURQUOI,
+    DECISION_STATE_DETAIL,
     VIA_LABEL,
     decisionEnAttente,
     // Thin arrows over `derived.blocked` / `derived.stuck` — `derived` itself
@@ -9856,7 +9856,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     derivedNotfound: () => derived.notfound(),
     derivedDoneToday: () => derived.doneToday(),
     actionResoudre,
-    actionLaisser,
+    actionLeave,
     actionRecuperer,
     toast,
     posterBox,
@@ -9916,7 +9916,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     const badge = opts.badge;
     // A rating is not a status: it reads over the picture without claiming a
     // meaning in the status palette, so it takes the neutral overlay.
-    const teinte = badge
+    const tone = badge
       ? badge.tone === "note"
         ? "tile-overlay"
         : badge.tone === "muted"
@@ -9929,7 +9929,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       : null;
     return `<button class="tile${opts.muted ? " off" : ""}" ${opts.index != null ? `data-tile="${opts.index}"` : ""} ${opts.dismiss != null ? `data-dismissable="${escapeHtml(String(opts.dismiss))}"` : ""} data-panel="${escapeHtml(opts.panel || `media:${descriptor.t}`)}" ${sel ? `aria-selected="${selected}"` : `data-fiche="${escapeHtml(descriptor.t)}"`}>
       <span class="p">${posterBox(descriptor.t, descriptor.k)}</span>
-      ${sel ? `<span class="sel">${svgIcon(icons.check, 3)}</span>` : badge ? `<span class="tilebadge" style="background:var(--${teinte})">${escapeHtml(badge.txt)}</span>` : ""}
+      ${sel ? `<span class="sel">${svgIcon(icons.check, 3)}</span>` : badge ? `<span class="tilebadge" style="background:var(--${tone})">${escapeHtml(badge.txt)}</span>` : ""}
       <span class="nm">${escapeHtml(descriptor.t)}</span>
       <span class="fr">${escapeHtml(sousLigne)}</span>
     </button>`;
@@ -10074,9 +10074,9 @@ import { ecrans, panneau, pont } from "../seams.js";
      One note for whoever measures this: Chrome delivers NO `touchmove` for a
      drift this small, only `pointermove`. A tolerance written on the touch
      stream would never run. */
-  const APPUI_MS = 480;
-  const APPUI_TOLERANCE = 12;
-  let appui = null;
+  const PRESS_MS = 480;
+  const PRESS_TOLERANCE = 12;
+  let press = null;
   let clicAvaler = null;
 
   /* Which panel a press addresses, from wherever the finger landed.
@@ -10085,7 +10085,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      `data-panel`: it carries the sheet it opens on a tap. Its card knows the
      panel, so the search widens to the card the finger is in — one gesture,
      one meaning, on every part of a medium. */
-  function panneauSousLeDoigt(cible) {
+  function panelUnderFinger(cible) {
     return (
       cible.closest?.("[data-panel]") ??
       cible.closest?.(".card, .sugwrap")?.querySelector("[data-panel]") ??
@@ -10093,20 +10093,20 @@ import { ecrans, panneau, pont } from "../seams.js";
     );
   }
 
-  function armerAppui(point, cible) {
-    const element = panneauSousLeDoigt(cible);
+  function armPress(point, cible) {
+    const element = panelUnderFinger(cible);
     if (currentState().selMode || !element) return;
     /* A card body opens the panel on a simple TAP, so arming a timer on it
        would fire the panel twice — once on the press, once on the click. */
     if (element.classList.contains("cbody") && cible.closest?.(".cbody"))
       return;
     annulerAppui();
-    appui = {
+    press = {
       element,
       x: point.clientX,
       y: point.clientY,
       minuteur: window.setTimeout(() => {
-        appui = null;
+        press = null;
         /* The panel opens UNDER the finger, so the click that follows the lift
            is swallowed WHEREVER it lands — not only on what was pressed. On a
            204px tile the panel's primary action sits exactly under the thumb,
@@ -10122,20 +10122,20 @@ import { ecrans, panneau, pont } from "../seams.js";
            apart. */
         clicAvaler = { x: point.clientX, y: point.clientY };
         openPanel(element);
-      }, APPUI_MS),
+      }, PRESS_MS),
     };
   }
 
-  function suivreAppui(point) {
-    if (!appui) return;
-    const ecart = Math.hypot(point.clientX - appui.x, point.clientY - appui.y);
-    if (ecart > APPUI_TOLERANCE) annulerAppui();
+  function followPress(point) {
+    if (!press) return;
+    const distance = Math.hypot(point.clientX - press.x, point.clientY - press.y);
+    if (distance > PRESS_TOLERANCE) annulerAppui();
   }
 
   function annulerAppui() {
-    if (!appui) return;
-    clearTimeout(appui.minuteur);
-    appui = null;
+    if (!press) return;
+    clearTimeout(press.minuteur);
+    press = null;
   }
 
   /* Bound to `document`, not `cadre` (`#device`, the phone frame). A
@@ -10146,7 +10146,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      root so this keeps answering a card drawn by a migrated screen even if
      that placement ever changes again. `document` is the one ancestor
      guaranteed either way. Both handlers already gate on the TARGET
-     (`panneauSousLeDoigt`, the input/textarea/contenteditable check below),
+     (`panelUnderFinger`, the input/textarea/contenteditable check below),
      so the wider root changes nothing for content that was never meant to
      answer a press. */
   document.addEventListener(
@@ -10154,11 +10154,11 @@ import { ecrans, panneau, pont } from "../seams.js";
     (event) => {
       // A new gesture clears any mark the previous one left unconsumed.
       clicAvaler = null;
-      if (event.isPrimary) armerAppui(event, event.target);
+      if (event.isPrimary) armPress(event, event.target);
     },
     { passive: true },
   );
-  document.addEventListener("pointermove", (event) => suivreAppui(event), {
+  document.addEventListener("pointermove", (event) => followPress(event), {
     passive: true,
   });
   /* The mark is NEVER cleared on pointerup: for a real finger the click comes
@@ -10200,12 +10200,12 @@ import { ecrans, panneau, pont } from "../seams.js";
     "click",
     (event) => {
       if (!clicAvaler) return;
-      const ecart = Math.hypot(
+      const distance = Math.hypot(
         event.clientX - clicAvaler.x,
         event.clientY - clicAvaler.y,
       );
       clicAvaler = null;
-      if (ecart > APPUI_TOLERANCE) return;
+      if (distance > PRESS_TOLERANCE) return;
       event.preventDefault();
       event.stopPropagation();
     },
@@ -10310,8 +10310,8 @@ import { ecrans, panneau, pont } from "../seams.js";
     return `<article class="dcard" data-deck="${index}" data-depth="${depth}" data-panel="sug:${index}">
       <button class="p" data-fiche="${escapeHtml(suggestion.t)}" aria-label="Fiche de ${escapeHtml(suggestion.t)}">
         ${
-          AFFICHES_HD[suggestion.t]
-            ? `<img src="${AFFICHES_HD[suggestion.t]}" alt="" loading="lazy">`
+          POSTERS_HD[suggestion.t]
+            ? `<img src="${POSTERS_HD[suggestion.t]}" alt="" loading="lazy">`
             : posterBox(
                 suggestion.t,
                 suggestion.k === "Film" ? "movie" : "show",
@@ -10329,7 +10329,7 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   /* Deck order. « Passer » does not decide anything: it sends the card to the
      back, so it comes round again. « Pas intéressé » removes it, with an undo. */
-  function deckOrdre() {
+  function deckOrder() {
     if (!currentState().sugOrder)
       magasin.ecrire({
         sugOrder: SUGGESTIONS.map((SUGGESTIONS2, index) => index),
@@ -10338,12 +10338,12 @@ import { ecrans, panneau, pont } from "../seams.js";
   }
 
   function passerSug(index) {
-    const filter = deckOrdre().filter((element) => element !== index);
+    const filter = deckOrder().filter((element) => element !== index);
     magasin.ecrire({ sugOrder: [...filter, index] });
   }
 
   function deckHTML() {
-    const restants = deckOrdre().map((element) => [
+    const restants = deckOrder().map((element) => [
       SUGGESTIONS[element],
       element,
     ]);
@@ -10372,14 +10372,14 @@ import { ecrans, panneau, pont } from "../seams.js";
      new card is inserted at the back, rising from under the deck. Rebuilding
      the HTML would replace every node, and a replaced node cannot animate:
      that is what made the pile look like it was cutting rather than moving. */
-  function avancerDeck(index, vers) {
+  function advanceDeck(index, vers) {
     const deck = document.querySelector(".deck");
-    const sortante = deck?.querySelector('.dcard[data-depth="0"]');
-    if (!deck || !sortante) return;
+    const outgoing = deck?.querySelector('.dcard[data-depth="0"]');
+    if (!deck || !outgoing) return;
 
-    sortante.classList.add("out");
-    sortante.style.transform = `translateX(${vers > 0 ? 460 : -460}px) rotate(${vers > 0 ? 20 : -20}deg)`;
-    sortante.dataset.depth = "sortie";
+    outgoing.classList.add("out");
+    outgoing.style.transform = `translateX(${vers > 0 ? 460 : -460}px) rotate(${vers > 0 ? 20 : -20}deg)`;
+    outgoing.dataset.depth = "sortie";
 
     deck.querySelectorAll(".dcard[data-depth]").forEach((querySelectorAll) => {
       const depth = Number(querySelectorAll.dataset.depth);
@@ -10389,34 +10389,34 @@ import { ecrans, panneau, pont } from "../seams.js";
 
     // The card that takes the place of the top one becomes the swipeable one,
     // and needs the gesture labels the outgoing card carried.
-    const nouvelleTete = deck.querySelector('.dcard[data-depth="0"]');
-    if (nouvelleTete && !nouvelleTete.querySelector(".dhint")) {
-      nouvelleTete.insertAdjacentHTML(
+    const newHead = deck.querySelector('.dcard[data-depth="0"]');
+    if (newHead && !newHead.querySelector(".dhint")) {
+      newHead.insertAdjacentHTML(
         "beforeend",
         `<span class="dhint l">Passer</span><span class="dhint r">Pas intéressé</span>`,
       );
     }
 
     // Feed the back of the pile from the order, skipping what is already shown.
-    const affichees = new Set(
+    const shown = new Set(
       [...deck.querySelectorAll(".dcard")].map((element) =>
         Number(element.dataset.deck),
       ),
     );
-    const suivante = deckOrdre().find((element) => !affichees.has(element));
+    const suivante = deckOrder().find((element) => !shown.has(element));
     if (suivante != null) {
       deck.insertAdjacentHTML(
         "afterbegin",
         deckCardHTML(SUGGESTIONS[suivante], suivante, 3),
       );
-      const entrante = deck.querySelector('.dcard[data-depth="3"]');
+      const incoming = deck.querySelector('.dcard[data-depth="3"]');
       requestAnimationFrame(() =>
-        requestAnimationFrame(() => (entrante.dataset.depth = "2")),
+        requestAnimationFrame(() => (incoming.dataset.depth = "2")),
       );
     }
 
     setTimeout(() => {
-      sortante.remove();
+      outgoing.remove();
       if (!deck.querySelector(".dcard")) refreshDeck();
     }, 440);
   }
@@ -10432,14 +10432,14 @@ import { ecrans, panneau, pont } from "../seams.js";
     const element = document.querySelector(".deck");
     const port = document.querySelector("#port");
     if (!element || !port) return;
-    const haut =
+    const top =
       element.getBoundingClientRect().top - port.getBoundingClientRect().top;
-    let hauteur = Math.max(340, Math.round(port.clientHeight - haut - 12));
+    let hauteur = Math.max(340, Math.round(port.clientHeight - top - 12));
     element.style.height = hauteur + "px";
     // Self-correcting: whatever still overflows is taken back, once. A deck
     // that makes the page scroll is a deck that is not full-screen.
-    const trop = port.scrollHeight - port.clientHeight;
-    if (trop > 0) element.style.height = Math.max(340, hauteur - trop) + "px";
+    const overflow = port.scrollHeight - port.clientHeight;
+    if (overflow > 0) element.style.height = Math.max(340, hauteur - overflow) + "px";
   }
 
   window.addEventListener("resize", mountDeck, { passive: true });
@@ -10453,11 +10453,11 @@ import { ecrans, panneau, pont } from "../seams.js";
       mountDeck();
       return;
     }
-    const rendu = currentState().sugMode === "poster" ? sugTileHTML : sugCardHTML;
+    const cardTemplate = currentState().sugMode === "poster" ? sugTileHTML : sugCardHTML;
     box.className = currentState().sugMode === "poster" ? "grid" : "";
     box.innerHTML = SUGGESTIONS.slice(0, currentState().sugCount)
       .map((slice, index) =>
-        currentState().sugGone.has(index) ? "" : rendu(slice, index),
+        currentState().sugGone.has(index) ? "" : cardTemplate(slice, index),
       )
       .join("");
   }
@@ -10556,14 +10556,14 @@ import { ecrans, panneau, pont } from "../seams.js";
           ? "✓ Ajouté"
           : "✓ Suivi";
     }
-    const verbe = identifier
+    const verbLabel = identifier
       ? "Associer"
       : result.k === "Film"
         ? "Ajouter"
         : "Suivre";
     // The ellipsis warns that the act opens a question — it will replace
     // something already held — rather than happening on the spot.
-    return result.owned && !identifier ? `${verbe}…` : verbe;
+    return result.owned && !identifier ? `${verbLabel}…` : verbLabel;
   }
 
   /* A search result is not one of your media yet, so it has a panel of its own
@@ -10573,7 +10573,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      what it lists. */
   function openAddSheet(index) {
     const result = SEARCH.results[index];
-    const fait = currentState().added.has(index);
+    const done = currentState().added.has(index);
     panneau.ouvrir({
       titre: result.t,
       meta: `${result.y} · ${result.k} · TMDB`,
@@ -10595,7 +10595,7 @@ import { ecrans, panneau, pont } from "../seams.js";
               texte: addVerb(result, index),
               icone: icons.plus,
               ton: "primary",
-              desactive: fait,
+              desactive: done,
               cible: { act: `add:${index}` },
             },
             {
@@ -10756,16 +10756,16 @@ import { ecrans, panneau, pont } from "../seams.js";
      · One unwind is in flight at a time. A back is asynchronous, so
        `history.state` still reads the entry we just asked to pop, and a second
        call within the same task would ask for one entry too many. */
-  let deroulementEnCours = 0;
+  let unwindInProgress = 0;
 
-  function deroulerCouche(nom) {
-    if (deroulementEnCours) return;
+  function unwindLayer(nom) {
+    if (unwindInProgress) return;
     if (!history.state || history.state.layer !== nom) return;
-    deroulementEnCours += 1;
+    unwindInProgress += 1;
     try {
       __pont.retour();
     } catch (error) {
-      deroulementEnCours -= 1;
+      unwindInProgress -= 1;
     }
   }
 
@@ -10773,7 +10773,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      and the named-entry check above are read by the popstate handler right
      below them, so they stay here, with the reader, and the shell borrows the
      verb rather than a copy of the bookkeeping. */
-  window.__derouler = deroulerCouche;
+  window.__derouler = unwindLayer;
 
   /* A settlement of SEVERAL entries at once (`__pont.reculer`) announces itself
      through the same latch — and raises it by ONE, never by the number of
@@ -10785,12 +10785,12 @@ import { ecrans, panneau, pont } from "../seams.js";
      surplus standing and swallow the operator's next real back — the mirror
      image of the defect this replaces, and just as invisible.
 
-     No named-entry check here, unlike `deroulerCouche`: what is being settled
+     No named-entry check here, unlike `unwindLayer`: what is being settled
      is a WALK of several entries whose top one is not necessarily a layer, so
      there is no single name to check it against. The caller counts what it
      stacked and is the only one that can. */
   window.__annoncerPops = (nombreDEntrees) => {
-    if (nombreDEntrees > 0) deroulementEnCours += 1;
+    if (nombreDEntrees > 0) unwindInProgress += 1;
   };
 
   /* Kept as a VERB the driver can still say: `touch.py`, `drag.py` and
@@ -10838,16 +10838,16 @@ import { ecrans, panneau, pont } from "../seams.js";
      picking a release) are not replacements — they empty the layer first,
      so nothing stacks and back keeps meaning « leave ». */
   const pileEcrans = [];
-  let renduCourant = null;
+  let currentRender = null;
   let depilage = false;
 
   function openScreen(html, cle, rendre) {
     const element = select("#screen");
-    const dejaOuvert = element.classList.contains("open");
-    const memeEcran = dejaOuvert && cle != null && element.dataset.cle === cle;
-    if (dejaOuvert && !memeEcran && !depilage && renduCourant) {
+    const alreadyOpen = element.classList.contains("open");
+    const sameScreen = alreadyOpen && cle != null && element.dataset.cle === cle;
+    if (alreadyOpen && !sameScreen && !depilage && currentRender) {
       pileEcrans.push({
-        rendre: renduCourant,
+        rendre: currentRender,
         scrollY: element.querySelector(".port")?.scrollTop ?? 0,
       });
       try {
@@ -10856,7 +10856,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     }
     let startY = 0;
     let champ = null;
-    if (memeEcran) {
+    if (sameScreen) {
       startY = element.querySelector(".port")?.scrollTop ?? 0;
       const activeElement = document.activeElement;
       if (activeElement && element.contains(activeElement) && activeElement.id)
@@ -10865,7 +10865,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     element.innerHTML = html;
     if (cle != null) element.dataset.cle = cle;
     else delete element.dataset.cle;
-    if (memeEcran) {
+    if (sameScreen) {
       const port = element.querySelector(".port");
       if (port && startY > 0) {
         /* Restoring ONCE is not enough: posters load after the content is
@@ -10901,13 +10901,13 @@ import { ecrans, panneau, pont } from "../seams.js";
         }
       }
     }
-    if (!dejaOuvert) {
+    if (!alreadyOpen) {
       element.classList.add("open");
       try {
         __pont.coucher("screen");
       } catch (error) {}
     }
-    renduCourant = rendre ?? null;
+    currentRender = rendre ?? null;
   }
   function closeScreen(pop) {
     if (!select("#screen").classList.contains("open")) return;
@@ -10931,12 +10931,12 @@ import { ecrans, panneau, pont } from "../seams.js";
           port.scrollTop = precedent.scrollY;
         });
       }
-      if (!pop) deroulerCouche("screen");
+      if (!pop) unwindLayer("screen");
       return;
     }
     select("#screen").classList.remove("open");
-    renduCourant = null;
-    if (!pop) deroulerCouche("screen");
+    currentRender = null;
+    if (!pop) unwindLayer("screen");
   }
 
   /* ── LE RETOUR SUIT LE CHEMIN PARCOURU ────────────────────────────────
@@ -10956,9 +10956,9 @@ import { ecrans, panneau, pont } from "../seams.js";
      it back, and lets the stack run out — which is what closes an installed
      app on Android. A page cannot close itself; exhausting its history is the
      only thing it can honestly do. */
-  const RETOUR_FENETRE = 5000;
+  const BACK_WINDOW = 5000;
   let pilotage = false;
-  let sortieArmee = 0;
+  let armedExit = 0;
   // The legacy engine's own address BASE — "/" in production, but whatever a
   // static host answers the document under otherwise (the rule harness's
   // 8899 server names it "/wrapped.html"). Computed once at boot by the
@@ -10989,7 +10989,7 @@ import { ecrans, panneau, pont } from "../seams.js";
 
      Only what DIFFERS from the opening state is written, so the common case
      has a clean URL and a link carries only what it means to carry. */
-  const URL_DEFAUTS = {
+  const URL_DEFAULTS = {
     page: "acq",
     tab: "maintenant",
     lens: "cat",
@@ -10998,7 +10998,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     rub: "",
   };
 
-  function urlDeLEtat() {
+  function urlFromState() {
     // Built on adresseBase, never on location.pathname: writing over the
     // CURRENT pathname would either clobber a router-owned address (the
     // C1 hole) or, once it does not, still be redundant with what pushing
@@ -11020,10 +11020,10 @@ import { ecrans, panneau, pont } from "../seams.js";
     };
     const params = new URLSearchParams();
     for (const [nom, valeur] of Object.entries(courant))
-      if (valeur && valeur !== URL_DEFAUTS[nom])
+      if (valeur && valeur !== URL_DEFAULTS[nom])
         params.set(nom, String(valeur));
-    const requete = params.toString();
-    return adresseBase + (requete ? "?" + requete : "");
+    const query = params.toString();
+    return adresseBase + (query ? "?" + query : "");
   }
 
   /* Reads back what the URL carries. An absent parameter is not « empty »: it
@@ -11032,7 +11032,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      `render()` is what turns an unknown id into the not-found surface, and
      silently rewriting it here would mean a mistyped address quietly became a
      different one. */
-  function etatDeLURL() {
+  function stateFromUrl() {
     const params = new URLSearchParams(location.search);
     const lu = {};
     const prendre = (param, champ) => {
@@ -11047,7 +11047,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     return lu;
   }
 
-  function etatDeNavigation() {
+  function navigationState() {
     return {
       tm: "nav",
       page: currentState().page,
@@ -11074,7 +11074,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   function noterLeChemin() {
     if (pilotage) return;
     try {
-      __pont.noter(etatDeNavigation(), urlDeLEtat());
+      __pont.noter(navigationState(), urlFromState());
     } catch (error) {
       console.error("noterLeChemin : écriture de navigation échouée", error);
       window.__navEchec = true;
@@ -11095,13 +11095,13 @@ import { ecrans, panneau, pont } from "../seams.js";
     // back gesture and carries no destination: consuming it is the whole
     // handling. Read before the layer guards, because the layer's class is
     // already gone by the time its pop lands.
-    if (deroulementEnCours) {
-      deroulementEnCours -= 1;
+    if (unwindInProgress) {
+      unwindInProgress -= 1;
       return;
     }
 
     // A layer first: it is what sits on top, and it is what a back closes.
-    if (select("#drawer").classList.contains("open")) return fermerTiroir(true);
+    if (select("#drawer").classList.contains("open")) return closeDrawer(true);
     if (select("#screen").classList.contains("open")) return closeScreen(true);
     // The sheet lives in the shell; it is asked, not inspected. Same rank in
     // the ladder as before — drawer, then screen, then sheet.
@@ -11112,7 +11112,7 @@ import { ecrans, panneau, pont } from "../seams.js";
 
     const etat = etatCourant;
     if (etat && etat.tm === "nav") {
-      sortieArmee = 0;
+      armedExit = 0;
       pilotage = true;
       applyState({
         page: etat.page,
@@ -11138,15 +11138,15 @@ import { ecrans, panneau, pont } from "../seams.js";
     if (!(etat && etat.tm === "garde")) return;
 
     // The guard was popped: there is nowhere left to go back to.
-    const maintenant = Date.now();
-    if (sortieArmee && maintenant - sortieArmee < RETOUR_FENETRE) {
-      sortieArmee = 0;
+    const now = Date.now();
+    if (armedExit && now - armedExit < BACK_WINDOW) {
+      armedExit = 0;
       // Nothing is put back: from the guard, one more back leaves the
       // document — which is what closes an installed app on Android.
       __pont.retour();
       return;
     }
-    sortieArmee = maintenant;
+    armedExit = now;
     // Where one IS is pushed back on, so the route does not change and the
     // next back lands on the guard again.
     noterLeChemin();
@@ -11160,7 +11160,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   window.__fermerCouches = () => {
     closeDlg();
     panneau.fermer();
-    fermerTiroir();
+    closeDrawer();
   };
 
   /* Design notes */
@@ -11210,7 +11210,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      surface; who may see it is decided by the server that serves this file. A
      password written into a page is readable by everyone the page reaches,
      which is the opposite of what a password is for. */
-  function afficherConnexion(avecErreur) {
+  function showSignIn(avecErreur) {
     document.querySelector("#login").hidden = false;
     document.querySelector("#loginerr").hidden = !avecErreur;
     if (avecErreur) document.querySelector("#loginform").reset();
@@ -11231,12 +11231,12 @@ import { ecrans, panneau, pont } from "../seams.js";
      A failure is swallowed on purpose: served from a plain static server there
      is no such route, and a design reference that dead-ends on a 404 teaches
      nothing about the design. Nothing else here depends on the answer. */
-  async function deconnecter() {
+  async function signOut() {
     panneau.fermer();
     try {
       await fetch("/deconnexion", { redirect: "manual" });
     } catch (error) {}
-    afficherConnexion(false);
+    showSignIn(false);
   }
 
   /* The startup screen, shown for as long as there is no interface to show.
@@ -11245,21 +11245,21 @@ import { ecrans, panneau, pont } from "../seams.js";
      thing in the frame — and comes off once the first render has run. Driving
      to its named state puts it back, so it can be judged like any other
      surface. */
-  function afficherDemarrage() {
-    const ecran = document.querySelector("#splash");
-    ecran.hidden = false;
+  function showStartup() {
+    const screen = document.querySelector("#splash");
+    screen.hidden = false;
     /* Restarted from zero every time the screen is shown, so driving to its
        named state twice does not measure a bar left where the previous visit
        stopped it. */
-    const barre = ecran.querySelector(".splashbar i");
-    if (barre) {
-      barre.style.animation = "none";
-      void barre.offsetWidth;
-      barre.style.animation = "";
+    const barNode = screen.querySelector(".splashbar i");
+    if (barNode) {
+      barNode.style.animation = "none";
+      void barNode.offsetWidth;
+      barNode.style.animation = "";
     }
   }
 
-  function masquerDemarrage() {
+  function hideStartup() {
     document.querySelector("#splash").hidden = true;
   }
 
@@ -11280,8 +11280,8 @@ import { ecrans, panneau, pont } from "../seams.js";
      budgeted, so a bar half full means half way. A load that ends sooner ends
      the screen sooner, and that is not a second path: it is the same promise
      resolving. */
-  const DEMARRAGE_MS = 5000;
-  let finDuChargement = null;
+  const STARTUP_MS = 5000;
+  let loadingEnd = null;
 
   /* Shows the screen and leaves it up until the wait it covers resolves.
 
@@ -11290,16 +11290,16 @@ import { ecrans, panneau, pont } from "../seams.js";
      PLAYED rather than observed — the sign-in inside the prototype, which
      fetches nothing and has to show what the real one looks like. */
   window.__chargementTermine = () => {
-    finDuChargement?.();
-    finDuChargement = null;
-    masquerDemarrage();
+    loadingEnd?.();
+    loadingEnd = null;
+    hideStartup();
   };
 
-  function couvrirLeChargement(duree = DEMARRAGE_MS) {
-    afficherDemarrage();
+  function coverLoading(duree = STARTUP_MS) {
+    showStartup();
     new Promise((resoudre) => {
-      finDuChargement = resoudre;
-    }).then(masquerDemarrage);
+      loadingEnd = resoudre;
+    }).then(hideStartup);
     window.setTimeout(() => window.__chargementTermine(), duree);
   }
 
@@ -11321,7 +11321,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       /* What actually follows a sign-in: the interface is not there yet, and
          the wait is covered rather than left blank — by the same screen, ended
          the same way, as the one a cold load puts up. */
-      couvrirLeChargement();
+      coverLoading();
     });
 
   /* Install proposal — two platforms, two paths.
@@ -11331,10 +11331,10 @@ import { ecrans, panneau, pont } from "../seams.js";
      wait for and no API to call, so the only honest thing a page can do is
      explain the manual route. A single banner that said « installez-moi » on
      both would be a dead end on one of them. */
-  function afficherInstallation(plateforme) {
-    const barre = document.querySelector("#installbar");
+  function showInstallation(plateforme) {
+    const barNode = document.querySelector("#installbar");
     const surIOS = plateforme === "ios";
-    barre.hidden = false;
+    barNode.hidden = false;
     document.querySelector("#installsub").hidden = surIOS;
     document.querySelector("#installsteps").hidden = !surIOS;
     document.querySelector("#installgo").hidden = surIOS;
@@ -11353,15 +11353,15 @@ import { ecrans, panneau, pont } from "../seams.js";
   });
   document.querySelector("#installgo").addEventListener("click", async () => {
     masquerInstallation();
-    if (!installEvenement) {
+    if (!installEvent) {
       toast("Installation demandée — le navigateur prend la main.");
       return;
     }
     /* The captured event is REPLAYED here, on a gesture, which is the only
        moment a browser accepts it. It can be used exactly once. */
-    installEvenement.prompt();
-    const choix = await installEvenement.userChoice.catch(() => null);
-    installEvenement = null;
+    installEvent.prompt();
+    const choix = await installEvent.userChoice.catch(() => null);
+    installEvent = null;
     toast(
       choix && choix.outcome === "accepted"
         ? "Installation en cours — l'icône arrive sur votre écran d'accueil."
@@ -11388,10 +11388,10 @@ import { ecrans, panneau, pont } from "../seams.js";
      Nobody is asked while already installed: `display-mode: standalone` means
      the icon is already on the home screen, and a banner there is noise about
      something already done. */
-  let installEvenement = null;
+  let installEvent = null;
   let installRefusee = false;
 
-  function dejaInstallee() {
+  function alreadyInstalled() {
     return (
       window.matchMedia("(display-mode: standalone)").matches ||
       window.navigator.standalone === true
@@ -11410,22 +11410,22 @@ import { ecrans, panneau, pont } from "../seams.js";
   }
 
   function proposerInstallation(plateforme) {
-    if (installRefusee || dejaInstallee()) return;
+    if (installRefusee || alreadyInstalled()) return;
     // Never over the entry screen: there is nothing to install yet, and the
     // banner would cover the only field on it.
     if (!document.querySelector("#login").hidden) return;
-    afficherInstallation(plateforme);
+    showInstallation(plateforme);
   }
 
   window.addEventListener("beforeinstallprompt", (evenement) => {
     // Without this the browser posts its own proposal and ours never runs.
     evenement.preventDefault();
-    installEvenement = evenement;
+    installEvent = evenement;
     proposerInstallation("android");
   });
 
   window.addEventListener("appinstalled", () => {
-    installEvenement = null;
+    installEvent = null;
     masquerInstallation();
     toast("TorrentMate est installé.");
   });
@@ -11445,7 +11445,7 @@ import { ecrans, panneau, pont } from "../seams.js";
           : "aucun état enregistré — src/states.js n'a pas été chargé");
     closeHarness();
     if (!stateId.startsWith("connexion")) masquerConnexion();
-    if (stateId !== "demarrage") masquerDemarrage();
+    if (stateId !== "demarrage") hideStartup();
     if (!stateId.startsWith("pwa-")) masquerInstallation();
     // Reset to seed by DEFAULT: a measurement must never inherit the
     // mutations of a previous one. `__go(id, {keep:true})` preserves
@@ -11484,10 +11484,10 @@ import { ecrans, panneau, pont } from "../seams.js";
      a `:root` variable, and everything that must sit above it reads that.
      Magic numbers used to sit here — exactly the defect the app already
      fixed (« nothing positions itself by a distance to an edge »). */
-  function publierHauteurBarre() {
+  function publishBarHeight() {
     const bar = document.querySelector(".bottombar");
     if (!bar) return;
-    const publier = () => {
+    const publish = () => {
       const ceil = Math.ceil(bar.getBoundingClientRect().height);
       const cur =
         document.documentElement.style.getPropertyValue("--tm-bottom-bar-h");
@@ -11497,11 +11497,11 @@ import { ecrans, panneau, pont } from "../seams.js";
           ceil + "px",
         );
     };
-    publier();
+    publish();
     if (typeof ResizeObserver !== "undefined")
-      new ResizeObserver(publier).observe(bar);
+      new ResizeObserver(publish).observe(bar);
   }
-  publierHauteurBarre();
+  publishBarHeight();
 
   window.__measure = (enabled) => {
     document.documentElement.classList.toggle("measuring", enabled !== false);
@@ -11533,7 +11533,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     ["Configuration", [["cfg", "Réglages", icons.sort]]],
   ];
 
-  function ouvrirTiroir() {
+  function openDrawer() {
     const badges = Object.fromEntries(
       PAGES_OF().map((element2) => [element2.id, element2.badge]),
     );
@@ -11581,11 +11581,11 @@ import { ecrans, panneau, pont } from "../seams.js";
       __pont.coucher("drawer");
     } catch (error) {}
   }
-  function fermerTiroir(pop) {
+  function closeDrawer(pop) {
     if (!select("#drawer").classList.contains("open")) return;
     select("#drawer").classList.remove("open");
     select("#scrim").classList.remove("open");
-    if (!pop) deroulerCouche("drawer");
+    if (!pop) unwindLayer("drawer");
   }
 
   function closeHarness() {
@@ -11646,16 +11646,16 @@ import { ecrans, panneau, pont } from "../seams.js";
     } catch (error) {}
     return "systeme";
   }
-  function appliquerApparence(mode) {
-    const clair =
+  function applyAppearance(mode) {
+    const light =
       mode === "clair" ||
       (mode === "systeme" &&
         matchMedia("(prefers-color-scheme: light)").matches);
-    if (clair) document.documentElement.setAttribute("data-theme", "light");
+    if (light) document.documentElement.setAttribute("data-theme", "light");
     else document.documentElement.removeAttribute("data-theme");
   }
   matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
-    if (apparenceCourante() === "systeme") appliquerApparence("systeme");
+    if (apparenceCourante() === "systeme") applyAppearance("systeme");
   });
 
   /* Global delegation */
@@ -11675,14 +11675,14 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.reglage) {
-      ouvrirReglage(closest.dataset.reglage);
+      openSetting(closest.dataset.reglage);
       return;
     }
     if (closest.dataset.secret) {
       // A secret is never shown, so its panel offers the only act that exists:
       // replacing it. Nothing to read, nothing to copy.
       const secret = SECRETS.find((x) => x.k === closest.dataset.secret);
-      if (secret) ouvrirSecret(secret);
+      if (secret) openSecret(secret);
       return;
     }
     if (closest.dataset.champ && closest.dataset.vers) {
@@ -11690,7 +11690,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       const reglage = tousLesReglages().find((r) => reglageId(r) === id);
       if (reglage) {
         modifierReglage(id, closest.dataset.vers === "oui");
-        ouvrirReglage(id);
+        openSetting(id);
       }
       return;
     }
@@ -11701,7 +11701,7 @@ import { ecrans, panneau, pont } from "../seams.js";
         const liste = [...(valeurEnCours(reglage) || [])];
         liste.splice(Number(closest.dataset.index), 1);
         modifierReglage(id, liste);
-        ouvrirReglage(id);
+        openSetting(id);
       }
       return;
     }
@@ -11714,7 +11714,7 @@ import { ecrans, panneau, pont } from "../seams.js";
         const liste = [...(valeurEnCours(reglage) || [])];
         liste.push(`valeur ${liste.length + 1}`);
         modifierReglage(id, liste);
-        ouvrirReglage(id);
+        openSetting(id);
       }
       return;
     }
@@ -11728,11 +11728,11 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.enregistrer) {
-      const fichiers = fichiersModifies();
+      const fichiers = changedFiles();
       REG_ETAT.modifs.clear();
       REG_ETAT.redemarrage = true;
       render();
-      toast(`Enregistré — ${fichiers.map(nomDeFichier).join(", ")}.`);
+      toast(`Enregistré — ${fichiers.map(fileName).join(", ")}.`);
       return;
     }
     if (closest.dataset.redemarrer) {
@@ -11767,8 +11767,8 @@ import { ecrans, panneau, pont } from "../seams.js";
          itself (see data-navgo): letting the close unwind and the arrival
          push would race, the asynchronous pop landing after the push and
          overwriting it. */
-      const surCouche = history.state && history.state.layer;
-      fermerTiroir(true);
+      const onLayer = history.state && history.state.layer;
+      closeDrawer(true);
       panneau.fermer(true);
       // This empties the covered-screen STACK too, so the DOM ends up clean
       // however many screens were stacked — but that is DOM bookkeeping
@@ -11789,7 +11789,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       port.scrollTop = 0;
       render();
       try {
-        if (surCouche) __pont.remplacer(etatDeNavigation(), urlDeLEtat());
+        if (onLayer) __pont.remplacer(navigationState(), urlFromState());
         else noterLeChemin();
       } catch (error) {
         console.error("data-go : écriture de navigation échouée", error);
@@ -11857,7 +11857,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.deconnexion) {
-      deconnecter();
+      signOut();
       return;
     }
     if (closest.dataset.toast) {
@@ -11901,11 +11901,11 @@ import { ecrans, panneau, pont } from "../seams.js";
           setTimeout(() => element.remove(), 320);
         }
       }
-      actionSuivre(closest.dataset.follow, suggestion?.k ?? "Série");
+      actionFollow(closest.dataset.follow, suggestion?.k ?? "Série");
       // The media sheet used to REOPEN itself here so its button would toggle
       // under the finger — an action whose screen does not change reads as a
       // failed action. The sheet is a React screen now and re-renders from
-      // the store instead, but `actionSuivre` mutates `world.follows` IN
+      // the store instead, but `actionFollow` mutates `world.follows` IN
       // PLACE and no `render()` follows on this branch: the bump has to be
       // explicit, exactly as it is for the dismissed suggestion above, or
       // the button never learns the follow happened.
@@ -11952,7 +11952,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     if (closest.dataset.laisser) {
       const cible = currentState().resolveTarget;
       pont.retour();
-      setTimeout(() => actionLaisser(cible), 240);
+      setTimeout(() => actionLeave(cible), 240);
       return;
     }
     /* What the desktop deck's ⏎ did, without a keyboard: the next folder
@@ -12052,11 +12052,11 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.ep) {
-      ouvrirPopEp(closest);
+      openPopEp(closest);
       return;
     }
     if (closest.dataset.drawer) {
-      ouvrirTiroir();
+      openDrawer();
       return;
     }
     if (closest.dataset.maintrub !== undefined) {
@@ -12067,7 +12067,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.maintact) {
-      ouvrirActionMaintenance(closest.dataset.maintact);
+      openActionMaintenance(closest.dataset.maintact);
       return;
     }
     if (closest.dataset.pipe) {
@@ -12103,13 +12103,13 @@ import { ecrans, panneau, pont } from "../seams.js";
          close unwind and the arrival push: a back is asynchronous, so its
          pop would land after the push and overwrite it. The close is
          therefore told not to touch history at all. */
-      const surLeTiroir = history.state && history.state.layer === "drawer";
-      fermerTiroir(true);
+      const onDrawer = history.state && history.state.layer === "drawer";
+      closeDrawer(true);
       magasin.ecrire({ page: id });
       port.scrollTop = 0;
       render();
       try {
-        if (surLeTiroir) __pont.remplacer(etatDeNavigation(), urlDeLEtat());
+        if (onDrawer) __pont.remplacer(navigationState(), urlFromState());
         else noterLeChemin();
       } catch (error) {
         console.error("data-navgo : écriture de navigation échouée", error);
@@ -12122,7 +12122,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       try {
         localStorage.setItem("tm-apparence", mode);
       } catch (error) {}
-      appliquerApparence(mode);
+      applyAppearance(mode);
       // Reflect in place: the drawer stays open — choosing an appearance is
       // not a navigation, and watching the theme change is the feedback.
       closest.parentElement
@@ -12256,8 +12256,8 @@ import { ecrans, panneau, pont } from "../seams.js";
       const fiche = closest.dataset.fiche;
       // Asked of the shell, not read off the DOM: the layer is the shell's,
       // and its store answers truthfully in the middle of this task.
-      const couche = panneau.ouverte();
-      if (couche) {
+      const layer = panneau.ouverte();
+      if (layer) {
         panneau.fermer();
         setTimeout(() => ecrans.fiche(fiche), 260);
       } else {
@@ -12328,7 +12328,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       // any more.
       currentState().added.add(index);
       magasin.toucher();
-      actionSuivre(result.t, result.k);
+      actionFollow(result.t, result.k);
       return;
     }
     if (closest.dataset.confirmadd) {
@@ -12409,7 +12409,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       // the transform alone left the next drag resuming from a drawer that was
       // no longer open, which is the jump seen from the other side.
       const carte = closest.closest(".swipe").querySelector(".card");
-      if (carteOuverte === carte) refermerCarte();
+      if (openCard === carte) collapseCard();
       else carte.style.transform = "";
       if (closest.classList.contains("remove"))
         return currentState().page === "lib"
@@ -12483,7 +12483,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       .forEach((querySelectorAll) =>
         querySelectorAll.addEventListener("click", () => {
           closeDlg();
-          actionSupprimer(titles);
+          actionDelete(titles);
         }),
       );
   }
@@ -12495,7 +12495,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      library. Missing data is written « inconnu » — never a mute dash,
      because an unknown step is stated as unknown, never as « not done ». */
   /* 55 real TMDB cast portraits, 74px WebP. */
-  const ACTEURS = {
+  const CAST = {
     "Rebecca Ferguson": "assets/acteurs/b08eae19.webp",
     Common: "assets/acteurs/2d8b0e5a.webp",
     "Chinaza Uche": "assets/acteurs/38f9ab07.webp",
@@ -33290,9 +33290,9 @@ import { ecrans, panneau, pont } from "../seams.js";
      provider catalogue; null when unknown — the sheet then shows « ? »
      rather than an invented total, because each question has a single
      derivation. */
-  function saisonsDe(titre) {
+  function seasonsOf(titre) {
     const fiche2 = sheetFor(titre);
-    const detenus = POSSEDES[titre] ?? POSSEDES[baseTitle(titre)] ?? null;
+    const detenus = OWNED[titre] ?? OWNED[baseTitle(titre)] ?? null;
     const cat = fiche2?.saisons ?? [];
     if (cat.length) {
       return cat.map((cat2) => {
@@ -33319,7 +33319,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   /* Owned episodes of a season, as a set. Null when the series is unknown
      to the library: claim nothing in that case. */
   function possedesDe(titre, saison) {
-    const ownedBySeason = POSSEDES[titre] ?? POSSEDES[baseTitle(titre)] ?? null;
+    const ownedBySeason = OWNED[titre] ?? OWNED[baseTitle(titre)] ?? null;
     if (!ownedBySeason) return null;
     const ownedNumbers = ownedBySeason[String(saison)];
     return ownedNumbers ? new Set(ownedNumbers) : new Set();
@@ -33342,7 +33342,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     return out.join(", ");
   }
 
-  function saisonsFicheHTML(sheet, seasons, possede, cat, title0) {
+  function sheetSeasonsHTML(sheet, seasons, possede, cat, title0) {
     const eps = sheet?.eps ?? {};
     const lignes = possede
       ? seasons.map(([number, aired, own]) => ({ n: number, aired, own }))
@@ -33376,7 +33376,7 @@ import { ecrans, panneau, pont } from "../seams.js";
             : detenus && detenus.size
               ? (ligne.aired ?? Math.max(...detenus))
               : ligne.aired || 0;
-        const numsManquants =
+        const missingNums =
           possede && detenus && ligne.aired
             ? Array.from(
                 { length: ligne.aired },
@@ -33390,11 +33390,11 @@ import { ecrans, panneau, pont } from "../seams.js";
                    tone. The title stays neutral — it is what one reads
                    first, so it keeps maximum contrast. One colour signal
                    per row, not a Christmas tree. */
-                const futur = liste2.air && liste2.air > AUJOURDHUI;
+                const future = liste2.air && liste2.air > AUJOURDHUI;
                 /* State comes from the LIST of owned numbers. A « number <=
                    owned count » threshold assumes the hole is always at the
                    end of the season: false for 35 series in this library. */
-                const episodeState = futur
+                const episodeState = future
                   ? "annonce"
                   : !possede || !detenus
                     ? "non_verifie"
@@ -33444,8 +33444,8 @@ import { ecrans, panneau, pont } from "../seams.js";
             ${!possede && ligne.air ? `<span class="miss" style="background:transparent;color:var(--muted-foreground);font-weight:400">${dateFR(ligne.air)}</span>` : ""}
           </summary>
           ${
-            numsManquants.length
-              ? `<p class="missing">Manquants : ${plages(numsManquants)}</p>`
+            missingNums.length
+              ? `<p class="missing">Manquants : ${plages(missingNums)}</p>`
               : ""
           }
           ${corps}
@@ -33519,24 +33519,24 @@ import { ecrans, panneau, pont } from "../seams.js";
   /* Tapping a cell: its air date, in French. The sentence follows the state
      — « Sortie prévue » for an announced episode, « Diffusé » otherwise —
      and a missing date is stated, not invented. */
-  function fermerPopEp() {
+  function closePopEp() {
     document
       .querySelectorAll(".eppop")
       .forEach((querySelectorAll) => querySelectorAll.remove());
   }
-  function ouvrirPopEp(btn) {
-    fermerPopEp();
+  function openPopEp(btn) {
+    closePopEp();
     const [titre, saison, episodeNumber, etat] = btn.dataset.ep.split("|");
     const fiche2 = sheetFor(titre);
     const liste = fiche2?.eps?.[saison] ?? null;
     const episode =
       liste?.find((liste2) => String(liste2.n) === episodeNumber) ?? null;
     const airDate = episode?.air ? dateFR(episode.air) : null;
-    const futur = episode?.air && episode.air > AUJOURDHUI;
+    const future = episode?.air && episode.air > AUJOURDHUI;
     const phrase =
       airDate == null
         ? "Date de diffusion inconnue."
-        : futur || etat === "annonce"
+        : future || etat === "annonce"
           ? `Sortie prévue le ${airDate}`
           : `Diffusé le ${airDate}`;
     const createElement = document.createElement("div");
@@ -33548,14 +33548,14 @@ import { ecrans, panneau, pont } from "../seams.js";
     const popoverWidth = 220;
     let left = rect.left + rect.width / 2 - popoverWidth / 2;
     left = Math.max(dev.left + 8, Math.min(left, dev.right - popoverWidth - 8));
-    const haut = rect.top - dev.top > 120;
+    const top = rect.top - dev.top > 120;
     createElement.style.left = `${left}px`;
-    createElement.style.top = haut
+    createElement.style.top = top
       ? `${rect.top - createElement.offsetHeight - 8}px`
       : `${rect.bottom + 8}px`;
     setTimeout(
       () =>
-        document.addEventListener("pointerdown", fermerPopEp, { once: true }),
+        document.addEventListener("pointerdown", closePopEp, { once: true }),
       0,
     );
   }
@@ -33581,16 +33581,16 @@ import { ecrans, panneau, pont } from "../seams.js";
        derived from these three facts and nothing else — never from the screen
        the panel was opened from. That is what makes the panel the same object
        everywhere, instead of a family of look-alikes. */
-    const incomplet = INCOMPLETE.some((INCOMPLETE2) => INCOMPLETE2.t === title);
+    const incomplete = INCOMPLETE.some((INCOMPLETE2) => INCOMPLETE2.t === title);
     const suivi = world.follows.some((follow2) => follow2.t === title);
-    const enMediatheque = incomplet || LIBRARY.some((LIB) => LIB.t === title);
+    const inLibrary = incomplete || LIBRARY.some((LIB) => LIB.t === title);
     /* Read from the SAME derivations the urgency sections read. A section that
        computes what to grab while the panel computes it separately is two
        answers to one question, and they part company on the first change. */
-    const aRecuperer = derived
+    const toTake = derived
       .takeable()
       .some((takeable) => takeable.t === title);
-    const aResoudre = derived
+    const toResolve = derived
       .blocked()
       .concat(derived.stuck())
       .some((concat) => concat.t === title);
@@ -33629,21 +33629,21 @@ import { ecrans, panneau, pont } from "../seams.js";
                A medium that is owned and whole has nothing left to chase, so
                the panel leads to its sheet rather than offering a search
                that would find nothing. */
-            aResoudre
+            toResolve
               ? {
                   texte: "Résoudre →",
                   icone: icons.play,
                   ton: "primary",
                   cible: { resolve: follow.t },
                 }
-              : aRecuperer
+              : toTake
                 ? {
                     texte: "Récupérer maintenant",
                     icone: icons.play,
                     ton: "primary",
                     cible: { recuperer: follow.t },
                   }
-                : incomplet
+                : incomplete
                   ? {
                       texte: "Compléter → Acquisitions",
                       icone: icons.play,
@@ -33695,7 +33695,7 @@ import { ecrans, panneau, pont } from "../seams.js";
             /* « Voir la fiche » is reachable from the panel whenever a sheet
                exists. It is omitted only when it is ALREADY the primary
                action, which happens for a medium that is owned and whole. */
-            aFiche && (aResoudre || aRecuperer || incomplet || suivi)
+            aFiche && (toResolve || toTake || incomplete || suivi)
               ? {
                   texte: "Voir la fiche",
                   icone: icons.eye,
@@ -33710,21 +33710,21 @@ import { ecrans, panneau, pont } from "../seams.js";
             /* Chasing a release only means something for a medium still
                being acquired. Offered on a complete one it is a button that
                can only disappoint. */
-            suivi || incomplet || aRecuperer
+            suivi || incomplete || toTake
               ? {
                   texte: "Chercher une autre release",
                   icone: icons.search,
                   cible: { releases: follow.t },
                 }
               : null,
-            suivi || incomplet || aRecuperer
+            suivi || incomplete || toTake
               ? {
                   texte: "Profil de qualité",
                   icone: icons.sort,
                   cible: { profil: follow.t },
                 }
               : null,
-            enMediatheque
+            inLibrary
               ? {
                   texte: "Re-scraper les métadonnées",
                   icone: icons.refresh,
@@ -33749,7 +33749,7 @@ import { ecrans, panneau, pont } from "../seams.js";
                   cible: { retirer: follow.t },
                 }
               : null,
-            enMediatheque
+            inLibrary
               ? {
                   texte: "Supprimer de la médiathèque",
                   icone: icons.trash,
@@ -33916,24 +33916,24 @@ import { ecrans, panneau, pont } from "../seams.js";
      sheet, the screen, the drawer — sits outside, and a row drawn in one of
      them would answer no gesture at all. */
   let cardDrag = null;
-  let carteOuverte = null;
+  let openCard = null;
   /* Where the open row RESTS, in pixels — negative for the right drawer,
      positive for the left. A drag beginning on an open row resumes from where
      the row actually is; deducing that origin from a side instead read every
      open row as if it were open on the RIGHT, so a row open on the left leapt
      the width of both drawers on the finger's first move. Measured at 252px
      of jump for a 15px step. */
-  let carteOuverteDx = 0;
-  let clicApresGlisse = null;
+  let openCardDx = 0;
+  let clickAfterDrag = null;
 
-  function refermerCarte() {
-    if (!carteOuverte) return;
-    carteOuverte.style.transform = "";
-    carteOuverte = null;
-    carteOuverteDx = 0;
+  function collapseCard() {
+    if (!openCard) return;
+    openCard.style.transform = "";
+    openCard = null;
+    openCardDx = 0;
   }
 
-  function largeurTiroir(sw, sens) {
+  function drawerWidth(sw, sens) {
     const cote = sw.querySelector(sens < 0 ? ".side.right" : ".side.left");
     return cote ? cote.querySelectorAll(".act").length * 84 : 0;
   }
@@ -33941,19 +33941,19 @@ import { ecrans, panneau, pont } from "../seams.js";
   cadre.addEventListener(
     "pointerdown",
     (event) => {
-      clicApresGlisse = null;
+      clickAfterDrag = null;
       const closest = event.target.closest(".swipe");
       if (!closest || !event.isPrimary) return;
       // A new gesture anywhere puts the previously opened row back.
-      if (carteOuverte && carteOuverte !== closest.querySelector(".card"))
-        refermerCarte();
+      if (openCard && openCard !== closest.querySelector(".card"))
+        collapseCard();
       cardDrag = {
         sw: closest,
         card: closest.querySelector(".card"),
         x: event.clientX,
         y: event.clientY,
         depart:
-          carteOuverte === closest.querySelector(".card") ? carteOuverteDx : 0,
+          openCard === closest.querySelector(".card") ? openCardDx : 0,
         axis: null,
         dx: 0,
       };
@@ -33986,8 +33986,8 @@ import { ecrans, panneau, pont } from "../seams.js";
             Math.max(cardDrag.depart, 0),
           )
         : Math.max(
-            -largeurTiroir(cardDrag.sw, -1),
-            Math.min(largeurTiroir(cardDrag.sw, 1), brut),
+            -drawerWidth(cardDrag.sw, -1),
+            Math.min(drawerWidth(cardDrag.sw, 1), brut),
           );
       cardDrag.card.style.transform = `translateX(${cardDrag.dx}px)`;
     },
@@ -34000,19 +34000,19 @@ import { ecrans, panneau, pont } from "../seams.js";
     if (drag.axis !== "x") return;
     drag.card.classList.remove("dragging");
     // Past a third of a drawer's width the row rests open on that side.
-    const gauche = largeurTiroir(drag.sw, 1);
-    const droite = largeurTiroir(drag.sw, -1);
+    const gauche = drawerWidth(drag.sw, 1);
+    const right = drawerWidth(drag.sw, -1);
     let repos = 0;
     if (drag.depart) {
       // Closing an open row takes a third of its own travel, so a thumb
       // brushing past one does not shut what it came to use.
       repos =
         Math.abs(drag.dx) > Math.abs(drag.depart) * (2 / 3) ? drag.depart : 0;
-    } else if (drag.dx < -droite / 2.4) repos = -droite;
+    } else if (drag.dx < -right / 2.4) repos = -right;
     else if (drag.dx > gauche / 2.4) repos = gauche;
     drag.card.style.transform = repos ? `translateX(${repos}px)` : "";
-    carteOuverte = repos ? drag.card : null;
-    carteOuverteDx = repos;
+    openCard = repos ? drag.card : null;
+    openCardDx = repos;
     // The release is followed by a click, and a drag must not also tap. The
     // click is identified by its POINT — the same answer the long press
     // already needed — because a bare flag stays armed until SOME click
@@ -34033,21 +34033,21 @@ import { ecrans, panneau, pont } from "../seams.js";
        hole — which is why the check for this asserts the click was actively
        SWALLOWED rather than that no panel appeared. A panel that fails to
        appear can be an accident of where the release landed. */
-    const parcouru = Math.hypot(
+    const travelled = Math.hypot(
       (drag.dernierX ?? drag.x) - drag.x,
       (drag.dernierY ?? drag.y) - drag.y,
     );
-    clicApresGlisse =
-      parcouru > 4 ? { x: drag.dernierX, y: drag.dernierY } : null;
+    clickAfterDrag =
+      travelled > 4 ? { x: drag.dernierX, y: drag.dernierY } : null;
   }
   window.addEventListener("pointerup", endCardDrag);
   window.addEventListener("pointercancel", endCardDrag);
   document.addEventListener(
     "click",
     (event) => {
-      if (!clicApresGlisse) return;
-      const mark = clicApresGlisse;
-      clicApresGlisse = null;
+      if (!clickAfterDrag) return;
+      const mark = clickAfterDrag;
+      clickAfterDrag = null;
       if (Math.hypot(event.clientX - mark.x, event.clientY - mark.y) > 24)
         return;
       event.preventDefault();
@@ -34176,7 +34176,7 @@ import { ecrans, panneau, pont } from "../seams.js";
         // the bump is explicit so React learns the card left the deck.
         currentState().sugGone.add(index);
         magasin.toucher();
-        avancerDeck(index, 1);
+        advanceDeck(index, 1);
         toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
           currentState().sugGone.delete(index);
           magasin.toucher();
@@ -34184,7 +34184,7 @@ import { ecrans, panneau, pont } from "../seams.js";
         });
       } else {
         passerSug(index);
-        avancerDeck(index, -1);
+        advanceDeck(index, -1);
       }
       return;
     }
@@ -34268,7 +34268,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     };
   }
 
-  function avancerGestePage(point) {
+  function advancePageGesture(point) {
     if (!pageDrag) return;
     const deltaX = point.clientX - pageDrag.x,
       deltaY = point.clientY - pageDrag.y;
@@ -34301,7 +34301,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     "touchmove",
     (event) => {
       if (event.touches.length !== 1) return;
-      avancerGestePage(event.touches[0]);
+      advancePageGesture(event.touches[0]);
     },
     { passive: true },
   );
@@ -34323,7 +34323,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     "pointermove",
     (event) => {
       if (event.pointerType === "touch") return;
-      avancerGestePage(event);
+      advancePageGesture(event);
     },
     { passive: true },
   );
@@ -34412,19 +34412,19 @@ import { ecrans, panneau, pont } from "../seams.js";
        reload that lands on the opening page rather than where one was is the
        defect DOIT-10 names, and it is fixed here rather than corrected after
        a frame the operator would see. */
-    Object.assign(state, etatDeLURL());
+    Object.assign(state, stateFromUrl());
     /* Kept from BEFORE the first render, because rendering an unknown id
        moves the state onto the not-found surface — and rewriting the
        address to match would make a mistyped link quietly become a
        different one. A browser answering 404 leaves the address alone; so
        does this. */
-    const adresseDArrivee = location.pathname + location.search;
+    const arrivalAddress = location.pathname + location.search;
     render();
     /* The address is put back on the entry one arrives on, so a back from
        anywhere reaches the page the link named rather than a bare
        document. */
     try {
-      __pont.remplacer(etatDeNavigation(), adresseDArrivee);
+      __pont.remplacer(navigationState(), arrivalAddress);
     } catch (error) {}
     /* The interface exists from here on, so the startup screen has nothing
        left to cover — but it does not come off on that line. It comes off
@@ -34444,7 +34444,7 @@ import { ecrans, panneau, pont } from "../seams.js";
        operator's address behind their back. A browser answering 404 leaves
        the address alone. */
     try {
-      __pont.noter(etatDeNavigation(), adresseDArrivee);
+      __pont.noter(navigationState(), arrivalAddress);
     } catch (error) {}
     /* The welcome hint disappears on first interaction: a bubble that
        returns over an open sheet is a nuisance, not help. */
@@ -34483,11 +34483,11 @@ import { ecrans, panneau, pont } from "../seams.js";
    rather than a copy taken at evaluation. That is the same property the
    getters below exist to give the `window` surface, obtained here for free. */
 export {
-  REGLAGES,
+  SETTINGS,
   REG_ETAT,
-  afficherConnexion,
-  afficherDemarrage,
-  afficherInstallation,
+  showSignIn,
+  showStartup,
+  showInstallation,
   applyState,
   magasin,
   openDeleteDialog,
@@ -34495,11 +34495,11 @@ export {
   openJourneySheet,
   openPlusSheet,
   openUserSheet,
-  ouvrirActionMaintenance,
-  ouvrirReglage,
-  ouvrirTiroir,
+  openActionMaintenance,
+  openSetting,
+  openDrawer,
   reglageId,
-  reinitialiserReglages,
+  resetSettings,
   render,
 };
 
@@ -34521,88 +34521,88 @@ export {
    the one being asked.
 
    The first count said 253, because the regex collecting the names knew
-   `function`, `const`, `let`, `var` and `class`, and `deconnecter` is an
+   `function`, `const`, `let`, `var` and `class`, and `signOut` is an
    `async function`. No state's markup depends on logging out, so a
    state-by-state comparison of the whole frame said « identical » while the
    rule suite said `ReferenceError`.
 
-   The first SPLIT put `deroulementEnCours` on the by-value side, because the
+   The first SPLIT put `unwindInProgress` on the by-value side, because the
    test for « does the engine rebind this » looked for `name =` — and this one
-   is only ever written `deroulementEnCours += 1` and `-= 1`. Published by
+   is only ever written `unwindInProgress += 1` and `-= 1`. Published by
    value it would have answered 0 forever, which is the same class of silent
    lie the getters exist to prevent, arrived at from the other direction. The
    forms that rebind without a bare `=` are compound assignment, `++`/`--`,
    destructuring on either side, and `for (name of …)`; all four were searched
    across all 254 names, and this is the only one. */
 Object.assign(window, {
-  ACTEURS, AFFICHES_HD, APPARENCES, APPUI_MS, APPUI_TOLERANCE, AUDIOS,
+  CAST, POSTERS_HD, APPARENCES, PRESS_MS, PRESS_TOLERANCE, AUDIOS,
   AUJOURDHUI, BLOCKED, CADENCE_CRON, CATS, COMPTE, DECISIONS_ATTENTE,
-  DECISIONS_REGLEES, DEMARRAGE_MS, DEPENDANCES, DISQUES, DONE_TODAY,
-  EP_LABEL, EP_ORDER, EP_SWATCH, ERREURS, ETAT_DECISION,
-  ETAT_DECISION_POURQUOI, EXECUTIONS, FICHES_IDX, FICHES_OLD, FICHES_RAW,
+  DECISIONS_REGLEES, STARTUP_MS, DEPENDENCIES, DISKS, DONE_TODAY,
+  EP_LABEL, EP_ORDER, EP_SWATCH, ERRORS, ETAT_DECISION,
+  DECISION_STATE_DETAIL, EXECUTIONS, FICHES_IDX, FICHES_OLD, FICHES_RAW,
   FOLLOWS, GROUPS, HEROS, INCOMPLETE, INDEX, INFLIGHT, JOURNAL, LIBRARY,
-  LIB_PAGE, LIB_TOTAL, MAINT_ACTIONS, MAINT_RUBRIQUES, MOIS, MOTIF_LABEL,
-  MOTIF_POURQUOI, MOTIF_TON, MOVING, NAVIGATION, NOTFOUND, NOTFOUND_REEL,
-  PAGES_OF, PIPELINE, PLANIFICATEURS, PLANIFICATEURS_PANNE, POSSEDES,
-  POSTERS, RECENT, REGLAGES, REG_ETAT, RELEASES, RESOS, RETOUR_FENETRE,
+  LIB_PAGE, LIB_TOTAL, MAINT_ACTIONS, MAINT_TOPICS, MOIS, MOTIF_LABEL,
+  REASON_DETAIL, MOTIF_TON, MOVING, NAVIGATION, NOTFOUND, NOTFOUND_REEL,
+  PAGES_OF, PIPELINE, SCHEDULERS, SCHEDULERS_DOWN, OWNED,
+  POSTERS, RECENT, SETTINGS, REG_ETAT, RELEASES, RESOLUTIONS, BACK_WINDOW,
   RISQUES, SEARCH, SEASONS, SECRETS, SERVICES, SERVICES_PANNE, SETTLED,
   SETTLED_REEL, STRIP_LABELS, STUCK, STUCK_REEL, ST_LABEL,
   ST_LABEL_MOVIE, ST_TONE, SUGGESTIONS, SUG_BATCH, SYNOPSIS, TAKEABLE,
-  TRIS, URGENCY, URL_DEFAUTS, VIA_LABEL, actionLaisser, actionPause,
-  actionRecuperer, actionResoudre, actionRetirer, actionSuivre,
-  actionSupprimer, addVerb, afficherConnexion, afficherDemarrage,
-  afficherInstallation, annulerAppui, apparenceCourante,
-  appliquerApparence, applyState, armerAppui, avancerDeck,
-  avancerGestePage, baseTitle, beforeReset, cadenceFR, cardHTML, chipHTML,
-  closeDlg, closeHarness, closeScreen, closeSheet, couvrirLeChargement,
+  TRIS, URGENCY, URL_DEFAULTS, VIA_LABEL, actionLeave, actionPause,
+  actionRecuperer, actionResoudre, actionRetirer, actionFollow,
+  actionDelete, addVerb, showSignIn, showStartup,
+  showInstallation, annulerAppui, apparenceCourante,
+  applyAppearance, applyState, armPress, advanceDeck,
+  advancePageGesture, baseTitle, beforeReset, cadenceFR, cardHTML, chipHTML,
+  closeDlg, closeHarness, closeScreen, closeSheet, coverLoading,
   dateFR, debutGestePage, decisionEnAttente, deckCardHTML, deckHTML,
-  deckOrdre, deconnecter, dejaInstallee, derived, deroulerCouche,
+  deckOrder, signOut, alreadyInstalled, derived, unwindLayer,
   dismissSug, emptyInner, endCardDrag, endDeckDrag, endPageDrag,
-  endSugDrag, epState, escapeHtml, etatDeLURL, etatDeNavigation,
-  factRowsHTML, fermerPopEp, fermerTiroir, fichiersModifies, fillSug,
-  gridBadge, hideLayers, icons, initials, initialsOf, largeurTiroir,
+  endSugDrag, epState, escapeHtml, stateFromUrl, navigationState,
+  factRowsHTML, closePopEp, closeDrawer, changedFiles, fillSug,
+  gridBadge, hideLayers, icons, initials, initialsOf, drawerWidth,
   libFiltered, libRowHTML, listeFaitsHTML, loadMoreSug, masquerConnexion,
-  masquerDemarrage, masquerInstallation, memeValeur, modifierReglage,
-  mountDeck, mountLoaders, mountSearch, nomDeFichier, normalisedKey,
+  hideStartup, masquerInstallation, sameValue, modifierReglage,
+  mountDeck, mountLoaders, mountSearch, fileName, normalisedKey,
   noterLeChemin, openAddSheet, openDeleteDialog, openDetailSheet, openDlg,
   openFollowSheet, openHarness, openJourneySheet, openPanel, openPlusSheet,
   openScreen, openSheet, openSugSheet, openUserSheet,
-  ouvrirActionMaintenance, ouvrirPopEp, ouvrirReglage, ouvrirSecret,
-  ouvrirTiroir, paintSelBar, panneauSousLeDoigt, passerSug, pileEcrans,
-  plages, possedesDe, posterBox, prochaineRechercheFR,
-  proposerInstallation, ptr, publierHauteurBarre, refPanel, refermerCarte,
-  refreshDeck, reglageId, reinitialiserReglages, render, renderNav,
-  richText, saisonsDe, saisonsFicheHTML, secHTML, secInner, seedWorld,
+  openActionMaintenance, openPopEp, openSetting, openSecret,
+  openDrawer, paintSelBar, panelUnderFinger, passerSug, pileEcrans,
+  plages, possedesDe, posterBox, nextSearchFR,
+  proposerInstallation, ptr, publishBarHeight, refPanel, collapseCard,
+  refreshDeck, reglageId, resetSettings, render, renderNav,
+  richText, seasonsOf, sheetSeasonsHTML, secHTML, secInner, seedWorld,
   select, sheetFor, skelCards, skelCardsInner, skelTiles, sortLabel,
-  sortirDeLaFile, stFraction, stLabel, stripHTML, sugCardHTML, sugFoot,
-  sugTileHTML, sugVerb, suivreAppui, surIOSSafari, surRetourEngine,
+  leaveQueue, stFraction, stLabel, stripHTML, sugCardHTML, sugFoot,
+  sugTileHTML, sugVerb, followPress, surIOSSafari, surRetourEngine,
   surfErr, surfErrInner, svgIcon, swipeHTML, tileHTML, toast, toastUndo,
-  tousLesReglages, trailerIds, trierLib, urlDeLEtat, valeurCourante,
-  valeurEnCours, valeurSaisie, view,
+  tousLesReglages, trailerIds, trierLib, urlFromState, valeurCourante,
+  valeurEnCours, typedValue, view,
 });
 
 // Read live, because the engine reassigns each of these.
 Object.defineProperties(window, {
   adresseBase: { get: () => adresseBase, configurable: true },
-  appui: { get: () => appui, configurable: true },
+  press: { get: () => press, configurable: true },
   cardDrag: { get: () => cardDrag, configurable: true },
-  carteOuverte: { get: () => carteOuverte, configurable: true },
-  carteOuverteDx: { get: () => carteOuverteDx, configurable: true },
-  clicApresGlisse: { get: () => clicApresGlisse, configurable: true },
+  openCard: { get: () => openCard, configurable: true },
+  openCardDx: { get: () => openCardDx, configurable: true },
+  clickAfterDrag: { get: () => clickAfterDrag, configurable: true },
   clicAvaler: { get: () => clicAvaler, configurable: true },
   deckDrag: { get: () => deckDrag, configurable: true },
   depilage: { get: () => depilage, configurable: true },
-  deroulementEnCours: { get: () => deroulementEnCours, configurable: true },
-  finDuChargement: { get: () => finDuChargement, configurable: true },
-  installEvenement: { get: () => installEvenement, configurable: true },
+  unwindInProgress: { get: () => unwindInProgress, configurable: true },
+  loadingEnd: { get: () => loadingEnd, configurable: true },
+  installEvent: { get: () => installEvent, configurable: true },
   installRefusee: { get: () => installRefusee, configurable: true },
   legacyNodes: { get: () => legacyNodes, configurable: true },
   magasin: { get: () => magasin, configurable: true },
   pageDrag: { get: () => pageDrag, configurable: true },
   pilotage: { get: () => pilotage, configurable: true },
-  renduCourant: { get: () => renduCourant, configurable: true },
+  currentRender: { get: () => currentRender, configurable: true },
   shellOwnsView: { get: () => shellOwnsView, configurable: true },
-  sortieArmee: { get: () => sortieArmee, configurable: true },
+  armedExit: { get: () => armedExit, configurable: true },
   STATES: { get: () => STATES, configurable: true },
   // A LIVE READ, not an alias. There is no cached `state` binding left to
   // publish — the getter goes to the store, exactly as the engine's own

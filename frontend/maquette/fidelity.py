@@ -45,7 +45,7 @@ have nothing to do with the conversion being measured. Two are known, and both
 have cost a diagnosis:
 
 - **The wall clock.** « Prochaine recherche à 3 h 20 » is
-  `prochaineRechercheFR(CADENCE_CRON, new Date())`. A recording taken at 03:00
+  `nextSearchFR(CADENCE_CRON, new Date())`. A recording taken at 03:00
   and replayed at 15:00 differs on that line in every state that draws it.
 - **The embedded data.** `resync.py` rewrites the follow counters and the
   drawer's deployed version from the live system, and the drawer is on screen

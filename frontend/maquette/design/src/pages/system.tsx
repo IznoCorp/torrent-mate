@@ -30,13 +30,13 @@ export function SystemPage(): ReactElement | null {
     surfErrInner,
     SERVICES,
     SERVICES_PANNE,
-    PLANIFICATEURS,
-    PLANIFICATEURS_PANNE,
+    SCHEDULERS,
+    SCHEDULERS_DOWN,
     EXECUTIONS,
-    DISQUES,
+    DISKS,
     INDEX,
-    DEPENDANCES,
-    ERREURS,
+    DEPENDENCIES,
+    ERRORS,
   } = useReference();
 
   // The two non-ready surfaces, emitted by the fragment exactly as before. The
@@ -87,7 +87,7 @@ export function SystemPage(): ReactElement | null {
         <b>{t("screens.system.schedulerLead")}</b>
         {t("screens.system.schedulerRest")}
       </div>
-      {facts(state.panne ? PLANIFICATEURS_PANNE : PLANIFICATEURS)}
+      {facts(state.panne ? SCHEDULERS_DOWN : SCHEDULERS)}
 
       <h2 className="h2">{t("screens.system.runs")}</h2>
       {facts(
@@ -106,7 +106,7 @@ export function SystemPage(): ReactElement | null {
       </button>
 
       <h2 className="h2">{t("screens.system.disks")}</h2>
-      {facts(DISQUES)}
+      {facts(DISKS)}
 
       <h2 className="h2">{t("screens.system.index")}</h2>
       {facts(INDEX)}
@@ -116,7 +116,7 @@ export function SystemPage(): ReactElement | null {
       </button>
 
       <h2 className="h2">{t("screens.system.dependencies")}</h2>
-      {facts(DEPENDANCES)}
+      {facts(DEPENDENCIES)}
 
       <h2 className="h2">{t("screens.system.codeErrors")}</h2>
       {facts([
@@ -125,13 +125,13 @@ export function SystemPage(): ReactElement | null {
           ton: "alert",
           v: t("screens.system.errorsValue"),
           s: t("screens.system.errorsDetail", {
-            total: ERREURS.total,
-            over: ERREURS.sur,
-            last: ERREURS.derniere,
-            what: ERREURS.quoi,
+            total: ERRORS.total,
+            over: ERRORS.sur,
+            last: ERRORS.derniere,
+            what: ERRORS.quoi,
           }),
         },
-        { l: t("screens.system.errorsWhere"), v: "", s: ERREURS.ou },
+        { l: t("screens.system.errorsWhere"), v: "", s: ERRORS.ou },
       ])}
 
       <h2 className="h2">{t("screens.system.settings")}</h2>

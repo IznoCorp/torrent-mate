@@ -283,7 +283,7 @@ async def main():
         # states draw one.
         #
         # The long press is NOT checked here, and deliberately: on those cards
-        # the body opens the panel on a plain tap, so `armerAppui` refuses to arm
+        # the body opens the panel on a plain tap, so `armPress` refuses to arm
         # a timer that would open it twice. A rule asserting a press there would
         # be asserting a behaviour the design does not want.
         await pg.evaluate("()=>window.__go('acq-identifier')")

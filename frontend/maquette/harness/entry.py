@@ -96,7 +96,7 @@ async def main():
         await pg2.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
         await pg2.evaluate("()=>document.querySelector('#toastx').click()")
         await pg2.wait_for_timeout(250)
-        await pg2.evaluate("()=>deconnecter()")
+        await pg2.evaluate("()=>signOut()")
         await pg2.wait_for_timeout(700)
         signout = await pg2.evaluate(READ)
         await b.close()

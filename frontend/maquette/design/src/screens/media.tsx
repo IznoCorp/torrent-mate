@@ -79,8 +79,8 @@ type MediaSheetFields = {
 type Follow = { t: string };
 
 // One row of the season list: an owned-seasons row (`[n, aired, own]` from
-// `saisonsDe`) and a catalogue row (`{ n, ep, air }` from the sheet) are
-// folded into the same shape before rendering, exactly as `saisonsFicheHTML`
+// `seasonsOf`) and a catalogue row (`{ n, ep, air }` from the sheet) are
+// folded into the same shape before rendering, exactly as `sheetSeasonsHTML`
 // folds them.
 type SeasonRow = {
   n: number;
@@ -306,7 +306,7 @@ export function MediaScreen() {
   // reached by a typed/bookmarked URL did not necessarily go through it.
   const title = raw.normalize("NFC");
   // `world.follows` is MUTATED IN PLACE by the still-legacy follow act
-  // (`actionSuivre`, refonte.html) — the reference never changes, so
+  // (`actionFollow`, refonte.html) — the reference never changes, so
   // `useWorld()` alone would not notice. Subscribing to `version` forces the
   // re-render on that bump, and the read below then sees the mutated list
   // fresh: this is what flips the « Suivre » button to « Suivi » without the
@@ -320,8 +320,8 @@ export function MediaScreen() {
     icons,
     baseTitle,
     sheetFor,
-    saisonsDe,
-    ACTEURS,
+    seasonsOf,
+    CAST,
     trailerIds,
     initials,
   } = reference;
@@ -332,7 +332,7 @@ export function MediaScreen() {
      actually owned. A hand-written table gave seasons to 10 series only, and
      none of them to the INCOMPLETE ones — the very media the question is
      about. */
-  const sorted = saisonsDe(title)
+  const sorted = seasonsOf(title)
     .slice()
     .sort((slice, index) => index[0] - slice[0]);
   const own = sorted.reduce(
@@ -514,8 +514,8 @@ export function MediaScreen() {
                 {sheet.cast.map((cast) => (
                   <figure key={cast.n}>
                     <span className="ca">
-                      {ACTEURS[cast.n] ? (
-                        <img src={ACTEURS[cast.n]} alt="" loading="lazy" />
+                      {CAST[cast.n] ? (
+                        <img src={CAST[cast.n]} alt="" loading="lazy" />
                       ) : (
                         initials(cast.n)
                       )}

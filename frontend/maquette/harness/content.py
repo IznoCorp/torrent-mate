@@ -128,7 +128,7 @@ async def main():
         # The hour is derived from the cron the cadence line prints, so the two
         # can never disagree about when the next search happens.
         hour = await pg.evaluate(
-            "()=>prochaineRechercheFR(CADENCE_CRON, new Date())")
+            "()=>nextSearchFR(CADENCE_CRON, new Date())")
         cadence = await pg.evaluate("()=>cadenceFR(CADENCE_CRON)")
         check("the hour announced is the cadence's own",
               bool(hour) and hour in cadence, f"{hour} in « {cadence} »")

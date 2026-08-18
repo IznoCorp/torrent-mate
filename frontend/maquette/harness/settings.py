@@ -84,10 +84,10 @@ async def main():
 
         # ── every real setting belongs to exactly one rubric ───────────────
         coverage = await pg.evaluate("""()=>{
-          const all = REGLAGES.flatMap(r => r.r.map(x => r.f + ':' + x.f + ':' + x.c));
-          const keys = REGLAGES.flatMap(r => r.r.map(x => x.f + ':' + x.c));
+          const all = SETTINGS.flatMap(r => r.r.map(x => r.f + ':' + x.f + ':' + x.c));
+          const keys = SETTINGS.flatMap(r => r.r.map(x => x.f + ':' + x.c));
           return {total: keys.length, distinct: new Set(keys).size,
-                  files: [...new Set(REGLAGES.flatMap(r => r.fichiers))].sort()};}""")
+                  files: [...new Set(SETTINGS.flatMap(r => r.fichiers))].sort()};}""")
         check("a setting belongs to one topic and no other",
               coverage["total"] == coverage["distinct"],
               f"{coverage['total']} settings, {coverage['distinct']} distinct")
@@ -223,7 +223,7 @@ async def main():
         # the explanation in the panel, where a sentence has room.
         english = await pg.evaluate("""()=>{
           const words = /\\b(the|of|for|before|when|with|and|from|number|seconds|days|file|path|used|which|that)\\b/i;
-          return REGLAGES.flatMap(r => r.r)
+          return SETTINGS.flatMap(r => r.r)
             .map((x) => window.__settingLabels.label(x)).filter(t => words.test(t));}""")
         check("no setting is labelled in English",
               not english, f"{len(english)}: {english[:3]}")
@@ -233,7 +233,7 @@ async def main():
         # every client owns one, and the only thing telling them apart was the
         # machine path — which is there to be read AFTER one has found the row,
         # not to find it.
-        collisions = await pg.evaluate("""()=>REGLAGES.flatMap(r => {
+        collisions = await pg.evaluate("""()=>SETTINGS.flatMap(r => {
           const by = {};
           for (const x of r.r) (by[window.__settingLabels.label(x)] ||= []).push(x.c);
           return Object.entries(by).filter(([, v]) => v.length > 1)
@@ -274,7 +274,7 @@ async def main():
               if probe["caught"] else "the detector is dead — the hold below "
               "would pass on nothing")
         unnamed_subjects = await pg.evaluate("""()=>{
-          REGLAGES.flatMap(r => r.r).forEach((x) => window.__settingLabels.label(x));
+          SETTINGS.flatMap(r => r.r).forEach((x) => window.__settingLabels.label(x));
           return [...window.__settingLabels.unnamedSubjects];}""")
         check("every setting subject carries a written name", not unnamed_subjects,
               str(unnamed_subjects))
@@ -301,7 +301,7 @@ async def main():
             "nul": ".fieldinput",
         }
         seen = await pg.evaluate(
-            """()=>[...new Set(REGLAGES.flatMap(r => r.r).map(x => x.type))].sort()""")
+            """()=>[...new Set(SETTINGS.flatMap(r => r.r).map(x => x.type))].sort()""")
         check("every setting carries the type of its value",
               set(seen) == set(expected), str(sorted(seen)))
 
@@ -339,7 +339,7 @@ async def main():
               filed == [[42, "number"]], str(filed))
 
         original = await pg.evaluate(
-            """()=>String(REGLAGES.flatMap(r => r.r).find(x => x.type === 'nombre').brut)""")
+            """()=>String(SETTINGS.flatMap(r => r.r).find(x => x.type === 'nombre').brut)""")
         await pg.fill("#sheetin .fieldinput", original)
         await pg.evaluate("()=>document.querySelector('#sheetin .fieldinput')"
                           ".dispatchEvent(new Event('change'))")
@@ -358,10 +358,10 @@ async def main():
               len(toggled) == 1 and toggled[0][1] == "boolean", str(toggled))
 
         await pg.evaluate("""()=>{
-          const x = REGLAGES.flatMap(r => r.r)
+          const x = SETTINGS.flatMap(r => r.r)
             .find(y => y.type === 'liste' && (y.brut || []).length > 1);
-          REG_ETAT.rubrique = REGLAGES.find(r => r.r.includes(x)).id;
-          render(); ouvrirReglage(reglageId(x));}""")
+          REG_ETAT.rubrique = SETTINGS.find(r => r.r.includes(x)).id;
+          render(); openSetting(reglageId(x));}""")
         await pg.wait_for_timeout(330)
         before = await pg.evaluate("()=>document.querySelectorAll('#sheetin .litem').length")
         await pg.click("#sheetin .lremove")
@@ -380,10 +380,10 @@ async def main():
         # not the setting's and files it under the setting's id on the next
         # commit — a setting silently overwritten with another's value.
         open_text = """(n) => {
-          const texts = REGLAGES.flatMap(r => r.r).filter(x => x.type === 'texte');
+          const texts = SETTINGS.flatMap(r => r.r).filter(x => x.type === 'texte');
           const x = texts[n];
-          REG_ETAT.rubrique = REGLAGES.find(r => r.r.includes(x)).id;
-          render(); ouvrirReglage(reglageId(x));
+          REG_ETAT.rubrique = SETTINGS.find(r => r.r.includes(x)).id;
+          render(); openSetting(reglageId(x));
           return {id: reglageId(x), own: String(x.brut ?? '')};}"""
         read_field = """() => {const e = document.querySelector('#sheetin .fieldinput');
           return e ? {value: e.value, field: e.dataset.champ} : null;}"""

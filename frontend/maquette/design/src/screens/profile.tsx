@@ -58,7 +58,7 @@ export function ProfileScreen() {
   const title = raw.normalize("NFC");
   const state = useUiState();
   const profile = state.profil as QualityProfile;
-  const { RELEASES, RESOS, AUDIOS, icons, baseTitle } = useReference();
+  const { RELEASES, RESOLUTIONS, AUDIOS, icons, baseTitle } = useReference();
   const { t } = useTranslation();
   const kept = countKept(profile, RELEASES);
 
@@ -137,7 +137,7 @@ export function ProfileScreen() {
                   <small>{t("screens.profile.noFloorHint")}</small>
                 </span>
               </button>
-              {RESOS.map((reso) => (
+              {RESOLUTIONS.map((reso) => (
                 <button
                   key={reso}
                   className="opt radio"

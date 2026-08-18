@@ -26,7 +26,7 @@ async def main():
     await pg.screenshot(path="m_popover.png")
 
     print("── Silo (including announced episodes) ──")
-    await pg.evaluate("()=>{fermerPopEp();window.__go('acq-suivis-liste');}"); await pg.wait_for_timeout(300)
+    await pg.evaluate("()=>{closePopEp();window.__go('acq-suivis-liste');}"); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>openFollowSheet('Silo')"); await pg.wait_for_timeout(450)
     c1 = await click_("()=>{const l=[...document.querySelectorAll('.ep')];l[l.length-1].click();}", "last episode")
     await pg.screenshot(path="m_popover_silo.png")

@@ -170,7 +170,7 @@ function DecisionCard({ decision }: { decision: SettledDecision }) {
     svgIcon,
     icons,
     ETAT_DECISION,
-    ETAT_DECISION_POURQUOI,
+    DECISION_STATE_DETAIL,
     MOTIF_TON,
     MOTIF_LABEL,
     VIA_LABEL,
@@ -208,7 +208,7 @@ function DecisionCard({ decision }: { decision: SettledDecision }) {
             {state ? (
               <span
                 className={`chip ${state[0]}`}
-                title={ETAT_DECISION_POURQUOI[decision.etat] ?? ""}
+                title={DECISION_STATE_DETAIL[decision.etat] ?? ""}
               >
                 {state[1]}
               </span>
@@ -276,7 +276,7 @@ export function ResolutionScreen() {
   // reached by a typed/bookmarked URL did not necessarily go through it.
   const folder = raw.normalize("NFC");
   // The queue lists (`world.blocked` / `world.stuck` / `world.stuckReel`) are
-  // MUTATED IN PLACE by `actionResoudre` / `actionLaisser` (splice, unshift),
+  // MUTATED IN PLACE by `actionResoudre` / `actionLeave` (splice, unshift),
   // which bump the store's `version` through `render()` without producing a new
   // `etat` reference. Subscribing to `version` is what makes the progression
   // (« 1 sur 2 ») and « Passer à la suivante » answer the queue as it is now —
@@ -284,7 +284,7 @@ export function ResolutionScreen() {
   useStoreContent((c) => c.version);
   const {
     icons,
-    MOTIF_POURQUOI,
+    REASON_DETAIL,
     MOTIF_LABEL,
     MOTIF_TON,
     DECISIONS_REGLEES,
@@ -334,7 +334,7 @@ export function ResolutionScreen() {
           </h2>
           <p className="qhint">
             {decision
-              ? (MOTIF_POURQUOI[decision.motif] ?? "")
+              ? (REASON_DETAIL[decision.motif] ?? "")
               : t("screens.resolution.noMediaIdentified")}
           </p>
           <div className="cmeta" style={{ marginBottom: "12px" }}>
