@@ -53,7 +53,7 @@ adversarial review; none of them derives app code.
 | **SP4d wave 2 — Arrivées** | `feat/maquette-sp4d2` | #448 | The pipeline's health page became a final component, with the first migrated control that WRITES (the pilot's bar, whose three states include DOIT-4's queue). A defect of class came out of it: a harness driver mutating the engine's `state` alias in place leaves a migrated page stale, and R77 gained the source-level hold that catches it. |
 | **SP4d wave 3 — the Médiathèque, and E-001** | `feat/maquette-sp4d3` | #449 | The largest data surface, its infinite scroll and its search field became a component; the page host stopped supplying a root, because a page emitting four of them cannot live in one. E-001 shipped maquette-first with its own rule (R78), and a rule found 87 library sheets with no genre and no cast (B-030). |
 | **SP4d wave 4 — Acquisition, and the last two pages** | `feat/maquette-sp4d4` | #450 | The last page wave: `viewAcquisition` — three tabs, a deck and a second infinite scroll — plus `viewProfil` and `viewIntrouvable`. `PAGES_OF()` carries no `render` at all, which is SP4-fin's entry condition. The review found four real defects, the first of which left the page inert: every action mutates the world IN PLACE and signals with `toucher()`, and the component subscribed only to the state. |
-| **SP4-fin wave 1 — the engine leaves the fragment** | `refactor/maquette-sp4fin1` | — | The 35 052-line inline script became `design/src/engine/legacy.js`; the fragment fell from 39 561 to 4 507 lines and holds nothing executable. 0 divergence on 82 states. The engine republishes its 253 top-level names — 230 by value, 23 by getter, the split measured — because the harness drives it by bare name. Four rules had gone green over a file emptied of their subject; `common.py` now owns `DESIGN_SOURCES`. |
+| **SP4-fin wave 1 — the engine leaves the fragment** | `refactor/maquette-sp4fin1` | — | The 35 052-line inline script became `design/src/engine/legacy.js`; the fragment fell from 39 561 to 4 507 lines and holds nothing executable. 0 divergence on 82 states. The engine republishes its 254 top-level names — 231 by value, 23 by getter, the split measured — because the harness drives it by bare name. Four rules had gone green over a file emptied of their subject; `common.py` now owns `DESIGN_SOURCES`. |
 
 The full record of each wave, in the words written when it landed, is in
 `docs/superpowers/shell-mobile-wave-log.md`; the per-wave plans are in `docs/superpowers/plans/`.
@@ -77,14 +77,14 @@ at once, or nothing can.
 an ES module under strict mode. It reads no parse timing — zero `readyState`, zero
 `DOMContentLoaded`, zero `document.write`, zero `currentScript` — so being deferred changes no
 branch. The static markup carries one inline handler, `onclick="return false;"`, which needs no
-global. And none of the 253 top-level names collides with a real `window` property — checked
+global. And none of the 254 top-level names collides with a real `window` property — checked
 against Chrome, because Node's `globalThis` has a different surface and would have said the
 same thing for the wrong reason.
 
 **The engine republishes its own surface, and that is a SEAM, written down rather than
 inferred.** A classic script's declarations are global, and the harness drives the engine by
 bare name at some forty `page.evaluate` call sites; a module's are private. So `legacy.js` ends
-by republishing exactly what existed: **230 by value, 23 by getter**. The split is measured, not
+by republishing exactly what existed: **231 by value, 23 by getter**. The split is measured, not
 chosen — a binding the engine REASSIGNS cannot be published by value, and `state` and `world`
 are both reassigned and both are what the harness reads most. By value they would have answered
 a world that no longer exists, silently, and every rule reading them would have measured a page

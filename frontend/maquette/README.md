@@ -39,7 +39,7 @@ Two consequences worth knowing before writing a rule:
 - **The engine republishes its own surface.** A classic script's top-level declarations are
   global; a module's are not, and the harness drives the engine by bare name in some forty
   `page.evaluate` call sites. The block at the bottom of `legacy.js` republishes exactly
-  what already existed — 230 by value, 23 by getter for the bindings the engine reassigns
+  what already existed — 231 by value, 23 by getter for the bindings the engine reassigns
   (`state` and `world` among them, which is why the split is measured and not chosen).
 
 **React and TanStack Router are the outer shell.** The router is the SINGLE writer of the

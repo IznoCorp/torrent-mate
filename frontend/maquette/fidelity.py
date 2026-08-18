@@ -65,6 +65,7 @@ import pathlib
 import re
 import sys
 
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 from playwright.async_api import async_playwright
 
 PROTOTYPE = "http://127.0.0.1:8899/wrapped.html"
@@ -124,7 +125,13 @@ async def main(legacy_name: str, states: list[str], host: str = "#view",
         # Measured: identical clock on both sides of a move (raised 770 ms,
         # hidden 5775 ms), one state apart in the walk — a real difference
         # would not care where in the sequence it was read.
-        await page.wait_for_selector("#toast.show", timeout=4000, state="attached")
+        try:
+            await page.wait_for_selector("#toast.show", timeout=4000,
+                                         state="attached")
+        except PlaywrightTimeoutError:
+            # Said plainly rather than as a traceback: the toast may one
+            # day stop being raised, and that is not this tool breaking.
+            print("  (no boot toast to dismiss — measuring as-is)")
         await page.evaluate("()=>document.querySelector('#toastx')?.click()")
         await page.evaluate(NORMALISER)
 

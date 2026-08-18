@@ -654,14 +654,14 @@ at once, or nothing can.
 an ES module under strict mode. It reads no parse timing — zero `readyState`, zero
 `DOMContentLoaded`, zero `document.write`, zero `currentScript` — so being deferred changes no
 branch. The static markup carries one inline handler, `onclick="return false;"`, which needs no
-global. And none of the 253 top-level names collides with a real `window` property — checked
+global. And none of the 254 top-level names collides with a real `window` property — checked
 against Chrome, because Node's `globalThis` has a different surface and would have said the
 same thing for the wrong reason.
 
 **The engine republishes its own surface, and that is a SEAM, written down rather than
 inferred.** A classic script's declarations are global, and the harness drives the engine by
 bare name at some forty `page.evaluate` call sites; a module's are private. So `legacy.js` ends
-by republishing exactly what existed: **230 by value, 23 by getter**. The split is measured, not
+by republishing exactly what existed: **231 by value, 23 by getter**. The split is measured, not
 chosen — a binding the engine REASSIGNS cannot be published by value, and `state` and `world`
 are both reassigned and both are what the harness reads most. By value they would have answered
 a world that no longer exists, silently, and every rule reading them would have measured a page

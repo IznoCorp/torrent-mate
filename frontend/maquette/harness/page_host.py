@@ -843,9 +843,9 @@ async def main():
             + (f"; legacy with no renderer: {tables['legacyWithout']}"
                if tables["legacyWithout"] else ""))
 
-        served = (pathlib.Path(__file__).resolve().parent.parent / "design"
+        engine = (pathlib.Path(__file__).resolve().parent.parent / "design"
                   / "src" / "engine" / "legacy.js").read_text(encoding="utf-8")
-        writes = re.findall(r"[^\n]*view\.innerHTML\s*=[^\n]*", served)
+        writes = re.findall(r"[^\n]*view\.innerHTML\s*=[^\n]*", engine)
         # THE LAW, not one spelling of it. The guard was once a single line and
         # is now a branch, and a hold that matched the line would have failed on
         # the day the law was made STRONGER rather than weaker. What must be
@@ -862,7 +862,7 @@ async def main():
         law = re.search(
             r"if \(found\.shellOwned\)\s*\{(?P<owned>[\s\S]*?)\}\s*else\s*\{"
             r"(?P<legacy>[\s\S]*?)\n    \}",
-            served)
+            engine)
         owned = law.group("owned") if law else ""
         legacy = law.group("legacy") if law else ""
         journal.check(

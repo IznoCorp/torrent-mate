@@ -21,9 +21,9 @@
 
    WHY IT PUBLISHES ITSELF AT THE END. A classic script's top-level
    declarations land in the realm's global scope, where anything evaluated in
-   the page can see them — and two hundred and fifty of them are seen that
-   way today, by the harness, which drives this engine through `page.evaluate`
-   using their bare names. A module's declarations are private, so the same
+   the page can see them — and there are two hundred and fifty-four of them,
+   seen that way today by the harness, which drives this engine through
+   `page.evaluate` using their bare names. A module's declarations are private, so the same
    names would simply vanish, and every rule that names one would fail with a
    ReferenceError instead of a verdict. The block at the bottom republishes
    exactly the surface that already existed — no more, no less — so that
@@ -35096,9 +35096,15 @@
 
    The rest never change identity (a `const` cannot, and no `function` here is
    reassigned — checked, not assumed), so a plain value is exactly as live as
-   a getter and reads better. */
+   a getter and reads better.
+
+   231 by value, 23 by getter, 254 in all. The first count of this list said
+   253, and it was wrong by exactly one: the regex that collected the names
+   knew `function`, `const`, `let`, `var` and `class`, and `deconnecter` is an
+   `async function`. No state's markup depends on logging out, so a
+   state-by-state comparison of the whole frame said « identical » while the
+   rule suite said `ReferenceError`. */
 Object.assign(window, {
-  deconnecter,
   ACTEURS, AFFICHES_HD, APPARENCES, APPUI_MS, APPUI_TOLERANCE, AUDIOS,
   AUJOURDHUI, BLOCKED, CADENCE_CRON, CATS, COMPTE, DECISIONS_ATTENTE,
   DECISIONS_REGLEES, DEMARRAGE_MS, DEPENDANCES, DISQUES, DONE_TODAY,
@@ -35120,29 +35126,29 @@ Object.assign(window, {
   avancerGestePage, baseTitle, beforeReset, cadenceFR, cardHTML, chipHTML,
   closeDlg, closeHarness, closeScreen, closeSheet, couvrirLeChargement,
   dateFR, debutGestePage, decisionEnAttente, deckCardHTML, deckHTML,
-  deckOrdre, dejaInstallee, derived, deroulementEnCours, deroulerCouche,
-  dismissSug, emptyInner, endCardDrag, endDeckDrag, endPageDrag,
-  endSugDrag, epState, escapeHtml, etatDeLURL, etatDeNavigation,
-  factRowsHTML, fermerPopEp, fermerTiroir, fichiersModifies, fillSug,
-  gridBadge, hideLayers, icons, initials, initialsOf, largeurTiroir,
-  libFiltered, libRowHTML, listeFaitsHTML, loadMoreSug, masquerConnexion,
-  masquerDemarrage, masquerInstallation, memeValeur, modifierReglage,
-  mountDeck, mountLoaders, mountSearch, nomDeFichier, normalisedKey,
-  noterLeChemin, openAddSheet, openDeleteDialog, openDetailSheet, openDlg,
-  openFollowSheet, openHarness, openJourneySheet, openPanel, openPlusSheet,
-  openScreen, openSheet, openSugSheet, openUserSheet,
-  ouvrirActionMaintenance, ouvrirPopEp, ouvrirReglage, ouvrirSecret,
-  ouvrirTiroir, paintSelBar, panneauSousLeDoigt, passerSug, pileEcrans,
-  plages, possedesDe, posterBox, prochaineRechercheFR,
-  proposerInstallation, ptr, publierHauteurBarre, refPanel, refermerCarte,
-  refreshDeck, reglageId, reinitialiserReglages, render, renderNav,
-  richText, saisonsDe, saisonsFicheHTML, secHTML, secInner, seedWorld,
-  select, sheetFor, skelCards, skelCardsInner, skelTiles, sortLabel,
-  sortirDeLaFile, stFraction, stLabel, stripHTML, sugCardHTML, sugFoot,
-  sugTileHTML, sugVerb, suivreAppui, surIOSSafari, surRetourEngine,
-  surfErr, surfErrInner, svgIcon, swipeHTML, tileHTML, toast, toastUndo,
-  tousLesReglages, trailerIds, trierLib, urlDeLEtat, valeurCourante,
-  valeurEnCours, valeurSaisie, view,
+  deckOrdre, deconnecter, dejaInstallee, derived, deroulementEnCours,
+  deroulerCouche, dismissSug, emptyInner, endCardDrag, endDeckDrag,
+  endPageDrag, endSugDrag, epState, escapeHtml, etatDeLURL,
+  etatDeNavigation, factRowsHTML, fermerPopEp, fermerTiroir,
+  fichiersModifies, fillSug, gridBadge, hideLayers, icons, initials,
+  initialsOf, largeurTiroir, libFiltered, libRowHTML, listeFaitsHTML,
+  loadMoreSug, masquerConnexion, masquerDemarrage, masquerInstallation,
+  memeValeur, modifierReglage, mountDeck, mountLoaders, mountSearch,
+  nomDeFichier, normalisedKey, noterLeChemin, openAddSheet,
+  openDeleteDialog, openDetailSheet, openDlg, openFollowSheet, openHarness,
+  openJourneySheet, openPanel, openPlusSheet, openScreen, openSheet,
+  openSugSheet, openUserSheet, ouvrirActionMaintenance, ouvrirPopEp,
+  ouvrirReglage, ouvrirSecret, ouvrirTiroir, paintSelBar,
+  panneauSousLeDoigt, passerSug, pileEcrans, plages, possedesDe, posterBox,
+  prochaineRechercheFR, proposerInstallation, ptr, publierHauteurBarre,
+  refPanel, refermerCarte, refreshDeck, reglageId, reinitialiserReglages,
+  render, renderNav, richText, saisonsDe, saisonsFicheHTML, secHTML,
+  secInner, seedWorld, select, sheetFor, skelCards, skelCardsInner,
+  skelTiles, sortLabel, sortirDeLaFile, stFraction, stLabel, stripHTML,
+  sugCardHTML, sugFoot, sugTileHTML, sugVerb, suivreAppui, surIOSSafari,
+  surRetourEngine, surfErr, surfErrInner, svgIcon, swipeHTML, tileHTML,
+  toast, toastUndo, tousLesReglages, trailerIds, trierLib, urlDeLEtat,
+  valeurCourante, valeurEnCours, valeurSaisie, view,
 });
 
 // Read live, because the engine reassigns each of these.
