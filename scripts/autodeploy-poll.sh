@@ -100,10 +100,96 @@ redeploy_if_advanced() {
   return 0
 }
 
+# ── l'hôte design, qui n'est ni l'un ni l'autre des deux clones ──────────────
+#
+# `torrentmate-design` sert `serve.py` depuis le dépôt de DEV, que ce poller ne
+# met jamais à jour : ceci n'est donc pas un déploiement. C'est la réparation
+# d'une asymétrie. Cet hôte relit son BALISAGE dans le source à chaque requête
+# et charge son PYTHON une seule fois, au démarrage — éditer `serve.py` change
+# donc ce que le formulaire ENVOIE sans changer ce que le processus LIT, et les
+# deux se contredisent en silence. Mesuré le 2026-08-18 : renommer les champs
+# du formulaire de connexion a verrouillé l'opérateur dehors, sans une ligne
+# dans les logs, pendant que la page servie était déjà correcte.
+#
+# Le déclencheur est la DATE DU FICHIER comparée à celle du démarrage, jamais
+# un évènement git : une sauvegarde d'éditeur, un changement de branche et un
+# pull cassent la chose de la même façon. `serve.py` n'importe que la
+# bibliothèque standard — c'est le seul fichier chargé à froid, donc le seul à
+# surveiller.
+DESIGN_APP="${TM_DESIGN_APP:-torrentmate-design}"
+
+# Date de dernière modification, en secondes. Lue par `python3`, dont cette
+# fonction dépend déjà : `stat` n'a PAS la même interface des deux côtés, et
+# la chaîne `stat -f %m || stat -c %Y` est pire que boiteuse — pour le `stat`
+# de GNU, `-f` veut dire « système de fichiers », si bien qu'il RÉUSSIT en
+# affichant un pavé, le repli n'arrive jamais et la comparaison qui suit reçoit
+# du texte. Son test le montrait : l'hôte redémarrait à chaque passe.
+file_mtime() {
+  python3 -c 'import os, sys; print(int(os.stat(sys.argv[1]).st_mtime))' "$1" \
+    2>/dev/null || echo 0
+}
+
+restart_design_if_stale() {
+  command -v pm2 >/dev/null 2>&1 || return 0
+
+  local listing
+  listing="$(pm2 jlist 2>/dev/null)" \
+    || { echo "[$(stamp)] $DESIGN_APP : pm2 jlist a échoué — passe ignorée"; return 0; }
+
+  # « <chemin du script> <démarrage en secondes> », ou rien si l'app est
+  # absente, arrêtée, ou si la sortie n'est pas du JSON exploitable.
+  local reading
+  reading="$(printf '%s' "$listing" | python3 -c '
+import json, sys
+name = sys.argv[1]
+try:
+    apps = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+for app in apps:
+    if app.get("name") != name:
+        continue
+    env = app.get("pm2_env") or {}
+    if env.get("status") != "online":
+        sys.exit(0)
+    path, started = env.get("pm_exec_path"), env.get("pm_uptime")
+    if path and started:
+        print(path, int(started) // 1000)
+' "$DESIGN_APP" 2>/dev/null)" || return 0
+  [ -n "$reading" ] || return 0
+
+  local script started mtime
+  script="${reading% *}"
+  started="${reading##* }"
+  [ -f "$script" ] || { echo "[$(stamp)] $DESIGN_APP : $script absent — passe ignorée"; return 0; }
+  mtime="$(file_mtime "$script")"
+
+  # Strictement postérieur : redémarrer sur une égalité relancerait en boucle.
+  if [ "$mtime" -le "$started" ]; then
+    return 0
+  fi
+
+  echo "[$(stamp)] $DESIGN_APP : $script modifié après le démarrage du processus — redémarrage"
+  if pm2 restart "$DESIGN_APP" >/dev/null 2>&1; then
+    echo "[$(stamp)] $DESIGN_APP : redémarré"
+  else
+    echo "[$(stamp)] $DESIGN_APP : pm2 restart en échec — passe ignorée"
+  fi
+  return 0
+}
+
 one_pass() {
   redeploy_if_advanced "$PROD_CLONE"    main    pull  "$PROD_CLONE/scripts/deploy.sh"
   redeploy_if_advanced "$STAGING_CLONE" staging reset "$STAGING_CLONE/scripts/deploy-staging.sh"
+  restart_design_if_stale
 }
+
+# Le contrôle de l'hôte design, seul : c'est par là que son test l'exerce, sans
+# lancer le moindre déploiement.
+if [ "${1:-}" = "--design-only" ]; then
+  if ! restart_design_if_stale; then echo "[$(stamp)] contrôle design : erreur non fatale"; fi
+  exit 0
+fi
 
 if [ "${1:-}" = "--once" ]; then
   # `if !` désactive errexit dans one_pass → une passe fait tout son travail
