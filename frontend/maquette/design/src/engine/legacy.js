@@ -9362,7 +9362,7 @@ import { screens, panel, bridge } from "../seams.js";
       ...(changed ? { puce: ["info", "modifié, pas encore écrit"] } : {}),
       blocs: [
         setting.note ? { type: "note", text: setting.note } : null,
-        SETTINGS_STATE.readOnly ? null : { type: "champ", setting },
+        SETTINGS_STATE.readOnly ? null : { type: "field", setting },
         {
           type: "faits",
           lignes: [

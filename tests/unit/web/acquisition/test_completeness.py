@@ -361,7 +361,7 @@ def _cached_dated(season: int, episode: int, air_date: str) -> AiredEpisodeRow:
     return AiredEpisodeRow(followed_id=5, season=season, episode=episode, title="Ep", air_date=air_date, updated_at=1)
 
 
-def test_matrix_shows_future_as_annonce_kept_out_of_aired_tallies() -> None:
+def test_matrix_shows_future_as_announced_kept_out_of_aired_tallies() -> None:
     """A future cached episode reads ``annonce`` and is counted in ``announced`` only.
 
     Owned/queued/total stay AIRED-only; ``annonce`` is a display state and its

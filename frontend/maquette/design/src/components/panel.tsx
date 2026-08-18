@@ -384,7 +384,7 @@ function fileName(f: string): string {
 function FieldBlock({
   block,
 }: {
-  block: Extract<PanelBlock, { type: "champ" }>;
+  block: Extract<PanelBlock, { type: "field" }>;
 }) {
   const {
     settingId,
@@ -541,7 +541,7 @@ export type PanelBlock =
       secondary?: boolean;
     }
   | { type: "saisons"; isFollowed: Follow; seasons: Season[] }
-  | { type: "champ"; setting: Setting };
+  | { type: "field"; setting: Setting };
 
 // The refusal itself, named, so the probe that exercises it
 // (`window.__unknownPanel`, published by the shell) raises the SAME error
@@ -564,7 +564,7 @@ function BlockView({ block }: { block: PanelBlock }) {
       return <ActionsBlock block={block} />;
     case "saisons":
       return <SeasonsBlock block={block} />;
-    case "champ":
+    case "field":
       return <FieldBlock block={block} />;
     default:
       // Silence here would draw an empty panel and blame the data. A block

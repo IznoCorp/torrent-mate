@@ -79,7 +79,7 @@ class TestSeriesHasEnded:
 class TestCaughtUpSplitsInTwo:
     """A caught-up series reads « Terminé » only when BOTH facts agree."""
 
-    def test_ended_and_nothing_announced_is_termine(self) -> None:
+    def test_ended_and_nothing_announced_is_ended(self) -> None:
         """The series is over and the library holds all of it."""
         assert caught_up(series_status="Ended", announced_count=0) == "ended"
 
@@ -103,7 +103,7 @@ class TestCaughtUpSplitsInTwo:
         """« disabled » outranks everything, ended series included."""
         assert caught_up(active=False, series_status="Ended") == "disabled"
 
-    def test_no_catalog_is_never_termine(self) -> None:
+    def test_no_catalog_is_never_ended(self) -> None:
         """No catalog is no knowledge — the strongest rule in the module.
 
         An ended series we have never catalogued must read ``non_verifie``, not

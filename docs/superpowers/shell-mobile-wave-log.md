@@ -911,6 +911,53 @@ The lesson under all five: **a gate proves what it reads, and nothing about what
 Every one of these was green — the question that found them was not « does it pass? » but
 « what does it look at? »
 
+### The values, the routes and the parameters follow the names
+
+Branch `fix/design-restart`, PR #456, version 0.98.0. The operator overturned
+the freeze that kept an address French: **a route and a parameter are NAMES
+someone chose, not data.** What stays French is the translations and the real
+media, torrent and provider data — nothing else.
+
+The acquisition state vocabulary left French end to end — `en_attente` →
+`pending`, `a_jour` → `up_to_date`, `non_verifie` → `unverified`,
+`en_acquisition` → `acquiring`, `a_recuperer` → `to_grab`, `en_mediatheque` →
+`in_library`, `verification_en_cours` → `verifying`, `annonce` → `announced`,
+`termine` → `ended` — across the backend, the OpenAPI document, `schema.d.ts`,
+the app, the stylesheet and the fixture. **Nothing was persisted**, which is the
+fact that made it a code change rather than a migration: the states are derived
+at read time from SQLite facts, and no column, NFO or config file holds one.
+
+The routes moved with them, in the prototype and in production:
+`/fiche/$titre` → `/mediasheet/$title`, `/profil/$titre` → `/profile/$title`,
+`/ajout` → `/add`, `/resolution/$dossier` → `/resolution/$folder`; and
+`/medias` → `/media`, `/systeme` → `/system`, `/controle` → `/control`. **The
+three French addresses answer as redirects** — they are live, in bookmarks and
+in the PWA's cache, and a rename that 404s the address it renamed is a break
+wearing a rename's clothes.
+
+### The renaming tool paid three defects of the same shape
+
+Each one is a scanner believing it reads what it does not.
+
+| Defect | What it did |
+| --- | --- |
+| **UTF-16 offsets** | JavaScript counts a string in code UNITS and Python in code points. Four emoji in `legacy.js`, the first at character 88 847, shifted every span the parser reported by four — a string literal was cut in half, so a rename matched neither part. It MISSED, silently, which is the safe half of this bug. |
+| **`regions()` is a JavaScript scanner** | It knows `//` and `/* */` and nothing about `#`. A French comment holding an apostrophe opened a string that never closed, and every literal after it read as code. Python reads its spans through its own tokeniser now. |
+| **`--values` was too wide** | Renaming a VALUE is not renaming an identifier, and the first rule looked at the delimiters around the word. It rewrote **429 lines of PROSE** across 116 files — « conforme au profil » became « au profile », « Voir mes suivis » became « mes follows ». |
+
+The tree was reset and the lots replayed. The discriminator is no longer the
+word but **the whole string**: an id carries no capital, no apostrophe, no full
+stop. Second pass: 37 files instead of 116, zero prose touched. `i18n/` is
+excluded by construction rather than by luck.
+
+**And the lesson the rule suite gave three times in a row**: the French a hold
+ASSERTS is the app's RENDERED OUTPUT. « bande-annonce », « recherche »,
+« dernier passage » are what the interface writes on screen; renaming them turns
+a rule green while it measures something else. All three were restored.
+
+One discipline failure worth recording: the lots were not committed as they
+landed, so undoing one meant resetting the tree and replaying everything.
+
 ## SP4-fin wave 3 — the bridge dies, and the fixture leaves the product
 
 Branch `refactor/maquette-sp4fin3`, version 0.97.24. Four things the spec named for SP4-end,

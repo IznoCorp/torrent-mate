@@ -22,10 +22,10 @@ FUTURE = date(2025, 1, 1)
 PAST = date(2023, 1, 1)
 
 
-class TestAnnonceDerivation:
+class TestAnnouncedDerivation:
     """``derive_episode_state`` returns ``annonce`` first for a future air_date."""
 
-    def test_future_air_date_is_annonce(self) -> None:
+    def test_future_air_date_is_announced(self) -> None:
         """A future episode reads ``annonce`` — the plain case."""
         state = derive_episode_state(
             owned=False,
@@ -47,7 +47,7 @@ class TestAnnonceDerivation:
         ],
         ids=["owned", "grabbed", "available", "searched"],
     )
-    def test_annonce_wins_over_every_other_fact(
+    def test_announced_wins_over_every_other_fact(
         self, owned: bool, wanted_status: str | None, outcome: str | None, found: int | None
     ) -> None:
         """``annonce`` is decided FIRST — no combination of facts overrides a future date."""
@@ -61,7 +61,7 @@ class TestAnnonceDerivation:
         )
         assert state == "announced", "a future episode is announced regardless of its facts"
 
-    def test_annonce_precedes_the_no_row_unverified_path(self) -> None:
+    def test_announced_precedes_the_no_row_unverified_path(self) -> None:
         """A future has no wanted row → no-row facts; annonce must win BEFORE non_verifie.
 
         This is the trap the coordinator called out: a future episode's facts
@@ -79,7 +79,7 @@ class TestAnnonceDerivation:
         )
         assert no_row == "announced"
 
-    def test_today_is_not_annonce(self) -> None:
+    def test_today_is_not_announced(self) -> None:
         """Air-date == today is aired (inclusive), not announced."""
         state = derive_episode_state(
             owned=False,
@@ -116,7 +116,7 @@ class TestAnnonceDerivation:
         )
 
 
-class TestAnnonceExcludedFromCard:
+class TestAnnouncedExcludedFromCard:
     """ACC-03 — an announced future never degrades the aggregated card status."""
 
     def test_all_aired_owned_stays_up_to_date_with_announced_ahead(self) -> None:
