@@ -815,6 +815,18 @@ classic script to a module world, and that world is gone. It now describes a DRI
 measurement. Recorded in `regions.json`. R72 needed nothing at all, measured rather than assumed:
 the fragment is still injected verbatim, exactly once.
 
+### A positive control earned its keep, on the day it was supposed to
+
+`panel.py` went red on « there really are callers — 0 calls ». That check exists for one reason:
+its neighbour asserts that NO caller hands markup to the panel, and an assertion about an empty
+set is true of nothing. The engine's 40 call sites had just stopped spelling the verb
+`window.__panneau.ouvrir(` and started spelling it `panneau.ouvrir(` — so the count fell to
+zero, and the pair said so instead of quietly passing.
+
+It counts both spellings now, because there are two and they are the same object. Both halves
+fall under mutation, separately: a caller handing a string fails the first, every caller renamed
+away fails the second.
+
 ### Two errors of mine, and one of them killed the page
 
 The blanket rewrite of `state.` landed in PROSE in four comments. Found with a scanner that
