@@ -171,7 +171,7 @@ function DecisionCard({ decision }: { decision: SettledDecision }) {
     icons,
     DECISION_STATE,
     DECISION_STATE_DETAIL,
-    MOTIF_TON,
+    REASON_TONE,
     MOTIF_LABEL,
     VIA_LABEL,
   } = useReference();
@@ -202,7 +202,7 @@ function DecisionCard({ decision }: { decision: SettledDecision }) {
               exactly what one comes back for. */}
           {identity ? <span className="creason">{identity}</span> : ""}
           <span className="cmeta">
-            <span className={`chip ${MOTIF_TON[decision.motif] ?? "neutral"}`}>
+            <span className={`chip ${REASON_TONE[decision.motif] ?? "neutral"}`}>
               {MOTIF_LABEL[decision.motif] ?? decision.motif}
             </span>
             {state ? (
@@ -286,7 +286,7 @@ export function ResolutionScreen() {
     icons,
     REASON_DETAIL,
     MOTIF_LABEL,
-    MOTIF_TON,
+    REASON_TONE,
     DECISIONS_REGLEES,
     decisionPending,
     derivedBlocked,
@@ -340,7 +340,7 @@ export function ResolutionScreen() {
           <div className="cmeta" style={{ marginBottom: "12px" }}>
             {decision ? (
               <span
-                className={`chip ${MOTIF_TON[decision.motif] ?? "neutral"}`}
+                className={`chip ${REASON_TONE[decision.motif] ?? "neutral"}`}
               >
                 {MOTIF_LABEL[decision.motif] ?? decision.motif}
               </span>

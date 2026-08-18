@@ -51,7 +51,7 @@ function Icon({ paths, strokeWidth }: { paths: string; strokeWidth?: number }) {
   );
 }
 
-// The fields this screen reads off a `FICHES_RAW` entry. The source stays
+// The fields this screen reads off a `SHEETS_RAW` entry. The source stays
 // untyped JS and a movie and a show do not carry the same keys, so every
 // field is optional — a narrowed view of `MediaSheet`, never a claim about
 // what a sheet always has.
@@ -293,10 +293,10 @@ function SeasonList({
 // and nothing at all when there is neither — same resolution order as the
 // legacy sheet, base title included.
 function artworkFor(reference: Reference, title: string): string | null {
-  const { HEROS, POSTERS, baseTitle } = reference;
+  const { HERO_IMAGES, POSTERS, baseTitle } = reference;
   return (
-    HEROS[title] ??
-    HEROS[baseTitle(title)] ??
+    HERO_IMAGES[title] ??
+    HERO_IMAGES[baseTitle(title)] ??
     POSTERS[title] ??
     POSTERS[baseTitle(title)] ??
     null

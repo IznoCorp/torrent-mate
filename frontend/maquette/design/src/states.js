@@ -34,7 +34,7 @@ import {
   openDeleteDialog,
   openFollowSheet,
   openJourneySheet,
-  openPlusSheet,
+  openMoreSheet,
   openUserSheet,
   openActionMaintenance,
   openSetting,
@@ -308,7 +308,7 @@ const STATES = [
       "Feuille « ⋮ » — veille et obligations",
       () => {
         applyState({ page: "acq", phase: "prete" });
-        openPlusSheet();
+        openMoreSheet();
       },
     ],
     [

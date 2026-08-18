@@ -42,7 +42,7 @@ function SettingRow({
   setting: Setting;
   withFile?: boolean;
 }): ReactElement {
-  const { SETTINGS_STATE, settingId, valeurCourante, fileName } =
+  const { SETTINGS_STATE, settingId, displayedValue, fileName } =
     useReference();
   const identity = settingId(setting);
   const edited = SETTINGS_STATE.modifs.has(identity);
@@ -60,7 +60,7 @@ function SettingRow({
         {settingLabel(setting)}{" "}
         <span className="rf">{origin}</span>
       </span>
-      <span className="rv">{String(valeurCourante(setting))}</span>
+      <span className="rv">{String(displayedValue(setting))}</span>
     </button>
   );
 }

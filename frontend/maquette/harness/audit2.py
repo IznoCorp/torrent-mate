@@ -100,7 +100,7 @@ async def main():
     # suggestion, film and series.
     orders=await pg.evaluate("""async ()=>{
       const out={}, picks=[];
-      const titles=Object.keys(FICHES_RAW ?? {});
+      const titles=Object.keys(SHEETS_RAW ?? {});
       const take=(pred, n)=>titles.filter(pred).slice(0, n);
       const incomplete=(t)=>{const s=OWNED[t]??OWNED[baseTitle(t)];
         if(!s) return false; const f=sheetFor(t); if(!f?.saisons) return false;
@@ -108,7 +108,7 @@ async def main():
       picks.push(...take(t=>sheetFor(t)?.k==='movie', 2));
       picks.push(...take(t=>sheetFor(t)?.k==='show' && !incomplete(t), 2));
       picks.push(...take(incomplete, 4));
-      picks.push(...take(t=>!(HEROS[t]??HEROS[baseTitle(t)]), 2));
+      picks.push(...take(t=>!(HERO_IMAGES[t]??HERO_IMAGES[baseTitle(t)]), 2));
       for (const t of [...new Set(picks)]) {
         window.__reset(); applyState({page:'lib', phase:'prete'});
         window.__ecrans.fiche(t);
@@ -373,7 +373,7 @@ async def main():
     # must not have two faces depending on the data it happens to have.
     renders=await pg.evaluate("""async ()=>{
       const c={rows:[], matrix:[], mixed:[], neverOpened:[], noSeason:[]};
-      const series=Object.keys(FICHES_RAW).filter(t=>sheetFor(t)?.k!=='movie');
+      const series=Object.keys(SHEETS_RAW).filter(t=>sheetFor(t)?.k!=='movie');
       // The sheet is a ROUTE now: it commits a frame later than an `innerHTML`
       // assignment did. A FIXED wait makes this rule's coverage depend on how
       // loaded the host is — one too short and every sheet reads « no season »,

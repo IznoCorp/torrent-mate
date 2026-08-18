@@ -388,7 +388,7 @@ function FieldBlock({
 }) {
   const {
     settingId,
-    valeurEnCours,
+    rawValue,
     typedValue,
     changeSetting,
     openSetting,
@@ -397,13 +397,13 @@ function FieldBlock({
   const { t } = useTranslation();
   const { setting: setting } = block;
   const id = settingId(setting);
-  // The field draws what `valeurEnCours` answers — the pending edit if there
+  // The field draws what `rawValue` answers — the pending edit if there
   // is one, the file's `brut` otherwise. Reading `.brut` alone would draw a
   // list one has just shortened at its old length, so a removal would look
   // like it did nothing. Never `.v`: that is a pre-formatted DISPLAY string
   // (a boolean's `.brut: false` reads `.v: "non"`, always truthy, which would
   // wedge the switch on).
-  const v = valeurEnCours(setting);
+  const v = rawValue(setting);
 
   if (setting.type === "structure")
     return (
@@ -448,7 +448,7 @@ function FieldBlock({
                 data-deletefield={id}
                 data-index={index}
                 aria-label={t("settings.field.removeAria", {
-                  valeur: String(x),
+                  value: String(x),
                 })}
               >
                 <Icon paths={icons.x} />

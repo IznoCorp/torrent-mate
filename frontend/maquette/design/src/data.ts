@@ -79,7 +79,7 @@ export type CardDescriptor = {
   panel?: string;
 };
 
-// A media sheet, exactly as `FICHES_RAW` shapes one in refonte.html — a
+// A media sheet, exactly as `SHEETS_RAW` shapes one in refonte.html — a
 // movie and a show share most fields but not all (a show carries `saisons`
 // and `eps`, a movie carries `duree`), and the source stays untyped JS. A
 // loose index type is the honest shape here rather than a speculative
@@ -137,7 +137,7 @@ export type DecisionChoice = {
 // Fields common to a decision whichever side of resolution it is on — the
 // folder's display name (`d`, always spelled `staging_path`-derived, never a
 // medium title), its kind, the title/year the automatic pass landed on, and
-// when the scrape ran. `motif` keys `MOTIF_LABEL` / `MOTIF_TON` /
+// when the scrape ran. `motif` keys `MOTIF_LABEL` / `REASON_TONE` /
 // `REASON_DETAIL`.
 type DecisionCommon = {
   d: string;
@@ -163,7 +163,7 @@ export type SettledDecision = DecisionCommon & {
   choice?: DecisionChoice;
 };
 
-// A queue card exactly as `BLOCKED` / `STUCK` / `STUCK_REEL` shape one — the
+// A queue card exactly as `BLOCKED` / `STUCK` / `STUCK_REAL` shape one — the
 // source carries more fields (`s`, `chip`, `strip`, `noposter`…) than any one
 // reader needs, so this stays the same loose index shape as `MediaSheet`
 // rather than a speculative closed type: a caller narrows the fields it
@@ -378,7 +378,7 @@ export type Reference = {
   // `seasonsOf` / `ownedFor` neighbourhood for the exact resolution rules
   // (title normalisation, year-suffix stripping) a re-implementation would
   // otherwise silently diverge from.
-  HEROS: Record<string, string>;
+  HERO_IMAGES: Record<string, string>;
   POSTERS: Record<string, string>;
   // What the Système page draws. `factRowsHTML` emits the
   // ROWS of a fact list without the `<ol class="flux">` around them, because a
@@ -482,7 +482,7 @@ export type Reference = {
   SECRETS: Secret[];
   emptyInner: (title: string, body: string) => string;
   chipHTML: (chip: [string, string] | null | undefined) => string;
-  valeurCourante: (setting: Setting) => unknown;
+  displayedValue: (setting: Setting) => unknown;
   fileName: (file: string) => string;
   changedFiles: () => string[];
   RISQUES: Record<string, Risk>;
@@ -510,9 +510,9 @@ export type Reference = {
   // The value a field must DRAW: the pending edit when there is one, the
   // file's `brut` otherwise. The pending-edit overlay itself stays private to
   // the engine — this returns the value, never the map.
-  valeurEnCours: (setting: Setting) => unknown;
+  rawValue: (setting: Setting) => unknown;
   typedValue: (setting: Setting, texte: string) => unknown;
-  changeSetting: (id: string, valeur: unknown) => void;
+  changeSetting: (id: string, value: unknown) => void;
   openSetting: (id: string) => void;
   // The arbitration flow — decisions the scrape could not make on its own,
   // spelled out for a folder rather than a medium. `PENDING_DECISIONS` /
@@ -521,7 +521,7 @@ export type Reference = {
   PENDING_DECISIONS: PendingDecision[];
   DECISIONS_REGLEES: SettledDecision[];
   MOTIF_LABEL: Record<string, string>;
-  MOTIF_TON: Record<string, string>;
+  REASON_TONE: Record<string, string>;
   REASON_DETAIL: Record<string, string>;
   // Unlike the other label maps here, each value is a [tone, label] pair —
   // the same shape a chip carries — not a bare string: `DECISION_STATE`

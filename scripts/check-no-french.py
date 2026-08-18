@@ -66,6 +66,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 MAQUETTE = ROOT / "frontend" / "maquette"
+# The words this codebase's names are built from — see its own header.
+VOCABULARY = ROOT / "scripts" / "code-vocabulary.txt"
 SHELL = MAQUETTE / "design" / "src"
 HARNESS = MAQUETTE / "harness"
 REGIONS = MAQUETTE / "regions.json"
@@ -227,6 +229,19 @@ FROZEN_IDENTIFIERS = {
         "A seam NAME, spelled as the fragment spells it — the same object is "
         "`window.__panneau`, which the harness drives and the engine calls."
     ),
+    # A NAMED DEBT, not an exemption on principle. `data-fiche` is the
+    # media-sheet contract, and the obvious English for it — `data-sheet` — is
+    # ALREADY TAKEN by the sheet-opener (`data-sheet="utilisateur"`,
+    # `data-sheet="plus"`). Renaming this one to `sheet` merged two distinct
+    # contracts: the user menu started answering with the media sheet's
+    # actions. It needs a distinct English name and its own step, moving the
+    # markup, the reader and the rules together — which is exactly what the
+    # `data-*` batch did for the other nineteen.
+    "fiche": (
+        "The media-sheet contract. `data-sheet` is taken by a DIFFERENT "
+        "attribute, so this rename needs a name of its own and its own step; "
+        "merging them was measured and reverted."
+    ),
 }
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -384,6 +399,7 @@ examined: dict[str, int] = {
     "declared CSS classes / fragment": 0,
     "declared CSS classes / extracted": 0,
     "unread javascript / shell": 0,
+    "name words / shell": 0,
 }
 
 
@@ -959,6 +975,129 @@ def check_class_names(violations: list[str]) -> None:
                     "name shared by four worlds")
 
 
+def code_only(source: str) -> str:
+    """Returns the source with comments and string bodies blanked out.
+
+    A name extractor that reads prose invents declarations: « the type this
+    module exports » yields `this`, and eighty-four such phantoms buried the
+    four real findings on the first run. Newlines are preserved so a line
+    number still means what it says.
+
+    Args:
+        source: JavaScript or TypeScript.
+
+    Returns:
+        The same length of text, with everything that is not code replaced by
+        spaces.
+    """
+    out, index, size = [], 0, len(source)
+    in_line = in_block = in_string = False
+    quote = ""
+    while index < size:
+        char = source[index]
+        if in_line:
+            if char == "\n":
+                in_line = False
+                out.append(char)
+            else:
+                out.append(" ")
+            index += 1
+        elif in_block:
+            if source.startswith("*/", index):
+                in_block = False
+                out.append("  ")
+                index += 2
+            else:
+                out.append("\n" if char == "\n" else " ")
+                index += 1
+        elif in_string:
+            if char == "\\":
+                out.append("  ")
+                index += 2
+                continue
+            if char == quote:
+                in_string = False
+                out.append(char)
+            else:
+                out.append("\n" if char == "\n" else " ")
+            index += 1
+        elif source.startswith("//", index):
+            in_line = True
+            out.append("  ")
+            index += 2
+        elif source.startswith("/*", index):
+            in_block = True
+            out.append("  ")
+            index += 2
+        elif char in "\"'`":
+            in_string = True
+            quote = char
+            out.append(char)
+            index += 1
+        else:
+            out.append(char)
+            index += 1
+    return "".join(out)
+
+
+def check_vocabulary(violations: list[str]) -> None:
+    """Refuses a declared name built from a word this codebase does not use.
+
+    THE OTHER ARMS ASK « IS THIS FRENCH? », and that question is only ever as
+    good as the list of French words behind it. That list had holes — `suivante`,
+    `trier`, `fermer`, `afficher`, `chargement`, `compte`, `monde` were all
+    invisible to it — so « no violation » quietly meant « none among the words we
+    thought of », and a hundred and forty French names sat under it unremarked.
+
+    This arm asks the opposite: « is this word one we use? ». The vocabulary is
+    a file in the repository, so it has no holes by construction — a name built
+    from a word nobody wrote down is refused, whatever language it came from.
+
+    It reads `.js` as well as `.ts`/`.tsx`, which is what finally puts the
+    legacy engine under a guard: its identifiers are English now, so the words
+    they are made of are simply in the list.
+
+    Args:
+        violations: The accumulator every arm appends to.
+    """
+    words = {line.strip().lower() for line in VOCABULARY.read_text(
+        encoding="utf-8").splitlines()
+        if line.strip() and not line.startswith("#")}
+    if not words:
+        violations.append(f"{relative(VOCABULARY)} is empty — the arm reading it "
+                          "would accept every name ever written")
+        return
+    sources = [p for p in SHELL.rglob("*")
+               if p.is_file() and p.suffix in {".ts", ".tsx", ".js"}
+               and "i18n" not in p.parts]
+    for path in sorted(sources):
+        raw = read(path)
+        lines = raw.splitlines()
+        # Comments and strings are blanked first: a name extractor that reads
+        # prose invents declarations — « the type this module exports » yields
+        # `this` — and eighty of those buried the four real findings.
+        source = code_only(raw)
+        for match in re.finditer(
+                r"(?:function|const|let|var|class|type|interface)\s+"
+                r"([A-Za-z_$][\w$]*)", source):
+            name = match.group(1)
+            if name in FROZEN_IDENTIFIERS:
+                continue
+            line_no = source[: match.start()].count("\n") + 1
+            if pragma_on(lines, line_no) is not None:
+                continue
+            examined["name words / shell"] += 1
+            unknown = [w for w in split_identifier(name)
+                       if len(w) > 1 and w.lower() not in words]
+            if unknown:
+                violations.append(
+                    f"{relative(path)}:{line_no}: {name!r} is built from "
+                    f"{', '.join(repr(w) for w in unknown)}, which "
+                    f"{'is' if len(unknown) == 1 else 'are'} not in "
+                    f"{relative(VOCABULARY)} — rename it in English, or add the "
+                    "word there if the codebase really speaks it")
+
+
 def check_unread_javascript(violations: list[str]) -> None:
     """Refuses a `.js` under the shell that no arm reads, except the engine.
 
@@ -1006,6 +1145,7 @@ def main() -> int:
     check_file_names(violations)
     check_class_names(violations)
     check_unread_javascript(violations)
+    check_vocabulary(violations)
     for what, count in examined.items():
         if count == 0:
             violations.append(
@@ -1020,7 +1160,8 @@ def main() -> int:
               "a reader of the interface sees lives in the i18n resources.",
               file=sys.stderr)
         return 1
-    print("no-French guardrail: 4 arms + the unread-JavaScript ledger, no violation — read "
+    print("no-French guardrail: 4 arms + the vocabulary + the unread-JavaScript "
+          "ledger, no violation — read "
           + ", ".join(f"{count} {what}" for what, count in examined.items()))
     return 0
 

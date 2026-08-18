@@ -791,8 +791,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         # The field NAMES are the login form's own, extracted from the
         # prototype: they are markup this host reads, not names it chooses.
         fields = urllib.parse.parse_qs(self.rfile.read(size).decode("utf-8", "replace"))
-        username = (fields.get("identifiant") or [""])[0].strip()
-        password = (fields.get("motdepasse") or [""])[0]
+        username = (fields.get("username") or [""])[0].strip()
+        password = (fields.get("password") or [""])[0]
         # Both sides compared in constant time, and the username checked even
         # when it is wrong, so a wrong name and a wrong password cost the same.
         name_ok = hmac.compare_digest(username, USERNAME)

@@ -241,8 +241,8 @@ async def main():
                 JSON.stringify({
                   splash: getComputedStyle(document.querySelector('#splash')).display,
                   login: getComputedStyle(document.querySelector('#login')).display})))""")
-            await page3.fill('input[name="identifiant"]', "quelqu-un")
-            await page3.fill('input[name="motdepasse"]', "quelque-chose")
+            await page3.fill('input[name="username"]', "quelqu-un")
+            await page3.fill('input[name="password"]', "quelque-chose")
             await page3.click(".loginsubmit")
             await page3.wait_for_timeout(500)
             after = await page3.evaluate(
@@ -351,8 +351,8 @@ async def main():
         await played.evaluate("()=>window.__go('connexion')")
         await played.wait_for_timeout(350)
         await played.evaluate("""()=>{
-          document.querySelector('[name=identifiant]').value = 'izno';
-          document.querySelector('[name=motdepasse]').value = 'x';
+          document.querySelector('[name=username]').value = 'izno';
+          document.querySelector('[name=password]').value = 'x';
           document.querySelector('#loginform').requestSubmit();}""")
         t1 = time.monotonic()
         series = []
@@ -374,8 +374,8 @@ async def main():
         await played.evaluate("()=>window.__go('connexion')")
         await played.wait_for_timeout(300)
         await played.evaluate("""()=>{
-          document.querySelector('[name=identifiant]').value = 'izno';
-          document.querySelector('[name=motdepasse]').value = 'x';
+          document.querySelector('[name=username]').value = 'izno';
+          document.querySelector('[name=password]').value = 'x';
           document.querySelector('#loginform').requestSubmit();}""")
         await played.wait_for_timeout(700)
         before = await played.evaluate("()=>!document.querySelector('#splash').hidden")

@@ -76,7 +76,7 @@ TITLE = "Silo"
 UNKNOWN_ADDRESS = "N'Existe%20Pas"
 
 # The fiche titles below are picked straight from the embedded référentiel
-# (`refonte.html`'s `FICHES_RAW`/`HEROS`/`trailerIds`), not invented:
+# (`refonte.html`'s `SHEETS_RAW`/`HERO_IMAGES`/`trailerIds`), not invented:
 # `Silo (2023)` carries both a hero image and a trailer (`sheetFor` resolves
 # it directly, no `baseTitle` fallback needed), which is what makes holds
 # (f)-(h) meaningful rather than vacuous. `Broadchurch` is the states
