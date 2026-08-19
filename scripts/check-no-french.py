@@ -730,6 +730,18 @@ def check_data_attributes(violations: list[str]) -> None:
                     "word there if the codebase really speaks it")
 
 
+SHELL_BY_NAME = {"Makefile"}
+
+
+def first_line(path: Path) -> str:
+    """The file's first line, or "" when it cannot be read as text."""
+    try:
+        with path.open(encoding="utf-8", errors="ignore") as handle:
+            return handle.readline()
+    except OSError:
+        return ""
+
+
 def check_shell_scripts(violations: list[str]) -> None:
     """Refuses French in a `.sh` — every line of one is the tool speaking.
 
@@ -747,10 +759,24 @@ def check_shell_scripts(violations: list[str]) -> None:
         violations: The accumulator every arm appends to.
     """
     for relative_path in tracked_paths():
-        if not relative_path.endswith(".sh"):
-            continue
         path = ROOT / relative_path
         if not path.is_file():
+            continue
+        # A SCRIPT IS A SCRIPT WHETHER OR NOT ITS NAME ENDS IN `.sh`. Matching
+        # the extension alone left every git hook out — `hooks/pre-commit`,
+        # `hooks/pre-push`, `hooks/commit-msg`, `scripts/pre-push` — plus the
+        # Makefile and a PM2 `.cjs` declaration, all of which print to the
+        # operator and none of which any arm read. Three all-French `.sh` files
+        # were once found this way; these are the same class, one naming
+        # convention over.
+        # `.py` carries a shebang too and is already read, line by line, by the
+        # string and identifier arms; pulling it in here would double every
+        # finding and trip on the accent RANGES in this file's own regexes.
+        if path.suffix == ".py":
+            continue
+        if not (relative_path.endswith((".sh", ".cjs", ".mjs"))
+                or path.name in SHELL_BY_NAME
+                or first_line(path).startswith("#!")):
             continue
         lines = read(path).splitlines()
         for line_no, line in enumerate(lines, start=1):
