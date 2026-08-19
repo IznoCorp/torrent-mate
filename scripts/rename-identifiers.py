@@ -328,11 +328,20 @@ def regions(text):
 # starts on one, so a dangling separator is part of the shape.
 ID_TOKEN = re.compile(r"^[-_:.]?[a-z0-9]+(?:[-_:.][a-z0-9]+)*[-_:.]?$")
 
-# `"…"` and `'…'`, escapes included. JSON, CSS and HTML have no parser here.
+# `"…"` and, in JSON and CSS, `'…'` — escapes included. JSON, CSS and HTML have
+# no parser here.
 QUOTED_RUN = re.compile(r"""(?P<q>["'])(?:\\.|(?!(?P=q))[^\\])*(?P=q)""", re.S)
+# HTML gets DOUBLE QUOTES ONLY. An apostrophe is ordinary text there — this
+# interface is written in French, so its markup is full of them — and reading
+# one as an opening quote swallowed everything up to the next apostrophe:
+# `<p>L'ajout</p><div data-s="en_attente">C'est` became one 93 000-character
+# "string" on `refonte.html`, and the attribute value inside it was silently
+# skipped. The mode reported success having changed nothing, which is the
+# no-op-reported-as-success this function was written to end.
+QUOTED_RUN_HTML = re.compile(r'"(?:\\.|[^"\\])*"', re.S)
 
 
-def quoted_spans(text):
+def quoted_spans(text, html=False):
     """Splits a file with no parser into its quoted runs and the rest.
 
     JSON, CSS and HTML reach the value pass without a parser. They used to be
@@ -343,12 +352,14 @@ def quoted_spans(text):
 
     Args:
         text: The source.
+        html: True for HTML, where only DOUBLE quotes delimit a value and an
+            apostrophe is ordinary text.
 
     Returns:
         The regions, as `(kind, start, end)` with kind `"string"` or `"code"`.
     """
     out, mark = [], 0
-    for match in QUOTED_RUN.finditer(text):
+    for match in (QUOTED_RUN_HTML if html else QUOTED_RUN).finditer(text):
         if match.start() > mark:
             out.append(("code", mark, match.start()))
         out.append(("string", match.start(), match.end()))
@@ -707,7 +718,10 @@ if __name__ == "__main__":
         # so a revert could not restore it either. Asking git what it ignores
         # covers every generated tree at once, including the ones nobody has
         # created yet.
-        if ignored(path) or "node_modules" in path.parts or "dist" in path.parts:
+        # The cheap tests first: `ignored()` shells out to git, ~7.5 ms a call,
+        # and `frontend/node_modules` alone holds 17 657 matching files — two
+        # minutes of pure subprocess for a tree the next test rejects for free.
+        if "node_modules" in path.parts or "dist" in path.parts or ignored(path):
             continue
         # The TRANSLATIONS are the one place French belongs, and a value pass
         # walks JSON. Nothing may reach `i18n/`.
@@ -726,7 +740,7 @@ if __name__ == "__main__":
                  else python_spans(before) if path.suffix == ".py"
                  else None)
         if VALUES and path.suffix in {".css", ".json", ".html"}:
-            spans = quoted_spans(before)
+            spans = quoted_spans(before, html=path.suffix == ".html")
         if VALUES:
             after = apply_values(before, mapping, spans=spans,
                                  whole_only=WHOLE_ONLY, inner_words=INNER_WORDS)

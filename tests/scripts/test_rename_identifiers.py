@@ -574,3 +574,29 @@ def test_an_identity_entry_does_not_mask_a_real_chain(tmp_path: Path) -> None:
 
     assert result.returncode != 0
     assert "chained" in result.stderr
+
+
+@needs_typescript
+def test_an_apostrophe_in_html_is_text_not_a_quote(tmp_path: Path) -> None:
+    """HTML gets double quotes only — an apostrophe there is ordinary text.
+
+    Reading one as an opening quote swallowed everything up to the next
+    apostrophe: on `refonte.html` that produced a single 93 000-character
+    « string » covering 47% of the file, and the attribute values inside it
+    were silently skipped. The mode reported success having changed nothing —
+    the no-op-reported-as-success that `quoted_spans` was written to end.
+
+    This interface is written in French, so its markup is full of apostrophes.
+    """
+    source = tree(
+        tmp_path,
+        "page.html",
+        "<p>L'ajout</p><div data-s=\"en_attente\">C'est</div>\n",
+    )
+
+    result = run(tmp_path, {"en_attente": "pending"}, "--values")
+
+    assert result.returncode == 0, result.stderr
+    body = source.read_text(encoding="utf-8")
+    assert 'data-s="pending"' in body, "the attribute past an apostrophe was skipped"
+    assert "L'ajout" in body and "C'est" in body, "the prose was rewritten"
