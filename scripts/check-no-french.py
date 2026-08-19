@@ -397,6 +397,7 @@ examined: dict[str, int] = {
     "french debt words / vocabulary": 0,
     "lines / shell scripts": 0,
     "interface text / app (exempt)": 0,
+    "name words / dictionary": 0,
 }
 
 # Counted, reported, and deliberately NOT refused. An exemption nobody counts
@@ -1322,6 +1323,146 @@ def check_unread_javascript(violations: list[str]) -> None:
     examined["unread javascript / shell"] += len(unread)
 
 
+# Words `aspell` reports as French-and-not-English that are NOT French names
+# here. Each is a real word of this codebase's trade, and each is written down
+# because an exemption nobody can read is indistinguishable from an oversight.
+DICTIONARY_EXCEPTIONS: dict[str, str] = {
+    "api": "the interface, everywhere",
+    "apis": "plural of the above",
+    "conf": "configuration, abbreviated",
+    "dont": "the English contraction, in `dont_stop` / `errors_dont_stop`",
+    "dur": "durability, abbreviated (SQLite pragma)",
+    "env": "environment, everywhere",
+    "environ": "Python's `os.environ`",
+    "invariants": "English plural, used of the web-UI invariants",
+    "latin": "the script name, in `non_latin_title`",
+    "lin": "linear, in the colour-space tests",
+    "lister": "one that lists — `TorrentLister`",
+    "lucide": "the icon library",
+    "maint": "maintenance, abbreviated",
+    "mut": "mutable / mutation, abbreviated",
+    "nones": "plural of Python's `None`",
+    "nonne": "a typo for `none` in one test name, kept until that test is renamed",
+    "reclasses": "English verb, in `enqueue_other_with_kind_reclasses`",
+    "redis": "the datastore",
+    "repos": "git repositories, in `cross_repos`",
+    "sel": "selector, abbreviated",
+    "sep": "separator, abbreviated",
+    "sonner": "the toast library",
+    "sortable": "English adjective",
+    "typer": "the CLI framework",
+    "vals": "values, abbreviated",
+    "ver": "version, abbreviated",
+    "vite": "the bundler",
+    # DATA, not names: category ids and media titles that appear in fixtures.
+    "autres": "a category id — data, not a name",
+    "livres": "a category id — data, not a name",
+    "gourou": "a media title in a scraper fixture",
+    "sur": "a media title in a fixture (« Sur écoute »)",
+    "panne": "the engine's own state field, inside the declared legacy debt",
+    "maquette": "named by the constitution §15 and R72 — the design reference itself",
+    "saison": "the on-disk folder name (« Saison XX »), a real path, not a name",
+}
+
+
+def dictionary_suspects(words: set[str]) -> set[str]:
+    """Returns the words French knows and English does not.
+
+    AN ORACLE FROM OUTSIDE THE REPOSITORY. The other arms ask questions whose
+    answers this repository writes itself — a 199-word list of French tokens, a
+    vocabulary of allowed words — and a list is only ever as good as what
+    somebody thought to put in it. `aspell` was not written by anyone here, so
+    it does not share this codebase's blind spots.
+
+    IT HAS ITS OWN, AND THEY ARE NAMED HERE RATHER THAN DISCOVERED LATER: a word
+    that is French AND English is invisible to it. `corps`, `page`, `route`,
+    `image`, `message`, `note`, `cause`, `train`, `pays`, `fin`, `son` are all
+    known to English, so this arm cannot see them — `corps` is live in
+    `frontend/src` today and no arm catches it. That is what the VOCABULARY arm
+    is for, and why this one is added beside it rather than in place of it.
+
+    Args:
+        words: The lowercased words the declared names are built from.
+
+    Returns:
+        The suspects, exceptions already removed. Empty when aspell is absent.
+    """
+    if not words:
+        return set()
+    listed = sorted(words)
+    try:
+        unknown_english = set(subprocess.run(
+            ["aspell", "--lang=en", "list"], input="\n".join(listed),
+            capture_output=True, text=True, check=True).stdout.split())
+        unknown_french = set(subprocess.run(
+            ["aspell", "--lang=fr", "list"], input="\n".join(listed),
+            capture_output=True, text=True, check=True).stdout.split())
+    except (OSError, subprocess.CalledProcessError):
+        # Fail SOFT and SAY SO: a machine without the dictionaries must not
+        # report a cleanliness it never measured.
+        print("check-no-french: aspell absent — the dictionary arm measured "
+              "NOTHING (install aspell, aspell-en, aspell-fr)", file=sys.stderr)
+        return set()
+    return {w for w in listed
+            if w in unknown_english and w not in unknown_french
+            and w not in DICTIONARY_EXCEPTIONS}
+
+
+def declared_names() -> list[tuple[str, str, int]]:
+    """Every declared identifier the guard walks, as (path, name, line).
+
+    ONE collection, shared. The identifier arm and the dictionary arm must read
+    the same scope or the narrower one silently certifies the wider — which is
+    the shape of every hole this file has had.
+
+    Returns:
+        (relative path, declared name, 1-based line) for each declaration.
+    """
+    out: list[tuple[str, str, int]] = []
+    python = ([MAQUETTE / "serve.py", MAQUETTE / "resync.py"]
+              + sorted(HARNESS.glob("*.py"))
+              + [p for p in sorted(SCRIPTS.rglob("*.py"))
+                 if p.name != Path(__file__).name]
+              + sorted((ROOT / "frontend" / "scripts").glob("*.py"))
+              + sorted((ROOT / "personalscraper").rglob("*.py"))
+              + sorted((ROOT / "tests").rglob("*.py")))
+    for path in python:
+        for name, line_no in python_declarations(read(path)):
+            out.append((relative(path), name, line_no))
+    web = [p for p in SHELL.rglob("*") if p.is_file() and p.suffix in {".ts", ".tsx"}]
+    web += sorted(HARNESS.glob("*.mjs"))
+    web += [p for p in (ROOT / "frontend" / "src").rglob("*")
+            if p.is_file() and p.suffix in {".ts", ".tsx"}]
+    for path in sorted(web):
+        if "i18n" in path.parts:
+            continue
+        source = read(path)
+        for match in TS_DECLARATION.finditer(source):
+            out.append((relative(path), match.group("name"),
+                        source.count("\n", 0, match.start()) + 1))
+    return out
+
+
+def check_dictionary(violations: list[str]) -> None:
+    """Refuses a declared name built from a word French knows and English does not.
+
+    Args:
+        violations: The accumulator every arm appends to.
+    """
+    owners: dict[str, list[str]] = {}
+    for path, name, line_no in declared_names():
+        for word in split_identifier(name):
+            if len(word) > 2 and word.isalpha():
+                owners.setdefault(word.lower(), []).append(f"{path}:{line_no}: {name!r}")
+    examined["name words / dictionary"] += len(owners)
+    for word in sorted(dictionary_suspects(set(owners))):
+        where = owners[word][0]
+        violations.append(
+            f"{where} is built from {word!r}, which French knows and English "
+            f"does not — name it in English, or add it to DICTIONARY_EXCEPTIONS "
+            f"in {relative(Path(__file__))} with the reason it is not French here")
+
+
 def check_app_interface_text(violations: list[str]) -> None:
     """Measures the French interface text `frontend/src` carries, and says so.
 
@@ -1377,6 +1518,7 @@ def main() -> int:
     check_data_attributes(violations)
     check_french_debt(violations)
     check_shell_scripts(violations)
+    check_dictionary(violations)
     check_app_interface_text(violations)
     for what, count in examined.items():
         if count == 0:

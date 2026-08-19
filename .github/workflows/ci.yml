@@ -129,6 +129,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      # The dictionary arm asks an oracle from OUTSIDE the repository: a word
+      # French knows and English does not is a suspect. Without the
+      # dictionaries the arm fail-softs and says it measured nothing — which is
+      # honest, and useless as a gate. So CI installs them.
+      - run: sudo apt-get update && sudo apt-get install -y aspell aspell-en aspell-fr
       - run: python scripts/check-no-french.py
 
   # `make check` runs twelve guards; CI ran ONE of them (no-french), so eleven
