@@ -43,17 +43,28 @@ class TestApplyScope:
         """
         assert extractor.apply_scope(":root") == extractor.SCOPE
 
-    def test_a_qualified_root_KEEPS_its_qualifier(self) -> None:
-        """The defect this file was opened for.
+    def test_a_qualified_root_keeps_its_qualifier_AND_its_position(self) -> None:
+        """Two mistakes were made here in one day; the parity probe caught both.
 
-        `:root[data-theme="light"]` is the light theme's whole identity. Drop
-        the attribute and it becomes a second, unconditional `:root` — the two
-        theme blocks collapse to equal specificity and source order decides,
-        which is the theme switch dying silently.
+        Dropping the attribute made `:root[data-theme="light"]` a second,
+        unconditional `:root`: the two theme blocks collapsed to equal
+        specificity, source order decided, and the theme switch died silently.
+
+        Welding the qualifier to the scope — `.tm[data-theme="light"]` — was no
+        better and looked correct: the attribute sits on `<html>` and the scope
+        class on `<body>`, so it asks ONE element for both and matches nothing.
+        7 300 divergences, the whole light theme falling back to dark.
+
+        The qualified root stays where it is and the scope follows it.
         """
         scoped = extractor.apply_scope(':root[data-theme="light"]')
 
-        assert scoped == f'{extractor.SCOPE}[data-theme="light"]'
+        assert scoped == f"{extractor.SCOPE}".join([':root[data-theme="light"] ', ""])
+
+    def test_a_qualified_html_or_body_is_treated_the_same_way(self) -> None:
+        """The same rule, and it was missed on the first pass at this branch."""
+        assert extractor.apply_scope("html.selecting") == f"html.selecting {extractor.SCOPE}"
+        assert extractor.apply_scope("body.locked") == f"body.locked {extractor.SCOPE}"
 
     def test_a_qualified_root_with_a_descendant_keeps_both(self) -> None:
         """A document-rooted selector keeps its head and gains the scope after it."""
@@ -73,4 +84,4 @@ class TestApplyScope:
         """Each comma-separated part decides on its own."""
         scoped = extractor.apply_scope(':root[data-theme="light"], .card')
 
-        assert scoped == f'{extractor.SCOPE}[data-theme="light"], {extractor.SCOPE} .card'
+        assert scoped == f':root[data-theme="light"] {extractor.SCOPE}, {extractor.SCOPE} .card'

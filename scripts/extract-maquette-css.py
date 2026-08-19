@@ -205,15 +205,28 @@ def apply_scope(selector: str) -> str:
         head = part.split()[0]
         if (head.startswith(("html", ":root")) or head == "body") and " " in part:
             parts.append(f"{head} {SCOPE}{part[len(head):]}")
-        elif head.startswith(":root") or head in ("html", "body"):
-            # THE QUALIFIER IS THE SELECTOR'S IDENTITY, and dropping it is not a
-            # cosmetic loss. `:root[data-theme="light"]` used to come out as a
-            # bare `.tm`: both theme blocks then carried equal specificity and
-            # source order decided which one won, unconditionally — the theme
-            # switch dead, while the emitted text stayed exactly what this file
-            # produces, so `--check` agreed with itself and said nothing.
-            root = ":root" if head.startswith(":root") else head
-            parts.append(SCOPE + head[len(root):])
+        elif head.startswith((":root", "html", "body")):
+            # A BARE document root becomes the scope: the app's root is where
+            # `:root`'s custom properties have to land, or every `var()` under
+            # it resolves to nothing.
+            root = next(r for r in (":root", "html", "body")
+                        if head.startswith(r))
+            qualifier = head[len(root):]
+            if not qualifier:
+                parts.append(SCOPE)
+                continue
+            # A QUALIFIED root keeps its qualifier AND stays where it is, with
+            # the scope after it — `:root[data-theme="light"] .tm`, never
+            # `.tm[data-theme="light"]`. Two mistakes were made here in one day
+            # and the parity probe caught both. Dropping the attribute
+            # collapsed the two theme blocks onto one selector of equal
+            # specificity, so source order decided and the theme switch died.
+            # Keeping it but welding it to the scope was no better: the
+            # attribute sits on `<html>` and the scope class on `<body>`, so
+            # `.tm[data-theme="light"]` asks one element for both and matches
+            # nothing — 7 300 divergences, the whole light theme silently
+            # falling back to dark.
+            parts.append(f"{head} {SCOPE}")
         elif part.startswith("@"):
             parts.append(part)
         else:

@@ -222,7 +222,7 @@ class TestTheSelfDescription:
             guard,
             "__doc__",
             (guard.__doc__ or "").replace(
-                "Thirteen arms, each with its own scope",
+                f"{guard.NUMBER_WORDS[len(guard.ARMS)].capitalize()} arms, each with its own scope",
                 "Four arms, each with its own scope",
             ),
         )

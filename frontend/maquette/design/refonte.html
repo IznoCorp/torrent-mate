@@ -18,85 +18,6 @@
   }
   /* login:font:end */
 
-  /* login:palette:start */
-  :root {
-    --background: oklch(0.165 0.004 286);
-    --foreground: oklch(0.96 0.003 286);
-    --card: oklch(0.196 0.005 286);
-    --popover: oklch(0.186 0.005 286);
-    --muted: oklch(0.246 0.006 286);
-    --muted-foreground: oklch(0.682 0.012 286);
-    --border: oklch(0.279 0.008 286);
-    --primary: oklch(0.808 0.158 79);
-    /* The brand tone has two jobs one colour cannot do (the same lesson the
-       status tones taught): a FILL behind dark text, and a LABEL on a tint of
-       itself. On the dark theme the mark is bright enough to do both, so the
-       text variant equals the mark; the light theme darkens it, or « you are
-       here » is written in near-invisible ink on near-white. */
-    --primary-texte: oklch(0.808 0.158 79);
-    --primary-foreground: oklch(0.24 0.05 70);
-    --success: oklch(0.72 0.165 152);
-    --warning: oklch(0.8 0.15 75);
-    --danger: oklch(0.62 0.21 24);
-    /* A tone has TWO jobs, and one colour cannot do both. `--danger` is a
-       FILL — a button paints it behind white text — and reusing it as a label
-       colour on a 20 % tint of itself put a badge at 3.69, under AA, while
-       every green badge sat at 5.5. The text variant is the same hue at the
-       lightness a label needs on the surface it lands on: lighter on the dark
-       card, darker on the light one. */
-    --danger-texte: oklch(0.78 0.17 24);
-    --info-texte: oklch(0.78 0.11 225);
-    --success-texte: var(--success);
-    --warning-texte: var(--warning);
-    --info: oklch(0.68 0.125 225);
-    --waiting: oklch(0.74 0.16 345);
-    --upcoming: oklch(0.72 0.145 285);
-    --neutral-signal: oklch(0.62 0.01 286);
-    --sidebar: oklch(0.186 0.005 286);
-    --mq-white: #fff;
-    --mq-white-70: rgb(255 255 255/0.7);
-    --mq-shadow-seg: 0 1px 3px rgb(0 0 0/0.45);
-    --mq-shadow-vsw: 0 1px 3px rgb(0 0 0/0.5);
-    --mq-shadow-fab: 0 6px 20px rgb(0 0 0/0.55);
-    --mq-shadow-dlg: 0 20px 60px rgb(0 0 0/0.7);
-    --mq-shadow-toast: 0 8px 26px rgb(0 0 0/0.5);
-    --mq-shadow-pop: 0 12px 32px rgb(0 0 0/0.32);
-    --mq-shadow-carte: 0 10px 30px rgb(0 0 0/0.45);
-    --mq-shadow-badge: 0 1px 2px rgb(0 0 0/0.3);
-    --mq-scrim: rgb(0 0 0/0.6);
-    /* A softer scrim, for a control sitting ON artwork rather than over the
-       whole frame: at 0.6 the picture underneath stops being readable. */
-    --mq-scrim-doux: rgb(0 0 0/0.35);
-    --mq-tile-overlay: rgb(0 0 0/0.62);
-  }
-  /* The light tokens live INSIDE the palette the login gate borrows: the
-     gate applies the saved appearance before first paint, and an attribute
-     without its tokens paints the wrong theme with a clear conscience. */
-  :root[data-theme="light"] {
-    --background: oklch(0.995 0 0);
-    --foreground: oklch(0.205 0.004 286);
-    --card: oklch(1 0 0);
-    --popover: oklch(1 0 0);
-    --muted: oklch(0.967 0.002 286);
-    --muted-foreground: oklch(0.52 0.01 286);
-    --border: oklch(0.91 0.004 286);
-    --primary: oklch(0.76 0.155 70);
-    --primary-texte: oklch(0.5 0.13 70);
-    --primary-foreground: oklch(0.99 0.01 90);
-    --success: oklch(0.6 0.15 152);
-    --warning: oklch(0.74 0.15 72);
-    --danger: oklch(0.58 0.215 25);
-    --danger-texte: oklch(0.46 0.19 25);
-    --info-texte: oklch(0.44 0.11 225);
-    --success-texte: oklch(0.44 0.12 152);
-    --warning-texte: oklch(0.44 0.1 75);
-    --info: oklch(0.62 0.115 225);
-    --waiting: oklch(0.65 0.14 345);
-    --upcoming: oklch(0.55 0.16 290);
-    --sidebar: oklch(0.985 0.002 286);
-    --mq-scrim: rgb(0 0 0/0.35);
-  }
-  /* login:palette:end */
 
   /* login:socle:start */
   *,
@@ -268,6 +189,98 @@
      Every rule below is destined for `styles/ps/app-surface.css`, scoped
      under
      `.tm`, by MECHANICAL extraction — never by retyping. */
+
+  /* THE VOCABULARY LIVES HERE, and it did not always. Every token below sat
+     in BLOCK 1 — the block headed NEVER EXTRACTED INTO THE APP — while
+     BLOCK 2 spent 444 `var()` calls on them. The extracted stylesheet
+     therefore used thirty-five tokens and declared one, and both guards
+     said nothing: the drift guard is textual, and the parity probe keeps
+     BLOCK 1 in the document for both of its passes, so the tokens were in
+     the room exactly when it looked. `scripts/check-css-tokens.py` is the
+     hold that reads what the SHIPPED sheet can resolve on its own.
+
+     The `login:palette` markers travel with it: the login gate is built by
+     text search over these markers (`serve.py`), not by block, and
+     `login:style` already lived down here. */
+  /* login:palette:start */
+  :root {
+    --background: oklch(0.165 0.004 286);
+    --foreground: oklch(0.96 0.003 286);
+    --card: oklch(0.196 0.005 286);
+    --popover: oklch(0.186 0.005 286);
+    --muted: oklch(0.246 0.006 286);
+    --muted-foreground: oklch(0.682 0.012 286);
+    --border: oklch(0.279 0.008 286);
+    --primary: oklch(0.808 0.158 79);
+    /* The brand tone has two jobs one colour cannot do (the same lesson the
+       status tones taught): a FILL behind dark text, and a LABEL on a tint of
+       itself. On the dark theme the mark is bright enough to do both, so the
+       text variant equals the mark; the light theme darkens it, or « you are
+       here » is written in near-invisible ink on near-white. */
+    --primary-text: oklch(0.808 0.158 79);
+    --primary-foreground: oklch(0.24 0.05 70);
+    --success: oklch(0.72 0.165 152);
+    --warning: oklch(0.8 0.15 75);
+    --danger: oklch(0.62 0.21 24);
+    /* A tone has TWO jobs, and one colour cannot do both. `--danger` is a
+       FILL — a button paints it behind white text — and reusing it as a label
+       colour on a 20 % tint of itself put a badge at 3.69, under AA, while
+       every green badge sat at 5.5. The text variant is the same hue at the
+       lightness a label needs on the surface it lands on: lighter on the dark
+       card, darker on the light one. */
+    --danger-text: oklch(0.78 0.17 24);
+    --info-text: oklch(0.78 0.11 225);
+    --success-text: var(--success);
+    --warning-text: var(--warning);
+    --info: oklch(0.68 0.125 225);
+    --waiting: oklch(0.74 0.16 345);
+    --upcoming: oklch(0.72 0.145 285);
+    --neutral-signal: oklch(0.62 0.01 286);
+    --sidebar: oklch(0.186 0.005 286);
+    --mq-white: #fff;
+    --mq-white-70: rgb(255 255 255/0.7);
+    --mq-shadow-seg: 0 1px 3px rgb(0 0 0/0.45);
+    --mq-shadow-vsw: 0 1px 3px rgb(0 0 0/0.5);
+    --mq-shadow-fab: 0 6px 20px rgb(0 0 0/0.55);
+    --mq-shadow-dlg: 0 20px 60px rgb(0 0 0/0.7);
+    --mq-shadow-toast: 0 8px 26px rgb(0 0 0/0.5);
+    --mq-shadow-pop: 0 12px 32px rgb(0 0 0/0.32);
+    --mq-shadow-card: 0 10px 30px rgb(0 0 0/0.45);
+    --mq-shadow-badge: 0 1px 2px rgb(0 0 0/0.3);
+    --mq-scrim: rgb(0 0 0/0.6);
+    /* A softer scrim, for a control sitting ON artwork rather than over the
+       whole frame: at 0.6 the picture underneath stops being readable. */
+    --mq-scrim-soft: rgb(0 0 0/0.35);
+    --mq-tile-overlay: rgb(0 0 0/0.62);
+  }
+  /* The light tokens live INSIDE the palette the login gate borrows: the
+     gate applies the saved appearance before first paint, and an attribute
+     without its tokens paints the wrong theme with a clear conscience. */
+  :root[data-theme="light"] {
+    --background: oklch(0.995 0 0);
+    --foreground: oklch(0.205 0.004 286);
+    --card: oklch(1 0 0);
+    --popover: oklch(1 0 0);
+    --muted: oklch(0.967 0.002 286);
+    --muted-foreground: oklch(0.52 0.01 286);
+    --border: oklch(0.91 0.004 286);
+    --primary: oklch(0.76 0.155 70);
+    --primary-text: oklch(0.5 0.13 70);
+    --primary-foreground: oklch(0.99 0.01 90);
+    --success: oklch(0.6 0.15 152);
+    --warning: oklch(0.74 0.15 72);
+    --danger: oklch(0.58 0.215 25);
+    --danger-text: oklch(0.46 0.19 25);
+    --info-text: oklch(0.44 0.11 225);
+    --success-text: oklch(0.44 0.12 152);
+    --warning-text: oklch(0.44 0.1 75);
+    --info: oklch(0.62 0.115 225);
+    --waiting: oklch(0.65 0.14 345);
+    --upcoming: oklch(0.55 0.16 290);
+    --sidebar: oklch(0.985 0.002 286);
+    --mq-scrim: rgb(0 0 0/0.35);
+  }
+  /* login:palette:end */
 
   /* Shell — TRANSPLANTED FROM THE APP, not drawn here
      Direction of truth is INVERTED for this region: for pages the prototype
@@ -1008,19 +1021,19 @@
   }
   .chip.warning {
     background: color-mix(in oklab, var(--warning) 20%, transparent);
-    color: var(--warning-texte);
+    color: var(--warning-text);
   }
   .chip.success {
     background: color-mix(in oklab, var(--success) 20%, transparent);
-    color: var(--success-texte);
+    color: var(--success-text);
   }
   .chip.danger {
     background: color-mix(in oklab, var(--danger) 20%, transparent);
-    color: var(--danger-texte);
+    color: var(--danger-text);
   }
   .chip.info {
     background: color-mix(in oklab, var(--info) 20%, transparent);
-    color: var(--info-texte);
+    color: var(--info-text);
   }
   .chip.waiting {
     background: color-mix(in oklab, var(--waiting) 20%, transparent);
@@ -2076,7 +2089,7 @@
     transition: color 0.15s;
   }
   .bottombar button[aria-current="page"] {
-    color: var(--primary-texte);
+    color: var(--primary-text);
   }
   .bottombar svg {
     width: 20px;
@@ -3578,7 +3591,7 @@
     height: 21px;
     border-radius: 99px;
     border: 2px solid var(--mq-white);
-    background: var(--mq-scrim-doux);
+    background: var(--mq-scrim-soft);
     display: grid;
     place-items: center;
     color: transparent;
@@ -3813,7 +3826,7 @@
        the label exactly the colour of what it sat on: contrast 1.00, a label
        written in invisible ink. */
     background: color-mix(in oklab, var(--primary) 14%, transparent);
-    color: var(--primary-texte);
+    color: var(--primary-text);
     font-weight: 600;
   }
   .drawer a svg {
@@ -3912,7 +3925,7 @@
     border: 1px solid var(--border);
     border-radius: 12px;
     background: var(--card);
-    box-shadow: var(--mq-shadow-carte);
+    box-shadow: var(--mq-shadow-card);
   }
 
   .installtext {

@@ -112,7 +112,7 @@ theme switch.
 
 | #      | Work                                                                                                                                                                  | Proof                                                                                                               |
 | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| **A1** | `apply_scope()` preserves attribute and class qualifiers on `:root` / `html` / `body`: `:root[data-theme="light"]` → `.tm[data-theme="light"]`                        | Unit test written RED first; mutation — restore the drop, confirm the test names the theme                          |
+| **A1** | `apply_scope()` preserves attribute and class qualifiers on `:root` / `html` / `body`: `:root[data-theme="light"]` → `:root[data-theme="light"] .tm`                        | Unit test written RED first; mutation — restore the drop, confirm the test names the theme                          |
 | **A2** | A named light-theme state in `states.js`, and in `regions.json`'s `states`, so the probe drives both themes                                                           | The probe's measurement count RISES; the new state is listed in its summary                                         |
 | **A3** | Move the 34 application tokens — both the `:root` and the `:root[data-theme="light"]` blocks, in that order — from BLOCK 1 into BLOCK 2. `--mq-white-70` stays behind | `parity-probe.py`: 0 divergence at the new baseline. Computed values are identical, so this is a move, not a change |
 | **A4** | Rename the 7 French tokens to English, in the maquette AND in `frontend/src/styles/` in the SAME step — a contract has ends and they move together                    | `parity-probe.py`: 0 divergence. `grep` for the old names: zero hits outside dated records                          |
@@ -154,3 +154,35 @@ Every criterion is an executable command with its expected output.
 | A token is declared twice and the move splits the pair              | 22 tokens ARE declared twice (the two theme blocks). Measured before designing; the pair is the unit that moves                                                                                                                                                                                 |
 | Renaming a token in production « derives app code »                 | It does not: this is the English-names rule applied to production's own stylesheet, precedented by #455, which renamed a `controle/` directory and 19 French names there. No rendering changes                                                                                                  |
 | The probe passes because the new state does not really switch theme | A2's own hold: the state must be shown to produce a DIFFERENT computed background from its dark twin, or it is measuring nothing                                                                                                                                                                |
+
+---
+
+## What actually happened — recorded 2026-08-20
+
+**The order paid off on the first day.** A1 repaired the extractor, A3 moved the tokens, and the
+probe went to **7 300 divergences** — because A1's first repair was wrong in a way that reads as
+correct: it kept the qualifier but welded it to the scope, `.tm[data-theme="light"]`. The
+attribute sits on `<html>` and the scope class on `<body>`, so that selector asks ONE element for
+both and matches nothing; the whole light theme fell back to dark. Had the tokens moved first,
+that would have shipped under a green textual guard.
+
+**The probe was measuring one theme, and nobody had chosen which.** `parity-probe.py` set no
+`color_scheme`, so it took Playwright's default — light — while `harness/common.py` pins its own
+contexts to `dark`. Both are measured now (`THEMES`), the theme is in every divergence label, and
+the count went 807 → **1 614**.
+
+**Arm 14 found no French — because A4 had already removed it — but it found something else.**
+Sixty-six ordinary English design words (`background`, `muted`, `radius`, `tracking`, the size
+scale) were unknown to `code-vocabulary.txt`: the list had been seeded from identifiers and had
+never met a stylesheet. They are merged in. One real exception is pinned by NAME with its reason:
+`--font-sans` is the CSS `sans-serif` family, and `sans` is also a French preposition — adding
+`sans` to the vocabulary would have licensed it in every identifier in the repository.
+
+**Two module splits, both forced by the 1 000-line block**: `nofrench_ratchets.py` (the arms that
+COUNT rather than refuse) landed in the previous wave, and `nofrench_css.py` (the arms and
+helpers that read a STYLESHEET) in this one, taking `vocabulary()` back to the lexicon it reads.
+
+**`lint-tokens.sh` (C19) gained one exemption, with its reason.** It refuses raw colours outside
+`src/styles/ps/tokens/`; `app-surface.css` is generated and now carries the redesign's own token
+block, so it is a token SOURCE. « Use a DS token » has no reader in a file no hand may edit — and
+what its `var()` calls resolve to is held by `check-css-tokens.py` instead.
