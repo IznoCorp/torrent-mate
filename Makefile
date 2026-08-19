@@ -1,4 +1,4 @@
-.PHONY: help clean test test-unit test-integration test-cov test-impacte lint lint-logging check check-frontend format install-dev version update-ytdlp perf-rebaseline openapi
+.PHONY: help clean test test-unit test-integration test-cov test-impacte lint lint-logging check check-frontend format install-dev version update-ytdlp perf-rebaseline openapi fixture
 
 THRESHOLD := $(shell python3 scripts/get_coverage_threshold.py)
 
@@ -19,6 +19,7 @@ help:
 	@echo "  make update-ytdlp    - Upgrade yt-dlp + run network integration smoke test"
 	@echo "  make perf-rebaseline - Run slow perf tests and write new baseline.json"
 	@echo "  make openapi         - Export OpenAPI schema + regenerate frontend TS types"
+	@echo "  make fixture         - Refresh the maquette follow fixture from acquire.db"
 
 clean:
 	@echo "Cleaning build artifacts..."
@@ -86,6 +87,8 @@ check: lint test-cov
 	python3 scripts/audit_design_coverage.py --strict
 	@echo "Checking maquette CSS drift..."
 	python3 scripts/extract-maquette-css.py --check
+	@echo "Checking maquette fixture drift..."
+	python3 scripts/refresh-maquette-fixture.py --check
 	@echo "Checking OpenAPI drift..."
 	@if [ -d frontend/node_modules ]; then $(MAKE) openapi && git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts; else echo "openapi-drift: skipped (frontend/node_modules absent)"; fi
 	@echo "Checking version bump..."
@@ -130,6 +133,11 @@ perf-rebaseline:
 	@echo "Running perf regression tests and updating baseline.json..."
 	PERF_REBASELINE=1 python -m pytest -m slow tests/e2e/perf/test_indexer_perf.py -v
 	@echo "baseline.json updated with fresh measurements."
+
+fixture:
+	@echo "Refreshing the maquette fixture from acquire.db..."
+	python3 scripts/refresh-maquette-fixture.py --apply
+	@echo "Rebuild the maquette before running the harness: cd frontend/maquette/design && npm run build"
 
 openapi:
 	@echo "Exporting OpenAPI schema..."

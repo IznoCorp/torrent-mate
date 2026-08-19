@@ -369,7 +369,7 @@ import { screens, panel, bridge } from "../seams.js";
       t: "Ted Lasso",
       serie: "Continuing",
       since: "4 août",
-      searches: 10,
+      searches: 11,
       k: "show",
       y: 2020,
       st: "up_to_date",
