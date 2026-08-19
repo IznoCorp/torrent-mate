@@ -92,6 +92,30 @@ def application_block_of(html: str) -> tuple[str, str]:
     return css[:opener], css[opener:]
 
 
+
+STILL = """
+() => {
+  // A TRANSITION RESTARTS WHEN THE STYLESHEET IS SWAPPED, and the second read
+  // then lands mid-flight: the toast reported 48 → 57.8 px in one state on one
+  // run and in a DIFFERENT state on the next, which is the signature of a
+  // measurement racing an animation rather than of a divergence.
+  //
+  // This is not the screenshot oracle the README rejected — that one failed
+  // because a shimmer, a header entrance and an async decode cannot be waited
+  // out reliably. Here motion is simply switched OFF, in BOTH passes, and what
+  // is compared is the settled geometry, which is what parity means.
+  const stopper = document.createElement('style');
+  stopper.id = 'parity-still';
+  stopper.textContent =
+    '*, *::before, *::after {' +
+    ' transition: none !important;' +
+    ' animation: none !important;' +
+    ' }';
+  document.head.appendChild(stopper);
+  return true;
+}
+"""
+
 NEUTRALISE = """
 (selectors) => {
   // Removed from the DOM, not hidden: `display:none` still leaves a rule able
@@ -153,6 +177,10 @@ SWAP = """
   // unstyled — a probe that reported total divergence would be measuring its
   // own setup, not the app.
   document.body.classList.add(scope);
+  // Re-append the motion stopper LAST, so it still outranks whatever the
+  // extracted sheet declares.
+  const stopper = document.getElementById('parity-still');
+  if (stopper) document.head.appendChild(stopper);
   return {ok: true, rules: injected.sheet ? injected.sheet.cssRules.length : -1};
 }
 """
@@ -227,6 +255,11 @@ async def run(only_state, verbose):
     # of vacuity this whole contract exists to refuse. So absence fails —
     # except where it is declared, with its cause, and therefore bounded.
     known_absent = {entry["region"] for entry in probe.get("knownAbsent", [])}
+    # A divergence whose cause is DECLARED — including « not yet identified »,
+    # which is the honest state of one of them. Keyed by (region, state) so a
+    # declaration excuses the one measurement it was written for and no other.
+    known_divergence = {(entry["region"], entry["state"])
+                        for entry in probe.get("knownDivergence", [])}
     scope = contract["scope"].lstrip(".")
     harness_css, _application_css = application_block_of(
         SOURCE_HTML.read_text(encoding="utf-8"))
@@ -235,15 +268,26 @@ async def run(only_state, verbose):
     states = [s for s in contract["states"] if not only_state or s == only_state]
     if only_state and not states:
         raise SystemExit(f"parity-probe: no state named {only_state!r} in regions.json")
-    by_state: dict[str, list[tuple[str, str]]] = {}
+    # EVERY region is measured in EVERY state. Keying the walk by the states a
+    # region happens to declare visited 24 of the 49: each region names exactly
+    # one, so `system`, `fiche-film`, `lib-liste`, `arr-erreur`, `demarrage` and
+    # twenty others were never driven at all, and a divergence there was
+    # invisible to a probe reporting « 0 divergences ».
+    #
+    # A region simply not present in a given state is NORMAL — a card does not
+    # appear on every screen. So absence only FAILS where the map declares the
+    # region visible, which is what `declared` carries.
+    every_region = [(name, region["selector"])
+                    for name, region in contract["regions"].items()]
+    declared: dict[str, set[str]] = {}
     for name, region in contract["regions"].items():
         for state in region.get("states", []):
-            by_state.setdefault(state, []).append((name, region["selector"]))
+            declared.setdefault(state, set()).add(name)
 
     viewport = probe["viewport"]
     divergences: list[str] = []
     undeclared: list[str] = []
-    measured = missing = 0
+    measured = missing = declared_divergences = 0
 
     async with async_playwright() as playwright:
         # The harness uses the installed Google Chrome locally; a CI runner has
@@ -262,9 +306,7 @@ async def run(only_state, verbose):
         page = await context.new_page()
         try:
             for state in states:
-                regions = by_state.get(state, [])
-                if not regions:
-                    continue
+                regions = every_region
                 await page.goto(PROTOTYPE, wait_until="load")
                 await page.evaluate("()=>window.__loadingDone?.()")
                 await page.evaluate("()=>document.querySelector('#toastx')?.click()")
@@ -281,6 +323,8 @@ async def run(only_state, verbose):
                 # the two passes read the same document and a difference can
                 # only come from the stylesheet.
                 await page.evaluate(NEUTRALISE, neutralise)
+                # Motion off before EITHER read, so both see settled geometry.
+                await page.evaluate(STILL)
 
                 source = {}
                 for name, selector in regions:
@@ -299,9 +343,12 @@ async def run(only_state, verbose):
                         MEASURE, {"selector": selector, "subset": subset})
                     before = source[name]
                     if not before and not target:
-                        # Absent under BOTH sheets: not a rendering difference,
-                        # but not nothing either — the map claims a region is
-                        # visible in a state where it cannot be seen.
+                        # Absent under BOTH sheets. A region that is not on this
+                        # screen is ordinary and says nothing; a region the map
+                        # DECLARES visible here and that matches nothing is a
+                        # lying map.
+                        if name not in declared.get(state, ()):
+                            continue
                         missing += 1
                         if name in known_absent:
                             print(f"  {state:26} {name:34} absent (declared)")
@@ -315,6 +362,10 @@ async def run(only_state, verbose):
                         continue
                     measured += 1
                     found = differences(before, target, allowlist, selector)
+                    if found and (name, state) in known_divergence:
+                        declared_divergences += 1
+                        print(f"  {state:26} {name:34} diverges (declared)")
+                        continue
                     if found:
                         for line in found:
                             divergences.append(f"{state} · {name} ({selector}): {line}")
@@ -333,6 +384,9 @@ async def run(only_state, verbose):
         print("parity-probe: NOTHING WAS MEASURED — every region was skipped. "
               "A probe that measures nothing proves nothing.", file=sys.stderr)
         return 1
+    if declared_divergences:
+        print(f"  {declared_divergences} declared divergence(s), each with what is "
+              "known AND not known about it in probe.knownDivergence.")
     print(f"parity-probe: {measured} region-in-state measurement(s), "
           f"{missing} not present, {len(divergences)} divergence(s)")
     if missing:

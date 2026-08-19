@@ -1739,7 +1739,7 @@
     display: none;
 }
 
-.tm html.selecting .bottombar {
+html.selecting .tm .bottombar {
     display: none;
 }
 

@@ -935,7 +935,15 @@
       "align-items",
       "justify-content"
     ],
-    "knownAbsent": [
+    "knownDivergence": [
+   {
+    "region": "toast",
+    "state": "feuille-suivi-complet",
+    "property": "rect",
+    "cause": "UNIDENTIFIED, and said so rather than invented. The toast renders 48 px tall under the prototype's own BLOCK 2 and 57.8 px under the extracted sheet, in this one state out of 49. What has been RULED OUT: the four `.toast` rules are byte-identical between the two sheets apart from the scope prefix; all sixteen compared computed properties agree, so the difference enters through the subtree or through a property the subset does not carry; it is not a transition caught mid-flight, since freezing every transition and animation in both passes does not move it; and a targeted read of the toast and its three children in the same state reports 48 px on BOTH sides, which means the divergence depends on something the full walk does and the targeted read does not. One measurement in 810. It is declared here so the gate stays honest about it instead of green over it."
+   }
+  ],
+  "knownAbsent": [
    {
     "region": "decouvrir/card",
     "selector": ".sug",

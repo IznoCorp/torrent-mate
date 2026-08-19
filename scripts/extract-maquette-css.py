@@ -176,7 +176,19 @@ def apply_scope(selector: str) -> str:
         part = part.strip()
         if not part:
             continue
-        if part.startswith(":root") or part == "html" or part == "body":
+        # A selector ROOTED AT THE DOCUMENT — `html.selecting .bottombar` — put
+        # the scope in front and became `.tm html.selecting .bottombar`, which
+        # asks for a `.tm` ancestor ABOVE `<html>` and therefore matches
+        # NOTHING. The rule silently stopped applying while the extracted text
+        # stayed exactly what the extractor emits, which is the divergence
+        # `parity-probe.py` was built to catch — and did: the bottom bar,
+        # hidden in selection mode by the maquette, was visible under the
+        # extracted sheet. The document part stays where it is and the scope
+        # slides in AFTER it.
+        head = part.split()[0]
+        if (head.startswith(("html", ":root")) or head == "body") and " " in part:
+            parts.append(f"{head} {SCOPE}{part[len(head):]}")
+        elif part.startswith(":root") or part == "html" or part == "body":
             parts.append(SCOPE + part[len(part.split()[0]):] if " " in part else SCOPE)
         elif part.startswith("@"):
             parts.append(part)
