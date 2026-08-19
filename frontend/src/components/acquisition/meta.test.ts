@@ -250,7 +250,7 @@ describe("searchOutcomeReason — le motif d'attente en français", () => {
   it.each([
     ["no_candidates", "aucun résultat"],
     ["no_matching_episode", "pas d'épisode exact"],
-    ["all_filtered", "rien de conforme au profile"],
+    ["all_filtered", "rien de conforme au profil"],
   ])("traduit %s en « %s » pour un épisode en attente", (outcome, reason) => {
     expect(searchOutcomeReason("pending", outcome)).toBe(reason);
   });

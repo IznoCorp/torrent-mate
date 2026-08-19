@@ -125,7 +125,7 @@ async def main():
         check("and the key does not repeat the file",
               not [l for l in rows if ".json5" in l["path"]],
               str([l["path"] for l in rows if ".json5" in l["path"]][:2]))
-        check("and it series its value",
+        check("and it shows its value",
               all(l["value"].strip() for l in rows),
               str([l["label"] for l in rows if not l["value"].strip()][:3]))
 

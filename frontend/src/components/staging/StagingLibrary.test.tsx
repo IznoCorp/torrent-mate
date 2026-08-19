@@ -232,7 +232,7 @@ describe("StagingLibrary", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("series a loading skeleton grid", () => {
+  it("shows a loading skeleton grid", () => {
     stagingMock.mockReturnValue({
       data: undefined,
       isLoading: true,
@@ -244,7 +244,7 @@ describe("StagingLibrary", () => {
     expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
   });
 
-  it("series an error state with retry on failure", () => {
+  it("shows an error state with retry on failure", () => {
     const refetch = vi.fn();
     stagingMock.mockReturnValue({
       data: undefined,
@@ -258,7 +258,7 @@ describe("StagingLibrary", () => {
     expect(refetch).toHaveBeenCalled();
   });
 
-  it("series an empty state when there are no items", () => {
+  it("shows an empty state when there are no items", () => {
     stagingMock.mockReturnValue({
       data: response([]),
       isLoading: false,

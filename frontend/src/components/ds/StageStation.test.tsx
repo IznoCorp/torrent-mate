@@ -37,7 +37,7 @@ describe("StageStation", () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
-  it("series an error pastille when blocked with a non-zero count", () => {
+  it("shows an error pastille when blocked with a non-zero count", () => {
     render(
       <StageStation label="Scraping" count={4} state="blocked" blocked={2} />,
     );

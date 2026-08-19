@@ -653,9 +653,9 @@ const STATES = [
        config change that moves a key does not silently open something else. */
     ...[
       ["boolean", "un interrupteur"],
-      ["number", "un number"],
-      ["text", "un text"],
-      ["path", "un path"],
+      ["number", "un nombre"],
+      ["text", "un texte"],
+      ["path", "un chemin"],
       ["list", "une liste"],
       ["duration", "une durée"],
       ["structure", "une structure, qui refuse"],

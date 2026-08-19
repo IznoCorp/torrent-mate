@@ -836,7 +836,7 @@ export const SEARCH_OUTCOME_REASON: Record<string, string> = {
   // Concluding verdicts → « En attente ».
   no_candidates: "aucun résultat",
   no_matching_episode: "pas d'épisode exact",
-  all_filtered: "rien de conforme au profile",
+  all_filtered: "rien de conforme au profil",
   // Inconclusive verdicts → « Non vérifié » (the search never concluded).
   trackers_unavailable: "trackers injoignables",
   circuit_open: "recherche suspendue après trop d'échecs",

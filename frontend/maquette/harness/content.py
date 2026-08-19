@@ -103,7 +103,7 @@ async def main():
                 r = real.get(s["title"])
                 if not r:
                     continue
-                # Word-boundary match, not substring: « 1 search » must not
+                # Word-boundary match, not substring: « 1 recherche » must not
                 # pass against a card actually printing « 11 recherches ».
                 pattern = rf"\b{r['searches']}\s+recherche"
                 if not re.search(pattern, s["facts"]):
@@ -218,7 +218,7 @@ async def main():
               d.innerHTML = libRowHTML(item, 0);
               const cov = d.querySelector('.cov');
               return cov ? cov.textContent : null;}""", missing[0])
-            check("and its row series no filler text",
+            check("and its row shows no filler text",
                   empty is None, str(empty))
 
         # ── the list starts at the same height on all three lenses ─────────

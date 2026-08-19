@@ -431,7 +431,7 @@ async def main():
     # ONLY for a medium that is actually followed.
     #
     # What this guards has not changed, only where it is enforced. Offering
-    # « Mettre en pause » or « Retirer le isFollowed » from the library produced a
+    # « Mettre en pause » or « Retirer le suivi » from the library produced a
     # panel whose content varied with something the screen never showed —
     # whether the title happened to be followed. The panel is now built from
     # what is true about the medium, so the rule checks that derivation instead

@@ -283,7 +283,7 @@ describe("FlowBoard", () => {
     expect(screen.queryByText("run-1…")).not.toBeInTheDocument();
   });
 
-  it("series a loading skeleton row while fetching", () => {
+  it("shows a loading skeleton row while fetching", () => {
     stagesMock.mockReturnValue({
       data: undefined,
       isLoading: true,
@@ -320,7 +320,7 @@ describe("FlowBoard", () => {
     expect(screen.queryByText("Arrivée")).not.toBeInTheDocument();
   });
 
-  it("series an error state with a retry action on failure", () => {
+  it("shows an error state with a retry action on failure", () => {
     const refetch = vi.fn();
     stagesMock.mockReturnValue({
       data: undefined,

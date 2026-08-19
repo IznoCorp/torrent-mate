@@ -47,5 +47,5 @@ export function tieNotice(candidates: readonly Scored[]): string | null {
   if (tied < 2) return null;
   const numberWords = ["", "Un", "Deux", "Trois", "Quatre", "Cinq"];
   const howMany = numberWords[tied] ?? String(tied);
-  return `${howMany} candidats reviennent au même score. Le ranking ne tranche pas — c'est pour cela que la question vous est posée.`;
+  return `${howMany} candidats reviennent au même score. Le classement ne tranche pas — c'est pour cela que la question vous est posée.`;
 }
