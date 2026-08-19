@@ -202,7 +202,10 @@ function SeasonList({
                     key={number}
                     aria-label={t("screens.media.episodeAria", {
                       n: number,
-                      state: EP_LABEL[episodeState],
+                      // french-ok: the INTERPOLATION placeholder, named by
+                      // `episodeAria` in fr.json — renaming this half alone
+                      // leaves « Épisode 3 — {{etat}} » in the aria-label.
+                      etat: EP_LABEL[episodeState],
                     })}
                   >
                     {String(number).padStart(2, "0")}
@@ -426,7 +429,10 @@ export function MediaScreen() {
                   <>
                     <br />
                     {t("screens.media.seriesStatus", {
-                      status: sheet.status.toLowerCase(),
+                      // french-ok: the INTERPOLATION placeholder, named by
+                    // `seriesStatus` in fr.json — renaming this half alone
+                    // leaves « Série {{statut}} » on screen.
+                    statut: sheet.status.toLowerCase(),
                     })}
                   </>
                 ) : (

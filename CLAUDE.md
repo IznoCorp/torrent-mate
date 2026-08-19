@@ -216,7 +216,7 @@ all engineering documentation (`docs/`, `BUGS.md`, `CHANGELOG.md`, `ROADMAP.md`,
   they must still read years from now, out of context.
 
 **The code itself contains NO French, and no interface text.** Two halves of one rule,
-enforced by `scripts/check-no-french.py` (four arms, in `make check` and in CI):
+enforced by `scripts/check-no-french.py` (eleven arms, in `make check` and in CI):
 
 - **English names, everywhere and always**: identifiers, function/type/**class** names (code
   AND CSS), **file and directory names**, and every message the tools print. A new file, a new
@@ -230,11 +230,16 @@ enforced by `scripts/check-no-french.py` (four arms, in `make check` and in CI):
 - **`frontend/src` is EXEMPT from that rule, deliberately.** The production React app has no
   i18n layer at all — no `i18n/` directory, no `useTranslation()` — and its French is written
   straight into the components. That is the app the maquette shell is being built to replace,
-  so moving 2 237 strings into resources would be work thrown away with the app that holds
-  them. The exemption is the operator's, and it is not a licence to relax: **it is COUNTED.**
-  `check_app_interface_text` reads that whole tree, refuses nothing, and prints its number on
-  every run (`exempt, counted, not refused: N french interface strings / app`). An exemption
-  nobody counts is indistinguishable from an oversight — which is precisely how 842 of those
+  so moving that copy into resources would be work thrown away with the app that holds it.
+  The exemption is the operator's, and it is not a licence to relax: **it is a RATCHET.**
+  `check_app_interface_text` reads that whole tree — JSX text nodes included, which carry no
+  quotes — and **refuses the count going UP**, against the baseline pinned in
+  `scripts/french-exemption-baseline.json`. It is counted in two figures, because they are not
+  the same thing: French in PRODUCTION components (the debt, and the only one the ratchet
+  guards) apart from French a TEST asserts, which is the app's rendered output and legitimate.
+  A printed number was not enough — it drifted by 7 inside the very PR that introduced it as a
+  control and nothing noticed, because a number nobody compares is a number nobody reads. An
+  exemption nobody counts is indistinguishable from an oversight — which is precisely how 842 of those
   strings, three all-French shell scripts and `id="coquille"` each sat under a green gate.
 - **`data-*` attribute NAMES are code and follow the rule.** They were carved out here once,
   and the operator overturned that: a `data-*` name is a name someone chose, so it is written

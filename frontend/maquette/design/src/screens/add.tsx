@@ -182,7 +182,10 @@ export function AddScreen() {
             >
               <b style={{ color: "var(--info)" }}>
                 {t("screens.add.identifyTitle", {
-                  title: baseTitle(resolveTarget ?? ""),
+                  // french-ok: the INTERPOLATION placeholder, named by
+                  // `identifyTitle` in fr.json — renaming this half alone
+                  // leaves « Identifier « {{titre}} » » on screen.
+                  titre: baseTitle(resolveTarget ?? ""),
                 })}
               </b>
               {t("screens.add.identifyBody")}

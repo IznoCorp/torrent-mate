@@ -160,7 +160,10 @@ function maintenanceCountRows(
   for (const step of steps) {
     for (const [key, value] of Object.entries(step.counts ?? {})) {
       if (typeof value === "number" && value > 0) {
-        rows.push([MAINTENANCE_COUNT_LABELS[key] ?? key, value]);
+        // NE-DOIT-PAS-4: a counter this table does not know used to be
+        // printed as its raw key — `skipped_owned` in front of the
+        // operator. Named as unknown instead, token kept for diagnosis.
+        rows.push([MAINTENANCE_COUNT_LABELS[key] ?? `Compteur inconnu (${key})`, value]);
       }
     }
   }

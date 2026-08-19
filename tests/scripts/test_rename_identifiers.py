@@ -436,3 +436,35 @@ def test_build_outputs_are_never_walked(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert '"pending"' in source.read_text(encoding="utf-8")
     assert '"en_attente"' in bundle.read_text(encoding="utf-8")
+
+
+@needs_typescript
+def test_an_identity_entry_is_accepted(tmp_path: Path) -> None:
+    """`{"scrape": "scrape"}` is a no-op, not a chain.
+
+    It is the natural way to write a vocabulary whose members mostly move and
+    one deliberately does not — exactly the `stage` table, where `scrape` stays
+    because it is already English AND is the name of a pipeline step. The chain
+    check refused it, so the caller had to remember to leave the unchanged
+    member out. An identity cannot collapse two names onto one, which is the
+    whole reason chains are refused.
+    """
+    source = tree(tmp_path, "stage.js", 'const a = "pris";\nconst b = "scrape";\n')
+
+    result = run(tmp_path, {"pris": "taken", "scrape": "scrape"}, "--values")
+
+    assert result.returncode == 0, result.stderr
+    body = source.read_text(encoding="utf-8")
+    assert '"taken"' in body
+    assert '"scrape"' in body
+
+
+@needs_typescript
+def test_an_identity_entry_does_not_mask_a_real_chain(tmp_path: Path) -> None:
+    """Accepting identities must not blunt the check that matters."""
+    tree(tmp_path, "chain.js", "const alpha = 1;\n")
+
+    result = run(tmp_path, {"scrape": "scrape", "alpha": "beta", "beta": "gamma"})
+
+    assert result.returncode != 0
+    assert "chained" in result.stderr

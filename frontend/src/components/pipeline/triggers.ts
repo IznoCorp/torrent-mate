@@ -70,7 +70,14 @@ export const TRIGGER_INFO: Record<string, TriggerInfo> = {
  *   trigger is not in {@link TRIGGER_INFO} (passthrough).
  */
 export function triggerLabel(trigger: string): string {
-  return TRIGGER_INFO[trigger]?.label ?? trigger;
+  // NE-DOIT-PAS-4: « ni jargon brut, ni code d'erreur nu, ni anglais machine ».
+  // The backend types `trigger` as a plain string, so a value this table does
+  // not know reaches here — and the old fallback printed it verbatim, putting
+  // `safety_net` in front of the operator. An unknown trigger is now NAMED as
+  // unknown, and keeps its raw token in parentheses so it stays diagnosable.
+  const known = TRIGGER_INFO[trigger]?.label;
+  if (known) return known;
+  return trigger ? `Déclencheur inconnu (${trigger})` : "Déclencheur inconnu";
 }
 
 /**

@@ -14,6 +14,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "refresh-maquette-fixture.py"
 
 FIXTURE = """\
@@ -149,3 +151,103 @@ def test_series_status_follows_the_database(tmp_path: Path) -> None:
     assert run(tmp_path, "--apply").returncode == 0
 
     assert 'serie: "Ended",' in fixture.read_text(encoding="utf-8")
+
+
+# --- The shapes the entry REGEX could not read (adversarial review) ----------
+#
+# Each of these was reported as « fixture agrees with acquire.db » while the
+# fixture said 10 and the database said 11 — a false pass inside `make check`.
+
+NESTED = """\
+  const FOLLOWS = [
+    {
+      t: "Ted Lasso",
+      serie: "Continuing",
+      meta: { note: "x" },
+      searches: 10,
+    },
+  ];
+"""
+
+ONE_LINE = """\
+  const FOLLOWS = [
+    { t: "Ted Lasso", serie: "Continuing", searches: 10 },
+  ];
+"""
+
+SEARCHES_FIRST = """\
+  const FOLLOWS = [
+    {
+      searches: 10,
+      t: "Ted Lasso",
+      serie: "Continuing",
+    },
+  ];
+"""
+
+NO_TRAILING_COMMA = """\
+  const FOLLOWS = [
+    { t: "Ted Lasso", serie: "Continuing", searches: 10 }
+  ];
+  const RELEASES = [
+    { t: "Other", searches: 999 },
+  ];
+"""
+
+
+@pytest.mark.parametrize(
+    ("shape", "why"),
+    [
+        (NESTED, "a nested object ended the entry early"),
+        (ONE_LINE, "an entry on one line matched nothing"),
+        (SEARCHES_FIRST, "`searches:` before `t:` matched nothing"),
+        (NO_TRAILING_COMMA, "no trailing comma ran the body into the NEXT array"),
+    ],
+)
+def test_awkward_fixture_shapes_are_read_not_skipped(tmp_path: Path, shape: str, why: str) -> None:
+    """A shape the parser cannot read must never be reported as agreement."""
+    fixture = tmp_path / "legacy.js"
+    fixture.write_text(shape, encoding="utf-8")
+    make_database(tmp_path / "acquire.db", [("Ted Lasso", 11, "Continuing")])
+
+    result = run(tmp_path, "--check")
+
+    assert result.returncode == 1, f"{why}: reported agreement — {result.stdout}"
+    assert "fixture 10 vs database 11" in result.stdout
+
+
+def test_a_neighbouring_array_is_never_rewritten(tmp_path: Path) -> None:
+    """`--apply` corrupted an unrelated array when an entry had no trailing comma."""
+    fixture = tmp_path / "legacy.js"
+    fixture.write_text(NO_TRAILING_COMMA, encoding="utf-8")
+    make_database(tmp_path / "acquire.db", [("Ted Lasso", 11, "Continuing")])
+
+    assert run(tmp_path, "--apply").returncode == 0
+
+    body = fixture.read_text(encoding="utf-8")
+    assert "searches: 11" in body, "the real entry was not repaired"
+    assert "searches: 999" in body, "the RELEASES array was rewritten"
+
+
+def test_a_quote_in_the_series_status_stays_valid_javascript(tmp_path: Path) -> None:
+    """Interpolating raw wrote `serie: "En "pause""` — broken JavaScript."""
+    fixture = tmp_path / "legacy.js"
+    fixture.write_text(ONE_LINE, encoding="utf-8")
+    make_database(tmp_path / "acquire.db", [("Ted Lasso", 10, 'En "pause"')])
+
+    assert run(tmp_path, "--apply").returncode == 0
+
+    body = fixture.read_text(encoding="utf-8")
+    assert r'serie: "En \"pause\""' in body, body
+
+
+def test_a_fixture_without_the_array_is_refused(tmp_path: Path) -> None:
+    """« No entries » must never be reported as « nothing drifted »."""
+    fixture = tmp_path / "legacy.js"
+    fixture.write_text("const OTHER = [];\n", encoding="utf-8")
+    make_database(tmp_path / "acquire.db", [("Ted Lasso", 11, "Continuing")])
+
+    result = run(tmp_path, "--check")
+
+    assert result.returncode != 0
+    assert "could not find" in (result.stdout + result.stderr)

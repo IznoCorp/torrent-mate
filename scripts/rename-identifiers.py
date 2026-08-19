@@ -623,14 +623,20 @@ def validate_mapping(mapping):
     Raises:
         SystemExit: If a target is also a source, or two sources share a target.
     """
-    chained = sorted(set(mapping.values()) & set(mapping))
+    # An IDENTITY entry is a no-op, not a chain. `{"pris": "taken", "scrape":
+    # "scrape"}` is the natural way to write a vocabulary whose members mostly
+    # move and one deliberately does not — and it was refused, so the caller had
+    # to remember to leave the unchanged member out entirely. It cannot collapse
+    # two names onto one, which is the whole reason chains are refused.
+    moving = {source: target for source, target in mapping.items() if source != target}
+    chained = sorted(set(moving.values()) & set(moving))
     if chained:
         raise SystemExit(
             "refusing a chained table: " + ", ".join(
                 f"{name!r} is both a target and a source" for name in chained)
             + ". Split it into two runs, or rename via a name nothing else uses.")
     merged = sorted(
-        target for target, count in collections.Counter(mapping.values()).items()
+        target for target, count in collections.Counter(moving.values()).items()
         if count > 1)
     if merged:
         raise SystemExit(

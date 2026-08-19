@@ -39,10 +39,67 @@ FIXTURE = ROOT / "frontend" / "maquette" / "design" / "src" / "engine" / "legacy
 ACQUIRE = ROOT / ".data" / "acquire.db"
 
 # One entry of the FOLLOWS array, from its title to the end of its object.
-ENTRY = re.compile(
-    r'(?P<head>\{\s*\n\s*t:\s*"(?P<title>(?:[^"\\]|\\.)*)",)(?P<body>.*?)(?P<tail>\n\s*\},)',
-    re.S,
-)
+# The FOLLOWS array, and nothing else in the file.
+FOLLOWS = re.compile(r"\bconst FOLLOWS\s*=\s*\[", re.S)
+TITLE = re.compile(r'(?<![\w$])t:\s*"(?P<title>(?:[^"\\]|\\.)*)"')
+
+
+def entries(text):
+    """Yields (start, end, title) for each object of the FOLLOWS array.
+
+    A REGEX CANNOT DO THIS, and three shapes proved it. `.*?` stopping at the
+    first `\n },` cut an entry short at a NESTED object, so its `searches:` was
+    never reached and the drift it hid was reported as agreement. An entry
+    without a trailing comma — the last one — let the body run out of the array
+    entirely, so `--check` blamed the wrong title and `--apply` rewrote a value
+    belonging to a DIFFERENT array. And an entry written on one line, or with
+    `searches:` before `t:`, matched nothing at all and was dropped in silence,
+    which the module docstring promises never happens.
+
+    Braces are counted instead, and only inside FOLLOWS.
+
+    Args:
+        text: The fixture source.
+
+    Yields:
+        (start, end, title) for every top-level object of the array. `end` is
+        exclusive and points just past the closing brace.
+
+    Raises:
+        SystemExit: When the array cannot be found — the caller must not treat
+            "no entries" as "nothing drifted".
+    """
+    opening = FOLLOWS.search(text)
+    if opening is None:
+        raise SystemExit(
+            "refresh-maquette-fixture: no `const FOLLOWS = [` in the fixture — "
+            "refusing to report agreement about an array it could not find.")
+    index = opening.end()
+    depth = 0
+    start = None
+    while index < len(text):
+        char = text[index]
+        if char == "]" and depth == 0:
+            return
+        if char == "{":
+            if depth == 0:
+                start = index
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0 and start is not None:
+                chunk = text[start:index + 1]
+                found = TITLE.search(chunk)
+                if found:
+                    yield start, index + 1, found.group("title")
+                start = None
+        elif char in "\"'":
+            # Skip the string whole: a brace or a `t:` inside a title must not
+            # move the walk.
+            quote, index = char, index + 1
+            while index < len(text) and text[index] != quote:
+                index += 2 if text[index] == "\\" else 1
+        index += 1
 
 
 def live_facts(database: pathlib.Path) -> dict[str, dict[str, object]]:
@@ -78,6 +135,27 @@ def live_facts(database: pathlib.Path) -> dict[str, dict[str, object]]:
     return facts
 
 
+SEARCHES = re.compile(r"(?<![\w$])searches:\s*(?P<n>\d+)")
+SERIE = re.compile(r'(?<![\w$])serie:\s*(?P<v>null|"(?:[^"\\]|\\.)*")')
+
+
+def as_js_string(value: str) -> str:
+    """Renders a database value as a JavaScript double-quoted string.
+
+    Interpolating it raw wrote broken JavaScript the moment a series status
+    held a quote — `serie: "En "pause""` — and a backslash would have been
+    eaten as an `re.sub` group reference.
+
+    Args:
+        value: The value as the database holds it.
+
+    Returns:
+        The value, quoted and escaped.
+    """
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
 def drift(text: str, facts: dict[str, dict[str, object]]) -> list[tuple[str, str, str]]:
     """Lists every fixture value the database disagrees with.
 
@@ -89,50 +167,46 @@ def drift(text: str, facts: dict[str, dict[str, object]]) -> list[tuple[str, str
         One (title, field, message) per disagreement.
     """
     found: list[tuple[str, str, str]] = []
-    for match in ENTRY.finditer(text):
-        title = match.group("title")
-        body = match.group("body")
-        # Only entries that carry a `searches:` are follow entries; the same
-        # shape holds cards and releases elsewhere in the file.
-        searches = re.search(r"\n\s*searches:\s*(\d+),", body)
+    for begin, stop, title in entries(text):
+        body = text[begin:stop]
+        # Only entries carrying a `searches:` are follow entries; the same shape
+        # holds cards and releases elsewhere in the file.
+        searches = SEARCHES.search(body)
         if not searches:
             continue
         real = facts.get(title)
         if real is None:
             found.append((title, "title", "absent from acquire.db"))
             continue
-        if int(searches.group(1)) != int(real["searches"]):
+        if int(searches.group("n")) != int(real["searches"]):
             found.append(
-                (title, "searches", f"fixture {searches.group(1)} vs database {real['searches']}")
-            )
-        serie = re.search(r'\n\s*serie:\s*(null|"(?:[^"\\]|\\.)*"),', body)
+                (title, "searches",
+                 f"fixture {searches.group('n')} vs database {real['searches']}"))
+        serie = SERIE.search(body)
         if serie and real["series"] is not None:
-            spelled = f'"{real["series"]}"'
-            if serie.group(1) != spelled:
-                found.append((title, "serie", f"fixture {serie.group(1)} vs database {spelled}"))
+            spelled = as_js_string(str(real["series"]))
+            if serie.group("v") != spelled:
+                found.append((title, "serie", f"fixture {serie.group('v')} vs database {spelled}"))
     return found
 
 
 def rewrite(text: str, facts: dict[str, dict[str, object]]) -> str:
-    """Returns the fixture with every drifted value replaced by the live one."""
+    """Returns the fixture with every drifted value replaced by the live one.
 
-    def one(match: re.Match[str]) -> str:
-        title, body = match.group("title"), match.group("body")
+    Entries are rewritten back to front so an earlier edit cannot move the
+    offsets of a later one.
+    """
+    for begin, stop, title in sorted(entries(text), reverse=True):
+        body = text[begin:stop]
         real = facts.get(title)
-        if real is None or not re.search(r"\n\s*searches:\s*\d+,", body):
-            return match.group(0)
-        body = re.sub(
-            r"(\n\s*searches:\s*)\d+(,)", rf"\g<1>{int(real['searches'])}\g<2>", body
-        )
+        if real is None or not SEARCHES.search(body):
+            continue
+        body = SEARCHES.sub(lambda m: f"searches: {int(real['searches'])}", body, count=1)
         if real["series"] is not None:
-            body = re.sub(
-                r'(\n\s*serie:\s*)(?:null|"(?:[^"\\]|\\.)*")(,)',
-                rf'\g<1>"{real["series"]}"\g<2>',
-                body,
-            )
-        return match.group("head") + body + match.group("tail")
-
-    return ENTRY.sub(one, text)
+            spelled = as_js_string(str(real["series"]))
+            body = SERIE.sub(lambda m: f"serie: {spelled}", body, count=1)
+        text = text[:begin] + body + text[stop:]
+    return text
 
 
 def main() -> int:

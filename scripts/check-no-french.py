@@ -1463,6 +1463,28 @@ def check_dictionary(violations: list[str]) -> None:
             f"in {relative(Path(__file__))} with the reason it is not French here")
 
 
+# JSX text for the EXEMPTION COUNT. Deliberately a distinct name from arm 1's
+# `JSX_TEXT` above: defining a second `JSX_TEXT` here shadowed it and quietly
+# dropped that arm's coverage from 124 rendered strings to 59.
+JSX_TEXT_NODE = re.compile(r">([^<>{}]*[A-Za-zÀ-ÿ][^<>{}]*)<")
+
+
+def jsx_text(source: str) -> list[str]:
+    """Returns the text nodes of a JSX source.
+
+    Interface copy in JSX carries no quotes, so a scanner reading only string
+    literals walks past the very thing it is looking for.
+
+    Args:
+        source: The `.tsx` source.
+
+    Returns:
+        Each text node, whitespace-trimmed, long enough to be a sentence.
+    """
+    return [body.strip() for body in JSX_TEXT_NODE.findall(source)
+            if len(body.strip().split()) >= 3]
+
+
 def check_app_interface_text(violations: list[str]) -> None:
     """Measures the French interface text `frontend/src` carries, and says so.
 
@@ -1489,17 +1511,47 @@ def check_app_interface_text(violations: list[str]) -> None:
         violations: The accumulator every arm appends to. Nothing is added:
             this arm measures, and the measurement is its whole output.
     """
-    del violations  # measured, never refused — see the docstring above.
     app = ROOT / "frontend" / "src"
-    french = 0
+    production = tests = 0
     for path in sorted(app.rglob("*")):
         if not path.is_file() or path.suffix not in {".ts", ".tsx"}:
             continue
         source = read(path)
         literals = script_string_literals(source)
         examined["interface text / app (exempt)"] += len(literals)
-        french += sum(1 for _, body in literals if offending_string(body))
-    exempted["french interface strings / app"] = french
+        # JSX TEXT CARRIES NO QUOTES, which is the very shape arm 1 exists to
+        # find — and this arm walked straight past it, so the published number
+        # was short by ~9% and could not move when French JSX copy was added.
+        found = sum(1 for _, body in literals if offending_string(body))
+        found += sum(1 for body in jsx_text(source) if offending_string(body))
+        if path.name.endswith((".test.ts", ".test.tsx")) or "__tests__" in path.parts:
+            tests += found
+        else:
+            production += found
+    # SPLIT, because they are not the same thing. French a test ASSERTS is the
+    # app's rendered output — CLAUDE.md already rules it legitimate — and it was
+    # 72% of the headline figure, masking the number that matters.
+    exempted["french interface strings / app (production)"] = production
+    exempted["french interface strings / app (asserted by tests)"] = tests
+
+    # A RATCHET, not a print. The count drifted +7 inside the very PR that
+    # introduced it as a control, and nothing noticed: a number nobody compares
+    # is a number nobody reads. Only the PRODUCTION figure is pinned — lowering
+    # it is the only thing that lowers the baseline.
+    baseline_path = ROOT / "scripts" / "french-exemption-baseline.json"
+    try:
+        baseline = json.loads(baseline_path.read_text(encoding="utf-8"))["production"]
+    except (OSError, ValueError, KeyError):
+        violations.append(
+            f"{relative(baseline_path)} is missing or unreadable — the exemption "
+            "has no baseline, so nothing would notice it growing")
+        return
+    if production > baseline:
+        violations.append(
+            f"the accepted French in `frontend/src` GREW: {production} production "
+            f"strings against a baseline of {baseline}. The exemption covers what "
+            "is already there, never more — move the new copy out, or lower the "
+            f"baseline in {relative(baseline_path)} deliberately.")
 
 
 def main() -> int:

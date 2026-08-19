@@ -448,7 +448,10 @@ function FieldBlock({
                 data-deletefield={id}
                 data-index={index}
                 aria-label={t("settings.field.removeAria", {
-                  value: String(x),
+                  // french-ok: the INTERPOLATION placeholder, named by
+                  // `removeAria` in fr.json — renaming this half alone
+                  // leaves « Retirer {{valeur}} » on screen.
+                  valeur: String(x),
                 })}
               >
                 <Icon paths={icons.x} />

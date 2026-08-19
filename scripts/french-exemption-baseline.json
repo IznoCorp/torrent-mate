@@ -1,0 +1,4 @@
+{
+  "production": 751,
+  "_why": "The accepted French in frontend/src, PRODUCTION components only. French a test asserts is the app rendered output and is counted apart. This number may go DOWN; the guard refuses it going up."
+}
