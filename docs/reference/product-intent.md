@@ -319,8 +319,6 @@ Ce que cela impose :
   interface devient un patchwork.
 - **Rien ne part en production que la maquette ne montre.** Une surface nouvelle s'y dessine
   avant d'être codée.
-- **Le CSS de l'app est EXTRAIT de la maquette, jamais recopié** (`scripts/extract-maquette-css.py`),
-  et la dérive est bloquée par `make check` — même garde que `openapi.json` / `schema.d.ts`.
 
 Cette règle vaut pour toutes les évolutions futures, pas seulement pour la refonte initiale.
 Elle se lit aussi dans `frontend/maquette/README.md`, qui porte la méthode, les états nommés,

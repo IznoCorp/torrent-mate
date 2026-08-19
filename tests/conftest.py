@@ -199,6 +199,27 @@ def _replace_console_renderer_for_tests() -> None:
             break
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _provider_credentials_for_the_suite() -> None:
+    """Gives the provider registry credentials to boot with, if nothing else has.
+
+    THE SUITE MUST NOT DEPEND ON AN UNTRACKED FILE. `ProviderRegistry`'s boot
+    validation refuses an empty `TMDB_API_KEY` / `TVDB_API_KEY`, and the app
+    factory boots it — so `test_lookup_unknown_id_is_a_404_not_a_nameless_row`
+    failed with a 502 in any checkout without a `.env`, even though the test
+    monkeypatches the provider clients it uses. Locally `.env` supplied them
+    through `load_dotenv()`; CI supplied them in the job. A fresh clone and a
+    git worktree had neither, so `make test` was red out of the box and the
+    cause looked like a broken test rather than a missing file.
+
+    Real values are never overwritten: a run that HAS credentials keeps them,
+    so the network-marked tests still reach the real providers.
+    """
+    for name in ("TMDB_API_KEY", "TVDB_API_KEY"):
+        if not os.environ.get(name):
+            os.environ[name] = "dummy-for-tests"
+
+
 # NOTE: The legacy autouse `_patch_provider_registry_for_cli_tests` fixture was
 # removed in feat/registry Phase 15. CLI tests now rely on:
 #   - tests/fixtures/settings_stub.make_typed_settings_stub() — typed Settings

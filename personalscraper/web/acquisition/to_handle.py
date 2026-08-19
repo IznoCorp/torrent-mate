@@ -80,14 +80,14 @@ class ToHandleRollup:
 def _stage_of(row: object) -> str:
     """The stage actually reached — never a default value (§14.3)."""
     if getattr(row, "dispatched_at", None):
-        return "range"
+        return "filed"
     if getattr(row, "scraped_at", None):
         return "scrape"
     if getattr(row, "ingested_at", None):
-        return "ingere"
+        return "ingested"
     if getattr(row, "grabbed_at", None):
-        return "telech"
-    return "pris"
+        return "downloaded"
+    return "taken"
 
 
 def _reason_of(trigger: str, candidates: int) -> str:

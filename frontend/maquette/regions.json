@@ -73,12 +73,10 @@
     "#sugitems:not(.grid)",
     ".act",
     ".act svg",
-    ".act.grab",
     ".act.pause",
     ".act.remove",
     ".actions",
     ".actions .side",
-    ".actions .side.left",
     ".actions .side.right",
     ".active",
     ".addfoot",
@@ -88,7 +86,6 @@
     ".announced",
     ".armed",
     ".avatar",
-    ".b",
     ".best",
     ".big",
     ".blocked",
@@ -174,12 +171,12 @@
     ".endmark",
     ".endmark::before",
     ".ep",
-    ".ep.a_recuperer",
+    ".ep.to_grab",
     ".ep.announced",
-    ".ep.en_acquisition",
-    ".ep.en_attente",
-    ".ep.en_mediatheque",
-    ".ep.non_verifie",
+    ".ep.acquiring",
+    ".ep.pending",
+    ".ep.in_library",
+    ".ep.unverified",
     ".epdot",
     ".eppop",
     ".eprow",
@@ -253,7 +250,6 @@
     ".legend",
     ".legend i",
     ".legend span",
-    ".light",
     ".linkbtn",
     ".list",
     ".litem",
@@ -287,8 +283,6 @@
     ".mono",
     ".more",
     ".more svg",
-    ".moreblk",
-    ".moreblk:disabled",
     ".n",
     ".navbadge",
     ".neutral",
@@ -313,7 +307,6 @@
     ".ph",
     ".pill",
     ".pill .c",
-    ".pill.warn[aria-pressed=\"false\"]",
     ".pill[aria-pressed=\"true\"]",
     ".pillbar",
     ".pillscroll",
@@ -350,7 +343,6 @@
     ".quota",
     ".r",
     ".radio",
-    ".rb",
     ".readonly",
     ".rel",
     ".remove",
@@ -360,12 +352,9 @@
     ".rf",
     ".right",
     ".rl",
-    ".rm",
     ".rn",
-    ".ro",
     ".row",
     ".rowtxt",
-    ".rp",
     ".rs",
     ".rt",
     ".rulenote",
@@ -453,7 +442,6 @@
     ".sk.row",
     ".sk.tile",
     ".skcard",
-    ".skline",
     ".sn",
     ".solid",
     ".soon",
@@ -464,7 +452,6 @@
     ".splashbar",
     ".splashbar i",
     ".splashmsg",
-    ".sr",
     ".st",
     ".st .d",
     ".st .l",
@@ -476,17 +463,11 @@
     ".st:first-child::before",
     ".strip",
     ".success",
-    ".sug .why b",
-    ".sugacts",
-    ".sugacts button",
-    ".sugacts button.ghost",
-    ".sugacts button.primary",
     ".sugback",
     ".sugback span",
     ".sugback svg",
     ".sugg",
     ".sugg button",
-    ".sugtiles",
     ".sugwrap",
     ".sugwrap.gone",
     ".surferr",
@@ -502,7 +483,6 @@
     ".switch",
     ".t",
     ".tile",
-    ".tile .bdg",
     ".tile .fr",
     ".tile .nm",
     ".tile .p",
@@ -567,73 +547,67 @@
     "acquisition/card": {
       "selector": "[data-testid=\"acq-card\"], .card",
       "states": [
-        "acq-encours-charge"
+        "acq-encours-loaded"
       ]
     },
     "acquisition/strip": {
       "selector": ".strip",
       "states": [
-        "acq-encours-charge"
+        "acq-encours-loaded"
       ]
     },
     "acquisition/section-header": {
       "selector": ".sechead",
       "states": [
-        "acq-encours-charge"
+        "acq-encours-loaded"
       ]
     },
     "acquisition/crossref": {
       "selector": ".crossref",
       "states": [
-        "acq-encours-charge"
+        "acq-encours-loaded"
       ]
     },
     "suivis/filters": {
       "selector": ".filters",
       "states": [
-        "acq-suivis-liste"
+        "acq-follows-liste"
       ]
     },
     "suivis/pill": {
       "selector": ".pill",
       "states": [
-        "acq-suivis-liste"
+        "acq-follows-liste"
       ]
     },
     "suivis/switcher": {
       "selector": ".vsw",
       "states": [
-        "acq-suivis-liste"
+        "acq-follows-liste"
       ]
     },
     "suivis/chip": {
       "selector": ".chip",
       "states": [
-        "acq-suivis-liste"
+        "acq-follows-liste"
       ]
     },
     "suivis/tile": {
       "selector": ".tile",
       "states": [
-        "acq-suivis-grille"
+        "acq-follows-grille"
       ]
     },
     "suivis/empty": {
       "selector": ".empty",
       "states": [
-        "acq-suivis-filtre-vide"
-      ]
-    },
-    "decouvrir/card": {
-      "selector": ".sug",
-      "states": [
-        "acq-decouvrir"
+        "acq-follows-filtre-vide"
       ]
     },
     "decouvrir/degraded": {
       "selector": ".surferr",
       "states": [
-        "acq-decouvrir-degrade"
+        "acq-discover-degrade"
       ]
     },
     "add/bar": {
@@ -741,7 +715,7 @@
     "arrivees/live": {
       "selector": ".live",
       "states": [
-        "arr-charge"
+        "arr-loaded"
       ]
     },
     "arrivees/empty": {
@@ -753,13 +727,13 @@
     "swipe/actions": {
       "selector": ".actions, .act",
       "states": [
-        "acq-suivis-liste"
+        "acq-follows-liste"
       ]
     },
     "toast": {
       "selector": ".toast",
       "states": [
-        "acq-decouvrir"
+        "acq-discover"
       ]
     },
     "fab": {
@@ -838,12 +812,6 @@
         "ecran-releases"
       ]
     },
-    "profil/critere": {
-      "selector": ".qchip",
-      "states": [
-        "ecran-profil"
-      ]
-    },
     "fiche/episode-datee": {
       "selector": ".eprow",
       "states": [
@@ -866,13 +834,13 @@
     "form/option": {
       "selector": ".opt",
       "states": [
-        "ecran-profil"
+        "ecran-profile"
       ]
     },
     "form/switch": {
       "selector": ".switch",
       "states": [
-        "ecran-profil"
+        "ecran-profile"
       ]
     }
   },
@@ -880,42 +848,42 @@
     "demarrage",
     "feuille-utilisateur",
     "acq-encours-repos",
-    "acq-encours-charge",
+    "acq-encours-loaded",
     "acq-encours-chargement",
     "acq-encours-erreur",
-    "acq-suivis-liste",
-    "acq-suivis-groupe",
-    "acq-suivis-grille",
-    "acq-suivis-filtre-vide",
-    "acq-suivis-pause-vide",
-    "acq-suivis-erreur",
-    "acq-decouvrir",
-    "acq-decouvrir-affiches",
-    "acq-decouvrir-deck",
-    "acq-decouvrir-degrade",
-    "acq-decouvrir-epuise",
-    "acq-decouvrir-chargement",
+    "acq-follows-liste",
+    "acq-follows-groupe",
+    "acq-follows-grille",
+    "acq-follows-filtre-vide",
+    "acq-follows-pause-vide",
+    "acq-follows-erreur",
+    "acq-discover",
+    "acq-discover-affiches",
+    "acq-discover-deck",
+    "acq-discover-degrade",
+    "acq-discover-epuise",
+    "acq-discover-chargement",
     "acq-ajout-vide",
     "acq-ajout-resultats",
     "feuille-suivi-complet",
     "feuille-suivi-trous",
     "acq-identifier",
     "ecran-releases",
-    "ecran-profil",
+    "ecran-profile",
     "feuille-parcours",
     "feuille-plus",
     "lib-grille",
     "lib-liste",
     "lib-recherche-vide",
-    "lib-incomplets",
-    "lib-recents",
+    "lib-incomplete",
+    "lib-recent",
     "lib-selection",
     "lib-suppression",
     "lib-suppression-multiple",
     "lib-chargement",
     "lib-erreur",
     "arr-repos",
-    "arr-charge",
+    "arr-loaded",
     "arr-chargement",
     "arr-erreur",
     "arr-resolution",
@@ -925,7 +893,7 @@
     "fiche-film",
     "fiche-sans-trailer",
     "tiroir-navigation",
-    "systeme"
+    "system"
   ],
   "probe": {
     "viewport": {
@@ -937,6 +905,7 @@
     },
     "assertBeforeMeasuring": "document.documentElement.clientWidth === 390",
     "computedStyleSubset": [
+      "position",
       "font-size",
       "font-weight",
       "line-height",
@@ -954,7 +923,30 @@
       "align-items",
       "justify-content"
     ],
-    "allowlist": [
+    "knownAbsent": [
+   {
+    "region": "add/footer",
+    "selector": ".addfoot",
+    "cause": "INTERACTION-GATED, not dead: `screens/add.tsx:340` renders it only when `added.size > 0`, and `acq-ajout-resultats` adds nothing. The probe drives states, never interactions, so it cannot reach this without the state declaring the selection."
+   },
+   {
+    "region": "matrice/popover-date",
+    "selector": ".eppop",
+    "cause": "INTERACTION-GATED: the episode date popover exists in CSS and is mounted by a click. No named state opens it."
+   },
+   {
+    "region": "arrivees/empty",
+    "selector": ".empty",
+    "cause": "WRONG STATE, not dead: `pages/arrivals.tsx:254` renders `.empty` only when the list is empty, and `arr-repos` has arrivals. The region wants a state that empties the list."
+   }
+  ],
+  "neutralise": [
+   {
+    "selector": ".note",
+    "justification": "PROTOTYPE-ONLY CHROME, removed from the DOM before either measurement so both see the same document. The design note is dismissed by a click in a normal harness run, and the rule that keeps it collapsed afterwards lives in BLOCK 2 — correctly NOT exported, since the app never renders a design note. Left in place, swapping the sheet lets it spring back to 75.6px and pushes every region below it down, which the probe would report as a divergence in each one: the shape of a probe measuring its own setup. Removed from BOTH passes rather than allowlisted, because it is not a difference the app can ever have."
+   }
+  ],
+  "allowlist": [
       {
         "selector": ".bottombar",
         "property": "position",
@@ -1009,7 +1001,7 @@
     "R7": "No panel renders emptiness in silence.",
     "R8": "EVERY layer (screen, sheet) reserves the height of the tab bar that passes above it, AND its last VISIBLE button is reachable at maximum scroll. AMENDED (SP4b, the media sheet moves to the shell): the layer sweep walks a LIST of layers, and the media sheet left `#screen` for a real route (`/mediasheet/$title`, rendered inside `#coquille`) — on the five `fiche-*` states neither `#screen` nor `#sheet` is open, so this rule inspected nothing there while still exiting green. The fiche is added to that list, named by the identity it carries (`.screen.open[data-cle^=\"fiche:\"]`, its `.port`), with a null guard because a selector that matches only while the layer is open answers nothing when it is closed. Measured back at work on `fiche-serie`: padding-bottom 76 px against a 57 px bar, last of 3 controls 51 px above it — numbers this rule had stopped producing. AMENDED (SP4b fix-wave, the add-media screen joins the list): `/add` left `#screen` for a route the same way the fiche did — same null guard, same reasoning, same list — added as `['.screen.open[data-cle^=\"ajout:\"]','.port']`; the states that open it had never once been swept by this rule since SP4a. AMENDED (SP4c, the ladder generalises): the `couches` list's two per-identity entries (fiche/ajout) are replaced by ONE generic entry, `['.screen.open[data-cle]','.port']` — the same move as the root ladder above it in `audit.py`, and the same reason: naming each migrated screen here would have re-opened this exact gap on every future migration.",
     "R9": "Film/series vocabulary is consistent everywhere.",
-    "R10": "Every action mutates state, navigates, or opens a layer — never nothing. AMENDED (SP4c): a pre-existing gap in `audit.py`'s OWN screen-open check was found and fixed while wiring the generic route rung elsewhere in this file — `couche()` tested only `#sheet`/`#screen`/`#dlg`, so the arbitration screen's migration to `/resolution/$folder` (Task 3 of this wave) left « Résoudre → » reading as an inert button on `acq-encours-charge` and `arr-charge` (4 occurrences: 1 + 3) even though it correctly opens the route — neither the state snapshot nor `couche()` had ever learned to look for it. `couche()` now also checks `.screen.open[data-cle]`, the same generic entry the root ladder uses (see the `$adversarialReview` root comment). Confirmed pre-existing, not introduced by this wave's own edits: re-running the UNMODIFIED script (via `git stash`) reproduces the same 4 violations.",
+    "R10": "Every action mutates state, navigates, or opens a layer — never nothing. AMENDED (SP4c): a pre-existing gap in `audit.py`'s OWN screen-open check was found and fixed while wiring the generic route rung elsewhere in this file — `couche()` tested only `#sheet`/`#screen`/`#dlg`, so the arbitration screen's migration to `/resolution/$folder` (Task 3 of this wave) left « Résoudre → » reading as an inert button on `acq-encours-loaded` and `arr-loaded` (4 occurrences: 1 + 3) even though it correctly opens the route — neither the state snapshot nor `couche()` had ever learned to look for it. `couche()` now also checks `.screen.open[data-cle]`, the same generic entry the root ladder uses (see the `$adversarialReview` root comment). Confirmed pre-existing, not introduced by this wave's own edits: re-running the UNMODIFIED script (via `git stash`) reproduces the same 4 violations.",
     "R11": "No visible jargon or technical value: undefined, NaN, null, [object, 0/0, cron expressions. AMENDED (SP4b, the media sheet moves to the shell): the sheet left `#screen` for a real route (`/mediasheet/$title`, rendered inside `#coquille`), so the root this rule scans per state gains the fiche, named by its key, after the legacy layer and before the sheet: a state opening the fiche would otherwise fall through to `#view`, and the rule would read a page the state does not show — silence mistaken for conformity. The fiche sits LAST in that ladder, the same order `audit.py`, `dest.py` and `states.py` use: a layer opened OVER it is what one is looking at, and stays what gets read. AMENDED (SP4b fix-wave, the add-media screen joins the ladder): `/add` left `#screen` for a route the same way, and joins the fiche's rung in `audit2.py` for the same reason — a state opening it had, until now, its jargon read on the page underneath instead of on the screen itself. AMENDED (SP4c, the ladder generalises): `audit2.py`'s fiche/ajout pair is replaced by ONE generic rung, `.screen.open[data-cle]` — see the `$adversarialReview` root comment for the shared rationale; the arbitration screen and the release picker join the jargon sweep with no prefix ever named for them.",
     "R12": "ONE button system: height 44, radius 8, weight 600, 13.5px. Alignment — with an icon: left (the icon anchors the row); without: centred (nothing anchors the left edge). AMENDED (the French class names turn English): the media sheet's primary button is measured through its renamed class, `.mediaadd`. The button system this rule holds - one height, one radius, one weight, one alignment law - and the geometry it compares are unchanged; only the name the sweep asks for moved.",
     "R13": "Identical section order across all media sheets; only nature-imposed sections vary. The sample is drawn from the data: complete, incomplete, without visual, film, series. AMENDED (SP4b, the media sheet moves to the shell): the sheet left `#screen` for a real route (`/mediasheet/$title`, rendered inside `#coquille`), so the sample is opened through `window.__ecrans.fiche(t)` and read at `.screen.open[data-cle^=\"fiche:\"] .body`. The skeleton measured is the one the legacy sheet produced, unchanged: nine media, one shape. AMENDED (SP4b, the panel): `components/panel.tsx`'s season summary had lost the whitespace text nodes the legacy `saisonsHTML` emitted between « Saison N », its counter and its « manquants » chip — `summary.textContent` read « Saison 2211/11 », the number welded to its own fraction, for anything reading the row as one string. Same defect class R29 caught on the fiche, same fix, in the component: the blanks are back and a flex container draws nothing for them. NO RULE FALLS on this today — the gap is recorded here rather than closed by a new hold, and belongs to the wave's final triage. AMENDED (the French class names turn English): the OPTIONAL sections this rule excludes from the skeleton are named by CLASS, and one of them was renamed — `nofiche` became `noinfo`. The exclusion set follows it. The rename earned its keep here immediately: left stale, the set stopped matching the « nothing to show » paragraph, so three media whose trailer the provider never gave carried an extra section in their skeleton and this rule fell on a divergence that does not exist. A class name a rule reads as a bare STRING is as load-bearing as one it reads as a selector.",

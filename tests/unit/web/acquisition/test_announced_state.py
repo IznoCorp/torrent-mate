@@ -1,9 +1,9 @@
-"""episode-states D2 — the ``annonce`` state and its exclusion from the card.
+"""episode-states D2 — the ``announced`` state and its exclusion from the card.
 
 Core invariant of the feature: a FUTURE episode (air_date > today) is known to
 the cache but is not searchable on trackers, so:
 
-- it derives to ``annonce`` FIRST, whatever its ownership / verdict / row facts
+- it derives to ``announced`` FIRST, whatever its ownership / verdict / row facts
   (a future can't be owned, searched, or waiting);
 - it must NEVER degrade a series' card: a show whose AIRED episodes are all in
   the library stays « À jour » even with announced episodes ahead.
@@ -23,10 +23,10 @@ PAST = date(2023, 1, 1)
 
 
 class TestAnnouncedDerivation:
-    """``derive_episode_state`` returns ``annonce`` first for a future air_date."""
+    """``derive_episode_state`` returns ``announced`` first for a future air_date."""
 
     def test_future_air_date_is_announced(self) -> None:
-        """A future episode reads ``annonce`` — the plain case."""
+        """A future episode reads ``announced`` — the plain case."""
         state = derive_episode_state(
             owned=False,
             wanted_status=None,
@@ -50,7 +50,7 @@ class TestAnnouncedDerivation:
     def test_announced_wins_over_every_other_fact(
         self, owned: bool, wanted_status: str | None, outcome: str | None, found: int | None
     ) -> None:
-        """``annonce`` is decided FIRST — no combination of facts overrides a future date."""
+        """``announced`` is decided FIRST — no combination of facts overrides a future date."""
         state = derive_episode_state(
             owned=owned,
             wanted_status=wanted_status,
@@ -62,7 +62,7 @@ class TestAnnouncedDerivation:
         assert state == "announced", "a future episode is announced regardless of its facts"
 
     def test_announced_precedes_the_no_row_unverified_path(self) -> None:
-        """A future has no wanted row → no-row facts; annonce must win BEFORE non_verifie.
+        """A future has no wanted row → no-row facts; annonce must win BEFORE unverified.
 
         This is the trap the coordinator called out: a future episode's facts
         are the same all-None « never searched » facts a genuinely unknown aired
@@ -123,10 +123,10 @@ class TestAnnouncedExcludedFromCard:
         """The card counts AIRED episodes only; announced ones enter no bucket.
 
         ``derive_follow_status`` aggregates the five per-state counts. A future
-        episode is ``annonce`` — which has no counter — so a series whose aired
+        episode is ``announced`` — which has no counter — so a series whose aired
         episodes are all owned stays « À jour ». The announced count reaches the
         aggregation (it is what tells « À jour » from « Terminé ») but never as a
-        bucket: were it counted as one, this series would read ``non_verifie``.
+        bucket: were it counted as one, this series would read ``unverified``.
         """
         status = derive_follow_status(
             active=True,
@@ -150,7 +150,7 @@ class TestAnnouncedExcludedFromCard:
         ],
     )
     def test_announced_count_never_changes_an_actionable_status(self, counts: dict[str, int], expected: str) -> None:
-        """The announced count may only ever pick between ``a_jour`` and ``termine``.
+        """The announced count may only ever pick between ``up_to_date`` and ``ended``.
 
         ``derive_follow_status`` now RECEIVES an announced count (operator,
         2026-08-09: « À jour » had to split in two). The reason it was kept out

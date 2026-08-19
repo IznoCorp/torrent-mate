@@ -106,10 +106,16 @@ describe("LastRunDigest", () => {
     ).toBeInTheDocument();
   });
 
-  it("affiche le bon libellé pour un trigger unknown", () => {
+  it("nomme un trigger inconnu au lieu d'afficher son jeton brut", () => {
     renderDigest(lastRun({ trigger: "unknown_source" }));
 
-    // Unknown triggers pass through verbatim.
-    expect(screen.getByText("unknown_source")).toBeInTheDocument();
+    // This asserted the passthrough — « unknown triggers pass through verbatim »
+    // — which is what put `safety_net` in front of the operator. NE-DOIT-PAS-4
+    // forbids raw machine English on screen; the constitution outranks the
+    // implementation, and outranks a test pinning it. The token stays in
+    // parentheses so an unknown trigger remains diagnosable.
+    expect(
+      screen.getByText("Déclencheur inconnu (unknown_source)"),
+    ).toBeInTheDocument();
   });
 });

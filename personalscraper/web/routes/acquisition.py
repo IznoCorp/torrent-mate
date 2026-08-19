@@ -276,7 +276,7 @@ def get_followed(
 
             # Batched lookup of in-flight priming runs — one query, never N+1.
             # An open prime run overrides the card status to
-            # ``verification_en_cours``, so the predicate MUST be the one
+            # ``verifying``, so the predicate MUST be the one
             # ``_has_live_run`` applies: un-ended AND pid-alive. ``ended_at IS
             # NULL`` alone is not liveness — a runner that crashed never gets to
             # write ``ended_at``, so its row stays open forever and pinned the

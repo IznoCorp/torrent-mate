@@ -50,13 +50,13 @@
       (function () {
         try {
           var mode = localStorage.getItem("tm-apparence") || "systeme";
-          var clair =
+          var light =
             mode === "clair" ||
             (mode === "systeme" &&
               matchMedia("(prefers-color-scheme: light)").matches);
-          if (clair)
+          if (light)
             document.documentElement.setAttribute("data-theme", "light");
-        } catch (erreur) {}
+        } catch (error) {}
       })();
     </script>
     <!-- pwa:end -->

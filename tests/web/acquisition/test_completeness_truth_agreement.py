@@ -28,7 +28,7 @@ def test_truth_and_completeness_agree_on_counts(acquire_store):
 
     Sème :
     - S01E1, S01E2  → en médiathèque (owned)
-    - S01E3         → en_attente (searched, nothing takeable)
+    - S01E3         → pending (searched, nothing takeable)
     - S02E1         → annoncé (air_date future, exclu des deux vues)
     """
     store = acquire_store
@@ -108,5 +108,5 @@ def test_truth_and_completeness_agree_on_counts(acquire_store):
 
     # 8. L'épisode annoncé (S02E1) est exclu des deux vues
     #    — truth : le SQL exclut air_date > today
-    #    — completeness : derive_episode_state rend "annonce", total exclut "annonce"
+    #    — completeness : derive_episode_state rend "announced", total exclut "announced"
     assert truth.aired_count == 3, f"3 épisodes diffusés, aired_count={truth.aired_count} (le futur ne compte pas)"

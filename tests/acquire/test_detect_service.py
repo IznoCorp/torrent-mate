@@ -249,7 +249,7 @@ def test_future_episode_goes_to_cache_but_never_to_wanted(store: ConcreteAcquire
     After detect:
 
     - the ``aired_episode`` cache holds BOTH (the future is what the matrix will
-      read as ``annonce``);
+      read as ``announced``);
     - the ``wanted`` queue holds ONLY the aired episode — a future is not
       searchable on trackers, so it must never become a wanted row.
     """

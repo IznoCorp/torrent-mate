@@ -244,7 +244,7 @@ export function asMediaKind(kind: string): MediaKind {
  *
  * Because the maps below are ``Record<FollowStatus, …>``, a server-side change
  * to the enum (a new state, a renamed one) breaks `npm run typecheck` instead
- * of silently rendering a raw slug like ``a_recuperer`` to the operator.
+ * of silently rendering a raw slug like ``to_grab`` to the operator.
  */
 export type FollowStatus = FollowedSeriesItem["status"];
 
@@ -524,11 +524,11 @@ export function followStatusHint(status: FollowStatus, kind: string): string {
 /**
  * Per-state count noun, singular / plural (card caption wording).
  *
- * ``en_mediatheque`` is absent on purpose: owned episodes are already the
+ * ``in_library`` is absent on purpose: owned episodes are already the
  * numerator of the ``NN/NN`` fraction, and repeating them would inflate the
  * caption with the only number that is never actionable.
  *
- * ``annonce`` is absent too (episode-states D2): a future episode is not an
+ * ``announced`` is absent too (episode-states D2): a future episode is not an
  * action bucket — it never inflates the card caption and never degrades the
  * card status. It lives only in the completeness matrix.
  */
@@ -605,7 +605,7 @@ export function followMediaRef(item: {
  *
  * Returns:
  *   ``"15/18"``, ``"—"`` when a série has no cached catalog (honest ignorance,
- *   matching its ``non_verifie`` status), or ``null`` for a film.
+ *   matching its ``unverified`` status), or ``null`` for a film.
  */
 export function followFraction(item: FollowedSeriesItem): string | null {
   if (item.kind === "movie") return null;
@@ -654,7 +654,7 @@ export function followCountsCaption(item: FollowedSeriesItem): string | null {
  * Report whether « Récupérer maintenant » applies to this follow.
  *
  * Offered exactly where the SERVER says something is takeable right now
- * (``a_recuperer``) — never derived from a queue counter. Elsewhere the action
+ * (``to_grab``) — never derived from a queue counter. Elsewhere the action
  * would have nothing to claim and would report success having done nothing.
  *
  * Args:
@@ -738,9 +738,9 @@ export function formatRunResult(
  * Per-episode §5 state → chip tone (completeness matrix + legend).
  *
  * SIX states, SIX distinct DS tones (operator #9 « une couleur par statut ») —
- * no two states share a tone, asserted by a test. ``non_verifie`` moved off the
- * grey it used to share with ``en_attente`` onto the dimmer dashed ``muted``,
- * and ``annonce`` onto the violet ``upcoming``.
+ * no two states share a tone, asserted by a test. ``unverified`` moved off the
+ * grey it used to share with ``pending`` onto the dimmer dashed ``muted``,
+ * and ``announced`` onto the violet ``upcoming``.
  */
 export const EPISODE_STATE_TONE: Record<EpisodeState, BadgeTone> = {
   unverified: "muted",
@@ -761,9 +761,9 @@ export const EPISODE_STATE_TONE: Record<EpisodeState, BadgeTone> = {
 /**
  * Per-episode §5 state → French label (completeness matrix).
  *
- * ``en_mediatheque`` keeps the §5 wording « En médiathèque » on an EPISODE: the
+ * ``in_library`` keeps the §5 wording « En médiathèque » on an EPISODE: the
  * vocabulary table's « À jour » is the CARD reading of that state (a card
- * aggregates to ``a_jour``), and an individual episode is never « à jour » — it
+ * aggregates to ``up_to_date``), and an individual episode is never « à jour » — it
  * is on the disks or it is not.
  */
 export const EPISODE_STATE_LABEL: Record<EpisodeState, string> = {
@@ -782,7 +782,7 @@ export const EPISODE_STATE_LABEL: Record<EpisodeState, string> = {
  * being taken → owned.
  *
  * ``absorbed`` is deliberately absent: it renders exactly like
- * ``en_acquisition`` (same tone, same label), so listing it would print the
+ * ``acquiring`` (same tone, same label), so listing it would print the
  * same chip twice for what is one operator-facing state.
  */
 export const EPISODE_LEGEND_ORDER: readonly EpisodeState[] = [
@@ -836,7 +836,7 @@ export const SEARCH_OUTCOME_REASON: Record<string, string> = {
   // Concluding verdicts → « En attente ».
   no_candidates: "aucun résultat",
   no_matching_episode: "pas d'épisode exact",
-  all_filtered: "rien de conforme au profile",
+  all_filtered: "rien de conforme au profil",
   // Inconclusive verdicts → « Non vérifié » (the search never concluded).
   trackers_unavailable: "trackers injoignables",
   circuit_open: "recherche suspendue après trop d'échecs",

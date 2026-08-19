@@ -9,10 +9,27 @@
 - **BLOCK 2 — APPLICATION CSS**: everything the app renders.
 
 This script lifts BLOCK 2, scopes every rule under `.tm`, and writes
-`frontend/src/styles/ps/app-surface.css`. The app imports that file; nobody
-edits it. **Editing the generated file by hand is the defect, not a shortcut** —
-`--check` re-runs the extraction and fails on any difference, which is the same
-guard that protects `openapi.json` / `schema.d.ts`.
+`frontend/src/styles/ps/app-surface.css`.
+
+**NOTHING IMPORTS THAT FILE YET, AND THAT IS DELIBERATE.** The maquette is not a
+description of the app as it ships today: it is the NEXT version of it, in a
+different visual language. Its CSS therefore differs from the app's own ON
+PURPOSE, and a comparison between the two measures the redesign still to come —
+never a defect. What is generated here is STAGED: extraction and its guards are
+built before the redesign ships, so that on the day it does, the CSS the app
+receives is provably the CSS the design was drawn with, and not a hand-retyped
+approximation. Adopting it IS shipping the redesign, which is the operator's
+call and not a wiring detail.
+
+An earlier version of this docstring stated « the app imports that file ». It
+did not. A target state written in the present tense reads as a description of
+the repository, and that one sentence sent a reader hunting a production
+divergence that never existed — three times over, each time with a more
+elaborate theory than the last. State intent as intent.
+
+**Editing the generated file by hand is the defect, not a shortcut** — `--check`
+re-runs the extraction and fails on any difference, which is the same guard that
+protects `openapi.json` / `schema.d.ts`.
 
 Extraction works from an ALLOWLIST, never a blocklist: `regions.json` →
 `exportedSelectors` names what may ship, so a prototype-only helper can never
@@ -176,7 +193,19 @@ def apply_scope(selector: str) -> str:
         part = part.strip()
         if not part:
             continue
-        if part.startswith(":root") or part == "html" or part == "body":
+        # A selector ROOTED AT THE DOCUMENT — `html.selecting .bottombar` — put
+        # the scope in front and became `.tm html.selecting .bottombar`, which
+        # asks for a `.tm` ancestor ABOVE `<html>` and therefore matches
+        # NOTHING. The rule silently stopped applying while the extracted text
+        # stayed exactly what the extractor emits, which is the divergence
+        # `parity-probe.py` was built to catch — and did: the bottom bar,
+        # hidden in selection mode by the maquette, was visible under the
+        # extracted sheet. The document part stays where it is and the scope
+        # slides in AFTER it.
+        head = part.split()[0]
+        if (head.startswith(("html", ":root")) or head == "body") and " " in part:
+            parts.append(f"{head} {SCOPE}{part[len(head):]}")
+        elif part.startswith(":root") or part == "html" or part == "body":
             parts.append(SCOPE + part[len(part.split()[0]):] if " " in part else SCOPE)
         elif part.startswith("@"):
             parts.append(part)
@@ -249,6 +278,23 @@ def build() -> str:
             "Extraction works from an ALLOWLIST: add them to "
             "`exportedSelectors`, or classify them as harness.\n" + detail)
 
+    # AND THE OTHER DIRECTION, which nothing checked: an allowlist entry naming
+    # a class the prototype no longer declares. Only `expected - allowed` was
+    # ever computed, so the list could grow stale and never shrink — five dead
+    # French selectors (`.ep.en_attente` and friends) survived a whole renaming
+    # campaign in it, matching nothing, under a green gate. An allowlist that
+    # can only rot is the same failure as a map naming places the territory
+    # does not have.
+    declared = {cls for _, selector, _ in rules(application_block(source))
+                for cls in classes_of(selector)}
+    orphan = sorted(allowed_classes - declared - harness_classes)
+    if orphan:
+        sys.exit(
+            "`exportedSelectors` names classes the prototype does not declare:\n"
+            + "\n".join(f"  {cls}" for cls in orphan[:20])
+            + "\nRemove them, or draw them in the maquette. An allowlist entry "
+              "that matches nothing excuses nothing and hides its own staleness.")
+
     header = HEADER.format(scope=SCOPE, count=kept, classes=len(allowed),
                            dropped=dropped,
                            ambiguous=", ".join(ambiguous) or "none")
@@ -256,6 +302,11 @@ def build() -> str:
 
 
 def main() -> int:
+    """Extracts the application CSS, or reports that it has drifted.
+
+    Returns:
+        1 on drift under `--check`, 0 otherwise.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true",
                         help="write nothing; exit with an error if the file has drifted")

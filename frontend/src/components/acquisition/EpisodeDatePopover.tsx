@@ -30,7 +30,7 @@ import { formatAirDate } from "@/lib/format";
 
 /** Props for {@link EpisodeDatePopover}. */
 export interface EpisodeDatePopoverProps {
-  /** The episode's state — ``"annonce"`` selects the « Sortie prévue » wording. */
+  /** The episode's state — ``"announced"`` selects the « Sortie prévue » wording. */
   readonly state: EpisodeState;
   /** ISO ``YYYY-MM-DD`` air date, or ``null`` when the provider gave none. */
   readonly airDate: string | null | undefined;

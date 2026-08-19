@@ -51,7 +51,15 @@ JSX text must still say exactly what it said. The older proof — an empty table
 must round-trip byte for byte — cannot show this, because a misclassified span
 reassembles byte for byte as happily as a correct one.
 """
-import bisect, io, json, pathlib, re, subprocess, sys, tokenize, collections
+import bisect
+import collections
+import io
+import json
+import pathlib
+import re
+import subprocess
+import sys
+import tokenize
 
 SPAN_TOOL = pathlib.Path(__file__).with_name("source-spans.mjs")
 COMPILED = {".ts", ".tsx", ".js", ".jsx", ".mjs"}
@@ -183,10 +191,26 @@ def compiler_spans(path, text):
     return out
 
 
-def protected_text(path, text):
-    """Returns the contents of every span a rename must leave alone."""
-    return [text[s:e] for kind, s, e in compiler_spans(path, text)
-            if kind == "string"]
+def protected_text_of(path, text):
+    """Returns the contents of every span a rename must leave alone.
+
+    The parser is chosen by the file's own language. Reading a `.py` back
+    through the TypeScript parser was defect #2 resurrected inside the
+    verifier: TS lexes `\"\"\"` as an empty string followed by a quote, and the
+    apostrophe in `# l'apostrophe` as an opening quote, so every Python file
+    disagreed with itself and the rename aborted — 52 harness files out of 52,
+    mid-walk, leaving the tree half renamed.
+
+    Args:
+        path: The file, whose suffix names the language.
+        text: The source to read back.
+
+    Returns:
+        The text of every span a rename must leave untouched.
+    """
+    spans = (python_spans(text) if path.suffix == ".py"
+             else compiler_spans(path, text))
+    return [text[s:e] for kind, s, e in spans if kind == "string"]
 
 
 def _regex_starts_here(text, i):
@@ -304,8 +328,47 @@ def regions(text):
 # starts on one, so a dangling separator is part of the shape.
 ID_TOKEN = re.compile(r"^[-_:.]?[a-z0-9]+(?:[-_:.][a-z0-9]+)*[-_:.]?$")
 
+# `"…"` and, in JSON and CSS, `'…'` — escapes included. JSON, CSS and HTML have
+# no parser here.
+QUOTED_RUN = re.compile(r"""(?P<q>["'])(?:\\.|(?!(?P=q))[^\\])*(?P=q)""", re.S)
+# HTML gets DOUBLE QUOTES ONLY. An apostrophe is ordinary text there — this
+# interface is written in French, so its markup is full of them — and reading
+# one as an opening quote swallowed everything up to the next apostrophe:
+# `<p>L'ajout</p><div data-s="en_attente">C'est` became one 93 000-character
+# "string" on `refonte.html`, and the attribute value inside it was silently
+# skipped. The mode reported success having changed nothing, which is the
+# no-op-reported-as-success this function was written to end.
+QUOTED_RUN_HTML = re.compile(r'"(?:\\.|[^"\\])*"', re.S)
 
-def apply_values(text, mapping, spans=None, whole_only=()):
+
+def quoted_spans(text, html=False):
+    """Splits a file with no parser into its quoted runs and the rest.
+
+    JSON, CSS and HTML reach the value pass without a parser. They used to be
+    handed a single `("string", 0, len(text))` span covering the WHOLE file,
+    which then failed the id test on its first brace or newline — so the mode
+    was a guaranteed no-op on the three file types it was extended to cover,
+    and reported success while touching nothing.
+
+    Args:
+        text: The source.
+        html: True for HTML, where only DOUBLE quotes delimit a value and an
+            apostrophe is ordinary text.
+
+    Returns:
+        The regions, as `(kind, start, end)` with kind `"string"` or `"code"`.
+    """
+    out, mark = [], 0
+    for match in (QUOTED_RUN_HTML if html else QUOTED_RUN).finditer(text):
+        if match.start() > mark:
+            out.append(("code", mark, match.start()))
+        out.append(("string", match.start(), match.end()))
+        mark = match.end()
+    out.append(("code", mark, len(text)))
+    return [(kind, s, e) for kind, s, e in out if e > s]
+
+
+def apply_values(text, mapping, spans=None, whole_only=(), inner_words=False):
     """Renames DATA values: whole quoted tokens, and identifiers built on them.
 
     Args:
@@ -314,6 +377,10 @@ def apply_values(text, mapping, spans=None, whole_only=()):
         spans: The parser's regions, when it could read the file.
         whole_only: Values that must move ONLY as a whole quoted string,
             because they are ordinary French words elsewhere.
+        inner_words: Allow substitution INSIDE a multi-word string. Off by
+            default: a multi-word body is prose until proven otherwise, and
+            rewriting one word of a sentence is how « conforme au profil »
+            became « conforme au profile » across 429 lines.
 
     Returns:
         The source with the values moved.
@@ -344,7 +411,22 @@ def apply_values(text, mapping, spans=None, whole_only=()):
         if not body_ or not all(ID_TOKEN.match(piece) for piece in body_.split(" ")):
             pieces.append(chunk)
             continue
+        # A body that holds a SPACE is several words, and several lowercase
+        # unaccented words are as often a sentence as a class list: « page
+        # suivante » and « trier par nom » pass the token test word by word.
+        # So a multi-word body moves only as a WHOLE — `"card open"` renamed
+        # to `"card open"` — and substituting inside one is opt-in
+        # (`--inner-words`), never the default. This is the rule the docstring
+        # above always claimed and the code never applied: the discriminator
+        # is the whole string, not the word inside it.
+        multiword = " " in body_
         for source_value, target in sorted(mapping.items(), key=lambda kv: -len(kv[0])):
+            # `whole_only` values are ordinary words elsewhere, so they move
+            # only when they ARE the whole body.
+            if source_value in whole_only or (multiword and not inner_words):
+                if body_ == source_value:
+                    body_ = target
+                continue
             body_ = re.sub(
                 rf"(?<![A-Za-z0-9]){re.escape(source_value)}(?![A-Za-z0-9])",
                 target, body_)
@@ -398,6 +480,28 @@ def apply(text, mapping, in_python=False, properties=False, spans=None):
                 return match.group(0)
             held.append(match.group(0))
             return f"\x00{len(held) - 1}\x00"
+        # PROSE IS HELD OUT FIRST, and the order is load-bearing: the
+        # bracket pass below rewrites the text through `re.sub`, and the
+        # spans were measured on the ORIGINAL source. Holding prose after
+        # it sliced at stale offsets and destroyed the very sentences this
+        # is meant to protect.
+        #
+        # And this was the hole it closes. The module docstring
+        # above says a comment's prose word is never renamed — and the Python
+        # path ignored the spans entirely and substituted over the whole file,
+        # so "Le suivi est mis a jour ici" became "Le follow est mis a jour ici"
+        # in a docstring, in a comment and in a sentence-shaped literal. That is
+        # the exact defect this tool exists to prevent, in the one language
+        # where nothing was watching. The spans the caller already computed say
+        # where prose lives; they are lifted out the way a selector is, and put
+        # back at the end.
+        if spans is not None:
+            for kind, first, last in reversed(spans):
+                body = text[first:last]
+                if kind == "comment" or (kind == "string" and is_prose(body)):
+                    held.append(body)
+                    text = text[:first] + chr(0) + str(len(held) - 1) + chr(0) + text[last:]
+
         text = re.sub(r"\[[^\[\]\n]*\]", hold, text)
 
         for fr, en in sorted(mapping.items(), key=lambda kv: -len(kv[0])):
@@ -429,13 +533,52 @@ def apply(text, mapping, in_python=False, properties=False, spans=None):
                     # `.name`, `name:`, and the binding itself — every end.
                     chunk = re.sub(rf"(?<![\w$]){re.escape(fr)}\b", en, chunk)
                 else:
+                    # A shorthand `{ etat }` is BOTH ends written once — the key
+                    # the object emits and the binding it reads — so renaming it
+                    # moves the wire contract while every `x.etat` stays.
+                    #
+                    # EXPANDING IT AUTOMATICALLY WAS WORSE. `{ etat }` and JSX's
+                    # `{body}` are the same three characters to a regex, and the
+                    # expansion rewrote a pre-existing `{body}` expression
+                    # container into `{corps: body}` in a file that did not even
+                    # contain the source name. Only a parser can tell an object
+                    # shorthand from a JSX expression, and this pass has spans,
+                    # not node kinds.
+                    #
+                    # So the UNAMBIGUOUS case — a shorthand inside a list, where
+                    # a JSX container cannot appear — is REFUSED, and the caller
+                    # is told which mode owns it. A lone `{etat}` keeps being
+                    # renamed: in JSX that is exactly right, and in a one-key
+                    # object `--properties` is the mode that moves both ends.
+                    ambiguous = re.search(
+                        rf"\{{[^{{}}\n]*,\s*{re.escape(fr)}\s*[,}}]"
+                        rf"|\{{\s*{re.escape(fr)}\s*,[^{{}}\n]*\}}", chunk)
+                    if ambiguous:
+                        raise SystemExit(
+                            f"{fr!r} appears as a SHORTHAND PROPERTY "
+                            f"({ambiguous.group(0).strip()[:48]}) — that is one "
+                            "name for the key an object emits AND the binding it "
+                            "reads. Renaming it here would move the key while "
+                            "every reader stayed. Use --properties, which moves "
+                            "both ends. Nothing written, in any file.")
                     # A TWELFTH form: `...` is a SPREAD, not a member access,
                     # and the lookbehind that protects `x.name` read the last
                     # of its three dots the same way. `{ ...REGLEE }` was left
                     # standing while every other mention moved — a half-rename,
                     # silent, and only the type-checker downstream said so.
+                    #
+                    # A FOURTEENTH form, and the one this mode's own premise
+                    # denies: `{ etat }` and `{ etat: 2 }` are PROPERTY
+                    # positions. Renaming them without `--properties` moved the
+                    # emitted key while every `x.etat` that reads it stayed —
+                    # code that still parses, a read-back proof that only
+                    # compares strings and so says nothing, and exit 0. A
+                    # shorthand is both ends of the contract written once, so
+                    # it is skipped here and belongs to `--properties`.
                     chunk = re.sub(
-                        rf"(?:(?<=\.\.\.)|(?<![.\w$])){re.escape(fr)}\b",
+                        rf"(?:(?<=\.\.\.)|(?<![.\w$])){re.escape(fr)}\b"
+                        # not `name:` — an object key or a type member
+                        rf"(?!\s*:)",
                         en, chunk)
         elif kind == "comment":
             for fr, en in sorted(mapping.items(), key=lambda kv: -len(kv[0])):
@@ -445,10 +588,101 @@ def apply(text, mapping, in_python=False, properties=False, spans=None):
     return "".join(pieces)
 
 
+PROSE_WORD = re.compile(r"[A-Za-z\u00c0-\u00ff]{2,}")
+CODE_MARK = re.compile(r"[(){}\[\]=><;]|=>|\$\{|\bwindow\b|\bdocument\b")
+
+
+def is_prose(body):
+    """Says whether a Python string literal is a SENTENCE rather than code.
+
+    The harness drives the engine from inside `page.evaluate` strings, so a
+    Python string there is usually JavaScript and its identifiers must move. A
+    docstring, a comment and an ordinary message are the opposite: they are
+    prose, and a rename inside one is the corruption this tool exists to stop.
+
+    A triple-quoted literal is prose by construction here — the harness writes
+    its evaluate strings on one line. Otherwise the discriminator is the one the
+    rest of this file already uses: code wears punctuation a sentence does not.
+
+    Args:
+        body: The literal, quotes included.
+
+    Returns:
+        True when the literal reads as a sentence and must be left alone.
+    """
+    if body.lstrip("rbfuRBFU").startswith(('"""', "'''")):
+        return True
+    if CODE_MARK.search(body):
+        return False
+    return len(PROSE_WORD.findall(body)) >= 3
+
+
+def ignored(path):
+    """Says whether git ignores `path`, i.e. whether it is a build output.
+
+    Answers False when there is no repository to ask, so the tool still runs
+    over a bare directory — a temporary tree in a test, for instance.
+
+    Args:
+        path: The file to ask about.
+
+    Returns:
+        True when git ignores it.
+    """
+    try:
+        return subprocess.run(
+            ["git", "check-ignore", "-q", str(path)],
+            capture_output=True, check=False).returncode == 0
+    except OSError:
+        return False
+
+
+def validate_mapping(mapping):
+    """Refuses a table whose entries interfere with each other.
+
+    Every rename is a sequence of `re.sub` passes over the same text, so a
+    target that is also a source is eaten by the later pass: `{a: b, b: c}`
+    turns BOTH `a` and `b` into `c`, writes code that no longer parses, and
+    exits 0 — the read-back proof sees no string change and says nothing.
+    Two names collapsing into one is never what the caller meant, so it is
+    refused here rather than discovered in the diff.
+
+    Args:
+        mapping: The rename table, source name → target name.
+
+    Raises:
+        SystemExit: If a target is also a source, or two sources share a target.
+    """
+    # An IDENTITY entry is a no-op, not a chain. `{"pris": "taken", "scrape":
+    # "scrape"}` is the natural way to write a vocabulary whose members mostly
+    # move and one deliberately does not — and it was refused, so the caller had
+    # to remember to leave the unchanged member out entirely. It cannot collapse
+    # two names onto one, which is the whole reason chains are refused.
+    moving = {source: target for source, target in mapping.items() if source != target}
+    chained = sorted(set(moving.values()) & set(moving))
+    if chained:
+        raise SystemExit(
+            "refusing a chained table: " + ", ".join(
+                f"{name!r} is both a target and a source" for name in chained)
+            + ". Split it into two runs, or rename via a name nothing else uses.")
+    merged = sorted(
+        target for target, count in collections.Counter(moving.values()).items()
+        if count > 1)
+    if merged:
+        raise SystemExit(
+            "refusing a merging table: " + ", ".join(
+                f"several names map onto {name!r}" for name in merged)
+            + ". A merge is a lost distinction — prefer a longer name.")
+
+
 if __name__ == "__main__":
     mapping = json.load(open(sys.argv[1]))
+    validate_mapping(mapping)
     PROPERTIES = "--properties" in sys.argv
     VALUES = "--values" in sys.argv
+    # Substituting one word of a multi-word string is how prose gets rewritten,
+    # so it is asked for by name and never assumed.
+    INNER_WORDS = "--inner-words" in sys.argv
     # Values that are ordinary French words, so only their whole quoted form
     # may move. Passed as `--whole=annonce,termine`.
     WHOLE_ONLY = tuple(
@@ -457,6 +691,7 @@ if __name__ == "__main__":
         for word in argument.split("=", 1)[1].split(",") if word
     )
     changed = collections.Counter()
+    written = []
     # The tree to walk. It defaulted to the maquette, and every surface outside
     # it — the app under `frontend/src`, the icon tool under `frontend/scripts`
     # — was therefore renamed by hand or not at all. A root is an argument now,
@@ -465,47 +700,96 @@ if __name__ == "__main__":
              if a.startswith("--root=")]
     ROOT = roots[0] if roots else pathlib.Path("frontend/maquette")
     for path in sorted(ROOT.rglob("*")):
-        kinds = ({".js", ".ts", ".tsx", ".py", ".mjs", ".css", ".json", ".html"}
-                 if VALUES else {".js", ".ts", ".tsx", ".py", ".mjs"})
+        kinds = ({".js", ".jsx", ".ts", ".tsx", ".py", ".mjs", ".css", ".json", ".html"}
+                 if VALUES else {".js", ".jsx", ".ts", ".tsx", ".py", ".mjs"})
         if not path.is_file() or path.suffix not in kinds:
             continue
-        if "node_modules" in path.parts or "dist" in path.parts:
+        # A symlink is someone else's file: following one rewrote a file
+        # OUTSIDE the root, and listed the same inode twice when it pointed
+        # back inside.
+        if path.is_symlink():
+            continue
+        # A BUILD OUTPUT IS NOT SOURCE. `node_modules` and `dist` were named
+        # here one at a time, which left every other generated tree exposed:
+        # a value pass reached `personalscraper/web/static/`, the mirror of
+        # `frontend/dist`, and rewrote the MINIFIED bundle — `unicode-range`
+        # became `unicode-filed` and an `<input type="range">` became
+        # `type="filed"`. Nothing caught it, because the tree is gitignored and
+        # so a revert could not restore it either. Asking git what it ignores
+        # covers every generated tree at once, including the ones nobody has
+        # created yet.
+        # The cheap tests first: `ignored()` shells out to git, ~7.5 ms a call,
+        # and `frontend/node_modules` alone holds 17 657 matching files — two
+        # minutes of pure subprocess for a tree the next test rejects for free.
+        if "node_modules" in path.parts or "dist" in path.parts or ignored(path):
             continue
         # The TRANSLATIONS are the one place French belongs, and a value pass
         # walks JSON. Nothing may reach `i18n/`.
-        if "i18n" in path.parts:
+        if "i18n" in path.resolve().parts:
             continue
         if path.name in {"serve.py", "rename.py"}:
             continue
-        before = path.read_text(encoding="utf-8")
+        # `newline=""` keeps CRLF as CRLF. `read_text` folds `\r\n` into `\n`
+        # while `readFileSync(…, "utf8")` in the span tool does not, so Python
+        # counted one character where node counted two and EVERY span past the
+        # first line drifted by one per line. The read-back proof then saw
+        # strings that had "moved" and refused a file that was perfectly fine.
+        with path.open(encoding="utf-8", newline="") as handle:
+            before = handle.read()
         spans = (compiler_spans(path, before) if path.suffix in COMPILED
                  else python_spans(before) if path.suffix == ".py"
                  else None)
         if VALUES and path.suffix in {".css", ".json", ".html"}:
-            spans = [("string", 0, len(before))]
+            spans = quoted_spans(before, html=path.suffix == ".html")
         if VALUES:
             after = apply_values(before, mapping, spans=spans,
-                                 whole_only=WHOLE_ONLY)
+                                 whole_only=WHOLE_ONLY, inner_words=INNER_WORDS)
         else:
             after = apply(before, mapping, in_python=path.suffix == ".py",
                           properties=PROPERTIES, spans=spans)
-        if after != before:
-            path.write_text(after, encoding="utf-8")
-            # THE PROOF, taken on what was actually written: the parser reads
-            # the result back, and every string, template piece, regex and
-            # JSX text must still say exactly what it said. An empty table
-            # round-trips byte for byte even when every span is misclassified,
-            # so it can never show this — and this is the failure that ships.
-            if not VALUES and spans is not None and protected_text(path, after) != [
+        if after == before:
+            continue
+        # Written BEFORE the proof, because the proof runs the parser over the
+        # FILE: `node source-spans.mjs <path>` reads from disk, so text held
+        # only in memory would have it re-reading the previous contents and
+        # refusing every change. The original is remembered so a later refusal
+        # can put the whole tree back.
+        written.append((path, before))
+        with path.open("w", encoding="utf-8", newline="") as handle:
+            handle.write(after)
+        # THE PROOF, taken on what the rename PRODUCED: the parser reads the
+        # result back, and every string, template piece, regex and JSX text
+        # must still say exactly what it said. An empty table round-trips byte
+        # for byte even when every span is misclassified, so it can never show
+        # this — and this is the failure that ships.
+        #
+        # Python is exempt on purpose, not by oversight: `in_python=True`
+        # renames INSIDE strings, because that is where the harness keeps the
+        # identifiers it drives the engine with. Its strings are SUPPOSED to
+        # change, so a proof that they did not would refuse every Python rename
+        # the tool exists to make.
+        if (not VALUES and spans is not None and path.suffix != ".py"
+                and protected_text_of(path, after) != [
                     text for kind, s, e in spans if kind == "string"
-                    for text in [before[s:e]]]:
-                path.write_text(before, encoding="utf-8")
-                raise SystemExit(
-                    f"{path}: the rename would have changed a STRING, a "
-                    "template piece, a regex or JSX text — never an "
-                    "identifier here. Nothing written.")
-            changed[str(path.relative_to(ROOT))] = sum(
-                1 for _ in re.finditer("|".join(re.escape(v) for v in mapping.values()), after))
+                    for text in [before[s:e]]]):
+            # ALL OR NOTHING. Writing as the walk went used to leave a
+            # refusal on the tenth file with the first nine renamed and the
+            # rest untouched — a tree that LOOKS done, which is worse than one
+            # never started, and which this very message called « Nothing
+            # written ». Every file already written is put back first, so the
+            # message is true of the tree and not only of this file.
+            for done_path, original in reversed(written):
+                with done_path.open("w", encoding="utf-8", newline="") as handle:
+                    handle.write(original)
+            raise SystemExit(
+                f"{path}: the rename would have changed a STRING, a "
+                "template piece, a regex or JSX text — never an "
+                f"identifier here. Nothing written, in any file "
+                f"({len(written)} restored).")
+        changed[str(path.relative_to(ROOT))] = sum(
+            1 for _ in re.finditer("|".join(re.escape(v) for v in mapping.values()), after))
+
+
     print(f"{len(changed)} file(s) touched")
     for name, _ in changed.most_common(10):
         print("  " + name)

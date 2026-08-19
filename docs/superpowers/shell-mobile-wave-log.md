@@ -1182,3 +1182,65 @@ audit (the audit document itself was never committed; its outcomes are):
   operator off-screen to decide, and « Ignorer » became « Laisser tel quel ».
 - `src/components/decisions/__tests__/contract.test.tsx` carries R57 app-side, mirroring
   `harness/decision.py`, so the drawing and the code cannot drift apart in silence.
+
+## fix/mend — auditing the English campaign, and repairing what it broke (2026-08-19)
+
+Five adversarial auditors were run against the three campaign PRs (#455, #456, #457) before
+SP4-fin was allowed to open. The order was the operator's and it was not negotiable: nothing
+continues until the campaign is clean. It was not clean.
+
+**The prose repair had been incomplete.** Eight French sentences reached `main` as franglais,
+four of them on surfaces the operator reads — « rien de conforme au profile », « Les profils de
+ranking », « Aperçu du ranking », « Le classement » → « Le ranking », « la loaded utile »,
+« Prochaine search », « Récupérer now ». The corruption was NOT limited to French: `shows` →
+`series` mangled eighteen ENGLISH sentences (« and it series its value »), which a
+French-only sweep is structurally blind to. And the maquette's state table read
+`["number", "un number"]` while `["list", "une liste"]` sat untouched beside it — blind
+substitution, seen from the outside.
+
+**THREE test oracles had been rewritten to match the corruption** and were therefore green
+over it. The third surfaced only because the source was repaired first and the suite went red.
+A needle that moves with the thing it measures is invisible until you move the thing back.
+
+**The mechanism.** `--whole=` — the flag whose entire purpose is to stop a word moving inside
+a sentence — was DEAD CODE: declared, documented, built by the caller, passed at the call
+site, and never read in the body. Only an accent, a capital, an apostrophe or a full stop ever
+protected a string, and interface labels have none. The tool also had NO tests, while its
+docstring claimed a proof in `tests/scripts/` that did not exist. It has 16 now; 8 fail
+against the tool as it stood.
+
+**Using the repaired tool caught it twice more, both by reading the diff rather than the
+summary line.** `range` is an ordinary word, so a first pass rewrote `episode_video_range` —
+a config pattern key with nothing to do with acquisition. And the same pass reached
+`personalscraper/web/static/`, the GITIGNORED mirror of `frontend/dist`, and rewrote the
+minified bundle: `unicode-range` → `unicode-filed`, `<input type="range">` → `type="filed"`.
+Being gitignored, it could not be reverted either. The tool now asks git what it ignores.
+
+**The public contract documented values it cannot emit.** `tm.iznogoudatall.xyz/openapi.json`
+answers 200 without authentication and carried 14 occurrences of 7 dead state ids. The cause
+was 230 stale references in docstrings — Pydantic's, so they become `description` fields. The
+worst was `states.py`, whose docstring opens « The evaluation order IS the specification » and
+then wrote all eight rungs in dead names.
+
+**`stage` was the enum the campaign walked past** — `Literal["pris","telech","ingere","scrape",
+"range"]` in a public contract. Renamed, except `scrape`, which is already English AND is the
+name of a pipeline step: renaming it would have merged two unrelated vocabularies.
+
+**The gate could not see any of it**, because it never read those places. `frontend/index.html`
+(the production shell markup), four component-level stylesheets, `scripts/ops/`, `id='x'` and
+`id={'x'}`, and an empty `french-ok:` that granted what the module docstring says it must
+refuse. All widened, each proven red by mutation.
+
+**The fixture now refreshes itself.** A harness rule compares a card against `acquire.db`, so
+the fixture is an assertion about live data — and one real search took the suite from 49/0 to
+48/1 with no code change. `make fixture` regenerates it; `--check` joined `make check`.
+
+**And what the operator ACCEPTED is now counted.** `frontend/src` has no i18n layer; its
+French stays. But the arm that reads it prints `exempt, counted, not refused: 2237 french
+interface strings / app` on every run — an exemption nobody counts is indistinguishable from
+an oversight, which is exactly how those strings, three all-French shell scripts and
+`id="coquille"` each sat under a green gate.
+
+The three compatibility redirects (`/medias`, `/systeme`, `/controle`) were the only redirects
+in the app with no test: deleting all three broke nothing. Six tests now hold them, proven by
+deleting the redirects and watching them fall.

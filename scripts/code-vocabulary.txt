@@ -610,7 +610,7 @@ yt
 #
 # Everything above is English. Everything below is NOT, and saying so is
 # the whole point of the line: the first version of this file was SEEDED
-# from the codebase, so the twenty-five French words that twenty-nine
+# from the codebase, so the twenty-four French words that twenty-nine
 # names still needed came in with the rest and the gate went green over
 # them. A vocabulary that certifies the status quo answers no question.
 #

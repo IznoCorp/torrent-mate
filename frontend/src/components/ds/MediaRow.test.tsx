@@ -48,7 +48,7 @@ describe("MediaRow", () => {
   });
 
   it("R2 — la frise est sur sa propre ligne, hors de la rangée du haut", () => {
-    const { container } = render(<MediaRow {...base} journey={{ stage: "pris" }} />);
+    const { container } = render(<MediaRow {...base} journey={{ stage: "taken" }} />);
     const top = screen.getByTestId("acq-card-top");
     // The strip is the card's last block, a sibling of the top row.
     const trailingStrip = container.querySelector('[data-testid="acq-card"] > :last-child');

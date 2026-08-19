@@ -1,4 +1,4 @@
-.PHONY: help clean test test-unit test-integration test-cov test-impacte lint lint-logging check check-frontend format install-dev version update-ytdlp perf-rebaseline openapi
+.PHONY: help clean test test-unit test-integration test-cov test-impacte lint lint-logging check check-frontend format install-dev version update-ytdlp perf-rebaseline openapi fixture
 
 THRESHOLD := $(shell python3 scripts/get_coverage_threshold.py)
 
@@ -19,6 +19,7 @@ help:
 	@echo "  make update-ytdlp    - Upgrade yt-dlp + run network integration smoke test"
 	@echo "  make perf-rebaseline - Run slow perf tests and write new baseline.json"
 	@echo "  make openapi         - Export OpenAPI schema + regenerate frontend TS types"
+	@echo "  make fixture         - Refresh the maquette follow fixture from acquire.db"
 
 clean:
 	@echo "Cleaning build artifacts..."
@@ -63,7 +64,7 @@ test-cov:
 
 lint:
 	@echo "Running linter..."
-	python -m ruff check personalscraper/ tests/
+	python -m ruff check personalscraper/ tests/ scripts/ frontend/maquette/harness/ frontend/scripts/
 	python -m ruff format --check personalscraper/ tests/
 	python -m mypy personalscraper/
 	$(MAKE) lint-logging
@@ -74,10 +75,14 @@ lint-logging:
 
 check: lint test-cov
 	python3 scripts/check-module-size.py
+	python3 scripts/check-module-size.py --root scripts
+	python3 scripts/check-module-size.py --root tests
+	python3 scripts/check-module-size.py --root frontend
 	python3 scripts/check-no-broad-registry-catch.py
 	python3 scripts/check-typed-api.py
 	python3 scripts/check-pragma-discipline.py
 	python3 scripts/check-no-french.py
+	python3 scripts/check-command-safety.py
 	python3 scripts/audit-cli-coverage.py
 	$(MAKE) cli-coverage-check
 	@echo "Checking feature map freshness..."
@@ -86,6 +91,10 @@ check: lint test-cov
 	python3 scripts/audit_design_coverage.py --strict
 	@echo "Checking maquette CSS drift..."
 	python3 scripts/extract-maquette-css.py --check
+	@echo "Checking maquette fixture drift..."
+	python3 scripts/refresh-maquette-fixture.py --check
+	@echo "Probing maquette/app CSS parity..."
+	python3 scripts/parity-probe.py
 	@echo "Checking OpenAPI drift..."
 	@if [ -d frontend/node_modules ]; then $(MAKE) openapi && git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts; else echo "openapi-drift: skipped (frontend/node_modules absent)"; fi
 	@echo "Checking version bump..."
@@ -98,11 +107,11 @@ cli-coverage-check:
 
 gate: check
 	@echo "Gate: residual import audit..."
-	@! rg -q "from personalscraper\.scraper\.circuit_breaker" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.circuit_breaker import"; exit 1; }
-	@! rg -q "from personalscraper\.scraper\.tmdb_client" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.tmdb_client import"; exit 1; }
-	@! rg -q "from personalscraper\.scraper\.tvdb_client" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.tvdb_client import"; exit 1; }
-	@! rg -q "from personalscraper\.scraper\.http_retry" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.http_retry import"; exit 1; }
-	@! rg -q "from personalscraper\.scraper\.providers" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.providers import"; exit 1; }
+	@! rg -q -g '*.py' "from personalscraper\.scraper\.circuit_breaker" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.circuit_breaker import"; exit 1; }
+	@! rg -q -g '*.py' "from personalscraper\.scraper\.tmdb_client" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.tmdb_client import"; exit 1; }
+	@! rg -q -g '*.py' "from personalscraper\.scraper\.tvdb_client" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.tvdb_client import"; exit 1; }
+	@! rg -q -g '*.py' "from personalscraper\.scraper\.http_retry" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.http_retry import"; exit 1; }
+	@! rg -q -g '*.py' "from personalscraper\.scraper\.providers" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.providers import"; exit 1; }
 	@! rg -l "TMDBError|TVDBError" -g '*.py' personalscraper/ 2>/dev/null | grep -v "_contracts.py" > /dev/null || { echo "FAIL: residual TMDBError/TVDBError references"; exit 1; }
 	@python3 -c "import personalscraper" || { echo "FAIL: import personalscraper"; exit 1; }
 	@echo "Gate: ALL CHECKS PASSED"
@@ -130,6 +139,11 @@ perf-rebaseline:
 	@echo "Running perf regression tests and updating baseline.json..."
 	PERF_REBASELINE=1 python -m pytest -m slow tests/e2e/perf/test_indexer_perf.py -v
 	@echo "baseline.json updated with fresh measurements."
+
+fixture:
+	@echo "Refreshing the maquette fixture from acquire.db..."
+	python3 scripts/refresh-maquette-fixture.py --apply
+	@echo "Rebuild the maquette before running the harness: cd frontend/maquette/design && npm run build"
 
 openapi:
 	@echo "Exporting OpenAPI schema..."

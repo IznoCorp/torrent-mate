@@ -289,7 +289,7 @@ async def main():
                 and add_cold["key"] == "add:suivi",
                 f"field={add_cold['field']!r} key={add_cold['key']}")
             journal.check(
-                "and the query series results",
+                "and the query shows results",
                 add_cold["cards"] >= 2, f"{add_cold['cards']} cards")
             journal.check("no JS error on deep /ajout entry", not errors, str(errors))
             await ctx.close()

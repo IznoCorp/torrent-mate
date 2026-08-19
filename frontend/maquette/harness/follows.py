@@ -1,3 +1,5 @@
+"""The follows tab: its list, its groups, and the states it reaches."""
+
 import asyncio
 from playwright.async_api import async_playwright
 async def main():

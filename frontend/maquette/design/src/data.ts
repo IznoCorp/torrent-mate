@@ -137,14 +137,14 @@ export type DecisionChoice = {
 // Fields common to a decision whichever side of resolution it is on — the
 // folder's display name (`d`, always spelled `staging_path`-derived, never a
 // medium title), its kind, the title/year the automatic pass landed on, and
-// when the scrape ran. `motif` keys `MOTIF_LABEL` / `REASON_TONE` /
+// when the scrape ran. `reason` keys `REASON_LABEL` / `REASON_TONE` /
 // `REASON_DETAIL`.
 type DecisionCommon = {
   d: string;
   k: "movie" | "show";
   t: string;
   y?: number;
-  motif: string;
+  reason: string;
   when: string;
 };
 
@@ -520,7 +520,7 @@ export type Reference = {
   // réglées, two en attente), split by whether an operator has answered yet.
   PENDING_DECISIONS: PendingDecision[];
   DECISIONS_REGLEES: SettledDecision[];
-  MOTIF_LABEL: Record<string, string>;
+  REASON_LABEL: Record<string, string>;
   REASON_TONE: Record<string, string>;
   REASON_DETAIL: Record<string, string>;
   // Unlike the other label maps here, each value is a [tone, label] pair —

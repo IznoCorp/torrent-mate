@@ -7,7 +7,7 @@ state in JSX.
 Translated to the five-state model (acq-states phase 4): the raw
 ``wanted_pending`` / ``wanted_grabbed`` counters no longer derive anything, so
 the two former counter-driven cases now pin the OPPOSITE guarantee — a card with
-no catalogue knowledge reads ``non_verifie`` whatever the counters say.
+no catalogue knowledge reads ``unverified`` whatever the counters say.
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ class TestFollowedStatusDerivation:
         assert _item(active=True, wanted_pending=3).status == "unverified"
 
     def test_idle_without_catalog_is_unverified_never_up_to_date(self) -> None:
-        """An active series with no catalogue and no queue is ``non_verifie``.
+        """An active series with no catalogue and no queue is ``unverified``.
 
         Was ``up_to_date`` — the founding incident's exact shape: zero wanted
         rows read as « À jour » while aired episodes were missing.

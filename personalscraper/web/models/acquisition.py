@@ -107,20 +107,20 @@ class FollowedSeriesItem(BaseModel):
     # Five-state truth facts (acq-states phase 4) — derived from the
     # aired-catalog cache × library ownership × wanted rows × the last search
     # verdict, one count per state. All ``None`` when the series has no cached
-    # catalog yet, which now reads ``non_verifie`` (never ``a_jour``).
+    # catalog yet, which now reads ``unverified`` (never ``up_to_date``).
     #: Aired episodes known for this series (from the detect-written cache).
     #: ``None`` = no catalog knowledge at all. Always ``None`` for films (a film
     #: has no catalog — it carries :attr:`movie_facts` instead).
     aired_count: int | None = None
-    #: Aired episodes with a live file in the library (``en_mediatheque``).
+    #: Aired episodes with a live file in the library (``in_library``).
     owned_count: int | None = None
-    #: Aired, unowned episodes with a takeable candidate known (``a_recuperer``).
+    #: Aired, unowned episodes with a takeable candidate known (``to_grab``).
     to_grab_count: int | None = None
-    #: Aired, unowned episodes taken / carried by the pipeline (``en_acquisition``).
+    #: Aired, unowned episodes taken / carried by the pipeline (``acquiring``).
     acquiring_count: int | None = None
-    #: Aired, unowned episodes searched with nothing takeable (``en_attente``).
+    #: Aired, unowned episodes searched with nothing takeable (``pending``).
     pending_count: int | None = None
-    #: Aired, unowned episodes never searched or inconclusive (``non_verifie``).
+    #: Aired, unowned episodes never searched or inconclusive (``unverified``).
     unverified_count: int | None = None
     #: Episodes cached with an air date STILL AHEAD. Enters no state bucket and
     #: can never degrade the card; it only tells « À jour » (caught up, more to
@@ -133,7 +133,7 @@ class FollowedSeriesItem(BaseModel):
     series_status: str | None = None
     #: Films only: the single unit's facts driving the card (``None`` for shows,
     #: and for a film whose provider ids could not be resolved — which then
-    #: reads ``non_verifie``, the honest « we know nothing »).
+    #: reads ``unverified``, the honest « we know nothing »).
     movie_facts: MovieFacts | None = None
 
     #: ``True`` when a priming run (``command='prime'``) is in flight for this
@@ -169,7 +169,7 @@ class FollowedSeriesItem(BaseModel):
         aired episodes were missing (founding incident). They survive as data
         fields for display, never as a status source.
 
-        A priming run in flight overrides the card to ``verification_en_cours``
+        A priming run in flight overrides the card to ``verifying``
         BEFORE any derived status (phase 6). The flag is set by the route layer
         from the live ``pipeline_run`` rows; it is never stored in ``acquire.db``
         and can never disagree with the run history.
@@ -489,10 +489,10 @@ class EpisodeCompleteness(BaseModel):
             :func:`~personalscraper.web.acquisition.states.derive_episode_state`
             — the SAME derivation the followed card aggregates, so the card and
             this matrix can never disagree about one episode:
-            ``en_mediatheque`` (a live file exists in the library),
-            ``en_acquisition`` (a torrent was taken, the pipeline carries it),
-            ``a_recuperer`` (a takeable candidate is known), ``en_attente``
-            (searched, concluded, nothing takeable) or ``non_verifie`` (never
+            ``in_library`` (a live file exists in the library),
+            ``acquiring`` (a torrent was taken, the pipeline carries it),
+            ``to_grab`` (a takeable candidate is known), ``pending``
+            (searched, concluded, nothing takeable) or ``unverified`` (never
             searched, or the last search did not conclude — panne ≠ absence).
         last_search_outcome: The named outcome of the GOVERNING ``wanted`` row's
             last search pass (``no_candidates`` / ``all_filtered`` /
@@ -516,21 +516,21 @@ class SeasonCompleteness(BaseModel):
 
     Attributes:
         season: Season number (1-based; specials excluded by the poller).
-        owned: Episodes reading ``en_mediatheque`` (a live library file).
-        queued: Episodes « en mouvement » — ``a_recuperer`` + ``en_acquisition``.
+        owned: Episodes reading ``in_library`` (a live library file).
+        queued: Episodes « en mouvement » — ``to_grab`` + ``acquiring``.
             The field NAME is kept from the old three-value vocabulary to bound
             the phase-5 blast radius (the frontend accordion consumes
             ``owned`` / ``queued`` / ``total``); what it COUNTS is now the two
             five-state buckets where something is actually moving. Episodes
-            reading ``en_attente`` or ``non_verifie`` are deliberately NOT
+            reading ``pending`` or ``unverified`` are deliberately NOT
             counted here: nothing is in motion for them, and folding them in
             would re-create the « queue volume implies progress » lie the
             five states exist to kill. A rename is phase 8's call.
-        total: Aired episodes in the season — the ``annonce`` (future) episodes
+        total: Aired episodes in the season — the ``announced`` (future) episodes
             are NOT counted here (nor in ``owned`` / ``queued``): a future
             episode has not aired, so it belongs to no acquisition tally. It is
             counted separately in ``announced``.
-        announced: Future episodes of the season (``annonce``) — episode-states
+        announced: Future episodes of the season (``announced``) — episode-states
             D2. Display-only: a count of what is coming, kept out of the aired
             tallies and out of the card aggregation entirely.
         episodes: The per-episode states, ordered by episode number (aired AND
@@ -568,7 +568,7 @@ class CompletenessResponse(BaseModel):
         source: Where the aired catalog came from: ``"cache"`` (the
             detect-written ``aired_episode`` table — the ONLY catalog source)
             or ``"unknown"`` (nothing cached for this follow yet, so the panel
-            asserts nothing; the card reads ``non_verifie`` from the same
+            asserts nothing; the card reads ``unverified`` from the same
             absence). The former ``"live"`` value died with the synchronous
             provider fallback (acq-states phase 5) — a web read never polls.
         catalog_refreshed_at: Epoch seconds of the detect pass that wrote the
@@ -940,7 +940,7 @@ class ToHandleItemModel(BaseModel):
     created_at: int = 0
     followed_id: int | None = None
     info_hash: str | None = None
-    stage: Literal["pris", "telech", "ingere", "scrape", "range"]
+    stage: Literal["taken", "downloaded", "ingested", "scrape", "filed"]
     # Episode identity from the provenance spine — the blocked card's
     # « S16E12 » subtitle (maquette); None when the grab carried none.
     season: int | None = None

@@ -144,7 +144,7 @@ export function DecisionRow({
   chosen,
   onOpen,
 }: DecisionRowProps): ReactElement {
-  const corps = (
+  const body = (
     <DecisionRowBody
       folder={folder}
       {...(path != null ? { path } : {})}
@@ -175,10 +175,10 @@ export function DecisionRow({
             aria-label={folder}
             onClick={onOpen}
           >
-            {corps}
+            {body}
           </button>
         ) : (
-          <div className="flex min-w-0 flex-1 items-center gap-[10px]">{corps}</div>
+          <div className="flex min-w-0 flex-1 items-center gap-[10px]">{body}</div>
         )}
       </div>
     </Panel>

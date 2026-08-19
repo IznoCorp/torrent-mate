@@ -167,7 +167,7 @@ describe("EPISODE state vocabulary", () => {
     }
   });
 
-  it("aliases absorbed onto en_acquisition — same label AND same tone", () => {
+  it("aliases absorbed onto acquiring — same label AND same tone", () => {
     // What this pins is the rendering of a DANGLING pointer, nothing wider.
     // Since ticket 411 a surface only ever meets `absorbed` when the pointer could not
     // be followed (states.substitute_absorbed_facts otherwise substitutes the
@@ -204,9 +204,9 @@ describe("EPISODE state vocabulary", () => {
     // « Une couleur par statut »: no two LIVE-FLOW episode states may share a
     // BadgeTone, else the matrix would paint two states the same colour. This
     // is the regression guard for the two collisions that existed at phase-1
-    // end (annonce=en_acquisition=info, en_attente=non_verifie=neutral).
+    // end (annonce=acquiring=info, pending=unverified=neutral).
     // "absorbed" is excluded on purpose: it is not a state of its own for the
-    // operator — it renders EXACTLY like en_acquisition (same tone, same
+    // operator — it renders EXACTLY like acquiring (same tone, same
     // label), being the rendering of a pointer that could not be followed
     // rather than a step of the live flow.
     const liveFlow = EPISODE_STATES.filter((s) => s !== "absorbed");
@@ -250,7 +250,7 @@ describe("searchOutcomeReason — le motif d'attente en français", () => {
   it.each([
     ["no_candidates", "aucun résultat"],
     ["no_matching_episode", "pas d'épisode exact"],
-    ["all_filtered", "rien de conforme au profile"],
+    ["all_filtered", "rien de conforme au profil"],
   ])("traduit %s en « %s » pour un épisode en attente", (outcome, reason) => {
     expect(searchOutcomeReason("pending", outcome)).toBe(reason);
   });
@@ -281,8 +281,8 @@ describe("searchOutcomeReason — le motif d'attente en français", () => {
 
 describe("« En attente » vs « Non vérifié » (must not be confusable)", () => {
   it("gives the two states DISTINCT tones, labels AND hints (#24)", () => {
-    // #24 — they no longer share a colour: en_attente = solid neutral grey,
-    // non_verifie = the muted (dashed info-blue) idle tone, in BOTH maps.
+    // #24 — they no longer share a colour: pending = solid neutral grey,
+    // unverified = the muted (dashed info-blue) idle tone, in BOTH maps.
     expect(FOLLOW_STATUS_TONE.pending).not.toBe(
       FOLLOW_STATUS_TONE.unverified,
     );
@@ -303,7 +303,7 @@ describe("« En attente » vs « Non vérifié » (must not be confusable)", () 
     );
   });
 
-  it("says « rien de conforme » for en_attente and « pas encore » for non_verifie", () => {
+  it("says « rien de conforme » for pending and « pas encore » for unverified", () => {
     expect(FOLLOW_STATUS_HINT.pending).toMatch(/rien de conforme/);
     expect(FOLLOW_STATUS_HINT.unverified).toMatch(/[Pp]as encore vérifié/);
     expect(EPISODE_STATE_HINT.pending).toMatch(/rien de conforme/);

@@ -1,10 +1,10 @@
 """Tests for the five-state truth facts (web/acquisition/truth.py — acq-states).
 
 The named production cases pin the derivation:
-- Silo: everything aired is owned, one phantom grabbed row → ``a_jour`` card
+- Silo: everything aired is owned, one phantom grabbed row → ``up_to_date`` card
   (``acquiring_count`` 0), never « en cours d'acquisition ».
 - House of the Dragon: an aired episode neither owned nor open in the queue →
-  ``non_verifie`` (no open row = no verdict = no knowledge), never « à jour ».
+  ``unverified`` (no open row = no verdict = no knowledge), never « à jour ».
 
 Translated from the P0-B.2 four-bucket model (inflight/queued/missing) to the
 five-state counts: each test keeps its original intent, only the vocabulary and
@@ -135,11 +135,11 @@ def test_silo_shape_phantom_grabbed_is_not_inflight(acquire_conn: sqlite3.Connec
 
 
 def test_hotd_shape_unqueued_missing_episode(acquire_conn: sqlite3.Connection) -> None:
-    """An aired episode neither owned nor open in the queue → non_verifie.
+    """An aired episode neither owned nor open in the queue → unverified.
 
     Translated from the P0-B.2 ``missing`` bucket: an episode with no OPEN
     wanted row carries no search verdict, so the honest reading is « on ne sait
-    pas » (``non_verifie``) — the card must never read « à jour » here, which is
+    pas » (``unverified``) — the card must never read « à jour » here, which is
     the invariant this test has always defended.
     """
     _seed_aired(acquire_conn, [(3, 3), (3, 4)])
@@ -155,9 +155,9 @@ def test_real_inflight_and_queue_counts(acquire_conn: sqlite3.Connection) -> Non
     """Unowned aired episodes split between grabbed and an unsearched pending row.
 
     Translated: the ``pending`` row was never searched (no verdict columns), so
-    it counts as ``non_verifie`` rather than the former ``queued`` bucket — but
-    the card still reads « en cours d'acquisition », since ``en_acquisition``
-    outranks ``non_verifie``.
+    it counts as ``unverified`` rather than the former ``queued`` bucket — but
+    the card still reads « en cours d'acquisition », since ``acquiring``
+    outranks ``unverified``.
     """
     _seed_aired(acquire_conn, [(1, 1), (1, 2), (1, 3)])
     _seed_wanted(acquire_conn, 1, 2, "grabbed")
@@ -293,7 +293,7 @@ def _movie_item(facts: MovieFacts, *, wanted_grabbed: int, wanted_pending: int) 
 
 
 def test_movie_owned_beats_phantom_grabbed_counter(acquire_conn: sqlite3.Connection) -> None:
-    """A film ON DISK reads ``a_jour`` even with a stale ``grabbed`` row.
+    """A film ON DISK reads ``up_to_date`` even with a stale ``grabbed`` row.
 
     Red-on-old: the movie branch derived status purely from ``wanted_grabbed``,
     so a phantom grabbed row pinned an already-owned film at « en cours
@@ -308,7 +308,7 @@ def test_movie_owned_beats_phantom_grabbed_counter(acquire_conn: sqlite3.Connect
 
 
 def test_movie_absent_with_grabbed_is_acquiring(acquire_conn: sqlite3.Connection) -> None:
-    """A film NOT on disk with a grabbed row → ``en_acquisition``."""
+    """A film NOT on disk with a grabbed row → ``acquiring``."""
     _seed_movie_follow(acquire_conn)
     _seed_movie_wanted(acquire_conn, "grabbed")
     facts = compute_movie_truth(acquire_conn, _MovieChecker(owned=False), followed_id=2, media_ref=_MOVIE_REF)
@@ -317,7 +317,7 @@ def test_movie_absent_with_grabbed_is_acquiring(acquire_conn: sqlite3.Connection
 
 
 def test_movie_absent_available_row_is_to_grab(acquire_conn: sqlite3.Connection) -> None:
-    """A film NOT on disk whose search found a takeable candidate → ``a_recuperer``.
+    """A film NOT on disk whose search found a takeable candidate → ``to_grab``.
 
     Translated from the old « pending → pending » case: a queued row now reads
     from its verdict, and an ``available`` row is exactly the actionable state
@@ -331,7 +331,7 @@ def test_movie_absent_available_row_is_to_grab(acquire_conn: sqlite3.Connection)
 
 
 def test_movie_absent_searched_nothing_takeable_is_pending(acquire_conn: sqlite3.Connection) -> None:
-    """A film NOT on disk, searched, nothing takeable → ``en_attente``."""
+    """A film NOT on disk, searched, nothing takeable → ``pending``."""
     _seed_movie_follow(acquire_conn)
     _seed_movie_wanted(acquire_conn, "pending", outcome="no_candidates", found=0)
     facts = compute_movie_truth(acquire_conn, _MovieChecker(owned=False), followed_id=2, media_ref=_MOVIE_REF)
@@ -339,7 +339,7 @@ def test_movie_absent_searched_nothing_takeable_is_pending(acquire_conn: sqlite3
 
 
 def test_movie_absent_no_open_row_is_unverified(acquire_conn: sqlite3.Connection) -> None:
-    """A film NOT on disk with no wanted row at all → honest ``non_verifie``.
+    """A film NOT on disk with no wanted row at all → honest ``unverified``.
 
     Old code read ``up_to_date`` here (no grabbed, no pending) — claiming a film
     the library does not hold is « à jour ». Translated from ``incomplete``: with
@@ -367,7 +367,7 @@ def test_movie_open_row_wins_over_closed_leftover(acquire_conn: sqlite3.Connecti
 
 
 def test_movie_whose_only_row_is_abandoned_is_unverified(acquire_conn: sqlite3.Connection) -> None:
-    """A film whose ONLY row is ``abandoned`` reads ``non_verifie``, not « En attente ».
+    """A film whose ONLY row is ``abandoned`` reads ``unverified``, not « En attente ».
 
     Red-on-old (VISIBLE CHANGE, arbitrated by D3): the movie selector used to
     fall back to « the most recent row of ANY status » when no open row existed,
@@ -459,8 +459,8 @@ def test_future_episode_is_excluded_from_the_card_counts(acquire_conn: sqlite3.C
     """ACC-03: a cached FUTURE episode never degrades the card — the show stays « À jour ».
 
     Two aired episodes (both owned) plus a future one. The future is cached (the
-    matrix will show it as ``annonce``) but must NOT be counted here: with it in
-    the aired set it would derive to ``non_verifie`` (no wanted row, unowned)
+    matrix will show it as ``announced``) but must NOT be counted here: with it in
+    the aired set it would derive to ``unverified`` (no wanted row, unowned)
     and pull the card off « À jour ». The aired-only query drops it.
     """
     from datetime import date
@@ -504,7 +504,7 @@ def test_future_episode_is_excluded_from_the_card_counts(acquire_conn: sqlite3.C
 
 
 def test_only_future_episodes_read_unverified(acquire_conn: sqlite3.Connection) -> None:
-    """A series whose ONLY cached episodes are future has no aired catalog → non_verifie.
+    """A series whose ONLY cached episodes are future has no aired catalog → unverified.
 
     Honest: there is nothing aired to be « up to date » on yet, so the card
     reads « we don't know » — never « À jour » on the strength of a future.
@@ -659,7 +659,7 @@ class TestAnnouncedCount:
         """Announced-only → the all-None sentinel: there is nothing to be up to date ON.
 
         The sentinel wins over the announced count: a series with no aired
-        episode reads ``non_verifie``, and must not carry a stray count that
+        episode reads ``unverified``, and must not carry a stray count that
         would suggest we know something about its library state.
         """
         _seed_dated(acquire_conn, [(1, 1, "2027-01-01"), (1, 2, "2027-01-08")])

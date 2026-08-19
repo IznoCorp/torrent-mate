@@ -1,3 +1,5 @@
+"""Interaction holds: what a tap, a long press and a drag must do."""
+
 import asyncio
 from playwright.async_api import async_playwright
 

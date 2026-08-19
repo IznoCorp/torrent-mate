@@ -275,7 +275,7 @@ async def main():
         # whatever the previous one left. The reading below is the one the rung
         # and every badge hold rest on, so it is pinned exactly like the one on
         # the way back from the fault.
-        sys_view = await on_page(pg, "sys", panne=False)
+        sys_view = await on_page(pg, "sys", fault=False)
 
         # 0. THE RUNG EVERYTHING BELOW STANDS ON: a list that was not FOUND is
         # not a list that is fine. The five blocks are located by their French
@@ -438,7 +438,7 @@ async def main():
             await pg.evaluate(apply)
             await pg.wait_for_timeout(220)
             for state_ in (False, True):
-                await on_page(pg, "sys", panne=state_)
+                await on_page(pg, "sys", fault=state_)
                 contrasts = await pg.evaluate(CONTRAST)
                 journal.check(
                     f"there are badges to read — {theme} theme"
@@ -456,10 +456,10 @@ async def main():
                     + (f" — unreadable: {', '.join(unreadable)}" if unreadable else ""))
         await pg.evaluate("()=>document.documentElement.removeAttribute('data-theme')")
         await pg.wait_for_timeout(200)
-        # `panne` is NAMED on the way back: a state driven without naming every
+        # `fault` is NAMED on the way back: a state driven without naming every
         # dial inherits whatever the previous one left, which is the defect R10
         # found in the interface and which this probe had just repeated.
-        sys_view = await on_page(pg, "sys", panne=False)
+        sys_view = await on_page(pg, "sys", fault=False)
 
         # The rung again, on the reading « at rest » is judged from: that hold
         # says « nothing alerts », which is true of an empty list too.
@@ -485,7 +485,7 @@ async def main():
         # 3ter. A screen that can only be green cannot be judged, so a named
         # state replays a fault — and SAYS it is simulated, or the operator
         # would read an invented outage as a real one (§13).
-        fault = await on_page(pg, "sys", panne=True)
+        fault = await on_page(pg, "sys", fault=True)
         red_services = [x for x in (fault["services"] or []) if x["tone"] == "alert"]
         red_schedulers = [x for x in (fault["schedulers"] or []) if x["tone"] == "alert"]
         journal.check("a named state shows what an alert looks like, on the services side",

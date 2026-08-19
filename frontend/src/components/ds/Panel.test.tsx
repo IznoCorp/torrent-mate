@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
@@ -64,9 +65,17 @@ describe("Panel", () => {
   it("est le SEUL endroit qui écrit la surface", () => {
     // A surface has no content of its own to be recognised by, so a copy that
     // drifts by one token is invisible until it sits next to the original.
-    const offenders = files("src")
-      .filter((f) => !EXCEPTIONS.has(f))
-      .filter((f) => readFileSync(f, "utf8").includes(SURFACE));
+    // Resolved from THIS file, not from the process cwd: reading "src"
+    // relatively made the test pass only when the runner happened to be
+    // started inside `frontend/`, and blow up with ENOENT anywhere else.
+    const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..", "src");
+    // The absolute path is what gets READ; the `src/…` form is only the key the
+    // exception list is written in. Using one for both put a relative path back
+    // into `readFileSync`, which is the very cwd dependency this resolves.
+    const offenders = files(root)
+      .filter((absolute) => !EXCEPTIONS.has(absolute.slice(root.length - "src".length)))
+      .filter((absolute) => readFileSync(absolute, "utf8").includes(SURFACE))
+      .map((absolute) => absolute.slice(root.length - "src".length));
     expect(offenders).toEqual([]);
   });
 });

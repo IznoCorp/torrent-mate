@@ -38,7 +38,19 @@ coding** any web surface; every web PR **cites the §§ it serves**.
 ### Design Reference — the maquette is authoritative (web-UI — BINDING)
 
 **`frontend/maquette/design/refonte.html` is the visual reference of the web UI** (§15 of the
-constitution). Every design evolution **starts from the maquette, never from the code**:
+constitution). Every design evolution **starts from the maquette, never from the code**.
+
+**READ THIS BEFORE THE FOUR RULES — the maquette is the NEXT version of the app, not a picture
+of the one in production.** It carries a different visual language, and the shipped app has not
+adopted it. The two therefore differ ON PURPOSE, and that difference is the redesign left to
+build — not a backlog of defects. Concretely: **nothing imports `app-surface.css`**, the
+stylesheet extraction produces; production is dressed by `frontend/src/styles/` as it stands,
+`maquette-acquisition.css` included. So: **never read a maquette/production difference as a
+production bug, and never « repair » production by pointing a tool at the maquette's CSS.** The
+four rules below are the METHOD by which a design decision travels from the maquette into the
+app when it is deliberately adopted; they are not a description of today's tree. Missing this
+distinction cost a full session, in which a comparison of the two stylesheets was read as a
+production defect and « fixed » three times over.
 
 1. The **maquette is modified first**, verified with its harness (`frontend/maquette/harness/`),
    and the code is derived from it.
@@ -47,7 +59,11 @@ constitution). Every design evolution **starts from the maquette, never from the
 3. **Nothing ships to production that the maquette does not show.** A new surface is drawn
    there before it is coded.
 4. The app's CSS is **extracted** from the maquette (`scripts/extract-maquette-css.py`), never
-   copied by hand; drift is blocked by `make check`.
+   copied by hand; drift between the maquette and that extraction is blocked by `make check`.
+   **This one is the target and it is STAGED, not live** — the extraction and its guards
+   (including `scripts/parity-probe.py`) are built ahead of time so they are already trustworthy
+   the day the redesign ships. Adopting the generated stylesheet IS shipping the redesign, and
+   that is the operator's decision, never a wiring detail.
 
 Read `frontend/maquette/README.md` before any design change — method, named states, verified
 rule set, and the traps already paid for.
@@ -115,7 +131,13 @@ Examples: `feat(scraper): create TvShow nfo file` · `refactor(dispatch): extrac
 
 - Version prefixes (`vX.Y.Z: Description`) — version traceability lives in `IMPLEMENTATION.md`
   and subagent reports (sub-phase → SHA mapping), not in commit messages
-- AI attribution: `Co-Authored-By`, `Claude`, `Anthropic` — enforced by `hooks/block_ai_attribution.py`
+- AI attribution: `Co-Authored-By`, `Claude`, `Anthropic` — enforced by `hooks/commit-msg`,
+  which also holds the Conventional-Commit format and the version-prefix ban. It runs on
+  every commit in this clone (`core.hooksPath = hooks`). **It cannot reach the squash-merge
+  message composed on GitHub**, which is the message that lands on `main` — only a
+  server-side check would. (The previously named `hooks/block_ai_attribution.py` never
+  existed: the real file is a gitignored Claude-Code tool hook that sees only the agent's
+  own `git commit` invocations.)
 
 Milestone-commit format and the codename-as-scope rule: `docs/reference/feature-lifecycle.md` §7.
 
@@ -141,6 +163,17 @@ Alternative: run steps individually (`personalscraper ingest`, then `personalscr
 - **No French in the code, and no interface text in the code** — see §Language below. It is
   enforced, not remembered: `python3 scripts/check-no-french.py` (in `make check` and in CI).
 - New tests: choose unit / integration / manual E2E — see `docs/reference/testing.md`.
+- **Renaming an identifier goes through `scripts/rename-identifiers.py`** — never by hand,
+  never with an ad-hoc regex. Every bypass has cost something: a rewritten route, eleven state
+  ids, eight interface texts and five rule assertions in one wave alone. **But the tool is not
+  the proof.** Its read-back check is skipped for `--values` runs and for Python files — and
+  `--values` is the mode that rewrote 429 lines of prose. So every rename batch is verified by
+  an oracle OUTSIDE the tool: re-read the diff (not the « N file(s) touched » line), and re-run
+  the harness rule suite. Two corruptions in this repository were found by reading the diff
+  after the tool reported success.
+- **A bug fix carries a regression test**, and the test is shown to FAIL against the code as it
+  stands before the fix. A test written after the fix that was never seen red proves only that
+  it agrees with the fix.
 - **Module size**: soft warning at 800 non-blank LOC, hard ceiling 1000 LOC (exit 1). Run `python3 scripts/check-module-size.py` (also wired into `make check`).
 
 ### Phase Gate Checklist (MANDATORY before every phase gate commit)
@@ -216,7 +249,7 @@ all engineering documentation (`docs/`, `BUGS.md`, `CHANGELOG.md`, `ROADMAP.md`,
   they must still read years from now, out of context.
 
 **The code itself contains NO French, and no interface text.** Two halves of one rule,
-enforced by `scripts/check-no-french.py` (four arms, in `make check` and in CI):
+enforced by `scripts/check-no-french.py` (eleven arms, in `make check` and in CI):
 
 - **English names, everywhere and always**: identifiers, function/type/**class** names (code
   AND CSS), **file and directory names**, and every message the tools print. A new file, a new
@@ -227,6 +260,20 @@ enforced by `scripts/check-no-french.py` (four arms, in `make check` and in CI):
   `useTranslation()` — and the same file's `server` namespace for the pages `serve.py` serves.
   Extract strings, never retype them: a retyped string is a defect, because it renders
   correctly while the reference is broken.
+- **`frontend/src` is EXEMPT from that rule, deliberately.** The production React app has no
+  i18n layer at all — no `i18n/` directory, no `useTranslation()` — and its French is written
+  straight into the components. That is the app the maquette shell is being built to replace,
+  so moving that copy into resources would be work thrown away with the app that holds it.
+  The exemption is the operator's, and it is not a licence to relax: **it is a RATCHET.**
+  `check_app_interface_text` reads that whole tree — JSX text nodes included, which carry no
+  quotes — and **refuses the count going UP**, against the baseline pinned in
+  `scripts/french-exemption-baseline.json`. It is counted in two figures, because they are not
+  the same thing: French in PRODUCTION components (the debt, and the only one the ratchet
+  guards) apart from French a TEST asserts, which is the app's rendered output and legitimate.
+  A printed number was not enough — it drifted by 7 inside the very PR that introduced it as a
+  control and nothing noticed, because a number nobody compares is a number nobody reads. An
+  exemption nobody counts is indistinguishable from an oversight — which is precisely how 842 of those
+  strings, three all-French shell scripts and `id="coquille"` each sat under a green gate.
 - **`data-*` attribute NAMES are code and follow the rule.** They were carved out here once,
   and the operator overturned that: a `data-*` name is a name someone chose, so it is written
   in English like any other. Their VALUES are not — `data-go="profil"` names a page, and a

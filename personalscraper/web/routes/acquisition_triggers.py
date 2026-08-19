@@ -220,7 +220,7 @@ def enqueue_prime_run(db_path: Path | None, followed_id: int) -> PrimeResult:
     parallel mechanism (NE-DOIT-PAS-7) — then spawns the runner. The run is
     fire-and-forget from the request's viewpoint: every failure is logged and
     swallowed so the follow is still created (the card then simply reads
-    ``non_verifie``, never an optimistic « À jour »).
+    ``unverified``, never an optimistic « À jour »).
 
     Idempotence: a prime already in flight for this follow is NOT duplicated —
     §6 allows exactly one refusal, the duplicate of the same action.
@@ -469,7 +469,7 @@ def trigger_followed_search(request: Request, followed_id: int) -> GrabTriggerRe
     It used to spawn a bare ``grab``, which was the right runner while a single
     pass did everything. Since the five-state split, ``grab`` only claims items
     already marked takeable: pressing « Rechercher » on a follow whose episodes
-    read ``en_attente`` or ``non_verifie`` would have done strictly nothing and
+    read ``pending`` or ``unverified`` would have done strictly nothing and
     reported success — a silent no-op (NE-DOIT-PAS-1). Priming re-polls the
     catalog, re-searches the trackers and grabs what it finds, which is what the
     button has always claimed to do (§5 watcher semantics, on demand).

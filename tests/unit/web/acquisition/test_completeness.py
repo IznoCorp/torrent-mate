@@ -2,8 +2,8 @@
 
 Pure-computation tests over mocked sources: the detect-written aired-catalog
 cache, library ownership, and the wanted queue. Guards the §5 contract in the
-five-state vocabulary of ``web/acquisition/states.py`` — ``en_mediatheque`` /
-``en_acquisition`` / ``a_recuperer`` / ``en_attente`` / ``non_verifie`` — and
+five-state vocabulary of ``web/acquisition/states.py`` — ``in_library`` /
+``acquiring`` / ``to_grab`` / ``pending`` / ``unverified`` — and
 the honest "unknown catalog" reading (empty seasons, ``source="unknown"``)
 instead of a misleading all-missing matrix.
 
@@ -97,7 +97,7 @@ def test_states_matrix_over_the_five_states() -> None:
     assert result.source == "cache"
     assert len(result.seasons) == 1
     season = result.seasons[0]
-    # ``queued`` counts the two « in motion » states: a_recuperer + en_acquisition.
+    # ``queued`` counts the two « in motion » states: to_grab + acquiring.
     assert (season.season, season.total, season.owned, season.queued) == (1, 5, 1, 2)
     states = {e.episode: e.state for e in season.episodes}
     assert states == {
@@ -114,7 +114,7 @@ def test_absorbed_episode_reads_absorbed_and_counts_in_motion() -> None:
 
     Season-grab R5 absorbs the live episode rows into a season wanted. The
     open-statuses-only selection silenced them → NO_WANTED_FACTS →
-    ``non_verifie`` (« never checked ») for every episode of a season being
+    ``unverified`` (« never checked ») for every episode of a season being
     grabbed. The absorbed row must speak, and the season header must count the
     episode as in motion (``queued``).
     """
@@ -227,7 +227,7 @@ def test_an_uncached_follow_is_honest_ignorance() -> None:
     used to run a live poll and, when the poll came back empty, claim the
     provider listed no episode (the Top Chef case). A web read cannot establish
     that — it can only say « we have no catalog yet ». The card reads
-    ``non_verifie`` from the same absence, so the two surfaces agree.
+    ``unverified`` from the same absence, so the two surfaces agree.
     """
     ownership = MagicMock()
     ownership.owns.return_value = False
@@ -311,7 +311,7 @@ def test_an_unreadable_wanted_row_degrades_to_never_searched() -> None:
 
 
 def test_waiting_episode_exposes_the_verdict_it_was_derived_from() -> None:
-    """An ``en_attente`` episode carries its outcome so the UI can say WHY (phase 8)."""
+    """An ``pending`` episode carries its outcome so the UI can say WHY (phase 8)."""
     ownership = MagicMock()
     ownership.owns.return_value = False
     store = _store(
@@ -352,7 +352,7 @@ def test_exposed_outcome_comes_from_the_governing_row() -> None:
 
 
 # ---------------------------------------------------------------------------
-# episode-states D2 — the matrix shows futures as ``annonce`` + counts them apart
+# episode-states D2 — the matrix shows futures as ``announced`` + counts them apart
 # ---------------------------------------------------------------------------
 
 
@@ -362,9 +362,9 @@ def _cached_dated(season: int, episode: int, air_date: str) -> AiredEpisodeRow:
 
 
 def test_matrix_shows_future_as_announced_kept_out_of_aired_tallies() -> None:
-    """A future cached episode reads ``annonce`` and is counted in ``announced`` only.
+    """A future cached episode reads ``announced`` and is counted in ``announced`` only.
 
-    Owned/queued/total stay AIRED-only; ``annonce`` is a display state and its
+    Owned/queued/total stay AIRED-only; ``announced`` is a display state and its
     count lives in the separate ``announced`` field — never inflating the
     season's completeness denominator.
     """

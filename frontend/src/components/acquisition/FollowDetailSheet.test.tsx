@@ -224,7 +224,7 @@ describe("date d'épisode au toucher (régression : perdue avec l'ancien accord�
 // ── Tests ─────────────────────────────────────────────────────────────────
 
 describe("seasonCounts — la dérivation unique (§13)", () => {
-  it("compte possédés = en_mediatheque, diffusés = tout sauf annonce", () => {
+  it("compte possédés = in_library, diffusés = tout sauf annonce", () => {
     const eps = [
       { state: "in_library" as const },
       { state: "in_library" as const },
@@ -236,7 +236,7 @@ describe("seasonCounts — la dérivation unique (§13)", () => {
     expect(r.aired).toBe(3); // 4 total − 1 annonce
   });
 
-  it("exclut 'annonce' du dénominateur — un épisode futur ne peut pas manquer", () => {
+  it("exclut 'announced' du dénominateur — un épisode futur ne peut pas manquer", () => {
     const eps = [
       { state: "announced" as const },
       { state: "announced" as const },
@@ -266,7 +266,7 @@ describe("FollowDetailSheet", () => {
 
   it("un épisode annoncé n'est pas diffusé : il ne peut pas manquer au dénominateur", async () => {
     renderSheet(silo());
-    // S02: 13 owned, 14 aired (the 15th episode is 'annonce' → excluded from aired).
+    // S02: 13 owned, 14 aired (the 15th episode is 'announced' → excluded from aired).
     expect(await screen.findByTestId("season-2-fraction")).toHaveTextContent("13/14");
   });
 
@@ -306,13 +306,13 @@ describe("FollowDetailSheet", () => {
     ).toBeTruthy();
   });
 
-  it("§5.3 — 'a_recuperer' affiche 'Récupérer maintenant' comme action primaire", async () => {
+  it("§5.3 — 'to_grab' affiche 'Récupérer maintenant' comme action primaire", async () => {
     renderSheet(silo(), { status: "to_grab" });
     expect(await screen.findByTestId("primary-action")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Récupérer maintenant" })).toBeInTheDocument();
   });
 
-  it("§5.3 — 'a_jour' n'affiche PAS d'action primaire (rien à récupérer)", async () => {
+  it("§5.3 — 'up_to_date' n'affiche PAS d'action primaire (rien à récupérer)", async () => {
     renderSheet(silo(), { status: "up_to_date" });
     await screen.findByTestId("sheet-meta");
     expect(screen.queryByTestId("primary-action")).toBeNull();

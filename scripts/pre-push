@@ -53,7 +53,7 @@ echo "│  Bypass: git push --no-verify                │"
 echo "└──────────────────────────────────────────────┘"
 echo ""
 
-run_check "ruff check"               python -m ruff check personalscraper/ tests/
+run_check "ruff check"               python -m ruff check personalscraper/ tests/ scripts/ frontend/maquette/harness/ frontend/scripts/
 run_check "ruff format --check"      python -m ruff format --check personalscraper/ tests/
 run_check "logging audit"            python scripts/check_logging.py personalscraper/
 run_check "mypy"                     python -m mypy personalscraper/

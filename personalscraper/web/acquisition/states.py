@@ -8,16 +8,16 @@ verdict), so two surfaces can never disagree about the same episode.
 Three invariants are graved here, each the direct fix of a production incident:
 
 * **Ownership beats everything.** An episode with a live file in the library is
-  ``en_mediatheque`` even when a stale ``grabbed`` row still points at it. Such
+  ``in_library`` even when a stale ``grabbed`` row still points at it. Such
   a row is a phantom, not an acquisition in progress — it is what pinned Silo at
   « en cours d'acquisition » while every episode chip was green.
 * **Panne ≠ absence.** A search that did NOT conclude (tracker outage, open
   circuit, dead swarm — the engine's ``INCONCLUSIVE_OUTCOMES``) yields
-  ``non_verifie``, never ``en_attente``. Reporting an outage as « rien de
+  ``unverified``, never ``pending``. Reporting an outage as « rien de
   prenable » claims knowledge about the trackers that we do not have.
-* **Never searched → ``non_verifie``.** No verdict at all (``last_search_outcome
+* **Never searched → ``unverified``.** No verdict at all (``last_search_outcome
   is None``) means we know nothing, so we say nothing. One level up, a follow
-  with no aired catalog aggregates to ``non_verifie`` too — NEVER ``a_jour``.
+  with no aired catalog aggregates to ``unverified`` too — NEVER ``up_to_date``.
   That fallthrough (« À jour » on zero knowledge) is the founding incident:
   Furious was followed at 09:18, the detect cron had last run at 03:00, and the
   card declared « À jour » with three aired episodes missing from the library.
@@ -43,17 +43,17 @@ from personalscraper.acquire.orchestrator import INCONCLUSIVE_OUTCOMES
 WantedFacts = tuple[str | None, str | None, int | None]
 
 #: The facts of a unit with NO open ``wanted`` row: no status, no verdict, so
-#: the derivation reads it as « never searched » (``non_verifie`` unless the
+#: the derivation reads it as « never searched » (``unverified`` unless the
 #: library holds the file).
 NO_WANTED_FACTS: WantedFacts = (None, None, None)
 
-#: State of ONE episode (or of the single unit a followed film is). ``annonce``
+#: State of ONE episode (or of the single unit a followed film is). ``announced``
 #: is the episode-states addition: a future episode (air_date > today) is known
 #: to the cache but not yet aired, so it is neither owned nor searchable — it is
 #: announced. It is a MATRIX-ONLY state: the card aggregation never sees it (a
 #: future never degrades a series' status). ``absorbed`` is the season-grab
 #: addition (R5): the episode's acquisition is carried by a season wanted, so
-#: it is in motion — reading it as « never checked » (``non_verifie``) would be
+#: it is in motion — reading it as « never checked » (``unverified``) would be
 #: untruthful for every episode of a season being grabbed.
 EpisodeState = Literal[
     "announced",
@@ -66,8 +66,8 @@ EpisodeState = Literal[
 ]
 
 #: State of a followed card, aggregated from its episodes. Same vocabulary as
-#: :data:`EpisodeState` (``en_mediatheque`` becoming the card-level ``a_jour``),
-#: plus ``disabled`` (follow paused) and ``verification_en_cours`` (a priming
+#: :data:`EpisodeState` (``in_library`` becoming the card-level ``up_to_date``),
+#: plus ``disabled`` (follow paused) and ``verifying`` (a priming
 #: run is in flight — applied by the route layer, phase 6; the aggregation
 #: itself never returns it).
 FollowStatus = Literal[
@@ -114,7 +114,7 @@ def series_has_ended(series_status: str | None) -> bool:
 
 
 #: Card-level reading of a single-unit state (a followed film). Every value is
-#: the identity except ``en_mediatheque`` — a film held by the library reads
+#: the identity except ``in_library`` — a film held by the library reads
 #: « À jour » on its card, not « En médiathèque ».
 _EPISODE_TO_FOLLOW_STATUS: dict[EpisodeState, FollowStatus] = {
     "in_library": "up_to_date",
@@ -151,7 +151,7 @@ def select_wanted_facts(rows: Iterable[tuple[int, str | None, str | None, int | 
        one is the current intent. In particular, after an R6 fallback the
        NEWER live episode row must outrank the old absorbed one.
     3. No admitted row at all → :data:`NO_WANTED_FACTS`, which reads as « never
-       searched » (``non_verifie`` unless the library holds the file).
+       searched » (``unverified`` unless the library holds the file).
 
     Args:
         rows: ``(id, status, last_search_outcome, last_search_found)`` tuples of
@@ -284,41 +284,41 @@ def derive_episode_state(
 
     The evaluation order IS the specification — first match wins:
 
-    0. ``air_date > today`` → ``annonce``. Checked FIRST (episode-states D2): a
+    0. ``air_date > today`` → ``announced``. Checked FIRST (episode-states D2): a
        future episode is not aired, so it cannot be owned, searched or waiting —
        whatever ownership or ``wanted`` facts happen to sit on it. This precedes
-       the ``non_verifie`` no-row path deliberately: a future has no ``wanted``
+       the ``unverified`` no-row path deliberately: a future has no ``wanted``
        row, so its facts are the same all-None « never searched » facts a
        genuinely unknown aired episode has, and only the date tells them apart.
        Requires BOTH ``air_date`` and ``today``; when either is ``None`` (a
        caller that does not track dates) the derivation reduces to the five
        states below, unchanged.
-    1. ``owned`` → ``en_mediatheque``. Ownership beats everything: a file on
+    1. ``owned`` → ``in_library``. Ownership beats everything: a file on
        disk is the strongest fact we hold, so a stale ``grabbed`` row on an
        owned episode is a phantom (the Silo bug) and cannot pin the episode at
        « en cours d'acquisition ».
     1b. ``wanted_status == "absorbed"`` → ``absorbed`` (season-grab R5): the
        episode's acquisition is carried by a season wanted, so the episode is
        in motion — never « never checked ». Ownership still wins above.
-    2. ``wanted_status == "grabbed"`` → ``en_acquisition`` (torrent taken, the
+    2. ``wanted_status == "grabbed"`` → ``acquiring`` (torrent taken, the
        pipeline is carrying it).
-    3. ``wanted_status == "available"`` → ``a_recuperer`` (the search found a
+    3. ``wanted_status == "available"`` → ``to_grab`` (the search found a
        takeable candidate that the grab pass has not claimed yet).
-    4. ``last_search_outcome is None`` → ``non_verifie``. Never searched: we
+    4. ``last_search_outcome is None`` → ``unverified``. Never searched: we
        have no verdict, so we assert nothing.
-    5. ``last_search_outcome in INCONCLUSIVE_OUTCOMES`` → ``non_verifie``.
+    5. ``last_search_outcome in INCONCLUSIVE_OUTCOMES`` → ``unverified``.
        Panne ≠ absence — an outage, an open circuit or a dead swarm is not a
        statement about what the trackers hold.
-    6. ``(last_search_found or 0) > 0`` → ``a_recuperer``. Defensive: the last
+    6. ``(last_search_found or 0) > 0`` → ``to_grab``. Defensive: the last
        verdict says something takeable exists even though the row is not
        ``available`` (a claim lost to a concurrent pass, a crash between the
        verdict write and the status write).
-    7. otherwise → ``en_attente``. Searched, concluded, nothing takeable.
+    7. otherwise → ``pending``. Searched, concluded, nothing takeable.
 
     A ``searching`` status deliberately falls through to rules 4-7: a claim in
     flight tells us nothing new, so the episode still reads from its last
     verdict. Likewise an episode with NO wanted row at all and no file reads
-    ``non_verifie`` — absence of a row is absence of knowledge.
+    ``unverified`` — absence of a row is absence of knowledge.
 
     Args:
         owned: Whether the library holds a live file for this episode.
@@ -332,7 +332,7 @@ def derive_episode_state(
         air_date: The episode's air date, or ``None`` when the caller does not
             track dates (films, and any pre-episode-states call site).
         today: The reference date, injected for determinism (no hidden
-            ``date.today()``). ``None`` disables the ``annonce`` check.
+            ``date.today()``). ``None`` disables the ``announced`` check.
 
     Returns:
         The episode's :data:`EpisodeState`.
@@ -373,32 +373,32 @@ def derive_follow_status(
     most frequent state:
 
     1. not ``active`` → ``disabled`` (the follow is paused; nothing else matters).
-    2. ``aired_count is None`` → ``non_verifie``. NO catalog means no knowledge,
+    2. ``aired_count is None`` → ``unverified``. NO catalog means no knowledge,
        and a series we know nothing about is NEVER « À jour » — this is the
        founding incident's direct fix, replacing the old fallthrough onto the
        raw ``wanted`` counters.
-    3. any ``a_recuperer`` → ``a_recuperer`` (something is takeable now).
-    4. any ``en_acquisition`` → ``en_acquisition``.
-    5. any ``en_attente`` → ``en_attente``.
-    6. any ``non_verifie`` → ``non_verifie`` (we still owe a verification).
+    3. any ``to_grab`` → ``to_grab`` (something is takeable now).
+    4. any ``acquiring`` → ``acquiring``.
+    5. any ``pending`` → ``pending``.
+    6. any ``unverified`` → ``unverified`` (we still owe a verification).
     7. every aired episode is owned, and the series is FINISHED with nothing
-       announced ahead → ``termine``.
-    8. otherwise every aired episode is owned → ``a_jour``.
+       announced ahead → ``ended``.
+    8. otherwise every aired episode is owned → ``up_to_date``.
 
     Rules 7-8 are the operator's 2026-08-09 split: « À jour » was covering two
     situations they need to tell apart — a series caught up but still running,
     and one that is over. ``announced_count`` therefore reaches this function,
     which it deliberately did not before; the invariant it was kept out for
     still holds and is what rules 3-6 above guarantee: **an announced future
-    never DEGRADES a series**. It can only ever decide between ``termine`` and
-    ``a_jour``, both of which mean « nothing to do ».
+    never DEGRADES a series**. It can only ever decide between ``ended`` and
+    ``up_to_date``, both of which mean « nothing to do ».
 
-    ``termine`` demands a POSITIVE end-of-series fact from the provider
+    ``ended`` demands a POSITIVE end-of-series fact from the provider
     (:func:`series_has_ended`), not merely an empty announcement list — see that
     function for the running series an announcement-only rule would have
     declared finished.
 
-    ``verification_en_cours`` is deliberately never returned here: a priming run
+    ``verifying`` is deliberately never returned here: a priming run
     in flight is a runtime fact the route layer overlays (phase 6), not a
     property of the persisted counts.
 
@@ -412,10 +412,10 @@ def derive_follow_status(
         unverified_count: Aired episodes never searched or inconclusive.
         announced_count: Future episodes (``air_date > today``) known from the
             catalog cache, or ``None`` when no catalog was read. Only ever
-            distinguishes ``termine`` from ``a_jour``.
+            distinguishes ``ended`` from ``up_to_date``.
         series_status: The provider's raw production status for this series, or
-            ``None`` when never polled. Only ever distinguishes ``termine`` from
-            ``a_jour``.
+            ``None`` when never polled. Only ever distinguishes ``ended`` from
+            ``up_to_date``.
 
     Returns:
         The card's :data:`FollowStatus`.
@@ -450,9 +450,9 @@ def derive_movie_status(
     A film has no aired catalog — it is a catalog of exactly one unit — so its
     card derives from the SAME :func:`derive_episode_state` applied to that unit
     (ownership × its ``wanted`` row × the last search verdict), then read at card
-    level: ``en_mediatheque`` becomes ``a_jour``, every other state keeps its
+    level: ``in_library`` becomes ``up_to_date``, every other state keeps its
     name. Ownership still beats a phantom ``grabbed`` row, and a film we have
-    never searched reads ``non_verifie`` rather than claiming « À jour ».
+    never searched reads ``unverified`` rather than claiming « À jour ».
 
     Args:
         active: Whether the follow is active.

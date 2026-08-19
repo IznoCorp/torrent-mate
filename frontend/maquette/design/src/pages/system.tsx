@@ -73,21 +73,21 @@ export function SystemPage(): ReactElement | null {
         <b>{t("screens.system.introLead")}</b>
         {t("screens.system.introRest")}
       </div>
-      {state.panne ? (
+      {state.fault ? (
         <div className="note">
           <b>{t("screens.system.faultLead")}</b>
           {t("screens.system.faultRest")}
         </div>
       ) : null}
       <h2 className="h2">{t("screens.system.services")}</h2>
-      {facts(state.panne ? SERVICES_PANNE : SERVICES)}
+      {facts(state.fault ? SERVICES_PANNE : SERVICES)}
 
       <h2 className="h2">{t("screens.system.schedulers")}</h2>
       <div className="note">
         <b>{t("screens.system.schedulerLead")}</b>
         {t("screens.system.schedulerRest")}
       </div>
-      {facts(state.panne ? SCHEDULERS_DOWN : SCHEDULERS)}
+      {facts(state.fault ? SCHEDULERS_DOWN : SCHEDULERS)}
 
       <h2 className="h2">{t("screens.system.runs")}</h2>
       {facts(

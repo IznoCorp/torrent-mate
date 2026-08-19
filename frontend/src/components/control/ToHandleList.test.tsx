@@ -267,7 +267,7 @@ describe("ToHandleList", () => {
     expect(links[1]?.getAttribute("href")).toBe("/media?decision=7");
   });
 
-  it("series the count badge", () => {
+  it("shows the count badge", () => {
     stagingMock.mockReturnValue({
       data: response([
         item({ id: "b1", position_state: "blocked" }),

@@ -73,6 +73,11 @@ def _check(only: list[str]) -> int:
 
 
 def main() -> int:
+    """Checks the staged media and reports what is incomplete.
+
+    Returns:
+        1 when an item is incomplete, 0 otherwise.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--only", nargs="*", default=[], help="Only check items whose folder name matches these globs/substrings."

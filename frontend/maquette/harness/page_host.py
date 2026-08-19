@@ -609,7 +609,7 @@ async def main():
         # mutates the world IN PLACE and signals with `touch()`, which
         # leaves the state's identity unchanged — a component subscribed to
         # the state alone bails out, and the page keeps drawing what it
-        # drew. Measured before it was held: « Récupérer now » moved
+        # drew. Measured before it was held: « Récupérer maintenant » moved
         # a medium from one list to the other and left every counter on
         # screen unchanged.
         await page.evaluate("()=>window.__go('acq-encours-loaded')")

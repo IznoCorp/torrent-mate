@@ -399,8 +399,8 @@ def collect_anomalies(
                 )
                 # BOTH states read « En cours d'acquisition » on screen: ``absorbed``
                 # is the season-carried variant, and the card sums the two
-                # (truth.py: en_acquisition + absorbed). Checking only the literal
-                # ``en_acquisition`` would leave the exact shape of the 2026-08-04
+                # (truth.py: acquiring + absorbed). Checking only the literal
+                # ``acquiring`` would leave the exact shape of the 2026-08-04
                 # incident invisible — the rule must read what the OPERATOR reads.
                 if state not in ("acquiring", "absorbed"):
                     continue

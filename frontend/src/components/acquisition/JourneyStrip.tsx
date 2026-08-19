@@ -25,7 +25,7 @@ import type { components } from "@/api/schema";
  * One stage of the acquisition journey — derived from the OpenAPI contract.
  *
  * @see components["schemas"]["ToHandleItemModel"]["stage"] — the server-side
- * ``Literal["pris", "telech", "ingere", "scrape", "range"]`` that feeds this.
+ * ``Literal["taken", "downloaded", "ingested", "scrape", "filed"]`` that feeds this.
  */
 export type Stage = components["schemas"]["ToHandleItemModel"]["stage"];
 
@@ -35,11 +35,11 @@ export type Stage = components["schemas"]["ToHandleItemModel"]["stage"];
  * The keys are identical to the Stage literal, so a rename breaks ``tsc -b``.
  */
 export const STAGES: readonly { readonly key: Stage; readonly label: string }[] = [
-  { key: "pris", label: "pris" },
-  { key: "telech", label: "téléch." },
-  { key: "ingere", label: "ingéré" },
+  { key: "taken", label: "pris" },
+  { key: "downloaded", label: "téléch." },
+  { key: "ingested", label: "ingéré" },
   { key: "scrape", label: "scrapé" },
-  { key: "range", label: "rangé" },
+  { key: "filed", label: "rangé" },
 ];
 
 /**

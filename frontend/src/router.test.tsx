@@ -675,4 +675,67 @@ describe("router", () => {
       await screen.findByRole("heading", { name: "Inception" }),
     ).toBeInTheDocument();
   });
+  // --- The French addresses the naming campaign replaced (fix/mend) ---
+  //
+  // `router.tsx` asserts in a comment that these three are LIVE — in the
+  // operator's bookmarks and in the PWA's cache — and must answer as redirects
+  // rather than as a not-found page. Nothing held that promise: they were the
+  // only redirects in the app with no test, so deleting all three broke
+  // nothing. A rename that 404s the address it renamed is a break wearing a
+  // rename's clothes, and this is the arm that says so.
+
+  it("redirige « /medias » vers « /media » (adresse héritée)", async () => {
+    renderAt("/medias");
+
+    expect(
+      await screen.findByRole("heading", { name: "Médias" }),
+    ).toBeInTheDocument();
+  });
+
+  it("redirige « /systeme » vers « /system » (adresse héritée)", async () => {
+    renderAt("/systeme");
+
+    expect(
+      await screen.findByRole("heading", { name: "Système" }),
+    ).toBeInTheDocument();
+  });
+
+  it("redirige « /controle » vers « /control » (adresse héritée)", async () => {
+    renderAt("/controle");
+
+    expect(
+      await screen.findByRole("heading", { name: "Contrôle" }),
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    ["/medias", "/media"],
+    ["/systeme", "/system"],
+    ["/controle", "/control"],
+  ])(
+    "transmet la query-string de %s vers %s (DOIT-10 : chaque détail a son URL)",
+    async (legacy, canonical) => {
+      const client = new QueryClient({
+        defaultOptions: {
+          queries: { retry: false },
+          mutations: { retry: false },
+        },
+      });
+      const router = createMemoryRouter(routes, {
+        initialEntries: [`${legacy}?media=tt0123456`],
+      });
+      render(
+        <QueryClientProvider client={client}>
+          <AuthProvider>
+            <RouterProvider router={router} />
+          </AuthProvider>
+        </QueryClientProvider>,
+      );
+
+      await waitFor(() => {
+        expect(router.state.location.pathname).toBe(canonical);
+        expect(router.state.location.search).toBe("?media=tt0123456");
+      });
+    },
+  );
 });

@@ -291,7 +291,7 @@ function aggregateFraction(
  * Args:
  *   followedId: The ``followed_series`` row id.
  *   status: The card's lifecycle status — drives « Récupérer maintenant »
- *           as the primary action when ``"a_recuperer"``.
+ *           as the primary action when ``"to_grab"``.
  *   kind: The card's media kind — drives action wording (film vs série).
  *   open: Whether the sheet is visible.
  *   onOpenChange: Called when the sheet opens or closes (Radix controlled).

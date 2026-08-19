@@ -79,7 +79,7 @@ const EMPTY_JOURNEYS: readonly JourneyItem[] = [];
 
 // ── Full fixture — populates all five sections ──────────────────────────────
 
-/** A followed item with ``a_recuperer`` — lands in « À récupérer ». */
+/** A followed item with ``to_grab`` — lands in « À récupérer ». */
 function takeableShow(): FollowedSeriesItem {
   return {
     id: 1,
@@ -148,7 +148,7 @@ function inflightDownload(): AcquisitionDownload {
   };
 }
 
-/** A journey matching the inflight wanted item — stage "telech" (grabbed, not yet ingested). */
+/** A journey matching the inflight wanted item — stage "downloaded" (grabbed, not yet ingested). */
 function inflightJourney(): JourneyItem {
   return {
     info_hash: "abc123def4567890",
@@ -181,7 +181,7 @@ function inflightJourney(): JourneyItem {
   };
 }
 
-/** A followed item with ``en_attente`` — lands in « Cherché, rien trouvé ». */
+/** A followed item with ``pending`` — lands in « Cherché, rien trouvé ». */
 function waitingShow(): FollowedSeriesItem {
   return {
     id: 2,
@@ -232,7 +232,7 @@ function shogunDispatchedToday(): JourneyItem {
   };
 }
 
-/** A followed item with ``a_jour`` — lands in « Rangé aujourd'hui » because
+/** A followed item with ``up_to_date`` — lands in « Rangé aujourd'hui » because
  *  its journey dispatched today (the status alone is the permanent steady
  *  state of every complete série and no longer suffices). */
 function upToDateShow(): FollowedSeriesItem {
@@ -505,7 +505,7 @@ describe("NowPanel", () => {
   });
 
   it("un suivi non vérifié ACTIF attend dans « Cherché, rien trouvé » (maquette renderNow)", async () => {
-    // Maquette: waiting = actifs en_attente OU non_verifie — un suivi jamais
+    // Maquette: waiting = actifs pending OU unverified — un suivi jamais
     // vérifié attend l'opérateur autant qu'un « rien de conforme », et son
     // sub dit honnêtement pourquoi (pas de faux verdict de recherche).
     const nonVerifie: FollowedSeriesItem = {
@@ -644,7 +644,7 @@ describe("NowPanel", () => {
    * station.  The JourneyStrip renders sr-only spans like "téléch. — en cours"
    * on the active (non-blocked) station; we query by that accessible text
    * instead of `[data-station]` which exists on EVERY station and always
-   * matches "pris" first.
+   * matches "taken" first.
    */
   function assertCurrentStage(
     card: HTMLElement,
@@ -652,7 +652,7 @@ describe("NowPanel", () => {
     blocked?: boolean,
   ): void {
     const state = blocked === true ? "bloquée" : "en cours";
-    // JourneyStrip labels: STAGES = [{key:"pris",label:"pris"}, {key:"telech",label:"téléch."}, ...]
+    // JourneyStrip labels: STAGES = [{key:"taken",label:"pris"}, {key:"downloaded",label:"téléch."}, ...]
     const label = STAGE_LABELS[expectedStage] ?? expectedStage;
     expect(
       within(card).getByText(`${label} — ${state}`, { exact: false }),
@@ -662,10 +662,10 @@ describe("NowPanel", () => {
   it("une carte « en vol » dérive son étape du parcours réel, pas d'un « pris » en dur", () => {
     renderPanel(full);
 
-    // The inflight journey has grabbed_at set → stage "telech".
+    // The inflight journey has grabbed_at set → stage "downloaded".
     const section = screen.getByTestId("section-en-vol");
     const card = first(within(section).getAllByTestId("acq-card"));
-    assertCurrentStage(card, "telech");
+    assertCurrentStage(card, "downloaded");
   });
 
   it("dérive « range » quand dispatched_at est le dernier timestamp", () => {
@@ -680,7 +680,7 @@ describe("NowPanel", () => {
 
     const section = screen.getByTestId("section-en-vol");
     const card = first(within(section).getAllByTestId("acq-card"));
-    assertCurrentStage(card, "range");
+    assertCurrentStage(card, "filed");
   });
 
   it("dérive « scrape » quand scraped_at est le dernier timestamp atteint", () => {
@@ -710,7 +710,7 @@ describe("NowPanel", () => {
 
     const section = screen.getByTestId("section-en-vol");
     const card = first(within(section).getAllByTestId("acq-card"));
-    assertCurrentStage(card, "ingere");
+    assertCurrentStage(card, "ingested");
   });
 
   it("dérive « telech » quand seul grabbed_at est présent", () => {
@@ -725,7 +725,7 @@ describe("NowPanel", () => {
 
     const section = screen.getByTestId("section-en-vol");
     const card = first(within(section).getAllByTestId("acq-card"));
-    assertCurrentStage(card, "telech");
+    assertCurrentStage(card, "downloaded");
   });
 
   it("dérive « pris » quand aucun timestamp n'est présent", () => {
@@ -740,7 +740,7 @@ describe("NowPanel", () => {
 
     const section = screen.getByTestId("section-en-vol");
     const card = first(within(section).getAllByTestId("acq-card"));
-    assertCurrentStage(card, "pris");
+    assertCurrentStage(card, "taken");
   });
 
   it("sans parcours correspondant, aucune frise n'est affichée", () => {

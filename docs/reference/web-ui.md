@@ -1362,13 +1362,13 @@ stage filter (P0-A.1), so per-stage lists partition the staging set.
   (`web/acquisition/runner.py`) that chains `follow detect --series N` →
   `search --followed-id N` → `grab --followed-id N`. It spawned a bare `grab`
   until acq-states phase 8: post-split, `grab` only claims items a previous
-  search already marked takeable, so on a follow reading `en_attente` /
-  `non_verifie` the button did nothing and reported success.
+  search already marked takeable, so on a follow reading `pending` /
+  `unverified` the button did nothing and reported success.
 - `POST /api/acquisition/followed/{id}/grab` → `GrabTriggerResponse` (202 +
   `run_uid`) — the « Récupérer maintenant » button (acq-states phase 8).
   Reserves `command='grab'` and spawns `grab --followed-id N` alone: no catalog
   poll, no tracker search, just claim what is already available. Offered by the
-  UI exactly where the server status reads `a_recuperer`.
+  UI exactly where the server status reads `to_grab`.
 - Both triggers share one reserve → guard → spawn → pid body
   (`_launch_followed_action`), hold **no** `pipeline.lock` (grab claims each
   wanted item atomically, like the scheduled grab cron), finalize the run row on
@@ -1395,45 +1395,45 @@ surfaces can never disagree about the same episode.
 
 | Value            | French label           | Meaning                                                        |
 | ---------------- | ---------------------- | -------------------------------------------------------------- |
-| `en_mediatheque` | En médiathèque         | A live file exists for this episode in the library.            |
-| `a_recuperer`    | À récupérer            | The search concluded takeable — a candidate is waiting.        |
-| `en_acquisition` | En cours d'acquisition | A torrent was claimed (`grabbed`) and the pipeline carries it. |
-| `en_attente`     | En attente             | Searched, concluded, nothing takeable yet.                     |
-| `non_verifie`    | Non vérifié            | Never searched, OR the search did NOT conclude (outage).       |
+| `in_library` | En médiathèque         | A live file exists for this episode in the library.            |
+| `to_grab`    | À récupérer            | The search concluded takeable — a candidate is waiting.        |
+| `acquiring` | En cours d'acquisition | A torrent was claimed (`grabbed`) and the pipeline carries it. |
+| `pending`     | En attente             | Searched, concluded, nothing takeable yet.                     |
+| `unverified`    | Non vérifié            | Never searched, OR the search did NOT conclude (outage).       |
 
 **Evaluation order is the spec** (first match wins):
 
-1. **Owned** → `en_mediatheque` — ownership beats everything (a `grabbed` row on
+1. **Owned** → `in_library` — ownership beats everything (a `grabbed` row on
    an owned episode is a phantom, not an acquisition in progress — the Silo bug).
-2. **`grabbed`** → `en_acquisition` — the torrent was taken.
-3. **`available`** → `a_recuperer` — the search found something.
-4. **Never searched** (`last_search_outcome is None`) → `non_verifie`.
-5. **Inconclusive** (`last_search_outcome in INCONCLUSIVE_OUTCOMES`) → `non_verifie`
+2. **`grabbed`** → `acquiring` — the torrent was taken.
+3. **`available`** → `to_grab` — the search found something.
+4. **Never searched** (`last_search_outcome is None`) → `unverified`.
+5. **Inconclusive** (`last_search_outcome in INCONCLUSIVE_OUTCOMES`) → `unverified`
    — **panne ≠ absence**: an outage, an open circuit or a dead swarm is not a
    statement about what the trackers hold.
-6. **`last_search_found > 0`** → `a_recuperer` (defensive fallback).
-7. **Otherwise** → `en_attente`.
+6. **`last_search_found > 0`** → `to_grab` (defensive fallback).
+7. **Otherwise** → `pending`.
 
 **FollowStatus** (7 values — `derive_follow_status` + `derive_movie_status`):
 
 | Value                   | French label           | Source                                                                                                           |
 | ----------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `disabled`              | Désactivé              | `active=False` on the follow row.                                                                                |
-| `verification_en_cours` | Vérification en cours  | A priming runner is in flight — overlaid by the route layer (phase 6), never returned by the aggregation itself. |
-| `a_recuperer`           | À récupérer            | ≥1 episode in `a_recuperer`.                                                                                     |
-| `en_acquisition`        | En cours d'acquisition | ≥1 episode in `en_acquisition`.                                                                                  |
-| `en_attente`            | En attente             | ≥1 episode in `en_attente`.                                                                                      |
-| `non_verifie`           | Non vérifié            | ≥1 episode in `non_verifie`, OR no aired catalog exists (never detected).                                        |
-| `a_jour`                | À jour                 | Every aired episode is owned, and the series is not known to be finished.                                        |
-| `termine`               | Terminé                | Every aired episode is owned, nothing is announced ahead, AND the provider says the series has ended.            |
+| `verifying` | Vérification en cours  | A priming runner is in flight — overlaid by the route layer (phase 6), never returned by the aggregation itself. |
+| `to_grab`           | À récupérer            | ≥1 episode in `to_grab`.                                                                                     |
+| `acquiring`        | En cours d'acquisition | ≥1 episode in `acquiring`.                                                                                  |
+| `pending`            | En attente             | ≥1 episode in `pending`.                                                                                      |
+| `unverified`           | Non vérifié            | ≥1 episode in `unverified`, OR no aired catalog exists (never detected).                                        |
+| `up_to_date`                | À jour                 | Every aired episode is owned, and the series is not known to be finished.                                        |
+| `ended`               | Terminé                | Every aired episode is owned, nothing is announced ahead, AND the provider says the series has ended.            |
 
-**`termine` requires a positive end-of-series fact**, never merely an empty
+**`ended` requires a positive end-of-series fact**, never merely an empty
 announcement list. The `followed_series.series_status` column (migration 023)
 holds the provider's raw production status — TVDB `Continuing` / `Ended`, TMDB
 `Returning Series` / `Ended` / `Canceled` — written by the detect pass from the
 catalogue poll it already performs (`acquire.airing.poll_catalog`, zero extra
 provider calls). `NULL` means « never polled » and reads as **not** ended, so a
-follow whose status is unknown stays `a_jour`.
+follow whose status is unknown stays `up_to_date`.
 
 The reason is measured: on 2026-08-09 « House of the Dragon » had zero future
 episodes cached while airing that very day. An « nothing announced ⇒ finished »
@@ -1442,13 +1442,13 @@ the founding « À jour » on zero knowledge.
 
 The response also carries `announced_count` (future episodes known from the
 catalogue). It enters **no** state bucket and can never degrade a card; it only
-ever separates `a_jour` from `termine`.
+ever separates `up_to_date` from `ended`.
 
 Card-level aggregation is **most-actionable-first**: if any episode is
-`a_recuperer`, the card reads `a_recuperer` — the operator needs to see what
+`to_grab`, the card reads `to_grab` — the operator needs to see what
 asks for an action, not the most frequent state.
 
-**`verification_en_cours`** is applied by the route layer when the priming runner
+**`verifying`** is applied by the route layer when the priming runner
 (see below) is live for that follow — it is deliberately NOT a property of the
 persisted counts. The `GET /api/acquisition/followed` response carries a
 `priming_running: bool` flag the UI maps to this status.
@@ -1484,7 +1484,7 @@ the next cron tick:
   button (acq-states phase 8). Spawns `grab --followed-id N` alone: no catalog
   poll, no tracker search, just claim what a previous search already marked
   `available`. Offered by the UI exactly where the server status reads
-  `a_recuperer`.
+  `to_grab`.
 
 Both triggers share the same reserve → guard → spawn → finalize path
 (`_launch_followed_action`), hold **no** `pipeline.lock`, and are tracked as

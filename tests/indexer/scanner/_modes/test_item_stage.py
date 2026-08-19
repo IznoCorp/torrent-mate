@@ -1,3 +1,5 @@
+"""Tests for the scanner's item-stage mode."""
+
 import json
 import sqlite3
 from pathlib import Path

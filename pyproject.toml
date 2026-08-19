@@ -115,7 +115,25 @@ line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "D"]
-ignore = ["D100", "D104"]  # D100=module docstring (enforced manually), D104=__init__ docstring
+ignore = ["D104"]  # D104=__init__ docstring
+# D100 was ignored with the note « enforced manually », which is the definition
+# of no arm — CLAUDE.md says docstrings are mandatory on all MODULES too. Three
+# files were missing one; they have one now, and the rule is enforced.
+
+# `scripts/`, the maquette harness and `frontend/scripts/` were linted by NOTHING —
+# not `make lint`, not the pre-push hook, not CI — while CLAUDE.md says docstrings are
+# mandatory on all functions and methods. They are in scope now, and the rules their
+# existing code breaks are DECLARED here rather than the whole scope being ignored: a
+# new file in those trees is held to everything else from its first line, and this
+# list can only shrink.
+[tool.ruff.lint.per-file-ignores]
+# The living tools keep D103: a new script is held to it from its first line.
+"scripts/*.py" = ["D205", "D301", "D107", "E501", "E701", "E702", "E741", "F401", "F405", "F841", "I001"]
+# One-off operational scripts from a closed phase, kept as a record of what was
+# run. They are not living code and are not rewritten to add docstrings.
+"scripts/ops/**/*.py" = ["D103", "D205", "D301", "D107", "E501", "E701", "E702", "E741", "F401", "F405", "F841", "I001"]
+"frontend/maquette/harness/*.py" = ["D103", "D205", "D301", "D107", "E501", "E701", "E702", "E741", "F401", "F405", "F841", "I001"]
+"frontend/scripts/*.py" = ["D103", "D205", "D301", "D107", "E501", "E701", "E702", "E741", "F401", "F405", "F841", "I001"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
