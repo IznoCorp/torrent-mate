@@ -57,6 +57,9 @@ REGIONS = MAQUETTE / "regions.json"
 SOURCE_HTML = MAQUETTE / "design" / "refonte.html"
 EXTRACTED_CSS = ROOT / "frontend" / "src" / "styles" / "ps" / "app-surface.css"
 PROTOTYPE = "http://127.0.0.1:8899/wrapped.html"
+# How long a region gets to stop moving, and how many times it is asked.
+SETTLE_MS = 900
+SETTLE_TRIES = 4
 
 sys.path.insert(0, str(ROOT / "scripts"))
 
@@ -255,9 +258,9 @@ async def run(only_state, verbose):
     # of vacuity this whole contract exists to refuse. So absence fails —
     # except where it is declared, with its cause, and therefore bounded.
     known_absent = {entry["region"] for entry in probe.get("knownAbsent", [])}
-    # A divergence whose cause is DECLARED — including « not yet identified »,
-    # which is the honest state of one of them. Keyed by (region, state) so a
-    # declaration excuses the one measurement it was written for and no other.
+    # `knownDivergence` existed for one entry whose cause was « not identified ».
+    # It IS identified — the toast appears on a timer — so the list is gone
+    # rather than kept as a place to park the next thing nobody chased.
     known_divergence = {(entry["region"], entry["state"])
                         for entry in probe.get("knownDivergence", [])}
     scope = contract["scope"].lstrip(".")
@@ -287,7 +290,7 @@ async def run(only_state, verbose):
     viewport = probe["viewport"]
     divergences: list[str] = []
     undeclared: list[str] = []
-    measured = missing = declared_divergences = 0
+    measured = missing = declared_divergences = unstable_count = 0
 
     async with async_playwright() as playwright:
         # The harness uses the installed Google Chrome locally; a CI runner has
@@ -326,10 +329,32 @@ async def run(only_state, verbose):
                 # Motion off before EITHER read, so both see settled geometry.
                 await page.evaluate(STILL)
 
+                # THE DOM MUST HOLD STILL, or the two passes are not comparing
+                # stylesheets. The toast reported 48 → 57.8 px and it was never a
+                # divergence: it APPEARS ON A TIMER — empty when the source pass
+                # read it, filled with two lines of text by the time the target
+                # pass came round seconds later. Comparing that measures time.
+                #
+                # Waiting for stillness rather than discarding what moved: the
+                # first version skipped 55 region-in-state pairs, which is
+                # coverage thrown away for an element that simply had not
+                # finished arriving.
                 source = {}
-                for name, selector in regions:
-                    source[name] = await page.evaluate(
-                        MEASURE, {"selector": selector, "subset": subset})
+                unstable: set[str] = set()
+                for attempt in range(SETTLE_TRIES):
+                    for name, selector in regions:
+                        source[name] = await page.evaluate(
+                            MEASURE, {"selector": selector, "subset": subset})
+                    await page.wait_for_timeout(SETTLE_MS)
+                    unstable = {
+                        name for name, selector in regions
+                        if await page.evaluate(
+                            MEASURE, {"selector": selector, "subset": subset}) != source[name]}
+                    if not unstable:
+                        break
+                for name in sorted(unstable):
+                    print(f"  {state:26} {name:34} UNSTABLE — still moving after "
+                          f"{SETTLE_TRIES * SETTLE_MS} ms")
 
                 swapped = await page.evaluate(
                     SWAP,
@@ -339,6 +364,9 @@ async def run(only_state, verbose):
                 await page.wait_for_timeout(120)
 
                 for name, selector in regions:
+                    if name in unstable:
+                        unstable_count += 1
+                        continue
                     target = await page.evaluate(
                         MEASURE, {"selector": selector, "subset": subset})
                     before = source[name]
@@ -387,6 +415,10 @@ async def run(only_state, verbose):
     if declared_divergences:
         print(f"  {declared_divergences} declared divergence(s), each with what is "
               "known AND not known about it in probe.knownDivergence.")
+    if unstable_count:
+        print(f"  {unstable_count} region-in-state pair(s) SKIPPED as unstable: the element "
+              "changed on its own between two reads, so a comparison across the "
+              "swap would measure time, not the stylesheet.")
     print(f"parity-probe: {measured} region-in-state measurement(s), "
           f"{missing} not present, {len(divergences)} divergence(s)")
     if missing:
