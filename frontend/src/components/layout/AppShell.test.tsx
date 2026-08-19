@@ -437,8 +437,8 @@ describe("AppShell nav badges", () => {
         );
       }
       if (url.includes("/api/acquisition/followed")) {
-        // 2 takeable + 7 in-flight (en_acquisition) = 9 items, but only the
-        // 2 « a_recuperer » count toward the badge.
+        // 2 takeable + 7 in-flight (acquiring) = 9 items, but only the
+        // 2 « to_grab » count toward the badge.
         return Promise.resolve(
           buildResponse(
             200,
@@ -465,7 +465,7 @@ describe("AppShell nav badges", () => {
     renderShell();
 
     // Expected total: 2 (takeable) + 2 (to handle) = 4.
-    // The 7 « en_acquisition » (in-flight) do NOT count — they await nothing
+    // The 7 « acquiring » (in-flight) do NOT count — they await nothing
     // from the operator.
     const badge = await within(firstLink(/Acquisition/)).findByText("4");
     expect(badge.getAttribute("data-slot")).toBe("nav-count");

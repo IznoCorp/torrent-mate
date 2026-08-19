@@ -32,8 +32,8 @@ def test_empty_catalog_is_never_up_to_date() -> None:
     fell through to the raw wanted counters — zero rows — and declared « À jour »
     while three aired episodes were missing from the library.
 
-    Fix: ``aired_count is None`` + no wanted activity → ``non_verifie``, never
-    ``a_jour``.  Current code returns ``up_to_date`` here — this test MUST fail
+    Fix: ``aired_count is None`` + no wanted activity → ``unverified``, never
+    ``up_to_date``.  Current code returns ``up_to_date`` here — this test MUST fail
     with ``AssertionError`` today.
     """
     item = FollowedSeriesItem(
@@ -52,7 +52,7 @@ def test_empty_catalog_is_never_up_to_date() -> None:
         missing_count=None,
     )
     assert item.status == "unverified", (
-        f"Founding incident: empty catalog returned {item.status!r}, expected 'non_verifie'. "
+        f"Founding incident: empty catalog returned {item.status!r}, expected 'unverified'. "
         "A series with zero catalogue knowledge is NOT up to date — we know nothing about it."
     )
 
@@ -103,7 +103,7 @@ TRUTH_TABLE: list[tuple[bool, str | None, str | None, int | None, str, str]] = [
     (False, "searching", None, None, "unverified", "searching-never-searched"),
     (False, None, None, None, "unverified", "no-row-never-searched"),
     (False, "pending", None, None, "unverified", "pending-never-searched"),
-    # ── Rule 5: each INCONCLUSIVE outcome → non_verifie ──
+    # ── Rule 5: each INCONCLUSIVE outcome → unverified ──
     # A search that did NOT conclude (provider outage, open circuit, dead
     # swarm) must never read as « En attente ».  Absence of knowledge is
     # « Non vérifié », never an assertion about the trackers.
@@ -111,13 +111,13 @@ TRUTH_TABLE: list[tuple[bool, str | None, str | None, int | None, str, str]] = [
     (False, "searching", "circuit_open", None, "unverified", "inconclusive-circuit-open"),
     (False, "searching", "search_api_error", None, "unverified", "inconclusive-search-api-error"),
     (False, "searching", "no_seeders", None, "unverified", "inconclusive-no-seeders"),
-    # No wanted row + inconclusive outcome (still non_verifie — no knowledge).
+    # No wanted row + inconclusive outcome (still unverified — no knowledge).
     (False, None, "trackers_unavailable", None, "unverified", "inconclusive-no-row"),
-    # ── Rule 6: (last_search_found or 0) > 0 → a_recuperer (defensive) ──
+    # ── Rule 6: (last_search_found or 0) > 0 → to_grab (defensive) ──
     (False, "searching", "success", 2, "to_grab", "found-positive-searching"),
     (False, None, "success", 1, "to_grab", "found-positive-no-row"),
     (False, "pending", "success", 3, "to_grab", "found-positive-pending"),
-    # ── Rule 7: otherwise → en_attente (searched, concluded, nothing takeable) ──
+    # ── Rule 7: otherwise → pending (searched, concluded, nothing takeable) ──
     (False, "searching", "success", 0, "pending", "concluded-zero-searching"),
     (False, None, "success", 0, "pending", "concluded-zero-no-row"),
     (False, "pending", "success", 0, "pending", "concluded-zero-pending"),
@@ -151,12 +151,12 @@ def test_derive_episode_state_truth_table(
     The derivation order IS the spec — first match wins.  This parametrised
     table covers every rule in the contract, including:
     - Ownership beats everything (the Silo phantom-grabbed bug).
-    - Each INCONCLUSIVE outcome → ``non_verifie`` (panne ≠ absence).
+    - Each INCONCLUSIVE outcome → ``unverified`` (panne ≠ absence).
     - ``searching`` status falls through to the verdict layer.
-    - ``(last_search_found or 0) > 0`` → ``a_recuperer`` (defensive: verdict
+    - ``(last_search_found or 0) > 0`` → ``to_grab`` (defensive: verdict
       says takeable).
-    - Concluded + zero found → ``en_attente``.
-    - No wanted row at all + not owned → ``non_verifie``.
+    - Concluded + zero found → ``pending``.
+    - No wanted row at all + not owned → ``unverified``.
     """
     _EpisodeState, derive_episode_state, _INCONCLUSIVE_OUTCOMES = _import_future_api()
     result = derive_episode_state(
@@ -219,7 +219,7 @@ def test_no_catalog_not_active_disabled() -> None:
 
 
 def test_aggregation_all_owned_is_up_to_date() -> None:
-    """Every aired episode owned, nothing wanted → ``a_jour``.
+    """Every aired episode owned, nothing wanted → ``up_to_date``.
 
     Uses the future fields that phase 4.2 will add to FollowedSeriesItem.
     """
@@ -235,7 +235,7 @@ def test_aggregation_all_owned_is_up_to_date() -> None:
 
 
 def test_aggregation_to_grab_wins_over_acquiring() -> None:
-    """Most-actionable-first: ``a_recuperer`` beats ``en_acquisition``."""
+    """Most-actionable-first: ``to_grab`` beats ``acquiring``."""
     item = _build_item(
         aired_count=5,
         owned_count=1,
@@ -248,7 +248,7 @@ def test_aggregation_to_grab_wins_over_acquiring() -> None:
 
 
 def test_aggregation_acquiring_wins_over_pending() -> None:
-    """Most-actionable-first: ``en_acquisition`` beats ``en_attente``."""
+    """Most-actionable-first: ``acquiring`` beats ``pending``."""
     item = _build_item(
         aired_count=5,
         owned_count=1,
@@ -261,7 +261,7 @@ def test_aggregation_acquiring_wins_over_pending() -> None:
 
 
 def test_aggregation_pending_wins_over_unverified() -> None:
-    """Most-actionable-first: ``en_attente`` beats ``non_verifie``."""
+    """Most-actionable-first: ``pending`` beats ``unverified``."""
     item = _build_item(
         aired_count=5,
         owned_count=1,
@@ -274,10 +274,10 @@ def test_aggregation_pending_wins_over_unverified() -> None:
 
 
 def test_aggregation_unverified_wins_over_up_to_date() -> None:
-    """Most-actionable-first: ``non_verifie`` beats ``a_jour``.
+    """Most-actionable-first: ``unverified`` beats ``up_to_date``.
 
     A series with some owned episodes and some never-verified ones should read
-    ``non_verifie``, not ``a_jour`` — we genuinely do not know the state of
+    ``unverified``, not ``up_to_date`` — we genuinely do not know the state of
     the unverified episodes.
     """
     item = _build_item(
@@ -303,8 +303,8 @@ def test_no_rows_at_all_yields_the_never_searched_facts() -> None:
 def test_a_closed_row_never_governs(closed_status: str) -> None:
     """A closed row is history: its concluded verdict must not answer for the unit.
 
-    Letting it speak is what made the completeness panel read ``en_attente``
-    where the card read ``non_verifie`` for the same episode (acq-states §5.2).
+    Letting it speak is what made the completeness panel read ``pending``
+    where the card read ``unverified`` for the same episode (acq-states §5.2).
     """
     rows = [(10, closed_status, "no_candidates", 0)]
     assert select_wanted_facts(rows) == NO_WANTED_FACTS

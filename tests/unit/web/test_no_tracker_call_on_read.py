@@ -376,7 +376,7 @@ def test_reading_follows_never_calls_a_tracker(
     # A TV show follow with a cached catalog + mixed wanted rows.
     show_id = _seed_followed(conn, 1, "Test Show", kind="show", tvdb_id=360001)
     _seed_aired_episodes(conn, show_id, season=1, count=10)
-    # Owned episode (no wanted row — the library owns it → en_mediatheque).
+    # Owned episode (no wanted row — the library owns it → in_library).
     # Un-owned episode with a takeable candidate (available).
     _seed_wanted(conn, show_id, status="available", episode=1, last_search_outcome="found", last_search_found=3)
     # Un-owned episode in the pipeline (grabbed).

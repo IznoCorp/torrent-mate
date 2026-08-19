@@ -11,11 +11,11 @@ counting.
 Never a raw wanted counter — a ``grabbed`` row whose episode is already in the
 library is a phantom, not an acquisition in progress (the Silo « en cours »
 -while-all-green bug) — and never an assumption: an episode we never searched,
-or whose search did not conclude, counts as ``non_verifie``, never as « rien à
+or whose search did not conclude, counts as ``unverified``, never as « rien à
 prendre ».
 
 Read-only and fail-soft everywhere: a missing cache yields the all-``None``
-sentinel (the card then reads ``non_verifie`` — no catalog is no knowledge), a
+sentinel (the card then reads ``unverified`` — no catalog is no knowledge), a
 broken library read yields an empty owned set through the checker's own
 fail-soft.
 """
@@ -53,8 +53,8 @@ class FollowTruth:
     Attributes:
         aired_count: Aired episodes known (``None`` = no cached catalog —
             every other field is then ``None`` too and the card reads
-            ``non_verifie``, never ``a_jour``).
-        owned_count: Aired episodes with a live library file (``en_mediatheque``).
+            ``unverified``, never ``up_to_date``).
+        owned_count: Aired episodes with a live library file (``in_library``).
         to_grab_count: Aired, unowned episodes with a takeable candidate.
         acquiring_count: Aired, unowned episodes taken / in the pipeline —
             including episodes absorbed by a season wanted (season-grab R5),
@@ -107,7 +107,7 @@ def compute_follow_truth(
     :func:`~personalscraper.web.acquisition.states.select_wanted_facts`, the
     same selector the completeness panel calls (open rows only, latest wins).
     A ``done`` or ``abandoned`` row is not an ongoing acquisition, so its
-    episode derives from « no row » facts (``non_verifie`` when the library does
+    episode derives from « no row » facts (``unverified`` when the library does
     not hold it) rather than from a closed verdict.
 
     Args:
@@ -122,8 +122,8 @@ def compute_follow_truth(
     Returns:
         The :class:`FollowTruth` counts — the all-``None`` sentinel when the
         series has no cached AIRED catalog (or the cache read failed), which the
-        card reads as ``non_verifie``. A series with ONLY future episodes cached
-        therefore reads ``non_verifie`` (no aired episode to be up to date on).
+        card reads as ``unverified``. A series with ONLY future episodes cached
+        therefore reads ``unverified`` (no aired episode to be up to date on).
     """
     ref_today = (today if today is not None else date.today()).isoformat()
     try:
@@ -237,7 +237,7 @@ def compute_movie_truth(
     row's status and last search verdict. The card then runs the SAME
     :func:`~personalscraper.web.acquisition.states.derive_episode_state` a
     series episode runs, so ownership still beats a phantom ``grabbed`` row and
-    a film nobody ever searched reads ``non_verifie`` instead of « À jour ».
+    a film nobody ever searched reads ``unverified`` instead of « À jour ».
 
     Row selection is delegated to
     :func:`~personalscraper.web.acquisition.states.select_wanted_facts` — the

@@ -122,7 +122,7 @@ def test_card_and_completeness_agree_on_an_uncached_follow() -> None:
     """
     followed = _follow()
 
-    # The card's truth (post phase-4): no catalog → all-None → non_verifie.
+    # The card's truth (post phase-4): no catalog → all-None → unverified.
     card_status = derive_follow_status(
         active=True,
         aired_count=None,
@@ -134,7 +134,7 @@ def test_card_and_completeness_agree_on_an_uncached_follow() -> None:
         series_status=None,
     )
     assert card_status == "unverified", (
-        "The card MUST read non_verifie when the catalog is absent — the founding incident's direct fix."
+        "The card MUST read unverified when the catalog is absent — the founding incident's direct fix."
     )
 
     # A poller that would return 3 aired episodes — the patch records every
@@ -161,7 +161,7 @@ def test_card_and_completeness_agree_on_an_uncached_follow() -> None:
     assert result.seasons == [], (
         "An uncached follow MUST NOT fabricate an all-missing matrix from a "
         "live poll. The honest reading is empty seasons, matching the card's "
-        "non_verifie — both say 'we don't know yet'."
+        "unverified — both say 'we don't know yet'."
     )
 
     # ── Agreement: the panel must not lie about provider_catalog_empty ─────
@@ -185,14 +185,14 @@ def test_card_and_completeness_agree_on_an_uncached_follow() -> None:
     [
         # owned beats everything — the one case that agrees today.
         pytest.param(1, 1, True, None, None, None, "in_library", id="owned"),
-        # grabbed → 5-state: en_acquisition, old: en_cours
+        # grabbed → 5-state: acquiring, old: en_cours
         pytest.param(1, 2, False, "grabbed", "available", 1, "acquiring", id="grabbed"),
-        # available → 5-state: a_recuperer, old: manquant (available is not a recognised
+        # available → 5-state: to_grab, old: manquant (available is not a recognised
         # status in the old _episode_state → falls through to the default "manquant")
         pytest.param(1, 3, False, "available", "available", 3, "to_grab", id="available"),
-        # pending, never searched → 5-state: non_verifie, old: en_file
+        # pending, never searched → 5-state: unverified, old: en_file
         pytest.param(1, 4, False, "pending", None, None, "unverified", id="pending_never_searched"),
-        # pending, searched, nothing takeable → 5-state: en_attente, old: en_file
+        # pending, searched, nothing takeable → 5-state: pending, old: en_file
         # (old code does not read the verdict → same en_file for both pending cases)
         pytest.param(
             1,
@@ -204,7 +204,7 @@ def test_card_and_completeness_agree_on_an_uncached_follow() -> None:
             "pending",
             id="pending_searched_nothing",
         ),
-        # no wanted row, never searched → 5-state: non_verifie, old: manquant
+        # no wanted row, never searched → 5-state: unverified, old: manquant
         pytest.param(1, 6, False, None, None, None, "unverified", id="no_row"),
     ],
 )
@@ -292,10 +292,10 @@ def test_a_closed_row_alone_reads_unverified_on_both_surfaces(closed_status: str
     Agreeing on the derivation is not enough: the two surfaces must also read
     the SAME row. The card's ``compute_follow_truth`` only ever considered OPEN
     rows, so an episode whose sole row is closed derives from « no row » facts
-    and reads ``non_verifie``. The panel used ``store.wanted.find``, which
+    and reads ``unverified``. The panel used ``store.wanted.find``, which
     returns the first row of ANY status — so it read the closed row's concluded
-    verdict and could answer ``en_attente`` (or ``a_recuperer``) where the card
-    said ``non_verifie``. Both now go through ``select_wanted_facts``.
+    verdict and could answer ``pending`` (or ``to_grab``) where the card
+    said ``unverified``. Both now go through ``select_wanted_facts``.
     """
     ownership = MagicMock()
     ownership.owns.return_value = False
@@ -316,7 +316,7 @@ def test_a_closed_row_alone_reads_unverified_on_both_surfaces(closed_status: str
 
 
 def test_duplicate_rows_resolve_to_the_latest_open_one_on_both_surfaces() -> None:
-    """One abandoned leftover + one available row → ``a_recuperer`` on both surfaces.
+    """One abandoned leftover + one available row → ``to_grab`` on both surfaces.
 
     A re-follow leaves the closed row behind with a LOWER id. ``find`` returned
     that one (first by id, any status); the card took the latest OPEN one. Same
@@ -404,7 +404,7 @@ def test_provider_catalog_empty_stays_distinct() -> None:
 
     An uncached follow at read time must NOT claim ``provider_catalog_empty=True``
     — it must surface an honest "unknown catalog" without fabricating an
-    all-missing matrix. The card reads ``non_verifie``; the panel must agree.
+    all-missing matrix. The card reads ``unverified``; the panel must agree.
 
     Before 5.2 the empty cache triggered a live poll: a poll returning nothing
     set ``provider_catalog_empty=True`` (wrong — a web-read-time guess, not a
@@ -450,6 +450,6 @@ def test_provider_catalog_empty_stays_distinct() -> None:
         series_status=None,
     )
     assert card_status == "unverified", (
-        "The card reads non_verifie when the catalog is absent. The panel's "
+        "The card reads unverified when the catalog is absent. The panel's "
         "empty seasons match this — both say 'we don't know yet'."
     )

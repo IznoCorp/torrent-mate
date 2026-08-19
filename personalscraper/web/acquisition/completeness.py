@@ -18,7 +18,7 @@ Sources (each fail-soft, never a 500):
 * Aired catalog — the detect-written ``aired_episode`` cache, and ONLY that
   cache. No provider is ever polled from this read path (NE-DOIT-PAS-8: pas de
   rafale providers). An absent cache is honest ignorance: empty seasons and
-  ``source="unknown"``, matching the card's ``non_verifie`` — both say « we
+  ``source="unknown"``, matching the card's ``unverified`` — both say « we
   don't know yet ». Phase 6 makes that state short-lived by priming the catalog
   at follow creation.
 * Library ownership — :meth:`ownership.owns` per aired episode (indexer

@@ -62,7 +62,7 @@ class TestAnnouncedDerivation:
         assert state == "announced", "a future episode is announced regardless of its facts"
 
     def test_announced_precedes_the_no_row_unverified_path(self) -> None:
-        """A future has no wanted row → no-row facts; annonce must win BEFORE non_verifie.
+        """A future has no wanted row → no-row facts; annonce must win BEFORE unverified.
 
         This is the trap the coordinator called out: a future episode's facts
         are the same all-None « never searched » facts a genuinely unknown aired
@@ -126,7 +126,7 @@ class TestAnnouncedExcludedFromCard:
         episode is ``annonce`` — which has no counter — so a series whose aired
         episodes are all owned stays « À jour ». The announced count reaches the
         aggregation (it is what tells « À jour » from « Terminé ») but never as a
-        bucket: were it counted as one, this series would read ``non_verifie``.
+        bucket: were it counted as one, this series would read ``unverified``.
         """
         status = derive_follow_status(
             active=True,
@@ -150,7 +150,7 @@ class TestAnnouncedExcludedFromCard:
         ],
     )
     def test_announced_count_never_changes_an_actionable_status(self, counts: dict[str, int], expected: str) -> None:
-        """The announced count may only ever pick between ``a_jour`` and ``termine``.
+        """The announced count may only ever pick between ``up_to_date`` and ``termine``.
 
         ``derive_follow_status`` now RECEIVES an announced count (operator,
         2026-08-09: « À jour » had to split in two). The reason it was kept out

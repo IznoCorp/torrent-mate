@@ -159,10 +159,10 @@ class TestDegradedEpisodeReadsAsNotVerified:
     """The UI must not say « En attente » about a search that never concluded (§2)."""
 
     def test_state_is_unverified_not_pending(self) -> None:
-        """A degraded last verdict yields 'non_verifie', never 'en_attente'.
+        """A degraded last verdict yields 'unverified', never 'pending'.
 
         ``derive_episode_state`` routes every member of ``INCONCLUSIVE_OUTCOMES`` to
-        'non_verifie'. Adding ``trackers_degraded`` to that frozenset is what stops a
+        'unverified'. Adding ``trackers_degraded`` to that frozenset is what stops a
         rate-limited tracker from being displayed as « searched, nothing exists ».
         """
         from personalscraper.web.acquisition.states import derive_episode_state

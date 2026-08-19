@@ -764,7 +764,7 @@ class TestTriggerFollowedSearch:
         run_uid = resp.json()["run_uid"]
         assert spawned == [(run_uid, followed_id)]
         # Post-split, the button must run detect → search → grab, not grab alone:
-        # on a follow whose episodes read en_attente/non_verifie, grab alone has
+        # on a follow whose episodes read pending/unverified, grab alone has
         # nothing to claim and would report success having done nothing.
         assert _reserved_run(tmp_path, run_uid) == ("prime", prime_options_json(followed_id))
 

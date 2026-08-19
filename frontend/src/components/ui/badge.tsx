@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
  * ``muted``, ``waiting`` and ``upcoming`` were added for the episode-states
  * matrix so its six per-episode states each read as a DISTINCT tone (operator
  * #9 « une couleur par statut ») : ``muted`` is the colourless dashed ghost of
- * ``non_verifie`` (« je ne sais pas »), ``waiting`` the teal of « En attente de
+ * ``unverified`` (« je ne sais pas »), ``waiting`` the teal of « En attente de
  * torrent » (searched, nothing conforming yet), and ``upcoming`` the violet
  * accent of an announced, not-yet-aired episode. The three cannot collide with
  * ``info`` (« En cours d'acquisition ») nor with each other — no two states

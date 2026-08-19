@@ -79,7 +79,7 @@ const EMPTY_JOURNEYS: readonly JourneyItem[] = [];
 
 // ── Full fixture — populates all five sections ──────────────────────────────
 
-/** A followed item with ``a_recuperer`` — lands in « À récupérer ». */
+/** A followed item with ``to_grab`` — lands in « À récupérer ». */
 function takeableShow(): FollowedSeriesItem {
   return {
     id: 1,
@@ -181,7 +181,7 @@ function inflightJourney(): JourneyItem {
   };
 }
 
-/** A followed item with ``en_attente`` — lands in « Cherché, rien trouvé ». */
+/** A followed item with ``pending`` — lands in « Cherché, rien trouvé ». */
 function waitingShow(): FollowedSeriesItem {
   return {
     id: 2,
@@ -232,7 +232,7 @@ function shogunDispatchedToday(): JourneyItem {
   };
 }
 
-/** A followed item with ``a_jour`` — lands in « Rangé aujourd'hui » because
+/** A followed item with ``up_to_date`` — lands in « Rangé aujourd'hui » because
  *  its journey dispatched today (the status alone is the permanent steady
  *  state of every complete série and no longer suffices). */
 function upToDateShow(): FollowedSeriesItem {
@@ -505,7 +505,7 @@ describe("NowPanel", () => {
   });
 
   it("un suivi non vérifié ACTIF attend dans « Cherché, rien trouvé » (maquette renderNow)", async () => {
-    // Maquette: waiting = actifs en_attente OU non_verifie — un suivi jamais
+    // Maquette: waiting = actifs pending OU unverified — un suivi jamais
     // vérifié attend l'opérateur autant qu'un « rien de conforme », et son
     // sub dit honnêtement pourquoi (pas de faux verdict de recherche).
     const nonVerifie: FollowedSeriesItem = {

@@ -8,7 +8,7 @@ Covers the five test groups of the frozen contract:
    queue returned rc=0 — a success report for an action that did nothing.
 
 2. ``test_priming_failure_leaves_unverified_not_up_to_date`` — spawn raises →
-   201 still, item.status == non_verifie (never a_jour), warning logged.
+   201 still, item.status == unverified (never up_to_date), warning logged.
 
 3. ``test_priming_is_idempotent`` — a second POST while a prime run is running
    for the same followed_id does not spawn a second run.
@@ -17,7 +17,7 @@ Covers the five test groups of the frozen contract:
    override while the run row is open; closed run → derived status again.
 
 INTENTIONALLY FAILING — the prime command does not exist yet; ``create_follow``
-does not spawn anything; there is no ``verification_en_cours`` override. These
+does not spawn anything; there is no ``verifying`` override. These
 assertions pin the contract of phases 6.2/6.3 and will pass once those phases
 are implemented.
 
@@ -270,9 +270,7 @@ class TestCreateFollowPriming:
         assert spawned_primes == [follow_id], f"Expected a spawn for follow {follow_id}, got {spawned_primes}"
 
         # The immediate response shows the truth: verification is running.
-        assert data["status"] == "verifying", (
-            f"Expected verification_en_cours on a freshly primed follow, got {data['status']!r}"
-        )
+        assert data["status"] == "verifying", f"Expected verifying on a freshly primed follow, got {data['status']!r}"
 
     def test_priming_failure_leaves_unverified_not_up_to_date(
         self,
@@ -285,7 +283,7 @@ class TestCreateFollowPriming:
 
         When the spawn fails (OSError), the follow is still created (fail-soft:
         a spawn failure never blocks the 201), but the card reads
-        ``non_verifie`` — never ``a_jour``, and the failure IS logged.
+        ``unverified`` — never ``up_to_date``, and the failure IS logged.
         """
         caplog.set_level(logging.WARNING)
 
@@ -308,8 +306,8 @@ class TestCreateFollowPriming:
         # The follow was created (fail-soft: spawn failure never blocks 201).
         assert data["id"] > 0
 
-        # Never a_jour — the card is honest about not knowing.
-        assert data["status"] == "unverified", f"A failed prime must read non_verifie, not {data['status']!r}"
+        # Never up_to_date — the card is honest about not knowing.
+        assert data["status"] == "unverified", f"A failed prime must read unverified, not {data['status']!r}"
 
         # A warning about the spawn failure must appear in the logs — a failed
         # amorce is loud (NE-DOIT-PAS-5), never a silent nothing.
@@ -373,28 +371,26 @@ class TestCreateFollowPriming:
         )
 
         # And the response must reflect the running prime.
-        # FAILS TODAY: the status is derived (non_verifie), not overridden.
+        # FAILS TODAY: the status is derived (unverified), not overridden.
         status: str = resp.json()["status"]
-        assert status == "verifying", (
-            f"Reactivation with a running prime must read verification_en_cours, got {status!r}"
-        )
+        assert status == "verifying", f"Reactivation with a running prime must read verifying, got {status!r}"
 
 
 # ---------------------------------------------------------------------------
-# Test cases — GET /api/acquisition/followed  (verification_en_cours override)
+# Test cases — GET /api/acquisition/followed  (verifying override)
 # ---------------------------------------------------------------------------
 
 
 class TestVerificationEnCours:
-    """GET /api/acquisition/followed — ``verification_en_cours`` override."""
+    """GET /api/acquisition/followed — ``verifying`` override."""
 
     def test_running_prime_reads_verifying(self, client: TestClient, tmp_path: Path) -> None:
-        """GET /followed shows verification_en_cours while a prime run is open.
+        """GET /followed shows verifying while a prime run is open.
 
         Seed a follow + a running ``pipeline_run`` row (``command='prime'``,
         ``ended_at IS NULL``), then assert the card reads
-        ``verification_en_cours``. Close the run → the derived status takes
-        over again (``non_verifie`` for a follow with no catalog yet).
+        ``verifying``. Close the run → the derived status takes
+        over again (``unverified`` for a follow with no catalog yet).
         """
         now = time.time()
 
@@ -432,9 +428,7 @@ class TestVerificationEnCours:
         items: list[dict[str, Any]] = resp.json()["items"]
         assert len(items) == 1, f"Expected 1 item, got {len(items)}"
         assert items[0]["id"] == fid
-        assert items[0]["status"] == "verifying", (
-            f"Running prime must read verification_en_cours, got {items[0]['status']!r}"
-        )
+        assert items[0]["status"] == "verifying", f"Running prime must read verifying, got {items[0]['status']!r}"
 
         # Close the run → the derived status takes over again.
         conn = sqlite3.connect(str(tmp_path / "library.db"))
@@ -456,9 +450,9 @@ class TestVerificationEnCours:
         assert items[0]["status"] != "verifying", (
             f"Closed prime run must no longer override, got {items[0]['status']!r}"
         )
-        # With no catalog yet (aired_count=None), the derived status is non_verifie.
+        # With no catalog yet (aired_count=None), the derived status is unverified.
         assert items[0]["status"] == "unverified", (
-            f"Without a catalog, closed prime → non_verifie, got {items[0]['status']!r}"
+            f"Without a catalog, closed prime → unverified, got {items[0]['status']!r}"
         )
 
     def test_dead_pid_prime_run_does_not_pin_verifying(self, client: TestClient, tmp_path: Path) -> None:

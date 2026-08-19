@@ -258,7 +258,7 @@ export interface paths {
          *     It used to spawn a bare ``grab``, which was the right runner while a single
          *     pass did everything. Since the five-state split, ``grab`` only claims items
          *     already marked takeable: pressing « Rechercher » on a follow whose episodes
-         *     read ``en_attente`` or ``non_verifie`` would have done strictly nothing and
+         *     read ``pending`` or ``unverified`` would have done strictly nothing and
          *     reported success — a silent no-op (NE-DOIT-PAS-1). Priming re-polls the
          *     catalog, re-searches the trackers and grabs what it finds, which is what the
          *     button has always claimed to do (§5 watcher semantics, on demand).
@@ -2556,7 +2556,7 @@ export interface components {
          *         source: Where the aired catalog came from: ``"cache"`` (the
          *             detect-written ``aired_episode`` table — the ONLY catalog source)
          *             or ``"unknown"`` (nothing cached for this follow yet, so the panel
-         *             asserts nothing; the card reads ``non_verifie`` from the same
+         *             asserts nothing; the card reads ``unverified`` from the same
          *             absence). The former ``"live"`` value died with the synchronous
          *             provider fallback (acq-states phase 5) — a web read never polls.
          *         catalog_refreshed_at: Epoch seconds of the detect pass that wrote the
@@ -3100,10 +3100,10 @@ export interface components {
          *             :func:`~personalscraper.web.acquisition.states.derive_episode_state`
          *             — the SAME derivation the followed card aggregates, so the card and
          *             this matrix can never disagree about one episode:
-         *             ``en_mediatheque`` (a live file exists in the library),
-         *             ``en_acquisition`` (a torrent was taken, the pipeline carries it),
-         *             ``a_recuperer`` (a takeable candidate is known), ``en_attente``
-         *             (searched, concluded, nothing takeable) or ``non_verifie`` (never
+         *             ``in_library`` (a live file exists in the library),
+         *             ``acquiring`` (a torrent was taken, the pipeline carries it),
+         *             ``to_grab`` (a takeable candidate is known), ``pending``
+         *             (searched, concluded, nothing takeable) or ``unverified`` (never
          *             searched, or the last search did not conclude — panne ≠ absence).
          *         last_search_outcome: The named outcome of the GOVERNING ``wanted`` row's
          *             last search pass (``no_candidates`` / ``all_filtered`` /
@@ -3274,7 +3274,7 @@ export interface components {
              *     aired episodes were missing (founding incident). They survive as data
              *     fields for display, never as a status source.
              *
-             *     A priming run in flight overrides the card to ``verification_en_cours``
+             *     A priming run in flight overrides the card to ``verifying``
              *     BEFORE any derived status (phase 6). The flag is set by the route layer
              *     from the live ``pipeline_run`` rows; it is never stored in ``acquire.db``
              *     and can never disagree with the run history.
@@ -4624,13 +4624,13 @@ export interface components {
          *
          *     Attributes:
          *         season: Season number (1-based; specials excluded by the poller).
-         *         owned: Episodes reading ``en_mediatheque`` (a live library file).
-         *         queued: Episodes « en mouvement » — ``a_recuperer`` + ``en_acquisition``.
+         *         owned: Episodes reading ``in_library`` (a live library file).
+         *         queued: Episodes « en mouvement » — ``to_grab`` + ``acquiring``.
          *             The field NAME is kept from the old three-value vocabulary to bound
          *             the phase-5 blast radius (the frontend accordion consumes
          *             ``owned`` / ``queued`` / ``total``); what it COUNTS is now the two
          *             five-state buckets where something is actually moving. Episodes
-         *             reading ``en_attente`` or ``non_verifie`` are deliberately NOT
+         *             reading ``pending`` or ``unverified`` are deliberately NOT
          *             counted here: nothing is in motion for them, and folding them in
          *             would re-create the « queue volume implies progress » lie the
          *             five states exist to kill. A rename is phase 8's call.

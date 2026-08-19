@@ -63,8 +63,8 @@ import { type ViewMode, useViewMode } from "./useViewMode";
 /**
  * Urgency sort order — lower = more urgent, shown first.
  *
- * §5.1: « a_recuperer » is what the operator can act on RIGHT NOW;
- * « a_jour » is information, not a call to action.
+ * §5.1: « to_grab » is what the operator can act on RIGHT NOW;
+ * « up_to_date » is information, not a call to action.
  */
 /** A follow added within this window is « new » — §7's post-add promise:
  *  sorted to the top of « Suivis » with a « Nouveau » chip, so the operator

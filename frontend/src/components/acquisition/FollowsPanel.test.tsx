@@ -49,7 +49,7 @@ function takeableShow(): FollowedSeriesItem {
   };
 }
 
-/** An active show with nothing to do — a_jour, urgency 4. */
+/** An active show with nothing to do — up_to_date, urgency 4. */
 function upToDateShow(): FollowedSeriesItem {
   return {
     id: 2,
@@ -435,24 +435,24 @@ describe("FollowsPanel", () => {
 
   it("trie par urgence puis par titre (localeCompare fr)", async () => {
     renderPanel(FULL_ITEMS);
-    // Urgency: a_recuperer(0) → en_acquisition(1) → verification_en_cours(2)
-    // → en_attente(3) → non_verifie(4) → a_jour(5) → disabled(6) — maquette
+    // Urgency: to_grab(0) → acquiring(1) → verifying(2)
+    // → pending(3) → unverified(4) → up_to_date(5) → disabled(6) — maquette
     // « Tout » keeps paused rows in the list, urgency-sorted LAST.
     const cards = await screen.findAllByTestId("acq-card");
     const titles = cards.map((c) =>
       within(c).getByTestId("acq-card-title").textContent,
     );
-    // Batman and Silo are both a_recuperer — "Batman" < "Silo" in localeCompare fr.
+    // Batman and Silo are both to_grab — "Batman" < "Silo" in localeCompare fr.
     expect(titles[0]).toBe("Batman");
     expect(titles[1]).toBe("Silo");
-    // Severance is en_acquisition.
+    // Severance is acquiring.
     expect(titles[2]).toBe("Severance");
-    // From and Dune are en_attente — "Dune" < "From" in localeCompare.
+    // From and Dune are pending — "Dune" < "From" in localeCompare.
     expect(titles[3]).toBe("Dune");
     expect(titles[4]).toBe("From");
-    // Dark Matter is non_verifie.
+    // Dark Matter is unverified.
     expect(titles[5]).toBe("Dark Matter");
-    // Shōgun is a_jour.
+    // Shōgun is up_to_date.
     expect(titles[6]).toBe("Shōgun");
     // Paused rows close the list — "Inactive Show" < "The OA".
     expect(titles[7]).toBe("Inactive Show");
@@ -523,11 +523,11 @@ describe("FollowsPanel", () => {
     expect(siloBadge).toBeTruthy();
     expect(siloBadge?.textContent).toBe("1");
 
-    // Shōgun: a_jour → NO badge.
+    // Shōgun: up_to_date → NO badge.
     const shogunTile = screen.getByTestId("tile-2");
     expect(shogunTile.querySelector("[data-badge]")).toBeNull();
 
-    // Dark Matter: non_verifie → badge "?".
+    // Dark Matter: unverified → badge "?".
     const darkMatterTile = screen.getByTestId("tile-5");
     const dmBadge = darkMatterTile.querySelector("[data-badge]");
     expect(dmBadge).toBeTruthy();
@@ -581,11 +581,11 @@ describe("FollowsPanel", () => {
     expect(badge?.textContent).toBe("1");
   });
 
-  it("mode grille : verification_en_cours ⇒ « ? », pas de verdict", () => {
+  it("mode grille : verifying ⇒ « ? », pas de verdict", () => {
     renderPanel([verificationRunningShow()]);
     fireEvent.click(screen.getByRole("button", { name: /Grille/ }));
 
-    // Verifying Show (id=10): verification_en_cours, aired_count=0, owned_count=0 →
+    // Verifying Show (id=10): verifying, aired_count=0, owned_count=0 →
     // would fabricate "1" from Math.max(1, 0-0) without the guard.
     const tile = screen.getByTestId("tile-10");
     const badge = tile.querySelector("[data-badge]");
@@ -716,7 +716,7 @@ describe("FollowsPanel", () => {
     ).toBeInTheDocument();
     cleanup();
 
-    // status: only a_recuperer produces the primary action.
+    // status: only to_grab produces the primary action.
     vi.spyOn(hooks, "useCompleteness").mockReturnValue(
       completeness("show") as unknown as ReturnType<typeof hooks.useCompleteness>,
     );

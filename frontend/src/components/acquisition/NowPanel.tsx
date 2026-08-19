@@ -320,7 +320,7 @@ export function NowPanel(): ReactElement {
 
   /** « Rangé aujourd'hui » — follows whose journey DISPATCHED today.
    *
-   * NOT every `a_jour` follow: that status is the permanent steady state of
+   * NOT every `up_to_date` follow: that status is the permanent steady state of
    * every complete série, and rendering them all here flooded the
    * urgency-ordered screen with what needs nothing. « aujourd'hui » is a
    * date, so the derivation reads one: a correlated journey dispatched since

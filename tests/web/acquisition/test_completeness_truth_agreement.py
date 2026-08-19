@@ -28,7 +28,7 @@ def test_truth_and_completeness_agree_on_counts(acquire_store):
 
     Sème :
     - S01E1, S01E2  → en médiathèque (owned)
-    - S01E3         → en_attente (searched, nothing takeable)
+    - S01E3         → pending (searched, nothing takeable)
     - S02E1         → annoncé (air_date future, exclu des deux vues)
     """
     store = acquire_store

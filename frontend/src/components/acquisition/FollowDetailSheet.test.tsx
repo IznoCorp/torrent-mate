@@ -224,7 +224,7 @@ describe("date d'épisode au toucher (régression : perdue avec l'ancien accord�
 // ── Tests ─────────────────────────────────────────────────────────────────
 
 describe("seasonCounts — la dérivation unique (§13)", () => {
-  it("compte possédés = en_mediatheque, diffusés = tout sauf annonce", () => {
+  it("compte possédés = in_library, diffusés = tout sauf annonce", () => {
     const eps = [
       { state: "in_library" as const },
       { state: "in_library" as const },
@@ -306,13 +306,13 @@ describe("FollowDetailSheet", () => {
     ).toBeTruthy();
   });
 
-  it("§5.3 — 'a_recuperer' affiche 'Récupérer maintenant' comme action primaire", async () => {
+  it("§5.3 — 'to_grab' affiche 'Récupérer maintenant' comme action primaire", async () => {
     renderSheet(silo(), { status: "to_grab" });
     expect(await screen.findByTestId("primary-action")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Récupérer maintenant" })).toBeInTheDocument();
   });
 
-  it("§5.3 — 'a_jour' n'affiche PAS d'action primaire (rien à récupérer)", async () => {
+  it("§5.3 — 'up_to_date' n'affiche PAS d'action primaire (rien à récupérer)", async () => {
     renderSheet(silo(), { status: "up_to_date" });
     await screen.findByTestId("sheet-meta");
     expect(screen.queryByTestId("primary-action")).toBeNull();

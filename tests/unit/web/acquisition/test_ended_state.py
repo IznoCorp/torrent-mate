@@ -106,7 +106,7 @@ class TestCaughtUpSplitsInTwo:
     def test_no_catalog_is_never_ended(self) -> None:
         """No catalog is no knowledge — the strongest rule in the module.
 
-        An ended series we have never catalogued must read ``non_verifie``, not
+        An ended series we have never catalogued must read ``unverified``, not
         ``termine``: we do not know what it contains, so we cannot claim to hold
         all of it.
         """
