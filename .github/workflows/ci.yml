@@ -148,7 +148,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      # The ceiling applied everywhere but to the project's OWN tools, which is
+      # how the language guard reached 1 411 lines against a hard limit of 1 000.
       - run: python3 scripts/check-module-size.py
+      - run: python3 scripts/check-module-size.py --root scripts
+      - run: python3 scripts/check-module-size.py --root tests
+      - run: python3 scripts/check-module-size.py --root frontend
+      - run: python3 scripts/check-i18n-placeholders.py
       - run: python3 scripts/check-no-broad-registry-catch.py
       - run: python3 scripts/check-typed-api.py
       - run: python3 scripts/check-pragma-discipline.py
