@@ -205,8 +205,15 @@ def apply_scope(selector: str) -> str:
         head = part.split()[0]
         if (head.startswith(("html", ":root")) or head == "body") and " " in part:
             parts.append(f"{head} {SCOPE}{part[len(head):]}")
-        elif part.startswith(":root") or part == "html" or part == "body":
-            parts.append(SCOPE + part[len(part.split()[0]):] if " " in part else SCOPE)
+        elif head.startswith(":root") or head in ("html", "body"):
+            # THE QUALIFIER IS THE SELECTOR'S IDENTITY, and dropping it is not a
+            # cosmetic loss. `:root[data-theme="light"]` used to come out as a
+            # bare `.tm`: both theme blocks then carried equal specificity and
+            # source order decided which one won, unconditionally — the theme
+            # switch dead, while the emitted text stayed exactly what this file
+            # produces, so `--check` agreed with itself and said nothing.
+            root = ":root" if head.startswith(":root") else head
+            parts.append(SCOPE + head[len(root):])
         elif part.startswith("@"):
             parts.append(part)
         else:
