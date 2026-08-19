@@ -249,6 +249,23 @@ def build() -> str:
             "Extraction works from an ALLOWLIST: add them to "
             "`exportedSelectors`, or classify them as harness.\n" + detail)
 
+    # AND THE OTHER DIRECTION, which nothing checked: an allowlist entry naming
+    # a class the prototype no longer declares. Only `expected - allowed` was
+    # ever computed, so the list could grow stale and never shrink — five dead
+    # French selectors (`.ep.en_attente` and friends) survived a whole renaming
+    # campaign in it, matching nothing, under a green gate. An allowlist that
+    # can only rot is the same failure as a map naming places the territory
+    # does not have.
+    declared = {cls for _, selector, _ in rules(application_block(source))
+                for cls in classes_of(selector)}
+    orphan = sorted(allowed_classes - declared - harness_classes)
+    if orphan:
+        sys.exit(
+            "`exportedSelectors` names classes the prototype does not declare:\n"
+            + "\n".join(f"  {cls}" for cls in orphan[:20])
+            + "\nRemove them, or draw them in the maquette. An allowlist entry "
+              "that matches nothing excuses nothing and hides its own staleness.")
+
     header = HEADER.format(scope=SCOPE, count=kept, classes=len(allowed),
                            dropped=dropped,
                            ambiguous=", ".join(ambiguous) or "none")

@@ -9,7 +9,7 @@
  * CONCEALS a defect in the reference, since the copy becomes the only place
  * anyone ever looks.
  *
- * 502 rules, from 481 allowlisted selectors.
+ * 502 rules, from 461 allowlisted selectors.
  * 9 rules were dropped as prototype harness.
  *
  * Declared BOTH exported and harness, and read as exported because extraction

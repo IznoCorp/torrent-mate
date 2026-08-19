@@ -522,6 +522,34 @@ def apply(text, mapping, in_python=False, properties=False, spans=None):
                     # `.name`, `name:`, and the binding itself — every end.
                     chunk = re.sub(rf"(?<![\w$]){re.escape(fr)}\b", en, chunk)
                 else:
+                    # A shorthand `{ etat }` is BOTH ends written once — the key
+                    # the object emits and the binding it reads — so renaming it
+                    # moves the wire contract while every `x.etat` stays.
+                    #
+                    # EXPANDING IT AUTOMATICALLY WAS WORSE. `{ etat }` and JSX's
+                    # `{body}` are the same three characters to a regex, and the
+                    # expansion rewrote a pre-existing `{body}` expression
+                    # container into `{corps: body}` in a file that did not even
+                    # contain the source name. Only a parser can tell an object
+                    # shorthand from a JSX expression, and this pass has spans,
+                    # not node kinds.
+                    #
+                    # So the UNAMBIGUOUS case — a shorthand inside a list, where
+                    # a JSX container cannot appear — is REFUSED, and the caller
+                    # is told which mode owns it. A lone `{etat}` keeps being
+                    # renamed: in JSX that is exactly right, and in a one-key
+                    # object `--properties` is the mode that moves both ends.
+                    ambiguous = re.search(
+                        rf"\{{[^{{}}\n]*,\s*{re.escape(fr)}\s*[,}}]"
+                        rf"|\{{\s*{re.escape(fr)}\s*,[^{{}}\n]*\}}", chunk)
+                    if ambiguous:
+                        raise SystemExit(
+                            f"{fr!r} appears as a SHORTHAND PROPERTY "
+                            f"({ambiguous.group(0).strip()[:48]}) — that is one "
+                            "name for the key an object emits AND the binding it "
+                            "reads. Renaming it here would move the key while "
+                            "every reader stayed. Use --properties, which moves "
+                            "both ends. Nothing written, in any file.")
                     # A TWELFTH form: `...` is a SPREAD, not a member access,
                     # and the lookbehind that protects `x.name` read the last
                     # of its three dots the same way. `{ ...REGLEE }` was left
@@ -541,15 +569,6 @@ def apply(text, mapping, in_python=False, properties=False, spans=None):
                         # not `name:` — an object key or a type member
                         rf"(?!\s*:)",
                         en, chunk)
-                    # `{ name }` is BOTH ends written once: the key the object
-                    # emits and the binding it reads. Renaming it moves the key
-                    # (a silent wire break); skipping it leaves a reference to a
-                    # binding that no longer exists. It is EXPANDED instead —
-                    # `{ etat }` becomes `{ etat: state }` — the only form that
-                    # keeps the contract AND follows the rename.
-                    chunk = re.sub(
-                        rf"(?<=[{{,])(\s*){re.escape(en)}(\s*)(?=[}},])",
-                        rf"\g<1>{fr}: {en}\g<2>", chunk)
         elif kind == "comment":
             for fr, en in sorted(mapping.items(), key=lambda kv: -len(kv[0])):
                 chunk = re.sub(rf"`{re.escape(fr)}\b", "`" + en, chunk)

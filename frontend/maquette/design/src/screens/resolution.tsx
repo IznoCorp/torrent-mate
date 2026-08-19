@@ -172,7 +172,7 @@ function DecisionCard({ decision }: { decision: SettledDecision }) {
     DECISION_STATE,
     DECISION_STATE_DETAIL,
     REASON_TONE,
-    MOTIF_LABEL,
+    REASON_LABEL,
     VIA_LABEL,
   } = useReference();
   const settled = decision.state != null;
@@ -202,8 +202,8 @@ function DecisionCard({ decision }: { decision: SettledDecision }) {
               exactly what one comes back for. */}
           {identity ? <span className="creason">{identity}</span> : ""}
           <span className="cmeta">
-            <span className={`chip ${REASON_TONE[decision.motif] ?? "neutral"}`}>
-              {MOTIF_LABEL[decision.motif] ?? decision.motif}
+            <span className={`chip ${REASON_TONE[decision.reason] ?? "neutral"}`}>
+              {REASON_LABEL[decision.reason] ?? decision.reason}
             </span>
             {state ? (
               <span
@@ -285,7 +285,7 @@ export function ResolutionScreen() {
   const {
     icons,
     REASON_DETAIL,
-    MOTIF_LABEL,
+    REASON_LABEL,
     REASON_TONE,
     DECISIONS_REGLEES,
     decisionPending,
@@ -334,15 +334,15 @@ export function ResolutionScreen() {
           </h2>
           <p className="qhint">
             {decision
-              ? (REASON_DETAIL[decision.motif] ?? "")
+              ? (REASON_DETAIL[decision.reason] ?? "")
               : t("screens.resolution.noMediaIdentified")}
           </p>
           <div className="cmeta" style={{ marginBottom: "12px" }}>
             {decision ? (
               <span
-                className={`chip ${REASON_TONE[decision.motif] ?? "neutral"}`}
+                className={`chip ${REASON_TONE[decision.reason] ?? "neutral"}`}
               >
-                {MOTIF_LABEL[decision.motif] ?? decision.motif}
+                {REASON_LABEL[decision.reason] ?? decision.reason}
               </span>
             ) : (
               ""

@@ -216,19 +216,42 @@ def test_a_file_the_parser_refuses_does_not_leave_the_tree_half_renamed(
 
 
 @needs_typescript
-def test_a_shorthand_property_is_expanded_not_moved(tmp_path: Path) -> None:
-    """`{ etat }` is BOTH the emitted key and the binding that fills it.
+def test_an_ambiguous_shorthand_is_refused_not_guessed_at(tmp_path: Path) -> None:
+    """`{ a, etat }` names the emitted key AND the binding, in three characters.
 
-    Renaming it moved the key while every `x.etat` reading it stayed — code
-    that still parses, a read-back proof that only compares strings and so says
-    nothing, and exit 0. Skipping it instead would leave a reference to a
-    binding that no longer exists. Expansion is the only form that keeps the
-    contract and follows the rename.
+    Renaming it moves the wire contract while every `x.etat` reader stays —
+    code that still parses, a read-back proof that only compares strings, and
+    exit 0.
+
+    EXPANDING IT AUTOMATICALLY WAS WORSE, and this test exists because that was
+    tried: `{ etat }` and JSX's `{body}` are identical to a regex, so the
+    expansion rewrote a pre-existing `{body}` expression container into
+    `{corps: body}` in a file that did not contain the source name at all. Only
+    a parser tells the two apart, and this pass has spans, not node kinds — so
+    the unambiguous case is refused and the caller is told which mode owns it.
     """
     source = tree(
         tmp_path,
         "shorthand.js",
-        "const etat = 1;\nconst bag = { etat };\nconst keyed = { etat: 2 };\nconsole.log(bag.etat, keyed.etat);\n",
+        "const etat = 1;\nconst bag = { a, etat };\nconsole.log(bag.etat);\n",
+    )
+    before = source.read_text(encoding="utf-8")
+
+    result = run(tmp_path, {"etat": "state"})
+
+    assert result.returncode != 0
+    assert "SHORTHAND PROPERTY" in result.stderr
+    assert "--properties" in result.stderr
+    assert source.read_text(encoding="utf-8") == before
+
+
+@needs_typescript
+def test_an_object_key_is_left_alone(tmp_path: Path) -> None:
+    """`{ etat: 2 }` is a contract with a reader; only --properties moves it."""
+    source = tree(
+        tmp_path,
+        "keyed.js",
+        "const etat = 1;\nconst keyed = { etat: 2 };\nconsole.log(keyed.etat);\n",
     )
 
     result = run(tmp_path, {"etat": "state"})
@@ -236,9 +259,28 @@ def test_a_shorthand_property_is_expanded_not_moved(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     body = source.read_text(encoding="utf-8")
     assert "const state = 1;" in body
-    assert "{ etat: state }" in body, "the shorthand must EXPAND, not move"
-    assert "{ etat: 2 }" in body, "an object key is a contract and stays put"
-    assert "bag.etat, keyed.etat" in body, "member reads belong to --properties"
+    assert "{ etat: 2 }" in body
+    assert "keyed.etat" in body
+
+
+@needs_typescript
+def test_a_jsx_expression_holding_the_TARGET_name_is_untouched(tmp_path: Path) -> None:
+    """The corruption the expansion caused, pinned so it cannot come back.
+
+    A file with no occurrence of the SOURCE name was rewritten, because the
+    expansion searched for the target: `<p>{body}</p>` became `<p>{corps: body}</p>`.
+    """
+    source = tree(
+        tmp_path,
+        "view.jsx",
+        "const body = 1;\nexport const C = () => <p>{body}</p>;\n",
+    )
+    before = source.read_text(encoding="utf-8")
+
+    result = run(tmp_path, {"corps": "body"})
+
+    assert result.returncode == 0, result.stderr
+    assert source.read_text(encoding="utf-8") == before
 
 
 def test_python_prose_is_never_rewritten(tmp_path: Path) -> None:
