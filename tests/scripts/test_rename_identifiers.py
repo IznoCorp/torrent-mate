@@ -175,8 +175,8 @@ def test_python_comment_with_an_apostrophe_does_not_abort_the_rename(tmp_path: P
 
 
 @needs_typescript
-def test_a_failed_file_does_not_leave_the_tree_half_renamed(tmp_path: Path) -> None:
-    """An abort mid-walk used to leave earlier files written and later ones not."""
+def test_every_file_is_renamed_when_none_of_them_fails(tmp_path: Path) -> None:
+    """The happy path across several files, in walk order."""
     first = tree(tmp_path, "a_first.js", "const suivi = 1;\n")
     third = tree(tmp_path, "c_third.js", "const suivi = 3;\n")
 
@@ -185,6 +185,116 @@ def test_a_failed_file_does_not_leave_the_tree_half_renamed(tmp_path: Path) -> N
     assert result.returncode == 0, result.stderr
     assert "follow" in first.read_text(encoding="utf-8")
     assert "follow" in third.read_text(encoding="utf-8")
+
+
+@needs_typescript
+def test_a_file_the_parser_refuses_does_not_leave_the_tree_half_renamed(
+    tmp_path: Path,
+) -> None:
+    """An abort mid-walk left earlier files WRITTEN and later ones untouched.
+
+    The test that used to carry this name built two well-formed files and
+    asserted they were both renamed — it never constructed a failing file, so
+    it could not see the property it was named for. It would have passed with
+    the defect fully present. This one builds the failure.
+
+    `b_broken.js` cannot be parsed, so the walk raises on it. What must NOT
+    happen is `a_first.js` keeping a rename while `c_third.js` never gets one:
+    a half-renamed tree is worse than an untouched one, because it looks done.
+    """
+    first = tree(tmp_path, "a_first.js", "const suivi = 1;\n")
+    tree(tmp_path, "b_broken.js", "const = = = ;\nfunction ( { \n")
+    third = tree(tmp_path, "c_third.js", "const suivi = 3;\n")
+
+    result = run(tmp_path, {"suivi": "follow"})
+
+    renamed = [path.name for path in (first, third) if "follow" in path.read_text(encoding="utf-8")]
+    # Either every file moved or none did. One of two is the failure.
+    assert renamed in ([], ["a_first.js", "c_third.js"]), (
+        f"tree left half renamed: {renamed} moved, exit={result.returncode}, stderr={result.stderr}"
+    )
+
+
+@needs_typescript
+def test_a_shorthand_property_is_expanded_not_moved(tmp_path: Path) -> None:
+    """`{ etat }` is BOTH the emitted key and the binding that fills it.
+
+    Renaming it moved the key while every `x.etat` reading it stayed — code
+    that still parses, a read-back proof that only compares strings and so says
+    nothing, and exit 0. Skipping it instead would leave a reference to a
+    binding that no longer exists. Expansion is the only form that keeps the
+    contract and follows the rename.
+    """
+    source = tree(
+        tmp_path,
+        "shorthand.js",
+        "const etat = 1;\nconst bag = { etat };\nconst keyed = { etat: 2 };\nconsole.log(bag.etat, keyed.etat);\n",
+    )
+
+    result = run(tmp_path, {"etat": "state"})
+
+    assert result.returncode == 0, result.stderr
+    body = source.read_text(encoding="utf-8")
+    assert "const state = 1;" in body
+    assert "{ etat: state }" in body, "the shorthand must EXPAND, not move"
+    assert "{ etat: 2 }" in body, "an object key is a contract and stays put"
+    assert "bag.etat, keyed.etat" in body, "member reads belong to --properties"
+
+
+def test_python_prose_is_never_rewritten(tmp_path: Path) -> None:
+    """The Python path substituted over the whole file, spans ignored.
+
+    So a docstring, a comment and a sentence-shaped literal each had their
+    French word replaced — « Le suivi est mis a jour ici » becoming « Le follow
+    est mis a jour ici » — which is the exact corruption this tool exists to
+    prevent, in the one language where nothing was watching.
+
+    The JavaScript inside an evaluate string must still move: that is why the
+    Python path renames inside strings at all.
+    """
+    source = tree(
+        tmp_path,
+        "harness.py",
+        '"""Cette page affiche le suivi des choses."""\n'
+        "# Le suivi est mis a jour ici.\n"
+        'DRIVE = "()=>window.suivi()"\n'
+        "def f():\n"
+        '    """Retourne le suivi courant."""\n'
+        '    return "le suivi de tout"\n',
+    )
+
+    result = run(tmp_path, {"suivi": "follow"})
+
+    assert result.returncode == 0, result.stderr
+    body = source.read_text(encoding="utf-8")
+    assert "affiche le suivi des choses" in body, "module docstring rewritten"
+    assert "# Le suivi est mis a jour ici." in body, "comment rewritten"
+    assert "Retourne le suivi courant" in body, "function docstring rewritten"
+    assert '"le suivi de tout"' in body, "a sentence-shaped literal rewritten"
+    assert '"()=>window.follow()"' in body, "the evaluate string must still move"
+
+
+def test_python_prose_survives_the_bracket_pass(tmp_path: Path) -> None:
+    """Order is load-bearing, and getting it wrong DESTROYED the prose.
+
+    The bracket pass rewrites the text through `re.sub`, while the spans were
+    measured on the original source. Holding prose after it sliced at stale
+    offsets and cut the sentences out of the file entirely. A selector and a
+    guillemets quote in the same file is the shape that exposed it.
+    """
+    source = tree(
+        tmp_path,
+        "ordered.py",
+        '# Une remarque avec « Récupérer maintenant » dedans.\nSEL = "[data-go=suivi]"\nDRIVE = "()=>window.suivi()"\n',
+    )
+
+    result = run(tmp_path, {"suivi": "follow"})
+
+    assert result.returncode == 0, result.stderr
+    body = source.read_text(encoding="utf-8")
+    assert chr(0) not in body, "a placeholder was left in the file"
+    assert "« Récupérer maintenant »" in body, "prose was cut out by stale offsets"
+    assert '"[data-go=suivi]"' in body, "a bracketed selector is data and stays"
 
 
 # --- Scopes the walker claimed to cover --------------------------------------

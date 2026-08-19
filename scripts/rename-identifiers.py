@@ -191,7 +191,7 @@ def compiler_spans(path, text):
     return out
 
 
-def protected_text(path, text):
+def protected_text_of(path, text):
     """Returns the contents of every span a rename must leave alone.
 
     The parser is chosen by the file's own language. Reading a `.py` back
@@ -469,6 +469,28 @@ def apply(text, mapping, in_python=False, properties=False, spans=None):
                 return match.group(0)
             held.append(match.group(0))
             return f"\x00{len(held) - 1}\x00"
+        # PROSE IS HELD OUT FIRST, and the order is load-bearing: the
+        # bracket pass below rewrites the text through `re.sub`, and the
+        # spans were measured on the ORIGINAL source. Holding prose after
+        # it sliced at stale offsets and destroyed the very sentences this
+        # is meant to protect.
+        #
+        # And this was the hole it closes. The module docstring
+        # above says a comment's prose word is never renamed — and the Python
+        # path ignored the spans entirely and substituted over the whole file,
+        # so "Le suivi est mis a jour ici" became "Le follow est mis a jour ici"
+        # in a docstring, in a comment and in a sentence-shaped literal. That is
+        # the exact defect this tool exists to prevent, in the one language
+        # where nothing was watching. The spans the caller already computed say
+        # where prose lives; they are lifted out the way a selector is, and put
+        # back at the end.
+        if spans is not None:
+            for kind, first, last in reversed(spans):
+                body = text[first:last]
+                if kind == "comment" or (kind == "string" and is_prose(body)):
+                    held.append(body)
+                    text = text[:first] + chr(0) + str(len(held) - 1) + chr(0) + text[last:]
+
         text = re.sub(r"\[[^\[\]\n]*\]", hold, text)
 
         for fr, en in sorted(mapping.items(), key=lambda kv: -len(kv[0])):
@@ -505,15 +527,64 @@ def apply(text, mapping, in_python=False, properties=False, spans=None):
                     # of its three dots the same way. `{ ...REGLEE }` was left
                     # standing while every other mention moved — a half-rename,
                     # silent, and only the type-checker downstream said so.
+                    #
+                    # A FOURTEENTH form, and the one this mode's own premise
+                    # denies: `{ etat }` and `{ etat: 2 }` are PROPERTY
+                    # positions. Renaming them without `--properties` moved the
+                    # emitted key while every `x.etat` that reads it stayed —
+                    # code that still parses, a read-back proof that only
+                    # compares strings and so says nothing, and exit 0. A
+                    # shorthand is both ends of the contract written once, so
+                    # it is skipped here and belongs to `--properties`.
                     chunk = re.sub(
-                        rf"(?:(?<=\.\.\.)|(?<![.\w$])){re.escape(fr)}\b",
+                        rf"(?:(?<=\.\.\.)|(?<![.\w$])){re.escape(fr)}\b"
+                        # not `name:` — an object key or a type member
+                        rf"(?!\s*:)",
                         en, chunk)
+                    # `{ name }` is BOTH ends written once: the key the object
+                    # emits and the binding it reads. Renaming it moves the key
+                    # (a silent wire break); skipping it leaves a reference to a
+                    # binding that no longer exists. It is EXPANDED instead —
+                    # `{ etat }` becomes `{ etat: state }` — the only form that
+                    # keeps the contract AND follows the rename.
+                    chunk = re.sub(
+                        rf"(?<=[{{,])(\s*){re.escape(en)}(\s*)(?=[}},])",
+                        rf"\g<1>{fr}: {en}\g<2>", chunk)
         elif kind == "comment":
             for fr, en in sorted(mapping.items(), key=lambda kv: -len(kv[0])):
                 chunk = re.sub(rf"`{re.escape(fr)}\b", "`" + en, chunk)
                 chunk = re.sub(rf"`{re.escape(fr)}\(", "`" + en + "(", chunk)
         pieces.append(chunk)
     return "".join(pieces)
+
+
+PROSE_WORD = re.compile(r"[A-Za-z\u00c0-\u00ff]{2,}")
+CODE_MARK = re.compile(r"[(){}\[\]=><;]|=>|\$\{|\bwindow\b|\bdocument\b")
+
+
+def is_prose(body):
+    """Says whether a Python string literal is a SENTENCE rather than code.
+
+    The harness drives the engine from inside `page.evaluate` strings, so a
+    Python string there is usually JavaScript and its identifiers must move. A
+    docstring, a comment and an ordinary message are the opposite: they are
+    prose, and a rename inside one is the corruption this tool exists to stop.
+
+    A triple-quoted literal is prose by construction here — the harness writes
+    its evaluate strings on one line. Otherwise the discriminator is the one the
+    rest of this file already uses: code wears punctuation a sentence does not.
+
+    Args:
+        body: The literal, quotes included.
+
+    Returns:
+        True when the literal reads as a sentence and must be left alone.
+    """
+    if body.lstrip("rbfuRBFU").startswith(('"""', "'''")):
+        return True
+    if CODE_MARK.search(body):
+        return False
+    return len(PROSE_WORD.findall(body)) >= 3
 
 
 def ignored(path):
@@ -584,6 +655,7 @@ if __name__ == "__main__":
         for word in argument.split("=", 1)[1].split(",") if word
     )
     changed = collections.Counter()
+    written = []
     # The tree to walk. It defaulted to the maquette, and every surface outside
     # it — the app under `frontend/src`, the icon tool under `frontend/scripts`
     # — was therefore renamed by hand or not at all. A root is an argument now,
@@ -618,7 +690,13 @@ if __name__ == "__main__":
             continue
         if path.name in {"serve.py", "rename.py"}:
             continue
-        before = path.read_text(encoding="utf-8")
+        # `newline=""` keeps CRLF as CRLF. `read_text` folds `\r\n` into `\n`
+        # while `readFileSync(…, "utf8")` in the span tool does not, so Python
+        # counted one character where node counted two and EVERY span past the
+        # first line drifted by one per line. The read-back proof then saw
+        # strings that had "moved" and refused a file that was perfectly fine.
+        with path.open(encoding="utf-8", newline="") as handle:
+            before = handle.read()
         spans = (compiler_spans(path, before) if path.suffix in COMPILED
                  else python_spans(before) if path.suffix == ".py"
                  else None)
@@ -630,29 +708,49 @@ if __name__ == "__main__":
         else:
             after = apply(before, mapping, in_python=path.suffix == ".py",
                           properties=PROPERTIES, spans=spans)
-        if after != before:
-            path.write_text(after, encoding="utf-8")
-            # THE PROOF, taken on what was actually written: the parser reads
-            # the result back, and every string, template piece, regex and
-            # JSX text must still say exactly what it said. An empty table
-            # round-trips byte for byte even when every span is misclassified,
-            # so it can never show this — and this is the failure that ships.
-            # Python is exempt on purpose, not by oversight: `in_python=True`
-            # renames INSIDE strings, because that is where the harness keeps
-            # the identifiers it drives the engine with. Its strings are
-            # SUPPOSED to change, so a proof that they did not would refuse
-            # every Python rename the tool exists to make.
-            if (not VALUES and spans is not None and path.suffix != ".py"
-                    and protected_text(path, after) != [
-                        text for kind, s, e in spans if kind == "string"
-                        for text in [before[s:e]]]):
-                path.write_text(before, encoding="utf-8")
-                raise SystemExit(
-                    f"{path}: the rename would have changed a STRING, a "
-                    "template piece, a regex or JSX text — never an "
-                    "identifier here. Nothing written.")
-            changed[str(path.relative_to(ROOT))] = sum(
-                1 for _ in re.finditer("|".join(re.escape(v) for v in mapping.values()), after))
+        if after == before:
+            continue
+        # Written BEFORE the proof, because the proof runs the parser over the
+        # FILE: `node source-spans.mjs <path>` reads from disk, so text held
+        # only in memory would have it re-reading the previous contents and
+        # refusing every change. The original is remembered so a later refusal
+        # can put the whole tree back.
+        written.append((path, before))
+        with path.open("w", encoding="utf-8", newline="") as handle:
+            handle.write(after)
+        # THE PROOF, taken on what the rename PRODUCED: the parser reads the
+        # result back, and every string, template piece, regex and JSX text
+        # must still say exactly what it said. An empty table round-trips byte
+        # for byte even when every span is misclassified, so it can never show
+        # this — and this is the failure that ships.
+        #
+        # Python is exempt on purpose, not by oversight: `in_python=True`
+        # renames INSIDE strings, because that is where the harness keeps the
+        # identifiers it drives the engine with. Its strings are SUPPOSED to
+        # change, so a proof that they did not would refuse every Python rename
+        # the tool exists to make.
+        if (not VALUES and spans is not None and path.suffix != ".py"
+                and protected_text_of(path, after) != [
+                    text for kind, s, e in spans if kind == "string"
+                    for text in [before[s:e]]]):
+            # ALL OR NOTHING. Writing as the walk went used to leave a
+            # refusal on the tenth file with the first nine renamed and the
+            # rest untouched — a tree that LOOKS done, which is worse than one
+            # never started, and which this very message called « Nothing
+            # written ». Every file already written is put back first, so the
+            # message is true of the tree and not only of this file.
+            for done_path, original in reversed(written):
+                with done_path.open("w", encoding="utf-8", newline="") as handle:
+                    handle.write(original)
+            raise SystemExit(
+                f"{path}: the rename would have changed a STRING, a "
+                "template piece, a regex or JSX text — never an "
+                f"identifier here. Nothing written, in any file "
+                f"({len(written)} restored).")
+        changed[str(path.relative_to(ROOT))] = sum(
+            1 for _ in re.finditer("|".join(re.escape(v) for v in mapping.values()), after))
+
+
     print(f"{len(changed)} file(s) touched")
     for name, _ in changed.most_common(10):
         print("  " + name)
