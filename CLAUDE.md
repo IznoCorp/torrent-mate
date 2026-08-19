@@ -65,6 +65,28 @@ production defect and « fixed » three times over.
    the day the redesign ships. Adopting the generated stylesheet IS shipping the redesign, and
    that is the operator's decision, never a wiring detail.
 
+#### The mission — dictated by the operator, 2026-08-19 (SUPERSEDES any narrower reading)
+
+**The maquette is a NEW VERSION of the app, and EVERY screen is to be redrawn. All of them.**
+It is not a reskin of the shipped surfaces and it is not bounded by what production happens to
+have today. Its purpose is a new, COHERENT user experience, and the first objective is to
+**freeze that interface**.
+
+Four consequences, and none of them is optional:
+
+1. **No surface is out of scope.** Any production screen with no page in the maquette is a page
+   still to be drawn — never an arbitration to leave it out. This explicitly REVERSES the
+   earlier ruling that `/control` (« Contrôle ») and `/pipeline` were deliberately page-less:
+   the operator overturned it. Their redistribution into Arrivées / Système / Maintenance /
+   Configuration remains a valid UX proposal, but it does not exempt anything from being drawn.
+2. **What is already in the maquette is VALIDATED** by the operator. Do not relitigate it.
+3. **What remains is not only pages.** The UX, the interaction language, the architecture of the
+   prototype and the missing pages all have to be finished and consolidated. The interface is
+   frozen when that work is done, not when the last page exists.
+4. **The backend follows the interface, not the reverse.** The engine will be adapted to what
+   the new interface needs. So a backend limitation is not a reason to draw less — record it and
+   draw what the experience requires. Backend work comes AFTER the interface is frozen.
+
 Read `frontend/maquette/README.md` before any design change — method, named states, verified
 rule set, and the traps already paid for.
 
@@ -198,8 +220,13 @@ then `/implement:phase` until the PR. Branches `feat/{codename}` / `fix/{codenam
 scoped with the codename, squash merge. Full flow, model allocation, milestone commits and the
 KanbanMate claim procedure: `docs/reference/feature-lifecycle.md` §7.
 
-**Never start coding a roadmap ticket directly** — claim it via `/kanban-work <ticket>` first,
+**Claim a ticket that ALREADY EXISTS on the board before coding it** — `/kanban-work <ticket>`,
 so the autonomous KanbanMate daemon stays out of the way, and advance the card as you go.
+
+**Do NOT create a ticket for work you are about to do in this session** (operator, 2026-08-19).
+The claim procedure exists to keep this session and the daemon off each other's cards; it is not
+a bookkeeping ritual. Work that can be carried out in the session at hand is simply carried out
+— inventing and claiming a card for it is counterproductive.
 
 ### Move Rules (dispatch)
 
@@ -249,7 +276,7 @@ all engineering documentation (`docs/`, `BUGS.md`, `CHANGELOG.md`, `ROADMAP.md`,
   they must still read years from now, out of context.
 
 **The code itself contains NO French, and no interface text.** Two halves of one rule,
-enforced by `scripts/check-no-french.py` (eleven arms, in `make check` and in CI):
+enforced by `scripts/check-no-french.py` (thirteen arms, in `make check` and in CI):
 
 - **English names, everywhere and always**: identifiers, function/type/**class** names (code
   AND CSS), **file and directory names**, and every message the tools print. A new file, a new

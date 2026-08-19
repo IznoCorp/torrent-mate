@@ -564,7 +564,7 @@ export type Reference = {
 };
 
 // `state.resolveTarget` (the folder currently open on the resolution screen)
-// and `state.relTitre` (the item a "Récupérer" gesture targets) are both
+// and `state.relatedTitle` (the item a "Récupérer" gesture targets) are both
 // `string | null` at runtime. `UiState` itself stays the loose
 // `{ [key: string]: unknown }` shape (see store.ts) — a reader casts at the
 // point of use, exactly as `add.tsx` already does for `resolveTarget`.

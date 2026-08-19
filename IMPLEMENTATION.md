@@ -36,7 +36,7 @@ code until the operator's judgement (step 2 above). Non-negotiable.
 
 ## Current state
 
-**SP4 is complete.** Fifteen waves have landed, each squash-merged onto `main` after green CI
+**SP4 is complete.** Seventeen waves have landed, each squash-merged onto `main` after green CI
 and a clean final adversarial review; none of them derives app code.
 
 The catch-all is empty. `design/refonte.html` — 39 561 lines when SP4 opened, an entire
@@ -48,18 +48,32 @@ that is deliberate: the CSS contract is SP5's subject, and the spec fixes it the
 | ------------------ | ---------- |
 | `design/src/engine/legacy.js` | the engine, moved byte for byte, still JavaScript on purpose |
 | `design/index.html` | the application shell's markup, in the document Vite owns |
-| `design/src/states.js` | the 656-line scenario table — the harness's fixture, not the product's |
+| `design/src/states.js` | the scenario table — 709 lines of file, of which 656 are the fixture itself (`const STATES = [` line 47 to `];` line 704). The harness's, not the product's |
 | `design/src/seams.ts` | the three names the engine imports instead of reading off `window` |
 | `design/src/**` | every page and every screen, as components |
 
 Every step of it was proven the same way: a state-by-state comparison of the WHOLE phone frame,
-recorded before and replayed after — **0 divergence on 82 states**, at each of the three
-SP4-fin waves, with the rule suite green at unchanged hold counts.
+recorded before and replayed after — **0 divergence on 82 states**, *or, where the markup changed
+on purpose, the rename map applied to the RECORDING and exact equality required*, which says
+« every difference is a rename and nothing else ». That second half is not decoration: it is what
+the claim actually covered at two of the three waves, and dropping it overstates the proof.
+At each of the three SP4-fin waves, with the rule suite green at unchanged hold counts.
+
+> **⚠ THIS PROOF IS NOT REPLAYABLE TODAY, and the formula is cited five times in this file.** The
+> instrument, `frontend/maquette/fidelity.py`, IS committed (added in `21c54a98`, PR #447) and
+> says so in its own first paragraph: « it stops being runnable the moment the legacy renderer it
+> compares against is deleted. That order is the point: prove first, delete after. » Those
+> renderers are gone — no `*Legacy` name is reachable from `window.__referentiel` — and the
+> `--record` path needs a recording taken while the legacy still owned the page. **No recording
+> is committed**, and the ones left in `/tmp` are void: 38 of the 82 state ids no longer exist
+> after the English rename (#455/#456). The 82 states themselves are current — `states.js`
+> registers exactly 82. Cite the figure as a proof that WAS taken, never as one that can be
+> re-taken on demand.
 
 **One item of the spec's SP4-end list was argued rather than done**, and it is open to
 contest: `__go` did not move shell-side. It holds `pilotage`, a latch the engine reassigns, and
 an imported binding cannot be assigned — moving it would have meant exporting a setter for a
-private flag. The 656-line TABLE moved; the driving stayed. The residual behaviour debts (the
+private flag. The 656-line TABLE moved (in a 709-line file); the driving stayed. The residual behaviour debts (the
 deep-entry path, the 240 ms delay on `data-suivante`) are named in the SP4-fin plan and belong
 to their own work: none of these waves changed behaviour, by construction.
 
@@ -79,7 +93,7 @@ to their own work: none of these waves changed behaviour, by construction.
 | **SP4d wave 4 — Acquisition, and the last two pages** | `feat/maquette-sp4d4` | #450 | The last page wave: `viewAcquisition` — three tabs, a deck and a second infinite scroll — plus `viewProfil` and `viewIntrouvable`. `PAGES_OF()` carries no `render` at all, which is SP4-fin's entry condition. The review found four real defects, the first of which left the page inert: every action mutates the world IN PLACE and signals with `toucher()`, and the component subscribed only to the state. |
 | **SP4-fin wave 1 — the engine leaves the fragment** | `refactor/maquette-sp4fin1` | #451 | The 35 052-line inline script became `design/src/engine/legacy.js`; the fragment fell from 39 561 to 4 507 lines and holds nothing executable. 0 divergence on 82 states. The engine republishes its 254 top-level names — 230 by value, 24 by getter, the split measured — because the harness drives it by bare name. Four rules had gone green over a file emptied of their subject; `common.py` now owns `DESIGN_SOURCES`. |
 | **SP4-fin wave 2 — the markup leaves the fragment** | `refactor/maquette-sp4fin2` | #452 | The 287 lines of application shell move to `index.html` — not into React, because the engine captures its containers at module evaluation, before React has rendered anything. **The fragment is now a title and a stylesheet.** The login gate, built from both files now, is byte-identical. Two more readers had to follow the markup; R72 needed no renegotiation, measured. |
-| **SP4-fin wave 3 — the bridge dies** | `refactor/maquette-sp4fin3` | #453 | The 656-line scenario table leaves the product for `src/states.js`; the state ALIAS dies (99 reads go to the store, and a whole defect class goes with it); 61 seam call sites become imports through live `export let` bindings, so a typo fails the build. R74 renegotiated — what it called a bridge is now a driving surface for measurement; R72 needed nothing, measured. |
+| **SP4-fin wave 3 — the bridge dies** | `refactor/maquette-sp4fin3` | #453 | The 656-line scenario fixture leaves the product for `src/states.js`; the state ALIAS dies (99 reads go to the store, and a whole defect class goes with it); 61 seam call sites become imports through live `export let` bindings, so a typo fails the build. R74 renegotiated — what it called a bridge is now a driving surface for measurement; R72 needed nothing, measured. |
 | **English names — no French left in the code** | `refactor/english-names` | #455 | The operator named two examples (`data-suivante`, `trierLib`) and both were real: 141 of the engine's 446 declared names were French, and nineteen `data-*` contracts. Everything moved, including the seams three frozen-with-reason entries had been protecting (`pont`/`ecrans`/`panneau` → `bridge`/`screens`/`panel`) and the `data-key` values on both sides. `scripts/code-vocabulary.txt` turns the detector's question around — « is this word one we use? » has no holes by construction. The guarantor pass before merge found five things the green gate could not see: a vocabulary SEEDED from the code had licensed the 25 French words it existed to catch (declared debt now, bounded to the dying engine by `check_french_debt`); `data-*` names had a rule and no arm; `frontend/scripts/` was outside every scope; the production app still carried a `controle/` directory and 19 French names; and the renaming tool was silently rewriting interface copy through four forms it did not know — it reads its protected spans from TypeScript's own parser now. |
 | **Les valeurs, les routes et les paramètres** | `fix/design-restart` | #456 | L'opérateur lève le gel qui gardait une adresse française : une route et un paramètre sont des NOMS, pas des données. Le vocabulaire d'états passe à l'anglais du backend à la feuille de style (rien n'était persisté, donc aucune migration), les routes suivent en prototype ET en production — les trois adresses françaises répondant en redirection, parce qu'un renommage qui met en 404 l'adresse qu'il renomme est une casse déguisée. L'outil de renommage a payé trois défauts du même genre — décalage UTF-16, `regions()` qui est un scanner JavaScript, et un mode valeurs si large qu'il a réécrit 429 lignes de prose avant d'être refait sur le bon critère : la chaîne entière, jamais le mot. L'hôte design se relance désormais quand son code change, l'asymétrie qui avait verrouillé l'opérateur dehors. |
 
@@ -89,7 +103,8 @@ The full record of each wave, in the words written when it landed, is in
 ### The latest wave, in full
 
 **SP4-fin wave 3 — the bridge dies, and the fixture leaves the product**: Branch `refactor/maquette-sp4fin3`, version 0.97.24. Four things the spec named for SP4-end,
-each proven at **0 divergence on 82 states**.
+each proven at **0 divergence on 82 states** (with the rename-map disjunction, and the
+replayability caveat, both recorded above).
 
 ### The scenario table was never the engine's
 
@@ -171,28 +186,54 @@ Read, in this order:
    mission reversed: read them as history, not as instructions.
 3. `BUGS.md` — what is reported and not yet confirmed.
 
-Then draw the missing surfaces, in the order of the inventory below.
+**Serve the prototype locally.** There are TWO hosts and the harness measures only one of
+them — running the wrong one is a green run over nothing.
 
-**Serve the prototype locally** (never on 8710 or 8711, which the reverse proxy routes to
-production and staging):
+| | Port | What | Started by |
+| --- | --- | --- | --- |
+| **Harness host** | **8899** | a plain `http.server` rooted in `/private/tmp/tm-refonte`, serving `wrapped.html` — a COPY of the build | by hand; usually already up |
+| **Design host** | **8712** | `serve.py`, scrypt password-protected (`tm-design.iznogoudatall.xyz`) | PM2 (`torrentmate-design`) |
+
+`harness/common.py` pins the first one: `PROTOTYPE = "http://127.0.0.1:8899/wrapped.html"`.
+Never 8710/8711/8712/8899 for a server of your own — `harness/server.py`'s `RESERVED_PORTS`
+names all four, and the reverse proxy routes the first three to production, staging and the
+design host.
+
+**`python3 serve.py 8899` is wrong**, and it is the recipe this file used to carry: `serve.py`
+is the DESIGN host, it answers **401** without a session, and the harness would then measure the
+sign-in screen — every rule green, nothing measured. A plain `http.server` is exactly right for
+the harness *because of where it is rooted*: on the copy of the BUILD, not on `design/`. Rooted
+on the sources it would serve unbuilt TypeScript and measure nothing real — that is the
+distinction the old sentence lost.
 
 ```bash
-cd frontend/maquette && python3 serve.py 8899
+# 1. Rebuild, and refresh the copy the harness reads — BEFORE EVERY RUN.
+cd frontend/maquette/design
+npm run build
+cp dist/index.html /tmp/tm-refonte/wrapped.html
+rm -rf /tmp/tm-refonte/vite && { [ -d dist/vite ] && cp -R dist/vite /tmp/tm-refonte/vite || true; }
+ln -sfn "$(git rev-parse --show-toplevel)/frontend/maquette/design/assets" /tmp/tm-refonte/assets
+
+# 2. The harness host — check before starting, it is usually already running.
+lsof -nP -iTCP:8899 -sTCP:LISTEN || (cd /private/tmp/tm-refonte && python3 -m http.server 8899 --bind 127.0.0.1 &)
 ```
 
-`serve.py` serves the BUILD (`design/dist/`), rebuilding under lock when sources
-change — a plain `http.server` would serve the sources and measure nothing real.
+Two traps, each paid for twice: a STALE COPY of the rule scripts lives in `/tmp/tm-refonte` —
+running those measures the previous version; and a `wrapped.html` that was not re-copied
+measures the previous build.
 
 The prototype needs a wrapper supplying a viewport meta; the harness scripts build one. Without
 it Chrome falls back to the legacy 980px layout viewport and every measurement is wrong.
 
-**Run the harness** with the Python that carries Playwright — it is the only one that has it:
+**Run the harness.** The project's own `python3` (3.12.4, Playwright 1.62.0) carries Playwright;
+the hardcoded 3.11.9 path this file used to require is no longer needed (PM2 keeps it for
+`serve.py`).
 
 ```bash
 cd frontend/maquette/harness
 for s in *.py; do
   [ "$s" = common.py ] && continue   # the shared plumbing, not a rule
-  /Users/izno/.pyenv/versions/3.11.9/bin/python3 "$s" > /dev/null || echo "FAILED: $s"
+  python3 "$s" > /dev/null || echo "FAILED: $s"
 done
 ```
 
@@ -214,6 +255,28 @@ ln -sfn "$(git rev-parse --show-toplevel)/frontend/maquette/design/assets" /tmp/
 
 `pwa.py` measures the LIVE host `tm-design.iznogoudatall.xyz`, not the local server. After
 editing `serve.py`: `pm2 restart torrentmate-design`.
+
+---
+
+## THE MISSION — dictated by the operator, 2026-08-19
+
+**The maquette is a NEW VERSION of the app, and EVERY screen is to be redrawn. All of them.**
+It is not a reskin of the shipped surfaces and it is not bounded by what production has today.
+Its purpose is a new, COHERENT user experience, and the first objective is to **freeze that
+interface**.
+
+- **No surface is out of scope.** A production screen with no page here is a page still to be
+  drawn, never an arbitration to leave it out.
+- **What the maquette already holds is VALIDATED** by the operator. Do not relitigate it.
+- **What remains is not only pages**: the UX, the interaction language and the prototype's
+  ARCHITECTURE all have to be finished and consolidated before the interface is frozen.
+- **The backend follows the interface.** The engine will be adapted to what the new interface
+  needs, and that work comes AFTER the freeze. A backend limitation is therefore never a reason
+  to draw less — record it, and draw what the experience requires.
+
+**This supersedes the `Gone | Contrôle` ruling below.** Read the section that follows as the UX
+argument for WHERE those panels belong — that argument stands — and never as a licence to leave
+`/control` or `/pipeline` undrawn. The operator overturned that exemption on 2026-08-19.
 
 ---
 
@@ -240,8 +303,14 @@ operator rather than split down the middle, and the arbitration replaced the que
 
 That axis is the reason the panels can be placed at all. Production's `/controle` has no axis —
 it stacks blocked media (`ATraiterList`) on top of disk and provider health (`CompactHealth`)
-with nothing saying why they share a page. **So `Contrôle` does not survive as a destination**:
-its seven panels each have a home under the rule, and none of those homes is a new page.
+with nothing saying why they share a page. **So `Contrôle` does not survive AS IT IS**: its
+seven panels each have a home under the rule.
+
+> ⚠ **Amended 2026-08-19.** This paragraph used to conclude « none of those homes is a new
+> page », and that was read as « `/control` and `/pipeline` are deliberately page-less ». The
+> operator has overturned that: every screen is redrawn, these two included. What survives here
+> is the PLACEMENT argument — a medium in trouble is Arrivées, a machine in trouble is Système —
+> not an exemption from being drawn.
 
 |         |                                                                           |
 | ------- | ------------------------------------------------------------------------- |
@@ -267,7 +336,12 @@ the third is derived from the rule rather than asked again.
 | `LastRunDigest` — « X détectés, Y récupérés »         | **Arrivées**    | a count of media, not of executions. The run's _history_ is Système's; the last run's _result_ is the story of what arrived                                                       |
 | `StalledPanel` — per-step reasons                     | **split**       | a torrent deferred for ratio is a medium (Arrivées); a step that raised is code (Système). The operator's rule is explicit: no blocked medium in Système, but its code errors yes |
 
-### What is therefore still owed — nothing, as far as the SURFACES go
+### The surfaces drawn so far — and the two the operator has since re-opened
+
+**Every row below is drawn and VALIDATED.** What this table is NOT is a statement that the
+surface inventory is closed: since 2026-08-19 the mission is that every screen is redrawn, so
+`/control` and `/pipeline` — production tabs with no page here — are **owed**, and this table
+does not yet list them.
 
 | Surface                                                                | State                                                                                                                            | Rule                       |
 | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
@@ -290,27 +364,41 @@ directions, R68 against `web.json5`.
 ## The third axis: what the prototype owes as an APPLICATION
 
 The operator's judgement is on the design **and** the front-end architecture. The design is
-measured by 71 rules; the architecture was measured by nothing. These are its numbers, read from
-the file rather than remembered — the column on the right is what changed while the missing
-surfaces were being drawn.
+measured by 51 rule scripts (`ls frontend/maquette/harness/*.py` → 52, minus `common.py`, which
+is shared plumbing) over 80 numbered rules recorded in `regions.json`'s `$adversarialReview`;
+the architecture was measured by nothing.
 
-| Measure                              | Today               | Before                        |
-| ------------------------------------ | ------------------- | ----------------------------- |
-| lines of code (poster data excluded) | 41,400              | 39,454                        |
-| hardcoded data sets                  | **83**              | 57                            |
-| network calls                        | **1**               | 1                             |
-| direct `state.` accesses             | **265**             | 248                           |
-| `render()`                           | 1 defined, 47 calls | 1 defined, 43 calls           |
-| named `window.__` seams              | **11**              | 21 counted with their usages  |
-| `history.pushState` / `replaceState` | 5 / 3               | 4 / 0                         |
-| **reads of `location`**              | **3**               | **0**                         |
+**EVERY FIGURE BELOW CARRIES ITS DATE AND ITS COMMAND, and that is the point of the column.**
+The version of this table dated 2026-08-16 was taken before the single file was split, and by
+2026-08-19 not one of its eight rows was still true — yet it was captioned « Today » and was
+read as current for three days. Worse, two of its numbers (« 83 » and « 265 ») could not be
+reproduced by any command anyone could name. Re-measure before citing; if a row's command no
+longer produces its number, the row is stale, not the code.
+
+All commands run from `frontend/maquette/design/src`, over `*.js`, `*.ts` and `*.tsx`.
+
+| Measure | 2026-08-19 | Command | 2026-08-16 |
+| --- | --- | --- | --- |
+| lines of code | **42 176** | `find . -name '*.js' -o -name '*.ts' -o -name '*.tsx' \| xargs wc -l` | 41 400 |
+| hardcoded data sets | **54** array literals | `grep -rEho '^\s*(const\|let\|var)\s+\w+\s*(:[^=]*)?=\s*\[' --include='*.js' --include='*.ts' --include='*.tsx' . \| wc -l` | « 83 », by no known command |
+| network calls | **1** | `grep -rEo '\b(fetch\|XMLHttpRequest\|axios)\s*\(' … \| wc -l` | 1 |
+| direct `state.` accesses | **142** | `grep -ro '\bstate\.' … \| wc -l` | « 265 », by no known command |
+| `currentState()` calls | **99** | `grep -ro 'currentState()' … \| wc -l` | not measured (the alias still existed) |
+| `render()` | 1 defined, **67** bare calls | `grep -rEo '(^\|[^.\w])render\(\)' … \| wc -l` | 1 defined, 47 calls |
+| named `window.__` seams | **26** distinct | `grep -rEo 'window\.__[A-Za-z0-9_]+' … \| sort -u` | 11 |
+| `history.pushState` / `replaceState` | **1 / 0** | `grep -rEo 'history\.(pushState\|replaceState)' …` | 5 / 3 |
+| reads of browser `location` | **6** | `grep -rEon '(window\.)?location\.[a-zA-Z]+' …`, minus TanStack's own `history.location` / `location.state` | 3 |
+
+Two of those moves are explained rather than mysterious: `pushState` fell to 1 because SP3 made
+the router the single writer of history, and `state.` fell from 265 to 142 because SP4-fin wave 3
+killed the alias — the reads did not disappear, 99 of them became `currentState()`.
 
 None of these numbers is a defect **of the prototype**: a single dependency-free file is
 exactly what made it verifiable. They are the **seams** the binding will have to open.
 
 ### The three questions, and what they are worth now
 
-**1. Where does a piece of data come in?** 83 constants, up from 57. The number rose and the
+**1. Where does a piece of data come in?** 54 array literals by the command in the table above (2026-08-19), against « 83 » claimed on 2026-08-16 by no command anyone can name — the figure depends entirely on what the regex counts, so cite the command with it or do not cite it. What matters is not the count: the number rose across the drawing waves and the
 situation improved, which is only apparently contradictory: every new constant is read from a
 living source named in its comment — `pipeline_run`, `pm2 jlist`, `df`, `library.db`, the
 maintenance registry, `web.json5`, `ecosystem.config.js` — and **four rules go back to those
@@ -321,19 +409,21 @@ registry in both directions, R68 reads `web.json5`, R63 reads `acquire.db`.
 That is the answer to the question, and it is executable: **a constant whose value is verified
 against its source is a named seam; a constant nothing verifies is a coupling.** R63 demonstrated
 it on its own by failing when the scheduler ran — a rule that fails with TIME does not signal a
-defect, it points at a seam. The triage remains to be done: how many of the 83 are verified, and
-how many are not.
+defect, it points at a seam. The triage remains to be done: how many of those constants are
+verified against their source, and how many are a coupling.
 
 **It fell again the same day**, a few hours later: the 15:20 run pushed Silo from 9 to 11. Twice
 in one session, without a single line of the prototype being touched. That is no longer an
 illustration of the question, it is its answer: **those constants cannot be maintained by hand,
 and the binding has no choice but to wire them.**
 
-**2. Who owns the state?** Nobody — 265 direct accesses, up from 248. Nothing moved on this
-front and that is deliberate: splitting the state requires splitting the file, and a single file
-is exactly what made those 71 rules writable. **This is the question that remains whole**, and
-the only one of the three that cannot be settled without first deciding how the prototype gets
-split.
+**2. Who owns the state?** Nobody — **142** direct `state.` accesses plus **99**
+`currentState()` calls (2026-08-19), against 265 measured on 2026-08-16. **Read that fall as a
+RENAME, not as progress**: SP4-fin wave 3 killed the `state` alias, so the reads moved to
+`currentState()` rather than going away. Nothing moved on the ownership front and that is
+deliberate: splitting the state requires splitting the file, and a single file is exactly what
+made the rule suite writable. **This is the question that remains whole**, and the only one of
+the three that cannot be settled without first deciding how the prototype gets split.
 
 One thing was still learned crossing it: `state.pipe` **leaked** from one named state to the
 next, so the same id did not render the same thing depending on the path taken to reach it. R10
@@ -355,10 +445,24 @@ and the interface never contradict each other. R69, `harness/url_state.py`.
 
 ---
 
-**Next action:** draw the missing surfaces in the order of the inventory above — Arrivées first,
-because it takes the largest transfer and the arbitration hangs on it — then answer the three
-questions of this section. Each surface follows the method below — real data, named states,
-a rule that bites, a mutation that proves it.
+**Next action:** frame the remaining work with the operator. Two things are owed and they are
+of different kinds:
+
+1. **The surfaces the mission re-opened** — `/control` and `/pipeline` have no page here, and
+   since 2026-08-19 that is a gap, not an arbitration. Drawing them is maquette-first work:
+   drawn, named states, a rule that bites, a mutation that proves it.
+2. **The visual language (SP5), the UX and the prototype's architecture** — including the three
+   questions of this section. SP5 has no written scope: it is to be agreed before any code.
+
+Every surface listed in the inventory above IS drawn and validated — `harness/arrivals.py` (R66)
+executes green against `library.db` for the most recent one — so nothing there is to be redone.
+
+**This line used to say « draw the missing surfaces — Arrivées first », and that was wrong from
+the day it was written.** It and the inventory that contradicts it landed in the SAME commit
+(`c49e7ada`): inside that one commit Arrivées was already marked **drawn** while this paragraph
+asked for it to be drawn. The contradiction was original, not drift — so « the lower line is
+older » is not an argument, and `git blame` refutes it. Whoever reads a conflict here again:
+the inventory is the one carrying material proof (a page component, a rule, an executed run).
 
 Note that question 3 was not only architecture: **DOIT-10 requires every detail to have its
 URL**, and the prototype's routes used to live in `state.page` alone. That non-conformity is
@@ -370,12 +474,19 @@ mapping onto production's paths.
 ## What the prototype already settles
 
 These were argued, measured and recorded. Re-opening one costs a day; the reasons are in
-`frontend/maquette/regions.json` → `$adversarialReview` (65 rules) and `$methodLessons` (37).
+`frontend/maquette/regions.json` → `$adversarialReview` (**80** R-entries as of 2026-08-19, « 65 » before) and, nested inside it, `$methodLessons` (**43**, « 37 » before).
 
 - **The prototype is the reference.** A divergence between the app and it is a defect in the app,
   unless the prototype was amended first with the reason written down.
-- **CSS is extracted, never retyped.** A hand edit to the generated stylesheet is reverted by the
-  drift guard.
+- **CSS is extracted, never retyped — SP5's TARGET, not today's state.** The extractor and its
+  drift guard are built and green, and a hand edit to the generated stylesheet *is* reverted by
+  them. What is not true, and what this line asserted flatly until 2026-08-19, is that any app
+  stylesheet is extracted: `frontend/src/styles/ps/app-surface.css` is imported by NOBODY —
+  `main.tsx` → `globals.css` → `ps/styles.css` + `ps/maquette-acquisition.css` → `tokens/*.css`,
+  and no path reaches it. Production is dressed by `frontend/src/styles/` as it stands. Wiring
+  the generated sheet in IS shipping the redesign, which is the operator's decision. The same
+  sentence was struck from `product-intent.md` on 2026-08-19 by that decision; this copy
+  survived, which is why it is spelled out here rather than merely deleted.
 - **Every gesture answers a pointer** — and a finger is read from the stream the compositor does
   not cancel. A gesture living inside the scrollport reads touch events; one that can claim its
   axis in `touch-action` keeps the pointer path.

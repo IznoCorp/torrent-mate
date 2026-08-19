@@ -172,3 +172,57 @@ class TestTheGuardItself:
         """A scope that empties must be visible AS ITSELF, so it needs a key."""
         assert "name words / dictionary" in guard.examined
         assert "interface text / app (exempt)" in guard.examined
+
+
+class TestTheSelfDescription:
+    """The arm that counts the arms — D12 of the 2026-08-19 handoff audit.
+
+    THREE FILES CARRIED THREE DIFFERENT COUNTS AND NONE WAS RIGHT. The module
+    docstring said « Four arms », `main` said « the four arms », the success
+    line enumerated nine of them, and `CLAUDE.md` said « eleven » — while
+    `main` actually called twelve. Each number had been typed by hand, so each
+    drifted on its own schedule, and a reader who trusted « four » stopped
+    looking for the other eight.
+
+    The count is DERIVED now — `ARMS` is the single list and everything else
+    reads its length — so these hold what prose still owns: the ENUMERATION in
+    the docstring, and the sentence in `CLAUDE.md` that names the same number
+    from another file entirely.
+    """
+
+    def test_no_arm_is_called_outside_the_list(self) -> None:
+        """`main` walks `ARMS`; a bare call beside the loop would run undeclared."""
+        assert guard.arms_bypassing_the_list() == []
+
+    def test_the_docstring_enumerates_every_arm(self) -> None:
+        """An arm nobody documented is an arm nobody knows to look for."""
+        violations: list[str] = []
+        guard.check_arm_count(violations)
+
+        assert violations == []
+
+    def test_a_missing_heading_is_refused(self, monkeypatch) -> None:
+        """Mutation: drop one heading from the docstring and the arm must bite."""
+        monkeypatch.setattr(guard, "__doc__", (guard.__doc__ or "").replace("**Test prose**", "**xx**"))
+        violations: list[str] = []
+
+        guard.check_arm_count(violations)
+
+        assert any("Test prose" in v for v in violations), violations
+
+    def test_a_wrong_count_in_CLAUDE_md_is_refused(self, monkeypatch, tmp_path) -> None:
+        """Mutation: the sentence in the OTHER file drifts, and the arm bites.
+
+        This is the one that would have caught D9 — `CLAUDE.md` said eleven for
+        as long as nothing read it from here.
+        """
+        fake = tmp_path / "CLAUDE.md"
+        fake.write_text(
+            "enforced by `scripts/check-no-french.py` (three arms, in `make check` and in CI):\n", encoding="utf-8"
+        )
+        monkeypatch.setattr(guard, "CLAUDE_MD", fake)
+        violations: list[str] = []
+
+        guard.check_arm_count(violations)
+
+        assert any("CLAUDE.md" in v for v in violations), violations

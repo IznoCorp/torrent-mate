@@ -194,6 +194,11 @@ FROZEN_IDENTIFIERS = {
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 WORD = re.compile(r"[A-Za-zÀ-ɏ]+")
+
+# What the app RENDERS is quoted, in this repository's own convention, inside
+# guillemets. A quotation is not a French name in the code — it is the code
+# naming what the reader of the interface sees — so it is removed before judging.
+QUOTED_UI = re.compile(r"«[^»]*»")
 PRAGMA = re.compile(
     r"(?:#|//|/\*)\s*french-ok:\s*(?P<reason>[^*]*)")
 
@@ -353,6 +358,7 @@ examined: dict[str, int] = {
     "interface text / app (exempt)": 0,
     "name words / dictionary": 0,
     "string literals / tests": 0,
+    "arms / self-description": 0,
 }
 
 # Counted, reported, and deliberately NOT refused. An exemption nobody counts
@@ -425,3 +431,41 @@ DICTIONARY_EXCEPTIONS: dict[str, str] = {
 }
 
 
+def offending_string(body: str, quoting_allowed: bool = False) -> str:
+    """Returns why a literal counts as French, or an empty string.
+
+    Args:
+        body: The literal, quotes included.
+        quoting_allowed: True for a tool message, which may NAME an interface
+            surface (« Médiathèque », Système, SIMULÉE) — the English sentence
+            says what is being read, and the French word is the thing read. A
+            capitalised accented word is such a name; a lowercase one is prose.
+
+    Returns:
+        The reason, ready to print, or "" when the literal is not French.
+    """
+    body = QUOTED_UI.sub(" ", body)
+    if quoting_allowed:
+        body = " ".join(w for w in re.split(r"(\s+)", body)
+                        if not (w[:1].isupper() and has_accent(w)))
+    if has_accent(body):
+        accents = sorted({c for c in body if has_accent(c)})
+        return f"accented characters {accents}"
+    found = WORD.findall(body)
+    # Lowercase in the SOURCE for the FUNCTION words only: French prose is
+    # lowercase, and `LA`/`EST`/`DES` are abbreviations. An interface LABEL is
+    # capitalised by nature — « Fermer » — so the label vocabulary reads every
+    # case.
+    words = {deaccent(word).lower() for word in found}
+    lowercase = {deaccent(word).lower() for word in found if word.islower()}
+    hits = sorted(lowercase & FRENCH_FUNCTION_WORDS)
+    if len(hits) >= 2:
+        return f"French function words {hits}"
+    # A tool message may NAME the button it presses — « a Retour from the sheet
+    # lands on … » — and that name is capitalised. Inside the application's own
+    # code there is no such excuse, so there the label vocabulary reads every
+    # case.
+    labels = sorted((lowercase if quoting_allowed else words) & FRENCH_UI_WORDS)
+    if labels:
+        return f"French interface words {labels}"
+    return ""

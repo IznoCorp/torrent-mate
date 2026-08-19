@@ -7,8 +7,10 @@ lives in the code**: the French a reader of the interface sees lives in the i18n
 resources. This script is the half of the rule that is enforced rather than
 remembered; it runs in `make check` and in CI.
 
-Four arms, each with its own scope, because "French" means a different thing in a
-component than it does in a rule script that ASSERTS the French the app renders:
+Thirteen arms, each with its own scope, because "French" means a different thing
+in a component than it does in a rule script that ASSERTS the French the app
+renders. `ARMS` is the list `main` walks; arm 13 holds this enumeration against
+it, so an arm added without a heading here fails the gate:
 
 1. **Strings** — over the shell's own sources (`design/src`, minus `src/i18n`), the
    two servers and the harness's `.mjs` tools: a string literal carrying an
@@ -30,6 +32,34 @@ component than it does in a rule script that ASSERTS the French the app renders:
    DECLARES (`design/refonte.html`) plus the stylesheet extracted from it
    (`frontend/src/styles/ps/*.css`). A class name is one name shared by four
    worlds, which is why it gets an arm of its own.
+5. **Unread JavaScript** — a `.js` under the shell that every other arm's globs
+   walk past. One file is allowed to be there (the legacy engine); a second one
+   turning up would be a scope silently emptying.
+6. **Vocabulary** — the question turned around. Not « is this word French? »,
+   whose answer is only ever as good as the list of French words behind it, but
+   « is this word one we use? », read from `scripts/code-vocabulary.txt`.
+7. **`data-*` names** — an attribute name is a name someone chose, so it obeys
+   the rule. Their VALUES do not: `data-go="profile"` names a page, and a page
+   id is an address.
+8. **The engine's declared debt** — the French words the legacy engine still
+   needs, listed below a banner in the vocabulary and refused to every other
+   file, so a vocabulary seeded from the code cannot licence the debt it exists
+   to catch.
+9. **Shell scripts** — every line a `.sh` prints is the tool speaking, and no
+   arm read one at all until three all-French scripts turned up.
+10. **Dictionary** — a declared name built from a word French knows and English
+   does not. Fail-soft when `aspell` is absent, and it SAYS so: absence must
+   never read as cleanliness.
+11. **App interface text** — `frontend/src` is exempt by the operator's ruling,
+   and the exemption is a RATCHET: the French there is counted and refused to
+   grow. Body in `nofrench_ratchets.py`.
+12. **Test prose** — the French in `tests/`, counted and held to a baseline.
+   The French a harness ASSERTS is the app's rendered output and stays; a
+   docstring or a tool message is English. Body in `nofrench_ratchets.py`.
+13. **The self-description** — the arm that counts the arms. Three files
+   carried three different counts and none of them was right; this one reads
+   `main`, this docstring and `CLAUDE.md`, and refuses a description that has
+   drifted away from the arms that actually run.
 
 Each arm also reports how much it READ, and an arm that read nothing is itself a
 violation: a scope that silently empties — a renamed directory, a glob that stops
@@ -66,14 +96,22 @@ from pathlib import Path
 
 # The lexicon and the helpers that read it live beside this file: the arms are
 # the questions, and those are the words the questions are asked in.
-# The guard and its lexicon: the two files whose French is their subject.
-SELF = {Path(__file__).name, "nofrench_lexicon.py"}
+# The guard and the modules split out of it: the files whose French is their
+# SUBJECT, so French in them is the question and never a violation. A file
+# belongs here only if it is genuinely part of the guard — an ordinary tool
+# landing in this set stops being read at all, which is a scope emptied by hand.
+SELF = {Path(__file__).name, "nofrench_lexicon.py", "nofrench_ratchets.py"}
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from nofrench_lexicon import *  # noqa: E402, F403
 from nofrench_scan import (  # noqa: E402
     code_only, inside_quotes, python_declarations, python_string_literals,
     script_string_literals,
+)
+# Arms 11 and 12 — the two that COUNT rather than refuse. They stay in `ARMS`;
+# only their bodies live next door, where that module's header says why.
+from nofrench_ratchets import (  # noqa: E402
+    check_app_interface_text, check_test_prose, jsx_text,
 )
 from nofrench_lexicon import (  # noqa: E402
     DEBT_BANNER, DEBT_FILE, DICTIONARY_EXCEPTIONS, EXTRACTED_CSS, FRAGMENT,
@@ -99,55 +137,10 @@ HOLD_LABEL = re.compile(
     r"""(?P<q>'''|\"\"\"|'|")"""
     r"""(?P<body>(?:\\.|(?!(?P=q))[^\\])*)(?P=q)""", re.S)
 
-# What the app RENDERS is quoted, in this repository's own convention, inside
-# guillemets. A quotation is not a French name in the code — it is the code
-# naming what the reader of the interface sees — so it is removed before judging.
-QUOTED_UI = re.compile(r"«[^»]*»")
-
 # The text between two tags. Interface copy in JSX carries no quotes at all, so
 # a scanner that only reads string literals walks straight past the very thing
 # arm 1 exists to find: `<p>Réglages du système</p>` is not a literal.
 JSX_TEXT = re.compile(r">([^<>{}]+)<")
-
-
-def offending_string(body: str, quoting_allowed: bool = False) -> str:
-    """Returns why a literal counts as French, or an empty string.
-
-    Args:
-        body: The literal, quotes included.
-        quoting_allowed: True for a tool message, which may NAME an interface
-            surface (« Médiathèque », Système, SIMULÉE) — the English sentence
-            says what is being read, and the French word is the thing read. A
-            capitalised accented word is such a name; a lowercase one is prose.
-
-    Returns:
-        The reason, ready to print, or "" when the literal is not French.
-    """
-    body = QUOTED_UI.sub(" ", body)
-    if quoting_allowed:
-        body = " ".join(w for w in re.split(r"(\s+)", body)
-                        if not (w[:1].isupper() and has_accent(w)))
-    if has_accent(body):
-        accents = sorted({c for c in body if has_accent(c)})
-        return f"accented characters {accents}"
-    found = WORD.findall(body)
-    # Lowercase in the SOURCE for the FUNCTION words only: French prose is
-    # lowercase, and `LA`/`EST`/`DES` are abbreviations. An interface LABEL is
-    # capitalised by nature — « Fermer » — so the label vocabulary reads every
-    # case.
-    words = {deaccent(word).lower() for word in found}
-    lowercase = {deaccent(word).lower() for word in found if word.islower()}
-    hits = sorted(lowercase & FRENCH_FUNCTION_WORDS)
-    if len(hits) >= 2:
-        return f"French function words {hits}"
-    # A tool message may NAME the button it presses — « a Retour from the sheet
-    # lands on … » — and that name is capitalised. Inside the application's own
-    # code there is no such excuse, so there the label vocabulary reads every
-    # case.
-    labels = sorted((lowercase if quoting_allowed else words) & FRENCH_UI_WORDS)
-    if labels:
-        return f"French interface words {labels}"
-    return ""
 
 
 def pragma_on(lines: list[str], line_no: int) -> str | None:
@@ -927,162 +920,133 @@ def check_dictionary(violations: list[str]) -> None:
             f"in {relative(Path(__file__))} with the reason it is not French here")
 
 
-# JSX text for the EXEMPTION COUNT. Deliberately a distinct name from arm 1's
-# `JSX_TEXT` above: defining a second `JSX_TEXT` here shadowed it and quietly
-# dropped that arm's coverage from 124 rendered strings to 59.
-JSX_TEXT_NODE = re.compile(r">([^<>{}]*[A-Za-zÀ-ÿ][^<>{}]*)<")
 
 
-def jsx_text(source: str) -> list[str]:
-    """Returns the text nodes of a JSX source.
 
-    Interface copy in JSX carries no quotes, so a scanner reading only string
-    literals walks past the very thing it is looking for.
+# ── arm 13: the self-description ─────────────────────────────────────────────
+#
+# THREE FILES CARRIED THREE COUNTS AND NOT ONE WAS RIGHT. This docstring said
+# « Four arms », `main` said « the four arms », the success line enumerated nine
+# of them, and `CLAUDE.md` said « eleven » — while `main` was calling twelve.
+# Every one of those numbers had been typed by hand, so every one drifted on its
+# own schedule, and a reader who believed « four » stopped looking for the other
+# eight. A count nobody compares is a count nobody reads.
+#
+# So the count is DERIVED now: `ARMS` is the one list, `main` walks it, and the
+# success line prints its length — none of those three can drift again, because
+# none of them is typed. What prose still owns is the ENUMERATION (one numbered
+# heading per arm, up in the module docstring) and the sentence in `CLAUDE.md`,
+# which lives in another file entirely and so needs a reader HERE. This is an
+# arm rather than an assertion because a false description of the rule is a
+# violation of the same kind as a French name: both let a reader believe a scope
+# is covered when it is not.
 
-    Args:
-        source: The `.tsx` source.
+CLAUDE_MD = ROOT / "CLAUDE.md"
+
+# `CLAUDE.md` §Language, the sentence naming this script and its arm count.
+CLAUDE_MD_ARMS = re.compile(r"`scripts/check-no-french\.py`\s*\((?P<word>[a-z]+) arms")
+
+NUMBER_WORDS = {
+    1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six",
+    7: "seven", 8: "eight", 9: "nine", 10: "ten", 11: "eleven", 12: "twelve",
+    13: "thirteen", 14: "fourteen", 15: "fifteen", 16: "sixteen",
+    17: "seventeen", 18: "eighteen", 19: "nineteen", 20: "twenty",
+}
+
+
+def arms_bypassing_the_list() -> list[str]:
+    """Returns any arm `main` calls OUTSIDE `ARMS`.
+
+    `main` walks `ARMS`, so the count cannot drift by construction — but a later
+    hand could still drop a bare `check_something(violations)` beside the loop,
+    and that arm would run undeclared, undocumented and uncounted. Read off the
+    code that runs, never off a statement about it.
 
     Returns:
-        Each text node, whitespace-trimmed, long enough to be a sentence.
+        The `check_*` names called directly in `main`. Empty is healthy.
     """
-    return [body.strip() for body in JSX_TEXT_NODE.findall(source)
-            if len(body.strip().split()) >= 3]
+    body = next(node for node in ast.walk(ast.parse(read(Path(__file__))))
+                if isinstance(node, ast.FunctionDef) and node.name == "main")
+    return [node.value.func.id for node in ast.walk(body)
+            if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Name)
+            and node.value.func.id.startswith("check_")]
 
 
-def check_app_interface_text(violations: list[str]) -> None:
-    """Measures the French interface text `frontend/src` carries, and says so.
+def check_arm_count(violations: list[str]) -> None:
+    """Refuses a self-description that disagrees with the arms that run.
 
-    THIS ARM DOES NOT REFUSE. `frontend/src` is the React application the
-    maquette shell is being built to replace, and it has no i18n layer at all —
-    no `i18n/` directory, no `useTranslation`. Its French is written straight
-    into the components. The operator ruled that this is an ACCEPTED state
-    rather than a defect: moving that copy into resources would be work thrown
-    away with the app that holds it. §Language names two i18n surfaces — the
-    maquette shell and `serve.py`'s pages — and this is deliberately neither.
-
-    So why an arm at all? Because the string arm walks the shell, the servers,
-    the harness tools and the repository tools, and NOT this tree — and an
-    unread scope reports « no violation » about a place it never opened. That
-    is how 842 French strings sat under a green gate, and how `id="coquille"`
-    and three all-French shell scripts sat under it before them. An exemption
-    nobody counts is indistinguishable from an oversight.
-
-    The count is therefore published in the ledger beside every other scope. It
-    reads the whole tree, so it drops to zero only if the tree empties — and
-    the ledger already refuses a scope that examined NOTHING.
-
-    Args:
-        violations: The accumulator every arm appends to. Nothing is added:
-            this arm measures, and the measurement is its whole output.
-    """
-    app = ROOT / "frontend" / "src"
-    production = tests = 0
-    for path in sorted(app.rglob("*")):
-        if not path.is_file() or path.suffix not in {".ts", ".tsx"}:
-            continue
-        source = read(path)
-        literals = script_string_literals(source)
-        examined["interface text / app (exempt)"] += len(literals)
-        # JSX TEXT CARRIES NO QUOTES, which is the very shape arm 1 exists to
-        # find — and this arm walked straight past it, so the published number
-        # was short by ~9% and could not move when French JSX copy was added.
-        found = sum(1 for _, body in literals if offending_string(body))
-        found += sum(1 for body in jsx_text(source) if offending_string(body))
-        if path.name.endswith((".test.ts", ".test.tsx")) or "__tests__" in path.parts:
-            tests += found
-        else:
-            production += found
-    # SPLIT, because they are not the same thing. French a test ASSERTS is the
-    # app's rendered output — CLAUDE.md already rules it legitimate — and it was
-    # 72% of the headline figure, masking the number that matters.
-    exempted["french interface strings / app (production)"] = production
-    exempted["french interface strings / app (asserted by tests)"] = tests
-
-    # A RATCHET, not a print. The count drifted +7 inside the very PR that
-    # introduced it as a control, and nothing noticed: a number nobody compares
-    # is a number nobody reads. Only the PRODUCTION figure is pinned — lowering
-    # it is the only thing that lowers the baseline.
-    baseline_path = ROOT / "scripts" / "french-exemption-baseline.json"
-    try:
-        baseline = json.loads(baseline_path.read_text(encoding="utf-8"))["production"]
-    except (OSError, ValueError, KeyError):
-        violations.append(
-            f"{relative(baseline_path)} is missing or unreadable — the exemption "
-            "has no baseline, so nothing would notice it growing")
-        return
-    if production > baseline:
-        violations.append(
-            f"the accepted French in `frontend/src` GREW: {production} production "
-            f"strings against a baseline of {baseline}. The exemption covers what "
-            "is already there, never more — move the new copy out, or lower the "
-            f"baseline in {relative(baseline_path)} deliberately.")
-
-
-def check_test_prose(violations: list[str]) -> None:
-    """Reads the French in `tests/`, counts it, and refuses it growing.
-
-    UNREAD AND UNCOUNTED, which is the worst of the two states. CLAUDE.md is
-    unambiguous that docstrings are English and that a tool's messages are
-    English — and no arm opened `tests/` for strings at all, so 413 French
-    literals sat there while the gate reported no violation and no counter
-    named the scope. `personalscraper/`'s French has a documented carve-out
-    (the CLI speaks to the operator, in French); `tests/` has none.
-
-    Translating them is a separate piece of work — 159 docstrings and 110
-    assertion messages, each of which has to be read to be moved. What must not
-    wait is the invisibility: an unread scope reports « no violation » about a
-    place it never opened, and that is how every hole this file has had began.
-
-    So the scope is read, published, and RATCHETED: it may shrink, never grow.
-    A new French docstring in a test is refused today; the existing ones are a
-    declared debt with a number attached.
+    Holds three things against `ARMS`: that nothing is called around it, that
+    the module docstring carries a numbered heading for each arm, and that the
+    sentence in `CLAUDE.md` names the same count.
 
     Args:
         violations: The accumulator every arm appends to.
     """
-    french = 0
-    for path in sorted((ROOT / "tests").rglob("*.py")):
-        source = read(path)
-        literals = python_string_literals(source)
-        examined["string literals / tests"] += len(literals)
-        french += sum(1 for _, body in literals if offending_string(body))
-    exempted["french strings / tests"] = french
+    examined["arms / self-description"] += len(ARMS)
+    bypassing = arms_bypassing_the_list()
+    if bypassing:
+        violations.append(
+            f"`main` calls {bypassing} directly instead of through `ARMS` — an "
+            "arm that runs undeclared is documented by nothing and counted by "
+            "nothing, which is the state this arm exists to end")
 
-    baseline_path = ROOT / "scripts" / "french-exemption-baseline.json"
+    doc = __doc__ or ""
+    for position, (_, label) in enumerate(ARMS, start=1):
+        if f"{position}. **{label}**" not in doc:
+            violations.append(
+                f"the module docstring carries no « {position}. **{label}** » "
+                "heading — an arm nobody documented is an arm nobody knows to "
+                "look for, which is how three of these went unnamed for a wave")
+
+    word = NUMBER_WORDS.get(len(ARMS), str(len(ARMS)))
     try:
-        baseline = json.loads(baseline_path.read_text(encoding="utf-8"))["tests"]
-    except (OSError, ValueError, KeyError):
+        claimed = CLAUDE_MD_ARMS.search(read(CLAUDE_MD))
+    except OSError:
+        claimed = None
+    if claimed is None:
         violations.append(
-            f"{relative(baseline_path)} has no `tests` baseline — the scope "
-            "would be read and counted, and still free to grow")
-        return
-    if french > baseline:
+            f"{CLAUDE_MD.name} no longer carries the sentence naming this "
+            "script's arm count — the cross-file reader that catches its drift "
+            "has nothing left to read, so restore it or retire this hold")
+    elif claimed.group("word") != word:
         violations.append(
-            f"the French in `tests/` GREW: {french} strings against a baseline "
-            f"of {baseline}. Docstrings and tool messages are English "
-            f"(CLAUDE.md §Language) — write the new one in English, or lower "
-            f"the baseline in {relative(baseline_path)} deliberately.")
+            f"{CLAUDE_MD.name} says « {claimed.group('word')} arms » and there "
+            f"are {len(ARMS)} — write « {word} ». That sentence was wrong for a "
+            "whole wave, for the single reason that nothing read it.")
+
+
+# THE ONE LIST. Every count in this file is `len(ARMS)` or derived from it, and
+# the label beside each arm is the heading its docstring entry must carry.
+ARMS: tuple[tuple[object, str], ...] = (
+    (check_strings, "Strings"),
+    (check_identifiers, "Identifiers"),
+    (check_file_names, "File names"),
+    (check_class_names, "Class names"),
+    (check_unread_javascript, "Unread JavaScript"),
+    (check_vocabulary, "Vocabulary"),
+    (check_data_attributes, "`data-*` names"),
+    (check_french_debt, "The engine's declared debt"),
+    (check_shell_scripts, "Shell scripts"),
+    (check_dictionary, "Dictionary"),
+    (check_app_interface_text, "App interface text"),
+    (check_test_prose, "Test prose"),
+    (check_arm_count, "The self-description"),
+)
 
 
 def main() -> int:
-    """Runs the four arms and reports every violation.
+    """Runs every arm in `ARMS` and reports every violation.
+
+    The arms are WALKED rather than listed again here: a hand-written second
+    list is a count that drifts, and this one drifted three times (see arm 13).
 
     Returns:
         1 when anything was found, 0 otherwise.
     """
     violations: list[str] = []
-    check_strings(violations)
-    check_identifiers(violations)
-    check_file_names(violations)
-    check_class_names(violations)
-    check_unread_javascript(violations)
-    check_vocabulary(violations)
-    check_data_attributes(violations)
-    check_french_debt(violations)
-    check_shell_scripts(violations)
-    check_dictionary(violations)
-    check_app_interface_text(violations)
-    check_test_prose(violations)
+    for arm, _ in ARMS:
+        arm(violations)
     for what, count in examined.items():
         if count == 0:
             violations.append(
@@ -1097,9 +1061,9 @@ def main() -> int:
               "a reader of the interface sees lives in the i18n resources.",
               file=sys.stderr)
         return 1
-    print("no-French guardrail: 4 arms + the vocabulary + the markup names + "
-          "the engine's declared debt + the shell scripts + the "
-          "unread-JavaScript ledger, no violation — read "
+    print(f"no-French guardrail: {len(ARMS)} arms ("
+          + ", ".join(label for _, label in ARMS)
+          + "), no violation — read "
           + ", ".join(f"{count} {what}" for what, count in examined.items()))
     # Named out loud, every run. The operator ACCEPTED this French; what must
     # never happen again is it being invisible.

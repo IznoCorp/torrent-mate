@@ -6,6 +6,21 @@
 > app is bound to it afterwards, in a separate mission, and only once the operator judges the
 > design and the front-end architecture solid enough. The inventory of what is still owed is in
 > `IMPLEMENTATION.md`.
+>
+> **Restated and widened, 2026-08-19 — EVERY screen is to be redrawn. All of them.** This is a
+> new version of the app, not a reskin: its purpose is a new, COHERENT user experience, and the
+> first objective is to FREEZE that interface. Four things follow.
+>
+> 1. **No surface is out of scope.** A production screen with no page here is owed, never an
+>    arbitration to leave it out. `/control` and `/pipeline` had been ruled deliberately
+>    page-less; the operator overturned that on 2026-08-19. Where their panels BELONG remains a
+>    live UX argument (`IMPLEMENTATION.md`); being drawn is no longer in question.
+> 2. **What this prototype already holds is VALIDATED** by the operator. Do not relitigate it.
+> 3. **What remains is not only pages** — the UX, the interaction language and this prototype's
+>    own ARCHITECTURE have to be finished and consolidated before the freeze.
+> 4. **The backend follows the interface.** The engine will be adapted to what the new interface
+>    needs, and that comes AFTER the freeze — so a backend limitation is never a reason to draw
+>    less. Record it, and draw what the experience requires.
 
 **`design/refonte.html` is the design reference for the TorrentMate web UI. Any change to the
 design starts here, not in `frontend/src`.**
@@ -165,8 +180,8 @@ replace?)` and `.releases(titre)`. `resolution`'s argument is optional: the lega
 picked the first stuck folder itself when called with none, and the shell reproduces that default
 rather than pushing the choice onto each caller; its `replace` flag turns a legacy
 close-then-reopen (a pop plus a push, net one history entry) into a single `go(..., replace:
-true)`, worth exactly as much. `releases` writes `state.relTitre` — the legacy function's own
-first line — BEFORE navigating, since the `data-prendre` delegation branch still reads it after
+true)`, worth exactly as much. `releases` writes `state.relatedTitle` — the legacy function's own
+first line — BEFORE navigating, since the `data-take` delegation branch still reads it after
 the route has rendered. `releaseCardHTML`/`decisionCardHTML`, the legacy builders both screens
 drew their cards with, are gone once their last caller moved: `ReleaseCard` and `DecisionCard`
 (`design/src/screens/resolution.tsx`) are what replaced them. R75 extends with six holds for the

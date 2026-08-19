@@ -88,7 +88,7 @@ type Screens = {
   mediaSheet: (title: string) => void;
   // The release-choice screen — same `title`-crosses-as-a-plain-string
   // contract as `mediaSheet`/`profile` above. Unlike them, it also writes
-  // `state.relTitre` (the legacy first line of `openReleases`, still read by
+  // `state.relatedTitle` (the legacy first line of `openReleases`, still read by
   // the `data-take` click-delegation branch) BEFORE navigating.
   releases: (title: string) => void;
   // The arbitration screen — the folder crosses as a plain string, and the
@@ -490,7 +490,7 @@ window.__screens = {
   mediaSheet: (title: string) =>
     go({ to: "/mediasheet/$title", params: { title: title.normalize("NFC") } }),
   // The legacy `openReleases`'s own first line, transplanted here rather than
-  // into the component: `state.relTitre` is what the `data-take`
+  // into the component: `state.relatedTitle` is what the `data-take`
   // click-delegation branch reads once the operator picks a candidate, and it
   // must be current BEFORE the route renders, exactly as the legacy function
   // wrote it before drawing the screen. This file is SHELL code — the seam
