@@ -135,8 +135,8 @@ async def main():
         # The cookie the gate hands out is unknown here — the password is not in
         # the repository — but ANY value must be refused once expired, and an
         # empty one is exactly what the browser is left holding.
-        statut_apres, _ = request_path("/", cookie="tm_design=")
-        check("an expired cookie reopens nothing", statut_apres == 401, str(statut_apres))
+        status_after, _ = request_path("/", cookie="tm_design=")
+        check("an expired cookie reopens nothing", status_after == 401, str(status_after))
     finally:
         server.terminate()
         server.wait(timeout=5)

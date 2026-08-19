@@ -396,7 +396,12 @@ examined: dict[str, int] = {
     "data-* names / markup": 0,
     "french debt words / vocabulary": 0,
     "lines / shell scripts": 0,
+    "interface text / app (exempt)": 0,
 }
+
+# Counted, reported, and deliberately NOT refused. An exemption nobody counts
+# is indistinguishable from an oversight, so each one carries its number.
+exempted: dict[str, int] = {}
 
 
 def scope_of(path: Path) -> str:
@@ -582,7 +587,7 @@ def pragma_on(lines: list[str], line_no: int) -> str | None:
         JSX attribute has no room for a trailing comment, and a wrapped literal
         must not silently lose its permission to a line break.
     """
-    for candidate in (line_no, line_no - 1):
+    for candidate in (line_no, line_no - 1, line_no + 1):
         if not 1 <= candidate <= len(lines):
             continue
         line = lines[candidate - 1]
@@ -646,7 +651,10 @@ def check_strings(violations: list[str]) -> None:
     # This file is the one exception the arm makes for itself: its French IS its
     # subject — the lexicon is a list of French words, and pragmas on a word list
     # would say nothing a reader does not already see.
-    strict += [p for p in sorted(SCRIPTS.glob("*.py"))
+    # `rglob`: `scripts/ops/` holds nine more tools one level down, and a glob
+    # one level deep read none of them. A scope is checked the same way a name
+    # is — `scripts/` is not `scripts/ops/`.
+    strict += [p for p in sorted(SCRIPTS.rglob("*.py"))
                if p.name != Path(__file__).name]
     for path in sorted(strict):
         source = read(path)
@@ -753,7 +761,7 @@ def check_identifiers(violations: list[str]) -> None:
     """Runs the identifier arm over the shell, the servers, the harness, the tools."""
     python = ([MAQUETTE / "serve.py", MAQUETTE / "resync.py"]
               + sorted(HARNESS.glob("*.py"))
-              + [p for p in sorted(SCRIPTS.glob("*.py"))
+              + [p for p in sorted(SCRIPTS.rglob("*.py"))
                  if p.name != Path(__file__).name]
               # `frontend/scripts/` is not `scripts/`, and that one letter of
               # scope left an entire tool — 18 French names, `SORTIE`, `JAUNE`,
@@ -952,7 +960,11 @@ def check_class_names(violations: list[str]) -> None:
     # `rglob`, and the whole styles tree: `ps/tokens/` holds six real
     # stylesheets and `globals.css` sits beside `ps/`, all of them unread while
     # the arm globbed one directory one level deep.
-    sheets = [FRAGMENT] + sorted((ROOT / "frontend" / "src" / "styles").rglob("*.css"))
+    # Every stylesheet under `frontend/src`, not only those under `styles/`:
+    # four sit beside the component they dress (`ds/LogLine.css`,
+    # `ds/StatPanel.css`, `ds/StatusDot.css`, `pipeline/PipelineStepper.css`)
+    # and declared 49 class names no arm read.
+    sheets = [FRAGMENT] + sorted((ROOT / "frontend" / "src").rglob("*.css"))
     for path in sheets:
         if not path.is_file():
             continue
@@ -1042,7 +1054,8 @@ def check_french_debt(violations: list[str]) -> None:
                 r"([A-Za-z_$][\w$]*)", source):
             name = match.group(1)
             line_no = source[: match.start()].count("\n") + 1
-            if pragma_on(lines, line_no) is not None:
+            # Same as the vocabulary arm: an empty reason grants nothing.
+            if pragma_on(lines, line_no):
                 continue
             borrowed = [w for w in split_identifier(name) if w.lower() in owed]
             if borrowed:
@@ -1160,7 +1173,9 @@ def check_vocabulary(violations: list[str]) -> None:
             if name in FROZEN_IDENTIFIERS:
                 continue
             line_no = source[: match.start()].count("\n") + 1
-            if pragma_on(lines, line_no) is not None:
+            # A pragma citing NOTHING is not a grant (module docstring):
+            # `is not None` accepted a bare `french-ok:` and silenced the arm.
+            if pragma_on(lines, line_no):
                 continue
             examined["name words / shell"] += 1
             unknown = [w for w in split_identifier(name)
@@ -1199,14 +1214,24 @@ def check_data_attributes(violations: list[str]) -> None:
     # `design/index.html` is the application shell's markup since SP4-fin wave
     # 2, and it was read by no arm: `id="coquille"` — the React mount point —
     # sat there in French while every gate was green.
-    sources += [FRAGMENT, MAQUETTE / "design" / "index.html"]
+    # And `frontend/index.html` beside it: the maquette's twin was added when
+    # `id="coquille"` was found in it, and the PRODUCTION app's own shell markup
+    # — the one actually served — was left unread by the same arm.
+    sources += [FRAGMENT, MAQUETTE / "design" / "index.html",
+                ROOT / "frontend" / "index.html"]
     sources += [p for p in (ROOT / "frontend" / "src").rglob("*")
                 if p.is_file() and p.suffix in {".ts", ".tsx", ".css"}]
     for path in sorted(sources):
         source = read(path)
         for match in re.finditer(
-                r"\bdata-([a-zA-Z][\w-]*)|\bid=\"([A-Za-z][\w-]*)\"", source):
-            name = match.group(1) or match.group(2)
+                r"\bdata-([a-zA-Z][\w-]*)"
+                r"|\bid=\"([A-Za-z][\w-]*)\""
+                # `id='coquille'` and `id={'coquille'}` name the same element as
+                # `id="coquille"`; only the double-quoted spelling was read.
+                r"|\bid='([A-Za-z][\w-]*)'"
+                r"|\bid=\{\s*['\"]([A-Za-z][\w-]*)['\"]\s*\}", source):
+            name = (match.group(1) or match.group(2)
+                    or match.group(3) or match.group(4))
             examined["data-* names / markup"] += 1
             line_no = source.count("\n", 0, match.start()) + 1
             unknown = [w for w in split_identifier(name)
@@ -1291,6 +1316,45 @@ def check_unread_javascript(violations: list[str]) -> None:
     examined["unread javascript / shell"] += len(unread)
 
 
+def check_app_interface_text(violations: list[str]) -> None:
+    """Measures the French interface text `frontend/src` carries, and says so.
+
+    THIS ARM DOES NOT REFUSE. `frontend/src` is the React application the
+    maquette shell is being built to replace, and it has no i18n layer at all —
+    no `i18n/` directory, no `useTranslation`. Its French is written straight
+    into the components. The operator ruled that this is an ACCEPTED state
+    rather than a defect: moving that copy into resources would be work thrown
+    away with the app that holds it. §Language names two i18n surfaces — the
+    maquette shell and `serve.py`'s pages — and this is deliberately neither.
+
+    So why an arm at all? Because the string arm walks the shell, the servers,
+    the harness tools and the repository tools, and NOT this tree — and an
+    unread scope reports « no violation » about a place it never opened. That
+    is how 842 French strings sat under a green gate, and how `id="coquille"`
+    and three all-French shell scripts sat under it before them. An exemption
+    nobody counts is indistinguishable from an oversight.
+
+    The count is therefore published in the ledger beside every other scope. It
+    reads the whole tree, so it drops to zero only if the tree empties — and
+    the ledger already refuses a scope that examined NOTHING.
+
+    Args:
+        violations: The accumulator every arm appends to. Nothing is added:
+            this arm measures, and the measurement is its whole output.
+    """
+    del violations  # measured, never refused — see the docstring above.
+    app = ROOT / "frontend" / "src"
+    french = 0
+    for path in sorted(app.rglob("*")):
+        if not path.is_file() or path.suffix not in {".ts", ".tsx"}:
+            continue
+        source = read(path)
+        literals = script_string_literals(source)
+        examined["interface text / app (exempt)"] += len(literals)
+        french += sum(1 for _, body in literals if offending_string(body))
+    exempted["french interface strings / app"] = french
+
+
 def main() -> int:
     """Runs the four arms and reports every violation.
 
@@ -1307,6 +1371,7 @@ def main() -> int:
     check_data_attributes(violations)
     check_french_debt(violations)
     check_shell_scripts(violations)
+    check_app_interface_text(violations)
     for what, count in examined.items():
         if count == 0:
             violations.append(
@@ -1325,6 +1390,10 @@ def main() -> int:
           "the engine's declared debt + the shell scripts + the "
           "unread-JavaScript ledger, no violation — read "
           + ", ".join(f"{count} {what}" for what, count in examined.items()))
+    # Named out loud, every run. The operator ACCEPTED this French; what must
+    # never happen again is it being invisible.
+    for what, count in exempted.items():
+        print(f"  exempt, counted, not refused: {count} {what}")
     return 0
 
 

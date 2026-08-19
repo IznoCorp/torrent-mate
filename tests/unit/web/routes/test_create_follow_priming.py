@@ -381,7 +381,7 @@ class TestCreateFollowPriming:
 # ---------------------------------------------------------------------------
 
 
-class TestVerificationEnCours:
+class TestVerifying:
     """GET /api/acquisition/followed — ``verifying`` override."""
 
     def test_running_prime_reads_verifying(self, client: TestClient, tmp_path: Path) -> None:
