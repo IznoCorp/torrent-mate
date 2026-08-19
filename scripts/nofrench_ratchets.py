@@ -32,7 +32,8 @@ from nofrench_scan import (  # noqa: E402
 # JSX text for the EXEMPTION COUNT. Deliberately a distinct name from arm 1's
 # `JSX_TEXT` above: defining a second `JSX_TEXT` here shadowed it and quietly
 # dropped that arm's coverage from 124 rendered strings to 59.
-JSX_TEXT_NODE = re.compile(r">([^<>{}]*[A-Za-zÀ-ÿ][^<>{}]*)<")
+JSX_TEXT_NODE = re.compile(  # french-ok: a Latin-1 letter RANGE, not a word
+    r">([^<>{}]*[A-Za-zÀ-ÿ][^<>{}]*)<")
 
 
 def jsx_text(source: str) -> list[str]:

@@ -96,11 +96,14 @@ from pathlib import Path
 
 # The lexicon and the helpers that read it live beside this file: the arms are
 # the questions, and those are the words the questions are asked in.
-# The guard and the modules split out of it: the files whose French is their
-# SUBJECT, so French in them is the question and never a violation. A file
-# belongs here only if it is genuinely part of the guard — an ordinary tool
-# landing in this set stops being read at all, which is a scope emptied by hand.
-SELF = {Path(__file__).name, "nofrench_lexicon.py", "nofrench_ratchets.py"}
+#
+# ONLY the two files whose French IS their subject. This set does not mean « part
+# of the guard » — it means « unreadable by the guard », and a file in it is not
+# examined by arms 1, 2 or 6 ever again. `nofrench_ratchets.py` was put here for
+# ONE accented literal and that cost it three arms of coverage; it carries a
+# `french-ok:` pragma instead, which is what the pragma is for. Adding a file
+# here is emptying a scope by hand, and it needs a better reason than convenience.
+SELF = {Path(__file__).name, "nofrench_lexicon.py"}
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from nofrench_lexicon import *  # noqa: E402, F403
@@ -955,22 +958,44 @@ NUMBER_WORDS = {
 
 
 def arms_bypassing_the_list() -> list[str]:
-    """Returns any arm `main` calls OUTSIDE `ARMS`.
+    """Returns any call in `main` that reaches this module's own functions.
 
     `main` walks `ARMS`, so the count cannot drift by construction — but a later
-    hand could still drop a bare `check_something(violations)` beside the loop,
-    and that arm would run undeclared, undocumented and uncounted. Read off the
-    code that runs, never off a statement about it.
+    hand could still run something beside the loop. The first version of this
+    only looked for a bare `check_*(…)`, and an adversarial review defeated it
+    in one line: a helper named anything else (`def extra_pass(v): …`) called
+    from `main` ran completely uncounted while this reported nothing. So the
+    question is no longer « is it named like an arm? » but « does `main` call
+    into this file at all outside the loop? », which has no such hole. `print`
+    and the built-ins are not ours and are left alone.
 
     Returns:
-        The `check_*` names called directly in `main`. Empty is healthy.
+        The names `main` calls directly that are defined in this module. Empty
+        is healthy.
     """
-    body = next(node for node in ast.walk(ast.parse(read(Path(__file__))))
+    tree = ast.parse(read(Path(__file__)))
+    ours = {node.name for node in tree.body if isinstance(node, ast.FunctionDef)}
+    body = next(node for node in tree.body
                 if isinstance(node, ast.FunctionDef) and node.name == "main")
     return [node.value.func.id for node in ast.walk(body)
             if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
             and isinstance(node.value.func, ast.Name)
-            and node.value.func.id.startswith("check_")]
+            and node.value.func.id in ours]
+
+
+def unregistered_arms() -> list[str]:
+    """Returns `check_*` functions this module defines but `ARMS` does not carry.
+
+    The other direction of the same question: an arm written and never
+    registered does not run, and nothing else in the file would say so.
+
+    Returns:
+        The unregistered `check_*` names. Empty is healthy.
+    """
+    tree = ast.parse(read(Path(__file__)))
+    defined = {node.name for node in tree.body
+               if isinstance(node, ast.FunctionDef) and node.name.startswith("check_")}
+    return sorted(defined - {arm.__name__ for arm, _ in ARMS})
 
 
 def check_arm_count(violations: list[str]) -> None:
@@ -987,11 +1012,34 @@ def check_arm_count(violations: list[str]) -> None:
     bypassing = arms_bypassing_the_list()
     if bypassing:
         violations.append(
-            f"`main` calls {bypassing} directly instead of through `ARMS` — an "
-            "arm that runs undeclared is documented by nothing and counted by "
-            "nothing, which is the state this arm exists to end")
+            f"`main` calls {bypassing} outside the `ARMS` loop — whatever runs "
+            "there is documented by nothing and counted by nothing, which is "
+            "the state this arm exists to end")
+    stranded = unregistered_arms()
+    if stranded:
+        violations.append(
+            f"{stranded} is defined as an arm and absent from `ARMS`, so it "
+            "never runs — a scope that reports « no violation » because nobody "
+            "called it")
 
     doc = __doc__ or ""
+    word = NUMBER_WORDS.get(len(ARMS), str(len(ARMS)))
+    # The COUNT WORD in the first paragraph, which is the one that read « Four »
+    # for a whole wave. The headings below it were held from the start and this
+    # was not: an adversarial review set it back to « Four arms » and the gate
+    # stayed green, so the very defect this arm is named for survived it.
+    heading = re.search(r"^(?P<word>[A-Z][a-z]+) arms, each with its own scope",
+                        doc, re.M)
+    if heading is None:
+        violations.append(
+            "the module docstring no longer opens with « <N> arms, each with "
+            "its own scope » — that sentence is what names the count in prose, "
+            "and this arm has nothing to hold once it is gone")
+    elif heading.group("word").lower() != word:
+        violations.append(
+            f"the module docstring says « {heading.group('word')} arms » and "
+            f"there are {len(ARMS)} — write « {word.capitalize()} ». This is the "
+            "exact word that said « Four » while twelve arms ran.")
     for position, (_, label) in enumerate(ARMS, start=1):
         if f"{position}. **{label}**" not in doc:
             violations.append(
@@ -999,7 +1047,6 @@ def check_arm_count(violations: list[str]) -> None:
                 "heading — an arm nobody documented is an arm nobody knows to "
                 "look for, which is how three of these went unnamed for a wave")
 
-    word = NUMBER_WORDS.get(len(ARMS), str(len(ARMS)))
     try:
         claimed = CLAUDE_MD_ARMS.search(read(CLAUDE_MD))
     except OSError:

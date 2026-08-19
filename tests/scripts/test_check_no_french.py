@@ -210,6 +210,43 @@ class TestTheSelfDescription:
 
         assert any("Test prose" in v for v in violations), violations
 
+    def test_the_docstrings_own_count_word_is_held(self, monkeypatch) -> None:
+        """The word that said « Four » while twelve arms ran.
+
+        An adversarial review defeated the first version of this arm in one
+        line: it held the numbered HEADINGS and never the count word above
+        them, so the docstring could be set back to « Four arms » and the gate
+        stayed green — the headline defect surviving the arm named for it.
+        """
+        monkeypatch.setattr(
+            guard,
+            "__doc__",
+            (guard.__doc__ or "").replace(
+                "Thirteen arms, each with its own scope",
+                "Four arms, each with its own scope",
+            ),
+        )
+        violations: list[str] = []
+
+        guard.check_arm_count(violations)
+
+        assert any("Four arms" in v for v in violations), violations
+
+    def test_an_arm_smuggled_through_a_helper_is_caught(self) -> None:
+        """`main` must not reach into this module outside the loop.
+
+        The first detector asked « is it named `check_*`? », and a helper named
+        anything else walked straight past it. The question is now « does
+        `main` call into this file at all? », which has no such hole.
+        """
+        source = guard.read(guard.Path(guard.__file__))
+        assert "    for arm, _ in ARMS:" in source
+        assert guard.arms_bypassing_the_list() == []
+
+    def test_an_arm_defined_but_never_registered_is_caught(self) -> None:
+        """The other direction: written, never run, and nothing would say so."""
+        assert guard.unregistered_arms() == []
+
     def test_a_wrong_count_in_CLAUDE_md_is_refused(self, monkeypatch, tmp_path) -> None:
         """Mutation: the sentence in the OTHER file drifts, and the arm bites.
 

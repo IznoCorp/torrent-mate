@@ -29,27 +29,34 @@ when the defect comes back.
 
 ---
 
+> **State on 2026-08-20 — two open, and they are open for different reasons.**
+> **B-024** is diagnosed **latent and unreachable**: the census of `[data-go]` producers shows
+> every one of them renders into `#view`, which sits under every layer, so none can be tapped
+> while a layer is open — real, with no path to it. **B-030** is a defect of the maquette's
+> embedded DATA (87 of 345 sheets carry no genre and no cast), not of the drawing, and the
+> operator has excluded it from the batch closure. Neither was ever `to confirm`.
+
 ## Open
 
 | ID    | Defect                                                | Reported    | Status       |
 | ----- | ----------------------------------------------------- | ----------- | ------------ |
 | B-019 | Many media sheets have lost their visual              | 1×          | `closed`     |
 | B-020 | Actor portraits on media sheets are broken            | 1×          | `closed`     |
-| B-021 | Signing out leaves the bottom panel on top            | 1×          | `to confirm` |
-| B-022 | « Voir mes suivis » in the add search is inert        | 1×          | `to confirm` |
+| B-021 | Signing out leaves the bottom panel on top            | 1×          | `closed`     |
+| B-022 | « Voir mes suivis » in the add search is inert        | 1×          | `closed`     |
 | B-023 | Médiathèque « Incomplets »: every visual broken       | 1×          | `closed`     |
-| B-013 | The drawer's entries lead nowhere                     | 2×          | `to confirm` |
-| B-014 | The drawer's current entry is unreadable              | 1×          | `to confirm` |
-| B-015 | Back reopens the drawer that was just closed          | 1×          | `to confirm` |
-| B-016 | Swiping a row right, then left, makes it jump         | 1×          | `to confirm` |
-| B-017 | Closing a panel sends the list back to its top        | by mutation | `to confirm` |
-| B-018 | On a desktop, dragging a row opens the panel          | 1×          | `to confirm` |
+| B-013 | The drawer's entries lead nowhere                     | 2×          | `closed`     |
+| B-014 | The drawer's current entry is unreadable              | 1×          | `closed`     |
+| B-015 | Back reopens the drawer that was just closed          | 1×          | `closed`     |
+| B-016 | Swiping a row right, then left, makes it jump         | 1×          | `closed`     |
+| B-017 | Closing a panel sends the list back to its top        | by mutation | `closed`     |
+| B-018 | On a desktop, dragging a row opens the panel          | 1×          | `closed`     |
 | B-024 | `data-go` settles ONE history entry, layers pile      | by review   | `open`       |
-| B-025 | The screen half of the `data-go` fix has no Back rule | by review   | `to confirm` |
-| B-026 | A silent `catch {}` can let URL and UI disagree       | by review   | `to confirm` |
-| B-027 | `resync.py` trusts `t:` first-match + naive braces    | by review   | `to confirm` |
-| B-028 | `resync.py` says « 0 correction » for unknown titles  | by review   | `to confirm` |
-| B-029 | Counter rule misses suffix drift (« 1 » in « 11 »)    | by review   | `to confirm` |
+| B-025 | The screen half of the `data-go` fix has no Back rule | by review   | `closed`     |
+| B-026 | A silent `catch {}` can let URL and UI disagree       | by review   | `closed`     |
+| B-027 | `resync.py` trusts `t:` first-match + naive braces    | by review   | `closed`     |
+| B-028 | `resync.py` says « 0 correction » for unknown titles  | by review   | `closed`     |
+| B-029 | Counter rule misses suffix drift (« 1 » in « 11 »)    | by review   | `closed`     |
 | B-030 | 87 library sheets carry no genre and no cast          | by rule     | `open`       |
 
 **B-018 was written down as a regression from B-016, and that was wrong.** It has two ways in, one
@@ -292,7 +299,8 @@ checks 10/10b.
   rows but is invisible, and a row that reads « A → Z » and answers Z → A is the opposite of
   showing what the machine will do.
 
-- **Ouvert opérateur — the 240 ms dead delay on `data-suivante`** (2026-08-16, SP4c): the
+- **Ouvert opérateur — the 240 ms dead delay on `data-next`** (2026-08-16, SP4c; the attribute
+  was named `data-suivante` when this was written and #455 renamed it): the
   "Passer à la suivante" action in the arbitration screen still carries a `setTimeout(240)`
   before its resolution call. It was once a cover for the legacy screen closing under it;
   the screen migrated to a router-owned route in SP4c and no longer plays a close animation
@@ -493,6 +501,26 @@ The bodies of these entries — what each one did, why no rule had seen it, and 
 were moved verbatim to [`BUGS-CLOSED.md`](BUGS-CLOSED.md) so the open ones stay legible. Nothing
 was reworded, renumbered or dropped; the protocol and the counts stay in this file.
 
+**Thirteen were confirmed in ONE batch on 2026-08-20**, on the operator's instruction (« Ferme
+tous les bugs en attente de VOTRE confirmation, sauf B-030 »). Each had already been fixed, its
+rule green and its mutation proven — `to confirm` in this register means waiting for the
+operator, not waiting for work. Recorded as a batch rather than thirteen separate dates because
+that is what happened: one instruction, one moment, and inventing thirteen dates would be a
+record of something nobody did.
+
+- B-013 — The drawer's entries lead nowhere (closed 2026-08-20, batch)
+- B-014 — The drawer's current entry is unreadable (closed 2026-08-20, batch)
+- B-015 — Back reopens the drawer that was just closed (closed 2026-08-20, batch)
+- B-016 — Swiping a row right, then left, makes it jump (closed 2026-08-20, batch)
+- B-017 — Closing a panel sends the list back to its top (closed 2026-08-20, batch)
+- B-018 — On a desktop, dragging a row opens the panel (closed 2026-08-20, batch)
+- B-021 — Signing out leaves the bottom panel on top (closed 2026-08-20, batch)
+- B-022 — « Voir mes suivis » in the add search is inert (closed 2026-08-20, batch)
+- B-025 — The screen half of the `data-go` fix has no Back rule (closed 2026-08-20, batch)
+- B-026 — A silent `catch {}` can let URL and UI disagree (closed 2026-08-20, batch)
+- B-027 — `resync.py` trusts `t:` first-match + naive braces (closed 2026-08-20, batch)
+- B-028 — `resync.py` says « 0 correction » for unknown titles (closed 2026-08-20, batch)
+- B-029 — Counter rule misses suffix drift (« 1 » in « 11 ») (closed 2026-08-20, batch)
 - B-019 — Many media sheets have lost their visual (closed, date not recorded)
 - B-020 — Actor portraits on media sheets are broken (closed, date not recorded)
 - B-023 — Médiathèque « Incomplets »: every visual broken (closed, date not recorded)

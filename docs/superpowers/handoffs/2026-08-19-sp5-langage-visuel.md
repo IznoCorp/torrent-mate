@@ -113,7 +113,8 @@ SP1, SP2, Bascule, SP3, SP4a, SP4b, SP4c, clean-code/i18n, SP4d ×4, SP4-fin ×3
 | --- | --- |
 | `design/refonte.html` | **4 217 lignes** ; `grep -c "<script"` → **0** ; aucun `onclick`/`onload`. Un titre et une feuille de style. |
 | `design/src/engine/legacy.js` | **34 626 lignes** — le moteur, déplacé octet pour octet |
-| `design/src/states.js` | **709 lignes de fichier**, dont **656 de fixture** (`const STATES = [` ligne 47 → `];` ligne 704) et **82 états** |
+| `design/src/states.js` | **709 lignes de fichier**, dont **656 de fixture** (le CORPS du tableau, lignes 48-703 ; les délimiteurs sont sur 47 et 704) et **82 états** |
+| ⚠ Comment compter les 82 | **En EXÉCUTANT le module, jamais au grep.** 74 entrées sont écrites en clair et **8 sont générées** par un `...[…].map()` (les huit états `settings-field-*`, ligne 654). Une revue adversariale a compté 74 au grep et déclaré le chiffre 82 faux ; l'exécution de `window.__recordStates` reçoit bien 82, 82 ids uniques. **Le grep lisait le balisage, pas ce qui tourne.** |
 | Pages / écrans | 8 pages + 5 écrans, tous composants `.tsx`. `PAGES_OF` ne porte **aucun** `render` |
 
 **⚠ Une exception à « chaque surface est un composant » : `/login` et le splash** restent du
@@ -145,7 +146,10 @@ Et l'énoncé complet porte une disjonction que la version précédente de ce br
 > « 0 divergence on 82 states, **or — where the markup changes on purpose — the rename map applied
 > to the RECORDING and exact equality required** ».
 
-**Ne cite pas ce chiffre comme une garantie courante.** Les 82 états, eux, sont actuels.
+**Ne cite pas ce chiffre comme une garantie courante.** Les 82 états, eux, sont actuels — et
+les 38 renommés aussi : les deux versions de `states.js` (avant #455 et à HEAD) s'évaluent à
+82 chacune, et 38 ids de la première ont disparu de la seconde. Mesuré deux fois, par
+exécution.
 
 **Deux inventaires d'états coexistent, et ils ne comptent pas la même chose** : **82** =
 états de `states.js` ; **49** = états nommés de `regions.json` pilotés par `window.__go` et
