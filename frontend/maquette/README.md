@@ -297,11 +297,17 @@ This catches "translating" at the moment it happens.
 
 ### 4. Zero divergence is a build condition, not a ticket.
 
-`scripts/parity-probe.py` walks `regions.json` in two headless contexts — the prototype and a
-production build it serves itself from `frontend/dist` — at 390 × 844 / DPR 2 / mobile / touch,
-and diffs
+> **NOT BUILT YET — and this section used to claim otherwise.** `scripts/parity-probe.py`
+> does not exist, and nothing named it in `make check` or in CI. A README asserting a gate
+> that no file implements is worse than a missing gate: it is a gate everyone believes in.
+> What holds parity TODAY is the harness rule suite (`harness/*.py`), which does run.
+> The paragraph below is the DESIGN of the probe, kept as a specification.
+
+`scripts/parity-probe.py` would walk `regions.json` in two headless contexts — the prototype
+and a production build it serves itself from `frontend/dist` — at 390 × 844 / DPR 2 / mobile /
+touch, and diff
 `getBoundingClientRect` plus a fixed `getComputedStyle` subset. The allowlist is explicit and
-**every entry carries an inline justification**. Wired into `make check` and CI.
+**every entry carries an inline justification**. It is to be wired into `make check` and CI.
 
 The probe is **append-only over regions**: each pass re-runs everything already at zero. This
 work has already produced the defect that rule exists for — after a change to one view, only
@@ -351,8 +357,10 @@ One file, four jobs:
   names, one set in BLOCK 1 and the other in BLOCK 2. Extraction only ever reads BLOCK 2, so it
   reads them as exported, and it PRINTS that it did: a contradiction nobody is told about is how
   the wrong reading survives for a year.
-- **`regions`** — what `parity-probe.py` measures, each naming the states it is visible in,
-  so the probe never has to guess how to reach a card state.
+- **`regions`** — what `parity-probe.py` is to measure (see the note above: the probe is not
+  built yet), each naming the states it is visible in, so the probe never has to guess how to
+  reach a card state. Its 49 declared states are kept in step with `design/src/states.js` —
+  18 of them had gone stale and named ids the engine no longer knows.
 - **`$adversarialReview`** — the rule set (R1…R64) plus `$methodLessons`: what each rule
   exists for, and what a rule that failed to bite taught. `$reportedDefects` lists the
   defects found by hand, each with its test in `harness/bugs.py`.

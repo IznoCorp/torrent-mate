@@ -227,6 +227,15 @@ enforced by `scripts/check-no-french.py` (four arms, in `make check` and in CI):
   `useTranslation()` — and the same file's `server` namespace for the pages `serve.py` serves.
   Extract strings, never retype them: a retyped string is a defect, because it renders
   correctly while the reference is broken.
+- **`frontend/src` is EXEMPT from that rule, deliberately.** The production React app has no
+  i18n layer at all — no `i18n/` directory, no `useTranslation()` — and its French is written
+  straight into the components. That is the app the maquette shell is being built to replace,
+  so moving 2 237 strings into resources would be work thrown away with the app that holds
+  them. The exemption is the operator's, and it is not a licence to relax: **it is COUNTED.**
+  `check_app_interface_text` reads that whole tree, refuses nothing, and prints its number on
+  every run (`exempt, counted, not refused: N french interface strings / app`). An exemption
+  nobody counts is indistinguishable from an oversight — which is precisely how 842 of those
+  strings, three all-French shell scripts and `id="coquille"` each sat under a green gate.
 - **`data-*` attribute NAMES are code and follow the rule.** They were carved out here once,
   and the operator overturned that: a `data-*` name is a name someone chose, so it is written
   in English like any other. Their VALUES are not — `data-go="profil"` names a page, and a
