@@ -1,3 +1,5 @@
+"""Tests for the scanner's canonical mode."""
+
 import pytest
 
 from personalscraper.indexer.scanner._modes._canonical import derive_canonical_provider

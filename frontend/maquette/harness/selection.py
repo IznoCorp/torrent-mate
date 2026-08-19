@@ -1,3 +1,5 @@
+"""Multi-selection in the library, and what it enables."""
+
 import asyncio
 from playwright.async_api import async_playwright
 async def main():

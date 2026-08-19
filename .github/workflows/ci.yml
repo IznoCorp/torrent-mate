@@ -107,7 +107,7 @@ jobs:
           restore-keys: pip-${{ runner.os }}-3.12-
       - run: pip install ruff
         if: needs.changes.outputs.python == 'true'
-      - run: ruff check personalscraper/ tests/
+      - run: ruff check personalscraper/ tests/ scripts/ frontend/maquette/harness/ frontend/scripts/
         if: needs.changes.outputs.python == 'true'
       - run: ruff format --check personalscraper/ tests/
         if: needs.changes.outputs.python == 'true'

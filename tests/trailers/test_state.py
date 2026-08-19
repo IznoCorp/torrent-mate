@@ -1,3 +1,5 @@
+"""Tests for the trailer state store."""
+
 import errno
 import hashlib
 import logging

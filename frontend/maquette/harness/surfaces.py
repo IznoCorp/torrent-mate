@@ -1,3 +1,5 @@
+"""The surfaces a medium is shown on, walked one by one."""
+
 import asyncio
 
 from playwright.async_api import async_playwright

@@ -273,6 +273,11 @@ def build() -> str:
 
 
 def main() -> int:
+    """Extracts the application CSS, or reports that it has drifted.
+
+    Returns:
+        1 on drift under `--check`, 0 otherwise.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true",
                         help="write nothing; exit with an error if the file has drifted")

@@ -1,3 +1,5 @@
+"""A sweep across every state, looking for what stopped rendering."""
+
 import asyncio
 from playwright.async_api import async_playwright
 
