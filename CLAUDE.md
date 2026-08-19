@@ -38,7 +38,19 @@ coding** any web surface; every web PR **cites the §§ it serves**.
 ### Design Reference — the maquette is authoritative (web-UI — BINDING)
 
 **`frontend/maquette/design/refonte.html` is the visual reference of the web UI** (§15 of the
-constitution). Every design evolution **starts from the maquette, never from the code**:
+constitution). Every design evolution **starts from the maquette, never from the code**.
+
+**READ THIS BEFORE THE FOUR RULES — the maquette is the NEXT version of the app, not a picture
+of the one in production.** It carries a different visual language, and the shipped app has not
+adopted it. The two therefore differ ON PURPOSE, and that difference is the redesign left to
+build — not a backlog of defects. Concretely: **nothing imports `app-surface.css`**, the
+stylesheet extraction produces; production is dressed by `frontend/src/styles/` as it stands,
+`maquette-acquisition.css` included. So: **never read a maquette/production difference as a
+production bug, and never « repair » production by pointing a tool at the maquette's CSS.** The
+four rules below are the METHOD by which a design decision travels from the maquette into the
+app when it is deliberately adopted; they are not a description of today's tree. Missing this
+distinction cost a full session, in which a comparison of the two stylesheets was read as a
+production defect and « fixed » three times over.
 
 1. The **maquette is modified first**, verified with its harness (`frontend/maquette/harness/`),
    and the code is derived from it.
@@ -47,7 +59,11 @@ constitution). Every design evolution **starts from the maquette, never from the
 3. **Nothing ships to production that the maquette does not show.** A new surface is drawn
    there before it is coded.
 4. The app's CSS is **extracted** from the maquette (`scripts/extract-maquette-css.py`), never
-   copied by hand; drift is blocked by `make check`.
+   copied by hand; drift between the maquette and that extraction is blocked by `make check`.
+   **This one is the target and it is STAGED, not live** — the extraction and its guards
+   (including `scripts/parity-probe.py`) are built ahead of time so they are already trustworthy
+   the day the redesign ships. Adopting the generated stylesheet IS shipping the redesign, and
+   that is the operator's decision, never a wiring detail.
 
 Read `frontend/maquette/README.md` before any design change — method, named states, verified
 rule set, and the traps already paid for.

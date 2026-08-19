@@ -9,10 +9,27 @@
 - **BLOCK 2 — APPLICATION CSS**: everything the app renders.
 
 This script lifts BLOCK 2, scopes every rule under `.tm`, and writes
-`frontend/src/styles/ps/app-surface.css`. The app imports that file; nobody
-edits it. **Editing the generated file by hand is the defect, not a shortcut** —
-`--check` re-runs the extraction and fails on any difference, which is the same
-guard that protects `openapi.json` / `schema.d.ts`.
+`frontend/src/styles/ps/app-surface.css`.
+
+**NOTHING IMPORTS THAT FILE YET, AND THAT IS DELIBERATE.** The maquette is not a
+description of the app as it ships today: it is the NEXT version of it, in a
+different visual language. Its CSS therefore differs from the app's own ON
+PURPOSE, and a comparison between the two measures the redesign still to come —
+never a defect. What is generated here is STAGED: extraction and its guards are
+built before the redesign ships, so that on the day it does, the CSS the app
+receives is provably the CSS the design was drawn with, and not a hand-retyped
+approximation. Adopting it IS shipping the redesign, which is the operator's
+call and not a wiring detail.
+
+An earlier version of this docstring stated « the app imports that file ». It
+did not. A target state written in the present tense reads as a description of
+the repository, and that one sentence sent a reader hunting a production
+divergence that never existed — three times over, each time with a more
+elaborate theory than the last. State intent as intent.
+
+**Editing the generated file by hand is the defect, not a shortcut** — `--check`
+re-runs the extraction and fails on any difference, which is the same guard that
+protects `openapi.json` / `schema.d.ts`.
 
 Extraction works from an ALLOWLIST, never a blocklist: `regions.json` →
 `exportedSelectors` names what may ship, so a prototype-only helper can never
