@@ -298,6 +298,22 @@ conception. Directive opérateur du 2026-08-13 : ce n'est plus un habillage de l
 c'est une refonte — une **v1 aboutie**, une version à part entière. L'app sera rebâtie dessus,
 et non amenée vers elle surface par surface.
 
+**Élargi par l'opérateur le 2026-08-19 — TOUS les écrans sont à redessiner. Tous.** La maquette
+est une **nouvelle version de l'app**, pas un habillage : son objet est une expérience
+utilisateur **cohérente**, et le premier objectif est de **figer cette interface**.
+
+- **Aucune surface n'est hors périmètre.** Un écran de production sans page dans la maquette est
+  une page **due**, jamais un arbitrage de l'écarter. `/control` (« Contrôle ») et `/pipeline`
+  avaient été déclarés volontairement sans page : **cet arbitrage est annulé.** Où leurs
+  panneaux ATTERRISSENT reste une question d'UX ouverte (`IMPLEMENTATION.md`) ; qu'ils soient
+  dessinés ne l'est plus.
+- **Ce que la maquette porte déjà est VALIDÉ** par l'opérateur. On ne le rejuge pas.
+- **Ce qui reste n'est pas que des pages** : l'UX, le langage d'interaction et **l'architecture**
+  de la maquette doivent être terminés et consolidés avant le gel.
+- **Le backend suit l'interface, jamais l'inverse.** Le moteur sera adapté aux besoins de la
+  nouvelle interface, et ce travail vient **après** le gel. Une limite du backend n'est donc
+  jamais une raison de dessiner moins : on la note, et on dessine ce que l'expérience exige.
+
 Ce que cela impose :
 
 - **La maquette doit TOUTES les pages que la production sert**, y compris celles qu'elle ignore

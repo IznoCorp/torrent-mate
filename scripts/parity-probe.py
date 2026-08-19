@@ -17,7 +17,7 @@ invents any of it:
   probe.assertBeforeMeasuring  refused unless the viewport really is 390
   probe.computedStyleSubset  the sixteen properties compared
   probe.allowlist            the accepted divergences, each with a justification
-  regions                    53 selectors, each naming the states it appears in
+  regions                    51 selectors, each naming the states it appears in
   states                     49 named states, reached through `window.__go`
 
 For every state, every region visible in it is measured TWICE against the same

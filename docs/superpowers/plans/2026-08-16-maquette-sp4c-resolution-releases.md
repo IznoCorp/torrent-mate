@@ -10,7 +10,7 @@ green blindness is fixed the same wave, never later).
 
 **Architecture:** Same strangler pattern as SP4b: transplant at identical emission, the
 document-level delegated click handler stays the seam (`data-resolve`, `data-laisser`,
-`data-suivante`, `data-manual`, `data-prendre`, `data-profil` attributes verbatim), the
+`data-next`, `data-manual`, `data-take`, `data-profile` attributes verbatim), the
 screens read through `useReferentiel()`/`useEtat()`/`useMonde()`; the mutable queue
 (`derived.blocked()/stuck()`) and the actions (`actionResoudre`, `actionLaisser`,
 `actionRecuperer`, `toast`) are published as FUNCTIONS on the référentiel (functions are
@@ -80,7 +80,7 @@ anchor hint — re-grep the SYMBOL before editing.
   `DecisionAttente { d; k: "movie"|"show"; t; y?; motif; quand; c: DecisionCandidat[] }`,
   `DecisionReglee` (same + `etat`, `choix`), the label maps as `Record<string,string>`,
   the functions typed. Document in one comment that `etat.resolveTarget` and
-  `etat.relTitre` are `string | null` (EtatUI stays loose; the readers cast as
+  `state.relatedTitle` are `string | null` (EtatUI stays loose; the readers cast as
   ajout.tsx:91 already does).
 
 - [ ] **Step 1:** Verify each symbol's declaration position and kind (paste the rg
@@ -109,19 +109,19 @@ anchor hint — re-grep the SYMBOL before editing.
   `.fichebar > button.fback` (onClick `window.__pont.retour()` — mirror fiche.tsx) +
   the right-aligned span; `.port > .body` > `.note`, `p.rescount` (hard-coded counts
   verbatim), `article.rel[.best on index 0]` rows (span.rn, span.rt chips, p.qhint on 0,
-  `button.cfoot[data-prendre=index]` `.solid` on 0), `.empty > button.cfoot[data-profil]`.
+  `button.cfoot[data-take=index]` `.solid` on 0), `.empty > button.cfoot[data-profile]`.
   `window.__ecrans.releases(titre)` → `aller({ to: "/releases/$titre", params:
-{ titre: titre.normalize("NFC") } })` — it ALSO writes `ecrire({ relTitre: titre })`
-  first (the legacy first line, ~39947; the data-prendre branch reads it).
+{ titre: titre.normalize("NFC") } })` — it ALSO writes `ecrire({ relatedTitle: titre })`
+  first (the legacy first line, ~39947; the data-take branch reads it).
 
 - [ ] **Step 1:** Transplant (read ~39946-39982 in full first). Typecheck.
 - [ ] **Step 2:** Rewire the fragment (re-grep each): states table `ecran-releases`
       (~16851) → `window.__ecrans.releases("Silo")`; panel `data-releases` branch (~18030)
       → `window.__panneau.fermer(); setTimeout(() => window.__ecrans.releases(...), 260)`
-      (keep the exact choreography); the `data-prendre` branch (~18052): `closeScreen()`
+      (keep the exact choreography); the `data-take` branch (~18052): `closeScreen()`
       becomes `window.__pont.retour()` (ONE router pop — the dispatcher no-ops it, the
-      screen unmounts), keep `setTimeout(260)` → `actionRecuperer(state.relTitre)` + toast
-      verbatim; the `data-profil` branch (~18033-18051): its legacy-vs-shell test
+      screen unmounts), keep `setTimeout(260)` → `actionRecuperer(state.relatedTitle)` + toast
+      verbatim; the `data-profile` branch (~18033-18051): its legacy-vs-shell test
       `#screen.classList.contains("open")` no longer sees releases — rewrite the branch:
       if the RELEASES route is open (`window.__panneau.ouverte()`-style check is wrong
       here; test `document.querySelector('.screen.open[data-cle^="releases:"]')`),
@@ -155,7 +155,7 @@ anchor hint — re-grep the SYMBOL before editing.
     `CarteRelease` component = `releaseCardHTML` (~11613-11637) at identical emission
     (`.card[data-nonmedia="candidat"]`, `button.cfoot.solid[data-resolve=<candidate t>]`)
     — or `p.rulenote`; `.empty > button.cfoot[data-manual=<dossier>]`;
-    `.sheetacts.secondary` (data-laisser, data-suivante only when attente.length > 1);
+    `.sheetacts.secondary` (data-laisser, data-next only when attente.length > 1);
     « Réglées récemment » via `CarteDecision` = `decisionCardHTML` (~11661-11694)
     identical. NO data-panel/data-fiche on any card (decision.py asserts it).
   - `window.__ecrans.resolution(dossier?)` → resolves the default like the legacy
@@ -173,7 +173,7 @@ anchor hint — re-grep the SYMBOL before editing.
       releaseCardHTML, decisionCardHTML). Typecheck.
 - [ ] **Step 3:** Rewire (re-grep each): states `arr-resolution` (~17023) →
       `__ecrans.resolution()` and `arr-decision` (~17036) → `__ecrans.resolution("Lucky")`;
-      `data-suivante` (~17989): `closeScreen()` + `openResolve(suite.d)` becomes
+      `data-next` (~17989): `closeScreen()` + `openResolve(suite.d)` becomes
       `aller`-with-replace via a new `__ecrans.resolutionSuivante(suite.d)`? NO — keep it
       one door: the branch calls `window.__ecrans.resolution(suite.d)` with `remplacer`
       semantics — extend `__ecrans.resolution(dossier, remplacer=false)` and pass true
@@ -285,7 +285,7 @@ anchor hint — re-grep the SYMBOL before editing.
   announced-multi-pop replacing the racing backs); every-wave invariants ✔ (Global
   Constraints; R71 untouched — it does not traverse these screens per recon §5).
 - The `data-resolve` collision is a named mandatory pre-read (T3 Step 1), not an
-  assumption. The `data-profil` legacy-vs-shell branch flip is called out (T2 Step 2).
+  assumption. The `data-profile` legacy-vs-shell branch flip is called out (T2 Step 2).
 - Type consistency: `__ecrans.releases(titre)` / `__ecrans.resolution(dossier?,
 remplacer?)` names used identically in T2/T3/T5; `reculer(n)`/`__annoncerPops(n)`
   defined T4, consumed nowhere else.

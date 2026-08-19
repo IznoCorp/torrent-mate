@@ -6,6 +6,21 @@
 > app is bound to it afterwards, in a separate mission, and only once the operator judges the
 > design and the front-end architecture solid enough. The inventory of what is still owed is in
 > `IMPLEMENTATION.md`.
+>
+> **Restated and widened, 2026-08-19 — EVERY screen is to be redrawn. All of them.** This is a
+> new version of the app, not a reskin: its purpose is a new, COHERENT user experience, and the
+> first objective is to FREEZE that interface. Four things follow.
+>
+> 1. **No surface is out of scope.** A production screen with no page here is owed, never an
+>    arbitration to leave it out. `/control` and `/pipeline` had been ruled deliberately
+>    page-less; the operator overturned that on 2026-08-19. Where their panels BELONG remains a
+>    live UX argument (`IMPLEMENTATION.md`); being drawn is no longer in question.
+> 2. **What this prototype already holds is VALIDATED** by the operator. Do not relitigate it.
+> 3. **What remains is not only pages** — the UX, the interaction language and this prototype's
+>    own ARCHITECTURE have to be finished and consolidated before the freeze.
+> 4. **The backend follows the interface.** The engine will be adapted to what the new interface
+>    needs, and that comes AFTER the freeze — so a backend limitation is never a reason to draw
+>    less. Record it, and draw what the experience requires.
 
 **`design/refonte.html` is the design reference for the TorrentMate web UI. Any change to the
 design starts here, not in `frontend/src`.**
@@ -79,7 +94,7 @@ Two consequences worth knowing before writing a rule:
 
 **React and TanStack Router are the outer shell.** The router is the SINGLE writer of the
 URL and the history: the legacy engine keeps its navigation logic but speaks to
-`window.__pont` (six verbs) instead of the History API. The shell creates the store and
+`window.__bridge` (six verbs) instead of the History API. The shell creates the store and
 the real bridge FIRST and only then starts the engine (`window.__demarrerMoteur` — the boot
 inversion described below), so every bridge call the engine makes at boot lands straight on
 the single writer; nothing before it needs queueing or replaying. R74 (`bridge.py`) holds the
@@ -90,10 +105,10 @@ ever touches it. One faithfully-kept legacy trait: forward is not a return — g
 from a sheet and then forward closes it rather than restoring it, exactly as before the
 router.
 
-**Two screens are routed for real, not merely driven by `__go()`.** `/profil/$titre`
-(the quality-profile screen, `ProfileScreen`) and `/ajout` (the add screen, `AddScreen`,
+**Two screens are routed for real, not merely driven by `__go()`.** `/profile/$title`
+(the quality-profile screen, `ProfileScreen`) and `/add` (the add screen, `AddScreen`,
 whose `q` and `mode` search params are router-owned for as long as the address reads
-`/ajout`) render as final components inside the React root, reached by a real address
+`/add`) render as final components inside the React root, reached by a real address
 rather than by the legacy fragment's own state machine. `go()` in `shell.tsx` is
 the ONLY function allowed to call `routeur.navigate()` — R76 (`navigation.py`) holds it
 to exactly one call site, source-level counted, sitting inside `go()`'s own body:
@@ -107,7 +122,7 @@ engine's exact existing handling, and an entry the router wrote carries neither 
 the popstate callback's own checks fall through it harmlessly.
 
 **The engine's boot order inverted once the bridge was real.** `window.__demarrerMoteur`
-is the handshake: the shell creates the store and the real `__pont` FIRST, then calls it
+is the handshake: the shell creates the store and the real `__bridge` FIRST, then calls it
 once, and the engine's own boot writes — the arrival state, the guard entry, the back
 listener — land straight on the single writer, in the engine's own order, before the
 first render. The queue-and-replay pre-bridge (recording writes issued before the shell
@@ -137,20 +152,20 @@ the fragment in return: the legacy must never touch a node React holds — the s
 save bar is a second portal, into `#device`, and the legacy's own removal of that node tore the
 React root down until the mounter was deleted. The fragment's `PAGES_OF()` carries no `render` at all any more; what it still draws is the SUGGESTION machinery — `#sugitems`, `#sugload` and the deck's `.deckbody`, containers the Acquisition component draws and fills only with what the FRAGMENT emits — the rows from `fillSug`, the deck's pile from `deckHTML`, written once when the container has none rather than on every commit, because `avancerDeck` mutates the deck's own DOM in place and a replaced node cannot animate. R77 (`page_host.py`) holds all of it — including one law about the RULES rather than the pages: no rule drives a page by mutating the engine's `state` alias. That alias points at the store's CURRENT object, so an in-place write leaves its identity unchanged, nothing React subscribes to moves, and the measurement lands on whatever page was drawn before.
 
-**The panel is one component, opened through `window.__panneau`.** `<PanelContent>`
+**The panel is one component, opened through `window.__panel`.** `<PanelContent>`
 (`components/panel.tsx`) is the single React constructor every panel draws through — a
 `PanelDescriptor` of typed `PanelBlock`s, refused outright if a block's `type` is not one of the five
-declared kinds. A producer never builds markup: it calls `window.__panneau.ouvrir(descripteur)`,
+declared kinds. A producer never builds markup: it calls `window.__panel.open(descriptor)`,
 and `.fermer(pop?)` / `.ouverte()` complete the surface, backed by the shell's own store
 (`panneauOuvert`/`panneauDescripteur`). The legacy `openSheet()` is retired to a tripwire —
 it throws, so a producer nobody converted fails where it is written instead of quietly doing
-nothing; `closeSheet(pop)` stays as a one-line verb pointing at `window.__panneau.fermer`,
+nothing; `closeSheet(pop)` stays as a one-line verb pointing at `window.__panel.close`,
 kept because the harness driver still says it. R56 (`panel.py`) holds the shape: no caller
 hands the panel markup, exactly one constructor, every declared block draws, an undeclared
 one is refused.
 
 **The fiche is a real route, `/fiche/$titre`.** `MediaScreen` renders it inside the React root
-like `/profil/$titre` and `/ajout` before it, reached through `window.__ecrans.fiche(titre)`
+like `/profile/$title` and `/add` before it, reached through `window.__screens.mediaSheet(title)`
 (NFC-normalised on write, same door as `.profil()`). An unknown title still renders, honestly
 — the legacy `openFiche()` it was transplanted from never had a not-found branch either — and
 a real fiche without a trailer shows its own "no trailer" line rather than hiding the section.
@@ -160,13 +175,13 @@ address still renders instead of raising.
 
 **Two more real routes: `/resolution/$dossier` and `/releases/$titre`.** `ResolutionScreen`
 and `ReleasesScreen` are transplanted from `openResolve()` and `openReleases()` — the arbitration
-screen and the release-choice screen — reached through `window.__ecrans.resolution(dossier?,
+screen and the release-choice screen — reached through `window.__screens.resolution(folder?,
 replace?)` and `.releases(titre)`. `resolution`'s argument is optional: the legacy function
 picked the first stuck folder itself when called with none, and the shell reproduces that default
 rather than pushing the choice onto each caller; its `replace` flag turns a legacy
 close-then-reopen (a pop plus a push, net one history entry) into a single `go(..., replace:
-true)`, worth exactly as much. `releases` writes `state.relTitre` — the legacy function's own
-first line — BEFORE navigating, since the `data-prendre` delegation branch still reads it after
+true)`, worth exactly as much. `releases` writes `state.relatedTitle` — the legacy function's own
+first line — BEFORE navigating, since the `data-take` delegation branch still reads it after
 the route has rendered. `releaseCardHTML`/`decisionCardHTML`, the legacy builders both screens
 drew their cards with, are gone once their last caller moved: `ReleaseCard` and `DecisionCard`
 (`design/src/screens/resolution.tsx`) are what replaced them. R75 extends with six holds for the
@@ -175,14 +190,14 @@ staging folder actually has — `server.py`'s and `serve.py`'s SPA fallbacks bot
 document rather than 404ing), one Back landing on `/`, and an unknown subject rendering the
 screen's own honest empty case instead of raising.
 
-**`window.__pont` gained a sixth verb: `reculer(n)`**, the door for settling SEVERAL history
+**`window.__bridge` gained a sixth verb: `rewind(n)`**, the door for settling SEVERAL history
 entries in one announced operation instead of calling `retour()` twice in the same task. It
 flushes pending writes, announces the traversal to the engine (`window.__annoncerPops`, next to
 `window.__derouler`), THEN issues a single `historique.go(-n)` — measured, not assumed: a
 multi-entry `history.go(-n)` coalesces into ONE popstate at the browser level, so the engine's
 own latch is raised once per announcement, never by `n` (raising it by `n` was tried and falls a
 mutation: it swallows the operator's next real Back in silence). This closed M11 — the Associer
-flow (`data-act="add:N"` from an `/ajout` result, with `state.addMode === "identifier"`) used to
+flow (`data-act="add:N"` from an `/add` result, with `state.addMode === "identifier"`) used to
 fire two raw `history.back()` calls in the same task, which the engine's own coalescing latch
 could absorb only one of; the second read as an unannounced operator gesture and happened to
 land correctly only by the accident of which
@@ -691,10 +706,18 @@ Four surfaces, and what decides which one a panel belongs to is not the page it 
 | A setting                         | **Configuration** |
 | A command run against the library | **Maintenance**   |
 
-`Contrôle` does not survive this cut. Production stacks blocked media on top of disk and provider
-health with nothing saying why they share a page; each of its seven panels has a home under the
-rule, and none of those homes is a new page. The full mapping, panel by panel, is in
-`IMPLEMENTATION.md`.
+`Contrôle` does not survive this cut **as it is**. Production stacks blocked media on top of disk
+and provider health with nothing saying why they share a page; each of its **eight** panels
+(`ToHandleList`, `ScrapeActivityPanel`, `LastRunDigest`, `StalledPanel`, `AcquisitionSummaryCard`,
+`SchedulersPanel`, `CompactHealth`, `PipelineControls`) has a home under the rule. The full
+mapping, panel by panel, is in `IMPLEMENTATION.md`.
+
+> ⚠ **Amended 2026-08-19.** This paragraph used to end « and none of those homes is a new page »,
+> and that sentence was read as « `/control` and `/pipeline` are deliberately page-less ». The
+> operator has overturned it — see the banner at the top of this file: EVERY screen is redrawn.
+> What survives here is the PLACEMENT argument, never an exemption from being drawn. The
+> identical sentence was amended in `IMPLEMENTATION.md` first and this copy was missed, which is
+> the third time one wording has outlived its correction in a second file.
 
 **A state wears a BADGE, and it has four tones.** `success` — it works. `alert` — it does not, and
 something must be done now. `warning` — important but not critical, a disk nearly full. `info` — a
@@ -846,7 +869,7 @@ They are committed because they encode recipes that cost time to get right.
 | `filters.py`         | filters filter, and their parts sum to the whole                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `actions.py`         | the simulated behaviours really mutate the state                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `dest.py`            | every button has a destination                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `ident.py`           | identify ≠ follow: the context picks the verb — and the journey settles the history it stacked (the panel's entry and `/ajout`) in ONE announced operation, landing where the walk stood before `/ajout`, the next back still worth exactly one step                                                                                                                                                                                                                               |
+| `ident.py`           | identify ≠ follow: the context picks the verb — and the journey settles the history it stacked (the panel's entry and `/add`) in ONE announced operation, landing where the walk stood before `/add`, the next back still worth exactly one step                                                                                                                                                                                                                               |
 | `pop.py`             | the episode date popover, in all its states                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `chrome.py`          | R51: the harness bar covers none of the app's fixed controls, in every named state, at both sides of the 520px breakpoint                                                                                                                                                                                                                                                                                                                                                          |
 | `back.py`          | R59: the back gesture walks the path in reverse — tabs and lenses included — closes a layer first, and at the root warns instead of leaving, closing only on a second back within five seconds                                                                                                                                                                                                                                                                                     |
@@ -872,8 +895,8 @@ They are committed because they encode recipes that cost time to get right.
 | `shell.py`        | R72: the Vite shell emits the prototype verbatim inside a real envelope — the fragment refonte.html appears byte-for-byte exactly once, the module entry is present with the correct format, and the named bundle file exists under dist/vite/                                                                                                                                                                                                                                     |
 | `bridge.py`            | R74: the bridge wires the legacy nav cluster to the router — zero raw history calls across the design's sources, the journey works through both exits, deep URL entry lands on promised state, __go() preserves history depth, and the boot handshake is real: `window.__demarrerMoteur` exists and the startup screen comes off on its own, before the harness ever touches it                                                                                                                      |
 | `switchover.py`         | R73: the host serves the build to the byte, rebuilds stale sources before serving, and a broken build answers 503 that says so — proven against a scratch design root, never the real source                                                                                                                                                                                                                                                                                       |
-| `server.py`         | plumbing, not a rule, like `common.py`: a second static server (port 8917, never 8710/8711/8712/8899) that answers `wrapped.html` for any extensionless path with no file behind it, so a deep client-side address (`/profil/…`, `/ajout`) can be requested cold instead of only reached from inside an already-loaded document                                                                                                                                                    |
-| `screen_addresses.py` | R75: a screen route answers a real address, cold, and only while it is open — `/profil/$titre` opens the promised screen with no journey and no click, every image the document loads at that depth resolves through `<base href="/">`, one back from a walked-to screen lands exactly where the walk started with the address returning to what it was, a wrong deep address renders honestly instead of raising, and `/ajout?q=…` opens with its field and results already drawn |
+| `server.py`         | plumbing, not a rule, like `common.py`: a second static server (port 8917, never 8710/8711/8712/8899) that answers `wrapped.html` for any extensionless path with no file behind it, so a deep client-side address (`/profile/…`, `/add`) can be requested cold instead of only reached from inside an already-loaded document                                                                                                                                                    |
+| `screen_addresses.py` | R75: a screen route answers a real address, cold, and only while it is open — `/profile/$title` opens the promised screen with no journey and no click, every image the document loads at that depth resolves through `<base href="/">`, one back from a walked-to screen lands exactly where the walk started with the address returning to what it was, a wrong deep address renders honestly instead of raising, and `/add?q=…` opens with its field and results already drawn |
 | `library_sort.py`    | R78: every sort goes BOTH ways, and each way says its own name — the panel offers the six explicitly (« Ajout récent » / « Ajout ancien », « A → Z » / « Z → A », « Les plus incomplets » / « Les plus complets »), exactly one is marked, the control on the count line reads the direction in force, the reversal is measured on the ROWS DRAWN over a library narrowed until the whole set fits on one page, and the sort stays out of the address — a preference, not a place |
 | `library_load.py`    | R79: the library loads more, says when it cannot, and lets one try again — the end of the sample says it IS the end of the sample and how many titles the prototype really carries, a failed page says what remains valid, and « Réessayer » really loads, measured with the scroll sentinel NEUTRALISED because it produces the same outcome for a different reason |
 | `page_host.py`       | R77: one owner per PAGE, and the container never holds two — the fragment writes `#view` only for a page without `shellOwned`, the shell empties it when it takes ownership, and a page draws the same whichever world it was reached from (the residue hold, which measures constancy across predecessors rather than a root count, because pages emit different numbers of roots); the delegation still reads what React emits — the nine `data-*` attributes the document-level handler acts on, each driven by a REAL tap that compares the row's own value against what opened, and looked up before it is tapped so an absent or inert control is a verdict rather than a dead script; and leaving a migrated page with an unsaved change and coming back leaves the shell ALIVE — the hole that let the legacy remove a node React owned, tearing the root down; and the handover law is held TWICE — structurally, read from the engine's source because the branch it guards is dead while every page is shell-owned, and behaviourally, by spying on `#view`'s own setter through one real redraw, a hold that carries its own positive control because a count of zero passes just as happily when the detector is dead |
