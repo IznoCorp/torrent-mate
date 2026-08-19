@@ -97,3 +97,13 @@ if [ "${#UPDATED_FILES[@]}" -gt 0 ]; then
 fi
 
 echo "pre-commit: feature maps up to date."
+
+# §Search Safety and §Network Timeout Safety guard the AGENT'S session through
+# `.claude/` hooks; nothing stopped either command being COMMITTED, and the next
+# person to run the script paid the price. Staged files only, so the hook stays
+# fast.
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+if [ -n "$staged" ]; then
+  # shellcheck disable=SC2086
+  python3 scripts/check-command-safety.py $staged || exit 1
+fi

@@ -115,7 +115,13 @@ Examples: `feat(scraper): create TvShow nfo file` · `refactor(dispatch): extrac
 
 - Version prefixes (`vX.Y.Z: Description`) — version traceability lives in `IMPLEMENTATION.md`
   and subagent reports (sub-phase → SHA mapping), not in commit messages
-- AI attribution: `Co-Authored-By`, `Claude`, `Anthropic` — enforced by `hooks/block_ai_attribution.py`
+- AI attribution: `Co-Authored-By`, `Claude`, `Anthropic` — enforced by `hooks/commit-msg`,
+  which also holds the Conventional-Commit format and the version-prefix ban. It runs on
+  every commit in this clone (`core.hooksPath = hooks`). **It cannot reach the squash-merge
+  message composed on GitHub**, which is the message that lands on `main` — only a
+  server-side check would. (The previously named `hooks/block_ai_attribution.py` never
+  existed: the real file is a gitignored Claude-Code tool hook that sees only the agent's
+  own `git commit` invocations.)
 
 Milestone-commit format and the codename-as-scope rule: `docs/reference/feature-lifecycle.md` §7.
 
@@ -141,6 +147,17 @@ Alternative: run steps individually (`personalscraper ingest`, then `personalscr
 - **No French in the code, and no interface text in the code** — see §Language below. It is
   enforced, not remembered: `python3 scripts/check-no-french.py` (in `make check` and in CI).
 - New tests: choose unit / integration / manual E2E — see `docs/reference/testing.md`.
+- **Renaming an identifier goes through `scripts/rename-identifiers.py`** — never by hand,
+  never with an ad-hoc regex. Every bypass has cost something: a rewritten route, eleven state
+  ids, eight interface texts and five rule assertions in one wave alone. **But the tool is not
+  the proof.** Its read-back check is skipped for `--values` runs and for Python files — and
+  `--values` is the mode that rewrote 429 lines of prose. So every rename batch is verified by
+  an oracle OUTSIDE the tool: re-read the diff (not the « N file(s) touched » line), and re-run
+  the harness rule suite. Two corruptions in this repository were found by reading the diff
+  after the tool reported success.
+- **A bug fix carries a regression test**, and the test is shown to FAIL against the code as it
+  stands before the fix. A test written after the fix that was never seen red proves only that
+  it agrees with the fix.
 - **Module size**: soft warning at 800 non-blank LOC, hard ceiling 1000 LOC (exit 1). Run `python3 scripts/check-module-size.py` (also wired into `make check`).
 
 ### Phase Gate Checklist (MANDATORY before every phase gate commit)

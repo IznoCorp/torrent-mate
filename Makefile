@@ -82,6 +82,7 @@ check: lint test-cov
 	python3 scripts/check-typed-api.py
 	python3 scripts/check-pragma-discipline.py
 	python3 scripts/check-no-french.py
+	python3 scripts/check-command-safety.py
 	python3 scripts/audit-cli-coverage.py
 	$(MAKE) cli-coverage-check
 	@echo "Checking feature map freshness..."
@@ -106,11 +107,11 @@ cli-coverage-check:
 
 gate: check
 	@echo "Gate: residual import audit..."
-	@! rg -q "from personalscraper\.scraper\.circuit_breaker" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.circuit_breaker import"; exit 1; }
-	@! rg -q "from personalscraper\.scraper\.tmdb_client" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.tmdb_client import"; exit 1; }
-	@! rg -q "from personalscraper\.scraper\.tvdb_client" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.tvdb_client import"; exit 1; }
-	@! rg -q "from personalscraper\.scraper\.http_retry" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.http_retry import"; exit 1; }
-	@! rg -q "from personalscraper\.scraper\.providers" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.providers import"; exit 1; }
+	@! rg -q -g '*.py' "from personalscraper\.scraper\.circuit_breaker" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.circuit_breaker import"; exit 1; }
+	@! rg -q -g '*.py' "from personalscraper\.scraper\.tmdb_client" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.tmdb_client import"; exit 1; }
+	@! rg -q -g '*.py' "from personalscraper\.scraper\.tvdb_client" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.tvdb_client import"; exit 1; }
+	@! rg -q -g '*.py' "from personalscraper\.scraper\.http_retry" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.http_retry import"; exit 1; }
+	@! rg -q -g '*.py' "from personalscraper\.scraper\.providers" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.providers import"; exit 1; }
 	@! rg -l "TMDBError|TVDBError" -g '*.py' personalscraper/ 2>/dev/null | grep -v "_contracts.py" > /dev/null || { echo "FAIL: residual TMDBError/TVDBError references"; exit 1; }
 	@python3 -c "import personalscraper" || { echo "FAIL: import personalscraper"; exit 1; }
 	@echo "Gate: ALL CHECKS PASSED"
