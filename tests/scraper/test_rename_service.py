@@ -261,6 +261,54 @@ class TestCleanupStaleFiles:
         assert not (tmp_path / "Title : Subtitle-fanart.jpg").exists()
         assert (tmp_path / "Title Subtitle-fanart.jpg").exists()
 
+    def test_a_case_only_rename_does_not_delete_the_only_copy(self, tmp_path: Path) -> None:
+        """A file must not be accepted as its own sanitized replacement.
+
+        THE INCIDENT (2026-08-19, production). WarGames was staged as
+        « Wargames (1983) » and scraped as « WarGames (1983) » — the two differ
+        only in the case of one letter. `Wargames.1983.…-RiFiFi.mkv` starts with
+        the old prefix, so the sanitized equivalent was computed as
+        `WarGames.1983.…-RiFiFi.mkv` — which, on a case-insensitive filesystem,
+        IS THE SAME INODE. `exists()` answered True, the guard « only remove the
+        old copy once the new one is there » read as satisfied, and the unlink
+        destroyed the only copy. A 12.6 GB film left the pipeline as an NFO and
+        two posters, and `verify` reported « No video file found ».
+
+        The assertion is written so it holds on a case-SENSITIVE filesystem too:
+        there the sanitized sibling simply does not exist, and the file survives
+        for that reason instead. Either way, deleting it is the defect.
+        """
+        video = tmp_path / "Wargames.1983.MULTi.1080p.BluRay.x264-RiFiFi.mkv"
+        video.write_bytes(b"the only copy")
+
+        removed = _cleanup_stale_files(tmp_path, old_prefix="Wargames", new_prefix="WarGames")
+
+        assert removed == 0
+        assert video.exists(), "the only copy of the video was deleted"
+
+    def test_a_genuine_duplicate_is_still_removed_under_a_case_only_rename(self, tmp_path: Path) -> None:
+        """The fix must not blunt the cleanup it guards.
+
+        Two DISTINCT files, under a case-only prefix change: the stale one still
+        goes. Without this, `samefile` could have been swapped for « never clean
+        up when the prefixes differ only by case », which would trade a data-loss
+        bug for a litter bug.
+        """
+        stale = tmp_path / "Wargames-fanart.jpg"
+        fresh = tmp_path / "WarGames-fanart.jpg"
+        stale.write_bytes(b"old")
+        # On a case-insensitive filesystem these two names are one file, so the
+        # pair can only be built where they are genuinely distinct.
+        if fresh.exists():
+            pytest.skip("case-insensitive filesystem: the two names are one file")
+        fresh.write_bytes(b"new")
+
+        removed = _cleanup_stale_files(tmp_path, old_prefix="Wargames", new_prefix="WarGames")
+
+        assert removed == 1
+        assert not stale.exists()
+        assert fresh.exists()
+
     def test_unlink_oserror_logged_and_swallowed(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         """An OSError on the unlink call logs a warning and is counted as not-removed."""
         stale = tmp_path / "Title : Sub-fanart.jpg"

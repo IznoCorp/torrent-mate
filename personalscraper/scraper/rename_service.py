@@ -216,13 +216,28 @@ def _cleanup_stale_files(directory: Path, old_prefix: str, new_prefix: str) -> i
             continue
         # Build the expected sanitized equivalent
         new_name = new_prefix + f.name[len(old_prefix) :]
-        if (directory / new_name).exists():
-            try:
-                f.unlink()
-                log.info("stale_file_removed", filename=f.name)
-                removed += 1
-            except OSError as exc:
-                log.warning("stale_file_remove_failed", filename=f.name, error=str(exc))
+        target = directory / new_name
+        if not target.exists():
+            continue
+        # A FILE MAY NOT VOUCH FOR ITSELF. macOS is case-insensitive, so when
+        # the two prefixes differ ONLY by case — « Wargames » scraped as
+        # « WarGames » — the sanitized equivalent of
+        # `Wargames.1983.…-RiFiFi.mkv` IS that same inode. `exists()` answers
+        # True, the guard « only remove the old copy once the new one is there »
+        # reads as satisfied, and the unlink destroys the ONLY copy. That is how
+        # a 12.6 GB film came out of the pipeline as an NFO and two posters.
+        #
+        # `samefile` compares device and inode, so it tells a genuine duplicate
+        # from a file meeting itself under another spelling.
+        if target.samefile(f):
+            log.info("stale_file_kept_same_inode", filename=f.name, target=new_name)
+            continue
+        try:
+            f.unlink()
+            log.info("stale_file_removed", filename=f.name)
+            removed += 1
+        except OSError as exc:
+            log.warning("stale_file_remove_failed", filename=f.name, error=str(exc))
     return removed
 
 
