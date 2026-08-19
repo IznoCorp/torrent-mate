@@ -270,3 +270,31 @@ def test_running_twice_changes_nothing_the_second_time(tmp_path: Path) -> None:
     assert run(tmp_path, {"suivi": "follow"}).returncode == 0
 
     assert source.read_text(encoding="utf-8") == once
+
+
+def test_build_outputs_are_never_walked(tmp_path: Path) -> None:
+    """A value pass reached a MINIFIED bundle and rewrote it.
+
+    ``personalscraper/web/static/`` is the mirror of ``frontend/dist``. It is
+    gitignored, so nothing tracked the damage and ``git checkout`` could not
+    undo it: ``unicode-range`` became ``unicode-filed`` and an
+    ``<input type="range">`` became ``type="filed"`` in the served bundle.
+    ``node_modules`` and ``dist`` had been named one at a time; asking git what
+    it ignores covers every generated tree, including the ones not yet created.
+    """
+    root = tmp_path / "tree"
+    root.mkdir()
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    (tmp_path / ".gitignore").write_text("tree/built/\n", encoding="utf-8")
+    built = root / "built"
+    built.mkdir()
+    bundle = built / "bundle.js"
+    bundle.write_text('const t = "en_attente";\n', encoding="utf-8")
+    source = root / "app.js"
+    source.write_text('const t = "en_attente";\n', encoding="utf-8")
+
+    result = run(tmp_path, {"en_attente": "pending"}, "--values")
+
+    assert result.returncode == 0, result.stderr
+    assert '"pending"' in source.read_text(encoding="utf-8")
+    assert '"en_attente"' in bundle.read_text(encoding="utf-8")

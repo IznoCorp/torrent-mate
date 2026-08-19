@@ -516,6 +516,26 @@ def apply(text, mapping, in_python=False, properties=False, spans=None):
     return "".join(pieces)
 
 
+def ignored(path):
+    """Says whether git ignores `path`, i.e. whether it is a build output.
+
+    Answers False when there is no repository to ask, so the tool still runs
+    over a bare directory — a temporary tree in a test, for instance.
+
+    Args:
+        path: The file to ask about.
+
+    Returns:
+        True when git ignores it.
+    """
+    try:
+        return subprocess.run(
+            ["git", "check-ignore", "-q", str(path)],
+            capture_output=True, check=False).returncode == 0
+    except OSError:
+        return False
+
+
 def validate_mapping(mapping):
     """Refuses a table whose entries interfere with each other.
 
@@ -581,7 +601,16 @@ if __name__ == "__main__":
         # back inside.
         if path.is_symlink():
             continue
-        if "node_modules" in path.parts or "dist" in path.parts:
+        # A BUILD OUTPUT IS NOT SOURCE. `node_modules` and `dist` were named
+        # here one at a time, which left every other generated tree exposed:
+        # a value pass reached `personalscraper/web/static/`, the mirror of
+        # `frontend/dist`, and rewrote the MINIFIED bundle — `unicode-range`
+        # became `unicode-filed` and an `<input type="range">` became
+        # `type="filed"`. Nothing caught it, because the tree is gitignored and
+        # so a revert could not restore it either. Asking git what it ignores
+        # covers every generated tree at once, including the ones nobody has
+        # created yet.
+        if ignored(path) or "node_modules" in path.parts or "dist" in path.parts:
             continue
         # The TRANSLATIONS are the one place French belongs, and a value pass
         # walks JSON. Nothing may reach `i18n/`.

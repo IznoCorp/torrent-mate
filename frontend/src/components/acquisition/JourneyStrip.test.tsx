@@ -8,7 +8,7 @@ describe("JourneyStrip (§14.3)", () => {
   afterEach(cleanup);
 
   it("les étapes franchies, l'étape courante et celles à venir sont distinctes", () => {
-    render(<JourneyStrip stage="ingere" />);
+    render(<JourneyStrip stage="ingested" />);
     expect(screen.getByText(/pris — franchie/)).toBeInTheDocument();
     expect(screen.getByText(/ingéré — en cours/)).toBeInTheDocument();
     expect(screen.getByText(/rangé — à venir/)).toBeInTheDocument();
@@ -21,7 +21,7 @@ describe("JourneyStrip (§14.3)", () => {
   });
 
   it("chaque étape est une piste de largeur égale qui tronque — anti-chevauchement par construction", () => {
-    const { container } = render(<JourneyStrip stage="pris" />);
+    const { container } = render(<JourneyStrip stage="taken" />);
     const stations = container.querySelectorAll("[data-station]");
     expect(stations).toHaveLength(STAGES.length);
     stations.forEach((st) => {
@@ -53,9 +53,9 @@ describe("JourneyStrip (§14.3)", () => {
   });
 
   it("le point « en cours » n'a PAS le différenciateur structurel du point bloqué", () => {
-    const { container } = render(<JourneyStrip stage="ingere" />);
+    const { container } = render(<JourneyStrip stage="ingested" />);
     const nowDot = container.querySelector(
-      '[data-station="ingere"] [aria-hidden="true"]',
+      '[data-station="ingested"] [aria-hidden="true"]',
     );
     expect(nowDot).not.toBeNull();
     // The "now" dot must be round — this proves rounded-full was moved into
@@ -67,10 +67,11 @@ describe("JourneyStrip (§14.3)", () => {
   });
 
   it("aucun libellé n'est un token machine (NE-DOIT-PAS-4)", () => {
-    render(<JourneyStrip stage="telech" />);
-    // "pris" is a real French word that intentionally equals its key — it is
-    // not a machine token. The other four keys must never appear verbatim.
-    const machineTokens = STAGES.filter((s) => s.key !== "pris").map((s) => s.key);
+    render(<JourneyStrip stage="downloaded" />);
+    // Every key is a machine token and every label is French, so NO key may
+    // appear verbatim. The exception this check used to carry — the label
+    // « pris » was spelled exactly like its key — disappeared with the key.
+    const machineTokens = STAGES.map((s) => s.key);
     for (const key of machineTokens) {
       expect(screen.queryByText(key, { exact: true })).toBeNull();
     }

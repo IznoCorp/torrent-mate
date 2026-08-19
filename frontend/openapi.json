@@ -4991,11 +4991,11 @@
           },
           "stage": {
             "enum": [
-              "pris",
-              "telech",
-              "ingere",
+              "taken",
+              "downloaded",
+              "ingested",
               "scrape",
-              "range"
+              "filed"
             ],
             "title": "Stage",
             "type": "string"

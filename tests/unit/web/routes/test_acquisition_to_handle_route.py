@@ -136,7 +136,7 @@ def test_to_handle_route_serves_items_and_orphan_count(test_config: Any, tmp_pat
     assert body["orphan_count"] == 1
     assert [i["decision_id"] for i in body["items"]] == [1]
     assert body["items"][0]["reason"] == "titre ambigu — 3 candidats proposés"
-    assert body["items"][0]["stage"] == "ingere"
+    assert body["items"][0]["stage"] == "ingested"
 
 
 def test_to_handle_route_is_fail_soft_without_a_database(test_config: Any, tmp_path: Path) -> None:

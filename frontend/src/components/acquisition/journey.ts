@@ -52,17 +52,17 @@ export function deriveStage(j: JourneyItem | undefined): Stage | null {
 
   // Find the latest reached station (top-down: dispatched → scraped → ingested → grabbed).
   let stage: Stage;
-  if (dispatched_at != null) stage = "range";
+  if (dispatched_at != null) stage = "filed";
   else if (scraped_at != null) stage = "scrape";
-  else if (ingested_at != null) stage = "ingere";
-  else if (grabbed_at != null) stage = "telech";
-  else stage = "pris";
+  else if (ingested_at != null) stage = "ingested";
+  else if (grabbed_at != null) stage = "downloaded";
+  else stage = "taken";
 
   // §14.3: on a rebuilt row, an absent intermediate timestamp means UNKNOWN.
   // If any station BEFORE the latest is missing, we cannot draw a confident path.
   if (reconstructed_at != null) {
     const expected = [grabbed_at, ingested_at, scraped_at, dispatched_at];
-    const stageIdx = ["pris", "telech", "ingere", "scrape", "range"].indexOf(stage);
+    const stageIdx = ["taken", "downloaded", "ingested", "scrape", "filed"].indexOf(stage);
     // Every timestamp up to and including the latest must be present.
     for (let i = 1; i <= stageIdx; i++) {
       if (expected[i - 1] == null) return null;

@@ -54,7 +54,7 @@ def test_a_decision_backed_by_an_acquisition_is_an_item(tmp_path, acquire_store)
     assert item.title == "Top Chef"
     assert item.candidates_count == 3
     # §14.3 — l'étape est celle réellement atteinte, jamais une valeur par défaut.
-    assert item.stage == "ingere"
+    assert item.stage == "ingested"
 
 
 def test_an_item_carries_its_episode_identity(tmp_path, acquire_store):

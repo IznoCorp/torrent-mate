@@ -5410,7 +5410,7 @@ export interface components {
              * Stage
              * @enum {string}
              */
-            stage: "pris" | "telech" | "ingere" | "scrape" | "range";
+            stage: "taken" | "downloaded" | "ingested" | "scrape" | "filed";
             /** Title */
             title: string;
             /** Year */
