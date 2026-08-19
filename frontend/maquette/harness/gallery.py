@@ -37,7 +37,19 @@ async def main():
         await pg.wait_for_timeout(400)
         # The lens galleries need their grid layout switched on.
         if sel is None:
-            await pg.evaluate("()=>{const v=document.querySelector('[data-vsw=\"grid\"],[data-libmode=\"grid\"]'); if(v) v.click();}")
+            # `data-vsw` and `data-libmode` NEVER EXISTED. The real attribute is
+            # `data-lmode` (pages/library.tsx), so this click had been a no-op
+            # since it was written — swallowed by its own `if(v)` guard, which
+            # is why nothing ever said so. A control the harness cannot find is
+            # now a failure: a guarded click that silently does nothing is how a
+            # rule keeps passing while it stops driving the thing it measures.
+            switched = await pg.evaluate(
+                "()=>{const v=document.querySelector('[data-lmode=\"grid\"]');"
+                " if(!v) return false; v.click(); return true;}")
+            if not switched:
+                failures.append(f"{name}: no [data-lmode=\"grid\"] control to switch layout")
+                print(f"  {name:26} NO GRID CONTROL")
+                continue
             await pg.wait_for_timeout(300)
             sel = ".tile[data-panel]"
         n = await pg.locator(sel).count()
@@ -59,7 +71,10 @@ async def main():
 
         # 2. A long press opens the bottom panel.
         if await pg.locator(sel).count() == 0:
-            await pg.evaluate("()=>{const v=document.querySelector('[data-vsw=\"grid\"],[data-libmode=\"grid\"]'); if(v) v.click();}")
+            # Same dead pair as above, same real attribute.
+            await pg.evaluate(
+                "()=>{const v=document.querySelector('[data-lmode=\"grid\"]');"
+                " if(v) v.click();}")
             await pg.wait_for_timeout(300)
         box = await pg.locator(sel).first.bounding_box()
         await pg.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)

@@ -136,17 +136,31 @@ async def main():
             and next_["page"] == start["page"])
 
     # and the « + » returns to follow mode
+    #
+    # `[data-search]` NEVER EXISTED on this screen — the add screen searches as
+    # you type (`#addq`), it has no search button — so that click was a no-op
+    # swallowed by its own `?.`. And the row click below wore the same `?.`, so
+    # a screen with no result at all would have walked through this block in
+    # silence and printed an empty list.
     await pg.evaluate("()=>window.__go('acq-encours-loaded')"); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>document.querySelector('#fab').click()"); await pg.wait_for_timeout(500)
-    await pg.evaluate("()=>document.querySelector('[data-search]')?.click()"); await pg.wait_for_timeout(500)
-    await pg.evaluate("()=>document.querySelector('.reslist .cbody')?.click()"); await pg.wait_for_timeout(420)
+    opened = await pg.evaluate(
+        "()=>{const r=document.querySelector('.reslist .cbody');"
+        " if(!r) return false; r.click(); return true;}")
+    await pg.wait_for_timeout(420)
     v = await pg.evaluate("()=>[...document.querySelectorAll('#sheet .sact.primary')].map(x=>x.textContent.trim())")
-    print("— the « + » says « Suivre/Ajouter » again :", v)
+    # AND THE ANSWER REACHES THE VERDICT. `v` was computed, printed, and then
+    # dropped: `ok and held and not errs` never mentioned it, so these four
+    # lines drove the interface and threw away what they found.
+    verb = opened and any(
+        word in action for action in v for word in ("Suivre", "Ajouter"))
+    print("— the « + » says « Suivre/Ajouter » again :", v,
+          "" if opened else "(NO RESULT ROW TO OPEN)")
     print("\nJS errors:", errs or "none")
     print("VERDICT:", "identify != follow, and context picks the verb"
-          if ok and held and not errs else "needs review")
+          if ok and held and verb and not errs else "needs review")
     await b.close()
     # A script that only prints can never fail, and a script that cannot fail
     # proves nothing: the verdict has to reach the exit code.
-    if not ok or not held or errs: raise SystemExit(1)
+    if not ok or not held or not verb or errs: raise SystemExit(1)
 asyncio.run(main())
