@@ -17,7 +17,22 @@ import subprocess
 import sys
 from pathlib import Path
 
-SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "rename-identifiers.py"
+import pytest
+
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "scripts" / "rename-identifiers.py"
+
+# Anything the tool parses as JavaScript goes through `scripts/source-spans.mjs`,
+# which requires `frontend/node_modules/typescript`. The `test` CI job installs
+# Python only — the frontend deps live in the `frontend` job — so these skip
+# there rather than failing, the same way the Makefile guards `check-frontend`
+# and `openapi` with `if [ -d frontend/node_modules ]`. The Python-language
+# tests below carry no such guard and run everywhere, on purpose: the parser
+# they exercise is Python's own tokeniser.
+needs_typescript = pytest.mark.skipif(
+    not (ROOT / "frontend" / "node_modules" / "typescript").is_dir(),
+    reason="frontend/node_modules/typescript absent (installed by the frontend CI job)",
+)
 
 
 def run(tmp_path: Path, mapping: dict[str, str], *flags: str) -> subprocess.CompletedProcess[str]:
@@ -54,6 +69,7 @@ def tree(tmp_path: Path, name: str, body: str) -> Path:
 # --- The prose hole: the defect that shipped to production -------------------
 
 
+@needs_typescript
 def test_multiword_string_is_never_rewritten_word_by_word(tmp_path: Path) -> None:
     """A sentence keeps every word: only a WHOLE-body match may move.
 
@@ -69,6 +85,7 @@ def test_multiword_string_is_never_rewritten_word_by_word(tmp_path: Path) -> Non
     assert source.read_text(encoding="utf-8") == 'const a = "rien de conforme au profil";\n'
 
 
+@needs_typescript
 def test_whole_only_value_moves_alone_but_not_inside_a_sentence(tmp_path: Path) -> None:
     """``--whole=`` was declared, documented, passed — and never read."""
     source = tree(
@@ -85,6 +102,7 @@ def test_whole_only_value_moves_alone_but_not_inside_a_sentence(tmp_path: Path) 
     assert 'const sentence = "conforme au profil ici";' in body
 
 
+@needs_typescript
 def test_inner_words_is_opt_in(tmp_path: Path) -> None:
     """A class list can still be rewritten, but only when asked for by name."""
     source = tree(tmp_path, "classes.js", 'const c = "carte ouverte";\n')
@@ -95,6 +113,7 @@ def test_inner_words_is_opt_in(tmp_path: Path) -> None:
     assert 'const c = "card ouverte";' in source.read_text(encoding="utf-8")
 
 
+@needs_typescript
 def test_single_token_value_still_moves(tmp_path: Path) -> None:
     """The mode's whole reason for existing keeps working."""
     source = tree(tmp_path, "state.js", 'const s = "en_attente";\nconst k = "acq-en_attente";\n')
@@ -110,6 +129,7 @@ def test_single_token_value_still_moves(tmp_path: Path) -> None:
 # --- Tables that cannot mean what they say -----------------------------------
 
 
+@needs_typescript
 def test_chained_table_is_refused(tmp_path: Path) -> None:
     """``{a: b, b: c}`` collapsed both names onto ``c`` and exited zero."""
     source = tree(tmp_path, "chain.js", "const alpha = 1;\nconst beta = 2;\n")
@@ -121,6 +141,7 @@ def test_chained_table_is_refused(tmp_path: Path) -> None:
     assert source.read_text(encoding="utf-8") == "const alpha = 1;\nconst beta = 2;\n"
 
 
+@needs_typescript
 def test_merging_table_is_refused(tmp_path: Path) -> None:
     """Two names onto one is a lost distinction, never an intended rename."""
     tree(tmp_path, "merge.js", "const un = 1;\nconst deux = 2;\n")
@@ -153,6 +174,7 @@ def test_python_comment_with_an_apostrophe_does_not_abort_the_rename(tmp_path: P
     assert "window.follow" in source.read_text(encoding="utf-8")
 
 
+@needs_typescript
 def test_a_failed_file_does_not_leave_the_tree_half_renamed(tmp_path: Path) -> None:
     """An abort mid-walk used to leave earlier files written and later ones not."""
     first = tree(tmp_path, "a_first.js", "const suivi = 1;\n")
@@ -193,6 +215,7 @@ def test_values_mode_leaves_json_prose_alone(tmp_path: Path) -> None:
     assert "le profil est absent" in source.read_text(encoding="utf-8")
 
 
+@needs_typescript
 def test_symlink_is_not_followed_out_of_the_root(tmp_path: Path) -> None:
     """Following one rewrote a file OUTSIDE the tree the caller named."""
     outside = tmp_path / "outside.js"
@@ -207,6 +230,7 @@ def test_symlink_is_not_followed_out_of_the_root(tmp_path: Path) -> None:
     assert outside.read_text(encoding="utf-8") == "const suivi = 42;\n"
 
 
+@needs_typescript
 def test_translations_are_unreachable_even_from_inside_them(tmp_path: Path) -> None:
     """The i18n guard read the root as SPELLED, so ``--root=.`` walked past it."""
     root = tmp_path / "tree" / "i18n"
@@ -231,6 +255,7 @@ def test_translations_are_unreachable_even_from_inside_them(tmp_path: Path) -> N
 # --- Shapes that already worked, held so they keep working -------------------
 
 
+@needs_typescript
 def test_identifiers_move_but_strings_do_not(tmp_path: Path) -> None:
     """The tool's founding boundary rule."""
     source = tree(
@@ -247,6 +272,7 @@ def test_identifiers_move_but_strings_do_not(tmp_path: Path) -> None:
     assert '"un suivi lisible"' in body
 
 
+@needs_typescript
 def test_rename_past_an_emoji_lands(tmp_path: Path) -> None:
     """UTF-16 units versus code points: renames past an emoji missed silently."""
     source = tree(
@@ -261,6 +287,7 @@ def test_rename_past_an_emoji_lands(tmp_path: Path) -> None:
     assert "const follow = 2;" in source.read_text(encoding="utf-8")
 
 
+@needs_typescript
 def test_running_twice_changes_nothing_the_second_time(tmp_path: Path) -> None:
     """Idempotence, held so a re-run is never a second rename."""
     source = tree(tmp_path, "idem.js", "const suivi = 1;\n")
@@ -272,6 +299,7 @@ def test_running_twice_changes_nothing_the_second_time(tmp_path: Path) -> None:
     assert source.read_text(encoding="utf-8") == once
 
 
+@needs_typescript
 def test_build_outputs_are_never_walked(tmp_path: Path) -> None:
     """A value pass reached a MINIFIED bundle and rewrote it.
 

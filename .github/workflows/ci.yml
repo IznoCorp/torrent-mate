@@ -234,6 +234,26 @@ jobs:
         if: needs.changes.outputs.python == 'true'
       - run: pip install -e ".[dev]"
         if: needs.changes.outputs.python == 'true'
+      # The renaming tool reads JS/TS through `scripts/source-spans.mjs`, which
+      # requires `frontend/node_modules/typescript`. Without it, 13 of the 16
+      # tests in `tests/scripts/test_rename_identifiers.py` SKIP here — and that
+      # tool is the one about to be pointed at 35 000 lines of `legacy.js`, so
+      # its proof has to be exercised where the gate is, not only on a developer
+      # machine that happens to have run `npm ci`. Installing the ONE package
+      # into an empty prefix keeps this to seconds instead of the frontend's
+      # full dependency tree.
+      - uses: actions/setup-node@v4
+        if: needs.changes.outputs.python == 'true'
+        with:
+          node-version: "22"
+      - name: Install the TypeScript compiler the renaming tool parses through
+        if: needs.changes.outputs.python == 'true'
+        run: |
+          mkdir -p /tmp/tsonly frontend/node_modules
+          cd /tmp/tsonly
+          npm install --no-save --no-fund --no-audit typescript@6.0.3
+          cp -R /tmp/tsonly/node_modules/typescript "$GITHUB_WORKSPACE/frontend/node_modules/"
+          node -e "console.log('typescript', require('$GITHUB_WORKSPACE/frontend/node_modules/typescript/package.json').version)"
       # Run the full test suite (tests/) — the previous split into
       # tests/unit/ + tests/integration/ only covered 883 of 5521 tests
       # (~16%), yielding 44% combined coverage (well below fail_under=90).
