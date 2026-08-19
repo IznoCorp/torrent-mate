@@ -297,17 +297,37 @@ This catches "translating" at the moment it happens.
 
 ### 4. Zero divergence is a build condition, not a ticket.
 
-> **NOT BUILT YET — and this section used to claim otherwise.** `scripts/parity-probe.py`
-> does not exist, and nothing named it in `make check` or in CI. A README asserting a gate
-> that no file implements is worse than a missing gate: it is a gate everyone believes in.
-> What holds parity TODAY is the harness rule suite (`harness/*.py`), which does run.
-> The paragraph below is the DESIGN of the probe, kept as a specification.
+`scripts/parity-probe.py` walks `regions.json` at 390 × 844 / DPR 2 / mobile / touch and
+diffs `getBoundingClientRect` plus a fixed `getComputedStyle` subset. Wired into `make check`.
 
-`scripts/parity-probe.py` would walk `regions.json` in two headless contexts — the prototype
-and a production build it serves itself from `frontend/dist` — at 390 × 844 / DPR 2 / mobile /
-touch, and diff
-`getBoundingClientRect` plus a fixed `getComputedStyle` subset. The allowlist is explicit and
-**every entry carries an inline justification**. It is to be wired into `make check` and CI.
+**What it proves, and why the drift check is not enough.** `extract-maquette-css.py --check`
+guards that `app-surface.css` is TEXTUALLY what extraction produces. Extraction also SCOPES
+every selector under `.tm` — `.topbar` ships as `.tm .topbar`, specificity (0,1,0) → (0,2,0) —
+so a cascade outcome can change while the text stays exactly what the extractor emits. Textual
+identity and rendering identity are two different claims; this makes the second one.
+
+For every state, each region visible in it is measured twice against **the same DOM**: once as
+the prototype dresses it (BLOCK 2 of `refonte.html`), then again with BLOCK 2 replaced by the
+extracted sheet and the scope class applied. Only the stylesheet changes between the reads.
+
+Everything it uses is declared in `regions.json` under `probe` — viewport,
+`assertBeforeMeasuring`, the sixteen compared properties, and three lists that each carry a
+justification per entry:
+
+- **`allowlist`** — accepted divergences (today: one, `.bottombar`'s `position`).
+- **`neutralise`** — prototype-only chrome removed from the DOM before EITHER read. The design
+  note is dismissed by a click in a normal run and the rule collapsing it lives in BLOCK 2,
+  correctly unexported; left in place it springs back to 75.6 px on the swap and pushes every
+  region below it down, which the probe would report as a divergence in each one. That is the
+  shape of a probe measuring its own setup, and it is removed rather than allowlisted because
+  it is not a difference the app can ever have.
+- **`knownAbsent`** — regions whose selector matches nothing in the state they claim. A region
+  that matches nothing MEASURES nothing, so absence FAILS unless it is declared with its
+  cause. Five are: two dead class names (`.sug`, `.qchip`), two interaction-gated
+  (`.addfoot` needs `added.size > 0`, `.eppop` needs a click), one pointed at a state that is
+  not empty (`.empty` in `arr-repos`).
+
+No screenshots, deliberately — see « the deterministic oracle » below.
 
 The probe is **append-only over regions**: each pass re-runs everything already at zero. This
 work has already produced the defect that rule exists for — after a change to one view, only

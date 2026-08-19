@@ -954,7 +954,40 @@
       "align-items",
       "justify-content"
     ],
-    "allowlist": [
+    "knownAbsent": [
+   {
+    "region": "decouvrir/card",
+    "selector": ".sug",
+    "cause": "DEAD CLASS. `.sug` is written nowhere — not in the shell sources, not in refonte.html's CSS. The discover tab renders `.body.deckbody`, `.live` and `.surferr`. The entry names a card that no longer exists under that name."
+   },
+   {
+    "region": "profil/critere",
+    "selector": ".qchip",
+    "cause": "DEAD CLASS, same as `.sug`: absent from both the markup and the stylesheet."
+   },
+   {
+    "region": "add/footer",
+    "selector": ".addfoot",
+    "cause": "INTERACTION-GATED, not dead: `screens/add.tsx:340` renders it only when `added.size > 0`, and `acq-ajout-resultats` adds nothing. The probe drives states, never interactions, so it cannot reach this without the state declaring the selection."
+   },
+   {
+    "region": "matrice/popover-date",
+    "selector": ".eppop",
+    "cause": "INTERACTION-GATED: the episode date popover exists in CSS and is mounted by a click. No named state opens it."
+   },
+   {
+    "region": "arrivees/empty",
+    "selector": ".empty",
+    "cause": "WRONG STATE, not dead: `pages/arrivals.tsx:254` renders `.empty` only when the list is empty, and `arr-repos` has arrivals. The region wants a state that empties the list."
+   }
+  ],
+  "neutralise": [
+   {
+    "selector": ".note, .notes",
+    "justification": "PROTOTYPE-ONLY CHROME, removed from the DOM before either measurement so both see the same document. The design note is dismissed by a click in a normal harness run, and the rule that keeps it collapsed afterwards lives in BLOCK 2 — correctly NOT exported, since the app never renders a design note. Left in place, swapping the sheet lets it spring back to 75.6px and pushes every region below it down, which the probe would report as a divergence in each one: the shape of a probe measuring its own setup. Removed from BOTH passes rather than allowlisted, because it is not a difference the app can ever have."
+   }
+  ],
+  "allowlist": [
       {
         "selector": ".bottombar",
         "property": "position",
