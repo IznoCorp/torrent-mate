@@ -352,6 +352,7 @@ examined: dict[str, int] = {
     "lines / shell scripts": 0,
     "interface text / app (exempt)": 0,
     "name words / dictionary": 0,
+    "string literals / tests": 0,
 }
 
 # Counted, reported, and deliberately NOT refused. An exemption nobody counts
@@ -419,7 +420,6 @@ DICTIONARY_EXCEPTIONS: dict[str, str] = {
     "livres": "a category id — data, not a name",
     "gourou": "a media title in a scraper fixture",
     "sur": "a media title in a fixture (« Sur écoute »)",
-    "panne": "the engine's own state field, inside the declared legacy debt",
     "maquette": "named by the constitution §15 and R72 — the design reference itself",
     "saison": "the on-disk folder name (« Saison XX »), a real path, not a name",
 }

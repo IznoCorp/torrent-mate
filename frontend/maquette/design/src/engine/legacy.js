@@ -7000,7 +7000,7 @@ import { screens, panel, bridge } from "../seams.js";
     maintTopic: null,
     /* Shows the SIMULATED fault on Système. Everything on this machine is
        green, and a screen that can only be green cannot be judged. */
-    panne: false,
+    fault: false,
     maintBlanc: true,
     addMode: "suivi",
     relatedTitle: null,

@@ -566,24 +566,47 @@ def check_french_debt(violations: list[str]) -> None:
     examined["french debt words / vocabulary"] += len(owed)
     # The app is read too: a debt word borrowed in `frontend/src` would be no
     # less an exemption nobody granted, and it is not the engine's file.
+    # EVERY scope the guard reads, not two frontend trees. The banner claims
+    # these words are « needed by exactly ONE file » and that this arm « refuses
+    # them anywhere else » — and it read no `.py` at all, so thirteen of the
+    # twenty-four passed silently as Python identifiers, and `panne` was live in
+    # `harness/machine.py` under a green gate. A bound that covers a quarter of
+    # the codebase is not a bound.
     sources = [p for p in SHELL.rglob("*")
                if p.is_file() and p.suffix in {".ts", ".tsx", ".js"}
                and "i18n" not in p.parts and relative(p) != DEBT_FILE]
     sources += [p for p in (ROOT / "frontend" / "src").rglob("*")
                 if p.is_file() and p.suffix in {".ts", ".tsx"}]
+    sources += [MAQUETTE / "serve.py", MAQUETTE / "resync.py"]
+    sources += sorted(HARNESS.glob("*.py"))
+    sources += [p for p in sorted(SCRIPTS.rglob("*.py")) if p.name not in SELF]
+    sources += sorted((ROOT / "personalscraper").rglob("*.py"))
+    sources += sorted((ROOT / "tests").rglob("*.py"))
     for path in sorted(sources):
         raw = read(path)
         lines = raw.splitlines()
-        source = code_only(raw)
-        for match in re.finditer(
-                r"(?:function|const|let|var|class|type|interface)\s+"
-                r"([A-Za-z_$][\w$]*)", source):
-            name = match.group(1)
-            line_no = source[: match.start()].count("\n") + 1
+        # A JavaScript declaration regex over a `.py` file matches nothing, so
+        # merely ADDING Python to the scope changed nothing: `panne` stayed
+        # green in `harness/machine.py`. Python is read by Python's own reader.
+        if path.suffix == ".py":
+            found = [(name, line_no) for name, line_no in python_declarations(raw)]
+        else:
+            source = code_only(raw)
+            found = [(m.group(1), source.count("\n", 0, m.start()) + 1)
+                     for m in re.finditer(
+                         r"(?:function|const|let|var|class|type|interface)\s+"
+                         r"([A-Za-z_$][\w$]*)", source)]
+        for name, line_no in found:
             # Same as the vocabulary arm: an empty reason grants nothing.
             if pragma_on(lines, line_no):
                 continue
-            borrowed = [w for w in split_identifier(name) if w.lower() in owed]
+            # A word DECLARED as an English abbreviation is not borrowed
+            # French, wherever it appears. `sel` is a selector, `maint`
+            # maintenance, `repos` git repositories — each already carries
+            # its reason in DICTIONARY_EXCEPTIONS, and one declaration
+            # should answer for both arms rather than each keeping a list.
+            borrowed = [w for w in split_identifier(name)
+                        if w.lower() in owed and w.lower() not in DICTIONARY_EXCEPTIONS]
             if borrowed:
                 violations.append(
                     f"{relative(path)}:{line_no}: {name!r} borrows "
@@ -969,6 +992,52 @@ def check_app_interface_text(violations: list[str]) -> None:
             f"baseline in {relative(baseline_path)} deliberately.")
 
 
+def check_test_prose(violations: list[str]) -> None:
+    """Reads the French in `tests/`, counts it, and refuses it growing.
+
+    UNREAD AND UNCOUNTED, which is the worst of the two states. CLAUDE.md is
+    unambiguous that docstrings are English and that a tool's messages are
+    English — and no arm opened `tests/` for strings at all, so 413 French
+    literals sat there while the gate reported no violation and no counter
+    named the scope. `personalscraper/`'s French has a documented carve-out
+    (the CLI speaks to the operator, in French); `tests/` has none.
+
+    Translating them is a separate piece of work — 159 docstrings and 110
+    assertion messages, each of which has to be read to be moved. What must not
+    wait is the invisibility: an unread scope reports « no violation » about a
+    place it never opened, and that is how every hole this file has had began.
+
+    So the scope is read, published, and RATCHETED: it may shrink, never grow.
+    A new French docstring in a test is refused today; the existing ones are a
+    declared debt with a number attached.
+
+    Args:
+        violations: The accumulator every arm appends to.
+    """
+    french = 0
+    for path in sorted((ROOT / "tests").rglob("*.py")):
+        source = read(path)
+        literals = python_string_literals(source)
+        examined["string literals / tests"] += len(literals)
+        french += sum(1 for _, body in literals if offending_string(body))
+    exempted["french strings / tests"] = french
+
+    baseline_path = ROOT / "scripts" / "french-exemption-baseline.json"
+    try:
+        baseline = json.loads(baseline_path.read_text(encoding="utf-8"))["tests"]
+    except (OSError, ValueError, KeyError):
+        violations.append(
+            f"{relative(baseline_path)} has no `tests` baseline — the scope "
+            "would be read and counted, and still free to grow")
+        return
+    if french > baseline:
+        violations.append(
+            f"the French in `tests/` GREW: {french} strings against a baseline "
+            f"of {baseline}. Docstrings and tool messages are English "
+            f"(CLAUDE.md §Language) — write the new one in English, or lower "
+            f"the baseline in {relative(baseline_path)} deliberately.")
+
+
 def main() -> int:
     """Runs the four arms and reports every violation.
 
@@ -987,6 +1056,7 @@ def main() -> int:
     check_shell_scripts(violations)
     check_dictionary(violations)
     check_app_interface_text(violations)
+    check_test_prose(violations)
     for what, count in examined.items():
         if count == 0:
             violations.append(

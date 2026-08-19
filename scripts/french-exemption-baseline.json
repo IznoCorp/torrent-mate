@@ -1,4 +1,6 @@
 {
   "production": 751,
-  "_why": "The accepted French in frontend/src, PRODUCTION components only. French a test asserts is the app rendered output and is counted apart. This number may go DOWN; the guard refuses it going up."
+  "_why": "The accepted French in frontend/src, PRODUCTION components only. French a test asserts is the app rendered output and is counted apart. This number may go DOWN; the guard refuses it going up.",
+  "tests": 413,
+  "_why_tests": "French literals under tests/ — 159 docstrings, 110 assertion messages, the rest asserted UI copy. CLAUDE.md says docstrings and tool messages are English; translating them is separate work. This number may go DOWN; the guard refuses it going up, so a NEW French docstring is refused today."
 }

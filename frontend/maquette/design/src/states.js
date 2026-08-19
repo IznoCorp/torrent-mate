@@ -548,22 +548,22 @@ const STATES = [
     [
       "system",
       "Système — la santé de la machine",
-      () => applyState({ page: "sys", phase: "ready", panne: false }),
+      () => applyState({ page: "sys", phase: "ready", fault: false }),
     ],
     [
       "system-panne",
       "Système — une panne (simulée)",
-      () => applyState({ page: "sys", phase: "ready", panne: true }),
+      () => applyState({ page: "sys", phase: "ready", fault: true }),
     ],
     [
       "system-chargement",
       "Système — chargement",
-      () => applyState({ page: "sys", phase: "chargement", panne: false }),
+      () => applyState({ page: "sys", phase: "chargement", fault: false }),
     ],
     [
       "system-erreur",
       "Système — erreur",
-      () => applyState({ page: "sys", phase: "erreur", panne: false }),
+      () => applyState({ page: "sys", phase: "erreur", fault: false }),
     ],
     [
       "introuvable",
