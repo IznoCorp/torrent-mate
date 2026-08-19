@@ -77,12 +77,18 @@ def test_multiword_string_is_never_rewritten_word_by_word(tmp_path: Path) -> Non
     ``"… au profile"`` and reached production, because the id test was applied
     to each space-separated word instead of to the whole string.
     """
-    source = tree(tmp_path, "copy.js", 'const a = "rien de conforme au profil";\n')
+    source = tree(
+        tmp_path,
+        "copy.js",
+        'const a = "rien de conforme au profil";\nconst b = "profil";\n',
+    )
 
     result = run(tmp_path, {"profil": "profile"}, "--values")
 
     assert result.returncode == 0, result.stderr
-    assert source.read_text(encoding="utf-8") == 'const a = "rien de conforme au profil";\n'
+    body = source.read_text(encoding="utf-8")
+    assert '"rien de conforme au profil"' in body, "the sentence was rewritten"
+    assert '"profile"' in body, "CONTROL: the bare value did not move — dead tool?"
 
 
 @needs_typescript
@@ -276,11 +282,17 @@ def test_a_jsx_expression_holding_the_TARGET_name_is_untouched(tmp_path: Path) -
         "const body = 1;\nexport const C = () => <p>{body}</p>;\n",
     )
     before = source.read_text(encoding="utf-8")
+    # CONTROL: this asserts a file did NOT change, which a tool writing nothing
+    # satisfies perfectly. Something in the same run must move.
+    control = tree(tmp_path, "control.js", "const corps = 1;\n")
 
     result = run(tmp_path, {"corps": "body"})
 
     assert result.returncode == 0, result.stderr
     assert source.read_text(encoding="utf-8") == before
+    assert "const body = 1;" in control.read_text(encoding="utf-8"), (
+        "CONTROL: the source name did not move anywhere — dead tool?"
+    )
 
 
 def test_python_prose_is_never_rewritten(tmp_path: Path) -> None:
@@ -337,6 +349,9 @@ def test_python_prose_survives_the_bracket_pass(tmp_path: Path) -> None:
     assert chr(0) not in body, "a placeholder was left in the file"
     assert "« Récupérer maintenant »" in body, "prose was cut out by stale offsets"
     assert '"[data-go=suivi]"' in body, "a bracketed selector is data and stays"
+    # CONTROL: the evaluate string in the same file must have moved, or a tool
+    # that writes nothing would satisfy every assertion above.
+    assert '"()=>window.follow()"' in body, "CONTROL: the drive string did not move — dead tool?"
 
 
 # --- Scopes the walker claimed to cover --------------------------------------
@@ -359,12 +374,18 @@ def test_values_mode_reaches_json(tmp_path: Path) -> None:
 
 def test_values_mode_leaves_json_prose_alone(tmp_path: Path) -> None:
     """Reaching JSON must not mean rewriting the sentences inside it."""
-    source = tree(tmp_path, "notes.json", '{\n  "note": "le profil est absent"\n}\n')
+    source = tree(
+        tmp_path,
+        "notes.json",
+        '{\n  "note": "le profil est absent",\n  "state": "profil"\n}\n',
+    )
 
     result = run(tmp_path, {"profil": "profile"}, "--values")
 
     assert result.returncode == 0, result.stderr
-    assert "le profil est absent" in source.read_text(encoding="utf-8")
+    body = source.read_text(encoding="utf-8")
+    assert "le profil est absent" in body, "the sentence was rewritten"
+    assert '"profile"' in body, "CONTROL: the bare value did not move — dead tool?"
 
 
 @needs_typescript
@@ -376,10 +397,13 @@ def test_symlink_is_not_followed_out_of_the_root(tmp_path: Path) -> None:
     root.mkdir(exist_ok=True)
     (root / "inside.js").symlink_to(outside)
 
+    control = tree(tmp_path, "inside_real.js", "const suivi = 1;\n")
+
     result = run(tmp_path, {"suivi": "follow"})
 
     assert result.returncode == 0, result.stderr
     assert outside.read_text(encoding="utf-8") == "const suivi = 42;\n"
+    assert "follow" in control.read_text(encoding="utf-8"), "CONTROL: a real file in the root did not move — dead tool?"
 
 
 @needs_typescript
@@ -389,6 +413,12 @@ def test_translations_are_unreachable_even_from_inside_them(tmp_path: Path) -> N
     root.mkdir(parents=True, exist_ok=True)
     source = root / "fr.js"
     source.write_text('export const fr = {a: "en_attente"};\n', encoding="utf-8")
+    # A POSITIVE CONTROL, OUTSIDE `i18n/` — a control inside it would be
+    # excluded too, which is exactly the behaviour under test. This test
+    # asserts a file was NOT touched, and a tool writing nothing satisfies that
+    # perfectly, so the control is what tells the two apart.
+    control = tmp_path / "tree" / "sibling.js"
+    control.write_text('const s = "en_attente";\n', encoding="utf-8")
 
     table = tmp_path / "map.json"
     table.write_text(json.dumps({"en_attente": "pending"}), encoding="utf-8")
@@ -402,6 +432,20 @@ def test_translations_are_unreachable_even_from_inside_them(tmp_path: Path) -> N
 
     assert result.returncode == 0, result.stderr
     assert '"en_attente"' in source.read_text(encoding="utf-8")
+
+    # Second run, from the PARENT: the tool reaches the control and still
+    # refuses the translations.
+    second = subprocess.run(
+        [sys.executable, str(SCRIPT), str(table), "--root=.", "--values"],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=tmp_path / "tree",
+    )
+
+    assert second.returncode == 0, second.stderr
+    assert '"en_attente"' in source.read_text(encoding="utf-8"), "i18n was reached"
+    assert '"pending"' in control.read_text(encoding="utf-8"), "CONTROL: a file outside i18n/ did not move — dead tool?"
 
 
 # --- Shapes that already worked, held so they keep working -------------------
@@ -425,18 +469,35 @@ def test_identifiers_move_but_strings_do_not(tmp_path: Path) -> None:
 
 
 @needs_typescript
-def test_rename_past_an_emoji_lands(tmp_path: Path) -> None:
-    """UTF-16 units versus code points: renames past an emoji missed silently."""
+def test_a_value_past_an_emoji_still_moves(tmp_path: Path) -> None:
+    """UTF-16 units versus code points, exercised where the drift actually bites.
+
+    The test that used to carry this ground renamed an IDENTIFIER after an
+    emoji and could not fail: the emoji sits inside a string span, and the code
+    span after it still holds the name whether the offsets drifted or not. It
+    certified a fix it never exercised — neutering `utf16_offsets` left it
+    green.
+
+    The real symptom was a string literal CUT IN HALF: JavaScript counts an
+    emoji as two units and Python as one, so every span past it landed short
+    and `"en_attente"` arrived as `"en_` in one chunk and `attente"` in the
+    next, matching neither. That needs `--values`, which renames INSIDE string
+    literals — which is where the offsets have to be right.
+
+    Neutering `utf16_offsets` turns this red: 1 rename becomes 0.
+    """
     source = tree(
         tmp_path,
         "emoji.js",
-        'const before = 1;\nconst label = "\U0001f600 \U0001f680";\nconst suivi = 2;\n',
+        'const label = "\U0001f600 \U0001f680 \U0001f4a9 \U0001f44d";\nconst state = "en_attente";\n',
     )
 
-    result = run(tmp_path, {"suivi": "follow"})
+    result = run(tmp_path, {"en_attente": "pending"}, "--values")
 
     assert result.returncode == 0, result.stderr
-    assert "const follow = 2;" in source.read_text(encoding="utf-8")
+    body = source.read_text(encoding="utf-8")
+    assert '"pending"' in body, "the value past four emoji was not renamed"
+    assert "\U0001f600" in body, "the emoji themselves must be untouched"
 
 
 @needs_typescript
@@ -446,6 +507,9 @@ def test_running_twice_changes_nothing_the_second_time(tmp_path: Path) -> None:
 
     assert run(tmp_path, {"suivi": "follow"}).returncode == 0
     once = source.read_text(encoding="utf-8")
+    # CONTROL: idempotence is trivially true of a tool that never writes. The
+    # first run has to have done something for the second to mean anything.
+    assert "follow" in once, "CONTROL: the first run renamed nothing — dead tool?"
     assert run(tmp_path, {"suivi": "follow"}).returncode == 0
 
     assert source.read_text(encoding="utf-8") == once
