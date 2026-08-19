@@ -47,6 +47,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import pathlib
 import sys
 
@@ -245,7 +246,13 @@ async def run(only_state, verbose):
     measured = missing = 0
 
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        # The harness uses the installed Google Chrome locally; a CI runner has
+        # only the chromium Playwright downloads, and `channel="chrome"` there
+        # fails to launch. The channel is therefore an input with the local
+        # default, not a constant.
+        channel = os.environ.get("PARITY_BROWSER_CHANNEL", "chrome")
+        browser = await playwright.chromium.launch(
+            **({} if channel == "chromium" else {"channel": channel}))
         context = await browser.new_context(
             viewport={"width": viewport["width"], "height": viewport["height"]},
             device_scale_factor=viewport["deviceScaleFactor"],
