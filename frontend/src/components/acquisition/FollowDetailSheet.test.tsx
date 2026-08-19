@@ -236,7 +236,7 @@ describe("seasonCounts — la dérivation unique (§13)", () => {
     expect(r.aired).toBe(3); // 4 total − 1 annonce
   });
 
-  it("exclut 'annonce' du dénominateur — un épisode futur ne peut pas manquer", () => {
+  it("exclut 'announced' du dénominateur — un épisode futur ne peut pas manquer", () => {
     const eps = [
       { state: "announced" as const },
       { state: "announced" as const },
@@ -266,7 +266,7 @@ describe("FollowDetailSheet", () => {
 
   it("un épisode annoncé n'est pas diffusé : il ne peut pas manquer au dénominateur", async () => {
     renderSheet(silo());
-    // S02: 13 owned, 14 aired (the 15th episode is 'annonce' → excluded from aired).
+    // S02: 13 owned, 14 aired (the 15th episode is 'announced' → excluded from aired).
     expect(await screen.findByTestId("season-2-fraction")).toHaveTextContent("13/14");
   });
 

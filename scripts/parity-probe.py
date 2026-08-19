@@ -130,8 +130,15 @@ MEASURE = """
 SWAP = """
 (payload) => {
   const {harness, extracted, scope} = payload;
-  const sheet = document.querySelector('style');
-  if (!sheet) return {ok: false, why: 'no <style> to swap'};
+  const sheet = [...document.querySelectorAll('style')]
+    .find((node) => node.textContent.includes('BLOCK 2'));
+  // Named by its CONTENT, not by being first. `querySelector('style')` took
+  // whichever sheet came first in the document: inject one decoy ahead of it
+  // and the swap replaced the decoy, BLOCK 2 stayed live, both passes measured
+  // the prototype against itself, and a deleted rule in the extracted sheet
+  // reported zero divergences. The marker is the same one
+  // `application_block_of` refuses to work without.
+  if (!sheet) return {ok: false, why: 'no <style> carrying BLOCK 2 to swap'};
   // The DOM is untouched: only the dressing changes. BLOCK 1 stays, because it
   // is the phone frame the prototype lives inside and removing it would move
   // every region for a reason that has nothing to do with the extraction.
@@ -197,6 +204,23 @@ async def run(only_state, verbose):
     probe = contract["probe"]
     subset = probe["computedStyleSubset"]
     allowlist = probe.get("allowlist", [])
+    # An entry naming a property the probe never compares excuses NOTHING while
+    # reading as « seen and forgiven ». The single entry shipped that way:
+    # `.bottombar`/`position`, with `position` absent from the subset. Refused
+    # here rather than discovered by someone trusting it.
+    for entry in allowlist:
+        if entry["property"] not in subset:
+            raise SystemExit(
+                f"parity-probe: allowlist entry {entry['selector']} / "
+                f"{entry['property']} names a property the probe does not "
+                "compare — add it to probe.computedStyleSubset, or drop the "
+                "entry: it excuses nothing as written.")
+        if not any(region["selector"] == entry["selector"]
+                   for region in contract["regions"].values()):
+            raise SystemExit(
+                f"parity-probe: allowlist entry {entry['selector']} matches no "
+                "region selector — allowlist matching is exact, so this excuse "
+                "can never apply.")
     neutralise = [entry["selector"] for entry in probe.get("neutralise", [])]
     # A region that matches nothing MEASURES nothing, which is the exact shape
     # of vacuity this whole contract exists to refuse. So absence fails —
@@ -294,6 +318,14 @@ async def run(only_state, verbose):
             await browser.close()
 
     print()
+    # MEASURING NOTHING IS NOT PASSING. Emptying every region's `states` made
+    # the probe skip every state, never launch a page — so `assertBeforeMeasuring`
+    # never ran either — and exit 0. The per-region case was already refused;
+    # the whole-probe case was not, which is the same vacuity one level up.
+    if not measured:
+        print("parity-probe: NOTHING WAS MEASURED — every region was skipped. "
+              "A probe that measures nothing proves nothing.", file=sys.stderr)
+        return 1
     print(f"parity-probe: {measured} region-in-state measurement(s), "
           f"{missing} not present, {len(divergences)} divergence(s)")
     if missing:

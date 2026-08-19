@@ -526,11 +526,11 @@ class SeasonCompleteness(BaseModel):
             counted here: nothing is in motion for them, and folding them in
             would re-create the « queue volume implies progress » lie the
             five states exist to kill. A rename is phase 8's call.
-        total: Aired episodes in the season — the ``annonce`` (future) episodes
+        total: Aired episodes in the season — the ``announced`` (future) episodes
             are NOT counted here (nor in ``owned`` / ``queued``): a future
             episode has not aired, so it belongs to no acquisition tally. It is
             counted separately in ``announced``.
-        announced: Future episodes of the season (``annonce``) — episode-states
+        announced: Future episodes of the season (``announced``) — episode-states
             D2. Display-only: a count of what is coming, kept out of the aired
             tallies and out of the card aggregation entirely.
         episodes: The per-episode states, ordered by episode number (aired AND

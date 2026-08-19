@@ -47,7 +47,7 @@ WantedFacts = tuple[str | None, str | None, int | None]
 #: library holds the file).
 NO_WANTED_FACTS: WantedFacts = (None, None, None)
 
-#: State of ONE episode (or of the single unit a followed film is). ``annonce``
+#: State of ONE episode (or of the single unit a followed film is). ``announced``
 #: is the episode-states addition: a future episode (air_date > today) is known
 #: to the cache but not yet aired, so it is neither owned nor searchable — it is
 #: announced. It is a MATRIX-ONLY state: the card aggregation never sees it (a
@@ -284,7 +284,7 @@ def derive_episode_state(
 
     The evaluation order IS the specification — first match wins:
 
-    0. ``air_date > today`` → ``annonce``. Checked FIRST (episode-states D2): a
+    0. ``air_date > today`` → ``announced``. Checked FIRST (episode-states D2): a
        future episode is not aired, so it cannot be owned, searched or waiting —
        whatever ownership or ``wanted`` facts happen to sit on it. This precedes
        the ``unverified`` no-row path deliberately: a future has no ``wanted``
@@ -332,7 +332,7 @@ def derive_episode_state(
         air_date: The episode's air date, or ``None`` when the caller does not
             track dates (films, and any pre-episode-states call site).
         today: The reference date, injected for determinism (no hidden
-            ``date.today()``). ``None`` disables the ``annonce`` check.
+            ``date.today()``). ``None`` disables the ``announced`` check.
 
     Returns:
         The episode's :data:`EpisodeState`.
@@ -382,7 +382,7 @@ def derive_follow_status(
     5. any ``pending`` → ``pending``.
     6. any ``unverified`` → ``unverified`` (we still owe a verification).
     7. every aired episode is owned, and the series is FINISHED with nothing
-       announced ahead → ``termine``.
+       announced ahead → ``ended``.
     8. otherwise every aired episode is owned → ``up_to_date``.
 
     Rules 7-8 are the operator's 2026-08-09 split: « À jour » was covering two
@@ -390,10 +390,10 @@ def derive_follow_status(
     and one that is over. ``announced_count`` therefore reaches this function,
     which it deliberately did not before; the invariant it was kept out for
     still holds and is what rules 3-6 above guarantee: **an announced future
-    never DEGRADES a series**. It can only ever decide between ``termine`` and
+    never DEGRADES a series**. It can only ever decide between ``ended`` and
     ``up_to_date``, both of which mean « nothing to do ».
 
-    ``termine`` demands a POSITIVE end-of-series fact from the provider
+    ``ended`` demands a POSITIVE end-of-series fact from the provider
     (:func:`series_has_ended`), not merely an empty announcement list — see that
     function for the running series an announcement-only rule would have
     declared finished.
@@ -412,9 +412,9 @@ def derive_follow_status(
         unverified_count: Aired episodes never searched or inconclusive.
         announced_count: Future episodes (``air_date > today``) known from the
             catalog cache, or ``None`` when no catalog was read. Only ever
-            distinguishes ``termine`` from ``up_to_date``.
+            distinguishes ``ended`` from ``up_to_date``.
         series_status: The provider's raw production status for this series, or
-            ``None`` when never polled. Only ever distinguishes ``termine`` from
+            ``None`` when never polled. Only ever distinguishes ``ended`` from
             ``up_to_date``.
 
     Returns:

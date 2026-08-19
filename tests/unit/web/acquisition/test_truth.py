@@ -459,7 +459,7 @@ def test_future_episode_is_excluded_from_the_card_counts(acquire_conn: sqlite3.C
     """ACC-03: a cached FUTURE episode never degrades the card — the show stays « À jour ».
 
     Two aired episodes (both owned) plus a future one. The future is cached (the
-    matrix will show it as ``annonce``) but must NOT be counted here: with it in
+    matrix will show it as ``announced``) but must NOT be counted here: with it in
     the aired set it would derive to ``unverified`` (no wanted row, unowned)
     and pull the card off « À jour ». The aired-only query drops it.
     """

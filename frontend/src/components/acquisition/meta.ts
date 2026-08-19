@@ -528,7 +528,7 @@ export function followStatusHint(status: FollowStatus, kind: string): string {
  * numerator of the ``NN/NN`` fraction, and repeating them would inflate the
  * caption with the only number that is never actionable.
  *
- * ``annonce`` is absent too (episode-states D2): a future episode is not an
+ * ``announced`` is absent too (episode-states D2): a future episode is not an
  * action bucket — it never inflates the card caption and never degrades the
  * card status. It lives only in the completeness matrix.
  */
@@ -740,7 +740,7 @@ export function formatRunResult(
  * SIX states, SIX distinct DS tones (operator #9 « une couleur par statut ») —
  * no two states share a tone, asserted by a test. ``unverified`` moved off the
  * grey it used to share with ``pending`` onto the dimmer dashed ``muted``,
- * and ``annonce`` onto the violet ``upcoming``.
+ * and ``announced`` onto the violet ``upcoming``.
  */
 export const EPISODE_STATE_TONE: Record<EpisodeState, BadgeTone> = {
   unverified: "muted",

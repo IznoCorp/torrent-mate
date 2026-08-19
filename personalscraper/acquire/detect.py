@@ -207,7 +207,7 @@ class DetectService:
         known = [ep for catalog in catalogs for ep in catalog.episodes]
         if not dry_run:
             # The cache stores EVERY known episode — the future ones are what the
-            # completeness matrix reads as ``annonce``.
+            # completeness matrix reads as ``announced``.
             self._persist_aired_cache(known, by_ref, now=now)
             self._persist_series_status(catalogs)
 

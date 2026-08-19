@@ -96,7 +96,7 @@ def compute_follow_truth(
     The FUTURE episodes the cache stores (episode-states D1) enter NONE of the
     five buckets: the card aggregates aired episodes only, so an announced
     episode can never degrade a series' status — a show whose aired episodes are
-    all owned stays « À jour » with futures ahead, and ``annonce`` never leaks
+    all owned stays « À jour » with futures ahead, and ``announced`` never leaks
     into a bucket. They are nonetheless COUNTED, into
     :attr:`FollowTruth.announced_count`, because that count is what tells « À
     jour » (caught up, more to come) from « Terminé » (caught up, nothing left)

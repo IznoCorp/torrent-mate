@@ -103,7 +103,7 @@ def _parse_iso(value: str | None) -> date | None:
 
     Returns:
         The parsed :class:`datetime.date`, or ``None`` when absent or malformed —
-        a missing date simply disables the ``annonce`` distinction for that row
+        a missing date simply disables the ``announced`` distinction for that row
         (it derives through the five aired states, unchanged).
     """
     if not value:
@@ -137,7 +137,7 @@ def compute_completeness(
         today: Reference date for the aired-vs-future split (episode-states D2).
             Defaults to ``date.today()``; injected in tests for determinism. A
             cached episode whose ``air_date`` is after ``today`` reads
-            ``annonce`` and is counted in ``announced``, never in the aired
+            ``announced`` and is counted in ``announced``, never in the aired
             tallies.
 
     Returns:
@@ -217,7 +217,7 @@ def compute_completeness(
                     wanted_status=wanted_status,
                     last_search_outcome=last_search_outcome,
                     last_search_found=last_search_found,
-                    # episode-states D2: a future cached episode reads ``annonce``.
+                    # episode-states D2: a future cached episode reads ``announced``.
                     air_date=_parse_iso(row.air_date),
                     today=ref_today,
                 ),

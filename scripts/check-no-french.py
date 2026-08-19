@@ -583,11 +583,17 @@ def pragma_on(lines: list[str], line_no: int) -> str | None:
 
     Returns:
         The cited reason, "" when the pragma cites nothing, or None when the
-        line carries no pragma. The line ABOVE and the line BELOW count too: a
-        JSX attribute has no room for a trailing comment, and a wrapped literal
-        must not silently lose its permission to a line break.
+        line carries no pragma. The line ABOVE counts too: a JSX attribute has
+        no room for a trailing comment.
+
+        THE LINE BELOW DELIBERATELY DOES NOT. This docstring used to promise it
+        — for the wrapped-literal case — and implementing that promise turned
+        every pragma into a THREE-line grant: a brand-new French literal parked
+        next to any of the twenty-one existing pragmas became invisible. A
+        wrapped literal can carry its pragma on the line above like everything
+        else; licensing a neighbour is a bigger hole than the one it closed.
     """
-    for candidate in (line_no, line_no - 1, line_no + 1):
+    for candidate in (line_no, line_no - 1):
         if not 1 <= candidate <= len(lines):
             continue
         line = lines[candidate - 1]

@@ -352,7 +352,7 @@ def test_exposed_outcome_comes_from_the_governing_row() -> None:
 
 
 # ---------------------------------------------------------------------------
-# episode-states D2 — the matrix shows futures as ``annonce`` + counts them apart
+# episode-states D2 — the matrix shows futures as ``announced`` + counts them apart
 # ---------------------------------------------------------------------------
 
 
@@ -362,9 +362,9 @@ def _cached_dated(season: int, episode: int, air_date: str) -> AiredEpisodeRow:
 
 
 def test_matrix_shows_future_as_announced_kept_out_of_aired_tallies() -> None:
-    """A future cached episode reads ``annonce`` and is counted in ``announced`` only.
+    """A future cached episode reads ``announced`` and is counted in ``announced`` only.
 
-    Owned/queued/total stay AIRED-only; ``annonce`` is a display state and its
+    Owned/queued/total stay AIRED-only; ``announced`` is a display state and its
     count lives in the separate ``announced`` field — never inflating the
     season's completeness denominator.
     """

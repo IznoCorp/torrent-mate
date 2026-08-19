@@ -937,6 +937,7 @@
     },
     "assertBeforeMeasuring": "document.documentElement.clientWidth === 390",
     "computedStyleSubset": [
+      "position",
       "font-size",
       "font-weight",
       "line-height",

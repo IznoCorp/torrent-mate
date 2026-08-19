@@ -3,7 +3,7 @@
 Exposes two stateless views over ONE provider poll (episode-states D1):
 
 - :func:`poll_known` — every episode with a known air date, future INCLUDED
-  (the ``aired_episode`` cache stores these so the matrix can show ``annonce``);
+  (the ``aired_episode`` cache stores these so the matrix can show ``announced``);
 - :func:`poll_aired` — only the episodes that have already aired
   (``air_date <= today``), the enqueue view: a future is not searchable on
   trackers and must never become a ``wanted`` row.
@@ -137,7 +137,7 @@ def poll_catalog(
 
     The future episodes are kept (``air_date > today``), which the
     ``aired_episode`` cache needs so the completeness matrix can show them as
-    ``annonce``. Only episodes with NO parseable air date (TBA / malformed) are
+    ``announced``. Only episodes with NO parseable air date (TBA / malformed) are
     dropped — without a date there is nothing to announce and nothing to
     schedule.
 

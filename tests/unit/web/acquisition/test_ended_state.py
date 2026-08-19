@@ -107,7 +107,7 @@ class TestCaughtUpSplitsInTwo:
         """No catalog is no knowledge — the strongest rule in the module.
 
         An ended series we have never catalogued must read ``unverified``, not
-        ``termine``: we do not know what it contains, so we cannot claim to hold
+        ``ended``: we do not know what it contains, so we cannot claim to hold
         all of it.
         """
         assert caught_up(aired_count=None, series_status="Ended") == "unverified"
