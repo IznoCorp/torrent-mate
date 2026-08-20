@@ -3,9 +3,23 @@
 > ⚠ **SA PRÉMISSE CENTRALE EST PÉRIMÉE — ne t'en sers plus comme point d'entrée.** Ce brief
 > répète que « SP5 n'a aucun périmètre écrit » et conclut « ne code pas encore, demande le
 > périmètre à l'opérateur ». Ce périmètre existe : `docs/reference/frontend-architecture.md`
-> porte les décisions arrêtées et les lots ordonnés, et `IMPLEMENTATION.md` § THE OBJECTIVE
-> porte l'état. Le reste du document — les mesures datées, les pièges, la façon de servir le
-> prototype — garde sa valeur. **Sa § Première action, non.**
+> porte les décisions arrêtées et les lots ordonnés, et `IMPLEMENTATION.md` porte l'état. Le
+> reste du document — les mesures datées, les pièges, la façon de servir le prototype — garde sa
+> valeur. **Sa § Première action, non.**
+>
+> ⚠ **AMENDÉ LE 2026-08-20, une seconde fois.** Deux passages de plus ont perdu leur objet, et
+> les laisser enverrait la session suivante reconstruire ce qui existe :
+>
+> - la § « **Ce qui reste, et c'est SP5** » dit « aucun fichier de spec ou de plan SP5 » et
+>   « le périmètre est à cadrer avec l'opérateur avant toute ligne de code ». Le lot **L06** est
+>   écrit dans le fichier d'architecture, et une spec parquée existe
+>   (`docs/superpowers/roadmap/maquette-l06/specs/`) — à ré-arbitrer, pas à réinventer ;
+> - elle décrit `extract-maquette-css.py` et `parity-probe.py` comme « outillage en place et
+>   vert ». **Les deux ont été supprimés par #465** avec toute la couche de traduction. Ce que
+>   `parity-probe.py` mesurait est repris, autrement et pour une autre question, par
+>   `frontend/maquette/oracle.py` (lot L01, PR #467).
+>
+> **Le pointeur qui vaut : `IMPLEMENTATION.md` § « Where the frontend work stands ».**
 
 > **Prompt de reprise pour une session neuve.** Le contexte a été vidé : tout ce qu'il faut
 > savoir est ici, et rien ici ne suppose de se souvenir d'une session précédente.

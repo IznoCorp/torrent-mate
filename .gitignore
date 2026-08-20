@@ -177,3 +177,8 @@ frontend/maquette/violations.json
 # TorrentMate web UI — built SPA output (gitignored; Vite build fills this dir at deploy time)
 personalscraper/web/static/*
 !personalscraper/web/static/.gitkeep
+
+# Run artifacts of the maquette harness. `audit.py` writes its findings beside
+# itself after every run; the file is output, never a source, and one copy of it
+# was committed at the repository root by a `git add -A`.
+violations.json
