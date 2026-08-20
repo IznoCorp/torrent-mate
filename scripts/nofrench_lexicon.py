@@ -358,6 +358,7 @@ examined: dict[str, int] = {
     "interface text / app (exempt)": 0,
     "name words / dictionary": 0,
     "string literals / tests": 0,
+    "custom-property names / css": 0,
     "arms / self-description": 0,
 }
 
@@ -469,3 +470,27 @@ def offending_string(body: str, quoting_allowed: bool = False) -> str:
     if labels:
         return f"French interface words {labels}"
     return ""
+
+
+def vocabulary(debt_only: bool = False) -> set[str]:
+    """Returns the words this codebase's names are built from.
+
+    Args:
+        debt_only: When true, returns only the words below the debt banner —
+            French on purpose, and owed by one file.
+
+    Returns:
+        The set of words, lower-cased.
+    """
+    words, below = set(), False
+    for line in VOCABULARY.read_text(encoding="utf-8").splitlines():
+        if line.startswith(DEBT_BANNER):
+            below = True
+        if not line.strip() or line.startswith("#"):
+            continue
+        # Without the flag this is the WHOLE vocabulary, debt included: the
+        # engine's names must still pass the arm that reads them. What the
+        # flag isolates is who may BORROW those words, which is one file.
+        if not debt_only or below:
+            words.add(line.strip().lower())
+    return words

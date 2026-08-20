@@ -135,6 +135,7 @@ jobs:
       # honest, and useless as a gate. So CI installs them.
       - run: sudo apt-get update && sudo apt-get install -y aspell aspell-en aspell-fr
       - run: python scripts/check-no-french.py
+      - run: python3 scripts/check-css-tokens.py
 
   # `make check` runs twelve guards; CI ran ONE of them (no-french), so eleven
   # were developer-machine checks describing themselves as gates. A gate proves

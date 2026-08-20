@@ -14,6 +14,28 @@
 # that arrives here in French is a decision someone had to type out.
 #
 # Seeded from the codebase on the day the engine's identifiers became English.
+
+# ── THE DESIGN VOCABULARY ──────────────────────────────────────────────
+# Seeded from identifiers, this list had never met a STYLESHEET: arm 14
+# reads custom-property names, and sixty-six ordinary English design words
+# — background, muted, radius, tracking, the size scale — were unknown to
+# it. They are merged into the list above rather than kept apart, because they
+# are words this codebase uses like any other.
+#
+# « NONE OF THEM WAS FRENCH » WOULD BE FALSE, and an adversarial review said
+# so: `accent`, `border`, `danger`, `data`, `font`, `modal`, `motion`, `normal`,
+# `radius`, `ring`, `signal` and more are French words too. That is not an
+# objection — it is the whole reason this file asks « is this a word we use? »
+# rather than « is this French? ». A word here is licensed because this
+# codebase writes it, not because some dictionary failed to recognise it.
+#
+# It IS a widening, and a deliberate one: these words are now accepted by every
+# arm that reads this list, not only by the stylesheet arm that needed them.
+# That is correct for design vocabulary — a `data-danger` attribute or a
+# `radius` identifier is good English anywhere in this repository — but it is
+# written down here so the next reader knows it was a decision.
+
+accent
 account
 acq
 acqtab
@@ -50,6 +72,7 @@ attributes
 audio
 audios
 back
+background
 badge
 badges
 bar
@@ -60,6 +83,8 @@ best
 block
 blocked
 body
+bold
+border
 borne
 bound
 box
@@ -72,6 +97,7 @@ cadence
 cancel
 candidate
 candidates
+caps
 card
 cards
 cast
@@ -84,6 +110,7 @@ ceil
 cells
 change
 changed
+chart
 chip
 choice
 clean
@@ -94,7 +121,9 @@ close
 closest
 cls
 code
+cold
 collapse
+color
 commit
 common
 complete
@@ -111,6 +140,9 @@ create
 cron
 cur
 current
+cutoff
+danger
+data
 date
 decision
 decisions
@@ -142,6 +174,7 @@ discover
 disks
 dismiss
 dismissable
+display
 displayed
 distance
 dlg
@@ -152,7 +185,9 @@ drag
 drawer
 draws
 dry
+duration
 dx
+ease
 edited
 element
 empty
@@ -174,6 +209,7 @@ exit
 fab
 fact
 facts
+fast
 fetching
 field
 fields
@@ -193,14 +229,17 @@ follow
 followed
 follows
 follq
+font
 foot
 for
+foreground
 found
 fr
 fraction
 frames
 freq
 from
+full
 future
 gauche
 gesture
@@ -214,6 +253,7 @@ hauteur
 hclose
 hd
 head
+heading
 height
 held
 hero
@@ -222,6 +262,7 @@ hide
 hint
 history
 host
+hot
 hours
 hphase
 hscen
@@ -248,6 +289,7 @@ inflight
 info
 initial
 inner
+input
 inset
 inside
 install
@@ -274,11 +316,13 @@ labels
 last
 layer
 layers
+leading
 leave
 left
 legacy
 lens
 lenses
+lg
 lib
 libcount
 libitems
@@ -307,34 +351,42 @@ manque
 manual
 mark
 matches
+md
 media
 mediasheet
+medium
 migrated
 min
 missing
 mobile
+modal
 mode
 modes
 mono
 more
 motif
+motion
 mount
 movie
 moving
+mq
 ms
 multi
+muted
 name
 names
 nav
 navgo
 navigation
 nb
+neutral
 new
 next
 node
 nodes
 nonmedia
 norm
+normal
 normalise
 normalised
 noswipe
@@ -350,6 +402,7 @@ numeric
 nums
 observer
 of
+offset
 old
 on
 open
@@ -358,6 +411,7 @@ origin
 out
 outgoing
 overflow
+overlay
 own
 owned
 owns
@@ -391,12 +445,14 @@ posters
 present
 press
 previous
+primary
 profile
 progress
 proposer
 prov
 ptr
 publish
+px
 qaud
 qflag
 qres
@@ -404,6 +460,7 @@ qsettings
 quality
 query
 queue
+radius
 rank
 raw
 read
@@ -421,6 +478,8 @@ refused
 region
 register
 reglees
+regular
+relaxed
 release
 released
 releases
@@ -437,6 +496,7 @@ result
 results
 rich
 right
+ring
 risk
 root
 route
@@ -459,22 +519,26 @@ search
 season
 seasons
 sec
+secondary
 secret
 secrets
 section
 seed
+seg
 segment
 segments
 select
 selected
 selector
 selmode
+semibold
 series
 services
 set
 setting
 settings
 settled
+shadow
 sheet
 sheetgrab
 sheetin
@@ -482,14 +546,21 @@ sheets
 shell
 show
 shown
+sidebar
 sign
+signal
 signout
 size
 skel
 slice
 slot
+slow
+sm
+snug
+soft
 sort
 sorted
+space
 splash
 src
 st
@@ -504,6 +575,7 @@ station
 status
 step
 steps
+sticky
 store
 strip
 stuck
@@ -511,6 +583,7 @@ subject
 subjects
 subscribe
 subscription
+success
 suffix
 sug
 suggestion
@@ -536,6 +609,7 @@ tag
 take
 takeable
 target
+temp
 template
 term
 testid
@@ -544,6 +618,8 @@ theme
 threshold
 tied
 tier
+tight
+tighter
 tile
 tiles
 title
@@ -564,6 +640,7 @@ top
 topic
 topics
 total
+tracking
 trailer
 travelled
 trim
@@ -594,17 +671,26 @@ version
 via
 view
 visible
+vsw
+waiting
+warm
+warning
 watcher
 ways
+weight
 when
+white
+wide
 width
 window
 words
 world
 write
+xl
+xs
 year
 yt
-
+z
 
 # ── THE ENGINE'S LAST FRENCH WORDS ─────────────────────────────────────
 #

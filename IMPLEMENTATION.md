@@ -574,13 +574,16 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
 10. **Five tokens the app will owe.** The design-system lint found nine hardcoded colours in the
     prototype — a real C19 violation, and one of them (`var(--warning, #d97706)`) was the B-014
     shape again: a fallback onto a token that IS defined, which is a landmine that has not gone
-    off. They are tokens now: `--mq-shadow-toast`, `--mq-shadow-pop`, `--mq-shadow-carte`,
-    `--mq-shadow-badge`, `--mq-scrim-doux`, `--mq-tile-overlay`. Their VALUES live in the
-    prototype's own palette, which sits in BLOCK 1 and is therefore not exported — so the
-    generated stylesheet names them and defines none of them, exactly as it already does for
-    `--border` and `--card`. **When the app adopts that stylesheet, `frontend/src/styles/ps/
-   tokens/maquette.css` must gain the five it does not yet carry.** Measured, because « it
-    cannot affect production » is a measurement: adding them now costs 170 bytes of unused
+    off. They are tokens now: `--mq-shadow-toast`, `--mq-shadow-pop`, `--mq-shadow-card`,
+    `--mq-shadow-badge`, `--mq-scrim-soft`, `--mq-tile-overlay`. Their VALUES live in the
+    prototype's own palette. ⚠ **Amended 2026-08-20 (SP5a):** that palette sat in BLOCK 1 and
+    was therefore NOT exported, so the generated stylesheet named these tokens and defined
+    none of them — thirty-five used, one declared, across 449 `var()` calls. The palette has
+    moved into BLOCK 2; the extraction carries it; and `scripts/check-css-tokens.py` refuses
+    the next `var()` with no declaration. The sentence that stood here — « when the app adopts
+    that stylesheet, `tokens/maquette.css` must gain the five it does not yet carry » — is
+    obsolete: nothing is owed to `tokens/maquette.css`, and the count was five only because it
+    looked at one token family. Measured, because « it
     custom properties in the shipped CSS, and leaving them out keeps `frontend/dist`
     byte-identical.
 

@@ -57,6 +57,12 @@ REGIONS = MAQUETTE / "regions.json"
 SOURCE_HTML = MAQUETTE / "design" / "refonte.html"
 EXTRACTED_CSS = ROOT / "frontend" / "src" / "styles" / "ps" / "app-surface.css"
 PROTOTYPE = "http://127.0.0.1:8899/wrapped.html"
+
+# The colour schemes measured — BOTH, explicitly. This used to be whatever
+# Playwright defaulted to (light), while `harness/common.py` pinned its own
+# contexts to dark: the probe measured one theme, nobody had chosen which,
+# and the other was never rendered at all.
+THEMES = ("dark", "light")
 # How long a region gets to stop moving, and how many times it is asked.
 SETTLE_MS = 900
 SETTLE_TRIES = 4
@@ -224,6 +230,57 @@ def differences(source, target, allowlist, selector):
     return found
 
 
+async def assert_served_is_current(page, application_css: str) -> None:
+    """Refuses to measure a document older than the source it claims to measure.
+
+    THE PROBE READS A COPY. `PROTOTYPE` is served by a plain `http.server` out
+    of `/private/tmp/tm-refonte/`, and `wrapped.html` gets there by a MANUAL
+    `npm run build` + `cp`. Nothing connected the two, so `make check` could
+    run this gate against a build from before the change under test and report
+    `0 divergence` with a straight face — which is exactly what happened on
+    2026-08-20: seven tokens were renamed, the probe was re-run without a
+    rebuild, and its green verdict was about a document that still carried the
+    old names. An adversarial review found it by comparing timestamps.
+
+    Content, not mtime: a rebuild that changes nothing is fine, and a `cp` that
+    preserves timestamps is not a lie about the bytes.
+
+    Args:
+        page: The loaded prototype.
+        application_css: BLOCK 2 as the working tree has it.
+
+    Raises:
+        SystemExit: when the served document's BLOCK 2 is not the tree's.
+    """
+    served = await page.evaluate(
+        """()=>{const s=[...document.querySelectorAll('style')]
+                 .find(n=>n.textContent.includes('BLOCK 2'));
+               return s ? s.textContent : null;}""")
+    if served is None:
+        raise SystemExit(
+            "parity-probe: the served document carries no <style> holding "
+            "BLOCK 2 — it is not the prototype this rule measures")
+    # The served <style> carries the WHOLE fragment, BLOCK 1 included, so it is
+    # split at the same boundary the tree's is before comparing. Comparing the
+    # whole thing against BLOCK 2 alone failed on every document ever served —
+    # a freshness guard that is always red teaches nobody anything. The split
+    # is done here rather than through `application_block_of`, which takes the
+    # HTML around the sheet and is given only its text at this point.
+    marker = served.find("BLOCK 2")
+    if marker < 0:
+        raise SystemExit(
+            "parity-probe: the served document's stylesheet has no BLOCK 2 "
+            "marker — it is not the prototype this rule measures")
+    served_application = served[served.rfind("/*", 0, marker):]
+    if served_application.strip() != application_css.strip():
+        raise SystemExit(
+            "parity-probe: the SERVED document is not the working tree's.\n"
+            "  It is a manual copy — rebuild and re-copy before measuring:\n"
+            "    cd frontend/maquette/design && npm run build\n"
+            "    cp dist/index.html /tmp/tm-refonte/wrapped.html\n"
+            "  Measuring a stale copy is how a green gate says nothing at all.")
+
+
 async def run(only_state, verbose):
     """Measures every region in every state, twice, and reports divergence.
 
@@ -264,8 +321,9 @@ async def run(only_state, verbose):
     known_divergence = {(entry["region"], entry["state"])
                         for entry in probe.get("knownDivergence", [])}
     scope = contract["scope"].lstrip(".")
-    harness_css, _application_css = application_block_of(
+    harness_css, application_css = application_block_of(
         SOURCE_HTML.read_text(encoding="utf-8"))
+    checked_freshness = False
     extracted_css = EXTRACTED_CSS.read_text(encoding="utf-8")
 
     states = [s for s in contract["states"] if not only_state or s == only_state]
@@ -300,17 +358,31 @@ async def run(only_state, verbose):
         channel = os.environ.get("PARITY_BROWSER_CHANNEL", "chrome")
         browser = await playwright.chromium.launch(
             **({} if channel == "chromium" else {"channel": channel}))
-        context = await browser.new_context(
-            viewport={"width": viewport["width"], "height": viewport["height"]},
-            device_scale_factor=viewport["deviceScaleFactor"],
-            is_mobile=viewport["isMobile"],
-            has_touch=viewport["hasTouch"],
-        )
-        page = await context.new_page()
+        # THE THEME IS AN AXIS, and until 2026-08-20 it was an accident. This
+        # context set no `color_scheme`, so it took Playwright's default —
+        # light — while `harness/common.py` pins its own contexts to dark. The
+        # probe was therefore measuring the LIGHT theme, for every state, and
+        # nobody had chosen that. Both are measured now, and the theme appears
+        # in every divergence label, because « which theme? » must never again
+        # be answered by a default nobody wrote down.
+        contexts = []
+        for scheme in THEMES:
+            contexts.append((scheme, await browser.new_context(
+                viewport={"width": viewport["width"], "height": viewport["height"]},
+                device_scale_factor=viewport["deviceScaleFactor"],
+                is_mobile=viewport["isMobile"],
+                has_touch=viewport["hasTouch"],
+                color_scheme=scheme,
+            )))
         try:
+          for scheme, context in contexts:
+            page = await context.new_page()
             for state in states:
                 regions = every_region
                 await page.goto(PROTOTYPE, wait_until="load")
+                if not checked_freshness:
+                    await assert_served_is_current(page, application_css)
+                    checked_freshness = True
                 await page.evaluate("()=>window.__loadingDone?.()")
                 await page.evaluate("()=>document.querySelector('#toastx')?.click()")
                 # The viewport is asserted from INSIDE the page, as `probe`
@@ -396,7 +468,8 @@ async def run(only_state, verbose):
                         continue
                     if found:
                         for line in found:
-                            divergences.append(f"{state} · {name} ({selector}): {line}")
+                            divergences.append(
+                                f"[{scheme}] {state} · {name} ({selector}): {line}")
                         print(f"  {state:26} {name:34} DIVERGES ({len(found)})")
                     elif verbose:
                         print(f"  {state:26} {name:34} ok ({len(before)} node(s))")
@@ -419,12 +492,17 @@ async def run(only_state, verbose):
         print(f"  {unstable_count} region-in-state pair(s) SKIPPED as unstable: the element "
               "changed on its own between two reads, so a comparison across the "
               "swap would measure time, not the stylesheet.")
-    print(f"parity-probe: {measured} region-in-state measurement(s), "
-          f"{missing} not present, {len(divergences)} divergence(s)")
+    # Every count here is PER THEME × the themes measured, and saying so is not
+    # pedantry: the summary read « 6 not present … 3 declared in
+    # probe.knownAbsent » the moment the second theme landed, and two numbers
+    # that disagree inside one sentence are how a reader learns to skip the line.
+    print(f"parity-probe: {measured} region-in-state measurement(s) "
+          f"across {len(THEMES)} theme(s), {missing} not present, "
+          f"{len(divergences)} divergence(s)")
     if missing:
         print(f"  « absent » means the selector matched nothing under BOTH sheets — "
               f"a stale map, not a rendering difference. {len(known_absent)} declared "
-              "in probe.knownAbsent, each with its cause.")
+              f"in probe.knownAbsent, each with its cause, seen once per theme.")
     if undeclared:
         print("\nRegions that measure nothing, and are not declared:")
         for line in undeclared:

@@ -7,7 +7,7 @@ lives in the code**: the French a reader of the interface sees lives in the i18n
 resources. This script is the half of the rule that is enforced rather than
 remembered; it runs in `make check` and in CI.
 
-Thirteen arms, each with its own scope, because "French" means a different thing
+Fourteen arms, each with its own scope, because "French" means a different thing
 in a component than it does in a rule script that ASSERTS the French the app
 renders. `ARMS` is the list `main` walks; arm 13 holds this enumeration against
 it, so an arm added without a heading here fails the gate:
@@ -56,7 +56,10 @@ it, so an arm added without a heading here fails the gate:
 12. **Test prose** — the French in `tests/`, counted and held to a baseline.
    The French a harness ASSERTS is the app's rendered output and stays; a
    docstring or a tool message is English. Body in `nofrench_ratchets.py`.
-13. **The self-description** — the arm that counts the arms. Three files
+13. **Custom-property names** — a `--token` name is a name someone chose, and
+   arm 4 stopped at CSS *class* names, so seven French tokens sat under a green
+   gate in both trees. Values are not read: those are data.
+14. **The self-description** — the arm that counts the arms. Three files
    carried three different counts and none of them was right; this one reads
    `main`, this docstring and `CLAUDE.md`, and refuses a description that has
    drifted away from the arms that actually run.
@@ -116,8 +119,13 @@ from nofrench_scan import (  # noqa: E402
 from nofrench_ratchets import (  # noqa: E402
     check_app_interface_text, check_test_prose, jsx_text,
 )
+# Arm 14 and the stylesheet machinery arm 4 borrows — see that module's header.
+from nofrench_css import (  # noqa: E402
+    CSS_SELECTOR, allowed_class, check_custom_properties, css_allowlist,
+    declared_css_classes,
+)
 from nofrench_lexicon import (  # noqa: E402
-    DEBT_BANNER, DEBT_FILE, DICTIONARY_EXCEPTIONS, EXTRACTED_CSS, FRAGMENT,
+    DEBT_BANNER, vocabulary, DEBT_FILE, DICTIONARY_EXCEPTIONS, EXTRACTED_CSS, FRAGMENT,
     FRENCH_TOKENS, FROZEN_IDENTIFIERS, FROZEN_PATH_SEGMENTS, HARNESS, MAQUETTE,
     REGIONS, ROOT, SCRIPTS, SHELL, VOCABULARY, deaccent, french_tokens_in,
     french_tokens_in_flat, has_accent, read, relative, scope_of,
@@ -379,73 +387,6 @@ def check_file_names(violations: list[str]) -> None:
 
 # ── arm 4: class names ───────────────────────────────────────────────────────
 
-CSS_SELECTOR = re.compile(r"\.(?P<name>-?[A-Za-z_À-ɏ][\wÀ-ɏ-]*)")
-
-
-def css_allowlist() -> dict[str, str]:
-    """Returns the frozen CSS class names, each mapped to its recorded reason.
-
-    Read from `regions.json`'s `$vocabulary` — the maquette's own record — so the
-    reasons have exactly one home. An entry with no reason is itself a
-    violation: a permission nobody justified is indistinguishable from an
-    oversight.
-
-    Raises:
-        ValueError: When the record is missing or an entry carries no reason.
-    """
-    data = json.loads(REGIONS.read_text(encoding="utf-8"))
-
-    def find(node: object) -> dict | None:
-        if isinstance(node, dict):
-            if "$vocabulary" in node:
-                return node["$vocabulary"]
-            for value in node.values():
-                got = find(value)
-                if got is not None:
-                    return got
-        return None
-
-    vocabulary = find(data)
-    if not isinstance(vocabulary, dict):
-        raise ValueError(f"no $vocabulary record in {relative(REGIONS)}")
-    allowed: dict[str, str] = {}
-    frozen = vocabulary.get("frenchTokensFrozen", {})
-    reason = frozen.get("$comment", "").strip()
-    if not reason:
-        raise ValueError("frenchTokensFrozen carries no reason")
-    for token in frozen.get("tokens", []):
-        allowed[token] = reason
-    for token, why in vocabulary.get("abbreviationsKept", {}).items():
-        if token.startswith("$"):
-            continue
-        if not str(why).strip():
-            raise ValueError(f"abbreviationsKept[{token!r}] carries no reason")
-        allowed[token] = str(why)
-    return allowed
-
-
-def allowed_class(name: str, allowed: dict[str, str]) -> bool:
-    """Returns True when a class name is covered by a cited exception."""
-    if name in allowed:
-        return True
-    return any(key.endswith("*") and name.startswith(key[:-1])
-               for key in allowed)
-
-
-def declared_css_classes(source: str) -> dict[str, int]:
-    """Returns the class names a stylesheet DECLARES, with their first line."""
-    found: dict[str, int] = {}
-    for block in re.finditer(r"(?P<selectors>[^{}]+)\{[^{}]*\}", source):
-        selectors = block.group("selectors")
-        # A selector list only: anything after an `@media`/`@supports` prelude,
-        # or a property line, carries no leading-dot class.
-        for match in CSS_SELECTOR.finditer(selectors):
-            name = match.group("name")
-            line_no = source.count("\n", 0, block.start() + match.start()) + 1
-            found.setdefault(name, line_no)
-    return found
-
-
 def check_class_names(violations: list[str]) -> None:
     """Runs the class-name arm over code classes and declared CSS classes."""
     allowed = css_allowlist()
@@ -508,30 +449,6 @@ def check_class_names(violations: list[str]) -> None:
                     f"{relative(path)}:{line_no}: French CSS class {name!r} "
                     f"({', '.join(hits) or 'accented'}) — a class name is one "
                     "name shared by four worlds")
-
-
-def vocabulary(debt_only: bool = False) -> set[str]:
-    """Returns the words this codebase's names are built from.
-
-    Args:
-        debt_only: When true, returns only the words below the debt banner —
-            French on purpose, and owed by one file.
-
-    Returns:
-        The set of words, lower-cased.
-    """
-    words, below = set(), False
-    for line in VOCABULARY.read_text(encoding="utf-8").splitlines():
-        if line.startswith(DEBT_BANNER):
-            below = True
-        if not line.strip() or line.startswith("#"):
-            continue
-        # Without the flag this is the WHOLE vocabulary, debt included: the
-        # engine's names must still pass the arm that reads them. What the
-        # flag isolates is who may BORROW those words, which is one file.
-        if not debt_only or below:
-            words.add(line.strip().lower())
-    return words
 
 
 def check_french_debt(violations: list[str]) -> None:
@@ -1078,6 +995,7 @@ ARMS: tuple[tuple[object, str], ...] = (
     (check_dictionary, "Dictionary"),
     (check_app_interface_text, "App interface text"),
     (check_test_prose, "Test prose"),
+    (check_custom_properties, "Custom-property names"),
     (check_arm_count, "The self-description"),
 )
 
