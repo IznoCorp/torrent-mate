@@ -2,7 +2,7 @@
 
 Git invokes hooks with GIT_DIR/GIT_WORK_TREE/GIT_INDEX_FILE set in the
 environment. Left unsanitized, that leaks into every subprocess the hook
-spawns — including pytest, which runs tests/scripts/test_phase_gate.py-style
+spawns — including pytest, which used to run throwaway-git-repository-style
 tests that build an "isolated" git repo in a tmp_path. Those tests' `git -C
 <tmp_path> commit` calls get silently redirected by the leaked GIT_DIR /
 GIT_WORK_TREE into the REAL repo the hook is running in, clobbering whatever

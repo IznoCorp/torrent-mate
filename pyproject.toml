@@ -129,9 +129,6 @@ ignore = ["D104"]  # D104=__init__ docstring
 [tool.ruff.lint.per-file-ignores]
 # The living tools keep D103: a new script is held to it from its first line.
 "scripts/*.py" = ["D205", "D301", "D107", "E501", "E701", "E702", "E741", "F401", "F405", "F841", "I001"]
-# One-off operational scripts from a closed phase, kept as a record of what was
-# run. They are not living code and are not rewritten to add docstrings.
-"scripts/ops/**/*.py" = ["D103", "D205", "D301", "D107", "E501", "E701", "E702", "E741", "F401", "F405", "F841", "I001"]
 "frontend/maquette/harness/*.py" = ["D103", "D205", "D301", "D107", "E501", "E701", "E702", "E741", "F401", "F405", "F841", "I001"]
 "frontend/scripts/*.py" = ["D103", "D205", "D301", "D107", "E501", "E701", "E702", "E741", "F401", "F405", "F841", "I001"]
 

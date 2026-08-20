@@ -282,15 +282,23 @@ remains is most of what makes an application.
 | Network calls | **65** `apiFetch` · 36 `useQuery` · 21 `useMutation` | **1** `fetch` |
 | WebSocket | **24** files | **0** |
 | Service worker / PWA | yes | no |
-| Pages drawn | 9 | 9 + 5 screens |
+| Pages drawn | 9 | 9 + 5 screens — **not the same nine**: `/control` and `/pipeline` have no maquette page (owed, see REMAINS), and `host` + `arrivals` have no production counterpart |
 
-Commands: `grep -rhoE '\b(fetch|apiFetch|useQuery|useMutation)\(' --include='*.ts' --include='*.tsx' frontend/src | sort | uniq -c` ·
-`grep -rlE 'WebSocket' --include='*.ts' --include='*.tsx' frontend/src | wc -l` · same over `frontend/maquette/design/src`.
+Commands — and the maquette's needs `--include='*.js'` too, because its single call lives in
+the legacy engine, a `.js` file the other two globs walk straight past (an adversarial review
+ran the command as first written and got 0):
+
+```bash
+grep -rhoE '\b(fetch|apiFetch|useQuery|useMutation)\(' \
+  --include='*.ts' --include='*.tsx' --include='*.js' frontend/src | sort | uniq -c
+grep -rlE 'WebSocket' --include='*.ts' --include='*.tsx' --include='*.js' frontend/src | wc -l
+# then the same two over frontend/maquette/design/src
+```
 
 **DONE** — 8 pages and 5 screens as final components; TanStack routing with the URL carrying the
 state; 82 named states driving 51 rule scripts over 80 recorded rules; the engine moved out of
 the fragment (which is now a title and a stylesheet); English names throughout with the shell's
-copy in i18n resources; colour and elevation tokenised (203 of 206 `color:` declarations).
+copy in i18n resources; colour and elevation tokenised — **186 of 188** `color:` declarations (`(?<![-\w])color\s*:`; a `\bcolor` regex reads 203/206 because `-` is a non-word character and `background-color` matches it), and the 55 raw values left in BLOCK 2 are all token DECLARATIONS, which is where they belong.
 
 **REMAINS**, in the order the work actually has to happen:
 
@@ -304,6 +312,11 @@ copy in i18n resources; colour and elevation tokenised (203 of 206 `color:` decl
    surfaces, and surfaces were never the hard part.
 4. **The legacy engine** — 34 626 lines still driving, `__go` shell-side, the 240 ms delay on
    `data-next`, and `/login` + the splash still engine-driven markup rather than components.
+5. **BLOCK 1 must stop shipping at switchover.** `refonte.html` is split into BLOCK 1 (the
+   prototype harness — phone frame, demo bars, design notes) and BLOCK 2 (the application). The
+   maquette's own build carries BOTH today, which is right for a prototype and wrong for the
+   app. `harness/export.py` used to guard that boundary from the extraction's side and went with
+   it; nothing guards it now. Open, and named here so it is not rediscovered on switchover day.
 
 ### THE MISSION — dictated by the operator, 2026-08-19
 
@@ -529,15 +542,13 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
 
 - **The prototype is the reference.** A divergence between the app and it is a defect in the app,
   unless the prototype was amended first with the reason written down.
-- **CSS is extracted, never retyped — SP5's TARGET, not today's state.** The extractor and its
-  drift guard are built and green, and a hand edit to the generated stylesheet *is* reverted by
-  them. What is not true, and what this line asserted flatly until 2026-08-19, is that any app
-  stylesheet is extracted: `frontend/src/styles/ps/app-surface.css` is imported by NOBODY —
-  `main.tsx` → `globals.css` → `ps/styles.css` + `ps/maquette-acquisition.css` → `tokens/*.css`,
-  and no path reaches it. Production is dressed by `frontend/src/styles/` as it stands. Wiring
-  the generated sheet in IS shipping the redesign, which is the operator's decision. The same
-  sentence was struck from `product-intent.md` on 2026-08-19 by that decision; this copy
-  survived, which is why it is spelled out here rather than merely deleted.
+- **The CSS is the maquette's own — RETIRED 2026-08-20.** This entry used to read « CSS is
+  extracted, never retyped », then « SP5's target, not today's state ». Both are void: the
+  extraction, the `.tm` scoping, the 461-entry allowlist and the rendering-parity probe existed
+  so the SHIPPED app could be migrated towards the maquette surface by surface, and the maquette
+  REPLACES the app. BLOCK 2 of `refonte.html` IS the application's stylesheet; nothing lifts it
+  or copies it. `scripts/check-css-tokens.py` holds what still matters — every `var()` in
+  BLOCK 2 resolves inside BLOCK 2.
 - **Every gesture answers a pointer** — and a finger is read from the stream the compositor does
   not cancel. A gesture living inside the scrollport reads touch events; one that can claim its
   axis in `touch-action` keeps the pointer path.
@@ -622,8 +633,8 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
     prototype's own palette. ⚠ **Amended 2026-08-20 (SP5a):** that palette sat in BLOCK 1 and
     was therefore NOT exported, so the generated stylesheet named these tokens and defined
     none of them — thirty-five used, one declared, across 449 `var()` calls. The palette has
-    moved into BLOCK 2; the extraction carries it; and `scripts/check-css-tokens.py` refuses
-    the next `var()` with no declaration. The sentence that stood here — « when the app adopts
+    moved into BLOCK 2, where the application's rules can see it, and
+    `scripts/check-css-tokens.py` refuses the next `var()` with no declaration. The sentence that stood here — « when the app adopts
     that stylesheet, `tokens/maquette.css` must gain the five it does not yet carry » — is
     obsolete: nothing is owed to `tokens/maquette.css`, and the count was five only because it
     looked at one token family. Measured, because « it

@@ -92,7 +92,6 @@ Le script est **idempotent** : il configure uniquement `core.hooksPath = hooks`
 pour ce clone (écrit dans `.git/config`, **jamais** dans `~/.gitconfig`), rend
 les hooks exécutables, et refuse de s'exécuter hors d'un dépôt git.
 
-Option : `./hooks/install.sh --install-cron` ajoute aussi l'entrée crontab
 d'audit de couverture semestriel.
 
 ### Générer la configuration
