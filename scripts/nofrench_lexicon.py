@@ -52,7 +52,7 @@ FRENCH_TOKENS = {
     "fiche", "fiches", "fichier", "fichiers", "filtre", "filtres", "galerie",
     "glisse", "grille", "heros", "jeton", "jetons", "legende", "libelle",
     "libelles", "liste", "listes", "magasin", "manquant", "manquants",
-    "maquette", "mediatheque", "nombre", "nombres", "panneau", "panneaux",
+    "mediatheque", "nombre", "nombres", "panneau", "panneaux",
     "pied", "pont", "profil", "reglage", "reglages", "recherche", "refonte",
     "renommer", "resynchro", "saison", "saisons", "serveur", "socle", "souris",
     "sujet", "sujets", "suivi", "suivis", "systeme", "tiroir", "titre",
@@ -158,11 +158,15 @@ FROZEN_PATH_SEGMENTS = {
     # They are `cast`, `posters-hd` and `heroes` now, with all 528 paths and
     # the directories themselves moved in one step — and every one of the 925
     # references still resolves, which is what R70 checks.
-    "maquette": (
-        "The design reference's own name, and the operator's word for the thing "
-        "— it is named in the product constitution (§15), in CLAUDE.md and in "
-        "every rule record. Renaming it renames the subject, not a file."
-    ),
+    # `maquette` used to sit here, exempted as a path segment because it was
+    # listed as a French word above. It is not one: `maquette` is a naturalised
+    # loanword in English — a preliminary model, the ordinary term in design and
+    # architecture — and the dictionaries carry it. The operator confirmed that
+    # reading on 2026-08-20, and it is worth recording WHY the old entry was
+    # wrong rather than merely gone: its reason invoked « the operator's word
+    # for the thing » without anyone having asked them. An exemption that
+    # borrows an authority it never obtained is indistinguishable from an
+    # oversight. It is in `code-vocabulary.txt` now, like any other word we use.
     "refonte": (
         "The legacy fragment (`refonte.html`), named verbatim by R72 and by "
         "every rule that reads it. It DIES at SP4-end; renaming a file on its "

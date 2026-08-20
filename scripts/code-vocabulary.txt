@@ -14,7 +14,6 @@
 # that arrives here in French is a decision someone had to type out.
 #
 # Seeded from the codebase on the day the engine's identifiers became English.
-
 # ── THE DESIGN VOCABULARY ──────────────────────────────────────────────
 # Seeded from identifiers, this list had never met a STYLESHEET: arm 14
 # reads custom-property names, and sixty-six ordinary English design words
@@ -349,6 +348,7 @@ maintenance
 maintopic
 manque
 manual
+maquette
 mark
 matches
 md
@@ -691,7 +691,6 @@ xs
 year
 yt
 z
-
 # ── THE ENGINE'S LAST FRENCH WORDS ─────────────────────────────────────
 #
 # Everything above is English. Everything below is NOT, and saying so is
