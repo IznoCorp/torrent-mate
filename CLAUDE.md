@@ -40,30 +40,34 @@ coding** any web surface; every web PR **cites the §§ it serves**.
 **`frontend/maquette/design/refonte.html` is the visual reference of the web UI** (§15 of the
 constitution). Every design evolution **starts from the maquette, never from the code**.
 
-**READ THIS BEFORE THE FOUR RULES — the maquette is the NEXT version of the app, not a picture
-of the one in production.** It carries a different visual language, and the shipped app has not
-adopted it. The two therefore differ ON PURPOSE, and that difference is the redesign left to
-build — not a backlog of defects. Concretely: **nothing imports `app-surface.css`**, the
-stylesheet extraction produces; production is dressed by `frontend/src/styles/` as it stands,
-`maquette-acquisition.css` included. So: **never read a maquette/production difference as a
-production bug, and never « repair » production by pointing a tool at the maquette's CSS.** The
-four rules below are the METHOD by which a design decision travels from the maquette into the
-app when it is deliberately adopted; they are not a description of today's tree. Missing this
-distinction cost a full session, in which a comparison of the two stylesheets was read as a
-production defect and « fixed » three times over.
+**READ THIS BEFORE ANYTHING ELSE — the maquette is the NEXT version of the app, and it will
+REPLACE it.** On switchover day `frontend/src` is ARCHIVED and the maquette takes its place. It
+is not transposed into the app, not translated, not merged surface by surface. That is why every
+page and every mechanism the app has must eventually be re-created IN the maquette: afterwards
+there is nothing left to take from.
 
-1. The **maquette is modified first**, verified with its harness (`frontend/maquette/harness/`),
-   and the code is derived from it.
-2. **A divergence between the app and the maquette is a defect of the app**, unless the
-   maquette was explicitly and deliberately amended beforehand.
-3. **Nothing ships to production that the maquette does not show.** A new surface is drawn
-   there before it is coded.
-4. The app's CSS is **extracted** from the maquette (`scripts/extract-maquette-css.py`), never
-   copied by hand; drift between the maquette and that extraction is blocked by `make check`.
-   **This one is the target and it is STAGED, not live** — the extraction and its guards
-   (including `scripts/parity-probe.py`) are built ahead of time so they are already trustworthy
-   the day the redesign ships. Adopting the generated stylesheet IS shipping the redesign, and
-   that is the operator's decision, never a wiring detail.
+So a maquette/production difference is **never** a production bug, and never something to
+"repair" by pointing a tool at the other side. The two differ because one replaces the other.
+
+**A whole layer of tooling was built for the opposite model and is now void** (operator,
+2026-08-20). The 2026-08-10 spec (§4.1, §7.2) planned to migrate the app towards the maquette
+surface by surface, which required CSS extraction, a `.tm` scope so the two stylesheets could
+coexist, a selector allowlist, a drift guard and a rendering-parity probe. The 2026-08-13
+directive reversed that order and the tooling stayed. It has no subject: you do not make two
+stylesheets coexist when one replaces the other, and you do not translate a CSS that BECOMES the
+CSS. Retiring it is the correction, not a risk.
+
+**The rule that follows, and it is the expensive lesson**: when a decision changes, the
+implementation directives change IN THE SAME MOVE. What loses its subject is removed, not kept
+"just in case" — machinery nobody can justify becomes machinery nobody dares delete.
+
+**The method that survives, and it is the whole method:**
+
+1. The **maquette is modified first**, verified with its harness (`frontend/maquette/harness/`).
+   Nothing about a surface is decided anywhere else.
+2. A surface is **drawn before it is coded**, with named states and a rule that bites.
+3. The **harness is the proof**: a change lands with its rule, and the rule is mutation-tested —
+   break the behaviour on purpose, confirm the rule falls and names the right defect, restore.
 
 #### The mission — dictated by the operator, 2026-08-19 (SUPERSEDES any narrower reading)
 

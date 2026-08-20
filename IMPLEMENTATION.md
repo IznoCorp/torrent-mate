@@ -262,7 +262,50 @@ editing `serve.py`: `pm2 restart torrentmate-design`.
 
 ---
 
-## THE MISSION — dictated by the operator, 2026-08-19
+## THE OBJECTIVE — what the maquette is, in one paragraph
+
+**The maquette is the next version of the frontend, and it will REPLACE the current one.** On
+switchover day `frontend/src` is ARCHIVED and `frontend/maquette/` takes its place. Nothing is
+transposed, translated or merged surface by surface — which is why every page and every
+MECHANISM the shipped app has must eventually exist here: afterwards there is nothing left to
+take from it. The backend is adapted to what this interface needs, and that work comes after the
+interface is frozen.
+
+### What is done, and what remains — measured 2026-08-20
+
+Read this table instead of counting surfaces. **The pages are the part that is finished**; what
+remains is most of what makes an application.
+
+| | Production | Maquette |
+| --- | --- | --- |
+| API modules | **11** (`frontend/src/api/*.ts`) | **0** |
+| Network calls | **65** `apiFetch` · 36 `useQuery` · 21 `useMutation` | **1** `fetch` |
+| WebSocket | **24** files | **0** |
+| Service worker / PWA | yes | no |
+| Pages drawn | 9 | 9 + 5 screens |
+
+Commands: `grep -rhoE '\b(fetch|apiFetch|useQuery|useMutation)\(' --include='*.ts' --include='*.tsx' frontend/src | sort | uniq -c` ·
+`grep -rlE 'WebSocket' --include='*.ts' --include='*.tsx' frontend/src | wc -l` · same over `frontend/maquette/design/src`.
+
+**DONE** — 8 pages and 5 screens as final components; TanStack routing with the URL carrying the
+state; 82 named states driving 51 rule scripts over 80 recorded rules; the engine moved out of
+the fragment (which is now a title and a stylesheet); English names throughout with the shell's
+copy in i18n resources; colour and elevation tokenised (203 of 206 `color:` declarations).
+
+**REMAINS**, in the order the work actually has to happen:
+
+1. **The two pages the mission re-opened** — `/control` (8 panels) and `/pipeline` (10 panels).
+2. **The visual language (SP5b)** — type, radius and spacing have no scale at all: 21 distinct
+   font sizes for 150 declarations, 16 radii, 64 padding values for 112 declarations, and three
+   spellings of one pill (`99px` ×25, `9999px` ×11, `50%` ×1).
+3. **THE APPLICATION ITSELF, and this is the bulk of it.** The maquette runs on fixtures. To
+   replace the app it needs real data, real mutations, the live relay and the offline shell —
+   the table above is the size of that gap. No document said so before 2026-08-20; they counted
+   surfaces, and surfaces were never the hard part.
+4. **The legacy engine** — 34 626 lines still driving, `__go` shell-side, the 240 ms delay on
+   `data-next`, and `/login` + the splash still engine-driven markup rather than components.
+
+### THE MISSION — dictated by the operator, 2026-08-19
 
 **The maquette is a NEW VERSION of the app, and EVERY screen is to be redrawn. All of them.**
 It is not a reskin of the shipped surfaces and it is not bounded by what production has today.
