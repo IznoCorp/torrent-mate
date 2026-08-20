@@ -399,7 +399,7 @@ export function MediaScreen() {
         </span>
       </div>
       <div className="port">
-        <div className="body">
+        <div className="body" data-region="screen-media/body">
           <div className={`herowrap${artwork ? "" : " noposter"}`}>
             <div
               className="herobg"

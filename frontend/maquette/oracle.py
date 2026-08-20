@@ -50,12 +50,23 @@ import argparse
 import asyncio
 import json
 import pathlib
+import re
 import sys
 
 from playwright.async_api import async_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parent
 RECIPE_FILE = ROOT / "regions.json"
+SOURCE_DIR = ROOT / "design" / "src"
+
+# The two ways a `data-region` NAME reaches the markup. The second exists
+# because the page host draws six pages' body wrapper itself and carries the
+# name in its table (`pages/host.tsx`), so the attribute there is computed and
+# no literal `data-region="…"` appears for those six.
+EMITTED = (
+    re.compile(r'data-region="([^"]+)"'),
+    re.compile(r'\bregion:\s*"([^"]+)"'),
+)
 
 # The harness host: a plain `http.server` rooted on the COPY of the build. Never
 # `serve.py`, which is the password-protected design host on 8712 — it answers
@@ -135,6 +146,79 @@ def load_recipe() -> dict:
     return probe
 
 
+def load_regions() -> dict:
+    """Returns the region table, without its documentation key.
+
+    Returns:
+        A mapping of `<surface>/<part>` to its declaration.
+
+    Raises:
+        SystemExit: If the table is empty. An oracle with no region measures
+            nothing and says so with a confident exit code 0 — the failure this
+            instrument exists to prevent, one level up.
+    """
+    record = json.loads(RECIPE_FILE.read_text(encoding="utf-8"))
+    regions = {key: value for key, value in record.get("regions", {}).items()
+               if not key.startswith("$")}
+    if not regions:
+        raise SystemExit(
+            f"{RECIPE_FILE} declares no region. Measuring nothing and reporting "
+            "success is exactly what this instrument is against."
+        )
+    return regions
+
+
+def emitted_region_names() -> set[str]:
+    """Returns every region name the maquette's sources emit.
+
+    Returns:
+        The set of names, from both the literal attribute and the page host's
+        table.
+    """
+    names: set[str] = set()
+    for path in sorted(SOURCE_DIR.rglob("*.tsx")):
+        text = path.read_text(encoding="utf-8")
+        for pattern in EMITTED:
+            names.update(pattern.findall(text))
+    return names
+
+
+def check_contracts() -> int:
+    """Holds the THREE ENDS of every `data-region` contract.
+
+    A `data-*` contract has three ends — the markup that emits it, the table
+    that declares it, and the reader that taps it. Nothing tied them together
+    before, and a rename that moved two of them left the third behind every
+    time.
+
+    `scripts/check-markup-contracts.py` does NOT cover this one, and that is
+    worth writing down rather than assuming: it reads `data-*` values a handler
+    forwards into a store field, and `data-region` is read by this file, in
+    Python. Pointing that guard at it would pass for a reason unrelated to what
+    it claims — a gate proves what it READS.
+
+    Returns:
+        A process exit code: 0 when both directions agree.
+    """
+    declared = set(load_regions())
+    anchored = {key for key, value in load_regions().items()
+                if value["selector"].startswith("[data-region=")}
+    emitted = emitted_region_names()
+
+    orphan_markup = sorted(emitted - declared)
+    orphan_table = sorted(anchored - emitted)
+
+    print(f"{len(declared)} regions declared, {len(anchored)} of them anchored on "
+          f"data-region; {len(emitted)} names emitted by the sources")
+    if orphan_markup:
+        print("EMITTED BUT NOT DECLARED — the oracle would never read these: "
+              + ", ".join(orphan_markup))
+    if orphan_table:
+        print("DECLARED BUT NOT EMITTED — these resolve to nothing, for ever: "
+              + ", ".join(orphan_table))
+    return 1 if (orphan_markup or orphan_table) else 0
+
+
 def context_options(recipe: dict) -> dict:
     """Maps the recipe's `viewport` onto Playwright's context arguments.
 
@@ -189,6 +273,21 @@ async def open_frame(browser, recipe: dict):
             "Refusing to measure — every figure taken here would be wrong."
         )
 
+    # A STALE SERVED COPY is the trap this repository has paid for three times,
+    # and it is silent: `wrapped.html` copied without its `vite/` bundle 404s the
+    # module, so nothing registers and every later call fails with a raw
+    # TypeError about a function that « is not a function ». Said plainly here
+    # instead, because the fix is a command rather than a debugging session.
+    if await page.evaluate("()=>typeof window.__states") != "function":
+        raise SystemExit(
+            f"the prototype served at {PROTOTYPE} registered no state driver.\n"
+            "The served copy is almost certainly stale — rebuild AND re-copy the "
+            "bundle, not just the document:\n"
+            "    cd frontend/maquette/design && npm run build\n"
+            "    cp dist/index.html /tmp/tm-refonte/wrapped.html\n"
+            "    rm -rf /tmp/tm-refonte/vite && cp -R dist/vite /tmp/tm-refonte/vite"
+        )
+
     for entry in recipe["neutralise"]:
         # REMOVED from the DOM, not merely dismissed. `harness/common.py` clicks
         # `#toastx`, which collapses the design note but leaves the node; left in
@@ -241,6 +340,56 @@ async def measure_state(page, state: str, regions: dict, recipe: dict) -> dict:
             [region["selector"], recipe["computedStyleSubset"], RECT_PRECISION],
         )
     return reading
+
+
+async def coverage() -> int:
+    """Drives every named state and reports what each region actually resolved.
+
+    « Declared » is not « resolved », and « resolved » is not « measured ». The
+    three counts are printed apart because collapsing them is how a region list
+    grows a hole nobody sees: a stale selector and an interaction-gated block
+    look identical from the inside.
+
+    Returns:
+        A process exit code: 0 when every region resolves somewhere, or is
+        declared in `knownAbsent` with its reason.
+    """
+    recipe = load_recipe()
+    regions = load_regions()
+    declared_absent = {entry["region"] for entry in recipe["knownAbsent"]}
+
+    async with async_playwright() as playwright:
+        browser = await playwright.chromium.launch(channel="chrome")
+        context, page = await open_frame(browser, recipe)
+        states = await page.evaluate("()=>window.__states()")
+        resolved = {key: 0 for key in regions}
+        with_area = {key: 0 for key in regions}
+        for state in states:
+            reading = await measure_state(page, state, regions, recipe)
+            for key, value in reading.items():
+                if value is None:
+                    continue
+                resolved[key] += 1
+                if value["rect"]["width"] and value["rect"]["height"]:
+                    with_area[key] += 1
+        await context.close()
+        await browser.close()
+
+    print(f"{len(regions)} regions x {len(states)} states\n")
+    for key in sorted(regions):
+        mark = "" if with_area[key] else "   <- resolves but never has an area"
+        print(f"  {resolved[key]:3d}/{len(states)} resolved,"
+              f" {with_area[key]:3d} with an area   {key}{mark}")
+
+    never = [k for k, n in resolved.items() if not n and k not in declared_absent]
+    flat = [k for k, n in with_area.items() if not n]
+    print("\n" + "-" * 62)
+    print(f"regions resolving somewhere : {len(regions) - len(never)}/{len(regions)}")
+    print(f"regions measuring something : {len(regions) - len(flat)}/{len(regions)}")
+    if never:
+        print(f"NEVER RESOLVED and not in knownAbsent: {', '.join(sorted(never))}")
+        return 1
+    return 0
 
 
 async def smoke() -> int:
@@ -320,9 +469,21 @@ def main() -> int:
         "--smoke", action="store_true",
         help="exercise the measuring core on a temporary region set",
     )
+    parser.add_argument(
+        "--coverage", action="store_true",
+        help="drive every named state and report what each region resolved",
+    )
+    parser.add_argument(
+        "--contracts", action="store_true",
+        help="hold the three ends of every data-region contract (no browser)",
+    )
     arguments = parser.parse_args()
+    if arguments.contracts:
+        return check_contracts()
     if arguments.smoke:
         return asyncio.run(smoke())
+    if arguments.coverage:
+        return asyncio.run(coverage())
     parser.print_help()
     return 2
 

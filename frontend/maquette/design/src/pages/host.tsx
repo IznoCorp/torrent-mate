@@ -58,23 +58,29 @@ type MigratedPage = {
   // draws them itself. Either way the markup is what the legacy returned: this
   // wrapper is rendered by React, not added by it.
   root?: string;
+  // The recorded oracle's anchor for this page's body — `frontend/maquette/
+  // oracle.py`, whose region table is `regions.json`. A NAME, chosen here and
+  // written in English, rather than derived from the page id: an id like `cfg`
+  // or `404` is the value of `state.page` and an address, which is data. A page
+  // drawing its own roots carries its own anchors and declares none here.
+  region?: string;
 };
 
 // The ONE place a later wave adds a page. An id absent from this table is a
 // page the legacy still draws, and nothing here touches it.
 const PAGES: Record<string, MigratedPage> = {
   acq: { Body: AcquisitionPage },
-  sys: { Body: SystemPage, root: "body" },
-  arr: { Body: ArrivalsPage, root: "body" },
+  sys: { Body: SystemPage, root: "body", region: "system/body" },
+  arr: { Body: ArrivalsPage, root: "body", region: "arrivals/body" },
   lib: { Body: LibraryPage },
-  maint: { Body: MaintenancePage, root: "body" },
-  cfg: { Body: SettingsPage, root: "body" },
+  maint: { Body: MaintenancePage, root: "body", region: "maintenance/body" },
+  cfg: { Body: SettingsPage, root: "body", region: "settings/body" },
   // french-ok: this key IS the page ID — the value of `state.page` and the
   // `?page=` address. It is data, not a property name: renaming it left
   // the shell unable to find the page at all, and the account surface
   // drew nothing.
-  profile: { Body: AccountPage, root: "body" },
-  "404": { Body: NotFoundPage, root: "body" },
+  profile: { Body: AccountPage, root: "body", region: "account/body" },
+  "404": { Body: NotFoundPage, root: "body", region: "not-found/body" },
 };
 
 // The release, as a value React can subscribe to. It lives outside React
@@ -130,10 +136,10 @@ export function PageHost(): ReactElement | null {
   if (!migrated || isReleased) return null;
   const view = document.getElementById("view");
   if (!view) return null;
-  const { Body, root } = migrated;
+  const { Body, root, region } = migrated;
   return createPortal(
     root ? (
-      <div className={root}>
+      <div className={root} data-region={region}>
         <Body />
       </div>
     ) : (

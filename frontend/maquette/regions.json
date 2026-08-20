@@ -92,7 +92,139 @@
     "allowlist": []
   },
   "regions": {
-    "$comment": "One region per block a user perceives as a unit, anchored on `data-*` and on structural ids — NEVER on a CSS class. The 51 regions this file used to carry were chosen for the CSS-extraction contract and were class-anchored; importing them would break this oracle at the moment it is needed, because L07 replaces those very classes with Tailwind utilities and a region anchored on `.strip` disappears when its surface converts. Filled by phase 2."
+    "$comment": "One region per block a user perceives as a unit, anchored on `data-*` and on structural ids — NEVER on a CSS class. The 51 regions this file used to carry were chosen for the CSS-extraction contract and were class-anchored; importing them would break this oracle at the moment it is needed, because L07 replaces those very classes with Tailwind utilities and a region anchored on `.strip` disappears when its surface converts. Filled by phase 2.",
+    "shell/viewport": {
+      "selector": "#port",
+      "note": "the scrollport the phone frame gives a page"
+    },
+    "shell/page": {
+      "selector": "#view",
+      "note": "where a page draws; its height IS the page's length"
+    },
+    "shell/bottom-bar": {
+      "selector": "#nav",
+      "note": "the four tabs"
+    },
+    "shell/action-button": {
+      "selector": "#fab",
+      "note": "the floating action, on some pages only"
+    },
+    "shell/toast": {
+      "selector": "#toast",
+      "note": "the transient message"
+    },
+    "shell/drawer": {
+      "selector": "#drawer",
+      "note": "the navigation drawer; closed and open differ by transform, which the rectangle carries"
+    },
+    "shell/scrim": {
+      "selector": "#scrim",
+      "note": "the dimming layer. It moves by OPACITY and VISIBILITY only — identical rectangle, identical 17 properties. This region is why the subset was amended to 19"
+    },
+    "shell/sheet-content": {
+      "selector": "#sheetin",
+      "note": "the bottom panel's CONTENT, never its host: nothing about a layer host changes when it opens"
+    },
+    "shell/dialog": {
+      "selector": "#dlg",
+      "note": "the confirmation dialog"
+    },
+    "shell/save-bar": {
+      "selector": "#savebar",
+      "note": "the settings save bar, portalled into #device rather than into #view"
+    },
+    "shell/sign-in": {
+      "selector": "#loginform",
+      "note": "the gate's form"
+    },
+    "shell/install-bar": {
+      "selector": "#installbar",
+      "note": "the install prompt, reached by the two pwa-* states"
+    },
+    "shell/library-list": {
+      "selector": "#libitems",
+      "note": "the library's infinite list"
+    },
+    "shell/library-count": {
+      "selector": "#libcount",
+      "note": "the count line"
+    },
+    "shell/search-field": {
+      "selector": "#libq",
+      "note": "the library search field"
+    },
+    "acquisition/tabs": {
+      "selector": "[data-region=\"acquisition/tabs\"]",
+      "note": "the three tabs of the acquisition page"
+    },
+    "acquisition/filters": {
+      "selector": "[data-region=\"acquisition/filters\"]",
+      "note": "the filter row; two tabs draw one"
+    },
+    "acquisition/body": {
+      "selector": "[data-region=\"acquisition/body\"]",
+      "note": "the tab's content, whichever tab is open"
+    },
+    "library/tabs": {
+      "selector": "[data-region=\"library/tabs\"]",
+      "note": "the library's lens tabs"
+    },
+    "library/filters": {
+      "selector": "[data-region=\"library/filters\"]",
+      "note": "the filter row, holding the search field"
+    },
+    "library/count-line": {
+      "selector": "[data-region=\"library/count-line\"]",
+      "note": "« N titres » — three branches draw it, one at a time"
+    },
+    "library/body": {
+      "selector": "[data-region=\"library/body\"]",
+      "note": "the list or the grid"
+    },
+    "arrivals/pilot-bar": {
+      "selector": "[data-region=\"arrivals/pilot-bar\"]",
+      "note": "the pipeline's bar, and the only migrated control that WRITES"
+    },
+    "arrivals/body": {
+      "selector": "[data-region=\"arrivals/body\"]",
+      "note": "the run's health, drawn through the page host"
+    },
+    "system/body": {
+      "selector": "[data-region=\"system/body\"]",
+      "note": "services, schedulers, disks, index, dependencies, code errors"
+    },
+    "maintenance/body": {
+      "selector": "[data-region=\"maintenance/body\"]",
+      "note": "the six rubrics over the engine's library-* commands"
+    },
+    "settings/body": {
+      "selector": "[data-region=\"settings/body\"]",
+      "note": "the rubrics, and the field being edited"
+    },
+    "account/body": {
+      "selector": "[data-region=\"account/body\"]",
+      "note": "the one real account, and the place of the others"
+    },
+    "not-found/body": {
+      "selector": "[data-region=\"not-found/body\"]",
+      "note": "the unknown address"
+    },
+    "screen-media/body": {
+      "selector": "[data-region=\"screen-media/body\"]",
+      "note": "the media sheet's content"
+    },
+    "screen-profile/body": {
+      "selector": "[data-region=\"screen-profile/body\"]",
+      "note": "a person's screen"
+    },
+    "screen-releases/body": {
+      "selector": "[data-region=\"screen-releases/body\"]",
+      "note": "the release candidates for a title"
+    },
+    "screen-resolution/body": {
+      "selector": "[data-region=\"screen-resolution/body\"]",
+      "note": "resolving a stuck folder"
+    }
   },
   "$reportedDefects": {
     "$comment": "Defects found by hand on the running prototype, each covered by a test in harness/bugs.py — the project rule is that a bug gets its test, written together with the fix.",
