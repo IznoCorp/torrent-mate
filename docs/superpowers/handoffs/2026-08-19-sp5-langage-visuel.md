@@ -1,5 +1,12 @@
 # Reprise — SP4 est fini, SP5 (le langage visuel) commence
 
+> ⚠ **SA PRÉMISSE CENTRALE EST PÉRIMÉE — ne t'en sers plus comme point d'entrée.** Ce brief
+> répète que « SP5 n'a aucun périmètre écrit » et conclut « ne code pas encore, demande le
+> périmètre à l'opérateur ». Ce périmètre existe : `docs/reference/frontend-architecture.md`
+> porte les décisions arrêtées et les lots ordonnés, et `IMPLEMENTATION.md` § THE OBJECTIVE
+> porte l'état. Le reste du document — les mesures datées, les pièges, la façon de servir le
+> prototype — garde sa valeur. **Sa § Première action, non.**
+
 > **Prompt de reprise pour une session neuve.** Le contexte a été vidé : tout ce qu'il faut
 > savoir est ici, et rien ici ne suppose de se souvenir d'une session précédente.
 >

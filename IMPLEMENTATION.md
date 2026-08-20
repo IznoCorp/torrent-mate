@@ -506,14 +506,19 @@ and the interface never contradict each other. R69, `harness/url_state.py`.
 
 ---
 
-**Next action:** frame the remaining work with the operator. Two things are owed and they are
-of different kinds:
+**Next action:** two things are owed and they are of different kinds:
 
 1. **The surfaces the mission re-opened** — `/control` and `/pipeline` have no page here, and
    since 2026-08-19 that is a gap, not an arbitration. Drawing them is maquette-first work:
    drawn, named states, a rule that bites, a mutation that proves it.
-2. **The visual language (SP5), the UX and the prototype's architecture** — including the three
-   questions of this section. SP5 has no written scope: it is to be agreed before any code.
+2. **The visual language, the application and the legacy engine** — including the three
+   questions of this section. **Their scope is written**: `docs/reference/frontend-architecture.md`
+   carries the settled decisions and the ordered lots, each with its dependencies and its
+   definition of done. Take the first lot that is not `LANDED` and whose dependencies are.
+
+> This paragraph read « frame the remaining work with the operator … SP5 has no written scope:
+> it is to be agreed before any code » until that scope was agreed and written. Left as it was,
+> it sent a session that had just been told where to start back to asking where to start.
 
 Every surface listed in the inventory above IS drawn and validated — `harness/arrivals.py` (R66)
 executes green against `library.db` for the most recent one — so nothing there is to be redone.

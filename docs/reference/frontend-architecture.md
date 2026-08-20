@@ -17,6 +17,9 @@ is the plan for it.
 2. Come back here and find **the first lot whose status is not `LANDED` and whose dependencies
    are all `LANDED`**. That is the work. There is no other selection rule, and lots are not
    reordered for convenience.
+   **If that lot carries a blocking note**, take the next one that satisfies the same rule, and
+   say in the wave's plan which lot you skipped and why. A blocked lot is not a reason to stop
+   or to go asking where to start — this file is where to start.
 3. Read that lot's **Done when**. It is the contract. A lot is not finished because its code
    exists; it is finished when every line of that list is true.
 4. Write the wave's plan under `docs/superpowers/plans/`, on its own branch, as every wave here
