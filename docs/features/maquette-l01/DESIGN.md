@@ -146,6 +146,31 @@ before a wave merges).
 the oracle says the rendering did not move. It is too slow for `make check` and belongs to the
 wave gate.
 
+## A MEASUREMENT IS BOUND TO ITS MACHINE, and that decides where this runs
+
+Learned from a red pipeline rather than from first principles, which is why it is written here
+in full.
+
+The oracle was wired into `run.sh` and CI runs `run.sh --contracts` on every pull request. On the
+GitHub Linux runner, the **same unmodified tree** reported heights of `1477` where this machine
+records `1474.1` — three pixels, on `arrivals/body` and `shell/page`, across several states. That
+is font metrics: different fonts installed, different hinting. It is not a change to anything.
+
+Two consequences, and neither is optional:
+
+1. **The oracle never runs on `--contracts`.** That subset is the per-pull-request tier, and this
+   instrument cannot live there. It is the same reason `arrivals.py` is kept out of it: a hold
+   that fails on the runner for a reason foreign to the change under test teaches nobody
+   anything, and gets muted.
+2. **The reference records the platform it was taken on**, and `--check` REFUSES to compare
+   across a mismatch — with the explanation above, not with a wall of divergences. An oracle that
+   cries wolf is disarmed within a week; that is friction cause 5, and this would have been its
+   largest source by far.
+
+So this is a **wave gate on the machine that recorded the reference**, and it says so in its own
+refusal. Making it portable would mean pinning the font stack inside the measurement, which is a
+question for the day someone wants it in CI — recorded here so it is not rediscovered then.
+
 ## Friction is the risk, and each counter-measure is EXERCISED
 
 « Exercised rather than asserted » is the architecture file's wording and it is the bulk of this

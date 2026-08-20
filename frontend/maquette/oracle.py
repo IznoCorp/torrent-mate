@@ -51,6 +51,7 @@ import asyncio
 import json
 import os
 import pathlib
+import platform
 import re
 import subprocess
 import sys
@@ -530,6 +531,23 @@ def base_commit() -> str:
         return "unknown"
 
 
+def fingerprint() -> str:
+    """Returns the machine identity a measurement is bound to.
+
+    A MEASUREMENT IS NOT PORTABLE, and this cost a red pipeline to learn: the
+    same unmodified tree reports a height of 1477 on a GitHub Linux runner where
+    it records 1474.1 here. That is three pixels of font metrics — different
+    fonts, different hinting — and not a change to anything. Compared across
+    platforms, this instrument produces a wall of divergences that are all
+    false, which is how an oracle gets muted within a week.
+
+    Returns:
+        A short platform identity, stored in the reference and checked before
+        any comparison is believed.
+    """
+    return f"{platform.system()}/{platform.machine()}"
+
+
 def render_reference(measurements: dict, regions: dict, states: list) -> str:
     """Serialises the reference so a visual change is READ IN A PULL REQUEST.
 
@@ -565,6 +583,7 @@ def render_reference(measurements: dict, regions: dict, states: list) -> str:
             "with `--accept`, never from a gate."
         ),
         "baseCommit": base_commit(),
+        "platform": fingerprint(),
         "counts": {"states": len(states), "regions": len(regions)},
         "measurements": body,
     }
@@ -693,6 +712,17 @@ async def check(accept: bool = False) -> int:
             "`python3 frontend/maquette/oracle.py --record`."
         )
     stored = json.loads(REFERENCE_FILE.read_text(encoding="utf-8"))
+    recorded_on = stored.get("platform")
+    if recorded_on and recorded_on != fingerprint() and not accept:
+        raise SystemExit(
+            f"the reference was recorded on {recorded_on} and this is "
+            f"{fingerprint()}.\n"
+            "Refusing to compare: font metrics differ between platforms, so "
+            "every state would report a divergence that is not one — measured, "
+            "a height of 1474.1 here reads 1477 on a Linux runner. This oracle "
+            "runs on the machine that recorded it; that is why it is a wave "
+            "gate and not a per-pull-request check."
+        )
     measurements, states, seconds = await read_everything(recipe, regions)
 
     if accept:

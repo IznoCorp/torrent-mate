@@ -122,9 +122,20 @@ if [ "$ORACLE_ONLY" -eq 0 ]; then
   echo "harness: ${#scripts[@]} rule(s), no violation."
 fi
 
-# The third tier. Run last, because a rendering that moved is worth knowing
-# about after the behaviour is known to hold: a fallen rule explains a moved
-# rectangle, and the reverse is rarely true.
-echo
-echo "Running the recorded oracle (the rendering did not move)…"
-python3 "${HERE}/../oracle.py" --check
+# The third tier. Run last, because a rendering that moved is worth knowing about
+# after the behaviour is known to hold: a fallen rule explains a moved rectangle,
+# and the reverse is rarely true.
+#
+# NEVER ON `--contracts`, and this is not tidiness — it shipped broken once. The
+# contracts subset is what CI runs on EVERY pull request, and the oracle cannot
+# run there at all: its reference is a measurement, and a measurement is bound to
+# the machine that took it. On the GitHub runner the same unmodified tree
+# reported heights of 1477 where this one records 1474.1 — three pixels of font
+# metrics, not a change to anything. Same reason `arrivals.py` is kept out of the
+# subset: a hold that fails on the runner for a reason foreign to the change
+# under test teaches nobody anything and gets muted.
+if [ "${1:-}" != "--contracts" ]; then
+  echo
+  echo "Running the recorded oracle (the rendering did not move)…"
+  python3 "${HERE}/../oracle.py" --check
+fi

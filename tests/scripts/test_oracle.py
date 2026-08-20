@@ -251,3 +251,25 @@ def test_the_reference_records_the_commit_it_was_taken_at():
     document = json.loads(module.render_reference({}, {}, []))
     assert document["baseCommit"]
     assert document["counts"] == {"states": 0, "regions": 0}
+
+
+def test_the_reference_records_the_platform_it_was_taken_on():
+    """A measurement is not portable, and the reference has to say so.
+
+    Learned from a red pipeline: the same unmodified tree reports a height of
+    1477 on a GitHub Linux runner where it records 1474.1 on the machine that
+    took the reference. Three pixels of font metrics, and not a change to
+    anything — but compared across platforms it is a wall of divergences that
+    are all false, which is how an oracle gets muted within a week.
+    """
+    module = load()
+    document = json.loads(module.render_reference({}, {}, []))
+    assert document["platform"] == module.fingerprint()
+    assert "/" in document["platform"]
+
+
+def test_the_committed_reference_carries_a_platform():
+    """The stored file, not just a freshly rendered one."""
+    reference = json.loads((ROOT / "frontend" / "maquette" / "oracle-reference.json").read_text(encoding="utf-8"))
+    assert reference["platform"]
+    assert reference["counts"] == {"states": 82, "regions": 33}
