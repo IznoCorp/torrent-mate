@@ -36,7 +36,7 @@
     }
   },
   "probe": {
-    "$comment": "THE MEASUREMENT RECIPE, RECOVERED — not rebuilt. Every key below comes from `git show bd31d52b:frontend/maquette/regions.json`, the commit before the untranslate merge (#465) removed this block with the rest of the translation layer. It is recovered rather than re-derived because it is the only replayable measurement recipe this repository ever proved, and rebuilding the list by judgement re-opens a question already settled by measurement (`docs/reference/frontend-architecture.md` § L01). ONE KEY CHANGED, AND ONLY ONE: `allowlist` comes back EMPTY. Its single entry declared `.bottombar` as `position: absolute` in the maquette against `fixed` in the app — a MAQUETTE-VS-APP divergence, which is the model #465 abandoned. This oracle compares the maquette to ITSELF at two commits, so that entry has no subject here, and recovering it would seed the allowlist with a justification for a comparison this instrument never makes.",
+    "$comment": "THE MEASUREMENT RECIPE, RECOVERED — not rebuilt. Every key below comes from `git show bd31d52b:frontend/maquette/regions.json`, the commit before the untranslate merge (#465) removed this block with the rest of the translation layer. It is recovered rather than re-derived because it is the only replayable measurement recipe this repository ever proved, and rebuilding the list by judgement re-opens a question already settled by measurement (`docs/reference/frontend-architecture.md` § L01). ONE KEY CHANGED, AND ONLY ONE: `allowlist` comes back EMPTY. Its single entry declared `.bottombar` as `position: absolute` in the maquette against `fixed` in the app — a MAQUETTE-VS-APP divergence, which is the model #465 abandoned. This oracle compares the maquette to ITSELF at two commits, so that entry has no subject here, and recovering it would seed the allowlist with a justification for a comparison this instrument never makes. AMENDED 2026-08-20, WITH ITS MEASUREMENT — `computedStyleSubset` goes from 17 properties to 19: `opacity` and `visibility` join it. The recovered list was right for what it used to measure (the maquette against its own extraction, both sides in the SAME interaction state) and is short for what this oracle measures (the maquette against itself at two commits, across 82 states that OPEN AND CLOSE LAYERS). Measured rather than argued: between `lib-list` and `drawer-navigation`, `#scrim` reports all 17 properties identical AND an identical bounding rectangle — only `opacity` and `visibility` move, so the overlay could stop appearing altogether and this instrument would stay green. That is an ADDITION carrying evidence, not the rebuild-by-judgement the lot forbids, and it is flagged to the operator rather than assumed.",
     "viewport": {
       "width": 390,
       "height": 844,
@@ -55,6 +55,8 @@
       "border",
       "border-radius",
       "gap",
+      "opacity",
+      "visibility",
       "color",
       "background-color",
       "box-shadow",

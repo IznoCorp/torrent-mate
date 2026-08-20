@@ -307,7 +307,10 @@ known-good commit.
 >
 > Six keys, and each earns its place: `viewport` (390 × 844, DPR 2, mobile, touch — a geometry
 > read at another width answers a question nobody asked), `assertBeforeMeasuring` (refuse to
-> measure if the viewport is not really that), `computedStyleSubset` (**17 properties**),
+> measure if the viewport is not really that), `computedStyleSubset` (**17 properties**;
+> amended to **19** by L01 — `opacity` and `visibility` — because `#scrim` opening changes
+> neither the other 17 nor its rectangle, so an overlay could stop appearing and the oracle
+> would stay green. Evidence in `docs/features/maquette-l01/DESIGN.md`),
 > `knownAbsent`, `neutralise` (what to switch off before reading — this is friction
 > counter-measure 1, already solved once), and `allowlist` (justified divergences).
 >

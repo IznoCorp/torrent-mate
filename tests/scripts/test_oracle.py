@@ -49,11 +49,17 @@ def test_recipe_has_the_six_recovered_keys():
     }
 
 
-def test_computed_style_subset_is_the_seventeen():
-    """Seventeen properties, settled by measurement rather than by judgement."""
+def test_computed_style_subset_is_the_recovered_seventeen_plus_two():
+    """Nineteen: the recovered seventeen, plus the two L01 measured a hole for.
+
+    `opacity` and `visibility` were added because `#scrim` opening changes
+    NEITHER the other seventeen NOR its bounding rectangle — the overlay could
+    stop appearing altogether and this instrument would stay green.
+    """
     probe = json.loads(RECIPE_FILE.read_text(encoding="utf-8"))["probe"]
-    assert len(probe["computedStyleSubset"]) == 17
-    assert len(set(probe["computedStyleSubset"])) == 17
+    assert len(probe["computedStyleSubset"]) == 19
+    assert len(set(probe["computedStyleSubset"])) == 19
+    assert {"opacity", "visibility"} <= set(probe["computedStyleSubset"])
 
 
 def test_allowlist_starts_empty():

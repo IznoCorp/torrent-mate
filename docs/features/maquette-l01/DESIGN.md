@@ -75,10 +75,41 @@ judgement re-opens a question already settled by measurement.**
 | --- | ------------ | --- |
 | `viewport` | as-is — 390 × 844, DPR 2, `isMobile`, `hasTouch` | a geometry read at another width answers a question nobody asked |
 | `assertBeforeMeasuring` | as-is — `document.documentElement.clientWidth === 390` | refuse to measure if the viewport is not really that |
-| `computedStyleSubset` | as-is — **17 properties** | `position` `font-size` `font-weight` `line-height` `padding` `margin` `border` `border-radius` `gap` `color` `background-color` `box-shadow` `animation` `display` `flex-direction` `align-items` `justify-content` |
+| `computedStyleSubset` | **amended — 17 → 19 properties**, see below | `position` `font-size` `font-weight` `line-height` `padding` `margin` `border` `border-radius` `gap` **`opacity`** **`visibility`** `color` `background-color` `box-shadow` `animation` `display` `flex-direction` `align-items` `justify-content` |
 | `knownAbsent` | as-is — 3 entries | each names a region an INTERACTION gates, which state-driving cannot reach; each carries its reason |
 | `neutralise` | as-is — `.note` | prototype-only chrome, removed from the DOM before measuring. Left in place it springs back to 75.6px and pushes every region below it down — a probe measuring its own setup |
 | `allowlist` | **EMPTY, and that is the one correction** | its single entry (`.bottombar`, `position: absolute` vs `fixed`) described a **maquette-vs-app** divergence — the model #465 abandoned. Here both sides are the maquette at two commits, so the entry has no subject. Recovering it would seed the allowlist with a justification for a comparison this oracle never makes. |
+
+### The one amendment, and it carries its measurement
+
+`computedStyleSubset` gains **`opacity` and `visibility`** — 17 properties become 19.
+
+**Why the recovered list is short here, and it is not a criticism of it.** It was assembled for a
+comparison where both sides sat in the SAME interaction state: the maquette against its own CSS
+extraction. This oracle compares the maquette against ITSELF at two commits, across 82 states
+that OPEN AND CLOSE LAYERS — a question the old list never had to answer.
+
+**Measured, not argued.** Between `lib-list` and `drawer-navigation`:
+
+| Region | 17 properties identical? | Bounding rect identical? | Verdict |
+| ------ | ------------------------ | ------------------------ | ------- |
+| `#scrim`  | 17/17 | **yes** | **BLIND** — only `opacity` and `visibility` move |
+| `#sheet`  | 17/17 | no — `transform` moves it | seen, by the rectangle |
+| `#screen` | 17/17 | **yes** | **BLIND**, and `opacity`/`visibility` do not help either |
+
+So the overlay could stop appearing altogether and the instrument would stay green. With 19
+properties the same comparison reports `['opacity', 'visibility']` — the hole is closed, verified
+by re-running it.
+
+`#screen` is a second lesson rather than a second amendment: **a region is declared on a layer's
+CONTENT, never on the layer host.** Nothing about `#screen` itself changes when a screen opens;
+its children change. Phase 2 declares regions accordingly.
+
+**This is an ADDITION carrying evidence, not the rebuild-by-judgement L01 forbids** — that
+prohibition targets re-deriving the list from taste, which is what produced a wrong list before.
+Per § 7 of the architecture file the operator arbitrates; this is flagged in the pull request
+rather than assumed, and reverting two entries costs nothing if the arbitration goes the other
+way.
 
 ## The regions are RE-DECLARED, and anchored on `data-*`
 
@@ -218,7 +249,7 @@ p=json.load(open('frontend/maquette/regions.json'))['probe']
 print(sorted(p), len(p['computedStyleSubset']), len(p['knownAbsent']),
       len(p['neutralise']), len(p['allowlist']))"
 ```
-Expected: the six keys, then `17 3 1 0`.
+Expected: the six keys, then `19 3 1 0`.
 
 **ACC-07 — no region anchors on a CSS class**
 

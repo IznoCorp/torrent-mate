@@ -1,4 +1,4 @@
-# Phase 3 — The three modes and the reference
+# Phase 4 — The three modes and the reference
 
 ## Goal
 
