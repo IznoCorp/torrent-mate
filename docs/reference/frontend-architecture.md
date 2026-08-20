@@ -34,7 +34,7 @@ is the plan for it.
   behaviour change proves the behaviour did. Never both in one wave — an edit hidden inside a
   move is an edit nobody can review.
 - **If a lot has lost its subject, stop and say so.** Do not execute it faithfully because it is
-  written here. See § 6.
+  written here. See § 7.
 
 ---
 
@@ -215,6 +215,30 @@ style properties, recorded and replayed. Screenshots are not an oracle here.
 one run of that oracle "proved" twenty states had changed after a deletion that was correct all
 along.
 
+### D9 — What a library is adopted for, and where motion lives
+
+**Two rules, and between them they settle every "should we use library X" question without
+re-opening the argument.**
+
+1. **What is declarative lives in the stylesheet** — therefore in the design reference, therefore
+   under the oracle. Motion written in JavaScript leaves the field of measurement, and a design
+   decision nobody can measure is a design decision nobody can defend.
+2. **A library is adopted for maths nobody has written. Never for an arbitration already
+   proved.**
+
+**Applied, with the verdicts they produce.** These were argued against real alternatives; the
+reasoning is kept so the alternatives are not proposed again as if new.
+
+| Candidate | Verdict | Because |
+| --- | --- | --- |
+| **View Transitions API** for page and layer transitions | **adopt** | native, compositor-driven, zero bytes, declarative — so it is measurable. Same-document transitions are supported on the target platform |
+| A JS animation library for **page transitions** | **refuse** | it buys what the platform gives, costs tens of kilobytes, and moves motion out of the stylesheet (rule 1) |
+| A JS animation library for **one interruptible spring** that follows a finger and settles | **allowed, scoped** | CSS cannot express interruptible pointer-driven physics. One component, never a transition strategy |
+| A gesture library **replacing** the press/drag/scroll arbitration | **refuse** | that arbitration is written and proved here; the library solves the plumbing, not the hard part (rule 2) |
+| A gesture library for a **new** gesture needing velocity, inertia or multi-pointer maths | **allowed, scoped** | maths nobody has written (rule 2) |
+| **Haptics** | **refuse the capability, build the seam** | the target platform exposes no public API; the workarounds ride an implementation detail that has already been tightened once. One `feedback()` call site all gestures pass through, visual today — so adopting it later changes one file |
+| **`onTouchStart` for pressed states** | **refuse** | it lights the pressed state when the finger is starting a SCROLL, so a list flickers as it is scrolled. `:active` is cancelled by the browser when the gesture becomes a scroll, which is the wanted behaviour, for free |
+| **`@media (hover: hover)`** to keep hover off touch | **adopt** | the sticky-hover problem is real; this is its declarative remedy |
 ---
 
 ## 3. Invariants — true at the end of every wave
@@ -236,6 +260,16 @@ along.
    (`scripts/check-no-french.py`), and it applies to everything written here.
 9. **Every change lands with a rule that bites**, mutation-tested: break the behaviour on
    purpose, confirm the rule falls and names the right defect, restore.
+10. **A component asks the width it HAS, not the width of the window.** Container queries, not
+    media queries, for anything below the shell. A media query reads the viewport, so a 390 px
+    frame sitting on a 1280 px desktop is told it has room for six columns it does not have —
+    which is why a harness deviation once had to pin three columns by hand. The shell keeps its
+    media queries; a component does not get one.
+11. **Motion is declared, not scripted** (D9). The single exception is a pointer-driven
+    interruptible spring, and it is named where it is used.
+12. **Reduced motion is a designed state, not a fallback.** Every transition and every gesture
+    has a defined appearance under `prefers-reduced-motion`, drawn like any other state — the
+    interface being frozen includes it.
 
 ---
 
@@ -287,8 +321,11 @@ reason).
 names the right region; its reference is committed; it is wired into the gate; and its five
 friction counter-measures are each exercised rather than asserted.
 
-**Note for later.** When real data replaces the fixtures (L09), determinism moves to the mock
-layer. **The oracle then depends on L08** — plan the two together, not against each other.
+**Two notes for later, so the oracle is not caught out by lots that come after it.** When real
+data replaces the fixtures (L09), determinism moves to the mock layer — **the oracle then depends
+on L08**, so plan the two together rather than against each other. And once L12 lands view
+transitions, a transition in flight moves the very rectangles this measures: the oracle reads
+**at rest**, which its settle signal must guarantee rather than assume.
 
 #### L02 — Test anchors move to `data-*` · `NOT STARTED` · *depends on L01*
 
@@ -364,7 +401,17 @@ diff and one unattributable failure.
 them in the same sequence means the second pass reuses the understanding the first one built.
 Write the order down in this wave's plan.
 
+**The risk this lot carries, and it has already gone off once.** Some CSS here is
+**load-bearing, not cosmetic**, and a utility conversion is exactly how it disappears without a
+sound. `user-drag: none` and `user-select: none` are the known case: deleting one selector from a
+group once took the whole `user-drag` block with it, native image drag came back and **swallowed
+the pointer stream** — one down, two moves, never an up — and three gesture tests failed for a
+reason that looked nothing like a CSS deletion. Anything the compositor reads (`touch-action`,
+`user-drag`, `user-select`, `overscroll-behavior`, `-webkit-tap-highlight-color`) belongs in the
+base layer and is held by a rule, before a single surface converts.
+
 **Done when.** No hand-written component stylesheet remains; CSS is in its three layers (D3); the
+compositor-facing declarations above are in the base layer and a rule refuses their removal; the
 Tailwind scan is confined and proved not to reach production output; §15 of the constitution is
 amended to name the new visual reference; the oracle is green on every state at every step.
 
@@ -406,8 +453,14 @@ wired surface renders what it rendered before, and the oracle holds the wiring a
 divergence. If a surface cannot be wired at zero divergence, the difference is understood and
 accepted explicitly — never waved through as "the data changed".
 
+**The largest single lever on how native this feels sits in this lot, and it is not a library.**
+An action must answer the finger before the network does. Every mutation carries its optimistic
+path and its rollback; a surface that waits for a round trip to acknowledge a tap feels like a
+web page, and no amount of animation later repairs that.
+
 **Done when.** No surface reads a fixture; the fixture literals are gone from the engine; state
-ownership is settled — no ambient mutable object read from everywhere; the oracle is green
+ownership is settled — no ambient mutable object read from everywhere; every mutation has an
+optimistic path and a rollback, or a written reason why it cannot; the oracle is green
 against the mocks, or its divergences are accepted one by one with reasons.
 
 #### L10 — The live relay · `NOT STARTED` · *depends on L09*
@@ -430,16 +483,47 @@ reconnection, exactly once; installation and its entry points are exercised on a
 
 #### L12 — Native interaction · `NOT STARTED` · *depends on L05, L07*
 
-**Objective.** View transitions, gestures (drag to dismiss, swipe), mobile geometry — safe areas,
-dynamic viewport, contained overscroll, no accidental zoom on focus, scroll restored per history
-entry.
+**Objective.** View transitions, gestures, mobile geometry, and the performance floor beneath
+them. D9 governs every library question in this lot; its verdict table is the answer, not a
+starting point for a new argument.
+
+**Transitions.** Declared, through the platform's own view transitions — including the shared
+element that carries a poster from a card into its sheet. Not scripted.
+
+**Gestures.** The press / drag / scroll arbitration already written here is kept and moved, not
+replaced. It encodes two things a general library does not know: a long press and a drag are
+**opposite** cases for the compositor and one rule cannot serve both — a drag is claimed on the
+first movement and cancels immediately, a press only once the finger has really travelled, and
+the tolerance must live on the pointer stream because Chrome delivers **no `touchmove` at all**
+for a drift of a few pixels. And the click a long press causes is swallowed **by its point**, not
+by a delay and not by a target: that click arrives 1 ms after the lift, so no timer can tell it
+from a deliberate tap.
 
 **A hard-won constraint applies throughout**: a synthetic event is not a finger. It is never
 cancelled, so it cannot tell whether a gesture survives the compositor. Two gestures were lost
-that way and no script noticed.
+that way and no script noticed. A real mouse on a browser with no touch at all found two more.
 
-**Done when.** Every transition is declared rather than scripted, except the drag; every gesture
-is proved against a real pointer stream; the interaction budget is measured on a real device.
+**Pressed states.** `@media (hover: hover)` for hover, `:active` for pressure, no JavaScript
+(D9). Verify on a device whether `:active` still needs a touch listener to fire; if it does, the
+remedy is one empty listener, never a per-component JavaScript state.
+
+**Feedback seam.** One `feedback(kind)` call site that every gesture passes through, visual
+today. It is what makes haptics a one-file change if the platform ever allows them (D9).
+
+**Mobile geometry.** Safe areas, dynamic viewport units, contained overscroll, no accidental zoom
+on focus, the virtual keyboard resizing content rather than the viewport, scroll restored per
+history entry.
+
+**The performance floor**, because none of the above survives a slow surface. The library holds
+1 861 titles, so no long list renders unvirtualised. Images that a transition carries are decoded
+before they are needed — the same asynchronous decode that makes the oracle flicker makes a
+shared-element transition tear.
+
+**Done when.** Every transition is declared rather than scripted, the one named spring excepted;
+every gesture is proved against a real pointer stream **and** against a real mouse; reduced motion
+is defined for each of them (invariant 12); the feedback seam has exactly one call site; no
+unvirtualised long list remains; and the interaction budget is measured on a real device, not in
+a headless browser.
 
 #### L13 — The engine's residue · `NOT STARTED` · *depends on L07, L09, L12*
 
@@ -509,7 +593,33 @@ spent on the second branch rebasing and re-running a full adversarial review.
 
 ---
 
-## 6. Amending this file
+## 6. The traps that cross lots
+
+Every one of these has already gone off in this repository. They are recorded in full in
+`frontend/maquette/regions.json` → `$adversarialReview.$methodLessons` and in
+`frontend/maquette/README.md`; what is added here is **which lot each one threatens**, so it is
+met before it fires rather than after.
+
+| Trap | Threatens | The short version |
+| --- | --- | --- |
+| A screenshot is not an oracle | **L01** | two captures of the same unmodified file diverge on 8 to 15 states |
+| A synthetic event is not a finger | **L12** | it is never cancelled, so it cannot tell whether a gesture survived the compositor |
+| Compositor-facing CSS is load-bearing | **L07** | deleting one selector from a group took `user-drag: none` with it; native image drag then swallowed the pointer stream |
+| A media query answers for the window, not the component | **L07, L12** | a 390 px frame on a 1280 px desktop is told it has room it does not have |
+| A rule that greps one file greps the wrong thing | **all** | four rules stayed green over evidence that had simply moved to another file |
+| A rule can certify the defect | **all** | writing down the behaviour that exists is not the same as writing down the one that is wanted |
+| Renaming needs a parser, not a regex | **L02, L07** | the same short name means different things in different scopes; a global replace preserves behaviour while lying about meaning |
+| A failed command is not a no-op | **all** | it is an edit that did not happen, and the next read is evidence rather than scenery |
+| A derivation must not read back its own output | **L06** | a size computed against the median of what it sets returns its own answer |
+
+**And one that has not gone off yet, named because its shape is known**: a `var()` naming a token
+nobody declared renders as nothing rather than failing. It is a landmine, not a crash, and it sat
+in this codebase undetected across 449 `var()` calls. `scripts/check-css-tokens.py` refuses it
+today; L06 must keep that true as the token source moves.
+
+---
+
+## 7. Amending this file
 
 **A plan that runs for months will outlive some of its own decisions.** That is not a failure of
 the plan; executing a decision that has lost its subject is.
