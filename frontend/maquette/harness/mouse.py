@@ -50,7 +50,7 @@ async def main():
     if not (n == 1): failures.append("slide cards, mouse right")
 
     # 2. Card swipe in Suivis.
-    await pg.evaluate("()=>window.__go('acq-follows-liste')"); await pg.wait_for_timeout(500)
+    await pg.evaluate("()=>window.__go('acq-follows-list')"); await pg.wait_for_timeout(500)
     await drag(".swipe", -150)
     tr = await pg.evaluate("()=>{const c=document.querySelector('.swipe .card'); return getComputedStyle(c).transform;}")
     print(f"follow row, mouse swipe : {tr[:34]}  {'PASS' if tr != 'none' else 'FAIL'}")
@@ -82,8 +82,8 @@ async def main():
     await pg.evaluate("""()=>{window.__clicks = [];
       document.addEventListener('click',
         (e) => window.__clicks.push({swallowed: e.defaultPrevented}), true);}""")
-    for state_, list_label in (("acq-follows-liste", "a follow row"),
-                         ("lib-liste", "a library row")):
+    for state_, list_label in (("acq-follows-list", "a follow row"),
+                         ("lib-list", "a library row")):
         for direction, dx in (("right", 150), ("left", -150)):
             await pg.evaluate(f"()=>window.__go({state_!r})")
             await pg.wait_for_timeout(480)

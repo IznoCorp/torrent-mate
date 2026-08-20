@@ -21,7 +21,7 @@ async def main():
                    paused:world.follows.filter(f=>f.st==='disabled').length, lib:world.lib.length,
                    acqBadge:(document.querySelector('[data-page=acq] .navbadge')||{}).textContent||null})"""
 
-    await pg.evaluate("()=>window.__go('acq-encours-loaded')"); await pg.wait_for_timeout(300)
+    await pg.evaluate("()=>window.__go('acq-now-loaded')"); await pg.wait_for_timeout(300)
     a=await pg.evaluate(cnt); print("before grabbing      :", a)
     await pg.evaluate("()=>[...document.querySelectorAll('.cfoot')].find(x=>x.textContent.includes('Récupérer')).click()")
     await pg.wait_for_timeout(400)
@@ -32,7 +32,7 @@ async def main():
     # A folder the providers answered nothing for has NO candidate to pick, and
     # that is the real state of both stuck folders in the calm scenario. The
     # way out is the one that used to be missing: agreeing with the machine.
-    await pg.evaluate("()=>window.__go('arr-repos')"); await pg.wait_for_timeout(300)
+    await pg.evaluate("()=>window.__go('arr-idle')"); await pg.wait_for_timeout(300)
     a=await pg.evaluate(cnt); print("\nbefore resolution    :", {k:a[k] for k in ('stuck','moving')})
     await pg.evaluate("()=>[...document.querySelectorAll('.cfoot')].find(x=>x.textContent.includes('Résoudre')).click()")
     await pg.wait_for_timeout(450)
@@ -55,7 +55,7 @@ async def main():
     assert b2b["blocked"]==a["blocked"]-1, "the arbitrated item stayed in the queue"
     print("  → candidate picked, and the item leaves « À traiter »")
 
-    await pg.evaluate("()=>window.__go('acq-follows-liste')"); await pg.wait_for_timeout(300)
+    await pg.evaluate("()=>window.__go('acq-follows-list')"); await pg.wait_for_timeout(300)
     a=await pg.evaluate(cnt)
     await pg.evaluate("()=>{const w=document.querySelector('#view .swipe');w.querySelector('.act.pause').click();}")
     await pg.wait_for_timeout(400)
@@ -76,7 +76,7 @@ async def main():
     await pg.evaluate("()=>document.querySelector('#sheet .sact.primary').click()"); await pg.wait_for_timeout(450)
     b6=await pg.evaluate(cnt); print("\nfollow a suggestion  :", a["follows"], "→", b6["follows"])
     assert b6["follows"]==a["follows"]+1
-    await pg.evaluate("()=>window.__go('acq-follows-liste',{keep:true})"); await pg.wait_for_timeout(350)
+    await pg.evaluate("()=>window.__go('acq-follows-list',{keep:true})"); await pg.wait_for_timeout(350)
     print("  → at the head of Suivis :", await pg.evaluate("()=>document.querySelector('.ctitle').textContent"),
           "| chip Nouveau :", await pg.evaluate("()=>!!document.querySelector('.freshtag')"))
 

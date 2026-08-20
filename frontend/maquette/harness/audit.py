@@ -270,7 +270,7 @@ async def main():
       const out=[]; const snap=()=>JSON.stringify({t:world.takeable.length,i:world.inflight.length,s:world.stuck.length,
         m:world.moving.length,f:world.follows.length,l:world.lib.length,p:state.page,tab:state.acqTab,lens:state.libLens,
         pipe:state.pipe});
-      for (const id of ['acq-encours-loaded','arr-loaded','lib-incomplete']) {
+      for (const id of ['acq-now-loaded','arr-loaded','lib-incomplete']) {
         window.__go(id); await new Promise(r=>setTimeout(r,220));
         const btns=[...document.querySelectorAll('#view .cfoot')];
         for (let i=0;i<btns.length;i++){

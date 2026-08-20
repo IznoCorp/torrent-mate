@@ -11450,8 +11450,8 @@ import { screens, panel, bridge } from "../seams.js";
           ? "état inconnu : " + stateId
           : "aucun état enregistré — src/states.js n'a pas été chargé");
     closeHarness();
-    if (!stateId.startsWith("connexion")) hideSignIn();
-    if (stateId !== "demarrage") hideStartup();
+    if (!stateId.startsWith("signin")) hideSignIn();
+    if (stateId !== "startup") hideStartup();
     if (!stateId.startsWith("pwa-")) masquerInstallation();
     // Reset to seed by DEFAULT: a measurement must never inherit the
     // mutations of a previous one. `__go(id, {keep:true})` preserves

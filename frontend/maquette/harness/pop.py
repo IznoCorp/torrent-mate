@@ -22,13 +22,13 @@ async def main():
         return txt
 
     print("── Tintin (owned + missing) ──")
-    await pg.evaluate("()=>window.__go('feuille-suivi-trous')"); await pg.wait_for_timeout(450)
+    await pg.evaluate("()=>window.__go('followsheet-gaps')"); await pg.wait_for_timeout(450)
     a = await click_("()=>[...document.querySelectorAll('.ep')].find(e=>e.className.includes('in_library')).click()", "owned episode")
     b1 = await click_("()=>[...document.querySelectorAll('.ep')].find(e=>e.className.includes('to_grab')).click()", "missing episode")
     await pg.screenshot(path="m_popover.png")
 
     print("── Silo (including announced episodes) ──")
-    await pg.evaluate("()=>{closePopEp();window.__go('acq-follows-liste');}"); await pg.wait_for_timeout(300)
+    await pg.evaluate("()=>{closePopEp();window.__go('acq-follows-list');}"); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>openFollowSheet('Silo')"); await pg.wait_for_timeout(450)
     c1 = await click_("()=>{const l=[...document.querySelectorAll('.ep')];l[l.length-1].click();}", "last episode")
     await pg.screenshot(path="m_popover_silo.png")
@@ -51,7 +51,7 @@ async def announced():
     pg.on("pageerror", lambda e: errs.append(str(e)))
     await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
     await pg.evaluate("()=>window.__measure(true)")
-    await pg.evaluate("()=>window.__go('acq-follows-liste')"); await pg.wait_for_timeout(300)
+    await pg.evaluate("()=>window.__go('acq-follows-list')"); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>openFollowSheet('Silo')"); await pg.wait_for_timeout(450)
     await pg.evaluate("()=>document.querySelector('.ep.announced').click()"); await pg.wait_for_timeout(330)
     txt = await pg.evaluate("()=>document.querySelector('.eppop')?.innerText.replace(/\\n/g,' | ')")

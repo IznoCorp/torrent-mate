@@ -40,29 +40,29 @@ URL = "http://127.0.0.1:8899/wrapped.html"
 # exactly the two drawing a card that is not a medium.
 LIST_POSTER = 84  # two thirds of the card's floor, so a card at that floor is 2:3  # the notch of the card that explains; see refonte.html
 CARD_STATES = [
-    "acq-encours-repos",
-    "acq-encours-loaded",
-    "acq-follows-liste",
+    "acq-now-idle",
+    "acq-now-loaded",
+    "acq-follows-list",
     "acq-follows-groupe",
-    "lib-liste",
+    "lib-list",
     "lib-incomplete",
     "lib-recent",
-    "arr-repos",
+    "arr-idle",
     "arr-loaded",
     "arr-resolution",
-    "ecran-releases",
-    "acq-identifier",
+    "screen-releases",
+    "acq-identify",
     "acq-discover",
-    "acq-discover-degrade",
+    "acq-discover-degraded",
     # Search results were absent from this list, and the surface had drifted
     # exactly as far as the absence allowed: its poster box was sized, the
     # image inside it was not, and every thumbnail showed the top-left corner
     # of a 240x360 poster clipped into 54x81.
-    "acq-ajout-resultats",
+    "acq-add-results",
 ]
 
 # States drawing tiles, and how to reach the tile layout from them.
-TILE_STATES = ["lib-grille", "lib-incomplete", "lib-recent", "acq-follows-grille"]
+TILE_STATES = ["lib-grid", "lib-incomplete", "lib-recent", "acq-follows-grid"]
 
 # The medium the operator reported: incomplete, and reachable both ways.
 COMPARISON = ("lib-incomplete", "Compléter → Acquisitions")
@@ -272,7 +272,7 @@ async def main():
         # query would read the window instead, and a 390px frame on a 1280px
         # desktop would be told it has room for six columns it does not have.
         geometries = {}
-        for state_ in TILE_STATES + ["acq-discover-affiches"]:
+        for state_ in TILE_STATES + ["acq-discover-posters"]:
             await pg.evaluate("(i)=>window.__go(i)", state_)
             await pg.wait_for_timeout(400)
             await mode(pg, "grid")
@@ -303,7 +303,7 @@ async def main():
 
         # The ladder answers the container. Widening the frame must add
         # columns without the window moving at all.
-        await pg.evaluate("(i)=>window.__go(i)", "lib-grille")
+        await pg.evaluate("(i)=>window.__go(i)", "lib-grid")
         await pg.wait_for_timeout(400)
         await mode(pg, "grid")
         ladder = await pg.evaluate(

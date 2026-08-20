@@ -86,7 +86,7 @@ async def main():
 
         # 1. The button exists where a session is ended from, and it is the only
         #    one: an exit reachable from nowhere is an exit nobody finds.
-        await pg.evaluate("()=>window.__go('feuille-utilisateur')")
+        await pg.evaluate("()=>window.__go('sheet-user')")
         await pg.wait_for_timeout(250)
         buttons = await pg.evaluate("""()=>[...document.querySelectorAll('#sheet button')]
           .filter(x=>/déconnecter/i.test(x.textContent))

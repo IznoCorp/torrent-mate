@@ -313,8 +313,12 @@ enforced by `scripts/check-no-french.py` (fourteen arms, in `make check` and in 
   interface half-works in a way no single file reveals.
 - **What is NOT French-in-the-code**, and must stay as it is: the French a harness hold
   ASSERTS (that is the app's rendered output — translating it would silently stop measuring
-  anything), data VALUES, i18n interpolation placeholders, form field names, and the config
-  keys the settings dictionaries are keyed by. **Route paths are NOT on this list any more**
+  anything), i18n interpolation placeholders, form field names, and the config keys the
+  settings dictionaries are keyed by. **« data VALUES » is not the escape hatch it was read
+  as**: a NAMED STATE id is a name someone chose (`window.__go("acq-now-idle")`), and 51 of
+  the maquette's 82 were French until 2026-08-20 because « it is a value » was accepted as
+  an answer. A value is a datum the app STORES or DISPLAYS — a title, a folder, a status
+  string from the backend. If a human typed it to designate something, it is a name. **Route paths are NOT on this list any more**
   — #456 struck them off on the operator's ruling (« une route et un paramètre sont des NOMS,
   pas des données ») and renamed the three French addresses, answering the old ones with
   redirects. This sentence kept exempting them for four days afterwards, which is why

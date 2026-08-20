@@ -40,7 +40,7 @@ async def main():
         errors = []
         pg.on("pageerror", lambda e: errors.append(str(e)))
 
-        await pg.evaluate("()=>window.__go('acq-ajout-resultats')")
+        await pg.evaluate("()=>window.__go('acq-add-results')")
         await pg.wait_for_timeout(400)
         # The add screen left `#screen` for a real route (`/add`, rendered
         # inside `#coquille`): its results list is `.screen.open`, not
@@ -120,7 +120,7 @@ async def main():
               f"page {left['page']}")
 
         # ── Exit 2: the « Retour » button on the sheet ──────────────────────
-        await pg.evaluate("()=>window.__go('acq-ajout-resultats')")
+        await pg.evaluate("()=>window.__go('acq-add-results')")
         await pg.wait_for_timeout(400)
         await pg.evaluate("()=>document.querySelector('.reslist .poster').click()")
         await pg.wait_for_timeout(450)

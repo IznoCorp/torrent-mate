@@ -612,7 +612,7 @@ async def main():
         # drew. Measured before it was held: « Récupérer maintenant » moved
         # a medium from one list to the other and left every counter on
         # screen unchanged.
-        await page.evaluate("()=>window.__go('acq-encours-loaded')")
+        await page.evaluate("()=>window.__go('acq-now-loaded')")
         await page.wait_for_timeout(600)
         counters = await page.evaluate(
             "()=>[...document.querySelectorAll('#view .sechead .k')]"

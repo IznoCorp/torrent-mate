@@ -41,14 +41,14 @@ async def main():
     # resolves (the React section carries the same classes `#screen` did),
     # not literally inside the legacy container.
     screen_port = ".screen.open .port"
-    await trial("ecran-profile", ".opt.check", 2, "checkbox", port=screen_port)
-    await trial("ecran-profile", ".opt.radio", 3, "radio button", port=screen_port)
-    await trial("ecran-profile", ".switch", 0, "switch", port=screen_port)
+    await trial("screen-profile", ".opt.check", 2, "checkbox", port=screen_port)
+    await trial("screen-profile", ".opt.radio", 3, "radio button", port=screen_port)
+    await trial("screen-profile", ".switch", 0, "switch", port=screen_port)
     print("── add screen ──")
-    await trial("acq-ajout-resultats", ".segmini button", 1, "type segment", port=screen_port)
+    await trial("acq-add-results", ".segmini button", 1, "type segment", port=screen_port)
 
     print("\n── keyboard input (value and caret) ──")
-    await pg.evaluate("()=>window.__go('lib-grille')"); await pg.wait_for_timeout(400)
+    await pg.evaluate("()=>window.__go('lib-grid')"); await pg.wait_for_timeout(400)
     await pg.evaluate("()=>{const i=document.querySelector('#libq'); i.focus(); i.value='dun'; i.dispatchEvent(new Event('input',{bubbles:true}));}")
     await pg.wait_for_timeout(300)
     r = await pg.evaluate("()=>({focus:document.activeElement?.id, val:document.querySelector('#libq')?.value})")

@@ -169,11 +169,11 @@ async def main():
         # ── answering empties the queue, on BOTH lists ────────────────────
         for state_, list_, exit_ in (
             ("arr-decision", "blocked", "[data-resolve]"),
-            ("arr-repos", "stuck", "[data-leave]"),
+            ("arr-idle", "stuck", "[data-leave]"),
         ):
             await pg.evaluate("(s)=>window.__go(s)", state_)
             await pg.wait_for_timeout(420)
-            if state_ == "arr-repos":
+            if state_ == "arr-idle":
                 await pg.evaluate(
                     "()=>[...document.querySelectorAll('.cfoot')]"
                     ".find(x=>x.textContent.includes('Résoudre')).click()")

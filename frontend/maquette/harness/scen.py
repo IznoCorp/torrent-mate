@@ -6,10 +6,13 @@ the day a page went blank because a constant had disappeared.
 import asyncio
 from playwright.async_api import async_playwright
 
-VIEWS = [("acq/encours", "acq-encours-{s}"), ("acq/suivis", "acq-follows-liste"),
-        ("acq/decouvrir", "acq-discover"), ("lib/medias", "lib-grille"),
-        ("lib/incomplets", "lib-incomplete"), ("lib/recents", "lib-recent"),
-        ("arrivees", "arr-{s}"), ("system", "system")]
+# The state ids here are TEMPLATES — `acq-now-{s}` is completed at run time —
+# so a rename that replaces whole quoted strings walks straight past them. Two
+# rules broke on exactly that when the 51 French state ids moved.
+VIEWS = [("acq/now", "acq-now-{s}"), ("acq/follows", "acq-follows-list"),
+        ("acq/discover", "acq-discover"), ("lib/media", "lib-grid"),
+        ("lib/incomplete", "lib-incomplete"), ("lib/recent", "lib-recent"),
+        ("arrivals", "arr-{s}"), ("system", "system")]
 
 async def main():
   async with async_playwright() as p:
@@ -24,7 +27,7 @@ async def main():
     # wait through the same seam the app uses, rather than sleeping it out.
     await pg.evaluate("()=>window.__loadingDone?.()")
     total_bad = 0
-    for scen, word in (("real", "repos"), ("loaded", "loaded")):
+    for scen, word in (("real", "idle"), ("loaded", "loaded")):
         print(f"\n=== scenario {scen} ===")
         await pg.evaluate("(s)=>{window.__store.write({scen: s}); render();}", scen)
         for name, sid in VIEWS:

@@ -60,10 +60,10 @@ def dangling(source):
 # Where the brand colour must actually land. Each entry names a state, a
 # selector, and which painted property has to carry it.
 PAINTS = [
-    ("connexion", ".brandbig .mk", "color", "the brand's funnel"),
-    ("connexion", ".brandbig em", "color", "the brand's second word"),
-    ("connexion", ".loginsubmit", "backgroundColor", "the sign-in button"),
-    ("demarrage", ".splashbar i", "backgroundColor", "the startup bar's fill"),
+    ("signin", ".brandbig .mk", "color", "the brand's funnel"),
+    ("signin", ".brandbig em", "color", "the brand's second word"),
+    ("signin", ".loginsubmit", "backgroundColor", "the sign-in button"),
+    ("startup", ".splashbar i", "backgroundColor", "the startup bar's fill"),
 ]
 
 

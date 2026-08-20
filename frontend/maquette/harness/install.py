@@ -146,7 +146,7 @@ async def main():
 
         # ── Over the entry screen: never ────────────────────────────────────
         ctx, pg = await open_proto(b)
-        await pg.evaluate("()=>window.__go('connexion')")
+        await pg.evaluate("()=>window.__go('signin')")
         await pg.wait_for_timeout(200)
         await pg.evaluate(FIRE)
         await pg.wait_for_timeout(200)

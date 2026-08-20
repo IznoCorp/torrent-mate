@@ -66,15 +66,15 @@ async def main():
         const s=getComputedStyle(el); const b=el.getBoundingClientRect();
         out[name]={h:Math.round(b.height),weight:s.fontWeight,size:s.fontSize,justify:s.justifyContent,
                    radius:s.borderRadius,icon:!!el.querySelector(':scope > svg')};};
-      window.__go('acq-encours-loaded'); await new Promise(r=>setTimeout(r,220));
+      window.__go('acq-now-loaded'); await new Promise(r=>setTimeout(r,220));
       measure('.cfoot.solid','card footer (primary)');
-      window.__go('feuille-suivi-trous'); await new Promise(r=>setTimeout(r,240));
+      window.__go('followsheet-gaps'); await new Promise(r=>setTimeout(r,240));
       measure('.sact.primary','sheet (primary)');
-      window.__go('fiche-suggestion-film'); await new Promise(r=>setTimeout(r,240));
+      window.__go('mediasheet-suggestion-movie'); await new Promise(r=>setTimeout(r,240));
       measure('.mediaadd','media sheet (add)');
-      window.__go('acq-ajout-resultats'); await new Promise(r=>setTimeout(r,240));
+      window.__go('acq-add-results'); await new Promise(r=>setTimeout(r,240));
       measure('.resbtn','search result');
-      window.__go('lib-suppression'); await new Promise(r=>setTimeout(r,240));
+      window.__go('lib-delete'); await new Promise(r=>setTimeout(r,240));
       measure('.dlgbtn.danger','dialog (danger)');
       return out;}""")
     print("Primary button geometry:")
@@ -150,10 +150,10 @@ async def main():
     # same way from the operator's point of view (the screen's own « Retour »,
     # the scrim for a layer), so only the selector differs.
     R14_CASES = [
-        ("feuille-suivi-trous", "#sheet", "scrim"),
-        ("lib-suppression", "#dlg", "scrim"),
-        ("fiche-serie", '.screen.open[data-key^="mediaSheet:"]', "back"),
-        ("acq-ajout-resultats", ".screen.open", "back"),
+        ("followsheet-gaps", "#sheet", "scrim"),
+        ("lib-delete", "#dlg", "scrim"),
+        ("mediasheet-series", '.screen.open[data-key^="mediaSheet:"]', "back"),
+        ("acq-add-results", ".screen.open", "back"),
     ]
     for id_, sel, closing in R14_CASES:
         await pg.evaluate("(i)=>window.__go(i)", id_); await pg.wait_for_timeout(300)
@@ -171,7 +171,7 @@ async def main():
     ran('R15')
     # R15 — the three Suivis modes show the SAME number of items
     n=await pg.evaluate("""async ()=>{const o={};
-      for (const m of ['acq-follows-liste','acq-follows-groupe','acq-follows-grille']) {
+      for (const m of ['acq-follows-list','acq-follows-groupe','acq-follows-grid']) {
         window.__go(m); await new Promise(r=>setTimeout(r,240));
         o[m]=document.querySelectorAll('#view .card, #view .tile').length;}
       return o;}""")
@@ -181,7 +181,7 @@ async def main():
     ran('R16')
     # R16 — the badge is the sum it claims to be
     bad=await pg.evaluate("""async ()=>{const out=[];
-      for (const s of ['real','loaded']) { window.__store.write({scen: s}); window.__go('acq-encours-'+(s==='real'?'repos':'loaded'));
+      for (const s of ['real','loaded']) { window.__store.write({scen: s}); window.__go('acq-now-'+(s==='real'?'idle':'loaded'));
         await new Promise(r=>setTimeout(r,240));
         const badge=document.querySelector('[data-page=acq] .navbadge');
         const expected=derived.takeable().length+derived.blocked().length;
@@ -196,10 +196,10 @@ async def main():
     ran('R17')
     # R17 — every destructive mutation is confirmed or reversible
     rev=await pg.evaluate("""async ()=>{const out=[];
-      window.__go('acq-follows-liste'); await new Promise(r=>setTimeout(r,240));
+      window.__go('acq-follows-list'); await new Promise(r=>setTimeout(r,240));
       document.querySelector('#view .swipe .act.remove').click(); await new Promise(r=>setTimeout(r,320));
       if (!document.querySelector('#toastundo')) out.push('removing a follow: no undo');
-      window.__go('lib-liste'); await new Promise(r=>setTimeout(r,260));
+      window.__go('lib-list'); await new Promise(r=>setTimeout(r,260));
       const before=world.lib.length;
       document.querySelector('#libitems .swipe .act.remove').click(); await new Promise(r=>setTimeout(r,320));
       if (!document.querySelector('#dlg').classList.contains('open')) out.push('deleting a medium: no confirmation');
@@ -438,7 +438,7 @@ async def main():
     # of forbidding a destination.
     dest=await pg.evaluate("""async ()=>{const out=[];
       const followed=new Set(world.follows.map(x=>x.t));
-      for (const state_ of ['lib-incomplete','lib-liste','lib-recent']) {
+      for (const state_ of ['lib-incomplete','lib-list','lib-recent']) {
         for (let i=0; i<6; i++) {
           window.__go(state_); await new Promise(r=>setTimeout(r,300));
           const toggle=document.querySelector('[data-lmode="list"]');

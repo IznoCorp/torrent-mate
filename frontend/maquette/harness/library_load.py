@@ -46,7 +46,7 @@ async def main():
         page.on("pageerror", lambda error: errors.append(str(error)))
 
         # ── the failure, and the way back ──────────────────────────────────
-        await page.evaluate("()=>window.__go('lib-erreur-suite')")
+        await page.evaluate("()=>window.__go('lib-error-more')")
         await page.wait_for_timeout(700)
         failed = await page.evaluate(READ)
         journal.check(
@@ -90,7 +90,7 @@ async def main():
             if tapped else "no control carries #libretry")
 
         # ── the end of the sample says it is the end of the SAMPLE ─────────
-        await page.evaluate("()=>window.__go('lib-liste')")
+        await page.evaluate("()=>window.__go('lib-list')")
         await page.wait_for_timeout(600)
         await page.evaluate("""()=>{const state = window.__store.read().state;
           window.__store.write({libCount: window.__referentiel.libFiltered().length});

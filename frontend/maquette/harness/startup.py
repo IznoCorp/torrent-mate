@@ -109,7 +109,7 @@ async def main():
                  f"splash at {splash_rank}, first other element at {first_other}")
 
         # 2. It covers the frame, and it says what is happening.
-        await pg.evaluate("()=>window.__go('demarrage')")
+        await pg.evaluate("()=>window.__go('startup')")
         await pg.wait_for_timeout(250)
         measure = await pg.evaluate("""()=>{
           const s=document.querySelector('#splash'), d=document.querySelector('#device');
@@ -171,7 +171,7 @@ async def main():
         states = await pg.evaluate("()=>window.__states()")
         remaining = []
         for state_ in states:
-            if state_ == "demarrage":
+            if state_ == "startup":
                 continue
             await pg.evaluate("(i)=>window.__go(i)", state_)
             await pg.wait_for_timeout(60)
@@ -348,7 +348,7 @@ async def main():
         played = await ctx.new_page()
         await played.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
         await played.evaluate("()=>window.__loadingDone?.()")
-        await played.evaluate("()=>window.__go('connexion')")
+        await played.evaluate("()=>window.__go('signin')")
         await played.wait_for_timeout(350)
         await played.evaluate("""()=>{
           document.querySelector('[name=username]').value = 'izno';
@@ -371,7 +371,7 @@ async def main():
                  f"gone at {down[0] if down else 'never'}ms")
 
         # The seam ends it early, which is the same promise resolving sooner.
-        await played.evaluate("()=>window.__go('connexion')")
+        await played.evaluate("()=>window.__go('signin')")
         await played.wait_for_timeout(300)
         await played.evaluate("""()=>{
           document.querySelector('[name=username]').value = 'izno';

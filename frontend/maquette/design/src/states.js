@@ -62,21 +62,21 @@ const STATES = [
       },
     ],
     [
-      "demarrage",
+      "startup",
       "Démarrage — l'interface se charge",
       () => {
         applyState({ page: "acq", acqTab: "now", phase: "ready" });
         showStartup();
       },
     ],
-    ["connexion", "Connexion — écran d'entrée", () => showSignIn(false)],
+    ["signin", "Connexion — écran d'entrée", () => showSignIn(false)],
     [
-      "connexion-erreur",
+      "signin-error",
       "Connexion — identifiants refusés",
       () => showSignIn(true),
     ],
     [
-      "acq-encours-repos",
+      "acq-now-idle",
       "Acquisition · En cours — état réel (repos)",
       () =>
         applyState({
@@ -87,7 +87,7 @@ const STATES = [
         }),
     ],
     [
-      "acq-encours-loaded",
+      "acq-now-loaded",
       "Acquisition · En cours — chargé",
       () =>
         applyState({
@@ -98,18 +98,18 @@ const STATES = [
         }),
     ],
     [
-      "acq-encours-chargement",
+      "acq-now-loading",
       "Acquisition · En cours — chargement",
       () =>
         applyState({ page: "acq", acqTab: "now", phase: "chargement" }),
     ],
     [
-      "acq-encours-erreur",
+      "acq-now-error",
       "Acquisition · En cours — erreur",
       () => applyState({ page: "acq", acqTab: "now", phase: "erreur" }),
     ],
     [
-      "acq-follows-liste",
+      "acq-follows-list",
       "Acquisition · Suivis — liste",
       () =>
         applyState({
@@ -135,7 +135,7 @@ const STATES = [
         }),
     ],
     [
-      "acq-follows-grille",
+      "acq-follows-grid",
       "Acquisition · Suivis — grille",
       () =>
         applyState({
@@ -148,7 +148,7 @@ const STATES = [
         }),
     ],
     [
-      "acq-follows-filtre-vide",
+      "acq-follows-filter-empty",
       "Acquisition · Suivis — filtre sans résultat",
       () =>
         applyState({
@@ -160,7 +160,7 @@ const STATES = [
         }),
     ],
     [
-      "acq-follows-pause-vide",
+      "acq-follows-pause-empty",
       "Acquisition · Suivis — « En pause » vide",
       () =>
         applyState({
@@ -173,7 +173,7 @@ const STATES = [
         }),
     ],
     [
-      "acq-follows-erreur",
+      "acq-follows-error",
       "Acquisition · Suivis — erreur",
       () => applyState({ page: "acq", acqTab: "follows", phase: "erreur" }),
     ],
@@ -190,7 +190,7 @@ const STATES = [
         }),
     ],
     [
-      "acq-discover-affiches",
+      "acq-discover-posters",
       "Découvrir · affiches",
       () => {
         applyState({ page: "acq", acqTab: "discover", phase: "ready" });
@@ -208,7 +208,7 @@ const STATES = [
       },
     ],
     [
-      "acq-discover-degrade",
+      "acq-discover-degraded",
       "Acquisition · Découvrir — sans compte TMDB",
       () =>
         applyState({
@@ -219,7 +219,7 @@ const STATES = [
         }),
     ],
     [
-      "acq-discover-epuise",
+      "acq-discover-exhausted",
       "Acquisition · Découvrir — réserve épuisée",
       () =>
         applyState({
@@ -231,13 +231,13 @@ const STATES = [
         }),
     ],
     [
-      "acq-discover-chargement",
+      "acq-discover-loading",
       "Acquisition · Découvrir — chargement",
       () =>
         applyState({ page: "acq", acqTab: "discover", phase: "chargement" }),
     ],
     [
-      "acq-ajout-vide",
+      "acq-add-empty",
       "Écran d'ajout — au repos",
       () => {
         applyState({ page: "acq", phase: "ready" });
@@ -245,7 +245,7 @@ const STATES = [
       },
     ],
     [
-      "acq-ajout-resultats",
+      "acq-add-results",
       "Écran d'ajout — résultats réels",
       () => {
         applyState({ page: "acq", phase: "ready" });
@@ -253,7 +253,7 @@ const STATES = [
       },
     ],
     [
-      "feuille-suivi-complet",
+      "followsheet-complete",
       "Feuille de suivi — gros catalogue complet",
       () => {
         applyState({ page: "acq", acqTab: "follows", phase: "ready" });
@@ -261,7 +261,7 @@ const STATES = [
       },
     ],
     [
-      "feuille-suivi-trous",
+      "followsheet-gaps",
       "Feuille de suivi — matrice à trous",
       () => {
         applyState({ page: "lib", libLens: "inc", phase: "ready" });
@@ -269,7 +269,7 @@ const STATES = [
       },
     ],
     [
-      "acq-identifier",
+      "acq-identify",
       "Recherche en mode IDENTIFIER (depuis une résolution)",
       () => {
         applyState({ page: "arr", phase: "ready", pipe: "repos" });
@@ -280,7 +280,7 @@ const STATES = [
       },
     ],
     [
-      "ecran-releases",
+      "screen-releases",
       "Écran — choisir une autre release",
       () => {
         applyState({ page: "acq", acqTab: "follows", phase: "ready" });
@@ -288,7 +288,7 @@ const STATES = [
       },
     ],
     [
-      "ecran-profile",
+      "screen-profile",
       "Écran — profil de qualité",
       () => {
         applyState({ page: "acq", acqTab: "follows", phase: "ready" });
@@ -296,7 +296,7 @@ const STATES = [
       },
     ],
     [
-      "feuille-parcours",
+      "sheet-journey",
       "Feuille de parcours",
       () => {
         applyState({ page: "acq", phase: "ready" });
@@ -304,7 +304,7 @@ const STATES = [
       },
     ],
     [
-      "feuille-plus",
+      "sheet-more",
       "Feuille « ⋮ » — veille et obligations",
       () => {
         applyState({ page: "acq", phase: "ready" });
@@ -312,7 +312,7 @@ const STATES = [
       },
     ],
     [
-      "feuille-utilisateur",
+      "sheet-user",
       "Menu utilisateur — profil et déconnexion",
       () => {
         applyState({ page: "acq", phase: "ready" });
@@ -320,7 +320,7 @@ const STATES = [
       },
     ],
     [
-      "lib-grille",
+      "lib-grid",
       "Médiathèque · Médias — grille",
       () =>
         applyState({
@@ -333,7 +333,7 @@ const STATES = [
         }),
     ],
     [
-      "lib-liste",
+      "lib-list",
       "Médiathèque · Médias — liste",
       () =>
         applyState({
@@ -346,7 +346,7 @@ const STATES = [
         }),
     ],
     [
-      "lib-recherche-vide",
+      "lib-search-empty",
       "Médiathèque — recherche sans résultat",
       () =>
         applyState({ page: "lib", libLens: "cat", q: "zzzz", phase: "ready" }),
@@ -377,7 +377,7 @@ const STATES = [
       },
     ],
     [
-      "lib-suppression",
+      "lib-delete",
       "Médiathèque — dialogue de suppression",
       () => {
         applyState({ page: "lib", phase: "ready" });
@@ -385,7 +385,7 @@ const STATES = [
       },
     ],
     [
-      "lib-suppression-multiple",
+      "lib-delete-multiple",
       "Médiathèque — suppression multiple",
       () => {
         applyState({ page: "lib", phase: "ready" });
@@ -393,12 +393,12 @@ const STATES = [
       },
     ],
     [
-      "lib-chargement",
+      "lib-loading",
       "Médiathèque — chargement",
       () => applyState({ page: "lib", libLens: "cat", phase: "chargement" }),
     ],
     [
-      "lib-erreur",
+      "lib-error",
       "Médiathèque — erreur",
       () => applyState({ page: "lib", libLens: "cat", phase: "erreur" }),
     ],
@@ -408,7 +408,7 @@ const STATES = [
        long scroll reached it, so nothing could drive it and nothing measured
        the sentence it prints or the control that retries. */
     [
-      "lib-erreur-suite",
+      "lib-error-more",
       "Médiathèque — la suite ne charge plus",
       () => {
         /* ONE write, not two: the failure has to be in force at the FIRST
@@ -428,7 +428,7 @@ const STATES = [
       },
     ],
     [
-      "arr-repos",
+      "arr-idle",
       "Arrivées — état réel (2 blocages)",
       () =>
         applyState({
@@ -439,7 +439,7 @@ const STATES = [
         }),
     ],
     [
-      "arr-encours",
+      "arr-running",
       "Arrivées — pipeline en cours",
       () =>
         applyState({
@@ -450,7 +450,7 @@ const STATES = [
         }),
     ],
     [
-      "arr-file",
+      "arr-queued",
       "Arrivées — un passage demandé pendant un autre",
       () =>
         applyState({ page: "arr", scen: "real", phase: "ready", pipe: "file" }),
@@ -467,12 +467,12 @@ const STATES = [
         }),
     ],
     [
-      "arr-chargement",
+      "arr-loading",
       "Arrivées — chargement",
       () => applyState({ page: "arr", phase: "chargement", pipe: "repos" }),
     ],
     [
-      "arr-erreur",
+      "arr-error",
       "Arrivées — erreur",
       () => applyState({ page: "arr", phase: "erreur", pipe: "repos" }),
     ],
@@ -498,7 +498,7 @@ const STATES = [
       },
     ],
     [
-      "fiche-suggestion-serie",
+      "mediasheet-suggestion-series",
       "Fiche — suggestion NON possédée (série)",
       () => {
         applyState({ page: "acq", acqTab: "discover", phase: "ready" });
@@ -506,7 +506,7 @@ const STATES = [
       },
     ],
     [
-      "fiche-suggestion-film",
+      "mediasheet-suggestion-movie",
       "Fiche — suggestion NON possédée (film)",
       () => {
         applyState({ page: "acq", acqTab: "discover", phase: "ready" });
@@ -514,7 +514,7 @@ const STATES = [
       },
     ],
     [
-      "fiche-serie",
+      "mediasheet-series",
       "Fiche — série avec épisodes datés",
       () => {
         applyState({ page: "lib", phase: "ready" });
@@ -522,7 +522,7 @@ const STATES = [
       },
     ],
     [
-      "fiche-film",
+      "mediasheet-movie",
       "Fiche — film",
       () => {
         applyState({ page: "lib", phase: "ready" });
@@ -530,7 +530,7 @@ const STATES = [
       },
     ],
     [
-      "fiche-sans-trailer",
+      "mediasheet-no-trailer",
       "Fiche — sans bande-annonce",
       () => {
         applyState({ page: "lib", phase: "ready" });
@@ -538,7 +538,7 @@ const STATES = [
       },
     ],
     [
-      "tiroir-navigation",
+      "drawer-navigation",
       "Tiroir de navigation (hamburger)",
       () => {
         applyState({ page: "acq", phase: "ready" });
@@ -556,17 +556,17 @@ const STATES = [
       () => applyState({ page: "sys", phase: "ready", fault: true }),
     ],
     [
-      "system-chargement",
+      "system-loading",
       "Système — chargement",
       () => applyState({ page: "sys", phase: "chargement", fault: false }),
     ],
     [
-      "system-erreur",
+      "system-error",
       "Système — erreur",
       () => applyState({ page: "sys", phase: "erreur", fault: false }),
     ],
     [
-      "introuvable",
+      "not-found",
       "Une adresse qui n'existe pas",
       () => applyState({ page: "une-page-qui-n-existe-pas", phase: "ready" }),
     ],
@@ -581,12 +581,12 @@ const STATES = [
       () => applyState({ page: "maint", phase: "ready", maintTopic: null }),
     ],
     [
-      "maintenance-rubrique",
+      "maintenance-topic",
       "Maintenance — une rubrique et ses commandes",
       () => applyState({ page: "maint", phase: "ready", maintTopic: "fix" }),
     ],
     [
-      "maintenance-suppression",
+      "maintenance-delete",
       "Maintenance — une commande qui supprime",
       () => {
         applyState({ page: "maint", phase: "ready", maintTopic: "clean" });
@@ -594,7 +594,7 @@ const STATES = [
       },
     ],
     [
-      "maintenance-chargement",
+      "maintenance-loading",
       "Maintenance — chargement",
       () => applyState({ page: "maint", phase: "chargement" }),
     ],
