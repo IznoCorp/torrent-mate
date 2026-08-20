@@ -49,15 +49,19 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import pathlib
 import re
+import subprocess
 import sys
+import time
 
 from playwright.async_api import async_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parent
 RECIPE_FILE = ROOT / "regions.json"
 SOURCE_DIR = ROOT / "design" / "src"
+REFERENCE_FILE = ROOT / "oracle-reference.json"
 
 # The two ways a `data-region` NAME reaches the markup. The second exists
 # because the page host draws six pages' body wrapper itself and carries the
@@ -80,6 +84,18 @@ PROTOTYPE = "http://127.0.0.1:8899/wrapped.html"
 # keeps every real half-pixel and drops the noise. Declared here rather than
 # buried in a helper, because a comparison's precision is part of what it means.
 RECT_PRECISION = 1
+
+# The clock every measurement is taken at. Fixed rather than paused: pausing
+# would stop `setTimeout` too, and the settle signal's own budget runs on it.
+#
+# HONESTLY REPORTED, because a counter-measure nobody can demonstrate is a
+# counter-measure nobody should trust: sweeping all 82 states at 03:00 and at
+# 23:30 produced NO difference this oracle can see. That is not luck, it is the
+# shape of the instrument — it measures geometry and computed style, never TEXT,
+# so « Prochaine recherche à 3 h 20 » changing says nothing until it wraps a
+# line. The clock is fixed anyway: it costs one line, and it is the difference
+# between « no dependency today » and « no dependency ».
+FIXED_CLOCK = "2026-08-20T12:00:00Z"
 
 # Five regions to exercise the core BEFORE a real region list exists, so the
 # core cannot be quietly shaped to fit that list. Deleted in phase 2 — the name
@@ -259,6 +275,8 @@ async def open_frame(browser, recipe: dict):
             question nobody asked, and it answers it confidently.
     """
     context = await browser.new_context(**context_options(recipe))
+    if not os.environ.get("TM_ORACLE_NO_FROZEN_CLOCK"):
+        await context.clock.set_fixed_time(FIXED_CLOCK)
     page = await context.new_page()
     await page.goto(PROTOTYPE, wait_until="load")
     # The startup screen covers the frame for as long as the load it stands for.
@@ -289,11 +307,19 @@ async def open_frame(browser, recipe: dict):
         )
 
     for entry in recipe["neutralise"]:
-        # REMOVED from the DOM, not merely dismissed. `harness/common.py` clicks
-        # `#toastx`, which collapses the design note but leaves the node; left in
-        # place while a stylesheet changes, it springs back to 75.6px and pushes
-        # every region below it down — a probe reporting its own setup as a
-        # divergence in each one.
+        # Two ways, and the entry says which. `remove` takes the node out of the
+        # DOM — the design note is prototype-only chrome, and left in place while
+        # a stylesheet changes it springs back to 75.6px and pushes every region
+        # below it down, a probe reporting its own setup as a divergence in each
+        # one. `click` presses the interface's own control instead, which keeps
+        # the region measurable: the boot toast is dismissed the way a user
+        # dismisses it rather than deleted.
+        if entry.get("how", "remove") == "click":
+            await page.evaluate(
+                "(selector)=>document.querySelector(selector)?.click()",
+                entry["selector"],
+            )
+            continue
         await page.evaluate(
             "(selector)=>document.querySelectorAll(selector)"
             ".forEach((node)=>node.remove())",
@@ -302,20 +328,119 @@ async def open_frame(browser, recipe: dict):
     return context, page
 
 
-async def settle(page) -> None:
-    """Waits until the frame is at rest, by fact rather than by duration.
+# Two frames — the floor, and on its own NOT ENOUGH. Measured: driving
+# `drawer-navigation` five times and reading `#drawer` returned x = -148.1,
+# -141.8, -141.2, -140.4, -140.2, because the drawer was caught MID-SLIDE. At
+# rest it is 0. `TM_ORACLE_NO_SETTLE=1` restores this floor alone, so the
+# failure the rest of the signal prevents can be shown on demand.
+TWO_FRAMES = ("()=>new Promise((resolve)=>requestAnimationFrame("
+              "()=>requestAnimationFrame(resolve)))")
 
-    Phase 1 holds the floor: two consecutive animation frames. Phase 4 adds the
-    rest of counter-measure 1 — decoded images, no running animation — and the
-    escape hatch that demonstrates the need for it.
+# Finish what ends; FREEZE what does not.
+#
+# Three animations in this stylesheet never finish — `pulse` (1.6s, opacity),
+# `spin` (0.7s, a rotation) and `sh` (1.3s, a skeleton shimmer). Awaiting them
+# would hang for ever, and leaving them running makes the six `*-loading` states
+# non-deterministic: `pulse` moves OPACITY, which this oracle measures, and
+# `spin` moves a bounding rectangle.
+#
+# So: await the finite ones, then pause every survivor at time 0. The cost is
+# named rather than hidden — the computed `animation` property then reads
+# `paused` for those three. It reads `paused` in the reference AND in every
+# check, so the comparison is unaffected; what is lost is the ability of this
+# oracle to notice an animation stopping, which is a behaviour question and
+# belongs to the rule suite.
+REST = """(budget)=>{
+  const running = document.getAnimations();
+  const finite = running.filter((a) => {
+    const timing = a.effect && a.effect.getTiming();
+    return timing && timing.iterations !== Infinity;
+  });
+  const guard = new Promise((resolve) => setTimeout(resolve, budget));
+  return Promise.race([
+    Promise.all(finite.map((a) => a.finished.catch(() => {}))),
+    guard,
+  ]).then(() => {
+    for (const a of document.getAnimations()) {
+      const timing = a.effect && a.effect.getTiming();
+      if (timing && timing.iterations === Infinity) { a.pause(); a.currentTime = 0; }
+    }
+    // `complete` is load-bearing, and it was paid for: `decode()` on a LAZY
+    // image that has not started loading never resolves — not rejects,
+    // PENDS — so a `.catch()` does nothing and the signal hangs for ever.
+    // The library's posters are lazy. Only already-loaded images are
+    // decoded, and the batch is raced against the same budget so a single
+    // pathological image cannot stall a measurement either.
+    const decoded = [...document.images]
+      .filter((img) => img.src && img.complete)
+      .map((img) => img.decode().catch(() => {}));
+    return Promise.race([
+      Promise.all(decoded),
+      new Promise((resolve) => setTimeout(resolve, budget)),
+    ]);
+  });
+}"""
+
+# How long a finite animation is given to end before the signal gives up on it.
+# A budget, never a wait: the common path resolves as soon as the last one ends.
+FINITE_ANIMATION_BUDGET_MS = 2000
+
+# How many times the geometry is re-sampled before the frame is called unstable.
+SETTLE_ATTEMPTS = 8
+
+
+async def settle(page, regions: dict | None = None) -> None:
+    """Waits until the frame is AT REST, by fact rather than by duration.
+
+    A delay in milliseconds is a race that passes on an idle machine and fails
+    on a loaded one, and an oracle that flickers is an oracle someone disables.
+    Every step here is a fact about the document.
+
+    `TM_ORACLE_NO_SETTLE=1` drops back to the two-frame floor, so the divergence
+    the signal prevents can be produced on demand — a counter-measure that is
+    merely coded is a claim, one that is demonstrated failing without it is a
+    proof.
 
     Args:
         page: The page being measured.
+        regions: When given, the geometry of these regions must be identical
+            across two consecutive frames before the page is called at rest.
+            This is the actual guarantee, and it is what L12's view transitions
+            will need: the oracle reads at rest rather than hoping to.
     """
-    await page.evaluate(
-        "()=>new Promise((resolve)=>requestAnimationFrame("
-        "()=>requestAnimationFrame(resolve)))"
+    if os.environ.get("TM_ORACLE_NO_SETTLE"):
+        await page.evaluate(TWO_FRAMES)
+        return
+
+    await page.evaluate(REST, FINITE_ANIMATION_BUDGET_MS)
+    await page.evaluate(TWO_FRAMES)
+    if not regions:
+        return
+
+    selectors = [region["selector"] for region in regions.values()]
+    previous = await page.evaluate(SAMPLE, selectors)
+    for _ in range(SETTLE_ATTEMPTS):
+        await page.evaluate(TWO_FRAMES)
+        current = await page.evaluate(SAMPLE, selectors)
+        if current == previous:
+            return
+        previous = current
+    raise SystemExit(
+        "the frame never came to rest: the measured geometry still moved after "
+        f"{SETTLE_ATTEMPTS} samples. Measuring here would record noise."
     )
+
+
+# The cheap geometry fingerprint the stability check compares. Deliberately not
+# the full measurement: it is taken repeatedly, and reading 19 computed
+# properties per region per attempt would make settling cost more than the
+# measurement it protects.
+SAMPLE = """(selectors)=>selectors.map((selector)=>{
+  const node = document.querySelector(selector);
+  if (!node) return null;
+  const box = node.getBoundingClientRect();
+  return [box.x, box.y, box.width, box.height];
+})"""
 
 
 async def measure_state(page, state: str, regions: dict, recipe: dict) -> dict:
@@ -332,7 +457,7 @@ async def measure_state(page, state: str, regions: dict, recipe: dict) -> dict:
         region's selector matched nothing in this state.
     """
     await page.evaluate("(id)=>window.__go(id)", state)
-    await settle(page)
+    await settle(page, regions)
     reading = {}
     for key, region in sorted(regions.items()):
         reading[key] = await page.evaluate(
@@ -340,6 +465,212 @@ async def measure_state(page, state: str, regions: dict, recipe: dict) -> dict:
             [region["selector"], recipe["computedStyleSubset"], RECT_PRECISION],
         )
     return reading
+
+
+def base_commit() -> str:
+    """Returns the commit the working tree is on.
+
+    « Known-good » with no SHA means nothing, so the reference carries the one
+    it was taken at.
+
+    Returns:
+        The full SHA, or `"unknown"` outside a repository.
+    """
+    try:
+        return subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT,
+                              capture_output=True, text=True,
+                              check=True).stdout.strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return "unknown"
+
+
+def render_reference(measurements: dict, regions: dict, states: list) -> str:
+    """Serialises the reference so a visual change is READ IN A PULL REQUEST.
+
+    Sorted at every level and indented, which is the deliverable rather than a
+    detail: an unsorted reference re-serialises differently on the next run and
+    buries one real change under hundreds of moved lines. A reviewer must be
+    able to see `font-size: 12px -> 13px` on `library/card` in the diff.
+
+    Args:
+        measurements: The reading, keyed by state then region.
+        regions: The region table, for the header's counts.
+        states: The states measured, for the header's counts.
+
+    Returns:
+        The file's text, newline-terminated.
+    """
+    if os.environ.get("TM_ORACLE_UNSORTED"):
+        # The escape hatch for friction 4: same content, insertion order. It
+        # exists to be run once and looked at — a diff nobody can read is a
+        # gate nobody reads.
+        body = measurements
+    else:
+        body = {state: dict(sorted(measurements[state].items()))
+                for state in sorted(measurements)}
+    document = {
+        "$comment": (
+            "The recorded oracle's reference — `frontend/maquette/oracle.py`. "
+            "One entry per (named state x region): a bounding rectangle rounded "
+            "to one decimal, and the computed properties of `regions.json`'s "
+            "`probe.computedStyleSubset`. `null` means the region's selector "
+            "matched nothing in that state, which is data rather than an "
+            "omission. Regenerate with `--record`; entérine a REVIEWED change "
+            "with `--accept`, never from a gate."
+        ),
+        "baseCommit": base_commit(),
+        "counts": {"states": len(states), "regions": len(regions)},
+        "measurements": body,
+    }
+    return json.dumps(document, ensure_ascii=False, indent=2,
+                      sort_keys=False) + "\n"
+
+
+def allowed(recipe: dict) -> set:
+    """Returns the `(region, property)` pairs a divergence is excused on.
+
+    Raises:
+        SystemExit: If an entry carries no written reason. An allowlist without
+            reasons is how an oracle is disarmed one entry at a time — nobody
+            can review what nobody wrote down.
+    """
+    pairs = set()
+    for entry in recipe["allowlist"]:
+        if not entry.get("justification", "").strip():
+            raise SystemExit(
+                "an allowlist entry carries no justification: "
+                f"{json.dumps(entry, ensure_ascii=False)}\n"
+                "A reason or nothing — an excuse nobody wrote down is an "
+                "excuse nobody can review."
+            )
+        pairs.add((entry.get("region", entry.get("selector")),
+                   entry["property"]))
+    return pairs
+
+
+def compare(reference: dict, fresh: dict, excused: set) -> list:
+    """Diffs a fresh reading against the reference, grouped by state.
+
+    Args:
+        reference: The committed measurements.
+        fresh: What was just measured.
+        excused: `(region, property)` pairs an allowlist entry covers.
+
+    Returns:
+        A list of `(state, region, what)` lines, in reading order.
+    """
+    findings = []
+    for state in sorted(set(reference) | set(fresh)):
+        before, after = reference.get(state, {}), fresh.get(state, {})
+        for region in sorted(set(before) | set(after)):
+            old, new = before.get(region), after.get(region)
+            if old == new:
+                continue
+            if old is None or new is None:
+                findings.append((state, region,
+                                 f"present={old is not None} -> {new is not None}"))
+                continue
+            if old["rect"] != new["rect"]:
+                findings.append((state, region,
+                                 f"rect {old['rect']} -> {new['rect']}"))
+            for key in sorted(set(old["style"]) | set(new["style"])):
+                if old["style"].get(key) == new["style"].get(key):
+                    continue
+                if (region, key) in excused:
+                    continue
+                findings.append((state, region,
+                                 f"{key}: {old['style'].get(key)!r} -> "
+                                 f"{new['style'].get(key)!r}"))
+    return findings
+
+
+async def read_everything(recipe: dict, regions: dict) -> tuple:
+    """Drives every named state once and measures every region in it.
+
+    Returns:
+        A `(measurements, states, seconds)` triple. The elapsed time is
+        returned rather than printed so every mode can report it: friction
+        cause 3 is slowness, and a counter-measure whose cost nobody sees is a
+        counter-measure nobody defends.
+    """
+    started = time.monotonic()
+    async with async_playwright() as playwright:
+        browser = await playwright.chromium.launch(channel="chrome")
+        context, page = await open_frame(browser, recipe)
+        states = await page.evaluate("()=>window.__states()")
+        measurements = {}
+        for state in states:
+            measurements[state] = await measure_state(page, state, regions, recipe)
+        await context.close()
+        await browser.close()
+    return measurements, states, time.monotonic() - started
+
+
+async def record(to_stdout: bool = False) -> int:
+    """Writes the reference.
+
+    Args:
+        to_stdout: Print it instead of writing, so a caller can prove the
+            recording is byte-stable without touching the committed file.
+
+    Returns:
+        A process exit code.
+    """
+    recipe, regions = load_recipe(), load_regions()
+    measurements, states, seconds = await read_everything(recipe, regions)
+    text = render_reference(measurements, regions, states)
+    if to_stdout:
+        sys.stdout.write(text)
+        return 0
+    REFERENCE_FILE.write_text(text, encoding="utf-8")
+    print(f"recorded {len(states)} states x {len(regions)} regions at "
+          f"{base_commit()[:8]} in {seconds:.1f}s -> {REFERENCE_FILE.name}")
+    return 0
+
+
+async def check(accept: bool = False) -> int:
+    """Compares the maquette against the reference, or entérines a change.
+
+    Args:
+        accept: Overwrite the reference with what was measured. Never reachable
+            from a gate — an oracle that can accept its own divergence is not
+            an oracle.
+
+    Returns:
+        A process exit code: 0 when nothing moved that was not excused.
+    """
+    recipe, regions = load_recipe(), load_regions()
+    excused = allowed(recipe)
+    if not REFERENCE_FILE.exists():
+        raise SystemExit(
+            f"no reference at {REFERENCE_FILE}. Record one first: "
+            "`python3 frontend/maquette/oracle.py --record`."
+        )
+    stored = json.loads(REFERENCE_FILE.read_text(encoding="utf-8"))
+    measurements, states, seconds = await read_everything(recipe, regions)
+
+    if accept:
+        REFERENCE_FILE.write_text(
+            render_reference(measurements, regions, states), encoding="utf-8")
+        print(f"accepted: reference rewritten at {base_commit()[:8]}. "
+              "Read the diff — that is where the change is reviewed.")
+        return 0
+
+    findings = compare(stored["measurements"], measurements, excused)
+    print(f"{len(states)} states x {len(regions)} regions, "
+          f"{len(states) * len(regions)} measurements in {seconds:.1f}s")
+    print(f"reference taken at {stored.get('baseCommit', 'unknown')[:8]}")
+    if not findings:
+        print("no divergence")
+        return 0
+    current = None
+    for state, region, what in findings:
+        if state != current:
+            print(f"\n  {state}")
+            current = state
+        print(f"    {region:24s} {what}")
+    print(f"\n{len(findings)} divergence(s)")
+    return 1
 
 
 async def coverage() -> int:
@@ -477,9 +808,23 @@ def main() -> int:
         "--contracts", action="store_true",
         help="hold the three ends of every data-region contract (no browser)",
     )
+    parser.add_argument("--record", action="store_true",
+                        help="write the reference")
+    parser.add_argument("--stdout", action="store_true",
+                        help="with --record: print instead of writing")
+    parser.add_argument("--check", action="store_true",
+                        help="compare against the reference; non-zero on divergence")
+    parser.add_argument("--accept", action="store_true",
+                        help="entérine a REVIEWED change into the reference")
     arguments = parser.parse_args()
     if arguments.contracts:
         return check_contracts()
+    if arguments.record:
+        return asyncio.run(record(arguments.stdout))
+    if arguments.check:
+        return asyncio.run(check())
+    if arguments.accept:
+        return asyncio.run(check(accept=True))
     if arguments.smoke:
         return asyncio.run(smoke())
     if arguments.coverage:

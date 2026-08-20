@@ -150,3 +150,104 @@ def test_it_reads_the_harness_host_never_the_design_host():
     module = load()
     assert module.PROTOTYPE == "http://127.0.0.1:8899/wrapped.html"
     assert "8712" not in module.PROTOTYPE
+
+
+def test_allowlist_entry_without_a_reason_is_refused():
+    """A reason or nothing.
+
+    An allowlist is how an oracle is disarmed one entry at a time — friction
+    cause 5, which kills instruments within weeks. An excuse nobody wrote down
+    is an excuse nobody can review, so the empty one is a hard stop rather than
+    a warning.
+    """
+    module = load()
+    with pytest.raises(SystemExit) as raised:
+        module.allowed(
+            {
+                "allowlist": [
+                    {"region": "shell/scrim", "property": "opacity", "justification": ""},
+                ]
+            }
+        )
+    assert "justification" in str(raised.value)
+
+
+def test_allowlist_entry_with_a_reason_excuses_exactly_one_pair():
+    """And nothing beyond it — not the region, not the property elsewhere."""
+    module = load()
+    pairs = module.allowed(
+        {
+            "allowlist": [
+                {"region": "shell/scrim", "property": "opacity", "justification": "measured, and written down"},
+            ]
+        }
+    )
+    assert pairs == {("shell/scrim", "opacity")}
+
+
+def _measure(**style):
+    """Builds a measurement with a fixed rectangle and the given style."""
+    return {"matches": 1, "rect": {"x": 0, "y": 0, "width": 10, "height": 10}, "style": style}
+
+
+def test_compare_names_the_property_and_both_sides():
+    """The report is what a reviewer reads; a bare « differs » is useless."""
+    module = load()
+    findings = module.compare(
+        {"lib-list": {"library/body": _measure(**{"font-size": "12px"})}},
+        {"lib-list": {"library/body": _measure(**{"font-size": "13px"})}},
+        set(),
+    )
+    assert len(findings) == 1
+    state, region, what = findings[0]
+    assert (state, region) == ("lib-list", "library/body")
+    assert "font-size" in what and "12px" in what and "13px" in what
+
+
+def test_compare_honours_the_allowlist_for_that_pair_only():
+    """An excuse is scoped to one region AND one property."""
+    module = load()
+    reference = {"s": {"r": _measure(**{"opacity": "1", "color": "red"})}}
+    fresh = {"s": {"r": _measure(**{"opacity": "0", "color": "blue"})}}
+    findings = module.compare(reference, fresh, {("r", "opacity")})
+    assert len(findings) == 1
+    assert "color" in findings[0][2]
+
+
+def test_compare_reports_a_region_appearing_or_vanishing():
+    """Absence is data. A region that stops resolving is a divergence."""
+    module = load()
+    findings = module.compare({"s": {"r": _measure(**{"opacity": "1"})}}, {"s": {"r": None}}, set())
+    assert len(findings) == 1
+    assert "present" in findings[0][2]
+
+
+def test_compare_says_nothing_when_nothing_moved():
+    """The common path, and the one a noisy oracle loses first."""
+    module = load()
+    reading = {"s": {"r": _measure(**{"opacity": "1"})}}
+    assert module.compare(reading, json.loads(json.dumps(reading)), set()) == []
+
+
+def test_the_reference_is_sorted_so_a_diff_is_readable():
+    """Friction cause 4: an unsorted reference buries one change under hundreds.
+
+    Insertion order is stable within a run and unstable across a refactor, so
+    the sort is explicit rather than inherited from the dict.
+    """
+    module = load()
+    text = module.render_reference(
+        {"zulu": {"b/x": None, "a/x": None}, "alpha": {"b/x": None}}, {"a/x": {}, "b/x": {}}, ["alpha", "zulu"]
+    )
+    document = json.loads(text)
+    assert list(document["measurements"]) == ["alpha", "zulu"]
+    assert list(document["measurements"]["zulu"]) == ["a/x", "b/x"]
+    assert text.endswith("\n")
+
+
+def test_the_reference_records_the_commit_it_was_taken_at():
+    """« Known-good » with no SHA means nothing."""
+    module = load()
+    document = json.loads(module.render_reference({}, {}, []))
+    assert document["baseCommit"]
+    assert document["counts"] == {"states": 0, "regions": 0}
