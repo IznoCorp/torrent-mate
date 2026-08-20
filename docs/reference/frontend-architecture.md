@@ -256,18 +256,23 @@ reasoning is kept so the alternatives are not proposed again as if new.
    them — never extended.
 7. **`ui/` never imports a feature. Two features never import each other.** They compose in the
    route.
-8. **No French in the code and no interface text in the code.** Unchanged
+8. **No import cycle, and no module-hub.** A cycle makes every other dependency rule
+   unenforceable, because the cycle *is* the violation. A module outside `ui/` and `lib/`
+   imported by more than a set number of features is refused — the executable form of "no god
+   module", and the only guard in this file that acts before its defect exists.
+9. **No `any`, no `ts-ignore`.** A ratchet held from zero (L04).
+10. **No French in the code and no interface text in the code.** Unchanged
    (`scripts/check-no-french.py`), and it applies to everything written here.
-9. **Every change lands with a rule that bites**, mutation-tested: break the behaviour on
+11. **Every change lands with a rule that bites**, mutation-tested: break the behaviour on
    purpose, confirm the rule falls and names the right defect, restore.
-10. **A component asks the width it HAS, not the width of the window.** Container queries, not
+12. **A component asks the width it HAS, not the width of the window.** Container queries, not
     media queries, for anything below the shell. A media query reads the viewport, so a 390 px
     frame sitting on a 1280 px desktop is told it has room for six columns it does not have —
     which is why a harness deviation once had to pin three columns by hand. The shell keeps its
     media queries; a component does not get one.
-11. **Motion is declared, not scripted** (D9). The single exception is a pointer-driven
+13. **Motion is declared, not scripted** (D9). The single exception is a pointer-driven
     interruptible spring, and it is named where it is used.
-12. **Reduced motion is a designed state, not a fallback.** Every transition and every gesture
+14. **Reduced motion is a designed state, not a fallback.** Every transition and every gesture
     has a defined appearance under `prefers-reduced-motion`, drawn like any other state — the
     interface being frozen includes it.
 
@@ -350,18 +355,93 @@ layer traps and restores focus; the whole application is reachable by keyboard; 
 audit runs in the gate; and the oracle is green — the non-visual part of this lot must move
 nothing.
 
-#### L04 — Boundaries and code conventions · `NOT STARTED` · **runs alone**
-
-**Objective.** The folder structure, the dependency rules and the size ceilings that every later
-lot puts its files into. `ui/` · `features/` · `routes/`, invariants 6 and 7 made executable
-rather than documented.
+#### L04 — Boundaries and the tree · `NOT STARTED` · *depends on L01* · **runs alone**
 
 **Why here.** Every lot after this one creates files. Deciding afterwards means moving them
-twice.
+twice. **And why it depends on the oracle**: this lot breaks two import cycles, which is a change
+to code and not a move — without the oracle nothing proves the rendering survived it.
 
-**Done when.** The structure exists; a dependency check fails on a violation and is wired into
-the gate; the size check covers the frontend; grandfathered files are listed with the lot that
-will convert each.
+**What is wrong today, measured.**
+
+| Defect | Measurement |
+| --- | --- |
+| **Two import cycles** | `components/panel.tsx ↔ data.ts` and `screens/add.tsx ↔ shell.tsx` |
+| **One hub module** | `data.ts`, **17 importers** of ~21 modules — it holds 4 store hooks, ~30 domain types and fixtures at once |
+| Its symptom | 6 files import `data` twice, once for types and once for values |
+| **Grouped by technical kind** | changing one feature means opening `pages/…`, `components/…`, `data.ts` and `i18n/fr.json` |
+| A split about to become a lie | `pages/` ÷ `screens/` encodes a distinction D1 removes |
+| **No bundle splitting at all** | zero `lazy()`, zero dynamic `import()`; the page table imports all 8 pages statically |
+| No unit-level test | all proof is the browser harness; a pure function is proved through a browser |
+| Names that say nothing | `data.ts`, `store.ts`, `panel.tsx` — and `media.tsx` is a screen while `library.tsx` is a page |
+
+<sub>cycles and fan-in: resolve every relative `from "…"` in `design/src` (excluding `engine/`) into a graph, then walk it</sub>
+
+**What is right today and must be protected**: **0 `any`, 0 `as any`, 0 `@ts-ignore`,
+0 `@ts-expect-error`. A ratchet from zero is free now and impossible to introduce later.**
+
+**The target tree.**
+
+```
+src/
+  app/          boot, providers, the router tree, service worker
+  routes/       one address, one file — thin: it loads and composes
+  features/<domain>/   components, hooks, model.ts (its types),
+                       queries.ts (its reads and mutations), *.test.ts
+  ui/           CVA primitives — no domain knowledge
+  lib/          domain-free helpers
+  styles/       tokens.css · base.css   (D3)
+  mocks/        handlers and fixture seeds   (L08)
+```
+
+**The rule that decides where a file goes.** A tree only survives if there is a decision
+procedure; without one every agent invents their own.
+
+> **A file lives with what makes it change.**
+> One surface makes it change → `features/<that surface>/`. Two surfaces make it change for
+> their own reasons → either it knows no domain and belongs in `ui/` or `lib/`, or **it is two
+> files**. It knows no domain → `ui/` if it renders, `lib/` if it does not.
+>
+> **Never create a folder for a KIND of file.** No root `hooks/`, no `types/`, no `utils/`.
+> That is what produced `data.ts`.
+
+Its corollary is what dissolves the hub: **a type belongs to the feature that owns the concept**,
+never to a shared module. `data.ts` is not slimmed, it stops existing.
+
+**The order inside this lot.** A single-shot move of the tree is unreviewable.
+
+1. **Break the two cycles** — the only real code change here, so it lands alone and is proved
+   alone.
+2. **Split `data.ts`** — types to their features, store hooks to `app/`, fixtures where L08 will
+   pick them up.
+3. **Move to the target tree.** No logic changes, so the oracle proves zero divergence.
+   Renames go through `scripts/rename-identifiers.py`: a rename needs a parser, not a regex.
+4. **Install the guards**, each mutation-tested.
+5. **Record the files over the ceiling** with the lot that will convert each.
+
+**What this lot does NOT touch.** Bundle splitting belongs to L12: it changes loading behaviour,
+and nothing here may change anything observable.
+
+**And one known defect deliberately left alone**: the harness is **52 `.py` files flat, with no
+subdirectory**, so nothing says which rule covers which surface without reading it. It is the
+same disease one level up. Moving them means changing 52 paths cited across documents and briefs
+— a real cost for a gain in comfort. It is recorded here so it is known, and it is not scheduled;
+it waits for a stronger reason than tidiness.
+
+**Done when** — seven guards, each failing on a deliberate violation and wired into the gate:
+
+1. **no import cycle** (the two above are gone);
+2. **a fan-in ceiling** — a module outside `ui/` and `lib/` imported by more than a set number of
+   features is refused. This is the one that would have stopped `data.ts` at four importers
+   instead of seventeen, and it is the only guard here that acts *before* the defect exists;
+3. **layering** — `ui/` and `lib/` never import `features/` or `routes/`; two features never
+   import each other;
+4. **size** — the module ceiling (invariant 6), covering the frontend;
+5. **the typing ratchet** — no `any`, no `ts-ignore`, from today's zero;
+6. **no duplicate import** from one module;
+7. **one address, one file.**
+
+Plus: the tree matches the target, `data.ts` no longer exists, and grandfathered files are listed
+with their converting lot.
 
 #### L05 — Routing · `NOT STARTED` · *depends on L01, L04*
 
@@ -445,7 +525,7 @@ determinism is sufficient for the oracle to depend on it.
 #### L09 — The data layer, surface by surface · `NOT STARTED` · *depends on L01, L05, L08*
 
 **Objective.** Server state in its query cache, mutations with their optimistic paths and their
-rollbacks, invariants 4 and 5 in force. Each surface takes its data and **its share of the
+rollbacks, the two state-ownership invariants (4 and 5) in force. Each surface takes its data and **its share of the
 fixture dies with it** (D5). Surfaces are walked in the order L07 fixed.
 
 **Its proof comes from L08.** Because the mocks are seeded from the fixtures they replace, a
@@ -521,7 +601,7 @@ shared-element transition tear.
 
 **Done when.** Every transition is declared rather than scripted, the one named spring excepted;
 every gesture is proved against a real pointer stream **and** against a real mouse; reduced motion
-is defined for each of them (invariant 12); the feedback seam has exactly one call site; no
+is defined for each of them (the reduced-motion invariant); the feedback seam has exactly one call site; no
 unvirtualised long list remains; and the interaction budget is measured on a real device, not in
 a headless browser.
 
