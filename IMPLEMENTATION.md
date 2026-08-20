@@ -316,11 +316,23 @@ copy in i18n resources; colour and elevation tokenised — **186 of 188** `color
    stated it before 2026-08-20 — they counted surfaces, and surfaces were never the hard part.
 4. **The legacy engine** — 34 626 lines still driving, `__go` shell-side, the 240 ms delay on
    `data-next`, and `/login` + the splash still engine-driven markup rather than components.
+   **79 % of those lines are FIXTURES** — `SHEETS_RAW` alone is 20 538 — so the engine's own code
+   is about 6 949 lines, and most of the rest stops existing when real data arrives. That is why
+   items 3 and 4 are interleaved surface by surface rather than run one after the other.
+   <sub>method: bracket-match every `const X = [` / `const X = {` in `legacy.js` and sum the spans over 100 lines</sub>
 5. **BLOCK 1 must stop shipping at switchover.** `refonte.html` is split into BLOCK 1 (the
    prototype harness — phone frame, demo bars, design notes) and BLOCK 2 (the application). The
    maquette's own build carries BOTH today, which is right for a prototype and wrong for the
    app. `harness/export.py` used to guard that boundary from the extraction's side and went with
-   it; nothing guards it now. Open, and named here so it is not rediscovered on switchover day.
+   it; nothing guards it now.
+
+**Items 2 to 5 above are planned in `docs/reference/frontend-architecture.md`** — the settled
+architecture decisions and the ordered lots that reach them, each with its dependencies and its
+definition of done. (Item 5 is held by its lot L07: BLOCK 1 is deleted rather than converted, and
+its disappearance is part of that lot's proof.) That file says what must become true and in what
+order; **this section stays the only place that says where the work stands.** Item 1 is
+deliberately outside it: those two pages are surfaces to be drawn, and the existing method
+covers them.
 
 ### THE MISSION — dictated by the operator, 2026-08-19
 
@@ -513,18 +525,22 @@ and the interface never contradict each other. R69, `harness/url_state.py`.
 
 ---
 
-**Next action:** frame the remaining work with the operator. Two things are owed and they are
-of different kinds:
+**Next action:** two things are owed and they are of different kinds:
 
 1. **The surfaces the mission re-opened** — `/control` and `/pipeline` have no page here, and
    since 2026-08-19 that is a gap, not an arbitration. Drawing them is maquette-first work:
    drawn, named states, a rule that bites, a mutation that proves it.
-2. **The visual language (SP5), the UX and the prototype's architecture** — including the three
-   questions of this section. There is no SP5 SPEC document, but its opening move IS written,
-   in the SP4-fin plan: « `extract-maquette-css.py` reads BLOCK 2 out of that file […]
-   **re-pointing it is SP5's opening move, not SP4's closing one** ». So `refonte.html` is on
-   its way out — BLOCK 2 becomes a stylesheet of the maquette's own Vite project, BLOCK 1
-   goes with the harness. The rest of SP5's scope is to be agreed before any code.
+2. **The visual language, the application and the legacy engine** — including the three
+   questions of this section. **Their scope is written**: `docs/reference/frontend-architecture.md`
+   carries the settled decisions and the ordered lots, each with its dependencies and its
+   definition of done. Take the first lot that is not `LANDED` and whose dependencies are.
+   One consequence was already recorded in the SP4-fin plan and still holds: `refonte.html` is
+   on its way out — BLOCK 2 becomes a stylesheet of the maquette's own Vite project, and BLOCK 1
+   goes with the harness.
+
+> This paragraph read « frame the remaining work with the operator … SP5 has no written scope:
+> it is to be agreed before any code » until that scope was agreed and written. Left as it was,
+> it sent a session that had just been told where to start back to asking where to start.
 
 Every surface listed in the inventory above IS drawn and validated — `harness/arrivals.py` (R66)
 executes green against `library.db` for the most recent one — so nothing there is to be redone.

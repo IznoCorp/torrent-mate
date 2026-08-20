@@ -29,7 +29,12 @@ when the defect comes back.
 
 ---
 
-> **State on 2026-08-20 — two open, and they are open for different reasons.**
+> **What is open is in the table below, and only there.** This banner used to carry a count of
+> its own; it read « two » while three entries already said `open`, because a summary that is
+> written once and never recounted stops being true on the next line added. The `Status` column
+> is the answer. What belongs here is only what the column cannot say — WHY an entry is still
+> open when its diagnosis looks finished:
+>
 > **B-024** is diagnosed **latent and unreachable**: the census of `[data-go]` producers shows
 > every one of them renders into `#view`, which sits under every layer, so none can be tapped
 > while a layer is open — real, with no path to it. **B-030** is a defect of the maquette's
@@ -61,6 +66,41 @@ when the defect comes back.
 | B-031 | « Réessayer » on every error surface is inert          | by review   | `to confirm` |
 | B-032 | The harness's data-scenario dial selects the wrong one | by review   | `to confirm` |
 | B-033 | `test_locks_tmp_orphans` is flaky under xdist          | by rule     | `open`       |
+| B-034 | `TestQuickMode` reads a foreign `os.scandir` caller    | by gate     | `open`       |
+| B-035 | `test_continues_on_per_file_error` writes no backup    | by gate     | `open`       |
+
+**B-034 and B-035 were found running `make check` on Linux, and they are NOT one defect.**
+Both fail identically on `origin/main` with no local change — a worktree at `9632491c` reproduces
+them — so neither belongs to the work that found them. They are written as two because they have
+two causes, and merging them would let one hide behind the other's fix (the same reason B-013 to
+B-015 are three).
+
+They surfaced with eleven others that had a single mundane cause: **`rsync` was absent from the
+container**. Installing it took the same files from `14 failed` to `173 passed, 3 failed`. That
+is worth recording on its own — eleven red tests said nothing about the code, and the honest
+first reading of them was wrong.
+
+**B-034 — the two `TestQuickMode` holds.** Both die on
+`[c for c in scandir_calls if c.startswith(mount)]` with `AttributeError: 'int' object has no
+attribute 'startswith'`, so the recorder caught a call made with a file DESCRIPTOR rather than a
+path. `_walker` cannot be the source: `_list_dir_entries` is the only `scandir` site in the whole
+`scanner/` package (ACC-08) and it passes `dir_abs`. The diagnosis — **stated as a diagnosis, not
+as a confirmed cause** — is that patching `personalscraper.indexer.scanner._walker.os.scandir`
+patches the SHARED `os` module rather than a name private to that module, so any other caller
+active inside the `with` block is recorded too. Which foreign callers run there differs by
+platform and by installed dependencies, which is why the operator's machine and CI do not see it.
+If that holds, the defect is in the test's reach, not in the walker.
+
+**B-035 — `TestRestoreMergeBackup::test_continues_on_per_file_error`.** `backup.exists()` is
+False: the run left no `.merge_backup` beside the destination. Not root-caused, and not guessed
+at — per rule 1 of this file, it is written down before any work starts.
+
+**Neither is dismissed as « environment ».** That reasoning was put and rejected here on
+2026-08-20: *if it were true on main, CI would not have passed* — and a gate that is green by
+accident of the environment is not a gate. What makes these different from that precedent is
+narrower and it is measured: **CI never runs this suite on `main`** (the workflow triggers on
+`pull_request` only), so « CI passed on main » is not evidence that exists. The suite's last real
+execution is the run of #465.
 
 **B-033 was seen ONCE, and is written down rather than guessed at.** `make test` reported
 `tests/web/test_maintenance_panels.py::TestLocksRoute::test_locks_tmp_orphans` failed on worker

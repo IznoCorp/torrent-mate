@@ -81,6 +81,13 @@ implementation directives change IN THE SAME MOVE. What loses its subject is rem
    The script builds and re-copies the prototype first, because the harness reads a MANUAL copy
    at `/tmp/tm-refonte/wrapped.html` and a stale one measures the previous build in silence.
 
+**What the maquette must BECOME technically — and in what order — is
+`docs/reference/frontend-architecture.md`, and it is BINDING.** It carries the settled
+architecture decisions (the address model, Tailwind + typed variants, where CSS lives, what a
+rule may anchor on, how the legacy engine dies) and the ordered lots that get there, each with
+its own definition of done. Read it before any frontend work beyond drawing a surface; the
+state of that work is `IMPLEMENTATION.md` § THE OBJECTIVE and lives nowhere else.
+
 #### The mission — dictated by the operator, 2026-08-19 (SUPERSEDES any narrower reading)
 
 **The maquette is a NEW VERSION of the app, and EVERY screen is to be redrawn. All of them.**
@@ -395,6 +402,7 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 | TorrentMate web UI — architecture, auth, WS protocol, Redis relay, PWA, deploy runbook, REST conventions | `docs/reference/web-ui.md` |
 | **Product intent — the product constitution (BINDING): §1–§15 + DOIT/NE-DOIT-PAS + §méthode** | `docs/reference/product-intent.md` |
 | **Maquette — the VISUAL reference of the web UI (BINDING): it is modified BEFORE the code** | `frontend/maquette/README.md` |
+| **Frontend architecture — what the maquette must BECOME, and in what order (BINDING)** | `docs/reference/frontend-architecture.md` |
 
 Also check archived alpha versions under `docs/archive/legacy-alpha/` and archived features under `docs/archive/features/`.
 
