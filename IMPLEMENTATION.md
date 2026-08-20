@@ -304,6 +304,16 @@ copy in i18n resources; colour and elevation tokenised (203 of 206 `color:` decl
    surfaces, and surfaces were never the hard part.
 4. **The legacy engine** — 34 626 lines still driving, `__go` shell-side, the 240 ms delay on
    `data-next`, and `/login` + the splash still engine-driven markup rather than components.
+   **79 % of those lines are FIXTURES** — `SHEETS_RAW` alone is 20 538 — so the engine's own code
+   is about 6 949 lines, and most of the rest stops existing when real data arrives. That is why
+   items 3 and 4 are interleaved surface by surface rather than run one after the other.
+   <sub>method: bracket-match every `const X = [` / `const X = {` in `legacy.js` and sum the spans over 100 lines</sub>
+
+**Items 2, 3 and 4 above are planned in `docs/reference/frontend-architecture.md`** — the settled
+architecture decisions and the ordered lots that reach them, each with its dependencies and its
+definition of done. That file says what must become true and in what order; **this section stays
+the only place that says where the work stands.** Item 1 is deliberately outside it: those two
+pages are surfaces to be drawn, and the existing method covers them.
 
 ### THE MISSION — dictated by the operator, 2026-08-19
 
