@@ -10,7 +10,7 @@ Every token BLOCK 2 uses must be declared in BLOCK 2. A `var()` resolved only
 by a declaration sitting up in BLOCK 1 works today, inside the prototype, and
 resolves to nothing the day BLOCK 1 stops shipping — which is the whole point
 of the split. That is exactly the state this rule was written for: thirty-five
-tokens used and ONE declared, across 449 `var()` calls.
+tokens used and ONE declared, across 458 `var()` calls.
 
 WHAT COUNTS AS RESOLVED. The same block declares the custom property, OR it is
 a RUNTIME token: `--tm-*` names are measured and published by script

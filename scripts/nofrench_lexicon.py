@@ -349,7 +349,7 @@ examined: dict[str, int] = {
     "class names / python": 0,
     "class names / typescript": 0,
     "declared CSS classes / fragment": 0,
-    "declared CSS classes / extracted": 0,
+    "declared CSS classes / app": 0,
     "unread javascript / shell": 0,
     "name words / shell": 0,
     "data-* names / markup": 0,

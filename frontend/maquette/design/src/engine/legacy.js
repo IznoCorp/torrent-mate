@@ -7509,7 +7509,7 @@ import { screens, panel, bridge } from "../seams.js";
     return `<b>Impossible de charger ${escapeHtml(what)}.</b>
       Le serveur n'a pas répondu dans le temps imparti. Rien n'est perdu — ce qui
       est affiché ailleurs reste valide.
-      <button data-phase="prete">Réessayer</button>`;
+      <button data-phase="ready">Réessayer</button>`;
   }
 
 
@@ -11611,8 +11611,8 @@ import { screens, panel, bridge } from "../seams.js";
       <p>Ce panneau ne fait pas partie de l'interface. Il pilote les données et les états pour qu'on puisse tous les regarder — et pour que la sonde de parité les atteigne sans deviner. <code>window.__go("id")</code> fait la même chose sans clic.</p>
       <h4>Données</h4>
       <div class="row">
-        <button data-hscen="reel" aria-pressed="${currentState().scen === "real"}">État réel du 10 août</button>
-        <button data-hscen="charge" aria-pressed="${currentState().scen === "loaded"}">Scénario de charge</button>
+        <button data-hscen="real" aria-pressed="${currentState().scen === "real"}">État réel du 10 août</button>
+        <button data-hscen="loaded" aria-pressed="${currentState().scen === "loaded"}">Scénario de charge</button>
       </div>
       <h4>Phase de la surface</h4>
       <div class="row">

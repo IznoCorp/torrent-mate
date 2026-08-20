@@ -29,8 +29,9 @@ it, so an arm added without a heading here fails the gate:
    dated records keep the names they were written with, and rewriting a record
    would falsify it.
 4. **Class names** — `class X` declarations, and the CSS classes the maquette
-   DECLARES (`design/refonte.html`) plus the stylesheet extracted from it
-   (`frontend/src/styles/ps/*.css`). A class name is one name shared by four
+   DECLARES (`design/refonte.html`) plus the app's own stylesheets
+   (`frontend/src/styles/ps/*.css`) — which are no longer extracted from it:
+   that machinery went on 2026-08-20, the maquette REPLACES the app. A class name is one name shared by four
    worlds, which is why it gets an arm of its own.
 5. **Unread JavaScript** — a `.js` under the shell that every other arm's globs
    walk past. One file is allowed to be there (the legacy engine); a second one
@@ -440,7 +441,7 @@ def check_class_names(violations: list[str]) -> None:
                     r"<style[^>]*>(.*?)</style>", source, re.S))
         declared = declared_css_classes(source)
         examined["declared CSS classes / "
-                 + ("fragment" if path == FRAGMENT else "extracted")] += len(declared)
+                 + ("fragment" if path == FRAGMENT else "app")] += len(declared)
         for name, line_no in declared.items():
             if allowed_class(name, allowed):
                 continue

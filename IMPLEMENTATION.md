@@ -279,7 +279,7 @@ remains is most of what makes an application.
 | | Production | Maquette |
 | --- | --- | --- |
 | API modules | **11** (`frontend/src/api/*.ts`) | **0** |
-| Network calls | **65** `apiFetch` · 36 `useQuery` · 21 `useMutation` | **1** — and it is a LOGOUT (`legacy.js:11243`, `/deconnexion` on the design host). **Zero data** reaches the maquette from a backend |
+| Network calls | **65** `apiFetch` · 36 `useQuery` · 21 `useMutation` | **1** — and it is a LOGOUT (`legacy.js:11243`, `/logout` on the design host). **Zero data** reaches the maquette from a backend |
 | WebSocket | **24** files | **0** |
 | Service worker / PWA | yes | no |
 | Pages drawn | 9 | 9 + 5 screens — **not the same nine**: `/control` and `/pipeline` have no maquette page (owed, see REMAINS), and `host` + `arrivals` have no production counterpart |
@@ -296,7 +296,7 @@ grep -rlE 'WebSocket' --include='*.ts' --include='*.tsx' --include='*.js' fronte
 ```
 
 **DONE** — 8 pages and 5 screens as final components; TanStack routing with the URL carrying the
-state; 82 named states driving 51 rule scripts over 80 recorded rules; the engine moved out of
+state; 82 named states driving 50 rule scripts over 80 recorded rules; the engine moved out of
 the fragment (which is now a title and a stylesheet); English names throughout with the shell's
 copy in i18n resources; colour and elevation tokenised — **186 of 188** `color:` declarations (`(?<![-\w])color\s*:`; a `\bcolor` regex reads 203/206 because `-` is a non-word character and `background-color` matches it), and the 55 raw values left in BLOCK 2 are all token DECLARATIONS, which is where they belong.
 
@@ -310,7 +310,7 @@ copy in i18n resources; colour and elevation tokenised — **186 of 188** `color
    above measures it: 11 API modules against 0, 65 network calls against one logout. But
    **while the maquette is a maquette it is NOT connected to the backend** (operator,
    2026-08-20), and that is deliberate, not a lag: fixtures are what make 82 named states
-   drivable and 51 rules deterministic. A prototype wired to live data measures the data, not
+   drivable and 50 rules deterministic. A prototype wired to live data measures the data, not
    the design. The wiring belongs to the switchover, with the backend adapted to what the
    frozen interface needs. What the table is FOR is honesty about the distance: no document
    stated it before 2026-08-20 — they counted surfaces, and surfaces were never the hard part.
@@ -430,7 +430,7 @@ directions, R68 against `web.json5`.
 ## The third axis: what the prototype owes as an APPLICATION
 
 The operator's judgement is on the design **and** the front-end architecture. The design is
-measured by 51 rule scripts (`ls frontend/maquette/harness/*.py` → 52, minus `common.py`, which
+measured by 50 rule scripts (`ls frontend/maquette/harness/*.py` → 52, minus `common.py`, which
 is shared plumbing). `regions.json`'s `$adversarialReview` records **80** numbered rules — but
 **16 of them are named in no harness script at all** (R18, R19, R21, R24, R25, R32-R40, R49,
 R58), so at most 64 are executable. « 80 rules » is an inventory, never a coverage figure;
@@ -640,7 +640,7 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
     `--mq-shadow-badge`, `--mq-scrim-soft`, `--mq-tile-overlay`. Their VALUES live in the
     prototype's own palette. ⚠ **Amended 2026-08-20 (SP5a):** that palette sat in BLOCK 1 and
     was therefore NOT exported, so the generated stylesheet named these tokens and defined
-    none of them — thirty-five used, one declared, across 449 `var()` calls. The palette has
+    none of them — thirty-five used, one declared, across 458 `var()` calls. The palette has
     moved into BLOCK 2, where the application's rules can see it, and
     `scripts/check-css-tokens.py` refuses the next `var()` with no declaration. The sentence that stood here — « when the app adopts
     that stylesheet, `tokens/maquette.css` must gain the five it does not yet carry » — is

@@ -330,7 +330,7 @@ WITH: BLOCK 2 is the app's CSS, full stop. Keeping the probe would have meant pa
 CI per PR to compare a file with itself.
 
 What holds BLOCK 2 now is narrower and honest about it: `scripts/check-css-tokens.py` (every
-`var()` resolves), the 51 rule scripts in `harness/`, and the fact that a rendering change in the
+`var()` resolves), the 50 rule scripts in `harness/`, and the fact that a rendering change in the
 prototype IS the product changing — there is no copy of it left to diverge.
 
 ## Every state has a name, and knows how to reach itself
@@ -339,17 +339,17 @@ prototype IS the product changing — there is no copy of it left to diverge.
 `window.__states()` returns the 54 ids. The **≡** button in the harness opens a panel listing
 them all.
 
-This is what makes the parity probe deterministic. Without it, measuring "the blocked card"
-requires knowing how to make one appear — and that knowledge is exactly what evaporates over
-time. With it, the probe iterates `regions.json` → for each region, the states it is visible
-in → `__go(state)` → measure.
+This is what makes a rule deterministic. Without it, measuring "the blocked card" requires
+knowing how to make one appear — and that knowledge is exactly what evaporates over time. With
+it, a rule says `__go(state)` and measures. The parity probe used to walk `regions.json` this
+way; both it and that map went on 2026-08-20 with the extraction they served.
 
 Three orthogonal dials the panel exposes:
 
 | Dial          | Values                            | What it changes                      |
 | ------------- | --------------------------------- | ------------------------------------ |
-| Data scenario | `reel` · `charge`                 | the real system state vs a dense one |
-| Surface phase | `prete` · `chargement` · `erreur` | every surface goes through all three |
+| Data scenario | `real` · `loaded`                 | the real system state vs a dense one |
+| Surface phase | `ready` · `loading` · `error`     | every surface goes through all three |
 | TMDB account  | connected · not                   | Découvrir's full vs degraded mode    |
 
 The 54 states cover: the startup screen, the entry screen and its refusal, the five urgency
@@ -377,9 +377,10 @@ export to. What is left is the part that was never machinery:
   exists for, and what a rule that failed to bite taught. `$reportedDefects` lists the
   defects found by hand, each with its test in `harness/bugs.py`.
 
-It also carries the probe's emulation settings, the `computedStyle` subset to diff, the
-allowlist of accepted divergences — **every entry carries an inline justification** — and
-`outOfScope`, the surfaces deliberately not covered.
+It used to carry the probe's emulation settings, the `computedStyle` subset to diff, the
+allowlist of accepted divergences and `outOfScope`. All four went with the parity probe on
+2026-08-20 — see the section above. What is left is the project's memory, and `$vocabulary`,
+which the no-French guard reads.
 
 ## What is real in here, and what is not
 
@@ -399,7 +400,7 @@ Read from the live system:
 | The grab cadence                                                                    | the live scheduler              |
 
 Not real: the release candidates on the "choose another release" screen — no tracker is
-queried — and the timings and counts of the `charge` scenario, which exist so density can be
+queried — and the timings and counts of the `loaded` scenario, which exist so density can be
 judged. Both are labelled as such in the design notes.
 
 **The copy ages by design.** The system keeps running: the scheduler searches twice a day
@@ -420,10 +421,10 @@ into a code change it happens to precede.
 
 **Two scenarios**, switched from the harness (the **≡** button):
 
-- **`reel`** (default) — the exact state of the system. Calm: nothing to grab, nothing in
+- **`real`** (default) — the exact state of the system. Calm: nothing to grab, nothing in
   flight, two stuck folders. This is what makes the **rest states** judgeable; a prototype
   that is always busy never shows them.
-- **`charge`** — a dense state, for judging density and scrolling.
+- **`loaded`** — a dense state, for judging density and scrolling.
 
 ---
 
@@ -827,7 +828,7 @@ the two apart.
 **Run it with `harness/run.sh`, never by hand.** The script builds the prototype and refreshes
 the copy the rules read before measuring anything — that copy is manual, and a stale one measures
 the previous build without saying so. Two tiers: `--contracts` (5 rules, minutes, wired into CI
-on every maquette PR) and no flag (all 51, 20-25 minutes, the gate before a wave merges).
+on every maquette PR) and no flag (all 50, 20-25 minutes, the gate before a wave merges).
 
 Until 2026-08-20 the suite ran NOWHERE automatically — not in CI, not in `make check`, which only
 printed a reminder. That day a rename broke six contracts and four were visible to nothing else.

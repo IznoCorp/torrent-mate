@@ -3,14 +3,14 @@
 # Runs the maquette's rule suite — the only thing that measures the prototype as
 # it actually renders.
 #
-# WHY THIS EXISTS. The 51 rules ran nowhere automatically: not in CI, not in
+# WHY THIS EXISTS. The 50 rules ran nowhere automatically: not in CI, not in
 # `make check`, which merely printed a reminder to rebuild before running them
 # by hand. The main proof mechanism of the prototype executed only when someone
 # thought of it — and on 2026-08-20 a rename that looked contained broke SIX
 # contracts, four of which only this suite could see. `make lint`, `make test`
 # and `make check` were all green while the pipeline's stop button was dead.
 #
-# TWO TIERS, because 51 headless-Chrome runs cost 20-25 minutes and that is not
+# TWO TIERS, because 50 headless-Chrome runs cost 20-25 minutes and that is not
 # a per-PR price worth paying:
 #
 #   --contracts   the rules that break when a NAME moves — a state id, a
@@ -26,7 +26,7 @@
 # cost this project two debugging sessions.
 #
 # Usage:
-#     frontend/maquette/harness/run.sh              # all 51 rules
+#     frontend/maquette/harness/run.sh              # all 50 rules
 #     frontend/maquette/harness/run.sh --contracts  # the name-contract subset
 set -euo pipefail
 
@@ -84,10 +84,15 @@ failed=0
 for s in "${scripts[@]}"; do
   if ! out="$(python3 "${HERE}/${s}" 2>&1)"; then
     echo "  FAILED: $s"
-    # The holds that fell, and nothing else: a rule prints one line per hold and
-    # the run is long, so the whole transcript would bury the verdict. Without
-    # this the CI log read « FAILED: arrivals.py » and stopped there.
-    echo "$out" | grep -E "FAIL|Error|Traceback|error:" | head -12 | sed 's/^/      /'
+    # The holds that fell — and if the filter matches nothing, the TAIL, because
+    # not every rule speaks the same way. `audit2.py` uses no `common.Journal`:
+    # it prints `■ R15 — 2` and `TOTAL, second pass: N violations`, so the
+    # filter below returned zero lines for it and the log read « FAILED:
+    # audit2.py » and stopped — verbatim the defect this block was added to fix.
+    # A filter that can return nothing must have a floor.
+    hits="$(echo "$out" | grep -E "FAIL|Error|Traceback|error:|violation|■" | head -12)"
+    [ -z "$hits" ] && hits="$(echo "$out" | tail -12)"
+    echo "$hits" | sed 's/^/      /'
     failed=$((failed + 1))
   fi
 done

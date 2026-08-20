@@ -83,6 +83,7 @@ check: lint test-cov
 	python3 scripts/check-pragma-discipline.py
 	python3 scripts/check-no-french.py
 	python3 scripts/check-css-tokens.py
+	python3 scripts/check-markup-contracts.py
 	python3 scripts/check-i18n-placeholders.py
 	python3 scripts/check-command-safety.py
 	python3 scripts/audit-cli-coverage.py
@@ -153,7 +154,7 @@ check-frontend:
 	cd frontend && npm run build
 
 harness:
-	@echo "Running the maquette rule suite (51 rules, 20-25 min) — the wave gate..."
+	@echo "Running the maquette rule suite (50 rules, 20-25 min) — the wave gate..."
 	frontend/maquette/harness/run.sh
 
 harness-contracts:

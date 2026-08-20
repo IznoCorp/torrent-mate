@@ -1,6 +1,5 @@
 {
   "$comment": "The maquette's record. Its CSS-EXPORT half was removed on 2026-08-20: `exportedSelectors`, `harnessSelectors`, `probe`, `regions`, `states`, `scope`, `source` and `outOfScope` all served the CSS extraction and its rendering-parity probe, which existed to migrate the app towards the maquette surface by surface. The maquette REPLACES the app (product-intent §15), so there is nothing to export to and nothing to keep in parity with. What remains here is the project's MEMORY — the frozen vocabulary the no-French arm reads, the adversarial review's rules and method lessons, and the reported defects — plus `target`, which `harness/address.py` still reads.",
-  "target": "frontend/src/styles/ps/app-surface.css",
   "$vocabulary": {
     "$comment": "The class vocabulary is ENGLISH and FLAT LOWERCASE - `sheetacts`, `herowrap`, `btnprimary`, `screenbar`, `fieldinput`. Measured rather than decreed: of the names this prototype coins for itself none carries a separator, and the only hyphenated ones (`ps-dot*`, `sw-*`) are namespaced imports from elsewhere, where the prefix is what earns the hyphen. A new class takes the flat form.",
     "frenchTokensFrozen": {
