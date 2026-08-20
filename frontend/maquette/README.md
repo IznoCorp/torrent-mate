@@ -992,7 +992,9 @@ const { t } = useTranslation();
   parameter: each carries a `// french-ok: <reason>` (or `# french-ok:`) pragma on its own
   line, the line above, or the line below. A pragma citing no reason is itself a violation.
 
-**All of this is enforced, not remembered**: `python3 scripts/check-no-french.py` — four arms
+**All of this is enforced, not remembered**: `python3 scripts/check-no-french.py` — fourteen
+arms, listed in that script's own docstring and held against it by arm 13, which also reads
+the count out of `CLAUDE.md` and out of THIS file
 (strings, identifiers, file names, class names), wired into `make check` and into its own CI
 job. Each arm also reports what it READ, and an arm that read nothing fails: a scope that
 silently empties would otherwise announce « no violation » while measuring nothing.

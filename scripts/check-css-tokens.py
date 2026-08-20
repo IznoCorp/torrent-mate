@@ -12,14 +12,19 @@ extracted stylesheet and neither can see this one:
     in the document for BOTH passes — its own comment says so, and it is right
     to: BLOCK 1 is the phone frame the prototype lives inside, and removing it
     would move every region for a reason that has nothing to do with the
-    extraction. But BLOCK 1 is where the tokens are DECLARED, so during the
-    probe they are in the room, and the probe reports no divergence over a
-    sheet that would resolve them to nothing anywhere else.
+    extraction. BLOCK 1 WAS where the tokens were declared, so during the probe
+    they were in the room, and the probe reported no divergence over a sheet
+    that would have resolved them to nothing anywhere else.
 
-So the sheet that IS the redesign used thirty-five tokens and declared one,
-across 444 `var()` calls, under two green gates. That is the shape of B-014 —
-named, and defined by nothing — and it is the material reason the redesign
-cannot simply be switched on.
+That is why this rule exists, and the past tense is deliberate: SP5a moved the
+declarations into BLOCK 2, so the sheet now carries them and the probe does
+exercise them. What has NOT changed is that the probe cannot be the guard —
+put one declaration back in BLOCK 1 tomorrow and it would go green again.
+
+The state this closed: the sheet that IS the redesign used thirty-five tokens
+and declared ONE, under two green gates. That is the shape of B-014 — named,
+and defined by nothing — and it was the material reason the redesign could not
+simply be switched on.
 
 WHAT COUNTS AS RESOLVED. A `var()` resolves when the same sheet declares the
 custom property, OR when it is a RUNTIME token: `--tm-*` names are measured and
@@ -51,32 +56,87 @@ SHEET = ROOT / "frontend" / "src" / "styles" / "ps" / "app-surface.css"
 # missing must not be able to join this set by being renamed.
 RUNTIME_PREFIX = "--tm-"
 
-DECLARATION = re.compile(r"^\s*(--[a-zA-Z0-9_-]+)\s*:", re.M)
-# `var(--x)` and `var(--x, fallback)` — the fallback is what tells the two apart.
-USE = re.compile(r"var\(\s*(--[a-zA-Z0-9_-]+)\s*(,)?")
+# Comments are stripped before anything is read: a declaration commented OUT
+# used to satisfy a use, and `var(/*c*/--x)` used to be invisible. Both were
+# found by an adversarial review, and both are the same mistake — reading CSS
+# as text rather than as CSS.
+COMMENT = re.compile(r"/\*.*?\*/", re.S)
+
+# A declaration may open a line, or follow `{` or `;` on one. Anchoring to the
+# start of a line alone refused `.tm{--x:red}`, which is valid CSS.
+DECLARATION = re.compile(r"(?:^|[{;])\s*(--[\w-]+)\s*:", re.M)
+
+# `var(--x)` and `var(--x, fallback)`. The fallback is captured, not merely
+# detected: `var(--tm-h,)` carries a comma and nothing after it, and resolves
+# to exactly as much as no fallback at all.
+USE = re.compile(r"var\(\s*(--[\w-]+)\s*(?:,([^)]*))?\)")
+
+# One top-level rule: its selector prelude, and its body.
+RULE = re.compile(r"([^{}]+)\{([^{}]*)\}", re.S)
+
+# The scope the extraction puts every selector under.
+SCOPE = ".tm"
 
 
-def unresolved(css: str) -> tuple[list[str], list[str]]:
-    """Splits a stylesheet's `var()` uses into the two ways they can be wrong.
+def declarations_by_scope(css: str) -> tuple[set[str], set[str]]:
+    """Splits declared tokens by whether their scope is CONDITIONAL.
+
+    A token declared only under `:root[data-theme="light"] .tm` exists only
+    when that attribute is set. Counting it as « declared » lets an
+    unconditional use resolve to nothing on every other theme — which is the
+    same class of hole this whole rule exists to close, one level down.
+
+    Args:
+        css: The stylesheet, comments already stripped.
+
+    Returns:
+        `(unconditional, conditional)` — token names declared in a base scope,
+        and token names declared only under a qualified one.
+    """
+    unconditional: set[str] = set()
+    conditional: set[str] = set()
+    for prelude, body in RULE.findall(css):
+        selector = prelude.strip().rsplit("}", 1)[-1].strip()
+        names = {m for m in DECLARATION.findall("{" + body)}
+        if not names:
+            continue
+        # Base scope: the scope class itself, or a bare document root. Anything
+        # else — an attribute, a class, a media condition — is conditional, and
+        # a token that only ever lands there is not available unconditionally.
+        base = selector in {SCOPE, ":root", "html", "body"}
+        (unconditional if base else conditional).update(names)
+    # Declared in BOTH places is simply declared: the conditional block is then
+    # an override, which is exactly what a theme is.
+    return unconditional, conditional - unconditional
+
+
+def unresolved(css: str) -> tuple[list[str], list[str], list[str]]:
+    """Splits a stylesheet's `var()` uses into the three ways they can be wrong.
 
     Args:
         css: The stylesheet's text.
 
     Returns:
-        `(undefined, runtime_without_fallback)` — names used but declared
-        nowhere and not runtime tokens, and runtime tokens used with no
-        fallback. Both sorted, both deduplicated.
+        `(undefined, conditional_only, runtime_without_fallback)` — names used
+        but declared nowhere, names declared ONLY under a conditional scope,
+        and runtime tokens used with no usable fallback.
     """
-    declared = set(DECLARATION.findall(css))
+    css = COMMENT.sub(" ", css)
+    unconditional, conditional = declarations_by_scope(css)
     undefined: set[str] = set()
+    only_conditional: set[str] = set()
     bare_runtime: set[str] = set()
-    for name, comma in USE.findall(css):
+    for name, fallback in USE.findall(css):
         if name.startswith(RUNTIME_PREFIX):
-            if not comma:
+            if fallback is None or not fallback.strip():
                 bare_runtime.add(name)
-        elif name not in declared:
+        elif name in unconditional:
+            continue
+        elif name in conditional:
+            only_conditional.add(name)
+        else:
             undefined.add(name)
-    return sorted(undefined), sorted(bare_runtime)
+    return sorted(undefined), sorted(only_conditional), sorted(bare_runtime)
 
 
 def main() -> int:
@@ -91,9 +151,10 @@ def main() -> int:
         return 1
 
     css = SHEET.read_text(encoding="utf-8")
-    used = {name for name, _ in USE.findall(css)}
-    declared = set(DECLARATION.findall(css))
-    undefined, bare_runtime = unresolved(css)
+    stripped = COMMENT.sub(" ", css)
+    used = {name for name, _ in USE.findall(stripped)}
+    declared = set(DECLARATION.findall(stripped))
+    undefined, only_conditional, bare_runtime = unresolved(css)
 
     if not used:
         print("check-css-tokens: the sheet uses no `var()` at all — either the "
@@ -106,13 +167,19 @@ def main() -> int:
               "resolves to nothing the day this sheet is imported. Declare it "
               "in the maquette's BLOCK 2 so the extraction carries it, or drop "
               "the use.", file=sys.stderr)
+    for name in only_conditional:
+        print(f"  {name} is declared ONLY under a conditional scope (a theme "
+              "attribute, a media condition) and used unconditionally — on "
+              "every other condition it resolves to nothing. Declare it in the "
+              "base scope too.", file=sys.stderr)
     for name in bare_runtime:
         print(f"  {name} is a runtime token used with NO fallback — it resolves "
               "to nothing until the script that publishes it has run. Write "
               f"`var({name}, <default>)`.", file=sys.stderr)
 
-    if undefined or bare_runtime:
-        print(f"\ncheck-css-tokens: {len(undefined) + len(bare_runtime)} "
+    if undefined or only_conditional or bare_runtime:
+        print(f"\ncheck-css-tokens: "
+              f"{len(undefined) + len(only_conditional) + len(bare_runtime)} "
               f"unresolved token(s) in {SHEET.name}.", file=sys.stderr)
         return 1
 

@@ -19,8 +19,21 @@
 # Seeded from identifiers, this list had never met a STYLESHEET: arm 14
 # reads custom-property names, and sixty-six ordinary English design words
 # — background, muted, radius, tracking, the size scale — were unknown to
-# it. None of them was French. They are merged into the list above rather
-# than kept apart, because they are words this codebase uses like any other.
+# it. They are merged into the list above rather than kept apart, because they
+# are words this codebase uses like any other.
+#
+# « NONE OF THEM WAS FRENCH » WOULD BE FALSE, and an adversarial review said
+# so: `accent`, `border`, `danger`, `data`, `font`, `modal`, `motion`, `normal`,
+# `radius`, `ring`, `signal` and more are French words too. That is not an
+# objection — it is the whole reason this file asks « is this a word we use? »
+# rather than « is this French? ». A word here is licensed because this
+# codebase writes it, not because some dictionary failed to recognise it.
+#
+# It IS a widening, and a deliberate one: these words are now accepted by every
+# arm that reads this list, not only by the stylesheet arm that needed them.
+# That is correct for design vocabulary — a `data-danger` attribute or a
+# `radius` identifier is good English anywhere in this repository — but it is
+# written down here so the next reader knows it was a decision.
 
 accent
 account

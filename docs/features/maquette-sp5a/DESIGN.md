@@ -21,10 +21,10 @@ CSS the extraction transplants.
 | token declarations in BLOCK 1                                | **35**                  |
 | token declarations in BLOCK 2                                | **1**                   |
 | of BLOCK 1's tokens, how many the application's own CSS uses | **34**                  |
-| genuinely harness-only                                       | **1** (`--mq-white-70`) |
+| genuinely harness-only                                       | **1** (`--mq-white-70`) — it moved anyway, see below |
 
 So the sheet the extraction produces — `frontend/src/styles/ps/app-surface.css`, which **is** the
-redesign — **uses 35 tokens and defines 1**, across 444 `var()` calls. Ten of them are defined
+redesign — **uses 35 tokens and defines 1**, across **449** `var()` calls (`grep -oE 'var\(\s*--[a-zA-Z0-9_-]+' frontend/src/styles/ps/app-surface.css | wc -l`). Ten of them are defined
 nowhere in production either:
 
 `--danger-texte` · `--info-texte` · `--primary-texte` · `--success-texte` · `--warning-texte` ·
@@ -114,7 +114,7 @@ theme switch.
 | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | **A1** | `apply_scope()` preserves attribute and class qualifiers on `:root` / `html` / `body`: `:root[data-theme="light"]` → `:root[data-theme="light"] .tm`                        | Unit test written RED first; mutation — restore the drop, confirm the test names the theme                          |
 | **A2** | A named light-theme state in `states.js`, and in `regions.json`'s `states`, so the probe drives both themes                                                           | The probe's measurement count RISES; the new state is listed in its summary                                         |
-| **A3** | Move the 34 application tokens — both the `:root` and the `:root[data-theme="light"]` blocks, in that order — from BLOCK 1 into BLOCK 2. `--mq-white-70` stays behind | `parity-probe.py`: 0 divergence at the new baseline. Computed values are identical, so this is a move, not a change |
+| **A3** | Move the 34 application tokens — both the `:root` and the `:root[data-theme="light"]` blocks, in that order — from BLOCK 1 into BLOCK 2. `--mq-white-70` travels with them | `parity-probe.py`: 0 divergence at the new baseline. Computed values are identical, so this is a move, not a change |
 | **A4** | Rename the 7 French tokens to English, in the maquette AND in `frontend/src/styles/` in the SAME step — a contract has ends and they move together                    | `parity-probe.py`: 0 divergence. `grep` for the old names: zero hits outside dated records                          |
 | **A5** | Arm 14 of `check-no-french.py`: custom-property NAMES are names                                                                                                       | Mutation — reintroduce `--danger-texte`, confirm the arm falls and names it                                         |
 | **A6** | Regenerate `app-surface.css`                                                                                                                                          | `make check` — `extract-maquette-css.py --check` green                |
@@ -140,8 +140,8 @@ Every criterion is an executable command with its expected output.
 | ---------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | **ACC-01** | `python3 scripts/parity-probe.py`                                                                       | `0 divergence(s)`, exit 0, at a measurement count **strictly greater** than the 807 recorded on 2026-08-20 (A2 adds a theme) |
 | **ACC-07** | `python3 scripts/check-css-tokens.py` | exit 0 — no `var()` in the generated sheet is undefined |
-| **ACC-02** | `python3 -c` on `apply_scope(':root[data-theme=\"light\"]')`                                            | `.tm[data-theme="light"]`                                                                                                    |
-| **ACC-03** | count tokens `app-surface.css` uses but does not define                                                 | `0`                                                                                                                          |
+| **ACC-02** | `python3 -c` on `apply_scope(':root[data-theme="light"]')` | `:root[data-theme="light"] .tm` — the scope FOLLOWS the qualified root. `.tm[data-theme="light"]` is the 7 300-divergence form, not the fix |
+| **ACC-03** | `python3 scripts/check-css-tokens.py` | exit 0. NOT « zero tokens used-and-undeclared »: `--tm-bottom-bar-h` is used and declared nowhere ON PURPOSE — it is published at runtime and carries a `0px` fallback, which the guard knows and a hand-counted grep does not |
 | **ACC-04** | `grep -rE '\-\-[a-z-]*(texte\|doux\|carte)' frontend/src/styles/ frontend/maquette/design/refonte.html` | no match                                                                                                                     |
 | **ACC-05** | `python3 scripts/check-no-french.py`                                                                    | exit 0, and its summary names **14** arms                                                                                    |
 | **ACC-06** | `make check`                                                                                            | exit 0                                                                                                                       |
@@ -174,7 +174,10 @@ the count went 807 → **1 614**.
 **Arm 14 found no French — because A4 had already removed it — but it found something else.**
 Sixty-six ordinary English design words (`background`, `muted`, `radius`, `tracking`, the size
 scale) were unknown to `code-vocabulary.txt`: the list had been seeded from identifiers and had
-never met a stylesheet. They are merged in. One real exception is pinned by NAME with its reason:
+never met a stylesheet. They are merged in. **Not « none of them was French »** — `accent`,
+`danger`, `signal`, `normal`, `modal`, `font` are French words too, and saying otherwise
+would be the very mistake this file exists to end: the question is « is this a word we use? »,
+never « is this French? ». The merge widens what every arm accepts, deliberately. One real exception is pinned by NAME with its reason:
 `--font-sans` is the CSS `sans-serif` family, and `sans` is also a French preposition — adding
 `sans` to the vocabulary would have licensed it in every identifier in the repository.
 
@@ -186,3 +189,22 @@ helpers that read a STYLESHEET) in this one, taking `vocabulary()` back to the l
 `src/styles/ps/tokens/`; `app-surface.css` is generated and now carries the redesign's own token
 block, so it is a token SOURCE. « Use a DS token » has no reader in a file no hand may edit — and
 what its `var()` calls resolve to is held by `check-css-tokens.py` instead.
+
+### Two entries of the table above describe work that did not happen as written
+
+Recorded rather than quietly amended, because a plan that is edited to match the outcome
+teaches nothing about how plans go wrong.
+
+- **A3 said `--mq-white-70` stays behind. It moved.** The unit that travelled was the whole
+  `login:palette` region, markers included — the login gate finds it by text search, so moving
+  it in one piece is what kept that gate working. `--mq-white-70` sits inside that region, so
+  35 tokens moved where the table said 34. The cost is one dead token in the shipped sheet, and
+  `check-css-tokens.py` does not flag it: it refuses a `var()` with no declaration, not a
+  declaration with no `var()`. That asymmetry is deliberate — an unused token is 40 bytes, an
+  unresolved one is a broken surface — but it is worth naming.
+- **A2 said « a named light-theme state in `states.js` ». No such state was written.** The theme
+  became an axis of the PROBE instead (`THEMES`), which is stronger for this purpose: it measures
+  every one of the 49 states under both schemes rather than adding a 50th. But A2's own hold —
+  « the state must be shown to produce a DIFFERENT computed background from its dark twin » —
+  was then never exercised by anything in this wave. The 7 300 divergences did exercise it, by
+  accident and in the other direction. A named state remains owed for SP5b.

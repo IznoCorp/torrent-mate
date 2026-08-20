@@ -67,10 +67,16 @@ class TestApplyScope:
         assert extractor.apply_scope("body.locked") == f"body.locked {extractor.SCOPE}"
 
     def test_a_qualified_root_with_a_descendant_keeps_both(self) -> None:
-        """A document-rooted selector keeps its head and gains the scope after it."""
+        """A document-rooted selector keeps its head and gains the scope after it.
+
+        The first version asserted only that `[data-theme="light"]` appeared
+        SOMEWHERE in the result, which the broken `.tm[data-theme="light"] body`
+        form satisfies just as well — a test that cannot fail on the defect its
+        name describes.
+        """
         scoped = extractor.apply_scope(':root[data-theme="light"] body')
 
-        assert '[data-theme="light"]' in scoped
+        assert scoped == f':root[data-theme="light"] {extractor.SCOPE} body'
 
     def test_a_document_rooted_selector_keeps_its_head(self) -> None:
         """`.tm html…` would ask for a `.tm` ancestor ABOVE `<html>`: matches nothing."""

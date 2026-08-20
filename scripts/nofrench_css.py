@@ -53,17 +53,19 @@ def css_allowlist() -> dict[str, str]:
                     return got
         return None
 
-    vocabulary = find(data)
-    if not isinstance(vocabulary, dict):
+    # `record`, not `vocabulary`: a local of that name shadowed the imported
+    # `vocabulary()` for the whole function, which arm 14 below calls.
+    record = find(data)
+    if not isinstance(record, dict):
         raise ValueError(f"no $vocabulary record in {relative(REGIONS)}")
     allowed: dict[str, str] = {}
-    frozen = vocabulary.get("frenchTokensFrozen", {})
+    frozen = record.get("frenchTokensFrozen", {})
     reason = frozen.get("$comment", "").strip()
     if not reason:
         raise ValueError("frenchTokensFrozen carries no reason")
     for token in frozen.get("tokens", []):
         allowed[token] = reason
-    for token, why in vocabulary.get("abbreviationsKept", {}).items():
+    for token, why in record.get("abbreviationsKept", {}).items():
         if token.startswith("$"):
             continue
         if not str(why).strip():
@@ -109,7 +111,18 @@ def declared_css_classes(source: str) -> dict[str, int]:
 # The VALUE is not read. `--waiting: oklch(…)` is data, and the token that
 # carries a French word in its value would be arm 1's business, not this one's.
 
-CUSTOM_PROPERTY = re.compile(r"^\s*(--[a-zA-Z][a-zA-Z0-9_-]*)\s*:", re.M)
+# A `<custom-property-name>` is `--` followed by a CSS identifier: letters of any
+# script, digits, `_` and `-`. The first version of this read
+# `[a-zA-Z][a-zA-Z0-9_-]*` and anchored to the start of a line, which made FIVE
+# valid forms invisible — and the worst of them was the accented one, so
+# `has_accent()` below was unreachable and `--café` passed the arm written to
+# catch exactly that. `\w` is Unicode-aware for `str` patterns in Python 3, so it
+# covers the accents this arm exists for; the prefix accepts a declaration after
+# `{`, `;` or `,` as well as at the start of a line, and the optional quotes
+# are for the TypeScript form — `sonner.tsx` declares three tokens as
+# `"--normal-bg": …` inside a style object, which is a DECLARATION whatever
+# the file extension says.
+CUSTOM_PROPERTY = re.compile(r"""(?:^|[{;,])\s*["']?(--[\w-]+)["']?\s*:""", re.M)
 
 # Token names whose French-looking word is a CSS KEYWORD, each with its reason.
 # `sans` is the one real case: `--font-sans` names the `sans-serif` family, and
@@ -118,6 +131,12 @@ CUSTOM_PROPERTY = re.compile(r"^\s*(--[a-zA-Z][a-zA-Z0-9_-]*)\s*:", re.M)
 # of what the vocabulary is for — so the exception is pinned to the whole NAME.
 CSS_KEYWORD_TOKENS = {
     "--font-sans": "the CSS `sans-serif` family, not the French preposition",
+    # Named by the `sonner` toast library, which READS these three off the
+    # element. They are its API, not names anyone here chose, so renaming them
+    # would simply stop the theming working.
+    "--normal-bg": "the sonner library's own API",
+    "--normal-text": "the sonner library's own API",
+    "--normal-border": "the sonner library's own API",
 }
 
 
@@ -128,8 +147,17 @@ def check_custom_properties(violations: list[str]) -> None:
         violations: The accumulator every arm appends to.
     """
     known = vocabulary()
-    sheets = [FRAGMENT] if FRAGMENT.exists() else []
-    sheets += sorted((ROOT / "frontend" / "src" / "styles").rglob("*.css"))
+    # EVERY place a custom property can be DECLARED, not just the two obvious
+    # ones. The first scope read `refonte.html` + `src/styles/**` and stopped
+    # there, which left four tracked component stylesheets and the shell's own
+    # document outside — narrower than arm 7, which already walks all of
+    # `frontend/src`. A scope that is narrower than its sibling's is a hole
+    # nobody chose.
+    sheets = [p for p in (FRAGMENT, ROOT / "frontend" / "maquette" / "design" / "index.html")
+              if p.exists()]
+    sheets += sorted((ROOT / "frontend" / "src").rglob("*.css"))
+    sheets += sorted((ROOT / "frontend" / "src").rglob("*.tsx"))
+    sheets += [p for p in (ROOT / "frontend" / "maquette" / "design" / "src").rglob("*.tsx")]
     for path in sheets:
         source = read(path)
         for match in CUSTOM_PROPERTY.finditer(source):
