@@ -577,6 +577,32 @@ def fingerprint() -> str:
     return f"{platform.system()}/{platform.machine()}"
 
 
+def reachable(commit: str) -> bool:
+    """Is this commit an ancestor of HEAD?
+
+    A SQUASH MERGE ANSWERS « no », and that is the case this exists for. The
+    reference is recorded on a feature branch and names the branch commit it
+    measured; squashing replaces every one of those with a single new commit,
+    so the SHA in the file stops existing in the history — on a fresh clone it
+    is not there at all. Nothing was wrong with the measurement; the pointer
+    simply went dangling, silently.
+
+    Args:
+        commit: The SHA the reference carries.
+
+    Returns:
+        True when the commit is an ancestor of HEAD, False when it is not or
+        cannot be resolved.
+    """
+    try:
+        return subprocess.run(
+            ["git", "merge-base", "--is-ancestor", commit, "HEAD"],
+            cwd=ROOT, capture_output=True, check=False,
+        ).returncode == 0
+    except FileNotFoundError:  # pragma: no cover - git absent
+        return False
+
+
 def render_reference(measurements: dict, regions: dict, states: list) -> str:
     """Serialises the reference so a visual change is READ IN A PULL REQUEST.
 
@@ -764,7 +790,11 @@ async def check(accept: bool = False) -> int:
     findings = compare(stored["measurements"], measurements, excused)
     print(f"{len(states)} states x {len(regions)} regions, "
           f"{len(states) * len(regions)} measurements in {seconds:.1f}s")
-    print(f"reference taken at {stored.get('baseCommit', 'unknown')[:8]}")
+    taken_at = stored.get("baseCommit", "unknown")
+    stale = taken_at != "unknown" and not reachable(taken_at)
+    print(f"reference taken at {taken_at[:8]}"
+          + ("  — NOT an ancestor of HEAD: a squash merge replaced that commit, "
+             "so re-record it" if stale else ""))
     if not findings:
         print("no divergence")
         return 0

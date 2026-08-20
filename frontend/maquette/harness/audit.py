@@ -5,6 +5,7 @@ The stance is to try to make the prototype FAIL, not to confirm it.
 """
 import asyncio
 import json
+import pathlib
 
 from playwright.async_api import async_playwright
 
@@ -306,7 +307,14 @@ async def main():
     if missing:
         print(f"⚠ {missing} rule(s) declared but never executed: "
               f"a mute audit is not a green audit.")
-    json.dump({k:v for k,v in violations.items()}, open("violations.json","w"), ensure_ascii=False, indent=1)
+    # Beside THIS FILE, never in the current directory. Written as
+    # `open("violations.json")` it landed wherever the caller happened to
+    # stand — and `run.sh` stands at the repository root, so a second copy
+    # appeared there and was committed by a `git add -A`. A run artifact with
+    # a floating path is an artifact that ends up in the history.
+    report = pathlib.Path(__file__).resolve().parent / "violations.json"
+    report.write_text(json.dumps({k: v for k, v in violations.items()},
+                                 ensure_ascii=False, indent=1), encoding="utf-8")
     await b.close()
     # A script that only prints can never fail, and a script that cannot fail
     # proves nothing: the verdict has to reach the exit code.

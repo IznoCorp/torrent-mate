@@ -281,8 +281,15 @@ git ls-files --error-unmatch frontend/maquette/oracle-reference.json >/dev/null 
 python3 -c "
 import json; print(json.load(open('frontend/maquette/oracle-reference.json'))['baseCommit'])"
 ```
-Expected: `tracked`, then a full 40-character SHA present in this branch's history. « Known-good »
-with no SHA means nothing.
+Expected: `tracked`, then a full 40-character SHA that is an ANCESTOR OF HEAD. « Known-good » with
+no SHA means nothing.
+
+> **A squash merge breaks this, and the fix is a command rather than a warning to live with.** The
+> reference is recorded on a feature branch and names the branch commit it measured; squashing
+> replaces every one of those with a single new commit, so on a fresh clone the SHA is not there
+> at all. Nothing is wrong with the measurement — the pointer went dangling, silently. `--check`
+> says so itself now (« NOT an ancestor of HEAD »), and the rule is: **re-record on the merge
+> commit, right after merging.**
 
 **ACC-06 — the recovered recipe is intact, the allowlist empty**
 

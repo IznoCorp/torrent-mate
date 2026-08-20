@@ -34,17 +34,42 @@ code until the operator's judgement (step 2 above). Non-negotiable.
 
 ---
 
-## Current wave — L01, the recorded oracle
+## Where the frontend work stands — and what comes next
+
+**The target and the ORDER live in `docs/reference/frontend-architecture.md` (BINDING). This
+section is the only place that says where the work STANDS.** Duplicating state is what produced a
+stale table read as current for three days.
 
 | | |
 | --- | --- |
-| **Lot** | **L01 — the recorded oracle**, Phase 0 of `docs/reference/frontend-architecture.md`. `runs alone` |
-| **Branch** | `feat/maquette-l01` |
-| **Version** | 0.98.9 → 0.98.10 |
-| **PR merge** | manual |
-| **PR** | _(created after the last phase)_ |
-| **Design** | `docs/features/maquette-l01/DESIGN.md` |
-| **Phases** | 5, all done — `docs/features/maquette-l01/plan/INDEX.md` |
+| **Last landed** | **L01 — the recorded oracle**, Phase 0. PR **#467**, merged 2026-08-20, version 0.98.10 |
+| **Next** | **L02 — test anchors move to `data-*`**, Phase 0. Its dependency (L01) is satisfied |
+| **Design + plan of L01** | `docs/features/maquette-l01/DESIGN.md`, `…/plan/INDEX.md` — 17 ACC criteria, each executed |
+
+### What the next session needs to know before touching anything
+
+1. **The oracle exists, and it runs on THIS machine.** `make maquette-oracle`, or
+   `frontend/maquette/harness/run.sh --oracle`. A measurement is bound to the machine that took
+   it — on a Linux runner the same unmodified tree reads 1477 where this one records 1474.1 — so
+   the reference carries its platform and `--check` REFUSES to compare across a mismatch. It is
+   never run on `--contracts`, which is the per-pull-request tier.
+2. **After a squash merge, RE-RECORD the reference.** The reference names the commit it measured;
+   squashing replaces that commit, so the pointer goes dangling on a fresh clone. `--check` now
+   says so on its own — « NOT an ancestor of HEAD » — but the fix is a command, not a warning to
+   live with.
+3. **L02's subject is measured and waiting**: 684 selection calls in `harness/*.py`, of which
+   **280 are anchored on a CSS class** (D4). Half of D4's contract is already held by
+   `scripts/check-markup-contracts.py`, which refuses a `data-*` VALUE no reader understands —
+   L02 must EXTEND that guard rather than add a second one beside it. The other half, what a rule
+   may anchor on, is L02's own.
+4. **B-036 is open and belongs to a wave, not to a tidy-up**: `system-panne` and
+   `acq-follows-groupe` are still French state ids, and **no arm of `check-no-french.py` reads
+   the state table**. Fixing the two names without adding the arm repeats the reason they
+   survived.
+5. **The L06 spec is parked, not lost** — `docs/superpowers/roadmap/maquette-l06/specs/`. Its
+   header names the three points on which the architecture file supersedes it, including a scale
+   granularity the operator arbitrated on figures presented before #466 existed. **Re-arbitrate;
+   do not silently pick one.**
 
 **What it delivers.** `frontend/maquette/oracle.py`, three modes (`--record`, `--check`,
 `--accept`) plus `--contracts` and `--coverage`, measuring **82 named states × 33 regions =
@@ -78,16 +103,11 @@ its plan INDEX:
 **What it does NOT do.** It changes no rendering — that is what makes its own reference
 trustworthy — and it does not re-anchor the 280 class-anchored rule selections, which is L02.
 
-**Why this lot and not the visual language.** SP5b — the scale — is lot **L06**, and it
+**Why this lot came before the visual language.** SP5b — the scale — is lot **L06**, and it
 `depends on L01`. Phase 0 says « Nothing else may start »: every lot after it changes mechanism
-while promising the rendering is unchanged, and that promise is unprovable today because
-`fidelity.py` has no target left and `parity-probe.py` went with the translation layer in #465.
-
-A design for L06 was written on 2026-08-20 before `frontend-architecture.md` landed, and is
-**parked, not lost**: `docs/superpowers/roadmap/maquette-l06/specs/`. Its header names the three
-points on which the architecture file supersedes it — the ordering, its reinvention of L01, and a
-scale granularity the operator chose on figures presented without knowledge of #466. Re-arbitrate
-before using it.
+while promising the rendering is unchanged, and until L01 that promise could not be proved at all
+— `fidelity.py` had no target left and `parity-probe.py` went with the translation layer in #465.
+**It can be proved now**, which is what unblocks L02 and everything after it.
 
 ---
 
