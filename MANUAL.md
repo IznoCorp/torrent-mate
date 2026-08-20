@@ -275,7 +275,7 @@ make test     # suite complète (test-unit / test-integration / test-cov aussi d
 make check    # lint + test-cov (cible du phase-gate ; test-cov désélectionne ~161 tests vs `make test`)
 ```
 
-Autres : `make gate` (= check), `format`, `install-dev`, `clean`, `version`, `cli-coverage-check`,
+Autres : `format`, `install-dev`, `clean`, `version`, `cli-coverage-check`,
 `update-ytdlp`, `perf-rebaseline`, `openapi`.
 
 > Détail complet de chaque commande : `docs/reference/commands.md`.

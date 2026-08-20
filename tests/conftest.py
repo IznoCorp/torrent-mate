@@ -5,6 +5,35 @@ so that stdlib-bridged `caplog` assertions see the expected records irrespective
 subset of tests is collected (e.g. ``pytest tests/sorter/`` in isolation).
 """
 
+# ── The terminal must not decide whether the suite passes ────────────────────
+#
+# Rich honours `FORCE_COLOR` and `CLICOLOR_FORCE`, and it honours them even when
+# it writes into a CAPTURED BUFFER rather than a terminal. A developer whose
+# shell exports `FORCE_COLOR=3` — ordinary in modern terminal tooling — therefore
+# gets `Disks \x1b[1m(\x1b[0m\x1b[1m3\x1b[0m configured…` where CI gets a plain
+# `Disks (3 configured)`, and 105 CLI assertions fail on a machine where nothing
+# is wrong with the code.
+#
+# CI never saw it because CI's environment happens to be plain. That is the
+# defect worth naming: a gate that is green by accident of the environment is
+# not a gate, and the suite must render the same for everyone who runs it.
+#
+# This runs at IMPORT time, before anything builds a Rich console —
+# `personalscraper/cli_state.py` creates one at module scope, and Rich reads the
+# environment once, at construction.
+import os as _os
+
+for _forced in ("FORCE_COLOR", "CLICOLOR_FORCE"):
+    _os.environ.pop(_forced, None)
+_os.environ["NO_COLOR"] = "1"
+
+# E402 for the whole file, declared once with its reason rather than eleven
+# times: the block above MUST precede every import, because Rich reads the
+# environment when a Console is constructed and `personalscraper.cli_state`
+# constructs one at module scope. Moving these imports up would put the
+# console back at the mercy of the developer's terminal.
+# ruff: noqa: E402
+
 import inspect
 import os
 from collections.abc import Iterator

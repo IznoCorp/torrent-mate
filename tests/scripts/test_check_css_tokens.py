@@ -109,15 +109,31 @@ class TestWhatIsRefused:
         assert bare == ["--tm-h"]
 
 
+def application_css() -> str:
+    """Returns BLOCK 2 of the maquette — the application's own stylesheet."""
+    whole = guard.FRAGMENT.read_text(encoding="utf-8")
+    start = whole.find("<style")
+    end = whole.find("</style>", start)
+    marker = whole.find(guard.BLOCK_2, start)
+    return whole[whole.rfind("/*", start, marker) : end]
+
+
 class TestTheSheetItself:
     """The guard is only real if its scope is."""
 
-    def test_the_shipped_sheet_resolves_everything(self) -> None:
+    def test_the_application_block_resolves_everything(self) -> None:
         """Green on this repository; red here means a real unresolved token."""
-        assert verdict(guard.SHEET.read_text(encoding="utf-8")) == ([], [], [])
+        assert verdict(application_css()) == ([], [], [])
 
-    def test_the_sheet_actually_uses_tokens(self) -> None:
+    def test_the_block_actually_uses_tokens(self) -> None:
         """A scope that empties would make « no violation » mean nothing."""
-        css = guard.COMMENT.sub(" ", guard.SHEET.read_text(encoding="utf-8"))
+        css = guard.COMMENT.sub(" ", application_css())
 
         assert len(guard.USE.findall(css)) > 100
+
+    def test_the_split_is_still_there_to_read(self) -> None:
+        """The whole rule rests on BLOCK 2 being findable; pin that."""
+        whole = guard.FRAGMENT.read_text(encoding="utf-8")
+
+        assert guard.BLOCK_2 in whole
+        assert whole.find("<style") < whole.find(guard.BLOCK_2) < whole.find("</style>")

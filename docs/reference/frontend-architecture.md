@@ -448,9 +448,11 @@ never to a shared module. `data.ts` is not slimmed, it stops existing.
 **What this lot does NOT touch.** Bundle splitting belongs to L12: it changes loading behaviour,
 and nothing here may change anything observable.
 
-**And one known defect deliberately left alone**: the harness is **52 `.py` files flat, with no
-subdirectory**, so nothing says which rule covers which surface without reading it. It is the
-same disease one level up. Moving them means changing 52 paths cited across documents and briefs
+**And one known defect deliberately left alone**: the harness is **51 `.py` files flat, with no
+subdirectory** (50 rules plus `common.py`, the shared plumbing), so nothing says which rule covers
+which surface without reading it. It is the same disease one level up.
+<sub>`ls frontend/maquette/harness/*.py | wc -l`</sub>
+Moving them means changing as many paths cited across documents and briefs
 — a real cost for a gain in comfort. It is recorded here so it is known, and it is not scheduled;
 it waits for a stronger reason than tidiness.
 

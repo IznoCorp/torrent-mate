@@ -60,7 +60,7 @@ async def main():
         errors: list[str] = []
         page.on("pageerror", lambda error: errors.append(str(error)))
 
-        await page.evaluate("()=>window.__go('lib-liste')")
+        await page.evaluate("()=>window.__go('lib-list')")
         await page.wait_for_timeout(700)
 
         # THE WHOLE SET HAS TO BE ON SCREEN before a reversal can be read off

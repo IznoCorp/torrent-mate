@@ -185,19 +185,28 @@
     }
   }
 
-  /* BLOCK 2 — APPLICATION CSS. THIS IS WHAT GETS TRANSPLANTED.
-     Every rule below is destined for `styles/ps/app-surface.css`, scoped
-     under
-     `.tm`, by MECHANICAL extraction — never by retyping. */
+  /* BLOCK 2 — APPLICATION CSS. THIS IS THE APP'S STYLESHEET.
+     Not a source something transplants: when the maquette replaces the app
+     (product-intent §15), this block ships as it stands. It used to be lifted
+     into `styles/ps/app-surface.css` and rescoped under `.tm` so the two
+     stylesheets could coexist during a surface-by-surface migration — a model
+     the operator reversed on 2026-08-13, and whose tooling was retired on
+     2026-08-20. You do not translate a CSS that BECOMES the CSS.
+
+     BLOCK 1 above is the prototype's harness — the phone frame, the demo bars,
+     the design notes — and it must NOT ship. That boundary is the one thing
+     the split was ever about. */
 
   /* THE VOCABULARY LIVES HERE, and it did not always. Every token below sat
      in BLOCK 1 — the block headed NEVER EXTRACTED INTO THE APP — while
-     BLOCK 2 spent 444 `var()` calls on them. The extracted stylesheet
-     therefore used thirty-five tokens and declared one, and both guards
-     said nothing: the drift guard is textual, and the parity probe keeps
-     BLOCK 1 in the document for both of its passes, so the tokens were in
-     the room exactly when it looked. `scripts/check-css-tokens.py` is the
-     hold that reads what the SHIPPED sheet can resolve on its own.
+     BLOCK 2 spent 458 `var()` calls on them. The extracted stylesheet
+     therefore used thirty-five tokens and declared one, and both guards of the
+     day said nothing: the drift guard was textual, and the parity probe kept
+     BLOCK 1 in the document for both of its passes, so the tokens were in the
+     room exactly when it looked. Both are gone with the extraction they
+     served; `scripts/check-css-tokens.py` is the hold that survives, and it
+     reads what BLOCK 2 can resolve ON ITS OWN — because BLOCK 1 stops shipping
+     the day this becomes the app.
 
      The `login:palette` markers travel with it: the login gate is built by
      text search over these markers (`serve.py`), not by block, and

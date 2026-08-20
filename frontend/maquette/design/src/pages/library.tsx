@@ -349,7 +349,7 @@ function LibraryList(): ReactElement {
   });
 
   let items: ReactElement;
-  if (state.phase === "chargement") {
+  if (state.phase === "loading") {
     items = (
       <div id="libitems" className={grid ? "grid" : "sec"}>
         {Array.from({ length: grid ? 9 : 5 }, (_, index) => (
@@ -357,7 +357,7 @@ function LibraryList(): ReactElement {
         ))}
       </div>
     );
-  } else if (state.phase === "erreur") {
+  } else if (state.phase === "error") {
     items = (
       <div
         id="libitems"

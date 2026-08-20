@@ -310,7 +310,7 @@ async def main():
         await pg.wait_for_timeout(250)
 
         # ─── Hold (b): R71 journey through the bridge ──────────────────
-        await pg.evaluate("()=>window.__go('acq-ajout-resultats')")
+        await pg.evaluate("()=>window.__go('acq-add-results')")
         await pg.wait_for_timeout(400)
 
         # The add screen left `#screen` for a real route (`/add`, rendered

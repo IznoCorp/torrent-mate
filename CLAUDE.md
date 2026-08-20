@@ -68,6 +68,18 @@ implementation directives change IN THE SAME MOVE. What loses its subject is rem
 2. A surface is **drawn before it is coded**, with named states and a rule that bites.
 3. The **harness is the proof**: a change lands with its rule, and the rule is mutation-tested —
    break the behaviour on purpose, confirm the rule falls and names the right defect, restore.
+4. **The rule suite runs on a schedule, not on a hunch** — `frontend/maquette/harness/run.sh`:
+   - `--contracts` (5 rules, minutes) runs **in CI on every PR touching the maquette**. These
+     are the rules that fall when a NAME moves without all of its ends. A rule that reads
+     the operator's live databases cannot be among them — `arrivals.py` was, and failed on
+     the runner for want of `library.db`, which says nothing about the change under test.
+   - no flag (50 rules, 20-25 min) is the **gate before a wave is merged**, and it is not
+     optional. It ran nowhere automatically until 2026-08-20, and on that day a rename that
+     looked contained broke SIX contracts — four of them visible to nothing else, including a
+     dead pipeline stop button, while `lint`, `test` and `check` were all green.
+
+   The script builds and re-copies the prototype first, because the harness reads a MANUAL copy
+   at `/tmp/tm-refonte/wrapped.html` and a stale one measures the previous build in silence.
 
 **What the maquette must BECOME technically — and in what order — is
 `docs/reference/frontend-architecture.md`, and it is BINDING.** It carries the settled
@@ -320,8 +332,17 @@ enforced by `scripts/check-no-french.py` (fourteen arms, in `make check` and in 
   interface half-works in a way no single file reveals.
 - **What is NOT French-in-the-code**, and must stay as it is: the French a harness hold
   ASSERTS (that is the app's rendered output — translating it would silently stop measuring
-  anything), data VALUES, route paths and addresses, i18n interpolation placeholders, form
-  field names, and the config keys the settings dictionaries are keyed by. Each such literal
+  anything), i18n interpolation placeholders, form field names, and the config keys the
+  settings dictionaries are keyed by. **« data VALUES » is not the escape hatch it was read
+  as**: a NAMED STATE id is a name someone chose (`window.__go("acq-now-idle")`), and 51 of
+  the maquette's 82 were French until 2026-08-20 because « it is a value » was accepted as
+  an answer. A value is a datum the app STORES or DISPLAYS — a title, a folder, a status
+  string from the backend. If a human typed it to designate something, it is a name. **Route paths are NOT on this list any more**
+  — #456 struck them off on the operator's ruling (« une route et un paramètre sont des NOMS,
+  pas des données ») and renamed the three French addresses, answering the old ones with
+  redirects. This sentence kept exempting them for four days afterwards, which is why
+  `/deconnexion` on the design host is still French: nothing reads a route the rule says is
+  not its business. Each such literal
   carries a `# french-ok: <reason>` / `// french-ok: <reason>` pragma; a pragma with no reason
   is itself a violation. The frozen CSS-class exceptions live in
   `frontend/maquette/regions.json`'s `$vocabulary`, each with the reason it was kept.

@@ -20,8 +20,8 @@ row as a divergence. So the legacy side can also be RECORDED: drive the states
 while the fragment still owns the page, save what `#view` actually held, then
 flip ownership and compare the component against the recording.
 
-    fidelity.py --record /tmp/lib.json lib-liste lib-grille …   (before)
-    fidelity.py --against /tmp/lib.json lib-liste lib-grille …  (after)
+    fidelity.py --record /tmp/lib.json lib-list lib-grid …   (before)
+    fidelity.py --against /tmp/lib.json lib-list lib-grid …  (after)
 
 The recording is the same normalised text the live comparison uses, so the two
 paths differ only in where the legacy side comes from.

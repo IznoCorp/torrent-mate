@@ -99,8 +99,8 @@ async def main():
         # 1. Pull to refresh — on every scrolling surface, not the convenient
         #    one. The indicator has to ARM and then show its spinner; a pull
         #    that travels a few pixels and stops has no loader to show.
-        surfaces = ["acq-encours-repos", "acq-follows-liste", "acq-discover",
-                    "lib-grille", "lib-liste", "arr-repos", "system"]
+        surfaces = ["acq-now-idle", "acq-follows-list", "acq-discover",
+                    "lib-grid", "lib-list", "arr-idle", "system"]
         without_loading = []
         for state_ in surfaces:
             await pg.evaluate("(s)=>window.__go(s)", state_)
@@ -125,7 +125,7 @@ async def main():
         #    horizontal component of a vertical scroll, every aborted row
         #    swipe. Its absence is now the contract — a gesture that triggers
         #    what nobody asked for costs more than the taps it saves.
-        for state_, expected in (("acq-encours-repos", "En cours"), ("lib-grille", "Médias")):
+        for state_, expected in (("acq-now-idle", "En cours"), ("lib-grid", "Médias")):
             await pg.evaluate("(s)=>window.__go(s)", state_)
             await pg.wait_for_timeout(250)
             r = await rect("#port")
@@ -139,7 +139,7 @@ async def main():
 
         # 3. A vertical drag further down the surface must still SCROLL. The
         #    cure for one gesture must not swallow the browser's own.
-        await pg.evaluate("()=>window.__go('lib-grille')")
+        await pg.evaluate("()=>window.__go('lib-grid')")
         await pg.wait_for_timeout(250)
         r = await rect("#port")
         await drag(cdp, r["x"] + r["width"] / 2, r["y"] + r["height"] - 120, 10, 0, -22)
@@ -149,7 +149,7 @@ async def main():
 
         # 4. The gestures that claim their axis keep the pointer path, and the
         #    claim is what makes them survive. Measured, not assumed.
-        await pg.evaluate("()=>window.__go('acq-follows-liste')")
+        await pg.evaluate("()=>window.__go('acq-follows-list')")
         await pg.wait_for_timeout(300)
         r = await rect("#view .swipe")
         await drag(cdp, r["x"] + r["width"] / 2, r["y"] + r["height"] / 2, 12, -20, 0)
@@ -188,10 +188,10 @@ async def main():
             await cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
 
         press_surfaces = [
-            ("follows gallery", "acq-follows-grille", ".tile"),
-            ("library gallery", "lib-grille", ".tile"),
-            ("a card's poster", "acq-follows-liste", "#view .card .poster"),
-            ("a card's body", "acq-follows-liste", "#view .card .cbody"),
+            ("follows gallery", "acq-follows-grid", ".tile"),
+            ("library gallery", "lib-grid", ".tile"),
+            ("a card's poster", "acq-follows-list", "#view .card .poster"),
+            ("a card's body", "acq-follows-list", "#view .card .cbody"),
             ("deck card", "acq-discover-deck", ".deck .dcard[data-depth='0']"),
         ]
         without_panel, with_selection, fired = [], [], []
@@ -232,10 +232,10 @@ async def main():
         # declaration itself. Exactly like the `touch-action` axis claim.
         # Each surface is checked in a state that DRAWS it: the deck state has
         # no list poster, and a rule that skips what is absent proves nothing.
-        for state_, selectors in (("acq-follows-liste", [".poster"]),
-                                 ("lib-grille", [".tile"]),
+        for state_, selectors in (("acq-follows-list", [".poster"]),
+                                 ("lib-grid", [".tile"]),
                                  ("acq-discover-deck", [".dcard"]),
-                                 ("feuille-suivi-complet", [".sheetposter"])):
+                                 ("followsheet-complete", [".sheetposter"])):
             await pg.evaluate("(s)=>window.__go(s)", state_)
             await pg.wait_for_timeout(320)
             refusal = await pg.evaluate(PRESS_GUARD, selectors)
@@ -286,7 +286,7 @@ async def main():
         # the body opens the panel on a plain tap, so `armPress` refuses to arm
         # a timer that would open it twice. A rule asserting a press there would
         # be asserting a behaviour the design does not want.
-        await pg.evaluate("()=>window.__go('acq-identifier')")
+        await pg.evaluate("()=>window.__go('acq-identify')")
         await pg.wait_for_timeout(450)
         # `acq-identifier` opens the add screen — a real route now
         # (`/add`, rendered inside `#coquille`), not `#screen`: the card

@@ -185,7 +185,7 @@ async def main():
         # is Chrome's judgement, and only a real phone settles it.
         fallback = await pg.evaluate(
             """async()=>{const c=await caches.open("tm-design-offline");
-                 const r=await c.match("/hors-ligne.html");
+                 const r=await c.match("/offline.html");
                  return r ? (r.ok ? await r.text() : `status ${r.status}`)
                           : "absent from the cache";}"""
         )

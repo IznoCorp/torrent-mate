@@ -90,7 +90,7 @@ def main():
                 time.sleep(0.1)
 
         response, _ = request_(
-            "/connexion", method="POST",
+            "/login", method="POST",
             body=f"username=izno&password={PASSWORD}")
         cookie = (response.getheader("Set-Cookie") or "").split(";")[0]
         journal.check("the session opens", response.status == 303 and cookie,

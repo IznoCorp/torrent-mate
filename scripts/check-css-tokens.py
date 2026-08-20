@@ -1,38 +1,26 @@
 #!/usr/bin/env python3
-"""Refuses a `var()` the shipped stylesheet cannot resolve.
+"""Refuses a `var()` the maquette's application CSS cannot resolve.
 
-WHAT THIS CLOSES, AND WHY NOTHING ELSE COULD. Two guards already watch the
-extracted stylesheet and neither can see this one:
+WHAT THIS CLOSES. `frontend/maquette/design/refonte.html` is split in two:
+BLOCK 1 is the prototype harness — the phone frame, the demo bars, the design
+notes — and BLOCK 2 is the application's own CSS, the stylesheet that BECOMES
+the app's when the maquette replaces it (product-intent §15).
 
-  * `extract-maquette-css.py --check` compares the generated file against what
-    the extractor emits. An extractor that emits a `var()` nobody defines
-    agrees with itself perfectly.
-  * `parity-probe.py` renders the same DOM twice, once dressed by the maquette
-    and once by the extraction, and compares computed styles. It keeps BLOCK 1
-    in the document for BOTH passes — its own comment says so, and it is right
-    to: BLOCK 1 is the phone frame the prototype lives inside, and removing it
-    would move every region for a reason that has nothing to do with the
-    extraction. BLOCK 1 WAS where the tokens were declared, so during the probe
-    they were in the room, and the probe reported no divergence over a sheet
-    that would have resolved them to nothing anywhere else.
+Every token BLOCK 2 uses must be declared in BLOCK 2. A `var()` resolved only
+by a declaration sitting up in BLOCK 1 works today, inside the prototype, and
+resolves to nothing the day BLOCK 1 stops shipping — which is the whole point
+of the split. That is exactly the state this rule was written for: thirty-five
+tokens used and ONE declared, across 458 `var()` calls.
 
-That is why this rule exists, and the past tense is deliberate: SP5a moved the
-declarations into BLOCK 2, so the sheet now carries them and the probe does
-exercise them. What has NOT changed is that the probe cannot be the guard —
-put one declaration back in BLOCK 1 tomorrow and it would go green again.
+WHAT COUNTS AS RESOLVED. The same block declares the custom property, OR it is
+a RUNTIME token: `--tm-*` names are measured and published by script
+(`design/src/engine/legacy.js`), never declared in CSS. Those must carry a
+fallback at every use — a runtime token with no fallback resolves to nothing
+until the script that sets it has run, which is a flash this rule also prevents.
 
-The state this closed: the sheet that IS the redesign used thirty-five tokens
-and declared ONE, under two green gates. That is the shape of B-014 — named,
-and defined by nothing — and it was the material reason the redesign could not
-simply be switched on.
-
-WHAT COUNTS AS RESOLVED. A `var()` resolves when the same sheet declares the
-custom property, OR when it is a RUNTIME token: `--tm-*` names are measured and
-published by script (`frontend/src/components/layout/bottom-bar-metrics.ts`,
-`design/src/engine/legacy.js`), never declared in CSS. Those are required to
-carry a fallback at every use — a runtime token with no fallback resolves to
-nothing before the script that sets it has run, which is the flash this rule
-also exists to prevent.
+A token declared ONLY under a conditional scope (a theme attribute, a media
+condition) and used unconditionally is refused too: it renders correctly in the
+one state someone happened to look at, and to nothing everywhere else.
 
 Usage:
     python3 scripts/check-css-tokens.py          # exit 1 on any unresolved var()
@@ -46,10 +34,16 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# The generated stylesheet — the one the app would import the day the redesign
-# ships. Nothing imports it yet, and that is the operator's decision; this rule
-# makes sure that decision is not the moment the defects are discovered.
-SHEET = ROOT / "frontend" / "src" / "styles" / "ps" / "app-surface.css"
+# The maquette's own application CSS — BLOCK 2 of the prototype. It used to be
+# the GENERATED copy under `frontend/src/styles/ps/`; that copy existed to carry
+# the design into the shipped app surface by surface, a model the operator
+# reversed. The maquette replaces the app, so the source is the subject.
+FRAGMENT = ROOT / "frontend" / "maquette" / "design" / "refonte.html"
+
+# The comment that opens the application half. The extractor used the same
+# boundary, and reusing it is the point: a rule that disagreed with the file
+# about where the application CSS begins would be measuring a third thing.
+BLOCK_2 = "BLOCK 2"
 
 # Tokens published at RUNTIME by script rather than declared in CSS. The prefix
 # is the contract, and it is narrow on purpose: a name that merely happens to be
@@ -145,12 +139,21 @@ def main() -> int:
     Returns:
         1 when anything was found, 0 otherwise.
     """
-    if not SHEET.exists():
-        print(f"check-css-tokens: {SHEET} not found — the scope is empty, so a "
-              "« no violation » here would mean nothing", file=sys.stderr)
+    if not FRAGMENT.exists():
+        print(f"check-css-tokens: {FRAGMENT} not found — the scope is empty, so "
+              "a « no violation » here would mean nothing", file=sys.stderr)
         return 1
 
-    css = SHEET.read_text(encoding="utf-8")
+    whole = FRAGMENT.read_text(encoding="utf-8")
+    start = whole.find("<style")
+    end = whole.find("</style>", start)
+    marker = whole.find(BLOCK_2, start) if start >= 0 else -1
+    if start < 0 or end < 0 or marker < 0 or marker > end:
+        print("check-css-tokens: no <style> carrying BLOCK 2 in the maquette — "
+              "the harness/application split is gone and this rule cannot tell "
+              "them apart", file=sys.stderr)
+        return 1
+    css = whole[whole.rfind("/*", start, marker):end]
     stripped = COMMENT.sub(" ", css)
     used = {name for name, _ in USE.findall(stripped)}
     declared = set(DECLARATION.findall(stripped))
@@ -163,10 +166,9 @@ def main() -> int:
         return 1
 
     for name in undefined:
-        print(f"  {name} is used and declared nowhere in {SHEET.name} — it "
-              "resolves to nothing the day this sheet is imported. Declare it "
-              "in the maquette's BLOCK 2 so the extraction carries it, or drop "
-              "the use.", file=sys.stderr)
+        print(f"  {name} is used and declared nowhere in {FRAGMENT.name} BLOCK 2 — it "
+              "resolves to nothing the day BLOCK 1 stops shipping. Declare it "
+              "in BLOCK 2, beside the rules that use it, or drop the use.", file=sys.stderr)
     for name in only_conditional:
         print(f"  {name} is declared ONLY under a conditional scope (a theme "
               "attribute, a media condition) and used unconditionally — on "
@@ -180,10 +182,10 @@ def main() -> int:
     if undefined or only_conditional or bare_runtime:
         print(f"\ncheck-css-tokens: "
               f"{len(undefined) + len(only_conditional) + len(bare_runtime)} "
-              f"unresolved token(s) in {SHEET.name}.", file=sys.stderr)
+              f"unresolved token(s) in {FRAGMENT.name} BLOCK 2.", file=sys.stderr)
         return 1
 
-    print(f"check-css-tokens: {SHEET.name} — {len(used)} token(s) used, "
+    print(f"check-css-tokens: {FRAGMENT.name} BLOCK 2 — {len(used)} token(s) used, "
           f"{len(declared)} declared, no unresolved `var()`.")
     return 0
 
