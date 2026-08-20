@@ -101,12 +101,12 @@ const STATES = [
       "acq-now-loading",
       "Acquisition · En cours — chargement",
       () =>
-        applyState({ page: "acq", acqTab: "now", phase: "chargement" }),
+        applyState({ page: "acq", acqTab: "now", phase: "loading" }),
     ],
     [
       "acq-now-error",
       "Acquisition · En cours — erreur",
-      () => applyState({ page: "acq", acqTab: "now", phase: "erreur" }),
+      () => applyState({ page: "acq", acqTab: "now", phase: "error" }),
     ],
     [
       "acq-follows-list",
@@ -175,7 +175,7 @@ const STATES = [
     [
       "acq-follows-error",
       "Acquisition · Suivis — erreur",
-      () => applyState({ page: "acq", acqTab: "follows", phase: "erreur" }),
+      () => applyState({ page: "acq", acqTab: "follows", phase: "error" }),
     ],
     [
       "acq-discover",
@@ -234,7 +234,7 @@ const STATES = [
       "acq-discover-loading",
       "Acquisition · Découvrir — chargement",
       () =>
-        applyState({ page: "acq", acqTab: "discover", phase: "chargement" }),
+        applyState({ page: "acq", acqTab: "discover", phase: "loading" }),
     ],
     [
       "acq-add-empty",
@@ -272,11 +272,11 @@ const STATES = [
       "acq-identify",
       "Recherche en mode IDENTIFIER (depuis une résolution)",
       () => {
-        applyState({ page: "arr", phase: "ready", pipe: "repos" });
+        applyState({ page: "arr", phase: "ready", pipe: "idle" });
         store.write({
           resolveTarget: "Backrooms.2026.MULTi.2160p.WEB-DL",
         });
-        window.__screens.add("Backrooms 2026", "identifier");
+        window.__screens.add("Backrooms 2026", "identify");
       },
     ],
     [
@@ -395,12 +395,12 @@ const STATES = [
     [
       "lib-loading",
       "Médiathèque — chargement",
-      () => applyState({ page: "lib", libLens: "cat", phase: "chargement" }),
+      () => applyState({ page: "lib", libLens: "cat", phase: "loading" }),
     ],
     [
       "lib-error",
       "Médiathèque — erreur",
-      () => applyState({ page: "lib", libLens: "cat", phase: "erreur" }),
+      () => applyState({ page: "lib", libLens: "cat", phase: "error" }),
     ],
     /* The OTHER error, and it is a different surface: the page loaded, and the
        NEXT page of the list did not. It has always existed — the infinite
@@ -435,7 +435,7 @@ const STATES = [
           page: "arr",
           scen: "real",
           phase: "ready",
-          pipe: "repos",
+          pipe: "idle",
         }),
     ],
     [
@@ -446,14 +446,14 @@ const STATES = [
           page: "arr",
           scen: "real",
           phase: "ready",
-          pipe: "encours",
+          pipe: "running",
         }),
     ],
     [
       "arr-queued",
       "Arrivées — un passage demandé pendant un autre",
       () =>
-        applyState({ page: "arr", scen: "real", phase: "ready", pipe: "file" }),
+        applyState({ page: "arr", scen: "real", phase: "ready", pipe: "queued" }),
     ],
     [
       "arr-loaded",
@@ -463,24 +463,24 @@ const STATES = [
           page: "arr",
           scen: "loaded",
           phase: "ready",
-          pipe: "repos",
+          pipe: "idle",
         }),
     ],
     [
       "arr-loading",
       "Arrivées — chargement",
-      () => applyState({ page: "arr", phase: "chargement", pipe: "repos" }),
+      () => applyState({ page: "arr", phase: "loading", pipe: "idle" }),
     ],
     [
       "arr-error",
       "Arrivées — erreur",
-      () => applyState({ page: "arr", phase: "erreur", pipe: "repos" }),
+      () => applyState({ page: "arr", phase: "error", pipe: "idle" }),
     ],
     [
       "arr-resolution",
       "Arrivées — résolution, aucun candidat",
       () => {
-        applyState({ page: "arr", phase: "ready", pipe: "repos" });
+        applyState({ page: "arr", phase: "ready", pipe: "idle" });
         window.__screens.resolution();
       },
     ],
@@ -492,7 +492,7 @@ const STATES = [
           page: "arr",
           scen: "loaded",
           phase: "ready",
-          pipe: "repos",
+          pipe: "idle",
         });
         window.__screens.resolution("Lucky");
       },
@@ -558,12 +558,12 @@ const STATES = [
     [
       "system-loading",
       "Système — chargement",
-      () => applyState({ page: "sys", phase: "chargement", fault: false }),
+      () => applyState({ page: "sys", phase: "loading", fault: false }),
     ],
     [
       "system-error",
       "Système — erreur",
-      () => applyState({ page: "sys", phase: "erreur", fault: false }),
+      () => applyState({ page: "sys", phase: "error", fault: false }),
     ],
     [
       "not-found",
@@ -596,7 +596,7 @@ const STATES = [
     [
       "maintenance-loading",
       "Maintenance — chargement",
-      () => applyState({ page: "maint", phase: "chargement" }),
+      () => applyState({ page: "maint", phase: "loading" }),
     ],
     [
       "settings",

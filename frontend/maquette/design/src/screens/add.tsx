@@ -13,10 +13,10 @@
 //
 // One search, TWO verbs. The same screen serves two intentions that nothing
 // must confuse:
-//   - "suivi" mode (from the FAB) — the intent is to WATCH a medium: the
+//   - "follow" mode (from the FAB) — the intent is to WATCH a medium: the
 //     button says "Suivre" / "Ajouter", and an already-owned medium goes
 //     through the replacement confirmation.
-//   - "identifier" mode (from a resolution) — the intent is to add NOTHING:
+//   - "identify" mode (from a resolution) — the intent is to add NOTHING:
 //     it is to TELL the pipeline which medium a stuck folder is, so it
 //     resumes its scrape. The button says "Associer", and an already-owned
 //     medium is normal — it is the expected case.
@@ -47,12 +47,12 @@ import {
   useReference,
 } from "../data";
 
-type Mode = "suivi" | "identifier";
+type Mode = "follow" | "identify";
 
 export function AddScreen() {
   const { q, mode: rawMode } = useSearch({ from: "/add" });
-  const mode: Mode = rawMode === "identifier" ? "identifier" : "suivi";
-  const identify = mode === "identifier";
+  const mode: Mode = rawMode === "identify" ? "identify" : "follow";
+  const identify = mode === "identify";
   const query = q ?? "";
   const hasQuery = query !== "";
 
@@ -97,7 +97,7 @@ export function AddScreen() {
       to: "/add",
       search: {
         q: value || undefined,
-        mode: identify ? "identifier" : undefined,
+        mode: identify ? "identify" : undefined,
       },
       replace: true,
     });
@@ -206,7 +206,7 @@ export function AddScreen() {
                   to: "/add",
                   search: {
                     q: event.target.value || undefined,
-                    mode: identify ? "identifier" : undefined,
+                    mode: identify ? "identify" : undefined,
                   },
                   replace: true,
                 })

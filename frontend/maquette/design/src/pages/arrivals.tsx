@@ -9,7 +9,7 @@
 // belongs — never the page it came from.
 //
 // THE FIRST MIGRATED PAGE THAT CARRIES A CONTROL WHICH MUTATES. The pilot's bar
-// emits `data-pipe="lancer"` / `"arreter"` and nothing else: the writing stays
+// emits `data-pipe="start"` / `"stop"` and nothing else: the writing stays
 // the document-level delegation's, exactly as it was, so this component never
 // touches the world. Its three states include the one DOIT-4 exists for — an
 // action asked during a run is QUEUED, visibly, never refused with « busy, try
@@ -66,7 +66,7 @@ function PipelineBar(): ReactElement {
   const { t } = useTranslation();
   const { PIPELINE } = useReference();
 
-  if (state.pipe === "encours" || state.pipe === "file") {
+  if (state.pipe === "running" || state.pipe === "queued") {
     const step = PIPELINE.steps[3];
     return (
       <section className="pipeline">
@@ -86,7 +86,7 @@ function PipelineBar(): ReactElement {
         {/* « Relancer ensuite » stays offered WHILE a run is going, and that is
             the point rather than an oversight: new downloads land during a
             pass, and asking for another one is a legitimate thing to want. */}
-        {state.pipe === "file" ? (
+        {state.pipe === "queued" ? (
           <>
             <div className="live">
               <span className="d"></span>
@@ -96,16 +96,16 @@ function PipelineBar(): ReactElement {
                 {t("screens.arrivals.queuedRest")}
               </span>
             </div>
-            <button className="cfoot" data-pipe="arreter">
+            <button className="cfoot" data-pipe="stop">
               {t("screens.arrivals.stopPipeline")}
             </button>
           </>
         ) : (
           <div className="pacts">
-            <button className="cfoot" data-pipe="lancer">
+            <button className="cfoot" data-pipe="start">
               {t("screens.arrivals.runAfterwards")}
             </button>
-            <button className="cfoot" data-pipe="arreter">
+            <button className="cfoot" data-pipe="stop">
               {t("screens.arrivals.stop")}
             </button>
           </div>
@@ -125,7 +125,7 @@ function PipelineBar(): ReactElement {
           })}
         </span>
       </div>
-      <button className="cfoot solid" data-pipe="lancer">
+      <button className="cfoot solid" data-pipe="start">
         {t("screens.arrivals.startPipeline")}
       </button>
     </section>
@@ -183,7 +183,7 @@ export function ArrivalsPage(): ReactElement | null {
   if (state.phase !== "ready") {
     // Each emits ONE root element, and this draws that element itself so no
     // wrapper appears where the legacy had none.
-    return state.phase === "erreur" ? (
+    return state.phase === "error" ? (
       <div
         className="surferr"
         dangerouslySetInnerHTML={{

@@ -88,7 +88,7 @@ def real_run(uid):
     return {"trigger": row["trigger"], "steps": steps}
 
 
-async def on_arrivals(pg, pipe="repos"):
+async def on_arrivals(pg, pipe="idle"):
     """Drives to Arrivées in one of the pipeline's three states."""
     # THROUGH THE STORE, never by mutating the engine's alias in place: this
     # page is drawn by the shell now, and a component reads the store. An
@@ -117,11 +117,11 @@ async def main():
                                     " decl: PIPELINE.last.declencheur,"
                                     " facts: PIPELINE.last.facts})")
 
-        view = await on_arrivals(pg, "repos")
+        view = await on_arrivals(pg, "idle")
 
         # ── 1. the pilot's bar ─────────────────────────────────────────────
         journal.check("at rest, a single command, and it is « lancer »",
-                      view["buttons"] == ["lancer"], str(view["buttons"]))
+                      view["buttons"] == ["start"], str(view["buttons"]))
         journal.check("at rest, the state is named", view["status"] == "Au repos",
                       view["status"])
 
@@ -129,34 +129,34 @@ async def main():
         # TAPPING, because a queue nobody can reach by a gesture is a branch no
         # gesture can enter — and driving `state.pipe` straight to it would
         # certify exactly that. The first version of this rule did.
-        await pg.tap('.pipeline [data-pipe="lancer"]')
+        await pg.tap('.pipeline [data-pipe="start"]')
         await pg.wait_for_timeout(350)
         running = await pg.evaluate(READ)
         journal.check("pressing « lancer » sets the pipeline running",
                       running["status"] == "En cours", running["status"])
         journal.check("while running, another pass can still be ASKED for",
-                      "lancer" in running["buttons"] and "arreter" in running["buttons"],
+                      "start" in running["buttons"] and "stop" in running["buttons"],
                       str(running["buttons"]))
         journal.check("while running, nothing claims a pass is already queued",
                       not running["queued"])
 
-        await pg.tap('.pipeline [data-pipe="lancer"]')
+        await pg.tap('.pipeline [data-pipe="start"]')
         await pg.wait_for_timeout(350)
         queued = await pg.evaluate(READ)
         journal.check("a pass asked for DURING another is queued, and says so",
                       queued["queued"], f"queued={queued['queued']} buttons={queued['buttons']}")
         journal.check("and it is not refused: the running pass carries on",
-                      queued["status"] == "En cours" and "arreter" in queued["buttons"],
+                      queued["status"] == "En cours" and "stop" in queued["buttons"],
                       f"{queued['status']} · {queued['buttons']}")
 
-        await pg.tap('.pipeline [data-pipe="arreter"]')
+        await pg.tap('.pipeline [data-pipe="stop"]')
         await pg.wait_for_timeout(350)
         stopped = await pg.evaluate(READ)
         journal.check("« arrêter » brings it back to rest", stopped["status"] == "Au repos",
                       stopped["status"])
 
         # ── 2. the nine steps, in the engine's order ───────────────────────
-        view = await on_arrivals(pg, "repos")
+        view = await on_arrivals(pg, "idle")
         keys = [e["key"] for e in view["steps"]]
         journal.check("the engine's nine steps are drawn, in its order",
                       keys == ENGINE_STEPS, str(keys))

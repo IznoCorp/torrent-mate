@@ -286,7 +286,7 @@ async def main():
             journal.check(
                 "a deep /ajout address opens the screen, cold, with the field filled",
                 add_cold["open"] and add_cold["field"] == "lucky"
-                and add_cold["key"] == "add:suivi",
+                and add_cold["key"] == "add:follow",
                 f"field={add_cold['field']!r} key={add_cold['key']}")
             journal.check(
                 "and the query shows results",

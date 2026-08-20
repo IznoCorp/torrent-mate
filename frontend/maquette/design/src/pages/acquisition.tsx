@@ -100,7 +100,7 @@ function NowTab(): ReactElement {
   if (state.phase !== "ready") {
     return (
       <div className="body">
-        {state.phase === "erreur" ? (
+        {state.phase === "error" ? (
           <div
             className="surferr"
             dangerouslySetInnerHTML={{
@@ -382,14 +382,14 @@ function FollowsTab(): ReactElement {
   // error surface — and React cannot inject markup without a host, so the host
   // IS that element rather than a wrapper around it.
   let content: ReactElement;
-  if (state.phase === "chargement") {
+  if (state.phase === "loading") {
     content = (
       <div
         className="sec"
         dangerouslySetInnerHTML={{ __html: skelCardsInner(5) }}
       />
     );
-  } else if (state.phase === "erreur") {
+  } else if (state.phase === "error") {
     content = (
       <div
         className="surferr"
@@ -719,12 +719,12 @@ function DiscoverTab(): ReactElement {
           <em>{t("screens.acquisition.gesturesNoteInner")}</em>
           {t("screens.acquisition.gesturesNoteAfter")}
         </div>
-        {state.phase === "chargement" ? (
+        {state.phase === "loading" ? (
           <div
             className="sec"
             dangerouslySetInnerHTML={{ __html: skelCardsInner(4) }}
           />
-        ) : state.phase === "erreur" ? (
+        ) : state.phase === "error" ? (
           <div
             className="surferr"
             dangerouslySetInnerHTML={{

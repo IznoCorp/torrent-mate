@@ -1,4 +1,4 @@
-.PHONY: help clean test test-unit test-integration test-cov test-impacte lint lint-logging check check-frontend format install-dev version update-ytdlp perf-rebaseline openapi fixture
+.PHONY: help clean test test-unit test-integration test-cov test-impacte lint lint-logging check check-frontend format install-dev version update-ytdlp perf-rebaseline openapi fixture harness harness-contracts
 
 THRESHOLD := $(shell python3 scripts/get_coverage_threshold.py)
 
@@ -130,7 +130,7 @@ perf-rebaseline:
 fixture:
 	@echo "Refreshing the maquette fixture from acquire.db..."
 	python3 scripts/refresh-maquette-fixture.py --apply
-	@echo "Rebuild the maquette before running the harness: cd frontend/maquette/design && npm run build"
+	@echo "Then: frontend/maquette/harness/run.sh (the script rebuilds and re-copies itself)"
 
 openapi:
 	@echo "Exporting OpenAPI schema..."
@@ -151,3 +151,11 @@ check-frontend:
 	cd frontend && npm run test -- --run
 	@echo "Running frontend build..."
 	cd frontend && npm run build
+
+harness:
+	@echo "Running the maquette rule suite (51 rules, 20-25 min) — the wave gate..."
+	frontend/maquette/harness/run.sh
+
+harness-contracts:
+	@echo "Running the contract subset (6 rules) — what CI runs on every maquette PR..."
+	frontend/maquette/harness/run.sh --contracts

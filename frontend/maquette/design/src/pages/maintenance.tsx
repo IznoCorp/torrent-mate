@@ -35,7 +35,7 @@ export function MaintenancePage(): ReactElement | null {
   } = useReference();
 
   if (state.phase !== "ready") {
-    return state.phase === "erreur" ? (
+    return state.phase === "error" ? (
       <div
         className="surferr"
         dangerouslySetInnerHTML={{

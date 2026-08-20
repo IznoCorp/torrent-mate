@@ -100,7 +100,7 @@ type Screens = {
   // exactly.
   resolution: (folder?: string, replace?: boolean) => void;
   // `q`/`mode` cross the bridge as plain strings, the way a legacy call site
-  // already holds them (`state.addQ`, a literal like `"identifier"`) — the
+  // already holds them (`state.addQ`, a literal like `"identify"`) — the
   // validated union lives in `/add`'s own `validateSearch`, not here.
   add: (q?: string, mode?: string) => void;
 };
@@ -195,21 +195,21 @@ const profileRoute = createRoute({
 });
 // The second screen route, and the first whose OWN search params are
 // router-owned rather than merely read: `q` (the typed query) and `mode`
-// ("suivi" — follow a new title — or "identifier" — associate a stuck
+// ("follow" — follow a new title — or "identify" — associate a stuck
 // folder, reached from the resolution screen's manual search) live here for
 // as long as the address reads `/add`, replacing `state.addQ`/
 // `state.addMode` as the SOURCE of truth on this path (see `add.tsx`'s own
 // doc comment for the transitional contract with the one legacy reader that
-// remains). Absent means "suivi" / no query, the same "absent is unchanged"
+// remains). Absent means "follow" / no query, the same "absent is unchanged"
 // convention `catchAllRoute`'s `validateSearch` already uses above.
-type AddSearchParams = { q?: string; mode?: "suivi" | "identifier" };
+type AddSearchParams = { q?: string; mode?: "follow" | "identify" };
 const addRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/add",
   validateSearch: (raw: Record<string, unknown>): AddSearchParams => {
     const read: AddSearchParams = {};
     if (typeof raw.q === "string" && raw.q) read.q = raw.q;
-    if (raw.mode === "identifier") read.mode = "identifier";
+    if (raw.mode === "identify") read.mode = "identify";
     return read;
   },
   component: AddScreen,
@@ -549,7 +549,7 @@ window.__screens = {
   // the accepted cost of the ownership flip: the router is the only thing
   // that stays current for as long as the address reads `/add`.
   add: (q?: string, mode?: string) => {
-    const validMode = mode === "identifier" ? "identifier" : "suivi";
+    const validMode = mode === "identify" ? "identify" : "follow";
     // This file is SHELL code, not a component — it is the seam itself, so
     // it writes the store directly rather than through data.ts's
     // `writeUiState` write door (components must use that one; see its own
@@ -559,7 +559,7 @@ window.__screens = {
       to: "/add",
       search: {
         q: q || undefined,
-        mode: validMode === "identifier" ? "identifier" : undefined,
+        mode: validMode === "identify" ? "identify" : undefined,
       },
     });
   },

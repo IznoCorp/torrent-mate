@@ -68,6 +68,16 @@ implementation directives change IN THE SAME MOVE. What loses its subject is rem
 2. A surface is **drawn before it is coded**, with named states and a rule that bites.
 3. The **harness is the proof**: a change lands with its rule, and the rule is mutation-tested —
    break the behaviour on purpose, confirm the rule falls and names the right defect, restore.
+4. **The rule suite runs on a schedule, not on a hunch** — `frontend/maquette/harness/run.sh`:
+   - `--contracts` (6 rules, minutes) runs **in CI on every PR touching the maquette**. These
+     are the rules that fall when a NAME moves without all of its ends.
+   - no flag (51 rules, 20-25 min) is the **gate before a wave is merged**, and it is not
+     optional. It ran nowhere automatically until 2026-08-20, and on that day a rename that
+     looked contained broke SIX contracts — four of them visible to nothing else, including a
+     dead pipeline stop button, while `lint`, `test` and `check` were all green.
+
+   The script builds and re-copies the prototype first, because the harness reads a MANUAL copy
+   at `/tmp/tm-refonte/wrapped.html` and a stale one measures the previous build in silence.
 
 #### The mission — dictated by the operator, 2026-08-19 (SUPERSEDES any narrower reading)
 
