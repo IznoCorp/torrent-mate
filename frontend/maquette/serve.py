@@ -262,7 +262,7 @@ MANIFEST = """{
 # prototype to someone judging today's design — the exact failure a design
 # reference cannot afford. Being offline says so instead of lying quietly.
 WORKER = b"""const CACHE = "tm-design-offline";
-const OFFLINE = "/hors-ligne.html";
+const OFFLINE = "/offline.html";
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.add(OFFLINE)));
@@ -481,7 +481,7 @@ def login_page(refused: bool) -> bytes:
     # it IS the page, so it drops both.
     markup = markup.replace(' id="login" hidden', ' id="login"', 1)
     markup = markup.replace('<form class="logincard" id="loginform"',
-                            '<form class="logincard" id="loginform" method="post" action="/connexion"', 1)
+                            '<form class="logincard" id="loginform" method="post" action="/login"', 1)
     if refused:
         markup = markup.replace('id="loginerr" hidden', 'id="loginerr"', 1)
     # Inside the prototype the startup screen is what the document opens on;
@@ -686,7 +686,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         # Outside the session, like the manifest: the worker caches this page at
         # install time, and that install happens before anyone has signed in.
-        if path_ == "/hors-ligne.html":
+        if path_ == "/offline.html":
             self._send_page(200, offline_page)
             return
         if path_ in ASSETS:
@@ -738,12 +738,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
                        [("Cache-Control", "private, max-age=31536000, immutable")],
                        content_type=content_type)
             return
-        if path_ == "/deconnexion":
+        if path_ == "/logout":
             self._send(303, b"", [("Location", "/"),
                                   ("Set-Cookie", f"{COOKIE_NAME}=; Path=/; Max-Age=0")])
             return
-        if path_ == "/connexion":
-            # `/connexion` accepts only POST (do_POST below): a reload or a
+        if path_ == "/login":
+            # `/login` accepts only POST (do_POST below): a reload or a
             # back-navigation after signing in must not re-render a form that
             # can only submit once. Matched BEFORE the fallback, so it keeps
             # this exact special case rather than falling into it.
@@ -784,7 +784,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802 — name imposed by BaseHTTPRequestHandler
         """Answers the login form: a session cookie, or the rejection state."""
-        if self.path.split("?", 1)[0] != "/connexion":
+        if self.path.split("?", 1)[0] != "/login":
             self._send(303, b"", [("Location", "/")])
             return
         size = min(int(self.headers.get("Content-Length") or 0), 4096)

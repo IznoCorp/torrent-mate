@@ -279,7 +279,7 @@ remains is most of what makes an application.
 | | Production | Maquette |
 | --- | --- | --- |
 | API modules | **11** (`frontend/src/api/*.ts`) | **0** |
-| Network calls | **65** `apiFetch` · 36 `useQuery` · 21 `useMutation` | **1** `fetch` |
+| Network calls | **65** `apiFetch` · 36 `useQuery` · 21 `useMutation` | **1** — and it is a LOGOUT (`legacy.js:11243`, `/deconnexion` on the design host). **Zero data** reaches the maquette from a backend |
 | WebSocket | **24** files | **0** |
 | Service worker / PWA | yes | no |
 | Pages drawn | 9 | 9 + 5 screens — **not the same nine**: `/control` and `/pipeline` have no maquette page (owed, see REMAINS), and `host` + `arrivals` have no production counterpart |
@@ -306,10 +306,14 @@ copy in i18n resources; colour and elevation tokenised — **186 of 188** `color
 2. **The visual language (SP5b)** — type, radius and spacing have no scale at all: 21 distinct
    font sizes for 150 declarations, 16 radii, 64 padding values for 112 declarations, and three
    spellings of one pill (`99px` ×25, `9999px` ×11, `50%` ×1).
-3. **THE APPLICATION ITSELF, and this is the bulk of it.** The maquette runs on fixtures. To
-   replace the app it needs real data, real mutations, the live relay and the offline shell —
-   the table above is the size of that gap. No document said so before 2026-08-20; they counted
-   surfaces, and surfaces were never the hard part.
+3. **The size of the gap the SWITCHOVER closes — not work the maquette does now.** The table
+   above measures it: 11 API modules against 0, 65 network calls against one logout. But
+   **while the maquette is a maquette it is NOT connected to the backend** (operator,
+   2026-08-20), and that is deliberate, not a lag: fixtures are what make 82 named states
+   drivable and 51 rules deterministic. A prototype wired to live data measures the data, not
+   the design. The wiring belongs to the switchover, with the backend adapted to what the
+   frozen interface needs. What the table is FOR is honesty about the distance: no document
+   stated it before 2026-08-20 — they counted surfaces, and surfaces were never the hard part.
 4. **The legacy engine** — 34 626 lines still driving, `__go` shell-side, the 240 ms delay on
    `data-next`, and `/login` + the splash still engine-driven markup rather than components.
 5. **BLOCK 1 must stop shipping at switchover.** `refonte.html` is split into BLOCK 1 (the
@@ -516,7 +520,11 @@ of different kinds:
    since 2026-08-19 that is a gap, not an arbitration. Drawing them is maquette-first work:
    drawn, named states, a rule that bites, a mutation that proves it.
 2. **The visual language (SP5), the UX and the prototype's architecture** — including the three
-   questions of this section. SP5 has no written scope: it is to be agreed before any code.
+   questions of this section. There is no SP5 SPEC document, but its opening move IS written,
+   in the SP4-fin plan: « `extract-maquette-css.py` reads BLOCK 2 out of that file […]
+   **re-pointing it is SP5's opening move, not SP4's closing one** ». So `refonte.html` is on
+   its way out — BLOCK 2 becomes a stylesheet of the maquette's own Vite project, BLOCK 1
+   goes with the harness. The rest of SP5's scope is to be agreed before any code.
 
 Every surface listed in the inventory above IS drawn and validated — `harness/arrivals.py` (R66)
 executes green against `library.db` for the most recent one — so nothing there is to be redone.

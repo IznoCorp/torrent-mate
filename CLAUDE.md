@@ -313,8 +313,13 @@ enforced by `scripts/check-no-french.py` (fourteen arms, in `make check` and in 
   interface half-works in a way no single file reveals.
 - **What is NOT French-in-the-code**, and must stay as it is: the French a harness hold
   ASSERTS (that is the app's rendered output — translating it would silently stop measuring
-  anything), data VALUES, route paths and addresses, i18n interpolation placeholders, form
-  field names, and the config keys the settings dictionaries are keyed by. Each such literal
+  anything), data VALUES, i18n interpolation placeholders, form field names, and the config
+  keys the settings dictionaries are keyed by. **Route paths are NOT on this list any more**
+  — #456 struck them off on the operator's ruling (« une route et un paramètre sont des NOMS,
+  pas des données ») and renamed the three French addresses, answering the old ones with
+  redirects. This sentence kept exempting them for four days afterwards, which is why
+  `/deconnexion` on the design host is still French: nothing reads a route the rule says is
+  not its business. Each such literal
   carries a `# french-ok: <reason>` / `// french-ok: <reason>` pragma; a pragma with no reason
   is itself a violation. The frozen CSS-class exceptions live in
   `frontend/maquette/regions.json`'s `$vocabulary`, each with the reason it was kept.

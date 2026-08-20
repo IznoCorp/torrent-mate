@@ -11240,7 +11240,7 @@ import { screens, panel, bridge } from "../seams.js";
   async function signOut() {
     panel.close();
     try {
-      await fetch("/deconnexion", { redirect: "manual" });
+      await fetch("/logout", { redirect: "manual" });
     } catch (error) {}
     showSignIn(false);
   }

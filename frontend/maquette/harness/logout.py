@@ -119,14 +119,14 @@ async def main():
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     try:
         check("the gate answers", bool(wait_for_gate()))
-        status, headers = request_path("/deconnexion")
+        status, headers = request_path("/logout")
         jar = http.cookies.SimpleCookie()
         jar.load(headers.get("Set-Cookie", ""))
         crumb = jar.get("tm_design")
         # One check, not two: everything else on this server answers an unknown
         # path with the same redirect, so a status read on its own could never
         # tell a working route from a missing one.
-        check("« /deconnexion » expires the cookie and sends back to the gate",
+        check("« /logout » expires the cookie and sends back to the gate",
                  status == 303 and headers.get("Location") == "/"
                  and crumb is not None and crumb.value == ""
                  and str(crumb["max-age"]) == "0",
