@@ -57,8 +57,6 @@ import subprocess
 import sys
 import time
 
-from playwright.async_api import async_playwright
-
 ROOT = pathlib.Path(__file__).resolve().parent
 RECIPE_FILE = ROOT / "regions.json"
 SOURCE_DIR = ROOT / "design" / "src"
@@ -139,6 +137,37 @@ MEASURE = """([selector, properties, precision]) => {
     style: computed,
   };
 }"""
+
+
+def browser_driver():
+    """Imports Playwright, LAZILY, and says what to do when it is absent.
+
+    Not a module-level import, for two reasons that are the same reason. The
+    `--contracts` mode is documented as browser-free and must actually BE
+    browser-free — it reads JSON and source files and nothing else. And the
+    tests of everything pure in this file (the comparison, the reference's
+    rendering, the allowlist's refusals) are pure too, so they must run in a
+    test job that installs no browser. They did not: the module-level import
+    took fourteen of them down with `ModuleNotFoundError` on the runner, while
+    passing here because Playwright happens to be installed.
+
+    Returns:
+        `playwright.async_api.async_playwright`.
+
+    Raises:
+        SystemExit: When Playwright is missing, naming the install command
+            rather than leaving an import error to be decoded.
+    """
+    try:
+        from playwright.async_api import async_playwright
+    except ImportError as absent:  # pragma: no cover - environment-dependent
+        raise SystemExit(
+            "this mode drives a browser and Playwright is not installed: "
+            f"{absent}.\n"
+            "    pip install playwright && python3 -m playwright install chrome\n"
+            "`--contracts` needs none of that and runs anywhere."
+        ) from absent
+    return async_playwright
 
 
 def load_recipe() -> dict:
@@ -659,7 +688,7 @@ async def read_everything(recipe: dict, regions: dict) -> tuple:
         counter-measure nobody defends.
     """
     started = time.monotonic()
-    async with async_playwright() as playwright:
+    async with browser_driver()() as playwright:
         browser = await playwright.chromium.launch(channel="chrome")
         context, page = await open_frame(browser, recipe)
         states = await page.evaluate("()=>window.__states()")
@@ -765,7 +794,7 @@ async def coverage() -> int:
     regions = load_regions()
     declared_absent = {entry["region"] for entry in recipe["knownAbsent"]}
 
-    async with async_playwright() as playwright:
+    async with browser_driver()() as playwright:
         browser = await playwright.chromium.launch(channel="chrome")
         context, page = await open_frame(browser, recipe)
         states = await page.evaluate("()=>window.__states()")
@@ -806,7 +835,7 @@ async def smoke() -> int:
         A process exit code: 0 when every region resolved in at least one state.
     """
     recipe = load_recipe()
-    async with async_playwright() as playwright:
+    async with browser_driver()() as playwright:
         browser = await playwright.chromium.launch(channel="chrome")
         context, page = await open_frame(browser, recipe)
         known = await page.evaluate("()=>window.__states()")
