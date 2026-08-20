@@ -1,5 +1,13 @@
 # TorrentMate Web UI — Reference
 
+> ⚠ **This document describes the frontend that is being REPLACED.** `frontend/maquette/` is the
+> next version of the web UI; on switchover day `frontend/src` — everything below — is ARCHIVED
+> and the maquette takes its place. Nothing here is transposed into it: every page and every
+> mechanism this document describes has to be re-created there. Read this as the specification
+> of what the replacement must eventually do, and `IMPLEMENTATION.md` § THE OBJECTIVE for how
+> far along that is. Until the switchover, everything below is live and true.
+
+
 Architecture, auth, WebSocket protocol, Redis event relay, PWA mechanics, local
 development setup, deploy runbook, and the typed REST contract conventions that
 bind every future wave (S2–S7). This is the authoritative reference for the

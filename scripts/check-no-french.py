@@ -213,9 +213,10 @@ def check_strings(violations: list[str]) -> None:
     # This file is the one exception the arm makes for itself: its French IS its
     # subject — the lexicon is a list of French words, and pragmas on a word list
     # would say nothing a reader does not already see.
-    # `rglob`: `scripts/ops/` holds nine more tools one level down, and a glob
-    # one level deep read none of them. A scope is checked the same way a name
-    # is — `scripts/` is not `scripts/ops/`.
+    # `rglob`, not `glob`: a scope is checked the same way a name is. A glob one
+    # level deep once read none of the nine tools that sat in `scripts/ops/`
+    # (deleted 2026-08-20 — a dated one-shot from May), and reported no
+    # violation about a directory it had never opened.
     # This file and its lexicon are the two the arm excepts for itself: their
     # French IS their subject — a list of French words cannot be written in
     # English, and pragmas on a word list would say nothing a reader does not

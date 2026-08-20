@@ -21,6 +21,15 @@
 > 4. **The backend follows the interface.** The engine will be adapted to what the new interface
 >    needs, and that comes AFTER the freeze — so a backend limitation is never a reason to draw
 >    less. Record it, and draw what the experience requires.
+>
+> **It REPLACES the app; it is not transposed into it (2026-08-20).** On switchover day
+> `frontend/src` is ARCHIVED and this directory takes its place. Every page and every MECHANISM
+> the shipped app has must therefore end up here — afterwards there is nothing left to take from
+> it. And the corollary that cost the most: the CSS extraction, the `.tm` scope, the selector
+> allowlist and the rendering-parity probe were built for the OPPOSITE model — migrating the app
+> surface by surface, planned in the 2026-08-10 spec §4.1/§7.2 and reversed on 2026-08-13. They
+> have no subject and are being retired. The measured inventory of what is done and what remains
+> lives in `IMPLEMENTATION.md` § THE OBJECTIVE.
 
 **`design/refonte.html` is the design reference for the TorrentMate web UI. Any change to the
 design starts here, not in `frontend/src`.**

@@ -302,6 +302,26 @@ et non amenée vers elle surface par surface.
 est une **nouvelle version de l'app**, pas un habillage : son objet est une expérience
 utilisateur **cohérente**, et le premier objectif est de **figer cette interface**.
 
+### La maquette REMPLACE l'app — elle n'y est ni transposée ni traduite (2026-08-20)
+
+**Le jour de la bascule, `frontend/src` est ARCHIVÉ et la maquette prend sa place.** Elle est la
+nouvelle version du frontend, pas une source dont on tirerait des morceaux. C'est pourquoi
+**toutes les pages et tous les mécanismes de l'app doivent à terme être recréés dans la
+maquette** — il n'y aura rien à récupérer ensuite.
+
+**Ce que cela ANNULE, et c'est impératif.** Un modèle antérieur — le spec du 2026-08-10 §4.1 et
+§7.2 — prévoyait de faire migrer l'app **surface par surface** vers la maquette : d'où une
+extraction du CSS, un préfixe `.tm` pour que les deux CSS cohabitent, une liste d'autorisation
+de sélecteurs, une garde de dérive et une sonde de parité. La directive du 2026-08-13 a inversé
+cet ordre, mais **l'outillage est resté**. Il n'a plus d'objet : on ne fait pas cohabiter deux
+feuilles quand l'une remplace l'autre, et on ne traduit pas un CSS qui devient le CSS.
+
+**Un changement de décision mal répercuté coûte plus cher que la décision elle-même** : ces
+mécanismes ont produit du travail inutile, des gardes qui protégeaient des objets morts, et des
+frictions à chaque vague. La règle qui en découle : **quand une décision change, les directives
+d'implémentation changent DANS LE MÊME MOUVEMENT**, et ce qui devient sans objet est retiré, pas
+laissé en place « au cas où ».
+
 - **Aucune surface n'est hors périmètre.** Un écran de production sans page dans la maquette est
   une page **due**, jamais un arbitrage de l'écarter. `/control` (« Contrôle ») et `/pipeline`
   avaient été déclarés volontairement sans page : **cet arbitrage est annulé.** Où leurs
