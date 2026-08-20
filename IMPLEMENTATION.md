@@ -10,7 +10,9 @@ That reverses the order of work:
 
 1. **Finish the prototype first — every page.** Especially the ones that exist IN PRODUCTION and
    are not yet drawn here. A surface that production has and the prototype does not is a hole in
-   the v1, not a later phase. The inventory is below and it is exhaustive.
+   the v1, not a later phase. The inventory is below and it is exhaustive. ⚠ **« Every page » is
+   the SCOPE, never the running order** — that is `docs/reference/frontend-architecture.md`'s
+   thirteen lots, and where they stand is § « Where the frontend work stands » just below.
 2. **Then the operator judges.** The prototype is bound to the backend only once the operator
    considers the design AND the front-end architecture solid enough. That judgement is theirs, it
    is not a checklist, and no amount of green rules substitutes for it.
@@ -377,7 +379,15 @@ state; 82 named states driving 50 rule scripts over 80 recorded rules; the engin
 the fragment (which is now a title and a stylesheet); English names throughout with the shell's
 copy in i18n resources; colour and elevation tokenised — **186 of 188** `color:` declarations (`(?<![-\w])color\s*:`; a `\bcolor` regex reads 203/206 because `-` is a non-word character and `background-color` matches it), and the 55 raw values left in BLOCK 2 are all token DECLARATIONS, which is where they belong.
 
-**REMAINS**, in the order the work actually has to happen:
+**REMAINS** — the four subjects, and this list is NOT an order.
+
+> ⚠ **The order is `docs/reference/frontend-architecture.md`'s thirteen lots, and nothing else.**
+> This list used to open « in the order the work actually has to happen », and that sentence
+> survived #466 by four days while naming an order that file had replaced. Read as an order it
+> sends the next session to draw `/control` or to open the visual language — and the visual
+> language is lot **L06**, which `depends on L01` under a Phase 0 that says « Nothing else may
+> start ». **Which lot comes next is § « Where the frontend work stands », at the top of this
+> file.**
 
 1. **The two pages the mission re-opened** — `/control` (8 panels) and `/pipeline` (10 panels).
 2. **The visual language (SP5b)** — type, radius and spacing have no scale at all: 21 distinct
