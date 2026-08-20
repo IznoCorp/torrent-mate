@@ -306,14 +306,31 @@ async def open_frame(browser, recipe: dict):
             "    rm -rf /tmp/tm-refonte/vite && cp -R dist/vite /tmp/tm-refonte/vite"
         )
 
+    await neutralise(page, recipe)
+    return context, page
+
+
+async def neutralise(page, recipe: dict) -> None:
+    """Removes the prototype's own chrome, BEFORE EVERY MEASUREMENT.
+
+    ONCE AT OPEN IS NOT ENOUGH, and believing it was made this instrument
+    measure the prototype's scaffolding for a whole phase. Both entries come
+    back on their own: `.note` is emitted by the page COMPONENTS, so it is
+    re-created on every render — measured, it reappeared in 56 of the 82 states
+    after being removed at open. And the boot toast is raised on a timer, so a
+    single click at open is a race that loses: it was visible in 34 states.
+
+    Args:
+        page: The page being measured.
+        recipe: The `probe` block.
+    """
     for entry in recipe["neutralise"]:
         # Two ways, and the entry says which. `remove` takes the node out of the
-        # DOM — the design note is prototype-only chrome, and left in place while
-        # a stylesheet changes it springs back to 75.6px and pushes every region
-        # below it down, a probe reporting its own setup as a divergence in each
-        # one. `click` presses the interface's own control instead, which keeps
-        # the region measurable: the boot toast is dismissed the way a user
-        # dismisses it rather than deleted.
+        # DOM — the design note is prototype-only chrome, and left in place it
+        # springs back to 75.6px and pushes every region below it down, a probe
+        # reporting its own setup as a divergence in each one. `click` presses
+        # the interface's own control instead, which keeps the region
+        # measurable: the boot toast is dismissed the way a user dismisses it.
         if entry.get("how", "remove") == "click":
             await page.evaluate(
                 "(selector)=>document.querySelector(selector)?.click()",
@@ -325,7 +342,6 @@ async def open_frame(browser, recipe: dict):
             ".forEach((node)=>node.remove())",
             entry["selector"],
         )
-    return context, page
 
 
 # Two frames — the floor, and on its own NOT ENOUGH. Measured: driving
@@ -457,6 +473,16 @@ async def measure_state(page, state: str, regions: dict, recipe: dict) -> dict:
         region's selector matched nothing in this state.
     """
     await page.evaluate("(id)=>window.__go(id)", state)
+    # BOTH SIDES of the settle, and the second pass is not belt-and-braces.
+    # The boot toast is raised ASYNCHRONOUSLY, so on the very first state
+    # measured a single pass loses the race — measured: `startup` carried a
+    # visible toast on pass 1 and none on pass 2, which is a reference whose
+    # first entry depends on how fast the machine is. Neutralising before
+    # settling keeps the geometry stable while it settles; neutralising after
+    # catches whatever arrived during it.
+    await neutralise(page, recipe)
+    await settle(page, regions)
+    await neutralise(page, recipe)
     await settle(page, regions)
     reading = {}
     for key, region in sorted(regions.items()):
