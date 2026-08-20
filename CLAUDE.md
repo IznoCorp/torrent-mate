@@ -69,8 +69,10 @@ implementation directives change IN THE SAME MOVE. What loses its subject is rem
 3. The **harness is the proof**: a change lands with its rule, and the rule is mutation-tested —
    break the behaviour on purpose, confirm the rule falls and names the right defect, restore.
 4. **The rule suite runs on a schedule, not on a hunch** — `frontend/maquette/harness/run.sh`:
-   - `--contracts` (6 rules, minutes) runs **in CI on every PR touching the maquette**. These
-     are the rules that fall when a NAME moves without all of its ends.
+   - `--contracts` (5 rules, minutes) runs **in CI on every PR touching the maquette**. These
+     are the rules that fall when a NAME moves without all of its ends. A rule that reads
+     the operator's live databases cannot be among them — `arrivals.py` was, and failed on
+     the runner for want of `library.db`, which says nothing about the change under test.
    - no flag (51 rules, 20-25 min) is the **gate before a wave is merged**, and it is not
      optional. It ran nowhere automatically until 2026-08-20, and on that day a rename that
      looked contained broke SIX contracts — four of them visible to nothing else, including a

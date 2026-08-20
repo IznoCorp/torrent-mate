@@ -181,7 +181,7 @@ jobs:
       - run: pip install playwright && python -m playwright install --with-deps chromium
       - run: npm ci --prefix frontend/maquette/design
       # The CONTRACT subset only. The 51-rule suite is a wave gate, not a
-      # per-PR one: 51 headless-Chrome runs cost 20-25 minutes, and these six
+      # per-PR one: 51 headless-Chrome runs cost 20-25 minutes, and these five
       # are the ones that fall when a NAME moves without all of its ends —
       # which is what a pull request most often does wrong.
       - run: PARITY_BROWSER_CHANNEL=chromium frontend/maquette/harness/run.sh --contracts

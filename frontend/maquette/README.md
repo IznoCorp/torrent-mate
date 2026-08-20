@@ -826,7 +826,7 @@ the two apart.
 
 **Run it with `harness/run.sh`, never by hand.** The script builds the prototype and refreshes
 the copy the rules read before measuring anything — that copy is manual, and a stale one measures
-the previous build without saying so. Two tiers: `--contracts` (6 rules, minutes, wired into CI
+the previous build without saying so. Two tiers: `--contracts` (5 rules, minutes, wired into CI
 on every maquette PR) and no flag (all 51, 20-25 minutes, the gate before a wave merges).
 
 Until 2026-08-20 the suite ran NOWHERE automatically — not in CI, not in `make check`, which only

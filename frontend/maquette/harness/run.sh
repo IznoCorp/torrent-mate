@@ -41,9 +41,14 @@ SERVED="/tmp/tm-refonte"
 #   screen_addresses a composite key, `add:<mode>`
 #   scen             a state id built from a template
 #   audit2           a state id built by string concatenation in JavaScript
-#   arrivals         `data-pipe` markup against the engine that reads it
 #   logout           a route renamed on one side only
-CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py arrivals.py logout.py)
+#
+# `arrivals.py` guards the `data-pipe` contract too and is NOT here: it holds
+# R66, which checks every figure against the run `library.db` really recorded,
+# by run_uid. That database is the operator's and a CI runner has none, so the
+# rule would fail there for a reason that has nothing to do with the change
+# under test. It runs in the full suite, on the machine that has the data.
+CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py)
 
 if [ "${1:-}" = "--contracts" ]; then
   scripts=("${CONTRACTS[@]}")
@@ -77,8 +82,12 @@ fi
 echo "Running the ${label}…"
 failed=0
 for s in "${scripts[@]}"; do
-  if ! python3 "${HERE}/${s}" >/dev/null 2>&1; then
+  if ! out="$(python3 "${HERE}/${s}" 2>&1)"; then
     echo "  FAILED: $s"
+    # The holds that fell, and nothing else: a rule prints one line per hold and
+    # the run is long, so the whole transcript would bury the verdict. Without
+    # this the CI log read « FAILED: arrivals.py » and stopped there.
+    echo "$out" | grep -E "FAIL|Error|Traceback|error:" | head -12 | sed 's/^/      /'
     failed=$((failed + 1))
   fi
 done

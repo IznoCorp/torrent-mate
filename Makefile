@@ -157,5 +157,5 @@ harness:
 	frontend/maquette/harness/run.sh
 
 harness-contracts:
-	@echo "Running the contract subset (6 rules) — what CI runs on every maquette PR..."
+	@echo "Running the contract subset (5 rules) — what CI runs on every maquette PR..."
 	frontend/maquette/harness/run.sh --contracts
