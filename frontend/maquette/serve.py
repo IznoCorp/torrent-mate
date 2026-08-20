@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Serve the design prototype over HTTP, behind its own login screen.
+r"""Serve the design prototype over HTTP, behind its own login screen.
 
 `refonte.html` is a head-less fragment: it starts at `<title>` and owns no
 `<html>` or `<head>`, because it is authored to be embedded by a host page.
@@ -51,6 +51,7 @@ import threading
 import urllib.parse
 from collections.abc import Callable
 from pathlib import Path
+
 
 def renamed_env(current: str, former: str) -> str | None:
     """Returns an environment value, answering to the name it used to have.

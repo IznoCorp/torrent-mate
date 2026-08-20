@@ -64,7 +64,7 @@ test-cov:
 
 lint:
 	@echo "Running linter..."
-	python -m ruff check personalscraper/ tests/ scripts/ frontend/maquette/harness/ frontend/scripts/
+	python -m ruff check personalscraper/ tests/ scripts/ frontend/maquette/ frontend/scripts/
 	python -m ruff format --check personalscraper/ tests/
 	python -m mypy personalscraper/
 	$(MAKE) lint-logging

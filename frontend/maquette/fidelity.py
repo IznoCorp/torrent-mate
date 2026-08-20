@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Does a migrated PAGE draw what the legacy drew, byte for byte?
+r"""Does a migrated PAGE draw what the legacy drew, byte for byte?
 
 A tool, not a rule — it is run BY HAND while a page is being converted, and it
 stops being runnable the moment the legacy renderer it compares against is
@@ -123,6 +123,18 @@ def tidy(html: str) -> str:
 
 async def main(legacy_name: str, states: list[str], host: str = "#view",
                record: str | None = None, against: str | None = None) -> int:
+    """Compares a migrated page against the legacy side, state by state.
+
+    Args:
+        legacy_name: The legacy renderer's own name on `window.__referentiel`.
+        states: The state ids to drive.
+        host: The element the page draws into — a page may have a SECOND host.
+        record: Path to write the legacy side to, for a later comparison.
+        against: Path to compare today's page with, instead of a live renderer.
+
+    Returns:
+        A process exit code: 0 when every state matched.
+    """
     divergences = 0
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel="chrome")
