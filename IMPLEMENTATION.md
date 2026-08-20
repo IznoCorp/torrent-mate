@@ -44,9 +44,10 @@ stale table read as current for three days.
 
 | | |
 | --- | --- |
-| **Last landed** | **L01 — the recorded oracle**, Phase 0. PR **#467**, merged 2026-08-20, version 0.98.10 |
-| **Next** | **L02 — test anchors move to `data-*`**, Phase 0. Its dependency (L01) is satisfied |
-| **Design + plan of L01** | `docs/features/maquette-l01/DESIGN.md`, `…/plan/INDEX.md` — 17 ACC criteria, each executed |
+| **Last landed** | **L01 — the recorded oracle**, Phase 0. PR **#467**, merged 2026-08-20, version 0.98.10. Archived to `docs/archive/features/maquette-l01/` |
+| **In flight** | **L02 — test anchors move to `data-*`**, Phase 0. Branch `refactor/maquette-l02`, version 0.98.12. It carries the `docs/cold-start` commit, which is not a PR of its own |
+| **Next after it** | The architecture file's Phase 1 — `docs/reference/frontend-architecture.md` decides which lot, never this table |
+| **Design + plan of L02** | `docs/features/maquette-l02/DESIGN.md`, `…/plan/INDEX.md` |
 
 ### What the next session needs to know before touching anything
 
@@ -59,8 +60,9 @@ stale table read as current for three days.
    squashing replaces that commit, so the pointer goes dangling on a fresh clone. `--check` now
    says so on its own — « NOT an ancestor of HEAD » — but the fix is a command, not a warning to
    live with.
-3. **L02's subject is measured and waiting**: 684 selection calls in `harness/*.py`, of which
-   **280 are anchored on a CSS class** (D4). Half of D4's contract is already held by
+3. **L02's subject is measured and IN FLIGHT**: 684 selection calls in `harness/*.py`, of which
+   **281 are anchored on a CSS class** — the total reproduces D4 exactly, the split differs by a
+   handful of role selectors and the DESIGN records why. Half of D4's contract is already held by
    `scripts/check-markup-contracts.py`, which refuses a `data-*` VALUE no reader understands —
    L02 must EXTEND that guard rather than add a second one beside it. The other half, what a rule
    may anchor on, is L02's own.
