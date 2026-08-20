@@ -29,11 +29,12 @@ when the defect comes back.
 
 ---
 
-> **State on 2026-08-20 — five open, and they are open for five different reasons.**
-> The count read « two » while three entries below already said `open`: B-033 landed after it
-> was written, B-034 and B-035 with this line. A summary nobody recounts is a summary nobody
-> reads — the command is
-> `grep -cE '^\| B-[0-9]+ \|.*`open`' BUGS.md`.
+> **What is open is in the table below, and only there.** This banner used to carry a count of
+> its own; it read « two » while three entries already said `open`, because a summary that is
+> written once and never recounted stops being true on the next line added. The `Status` column
+> is the answer. What belongs here is only what the column cannot say — WHY an entry is still
+> open when its diagnosis looks finished:
+>
 > **B-024** is diagnosed **latent and unreachable**: the census of `[data-go]` producers shows
 > every one of them renders into `#view`, which sits under every layer, so none can be tapped
 > while a layer is open — real, with no path to it. **B-030** is a defect of the maquette's
