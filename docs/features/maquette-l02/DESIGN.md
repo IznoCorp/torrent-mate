@@ -42,9 +42,21 @@ matches` call and classify it:
 | role | 4 | 1 |
 | **total** | **684** | **684** |
 
-The total agrees exactly; the class/id/role split differs by a handful because this classifier
-recognises `[role=…]` less generously than D4's did. **281 is the figure this lot works to**, and
-the difference is recorded rather than smoothed over.
+The total agreed exactly — **and that agreement was two readers sharing one blind spot.** Both read
+only QUOTED selectors. Three calls pass theirs as a template literal:
+
+```python
+document.querySelector(`[data-lmode="${m}"]`)      # cards.py:82, and two more
+```
+
+All three are `data-*`-anchored, so the honest split is **687 total, 281 class, 95 `data-*`**, and
+**281 — the only figure this lot works to — is unchanged.** Recording the correction is worth more
+than keeping the tidier number that matched.
+
+That is also why `scripts/classify-rule-anchors.py` is a deliverable and not a one-off script: a
+naive counter over the same corpus returns 687 calls and **428** class anchors, because it lacks the
+anchor-precedence rule (`data-*` beats `#id` beats `.class` within one selector). **The method must
+be pinned in a file under review before any number derived from it means anything.**
 
 Spread: **36 of the 47 harness files** that select at all, **133 distinct selectors**, **96
 distinct root tokens** — a long tail, not a few hot spots.
@@ -199,6 +211,42 @@ on, and therefore was never seen fail.
 
 The five genre assertions are the only permanent entries, each carrying its reason inline.
 
+## Two prerequisites the guard itself imposes, found by reading it
+
+Neither is optional, and neither is visible from the architecture file.
+
+### `data-part` is refused on the day it is written
+
+`check_data_attributes` in `scripts/check-no-french.py` reads every `data-*` NAME against
+`scripts/code-vocabulary.txt` and refuses one built from a word the file does not hold. Three words
+this lot needs are absent: **`part`**, **`announced`**, **`manifest`**. So `data-part` fails the gate
+the first time it appears.
+
+Adding them is one line each, and that is the design — « a French word can only enter by someone
+typing it into a file under review. » These are English, they are under review here, and phase 1
+adds them before the first attribute is written.
+
+### ACC-12 would be VACUOUS, because nothing reads a `data-*` VALUE
+
+The same arm says so in its own docstring: « The VALUES are not read, and must not be:
+`data-go="profil"` names a page, and a page id is an address. »
+
+That is right for `data-go` and wrong for `data-part`. A `data-part` value is not an address — it is
+a **structural name someone chose**, which CLAUDE.md puts squarely under the rule (« If a human
+typed it to designate something, it is a name »). This lot coins roughly 130 of them at once. With
+no arm reading them, ACC-12 passes while measuring nothing about the vocabulary the lot creates —
+the same vacuous-criterion defect L01 hit when `check-markup-contracts.py` turned out not to read
+`data-region` at all.
+
+Phase 1 therefore extends `check_data_attributes` to read the VALUES of the NAMING attributes
+(`data-part`, and `data-region` with it — same status, same hole), while leaving address-valued
+attributes (`data-go`, `data-key`, `data-panel`, …) unread, as they must be.
+
+**Extended rather than added, deliberately**: `check_arm_count` holds the arm count against the
+module docstring's numbered headings AND against a sentence in `CLAUDE.md`. A new arm costs both
+edits; an extended one costs neither, and the docstring change it does need is the one that says
+what the arm now reads.
+
 ## The dormant arm — found while instructing this lot, and fixed by it
 
 `oracle.py --contracts` **already holds half of D4**: it refuses a `regions.json` region anchored
@@ -242,7 +290,7 @@ impossible.
 
 | Phase | Subject | Approx. calls |
 | --- | --- | --- |
-| 1 | vocabulary, the guard arm, the full baseline, the dormant arm wired | 0 migrated |
+| 1 | vocabulary, the guard arm, the full baseline, the dormant arm wired, the `data-part` VALUE arm, the per-rule hold-count capture | 0 migrated |
 | 2 | `.screen` / `.sheet` / `.scrim` — and the static-`open` correction | 30 + 54 assertions |
 | 3 | `.card` and its parts — `ctitle`, `cbody`, `cfoot`, `poster`, `cov` | ≈61 |
 | 4 | `.reslist`, `.sugwrap`, `.ep`, `.eppop` | ≈27 |
@@ -297,8 +345,9 @@ Expected: a line reporting `0 class-anchored selection call` over `harness/*.py`
 ```bash
 python3 scripts/classify-rule-anchors.py --summary; echo "exit=$?"
 ```
-Expected: `684 selection calls` with `class 0`, and `exit=0`. The total must still be 684: a
-classifier that stopped SEEING calls would also report zero class anchors.
+Expected: `687 selection calls` with `class 0`, and `exit=0`. **The total must still be 687**: a
+classifier that stopped SEEING calls would also report zero class anchors, and that is precisely how
+the first measurement of this lot read 684 — three template-literal selectors were invisible to it.
 
 **ACC-03 — the guard FALLS on a re-introduced class anchor, and names it**
 
@@ -317,22 +366,33 @@ Expected: `exit=1`, and the output names `cards.py`, its line, and the selector 
 
 **ACC-04 — the guard FALLS on a half-moved contract**
 
+> **Rewritten before it could be run.** The first version mutated `data-part="card/title"` in
+> `resolution.tsx` and asserted `count == 1`. That file emits `ctitle` TWICE (`:121`, `:195`) and
+> `legacy.js` twice more, so the precondition abandons — and had it not, renaming one emitter of
+> four proves nothing: the other three still emit the value and the arm stays green. **A
+> half-moved-contract mutation needs a target with exactly ONE emitter.** Forty tokens qualify;
+> `.reslist` is the strongest — one emitter in `screens/add.tsx`, selected 15 times.
+
 ```bash
-F=frontend/maquette/design/src/screens/resolution.tsx; cp "$F" /tmp/l02-acc04.bak
+F=frontend/maquette/design/src/screens/add.tsx; cp "$F" /tmp/l02-acc04.bak
 python3 -c "
 import pathlib
 p = pathlib.Path('$F'); t = p.read_text()
-old = 'data-part=\"card/title\"'
+old = 'data-part=\"result-list\"'
 assert t.count(old) == 1, f'{t.count(old)} occurrences — mutation ABANDONED'
-p.write_text(t.replace(old, 'data-part=\"card/heading\"'))"
+p.write_text(t.replace(old, 'data-part=\"results\"'))"
 python3 scripts/check-markup-contracts.py; echo "exit=$?"
 cp /tmp/l02-acc04.bak "$F"
 ```
-Expected: `exit=1`, naming `card/title` as selected by the harness and emitted by no source.
-`resolution.tsx:121` is one of the four emitters of `.ctitle` — two there, two in `legacy.js`.
-This is the three-ends defect, caught from the markup end.
+Expected: `exit=1`, naming `result-list` as selected by the harness and emitted by no source, and
+naming at least one of the 15 harness calls that now select nothing. This is the three-ends defect
+caught from the markup end.
 
 **ACC-05 — the guard FALLS on `data-open={x}` written without `|| undefined`**
+
+> **Same defect, same fix.** `sheet.tsx` gains the idiom at TWO sites — the scrim and the sheet — so
+> a `count == 1` precondition abandons there too. The mutation replaces the FIRST occurrence and
+> asserts the count it actually expects.
 
 ```bash
 F=frontend/maquette/design/src/components/sheet.tsx; cp "$F" /tmp/l02-acc05.bak
@@ -340,12 +400,14 @@ python3 -c "
 import pathlib
 p = pathlib.Path('$F'); t = p.read_text()
 old = 'data-open={open || undefined}'
-assert t.count(old) == 1, f'{t.count(old)} occurrences — mutation ABANDONED'
-p.write_text(t.replace(old, 'data-open={open}'))"
+assert t.count(old) == 2, f'{t.count(old)} occurrences — mutation ABANDONED'
+p.write_text(t.replace(old, 'data-open={open}', 1))"
 python3 scripts/check-markup-contracts.py; echo "exit=$?"
 cp /tmp/l02-acc05.bak "$F"
 ```
-Expected: `exit=1`, naming `sheet.tsx` and `data-open`.
+Expected: `exit=1`, naming `sheet.tsx`, its line, and `data-open`. One site is enough here, because
+this arm reads each emission independently — unlike ACC-04's, which reads a contract that any
+surviving emitter satisfies.
 
 **ACC-06 — the React trap is DEMONSTRATED in the browser, not quoted from documentation**
 
@@ -363,14 +425,28 @@ python3 frontend/maquette/oracle.py --check; echo "exit=$?"
 ```
 Expected: `no divergence`, `exit=0`.
 
-**ACC-08 — the 50-rule suite is green at UNCHANGED hold counts**
+**ACC-08 — the suite is green at UNCHANGED per-rule hold counts**
+
+> **Rewritten: the first version could not be executed.** It named `run.sh`, and `run.sh` captures
+> each rule's output into `out="$(python3 …)"` and prints it **only on failure**. A passing rule's
+> `N rules EXECUTED — no violation` line never reaches the log, so « unchanged hold counts » was not
+> obtainable from the command the criterion named. It would have been recorded « passed » on the
+> strength of a line that says only how many rules ran.
+>
+> It also said `50 rule(s)`. `run.sh` globs `harness/*.py` minus `common.py`, and this lot adds
+> `attrs.py` — so the suite is **51** from phase 1 onward, and the criterion would have failed on
+> its own arithmetic at the first gate.
 
 ```bash
-frontend/maquette/harness/run.sh 2>&1 | tail -3
+python3 scripts/harness-hold-counts.py --compare frontend/maquette/hold-counts-baseline.json
 ```
-Expected: `harness: 50 rule(s), no violation.` — the same rule count as on `main` before the wave,
-with per-rule hold counts equal. A rule that still passes while holding FEWER things has stopped
-measuring, and the count is the only thing that says so.
+Expected: `51 rules, no violation`, and `0 rule(s) changed hold count`. The per-rule capture is a
+phase-1 deliverable — the wave needs it at all six gates.
+
+The baseline it compares against is recorded on `f7e8073f` before any migration, where the suite
+reads **`harness: 50 rule(s), no violation.`** and the oracle reads **`82 states x 33 regions, 2706
+measurements`, `reference taken at 59931d45`, `no divergence`** — run and captured on 2026-08-21,
+not assumed.
 
 **ACC-09 — the dormant arm now runs automatically**
 
@@ -396,12 +472,22 @@ python3 scripts/classify-rule-anchors.py --exceptions
 Expected: exactly 5 entries — `h2`, `flux`, `ep`, `radio`, `note` — each printed with a non-empty
 reason. A reason-less entry is itself a violation, as it already is for `french-ok` pragmas.
 
-**ACC-12 — no French entered the vocabulary**
+**ACC-12 — no French entered the vocabulary, and something actually READS it**
+
+> **Rewritten: the first version was vacuous.** `check-no-french.py` reads `data-*` NAMES and
+> deliberately not their values, so `python3 scripts/check-no-french.py` would have exited 0 over
+> roughly 130 new `data-part` values it never looked at. See § « Two prerequisites the guard itself
+> imposes ».
 
 ```bash
 python3 scripts/check-no-french.py; echo "exit=$?"
+python3 scripts/check-no-french.py --counts | grep 'data-part values'
 ```
-Expected: `exit=0`.
+Expected: `exit=0`, and a non-zero count of `data-part` VALUES examined — the second line is the
+criterion. A gate proves what it reads, so the number it read is the evidence, not the exit code.
+
+Mutation: rename one `data-part` value to a French word, confirm `exit=1` naming the file, the line
+and the word, restore.
 
 **ACC-13 — the whole gate**
 

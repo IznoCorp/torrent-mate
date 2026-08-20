@@ -47,7 +47,7 @@ stale table read as current for three days.
 | **Last landed** | **L01 — the recorded oracle**, Phase 0. PR **#467**, merged 2026-08-20, version 0.98.10. Archived to `docs/archive/features/maquette-l01/` |
 | **In flight** | **L02 — test anchors move to `data-*`**, Phase 0. Branch `refactor/maquette-l02`, version 0.98.12. It carries the `docs/cold-start` commit, which is not a PR of its own |
 | **Next after it** | The architecture file's Phase 1 — `docs/reference/frontend-architecture.md` decides which lot, never this table |
-| **Design + plan of L02** | `docs/features/maquette-l02/DESIGN.md`, `…/plan/INDEX.md` |
+| **Design + plan of L02** | `docs/features/maquette-l02/DESIGN.md`, `…/plan/INDEX.md` — 6 phases, 13 ACC criteria, baseline burn-down 342 → 0 |
 
 ### What the next session needs to know before touching anything
 
