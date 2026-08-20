@@ -250,7 +250,7 @@ Nothing else may start. Every lot after this one changes mechanism while promisi
 is unchanged, and that promise is currently unprovable: `fidelity.py` cannot run (the renderers
 it compared are deleted, no recording is committed, and 38 of the 82 state ids were renamed).
 
-#### L01 — The recorded oracle · `NOT STARTED`
+#### L01 — The recorded oracle · `NOT STARTED` · **runs alone**
 
 > ⚠ **Its exact form is settled once the `chore/maquette-untranslate` PR lands.** That branch
 > retires the tooling built for the abandoned surface-by-surface model. `regions.json` → `probe`
@@ -313,7 +313,7 @@ layer traps and restores focus; the whole application is reachable by keyboard; 
 audit runs in the gate; and the oracle is green — the non-visual part of this lot must move
 nothing.
 
-#### L04 — Boundaries and code conventions · `NOT STARTED`
+#### L04 — Boundaries and code conventions · `NOT STARTED` · **runs alone**
 
 **Objective.** The folder structure, the dependency rules and the size ceilings that every later
 lot puts its files into. `ui/` · `features/` · `routes/`, invariants 6 and 7 made executable
@@ -331,10 +331,12 @@ will convert each.
 **Objective.** D1 in force. Every page and screen on a real path, state in the query, layers
 ranked in three tiers.
 
-**Why it is worth more than it looks.** Lifting navigation out of the engine is the first
-subtraction of D5 — and once every named state has an address, **the harness can drive by URL
-instead of through `window.__go`**, which detaches it from the 254 republished globals. That
-detachment is what makes L13 finishable.
+**Why it is worth more than it looks, and why it is not deferred.** It pays twice. Lifting
+navigation out of the engine is the first subtraction of D5 — and once every named state has an
+address, **the harness can drive by URL instead of through `window.__go`**, which detaches it
+from the 254 republished globals. That detachment is what makes L13 finishable, and it is also
+what lets **the oracle outlive the engine**: an oracle that drives through a seam dies with the
+seam. Deferring this lot costs both.
 
 **Done when.** No page identity survives in a query and no state in a path, both checked; a deep
 address lands on its state cold; Back and Forward behave on every tier; R69 is renegotiated with
@@ -358,6 +360,10 @@ the next one; the oracle records the intended visual changes as accepted, each r
 **Why surface by surface.** A single-shot conversion of 4 043 lines produces one unreviewable
 diff and one unattributable failure.
 
+**This lot fixes the surface ORDER, and L09 reuses it.** Both lots walk every surface; walking
+them in the same sequence means the second pass reuses the understanding the first one built.
+Write the order down in this wave's plan.
+
 **Done when.** No hand-written component stylesheet remains; CSS is in its three layers (D3); the
 Tailwind scan is confined and proved not to reach production output; §15 of the constitution is
 amended to name the new visual reference; the oracle is green on every state at every step.
@@ -369,24 +375,40 @@ This phase is the bulk of the remaining work. The pages are finished; the applic
 worker against none.
 <sub>commands in `IMPLEMENTATION.md` § THE OBJECTIVE</sub>
 
-#### L08 — The data contract and the mocks · `NOT STARTED` · *depends on L04*
+#### L08 — The data contract and the mocks · `NOT STARTED` · *depends on L04* · **Track B**
+
+This is the one lot that may run alongside the rendering track (§ 5): it creates its own files
+and changes no rendering, so it never writes the oracle's reference.
 
 **Objective.** D7 in force. The contract the interface requires, plus a mock layer serving it, so
 the maquette codes against a real shape with no backend touched.
 
-**Done when.** The contract exists as its own artefact; the mock layer serves every shape the
-interface needs, including failure and latency; divergences from the existing backend contract
-are recorded as demands; determinism is sufficient for the oracle to depend on it.
+**The mocks are seeded from the fixtures that exist today, and this is binding.** A mock that
+returns exactly what the current fixture returns makes L09 provable: wiring a surface to it
+renders the same thing, so **the oracle proves the wiring at zero divergence**. It turns the
+largest lot of the plan from an unverifiable rewrite into a refactor with a proof, surface by
+surface — and it costs nothing extra, because those fixtures have to be read anyway to know the
+shapes. Invented mock data would forfeit that proof for no gain.
+
+**Done when.** The contract exists as its own artefact; every shape the mock layer serves is
+seeded from the fixture it replaces, and a check holds that correspondence; the layer also serves
+failure and latency; divergences from the existing backend contract are recorded as demands;
+determinism is sufficient for the oracle to depend on it.
 
 #### L09 — The data layer, surface by surface · `NOT STARTED` · *depends on L01, L05, L08*
 
 **Objective.** Server state in its query cache, mutations with their optimistic paths and their
 rollbacks, invariants 4 and 5 in force. Each surface takes its data and **its share of the
-fixture dies with it** (D5).
+fixture dies with it** (D5). Surfaces are walked in the order L07 fixed.
+
+**Its proof comes from L08.** Because the mocks are seeded from the fixtures they replace, a
+wired surface renders what it rendered before, and the oracle holds the wiring at zero
+divergence. If a surface cannot be wired at zero divergence, the difference is understood and
+accepted explicitly — never waved through as "the data changed".
 
 **Done when.** No surface reads a fixture; the fixture literals are gone from the engine; state
 ownership is settled — no ambient mutable object read from everywhere; the oracle is green
-against the mocks.
+against the mocks, or its divergences are accepted one by one with reasons.
 
 #### L10 — The live relay · `NOT STARTED` · *depends on L09*
 
@@ -446,6 +468,44 @@ failure and **no error** (an error means collection crashed and everything after
 
 **The maquette first.** Nothing about a surface is decided anywhere else. A surface is drawn
 before it is coded, with named states and a rule that bites.
+
+### Running two lots at once
+
+The plan is long and the temptation to parallelise is real. **One criterion decides it, and it is
+the only one:**
+
+> A lot may run alongside another **only if it never writes the oracle's reference.**
+
+The reference is the single shared proof artefact. Two branches that each accept divergences
+merge two "validated" states, and **one can mask the other's regression** with nothing to show
+for it. Every other collision — two branches editing one file — announces itself as a conflict.
+This one does not.
+
+**Exactly one pair qualifies**, and it is not a scheduling preference but the result of applying
+the criterion to the thirteen lots:
+
+```
+Track A (rendering)   L02 → L03 → L05 → L06 → L07 ──┐
+                                                     ├──→ L09 → …
+Track B (data)               L08 ───────────────────┘
+```
+
+**L01 and L04 run alone.** Nothing is verifiable before the oracle exists, and L04 moves files,
+so anything running beside it collides.
+
+Costed honestly: the gain is a fraction of the calendar, not a transformation, and part of it is
+spent on the second branch rebasing and re-running a full adversarial review.
+
+**What is refused, and why it stays refused:**
+
+- **Two agents on one track.** Conflicts on the same markup, and failures nobody can attribute.
+- **Merging L07 and L09 into one per-surface wave.** It is the tempting optimisation — it halves
+  the number of waves — and it destroys both proofs. L07 proves the rendering did not change;
+  L09 changes where the data comes from. Together, a conversion defect and a wiring defect are
+  indistinguishable.
+- **L10 beside L11.** Both touch the cache configuration. Small gain, real risk.
+- **Skipping the oracle to move faster.** It is what makes everything else provable. Removing it
+  does not save time; it removes the ability to know.
 
 ---
 
