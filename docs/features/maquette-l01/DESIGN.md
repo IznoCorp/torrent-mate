@@ -273,17 +273,25 @@ Expected: the six keys, then `19 3 2 0`. Nineteen properties — the recovered s
 `opacity` and `visibility`, amended with the measurement above. Two `neutralise` entries: the
 design note, removed, and the boot toast, dismissed through the interface's own control.
 
-**ACC-07 — no region anchors on a CSS class**
+**ACC-07 — no region anchors on a CSS class, and a RULE holds it**
 
 ```bash
 python3 -c "
-import json,re
-r=json.load(open('frontend/maquette/regions.json'))['regions']
-bad=[k for k,v in r.items() if not k.startswith('\$')
-     and re.search(r'(^|[\s,])\.', v['selector'])]
-print('class-anchored:', len(bad), bad)"
+import json,pathlib
+p=pathlib.Path('frontend/maquette/regions.json'); d=json.loads(p.read_text())
+d['regions']['library/strip']={'selector':'.strip','note':'on purpose'}
+p.write_text(json.dumps(d,ensure_ascii=False,indent=2))"
+python3 frontend/maquette/oracle.py --contracts; echo "exit=$?"
+git checkout frontend/maquette/regions.json
 ```
-Expected: `class-anchored: 0 []`.
+Expected: `exit=1`, naming `library/strip` under `ANCHORED ON A CSS CLASS — these die when their
+surface converts to utilities`.
+
+> **This started as a one-shot criterion and became a rule during the adversarial review.** A
+> region anchored on a class dies the day its surface converts to utilities (L07) — which is the
+> very wave this instrument exists to watch, so it would lose its target at the moment it is
+> needed. A criterion runs once; a rule runs for ever, and every rule in this repository has an
+> arm or it is a sentence in a file.
 
 **ACC-08 — every `data-region` contract has its three ends**
 

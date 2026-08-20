@@ -192,10 +192,17 @@ def emitted_region_names() -> set[str]:
         table.
     """
     names: set[str] = set()
-    for path in sorted(SOURCE_DIR.rglob("*.tsx")):
-        text = path.read_text(encoding="utf-8")
-        for pattern in EMITTED:
-            names.update(pattern.findall(text))
+    # `.ts` and `.js` too, and NOT only because a name might land there
+    # tomorrow: the two directions of this check fail differently. A name
+    # DECLARED and not emitted screams on its own, whatever the file type. A
+    # name EMITTED and not declared is the silent one — the oracle simply never
+    # reads that region — so the scan must cover every file a name can be
+    # written in, or it holds only the half that was already loud.
+    for suffix in ("*.tsx", "*.ts", "*.js"):
+        for path in sorted(SOURCE_DIR.rglob(suffix)):
+            text = path.read_text(encoding="utf-8")
+            for pattern in EMITTED:
+                names.update(pattern.findall(text))
     return names
 
 
@@ -216,13 +223,23 @@ def check_contracts() -> int:
     Returns:
         A process exit code: 0 when both directions agree.
     """
-    declared = set(load_regions())
-    anchored = {key for key, value in load_regions().items()
+    regions = load_regions()
+    declared = set(regions)
+    anchored = {key for key, value in regions.items()
                 if value["selector"].startswith("[data-region=")}
     emitted = emitted_region_names()
 
     orphan_markup = sorted(emitted - declared)
     orphan_table = sorted(anchored - emitted)
+    # D4, held rather than stated. A region anchored on a CSS class dies the day
+    # its surface converts to utilities (L07) — which is the very wave this
+    # instrument exists to watch, so it would lose its target at the moment it
+    # is needed. Checked here rather than only in an ACCEPTANCE criterion: a
+    # criterion runs once, a rule runs for ever.
+    class_anchored = sorted(
+        key for key, value in regions.items()
+        if re.search(r"(^|[\s,])\.", value["selector"])
+    )
 
     print(f"{len(declared)} regions declared, {len(anchored)} of them anchored on "
           f"data-region; {len(emitted)} names emitted by the sources")
@@ -232,7 +249,10 @@ def check_contracts() -> int:
     if orphan_table:
         print("DECLARED BUT NOT EMITTED — these resolve to nothing, for ever: "
               + ", ".join(orphan_table))
-    return 1 if (orphan_markup or orphan_table) else 0
+    if class_anchored:
+        print("ANCHORED ON A CSS CLASS — these die when their surface converts "
+              "to utilities: " + ", ".join(class_anchored))
+    return 1 if (orphan_markup or orphan_table or class_anchored) else 0
 
 
 def context_options(recipe: dict) -> dict:
