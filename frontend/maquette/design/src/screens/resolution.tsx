@@ -321,7 +321,7 @@ export function ResolutionScreen() {
         </button>
       </div>
       <div className="port">
-        <div className="body">
+        <div className="body" data-region="screen-resolution/body">
           <div className="note">
             <b>{t("screens.resolution.noteTitle")}</b>{" "}
             {t("screens.resolution.noteOn")} <code>/medias</code>{" "}

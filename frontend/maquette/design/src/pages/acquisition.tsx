@@ -52,7 +52,7 @@ function AcquisitionTabs(): ReactElement {
     { id: "discover", label: t("screens.acquisition.tabDiscover") },
   ];
   return (
-    <div className="viewtabs">
+    <div className="viewtabs" data-region="acquisition/tabs">
       <div className="seg" role="tablist">
         {tabs.map((tab) => (
           <button
@@ -99,7 +99,7 @@ function NowTab(): ReactElement {
 
   if (state.phase !== "ready") {
     return (
-      <div className="body">
+      <div className="body" data-region="acquisition/body">
         {state.phase === "error" ? (
           <div
             className="surferr"
@@ -148,7 +148,7 @@ function NowTab(): ReactElement {
     );
 
   return (
-    <div className="body">
+    <div className="body" data-region="acquisition/body">
       <div className="note">
         <b>{t("screens.acquisition.nowNoteLead")}</b>
         {t("screens.acquisition.nowNoteRest")}
@@ -467,7 +467,7 @@ function FollowsTab(): ReactElement {
 
   return (
     <>
-      <div className="filters">
+      <div className="filters" data-region="acquisition/filters">
         <div className="search">
           <Icon paths={icons.search} />
           <input
@@ -551,7 +551,7 @@ function FollowsTab(): ReactElement {
         </div>
       </div>
       <p className="cadence">{cadenceFR(CADENCE_CRON)}</p>
-      <div className="body">
+      <div className="body" data-region="acquisition/body">
         <div className="note">
           <b>{t("screens.acquisition.followsNoteLead")}</b>
           {t("screens.acquisition.followsNoteRest")}
@@ -629,7 +629,7 @@ function DiscoverTab(): ReactElement {
   ] as const;
 
   const selector = (
-    <div className="filters">
+    <div className="filters" data-region="acquisition/filters">
       <div className="pillbar">
         <div className="pillscroll"></div>
         <div className="vswwrap">

@@ -45,7 +45,7 @@ function LibraryHead(): ReactElement {
   ];
   return (
     <>
-      <div className="viewtabs">
+      <div className="viewtabs" data-region="library/tabs">
         <div className="seg" role="tablist">
           {lenses.map((lens) => (
             <button
@@ -60,7 +60,7 @@ function LibraryHead(): ReactElement {
           ))}
         </div>
       </div>
-      <div className="filters">
+      <div className="filters" data-region="library/filters">
         <div className="search">
           <Icon paths={icons.search} />
           <input
@@ -473,12 +473,12 @@ export function LibraryPage(): ReactElement | null {
     return (
       <>
         <LibraryHead />
-        <div className="countline">
+        <div className="countline" data-region="library/count-line">
           <span className="pip warning"></span>
           <span>{t("screens.library.incompleteTitle")}</span>
           <b style={{ marginLeft: "auto" }}>{INCOMPLETE_COUNT}</b>
         </div>
-        <div className="body">
+        <div className="body" data-region="library/body">
           <div className="note">
             <b>{t("screens.library.incompleteNoteLead")}</b>
             {t("screens.library.incompleteNoteMiddle")}
@@ -531,10 +531,10 @@ export function LibraryPage(): ReactElement | null {
     return (
       <>
         <LibraryHead />
-        <div className="countline">
+        <div className="countline" data-region="library/count-line">
           <span>{t("screens.library.recentTitle")}</span>
         </div>
-        <div className="body">
+        <div className="body" data-region="library/body">
           <div className="note">
             <b>{t("screens.library.recentNoteLead")}</b>
             {t("screens.library.recentNoteMiddle")}
@@ -550,7 +550,7 @@ export function LibraryPage(): ReactElement | null {
   return (
     <>
       <LibraryHead />
-      <div className="countline">
+      <div className="countline" data-region="library/count-line">
         <CountLine />
         <button className="linkbtn" data-selmode="1">
           {t("screens.library.select")}
@@ -559,7 +559,7 @@ export function LibraryPage(): ReactElement | null {
           <SortLabel />
         </button>
       </div>
-      <div className="body">
+      <div className="body" data-region="library/body">
         <div className="note">
           <b>{t("screens.library.mediaNoteLead")}</b>
           {t("screens.library.mediaNoteMiddle")}

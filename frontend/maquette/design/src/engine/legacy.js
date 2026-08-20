@@ -358,7 +358,7 @@ import { screens, panel, bridge } from "../seams.js";
       t: "Star Trek: Strange New Worlds",
       serie: "Continuing",
       since: "28 juillet",
-      searches: 16,
+      searches: 18,
       k: "show",
       y: 2022,
       st: "up_to_date",

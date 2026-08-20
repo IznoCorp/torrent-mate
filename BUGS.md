@@ -68,6 +68,26 @@ when the defect comes back.
 | B-033 | `test_locks_tmp_orphans` is flaky under xdist          | by rule     | `open`       |
 | B-034 | `TestQuickMode` reads a foreign `os.scandir` caller    | by gate     | `open`       |
 | B-035 | `test_continues_on_per_file_error` writes no backup    | by gate     | `open`       |
+| B-036 | Two state ids are still French: `panne`, `groupe`      | by review   | `open`       |
+
+**B-036 — the English campaign missed two state ids, and no arm reads them.**
+`window.__states()` returns **`system-panne`** and **`acq-follows-groupe`**. Both are NAMED STATE
+IDS, which `CLAUDE.md` §Language settles explicitly: « a NAMED STATE id is a name someone chose
+(`window.__go("acq-now-idle")`), and 51 of the maquette's 82 were French until 2026-08-20 because
+« it is a value » was accepted as an answer ». These two are survivors of that campaign
+(#455/#456).
+
+Found while driving the 82 states for L01, not by a guard — which is the point worth recording:
+`scripts/check-no-french.py` has fourteen arms and none of them reads the state table, so the
+count went from 51 to 2 and then stopped moving with nothing to notice. A rule with no arm is a
+sentence in a file.
+
+**Not fixed here, deliberately.** A state id has more than three ends — `states.js`, every
+harness script that drives it, `regions.json`'s records, and this repository's dated documents —
+and L01 is the lot that must not move anything: its whole value is a reference recorded against
+an unchanged prototype. Renaming them would land in the same wave as the instrument that would
+have to prove the rename. **Its fix belongs to the wave after this one, and it should carry the
+missing arm rather than only the two renames.**
 
 **B-034 and B-035 were found running `make check` on Linux, and they are NOT one defect.**
 Both fail identically on `origin/main` with no local change — a worktree at `9632491c` reproduces

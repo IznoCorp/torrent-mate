@@ -69,7 +69,7 @@ function PipelineBar(): ReactElement {
   if (state.pipe === "running" || state.pipe === "queued") {
     const step = PIPELINE.steps[3];
     return (
-      <section className="pipeline">
+      <section className="pipeline" data-region="arrivals/pilot-bar">
         <div className="ph">
           <span className="pip info"></span>
           <span className="pt">{t("screens.arrivals.runningTitle")}</span>
@@ -115,7 +115,7 @@ function PipelineBar(): ReactElement {
   }
 
   return (
-    <section className="pipeline">
+    <section className="pipeline" data-region="arrivals/pilot-bar">
       <div className="ph">
         <span className="pip neutral"></span>
         <span className="pt">{t("screens.arrivals.idleTitle")}</span>

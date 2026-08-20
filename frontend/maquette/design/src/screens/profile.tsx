@@ -99,7 +99,7 @@ export function ProfileScreen() {
         </span>
       </div>
       <div className="port">
-        <div className="body">
+        <div className="body" data-region="screen-profile/body">
           <div className="note">
             <b>{t("screens.profile.noteTitle")}</b>{" "}
             {t("screens.profile.noteBefore")}{" "}

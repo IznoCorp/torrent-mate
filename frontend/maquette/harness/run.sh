@@ -19,6 +19,10 @@
 #   (no flag)     all of them. The gate before a wave is merged; slow on
 #                 purpose, and the only thing that proves a surface still
 #                 renders what it promised.
+#   --oracle      a THIRD tier, and it duplicates neither: the rules say the
+#                 BEHAVIOUR still holds, the oracle says the RENDERING did not
+#                 move. `frontend/maquette/oracle.py --check`, ~25 s over 82
+#                 states x 33 regions, against a committed reference.
 #
 # The suite needs the prototype BUILT and copied where the harness reads it, so
 # this script does that first rather than trusting whoever runs it to remember:
@@ -28,6 +32,7 @@
 # Usage:
 #     frontend/maquette/harness/run.sh              # all 50 rules
 #     frontend/maquette/harness/run.sh --contracts  # the name-contract subset
+#     frontend/maquette/harness/run.sh --oracle     # the recorded oracle alone
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -50,7 +55,16 @@ SERVED="/tmp/tm-refonte"
 # under test. It runs in the full suite, on the machine that has the data.
 CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py)
 
-if [ "${1:-}" = "--contracts" ]; then
+# The oracle runs on the same freshly built copy the rules read, which is why it
+# lives behind this script rather than beside it: a stale `wrapped.html`
+# measures the previous build, and an ORACLE measuring the previous build says
+# « no divergence » about a change it never saw.
+ORACLE_ONLY=0
+if [ "${1:-}" = "--oracle" ]; then
+  ORACLE_ONLY=1
+  scripts=()
+  label="recorded oracle only"
+elif [ "${1:-}" = "--contracts" ]; then
   scripts=("${CONTRACTS[@]}")
   label="contract subset (${#CONTRACTS[@]} rules)"
 else
@@ -81,7 +95,10 @@ fi
 
 echo "Running the ${label}…"
 failed=0
-for s in "${scripts[@]}"; do
+# `${scripts[@]}` on an EMPTY array is an unbound variable under `set -u` with
+# the bash macOS ships, so the `--oracle` tier — which runs no rule script —
+# skips the loop by name rather than by expanding nothing.
+for s in ${scripts[@]+"${scripts[@]}"}; do
   if ! out="$(python3 "${HERE}/${s}" 2>&1)"; then
     echo "  FAILED: $s"
     # The holds that fell — and if the filter matches nothing, the TAIL, because
@@ -101,4 +118,24 @@ if [ "$failed" -gt 0 ]; then
   echo "harness: $failed of ${#scripts[@]} rule(s) FAILED — run the script alone to see which hold fell." >&2
   exit 1
 fi
-echo "harness: ${#scripts[@]} rule(s), no violation."
+if [ "$ORACLE_ONLY" -eq 0 ]; then
+  echo "harness: ${#scripts[@]} rule(s), no violation."
+fi
+
+# The third tier. Run last, because a rendering that moved is worth knowing about
+# after the behaviour is known to hold: a fallen rule explains a moved rectangle,
+# and the reverse is rarely true.
+#
+# NEVER ON `--contracts`, and this is not tidiness — it shipped broken once. The
+# contracts subset is what CI runs on EVERY pull request, and the oracle cannot
+# run there at all: its reference is a measurement, and a measurement is bound to
+# the machine that took it. On the GitHub runner the same unmodified tree
+# reported heights of 1477 where this one records 1474.1 — three pixels of font
+# metrics, not a change to anything. Same reason `arrivals.py` is kept out of the
+# subset: a hold that fails on the runner for a reason foreign to the change
+# under test teaches nobody anything and gets muted.
+if [ "${1:-}" != "--contracts" ]; then
+  echo
+  echo "Running the recorded oracle (the rendering did not move)…"
+  python3 "${HERE}/../oracle.py" --check
+fi

@@ -62,7 +62,7 @@ export function ReleasesScreen() {
         </span>
       </div>
       <div className="port">
-        <div className="body">
+        <div className="body" data-region="screen-releases/body">
           <div className="note">
             <b>{t("screens.releases.noteTitle")}</b>{" "}
             {t("screens.releases.noteBeforePourquoi")}{" "}

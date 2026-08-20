@@ -1,4 +1,4 @@
-.PHONY: help clean test test-unit test-integration test-cov test-impacte lint lint-logging check check-frontend format install-dev version update-ytdlp perf-rebaseline openapi fixture harness harness-contracts
+.PHONY: help clean test test-unit test-integration test-cov test-impacte lint lint-logging check check-frontend format install-dev version update-ytdlp perf-rebaseline openapi fixture harness harness-contracts maquette-oracle
 
 THRESHOLD := $(shell python3 scripts/get_coverage_threshold.py)
 
@@ -64,7 +64,7 @@ test-cov:
 
 lint:
 	@echo "Running linter..."
-	python -m ruff check personalscraper/ tests/ scripts/ frontend/maquette/harness/ frontend/scripts/
+	python -m ruff check personalscraper/ tests/ scripts/ frontend/maquette/ frontend/scripts/
 	python -m ruff format --check personalscraper/ tests/
 	python -m mypy personalscraper/
 	$(MAKE) lint-logging
@@ -160,3 +160,7 @@ harness:
 harness-contracts:
 	@echo "Running the contract subset (5 rules) — what CI runs on every maquette PR..."
 	frontend/maquette/harness/run.sh --contracts
+
+maquette-oracle:
+	@echo "Running the recorded oracle — 82 states x 33 regions against the committed reference..."
+	frontend/maquette/harness/run.sh --oracle

@@ -34,6 +34,63 @@ code until the operator's judgement (step 2 above). Non-negotiable.
 
 ---
 
+## Current wave — L01, the recorded oracle
+
+| | |
+| --- | --- |
+| **Lot** | **L01 — the recorded oracle**, Phase 0 of `docs/reference/frontend-architecture.md`. `runs alone` |
+| **Branch** | `feat/maquette-l01` |
+| **Version** | 0.98.9 → 0.98.10 |
+| **PR merge** | manual |
+| **PR** | _(created after the last phase)_ |
+| **Design** | `docs/features/maquette-l01/DESIGN.md` |
+| **Phases** | 5, all done — `docs/features/maquette-l01/plan/INDEX.md` |
+
+**What it delivers.** `frontend/maquette/oracle.py`, three modes (`--record`, `--check`,
+`--accept`) plus `--contracts` and `--coverage`, measuring **82 named states × 33 regions =
+2 706 measurements in ~24 s** against a committed reference of 35 650 lines. Wired as a THIRD
+tier: `frontend/maquette/harness/run.sh --oracle` and `make maquette-oracle`, deliberately not in
+`make check`.
+
+**What it proves, and it is the architecture file's own « Done when »**: a deliberate ONE-PIXEL
+padding change fails it with 10 divergences, every one on `shell/sheet-content`, each `+2px` of
+height, across the ten `settings-*` states that open the panel.
+
+**Six findings, each measured rather than argued** — the full record is in the wave's DESIGN and
+its plan INDEX:
+
+1. The recovered 17-property subset was **blind to an overlay opening**. `#scrim` between
+   `lib-list` and `drawer-navigation`: 17/17 properties identical AND an identical rectangle.
+   Amended to 19 with `opacity` and `visibility`; flagged for the operator's arbitration.
+2. **Neutralising once at open neutralised nothing.** `.note` is re-emitted by the page
+   components, so it was back in 56 of the 82 states; the boot toast is timer-driven and was
+   visible in 34. The first reference measured the prototype's scaffolding.
+3. The plan's **order was wrong**, and a measurement said so: `drawer-navigation` read five times
+   gave five values. Determinism moved ahead of the reference.
+4. `make lint` read `frontend/maquette/harness/` but **not `frontend/maquette/`**, so
+   `fidelity.py` and `serve.py` had never been linted.
+5. An ACCEPTANCE criterion was **vacuous before it could pass** — `check-markup-contracts.py`
+   does not read `data-region` at all.
+6. The frozen clock **changes nothing this oracle can see**, measured at 03:00 against 23:30.
+   Recorded as measured rather than dressed up as a demonstration. B-036 was opened along the
+   way: two state ids are still French.
+
+**What it does NOT do.** It changes no rendering — that is what makes its own reference
+trustworthy — and it does not re-anchor the 280 class-anchored rule selections, which is L02.
+
+**Why this lot and not the visual language.** SP5b — the scale — is lot **L06**, and it
+`depends on L01`. Phase 0 says « Nothing else may start »: every lot after it changes mechanism
+while promising the rendering is unchanged, and that promise is unprovable today because
+`fidelity.py` has no target left and `parity-probe.py` went with the translation layer in #465.
+
+A design for L06 was written on 2026-08-20 before `frontend-architecture.md` landed, and is
+**parked, not lost**: `docs/superpowers/roadmap/maquette-l06/specs/`. Its header names the three
+points on which the architecture file supersedes it — the ordering, its reinvention of L01, and a
+scale granularity the operator chose on figures presented without knowledge of #466. Re-arbitrate
+before using it.
+
+---
+
 ## Current state
 
 **SP4 is complete.** Seventeen waves have landed, each squash-merged onto `main` after green CI
