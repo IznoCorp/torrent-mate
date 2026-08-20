@@ -58,6 +58,32 @@ when the defect comes back.
 | B-028 | `resync.py` says « 0 correction » for unknown titles  | by review   | `closed`     |
 | B-029 | Counter rule misses suffix drift (« 1 » in « 11 »)    | by review   | `closed`     |
 | B-030 | 87 library sheets carry no genre and no cast          | by rule     | `open`       |
+| B-031 | « Réessayer » on every error surface is inert          | by review   | `to confirm` |
+| B-032 | The harness's data-scenario dial selects the wrong one | by review   | `to confirm` |
+| B-033 | `test_locks_tmp_orphans` is flaky under xdist          | by rule     | `open`       |
+
+**B-033 was seen ONCE, and is written down rather than guessed at.** `make test` reported
+`tests/web/test_maintenance_panels.py::TestLocksRoute::test_locks_tmp_orphans` failed on worker
+`gw7`; the same test passes alone and the very next full run was 10 742 green. Its assertion is
+`len(orphans) == 3` — an EXACT count over what a background sweep reports — and the `test_config`
+fixture is function-scoped with its own `tmp_path`, so a sibling test cannot be leaking into its
+staging directory. The cause is therefore not the obvious one, and the obvious fix (count only
+this test's own paths) would weaken a hold whose failure nobody has explained. Reported before
+any work starts, per rule 1 of this file.
+
+**B-031 and B-032 are ONE defect class, and it is the eighth and ninth instance of it.**
+A `data-*` value, the handler that forwards it verbatim into a store field, and the readers that
+compare that field are a THREE-ENDED contract, and nothing tied them together. `data-phase="prete"`
+wrote a phase no reader knows, so the retry button on every « Impossible de charger… » surface
+wrote a value nothing renders and the error screen never cleared. `data-hscen="reel"`/`"charge"`
+wrote scenario names whose readers compare `real`/`loaded`, so « État réel du 10 août » landed on
+the loaded branch and both dial buttons showed unpressed.
+
+Both PRE-DATE the English rename that exposed them, both were found by an adversarial review, and
+neither was visible to the 50-rule suite, to a reading of the diff, or to a sweep for French
+strings — they are not French-versus-English, they are markup-versus-reader. Fixed with
+`scripts/check-markup-contracts.py`, which asks the only question that catches the class: **does
+anything understand what this button writes?** Mutation-proven on both.
 
 **B-018 was written down as a regression from B-016, and that was wrong.** It has two ways in, one
 of which is older than this work — the correction is recorded here rather than quietly amended,

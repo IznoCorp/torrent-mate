@@ -45,7 +45,7 @@ export function SystemPage(): ReactElement | null {
   if (state.phase !== "ready") {
     // Each emits ONE root element, and this draws that element itself so no
     // wrapper appears where the legacy had none.
-    return state.phase === "erreur" ? (
+    return state.phase === "error" ? (
       <div
         className="surferr"
         dangerouslySetInnerHTML={{

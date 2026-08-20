@@ -142,7 +142,7 @@ async def main():
     # swallowed by its own `?.`. And the row click below wore the same `?.`, so
     # a screen with no result at all would have walked through this block in
     # silence and printed an empty list.
-    await pg.evaluate("()=>window.__go('acq-encours-loaded')"); await pg.wait_for_timeout(300)
+    await pg.evaluate("()=>window.__go('acq-now-loaded')"); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>document.querySelector('#fab').click()"); await pg.wait_for_timeout(500)
     opened = await pg.evaluate(
         "()=>{const r=document.querySelector('.reslist .cbody');"

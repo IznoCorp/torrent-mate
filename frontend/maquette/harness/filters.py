@@ -13,7 +13,7 @@ async def main():
     # wait through the same seam the app uses, rather than sleeping it out.
     await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>window.__measure(true)")
-    await pg.evaluate("()=>window.__go('lib-grille')"); await pg.wait_for_timeout(400)
+    await pg.evaluate("()=>window.__go('lib-grid')"); await pg.wait_for_timeout(400)
 
     cats = await pg.evaluate("()=>CATS.map(c=>({id:c.id,l:c.l,c:c.c}))")
     parts = sum(c["c"] for c in cats if c["id"] != "all")

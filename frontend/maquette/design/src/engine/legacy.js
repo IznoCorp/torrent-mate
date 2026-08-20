@@ -6993,7 +6993,7 @@ import { screens, panel, bridge } from "../seams.js";
     /* The pipeline's state, as the pilot's bar shows it: `repos`, `encours`,
        or `file` — a run asked for while one is running, which DOIT-4 requires
        be QUEUED visibly rather than refused. */
-    pipe: "repos",
+    pipe: "idle",
     /* Maintenance: which rubric is open, and whether the blank run is on. A
        command that DELETES ignores the second — it is on until the dry run
        has named what would go. */
@@ -7002,7 +7002,7 @@ import { screens, panel, bridge } from "../seams.js";
        green, and a screen that can only be green cannot be judged. */
     fault: false,
     maintBlanc: true,
-    addMode: "suivi",
+    addMode: "follow",
     relatedTitle: null,
     /* The backend defaults: permissive everywhere EXCEPT exclude_3d. */
     profile: {
@@ -7509,7 +7509,7 @@ import { screens, panel, bridge } from "../seams.js";
     return `<b>Impossible de charger ${escapeHtml(what)}.</b>
       Le serveur n'a pas répondu dans le temps imparti. Rien n'est perdu — ce qui
       est affiché ailleurs reste valide.
-      <button data-phase="prete">Réessayer</button>`;
+      <button data-phase="ready">Réessayer</button>`;
   }
 
 
@@ -10554,7 +10554,7 @@ import { screens, panel, bridge } from "../seams.js";
      « Associer » is not a synonym of « Ajouter »: identifying a stuck folder
      tells the pipeline WHICH medium that folder is, and creates no follow. */
   function addVerb(result, index) {
-    const identifier = currentState().addMode === "identifier";
+    const identifier = currentState().addMode === "identify";
     if (currentState().added.has(index)) {
       return identifier
         ? "✓ Associé"
@@ -10584,7 +10584,7 @@ import { screens, panel, bridge } from "../seams.js";
       title: result.t,
       meta: `${result.y} · ${result.k} · TMDB`,
       blocs: [
-        result.owned && currentState().addMode !== "identifier"
+        result.owned && currentState().addMode !== "identify"
           ? {
               type: "note",
               text: [
@@ -11240,7 +11240,7 @@ import { screens, panel, bridge } from "../seams.js";
   async function signOut() {
     panel.close();
     try {
-      await fetch("/deconnexion", { redirect: "manual" });
+      await fetch("/logout", { redirect: "manual" });
     } catch (error) {}
     showSignIn(false);
   }
@@ -11450,8 +11450,8 @@ import { screens, panel, bridge } from "../seams.js";
           ? "état inconnu : " + stateId
           : "aucun état enregistré — src/states.js n'a pas été chargé");
     closeHarness();
-    if (!stateId.startsWith("connexion")) hideSignIn();
-    if (stateId !== "demarrage") hideStartup();
+    if (!stateId.startsWith("signin")) hideSignIn();
+    if (stateId !== "startup") hideStartup();
     if (!stateId.startsWith("pwa-")) masquerInstallation();
     // Reset to seed by DEFAULT: a measurement must never inherit the
     // mutations of a previous one. `__go(id, {keep:true})` preserves
@@ -11611,12 +11611,12 @@ import { screens, panel, bridge } from "../seams.js";
       <p>Ce panneau ne fait pas partie de l'interface. Il pilote les données et les états pour qu'on puisse tous les regarder — et pour que la sonde de parité les atteigne sans deviner. <code>window.__go("id")</code> fait la même chose sans clic.</p>
       <h4>Données</h4>
       <div class="row">
-        <button data-hscen="reel" aria-pressed="${currentState().scen === "real"}">État réel du 10 août</button>
-        <button data-hscen="charge" aria-pressed="${currentState().scen === "loaded"}">Scénario de charge</button>
+        <button data-hscen="real" aria-pressed="${currentState().scen === "real"}">État réel du 10 août</button>
+        <button data-hscen="loaded" aria-pressed="${currentState().scen === "loaded"}">Scénario de charge</button>
       </div>
       <h4>Phase de la surface</h4>
       <div class="row">
-        ${["ready", "chargement", "erreur"].map((element) => `<button data-hphase="${element}" aria-pressed="${currentState().phase === element}">${element === "ready" ? "Prête" : element === "chargement" ? "Chargement" : "Erreur"}</button>`).join("")}
+        ${["ready", "loading", "error"].map((element) => `<button data-hphase="${element}" aria-pressed="${currentState().phase === element}">${element === "ready" ? "Prête" : element === "loading" ? "Chargement" : "Erreur"}</button>`).join("")}
       </div>
       <h4>Compte TMDB</h4>
       <div class="row">
@@ -11633,7 +11633,7 @@ import { screens, panel, bridge } from "../seams.js";
   select("#fab").onclick = () => {
     // The « + » ALWAYS means « follow »: the mode must never stay
     // stuck from a previous resolution.
-    screens.add(currentState().addQ, "suivi");
+    screens.add(currentState().addQ, "follow");
   };
   select("#scenBtn").onclick = () => {
     openHarness();
@@ -11938,7 +11938,7 @@ import { screens, panel, bridge } from "../seams.js";
       // `tm`, so the legacy popstate checks fall through it and the router has
       // already re-rendered by the time they run.
       bridge.back();
-      setTimeout(() => screens.add(trim, "identifier"), 260);
+      setTimeout(() => screens.add(trim, "identify"), 260);
       return;
     }
     /* THE FOLDER IS `currentState().resolveTarget`, NEVER THE ATTRIBUTE: what
@@ -12082,17 +12082,17 @@ import { screens, panel, bridge } from "../seams.js";
          give: it puts the burden of remembering on the operator. */
       store.write({
         pipe:
-          closest.dataset.pipe === "arreter"
-            ? "repos"
-            : currentState().pipe === "repos"
-              ? "encours"
-              : "file",
+          closest.dataset.pipe === "stop"
+            ? "idle"
+            : currentState().pipe === "idle"
+              ? "running"
+              : "queued",
       });
       render();
       toast(
-        currentState().pipe === "encours"
+        currentState().pipe === "running"
           ? "Pipeline lancé — il se raconte ici, étape par étape."
-          : currentState().pipe === "file"
+          : currentState().pipe === "queued"
             ? "En file — votre passage partira dès que celui-ci sera fini."
             : "Pipeline arrêté. Ce qui était déjà rangé le reste.",
       );
@@ -12285,7 +12285,7 @@ import { screens, panel, bridge } from "../seams.js";
       // film and a series here — so the title does not identify the result.
       const index = Number(closest.dataset.act.slice(4));
       const result = SEARCH.results[index];
-      if (currentState().addMode === "identifier") {
+      if (currentState().addMode === "identify") {
         // This ASSOCIATES: the stuck folder becomes this medium and the pipeline
         // resumes. No follow is created — that was not the request.
         const target = currentState().resolveTarget;

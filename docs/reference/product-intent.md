@@ -302,6 +302,29 @@ et non amenée vers elle surface par surface.
 est une **nouvelle version de l'app**, pas un habillage : son objet est une expérience
 utilisateur **cohérente**, et le premier objectif est de **figer cette interface**.
 
+### La maquette n'est PAS connectée au backend tant qu'elle est une maquette (2026-08-20)
+
+**Directive opérateur.** Les fixtures ne sont pas un retard, elles sont la condition : c'est ce
+qui rend 82 états nommés atteignables et 51 règles déterministes. Une maquette câblée sur des
+données vivantes mesure les données, pas le dessin. Le raccordement appartient à la **bascule**,
+avec le backend adapté à ce dont l'interface figée a besoin — jamais l'inverse.
+
+### Aucune vague ne s'ouvre sans son design et son plan (2026-08-20)
+
+**SP5 a été commencé sans document de spec, et c'est la faute à corriger avant de le
+poursuivre.** Il n'existe aucun `docs/features/sp5/DESIGN.md` : seulement des renvois épars et
+une phrase du plan SP4-fin nommant son premier geste. Une vague se lance donc ainsi, et pas
+autrement :
+
+1. **Objectifs et contours écrits**, avant toute ligne de code.
+2. **Les choix fonctionnels ET techniques soumis à l'opérateur** — c'est son arbitrage, pas une
+   déduction de l'agent depuis des mesures.
+3. **Un design, puis un plan**, selon la méthodologie `implement:*`.
+4. Alors seulement la branche, les phases, la PR.
+
+Ce qui a été livré de SP5 avant cette règle — SP5a, le vocabulaire rendu livrable — reste :
+il corrigeait un défaut mesuré. **Ce qui suit ne bouge pas sans design validé.**
+
 ### La maquette REMPLACE l'app — elle n'y est ni transposée ni traduite (2026-08-20)
 
 **Le jour de la bascule, `frontend/src` est ARCHIVÉ et la maquette prend sa place.** Elle est la

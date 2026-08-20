@@ -47,16 +47,16 @@ def check(name, condition, detail=""):
 # Every panel this interface can open, and how to reach it without knowing
 # which screen draws which.
 PANELS = [
-    ("complete follow", "feuille-suivi-complet", None),
-    ("follow with holes", "feuille-suivi-trous", None),
-    ("journey", "feuille-parcours", None),
-    ("watch", "feuille-plus", None),
-    ("user menu", "feuille-utilisateur", None),
+    ("complete follow", "followsheet-complete", None),
+    ("follow with holes", "followsheet-gaps", None),
+    ("journey", "sheet-journey", None),
+    ("watch", "sheet-more", None),
+    ("user menu", "sheet-user", None),
     ("suggestion", "acq-discover", '#view [data-panel^="sug:"]'),
     # The add screen left `#screen` for a real route (`/add`, rendered
     # inside `#coquille`) — its results live under `.screen.open` now.
-    ("search result", "acq-ajout-resultats", '.screen.open [data-panel^="add:"]'),
-    ("library sort", "lib-grille", "[data-sort]"),
+    ("search result", "acq-add-results", '.screen.open [data-panel^="add:"]'),
+    ("library sort", "lib-grid", "[data-sort]"),
 ]
 
 READ = """() => {

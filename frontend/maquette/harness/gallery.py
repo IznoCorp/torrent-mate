@@ -9,11 +9,11 @@ import asyncio
 from playwright.async_api import async_playwright
 
 GALLERIES = [
-  ("Médiathèque · Médias",    "lib-grille",                ".tile[data-panel]"),
+  ("Médiathèque · Médias",    "lib-grid",                ".tile[data-panel]"),
   ("Médiathèque · Incomplets","lib-incomplete",            None),
   ("Médiathèque · Récents",   "lib-recent",               None),
-  ("Suivis · grille",         "acq-follows-grille",         ".tile[data-panel]"),
-  ("Découvrir · affiches",    "acq-discover-affiches",    ".tile[data-panel]"),
+  ("Suivis · grille",         "acq-follows-grid",         ".tile[data-panel]"),
+  ("Découvrir · affiches",    "acq-discover-posters",    ".tile[data-panel]"),
 ]
 
 async def main():

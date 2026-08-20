@@ -74,7 +74,7 @@ async def main():
         await pg.evaluate("()=>window.__measure(true)")
 
         # ── a follow's card is not empty ────────────────────────────────────
-        await pg.evaluate("()=>window.__go('acq-follows-liste')")
+        await pg.evaluate("()=>window.__go('acq-follows-list')")
         await pg.wait_for_timeout(420)
         follows = await pg.evaluate("""()=>[...document.querySelectorAll('#view .card')].map(c => ({
           title: (c.querySelector('.ctitle')||{}).textContent||'',
@@ -114,7 +114,7 @@ async def main():
         # ── the two tabs say the same thing the same way ────────────────────
         # « En cours » already had the sentence; the follow tab had none, and
         # two tabs about the same media must not phrase the same fact twice.
-        await pg.evaluate("()=>window.__go('acq-encours-loaded')")
+        await pg.evaluate("()=>window.__go('acq-now-loaded')")
         await pg.wait_for_timeout(420)
         running = await pg.evaluate("""()=>[...document.querySelectorAll('#view .creason')]
           .map(e => e.textContent)""")

@@ -612,7 +612,7 @@ async def main():
         # drew. Measured before it was held: « Récupérer maintenant » moved
         # a medium from one list to the other and left every counter on
         # screen unchanged.
-        await page.evaluate("()=>window.__go('acq-encours-loaded')")
+        await page.evaluate("()=>window.__go('acq-now-loaded')")
         await page.wait_for_timeout(600)
         counters = await page.evaluate(
             "()=>[...document.querySelectorAll('#view .sechead .k')]"
@@ -644,32 +644,32 @@ async def main():
         # for.
         await page.evaluate("()=>window.__reset()")
         await page.evaluate("()=>window.__store.write({page: 'arr',"
-                            " phase: 'ready', pipe: 'repos', scen: 'loaded'})")
+                            " phase: 'ready', pipe: 'idle', scen: 'loaded'})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(320)
-        refused = await tap("#view .pipeline [data-pipe='lancer']")
+        refused = await tap("#view .pipeline [data-pipe='start']")
         started = await page.evaluate(
             "()=>({pipe: window.__store.read().state.pipe,"
             " controls: [...document.querySelectorAll('#view [data-pipe]')]"
             ".map((x) => x.dataset.pipe)})")
         journal.check(
             "a real tap on « lancer » starts the pipeline",
-            not refused and started["pipe"] == "encours"
-            and "arreter" in started["controls"],
-            str(started) if not refused else f"data-pipe='lancer' {refused}")
+            not refused and started["pipe"] == "running"
+            and "stop" in started["controls"],
+            str(started) if not refused else f"data-pipe='start' {refused}")
 
         # DOIT-4, the one the bar exists for: asked DURING a run, another pass
         # is QUEUED — visibly — never refused with « busy, try again ».
-        refused = await tap("#view .pipeline [data-pipe='lancer']")
+        refused = await tap("#view .pipeline [data-pipe='start']")
         queued = await page.evaluate(
             "()=>({pipe: window.__store.read().state.pipe,"
             " live: !!document.querySelector('#view .pipeline .live')})")
         journal.check(
             "and asked again DURING a run, the next pass is queued, not refused",
-            not refused and queued["pipe"] == "file" and queued["live"],
-            str(queued) if not refused else f"data-pipe='lancer' {refused}")
+            not refused and queued["pipe"] == "queued" and queued["live"],
+            str(queued) if not refused else f"data-pipe='start' {refused}")
 
-        refused = await tap("#view .pipeline [data-pipe='arreter']")
+        refused = await tap("#view .pipeline [data-pipe='stop']")
         # The STORE and the DRAWING, because a component that kept drawing the
         # running bar over a stopped pipeline satisfies the store alone — which
         # is the half its two siblings above already read.
@@ -682,9 +682,9 @@ async def main():
         })""")
         journal.check(
             "and a real tap on « arrêter » stops it, and the bar says so",
-            not refused and stopped["pipe"] == "repos" and stopped["idle"]
-            and stopped["start"] and stopped["controls"] == ["lancer"],
-            str(stopped) if not refused else f"data-pipe='arreter' {refused}")
+            not refused and stopped["pipe"] == "idle" and stopped["idle"]
+            and stopped["start"] and stopped["controls"] == ["start"],
+            str(stopped) if not refused else f"data-pipe='stop' {refused}")
 
         # The crossref leaves the page entirely, and it is the page's own
         # `data-go` — the attribute B-024's containment argument counts. It is

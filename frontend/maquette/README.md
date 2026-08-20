@@ -286,32 +286,30 @@ measurement runs locally on every change.
 
 See the binding rule above.
 
-### 2. The CSS is generated, never retyped.
+### 2. The CSS is the maquette's own — there is nothing to translate.
 
-`scripts/extract-maquette-css.py` lifts this file's app CSS block, scopes it under `.tm`, and
-writes `frontend/src/styles/ps/app-surface.css`. It exists — it did not, for a while, while three
-binding documents described it, which is the kind of promise that gets cited as done.
+BLOCK 2 of `design/refonte.html` IS the application's stylesheet. When the maquette replaces the
+app, that block ships as-is; nothing lifts it, rescopes it or copies it anywhere.
 
-**The app has not adopted it.** Nothing imports the generated stylesheet, and that is deliberate:
-adopting it is deriving app code, which §15 forbids until the operator has judged the design. It is
-generated and GUARDED now so that the guard is in place before there is anything to protect —
-measured, not argued: `frontend/dist` is byte-identical with the file present and absent.
+**This section used to describe the opposite, and that is the lesson worth keeping.**
+`scripts/extract-maquette-css.py` lifted BLOCK 2, scoped every selector under `.tm`, and wrote
+`frontend/src/styles/ps/app-surface.css`; an allowlist of 461 selectors in `regions.json` said
+what could ship; `harness/export.py` guarded the allowlist from the other side; and
+`scripts/parity-probe.py` proved the rescoping had not changed the rendering — 1 614 measurements
+and **7 minutes of CI on every PR**. All of it was built for the 2026-08-10 spec's model, in which
+the SHIPPED app was migrated towards the maquette surface by surface, so the two stylesheets had
+to coexist. The operator reversed that on 2026-08-13 and the tooling stayed until 2026-08-20.
 
-- **Editing the generated file by hand is the defect**, not a shortcut.
-- `make check` re-runs the extraction and fails on drift — the same guard that protects
-  `openapi.json` / `schema.d.ts`.
-- To change a pixel, you change the prototype.
+**You do not translate a CSS that becomes the CSS.** What survives is the one distinction that
+was never about translation:
 
-The `<style>` element is physically split into two commented blocks:
-
-- **BLOCK 1 — PROTOTYPE HARNESS**: the phone frame (`.stage`, `.device`), the demo top and
-  bottom bars, the design-note callouts (`.note`), the scenario switch. **Never exported.**
-- **BLOCK 2 — APPLICATION CSS**: everything that ships.
-
-Extraction works from an **allowlist** of selectors declared in `regions.json`, never a
-blocklist — so a prototype-only helper can never silently reach production.
-`harness/export.py` fails on any BLOCK 2 class that is neither covered by the allowlist nor
-classified as harness, and on any dead rule.
+- **BLOCK 1 is the harness** — the phone frame, the demo bars, the design notes. It must NOT
+  ship on switchover day, and the maquette's own build carries it today. That is an open item,
+  recorded in `IMPLEMENTATION.md`, not a solved one.
+- **BLOCK 2 is the product**, and `scripts/check-css-tokens.py` holds it: every `var()` in
+  BLOCK 2 resolves to a declaration in BLOCK 2, or is a `--tm-*` runtime token carrying a
+  fallback. A token that only BLOCK 1 declares works in the prototype and dies at switchover —
+  which is exactly the state that rule was written for: 35 tokens used, ONE declared.
 
 ### 3. The DOM is a contract, checked offline.
 
@@ -319,45 +317,21 @@ Per region, a vitest test renders the component with the shared fixture and asse
 emitted **tag chain + class chain** equals the prototype's. jsdom, milliseconds, no browser.
 This catches "translating" at the moment it happens.
 
-### 4. Zero divergence is a build condition, not a ticket.
+### 4. What replaced « zero divergence »
 
-`scripts/parity-probe.py` walks `regions.json` at 390 × 844 / DPR 2 / mobile / touch and
-diffs `getBoundingClientRect` plus a fixed `getComputedStyle` subset. Wired into `make check`.
+`scripts/parity-probe.py` used to render the same DOM twice — once dressed by BLOCK 2, once by
+the extracted stylesheet — and diff `getBoundingClientRect` plus a fixed `getComputedStyle`
+subset over 51 regions × 49 states × 2 themes. It was the only thing that could catch the
+rescoping changing a cascade while the emitted text stayed exactly right, and it earned its keep:
+it caught two such defects on 2026-08-20 alone, one of them 7 300 divergences wide.
 
-**What it proves, and why the drift check is not enough.** `extract-maquette-css.py --check`
-guards that `app-surface.css` is TEXTUALLY what extraction produces. Extraction also SCOPES
-every selector under `.tm` — `.topbar` ships as `.tm .topbar`, specificity (0,1,0) → (0,2,0) —
-so a cascade outcome can change while the text stays exactly what the extractor emits. Textual
-identity and rendering identity are two different claims; this makes the second one.
+**It was deleted with the extraction it measured.** There is no second stylesheet to be in parity
+WITH: BLOCK 2 is the app's CSS, full stop. Keeping the probe would have meant paying 7 minutes of
+CI per PR to compare a file with itself.
 
-For every state, each region visible in it is measured twice against **the same DOM**: once as
-the prototype dresses it (BLOCK 2 of `refonte.html`), then again with BLOCK 2 replaced by the
-extracted sheet and the scope class applied. Only the stylesheet changes between the reads.
-
-Everything it uses is declared in `regions.json` under `probe` — viewport,
-`assertBeforeMeasuring`, the sixteen compared properties, and three lists that each carry a
-justification per entry:
-
-- **`allowlist`** — accepted divergences (today: one, `.bottombar`'s `position`).
-- **`neutralise`** — prototype-only chrome removed from the DOM before EITHER read. The design
-  note is dismissed by a click in a normal run and the rule collapsing it lives in BLOCK 2,
-  correctly unexported; left in place it springs back to 75.6 px on the swap and pushes every
-  region below it down, which the probe would report as a divergence in each one. That is the
-  shape of a probe measuring its own setup, and it is removed rather than allowlisted because
-  it is not a difference the app can ever have.
-- **`knownAbsent`** — regions whose selector matches nothing in the state they claim. A region
-  that matches nothing MEASURES nothing, so absence FAILS unless it is declared with its
-  cause. Five are: two dead class names (`.sug`, `.qchip`), two interaction-gated
-  (`.addfoot` needs `added.size > 0`, `.eppop` needs a click), one pointed at a state that is
-  not empty (`.empty` in `arr-repos`).
-
-No screenshots, deliberately — see « the deterministic oracle » below.
-
-The probe is **append-only over regions**: each pass re-runs everything already at zero. This
-work has already produced the defect that rule exists for — after a change to one view, only
-that view was checked, and another page shipped blank.
-
----
+What holds BLOCK 2 now is narrower and honest about it: `scripts/check-css-tokens.py` (every
+`var()` resolves), the 50 rule scripts in `harness/`, and the fact that a rendering change in the
+prototype IS the product changing — there is no copy of it left to diverge.
 
 ## Every state has a name, and knows how to reach itself
 
@@ -365,17 +339,17 @@ that view was checked, and another page shipped blank.
 `window.__states()` returns the 54 ids. The **≡** button in the harness opens a panel listing
 them all.
 
-This is what makes the parity probe deterministic. Without it, measuring "the blocked card"
-requires knowing how to make one appear — and that knowledge is exactly what evaporates over
-time. With it, the probe iterates `regions.json` → for each region, the states it is visible
-in → `__go(state)` → measure.
+This is what makes a rule deterministic. Without it, measuring "the blocked card" requires
+knowing how to make one appear — and that knowledge is exactly what evaporates over time. With
+it, a rule says `__go(state)` and measures. The parity probe used to walk `regions.json` this
+way; both it and that map went on 2026-08-20 with the extraction they served.
 
 Three orthogonal dials the panel exposes:
 
 | Dial          | Values                            | What it changes                      |
 | ------------- | --------------------------------- | ------------------------------------ |
-| Data scenario | `reel` · `charge`                 | the real system state vs a dense one |
-| Surface phase | `prete` · `chargement` · `erreur` | every surface goes through all three |
+| Data scenario | `real` · `loaded`                 | the real system state vs a dense one |
+| Surface phase | `ready` · `loading` · `error`     | every surface goes through all three |
 | TMDB account  | connected · not                   | Découvrir's full vs degraded mode    |
 
 The 54 states cover: the startup screen, the entry screen and its refusal, the five urgency
@@ -389,29 +363,24 @@ variants, the navigation drawer, the two install proposals, the arbitration scre
 `harness/states.py` drives all 54 and asserts each one renders content, has no horizontal
 overflow and raises no JS error. **A state that renders nothing fails the pass.**
 
-## `regions.json` — the extraction contract and the measurement map
+## `regions.json` — the project's memory
 
-One file, four jobs:
+It used to carry the extraction contract too: `exportedSelectors` (the 461-entry allowlist),
+`harnessSelectors`, `probe`, `regions`, `states`, `scope` and `outOfScope`. All seven served the
+CSS extraction and its parity probe, and went with them on 2026-08-20 — there is nothing to
+export to. What is left is the part that was never machinery:
 
-- **`exportedSelectors`** — the allowlist `extract-maquette-css.py` exports. Anything not
-  listed is not exported.
-- **`harnessSelectors`** — the prototype's own chrome, listed so its exclusion is explicit
-  rather than implied. **Eight class names sit on BOTH lists** — `topbar`, `bottombar`, `brand`,
-  `mk`, `lb`, `port`, `sp`, `row` — because the demo bars and the app's own bars share their
-  names, one set in BLOCK 1 and the other in BLOCK 2. Extraction only ever reads BLOCK 2, so it
-  reads them as exported, and it PRINTS that it did: a contradiction nobody is told about is how
-  the wrong reading survives for a year.
-- **`regions`** — what `parity-probe.py` is to measure (see the note above: the probe is not
-  built yet), each naming the states it is visible in, so the probe never has to guess how to
-  reach a card state. Its 49 declared states are kept in step with `design/src/states.js` —
-  18 of them had gone stale and named ids the engine no longer knows.
+- **`$vocabulary`** — the frozen CSS-name exceptions, each with the reason it was kept. Read by
+  the no-French guard's class-name and custom-property arms.
+- **`target`** — read by `harness/address.py`.
 - **`$adversarialReview`** — the rule set (R1…R64) plus `$methodLessons`: what each rule
   exists for, and what a rule that failed to bite taught. `$reportedDefects` lists the
   defects found by hand, each with its test in `harness/bugs.py`.
 
-It also carries the probe's emulation settings, the `computedStyle` subset to diff, the
-allowlist of accepted divergences — **every entry carries an inline justification** — and
-`outOfScope`, the surfaces deliberately not covered.
+It used to carry the probe's emulation settings, the `computedStyle` subset to diff, the
+allowlist of accepted divergences and `outOfScope`. All four went with the parity probe on
+2026-08-20 — see the section above. What is left is the project's memory, and `$vocabulary`,
+which the no-French guard reads.
 
 ## What is real in here, and what is not
 
@@ -431,7 +400,7 @@ Read from the live system:
 | The grab cadence                                                                    | the live scheduler              |
 
 Not real: the release candidates on the "choose another release" screen — no tracker is
-queried — and the timings and counts of the `charge` scenario, which exist so density can be
+queried — and the timings and counts of the `loaded` scenario, which exist so density can be
 judged. Both are labelled as such in the design notes.
 
 **The copy ages by design.** The system keeps running: the scheduler searches twice a day
@@ -452,10 +421,10 @@ into a code change it happens to precede.
 
 **Two scenarios**, switched from the harness (the **≡** button):
 
-- **`reel`** (default) — the exact state of the system. Calm: nothing to grab, nothing in
+- **`real`** (default) — the exact state of the system. Calm: nothing to grab, nothing in
   flight, two stuck folders. This is what makes the **rest states** judgeable; a prototype
   that is always busy never shows them.
-- **`charge`** — a dense state, for judging density and scrolling.
+- **`loaded`** — a dense state, for judging density and scrolling.
 
 ---
 
@@ -796,8 +765,9 @@ it settles on a schedule you can wait out reliably. Freezing animations and awai
 A run of that oracle "proved" 20 states changed after a deletion. They had not. The deletion
 was correct all along.
 
-**Use the deterministic oracle instead** — the one `parity-probe.py` uses:
-`getBoundingClientRect` plus a fixed `getComputedStyle` subset. And for the specific question
+**Use the deterministic oracle instead** — bounding rectangles plus a fixed `getComputedStyle`
+subset. That is what the parity probe used before it was deleted with the extraction it
+measured, and the recipe outlives it. And for the specific question
 "is this rule dead?", there is an exact answer that needs no oracle:
 
 ```js
@@ -805,7 +775,9 @@ document.querySelectorAll(".act.grab").length; // over all 47 states → 0 means
 ```
 
 combined with "the source never writes this class name" (so no interaction can produce it).
-That is a proof, not a sample. `harness/export.py` runs exactly that.
+That is a proof, not a sample. `harness/export.py` ran exactly that, and went with the
+allowlist it guarded — the question and its answer are recorded here because the NEXT dead-rule
+hunt will need them.
 
 ## And one trap that no synthetic test can catch
 
@@ -851,10 +823,19 @@ the two apart.
 
 ---
 
-## `harness/` — the probe's working prototype
+## `harness/` — the rule suite
 
-Scripts that already do, in headless Chromium, what `scripts/parity-probe.py` must inherit.
-They are committed because they encode recipes that cost time to get right.
+**Run it with `harness/run.sh`, never by hand.** The script builds the prototype and refreshes
+the copy the rules read before measuring anything — that copy is manual, and a stale one measures
+the previous build without saying so. Two tiers: `--contracts` (5 rules, minutes, wired into CI
+on every maquette PR) and no flag (all 50, 20-25 minutes, the gate before a wave merges).
+
+Until 2026-08-20 the suite ran NOWHERE automatically — not in CI, not in `make check`, which only
+printed a reminder. That day a rename broke six contracts and four were visible to nothing else.
+
+The 51 scripts that measure the prototype in headless Chromium. They are committed because they
+encode recipes that cost time to get right, and because a rule with no script is a sentence in a
+file.
 
 | Script               | What it proves                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -869,7 +850,6 @@ They are committed because they encode recipes that cost time to get right.
 | `audit.py`           | rules R1–R10 and R20–R23 across every state, and it announces how many rules it EXECUTED                                                                                                                                                                                                                                                                                                                                                                                           |
 | `audit2.py`          | rules R11–R17 and R26–R31: uniformity, honesty of the text, one back design, one season rendering, episode presence against the data, a panel that never offers an action the medium does not support                                                                                                                                                                                                                                                                              |
 | `cards.py`          | rules R41–R50: the card and gallery contract — poster to the sheet, body to the panel, no action reachable from a single surface, the same panel from a card and from a gallery                                                                                                                                                                                                                                                                                                    |
-| `export.py`          | every BLOCK 2 class is classified; fails on dead CSS or on a class missing from the allowlist                                                                                                                                                                                                                                                                                                                                                                                      |
 | `bugs.py`            | one test per defect found by hand                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `inter.py`           | swipe, infinite scroll, load error + retry, delete dialog                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `follows.py`          | Suivis conformity across its three modes                                                                                                                                                                                                                                                                                                                                                                                                                                           |

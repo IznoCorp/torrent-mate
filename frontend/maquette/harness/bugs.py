@@ -21,12 +21,12 @@ async def main():
         if not cond: ko.append(name)
 
     # 1 — cadence translated into words
-    await pg.evaluate("()=>window.__go('acq-follows-liste')"); await pg.wait_for_timeout(300)
+    await pg.evaluate("()=>window.__go('acq-follows-list')"); await pg.wait_for_timeout(300)
     cad = await pg.evaluate("()=>document.querySelector('.cadence').textContent.trim()")
     chk("1. cadence in words", "*" not in cad, f"→ « {cad} »")
 
     # 2 — « Voir la fiche » from a follow sheet
-    await pg.evaluate("()=>window.__go('feuille-suivi-trous')"); await pg.wait_for_timeout(400)
+    await pg.evaluate("()=>window.__go('followsheet-gaps')"); await pg.wait_for_timeout(400)
     await pg.evaluate("()=>[...document.querySelectorAll('#sheet .sact')].find(x=>x.textContent.includes('Voir la fiche')).click()")
     await pg.wait_for_timeout(700)
     # The media sheet left `#screen` for a real route (`/mediasheet/$title`, rendered
@@ -47,14 +47,14 @@ async def main():
     chk("2b. the same from Découvrir", r["screen"] and not r["sheet"], str(r))
 
     # 3 — changing page closes the media sheet
-    await pg.evaluate("()=>window.__go('fiche-serie')"); await pg.wait_for_timeout(400)
+    await pg.evaluate("()=>window.__go('mediasheet-series')"); await pg.wait_for_timeout(400)
     await pg.evaluate("()=>document.querySelector('[data-page=lib]').click()"); await pg.wait_for_timeout(400)
     r = await pg.evaluate("""()=>({screen:!!document.querySelector('.screen.open[data-key^="mediaSheet:"]'),
       page:state.page})""")
     chk("3. navigating closes the media sheet", not r["screen"] and r["page"]=="lib", str(r))
 
     # 4 — the cast carousel no longer blocks vertical scrolling
-    await pg.evaluate("()=>window.__go('fiche-serie')"); await pg.wait_for_timeout(400)
+    await pg.evaluate("()=>window.__go('mediasheet-series')"); await pg.wait_for_timeout(400)
     ta = await pg.evaluate("()=>getComputedStyle(document.querySelector('.cast')).touchAction")
     chk("4. carousel allows both axes", "pan-y" in ta, f"touch-action: {ta}")
 
@@ -76,7 +76,7 @@ async def main():
     await pg.screenshot(path="g_fiche_bas.png")
 
     # 7 — a search result leads to its media sheet
-    await pg.evaluate("()=>window.__go('acq-ajout-resultats')"); await pg.wait_for_timeout(450)
+    await pg.evaluate("()=>window.__go('acq-add-results')"); await pg.wait_for_timeout(450)
     has = await pg.evaluate("()=>!!document.querySelector('.reslist .card .poster[data-mediasheet]')")
     await pg.evaluate("()=>document.querySelector('.reslist .card .poster[data-mediasheet]').click()"); await pg.wait_for_timeout(600)
     title = await pg.evaluate(
@@ -123,7 +123,7 @@ async def main():
     await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
     await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>window.__measure(true)")
-    await pg.evaluate("()=>window.__go('acq-ajout-resultats')"); await pg.wait_for_timeout(450)
+    await pg.evaluate("()=>window.__go('acq-add-results')"); await pg.wait_for_timeout(450)
     # The card body opens the result's panel; the panel carries the add act
     # (« Suivre » / « Ajouter »), which is what makes the footer exist.
     # The add screen left `#screen` for a real route (`/add`, rendered

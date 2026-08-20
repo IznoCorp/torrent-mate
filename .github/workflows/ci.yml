@@ -136,6 +136,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y aspell aspell-en aspell-fr
       - run: python scripts/check-no-french.py
       - run: python3 scripts/check-css-tokens.py
+      - run: python3 scripts/check-markup-contracts.py
 
   # `make check` runs twelve guards; CI ran ONE of them (no-french), so eleven
   # were developer-machine checks describing themselves as gates. A gate proves
@@ -162,54 +163,42 @@ jobs:
       - run: python3 scripts/check-pragma-discipline.py
       - run: python3 scripts/audit-cli-coverage.py
       - run: python3 scripts/cli-coverage-report.py --check
-      - run: python3 scripts/extract-maquette-css.py --check
       # Fail-soft by design when `.data/acquire.db` is absent, which it always
       # is on a runner: the fixture is checked against the OPERATOR's live
       # database. It says so rather than claiming a parity it never measured.
       - run: python3 scripts/refresh-maquette-fixture.py --check
 
-  # The parity probe needs a browser and the built prototype served over HTTP,
-  # so it gets its own job rather than slowing `guards` down.
-  parity:
-    name: parity
+  harness-contracts:
+    name: harness-contracts
     runs-on: ubuntu-latest
     needs: [changes]
     steps:
+      # The filter is per STEP, never on the job — see the note above `changes`:
+      # a job-level `if` yields a SKIPPED job, and a required check that is
+      # skipped can sit in « expected » forever. Every other job in this file
+      # does it this way; this one did not, and was the only exception.
       - uses: actions/checkout@v4
         if: needs.changes.outputs.maquette == 'true'
-      - uses: actions/setup-python@v5
-        if: needs.changes.outputs.maquette == 'true'
-        with:
-          python-version: "3.12"
       - uses: actions/setup-node@v4
         if: needs.changes.outputs.maquette == 'true'
-        with:
-          node-version: "22"
-      - run: npm ci
+        with: { node-version: '22' }
+      - uses: actions/setup-python@v5
         if: needs.changes.outputs.maquette == 'true'
-        working-directory: frontend/maquette/design
-      - run: npm run build
-        if: needs.changes.outputs.maquette == 'true'
-        working-directory: frontend/maquette/design
+        with: { python-version: '3.12' }
       - run: pip install playwright && python -m playwright install --with-deps chromium
         if: needs.changes.outputs.maquette == 'true'
-      - name: Serve the built prototype where the probe expects it
+      - run: npm ci --prefix frontend/maquette/design
         if: needs.changes.outputs.maquette == 'true'
-        run: |
-          mkdir -p /tmp/tm-refonte
-          cp frontend/maquette/design/dist/index.html /tmp/tm-refonte/wrapped.html
-          cp -R frontend/maquette/design/dist/vite /tmp/tm-refonte/vite
-          (cd /tmp/tm-refonte && python3 -m http.server 8899 &)
-          for _ in $(seq 1 30); do
-            curl -sf --connect-timeout 2 --max-time 5 http://127.0.0.1:8899/wrapped.html >/dev/null && break
-            sleep 1
-          done
-      # `channel=chrome` is what the harness uses locally; on a runner the
-      # bundled chromium is what `playwright install` provides.
-      - run: python3 scripts/parity-probe.py
+      # The CONTRACT subset only. The 50-rule suite is a wave gate, not a
+      # per-PR one: 50 headless-Chrome runs cost 20-25 minutes, and these five
+      # are the ones that fall when a NAME moves without all of its ends —
+      # which is what a pull request most often does wrong.
+      # The rules launch `channel="chrome"`. `PARITY_BROWSER_CHANNEL` used to
+      # redirect that, and its only reader went with `parity-probe.py` — setting
+      # it here would be green by accident of the runner shipping Chrome, which
+      # is the failure `tests/conftest.py` was just fixed for.
+      - run: frontend/maquette/harness/run.sh --contracts
         if: needs.changes.outputs.maquette == 'true'
-        env:
-          PARITY_BROWSER_CHANNEL: chromium
 
   typecheck:
     name: typecheck

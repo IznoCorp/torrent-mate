@@ -1,4 +1,4 @@
-.PHONY: help clean test test-unit test-integration test-cov test-impacte lint lint-logging check check-frontend format install-dev version update-ytdlp perf-rebaseline openapi fixture
+.PHONY: help clean test test-unit test-integration test-cov test-impacte lint lint-logging check check-frontend format install-dev version update-ytdlp perf-rebaseline openapi fixture harness harness-contracts
 
 THRESHOLD := $(shell python3 scripts/get_coverage_threshold.py)
 
@@ -83,6 +83,7 @@ check: lint test-cov
 	python3 scripts/check-pragma-discipline.py
 	python3 scripts/check-no-french.py
 	python3 scripts/check-css-tokens.py
+	python3 scripts/check-markup-contracts.py
 	python3 scripts/check-i18n-placeholders.py
 	python3 scripts/check-command-safety.py
 	python3 scripts/audit-cli-coverage.py
@@ -91,12 +92,8 @@ check: lint test-cov
 	python3 scripts/update_feature_map.py --check
 	@echo "Auditing design coverage..."
 	python3 scripts/audit_design_coverage.py --strict
-	@echo "Checking maquette CSS drift..."
-	python3 scripts/extract-maquette-css.py --check
 	@echo "Checking maquette fixture drift..."
 	python3 scripts/refresh-maquette-fixture.py --check
-	@echo "Probing maquette/app CSS parity..."
-	python3 scripts/parity-probe.py
 	@echo "Checking OpenAPI drift..."
 	@if [ -d frontend/node_modules ]; then $(MAKE) openapi && git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts; else echo "openapi-drift: skipped (frontend/node_modules absent)"; fi
 	@echo "Checking version bump..."
@@ -134,7 +131,7 @@ perf-rebaseline:
 fixture:
 	@echo "Refreshing the maquette fixture from acquire.db..."
 	python3 scripts/refresh-maquette-fixture.py --apply
-	@echo "Rebuild the maquette before running the harness: cd frontend/maquette/design && npm run build"
+	@echo "Then: frontend/maquette/harness/run.sh (the script rebuilds and re-copies itself)"
 
 openapi:
 	@echo "Exporting OpenAPI schema..."
@@ -155,3 +152,11 @@ check-frontend:
 	cd frontend && npm run test -- --run
 	@echo "Running frontend build..."
 	cd frontend && npm run build
+
+harness:
+	@echo "Running the maquette rule suite (50 rules, 20-25 min) — the wave gate..."
+	frontend/maquette/harness/run.sh
+
+harness-contracts:
+	@echo "Running the contract subset (5 rules) — what CI runs on every maquette PR..."
+	frontend/maquette/harness/run.sh --contracts
