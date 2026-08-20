@@ -34,6 +34,31 @@ code until the operator's judgement (step 2 above). Non-negotiable.
 
 ---
 
+## Current wave — L01, the recorded oracle
+
+| | |
+| --- | --- |
+| **Lot** | **L01 — the recorded oracle**, Phase 0 of `docs/reference/frontend-architecture.md`. `runs alone` |
+| **Branch** | `feat/maquette-l01` |
+| **Version** | 0.98.9 → 0.98.10 |
+| **PR merge** | manual |
+| **PR** | _(created after the last phase)_ |
+| **Design** | `docs/features/maquette-l01/DESIGN.md` |
+| **Phases** | _(filled by /implement:plan)_ |
+
+**Why this lot and not the visual language.** SP5b — the scale — is lot **L06**, and it
+`depends on L01`. Phase 0 says « Nothing else may start »: every lot after it changes mechanism
+while promising the rendering is unchanged, and that promise is unprovable today because
+`fidelity.py` has no target left and `parity-probe.py` went with the translation layer in #465.
+
+A design for L06 was written on 2026-08-20 before `frontend-architecture.md` landed, and is
+**parked, not lost**: `docs/superpowers/roadmap/maquette-l06/specs/`. Its header names the three
+points on which the architecture file supersedes it — the ordering, its reinvention of L01, and a
+scale granularity the operator chose on figures presented without knowledge of #466. Re-arbitrate
+before using it.
+
+---
+
 ## Current state
 
 **SP4 is complete.** Seventeen waves have landed, each squash-merged onto `main` after green CI
