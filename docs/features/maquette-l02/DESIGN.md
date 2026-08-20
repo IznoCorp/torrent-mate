@@ -51,28 +51,36 @@ distinct root tokens** — a long tail, not a few hot spots.
 
 ### Where the markup lives — measured over all 114 tokens, not a sample
 
-A first pass sampled nine classes, found `legacy.js` emitting almost none of them, and concluded
-the migration was a component-tree job. **That was wrong, and the full measurement says so.** Of
-the 114 distinct class tokens the 281 calls select on:
+Two earlier passes were wrong, and both are recorded because the correction is the finding. The
+first sampled nine classes, saw `legacy.js` emitting almost none of them, and concluded the
+migration was a component-tree job. The second counted only two emission sites and left 17 tokens
+unattributed. **There are three sites**, and `frontend/maquette/design/index.html` — the
+application shell, 47 `class=` in 374 lines — is the one both passes missed.
+
+Of the 114 distinct class tokens the 281 calls select on:
 
 | Emitted by | Tokens | Examples |
 | --- | --- | --- |
-| **only `legacy.js`** | **19** | `fr`, `fn`, `fk`, `fs`, `ep`, `eprow`, `sugwrap`, `dlgbtn`, `deck`, `manifest` |
-| **both** | **32** | `card`, `ctitle`, `cbody`, `cfoot`, `poster`, `cov`, `chip`, `tile`, `sechead` |
-| only the components | 46 | `screen`, `sact`, `reslist`, `settingrow`, `seg`, `body`, `port` |
-| neither — computed or in `index.html` | 17 | `announced`, `bottombar`, `dlg`, `eppop`, `loginscreen`, `selbar` |
+| the components only | 48 | `sact`, `reslist`, `settingrow`, `seg`, `body`, `open`, `field` |
+| **the engine AND the components** | **34** | `card`, `ctitle`, `cbody`, `cfoot`, `poster`, `cov`, `chip`, `tile`, `sechead`, `ep` |
+| **the engine only** | **17** | `fr`, `fn`, `fk`, `fs`, `sugwrap`, `dlgbtn`, `deck`, `manifest`, `nm`, `sel` |
+| the shell (`index.html`) only | 9 | `bottombar`, `loginscreen`, `loginsubmit`, `splashbar`, `dlg`, `hbtn`, `installgo` |
+| the shell and the components | 2 | `port`, `screen` |
+| computed `className` expressions | 4 | `announced`, `eppop`, `modified`, `selbar` |
 
 <sub>method: resolve every `.token` outside a `[…]` in the 281 selectors, then count
-`className=`/`class=` emissions of each in `engine/legacy.js` versus the 23 non-engine sources</sub>
+`className=`/`class=` emissions of each across `index.html`, `engine/legacy.js` and the 23
+non-engine sources</sub>
 
-**So 51 of 114 tokens — 45 % — have an end inside the dying engine**, and the lot must move those
+**51 of 114 tokens — 45 % — have an end inside the dying engine**, and the lot must move those
 too. That is not wasted work against D5, it is the argument FOR doing it now: a surface converting
 out of `legacy.js` into a component KEEPS a `data-part` anchor and loses a class anchor. Every rule
 still anchored on a class is a rule that breaks on the day its surface converts — which is exactly
 the day someone needs it to hold.
 
-The 17 that neither emits are computed `className` expressions or shell markup in `index.html`;
-each is resolved individually rather than assumed, because a token nothing emits is a rule already
+**Eleven have an end in the shell**, which no lot converts and which therefore keeps its
+`data-part` for good. The four computed ones are conditional `className` expressions and are each
+resolved at their own site — never assumed, because a token nothing emits is a rule already
 selecting nothing.
 
 ## The vocabulary
@@ -110,9 +118,12 @@ el.hasAttribute('data-open')                               // assertion
 
 ### The React trap, and it gets an arm rather than a sentence
 
-`data-open={false}` does **not** disappear. React passes `data-*` through as strings, so it renders
-`data-open="false"` — and `[data-open]` then matches **always**. The rule would go green while
-measuring nothing, which is this repository's most expensive defect class.
+`data-open={false}` is believed **not** to disappear: React passes `data-*` through as strings, so
+it should render `data-open="false"` — and `[data-open]` would then match **always**, sending the
+rule green while it measures nothing. That is this repository's most expensive defect class, so the
+belief is not load-bearing: **ACC-06 demonstrates it in the live document before the arm that
+depends on it is written.** If the demonstration says otherwise, the arm changes and this paragraph
+changes with it.
 
 The imposed idiom is `data-open={isOpen || undefined}`, and a guard arm checks it at the source.
 A rule nobody can break by accident is worth more than a rule everybody is told to remember.
