@@ -290,7 +290,7 @@ is unchanged, and that promise is currently unprovable: `fidelity.py` cannot run
 it compared are deleted, no recording is committed, and the state ids have been renamed in two
 separate waves since.
 
-#### L01 — The recorded oracle · `IN PROGRESS` · **runs alone**
+#### L01 — The recorded oracle · `LANDED` · **runs alone**
 
 **Objective.** One command that says whether the maquette renders today what it rendered at a
 known-good commit.
