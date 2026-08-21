@@ -35,16 +35,16 @@ async def main():
     # 1. Slide cards — the case the operator reported.
     await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'discover',phase:'ready'}); window.__store.write({sugMode: 'deck'}); render();}")
     await pg.wait_for_timeout(600)
-    t0 = await pg.evaluate("()=>document.querySelector('.dcard[data-depth=\"0\"] .t').textContent")
-    await drag('.dcard[data-depth="0"]', -180)
-    t1 = await pg.evaluate("()=>document.querySelector('.dcard[data-depth=\"0\"] .t').textContent")
+    t0 = await pg.evaluate("""()=>document.querySelector('[data-part="deck/card"][data-depth="0"] .t').textContent""")
+    await drag('[data-part="deck/card"][data-depth="0"]', -180)
+    t1 = await pg.evaluate("""()=>document.querySelector('[data-part="deck/card"][data-depth="0"] .t').textContent""")
     print(f"slide cards, mouse left : « {t0[:24]} » → « {t1[:24]} »  {'PASS' if t1 != t0 else 'FAIL'}")
     if not (t1 != t0): failures.append("slide cards, mouse left")
     # Reset between gestures: chaining two drags without one measures the
     # second against the state the first left, which is not what is being asked.
     await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'discover',phase:'ready'}); window.__store.write({sugMode: 'deck'}); render();}")
     await pg.wait_for_timeout(600)
-    await drag('.dcard[data-depth="0"]', 180)
+    await drag('[data-part="deck/card"][data-depth="0"]', 180)
     n = await pg.evaluate("()=>state.sugGone.size")
     print(f"slide cards, mouse right: dismissed {n}  {'PASS' if n == 1 else 'FAIL'}")
     if not (n == 1): failures.append("slide cards, mouse right")

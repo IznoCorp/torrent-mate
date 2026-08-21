@@ -107,7 +107,7 @@ function ReleaseCard({
   const { t } = useTranslation();
   return (
     <div className="card" data-part="card" data-nonmedia={opts.genre || "release"}>
-      <div className="ctop">
+      <div className="ctop" data-part="card/top">
         <span
           className="poster"
           data-part="card/poster"
@@ -120,7 +120,7 @@ function ReleaseCard({
         />
         <span className="cbody" data-part="card/body">
           <span className="ctitle" data-part="card/title">{title}</span>
-          <span className="csub">{meta}</span>
+          <span className="csub" data-part="card/subtitle">{meta}</span>
           {/* The synopsis is what actually SEPARATES four series with nearly
               the same name, so it belongs on the card that asks to choose
               between them. It is an `overview`, not a reason: it clamps
@@ -130,7 +130,7 @@ function ReleaseCard({
               decide loses the queue you were working through. */}
           {opts.overview ? <span className="cov" data-part="card/overview">{opts.overview}</span> : ""}
           {confidence ? (
-            <span className="cmeta">
+            <span className="cmeta" data-part="card/meta">
               <span className="chip info">
                 {t("screens.resolution.confidence")} {confidence}
               </span>
@@ -181,13 +181,13 @@ function DecisionCard({ decision }: { decision: SettledDecision }) {
   const poster =
     settled && decision.choice
       ? posterBox(decision.choice.t, decision.k)
-      : `<span class="pfall">${svgIcon(decision.k === "movie" ? icons.film : icons.tv, 1.25)}<b>?</b></span>`;
+      : `<span class="pfall" data-part="card/poster-fallback">${svgIcon(decision.k === "movie" ? icons.film : icons.tv, 1.25)}<b>?</b></span>`;
   const identity = decision.choice
     ? `${decision.choice.t} · ${decision.choice.p.toUpperCase()} ${decision.choice.id} · ${VIA_LABEL[decision.choice.via] ?? decision.choice.via}`
     : null;
   return (
     <div className="card" data-part="card" data-nonmedia="decision">
-      <div className="ctop">
+      <div className="ctop" data-part="card/top">
         <span
           className="poster"
           data-part="card/poster"
@@ -197,13 +197,13 @@ function DecisionCard({ decision }: { decision: SettledDecision }) {
           <span className="ctitle" data-part="card/title" title={decision.d}>
             <code>{decision.d}</code>
           </span>
-          <span className="csub">{decision.when}</span>
+          <span className="csub" data-part="card/subtitle">{decision.when}</span>
           {/* What was chosen is the most useful line here — it is the answer
               one comes back to read — so it wraps rather than truncating. On
               one line it lost its provider id and how it was found, which is
               exactly what one comes back for. */}
-          {identity ? <span className="creason">{identity}</span> : ""}
-          <span className="cmeta">
+          {identity ? <span className="creason" data-part="card/reason">{identity}</span> : ""}
+          <span className="cmeta" data-part="card/meta">
             <span className={`chip ${REASON_TONE[decision.reason] ?? "neutral"}`}>
               {REASON_LABEL[decision.reason] ?? decision.reason}
             </span>
@@ -339,7 +339,7 @@ export function ResolutionScreen() {
               ? (REASON_DETAIL[decision.reason] ?? "")
               : t("screens.resolution.noMediaIdentified")}
           </p>
-          <div className="cmeta" style={{ marginBottom: "12px" }}>
+          <div className="cmeta" data-part="card/meta" style={{ marginBottom: "12px" }}>
             {decision ? (
               <span
                 className={`chip ${REASON_TONE[decision.reason] ?? "neutral"}`}
@@ -350,7 +350,7 @@ export function ResolutionScreen() {
               ""
             )}
             {pending.length > 1 ? (
-              <span className="caption">
+              <span className="caption" data-part="card/caption">
                 {rank} {t("screens.resolution.outOf")} {pending.length}{" "}
                 {t("screens.resolution.waiting")}
               </span>

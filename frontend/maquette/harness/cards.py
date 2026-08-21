@@ -149,7 +149,7 @@ async def main():
                             posterIsButton:p?p.tagName==='BUTTON':false,
                             posterToSheet:p?p.dataset.mediasheet||null:null,
                             posterToPanel:p?p.dataset.panel||null:null,
-                            posterUnknown:p?(p.querySelector('.pfall b')||{}).textContent==='?':false};})"""
+                            posterUnknown:p?(p.querySelector('[data-part="card/poster-fallback"] b')||{}).textContent==='?':false};})"""
             )
             if not seen:
                 failures.append(f"R41 {state_}: no card at all — the state draws nothing")
@@ -341,12 +341,12 @@ async def main():
                 return {poster:Math.round(rp.width),
                         padding:cs.padding, radius:cs.borderRadius,
                         title:getComputedStyle(t).fontSize,
-                        gap:getComputedStyle(c.querySelector('.ctop')).gap};}"""
+                        gap:getComputedStyle(c.querySelector('[data-part="card/top"]')).gap};}"""
             )
             if m:
                 metrics[state_] = m
             truncated += await pg.evaluate(
-                """()=>[...document.querySelectorAll('.creason')]
+                """()=>[...document.querySelectorAll('[data-part="card/reason"]')]
                     .filter(e=>e.scrollHeight>e.clientHeight+1)
                     .map(e=>e.textContent.slice(0,60))"""
             )

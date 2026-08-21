@@ -6,7 +6,7 @@ nothing about a gesture that has to claim an axis.
 import asyncio
 from playwright.async_api import async_playwright
 
-SEL = '.dcard[data-depth="0"]'
+SEL = '[data-part="deck/card"][data-depth="0"]'
 
 async def main():
   async with async_playwright() as p:
@@ -31,7 +31,7 @@ async def main():
 
     async def swipe(dx):
         await pg.evaluate("""(dx)=>{
-          const c=document.querySelector('.dcard[data-depth="0"]');
+          const c=document.querySelector('[data-part="deck/card"][data-depth="0"]');
           const r=c.getBoundingClientRect(), x=r.left+r.width/2, y=r.top+r.height/2;
           // Real PointerEvents of type « touch »: the handlers now serve finger,
           // mouse and pen through one path, and the axis claim still lives in

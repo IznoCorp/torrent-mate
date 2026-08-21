@@ -127,7 +127,7 @@ import { screens, panel, bridge } from "../seams.js";
     if (src) return `<img src="${src}" alt="" loading="lazy">`;
     const iconPath =
       kind === "movie" ? icons.film : kind === "show" ? icons.tv : icons.clap;
-    return `<span class="pfall">${svgIcon(iconPath, 1.25)}<b>${initials(title)}</b></span>`;
+    return `<span class="pfall" data-part="card/poster-fallback">${svgIcon(iconPath, 1.25)}<b>${initials(title)}</b></span>`;
   }
 
   const initialsOf = (title) =>
@@ -7121,7 +7121,7 @@ import { screens, panel, bridge } from "../seams.js";
        artwork still has a sheet, and must still lead to it. */
     const hasSheet = sheetFor(descriptor.t) != null;
     const image = descriptor.noposter
-      ? `<span class="pfall"><b>${escapeHtml(initials(descriptor.t))}</b></span>`
+      ? `<span class="pfall" data-part="card/poster-fallback"><b>${escapeHtml(initials(descriptor.t))}</b></span>`
       : posterBox(descriptor.t, descriptor.k);
     const poster = hasSheet
       ? `<button class="poster" data-part="card/poster" aria-label="Fiche de ${escapeHtml(descriptor.t)}" data-mediasheet="${escapeHtml(descriptor.t)}">${image}</button>`
@@ -7132,17 +7132,17 @@ import { screens, panel, bridge } from "../seams.js";
        arrived. Mixed on one line they competed for the same row and the state
        stopped reading at a glance, which is the only thing that line is for. */
     const stateRow = `${descriptor.f ? `<span class="frac">${escapeHtml(descriptor.f)}</span>` : ""}${chipHTML(descriptor.chip)}${descriptor.note != null ? `<span class="crating">${escapeHtml(String(descriptor.note))}</span>` : ""}`;
-    const ligneAnnotations = `${descriptor.caption ? `<span class="caption">${escapeHtml(descriptor.caption)}</span>` : ""}${descriptor.fresh ? `<span class="freshtag">Nouveau</span>` : ""}`;
+    const ligneAnnotations = `${descriptor.caption ? `<span class="caption" data-part="card/caption">${escapeHtml(descriptor.caption)}</span>` : ""}${descriptor.fresh ? `<span class="freshtag" data-part="card/fresh-tag">Nouveau</span>` : ""}`;
     return `<div class="card${descriptor.fresh ? " fresh" : ""}" data-part="card"${hasSheet ? "" : ' data-nonmedia="dossier"'}>
     ${poster}
     <div class="ccol">
-    <div class="ctop">
+    <div class="ctop" data-part="card/top">
       <button class="cbody" data-part="card/body" data-panel="${escapeHtml(descriptor.panel || (hasSheet ? `media:${descriptor.t}` : `dossier:${descriptor.t}`))}">
         <span class="ctitle" data-part="card/title" title="${escapeHtml(descriptor.t)}">${escapeHtml(descriptor.t)}</span>
-        ${descriptor.s ? `<span class="csub">${escapeHtml(descriptor.s)}</span>` : ""}
-        ${descriptor.r ? `<span class="creason">${richText(descriptor.r)}</span>` : ""}
+        ${descriptor.s ? `<span class="csub" data-part="card/subtitle">${escapeHtml(descriptor.s)}</span>` : ""}
+        ${descriptor.r ? `<span class="creason" data-part="card/reason">${richText(descriptor.r)}</span>` : ""}
         ${descriptor.overview ? `<span class="cov" data-part="card/overview">${escapeHtml(descriptor.overview)}</span>` : ""}
-        ${stateRow ? `<span class="cmeta">${stateRow}</span>` : ""}
+        ${stateRow ? `<span class="cmeta" data-part="card/meta">${stateRow}</span>` : ""}
         ${ligneAnnotations ? `<span class="cannotations">${ligneAnnotations}</span>` : ""}
       </button>
     </div>
@@ -10001,7 +10001,7 @@ import { screens, panel, bridge } from "../seams.js";
       return `<button class="selrow" data-tile="${index}" aria-selected="${has}">
         <span class="sel">${svgIcon(icons.check, 3)}</span>
         <span class="poster" data-part="card/poster">${posterBox(item.t)}</span>
-        <span class="rowtxt"><span class="ctitle" data-part="card/title" title="${escapeHtml(item.t)}">${escapeHtml(item.t)}</span><span class="csub">${escapeHtml(item.f)}</span></span>
+        <span class="rowtxt"><span class="ctitle" data-part="card/title" title="${escapeHtml(item.t)}">${escapeHtml(item.t)}</span><span class="csub" data-part="card/subtitle">${escapeHtml(item.f)}</span></span>
       </button>`;
     }
     return swipeHTML(
@@ -10322,7 +10322,7 @@ import { screens, panel, bridge } from "../seams.js";
      press opens the panel, exactly as in a gallery. The card STATES which
      panel it addresses and never how to build it. */
   function deckCardHTML(suggestion, index, depth) {
-    return `<article class="dcard" data-deck="${index}" data-depth="${depth}" data-panel="sug:${index}">
+    return `<article class="dcard" data-part="deck/card" data-deck="${index}" data-depth="${depth}" data-panel="sug:${index}">
       <button class="p" data-mediasheet="${escapeHtml(suggestion.t)}" aria-label="Fiche de ${escapeHtml(suggestion.t)}">
         ${
           POSTERS_HD[suggestion.t]

@@ -78,9 +78,9 @@ async def main():
         await pg.wait_for_timeout(420)
         follows = await pg.evaluate("""()=>[...document.querySelectorAll('#view [data-part="card"]')].map(c => ({
           title: (c.querySelector('[data-part="card/title"]')||{}).textContent||'',
-          sub: (c.querySelector('.csub')||{}).textContent||'',
-          reason: (c.querySelector('.creason')||{}).textContent||'',
-          facts: (c.querySelector('.caption')||{}).textContent||''}))""")
+          sub: (c.querySelector('[data-part="card/subtitle"]')||{}).textContent||'',
+          reason: (c.querySelector('[data-part="card/reason"]')||{}).textContent||'',
+          facts: (c.querySelector('[data-part="card/caption"]')||{}).textContent||''}))""")
         check("the follows list has cards", len(follows) > 4, str(len(follows)))
         silent = [s["title"] for s in follows if not s["sub"].strip()]
         check("every follow says what it is", not silent, str(silent[:3]))
@@ -116,7 +116,7 @@ async def main():
         # two tabs about the same media must not phrase the same fact twice.
         await pg.evaluate("()=>window.__go('acq-now-loaded')")
         await pg.wait_for_timeout(420)
-        running = await pg.evaluate("""()=>[...document.querySelectorAll('#view .creason')]
+        running = await pg.evaluate("""()=>[...document.querySelectorAll('#view [data-part="card/reason"]')]
           .map(e => e.textContent)""")
         phrase = "Aucune release conforme"
         check("« En cours » explains a fruitless search",

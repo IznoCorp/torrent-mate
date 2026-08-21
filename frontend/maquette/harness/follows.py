@@ -21,7 +21,7 @@ async def main():
     print("list order        :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card/title"]')].map(e=>e.textContent).slice(0,6)"""))
     print("dot across a chip :", await pg.evaluate("()=>{const c=document.querySelector('.chip');const s=getComputedStyle(c,'::before');return {w:s.width,h:s.height,radius:s.borderRadius};}"))
     print("title alone       :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card"]')].slice(0,4).every(c=>{
-        const t=c.querySelector('[data-part="card/title"]').getBoundingClientRect(), m=c.querySelector('.cmeta').getBoundingClientRect();
+        const t=c.querySelector('[data-part="card/title"]').getBoundingClientRect(), m=c.querySelector('[data-part="card/meta"]').getBoundingClientRect();
         return t.bottom<=m.top+0.5;})"""))
     await pg.screenshot(path="s_liste.png")
 

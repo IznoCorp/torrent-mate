@@ -70,7 +70,7 @@ function Poster({ poster }: { poster: { t: string; k?: string } }) {
         ? icons.tv
         : icons.clap;
   return (
-    <span className="pfall">
+    <span className="pfall" data-part="card/poster-fallback">
       <Icon paths={iconPath} strokeWidth={1.25} />
       <b>{initials(poster.t)}</b>
     </span>

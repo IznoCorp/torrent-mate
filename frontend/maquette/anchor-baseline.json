@@ -75,14 +75,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/actions.py",
-    "line": 81,
-    "selector": ".freshtag",
-    "token": ".freshtag"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/actions.py",
     "line": 86,
     "selector": ".dlgbtn.danger",
     "token": ".danger"
@@ -448,15 +440,7 @@
     "held": false,
     "file": "frontend/maquette/harness/audit.py",
     "line": 182,
-    "selector": "#libitems .csub, #libitems .fr",
-    "token": ".csub"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit.py",
-    "line": 182,
-    "selector": "#libitems .csub, #libitems .fr",
+    "selector": "#libitems [data-part=\"card/subtitle\"], #libitems .fr",
     "token": ".fr"
   },
   {
@@ -1009,14 +993,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/cards.py",
-    "line": 152,
-    "selector": ".pfall b",
-    "token": ".pfall"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
     "line": 251,
     "selector": ".tile[data-panel]",
     "token": ".tile"
@@ -1068,22 +1044,6 @@
     "line": 316,
     "selector": ".grid",
     "token": ".grid"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
-    "line": 344,
-    "selector": ".ctop",
-    "token": ".ctop"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
-    "line": 349,
-    "selector": ".creason",
-    "token": ".creason"
   },
   {
     "kind": "selection",
@@ -1153,38 +1113,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/content.py",
-    "line": 81,
-    "selector": ".csub",
-    "token": ".csub"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/content.py",
-    "line": 82,
-    "selector": ".creason",
-    "token": ".creason"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/content.py",
-    "line": 83,
-    "selector": ".caption",
-    "token": ".caption"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/content.py",
-    "line": 119,
-    "selector": "#view .creason",
-    "token": ".creason"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/content.py",
     "line": 237,
     "selector": "#view [data-part=\"card\"], #view .tile",
     "token": ".tile"
@@ -1217,14 +1145,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/decision.py",
-    "line": 64,
-    "selector": "[data-part=\"card/poster\"] .pfall",
-    "token": ".pfall"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/decision.py",
     "line": 73,
     "selector": ".chip",
     "token": ".chip"
@@ -1236,22 +1156,6 @@
     "line": 75,
     "selector": ".sact, [data-part=\"card/foot\"]",
     "token": ".sact"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/deck.py",
-    "line": 9,
-    "selector": ".dcard[data-depth=\"0\"]",
-    "token": ".dcard"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/deck.py",
-    "line": 34,
-    "selector": ".dcard[data-depth=\"0\"]",
-    "token": ".dcard"
   },
   {
     "kind": "selection",
@@ -1572,14 +1476,6 @@
     "line": 22,
     "selector": ".chip",
     "token": ".chip"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/follows.py",
-    "line": 24,
-    "selector": ".cmeta",
-    "token": ".cmeta"
   },
   {
     "kind": "selection",
@@ -2250,48 +2146,16 @@
     "held": false,
     "file": "frontend/maquette/harness/mouse.py",
     "line": 38,
-    "selector": ".dcard[data-depth=\\\"0\\\"] .t",
-    "token": ".dcard"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/mouse.py",
-    "line": 38,
-    "selector": ".dcard[data-depth=\\\"0\\\"] .t",
+    "selector": "[data-part=\"deck/card\"][data-depth=\"0\"] .t",
     "token": ".t"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/mouse.py",
-    "line": 39,
-    "selector": ".dcard[data-depth=\"0\"]",
-    "token": ".dcard"
   },
   {
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/mouse.py",
     "line": 40,
-    "selector": ".dcard[data-depth=\\\"0\\\"] .t",
-    "token": ".dcard"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/mouse.py",
-    "line": 40,
-    "selector": ".dcard[data-depth=\\\"0\\\"] .t",
+    "selector": "[data-part=\"deck/card\"][data-depth=\"0\"] .t",
     "token": ".t"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/mouse.py",
-    "line": 47,
-    "selector": ".dcard[data-depth=\"0\"]",
-    "token": ".dcard"
   },
   {
     "kind": "selection",
@@ -3970,15 +3834,7 @@
     "held": false,
     "file": "frontend/maquette/harness/touch.py",
     "line": 164,
-    "selector": ".sugwrap, .dcard",
-    "token": ".dcard"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 164,
-    "selector": ".sugwrap, .dcard",
+    "selector": ".sugwrap, [data-part=\"deck/card\"]",
     "token": ".sugwrap"
   },
   {
@@ -3986,15 +3842,7 @@
     "held": true,
     "file": "frontend/maquette/harness/touch.py",
     "line": 165,
-    "selector": ".deck .dcard[data-depth='0']",
-    "token": ".dcard"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 165,
-    "selector": ".deck .dcard[data-depth='0']",
+    "selector": ".deck [data-part=\"deck/card\"][data-depth=\"0\"]",
     "token": ".deck"
   },
   {
@@ -4002,15 +3850,7 @@
     "held": false,
     "file": "frontend/maquette/harness/touch.py",
     "line": 168,
-    "selector": ".deck .dcard[data-depth='0']",
-    "token": ".dcard"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 168,
-    "selector": ".deck .dcard[data-depth='0']",
+    "selector": ".deck [data-part=\"deck/card\"][data-depth=\"0\"]",
     "token": ".deck"
   },
   {
@@ -4034,15 +3874,7 @@
     "held": true,
     "file": "frontend/maquette/harness/touch.py",
     "line": 195,
-    "selector": ".deck .dcard[data-depth='0']",
-    "token": ".dcard"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 195,
-    "selector": ".deck .dcard[data-depth='0']",
+    "selector": ".deck [data-part=\"deck/card\"][data-depth=\"0\"]",
     "token": ".deck"
   },
   {
@@ -4060,14 +3892,6 @@
     "line": 236,
     "selector": ".tile",
     "token": ".tile"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 237,
-    "selector": ".dcard",
-    "token": ".dcard"
   },
   {
     "kind": "selection",

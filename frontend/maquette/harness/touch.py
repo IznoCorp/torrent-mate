@@ -161,11 +161,11 @@ async def main():
 
         await pg.evaluate("()=>window.__go('acq-discover-deck')")
         await pg.wait_for_timeout(350)
-        before = await pg.evaluate("()=>document.querySelectorAll('.sugwrap, .dcard').length")
-        r = await rect(".deck .dcard[data-depth='0']")
+        before = await pg.evaluate("""()=>document.querySelectorAll('.sugwrap, [data-part="deck/card"]').length""")
+        r = await rect('.deck [data-part="deck/card"][data-depth="0"]')
         await drag(cdp, r["x"] + r["width"] / 2, r["y"] + r["height"] / 2, 12, 22, 0)
         await pg.wait_for_timeout(450)
-        moved = await pg.evaluate("""()=>{const c=document.querySelector(".deck .dcard[data-depth='0']");
+        moved = await pg.evaluate("""()=>{const c=document.querySelector('.deck [data-part="deck/card"][data-depth="0"]');
             return c ? c.textContent.replace(/\\s+/g,' ').trim().slice(0,40) : null;}""")
         check("the deck still moves on by one card", bool(moved) and before > 0, str(moved))
 
@@ -192,7 +192,7 @@ async def main():
             ("library gallery", "lib-grid", ".tile"),
             ("a card's poster", "acq-follows-list", '#view [data-part="card"] [data-part="card/poster"]'),
             ("a card's body", "acq-follows-list", '#view [data-part="card"] [data-part="card/body"]'),
-            ("deck card", "acq-discover-deck", ".deck .dcard[data-depth='0']"),
+            ("deck card", "acq-discover-deck", '.deck [data-part="deck/card"][data-depth="0"]'),
         ]
         without_panel, with_selection, fired = [], [], []
         for name, state_, sel in press_surfaces:
@@ -234,7 +234,7 @@ async def main():
         # no list poster, and a rule that skips what is absent proves nothing.
         for state_, selectors in (("acq-follows-list", ['[data-part="card/poster"]']),
                                  ("lib-grid", [".tile"]),
-                                 ("acq-discover-deck", [".dcard"]),
+                                 ("acq-discover-deck", ['[data-part="deck/card"]']),
                                  ("followsheet-complete", [".sheetposter"])):
             await pg.evaluate("(s)=>window.__go(s)", state_)
             await pg.wait_for_timeout(320)

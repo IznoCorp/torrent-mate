@@ -61,7 +61,7 @@ SCREEN = """() => {
       posterButton: (c.querySelector('[data-part="card/poster"]') || {}).tagName === 'BUTTON',
       panel: (c.querySelector('[data-part="card/body"]') || {}).dataset?.panel || null,
       poster: (c.querySelector('[data-part="card/poster"] img') || {}).src || null,
-      noPoster: !!c.querySelector('[data-part="card/poster"] .pfall'),
+      noPoster: !!c.querySelector('[data-part="card/poster"] [data-part="card/poster-fallback"]'),
       plot: (c.querySelector('[data-part="card/overview"]') || {}).textContent || null,
       link: c.querySelectorAll('a, [data-mediasheet]').length,
     })),

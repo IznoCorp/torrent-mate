@@ -98,6 +98,7 @@ cancel
 candidate
 candidates
 caps
+caption
 card
 cards
 cast
@@ -209,6 +210,7 @@ exit
 fab
 fact
 facts
+fallback
 fast
 fetching
 field
@@ -239,6 +241,7 @@ fr
 fraction
 frames
 freq
+fresh
 from
 full
 future
@@ -358,6 +361,7 @@ md
 media
 mediasheet
 medium
+meta
 migrated
 min
 missing
@@ -590,6 +594,7 @@ subject
 subjects
 subscribe
 subscription
+subtitle
 success
 suffix
 sug

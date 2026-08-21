@@ -78,7 +78,7 @@ async def main():
     assert b6["follows"]==a["follows"]+1
     await pg.evaluate("()=>window.__go('acq-follows-list',{keep:true})"); await pg.wait_for_timeout(350)
     print("  → at the head of Suivis :", await pg.evaluate("""()=>document.querySelector('[data-part="card/title"]').textContent"""),
-          "| chip Nouveau :", await pg.evaluate("()=>!!document.querySelector('.freshtag')"))
+          "| chip Nouveau :", await pg.evaluate("""()=>!!document.querySelector('[data-part="card/fresh-tag"]')"""))
 
     await pg.evaluate("()=>window.__go('lib-selection')"); await pg.wait_for_timeout(350)
     a=await pg.evaluate(cnt)

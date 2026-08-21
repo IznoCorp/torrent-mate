@@ -179,7 +179,7 @@ async def main():
           R.subLines = [];
           if (stateId.startsWith('lib-') && !stateId.includes('incomplete')) {
             const expected = /^(\\d{4}|année inconnue) · (Film|Série)$/;
-            R.subLines = [...root.querySelectorAll('#libitems .csub, #libitems .fr')]
+            R.subLines = [...root.querySelectorAll('#libitems [data-part="card/subtitle"], #libitems .fr')]
               .map(e=>e.textContent.trim()).filter(t=>t && !expected.test(t)).slice(0,5);
           }
 
