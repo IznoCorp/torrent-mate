@@ -469,13 +469,13 @@ F=frontend/maquette/design/src/screens/add.tsx; cp "$F" /tmp/l02-acc04.bak
 python3 -c "
 import pathlib
 p = pathlib.Path('$F'); t = p.read_text()
-old = 'data-part=\"result-list\"'
+old = 'data-part=\"result/list\"'
 assert t.count(old) == 1, f'{t.count(old)} occurrences — mutation ABANDONED'
-p.write_text(t.replace(old, 'data-part=\"results\"'))"
+p.write_text(t.replace(old, 'data-part=\"result/listing\"'))"
 python3 scripts/check-markup-contracts.py; echo "exit=$?"
 cp /tmp/l02-acc04.bak "$F"
 ```
-Expected: `exit=1`, naming `result-list` as selected by the harness and emitted by no source, and
+Expected: `exit=1`, naming `result/list` as selected by the harness and emitted by no source, and
 naming at least one of the 15 harness calls that now select nothing. This is the three-ends defect
 caught from the markup end.
 
