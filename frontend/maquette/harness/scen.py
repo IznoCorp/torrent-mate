@@ -37,13 +37,13 @@ async def main():
             r = await pg.evaluate("""()=>{const v=document.querySelector('#view');
               return {txt:v.textContent.replace(/\\s+/g,' ').trim().length,
                       // The shapes a view can be MADE of. `flux/row` joined the list
-                      // when Système stopped being a wall of `.kv`: it is the
-                      // same kind of object, so what this counts is unchanged —
-                      // is there structure, or only prose.
-                      cards:v.querySelectorAll('[data-part="card"],[data-part="tile"],.kv,[data-part="flux/row"]').length,
+                      // when Système stopped being a wall of `key-value`: it is
+                      // the same kind of object, so what this counts is
+                      // unchanged — is there structure, or only prose.
+                      cards:v.querySelectorAll('[data-part="card"],[data-part="tile"],[data-part="key-value"],[data-part="flux/row"]').length,
                       empty:!!v.querySelector('[data-part="empty-state"]'),
                       doc:document.documentElement.scrollWidth,
-                      spills:[...v.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>390.5&&!e.closest('.pillscroll')&&!e.closest('.cast')).length};}""")
+                      spills:[...v.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>390.5&&!e.closest('[data-part="pill/list"]')&&!e.closest('[data-part="cast"]')).length};}""")
             ok = r['txt'] > 100 and r['doc'] <= 390 and r['spills'] == 0 and (r['cards'] > 0 or r['empty'])
             if not ok: total_bad += 1
             print(("  PASS" if ok else "  FAIL"), f"{name:16}", r)

@@ -153,8 +153,8 @@ export function AddScreen() {
 
   return (
     <section className="screen open" data-part="screen" data-open="" data-key={`add:${mode}`}>
-      <div className="screenbar">
-        <button className="fback" onClick={() => window.__bridge.back()}>
+      <div className="screenbar" data-part="screen/bar">
+        <button className="fback" data-part="screen/back" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.add.back")}
         </button>
@@ -250,7 +250,7 @@ export function AddScreen() {
         </div>
         {hasQuery ? (
           <>
-            <p className="rescount">
+            <p className="rescount" data-part="result/count">
               <b>{filtered.length}</b>{" "}
               {filtered.length > 1
                 ? t("screens.add.resultPlural")
@@ -291,7 +291,7 @@ export function AddScreen() {
             </div>
           </>
         )}
-        <details className="byid">
+        <details className="byid" data-part="add/by-id">
           <summary>
             {identify
               ? t("screens.add.byIdIdentify")
@@ -341,7 +341,7 @@ export function AddScreen() {
           </div>
         </details>
         {added.size > 0 ? (
-          <div className="addfoot">
+          <div className="addfoot" data-part="add/foot">
             <span>
               <b>{added.size}</b>{" "}
               {added.size > 1

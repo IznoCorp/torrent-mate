@@ -69,7 +69,7 @@ async def main():
     # own identity now, `[data-part="screen"][data-open][data-key^="resolution:"]`, never to the
     # legacy host it used to live in.
     print("resolution screen        :", await pg.evaluate(
-        """()=>document.querySelector('[data-part="screen"][data-open][data-key^="resolution:"] .h2')?.textContent"""))
+        """()=>document.querySelector('[data-part="screen"][data-open][data-key^="resolution:"] [data-part="heading"]')?.textContent"""))
 
     await pg.evaluate("()=>document.querySelector('[data-manual]').click()"); await pg.wait_for_timeout(600)
     # The manual search reached from « Chercher manuellement » is the add
@@ -80,16 +80,16 @@ async def main():
         ?? document.createElement('div');
       return {banner:(s.querySelector('[data-part="surface-error"] b')||{}).textContent,
               query:s.querySelector('#addq')?.value,
-              idBlock:(s.querySelector('.byid summary')||{}).textContent};}""")
+              idBlock:(s.querySelector('[data-part="add/by-id"] summary')||{}).textContent};}""")
     # The card wears no inline action: the verb lives in the result's panel,
     # so the panel is where the rule reads it — same path the finger takes.
     await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card/body"]').click()"""); await pg.wait_for_timeout(420)
-    r["verbs"] = await pg.evaluate("()=>[...document.querySelectorAll('#sheet .sact.primary')].map(x=>x.textContent.trim())")
+    r["verbs"] = await pg.evaluate("""()=>[...document.querySelectorAll('#sheet [data-part="sheet/action"][data-tone="primary"]')].map(x=>x.textContent.trim())""")
     print("search screen            :", r)
     await pg.screenshot(path="p_identifier.png")
 
     before_assoc = await where(pg)
-    await pg.evaluate("()=>document.querySelector('#sheet .sact.primary').click()"); await pg.wait_for_timeout(700)
+    await pg.evaluate("""()=>document.querySelector('#sheet [data-part="sheet/action"][data-tone="primary"]').click()"""); await pg.wait_for_timeout(700)
     after = await pg.evaluate("()=>({stuck:derived.stuck().length, moving:derived.moving().length, follows:world.follows.length})")
     print("after « Associer »       :", after)
     print("notification             :", (await pg.evaluate("()=>document.querySelector('#toastmsg')?.textContent"))[:90])
@@ -148,7 +148,7 @@ async def main():
         """()=>{const r=document.querySelector('[data-part="result/list"] [data-part="card/body"]');"""
         " if(!r) return false; r.click(); return true;}")
     await pg.wait_for_timeout(420)
-    v = await pg.evaluate("()=>[...document.querySelectorAll('#sheet .sact.primary')].map(x=>x.textContent.trim())")
+    v = await pg.evaluate("""()=>[...document.querySelectorAll('#sheet [data-part="sheet/action"][data-tone="primary"]')].map(x=>x.textContent.trim())""")
     # AND THE ANSWER REACHES THE VERDICT. `v` was computed, printed, and then
     # dropped: `ok and held and not errs` never mentioned it, so these four
     # lines drove the interface and threw away what they found.

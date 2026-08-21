@@ -48,13 +48,13 @@ async def main():
                   nodes: v.querySelectorAll('*').length,
                   // The shapes a view can be MADE of: a card, a gallery tile,
                   // a key/value row, a fact row. `flux/row` joined the list when
-                  // Système stopped being a wall of `.kv` — it is the same kind
-                  // of object, so what this counts is unchanged: is there
+                  // Système stopped being a wall of `key-value` — it is the same
+                  // kind of object, so what this counts is unchanged: is there
                   // structure, or only prose.
-                  cards: v.querySelectorAll('[data-part="card"],[data-part="tile"],.kv,[data-part="flux/row"]').length,
+                  cards: v.querySelectorAll('[data-part="card"],[data-part="tile"],[data-part="key-value"],[data-part="flux/row"]').length,
                   doc: document.documentElement.scrollWidth,
                   device: Math.round(document.querySelector('[data-part="shell/device"]').getBoundingClientRect().width),
-                  spills: [...v.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>390.5&&!e.closest('.pillscroll')).length};}""")
+                  spills: [...v.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>390.5&&!e.closest('[data-part="pill/list"]')).length};}""")
         ok = r['cards'] > 0 and r['content'] > 120 and r['doc'] <= 390 and r['device'] == 390 and r['spills'] == 0
         if not ok: bad += 1
         print(("PASS" if ok else "FAIL"), f"{name:16}", r)

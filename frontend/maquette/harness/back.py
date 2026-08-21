@@ -45,8 +45,8 @@ WHERE = """() => ({
   screen: document.querySelector('#screen').hasAttribute('data-open'),
   drawer: document.querySelector('#drawer').hasAttribute('data-open'),
   message: (document.querySelector('#toast')||{}).textContent || '',
-  toastVisible: (document.querySelector('#toast')||{classList:{contains:()=>false}})
-                  .classList.contains('show'),
+  toastVisible: (document.querySelector('#toast')||{hasAttribute:()=>false})
+                  .hasAttribute('data-shown'),
 })"""
 
 

@@ -105,7 +105,7 @@ async def main():
             shapes[mode] = await pg.evaluate("""()=>({
                 tiles:document.querySelectorAll('#view [data-part="tile"][data-panel]').length,
                 cards:document.querySelectorAll('#view [data-part="card"]').length,
-                toggle:!!document.querySelector('#view .vsw')})""")
+                toggle:!!document.querySelector('#view [data-part="view/switch"]')})""")
         ok = (shapes["grid"]["tiles"] > 0 and shapes["list"]["cards"] > 0
               and shapes["grid"]["toggle"] and shapes["list"]["toggle"])
         print(f"  library lens « {lens} »        both layouts: {'OK' if ok else 'FAIL'}  {shapes}")

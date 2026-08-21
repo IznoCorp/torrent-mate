@@ -63,10 +63,10 @@ export function MaintenancePage(): ReactElement | null {
     const actions = MAINT_ACTIONS.filter((action) => action.g === topic.id);
     return (
       <>
-        <button className="crossref" data-maintopic="">
+        <button className="crossref" data-part="cross-reference" data-maintopic="">
           {t("screens.maintenance.allCommands")}
         </button>
-        <h2 className="h2">{topic.t}</h2>
+        <h2 className="h2" data-part="heading">{topic.t}</h2>
         <div className="note" data-part="note">{topic.s}</div>
         {facts(
           actions.map((action) => ({
@@ -100,12 +100,12 @@ export function MaintenancePage(): ReactElement | null {
           (action) => action.r === "destructive",
         ).length;
         return (
-          <button className="topic" data-maintopic={entry.id} key={entry.id}>
+          <button className="topic" data-part="topic" data-maintopic={entry.id} key={entry.id}>
             <span style={{ minWidth: 0, flex: 1 }}>
-              <span className="rt">{entry.t}</span>
-              <span className="rs">{entry.s}</span>
+              <span className="rt" data-part="topic/title">{entry.t}</span>
+              <span className="rs" data-part="topic/subtitle">{entry.s}</span>
             </span>
-            <span className="rn">
+            <span className="rn" data-part="topic/count">
               {countIn(entry.id)}
               {destructive
                 ? t(
@@ -121,7 +121,7 @@ export function MaintenancePage(): ReactElement | null {
         );
       })}
 
-      <h2 className="h2">{t("screens.maintenance.journal")}</h2>
+      <h2 className="h2" data-part="heading">{t("screens.maintenance.journal")}</h2>
       <div className="note" data-part="note">
         {t("screens.maintenance.journalNote", { total: JOURNAL.total })}
       </div>

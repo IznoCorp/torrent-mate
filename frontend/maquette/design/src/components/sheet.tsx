@@ -126,7 +126,7 @@ export function Sheet({
           // rather than close it on a gesture the browser took away.
           onPointerCancel={() => endDrag(true)}
         />
-        <div ref={innerRef} id="sheetin" className="sheetin">
+        <div ref={innerRef} id="sheetin" className="sheetin" data-part="sheet/viewport">
           {descriptor ? <PanelContent descriptor={descriptor} /> : null}
         </div>
       </div>

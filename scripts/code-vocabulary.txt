@@ -43,6 +43,7 @@ act
 action
 actions
 active
+activity
 add
 added
 addfield
@@ -142,6 +143,7 @@ count
 cover
 create
 cron
+cross
 cur
 current
 cutoff
@@ -314,6 +316,7 @@ installsub
 interval
 ios
 is
+item
 items
 journal
 journey
@@ -332,6 +335,7 @@ leading
 leave
 left
 legacy
+legend
 lens
 lenses
 lg
@@ -421,6 +425,7 @@ of
 offset
 old
 on
+only
 open
 option
 order
@@ -583,6 +588,7 @@ sm
 small
 snug
 soft
+solid
 sort
 sorted
 space
@@ -627,6 +633,7 @@ swallow
 swatch
 swipe
 swipeact
+switch
 synopsis
 system
 tab

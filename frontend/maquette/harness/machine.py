@@ -162,7 +162,7 @@ CONTRAST = """() => {
 READ = """() => {
   const port = document.querySelector('#port');
   const block = (heading) => {
-    const headings = [...document.querySelectorAll('#view .h2')];
+    const headings = [...document.querySelectorAll('#view [data-part="heading"]')];
     const t = headings.find((x) => x.textContent.trim() === heading);
     // NO HEADING and NO LIST UNDER ONE are different defects — the first sends
     // a reader to the strings, the second to the component — so the miss says
@@ -198,9 +198,9 @@ READ = """() => {
     overflow: port.scrollWidth - port.clientWidth,
     text: document.querySelector('#view').textContent,
     simulated: document.querySelector('#view').textContent.includes('SIMULÉE'),
-    headings: [...document.querySelectorAll('#view .h2')].map((x) => x.textContent.trim()),
+    headings: [...document.querySelectorAll('#view [data-part="heading"]')].map((x) => x.textContent.trim()),
     __BLOCKS__
-    topics: [...document.querySelectorAll('#view .topic .rt')].map((x) => x.textContent.trim()),
+    topics: [...document.querySelectorAll('#view [data-part="topic"] [data-part="topic/title"]')].map((x) => x.textContent.trim()),
     commands: [...document.querySelectorAll('#view [data-part="flux"] [data-part="flux/row"] [data-part="flux/key"]')].map((x) => x.textContent.trim()),
   };
 }"""
@@ -210,8 +210,8 @@ READ = READ.replace("__BLOCKS__", "".join(
 
 PANEL = """() => ({
   open: document.querySelector('#sheet').hasAttribute('data-open'),
-  title: (document.querySelector('.sheettitle') || {}).textContent || '',
-  actions: [...document.querySelectorAll('.sheetacts .sact')].map((b) => ({
+  title: (document.querySelector('[data-part="sheet/title"]') || {}).textContent || '',
+  actions: [...document.querySelectorAll('[data-part="sheet/actions"] [data-part="sheet/action"]')].map((b) => ({
     text: b.textContent.trim(),
     inert: b.disabled,
     why: b.getAttribute('title') || '',

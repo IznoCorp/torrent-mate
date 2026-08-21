@@ -46,10 +46,10 @@ READ = """() => {
   const port = document.querySelector('#port');
   return {
     overflow: port.scrollWidth - port.clientWidth,
-    status: (document.querySelector('.pipeline .pt') || {}).textContent || '',
-    buttons: [...document.querySelectorAll('.pipeline [data-pipe]')]
+    status: (document.querySelector('[data-part="pipeline"] [data-part="pipeline/title"]') || {}).textContent || '',
+    buttons: [...document.querySelectorAll('[data-part="pipeline"] [data-pipe]')]
                .map((b) => b.dataset.pipe),
-    queued: !!document.querySelector('.pipeline .live'),
+    queued: !!document.querySelector('[data-part="pipeline"] [data-part="live-activity"]'),
     uid: (window.PIPELINE_UID_POUR_LA_SONDE || null),
     steps: [...document.querySelectorAll('[data-part="flux"] [data-part="flux/row"]')].map((x) => ({
       name: x.querySelector('[data-part="flux/name"]').textContent.trim(),
@@ -129,7 +129,7 @@ async def main():
         # TAPPING, because a queue nobody can reach by a gesture is a branch no
         # gesture can enter — and driving `state.pipe` straight to it would
         # certify exactly that. The first version of this rule did.
-        await pg.tap('.pipeline [data-pipe="start"]')
+        await pg.tap('[data-part="pipeline"] [data-pipe="start"]')
         await pg.wait_for_timeout(350)
         running = await pg.evaluate(READ)
         journal.check("pressing « lancer » sets the pipeline running",
@@ -140,7 +140,7 @@ async def main():
         journal.check("while running, nothing claims a pass is already queued",
                       not running["queued"])
 
-        await pg.tap('.pipeline [data-pipe="start"]')
+        await pg.tap('[data-part="pipeline"] [data-pipe="start"]')
         await pg.wait_for_timeout(350)
         queued = await pg.evaluate(READ)
         journal.check("a pass asked for DURING another is queued, and says so",
@@ -149,7 +149,7 @@ async def main():
                       queued["status"] == "En cours" and "stop" in queued["buttons"],
                       f"{queued['status']} · {queued['buttons']}")
 
-        await pg.tap('.pipeline [data-pipe="stop"]')
+        await pg.tap('[data-part="pipeline"] [data-pipe="stop"]')
         await pg.wait_for_timeout(350)
         stopped = await pg.evaluate(READ)
         journal.check("« arrêter » brings it back to rest", stopped["status"] == "Au repos",

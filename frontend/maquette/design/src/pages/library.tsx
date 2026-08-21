@@ -121,12 +121,13 @@ function LibraryHead(): ReactElement {
           ) : null}
         </div>
         <div className="pillbar">
-          <div className="pillscroll">
+          <div className="pillscroll" data-part="pill/list">
             {state.libLens === "cat"
               ? CATS.map((category) => (
                   <button
                     key={category.id}
                     className="pill"
+                    data-part="pill"
                     aria-pressed={state.libCat === category.id}
                     data-cat={category.id}
                   >
@@ -137,7 +138,7 @@ function LibraryHead(): ReactElement {
               : null}
           </div>
           <div className="vswwrap">
-            <div className="vsw">
+            <div className="vsw" data-part="view/switch">
               <button
                 aria-pressed={state.libMode === "list"}
                 data-lmode="list"
@@ -415,7 +416,7 @@ function LibraryList(): ReactElement {
       );
     } else if (state.libErr) {
       foot = (
-        <div className="loaderr">
+        <div className="loaderr" data-part="load-error">
           <b>{t("screens.library.loadErrorLead")}</b>
           {t("screens.library.loadErrorRest", { count })}
           {/* THE ONLY CONTROL ON A MIGRATED PAGE THAT IS NOT DELEGATED. Every
@@ -473,12 +474,12 @@ export function LibraryPage(): ReactElement | null {
     return (
       <>
         <LibraryHead />
-        <div className="countline" data-region="library/count-line">
+        <div className="countline" data-part="count-line" data-region="library/count-line">
           <span className="pip warning" data-part="status-dot"></span>
           <span>{t("screens.library.incompleteTitle")}</span>
           <b style={{ marginLeft: "auto" }}>{INCOMPLETE_COUNT}</b>
         </div>
-        <div className="body" data-region="library/body">
+        <div className="body" data-part="surface/body" data-region="library/body">
           <div className="note" data-part="note">
             <b>{t("screens.library.incompleteNoteLead")}</b>
             {t("screens.library.incompleteNoteMiddle")}
@@ -531,10 +532,10 @@ export function LibraryPage(): ReactElement | null {
     return (
       <>
         <LibraryHead />
-        <div className="countline" data-region="library/count-line">
+        <div className="countline" data-part="count-line" data-region="library/count-line">
           <span>{t("screens.library.recentTitle")}</span>
         </div>
-        <div className="body" data-region="library/body">
+        <div className="body" data-part="surface/body" data-region="library/body">
           <div className="note" data-part="note">
             <b>{t("screens.library.recentNoteLead")}</b>
             {t("screens.library.recentNoteMiddle")}
@@ -550,7 +551,7 @@ export function LibraryPage(): ReactElement | null {
   return (
     <>
       <LibraryHead />
-      <div className="countline" data-region="library/count-line">
+      <div className="countline" data-part="count-line" data-region="library/count-line">
         <CountLine />
         <button className="linkbtn" data-selmode="1">
           {t("screens.library.select")}
@@ -559,7 +560,7 @@ export function LibraryPage(): ReactElement | null {
           <SortLabel />
         </button>
       </div>
-      <div className="body" data-region="library/body">
+      <div className="body" data-part="surface/body" data-region="library/body">
         <div className="note" data-part="note">
           <b>{t("screens.library.mediaNoteLead")}</b>
           {t("screens.library.mediaNoteMiddle")}

@@ -43,7 +43,7 @@ async def main():
     for _ in range(3):
         await pg.evaluate("()=>{const p=document.querySelector('#port');p.scrollTop=p.scrollHeight;}")
         await pg.wait_for_timeout(900)
-    err = await pg.evaluate("()=>{const e=document.querySelector('.loaderr');return !!e;}")
+    err = await pg.evaluate("""()=>{const e=document.querySelector('[data-part="load-error"]');return !!e;}""")
     print("  error path shown:", err)
     if err:
         await pg.click("#libretry"); await pg.wait_for_timeout(900)

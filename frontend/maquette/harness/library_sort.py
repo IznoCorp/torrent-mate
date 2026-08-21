@@ -37,7 +37,7 @@ from playwright.async_api import async_playwright
 TITLES = """()=>[...document.querySelectorAll('#libitems [data-part="card/title"], #libitems [data-part="tile"] [data-part="tile/title"]')]
   .map((element) => element.textContent.trim())"""
 
-PANEL = """()=>[...document.querySelectorAll('.sheetacts .sact')].map((button) => ({
+PANEL = """()=>[...document.querySelectorAll('[data-part="sheet/actions"] [data-part="sheet/action"]')].map((button) => ({
   text: button.textContent.trim(),
   sort: button.dataset.setsort || null,
   reversed: button.dataset.reversed === '1',
@@ -132,7 +132,7 @@ async def main():
                 if not await page.evaluate(
                         "()=>!!document.querySelector('#sheet[data-open]')"):
                     await open_sort_panel(page)
-                selector = (f"#sheet .sact[data-setsort='{key}']"
+                selector = (f"""#sheet [data-part="sheet/action"][data-setsort='{key}']"""
                             + ("[data-reversed='1']" if reversed_
                                else ":not([data-reversed])"))
                 control = page.locator(selector).first

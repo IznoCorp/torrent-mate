@@ -7147,7 +7147,7 @@ import { screens, panel, bridge } from "../seams.js";
       </button>
     </div>
     ${descriptor.strip ? stripHTML(descriptor.strip) : ""}
-    ${opts.foot ? `<button class="cfoot ${opts.footSolid ? "solid" : ""} ${opts.footTone || ""}" data-part="card/foot" data-act="${escapeHtml(opts.footAct || "")}" ${opts.footDone ? "disabled" : ""}>${escapeHtml(opts.foot)}</button>` : ""}
+    ${opts.foot ? `<button class="cfoot ${opts.footSolid ? "solid" : ""} ${opts.footTone || ""}" data-part="card/foot"${opts.footSolid ? ' data-solid=""' : ""} data-act="${escapeHtml(opts.footAct || "")}" ${opts.footDone ? "disabled" : ""}>${escapeHtml(opts.foot)}</button>` : ""}
     </div>
   </div>`;
   }
@@ -10703,13 +10703,20 @@ import { screens, panel, bridge } from "../seams.js";
   function toast(msg) {
     select("#toastmsg").textContent = msg;
     select("#toast").classList.add("show");
+    select("#toast").toggleAttribute("data-shown", true);
     clearTimeout(toast._t);
     toast._t = setTimeout(
-      () => select("#toast").classList.remove("show"),
+      () => {
+        select("#toast").classList.remove("show");
+        select("#toast").toggleAttribute("data-shown", false);
+      },
       5000,
     );
   }
-  select("#toastx").onclick = () => select("#toast").classList.remove("show");
+  select("#toastx").onclick = () => {
+    select("#toast").classList.remove("show");
+    select("#toast").toggleAttribute("data-shown", false);
+  };
 
   /* An action triggered by a GESTURE must be undoable: a sliding thumb is
      wrong more often than a pressing finger. */
@@ -10718,13 +10725,18 @@ import { screens, panel, bridge } from "../seams.js";
     select("#toastmsg").innerHTML =
       `${escapeHtml(msg)} <button id="toastundo" style="border:0;background:transparent;color:var(--primary);font-weight:700;padding:0 0 0 10px">Annuler</button>`;
     host.classList.add("show");
+    host.toggleAttribute("data-shown", true);
     clearTimeout(toast._t);
-    toast._t = setTimeout(() => host.classList.remove("show"), 6000);
+    toast._t = setTimeout(() => {
+      host.classList.remove("show");
+      host.toggleAttribute("data-shown", false);
+    }, 6000);
     const undoButton = select("#toastundo");
     if (undoButton)
       undoButton.onclick = (event) => {
         event.stopPropagation();
         host.classList.remove("show");
+        host.toggleAttribute("data-shown", false);
         undo();
       };
   }
@@ -33418,7 +33430,7 @@ import { screens, panel, bridge } from "../seams.js";
                     : held.has(liste2.n)
                       ? "in_library"
                       : "to_grab";
-                return `<div class="eprow ${episodeState}" data-part="episode/row">
+                return `<div class="eprow ${episodeState}" data-part="episode/row"${episodeState === "announced" ? ' data-announced=""' : ""}${episodeState === "in_library" ? ' data-in-library=""' : ""}>
                   <span class="epdot"></span>
                   <span class="en" data-part="episode/number">E${String(liste2.n).padStart(2, "0")}</span>
                   <span class="et">${escapeHtml(liste2.t)}</span>
@@ -33438,7 +33450,7 @@ import { screens, panel, bridge } from "../seams.js";
                   const episodeState = held.has(number)
                     ? "in_library"
                     : "to_grab";
-                  return `<span class="ep ${episodeState}" data-part="episode" aria-label="Épisode ${number} — ${EP_LABEL[episodeState]}">${String(number).padStart(2, "0")}</span>`;
+                  return `<span class="ep ${episodeState}" data-part="episode"${episodeState === "in_library" ? ' data-in-library=""' : ""} aria-label="Épisode ${number} — ${EP_LABEL[episodeState]}">${String(number).padStart(2, "0")}</span>`;
                 },
               ).join("")}</div>${
                 ligne.aired == null

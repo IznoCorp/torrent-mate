@@ -57,7 +57,7 @@ async def main():
 
     await pg.evaluate("()=>window.__go('acq-follows-list')"); await pg.wait_for_timeout(300)
     a=await pg.evaluate(cnt)
-    await pg.evaluate("""()=>{const w=document.querySelector('#view [data-part="swipe"]');w.querySelector('[data-part="swipe/action"].pause').click();}""")
+    await pg.evaluate("""()=>{const w=document.querySelector('#view [data-part="swipe"]');w.querySelector('[data-part="swipe/action"][data-action="pause"]').click();}""")
     await pg.wait_for_timeout(400)
     b3=await pg.evaluate(cnt); print("\npause                :", a["paused"], "→", b3["paused"])
     assert b3["paused"]==a["paused"]+1
@@ -73,7 +73,7 @@ async def main():
     await pg.evaluate("()=>window.__go('acq-discover')"); await pg.wait_for_timeout(350)
     a=await pg.evaluate(cnt)
     await pg.evaluate("()=>[...document.querySelectorAll('[data-panel]')].find(e=>e.dataset.panel.startsWith('sug:')).click()"); await pg.wait_for_timeout(400)
-    await pg.evaluate("()=>document.querySelector('#sheet .sact.primary').click()"); await pg.wait_for_timeout(450)
+    await pg.evaluate("""()=>document.querySelector('#sheet [data-part="sheet/action"][data-tone="primary"]').click()"""); await pg.wait_for_timeout(450)
     b6=await pg.evaluate(cnt); print("\nfollow a suggestion  :", a["follows"], "→", b6["follows"])
     assert b6["follows"]==a["follows"]+1
     await pg.evaluate("()=>window.__go('acq-follows-list',{keep:true})"); await pg.wait_for_timeout(350)

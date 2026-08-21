@@ -79,17 +79,17 @@ export function SystemPage(): ReactElement | null {
           {t("screens.system.faultRest")}
         </div>
       ) : null}
-      <h2 className="h2">{t("screens.system.services")}</h2>
+      <h2 className="h2" data-part="heading">{t("screens.system.services")}</h2>
       {facts(state.fault ? SERVICES_PANNE : SERVICES)}
 
-      <h2 className="h2">{t("screens.system.schedulers")}</h2>
+      <h2 className="h2" data-part="heading">{t("screens.system.schedulers")}</h2>
       <div className="note" data-part="note">
         <b>{t("screens.system.schedulerLead")}</b>
         {t("screens.system.schedulerRest")}
       </div>
       {facts(state.fault ? SCHEDULERS_DOWN : SCHEDULERS)}
 
-      <h2 className="h2">{t("screens.system.runs")}</h2>
+      <h2 className="h2" data-part="heading">{t("screens.system.runs")}</h2>
       {facts(
         EXECUTIONS.map((execution) => ({
           l: execution.q,
@@ -100,25 +100,25 @@ export function SystemPage(): ReactElement | null {
           s: execution.d + " · " + execution.r,
         })),
       )}
-      <button className="crossref" data-go="arr">
+      <button className="crossref" data-part="cross-reference" data-go="arr">
         {t("screens.system.toArrivals")}
         <span>{t("screens.system.toArrivalsLink")}</span>
       </button>
 
-      <h2 className="h2">{t("screens.system.disks")}</h2>
+      <h2 className="h2" data-part="heading">{t("screens.system.disks")}</h2>
       {facts(DISKS)}
 
-      <h2 className="h2">{t("screens.system.index")}</h2>
+      <h2 className="h2" data-part="heading">{t("screens.system.index")}</h2>
       {facts(INDEX)}
-      <button className="crossref" data-page="maint">
+      <button className="crossref" data-part="cross-reference" data-page="maint">
         {t("screens.system.toMaintenance")}
         <span>{t("screens.system.toMaintenanceLink")}</span>
       </button>
 
-      <h2 className="h2">{t("screens.system.dependencies")}</h2>
+      <h2 className="h2" data-part="heading">{t("screens.system.dependencies")}</h2>
       {facts(DEPENDENCIES)}
 
-      <h2 className="h2">{t("screens.system.codeErrors")}</h2>
+      <h2 className="h2" data-part="heading">{t("screens.system.codeErrors")}</h2>
       {facts([
         {
           l: t("screens.system.errorsRaised"),
@@ -134,13 +134,13 @@ export function SystemPage(): ReactElement | null {
         { l: t("screens.system.errorsWhere"), v: "", s: ERRORS.where },
       ])}
 
-      <h2 className="h2">{t("screens.system.settings")}</h2>
-      <button className="topic" data-page="cfg" style={{ marginTop: 0 }}>
+      <h2 className="h2" data-part="heading">{t("screens.system.settings")}</h2>
+      <button className="topic" data-part="topic" data-page="cfg" style={{ marginTop: 0 }}>
         <span style={{ minWidth: 0, flex: 1 }}>
-          <span className="rt">{t("screens.system.settings")}</span>
-          <span className="rs">{t("screens.system.settingsSubtitle")}</span>
+          <span className="rt" data-part="topic/title">{t("screens.system.settings")}</span>
+          <span className="rs" data-part="topic/subtitle">{t("screens.system.settingsSubtitle")}</span>
         </span>
-        <span className="rn">{t("screens.system.arrow")}</span>
+        <span className="rn" data-part="topic/count">{t("screens.system.arrow")}</span>
       </button>
     </>
   );

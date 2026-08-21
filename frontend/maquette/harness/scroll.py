@@ -41,11 +41,11 @@ async def main():
     # resolves (the React section carries the same classes `#screen` did),
     # not literally inside the legacy container.
     screen_port = '[data-part="screen"][data-open] [data-part="viewport"]'
-    await trial("screen-profile", '[data-part="option"].check', 2, "checkbox",
+    await trial("screen-profile", '[data-part="option"][role="checkbox"]', 2, "checkbox",
                 port=screen_port)
-    await trial("screen-profile", '[data-part="option"].radio', 3, "radio button",
+    await trial("screen-profile", '[data-part="option"][role="radio"]', 3, "radio button",
                 port=screen_port)
-    await trial("screen-profile", ".switch", 0, "switch", port=screen_port)
+    await trial("screen-profile", '[data-part="switch"]', 0, "switch", port=screen_port)
     print("── add screen ──")
     await trial("acq-add-results", '[data-part="segment-small"] button', 1, "type segment", port=screen_port)
 

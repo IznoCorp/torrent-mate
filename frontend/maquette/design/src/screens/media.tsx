@@ -169,6 +169,8 @@ function SeasonList({
                 <div
                   className={`eprow ${episodeState}`}
                   data-part="episode/row"
+                  data-announced={episodeState === "announced" || undefined}
+                  data-in-library={episodeState === "in_library" || undefined}
                   key={episode.n}
                 >
                   <span className="epdot"></span>{" "}
@@ -208,6 +210,7 @@ function SeasonList({
                   <span
                     className={`ep ${episodeState}`}
                     data-part="episode"
+                    data-in-library={episodeState === "in_library" || undefined}
                     key={number}
                     aria-label={t("screens.media.episodeAria", {
                       n: number,
@@ -397,8 +400,8 @@ export function MediaScreen() {
 
   return (
     <section className="screen open" data-part="screen" data-open="" data-key={`mediaSheet:${title}`}>
-      <div className="screenbar">
-        <button className="fback" onClick={() => window.__bridge.back()}>
+      <div className="screenbar" data-part="screen/bar">
+        <button className="fback" data-part="screen/back" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.media.back")}
         </button>{" "}
@@ -413,20 +416,22 @@ export function MediaScreen() {
         </span>
       </div>
       <div className="port" data-part="viewport">
-        <div className="body" data-region="screen-media/body">
+        <div className="body" data-part="surface/body" data-region="screen-media/body">
           <div
             className={`herowrap${artwork ? "" : " noposter"}`}
+            data-part="hero"
             data-no-poster={!artwork || undefined}
           >
             <div
               className="herobg"
+              data-part="hero/background"
               aria-hidden="true"
               style={
                 artwork ? { backgroundImage: `url('${artwork}')` } : undefined
               }
             ></div>
-            <div className="hero">
-              <h2 className="ht">{title.split(" (")[0]}</h2>
+            <div className="hero" data-part="hero/content">
+              <h2 className="ht" data-part="hero/title">{title.split(" (")[0]}</h2>
               <p className="hm">
                 {sheet
                   ? `${sheet.y || t("screens.media.yearUnknown")} · ${isFilm ? t("common.film") : t("common.series")}${sheet.duree ? ` · ${sheet.duree} ${t("screens.media.minutesShort")}` : ""}`
@@ -479,6 +484,7 @@ export function MediaScreen() {
           {trailer ? (
             <a
               className="trailer"
+              data-part="media/trailer"
               href={`https://www.youtube.com/watch?v=${trailer.key}`}
               target="_blank"
               rel="noopener"
@@ -501,7 +507,7 @@ export function MediaScreen() {
           )}
 
           <div>
-            <h2 className="h2" style={{ marginBottom: "6px" }}>
+            <h2 className="h2" data-part="heading" style={{ marginBottom: "6px" }}>
               {t("screens.media.synopsis")}
             </h2>
             <p
@@ -517,13 +523,13 @@ export function MediaScreen() {
           </div>
 
           <div>
-            <h2 className="h2" style={{ marginBottom: "8px" }}>
+            <h2 className="h2" data-part="heading" style={{ marginBottom: "8px" }}>
               {isFilm
                 ? t("screens.media.castHeadingFilm")
                 : t("screens.media.castHeadingSeries")}
             </h2>
             <div className="panel" data-part="panel" style={{ marginBottom: "10px" }}>
-              <div className="kv">
+              <div className="kv" data-part="key-value">
                 <span>
                   {isFilm
                     ? t("screens.media.director")
@@ -536,10 +542,10 @@ export function MediaScreen() {
               </div>
             </div>
             {sheet?.cast?.length ? (
-              <div className="cast" data-noswipe="">
+              <div className="cast" data-part="cast" data-noswipe="">
                 {sheet.cast.map((cast) => (
                   <figure key={cast.n}>
-                    <span className="ca">
+                    <span className="ca" data-part="cast/avatar">
                       {CAST[cast.n] ? (
                         <img src={CAST[cast.n]} alt="" loading="lazy" />
                       ) : (
@@ -559,20 +565,20 @@ export function MediaScreen() {
           </div>
 
           <div>
-            <h2 className="h2" style={{ marginBottom: "6px" }}>
+            <h2 className="h2" data-part="heading" style={{ marginBottom: "6px" }}>
               {t("screens.media.library")}
             </h2>
             <div className="panel" data-part="panel">
               {!owns ? (
                 <>
-                  <div className="kv">
+                  <div className="kv" data-part="key-value">
                     <span>{t("screens.media.inLibrary")}</span>
                     <span>
                       <span className="pip neutral" data-part="status-dot"></span>
                       {t("screens.media.no")}
                     </span>
                   </div>
-                  <div className="kv">
+                  <div className="kv" data-part="key-value">
                     <span>{t("screens.media.follow")}</span>
                     <span>
                       {followed
@@ -581,7 +587,7 @@ export function MediaScreen() {
                     </span>
                   </div>
                   {catalog.length ? (
-                    <div className="kv">
+                    <div className="kv" data-part="key-value">
                       <span>{`${t("screens.media.catalogue")} ${isFilm ? "" : t("screens.media.catalogueKnown")}`}</span>
                       <span>
                         {`${catalog.length} ${catalog.length > 1 ? t("screens.media.seasonLowerPlural") : t("screens.media.seasonLower")} · ${catalogEp} ${t("screens.media.episodes")}`}
@@ -593,14 +599,14 @@ export function MediaScreen() {
                 </>
               ) : isFilm ? (
                 <>
-                  <div className="kv">
+                  <div className="kv" data-part="key-value">
                     <span>{t("screens.media.owned")}</span>
                     <span>
                       <span className="pip success" data-part="status-dot"></span>
                       {t("screens.media.yes")}
                     </span>
                   </div>
-                  <div className="kv">
+                  <div className="kv" data-part="key-value">
                     <span>{t("screens.media.file")}</span>
                     <span
                       style={{
@@ -614,19 +620,19 @@ export function MediaScreen() {
                 </>
               ) : (
                 <>
-                  <div className="kv">
+                  <div className="kv" data-part="key-value">
                     <span>{t("screens.media.seasons")}</span>
                     <span>{sorted.length || t("screens.media.unknown")}</span>
                   </div>
-                  <div className="kv">
+                  <div className="kv" data-part="key-value">
                     <span>{t("screens.media.airedEpisodes")}</span>
                     <span>{aired || t("screens.media.unknown")}</span>
                   </div>
-                  <div className="kv">
+                  <div className="kv" data-part="key-value">
                     <span>{t("screens.media.ownedPlural")}</span>
                     <span>{own}</span>
                   </div>
-                  <div className="kv">
+                  <div className="kv" data-part="key-value">
                     <span>{t("screens.media.completeness")}</span>
                     <span>
                       <span
@@ -650,11 +656,11 @@ export function MediaScreen() {
           </div>
 
           <div>
-            <h2 className="h2" style={{ marginBottom: "6px" }}>
+            <h2 className="h2" data-part="heading" style={{ marginBottom: "6px" }}>
               {t("screens.media.information")}
             </h2>
             <div className="panel" data-part="panel">
-              <div className="kv">
+              <div className="kv" data-part="key-value">
                 <span>{t("screens.media.follow")}</span>
                 {/* The SECOND follow test, and the strict one: an exact title
                     match, or an exact match on the title without its year
@@ -672,7 +678,7 @@ export function MediaScreen() {
                 </span>
               </div>
               {Object.entries(prov).map(([key, value]) => (
-                <div className="kv" key={key}>
+                <div className="kv" data-part="key-value" key={key}>
                   <span>{key.toUpperCase()}</span>
                   <span
                     style={{
@@ -684,30 +690,31 @@ export function MediaScreen() {
                   </span>
                 </div>
               ))}
-              <div className="kv">
+              <div className="kv" data-part="key-value">
                 <span>{t("screens.media.metadataRefreshed")}</span>
                 <span>{t("screens.media.metadataRefreshedValue")}</span>
               </div>
             </div>
           </div>
 
-          <div className="sheetacts secondary">
+          <div className="sheetacts secondary" data-part="sheet/actions">
             {owns ? (
               <>
                 <button
                   className="sact"
+                  data-part="sheet/action"
                   data-toast={t("screens.media.rescrapeToast")}
                 >
                   <Icon paths={icons.refresh} />
                   {t("screens.media.rescrape")}
                 </button>{" "}
-                <button className="sact danger" data-tone="danger" data-del={title}>
+                <button className="sact danger" data-part="sheet/action" data-tone="danger" data-del={title}>
                   <Icon paths={icons.trash} />
                   {t("screens.media.delete")}
                 </button>
               </>
             ) : followed ? (
-              <button className="mediaadd done" disabled>
+              <button className="mediaadd done" data-part="media/add" disabled>
                 <Icon paths={icons.check} />
                 {isFilm
                   ? t("screens.media.added")
@@ -720,6 +727,7 @@ export function MediaScreen() {
               // bumps it, and the button becomes `mediaadd done` in place.
               <button
                 className="mediaadd"
+                data-part="media/add"
                 data-follow={title}
                 // french-ok: a data-* VALUE, frozen with the DOM contract
                 data-fkind={isFilm ? "Film" : "Série"}

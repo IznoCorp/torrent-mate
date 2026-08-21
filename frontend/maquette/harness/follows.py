@@ -16,8 +16,8 @@ async def main():
     await pg.evaluate("()=>document.querySelector('#toastx').click()")
     await pg.click('[data-acqtab="follows"]'); await pg.wait_for_timeout(350)
 
-    print("modes offered     :", await pg.evaluate("()=>[...document.querySelectorAll('.vsw button')].map(b=>b.getAttribute('aria-label'))"))
-    print("chips             :", await pg.evaluate("()=>[...document.querySelectorAll('.pill')].map(b=>b.textContent.trim())"))
+    print("modes offered     :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="view/switch"] button')].map(b=>b.getAttribute('aria-label'))"""))
+    print("chips             :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="pill"]')].map(b=>b.textContent.trim())"""))
     print("list order        :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card/title"]')].map(e=>e.textContent).slice(0,6)"""))
     print("dot across a chip :", await pg.evaluate("""()=>{const c=document.querySelector('[data-part="chip"]');const s=getComputedStyle(c,'::before');return {w:s.width,h:s.height,radius:s.borderRadius};}"""))
     print("title alone       :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card"]')].slice(0,4).every(c=>{

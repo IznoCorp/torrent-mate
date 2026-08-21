@@ -463,10 +463,19 @@ command reads **633**.
 python3 scripts/classify-rule-anchors.py --summary; echo "exit=$?"
 ```
 Expected: `class 0` AND `0 class token occurrences`, with `exit=0`. **The total must still be the
-total** — 696 calls on today's tree, which includes the nine `attrs.py` adds. A classifier that
-stopped SEEING calls would also report zero class anchors, and that is exactly how this lot's first
-measurement read 684: three template-literal selectors were invisible to it, and 151 class tokens
-were invisible to the one-bucket rule.
+total** — 696 calls when this was written, which includes the nine `attrs.py` adds. A classifier
+that stopped SEEING calls would also report zero class anchors, and that is exactly how this lot's
+first measurement read 684: three template-literal selectors were invisible to it, and 151 class
+tokens were invisible to the one-bucket rule.
+
+> **Amended in sub-phase 6.3: the expectation is a FLOOR — « the total is at least 696 ».** The
+> criterion exists to catch a reader that stops SEEING calls, and every `+1` above 696 is the
+> OPPOSITE of that failure: a selector the call extractor could not read before, made readable by
+> the migration itself. `deck.py:30` was one — it hosted its selector with escaped quotes, which
+> the extractor skips whole, and 6.2 re-hosted it. An exact number would refuse the very repairs
+> this lot exists to make, while a floor still falls the moment a call stops being counted.
+> **Measured 700** on 6.3's baseline and **700** after it: read the number and record it, never
+> adjust it.
 
 **ACC-03 — the guard FALLS on a re-introduced class anchor, and names it**
 

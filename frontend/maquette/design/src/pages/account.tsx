@@ -26,7 +26,7 @@ export function AccountPage(): ReactElement {
         {t("screens.accountPage.noteRest")}
       </div>
 
-      <h2 className="h2">{t("screens.accountPage.you")}</h2>
+      <h2 className="h2" data-part="heading">{t("screens.accountPage.you")}</h2>
       {facts([
         {
           l: t("screens.accountPage.identifier"),
@@ -41,7 +41,7 @@ export function AccountPage(): ReactElement {
         },
       ])}
 
-      <h2 className="h2">{t("screens.accountPage.session")}</h2>
+      <h2 className="h2" data-part="heading">{t("screens.accountPage.session")}</h2>
       {facts([
         {
           l: t("screens.accountPage.duration"),
@@ -65,7 +65,7 @@ export function AccountPage(): ReactElement {
         {t("screens.accountPage.signOut")}
       </button>
 
-      <h2 className="h2">{t("screens.accountPage.others")}</h2>
+      <h2 className="h2" data-part="heading">{t("screens.accountPage.others")}</h2>
       <div
         className="empty" data-part="empty-state"
         dangerouslySetInnerHTML={{

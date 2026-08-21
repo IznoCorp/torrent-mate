@@ -105,6 +105,7 @@ function ActionButton({ action }: { action: Action | null | undefined }) {
   return (
     <button
       className={`sact${action.ton ? ` ${action.ton}` : ""}`}
+      data-part="sheet/action"
       data-tone={action.ton || undefined}
       disabled={action.desactive || undefined}
       title={action.infobulle || undefined}
@@ -127,7 +128,7 @@ function ActionsBlock({
   );
   if (!list.length) return null;
   return (
-    <div className={`sheetacts${block.secondary ? " secondary" : ""}`}>
+    <div className={`sheetacts${block.secondary ? " secondary" : ""}`} data-part="sheet/actions">
       {list.map((action, index) => (
         <ActionButton key={index} action={action} />
       ))}
@@ -169,6 +170,7 @@ function FactsBlock({
         <div
           key={index}
           className={`kv${line.pip ? " withpip" : ""}${line.terne ? " upcoming" : ""}`}
+          data-part="key-value"
         >
           <span>
             {line.pip ? <span className={`pip ${line.pip}`} data-part="status-dot" /> : null}
@@ -289,6 +291,8 @@ function SeasonDetails({
         key={number}
         className={`ep ${state}`}
         data-part="episode"
+        data-announced={state === "announced" || undefined}
+        data-in-library={state === "in_library" || undefined}
         data-ep={`${follow.t}|${num}|${number}|${state}`}
         aria-label={`S${String(num).padStart(2, "0")}E${String(number).padStart(2, "0")} — ${reference.EP_LABEL[state]}`}
       >
@@ -352,7 +356,7 @@ function SeasonsBlock({
   ]);
   return (
     <>
-      <div className="legend">
+      <div className="legend" data-part="legend">
         {EP_ORDER.filter((state) => statesPresent.has(state)).map((state) => (
           <span key={state}>
             <i className={EP_SWATCH[state]} />
@@ -411,7 +415,7 @@ function FieldBlock({
 
   if (setting.type === "structure")
     return (
-      <div className="field readonly" data-part="field">
+      <div className="field readonly" data-part="field" data-read-only="">
         <p className="rulenote">
           {t("settings.field.structureBefore")}{" "}
           <b>{t("settings.field.structureWord")}</b>{" "}
@@ -446,10 +450,11 @@ function FieldBlock({
       <div className="field list" data-part="field">
         {items.length ? (
           items.map((x, index) => (
-            <div className="litem" key={index}>
+            <div className="litem" data-part="field/list-item" key={index}>
               <span>{String(x)}</span>
               <button
                 className="lremove"
+                data-part="field/list-remove"
                 data-deletefield={id}
                 data-index={index}
                 aria-label={t("settings.field.removeAria", {
@@ -466,7 +471,7 @@ function FieldBlock({
         ) : (
           <p className="rulenote">{t("settings.field.emptyList")}</p>
         )}
-        <button className="ladd" data-addfield={id}>
+        <button className="ladd" data-part="field/list-add" data-addfield={id}>
           <Icon paths={icons.plus} />
           {t("settings.field.add")}
         </button>
@@ -495,6 +500,7 @@ function FieldBlock({
         key={id}
         className={`fieldinput${mono ? " mono" : ""}`}
         data-part="field/input"
+        data-mono={mono || undefined}
         data-field={id}
         type={numeric ? "number" : "text"}
         inputMode={numeric ? "decimal" : undefined}
@@ -612,12 +618,12 @@ export function PanelContent({
 }): JSX.Element {
   const identity = (
     <>
-      <h3 className="sheettitle">{descriptor.title}</h3>
+      <h3 className="sheettitle" data-part="sheet/title">{descriptor.title}</h3>
       {descriptor.subtitle ? (
         <span className="sheetsub">{descriptor.subtitle}</span>
       ) : null}
       {descriptor.meta ? (
-        <p className="sheetmeta">
+        <p className="sheetmeta" data-part="sheet/meta">
           <RichText value={descriptor.meta} />
         </p>
       ) : null}
@@ -625,7 +631,7 @@ export function PanelContent({
     </>
   );
   const poster = descriptor.poster ? (
-    <span className="sheetposter">
+    <span className="sheetposter" data-part="sheet/poster">
       <Poster poster={descriptor.poster} />
     </span>
   ) : descriptor.avatar ? (

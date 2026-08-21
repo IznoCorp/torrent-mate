@@ -83,8 +83,8 @@ export function ProfileScreen() {
 
   return (
     <section className="screen open" data-part="screen" data-open="" data-key={`profile:${title}`}>
-      <div className="screenbar">
-        <button className="fback" onClick={() => window.__bridge.back()}>
+      <div className="screenbar" data-part="screen/bar">
+        <button className="fback" data-part="screen/back" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.profile.back")}
         </button>
@@ -99,7 +99,7 @@ export function ProfileScreen() {
         </span>
       </div>
       <div className="port" data-part="viewport">
-        <div className="body" data-region="screen-profile/body">
+        <div className="body" data-part="surface/body" data-region="screen-profile/body">
           <div className="note" data-part="note">
             <b>{t("screens.profile.noteTitle")}</b>{" "}
             {t("screens.profile.noteBefore")}{" "}
@@ -116,7 +116,7 @@ export function ProfileScreen() {
           </p>
 
           <div className="qgroup">
-            <h2 className="h2">{t("screens.profile.minResolution")}</h2>
+            <h2 className="h2" data-part="heading">{t("screens.profile.minResolution")}</h2>
             <p className="qhint">{t("screens.profile.minResolutionHint")}</p>
             <p className="optkind">{t("screens.profile.singleChoice")}</p>
             <div
@@ -166,7 +166,7 @@ export function ProfileScreen() {
           </div>
 
           <div className="qgroup">
-            <h2 className="h2">{t("screens.profile.audioTracks")}</h2>
+            <h2 className="h2" data-part="heading">{t("screens.profile.audioTracks")}</h2>
             <p className="qhint">
               {t("screens.profile.audioHintBefore")}{" "}
               <b>{t("screens.profile.audioHintEmphasis")}</b>{" "}
@@ -200,9 +200,9 @@ export function ProfileScreen() {
           </div>
 
           <div className="qgroup">
-            <h2 className="h2">{t("screens.profile.twoLocks")}</h2>
+            <h2 className="h2" data-part="heading">{t("screens.profile.twoLocks")}</h2>
             <div className="panel" data-part="panel">
-              <div className="kv setting">
+              <div className="kv setting" data-part="key-value">
                 <span>
                   {t("screens.profile.exclude3d")}
                   <br />
@@ -212,6 +212,7 @@ export function ProfileScreen() {
                 </span>
                 <button
                   className="switch"
+                  data-part="switch"
                   role="switch"
                   aria-checked={profile.exclude_3d}
                   aria-label={t("screens.profile.exclude3d")}
@@ -219,7 +220,7 @@ export function ProfileScreen() {
                   onClick={() => toggleLock("exclude_3d")}
                 />
               </div>
-              <div className="kv setting">
+              <div className="kv setting" data-part="key-value">
                 <span>
                   {t("screens.profile.requireKnownResolution")}
                   <br />
@@ -229,6 +230,7 @@ export function ProfileScreen() {
                 </span>
                 <button
                   className="switch"
+                  data-part="switch"
                   role="switch"
                   aria-checked={profile.require_known_resolution}
                   aria-label={t("screens.profile.requireKnownResolution")}
@@ -240,13 +242,13 @@ export function ProfileScreen() {
           </div>
 
           <div className="panel" data-part="panel">
-            <div className="kv">
+            <div className="kv" data-part="key-value">
               <span>{t("screens.profile.candidatesKept")}</span>
               <span>
                 {kept} {t("screens.profile.outOf")} {RELEASES.length}
               </span>
             </div>
-            <div className="kv">
+            <div className="kv" data-part="key-value">
               <span>{t("screens.profile.scope")}</span>
               <span>
                 {title
@@ -267,9 +269,11 @@ export function ProfileScreen() {
 
           <p className="rulenote">{t("screens.profile.rulenote")}</p>
 
-          <div className="sheetacts">
+          <div className="sheetacts" data-part="sheet/actions">
             <button
               className="sact primary"
+              data-part="sheet/action"
+              data-tone="primary"
               data-toast={t("screens.profile.saveToast")}
             >
               <Icon paths={icons.check} />

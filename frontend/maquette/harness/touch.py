@@ -198,9 +198,14 @@ async def main():
         for name, state_, sel in press_surfaces:
             await pg.evaluate("(s)=>window.__go(s)", state_)
             await pg.wait_for_timeout(420)
-            await pg.evaluate("()=>{window.__acts=[];"
-                              "document.addEventListener('click', e=>window.__acts.push("
-                              "(e.target.tagName||'')+'.'+(e.target.className||'')), false);}")
+            # The recorded act carries the ANCHOR beside the class: the
+            # assertion below asks whether a sheet action fired, and a class
+            # name is not what identifies one any more.
+            await pg.evaluate('''()=>{window.__acts=[];
+              document.addEventListener('click', e=>window.__acts.push(
+                (e.target.tagName||'')+'.'+(e.target.className||'')+' '
+                + ((e.target.closest('[data-part]')||{dataset:{}}).dataset.part||'')),
+                false);}''')
             r = await rect(sel)
             if r is None:
                 without_panel.append(f"{name} (target absent)")
@@ -217,7 +222,7 @@ async def main():
                 with_selection.append(name)
             # The panel opens UNDER the finger: the lift must not activate its
             # primary action. That is what a long press on a follow was doing.
-            if any(".sact" in act for act in out["acts"]):
+            if any("sheet/action" in act for act in out["acts"]):
                 fired.append(f"{name} → {out['acts']}")
             await pg.evaluate("()=>window.__close && window.__close('sheet')")
             await pg.wait_for_timeout(150)
@@ -235,7 +240,7 @@ async def main():
         for state_, selectors in (("acq-follows-list", ['[data-part="card/poster"]']),
                                  ("lib-grid", ['[data-part="tile"]']),
                                  ("acq-discover-deck", ['[data-part="deck/card"]']),
-                                 ("followsheet-complete", [".sheetposter"])):
+                                 ("followsheet-complete", ['[data-part="sheet/poster"]'])):
             await pg.evaluate("(s)=>window.__go(s)", state_)
             await pg.wait_for_timeout(320)
             refusal = await pg.evaluate(PRESS_GUARD, selectors)

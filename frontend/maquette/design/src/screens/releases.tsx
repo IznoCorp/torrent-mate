@@ -46,8 +46,8 @@ export function ReleasesScreen() {
 
   return (
     <section className="screen open" data-part="screen" data-open="" data-key={`releases:${title}`}>
-      <div className="screenbar">
-        <button className="fback" onClick={() => window.__bridge.back()}>
+      <div className="screenbar" data-part="screen/bar">
+        <button className="fback" data-part="screen/back" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.releases.back")}
         </button>{" "}
@@ -62,19 +62,20 @@ export function ReleasesScreen() {
         </span>
       </div>
       <div className="port" data-part="viewport">
-        <div className="body" data-region="screen-releases/body">
+        <div className="body" data-part="surface/body" data-region="screen-releases/body">
           <div className="note" data-part="note">
             <b>{t("screens.releases.noteTitle")}</b>{" "}
             {t("screens.releases.noteBeforePourquoi")}{" "}
             <em>{t("screens.releases.notePourquoi")}</em>{" "}
             {t("screens.releases.noteAfterPourquoi")}
           </div>
-          <p className="rescount" style={{ padding: 0 }}>
+          <p className="rescount" data-part="result/count" style={{ padding: 0 }}>
             <b>{RELEASES.length}</b> {t("screens.releases.rescount")}
           </p>
           {RELEASES.map((release, index) => (
             <article
               className={`rel${index === 0 ? " best" : ""}`}
+              data-part="release"
               key={release.n}
             >
               <span className="rn">{release.n}</span>{" "}
@@ -110,6 +111,7 @@ export function ReleasesScreen() {
               )}
               <button
                 className={`cfoot${index === 0 ? " solid" : ""}`}
+                data-solid={index === 0 || undefined}
                 data-part="card/foot"
                 data-take={index}
               >

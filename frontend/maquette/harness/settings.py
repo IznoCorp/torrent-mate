@@ -64,10 +64,10 @@ async def main():
         await pg.evaluate("()=>window.__go('settings')")
         await pg.wait_for_timeout(320)
         map_ = await pg.evaluate("""()=>({
-          topics: [...document.querySelectorAll('.topic')].map(r => ({
-            title: (r.querySelector('.rt')||{}).textContent||'',
-            sub: (r.querySelector('.rs')||{}).textContent||'',
-            count: (r.querySelector('.rn')||{}).textContent||''})),
+          topics: [...document.querySelectorAll('[data-part="topic"]')].map(r => ({
+            title: (r.querySelector('[data-part="topic/title"]')||{}).textContent||'',
+            sub: (r.querySelector('[data-part="topic/subtitle"]')||{}).textContent||'',
+            count: (r.querySelector('[data-part="topic/count"]')||{}).textContent||''})),
           search: !!document.querySelector('#qsettings'),
           text: (document.querySelector('#view')||{}).textContent||''})""")
         check("the topics are named by what one changes",
@@ -113,10 +113,10 @@ async def main():
         # header carries the file. Reading only the row would pass a screen where
         # nothing on it names a file.
         rows = await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="setting/row"]')].map(r => ({
-          label: (r.querySelector('.rl')||{}).firstChild?.textContent?.trim()||'',
-          path: (r.querySelector('.rf')||{}).textContent||'',
+          label: (r.querySelector('[data-part="setting/label"]')||{}).firstChild?.textContent?.trim()||'',
+          path: (r.querySelector('[data-part="setting/origin"]')||{}).textContent||'',
           header: (r.closest('[data-part="panel"]')?.previousElementSibling||{}).textContent||'',
-          value: (r.querySelector('.rv')||{}).textContent||''}))""")
+          value: (r.querySelector('[data-part="setting/value"]')||{}).textContent||''}))""")
         check("a topic lists its settings", len(rows) > 10, str(len(rows)))
         mute = [l for l in rows
                 if not l["path"].strip() or ".json5" not in l["header"]]
@@ -138,7 +138,7 @@ async def main():
           return {text: (s.textContent||'').replace(/\\s+/g,' '),
                   mono: !!s.querySelector('code'),
                   field: !!s.querySelector('[data-part="field"]'),
-                  actions: [...s.querySelectorAll('.sact')].map(x=>x.textContent.trim())};}""")
+                  actions: [...s.querySelectorAll('[data-part="sheet/action"]')].map(x=>x.textContent.trim())};}""")
         source = (CONFIG / "thresholds.json5").read_text()
         comment = re.search(r"//\s*(.+?)\n\s*min_free_space_staging_gb", source)
         check("the panel carries the explanation WRITTEN IN THE FILE",
@@ -158,7 +158,7 @@ async def main():
         pending = await pg.evaluate("""()=>{
           const bar = document.querySelector('#savebar');
           return {bar: !!bar, text: bar ? bar.textContent.replace(/\\s+/g,' ') : '',
-                  marked: document.querySelectorAll('[data-part="setting/row"].modified').length,
+                  marked: document.querySelectorAll('[data-part="setting/row"][data-edited]').length,
                   insideFrame: bar ? bar.getBoundingClientRect().bottom <=
                     document.querySelector('#device').getBoundingClientRect().bottom + 1 : false};}""")
         check("a change raises the bar", pending["bar"])
@@ -173,7 +173,7 @@ async def main():
         await pg.wait_for_timeout(320)
         secrets = await pg.evaluate("""()=>({
           rows: [...document.querySelectorAll('[data-part="setting/row"]')].map(r =>
-            (r.querySelector('.rv')||{}).textContent.trim()),
+            (r.querySelector('[data-part="setting/value"]')||{}).textContent.trim()),
           fields: document.querySelectorAll('#view input').length})""")
         check("a secret says whether it is set, never what it holds",
               all(v in ("définie", "absente") for v in secrets["rows"]),
@@ -213,7 +213,7 @@ async def main():
               searched["results"] > 0, f"{searched['results']} result(s) for « espace »")
 
         # A result stands alone under no header, so THERE the row names its file.
-        unnamed = await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="setting/row"] .rf')]
+        unnamed = await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="setting/row"] [data-part="setting/origin"]')]
           .map(e => e.textContent).filter(t => !t.includes('.json5'))""")
         check("a search result names its own file",
               not unnamed, str(unnamed[:2]))
@@ -294,10 +294,10 @@ async def main():
             "boolean": '[data-part="field/toggle"]',
             "number": '[data-part="field/input"][type=number]',
             "text": '[data-part="field/input"][type=text]',
-            "path": '[data-part="field/input"].mono',
-            "list": ".ladd",
+            "path": '[data-part="field/input"][data-mono]',
+            "list": '[data-part="field/list-add"]',
             "duration": '[data-part="field/input"]',
-            "structure": '[data-part="field"].readonly',
+            "structure": '[data-part="field"][data-read-only]',
             "empty": '[data-part="field/input"]',
         }
         seen = await pg.evaluate(
@@ -319,8 +319,8 @@ async def main():
         await pg.wait_for_timeout(320)
         refusal = await pg.evaluate("""()=>{
           const s = document.querySelector('#sheetin');
-          return {input: !!s.querySelector('[data-part="field/input"], [data-part="field/toggle"], .ladd'),
-                  names: !!s.querySelector('[data-part="field"].readonly code')};}""")
+          return {input: !!s.querySelector('[data-part="field/input"], [data-part="field/toggle"], [data-part="field/list-add"]'),
+                  names: !!s.querySelector('[data-part="field"][data-read-only] code')};}""")
         check("a structure offers no field", not refusal["input"], str(refusal))
         check("and it names the file to open", refusal["names"])
 
@@ -363,10 +363,10 @@ async def main():
           SETTINGS_STATE.topic = SETTINGS.find(r => r.r.includes(x)).id;
           render(); openSetting(settingId(x));}""")
         await pg.wait_for_timeout(330)
-        before = await pg.evaluate("()=>document.querySelectorAll('#sheetin .litem').length")
-        await pg.click("#sheetin .lremove")
+        before = await pg.evaluate("""()=>document.querySelectorAll('#sheetin [data-part="field/list-item"]').length""")
+        await pg.click('#sheetin [data-part="field/list-remove"]')
         await pg.wait_for_timeout(330)
-        after = await pg.evaluate("()=>document.querySelectorAll('#sheetin .litem').length")
+        after = await pg.evaluate("""()=>document.querySelectorAll('#sheetin [data-part="field/list-item"]').length""")
         check("a list really loses an item", after == before - 1,
               f"{before} → {after}")
 

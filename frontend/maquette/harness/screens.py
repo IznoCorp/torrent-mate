@@ -62,7 +62,7 @@ async def main():
         await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card/body"]').click()""")
         await pg.wait_for_timeout(420)
         act = await pg.evaluate(
-            "()=>document.querySelector('#sheet .sact.primary')?.textContent.trim() ?? null")
+            """()=>document.querySelector('#sheet [data-part="sheet/action"][data-tone="primary"]')?.textContent.trim() ?? null""")
         check("the result's panel carries the act", bool(act), f"« {act} »")
         await pg.evaluate("()=>window.__close('sheet')")
         await pg.wait_for_timeout(300)
@@ -80,7 +80,7 @@ async def main():
         # exist to remove.
         sheet_screen = await pg.evaluate("""()=>{
             const f = document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
-            return {screen: !!f, hero: !!f?.querySelector('.herowrap'),
+            return {screen: !!f, hero: !!f?.querySelector('[data-part="hero"]'),
                     key: f?.dataset.key};}""")
         check("the poster opens the media sheet on the same layer",
               sheet_screen["screen"] and sheet_screen["hero"], f"key {sheet_screen['key']}")
@@ -128,7 +128,7 @@ async def main():
         # identified as the mediaSheet — never on whatever `[data-part="screen"][data-open]` happens to
         # resolve first.
         await pg.evaluate(
-            """()=>document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"] .fback').click()""")
+            """()=>document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"] [data-part="screen/back"]').click()""")
         await pg.wait_for_timeout(500)
         # R-7: same read by identity as exit 1's `back` — a mediaSheet that failed
         # to close here is exactly what a bare `[data-part="screen"][data-open]` would miss.

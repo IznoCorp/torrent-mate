@@ -99,7 +99,7 @@ function NowTab(): ReactElement {
 
   if (state.phase !== "ready") {
     return (
-      <div className="body" data-region="acquisition/body">
+      <div className="body" data-part="surface/body" data-region="acquisition/body">
         {state.phase === "error" ? (
           <div
             className="surferr" data-part="surface-error"
@@ -148,7 +148,7 @@ function NowTab(): ReactElement {
     );
 
   return (
-    <div className="body" data-region="acquisition/body">
+    <div className="body" data-part="surface/body" data-region="acquisition/body">
       <div className="note" data-part="note">
         <b>{t("screens.acquisition.nowNoteLead")}</b>
         {t("screens.acquisition.nowNoteRest")}
@@ -188,7 +188,7 @@ function NowTab(): ReactElement {
           .join(""),
       )}
       {stuck.length > 0 ? (
-        <button className="crossref" data-go="arr">
+        <button className="crossref" data-part="cross-reference" data-go="arr">
           {blocked.length > 0
             ? t("screens.acquisition.crossrefFromAcquisition")
             : ""}
@@ -510,11 +510,12 @@ function FollowsTab(): ReactElement {
           ) : null}
         </div>
         <div className="pillbar">
-          <div className="pillscroll">
+          <div className="pillscroll" data-part="pill/list">
             {pills.map((pill) => (
               <button
                 key={pill.id}
                 className="pill"
+                data-part="pill"
                 aria-pressed={state.pill === pill.id}
                 data-pill={pill.id}
               >
@@ -524,7 +525,7 @@ function FollowsTab(): ReactElement {
             ))}
           </div>
           <div className="vswwrap">
-            <div className="vsw">
+            <div className="vsw" data-part="view/switch">
               <button
                 aria-pressed={state.followMode === "list"}
                 data-fmode="list"
@@ -550,8 +551,8 @@ function FollowsTab(): ReactElement {
           </div>
         </div>
       </div>
-      <p className="cadence">{cadenceFR(CADENCE_CRON)}</p>
-      <div className="body" data-region="acquisition/body">
+      <p className="cadence" data-part="cadence">{cadenceFR(CADENCE_CRON)}</p>
+      <div className="body" data-part="surface/body" data-region="acquisition/body">
         <div className="note" data-part="note">
           <b>{t("screens.acquisition.followsNoteLead")}</b>
           {t("screens.acquisition.followsNoteRest")}
@@ -631,9 +632,9 @@ function DiscoverTab(): ReactElement {
   const selector = (
     <div className="filters" data-region="acquisition/filters">
       <div className="pillbar">
-        <div className="pillscroll"></div>
+        <div className="pillscroll" data-part="pill/list"></div>
         <div className="vswwrap">
-          <div className="vsw">
+          <div className="vsw" data-part="view/switch">
             {modes.map(([id, paths, label]) => (
               <button
                 key={id}
@@ -656,7 +657,7 @@ function DiscoverTab(): ReactElement {
     return (
       <>
         {selector}
-        <div className="body deckbody"></div>
+        <div className="body deckbody" data-part="surface/body"></div>
       </>
     );
   }
@@ -666,13 +667,14 @@ function DiscoverTab(): ReactElement {
       {selector}
       <div
         className={`body${state.sugMode === "deck" ? " deckbody" : ""}`}
+        data-part="surface/body"
       >
         <div className="note" data-part="note">
           <b>{t("screens.acquisition.discoverNoteLead")}</b>
           {t("screens.acquisition.discoverNoteRest")}
         </div>
         {state.tmdb ? (
-          <div className="live">
+          <div className="live" data-part="live-activity">
             <span className="d"></span>
             <span>
               {t("screens.acquisition.liveBefore")}

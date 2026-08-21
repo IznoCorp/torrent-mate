@@ -22,12 +22,12 @@ async def main():
 
     # 1 — cadence translated into words
     await pg.evaluate("()=>window.__go('acq-follows-list')"); await pg.wait_for_timeout(300)
-    cad = await pg.evaluate("()=>document.querySelector('.cadence').textContent.trim()")
+    cad = await pg.evaluate("""()=>document.querySelector('[data-part="cadence"]').textContent.trim()""")
     chk("1. cadence in words", "*" not in cad, f"→ « {cad} »")
 
     # 2 — « Voir la fiche » from a follow sheet
     await pg.evaluate("()=>window.__go('followsheet-gaps')"); await pg.wait_for_timeout(400)
-    await pg.evaluate("()=>[...document.querySelectorAll('#sheet .sact')].find(x=>x.textContent.includes('Voir la fiche')).click()")
+    await pg.evaluate("""()=>[...document.querySelectorAll('#sheet [data-part="sheet/action"]')].find(x=>x.textContent.includes('Voir la fiche')).click()""")
     await pg.wait_for_timeout(700)
     # The media sheet left `#screen` for a real route (`/mediasheet/$title`, rendered
     # inside `#coquille`), so it is read by the identity it carries —
@@ -40,7 +40,7 @@ async def main():
     # 2b — from Découvrir
     await pg.evaluate("()=>window.__go('acq-discover')"); await pg.wait_for_timeout(400)
     await pg.evaluate("()=>[...document.querySelectorAll('[data-panel]')].find(e=>e.dataset.panel.startsWith('sug:')).click()"); await pg.wait_for_timeout(400)
-    await pg.evaluate("()=>[...document.querySelectorAll('#sheet .sact')].find(x=>x.textContent.includes('Voir la fiche')).click()")
+    await pg.evaluate("""()=>[...document.querySelectorAll('#sheet [data-part="sheet/action"]')].find(x=>x.textContent.includes('Voir la fiche')).click()""")
     await pg.wait_for_timeout(700)
     r = await pg.evaluate("""()=>({sheet:document.querySelector('#sheet').hasAttribute('data-open'),
       screen:!!document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]')})""")
@@ -55,22 +55,22 @@ async def main():
 
     # 4 — the cast carousel no longer blocks vertical scrolling
     await pg.evaluate("()=>window.__go('mediasheet-series')"); await pg.wait_for_timeout(400)
-    ta = await pg.evaluate("()=>getComputedStyle(document.querySelector('.cast')).touchAction")
+    ta = await pg.evaluate("""()=>getComputedStyle(document.querySelector('[data-part="cast"]')).touchAction""")
     chk("4. carousel allows both axes", "pan-y" in ta, f"touch-action: {ta}")
 
     # 5 — cast portraits
-    n = await pg.evaluate("()=>document.querySelectorAll('.cast .ca img').length")
+    n = await pg.evaluate("""()=>document.querySelectorAll('[data-part="cast"] [data-part="cast/avatar"] img').length""")
     chk("5. cast portraits", n >= 4, f"{n} photos")
 
     # 6 — the last action is no longer glued to the bar
     r = await pg.evaluate("""()=>{const sc=document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"] [data-part="viewport"]');
-      const btn=[...sc.querySelectorAll('.sact')].pop();
+      const btn=[...sc.querySelectorAll('[data-part="sheet/action"]')].pop();
       const bar=document.querySelector('[data-part="shell/tab-bar"]').getBoundingClientRect();
       sc.scrollTop=sc.scrollHeight;
       return {gap:Math.round(bar.top-btn.getBoundingClientRect().bottom)};}""")
     await pg.wait_for_timeout(200)
     r2 = await pg.evaluate("""()=>{const sc=document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"] [data-part="viewport"]');
-      const btn=[...sc.querySelectorAll('.sact')].pop();
+      const btn=[...sc.querySelectorAll('[data-part="sheet/action"]')].pop();
       return Math.round(document.querySelector('[data-part="shell/tab-bar"]').getBoundingClientRect().top - btn.getBoundingClientRect().bottom);}""")
     chk("6. gap under the last action", r2 >= 12, f"{r2}px at maximum scroll")
     await pg.screenshot(path="g_fiche_bas.png")
@@ -80,7 +80,7 @@ async def main():
     has = await pg.evaluate("""()=>!!document.querySelector('[data-part="result/list"] [data-part="card"] [data-part="card/poster"][data-mediasheet]')""")
     await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card"] [data-part="card/poster"][data-mediasheet]').click()"""); await pg.wait_for_timeout(600)
     title = await pg.evaluate(
-        """()=>document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"] .ht')?.textContent""")
+        """()=>document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"] [data-part="hero/title"]')?.textContent""")
     chk("7. result → media sheet", has and bool(title), f"→ « {title} »")
 
     # 8 — the resolution screen's way out exists
@@ -142,15 +142,15 @@ async def main():
     await pg.wait_for_timeout(500)
     # The footer's « Voir mes suivis » no longer carries `data-go`: it is a
     # React-owned control now (`AddScreen`'s own `toFollows`), not a site the
-    # shared legacy `data-go` delegation should also fire on — `.addfoot` is
+    # shared legacy `data-go` delegation should also fire on — `add/foot` is
     # the stable hook the harness has instead.
-    foot = await pg.evaluate("()=>!!document.querySelector('.addfoot button')")
+    foot = await pg.evaluate("""()=>!!document.querySelector('[data-part="add/foot"] button')""")
     detail = await pg.evaluate("""()=>({added:state.added.size,
       dlg:document.querySelector('#dlg').hasAttribute('data-open'),
       screen:!!document.querySelector('[data-part="screen"][data-open]')})""")
     chk("10. a real add brings the screen's footer into being", added and foot, f"added={added} foot={foot} {detail}")
     if foot:
-        await pg.evaluate("()=>document.querySelector('.addfoot button').click()")
+        await pg.evaluate("""()=>document.querySelector('[data-part="add/foot"] button').click()""")
         await pg.wait_for_timeout(600)
         r = await pg.evaluate("""()=>({screen:!!document.querySelector('[data-part="screen"][data-open]'),
           page:state.page})""")

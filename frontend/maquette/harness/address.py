@@ -111,7 +111,7 @@ async def main():
         await pg.tap('[data-sheet="utilisateur"]')
         await pg.wait_for_timeout(420)
         menu = await pg.evaluate(
-            """()=>[...document.querySelectorAll('.sheetacts .sact')].map((b) => ({
+            """()=>[...document.querySelectorAll('[data-part="sheet/actions"] [data-part="sheet/action"]')].map((b) => ({
                  text: b.textContent.trim(), inert: b.disabled,
                  target: Object.entries(b.dataset).map(([k, v]) => k + '=' + v).join(',')}))""")
         profile = [m for m in menu if "Profil" in m["text"]]
@@ -121,7 +121,7 @@ async def main():
                       profile and not profile[0]["inert"] and profile[0]["target"],
                       str(profile))
 
-        await pg.tap('.sheetacts .sact:has-text("Profil")')
+        await pg.tap('[data-part="sheet/actions"] [data-part="sheet/action"]:has-text("Profil")')
         await pg.wait_for_timeout(420)
         account = await pg.evaluate(READ)
         journal.check("the menu entry does open the account surface",

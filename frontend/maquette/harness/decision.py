@@ -53,8 +53,8 @@ SCREEN = """() => {
   const decisions = cards.filter(c => c.dataset.nonmedia === 'decision');
   const candidates = cards.filter(c => c.dataset.nonmedia === 'candidat');
   return {
-    title: (s.querySelector('.h2') || {}).textContent || '',
-    titleMono: !!s.querySelector('.h2 code'),
+    title: (s.querySelector('[data-part="heading"]') || {}).textContent || '',
+    titleMono: !!s.querySelector('[data-part="heading"] code'),
     candidates: candidates.map(c => ({
       title: (c.querySelector('[data-part="card/title"]') || {}).textContent || '',
       confidence: (c.querySelector('[data-part="chip"]') || {}).textContent || null,
@@ -72,7 +72,7 @@ SCREEN = """() => {
       panel: (c.querySelector('[data-part="card/body"]') || {}).dataset?.panel || null,
       chips: [...c.querySelectorAll('[data-part="chip"]')].map(x => x.textContent.trim()),
     })),
-    exits: [...s.querySelectorAll('.sact, [data-part="card/foot"]')].map(x => x.textContent.trim()),
+    exits: [...s.querySelectorAll('[data-part="sheet/action"], [data-part="card/foot"]')].map(x => x.textContent.trim()),
     text: (s.textContent || '').replace(/\\s+/g, ' '),
   };
 }"""

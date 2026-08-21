@@ -140,7 +140,7 @@ function ReleaseCard({
           )}
         </span>
       </div>
-      <button className="cfoot solid" data-part="card/foot" data-resolve={title}>
+      <button className="cfoot solid" data-part="card/foot" data-solid="" data-resolve={title}>
         {t("screens.resolution.pickThis")}
       </button>
     </div>
@@ -316,14 +316,14 @@ export function ResolutionScreen() {
   // screen as the legacy's own last resort, « élément inconnu ».
   return (
     <section className="screen open" data-part="screen" data-open="" data-key={`resolution:${folder}`}>
-      <div className="screenbar">
-        <button className="fback" onClick={() => window.__bridge.back()}>
+      <div className="screenbar" data-part="screen/bar">
+        <button className="fback" data-part="screen/back" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.resolution.back")}
         </button>
       </div>
       <div className="port" data-part="viewport">
-        <div className="body" data-region="screen-resolution/body">
+        <div className="body" data-part="surface/body" data-region="screen-resolution/body">
           <div className="note" data-part="note">
             <b>{t("screens.resolution.noteTitle")}</b>{" "}
             {t("screens.resolution.noteOn")} <code>/medias</code>{" "}
@@ -331,7 +331,7 @@ export function ResolutionScreen() {
             <em>{t("screens.resolution.noteUnder")}</em>{" "}
             {t("screens.resolution.noteRest")}
           </div>
-          <h2 className="h2">
+          <h2 className="h2" data-part="heading">
             <code>{folder}</code>
           </h2>
           <p className="qhint">
@@ -375,13 +375,13 @@ export function ResolutionScreen() {
               {t("screens.resolution.searchManually")}
             </button>
           </div>
-          <div className="sheetacts secondary">
-            <button className="sact" data-leave={folder}>
+          <div className="sheetacts secondary" data-part="sheet/actions">
+            <button className="sact" data-part="sheet/action" data-leave={folder}>
               <Icon paths={icons.check} />
               {t("screens.resolution.leaveAsIs")}
             </button>
             {pending.length > 1 ? (
-              <button className="sact" data-next={folder}>
+              <button className="sact" data-part="sheet/action" data-next={folder}>
                 <Icon paths={icons.right} />
                 {t("screens.resolution.next")}
               </button>
@@ -395,7 +395,7 @@ export function ResolutionScreen() {
           </div>
           {DECISIONS_REGLEES.length > 0 ? (
             <>
-              <h2 className="h2" style={{ marginTop: "18px" }}>
+              <h2 className="h2" data-part="heading" style={{ marginTop: "18px" }}>
                 {t("screens.resolution.settledHeading")}
               </h2>
               <p className="qhint">{t("screens.resolution.settledHint")}</p>

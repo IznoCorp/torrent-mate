@@ -70,8 +70,9 @@ async def main():
             .filter(t=>{const f=sheetFor(t); return !f || !f.ov || !f.g || !(f.cast||[]).length;});
 
           // R2 — HARDENED: a button must have a declared DESTINATION, not
-          // merely a known class. Whitelisting by class blessed every `.sact`,
-          // so a control could lead nowhere without the rule flinching.
+          // merely a known class. Whitelisting by class blessed every sheet
+          // action, so a control could lead nowhere without the rule
+          // flinching.
           R.deadButtons = [...root.querySelectorAll('button, a')]
             .filter(el=>el.getBoundingClientRect().height>0 && !el.disabled
                     && !el.closest('[data-part="harness/bar"]') && !el.closest('[data-part="harness/panel"]')
@@ -104,7 +105,7 @@ async def main():
           // (overflow-x hidden/clip) AND that fits within the frame itself. A
           // clipping ancestor that overflows clips nothing, it moves the
           // problem.
-          const SCROLLERS = '.pillscroll,.cast,[data-part="episode/set"],[data-part="harness/panel"]';
+          const SCROLLERS = '[data-part="pill/list"],[data-part="cast"],[data-part="episode/set"],[data-part="harness/panel"]';
           const clipped = (el) => {
             for (let p = el.parentElement; p && p !== root.parentElement; p = p.parentElement) {
               const ox = getComputedStyle(p).overflowX;
@@ -133,7 +134,7 @@ async def main():
 
           // R6 — an essential title is never truncated to the point of being a
           // guess
-          R.truncatedTitles = [...root.querySelectorAll('.ht,.sheettitle,[data-part="dialog"] h3')].filter(el=>
+          R.truncatedTitles = [...root.querySelectorAll('[data-part="hero/title"],[data-part="sheet/title"],[data-part="dialog"] h3')].filter(el=>
             el.scrollWidth>el.clientWidth+1).map(el=>el.textContent.trim().slice(0,30));
 
           // R6 bis — a card title MAY ellipsize; the list is a list. But the full
@@ -167,7 +168,7 @@ async def main():
           // length of the label beside it. A chip inside a flex row took the
           // text's height.
           R.irregularSwitches = [];
-          const sw = [...root.querySelectorAll('.switch')];
+          const sw = [...root.querySelectorAll('[data-part="switch"]')];
           if (sw.length > 1) {
             const sizes = sw.map(e=>{const b=e.getBoundingClientRect();
               return Math.round(b.width)+'×'+Math.round(b.height);});
@@ -199,7 +200,7 @@ async def main():
           // would leave every state that opens a route inspecting nothing at
           // all: its `[data-part="viewport"]` padding and the reachability of its last action
           // are exactly what this rule holds on it.
-          const layers = [['#screen','[data-part="viewport"]'],['#sheet','.sheetin'],
+          const layers = [['#screen','[data-part="viewport"]'],['#sheet','[data-part="sheet/viewport"]'],
                           ['[data-part="screen"][data-open][data-key]','[data-part="viewport"]']];
           for (const [sel, inner] of layers) {
             const el = document.querySelector(sel);

@@ -33,17 +33,17 @@ async def main():
       // the act). Kept pointing at them, both lines printed zero forever,
       // which reads like « no results » next to a count that says six.
       return {open:s.hasAttribute('data-open'),
-              count:(s.querySelector('.rescount')||{}).textContent?.trim(),
+              count:(s.querySelector('[data-part="result/count"]')||{}).textContent?.trim(),
               results:s.querySelectorAll('[data-part="result/list"] [data-part="card"]').length,
               feet:[...s.querySelectorAll('[data-part="result/list"] [data-part="card/foot"]')].map(x=>x.textContent.trim()),
-              byId:!!s.querySelector('.byid')};}""")
+              byId:!!s.querySelector('[data-part="add/by-id"]')};}""")
     print(" ", r)
     await pg.screenshot(path="y_ajout.png")
     # The card wears no inline action: the act lives in the result's panel,
     # so the journey opens the panel first — the same path the finger takes.
     await pg.click("[data-panel='add:3']"); await pg.wait_for_timeout(450)
     await pg.click("#sheet [data-act='add:3']"); await pg.wait_for_timeout(450)
-    print("  after adding an absent title:", await pg.evaluate("()=>document.querySelector('.addfoot')?.textContent.trim()"))
+    print("  after adding an absent title:", await pg.evaluate("""()=>document.querySelector('[data-part="add/foot"]')?.textContent.trim()"""))
     await pg.click("[data-panel='add:0']"); await pg.wait_for_timeout(450)
     await pg.click("#sheet [data-act='add:0']"); await pg.wait_for_timeout(450)
     print("  adding an ALREADY owned title:", await pg.evaluate("()=>{const g=document.querySelector('#dlg');return {open:g.hasAttribute('data-open'),title:g.querySelector('h3')?.textContent};}"))
@@ -58,7 +58,7 @@ async def main():
     r=await pg.evaluate("""()=>{const s=document.querySelector('#sheet');
       const ss=[...s.querySelectorAll('[data-part="season"]')];
       return {seasons:ss.length, order:ss.slice(0,3).map(x=>x.querySelector('summary').textContent.replace(/\\s+/g,' ').trim()),
-              allCollapsed:ss.every(x=>!x.open), legend:s.querySelectorAll('.legend span').length,
+              allCollapsed:ss.every(x=>!x.open), legend:s.querySelectorAll('[data-part="legend"] span').length,
               cells:s.querySelectorAll('[data-part="episode"]').length};}""")
     print(" ", r)
     await pg.screenshot(path="y_matrice_complete.png")
@@ -78,9 +78,9 @@ async def main():
       const ss=[...s.querySelectorAll('[data-part="season"]')];
       return {seasons:ss.length, open:ss.filter(x=>x.open).length,
               missing:[...s.querySelectorAll('[data-part="season/missing"]')].map(x=>x.textContent),
-              fraction:s.querySelector('.sheetmeta')?.textContent.trim(),
+              fraction:s.querySelector('[data-part="sheet/meta"]')?.textContent.trim(),
               states:[...new Set([...s.querySelectorAll('[data-part="episode"]')].map(x=>x.className.replace('ep ','')))],
-              legend:[...s.querySelectorAll('.legend span')].map(x=>x.textContent.trim())};}""")
+              legend:[...s.querySelectorAll('[data-part="legend"] span')].map(x=>x.textContent.trim())};}""")
     print(" ", r)
     await pg.screenshot(path="y_matrice_trous.png")
     print("\nJS errors:", errs or "none")

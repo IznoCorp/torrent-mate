@@ -53,7 +53,7 @@ async def announced():
     await pg.evaluate("()=>window.__measure(true)")
     await pg.evaluate("()=>window.__go('acq-follows-list')"); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>openFollowSheet('Silo')"); await pg.wait_for_timeout(450)
-    await pg.evaluate("""()=>document.querySelector('[data-part="episode"].announced').click()"""); await pg.wait_for_timeout(330)
+    await pg.evaluate("""()=>document.querySelector('[data-part="episode"][data-announced]').click()"""); await pg.wait_for_timeout(330)
     txt = await pg.evaluate("""()=>document.querySelector('[data-part="episode/popover"]')?.innerText.replace(/\\n/g,' | ')""")
     print("  popover for an ANNOUNCED episode:", txt)
     await pg.screenshot(path="m_announced.png")
