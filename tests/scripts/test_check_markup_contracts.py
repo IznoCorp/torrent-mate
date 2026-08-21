@@ -18,6 +18,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "check-markup-contracts.py"
 
 
@@ -525,3 +527,109 @@ class TestHeldSelectors:
         assert run.returncode == 0, run.stderr
         assert "2 class token occurrences held outside any selection call" in run.stdout
         assert "3 class token occurrences total" in run.stdout
+
+
+class TestHarnessParses:
+    r"""The precondition: a rule file Python cannot read is a violation.
+
+    Sub-phase 4.1's hole, and it is the defect class this whole guard exists
+    to end. A rewrite substituted `[data-part="suggestion/wrap"]` into
+    selectors hosted in single-line DOUBLE-quoted Python strings: the raw `"`
+    ended the literal, and `inter.py` and `mouse.py` STOPPED PARSING. Every
+    instrument then read them and reported no violation — this guard exited
+    0, `--write-baseline` wrote happily, `classify-rule-anchors.py` counted.
+    Only running the rules would have fallen, and that pass takes sixteen
+    minutes.
+
+    Nothing raised because nothing PARSES: the arms read the harness as raw
+    text, and `comment_masked` tokenizes — and `tokenize` does not raise on a
+    stray quote, it simply re-lexes what follows. A reader that keeps going
+    over a file the interpreter refuses reports a count one short, in
+    silence.
+    """
+
+    # 4.1's exact shape: a raw `"` inside a `"…"` literal. The string ends at
+    # `data-part=`, and the `probe` that follows is a NAME where Python
+    # expects an operator.
+    BROKEN = 'X = "()=>document.querySelector(\'[data-part="probe/x"]\')"\n'
+    # The same selection, hosted so nothing needs escaping — the shape the
+    # instruction in ARM 3's refusal asks for.
+    READABLE = 'X = """()=>document.querySelector(\'[data-part="probe/x"]\')"""\n'
+
+    def _fixture(self, tmp_path, source):
+        """Writes `source` as a fixture harness file.
+
+        Args:
+            tmp_path: The pytest fixture.
+            source: The fixture file's text.
+
+        Returns:
+            The path written.
+        """
+        fixture = tmp_path / "fixture.py"
+        fixture.write_text(source, encoding="utf-8")
+        return fixture
+
+    def test_a_stray_quote_is_a_violation(self, tmp_path):
+        """The defect, minimal: the file, the line and the parser's word."""
+        fixture = self._fixture(tmp_path, self.BROKEN)
+
+        found = guard.parse_failures([fixture])
+
+        assert [(path, line) for path, line, _ in found] == [(fixture, 1)]
+        assert "invalid syntax" in found[0][2]
+
+    def test_a_file_that_parses_is_not_a_violation(self, tmp_path):
+        """The same selection in a readable host owes the precondition nothing."""
+        assert guard.parse_failures([self._fixture(tmp_path, self.READABLE)]) == []
+
+    def test_every_instrument_reads_the_broken_file_and_says_nothing(self, tmp_path):
+        """WHY the precondition exists — the oracle outside this guard.
+
+        The raw-text readers walk the file happily: no escaped quote, so ARM
+        3's refusal finds nothing, and `comment_masked` hands back text
+        rather than raising, exactly as its documented fallback promises.
+        Meanwhile the interpreter cannot read the file at all — so every rule
+        it holds is dead and no instrument says so.
+        """
+        fixture = self._fixture(tmp_path, self.BROKEN)
+
+        assert guard.escaped_part_selections(fixture) == []
+        assert guard.comment_masked(self.BROKEN) == self.BROKEN
+        with pytest.raises(SyntaxError):
+            compile(self.BROKEN, "fixture.py", "exec")
+
+    def test_the_precondition_exits_1_and_names_file_line_and_message(self, tmp_path, monkeypatch, capsys):
+        """The refusal is the RUN's, not just the helper's.
+
+        `harness_files` is patched on the entry point, which is the module
+        whose globals the precondition reads.
+        """
+        fixture = self._fixture(tmp_path, self.BROKEN)
+        monkeypatch.setattr(guard, "harness_files", lambda: [fixture])
+        monkeypatch.setattr(guard, "ROOT", tmp_path)
+
+        assert guard.check_harness_parses() == 1
+        err = capsys.readouterr().err
+
+        assert "fixture.py:1" in err
+        assert "invalid syntax" in err
+
+    def test_the_arms_still_run_over_the_corpus(self, tmp_path, monkeypatch):
+        """One broken file must not hide what the arms would have said.
+
+        The author sees everything at once: the run exits 1 for the parse
+        failure AND every arm reports. An early return would trade one silent
+        short count for another.
+        """
+        ran = []
+        monkeypatch.setattr(guard, "check_harness_parses", lambda: 1)
+        for arm in ("check_forwarded_values", "check_anchor_debt", "check_part_values", "check_state_attributes"):
+            monkeypatch.setattr(guard, arm, lambda name=arm: ran.append(name) or 0)
+
+        assert guard.main([]) == 1
+        assert ran == ["check_forwarded_values", "check_anchor_debt", "check_part_values", "check_state_attributes"]
+
+    def test_every_harness_file_parses(self):
+        """Green on this repository: all 52 rule files are readable Python."""
+        assert guard.parse_failures(guard.harness_files()) == []

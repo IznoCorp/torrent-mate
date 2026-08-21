@@ -126,6 +126,26 @@ the same attribute — and the real `data-open` was owed its own
 demonstration on the day it first existed; that gap is closed by
 re-measuring, never by analogy.
 
+THE PRECONDITION, AND IT IS NOT A FIFTH ARM. Before any arm reads the
+harness, every `frontend/maquette/harness/*.py` file is handed to the
+Python parser, and one it refuses is a violation in its own right —
+printed with its file, its line and the parser's own message, exit 1.
+It is not an arm because it asks nothing about markup: it asks whether
+the corpus can be READ at all, which is what every arm assumes and none
+of them checks. Sub-phase 4.1 is why. A rewrite left a raw `"` inside a
+`"…"` Python string in `inter.py` and `mouse.py`; both stopped parsing,
+and every instrument — these four arms, `--write-baseline`,
+`classify-rule-anchors.py` — read them as text and reported no
+violation. A guard that reports « no violation » over a file it cannot
+read is the defect class this lot exists to end, so the guard refuses
+it. The detection is `markup_text.parse_failures`, beside the readers
+whose silence it explains.
+
+AND THE ARMS STILL RUN. A parse failure does not end the run and does
+not drop the file from any corpus: the author sees the parse error AND
+everything the arms have to say, in one run. Dropping the broken file
+would be the same silent short count in a new coat.
+
 Usage:
     python3 scripts/check-markup-contracts.py
     python3 scripts/check-markup-contracts.py --write-baseline
@@ -150,7 +170,7 @@ from markup_anchors import (  # noqa: E402, F401
 # The shared text readers — see that module's header.
 from markup_text import (  # noqa: E402
     COMMENT, HARNESS, HTML_COMMENT, ROOT, SHELL, SOURCES, braced_expression,
-    comment_masked,
+    comment_masked, parse_failures,
 )
 
 # `store.write({ pipe: closest.dataset.pipe })` — the handler that FORWARDS a
@@ -631,8 +651,72 @@ def check_state_attributes() -> int:
     return 0
 
 
+def check_harness_parses() -> int:
+    """The precondition: refuses a rule file the Python parser refuses.
+
+    Not an arm — it asks nothing about markup. It asks whether the corpus
+    can be READ, which every arm assumes and none of them checks: the
+    arms read raw text, and text has no syntax to be wrong. See
+    `markup_text.parse_failures` for the day two rule files stopped
+    parsing and every instrument stayed green over them.
+
+    The corpus is read through `harness_files()`, the same list ARM 2 and
+    ARM 3 read, so a file that reaches an arm has been through this
+    question first.
+
+    Returns:
+        1 when any harness file does not parse, 0 otherwise.
+    """
+    files = harness_files()
+    if not files:
+        print(f"check-markup-contracts: no Python files under {HARNESS} — "
+              "the corpus is empty, so « parses » would mean nothing",
+              file=sys.stderr)
+        return 1
+
+    failures = parse_failures(files)
+    for path, line, message in failures:
+        rel = str(path.relative_to(ROOT))
+        print(f"  {rel}:{line}: Python cannot parse this file: {message}. "
+              "Every arm of this guard reads the harness as raw text, and "
+              "text has no syntax to be wrong — so an unparseable rule file "
+              "is measured by nothing and reported by nothing, while the "
+              "rules it holds are dead. That is sub-phase 4.1, where a raw "
+              "`\"` inside a `\"…\"` string broke two rule files under a "
+              "green gate.", file=sys.stderr)
+
+    if failures:
+        print(f"\ncheck-markup-contracts: {len(failures)} rule file(s) the "
+              "Python parser refuses. A guard that reports « no violation » "
+              "over a file it cannot read is the defect this refusal exists "
+              "to end. Whatever runs after this refusal reads the corpus as "
+              "it stands, so every count it prints is short by whatever the "
+              "broken file(s) hold.", file=sys.stderr)
+        return 1
+
+    print(f"check-markup-contracts: {len(files)} harness rule file(s), every "
+          "one parsed by Python before any arm read it as text.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
-    """Runs all four arms over their corpora, or regenerates the baseline.
+    """Runs the precondition and all four arms, or regenerates the baseline.
+
+    Args:
+        argv: The arguments to read. `None` reads the process's own, which is
+            what the entry point below passes; a caller IN-PROCESS — a test —
+            passes its own list, because `sys.argv` under a test runner
+            belongs to the runner.
+
+    The precondition runs FIRST on both paths — the check and the
+    baseline write. A baseline generated over a file Python cannot read is
+    a baseline written from a corpus one file short, and 4.1 wrote one:
+    `--write-baseline` succeeded over `inter.py` and `mouse.py` while
+    neither parsed.
+
+    A parse failure does not return early. Every arm still runs, over the
+    corpus as it stands, so one broken file cannot hide what the arms had
+    to say.
 
     Args:
         argv: The arguments to read. `None` reads the process's own, which is
@@ -647,9 +731,10 @@ def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if argv:
         if argv == ["--write-baseline"]:
-            return write_baseline()
+            return check_harness_parses() or write_baseline()
         if argv == ["--write-baseline", "--allow-additions"]:
-            return write_baseline(allow_additions=True)
+            return check_harness_parses() or write_baseline(
+                allow_additions=True)
         print("check-markup-contracts: unknown arguments — run with no "
               "argument to check; --write-baseline to regenerate "
               f"{BASELINE.relative_to(ROOT)}, which refuses to ADD anything "
@@ -658,6 +743,8 @@ def main(argv: list[str] | None = None) -> int:
               "maquette-l02 may use it.", file=sys.stderr)
         return 1
     rc = 0
+    if check_harness_parses():
+        rc = 1
     if check_forwarded_values():
         rc = 1
     if check_anchor_debt():

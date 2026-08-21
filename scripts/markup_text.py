@@ -11,13 +11,20 @@ expression, a comment — and never what an arm makes of what they find. The
 questions live with the arms. The corpus paths and the two comment strippers
 live here for the same reason: every arm reads the same trees, and a second
 copy of a path is a second thing to move.
+
+`parse_failures` is the one JUDGMENT this module makes, and it belongs here
+because it is a precondition on the READING, not a question about markup: see
+its own docstring for the day every instrument in this repository read two
+unparseable rule files as « no violation ».
 """
 
 from __future__ import annotations
 
+import ast
 import io
 import re
 import tokenize
+from collections.abc import Iterable
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -43,6 +50,48 @@ SHELL = SOURCES.parent / "index.html"
 # HTML comments are the shell's comment shape; the JS-style COMMENT regex
 # reads the sources. Same question, one stripper per corpus.
 HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
+
+
+def parse_failures(paths: Iterable[Path]) -> list[tuple[Path, int, str]]:
+    """Returns every file the Python parser refuses, with the parser's word.
+
+    THE DEFECT CLASS, AND IT IS THIS GUARD'S OWN. A rewrite substituted
+    `[data-part="suggestion/wrap"]` into selectors hosted in single-line
+    DOUBLE-quoted Python strings: the raw `"` closed the literal, and
+    `harness/inter.py` and `harness/mouse.py` STOPPED PARSING. Every
+    instrument then read them and reported no violation — the four arms
+    exited 0, `--write-baseline` wrote happily, `classify-rule-anchors.py`
+    counted. Only the sixteen-minute pass that RUNS the rules would have
+    fallen.
+
+    Nothing raised because nothing here parses. The arms read the harness as
+    RAW TEXT, and text has no syntax to be wrong. `comment_masked` tokenizes,
+    and `tokenize` does not raise on a stray quote either — it re-lexes what
+    follows as if it were code, and its documented fallback swallows what
+    little it does refuse. So a reader keeps going over a file the
+    interpreter cannot load and reports a count one short, in silence. That
+    is why the question is asked ONCE, ahead of the readers, by the only
+    thing that answers it honestly: the parser.
+
+    Args:
+        paths: The files to parse — the harness corpus.
+
+    Returns:
+        `(path, line, message)` per refused file, in the order given. The
+        line is the parser's, or 0 when it names none; the message is the
+        `SyntaxError`'s own, never a rewording of it. A file that cannot be
+        read at all is refused the same way, for the same reason: an
+        unreadable file is one no arm measures.
+    """
+    found: list[tuple[Path, int, str]] = []
+    for path in paths:
+        try:
+            ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        except SyntaxError as err:
+            found.append((path, err.lineno or 0, err.msg))
+        except (OSError, UnicodeDecodeError, ValueError) as err:
+            found.append((path, 0, str(err)))
+    return found
 
 
 def read_literal(text: str, start: int) -> tuple[str, int] | None:
