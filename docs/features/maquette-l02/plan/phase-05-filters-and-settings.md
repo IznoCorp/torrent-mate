@@ -8,7 +8,7 @@ Phase 4 must have produced, all committed:
   resolved at its own site rather than assumed;
 - `classList.contains('ep')` left in place, and ACC-11 recorded: exactly 5 exceptions, each with a
   non-empty reason;
-- `frontend/maquette/anchor-baseline.json` down to **168 entries** (195 − 27).
+- `frontend/maquette/anchor-baseline.json` down to **405 entries** (448 − 43).
 
 ## Emission sites touched
 
@@ -28,10 +28,11 @@ day its surface converts out of `legacy.js` — which is exactly the day someone
 
 ## Baseline entries removed
 
-**37, each in the same commit as the migration it corresponds to**: ≈35 class-anchored selections,
-plus the **2** filter-state assertions `classList.contains('fempty')` and
-`classList.contains('fblocked')`, which become `hasAttribute('data-empty')` and
-`hasAttribute('data-blocked')`. The baseline goes 168 → 131.
+**59**: 57 class token occurrences — 13 distinct tokens, `fr`, `fn`, `fk`, `fs`, `fx`,
+`settingrow`, `seg`, `sechead`, `field`, `fieldinput`, `fieldtoggle`, `optlist`, `opt` — plus the
+**2** filter-state assertions `classList.contains('fempty')` and `classList.contains('fblocked')`,
+which become `hasAttribute('data-empty')` and `hasAttribute('data-blocked')`. The baseline goes
+405 → 346.
 
 ---
 

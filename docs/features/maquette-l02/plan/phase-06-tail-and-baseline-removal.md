@@ -7,7 +7,7 @@ Phase 5 must have produced, all committed:
 - the filter, setting, segment and section-head contracts anchored, with `fr`, `fn`, `fk`, `fs`
   resolved at their sites and their meanings recorded in the commit messages;
 - `data-empty` and `data-blocked` emitted and asserted through `hasAttribute`;
-- `frontend/maquette/anchor-baseline.json` down to **131 entries** (168 − 37);
+- `frontend/maquette/anchor-baseline.json` down to **346 entries** (405 − 59);
 - ACC-12 recorded as `exit=0`.
 
 ## Emission sites touched
@@ -29,14 +29,12 @@ spots — so it is worked by site, and each site is finished before the next beg
 
 ## Baseline entries removed
 
-**131 — the remainder, and the file reaches zero.** ≈128 class-anchored selections plus the last
-**3** state assertions: `classList.contains('show')` → `hasAttribute('data-shown')`,
-`classList.contains('in_library')` → `hasAttribute('data-in-library')`,
+**346 — the remainder, and the file reaches zero.** 343 class token occurrences across **93
+distinct tokens**, plus the last **3** state assertions: `classList.contains('show')` →
+`hasAttribute('data-shown')`, `classList.contains('in_library')` → `hasAttribute('data-in-library')`,
 `classList.contains('announced')` → `hasAttribute('data-announced')`.
 
-Running total across the wave: 84 + 63 + 27 + 37 + 131 = **342**. The five genre assertions —
-`h2`, `flux`, `ep`, `radio`, `note` — were never in the burn-down; they are permanent, and they live
-in the classifier's exception list with their reasons, not in the baseline.
+Running total across the wave: 117 + 129 + 43 + 59 + 346 = **694**.
 
 ---
 
@@ -141,7 +139,7 @@ frontend/maquette/harness/run.sh                     # no violation, per-rule ho
 make check                                           # exit 0
 ```
 
-**ACC-07 is claimed here**, over the whole wave: the oracle green means 342 anchors were added
+**ACC-07 is claimed here**, over the whole wave: the oracle green means 694 anchors were added
 across three emission sites and no pixel moved. That is checkable rather than asserted because the
 stylesheet's only attribute selectors are `[aria-checked]`, `[aria-selected]`, `[aria-pressed]`,
 `[aria-current]`, `[data-theme]` and `[data-depth]` — none on `data-part` or the seven states.

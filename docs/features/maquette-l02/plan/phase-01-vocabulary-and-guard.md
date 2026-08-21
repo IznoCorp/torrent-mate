@@ -17,8 +17,12 @@ workflow.
 
 ## Baseline entries removed
 
-**Zero — this phase CREATES the baseline at 342 entries** (281 class-anchored selections + 61 state
-assertions). Every later phase removes from it.
+**Zero — this phase CREATES the baseline at 694 entries**: 633 class TOKEN occurrences + 61 state
+assertions. Every later phase removes from it.
+
+**The unit is the token occurrence, not the selector**, and it is not a detail: a selector can carry
+tokens owned by two different phases, so only the occurrence has a single owner. Counting by
+selector makes phase 2 remove nothing and phase 6 remove everything.
 
 ---
 
@@ -134,7 +138,7 @@ carrying one arm, while `oracle.py` is 972 against a 1000-line ceiling.
       `data-<state>={x}` written without `|| undefined` in a component.
 - [ ] **Step 3.** Generate the baseline, **never type it**:
       `python3 scripts/check-markup-contracts.py --write-baseline` produces
-      `frontend/maquette/anchor-baseline.json` with **342 entries** (281 + 61), the shape
+      `frontend/maquette/anchor-baseline.json` with **694 entries** (633 + 61), the shape
       `scripts/french-exemption-baseline.json` already uses. The five genre assertions are not in
       it: they are permanent, and live in the classifier's exception list with their reasons.
 - [ ] **Step 4.** Cross-check the two readers, which is the point of having two: the baseline's 281

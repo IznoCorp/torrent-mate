@@ -7,7 +7,7 @@ Phase 2 must have produced, all committed:
 - `[data-part="screen"]`, `[data-part="sheet"]`, `[data-part="scrim"]` emitted, with
   `data-open={open || undefined}` in `sheet.tsx`;
 - all 54 `classList.contains('open')` assertions moved to `hasAttribute('data-open')`;
-- `frontend/maquette/anchor-baseline.json` down to **258 entries** (342 − 84);
+- `frontend/maquette/anchor-baseline.json` down to **577 entries** (694 − 117);
 - ACC-05 recorded as `exit=1`, the guard naming `sheet.tsx` and `data-open`;
 - ACC-08 recorded: `run.sh` green with per-rule hold counts equal to phase 1's.
 
@@ -34,10 +34,10 @@ let a rename tool rewrite them by accident.
 
 ## Baseline entries removed
 
-**63, each in the same commit as the migration it corresponds to**: ≈61 class-anchored selections
-across the card family, plus the **2** `classList.contains('noposter')` assertions, which become
-`hasAttribute('data-no-poster')`. The baseline goes 258 → 195. Record the **actual** number removed;
-the invariant is that the file's entry count falls by exactly what the commits removed.
+**129**: 127 class token occurrences across the card family — 14 distinct tokens, `card`,
+`ctitle`, `cbody`, `cfoot`, `poster`, `cov`, `csub`, `cmeta`, `ctop`, `creason`, `pfall`, `dcard`,
+`freshtag`, `caption` — plus the **2** `classList.contains('noposter')` assertions, which become
+`hasAttribute('data-no-poster')`. The baseline goes 577 → 448.
 
 ## The ACC-04 conflict this phase found — RESOLVED, and the criterion moved out
 
@@ -129,7 +129,7 @@ One commit: `refactor(maquette-l02): anchor the card poster and its no-poster st
       attribute. An assertion moved onto an attribute nothing emits is always false; a
       `[data-no-poster]` selection onto the same is always true.
 - [ ] **Step 4.** Remove the selection and assertion entries in this same commit. The phase total
-      across 3.1–3.3 is **63**; the file must now hold **195**.
+      across 3.1–3.3 is **129**; the file must now hold **448**.
 - [ ] **Step 5.** Mutation-test the state: make the emitting site drop the attribute
       unconditionally, confirm the migrated rule FALLS naming the right defect, restore. Commit.
 

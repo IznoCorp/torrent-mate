@@ -11,10 +11,10 @@ discipline repeats one tier down — the instrument that judges the migration is
 anything is migrated.
 
 **Phase 1 builds the judge and nothing else.** The vocabulary, the guard arm, the independent
-classifier, the baseline holding all 342 live violations, and the wiring that makes the dormant
+classifier, the baseline holding all 694 live violations, and the wiring that makes the dormant
 `oracle.py --contracts` arm run automatically. It migrates zero calls on purpose: a guard written
 after its wave has nothing left to fail on, and was therefore never seen fail. This one lands with
-342 things it holds and a mutation proof that it names them.
+694 things it holds and a mutation proof that it names them.
 
 Phase 1 also carries **ACC-06 before the arm that depends on it**. The `|| undefined` arm rests on
 a belief about how React renders `data-open={false}`. The DESIGN refuses to let a belief be
@@ -30,7 +30,7 @@ split one contract across two commits and leave the half-moved state this lot ex
 impossible.
 
 **Phase 2 is second because it is the riskiest and the most instructive.** `.screen` heads 30 of
-the 281 selections, `open` accounts for 54 of the 61 state assertions, and the migration carries a
+the 432 class-carrying selections, `open` accounts for 54 of the 61 state assertions, and the migration carries a
 semantic correction: `open` in `.screen.open` is static — five screens write it into a literal,
 because a mounted screen _is_ open — while `sheet.tsx` alone makes it conditional. Dropping a
 redundant state token from 30 selectors is exactly the edit that can leave a rule green while it

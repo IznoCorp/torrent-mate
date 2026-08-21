@@ -61,6 +61,49 @@ be pinned in a file under review before any number derived from it means anythin
 Spread: **36 of the 47 harness files** that select at all, **133 distinct selectors**, **96
 distinct root tokens** — a long tail, not a few hot spots.
 
+### D4's own method under-measures D4's objective, by 54 %
+
+**Found by the classifier D4 asked for, on the day it first ran** — and it is the most consequential
+finding of this lot.
+
+D4's method sorts each selector into ONE bucket, its strongest anchor. Its published figures say so:
+280 + 276 + 92 + 32 + 4 = 684, one bucket per call. So `#view .swipe` counts as *id-anchored*, and
+the `.swipe` disappears from the measurement.
+
+`.swipe` is a style class. **L07 replaces it and that selector falls**, exactly like the 281.
+
+| | Calls |
+| --- | --- |
+| total selection calls | 696 |
+| carrying no class token at all | 264 |
+| **class is the ONLY anchor** — what the lot was sized for | **281** |
+| **class token behind a stronger anchor** — invisible to the measurement | **151** |
+|   ‣ `data`/`id` head, class LEAF (`#view .swipe`, `[data-page=acq] .navbadge`) | 102 |
+|   ‣ class ANCESTOR, `data`/`id` inside (`.pipeline [data-pipe]`, `.card[data-nonmedia] .poster`) | 49 |
+| **selectors that actually break at L07** | **432** |
+
+<sub>method: strip `${…}` and every `[…]` block, then look for ANY `.token` — not the strongest one</sub>
+
+**So the lot's headline criterion was satisfiable while 151 class dependencies stayed live**, every
+one of them producing exactly the unattributable L07 failure — anchor, or style? — that D4 exists to
+make impossible. A criterion that can be met without meeting its objective is the vacuous-criterion
+defect this repository keeps paying for, and here it sat in the objective's own metric.
+
+**The operator ruled the full scope in** (2026-08-21): 432, not 281. The reason is that the smaller
+figure buys a green number and not the thing it stands for.
+
+**And the unit of work changes with it.** A selector leaves the debt when it has NO class token left,
+so `.screen.open .fback` is not finished by phase 2 — `fback` belongs to another surface. Counting
+by SELECTOR makes phase 2 remove nothing and phase 6 remove 281. The baseline is therefore keyed on
+the **class token occurrence**, which is what someone actually migrates, and which has exactly one
+owning phase:
+
+| | |
+| --- | --- |
+| class token occurrences across the harness | **633** |
+| state assertions | **61** |
+| **baseline entries** | **694** |
+
 ### Where the markup lives — measured over all 114 tokens, not a sample
 
 Two earlier passes were wrong, and both are recorded because the correction is the finding. The
@@ -157,7 +200,7 @@ After migration the selectors are shorter AND more honest:
 
 ## The assertions are IN SCOPE, minus five
 
-Beside the 281 selections the harness makes **66 `classList.contains` assertions**. D4's letter
+Beside the 432 class-carrying selections the harness makes **66 `classList.contains` assertions**. D4's letter
 covers selection only. Its intent does not: an assertion on a style class breaks at L07 exactly
 like a selection does.
 
@@ -201,8 +244,8 @@ file must not become a place where a reader cannot tell what is actually measure
 
 ### The burn-down is a ratchet, not a promise
 
-The arm lands in **phase 1**, with a baseline file holding **all 281 + 61 current violations**,
-generated rather than typed. Every later phase REMOVES entries. The last phase empties it, deletes
+The arm lands in **phase 1**, with a baseline file holding **all 633 class token occurrences + 61
+assertions = 694 current violations**, generated rather than typed. Every later phase REMOVES entries. The last phase empties it, deletes
 it, and the arm's floor becomes a hard zero.
 
 This is the shape `scripts/french-exemption-baseline.json` already uses here, and it exists to stop
@@ -291,11 +334,14 @@ impossible.
 | Phase | Subject | Approx. calls |
 | --- | --- | --- |
 | 1 | vocabulary, the guard arm, the full baseline, the dormant arm wired, the `data-part` VALUE arm, the per-rule hold-count capture | 0 migrated |
-| 2 | `.screen` / `.sheet` / `.scrim` — and the static-`open` correction | 30 + 54 assertions |
-| 3 | `.card` and its parts — `ctitle`, `cbody`, `cfoot`, `poster`, `cov` | ≈61 |
-| 4 | `.reslist`, `.sugwrap`, `.ep`, `.eppop` | ≈27 |
-| 5 | filters and settings — `fr`, `fn`, `fk`, `fs`, `settingrow`, `seg`, `sechead` | ≈35 |
-| 6 | the tail, then the baseline is emptied and deleted | ≈128 |
+| 2 | `.screen` / `.sheet` / `.scrim` — and the static-`open` correction | 63 tokens + 54 assertions = **117** |
+| 3 | `.card` and its parts — `ctitle`, `cbody`, `cfoot`, `poster`, `cov`, … (14 tokens) | 127 + 2 = **129** |
+| 4 | `.reslist`, `.sugwrap`, `.ep`, `.eppop`, … (7 tokens) | 43 + 0 = **43** |
+| 5 | filters and settings — `fr`, `fn`, `fk`, `fs`, `settingrow`, `seg`, `sechead`, … (13 tokens) | 57 + 2 = **59** |
+| 6 | the tail — 93 distinct tokens — then the baseline is emptied and deleted | 343 + 3 = **346** |
+
+Baseline: **694** → 577 → 448 → 405 → 346 → **0**. The counts are token OCCURRENCES, not selectors:
+one selector can owe work to two phases, and only the occurrence has a single owner.
 
 ## Risks, and what answers each
 
@@ -305,7 +351,7 @@ impossible.
 | A rule is re-anchored onto a value nothing emits | the arm's selection ⇒ emission direction |
 | A boolean attribute renders as `"false"` and matches always | the `\|\| undefined` arm, plus one rule mutation-tested against it |
 | A rule keeps its hold count while measuring nothing | the full 50-rule suite at UNCHANGED hold counts, per phase |
-| The guard is written where it cannot fail | it lands in phase 1 with 342 live violations |
+| The guard is written where it cannot fail | it lands in phase 1 with 694 live violations |
 | Markup added to `legacy.js` is thrown away with the engine | it is not: a converting surface KEEPS its `data-part` and loses its class. The 51 engine-side tokens are where the anchor pays off most |
 | A token nothing emits is a rule already selecting nothing | the 17 unresolved tokens are each traced to a computed `className` or to `index.html`, never assumed |
 | 96 root tokens named ad hoc across six phases | the vocabulary rules above are fixed in phase 1, before any migration |
@@ -333,21 +379,30 @@ Browser criteria assume the prototype is built and copied where the harness read
 > executed as one. It is also deliberately a SECOND reader: the guard proves what it reads, and a
 > classification cross-checked only by the guard that produced it proves nothing.
 
-**ACC-01 — zero class-anchored selection calls remain**
+**ACC-01 — zero class TOKENS remain in any rule selector**
+
+> **Rewritten after the classifier measured D4's blind spot.** The first version asked for zero
+> *class-anchored* calls, which D4's one-bucket method makes true while 151 selectors still carry a
+> class token behind a stronger anchor — and every one of them falls at L07. The criterion now reads
+> the thing it is for.
 
 ```bash
 python3 scripts/check-markup-contracts.py; echo "exit=$?"
+python3 scripts/classify-rule-anchors.py --tokens
 ```
-Expected: a line reporting `0 class-anchored selection call` over `harness/*.py`, and `exit=0`.
+Expected: `exit=0`, and `0 class token occurrences` over `harness/*.py`. On `f7e8073f` the same
+command reads **633**.
 
 **ACC-02 — the D4 classification, re-run by a reader that is not the guard**
 
 ```bash
 python3 scripts/classify-rule-anchors.py --summary; echo "exit=$?"
 ```
-Expected: `687 selection calls` with `class 0`, and `exit=0`. **The total must still be 687**: a
-classifier that stopped SEEING calls would also report zero class anchors, and that is precisely how
-the first measurement of this lot read 684 — three template-literal selectors were invisible to it.
+Expected: `class 0` AND `0 class token occurrences`, with `exit=0`. **The total must still be the
+total** — 696 calls on today's tree, which includes the nine `attrs.py` adds. A classifier that
+stopped SEEING calls would also report zero class anchors, and that is exactly how this lot's first
+measurement read 684: three template-literal selectors were invisible to it, and 151 class tokens
+were invisible to the one-bucket rule.
 
 **ACC-03 — the guard FALLS on a re-introduced class anchor, and names it**
 

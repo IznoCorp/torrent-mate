@@ -4,7 +4,7 @@
 
 Phase 1 must have produced, all committed:
 
-- `frontend/maquette/anchor-baseline.json` holding **342 entries** (281 selections + 61 assertions),
+- `frontend/maquette/anchor-baseline.json` holding **694 entries** (633 class token occurrences + 61 assertions),
   with the four refusals live in `scripts/check-markup-contracts.py`, exiting 0 against it;
 - `scripts/classify-rule-anchors.py --summary` reporting `687 selection calls`, `class 281`;
 - `harness/attrs.py` green (ACC-06) — **the `|| undefined` arm rests on it, so it must have been
@@ -31,9 +31,13 @@ engine boundary first matters.
 
 ## Baseline entries removed
 
-**84, in the same commits as the migrations they correspond to**: 30 class-anchored selections
-headed by `.screen`, and all 54 `classList.contains('open')` assertions. The baseline goes
-342 → 258. No sub-phase may remove an entry whose markup end it did not also move.
+**117, in the same commits as the migrations they correspond to**: 63 class TOKEN occurrences
+of `screen` / `sheet` / `scrim`, and all 54 `classList.contains('open')` assertions. The baseline
+goes 694 → 577. No sub-phase may remove an entry whose markup end it did not also move.
+
+**The unit is the token occurrence, not the selector.** `.screen.open .fback` owes work to this
+phase (`screen`) AND to phase 6 (`fback`); only the occurrence has a single owner. Counting by
+selector would have this phase remove nothing at all.
 
 ## What the migration changes, and why it is not a rename
 
@@ -144,7 +148,7 @@ reading the class next to it — one state, two sources of truth, free to diverg
       assertion moved onto an attribute nothing emits is always false; a `[data-open]` selection
       onto the same is always true. This is what ACC-06 measured.
 - [ ] **Step 3.** Remove the remaining assertion entries in this same commit. The phase total across
-      2.1–2.3 is exactly **84**; the file must now hold **258**.
+      2.1–2.3 is exactly **117**; the file must now hold **577**.
 - [ ] **Step 4.** Mutation-test one migrated assertion: break the emitting component so the state is
       never set, confirm the rule FALLS naming the right defect, restore. Commit.
 
