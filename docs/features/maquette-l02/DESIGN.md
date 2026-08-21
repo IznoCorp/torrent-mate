@@ -145,16 +145,27 @@ Sub-phase 2.1 rewrote 63 `.screen.open` selections into `[data-part="screen"][da
 guard's selection ⇒ emission arm read **55**. The other eight sat in single-line double-quoted
 Python strings, where the selector is spelled `[data-part=\"screen\"]`, and that arm read the
 harness as RAW TEXT: its pattern never matched the escaped form. Nothing refused it — the arm
-counted one fewer, and a count nobody compares is a count nobody reads. The anchor arm, by
-contrast, had read DECODED string values from the start and counted all 69.
+counted one fewer, and a count nobody compares is a count nobody reads. The anchor arm counted
+all 69 — not because it decoded anything (**nothing in the instrument decodes a string literal**;
+a first draft of this paragraph claimed it did, and the fix's own audit showed `literal_eval`,
+`unicode_escape` and `codecs` absent from `scripts/`) but because a class token carries no quote
+to escape.
 
 Three reader defects in one lot, and they are one family: **a reader that knows one syntactic
 position, or one encoding, for its subject, applied to a corpus that has several.** The
 template-literal call (backticks), the selector held in a variable (not a call argument), the
 escaped quote (an encoding). Each was found by a measurement that disagreed with another — two
-readers, a dry run, a tripwire count — never by reading the reader. The instrument's own rule
-follows: **every arm reads decoded values, and the two readers must agree on every count, or
-the regeneration refuses.**
+readers, a dry run, a tripwire count — never by reading the reader. The instrument's answer is not a decoder — a decoder would be a
+first one, and still partial, since a host string can escape the selection CALL's own quotes and
+the call extractor then skips it whole (`deck.py:30` is that shape). The answer is a **refusal of
+the line**: a `data-part` selection written with an escaped quote is refused with the one-sentence
+fix — host it in `'…'` or a triple-quoted string — proved by a mutation the unfixed guard let
+through at 62 of 63, exit 0. **And the two readers must agree on every count, or the regeneration
+refuses.**
+
+Still open, named by the same fix: the third arm reads a `data-part` selection only as a CALL
+argument; one HELD in a variable (`scroll.py:43`) it does not read — the second blind spot, on the
+arm that was written after it. The anchor arm has a held pass; the third arm gets the same.
 
 ### Where the markup lives — measured over all 114 tokens, not a sample
 
