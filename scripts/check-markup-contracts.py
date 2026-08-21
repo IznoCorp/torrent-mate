@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Refuses two defect classes — two arms, one corpus each. Read the arm
-whose scope you are touching; each arm names the corpus it reads.
+"""Refuses four defect classes — four arms, each naming the corpus it
+reads. Read the arm whose scope you are touching.
 
 ARM 1 — a `data-*` value the markup emits and no reader understands.
 Corpus: `frontend/maquette/design/src`, every `.js`, `.ts` and `.tsx`
@@ -106,6 +106,61 @@ edit harness files in every commit. The deliberate escape hatch is
 corrupted baseline — which writes regardless and prints loudly what it
 added. Nothing in phases 2 to 6 of maquette-l02 may use it.
 
+ARM 3 — a `data-part` value the harness selects and no source emits.
+Two corpora, one question each side answers. The selection side is the
+harness (`frontend/maquette/harness/*.py`, the same set ARM 2 reads):
+every `[data-part="value"]` in a rule's selector — the three quote
+styles, a template literal's included. The emission side is the three
+sites that emit the attribute: `frontend/maquette/design/index.html`
+(the shell), `src/engine/legacy.js` (the engine) and every `.ts` /
+`.tsx` component.
+
+THE DEFECT CLASS. A rule selecting `[data-part="card/title"]` reads a
+name the markup must emit. A value selected and emitted nowhere is a
+rule selecting nothing — the three-ends contract, caught from the
+markup end. The direction is ONE-WAY: every selected value must be
+emitted somewhere; an emitted value no rule selects is fine, not every
+part needs a rule. A computed value — a selection whose value is a
+`${...}` interpolation — names no literal to compare, and is skipped
+rather than half-read, exactly as ARM 1 skips computed emissions.
+Comments are stripped on both sides: a value a COMMENT carries is
+selected by nothing and emitted by nothing.
+
+VACUOUS TODAY, BY DESIGN. No `data-part` exists anywhere yet — phase 2
+writes the first ones. This arm therefore examines ZERO selections on
+this tree, and a green exit proves nothing about it. The count it
+prints is the point: a number nobody prints is a number nobody can
+notice is zero. It is proven by probe-mutation instead, and becomes
+load-bearing the day phase 2 lands.
+
+ARM 4 — a boolean state attribute written as a bare value.
+Corpus: the components — every `.ts` and `.tsx` file under
+`frontend/maquette/design/src`, read as text.
+
+THE DEFECT CLASS, MEASURED, NOT BELIEVED. React renders the boolean
+`false` into an attribute as the STRING "false": the attribute is
+PRESENT, a presence selector such as `[data-open]` matches it ALWAYS,
+and a hold built on that selector stays green while the state it claims
+to read is never absent. harness/attrs.py demonstrated both halves in
+the live document — the string "false" renders, and the presence
+selector matches it. So the seven state attributes — data-open,
+data-no-poster, data-empty, data-blocked, data-announced,
+data-in-library, data-shown — must be written so a false state omits
+them. The accepted spellings are `data-open={x || undefined}`, or the
+equivalent `{x ? "" : undefined}` / `{x ? true : undefined}`: each
+reaches `undefined` when the boolean is false, and `undefined` is the
+value React omits from the markup. A bare `data-open={x}` is refused; a
+literal `data-open` with no braces is a constant attribute and fine.
+
+VACUOUS TODAY, BY DESIGN. No boolean state attribute exists yet — phase
+2 writes the first ones. This arm therefore examines ZERO attributes,
+and its green exit proves nothing about it; the count it prints is the
+point. attrs.py's holds measured `aria-*` and `title` — the same
+passthrough, not the same attribute — and owe the real `data-open` a
+second demonstration on the day it first exists; the gap is closed by
+re-measuring, not by analogy. Until then the arm is proven by
+probe-mutation.
+
 Usage:
     python3 scripts/check-markup-contracts.py
     python3 scripts/check-markup-contracts.py --write-baseline
@@ -180,6 +235,44 @@ STATE_CLASSES = ("open", "noposter", "show", "in_library",
 # class is gone and the rule would measure less than it does today. They
 # are listed here so a NEW contains() name is recognized as neither.
 GENRE_CLASSES = ("h2", "flux", "ep", "radio", "note")
+
+# ---- ARM 3 constants ----------------------------------------------------
+
+# The shell, one of the three emission sites. Served and written outside
+# the sources glob, so it is named on its own.
+SHELL = SOURCES.parent / "index.html"
+
+# HTML comments are the shell's comment shape; the JS-style COMMENT regex
+# reads the sources. Same question, one stripper per corpus.
+HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
+
+# `[data-part="card/title"]` in a rule's selector — the equality form in
+# its three quote styles. Only the equality form is read: a presence
+# selection `[data-part]` names no part, and this arm holds VALUES.
+PART_SELECTED = re.compile(
+    r"\[\s*data-part\s*=\s*(?:\"(?P<dq>[^\"]*)\"|"
+    r"'(?P<sq>[^']*)'|`(?P<bk>[^`]*)`)\s*\]")
+
+# ---- ARM 4 constants ----------------------------------------------------
+
+# The seven boolean state attributes, the migration's destination for the
+# seven state classes of ARM 2 (open → data-open, noposter →
+# data-no-poster, fempty → data-empty, …). Class names and attribute
+# names differ on purpose: each side keeps its own naming.
+STATE_ATTRS = ("open", "no-poster", "empty", "blocked",
+               "announced", "in-library", "shown")
+
+# `data-open={` — a state attribute written from a braced JSX expression.
+# The literal attribute (no braces) is a constant and fine; the
+# expression is what the trap turns on.
+STATE_WRITTEN = re.compile(
+    "data-(?P<attr>" + "|".join(STATE_ATTRS) + r")\s*=\s*\{")
+
+# The three spellings that omit the attribute when the state is false, so
+# a presence selector never matches a false value. `undefined` (like
+# `null`) is the value React omits from the markup, and each tail reaches
+# it exactly when the boolean is false — the bare `{x}` reaches it never.
+OMITTING_TAILS = ("||undefined", "?\"\":undefined", "?true:undefined")
 
 
 def readers_of(field: str, sources: str) -> set[str]:
@@ -364,11 +457,16 @@ def class_tokens(selector: str) -> list[str]:
     return tokens
 
 
-def selection_calls(path: Path) -> list[tuple[int, str, str]]:
+def selection_calls(path: Path, strip: bool = True) -> list[tuple[int, str, str]]:
     """Extracts every literal-argument selection call in one harness file.
 
     Args:
         path: A Python file under `HARNESS`.
+        strip: True returns a backtick argument with its `${...}` spans
+            removed — the anchor arm's reading, where the literal text
+            that remains decides. False returns the literal untouched,
+            which the part arm needs: a computed value is skipped whole,
+            never half-read from the literal halves a strip leaves.
 
     Returns:
         `(line, method, selector)` tuples, in file order, one per call
@@ -387,7 +485,7 @@ def selection_calls(path: Path) -> list[tuple[int, str, str]]:
         if literal is None:
             continue
         content, _ = literal
-        if text[pos] == "`":
+        if strip and text[pos] == "`":
             content = strip_interpolations(content)
         line = text.count("\n", 0, match.start()) + 1
         found.append((line, match.group(1), content))
@@ -722,8 +820,274 @@ def write_baseline(allow_additions: bool = False) -> int:
     return 0
 
 
+def part_selections(path: Path) -> list[tuple[int, str]]:
+    """Extracts every literal `data-part` value one harness file selects.
+
+    Reads the RAW selector — `selection_calls(..., strip=False)` — because
+    a value built from a template interpolation is computed at run time:
+    it names no literal to compare against the emissions, and the literal
+    halves a strip leaves are not the value the rule selects.
+
+    Args:
+        path: A Python file under `HARNESS`.
+
+    Returns:
+        `(line, value)` tuples, in file order. A value carrying `${` is
+        skipped, not half-read; a presence selection `[data-part]` names
+        no value and is not returned.
+    """
+    found: list[tuple[int, str]] = []
+    for line, _, selector in selection_calls(path, strip=False):
+        for match in PART_SELECTED.finditer(selector):
+            value = next(g for g in match.groups() if g is not None)
+            if "${" in value:
+                continue
+            found.append((line, value))
+    return found
+
+
+def emission_files() -> list[Path]:
+    """Returns the part arm's emission corpus, in a fixed order.
+
+    Returns:
+        The shell first, then every `.js`, `.ts` and `.tsx` source under
+        `design/src` — the three emission sites: the shell's markup, the
+        engine's, the components'.
+    """
+    files = [p for p in sorted(SOURCES.rglob("*"))
+             if p.is_file() and p.suffix in {".js", ".ts", ".tsx"}]
+    return [SHELL, *files]
+
+
+def emitted_part_values(path: Path) -> set[str]:
+    """Returns every literal `data-part` value one emission site emits.
+
+    Comments are stripped before reading: a value a COMMENT carries is
+    emitted by nothing, and accepting it would silence the arm over a
+    rule that selects nothing. The JS-style stripper covers the sources;
+    the shell's HTML comments get their own.
+
+    Args:
+        path: One emission site — `index.html` or a source file.
+
+    Returns:
+        The literal values emitted as `data-part="value"`. A computed
+        value is not a literal and is not returned.
+    """
+    text = path.read_text(encoding="utf-8")
+    if path.suffix == ".html":
+        text = HTML_COMMENT.sub(" ", text)
+    else:
+        text = COMMENT.sub(" ", text)
+    return {match.group("value").strip() for match in EMITTED.finditer(text)
+            if match.group("attr") == "part"}
+
+
+def check_part_values() -> int:
+    """Arm 3: refuses a selected `data-part` value no source emits.
+
+    The direction is ONE-WAY: every value a harness rule selects must be
+    emitted somewhere — a selection no emission satisfies is a rule
+    selecting nothing, the three-ends contract caught from the markup
+    end. An emitted value no rule selects is fine: not every part needs a
+    rule.
+
+    VACUOUS TODAY, BY DESIGN: no `data-part` exists yet — phase 2 writes
+    the first ones — so this arm examines zero selections and a green
+    exit proves nothing about it. The count it prints is the point: a
+    number nobody prints is a number nobody can notice is zero. It is
+    proven by probe-mutation instead, and becomes load-bearing the day
+    phase 2 lands.
+
+    Returns:
+        1 when a selected value is emitted nowhere, 0 otherwise.
+    """
+    files = harness_files()
+    if not files:
+        print(f"check-markup-contracts: no Python files under {HARNESS} — "
+              "the selection side is empty, so « no violation » would mean "
+              "nothing", file=sys.stderr)
+        return 1
+    if not SHELL.is_file():
+        print(f"check-markup-contracts: {SHELL.relative_to(ROOT)} is missing "
+              "— the emission side is empty, so « no violation » would mean "
+              "nothing", file=sys.stderr)
+        return 1
+    emission_paths = emission_files()
+    if len(emission_paths) < 2:
+        print(f"check-markup-contracts: no sources under {SOURCES} — "
+              "the emission side is empty, so « no violation » would mean "
+              "nothing", file=sys.stderr)
+        return 1
+
+    emitted: set[str] = set()
+    for path in emission_paths:
+        emitted |= emitted_part_values(path)
+
+    violations = 0
+    checked = 0
+    for path in files:
+        rel = str(path.relative_to(ROOT))
+        for line, value in part_selections(path):
+            checked += 1
+            if value not in emitted:
+                violations += 1
+                print(f"  {rel}:{line}: the rule selects "
+                      f"[data-part={value!r}], and no source emits it. A "
+                      "value selected and emitted nowhere is a rule "
+                      "selecting nothing — the three-ends contract, caught "
+                      "from the markup end. Emit the value, or stop "
+                      "selecting it.", file=sys.stderr)
+
+    if violations:
+        print(f"\ncheck-markup-contracts: {violations} data-part selection(s) "
+              "no source emits. The value a rule selects and the markup "
+              "that emits it are ONE contract — they move together or the "
+              "rule measures nothing.", file=sys.stderr)
+        return 1
+
+    print(f"check-markup-contracts: {checked} data-part selection(s) checked "
+          f"against {len(emitted)} emitted value(s) from "
+          f"{len(emission_paths)} emission site(s) — every selected value "
+          "is emitted. Emitted-but-unselected is fine: not every part "
+          "needs a rule.")
+    return 0
+
+
+def braced_expression(text: str, open_idx: int) -> tuple[str, int] | None:
+    """Returns the braced expression opening at `open_idx` and the index
+    past its closing brace.
+
+    Args:
+        text: The file text being read.
+        open_idx: Index of the opening `{`.
+
+    Returns:
+        The expression between the braces and the index just past the
+        closing `}`, or None when the braces never balance.
+    """
+    depth = 0
+    for i in range(open_idx, len(text)):
+        ch = text[i]
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[open_idx + 1:i], i + 1
+    return None
+
+
+def state_attribute_writes(path: Path) -> list[tuple[int, str, str]]:
+    """Extracts every braced boolean-state write in one component file.
+
+    Comments are stripped before reading — a write a COMMENT describes
+    was rejected, exactly like ARM 1's `prete`. The corpus is the
+    components: the `.ts` / `.tsx` files under `design/src`.
+
+    Args:
+        path: A component file.
+
+    Returns:
+        `(line, attribute, expression)` tuples, in file order — the
+        expression as written between the braces. A brace pair that never
+        balances is skipped, not guessed at.
+    """
+    text = COMMENT.sub(" ", path.read_text(encoding="utf-8"))
+    found: list[tuple[int, str, str]] = []
+    for match in STATE_WRITTEN.finditer(text):
+        # The match ends past the `{`; the walk starts on it.
+        braced = braced_expression(text, match.end() - 1)
+        if braced is None:
+            continue
+        expression, _ = braced
+        line = text.count("\n", 0, match.start()) + 1
+        found.append((line, match.group("attr"), expression))
+    return found
+
+
+def omits_when_false(expression: str) -> bool:
+    """True when the braced expression spells one of the omitting idioms.
+
+    Whitespace is not meaning — `{x || undefined}` and `{x||undefined}`
+    are the same spelling — so the expression is flattened before the
+    comparison. Each accepted tail reaches `undefined` exactly when the
+    boolean is false, and `undefined` is the value React omits from the
+    markup; a bare `{x}` reaches it never.
+
+    Args:
+        expression: The braced expression, as written.
+
+    Returns:
+        True when the flattened expression ends with one of
+        `OMITTING_TAILS`.
+    """
+    flat = re.sub(r"\s+", "", expression)
+    return flat.endswith(OMITTING_TAILS)
+
+
+def check_state_attributes() -> int:
+    """Arm 4: refuses a boolean state attribute written as a bare value.
+
+    React renders the boolean `false` as the STRING "false" — the
+    attribute is PRESENT, `[data-open]` matches it ALWAYS, and a hold
+    built on it stays green while the state is never absent
+    (measured: harness/attrs.py). A write must therefore spell an
+    omission: `data-open={x || undefined}`, or `{x ? "" : undefined}` /
+    `{x ? true : undefined}`. A literal `data-open` with no braces is a
+    constant attribute and fine.
+
+    VACUOUS TODAY, BY DESIGN: no boolean state attribute exists yet —
+    phase 2 writes the first ones — so this arm examines zero attributes
+    and a green exit proves nothing about it. The count it prints is the
+    point. It is proven by probe-mutation instead.
+
+    Returns:
+        1 when any state attribute is written without an omitting
+        spelling, 0 otherwise.
+    """
+    files = [p for p in sorted(SOURCES.rglob("*"))
+             if p.is_file() and p.suffix in {".ts", ".tsx"}]
+    if not files:
+        print(f"check-markup-contracts: no component files under {SOURCES} "
+              "— the scope is empty, so « no violation » would mean "
+              "nothing", file=sys.stderr)
+        return 1
+
+    violations = 0
+    checked = 0
+    for path in files:
+        rel = str(path.relative_to(ROOT))
+        for line, attr, expression in state_attribute_writes(path):
+            checked += 1
+            if omits_when_false(expression):
+                continue
+            violations += 1
+            print(f"  {rel}:{line}: `data-{attr}={{...}}` is written without "
+                  "a spelling that omits the attribute when its state is "
+                  f"false. React renders the boolean false as the STRING "
+                  f"\"false\" — the attribute is PRESENT, and a "
+                  f"`[data-{attr}]` selector matches it ALWAYS, so a hold "
+                  "built on it stays green while the state is never absent "
+                  "(measured: harness/attrs.py). Write `data-"
+                  f"{attr}={{x || undefined}}` — or `{{x ? \"\" : undefined}}`"
+                  f" / `{{x ? true : undefined}}`.", file=sys.stderr)
+
+    if violations:
+        print(f"\ncheck-markup-contracts: {violations} state attribute(s) "
+              "written as a bare value. A boolean state attribute must be "
+              "written so a false state OMITS it — the accepted spellings "
+              "are the ones that reach `undefined`.", file=sys.stderr)
+        return 1
+
+    print(f"check-markup-contracts: {checked} state attribute(s) checked, "
+          "every one written with a spelling that omits the attribute when "
+          "its state is false.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
-    """Runs both arms over their corpora, or regenerates the baseline.
+    """Runs all four arms over their corpora, or regenerates the baseline.
 
     Args:
         argv: The arguments to read. `None` reads the process's own, which is
@@ -752,6 +1116,10 @@ def main(argv: list[str] | None = None) -> int:
     if check_forwarded_values():
         rc = 1
     if check_anchor_debt():
+        rc = 1
+    if check_part_values():
+        rc = 1
+    if check_state_attributes():
         rc = 1
     return rc
 
