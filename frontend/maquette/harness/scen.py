@@ -36,11 +36,11 @@ async def main():
             await pg.wait_for_timeout(320)
             r = await pg.evaluate("""()=>{const v=document.querySelector('#view');
               return {txt:v.textContent.replace(/\\s+/g,' ').trim().length,
-                      // The shapes a view can be MADE of. `.fx` joined the list
+                      // The shapes a view can be MADE of. `flux/row` joined the list
                       // when Système stopped being a wall of `.kv`: it is the
                       // same kind of object, so what this counts is unchanged —
                       // is there structure, or only prose.
-                      cards:v.querySelectorAll('[data-part="card"],.tile,.kv,.fx').length,
+                      cards:v.querySelectorAll('[data-part="card"],.tile,.kv,[data-part="flux/row"]').length,
                       empty:!!v.querySelector('.empty'),
                       doc:document.documentElement.scrollWidth,
                       spills:[...v.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>390.5&&!e.closest('.pillscroll')&&!e.closest('.cast')).length};}""")

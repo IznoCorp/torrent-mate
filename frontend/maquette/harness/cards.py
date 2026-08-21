@@ -250,7 +250,7 @@ async def main():
             refs = await pg.evaluate(
                 """()=>[...document.querySelectorAll('.tile[data-panel]')].map(t=>({
                     panel:t.dataset.panel, name:t.querySelector('.nm')?.textContent||'',
-                    subLine:t.querySelector('.fr')?.textContent||''}))"""
+                    subLine:t.querySelector('[data-part="tile/subtitle"]')?.textContent||''}))"""
             )
             if not refs:
                 failures.append(f"R45 {state_}: no tile declares a panel")
@@ -283,7 +283,7 @@ async def main():
                         gap:getComputedStyle(grid).gap,
                         tile:[Math.round(r.width),Math.round(r.height)],
                         name:getComputedStyle(t.querySelector('.nm')).fontSize,
-                        subLine:getComputedStyle(t.querySelector('.fr')).fontSize};}"""
+                        subLine:getComputedStyle(t.querySelector('[data-part="tile/subtitle"]')).fontSize};}"""
             )
             if g is None:
                 failures.append(f"R50 {state_}: no tile at all")

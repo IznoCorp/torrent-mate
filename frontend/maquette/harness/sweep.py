@@ -47,11 +47,11 @@ async def main():
           return {content: v.textContent.replace(/\\s+/g,' ').trim().length,
                   nodes: v.querySelectorAll('*').length,
                   // The shapes a view can be MADE of: a card, a gallery tile,
-                  // a key/value row, a fact row. `.fx` joined the list when
+                  // a key/value row, a fact row. `flux/row` joined the list when
                   // Système stopped being a wall of `.kv` — it is the same kind
                   // of object, so what this counts is unchanged: is there
                   // structure, or only prose.
-                  cards: v.querySelectorAll('[data-part="card"],.tile,.kv,.fx').length,
+                  cards: v.querySelectorAll('[data-part="card"],.tile,.kv,[data-part="flux/row"]').length,
                   doc: document.documentElement.scrollWidth,
                   device: Math.round(document.querySelector('.device').getBoundingClientRect().width),
                   spills: [...v.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>390.5&&!e.closest('.pillscroll')).length};}""")

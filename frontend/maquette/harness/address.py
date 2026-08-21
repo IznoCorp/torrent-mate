@@ -38,10 +38,10 @@ READ = """() => ({
     target: Object.keys(b.dataset).join(','),
     inert: b.disabled,
   })),
-  facts: [...document.querySelectorAll('#view .flux .fx')].map((x) => ({
-    l: x.querySelector('.fn').textContent.trim(),
-    v: x.querySelector('.fr').textContent.trim(),
-    k: (x.querySelector('.fk') || {}).textContent || '',
+  facts: [...document.querySelectorAll('#view .flux [data-part="flux/row"]')].map((x) => ({
+    l: x.querySelector('[data-part="flux/name"]').textContent.trim(),
+    v: x.querySelector('[data-part="flux/value"]').textContent.trim(),
+    k: (x.querySelector('[data-part="flux/key"]') || {}).textContent || '',
   })),
 })"""
 

@@ -51,11 +51,11 @@ READ = """() => {
                .map((b) => b.dataset.pipe),
     queued: !!document.querySelector('.pipeline .live'),
     uid: (window.PIPELINE_UID_POUR_LA_SONDE || null),
-    steps: [...document.querySelectorAll('.flux .fx')].map((x) => ({
-      name: x.querySelector('.fn').textContent.trim(),
-      result: x.querySelector('.fr').textContent.trim(),
-      sub: x.querySelector('.fs').textContent.trim(),
-      key: (x.querySelector('.fk') || {}).textContent || '',
+    steps: [...document.querySelectorAll('.flux [data-part="flux/row"]')].map((x) => ({
+      name: x.querySelector('[data-part="flux/name"]').textContent.trim(),
+      result: x.querySelector('[data-part="flux/value"]').textContent.trim(),
+      sub: x.querySelector('[data-part="flux/detail"]').textContent.trim(),
+      key: (x.querySelector('[data-part="flux/key"]') || {}).textContent || '',
       empty: x.classList.contains('fempty'),
       blocked: x.classList.contains('fblocked'),
     })),

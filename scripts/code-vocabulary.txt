@@ -226,6 +226,7 @@ find
 finger
 first
 fkind
+flux
 fmode
 folder
 follow

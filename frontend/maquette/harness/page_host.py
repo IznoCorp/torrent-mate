@@ -182,7 +182,7 @@ async def main():
         opened = await page.evaluate("""()=>({
           topic: window.__store.read().state.maintTopic,
           back: !!document.querySelector('#view .crossref[data-maintopic=""]'),
-          rows: document.querySelectorAll('#view .flux .fx').length,
+          rows: document.querySelectorAll('#view .flux [data-part="flux/row"]').length,
         })""")
         journal.check(
             "a real tap on a rubric row opens that rubric",
@@ -195,12 +195,12 @@ async def main():
         # every row opening the same one, which is the defect a page whose rows
         # all carry one id would have.
         wanted = await page.evaluate("""()=>{
-          const row = document.querySelector('#view .flux .fx .fw[data-maintact]');
+          const row = document.querySelector('#view .flux [data-part="flux/row"] .fw[data-maintact]');
           if (!row) return null;
           const id = row.dataset.maintact;
           const action = window.__referentiel.MAINT_ACTIONS.find((x) => x.id === id);
           return {id, title: action ? action.l : null};}""")
-        refused = (await tap("#view .flux .fx .fw[data-maintact]")
+        refused = (await tap('#view .flux [data-part="flux/row"] .fw[data-maintact]')
                    if wanted else "absent")
         panel = await page.evaluate("""()=>({
           open: !!document.querySelector('#sheet[data-open]'),

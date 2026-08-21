@@ -7585,10 +7585,10 @@ import { screens, panel, bridge } from "../seams.js";
           : value;
         return `<li class="fx${empty ? " fempty" : ""}${ligne.state === "danger" ? " fblocked" : ""}${
           ligne.target ? " fclick" : ""
-        }"><${tag} class="fw"${target}>
-      <span class="fn">${escapeHtml(ligne.l)}</span>
-      <span class="fr">${badge}</span>
-      <span class="fs">${ligne.k ? `<span class="fk">${escapeHtml(ligne.k)}</span>` : ""}${
+        }" data-part="flux/row"><${tag} class="fw"${target}>
+      <span class="fn" data-part="flux/name">${escapeHtml(ligne.l)}</span>
+      <span class="fr" data-part="flux/value">${badge}</span>
+      <span class="fs" data-part="flux/detail">${ligne.k ? `<span class="fk" data-part="flux/key">${escapeHtml(ligne.k)}</span>` : ""}${
         ligne.k && ligne.s ? " · " : ""
       }${ligne.s ? escapeHtml(ligne.s) : ""}</span>
     </${tag}></li>`;
@@ -9940,7 +9940,7 @@ import { screens, panel, bridge } from "../seams.js";
       <span class="p">${posterBox(descriptor.t, descriptor.k)}</span>
       ${sel ? `<span class="sel">${svgIcon(icons.check, 3)}</span>` : badge ? `<span class="tilebadge" style="background:var(--${tone})">${escapeHtml(badge.txt)}</span>` : ""}
       <span class="nm">${escapeHtml(descriptor.t)}</span>
-      <span class="fr">${escapeHtml(sousLigne)}</span>
+      <span class="fr" data-part="tile/subtitle">${escapeHtml(sousLigne)}</span>
     </button>`;
   }
   /* Multiple selection must work in BOTH modes: it existed only on tiles,

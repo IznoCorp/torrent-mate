@@ -100,40 +100,8 @@
     "held": false,
     "file": "frontend/maquette/harness/address.py",
     "line": 41,
-    "selector": "#view .flux .fx",
+    "selector": "#view .flux [data-part=\"flux/row\"]",
     "token": ".flux"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/address.py",
-    "line": 41,
-    "selector": "#view .flux .fx",
-    "token": ".fx"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/address.py",
-    "line": 42,
-    "selector": ".fn",
-    "token": ".fn"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/address.py",
-    "line": 43,
-    "selector": ".fr",
-    "token": ".fr"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/address.py",
-    "line": 44,
-    "selector": ".fk",
-    "token": ".fk"
   },
   {
     "kind": "selection",
@@ -212,48 +180,8 @@
     "held": false,
     "file": "frontend/maquette/harness/arrivals.py",
     "line": 54,
-    "selector": ".flux .fx",
+    "selector": ".flux [data-part=\"flux/row\"]",
     "token": ".flux"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/arrivals.py",
-    "line": 54,
-    "selector": ".flux .fx",
-    "token": ".fx"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/arrivals.py",
-    "line": 55,
-    "selector": ".fn",
-    "token": ".fn"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/arrivals.py",
-    "line": 56,
-    "selector": ".fr",
-    "token": ".fr"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/arrivals.py",
-    "line": 57,
-    "selector": ".fs",
-    "token": ".fs"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/arrivals.py",
-    "line": 58,
-    "selector": ".fk",
-    "token": ".fk"
   },
   {
     "kind": "assertion",
@@ -426,14 +354,6 @@
     "line": 170,
     "selector": ".switch",
     "token": ".switch"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit.py",
-    "line": 182,
-    "selector": "#libitems [data-part=\"card/subtitle\"], #libitems .fr",
-    "token": ".fr"
   },
   {
     "kind": "selection",
@@ -897,14 +817,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/cards.py",
-    "line": 253,
-    "selector": ".fr",
-    "token": ".fr"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
     "line": 280,
     "selector": ".tile",
     "token": ".tile"
@@ -916,14 +828,6 @@
     "line": 285,
     "selector": ".nm",
     "token": ".nm"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
-    "line": 286,
-    "selector": ".fr",
-    "token": ".fr"
   },
   {
     "kind": "selection",
@@ -1778,7 +1682,7 @@
     "held": false,
     "file": "frontend/maquette/harness/machine.py",
     "line": 146,
-    "selector": "#view .flux .fr .chip",
+    "selector": "#view .flux [data-part=\"flux/value\"] .chip",
     "token": ".chip"
   },
   {
@@ -1786,16 +1690,8 @@
     "held": false,
     "file": "frontend/maquette/harness/machine.py",
     "line": 146,
-    "selector": "#view .flux .fr .chip",
+    "selector": "#view .flux [data-part=\"flux/value\"] .chip",
     "token": ".flux"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/machine.py",
-    "line": 146,
-    "selector": "#view .flux .fr .chip",
-    "token": ".fr"
   },
   {
     "kind": "selection",
@@ -1809,49 +1705,9 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/machine.py",
-    "line": 177,
-    "selector": ".fx",
-    "token": ".fx"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/machine.py",
     "line": 181,
-    "selector": ".fr .chip",
+    "selector": "[data-part=\"flux/value\"] .chip",
     "token": ".chip"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/machine.py",
-    "line": 181,
-    "selector": ".fr .chip",
-    "token": ".fr"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/machine.py",
-    "line": 185,
-    "selector": ".fn",
-    "token": ".fn"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/machine.py",
-    "line": 186,
-    "selector": ".fr",
-    "token": ".fr"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/machine.py",
-    "line": 187,
-    "selector": ".fs",
-    "token": ".fs"
   },
   {
     "kind": "selection",
@@ -1882,24 +1738,8 @@
     "held": false,
     "file": "frontend/maquette/harness/machine.py",
     "line": 204,
-    "selector": "#view .flux .fx .fk",
-    "token": ".fk"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/machine.py",
-    "line": 204,
-    "selector": "#view .flux .fx .fk",
+    "selector": "#view .flux [data-part=\"flux/row\"] [data-part=\"flux/key\"]",
     "token": ".flux"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/machine.py",
-    "line": 204,
-    "selector": "#view .flux .fx .fk",
-    "token": ".fx"
   },
   {
     "kind": "selection",
@@ -1930,55 +1770,15 @@
     "held": false,
     "file": "frontend/maquette/harness/machine.py",
     "line": 406,
-    "selector": "#view .flux .fx",
+    "selector": "#view .flux [data-part=\"flux/row\"]",
     "token": ".flux"
   },
   {
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/machine.py",
-    "line": 406,
-    "selector": "#view .flux .fx",
-    "token": ".fx"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/machine.py",
-    "line": 408,
-    "selector": ".fn",
-    "token": ".fn"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/machine.py",
-    "line": 409,
-    "selector": ".fr",
-    "token": ".fr"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/machine.py",
     "line": 410,
-    "selector": ".fr .chip",
-    "token": ".chip"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/machine.py",
-    "line": 410,
-    "selector": ".fr .chip",
-    "token": ".fr"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/machine.py",
-    "line": 412,
-    "selector": ".fr .chip",
+    "selector": "[data-part=\"flux/value\"] .chip",
     "token": ".chip"
   },
   {
@@ -1986,8 +1786,8 @@
     "held": false,
     "file": "frontend/maquette/harness/machine.py",
     "line": 412,
-    "selector": ".fr .chip",
-    "token": ".fr"
+    "selector": "[data-part=\"flux/value\"] .chip",
+    "token": ".chip"
   },
   {
     "kind": "selection",
@@ -2066,23 +1866,7 @@
     "held": false,
     "file": "frontend/maquette/harness/page_host.py",
     "line": 185,
-    "selector": "#view .flux .fx",
-    "token": ".flux"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/page_host.py",
-    "line": 185,
-    "selector": "#view .flux .fx",
-    "token": ".fx"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/page_host.py",
-    "line": 198,
-    "selector": "#view .flux .fx .fw[data-maintact]",
+    "selector": "#view .flux [data-part=\"flux/row\"]",
     "token": ".flux"
   },
   {
@@ -2090,31 +1874,15 @@
     "held": false,
     "file": "frontend/maquette/harness/page_host.py",
     "line": 198,
-    "selector": "#view .flux .fx .fw[data-maintact]",
-    "token": ".fw"
+    "selector": "#view .flux [data-part=\"flux/row\"] .fw[data-maintact]",
+    "token": ".flux"
   },
   {
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/page_host.py",
     "line": 198,
-    "selector": "#view .flux .fx .fw[data-maintact]",
-    "token": ".fx"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/page_host.py",
-    "line": 203,
-    "selector": "#view .flux .fx .fw[data-maintact]",
-    "token": ".flux"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/page_host.py",
-    "line": 203,
-    "selector": "#view .flux .fx .fw[data-maintact]",
+    "selector": "#view .flux [data-part=\"flux/row\"] .fw[data-maintact]",
     "token": ".fw"
   },
   {
@@ -2122,8 +1890,16 @@
     "held": true,
     "file": "frontend/maquette/harness/page_host.py",
     "line": 203,
-    "selector": "#view .flux .fx .fw[data-maintact]",
-    "token": ".fx"
+    "selector": "#view .flux [data-part=\"flux/row\"] .fw[data-maintact]",
+    "token": ".flux"
+  },
+  {
+    "kind": "selection",
+    "held": true,
+    "file": "frontend/maquette/harness/page_host.py",
+    "line": 203,
+    "selector": "#view .flux [data-part=\"flux/row\"] .fw[data-maintact]",
+    "token": ".fw"
   },
   {
     "kind": "selection",
@@ -2530,15 +2306,7 @@
     "held": false,
     "file": "frontend/maquette/harness/scen.py",
     "line": 43,
-    "selector": "[data-part=\"card\"],.tile,.kv,.fx",
-    "token": ".fx"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/scen.py",
-    "line": 43,
-    "selector": "[data-part=\"card\"],.tile,.kv,.fx",
+    "selector": "[data-part=\"card\"],.tile,.kv,[data-part=\"flux/row\"]",
     "token": ".kv"
   },
   {
@@ -2546,7 +2314,7 @@
     "held": false,
     "file": "frontend/maquette/harness/scen.py",
     "line": 43,
-    "selector": "[data-part=\"card\"],.tile,.kv,.fx",
+    "selector": "[data-part=\"card\"],.tile,.kv,[data-part=\"flux/row\"]",
     "token": ".tile"
   },
   {
@@ -3410,15 +3178,7 @@
     "held": false,
     "file": "frontend/maquette/harness/sweep.py",
     "line": 54,
-    "selector": "[data-part=\"card\"],.tile,.kv,.fx",
-    "token": ".fx"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/sweep.py",
-    "line": 54,
-    "selector": "[data-part=\"card\"],.tile,.kv,.fx",
+    "selector": "[data-part=\"card\"],.tile,.kv,[data-part=\"flux/row\"]",
     "token": ".kv"
   },
   {
@@ -3426,7 +3186,7 @@
     "held": false,
     "file": "frontend/maquette/harness/sweep.py",
     "line": 54,
-    "selector": "[data-part=\"card\"],.tile,.kv,.fx",
+    "selector": "[data-part=\"card\"],.tile,.kv,[data-part=\"flux/row\"]",
     "token": ".tile"
   },
   {
