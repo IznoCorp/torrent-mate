@@ -123,10 +123,7 @@ class TestTheTreeItself:
         expected = len(json.loads(guard.BASELINE.read_text(encoding="utf-8")))
 
         assert guard.main([]) == 0
-        line = next(
-            text for text in capsys.readouterr().out.splitlines()
-            if "anchor occurrence(s) tolerated" in text
-        )
+        line = next(text for text in capsys.readouterr().out.splitlines() if "anchor occurrence(s) tolerated" in text)
 
         assert f"{expected} anchor occurrence(s) tolerated" in line
 
@@ -183,8 +180,8 @@ class TestBaselineIdentity:
         done = subprocess.CompletedProcess([], 0, json.dumps(fresh), "")
         monkeypatch.setattr(guard.subprocess, "run", lambda *a, **k: done)
         findings = [
-            (guard.entry_identity(e), e.get("selector", e.get("class")),
-             f"{e['file']}:{e['line']}", False) for e in fresh
+            (guard.entry_identity(e), e.get("selector", e.get("class")), f"{e['file']}:{e['line']}", False)
+            for e in fresh
         ]
         monkeypatch.setattr(guard, "collect_anchor_findings", lambda: findings)
         return baseline
@@ -309,13 +306,11 @@ class TestHeldSelectors:
 
     def test_structure_qualifies_even_when_nothing_emits_the_token(self, tmp_path):
         """A combinator is selector structure, whatever the emission says."""
-        assert self._held(tmp_path, 'SEL = ".probe-held .card"\n') == \
-            [(1, ".probe-held .card")]
+        assert self._held(tmp_path, 'SEL = ".probe-held .card"\n') == [(1, ".probe-held .card")]
 
     def test_an_attribute_block_is_selector_structure(self, tmp_path):
         """`[data-panel]` is a selector, so `.tile[data-panel]` qualifies."""
-        assert self._held(tmp_path, 'SEL = ".tile[data-panel]"\n') == \
-            [(1, ".tile[data-panel]")]
+        assert self._held(tmp_path, 'SEL = ".tile[data-panel]"\n') == [(1, ".tile[data-panel]")]
 
     def test_a_method_call_shape_is_not_a_selector(self, tmp_path):
         """`.render(` names a method, not a class."""
@@ -329,15 +324,13 @@ class TestHeldSelectors:
     def test_the_classifier_counts_held_occurrences_separately(self, tmp_path):
         """The two populations are reported apart, and summed."""
         fixture = tmp_path / "fixture.py"
-        fixture.write_text(
-            'SEL = ".foo .bar"\nquerySelector(SEL)\nquerySelector(".screen")\n')
+        fixture.write_text('SEL = ".foo .bar"\nquerySelector(SEL)\nquerySelector(".screen")\n')
         run = subprocess.run(
-            [sys.executable,
-             str(SCRIPT.parent / "classify-rule-anchors.py"),
-             "--tokens", str(tmp_path)],
-            capture_output=True, text=True)
+            [sys.executable, str(SCRIPT.parent / "classify-rule-anchors.py"), "--tokens", str(tmp_path)],
+            capture_output=True,
+            text=True,
+        )
 
         assert run.returncode == 0, run.stderr
-        assert "2 class token occurrences held outside any selection call" \
-            in run.stdout
+        assert "2 class token occurrences held outside any selection call" in run.stdout
         assert "3 class token occurrences total" in run.stdout
