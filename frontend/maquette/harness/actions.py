@@ -77,7 +77,7 @@ async def main():
     b6=await pg.evaluate(cnt); print("\nfollow a suggestion  :", a["follows"], "→", b6["follows"])
     assert b6["follows"]==a["follows"]+1
     await pg.evaluate("()=>window.__go('acq-follows-list',{keep:true})"); await pg.wait_for_timeout(350)
-    print("  → at the head of Suivis :", await pg.evaluate("()=>document.querySelector('.ctitle').textContent"),
+    print("  → at the head of Suivis :", await pg.evaluate("""()=>document.querySelector('[data-part="card/title"]').textContent"""),
           "| chip Nouveau :", await pg.evaluate("()=>!!document.querySelector('.freshtag')"))
 
     await pg.evaluate("()=>window.__go('lib-selection')"); await pg.wait_for_timeout(350)

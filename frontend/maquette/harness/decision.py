@@ -49,27 +49,27 @@ SCREEN = """() => {
   // readable — instead of on a TypeError, which is not.
   const s = document.querySelector('[data-part="screen"][data-open][data-key^="resolution:"]')
     ?? document.createElement('div');
-  const cards = [...s.querySelectorAll('.card')];
+  const cards = [...s.querySelectorAll('[data-part="card"]')];
   const decisions = cards.filter(c => c.dataset.nonmedia === 'decision');
   const candidates = cards.filter(c => c.dataset.nonmedia === 'candidat');
   return {
     title: (s.querySelector('.h2') || {}).textContent || '',
     titleMono: !!s.querySelector('.h2 code'),
     candidates: candidates.map(c => ({
-      title: (c.querySelector('.ctitle') || {}).textContent || '',
+      title: (c.querySelector('[data-part="card/title"]') || {}).textContent || '',
       confidence: (c.querySelector('.chip') || {}).textContent || null,
       posterButton: (c.querySelector('.poster') || {}).tagName === 'BUTTON',
-      panel: (c.querySelector('.cbody') || {}).dataset?.panel || null,
+      panel: (c.querySelector('[data-part="card/body"]') || {}).dataset?.panel || null,
       poster: (c.querySelector('.poster img') || {}).src || null,
       noPoster: !!c.querySelector('.poster .pfall'),
       plot: (c.querySelector('.cov') || {}).textContent || null,
       link: c.querySelectorAll('a, [data-mediasheet]').length,
     })),
     decisions: decisions.map(c => ({
-      folder: (c.querySelector('.ctitle') || {}).textContent || '',
-      mono: !!c.querySelector('.ctitle code'),
+      folder: (c.querySelector('[data-part="card/title"]') || {}).textContent || '',
+      mono: !!c.querySelector('[data-part="card/title"] code'),
       posterButton: (c.querySelector('.poster') || {}).tagName === 'BUTTON',
-      panel: (c.querySelector('.cbody') || {}).dataset?.panel || null,
+      panel: (c.querySelector('[data-part="card/body"]') || {}).dataset?.panel || null,
       chips: [...c.querySelectorAll('.chip')].map(x => x.textContent.trim()),
     })),
     exits: [...s.querySelectorAll('.sact, .cfoot')].map(x => x.textContent.trim()),

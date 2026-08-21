@@ -155,7 +155,7 @@ async def main():
         await drag(cdp, r["x"] + r["width"] / 2, r["y"] + r["height"] / 2, 12, -20, 0)
         await pg.wait_for_timeout(300)
         transformed = await pg.evaluate(
-            "()=>getComputedStyle(document.querySelector('#view .swipe .card')).transform")
+            """()=>getComputedStyle(document.querySelector('#view .swipe [data-part="card"]')).transform""")
         check("a row still opens", transformed not in ("none", "matrix(1, 0, 0, 1, 0, 0)"),
                  transformed)
 
@@ -190,8 +190,8 @@ async def main():
         press_surfaces = [
             ("follows gallery", "acq-follows-grid", ".tile"),
             ("library gallery", "lib-grid", ".tile"),
-            ("a card's poster", "acq-follows-list", "#view .card .poster"),
-            ("a card's body", "acq-follows-list", "#view .card .cbody"),
+            ("a card's poster", "acq-follows-list", '#view [data-part="card"] .poster'),
+            ("a card's body", "acq-follows-list", '#view [data-part="card"] [data-part="card/body"]'),
             ("deck card", "acq-discover-deck", ".deck .dcard[data-depth='0']"),
         ]
         without_panel, with_selection, fired = [], [], []
@@ -253,7 +253,7 @@ async def main():
         # that can never fail.
         refusal = await pg.evaluate("""()=>{
           const target = document.querySelector('#view .poster') ||
-                         document.querySelector('#view .card');
+                         document.querySelector('#view [data-part="card"]');
           const e = new MouseEvent('contextmenu', {bubbles:true, cancelable:true});
           target.dispatchEvent(e);
           return {on: target.className, refused: e.defaultPrevented};}""")
@@ -294,7 +294,7 @@ async def main():
         # same.
         layer = await pg.evaluate("""()=>{
           const port = document.querySelector('#port');
-          const c = [...document.querySelectorAll('.card')]
+          const c = [...document.querySelectorAll('[data-part="card"]')]
             .find(e => e.getBoundingClientRect().width > 0 && !port.contains(e));
           if (!c) return null;
           const e = new MouseEvent('contextmenu', {bubbles:true, cancelable:true});

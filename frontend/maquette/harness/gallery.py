@@ -104,7 +104,7 @@ async def main():
             await pg.wait_for_timeout(420)
             shapes[mode] = await pg.evaluate("""()=>({
                 tiles:document.querySelectorAll('#view .tile[data-panel]').length,
-                cards:document.querySelectorAll('#view .card').length,
+                cards:document.querySelectorAll('#view [data-part="card"]').length,
                 toggle:!!document.querySelector('#view .vsw')})""")
         ok = (shapes["grid"]["tiles"] > 0 and shapes["list"]["cards"] > 0
               and shapes["grid"]["toggle"] and shapes["list"]["toggle"])

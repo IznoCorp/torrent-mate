@@ -34,7 +34,7 @@ async def main():
     print("── Suivis: swipe action ──")
     await pg.click('[data-acqtab="follows"]'); await pg.wait_for_timeout(300)
     await pg.evaluate(SW, ["#view .swipe", -1, 9])
-    print("  transform :", await pg.evaluate("()=>getComputedStyle(document.querySelector('#view .swipe .card')).transform"))
+    print("  transform :", await pg.evaluate("""()=>getComputedStyle(document.querySelector('#view .swipe [data-part="card"]')).transform"""))
 
     print("── Library: scrolling + error + end ──")
     await pg.click('[data-page="lib"]'); await pg.wait_for_timeout(400)

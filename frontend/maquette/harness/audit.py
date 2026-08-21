@@ -140,7 +140,7 @@ async def main():
           // string must stay reachable, because for an unidentified arrival the
           // release name IS its identity, and the truncation lands on the group —
           // exactly what tells two versions of the same media apart.
-          R.lostTitles = [...root.querySelectorAll('.ctitle')].filter(el=>
+          R.lostTitles = [...root.querySelectorAll('[data-part="card/title"]')].filter(el=>
             el.scrollWidth>el.clientWidth+1 && !el.getAttribute('title'))
             .map(el=>el.textContent.trim().slice(0,34));
 

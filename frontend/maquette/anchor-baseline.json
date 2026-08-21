@@ -91,14 +91,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/actions.py",
-    "line": 80,
-    "selector": ".ctitle",
-    "token": ".ctitle"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/actions.py",
     "line": 81,
     "selector": ".freshtag",
     "token": ".freshtag"
@@ -344,15 +336,7 @@
     "held": false,
     "file": "frontend/maquette/harness/attrs.py",
     "line": 103,
-    "selector": ".card[data-nonmedia=\"candidat\"] .poster",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/attrs.py",
-    "line": 103,
-    "selector": ".card[data-nonmedia=\"candidat\"] .poster",
+    "selector": "[data-part=\"card\"][data-nonmedia=\"candidat\"] .poster",
     "token": ".poster"
   },
   {
@@ -450,14 +434,6 @@
     "line": 136,
     "selector": ".ht,.sheettitle,.dlg h3",
     "token": ".sheettitle"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit.py",
-    "line": 143,
-    "selector": ".ctitle",
-    "token": ".ctitle"
   },
   {
     "kind": "selection",
@@ -640,15 +616,7 @@
     "held": false,
     "file": "frontend/maquette/harness/audit2.py",
     "line": 176,
-    "selector": "#view .card, #view .tile",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 176,
-    "selector": "#view .card, #view .tile",
+    "selector": "#view [data-part=\"card\"], #view .tile",
     "token": ".tile"
   },
   {
@@ -895,30 +863,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/audit2.py",
-    "line": 446,
-    "selector": "#view .card .cbody",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 446,
-    "selector": "#view .card .cbody",
-    "token": ".cbody"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 448,
-    "selector": ".ctitle",
-    "token": ".ctitle"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
     "line": 453,
     "selector": ".sact",
     "token": ".sact"
@@ -934,15 +878,7 @@
     "held": false,
     "file": "frontend/maquette/harness/bridge.py",
     "line": 325,
-    "selector": ".reslist .card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bridge.py",
-    "line": 325,
-    "selector": ".reslist .card",
+    "selector": ".reslist [data-part=\"card\"]",
     "token": ".reslist"
   },
   {
@@ -974,15 +910,7 @@
     "held": false,
     "file": "frontend/maquette/harness/bridge.py",
     "line": 356,
-    "selector": ".reslist .card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bridge.py",
-    "line": 356,
-    "selector": ".reslist .card",
+    "selector": ".reslist [data-part=\"card\"]",
     "token": ".reslist"
   },
   {
@@ -1094,15 +1022,7 @@
     "held": false,
     "file": "frontend/maquette/harness/bugs.py",
     "line": 80,
-    "selector": ".reslist .card .poster[data-mediasheet]",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 80,
-    "selector": ".reslist .card .poster[data-mediasheet]",
+    "selector": ".reslist [data-part=\"card\"] .poster[data-mediasheet]",
     "token": ".poster"
   },
   {
@@ -1110,7 +1030,7 @@
     "held": false,
     "file": "frontend/maquette/harness/bugs.py",
     "line": 80,
-    "selector": ".reslist .card .poster[data-mediasheet]",
+    "selector": ".reslist [data-part=\"card\"] .poster[data-mediasheet]",
     "token": ".reslist"
   },
   {
@@ -1118,15 +1038,7 @@
     "held": false,
     "file": "frontend/maquette/harness/bugs.py",
     "line": 81,
-    "selector": ".reslist .card .poster[data-mediasheet]",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 81,
-    "selector": ".reslist .card .poster[data-mediasheet]",
+    "selector": ".reslist [data-part=\"card\"] .poster[data-mediasheet]",
     "token": ".poster"
   },
   {
@@ -1134,7 +1046,7 @@
     "held": false,
     "file": "frontend/maquette/harness/bugs.py",
     "line": 81,
-    "selector": ".reslist .card .poster[data-mediasheet]",
+    "selector": ".reslist [data-part=\"card\"] .poster[data-mediasheet]",
     "token": ".reslist"
   },
   {
@@ -1181,33 +1093,9 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/cards.py",
-    "line": 142,
-    "selector": ".card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
-    "line": 143,
-    "selector": ".cbody",
-    "token": ".cbody"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
     "line": 144,
     "selector": ".poster",
     "token": ".poster"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
-    "line": 145,
-    "selector": ".ctitle",
-    "token": ".ctitle"
   },
   {
     "kind": "selection",
@@ -1221,14 +1109,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/cards.py",
-    "line": 212,
-    "selector": ".card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
     "line": 213,
     "selector": ".cfoot",
     "token": ".cfoot"
@@ -1237,33 +1117,9 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/cards.py",
-    "line": 214,
-    "selector": ".ctitle",
-    "token": ".ctitle"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
     "line": 215,
     "selector": ".cfoot",
     "token": ".cfoot"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
-    "line": 216,
-    "selector": ".cbody",
-    "token": ".cbody"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
-    "line": 226,
-    "selector": ".cbody[data-panel=\\\"\\\"]",
-    "token": ".cbody"
   },
   {
     "kind": "selection",
@@ -1325,22 +1181,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/cards.py",
-    "line": 337,
-    "selector": ".card:not([data-nonmedia])",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
-    "line": 339,
-    "selector": ".ctitle",
-    "token": ".ctitle"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
     "line": 339,
     "selector": ".poster",
     "token": ".poster"
@@ -1365,14 +1205,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/cards.py",
-    "line": 394,
-    "selector": ".card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
     "line": 395,
     "selector": ".poster",
     "token": ".poster"
@@ -1381,49 +1213,9 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/cards.py",
-    "line": 398,
-    "selector": ".ctitle",
-    "token": ".ctitle"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
-    "line": 405,
-    "selector": ".ctitle",
-    "token": ".ctitle"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
     "line": 436,
-    "selector": ".card .poster img",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
-    "line": 436,
-    "selector": ".card .poster img",
+    "selector": "[data-part=\"card\"] .poster img",
     "token": ".poster"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/cards.py",
-    "line": 442,
-    "selector": ".card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
-    "line": 442,
-    "selector": ".ctitle",
-    "token": ".ctitle"
   },
   {
     "kind": "selection",
@@ -1440,30 +1232,6 @@
     "line": 478,
     "selector": ".nm",
     "token": ".nm"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
-    "line": 494,
-    "selector": ".card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
-    "line": 494,
-    "selector": ".cbody",
-    "token": ".cbody"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
-    "line": 494,
-    "selector": ".ctitle",
-    "token": ".ctitle"
   },
   {
     "kind": "selection",
@@ -1525,22 +1293,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/content.py",
-    "line": 79,
-    "selector": "#view .card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/content.py",
-    "line": 80,
-    "selector": ".ctitle",
-    "token": ".ctitle"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/content.py",
     "line": 81,
     "selector": ".csub",
     "token": ".csub"
@@ -1568,14 +1320,6 @@
     "line": 119,
     "selector": "#view .creason",
     "token": ".creason"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/content.py",
-    "line": 145,
-    "selector": "#libitems .card",
-    "token": ".card"
   },
   {
     "kind": "selection",
@@ -1613,30 +1357,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/content.py",
-    "line": 158,
-    "selector": ".ctitle",
-    "token": ".ctitle"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/content.py",
-    "line": 159,
-    "selector": ".ctitle",
-    "token": ".ctitle"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/content.py",
-    "line": 184,
-    "selector": "#libitems .card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/content.py",
     "line": 188,
     "selector": "#libitems .cov",
     "token": ".cov"
@@ -1662,24 +1382,8 @@
     "held": false,
     "file": "frontend/maquette/harness/content.py",
     "line": 237,
-    "selector": "#view .card, #view .tile",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/content.py",
-    "line": 237,
-    "selector": "#view .card, #view .tile",
+    "selector": "#view [data-part=\"card\"], #view .tile",
     "token": ".tile"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/decision.py",
-    "line": 52,
-    "selector": ".card",
-    "token": ".card"
   },
   {
     "kind": "selection",
@@ -1701,14 +1405,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/decision.py",
-    "line": 59,
-    "selector": ".ctitle",
-    "token": ".ctitle"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/decision.py",
     "line": 60,
     "selector": ".chip",
     "token": ".chip"
@@ -1720,14 +1416,6 @@
     "line": 61,
     "selector": ".poster",
     "token": ".poster"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/decision.py",
-    "line": 62,
-    "selector": ".cbody",
-    "token": ".cbody"
   },
   {
     "kind": "selection",
@@ -1765,33 +1453,9 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/decision.py",
-    "line": 69,
-    "selector": ".ctitle",
-    "token": ".ctitle"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/decision.py",
-    "line": 70,
-    "selector": ".ctitle code",
-    "token": ".ctitle"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/decision.py",
     "line": 71,
     "selector": ".poster",
     "token": ".poster"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/decision.py",
-    "line": 72,
-    "selector": ".cbody",
-    "token": ".cbody"
   },
   {
     "kind": "selection",
@@ -1934,15 +1598,7 @@
     "held": false,
     "file": "frontend/maquette/harness/drag.py",
     "line": 129,
-    "selector": "#view .swipe .card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/drag.py",
-    "line": 129,
-    "selector": "#view .swipe .card",
+    "selector": "#view .swipe [data-part=\"card\"]",
     "token": ".swipe"
   },
   {
@@ -1950,15 +1606,7 @@
     "held": false,
     "file": "frontend/maquette/harness/drag.py",
     "line": 162,
-    "selector": "#view .swipe .card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/drag.py",
-    "line": 162,
-    "selector": "#view .swipe .card",
+    "selector": "#view .swipe [data-part=\"card\"]",
     "token": ".swipe"
   },
   {
@@ -1966,15 +1614,7 @@
     "held": false,
     "file": "frontend/maquette/harness/drag.py",
     "line": 217,
-    "selector": "#view .swipe .card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/drag.py",
-    "line": 217,
-    "selector": "#view .swipe .card",
+    "selector": "#view .swipe [data-part=\"card\"]",
     "token": ".swipe"
   },
   {
@@ -1982,15 +1622,7 @@
     "held": false,
     "file": "frontend/maquette/harness/drag.py",
     "line": 221,
-    "selector": "#view .swipe .cbody",
-    "token": ".cbody"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/drag.py",
-    "line": 221,
-    "selector": "#view .swipe .cbody",
+    "selector": "#view .swipe [data-part=\"card/body\"]",
     "token": ".swipe"
   },
   {
@@ -2046,24 +1678,8 @@
     "held": false,
     "file": "frontend/maquette/harness/drag.py",
     "line": 266,
-    "selector": "#view .swipe .cbody",
-    "token": ".cbody"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/drag.py",
-    "line": 266,
-    "selector": "#view .swipe .cbody",
+    "selector": "#view .swipe [data-part=\"card/body\"]",
     "token": ".swipe"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/drawer.py",
-    "line": 218,
-    "selector": "#view .card [data-panel]",
-    "token": ".card"
   },
   {
     "kind": "selection",
@@ -2158,15 +1774,7 @@
     "held": false,
     "file": "frontend/maquette/harness/filters.py",
     "line": 28,
-    "selector": "#libitems .tile, #libitems .card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/filters.py",
-    "line": 28,
-    "selector": "#libitems .tile, #libitems .card",
+    "selector": "#libitems .tile, #libitems [data-part=\"card\"]",
     "token": ".tile"
   },
   {
@@ -2213,14 +1821,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/follows.py",
-    "line": 21,
-    "selector": ".ctitle",
-    "token": ".ctitle"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/follows.py",
     "line": 22,
     "selector": ".chip",
     "token": ".chip"
@@ -2229,25 +1829,9 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/follows.py",
-    "line": 23,
-    "selector": ".card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/follows.py",
     "line": 24,
     "selector": ".cmeta",
     "token": ".cmeta"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/follows.py",
-    "line": 24,
-    "selector": ".ctitle",
-    "token": ".ctitle"
   },
   {
     "kind": "selection",
@@ -2349,14 +1933,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/follows.py",
-    "line": 46,
-    "selector": ".ctitle",
-    "token": ".ctitle"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/follows.py",
     "line": 47,
     "selector": ".chip",
     "token": ".chip"
@@ -2429,14 +2005,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/gallery.py",
-    "line": 107,
-    "selector": "#view .card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/gallery.py",
     "line": 108,
     "selector": "#view .vsw",
     "token": ".vsw"
@@ -2478,15 +2046,7 @@
     "held": false,
     "file": "frontend/maquette/harness/ident.py",
     "line": 86,
-    "selector": ".reslist .cbody",
-    "token": ".cbody"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/ident.py",
-    "line": 86,
-    "selector": ".reslist .cbody",
+    "selector": ".reslist [data-part=\"card/body\"]",
     "token": ".reslist"
   },
   {
@@ -2526,15 +2086,7 @@
     "held": false,
     "file": "frontend/maquette/harness/ident.py",
     "line": 148,
-    "selector": ".reslist .cbody",
-    "token": ".cbody"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/ident.py",
-    "line": 148,
-    "selector": ".reslist .cbody",
+    "selector": ".reslist [data-part=\"card/body\"]",
     "token": ".reslist"
   },
   {
@@ -2566,15 +2118,7 @@
     "held": false,
     "file": "frontend/maquette/harness/inter.py",
     "line": 37,
-    "selector": "#view .swipe .card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/inter.py",
-    "line": 37,
-    "selector": "#view .swipe .card",
+    "selector": "#view .swipe [data-part=\"card\"]",
     "token": ".swipe"
   },
   {
@@ -2686,15 +2230,7 @@
     "held": false,
     "file": "frontend/maquette/harness/library_load.py",
     "line": 32,
-    "selector": "#libitems .card, #libitems .tile",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/library_load.py",
-    "line": 32,
-    "selector": "#libitems .card, #libitems .tile",
+    "selector": "#libitems [data-part=\"card\"], #libitems .tile",
     "token": ".tile"
   },
   {
@@ -2702,15 +2238,7 @@
     "held": false,
     "file": "frontend/maquette/harness/library_sort.py",
     "line": 37,
-    "selector": "#libitems .ctitle, #libitems .tile .nm",
-    "token": ".ctitle"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/library_sort.py",
-    "line": 37,
-    "selector": "#libitems .ctitle, #libitems .tile .nm",
+    "selector": "#libitems [data-part=\"card/title\"], #libitems .tile .nm",
     "token": ".nm"
   },
   {
@@ -2718,7 +2246,7 @@
     "held": false,
     "file": "frontend/maquette/harness/library_sort.py",
     "line": 37,
-    "selector": "#libitems .ctitle, #libitems .tile .nm",
+    "selector": "#libitems [data-part=\"card/title\"], #libitems .tile .nm",
     "token": ".tile"
   },
   {
@@ -2742,15 +2270,7 @@
     "held": false,
     "file": "frontend/maquette/harness/library_sort.py",
     "line": 89,
-    "selector": "#libitems .ctitle, #libitems .tile b",
-    "token": ".ctitle"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/library_sort.py",
-    "line": 89,
-    "selector": "#libitems .ctitle, #libitems .tile b",
+    "selector": "#libitems [data-part=\"card/title\"], #libitems .tile b",
     "token": ".tile"
   },
   {
@@ -3046,15 +2566,7 @@
     "held": false,
     "file": "frontend/maquette/harness/mouse.py",
     "line": 55,
-    "selector": ".swipe .card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/mouse.py",
-    "line": 55,
-    "selector": ".swipe .card",
+    "selector": ".swipe [data-part=\"card\"]",
     "token": ".swipe"
   },
   {
@@ -3102,15 +2614,7 @@
     "held": false,
     "file": "frontend/maquette/harness/mouse.py",
     "line": 97,
-    "selector": "#view .swipe .card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/mouse.py",
-    "line": 97,
-    "selector": "#view .swipe .card",
+    "selector": "#view .swipe [data-part=\"card\"]",
     "token": ".swipe"
   },
   {
@@ -3325,22 +2829,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/page_host.py",
-    "line": 447,
-    "selector": "#libitems .card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/page_host.py",
-    "line": 450,
-    "selector": ".ctitle",
-    "token": ".ctitle"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/page_host.py",
     "line": 508,
     "selector": "#view .topic[data-topic]",
     "token": ".topic"
@@ -3352,14 +2840,6 @@
     "line": 529,
     "selector": "#view .seg [data-acqtab='follows']",
     "token": ".seg"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/page_host.py",
-    "line": 533,
-    "selector": "#view .card",
-    "token": ".card"
   },
   {
     "kind": "selection",
@@ -3694,15 +3174,7 @@
     "held": false,
     "file": "frontend/maquette/harness/scen.py",
     "line": 43,
-    "selector": ".card,.tile,.kv,.fx",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/scen.py",
-    "line": 43,
-    "selector": ".card,.tile,.kv,.fx",
+    "selector": "[data-part=\"card\"],.tile,.kv,.fx",
     "token": ".fx"
   },
   {
@@ -3710,7 +3182,7 @@
     "held": false,
     "file": "frontend/maquette/harness/scen.py",
     "line": 43,
-    "selector": ".card,.tile,.kv,.fx",
+    "selector": "[data-part=\"card\"],.tile,.kv,.fx",
     "token": ".kv"
   },
   {
@@ -3718,7 +3190,7 @@
     "held": false,
     "file": "frontend/maquette/harness/scen.py",
     "line": 43,
-    "selector": ".card,.tile,.kv,.fx",
+    "selector": "[data-part=\"card\"],.tile,.kv,.fx",
     "token": ".tile"
   },
   {
@@ -3766,15 +3238,7 @@
     "held": false,
     "file": "frontend/maquette/harness/screen_addresses.py",
     "line": 120,
-    "selector": ".reslist .card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 120,
-    "selector": ".reslist .card",
+    "selector": ".reslist [data-part=\"card\"]",
     "token": ".reslist"
   },
   {
@@ -3886,15 +3350,7 @@
     "held": false,
     "file": "frontend/maquette/harness/screens.py",
     "line": 52,
-    "selector": ".reslist .card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 52,
-    "selector": ".reslist .card",
+    "selector": ".reslist [data-part=\"card\"]",
     "token": ".reslist"
   },
   {
@@ -3918,15 +3374,7 @@
     "held": false,
     "file": "frontend/maquette/harness/screens.py",
     "line": 62,
-    "selector": ".reslist .cbody",
-    "token": ".cbody"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 62,
-    "selector": ".reslist .cbody",
+    "selector": ".reslist [data-part=\"card/body\"]",
     "token": ".reslist"
   },
   {
@@ -3982,15 +3430,7 @@
     "held": false,
     "file": "frontend/maquette/harness/screens.py",
     "line": 99,
-    "selector": ".reslist .card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 99,
-    "selector": ".reslist .card",
+    "selector": ".reslist [data-part=\"card\"]",
     "token": ".reslist"
   },
   {
@@ -4030,15 +3470,7 @@
     "held": false,
     "file": "frontend/maquette/harness/screens.py",
     "line": 138,
-    "selector": ".reslist .card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 138,
-    "selector": ".reslist .card",
+    "selector": ".reslist [data-part=\"card\"]",
     "token": ".reslist"
   },
   {
@@ -4670,15 +4102,7 @@
     "held": false,
     "file": "frontend/maquette/harness/surfaces.py",
     "line": 37,
-    "selector": ".reslist .card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/surfaces.py",
-    "line": 37,
-    "selector": ".reslist .card",
+    "selector": ".reslist [data-part=\"card\"]",
     "token": ".reslist"
   },
   {
@@ -4782,15 +4206,7 @@
     "held": false,
     "file": "frontend/maquette/harness/sweep.py",
     "line": 54,
-    "selector": ".card,.tile,.kv,.fx",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/sweep.py",
-    "line": 54,
-    "selector": ".card,.tile,.kv,.fx",
+    "selector": "[data-part=\"card\"],.tile,.kv,.fx",
     "token": ".fx"
   },
   {
@@ -4798,7 +4214,7 @@
     "held": false,
     "file": "frontend/maquette/harness/sweep.py",
     "line": 54,
-    "selector": ".card,.tile,.kv,.fx",
+    "selector": "[data-part=\"card\"],.tile,.kv,.fx",
     "token": ".kv"
   },
   {
@@ -4806,7 +4222,7 @@
     "held": false,
     "file": "frontend/maquette/harness/sweep.py",
     "line": 54,
-    "selector": ".card,.tile,.kv,.fx",
+    "selector": "[data-part=\"card\"],.tile,.kv,.fx",
     "token": ".tile"
   },
   {
@@ -4846,15 +4262,7 @@
     "held": false,
     "file": "frontend/maquette/harness/touch.py",
     "line": 158,
-    "selector": "#view .swipe .card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 158,
-    "selector": "#view .swipe .card",
+    "selector": "#view .swipe [data-part=\"card\"]",
     "token": ".swipe"
   },
   {
@@ -4926,32 +4334,8 @@
     "held": true,
     "file": "frontend/maquette/harness/touch.py",
     "line": 193,
-    "selector": "#view .card .poster",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 193,
-    "selector": "#view .card .poster",
+    "selector": "#view [data-part=\"card\"] .poster",
     "token": ".poster"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 194,
-    "selector": "#view .card .cbody",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 194,
-    "selector": "#view .card .cbody",
-    "token": ".cbody"
   },
   {
     "kind": "selection",
@@ -5016,22 +4400,6 @@
     "line": 255,
     "selector": "#view .poster",
     "token": ".poster"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 256,
-    "selector": "#view .card",
-    "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 297,
-    "selector": ".card",
-    "token": ".card"
   },
   {
     "kind": "selection",

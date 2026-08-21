@@ -322,7 +322,7 @@ async def main():
             """()=>({
                 screen: !!document.querySelector('[data-part="screen"][data-open]'),
                 key: document.querySelector('[data-part="screen"][data-open]')?.dataset.key,
-                cards: document.querySelectorAll('.reslist .card').length,
+                cards: document.querySelectorAll('.reslist [data-part="card"]').length,
                 query: document.querySelector('#addq')?.value
             })"""
         )
@@ -353,7 +353,7 @@ async def main():
             """()=>({
                 screen: !!document.querySelector('[data-part="screen"][data-open]'),
                 key: document.querySelector('[data-part="screen"][data-open]')?.dataset.key,
-                cards: document.querySelectorAll('.reslist .card').length,
+                cards: document.querySelectorAll('.reslist [data-part="card"]').length,
                 query: document.querySelector('#addq')?.value,
                 scroll: document.querySelector('[data-part="screen"][data-open] .port')?.scrollTop,
                 legacySheetStillThere: document.querySelector('#screen').hasAttribute('data-open')

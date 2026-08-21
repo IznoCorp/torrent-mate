@@ -126,7 +126,7 @@ async def main():
 
         async def positions():
             return await pg.evaluate(
-                """()=>[...document.querySelectorAll('#view .swipe .card')].slice(0, 2)
+                """()=>[...document.querySelectorAll('#view .swipe [data-part="card"]')].slice(0, 2)
                      .map(c => c.style.transform || '')""")
 
         await drag(rows[0]["x"], rows[0]["y"], -140)
@@ -159,7 +159,7 @@ async def main():
         async def where_is_it():
             """The first row's own offset, in pixels, 0 when it is at rest."""
             return await pg.evaluate(
-                """()=>{const c = document.querySelector('#view .swipe .card');
+                """()=>{const c = document.querySelector('#view .swipe [data-part="card"]');
                        const t = c && c.style.transform;
                        return t ? parseFloat(t.slice(t.indexOf('(') + 1)) : 0;}""")
 
@@ -214,11 +214,11 @@ async def main():
         # a programmatic click carries no pointerdown, so it never clears the
         # mark the previous drag left, and the probe would measure its own
         # shortcut rather than the interface.
-        await pg.evaluate("()=>{document.querySelectorAll('#view .swipe .card')"
+        await pg.evaluate("""()=>{document.querySelectorAll('#view .swipe [data-part="card"]')"""
                           ".forEach(c => c.style.transform = '');}")
         await pg.wait_for_timeout(250)
         body = await pg.evaluate(
-            """()=>{const b = document.querySelector('#view .swipe .cbody');
+            """()=>{const b = document.querySelector('#view .swipe [data-part="card/body"]');
                    const r = b.getBoundingClientRect();
                    return {x: r.x + r.width / 2, y: r.y + 12};}""")
         await cdp.send("Input.dispatchTouchEvent",
@@ -263,7 +263,7 @@ async def main():
         await pg.evaluate("()=>window.__go('acq-follows-list')")
         await pg.wait_for_timeout(520)
         body = await pg.evaluate(
-            """()=>{const b = document.querySelector('#view .swipe .cbody');
+            """()=>{const b = document.querySelector('#view .swipe [data-part="card/body"]');
                    const r = b.getBoundingClientRect();
                    return {x: r.x + r.width / 2, y: r.y + 14};}""")
         await pg.mouse.move(body["x"], body["y"])

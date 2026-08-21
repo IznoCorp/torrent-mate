@@ -52,7 +52,7 @@ async def main():
     # 2. Card swipe in Suivis.
     await pg.evaluate("()=>window.__go('acq-follows-list')"); await pg.wait_for_timeout(500)
     await drag(".swipe", -150)
-    tr = await pg.evaluate("()=>{const c=document.querySelector('.swipe .card'); return getComputedStyle(c).transform;}")
+    tr = await pg.evaluate("""()=>{const c=document.querySelector('.swipe [data-part="card"]'); return getComputedStyle(c).transform;}""")
     print(f"follow row, mouse swipe : {tr[:34]}  {'PASS' if tr != 'none' else 'FAIL'}")
     if not (tr != 'none'): failures.append("follow row, mouse swipe")
 
@@ -94,7 +94,7 @@ async def main():
             clicks = await pg.evaluate("()=>window.__clicks")
             passed = bool(clicks) and all(c["swallowed"] for c in clicks)
             position = await pg.evaluate(
-                "()=>(document.querySelector('#view .swipe .card')||{}).style?.transform || 'at rest'")
+                """()=>(document.querySelector('#view .swipe [data-part="card"]')||{}).style?.transform || 'at rest'""")
             print(f"{list_label}, drag {direction:<7}: click swallowed {passed} · position {position}"
                   f"  {'PASS' if passed else 'FAIL'}")
             if not passed:

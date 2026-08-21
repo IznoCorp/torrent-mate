@@ -18,10 +18,10 @@ async def main():
 
     print("modes offered     :", await pg.evaluate("()=>[...document.querySelectorAll('.vsw button')].map(b=>b.getAttribute('aria-label'))"))
     print("chips             :", await pg.evaluate("()=>[...document.querySelectorAll('.pill')].map(b=>b.textContent.trim())"))
-    print("list order        :", await pg.evaluate("()=>[...document.querySelectorAll('.ctitle')].map(e=>e.textContent).slice(0,6)"))
+    print("list order        :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card/title"]')].map(e=>e.textContent).slice(0,6)"""))
     print("dot across a chip :", await pg.evaluate("()=>{const c=document.querySelector('.chip');const s=getComputedStyle(c,'::before');return {w:s.width,h:s.height,radius:s.borderRadius};}"))
-    print("title alone       :", await pg.evaluate("""()=>[...document.querySelectorAll('.card')].slice(0,4).every(c=>{
-        const t=c.querySelector('.ctitle').getBoundingClientRect(), m=c.querySelector('.cmeta').getBoundingClientRect();
+    print("title alone       :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card"]')].slice(0,4).every(c=>{
+        const t=c.querySelector('[data-part="card/title"]').getBoundingClientRect(), m=c.querySelector('.cmeta').getBoundingClientRect();
         return t.bottom<=m.top+0.5;})"""))
     await pg.screenshot(path="s_liste.png")
 
@@ -43,7 +43,7 @@ async def main():
     await pg.screenshot(path="s_grille.png")
 
     await pg.click('[data-fmode="list"]'); await pg.click('[data-pill="movies"]'); await pg.wait_for_timeout(300)
-    print("Films filter      :", await pg.evaluate("()=>[...document.querySelectorAll('.ctitle')].map(e=>e.textContent)"))
+    print("Films filter      :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card/title"]')].map(e=>e.textContent)"""))
     print("film label        :", await pg.evaluate("()=>document.querySelector('.chip').textContent"))
     print("film actions      :", await pg.evaluate("()=>[...document.querySelectorAll('.swipe .act')].slice(0,2).map(e=>e.textContent.trim())"))
     print("\nJS errors:", errs or "none")

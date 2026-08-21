@@ -215,7 +215,7 @@ async def main():
         for name, open_layer, outside in (
             # A bottom panel leaves the top of the frame free; the drawer leaves
             # its right.
-            ("the panel", lambda pg: pg.tap("#view .card [data-panel]"), (195, 60)),
+            ("the panel", lambda pg: pg.tap('#view [data-part="card"] [data-panel]'), (195, 60)),
             ("the drawer", open_drawer, (370, 700)),
         ):
             ctx, pg = await open_page(b)

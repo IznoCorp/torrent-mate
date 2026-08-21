@@ -106,7 +106,7 @@ function ReleaseCard({
   const { posterBox } = useReference();
   const { t } = useTranslation();
   return (
-    <div className="card" data-nonmedia={opts.genre || "release"}>
+    <div className="card" data-part="card" data-nonmedia={opts.genre || "release"}>
       <div className="ctop">
         <span
           className="poster"
@@ -117,8 +117,8 @@ function ReleaseCard({
             __html: posterBox(title, opts.k, { exact: opts.exact }),
           }}
         />
-        <span className="cbody">
-          <span className="ctitle">{title}</span>
+        <span className="cbody" data-part="card/body">
+          <span className="ctitle" data-part="card/title">{title}</span>
           <span className="csub">{meta}</span>
           {/* The synopsis is what actually SEPARATES four series with nearly
               the same name, so it belongs on the card that asks to choose
@@ -185,14 +185,14 @@ function DecisionCard({ decision }: { decision: SettledDecision }) {
     ? `${decision.choice.t} · ${decision.choice.p.toUpperCase()} ${decision.choice.id} · ${VIA_LABEL[decision.choice.via] ?? decision.choice.via}`
     : null;
   return (
-    <div className="card" data-nonmedia="decision">
+    <div className="card" data-part="card" data-nonmedia="decision">
       <div className="ctop">
         <span
           className="poster"
           dangerouslySetInnerHTML={{ __html: poster }}
         />
-        <span className="cbody">
-          <span className="ctitle" title={decision.d}>
+        <span className="cbody" data-part="card/body">
+          <span className="ctitle" data-part="card/title" title={decision.d}>
             <code>{decision.d}</code>
           </span>
           <span className="csub">{decision.when}</span>

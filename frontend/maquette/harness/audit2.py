@@ -173,7 +173,7 @@ async def main():
     n=await pg.evaluate("""async ()=>{const o={};
       for (const m of ['acq-follows-list','acq-follows-groupe','acq-follows-grid']) {
         window.__go(m); await new Promise(r=>setTimeout(r,240));
-        o[m]=document.querySelectorAll('#view .card, #view .tile').length;}
+        o[m]=document.querySelectorAll('#view [data-part="card"], #view .tile').length;}
       return o;}""")
     print("\nItems per Suivis mode:", n)
     if len(set(n.values()))>1: note("R15 inconsistent Suivis modes", json.dumps(n))
@@ -443,9 +443,9 @@ async def main():
           window.__go(state_); await new Promise(r=>setTimeout(r,300));
           const toggle=document.querySelector('[data-lmode="list"]');
           if (toggle) { toggle.click(); await new Promise(r=>setTimeout(r,260)); }
-          const cards=[...document.querySelectorAll('#view .card .cbody')];
+          const cards=[...document.querySelectorAll('#view [data-part="card"] [data-part="card/body"]')];
           if (i>=cards.length) break;
-          const full=cards[i].querySelector('.ctitle')?.textContent ?? '?';
+          const full=cards[i].querySelector('[data-part="card/title"]')?.textContent ?? '?';
           const title=full.slice(0,26);
           cards[i].click(); await new Promise(r=>setTimeout(r,300));
           const sheet=document.querySelector('#sheet');

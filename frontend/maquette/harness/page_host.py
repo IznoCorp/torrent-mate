@@ -444,10 +444,10 @@ async def main():
         # the attribute still names the row it belongs to — the half a moved
         # emitter can break.
         named = await page.evaluate("""()=>{
-          const rows = [...document.querySelectorAll('#libitems .card')];
+          const rows = [...document.querySelectorAll('#libitems [data-part="card"]')];
           const first = rows[0];
           const action = first ? first.parentElement.querySelector('[data-del]') : null;
-          const title = first ? (first.querySelector('.ctitle')||{}).textContent : null;
+          const title = first ? (first.querySelector('[data-part="card/title"]')||{}).textContent : null;
           return {title: title ? title.trim() : null,
                   del: action ? action.dataset.del : null};}""")
         journal.check(
@@ -530,7 +530,7 @@ async def main():
         opened = await page.evaluate("""()=>({
           tab: window.__store.read().state.acqTab,
           field: !!document.querySelector('#view #follq'),
-          rows: document.querySelectorAll('#view .card').length,
+          rows: document.querySelectorAll('#view [data-part="card"]').length,
         })""")
         journal.check(
             "a real tap on a tab opens THAT tab",

@@ -49,7 +49,7 @@ async def main():
         start = await pg.evaluate("""()=>({
             screen: !!document.querySelector('[data-part="screen"][data-open]'),
             key: document.querySelector('[data-part="screen"][data-open]')?.dataset.key,
-            cards: document.querySelectorAll('.reslist .card').length,
+            cards: document.querySelectorAll('.reslist [data-part="card"]').length,
             feet: document.querySelectorAll('.reslist .cfoot').length,
             query: document.querySelector('#addq')?.value})""")
         check("the results screen is there", start["screen"] and start["cards"] >= 2,
@@ -59,7 +59,7 @@ async def main():
 
         # The removal above is safe only because the act still has a home:
         # the result's panel must offer it.
-        await pg.evaluate("()=>document.querySelector('.reslist .cbody').click()")
+        await pg.evaluate("""()=>document.querySelector('.reslist [data-part="card/body"]').click()""")
         await pg.wait_for_timeout(420)
         act = await pg.evaluate(
             "()=>document.querySelector('#sheet .sact.primary')?.textContent.trim() ?? null")
@@ -96,7 +96,7 @@ async def main():
         back = await pg.evaluate("""()=>({
             screen: !!document.querySelector('[data-part="screen"][data-open]'),
             key: document.querySelector('[data-part="screen"][data-open]')?.dataset.key,
-            cards: document.querySelectorAll('.reslist .card').length,
+            cards: document.querySelectorAll('.reslist [data-part="card"]').length,
             query: document.querySelector('#addq')?.value,
             scroll: document.querySelector('[data-part="screen"][data-open] .port')?.scrollTop,
             sheetStillThere: !!document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]')})""")
@@ -135,7 +135,7 @@ async def main():
         button = await pg.evaluate("""()=>({
             screen: !!document.querySelector('[data-part="screen"][data-open]'),
             key: document.querySelector('[data-part="screen"][data-open]')?.dataset.key,
-            cards: document.querySelectorAll('.reslist .card').length,
+            cards: document.querySelectorAll('.reslist [data-part="card"]').length,
             sheetStillThere: !!document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]')})""")
         check("the sheet's « Retour » button does the same",
               button["screen"] and (button["key"] or "").startswith("add:")

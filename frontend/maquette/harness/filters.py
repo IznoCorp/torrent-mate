@@ -25,7 +25,7 @@ async def main():
     for cat in cats:
         await pg.evaluate("(id)=>document.querySelector(`[data-cat=${JSON.stringify(id)}]`).click()", cat["id"])
         await pg.wait_for_timeout(300)
-        r = await pg.evaluate("""()=>({shown:document.querySelectorAll('#libitems .tile, #libitems .card').length,
+        r = await pg.evaluate("""()=>({shown:document.querySelectorAll('#libitems .tile, #libitems [data-part="card"]').length,
           count:document.querySelector('#libcount')?.textContent.replace(/\\s+/g,' ').trim(),
           empty:!!document.querySelector('#libitems .empty'),
           coherent:[...document.querySelectorAll('#libitems .tile')].every(t=>{

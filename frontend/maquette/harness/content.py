@@ -76,8 +76,8 @@ async def main():
         # ── a follow's card is not empty ────────────────────────────────────
         await pg.evaluate("()=>window.__go('acq-follows-list')")
         await pg.wait_for_timeout(420)
-        follows = await pg.evaluate("""()=>[...document.querySelectorAll('#view .card')].map(c => ({
-          title: (c.querySelector('.ctitle')||{}).textContent||'',
+        follows = await pg.evaluate("""()=>[...document.querySelectorAll('#view [data-part="card"]')].map(c => ({
+          title: (c.querySelector('[data-part="card/title"]')||{}).textContent||'',
           sub: (c.querySelector('.csub')||{}).textContent||'',
           reason: (c.querySelector('.creason')||{}).textContent||'',
           facts: (c.querySelector('.caption')||{}).textContent||''}))""")
@@ -142,7 +142,7 @@ async def main():
                               " libLens: l, libMode: 'list'}); render();}", lens)
             await pg.wait_for_timeout(650)
             seen = await pg.evaluate("""()=>{
-              const cards = [...document.querySelectorAll('#libitems .card')];
+              const cards = [...document.querySelectorAll('#libitems [data-part="card"]')];
               return {
                 n: cards.length,
                 withPlot: cards.filter(c => c.querySelector('.cov')).length,
@@ -155,8 +155,8 @@ async def main():
                               c.getBoundingClientRect().bottom + 1;}).length,
                 invented: cards.filter(c => {
                   const e = c.querySelector('.cov');
-                  return e && !SYNOPSIS[(c.querySelector('.ctitle')||{}).textContent];
-                }).map(c => (c.querySelector('.ctitle')||{}).textContent)};}""")
+                  return e && !SYNOPSIS[(c.querySelector('[data-part="card/title"]')||{}).textContent];
+                }).map(c => (c.querySelector('[data-part="card/title"]')||{}).textContent)};}""")
             check(f"{name}: the rows carry the synopsis",
                   seen["n"] > 4 and seen["withPlot"] == seen["n"], f"{seen['withPlot']}/{seen['n']}")
             check(f"{name}: an over-long synopsis is clamped, not spilled",
@@ -181,7 +181,7 @@ async def main():
                               " libLens: 'cat', libMode: 'list'}); render();}")
             await pg.wait_for_timeout(520)
             return await pg.evaluate(
-                """()=>[...document.querySelectorAll('#libitems .card')]
+                """()=>[...document.querySelectorAll('#libitems [data-part="card"]')]
                      .filter(c => c.getBoundingClientRect().height > 127).length""")
 
         lines = await pg.evaluate(
@@ -234,7 +234,7 @@ async def main():
                 await pg.wait_for_timeout(620)
                 starts[lens] = await pg.evaluate("""()=>{
                   const frame = document.querySelector('#device').getBoundingClientRect();
-                  const p = document.querySelector('#view .card, #view .tile');
+                  const p = document.querySelector('#view [data-part="card"], #view .tile');
                   return p ? Math.round(p.getBoundingClientRect().top - frame.top) : null;}""")
             without_list = [k for k, v in starts.items() if v is None]
             gap = (max(starts.values()) - min(starts.values())) if not without_list else None

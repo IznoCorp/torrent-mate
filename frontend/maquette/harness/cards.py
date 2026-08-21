@@ -139,10 +139,10 @@ async def main():
             if state_.startswith("lib-"):
                 await mode(pg, "list")
             seen = await pg.evaluate(
-                """()=>[...document.querySelectorAll('.card')].filter(visible).map(c=>{
-                    const b=c.querySelector('.cbody');
+                """()=>[...document.querySelectorAll('[data-part="card"]')].filter(visible).map(c=>{
+                    const b=c.querySelector('[data-part="card/body"]');
                     const p=c.querySelector('.poster');
-                    return {title:c.querySelector('.ctitle')?.textContent||'',
+                    return {title:c.querySelector('[data-part="card/title"]')?.textContent||'',
                             nonMedia:c.dataset.nonmedia||null,
                             panel:b?b.dataset.panel||null:null,
                             directSheet:b?b.dataset.sheet||null:null,
@@ -209,11 +209,11 @@ async def main():
             if state_.startswith("lib-"):
                 await mode(pg, "list")
             inlines = await pg.evaluate(
-                """()=>[...document.querySelectorAll('.card')].filter(visible)
+                """()=>[...document.querySelectorAll('[data-part="card"]')].filter(visible)
                     .filter(c=>c.querySelector('.cfoot') && !c.dataset.nonmedia)
-                    .map(c=>({title:c.querySelector('.ctitle')?.textContent||'',
+                    .map(c=>({title:c.querySelector('[data-part="card/title"]')?.textContent||'',
                               action:c.querySelector('.cfoot').textContent.trim(),
-                              panel:c.querySelector('.cbody')?.dataset.panel||null}))"""
+                              panel:c.querySelector('[data-part="card/body"]')?.dataset.panel||null}))"""
             )
             for item in inlines:
                 executed += 1
@@ -223,7 +223,7 @@ async def main():
                     failures.append(f"R43 {state_} « {item['title']} »: no panel to compare against")
                     continue
                 await pg.evaluate(
-                    "(s)=>document.querySelector(`.cbody[data-panel=\"${s.replace(/\"/g,'')}\"]`)?.click()",
+                    """(s)=>document.querySelector(`[data-part="card/body"][data-panel="${s.replace(/"/g,'')}"]`)?.click()""",
                     item["panel"],
                 )
                 await pg.wait_for_timeout(420)
@@ -334,9 +334,9 @@ async def main():
             if state_.startswith("lib-"):
                 await mode(pg, "list")
             m = await pg.evaluate(
-                """()=>{const c=document.querySelector('.card:not([data-nonmedia])');
+                """()=>{const c=document.querySelector('[data-part="card"]:not([data-nonmedia])');
                 if(!c) return null;
-                const p=c.querySelector('.poster'), t=c.querySelector('.ctitle');
+                const p=c.querySelector('.poster'), t=c.querySelector('[data-part="card/title"]');
                 const rp=p.getBoundingClientRect(), cs=getComputedStyle(c);
                 return {poster:Math.round(rp.width),
                         padding:cs.padding, radius:cs.borderRadius,
@@ -391,18 +391,18 @@ async def main():
             await pg.wait_for_timeout(110)
             seen_state = await pg.evaluate("""()=>{
               const out = {ratios: [], flush: [], margins: [], overlap: []};
-              for (const c of document.querySelectorAll('.card')) {
+              for (const c of document.querySelectorAll('[data-part="card"]')) {
                 const p = c.querySelector('.poster');
                 if (!p || !p.getBoundingClientRect().width) continue;
                 const rp = p.getBoundingClientRect(), rc = c.getBoundingClientRect();
-                const title = (c.querySelector('.ctitle')||{}).textContent || '?';
+                const title = (c.querySelector('[data-part="card/title"]')||{}).textContent || '?';
                 out.ratios.push(Math.round(rp.height / rp.width * 100) / 100);
                 for (const [edge, gap] of [['top', rp.top - rc.top],
                                            ['left', rp.left - rc.left],
                                            ['bottom', rc.bottom - rp.bottom]])
                   if (Math.abs(gap) > 1.5)
                     out.flush.push(`${title} — ${edge} at ${gap.toFixed(1)}px`);
-                const t = c.querySelector('.ctitle');
+                const t = c.querySelector('[data-part="card/title"]');
                 if (t) {
                   const rt = t.getBoundingClientRect();
                   if (rt.left < rp.right - 0.5) out.overlap.push(title);
@@ -433,13 +433,13 @@ async def main():
             await pg.wait_for_timeout(100)
             cropped += await pg.evaluate("""()=>{
               const out = [];
-              for (const img of document.querySelectorAll('.card .poster img')) {
+              for (const img of document.querySelectorAll('[data-part="card"] .poster img')) {
                 const b = img.getBoundingClientRect();
                 if (!b.width || !img.naturalWidth) continue;
                 const rs = img.naturalHeight / img.naturalWidth, rb = b.height / b.width;
                 const loss = rs > rb ? 1 - rb / rs : 1 - rs / rb;
                 if (loss > 0.02)
-                  out.push([(img.closest('.card').querySelector('.ctitle')||{})
+                  out.push([(img.closest('[data-part="card"]').querySelector('[data-part="card/title"]')||{})
                               .textContent.slice(0, 24), Math.round(loss * 100)]);
               }
               return out;}""")
@@ -491,7 +491,7 @@ async def main():
 
             await mode(pg, "list")
             await pg.evaluate(
-                "(t)=>[...document.querySelectorAll('.card')].find(c=>c.querySelector('.ctitle')?.textContent===t)?.querySelector('.cbody')?.click()",
+                """(t)=>[...document.querySelectorAll('[data-part="card"]')].find(c=>c.querySelector('[data-part="card/title"]')?.textContent===t)?.querySelector('[data-part="card/body"]')?.click()""",
                 box["title"],
             )
             await pg.wait_for_timeout(430)

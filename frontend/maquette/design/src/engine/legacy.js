@@ -7133,12 +7133,12 @@ import { screens, panel, bridge } from "../seams.js";
        stopped reading at a glance, which is the only thing that line is for. */
     const stateRow = `${descriptor.f ? `<span class="frac">${escapeHtml(descriptor.f)}</span>` : ""}${chipHTML(descriptor.chip)}${descriptor.note != null ? `<span class="crating">${escapeHtml(String(descriptor.note))}</span>` : ""}`;
     const ligneAnnotations = `${descriptor.caption ? `<span class="caption">${escapeHtml(descriptor.caption)}</span>` : ""}${descriptor.fresh ? `<span class="freshtag">Nouveau</span>` : ""}`;
-    return `<div class="card${descriptor.fresh ? " fresh" : ""}"${hasSheet ? "" : ' data-nonmedia="dossier"'}>
+    return `<div class="card${descriptor.fresh ? " fresh" : ""}" data-part="card"${hasSheet ? "" : ' data-nonmedia="dossier"'}>
     ${poster}
     <div class="ccol">
     <div class="ctop">
-      <button class="cbody" data-panel="${escapeHtml(descriptor.panel || (hasSheet ? `media:${descriptor.t}` : `dossier:${descriptor.t}`))}">
-        <span class="ctitle" title="${escapeHtml(descriptor.t)}">${escapeHtml(descriptor.t)}</span>
+      <button class="cbody" data-part="card/body" data-panel="${escapeHtml(descriptor.panel || (hasSheet ? `media:${descriptor.t}` : `dossier:${descriptor.t}`))}">
+        <span class="ctitle" data-part="card/title" title="${escapeHtml(descriptor.t)}">${escapeHtml(descriptor.t)}</span>
         ${descriptor.s ? `<span class="csub">${escapeHtml(descriptor.s)}</span>` : ""}
         ${descriptor.r ? `<span class="creason">${richText(descriptor.r)}</span>` : ""}
         ${descriptor.overview ? `<span class="cov">${escapeHtml(descriptor.overview)}</span>` : ""}
@@ -10001,7 +10001,7 @@ import { screens, panel, bridge } from "../seams.js";
       return `<button class="selrow" data-tile="${index}" aria-selected="${has}">
         <span class="sel">${svgIcon(icons.check, 3)}</span>
         <span class="poster">${posterBox(item.t)}</span>
-        <span class="rowtxt"><span class="ctitle" title="${escapeHtml(item.t)}">${escapeHtml(item.t)}</span><span class="csub">${escapeHtml(item.f)}</span></span>
+        <span class="rowtxt"><span class="ctitle" data-part="card/title" title="${escapeHtml(item.t)}">${escapeHtml(item.t)}</span><span class="csub">${escapeHtml(item.f)}</span></span>
       </button>`;
     }
     return swipeHTML(

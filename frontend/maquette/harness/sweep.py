@@ -51,7 +51,7 @@ async def main():
                   // Système stopped being a wall of `.kv` — it is the same kind
                   // of object, so what this counts is unchanged: is there
                   // structure, or only prose.
-                  cards: v.querySelectorAll('.card,.tile,.kv,.fx').length,
+                  cards: v.querySelectorAll('[data-part="card"],.tile,.kv,.fx').length,
                   doc: document.documentElement.scrollWidth,
                   device: Math.round(document.querySelector('.device').getBoundingClientRect().width),
                   spills: [...v.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>390.5&&!e.closest('.pillscroll')).length};}""")
