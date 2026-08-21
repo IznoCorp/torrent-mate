@@ -9,6 +9,24 @@ Trakt particularities:
 - Rating is native 0-10 float — no parsing needed.
 - Image URLs are relative to media.trakt.tv.
 - extended=full required for rich detail fields.
+
+Status — WIRED, NOT CONSUMED
+    Nothing routes to this client. The capability chains in
+    ``config/providers.json5`` leave ``RatingProvider`` and
+    ``RecommendationProvider`` empty, and no caller anywhere consumes
+    ``RecommendationProvider`` — the only capability Trakt alone implements. So
+    the client is constructed whenever the provider is enabled, and then never
+    called: enabling it costs a Trakt application whose traffic is zero.
+
+    This is a temporary state, and it must be resolved one way or the other:
+
+    * CONNECT it to a consumer — add ``trakt`` to a capability chain in
+      ``providers.json5`` AND wire the surface that reads the result, or
+    * DEPRECATE it — delete this module, its activation entry, its factory
+      builder and its reference doc, if no Trakt source is needed any more.
+
+    Until then the provider ships disabled (``metadata.providers.trakt.enabled:
+    false``), so an unused credential cannot silently authenticate anything.
 """
 
 from __future__ import annotations
@@ -70,6 +88,10 @@ class TraktClient(
 
     App-only auth via two headers (trakt-api-key + trakt-api-version: 2).
     Supports search, details, ratings, related movies, and trending.
+
+    No consumer calls any of it today — see the module docstring: this client is
+    to be connected to a consumer, or deprecated if a Trakt source is no longer
+    needed.
     """
 
     REQUIRED_CREDS: ClassVar[list[str]] = ["TRAKT_CLIENT_ID"]
