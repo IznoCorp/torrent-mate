@@ -7585,7 +7585,7 @@ import { screens, panel, bridge } from "../seams.js";
           : value;
         return `<li class="fx${empty ? " fempty" : ""}${ligne.state === "danger" ? " fblocked" : ""}${
           ligne.target ? " fclick" : ""
-        }" data-part="flux/row"><${tag} class="fw"${target}>
+        }" data-part="flux/row"${empty ? ' data-empty=""' : ''}${ligne.state === "danger" ? ' data-blocked=""' : ''}><${tag} class="fw"${target}>
       <span class="fn" data-part="flux/name">${escapeHtml(ligne.l)}</span>
       <span class="fr" data-part="flux/value">${badge}</span>
       <span class="fs" data-part="flux/detail">${ligne.k ? `<span class="fk" data-part="flux/key">${escapeHtml(ligne.k)}</span>` : ""}${

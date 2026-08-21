@@ -56,8 +56,8 @@ READ = """() => {
       result: x.querySelector('[data-part="flux/value"]').textContent.trim(),
       sub: x.querySelector('[data-part="flux/detail"]').textContent.trim(),
       key: (x.querySelector('[data-part="flux/key"]') || {}).textContent || '',
-      empty: x.classList.contains('fempty'),
-      blocked: x.classList.contains('fblocked'),
+      empty: x.hasAttribute('data-empty'),
+      blocked: x.hasAttribute('data-blocked'),
     })),
     sections: [...document.querySelectorAll('.sechead .t')].map((x) => x.textContent.trim()),
   };

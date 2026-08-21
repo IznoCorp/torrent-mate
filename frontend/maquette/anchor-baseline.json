@@ -184,18 +184,6 @@
     "token": ".flux"
   },
   {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/arrivals.py",
-    "line": 59,
-    "class": "fempty"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/arrivals.py",
-    "line": 60,
-    "class": "fblocked"
-  },
-  {
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/arrivals.py",
