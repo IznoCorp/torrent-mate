@@ -79,15 +79,20 @@ THE BURN-DOWN IS A RATCHET, NOT A PROMISE.
 `frontend/maquette/anchor-baseline.json` holds one entry per TOKEN
 OCCURRENCE — a selector can carry tokens owned by two different phases,
 and only the occurrence has a single owner. An occurrence's IDENTITY is
-what it selects, not where it sits: the multiset of
-(kind, file, selector, token), with the class name filling both last
-slots for an assertion. The `line` stored in each entry is a DISPLAY
-field, refreshed freely on every write. A finding whose identity the
-baseline owns is tolerated and counted — multiplicity included, the same
-identity twice is two entries and must stay two; one it does not exits 1
-naming file, line, selector and token. Every later phase REMOVES entries
-— a baseline that swallowed a NEW violation would ratchet the wrong way,
-and this arm's whole reason to exist is to refuse that.
+what it selects and where it is: the multiset of (kind, file, token),
+with the class name filling the token slot for an assertion. The
+`selector` and `line` stored in each entry are DISPLAY fields, refreshed
+freely on every write and never compared: phase 2 rewrites the PREFIX of
+dozens of selectors (`.screen.open .fback` becomes
+`[data-part="screen"][data-open] .fback`) without moving a single token,
+and an identity that included the selector string would see each
+rewritten token as one removed and one added — a regeneration that
+refuses itself on its own committed baseline. A finding whose identity
+the baseline owns is tolerated and counted — multiplicity included, the
+same identity twice is two entries and must stay two; one it does not
+exits 1 naming file, line, selector and token. Every later phase REMOVES
+entries — a baseline that swallowed a NEW violation would ratchet the
+wrong way, and this arm's whole reason to exist is to refuse that.
 
 The baseline is GENERATED, never typed. `--write-baseline` consumes
 `python3 scripts/classify-rule-anchors.py --baseline` — the independent
@@ -96,12 +101,14 @@ than the guard that enforces it — then holds the two readers against each
 other and writes the file only when they agree on every occurrence.
 
 AND IT REFUSES TO GROW. Before writing, the fresh entries are held
-against the stored baseline on their line-free identities: any occurrence
-the stored baseline does not already own REFUSES the write — exit 1,
-naming each one — because a burn-down list does not grow. Removals pass
-silently; that is the burn-down. A pure line shift still writes (nothing
-added, only display lines moved), which phases 2 to 6 depend on: they
-edit harness files in every commit. The deliberate escape hatch is
+against the stored baseline on their line-free, selector-free
+identities: any occurrence the stored baseline does not already own
+REFUSES the write — exit 1, naming each one — because a burn-down list
+does not grow. Removals pass silently; that is the burn-down. A pure
+display shift still writes (nothing added, only lines and selector
+spellings refreshed), which phases 2 to 6 depend on: they rewrite
+selector prefixes and edit harness files in every commit. The
+deliberate escape hatch is
 `--write-baseline --allow-additions` — bootstrap, a re-classification, a
 corrupted baseline — which writes regardless and prints loudly what it
 added. Nothing in phases 2 to 6 of maquette-l02 may use it.
@@ -519,23 +526,24 @@ def harness_files() -> list[Path]:
     return sorted(p for p in HARNESS.glob("*.py") if p.is_file())
 
 
-def entry_identity(entry: dict[str, object]) -> tuple[str, str, str, str]:
-    """Returns the line-free identity of one baseline entry.
+def entry_identity(entry: dict[str, object]) -> tuple[str, str, str]:
+    """Returns the line- and selector-free identity of one baseline entry.
 
-    An occurrence's identity is what it selects, not where it sits:
-    `(kind, file, selector, token)` for a selection entry. For an
-    assertion the class name fills both slots — the asserted class is the
-    assertion's only selector. The `line` field is deliberately absent:
-    it is a DISPLAY field, refreshed freely on every write, and a pure
-    line shift must not make every entry look new. Multiplicity is the
-    callers' business: this tuple is what a Counter counts.
+    An occurrence's identity is WHAT it selects and WHERE it is:
+    `(kind, file, token)` for a selection entry — the class name filling
+    the token slot for an assertion. The `selector` and `line` fields are
+    deliberately absent: they are DISPLAY fields, refreshed freely on
+    every write, and a phase that rewrites a selector's prefix
+    (`.screen.open .fback` → `[data-part="screen"][data-open] .fback`)
+    must not make the occurrence it carries look new. Multiplicity is
+    the callers' business: this tuple is what a Counter counts.
 
     Args:
         entry: One entry of the classifier's `--baseline` list.
 
     Returns:
-        `(kind, file, selector, token)` — selector and token both set to
-        the class name for an assertion entry.
+        `(kind, file, token)` — the token slot filled by the class name
+        for an assertion entry.
 
     Raises:
         ValueError: The entry's kind is unknown, or a field is missing or
@@ -551,10 +559,10 @@ def entry_identity(entry: dict[str, object]) -> tuple[str, str, str, str]:
             or not isinstance(selector, str) \
             or not isinstance(name, str):
         raise ValueError(f"malformed entry {entry!r}")
-    return (kind, entry["file"], selector, name)
+    return (kind, entry["file"], name)
 
 
-def load_baseline() -> Counter[tuple[str, str, str, str]]:
+def load_baseline() -> Counter[tuple[str, str, str]]:
     """Loads the burn-down baseline as a multiset of identities.
 
     A missing file is an EMPTY baseline: the last phase of the lot
@@ -575,26 +583,27 @@ def load_baseline() -> Counter[tuple[str, str, str, str]]:
 
 
 def collect_anchor_findings(
-) -> list[tuple[tuple[str, str, str, str], str, str]]:
+) -> list[tuple[tuple[str, str, str], str, str]]:
     """Collects every finding the anchor arm exists to refuse.
 
     Returns:
         `(identity, subject, where)` tuples, in file order — the
-        line-free identity `(kind, file, selector, token)` (the class
-        name fills both slots for an assertion), the full selector for a
-        selection and the class name for an assertion, and the `file:line`
-        it was found at for display.
+        line- and selector-free identity `(kind, file, token)` (the class
+        name fills the token slot for an assertion), the full selector
+        for a selection and the class name for an assertion — the
+        DISPLAY subject, carried alongside the identity but never part
+        of it — and the `file:line` it was found at for display.
     """
-    findings: list[tuple[tuple[str, str, str, str], str, str]] = []
+    findings: list[tuple[tuple[str, str, str], str, str]] = []
     for path in harness_files():
         rel = str(path.relative_to(ROOT))
         for line, _, selector in selection_calls(path):
             for token in class_tokens(selector):
-                identity = ("selection", rel, selector, token)
+                identity = ("selection", rel, token)
                 findings.append((identity, selector, f"{rel}:{line}"))
         for line, name in state_assertions(path):
             if name in STATE_CLASSES:
-                identity = ("assertion", rel, name, name)
+                identity = ("assertion", rel, name)
                 findings.append((identity, name, f"{rel}:{line}"))
     return findings
 
@@ -629,7 +638,7 @@ def check_anchor_debt() -> int:
               "--allow-additions).", file=sys.stderr)
         return 1
 
-    seen: Counter[tuple[str, str, str, str]] = Counter()
+    seen: Counter[tuple[str, str, str]] = Counter()
     tolerated = {"selection": 0, "assertion": 0}
     exempt = 0
     violations = 0
@@ -641,7 +650,7 @@ def check_anchor_debt() -> int:
         elif kind == "selection":
             violations += 1
             print(f"  {where}: selector {subject!r} carries the class token "
-                  f"{identity[3]!r}, and the baseline owns no such "
+                  f"{identity[2]!r}, and the baseline owns no such "
                   "occurrence. A class token in a rule selection dies the "
                   "day the class is removed. Migrate the occurrence — or if "
                   "a migration genuinely removed it, regenerate the baseline "
@@ -649,7 +658,7 @@ def check_anchor_debt() -> int:
                   "anything.", file=sys.stderr)
         else:
             violations += 1
-            print(f"  {where}: classList.contains({identity[3]!r}) asserts a "
+            print(f"  {where}: classList.contains({identity[2]!r}) asserts a "
                   "migrated state, and the baseline owns no such occurrence. "
                   "Migrate the assertion — or if a migration genuinely "
                   "removed it, regenerate the baseline with --write-baseline; "
@@ -710,12 +719,13 @@ def write_baseline(allow_additions: bool = False) -> int:
     a step someone remembers to run.
 
     THE RATCHET. Before writing, the fresh entries are held against the
-    stored baseline on their line-free identities. Removals pass
-    silently: that is the burn-down. Any occurrence the stored baseline
-    does not already own REFUSES the write — exit 1, naming each one —
-    because a burn-down list does not grow. A pure line shift still
-    writes: nothing was added, only display lines moved, which phases 2
-    to 6 depend on as they edit harness files in every commit.
+    stored baseline on their line- and selector-free identities.
+    Removals pass silently: that is the burn-down. Any occurrence the
+    stored baseline does not already own REFUSES the write — exit 1,
+    naming each one — because a burn-down list does not grow. A pure
+    display shift still writes: nothing was added, only lines and
+    selector spellings refreshed, which phases 2 to 6 depend on as they
+    rewrite selector prefixes and edit harness files in every commit.
     `allow_additions` is the deliberate escape hatch (bootstrap, a
     re-classification, a corrupted baseline): it writes regardless and
     prints loudly what it added. Nothing in phases 2 to 6 of maquette-l02

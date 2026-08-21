@@ -13,6 +13,8 @@ green — which is what happened to the retry button on every error surface.
 from __future__ import annotations
 
 import importlib.util
+import json
+import subprocess
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "check-markup-contracts.py"
@@ -117,3 +119,114 @@ class TestTheTreeItself:
         )
 
         assert len(guard.FORWARDER.findall(guard.COMMENT.sub(" ", sources))) >= 5
+
+
+class TestBaselineIdentity:
+    """An occurrence is WHAT is selected and WHERE — never the selector string.
+
+    Phase 2 rewrites the PREFIX of dozens of selectors
+    (`'.screen.open .fback'` → `'[data-part="screen"][data-open] .fback'`)
+    without moving the tokens those strings carry. An identity that
+    includes the selector string sees each rewritten token as one removed
+    and one added — a regeneration that refuses itself on its own
+    committed baseline. The selector, like the line, is a display field.
+    """
+
+    FILE = "frontend/maquette/harness/actions.py"
+    LINE = 42
+
+    def _regenerate(self, monkeypatch, tmp_path, stored, fresh):
+        """Wires `write_baseline` to a temp baseline and two faked readers.
+
+        The subject of these tests is the ratchet — `fresh` held against
+        `stored` on their identities — not the cross-check between the
+        classifier subprocess and the guard's own extraction, which the
+        real-tree regeneration exercises end to end. Both readers are
+        therefore faked to return `fresh`, and the baseline path is faked
+        into the test's temp directory.
+
+        Args:
+            monkeypatch: The pytest fixture.
+            tmp_path: The pytest fixture.
+            stored: The entries of the stored baseline.
+            fresh: The entries both readers report now.
+
+        Returns:
+            The temp path the baseline is (or would be) written to.
+        """
+        baseline = tmp_path / "anchor-baseline.json"
+        baseline.write_text(json.dumps(stored), encoding="utf-8")
+        monkeypatch.setattr(guard, "BASELINE", baseline)
+        # The success message renders the baseline path relative to ROOT;
+        # the real baseline lives under it, the test's temp one does not.
+        monkeypatch.setattr(guard, "ROOT", tmp_path)
+        done = subprocess.CompletedProcess([], 0, json.dumps(fresh), "")
+        monkeypatch.setattr(guard.subprocess, "run", lambda *a, **k: done)
+        findings = [
+            (guard.entry_identity(e), e.get("selector", e.get("class")), f"{e['file']}:{e['line']}") for e in fresh
+        ]
+        monkeypatch.setattr(guard, "collect_anchor_findings", lambda: findings)
+        return baseline
+
+    def _selection(self, selector, token, line=None):
+        """Builds one selection entry, in the classifier's shape.
+
+        Args:
+            selector: The selector string — a display field.
+            token: The class token the entry owns.
+            line: The display line; default `LINE`.
+
+        Returns:
+            The entry dict.
+        """
+        return {
+            "kind": "selection",
+            "file": self.FILE,
+            "line": line if line is not None else self.LINE,
+            "selector": selector,
+            "token": token,
+        }
+
+    def test_a_selector_prefix_rewrite_is_not_an_addition(self, monkeypatch, tmp_path):
+        """The phase-2 shape: same token, new selector prefix.
+
+        `.fback` under `.screen.open .fback` and under
+        `[data-part="screen"][data-open] .fback` is the same occurrence —
+        the same token in the same file. The regeneration must ACCEPT it:
+        nothing added, and the fresh entry written with its new display
+        selector.
+        """
+        stored = [self._selection(".screen.open .fback", ".fback")]
+        fresh = [self._selection('[data-part="screen"][data-open] .fback', ".fback")]
+        baseline = self._regenerate(monkeypatch, tmp_path, stored, fresh)
+
+        assert guard.write_baseline() == 0
+        assert json.loads(baseline.read_text(encoding="utf-8")) == fresh
+
+    def test_a_genuinely_new_token_is_still_refused(self, monkeypatch, tmp_path):
+        """A weaker key must not soften the ratchet: a NEW token is new debt.
+
+        The same file presenting one more occurrence the stored baseline
+        does not own — here `.probe-new`, a token it has never seen — must
+        refuse the write and leave the stored baseline untouched.
+        """
+        stored = [self._selection(".screen.open .fback", ".fback")]
+        fresh = stored + [self._selection(".probe-new", ".probe-new", line=self.LINE + 1)]
+        baseline = self._regenerate(monkeypatch, tmp_path, stored, fresh)
+
+        assert guard.write_baseline() == 1
+        assert json.loads(baseline.read_text(encoding="utf-8")) == stored
+
+    def test_a_fourth_occurrence_of_an_owned_token_is_an_addition(self, monkeypatch, tmp_path):
+        """Multiplicity: three owned `.card`s gaining a fourth is one added.
+
+        The identity is counted as a multiset — the same identity twice is
+        two entries and must stay two, so a file with three baselined
+        `.card`s presenting a fourth still refuses the write.
+        """
+        stored = [self._selection(".card", ".card", line=self.LINE + i) for i in range(3)]
+        fresh = stored + [self._selection(".card", ".card", line=self.LINE + 9)]
+        baseline = self._regenerate(monkeypatch, tmp_path, stored, fresh)
+
+        assert guard.write_baseline() == 1
+        assert json.loads(baseline.read_text(encoding="utf-8")) == stored
