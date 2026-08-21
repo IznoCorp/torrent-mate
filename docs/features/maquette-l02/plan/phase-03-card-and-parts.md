@@ -186,8 +186,9 @@ concept, because a namespace names the owning DOM concept and the deck owns it.
 | `.dcard` | `deck/card` | engine only |
 
 - [ ] **Step 1.** Check every leaf word against `scripts/code-vocabulary.txt` before writing it;
-      add what is missing in the same commit, one line each, sorted (`fresh` and `tag` are the
-      likely absentees — verify, do not assume).
+      add what is missing in the same commit, one line each, sorted. Measured on 2026-08-21:
+      **`subtitle`, `meta`, `fallback`, `caption`, `fresh` are absent**; `tag`, `top`, `reason`,
+      `deck` are present. Re-run the check — the file may have moved since.
 - [ ] **Step 2.** Emit each anchor beside its class at every site the table names, engine included.
 - [ ] **Step 3.** Re-anchor the 22 occurrences by literal replacement with asserted counts — 6 of
       the `.dcard` ones are held in tables (`deck.py:9`, `mouse.py:39,47`, …), read them from the
