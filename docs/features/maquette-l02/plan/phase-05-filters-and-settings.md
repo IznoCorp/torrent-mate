@@ -165,7 +165,7 @@ One commit: `refactor(maquette-l02): anchor the setting, segment and section-hea
       three of its ends move in this single commit.
 - [ ] **Step 3.** Re-anchor the harness selections; re-read the diff.
 - [ ] **Step 4.** Remove the corresponding baseline entries in this same commit. The phase total
-      across 5.1–5.3 is **37**, and the file must now hold **131**.
+      across 5.1–5.3 is **52** (30 + 2 + 20), and the file must now hold **392**; 5.4 closes the phase at 368.
 - [ ] **Step 5.** **ACC-12** — no French entered the vocabulary:
 
 ```bash
