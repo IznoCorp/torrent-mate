@@ -953,6 +953,27 @@ Two things are NOT covered by that rule, and confusing them is how a rule goes q
   are contracts, and renaming one moves the contract rather than a name. The frozen ones are
   listed, each with the reason it was kept, in `regions.json`'s `$vocabulary`.
 
+## The data-* vocabulary (L02)
+
+**One attribute, `data-part`, its value namespaced by `/`**: `card`, `card/title`,
+`card/poster`. The namespace names the owning DOM concept; the leaf names the role.
+The style class STAYS beside it — `className="ctitle" data-part="card/title"` — the
+class still styles, and L07 removes it. Keeping both is not duplication: it is the
+separation L02 exists to create.
+
+**Seven boolean state attributes, no value**: `data-open`, `data-no-poster`,
+`data-empty`, `data-blocked`, `data-announced`, `data-in-library`, `data-shown`.
+
+**In a component, a state attribute is `data-open={isOpen || undefined}` — never
+`data-open={isOpen}`.** React renders `data-*` as strings, so `false` becomes the
+string `"false"` and `[data-open]` then matches ALWAYS: a rule goes green while it
+measures nothing. The trap is not a remembered convention — `harness/attrs.py` will
+demonstrate it in the live document, and until that rule exists this paragraph is a
+belief, not a proof.
+
+A `data-part` VALUE is a name someone chose, so `scripts/check-no-french.py` will
+read it — it is not an address like `data-go="profil"`, which the guard leaves alone.
+
 ## Where the interface's French lives
 
 **No interface string lives in the code.** The shell's copy is in
