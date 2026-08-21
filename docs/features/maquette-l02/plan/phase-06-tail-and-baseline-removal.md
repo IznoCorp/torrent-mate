@@ -7,8 +7,20 @@ Phase 5 must have produced, all committed:
 - the filter, setting, segment and section-head contracts anchored, with `fr`, `fn`, `fk`, `fs`
   resolved at their sites and their meanings recorded in the commit messages;
 - `data-empty` and `data-blocked` emitted and asserted through `hasAttribute`;
-- `frontend/maquette/anchor-baseline.json` down to **346 entries** (405 − 59);
+- `frontend/maquette/anchor-baseline.json` down to **274 entries** (333 − 59);
 - ACC-12 recorded as `exit=0`.
+
+## Measured on the committed baseline, not estimated
+
+**271 token occurrences across 92 distinct tokens**, once `.open` is counted where it belongs
+(phase 2, the second token of every `.screen.open`). The head of the distribution: `.swipe` 20,
+`.tile` 20, `.sact` 18, `.chip` 10, `.act` 9, `.port` 8, `.flux` 7, `.pipeline` 7, `.h2` 7,
+`.t` 6, `.fback` 6 — and a long tail of ones and twos. By file: `audit2.py` 32, `page_host.py`
+32, `screen_addresses.py` 28, `bugs.py` 25, `screens.py` 19, `settings.py` 16.
+
+Eleven of these tokens are the SHELL's (`index.html`: `bottombar`, `loginscreen`, `splashbar`,
+`dlg`, `hbtn`, `installgo`, `brandbig`, `device`, `loginsubmit`, plus `port` and `screen` shared),
+and three are computed (`announced`, `modified`, `selbar`) — each resolved at its own site.
 
 ## Emission sites touched
 
@@ -29,12 +41,13 @@ spots — so it is worked by site, and each site is finished before the next beg
 
 ## Baseline entries removed
 
-**346 — the remainder, and the file reaches zero.** 343 class token occurrences across **93
-distinct tokens**, plus the last **3** state assertions: `classList.contains('show')` →
+**274 — the remainder, and the file reaches zero.** 271 class token occurrences across **92
+distinct tokens** (`.open` left for phase 2 once it was counted as the second token of every
+`.screen.open`), plus the last **3** state assertions: `classList.contains('show')` →
 `hasAttribute('data-shown')`, `classList.contains('in_library')` → `hasAttribute('data-in-library')`,
 `classList.contains('announced')` → `hasAttribute('data-announced')`.
 
-Running total across the wave: 117 + 129 + 43 + 59 + 346 = **694**.
+Running total across the wave: 189 + 129 + 43 + 59 + 274 = **694**.
 
 ---
 

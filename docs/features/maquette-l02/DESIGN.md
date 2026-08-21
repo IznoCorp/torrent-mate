@@ -334,13 +334,13 @@ impossible.
 | Phase | Subject | Approx. calls |
 | --- | --- | --- |
 | 1 | vocabulary, the guard arm, the full baseline, the dormant arm wired, the `data-part` VALUE arm, the per-rule hold-count capture | 0 migrated |
-| 2 | `.screen` / `.sheet` / `.scrim` — and the static-`open` correction | 63 tokens + 54 assertions = **117** |
+| 2 | `.screen` / `.sheet` / `.scrim` — and `data-open` on five layers | 63 `.screen` + 72 `.open` + 54 assertions = **189** |
 | 3 | `.card` and its parts — `ctitle`, `cbody`, `cfoot`, `poster`, `cov`, … (14 tokens) | 127 + 2 = **129** |
 | 4 | `.reslist`, `.sugwrap`, `.ep`, `.eppop`, … (7 tokens) | 43 + 0 = **43** |
 | 5 | filters and settings — `fr`, `fn`, `fk`, `fs`, `settingrow`, `seg`, `sechead`, … (13 tokens) | 57 + 2 = **59** |
-| 6 | the tail — 93 distinct tokens — then the baseline is emptied and deleted | 343 + 3 = **346** |
+| 6 | the tail — 92 distinct tokens — then the baseline is emptied and deleted | 271 + 3 = **274** |
 
-Baseline: **694** → 577 → 448 → 405 → 346 → **0**. The counts are token OCCURRENCES, not selectors:
+Baseline: **694** → 505 → 376 → 333 → 274 → **0**. The counts are token OCCURRENCES, not selectors:
 one selector can owe work to two phases, and only the occurrence has a single owner.
 
 ## Risks, and what answers each

@@ -40,7 +40,7 @@ rather than at the end, where a drift would already be indistinguishable from th
 Phases 3, 4 and 5 then descend the tail in decreasing cluster size — the card family, the list and
 episode surfaces, the filter and setting rows — each self-contained, each removing its own entries
 from the baseline in the same commit as the migration they correspond to. **Phase 6 takes the
-remaining 128 selections and 3 assertions, empties the baseline, deletes it, and turns the arm's
+remaining 271 token occurrences and 3 assertions, empties the baseline, deletes it, and turns the arm's
 floor into a hard zero in code.** The file is removed rather than left empty, because a file that
 happens to be empty is a floor someone can raise again.
 

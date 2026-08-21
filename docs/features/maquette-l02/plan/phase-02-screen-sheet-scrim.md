@@ -32,13 +32,18 @@ phase moves read FIVE layers — `#sheet` (21+), `#screen` (6), `#dlg` (5), `#sc
 
 ## Baseline entries removed
 
-**117, in the same commits as the migrations they correspond to**: 63 class TOKEN occurrences
-of `screen` / `sheet` / `scrim`, and all 54 `classList.contains('open')` assertions. The baseline
-goes 694 → 577. No sub-phase may remove an entry whose markup end it did not also move.
+**189, in the same commits as the migrations they correspond to** — and the first draft said 117,
+because it counted `.screen.open` as ONE token. It is two. Every one of the 63 `.screen.open`
+prefixes carries `.screen` AND `.open`, and rewriting the prefix removes both:
 
-**The unit is the token occurrence, not the selector.** `.screen.open .fback` owes work to this
-phase (`screen`) AND to phase 6 (`fback`); only the occurrence has a single owner. Counting by
-selector would have this phase remove nothing at all.
+| Sub-phase | Removes | What |
+| --- | --- | --- |
+| 2.1 | **126** | 63 `.screen` + 63 `.open`, the prefix rewrite |
+| 2.2 | 0 | emits `data-open`; moves no selection and no assertion |
+| 2.3 | **63** | 9 `.open` behind an id head (`#sheet.open` ×4, `#screen.open, #sheet.open` ×4, `#screen.open` ×1 → `#sheet[data-open]`, `#screen[data-open]`) + 54 `classList.contains('open')` assertions |
+
+The baseline goes **694 → 568 → 568 → 505**. No sub-phase may remove an entry whose markup end it
+did not also move.
 
 ## What the migration changes, and why it is not a rename
 
@@ -206,7 +211,7 @@ reading the class next to it — one state, two sources of truth, free to diverg
       assertion moved onto an attribute nothing emits is always false; a `[data-open]` selection
       onto the same is always true. This is what ACC-06 measured.
 - [ ] **Step 3.** Remove the remaining assertion entries in this same commit. The phase total across
-      2.1–2.3 is exactly **117**; the file must now hold **577**.
+      2.1–2.3 is exactly **189**; the file must now hold **505**.
 - [ ] **Step 4.** Mutation-test one migrated assertion: break the emitting component so the state is
       never set, confirm the rule FALLS naming the right defect, restore. Commit.
 

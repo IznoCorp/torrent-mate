@@ -8,7 +8,18 @@ Phase 4 must have produced, all committed:
   resolved at its own site rather than assumed;
 - `classList.contains('ep')` left in place, and ACC-11 recorded: exactly 5 exceptions, each with a
   non-empty reason;
-- `frontend/maquette/anchor-baseline.json` down to **405 entries** (448 − 43).
+- `frontend/maquette/anchor-baseline.json` down to **333 entries** (376 − 43).
+
+## Measured on the committed baseline, not estimated
+
+**57 token occurrences**: `.fr` 11, `.fx` 9, `.settingrow` 7, `.sechead` 6, `.fieldinput` 6,
+`.fn` 4, `.seg` 4, `.fk` 3, `.fs` 2, `.field` 2, and one each of `.optlist`, `.opt`,
+`.fieldtoggle`. By file: `settings.py` 14, `machine.py` 13, `arrivals.py` 6, `page_host.py` 6,
+`address.py` 4, `audit.py` 3.
+
+Emitters: **the five abbreviations — `.fr`, `.fn`, `.fk`, `.fs`, `.fx` — are the engine's
+alone**, which is why the section below insists they are RESOLVED before they are named. The
+setting/field/option tokens are components-only; `.sechead` straddles.
 
 ## Emission sites touched
 
@@ -32,7 +43,7 @@ day its surface converts out of `legacy.js` — which is exactly the day someone
 `settingrow`, `seg`, `sechead`, `field`, `fieldinput`, `fieldtoggle`, `optlist`, `opt` — plus the
 **2** filter-state assertions `classList.contains('fempty')` and `classList.contains('fblocked')`,
 which become `hasAttribute('data-empty')` and `hasAttribute('data-blocked')`. The baseline goes
-405 → 346.
+333 → 274.
 
 ---
 

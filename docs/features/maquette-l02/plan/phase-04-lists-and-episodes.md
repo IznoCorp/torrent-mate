@@ -7,7 +7,7 @@ Phase 3 must have produced, all committed:
 - `data-part="card"`, `card/title`, `card/body`, `card/foot`, `card/cover`, `card/poster` emitted at
   **both** the engine and the component sites;
 - the 2 `noposter` assertions moved to `hasAttribute('data-no-poster')`;
-- `frontend/maquette/anchor-baseline.json` down to **448 entries** (577 − 129);
+- `frontend/maquette/anchor-baseline.json` down to **376 entries** (505 − 129);
 - ACC-03 recorded as `exit=1` naming `cards.py`, its line and `.ctitle`;
 - both `ctitle` sites in `resolution.tsx` anchored (phase 3 owes nothing else on ACC-04).
 
@@ -15,6 +15,19 @@ Phase 3 must have produced, all committed:
 card family has none — every member straddles the engine boundary, so a surviving emitter keeps the
 arm green. `.reslist` has exactly one emitter (`screens/add.tsx`) and is selected 15 times; run
 ACC-04 from `DESIGN.md` as soon as `data-part="result-list"` is emitted in sub-phase 4.1.
+
+## Measured on the committed baseline, not estimated
+
+**43 token occurrences**: `.reslist` 17, `.ep` 8, `.sugwrap` 6, `.season` 4, `.eppop` 4,
+`.eprow` 2, `.eps` 2. By file: `audit2.py` 8, `pop.py` 8, `screens.py` 7, `surfaces.py` 6,
+`bridge.py` 3, `inter.py` 3.
+
+Emitters: `.reslist` components only (1 site, `add.tsx`); `.sugwrap` engine only; `.ep`, `.eprow`,
+`.eps`, `.season` straddle. **`.eppop` has NO static emitter** — no `className=`/`class=` literal
+carries it anywhere. It is one of the four computed tokens; its four selections either reach a
+dynamically composed class or select nothing. Resolve it at its site before anchoring, and if
+nothing emits it, say so: a selector nothing emits is a rule already selecting nothing, and the
+selection ⇒ emission arm will name it the moment it is moved onto `data-part`.
 
 ## Emission sites touched
 
@@ -38,7 +51,7 @@ read what it actually evaluates to. If nothing emits it, that is a finding to re
 
 **43** class token occurrences — 7 distinct tokens, `reslist`, `sugwrap`, `ep`, `eppop`, `eprow`,
 `eps`, `season`. No assertion entries move in this phase — see ACC-11 below, which is the whole
-point. The baseline goes 448 → 405.
+point. The baseline goes 376 → 333.
 
 ---
 
@@ -81,7 +94,7 @@ One commit: `refactor(maquette-l02): anchor the episode row and popover on data-
       **prefix**: `.eppop` starts with `ep`, and a careless pattern rewrites both. Re-read the diff
       and confirm each selector kept its own identity.
 - [ ] **Step 4.** Remove the corresponding baseline entries in this same commit; the phase total
-      across 4.1–4.2 is **43**, and the file must now hold **405**.
+      across 4.1–4.2 is **43**, and the file must now hold **333**.
 - [ ] **Step 5.** **Leave `classList.contains('ep')` exactly as it is.** It is one of the five
       permanent genre exceptions. The distinction is the phase's lesson and it is not cosmetic:
       the selection `.ep` asks _which element is this_, and moves; the assertion
