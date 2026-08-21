@@ -46,7 +46,7 @@ happens to be empty is a floor someone can raise again.
 
 | #   | Phase                                                             | File                                    | Status |
 | --- | ----------------------------------------------------------------- | --------------------------------------- | ------ |
-| 1   | Vocabulary, the guard arm, the baseline, the dormant arm, the VALUE arm, hold counts | `phase-01-vocabulary-and-guard.md` | [ ]    |
+| 1   | Vocabulary, the guard arm, the baseline, the dormant arm, the VALUE arm, hold counts | `phase-01-vocabulary-and-guard.md` | [x]    |
 | 2   | `.screen` / `.sheet` / `.scrim`, and the static-`open` correction | `phase-02-screen-sheet-scrim.md`        | [ ]    |
 | 3   | `.card` and its parts                                             | `phase-03-card-and-parts.md`            | [ ]    |
 | 4   | `.reslist`, `.sugwrap`, `.ep`, `.eppop`                           | `phase-04-lists-and-episodes.md`        | [ ]    |
@@ -62,6 +62,69 @@ VALUE, 1.7 captures the per-rule hold counts `run.sh` discards. **Phases 2 to 6 
 instrument existing**, so splitting it would create a seventh phase that no phase table in the
 DESIGN declares, to satisfy a line count that exists to protect a context window 204 lines do not
 threaten.
+
+## What phase 1 found, and what it cost the plan
+
+Phase 1 built the instrument and migrated nothing, and the instrument found eight things before
+a single anchor moved. Each is measured, each changed the plan, and three of them were this
+lot's own defects.
+
+1. **D4's method under-measures D4's objective by 54 %.** The classifier sorts each selector
+   into one bucket — its strongest anchor — and so does D4: 280+276+92+32+4 = 684, one bucket
+   per call. `#view .swipe` counts as id-anchored and the `.swipe` leaves the measurement. It
+   still dies at L07. Measured over every token rather than the strongest: **432** selectors
+   carry a class, not 281; **151** hide it behind a `data-*` or an id. The operator ruled the
+   full scope in. The unit of work became the class TOKEN OCCURRENCE — a selector can owe work
+   to two phases and only the occurrence has one owner — and the baseline became **694**.
+2. **The total was 687, not 684, and two readers agreed on the wrong number.** D4 and the first
+   pass of this lot both read only QUOTED selectors; three pass theirs as template literals.
+   All three are `data-*`-anchored, so `class 281` never moved — but an exact agreement was two
+   blind spots coinciding, and it is why the classifier is a file under review, not a regex.
+3. **The wave's own rule added a class anchor.** `attrs.py`, written in 1.2 to demonstrate the
+   React trap, selected `.segmini button`. The classifier read 282 against 281 and the dispatch
+   refused to adjust the tool to agree. The rule now anchors on `[aria-pressed]` — what it
+   measures — and that is the two-readers argument won on its first day.
+4. **The ratchet could be defeated in three commands.** A new violation was refused, then
+   absorbed by `--write-baseline`, and the guard's own failure message handed over the bypass.
+   Phases 2 to 6 shift line numbers in every commit and would have regenerated each time, so the
+   ratchet would have been inert for the whole wave. Regeneration now refuses additions;
+   identity dropped the line number, then the selector string (a prefix rewrite made an unmoved
+   leaf look new); `--allow-additions` exists, is loud, and is banned from phases 2 to 6.
+5. **React behaves as believed — measured, not quoted.** A boolean `false` renders the STRING
+   `"false"`, present, and `[aria-pressed]` matches it; `undefined` is omitted. The
+   `|| undefined` arm rests on a measurement now. The subject had to be found: React is not on
+   `window` and no `data-*` boolean existed yet, so the proof ran on `aria-pressed` and a `title`,
+   and 2.2 owes the same four holds against the real `data-open`.
+6. **Two criteria could not run, and one read nothing.** ACC-08 named `run.sh`, which prints a
+   passing rule's output nowhere — `harness-hold-counts.py` captures it now, and says plainly
+   that **39 of 51** rules report a count (985 holds) while 12 print a prose verdict and are
+   compared on exit status alone. ACC-12 exited 0 over values nothing read — `check_data_attributes` now reads the
+   VALUES of the naming attributes (20 today), and left `data-go="profil"` alone.
+   `oracle.py --contracts`, which already held half of D4, ran nowhere; it runs in `make check`
+   and CI in 0.158 s.
+7. **Two breaks were reported pre-existing and were the wave's.** An argv-reading `main()` broke
+   an in-process test; a test left unformatted broke `make lint`. Both passed at `226e71fb` and
+   failed at the report — the comparison point had been the dispatch's own previous commit.
+   « Pre-existing » is a claim about a date, and the date is the branch point.
+   And five reports claimed `check-module-size.py → exit 0` on the guard while it stood at
+   1275 non-blank lines: they ran the tool without `--root scripts`, so its default root never
+   read the file. `make check` runs it with the flag and stopped the gate on it. A gate proves
+   what it READS — and the gate list a dispatch is handed must name the exact command the
+   Makefile runs, flags included.
+8. **A second blind spot, found by dry-running phase 2 on a scratch copy.** Both readers extract a
+   selector only as the literal argument of a selection call; the harness also HOLDS selectors in
+   variables and in tables a helper walks (`screen_port = ".screen.open .port"`, the state tables
+   of `audit2.py`). Measured: 113 selector-shaped strings outside any call, 146 class token
+   occurrences before a RULE filtered the false positives (`.json5`, `.torrentmate`): emitted by a
+   design site, or carrying selector structure. **140 entered the instrument** before any
+   migration, tagged `held` apart from `call`, through the one sanctioned use of
+   `--allow-additions` — a re-classification of what the instrument reads, once. The baseline is
+   **834**, and the burn-down was recalibrated a third time: 201 / 143 / 46 / 76 / 368.
+
+Carried, not hidden: `host.tsx:142` renders `data-region={region}` from a table — six region
+names reach the DOM through a value no arm reads; `content.py` is a SECOND live-data rule
+`run.sh`'s header does not name; six `#screen.classList.contains('open')` assertions are
+vestiges of an engine path nothing calls, and move in 2.3 still reading false.
 
 ## The ACCEPTANCE map
 
