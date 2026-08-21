@@ -7057,7 +7057,7 @@ import { screens, panel, bridge } from "../seams.js";
   }
   function chipHTML(chip) {
     return chip
-      ? `<span class="chip ${chip[0]}" data-part="chip">${escapeHtml(chip[1])}</span>`
+      ? `<span class="chip ${chip[0]}" data-part="chip" data-tone="${chip[0]}">${escapeHtml(chip[1])}</span>`
       : "";
   }
 
@@ -7581,7 +7581,7 @@ import { screens, panel, bridge } from "../seams.js";
           info: "info",
         };
         const badge = ligne.ton
-          ? `<span class="chip ${TONS[ligne.ton]}" data-part="chip">${value}</span>`
+          ? `<span class="chip ${TONS[ligne.ton]}" data-part="chip" data-tone="${TONS[ligne.ton]}">${value}</span>`
           : value;
         return `<li class="fx${empty ? " fempty" : ""}${ligne.state === "danger" ? " fblocked" : ""}${
           ligne.target ? " fclick" : ""

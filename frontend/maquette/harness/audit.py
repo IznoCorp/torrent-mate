@@ -80,8 +80,14 @@ async def main():
             // An href IS a destination — the trailer is a genuine outbound
             // link to YouTube.
             .filter(el=>!el.getAttribute('href') || el.getAttribute('href')==='#')
-            .filter(el=>Object.keys(el.dataset).length===0 && !el.id && !el.onclick
-                    && !/searchclear|burger|avatar|fback|more\b|fab|sel\b|vsw|seg\b|pill|tile|ep\b/.test(el.className))
+            // A second allowlist used to sit here — twelve style-class tokens
+            // in a regex tested against `className`, one of R2's two lists.
+            // Measured dead: neutralised whole, `deadButtons` stays empty,
+            // because every control it named now carries a `data-part` and
+            // the dataset test on this line already clears them. It would
+            // have started reporting all twelve as destination-less the day
+            // the stylesheet converted, for a reason nothing could name.
+            .filter(el=>Object.keys(el.dataset).length===0 && !el.id && !el.onclick)
             .map(el=>'« '+el.textContent.trim().slice(0,28)+' »');
 
           // R3 — touch targets: every control is at least 40px on one axis

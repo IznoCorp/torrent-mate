@@ -24,8 +24,18 @@ async def main():
 
     print("── Tintin (owned + missing) ──")
     await pg.evaluate("()=>window.__go('followsheet-gaps')"); await pg.wait_for_timeout(450)
-    a = await click_("""()=>[...document.querySelectorAll('[data-part="episode"]')].find(e=>e.className.includes('in_library')).click()""", "owned episode")
-    b1 = await click_("""()=>[...document.querySelectorAll('[data-part="episode"]')].find(e=>e.className.includes('to_grab')).click()""", "missing episode")
+    # The two episodes are picked by the STATE ATTRIBUTES the cell emits,
+    # never by its class: `data-in-library` and `data-announced` are written
+    # from the same expression as the class and survive it.
+    #
+    # « MISSING » IS THE ABSENCE OF BOTH, and that is wider than `to_grab` —
+    # deliberately. The component's state can also be `pending` or
+    # `acquiring`, and an episode in either is aired and not owned exactly
+    # like a `to_grab` one, which is precisely what the hold below asks
+    # about: that the popover gives its broadcast date. Picking the class
+    # `to_grab` measured a narrower thing than the rule claims to.
+    a = await click_("""()=>[...document.querySelectorAll('[data-part="episode"]')].find(e=>e.hasAttribute('data-in-library')).click()""", "owned episode")
+    b1 = await click_("""()=>[...document.querySelectorAll('[data-part="episode"]')].find(e=>!e.hasAttribute('data-in-library') && !e.hasAttribute('data-announced')).click()""", "missing episode")
     await shot(pg, "pop-episode")
 
     print("── Silo (including announced episodes) ──")

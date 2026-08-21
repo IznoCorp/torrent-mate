@@ -216,11 +216,50 @@ class TestTheHardZeroFloor:
 
         assert "hasAttribute('data-open')" in capsys.readouterr().err
 
-    def test_a_genre_assertion_is_still_exempt(self, tmp_path, monkeypatch, capsys) -> None:
-        """The five permanent exceptions survive the floor, and are counted."""
-        assert self._arm(tmp_path, monkeypatch, "el.classList.contains('h2')\n") == 0
+    def test_a_genre_name_at_an_undeclared_site_is_refused(self, tmp_path, monkeypatch, capsys) -> None:
+        """The exemption is a SITE, so the name alone buys nothing.
 
+        `h2` was a permanent exception by NAME, and `machine.py` used it to
+        walk siblings looking for the next heading — structure, under a
+        written reason that described a geometry rule two files over. A
+        name-keyed list cannot tell the two uses apart; only the site can.
+        """
+        assert self._arm(tmp_path, monkeypatch, "el.classList.contains('h2')\n") == 1
+
+        assert "GENRE_SITES" in capsys.readouterr().err
+
+    def test_a_declared_genre_site_survives_the_floor(self, tmp_path, monkeypatch, capsys) -> None:
+        """A site in the table is exempt, and is COUNTED as exempt.
+
+        The fixture is named after a real declared site so the (file, line,
+        class) key matches; what is proven is the keying, not the reason.
+        """
+        fixture = tmp_path / "audit.py"
+        fixture.write_text("\n" * 100 + "el.classList.contains('ep')\n", encoding="utf-8")
+        monkeypatch.setattr(anchors, "harness_files", lambda: [fixture])
+        monkeypatch.setattr(anchors, "ROOT", tmp_path)
+
+        assert guard.check_anchor_debt() == 0
         assert "1 genre assertion(s) exempt" in capsys.readouterr().out
+
+    def test_every_declared_exemption_carries_a_reason(self) -> None:
+        """A reason-less exemption is itself a violation (ACC-11)."""
+        assert anchors.GENRE_SITES
+        assert all(reason.strip() for reason in anchors.GENRE_SITES.values())
+        assert len({reason for reason in anchors.GENRE_SITES.values()}) == len(anchors.GENRE_SITES), (
+            "one sentence covering every site distinguishes none of them")
+
+    def test_each_declared_exemption_still_names_a_live_assertion(self) -> None:
+        """A site that MOVED is an exemption nobody re-read.
+
+        The key is `file:line`, and that is the intended cost: an
+        exemption is a claim about ONE assertion.
+        """
+        live = {(path.name, line, name)
+                for path in anchors.harness_files()
+                for line, name in anchors.state_assertions(path)}
+
+        assert set(anchors.GENRE_SITES) <= live
 
     def test_the_guard_takes_no_argument_any_more(self, capsys) -> None:
         """`--write-baseline` is gone, and saying so is part of the removal."""
@@ -255,6 +294,164 @@ class TestTheHardZeroFloor:
 
         assert run.returncode == 0, run.stderr
         assert json.loads(run.stdout) == []
+
+
+class TestTheFifthSyntacticPosition:
+    """A class name READ from the class attribute, outside a selector.
+
+    THE HOLE, AND IT IS THE SAME FAMILY THE ARM WAS WRITTEN FOR. Until this
+    class existed the arm knew FOUR positions a class name can occupy: the
+    literal argument of a selection call, a selector-shaped held literal, a
+    `classList.contains` argument, and — one attribute over — a
+    `data-part` value. A rule can also read the class ATTRIBUTE itself and
+    decide on a name it finds there, and that is a fifth position no reader
+    opened: `className.includes('in_library')`, `className.split(' ')
+    .includes('primary')`, `className.replace('ep ', '')`, a table of class
+    names matched against a spread `classList`, a twelve-token regex tested
+    against `className`, and a CSS rule a rule INJECTS. Six shapes, all of
+    them selection work, all of them dying at the stylesheet conversion with
+    no instrument able to say so.
+
+    Each fixture below is the minimal spelling of one shape. They are
+    planted, not quoted from the harness, so the arm is proven against the
+    SHAPE rather than against the six sites that happened to exist.
+    """
+
+    def _fixture(self, tmp_path, source):
+        """Writes `source` as a fixture harness file.
+
+        Args:
+            tmp_path: The pytest fixture.
+            source: The fixture file's text.
+
+        Returns:
+            The path written.
+        """
+        fixture = tmp_path / "fixture.py"
+        fixture.write_text(source, encoding="utf-8")
+        return fixture
+
+    def _arm(self, tmp_path, monkeypatch, source):
+        """Runs the anchor arm over one fixture file.
+
+        Args:
+            tmp_path: The pytest fixture.
+            monkeypatch: The pytest fixture.
+            source: The fixture harness file's text.
+
+        Returns:
+            The arm's exit code.
+        """
+        fixture = self._fixture(tmp_path, source)
+        monkeypatch.setattr(anchors, "harness_files", lambda: [fixture])
+        monkeypatch.setattr(anchors, "ROOT", tmp_path)
+        return guard.check_anchor_debt()
+
+    def test_a_membership_test_on_the_class_attribute_is_refused(self, tmp_path, monkeypatch, capsys) -> None:
+        """`className.includes('x')` selects by class without a selector."""
+        source = "JS = \"\"\"()=>list.find(e=>e.className.includes('in_library'))\"\"\"\n"
+        assert self._arm(tmp_path, monkeypatch, source) == 1
+        err = capsys.readouterr().err
+
+        assert "fixture.py:1" in err and "in_library" in err
+
+    def test_a_split_membership_test_is_refused(self, tmp_path, monkeypatch, capsys) -> None:
+        """The split between `className` and `includes` hides nothing."""
+        source = "JS = \"\"\"(b)=>b.className.split(' ').includes('primary')\"\"\"\n"
+        assert self._arm(tmp_path, monkeypatch, source) == 1
+
+        assert "primary" in capsys.readouterr().err
+
+    def test_a_replace_on_the_class_attribute_is_refused(self, tmp_path, monkeypatch, capsys) -> None:
+        """`className.replace('ep ', '')` names `ep` and strips it."""
+        source = "JS = \"\"\"(x)=>x.className.replace('ep ', '')\"\"\"\n"
+        assert self._arm(tmp_path, monkeypatch, source) == 1
+
+        assert "'ep'" in capsys.readouterr().err
+
+    def test_an_equality_on_the_class_attribute_is_refused(self, tmp_path, monkeypatch, capsys) -> None:
+        """The same read written as a comparison."""
+        source = "JS = \"\"\"(x)=>x.className === 'card'\"\"\"\n"
+        assert self._arm(tmp_path, monkeypatch, source) == 1
+
+        assert "'card'" in capsys.readouterr().err
+
+    def test_an_empty_comparison_names_no_class(self, tmp_path, monkeypatch) -> None:
+        """`className === ''` asks whether the element is unclassed."""
+        source = "JS = \"\"\"(x)=>x.className === ''\"\"\"\n"
+        assert self._arm(tmp_path, monkeypatch, source) == 0
+
+    def test_a_regex_of_class_names_is_refused_branch_by_branch(self, tmp_path, monkeypatch, capsys) -> None:
+        """Twelve tokens in a regex literal are twelve occurrences."""
+        source = "JS = \"\"\"(x)=>/burger|fab|seg\\\\b/.test(x.className)\"\"\"\n"
+        assert self._arm(tmp_path, monkeypatch, source) == 1
+        err = capsys.readouterr().err
+
+        assert "'burger'" in err and "'fab'" in err and "'seg'" in err
+        assert "3 anchor occurrence(s)" in err
+
+    def test_a_class_list_read_as_a_collection_is_refused(self, tmp_path, monkeypatch, capsys) -> None:
+        """A table of class names matched against a spread `classList`.
+
+        The names are object KEYS, so there is no literal to name and the
+        refusal names the SITE — which is the whole point: nothing else in
+        this guard can see a class name that is never quoted.
+        """
+        source = "JS = \"\"\"(b)=>TONS[[...b.classList].find((c) => TONS[c])]\"\"\"\n"
+        assert self._arm(tmp_path, monkeypatch, source) == 1
+
+        assert "fixture.py:1" in capsys.readouterr().err
+
+    def test_adding_and_removing_a_class_is_not_a_read(self, tmp_path, monkeypatch) -> None:
+        """A rule that DRIVES the document writes classes; it selects none."""
+        source = "JS = \"\"\"()=>document.documentElement.classList.add('measuring')\"\"\"\n"
+        assert self._arm(tmp_path, monkeypatch, source) == 0
+
+    def test_an_injected_css_rule_is_refused(self, tmp_path, monkeypatch, capsys) -> None:
+        """A rule a harness rule INJECTS carries a selector like any other."""
+        source = "JS = \"\"\"(n)=>{st.textContent = '.cov{-webkit-line-clamp:' + n + '}';}\"\"\"\n"
+        assert self._arm(tmp_path, monkeypatch, source) == 1
+
+        assert "'cov'" in capsys.readouterr().err
+
+    def test_reading_a_stylesheet_as_text_is_not_a_selection(self, tmp_path, monkeypatch) -> None:
+        """`".splashbar {" in gate` — the subject IS the source text.
+
+        Nothing is assigned and nothing selects: the rule asserts that a
+        block of CSS reached the served document, and it keeps the class
+        name the stylesheet is still written in.
+        """
+        source = 'check("the gate carries the style", ".splashbar {" in gate)\n'
+        assert self._arm(tmp_path, monkeypatch, source) == 0
+
+    def test_reporting_the_class_attribute_is_not_a_read(self, tmp_path, monkeypatch) -> None:
+        """A rule that PRINTS an element's class names no class of its own."""
+        source = "JS = \"\"\"()=>els.map(el=>el.className||el.tagName)\"\"\"\n"
+        assert self._arm(tmp_path, monkeypatch, source) == 0
+
+    def test_the_second_reader_sees_the_fifth_position_too(self, tmp_path) -> None:
+        """Two readers, or one reader's zero is a claim.
+
+        `classify-rule-anchors.py --baseline` reads the same corpus through
+        its own extraction; a position only the guard knows about would
+        leave the independent listing empty over a live class dependency.
+        """
+        self._fixture(
+            tmp_path,
+            "JS = \"\"\"()=>list.find(e=>e.className.includes('in_library'))\"\"\"\n"
+            "querySelector('#view')\n")
+        run = subprocess.run(
+            [sys.executable, str(SCRIPT.parent / "classify-rule-anchors.py"), "--baseline", str(tmp_path)],
+            capture_output=True,
+            text=True,
+        )
+
+        assert run.returncode == 0, run.stderr
+        assert [(entry["kind"], entry["token"]) for entry in json.loads(run.stdout)] == [("read", "in_library")]
+
+    def test_the_real_harness_reads_no_class_name(self) -> None:
+        """Green on this repository: the fifth position is empty too."""
+        assert anchors.collect_read_findings() == []
 
 
 class TestEscapedPartSelections:

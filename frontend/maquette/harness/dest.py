@@ -40,8 +40,16 @@ async def main():
             .filter(x=>x.getBoundingClientRect().height>0 && !x.disabled
                        && !x.closest('[data-part="harness/bar"]') && !x.closest('[data-part="harness/panel"]')
                        && !x.closest('details:not([open])'))
-            .filter(x=>Object.keys(x.dataset).length===0 && !x.id && !x.onclick
-                       && !/searchclear|burger|avatar|fback|more\b|fab|sel\b|vsw|seg\b|pill|tile|ep\b/.test(x.className))
+            // A control with NO `data-*` at all, no id and no handler has
+            // nothing that could carry it anywhere. A second allowlist used
+            // to sit here — twelve style-class tokens in a regex tested
+            // against `className` — and it was measured dead: neutralised
+            // whole, this count stays at 0, because every control it named
+            // now carries a `data-part` and the dataset test above already
+            // clears them. A class list that exempts nothing exempts nothing
+            // in silence, and it would have started reporting all twelve as
+            // destination-less the day the stylesheet converted.
+            .filter(x=>Object.keys(x.dataset).length===0 && !x.id && !x.onclick)
             .map(x=>x.textContent.trim().slice(0,32));}""",)
         for x in r: without.append((e,x))
     print(f"buttons WITHOUT a destination: {len(without)}")

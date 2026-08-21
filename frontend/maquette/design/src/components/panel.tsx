@@ -51,7 +51,7 @@ function RichText({ value }: { value: RichTextValue | null | undefined }) {
 
 function Chip({ chip }: { chip: [string, string] | null | undefined }) {
   if (!chip) return null;
-  return <span className={`chip ${chip[0]}`} data-part="chip">{chip[1]}</span>;
+  return <span className={`chip ${chip[0]}`} data-part="chip" data-tone={chip[0]}>{chip[1]}</span>;
 }
 
 // `posterBox`'s image-or-initials fallback, at panel size. `POSTERS` /

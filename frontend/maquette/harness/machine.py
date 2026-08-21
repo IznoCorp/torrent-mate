@@ -168,9 +168,15 @@ READ = """() => {
     // a reader to the strings, the second to the component — so the miss says
     // which of the two it was rather than one word for both.
     if (!t) return {heading: false, rows: null};
+    // WHICH SIBLING IS THE LIST, and did we run into the next heading first
+    // — both are questions about STRUCTURE, and both parts are emitted and
+    // selected by this same file three lines up and two hundred down. They
+    // read the class until 6.6, under a genre exemption whose written reason
+    // — « the subject is the applied style » — described a geometry rule two
+    // files over and was simply false here.
     let n = t.nextElementSibling;
-    while (n && !n.classList.contains('flux')) {
-      if (n.classList.contains('h2')) return {heading: true, rows: null};
+    while (n && !n.matches('[data-part="flux"]')) {
+      if (n.matches('[data-part="heading"]')) return {heading: true, rows: null};
       n = n.nextElementSibling;
     }
     return {heading: true, rows: n
@@ -186,10 +192,12 @@ READ = """() => {
             v: x.querySelector('[data-part="flux/value"]').textContent.trim(),
             s: x.querySelector('[data-part="flux/detail"]').textContent.trim(),
             // Reported in the operator's vocabulary, which is what the data is
-            // written in: the stylesheet's `danger` is their `alert`.
-            tone: badge
-              ? TONS[[...badge.classList].find((c) => TONS[c])] || 'unknown'
-              : null,
+            // written in: the emitted `danger` is their `alert`. The tone is
+            // read from `data-tone`, which every chip emitter writes from the
+            // SAME expression as its class — matching the class list against
+            // the table's keys named those keys as class names, and no
+            // instrument could see a class name that is never quoted.
+            tone: badge ? TONS[badge.dataset.tone] || 'unknown' : null,
           };
         })
       : null};
@@ -412,7 +420,7 @@ async def main():
               const c = x.querySelector('[data-part="flux/value"] [data-part="chip"]');
               const T = { success: 'success', danger: 'alert',
                           warning: 'warning', info: 'info' };
-              return c ? T[[...c.classList].find((k) => T[k])] || 'unknown' : null;
+              return c ? T[c.dataset.tone] || 'unknown' : null;
             })(),
           }))
           .filter((r) => r.badge && /^[\\d\\s  ]+$/.test(r.v.replace(/titres|éléments/g, '')))""")

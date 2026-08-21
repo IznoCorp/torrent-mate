@@ -176,7 +176,8 @@ async def main():
               let st = document.querySelector('#clamptrial');
               if (!st) { st = document.createElement('style'); st.id = 'clamptrial';
                          document.head.appendChild(st); }
-              st.textContent = '.cov{-webkit-line-clamp:' + n + ' !important}';}""", n)
+              st.textContent = '[data-part="card/overview"]{-webkit-line-clamp:'
+                               + n + ' !important}';}""", n)
             await pg.evaluate("()=>{window.__store.write({page: 'lib',"
                               " libLens: 'cat', libMode: 'list'}); render();}")
             await pg.wait_for_timeout(520)

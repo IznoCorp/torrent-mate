@@ -131,7 +131,7 @@ function ReleaseCard({
           {opts.overview ? <span className="cov" data-part="card/overview">{opts.overview}</span> : ""}
           {confidence ? (
             <span className="cmeta" data-part="card/meta">
-              <span className="chip info" data-part="chip">
+              <span className="chip info" data-part="chip" data-tone="info">
                 {t("screens.resolution.confidence")} {confidence}
               </span>
             </span>
@@ -204,12 +204,13 @@ function DecisionCard({ decision }: { decision: SettledDecision }) {
               exactly what one comes back for. */}
           {identity ? <span className="creason" data-part="card/reason">{identity}</span> : ""}
           <span className="cmeta" data-part="card/meta">
-            <span className={`chip ${REASON_TONE[decision.reason] ?? "neutral"}`} data-part="chip">
+            <span className={`chip ${REASON_TONE[decision.reason] ?? "neutral"}`} data-part="chip"
+              data-tone={REASON_TONE[decision.reason] ?? "neutral"}>
               {REASON_LABEL[decision.reason] ?? decision.reason}
             </span>
             {state ? (
               <span
-                className={`chip ${state[0]}`} data-part="chip"
+                className={`chip ${state[0]}`} data-part="chip" data-tone={state[0]}
                 title={DECISION_STATE_DETAIL[decision.state] ?? ""}
               >
                 {state[1]}
@@ -343,6 +344,7 @@ export function ResolutionScreen() {
             {decision ? (
               <span
                 className={`chip ${REASON_TONE[decision.reason] ?? "neutral"}`} data-part="chip"
+                data-tone={REASON_TONE[decision.reason] ?? "neutral"}
               >
                 {REASON_LABEL[decision.reason] ?? decision.reason}
               </span>

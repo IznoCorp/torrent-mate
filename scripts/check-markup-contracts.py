@@ -45,13 +45,14 @@ would report a defect that is not one.
 ARM 2 — a rule selection anchored on a style class.
 Corpus: `frontend/maquette/harness`, every `*.py` file, read as text.
 The arm lives in `markup_anchors.py`, beside this file, and that file's
-header describes what it reads and the two refusals it makes. Only the
+header describes what it reads and the three refusals it makes. Only the
 orchestration is here: the arm moved out when this file passed the
 1 000-line block, and the entry point stays the gate's ONE command.
 
 ITS FLOOR IS A HARD ZERO. Any class token in any rule selector — passed
-to a call or held in a variable, a table, a concatenation — is a
-violation on its first occurrence. There is no baseline file, no budget
+to a call, held in a variable, a table, a concatenation, or READ from the
+class attribute without a selector at all — is a violation on its first
+occurrence. There is no baseline file, no budget
 and no escape hatch: the burn-down that carried the shipped debt was
 emptied, and the machinery that held it was deleted in the same move
 rather than left behind as a tolerance someone could raise.
@@ -75,6 +76,14 @@ read through the SAME extraction (`held_literals`) rather than a second
 reader that would drift from it. The printed count says how many of the
 selections it checked were held, because a number that cannot be broken
 down is a number nobody can tell is short.
+
+AND A THIRD PLACE, WHICH IS NOT A SELECTOR STRING AT ALL: a rule the
+harness INJECTS into the document, where the browser does the selecting
+(`injected_rule_selections`). No other extraction can reach one — a rule
+text carries unbalanced braces, which is exactly how `selector_shaped`
+tells stylesheet text from a selection — so a `data-part` renamed under
+an injected rule would leave it clamping nothing, in silence. That is
+what `.cov{-webkit-line-clamp:` did on the class side until 6.6.
 
 THE DEFECT CLASS. A rule selecting `[data-part="card/title"]` reads a
 name the markup must emit. A value selected and emitted nowhere is a
@@ -169,8 +178,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 # point, by the gate and by `tests/scripts/test_check_markup_contracts.py`
 # alike.
 from markup_anchors import (  # noqa: E402, F401
-    check_anchor_debt, class_tokens, harness_files, held_literals,
-    held_occurrences, selection_calls,
+    INJECTED_RULE, check_anchor_debt, class_tokens, collect_read_findings,
+    harness_files, held_literals, held_occurrences, selection_calls,
 )
 # The shared text readers — see that module's header.
 from markup_text import (  # noqa: E402
@@ -390,6 +399,38 @@ def held_part_selections(path: Path) -> list[tuple[int, str]]:
     return found
 
 
+def injected_rule_selections(path: Path) -> list[tuple[int, str]]:
+    """Extracts every `data-part` value an INJECTED CSS rule selects.
+
+    A harness rule can select without querying: it writes a stylesheet
+    rule into the document and lets the browser do the selecting.
+    `content.py` clamps the library card's synopsis that way. The
+    selector in such a rule is a selector, and its value must be emitted
+    like any other — but no other extraction here can reach it: a rule
+    text carries unbalanced braces, so `selector_shaped` refuses it (and
+    is right to: a brace that never balances is what tells stylesheet
+    text from a selection), and it is nobody's call argument.
+
+    Only the part BEFORE the first brace is read — that is the selector;
+    what follows is declarations.
+
+    Args:
+        path: A Python file under `HARNESS`.
+
+    Returns:
+        `(line, value)` tuples, in file order.
+    """
+    text = comment_masked(path.read_text(encoding="utf-8"))
+    found: list[tuple[int, str]] = []
+    for match in INJECTED_RULE.finditer(text):
+        css = match.group("css")
+        if "{" not in css:
+            continue
+        line = text.count("\n", 0, match.start()) + 1
+        found.extend(part_values(line, css.split("{", 1)[0]))
+    return found
+
+
 def escaped_part_selections(path: Path) -> list[tuple[int, str]]:
     """Returns every `data-part` selection line an escaped quote hides.
 
@@ -540,8 +581,9 @@ def check_part_values() -> int:
                   file=sys.stderr)
         passed = part_selections(path)
         holds = held_part_selections(path)
+        injected = injected_rule_selections(path)
         held += len(holds)
-        for line, value in passed + holds:
+        for line, value in passed + holds + injected:
             checked += 1
             if value not in emitted:
                 violations += 1

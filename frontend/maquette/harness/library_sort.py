@@ -41,7 +41,11 @@ PANEL = """()=>[...document.querySelectorAll('[data-part="sheet/actions"] [data-
   text: button.textContent.trim(),
   sort: button.dataset.setsort || null,
   reversed: button.dataset.reversed === '1',
-  current: button.className.split(' ').includes('primary'),
+  // « which sort is in force » is read from the tone the action emits, not
+  // from the class that paints it: `data-tone` is written from the same
+  // expression as the class, three holds below depend on this field, and a
+  // class read is not a shape any reader of this repository could see.
+  current: button.dataset.tone === 'primary',
 }))"""
 
 

@@ -25,7 +25,7 @@ what carried it — a burn-down baseline, a ratchet, an
 `--allow-additions` escape hatch — was deleted with it: machinery that
 has lost its subject is machinery nobody dares delete later.
 
-WHAT ARM 2 READS, AND THE TWO REFUSALS.
+WHAT ARM 2 READS, AND THE THREE REFUSALS.
 
   1. A class TOKEN in a selection, read by TWO passes — a guard that
      reads only the call pass would reproduce the instrument's second
@@ -64,14 +64,43 @@ WHAT ARM 2 READS, AND THE TWO REFUSALS.
         exactly like a call occurrence — a selector held in a variable
         dies with the stylesheet exactly like one written in a call.
 
-  2. `classList.contains('<state>')` for one of the seven migrated
-     states: open, noposter, show, in_library, fempty, fblocked,
-     announced. The five genre assertions — h2, flux, ep, radio, note —
-     are NEVER refused: their subject IS the applied style, so moving
-     them to a data-* attribute would make them true after the class is
-     gone and the rule would measure less than it does today. They are
-     permanent exceptions; each one's written reason lives in
-     `scripts/classify-rule-anchors.py` (--exceptions).
+  2. `classList.contains('<class>')` — EVERY one of them, unless the SITE
+     is declared in `GENRE_SITES` below with the reason that is true
+     there. The genre assertions listed by
+     `scripts/classify-rule-anchors.py --exceptions` are the whole
+     exemption: their subject IS the applied style, so moving them to a
+     data-* attribute would make them true after the class is gone and
+     the rule would measure less than it does today.
+
+     THE KEY IS THE SITE, NOT THE NAME, and a list of seven migrated
+     state names is what it replaced. A name-keyed exemption exempted
+     `flux` and `h2` wherever they appeared, and `machine.py` used both
+     to walk siblings looking for the flux list — structure, not style,
+     with `[data-part="flux"]` and `[data-part="heading"]` emitted and
+     selected by that same file. A name list also said nothing at all
+     about a `contains` on a name nobody had thought of: it warned, and a
+     warning is not a floor.
+
+  3. A class name READ from the class ATTRIBUTE — the fifth syntactic
+     position, and the one the first three arms were blind to. A rule can
+     select without ever writing a selector: `className.includes('x')`,
+     `className.split(' ').includes('x')`, `className.replace('x ', '')`,
+     `className === 'x'`, a regex of class names `.test`ed against
+     `className`, a table of class names matched against a SPREAD
+     `classList`, and a CSS rule the harness INJECTS into the document.
+     Six shapes, every one of them selection work, none of them
+     selector-shaped: `HELD_RE` wants a literal starting with `.`, `#` or
+     `[`, and `'in_library'` starts with a letter. What made this the
+     expensive kind of hole is that four of the six sat on lines the
+     migration itself rewrote — the selector beside them moved to
+     `data-part` while the class read stayed, inches away.
+
+     A read that only REPORTS is not one: `map(el => el.className)`
+     prints what an element wears and names no class of its own, and a
+     rule that ADDS or REMOVES a class drives the document rather than
+     selecting in it. A stylesheet read as TEXT (`".splashbar {" in
+     gate`) is not an injection: nothing is assigned and nothing
+     selects.
 
 AND THE ZERO IS ONLY WORTH WHAT THE READERS SEE. A floor of zero over a
 corpus a reader walks past is not a floor, which is why the two shapes
@@ -106,18 +135,100 @@ CALL = re.compile(r"(querySelector|querySelectorAll|locator|matches)\s*\(")
 # per call.
 CONTAINS = re.compile(r"classList\.contains\(\s*(['\"])([^'\"]*)\1\s*\)")
 
-# The seven state classes migrated to the boolean data-* attributes.
-# `classList.contains` on one of these is a state assertion, and it is
-# refused: the attribute is what survives the class.
-STATE_CLASSES = ("open", "noposter", "show", "in_library",
-                 "fempty", "fblocked", "announced")
+# The permanent genre assertions, never refused — keyed on the SITE, not
+# on the class name. Their written reasons live in
+# `classify-rule-anchors.py --exceptions`, and the reason is the whole
+# exemption: the assertion's subject is the applied style THERE, so a
+# data-* would keep it true after the class is gone and the rule would
+# measure less than it does today.
+#
+# WHY THE SITE AND NOT THE NAME. A name-keyed exemption exempts every
+# line that name appears on, whatever that line is doing: `flux` and `h2`
+# were exempt as « the applied style » while `machine.py` used them to
+# walk siblings and find which one is the flux list — a STRUCTURAL read,
+# with `[data-part="flux"]` and `[data-part="heading"]` both emitted and
+# both selected by that same file. The written reason did not describe
+# that site, and nothing could tell, because the list held names.
+#
+# AND EACH SITE CARRIES ITS OWN REASON, because they are not the same
+# reason. One shared sentence read true of three sites and false of two,
+# and a sentence that covers everything distinguishes nothing.
+#
+# The key is `file:line`. A line that MOVES re-opens the question, which
+# is the intended cost: an exemption is a claim about one assertion, and
+# an assertion that has moved is one nobody has re-read. The table lives
+# here because this module is importable; `classify-rule-anchors.py`
+# reads it for `--exceptions` rather than keeping a second copy. That is
+# a DECLARATION shared, never an extraction: the two readers still walk
+# the corpus by their own passes.
+GENRE_SITES = {
+    ("audit.py", 101, "ep"): (
+        "R3 measures the DRAWN size of the episode cell, and the declared "
+        "31 x 27 exception is about that geometry: at 13 cells per row a "
+        "44px target would demand 572px of width. The subject is the "
+        "applied style, so a `data-*` would keep the rule true after the "
+        "class is gone and it would measure less than it does today"),
+    ("audit.py", 167, "radio"): (
+        "R7 asks which SHAPE an option is drawn as — a radio or a "
+        "checkbox — and the shape is what the class applies. Reading a "
+        "`data-*` would answer what the option IS, which is the question "
+        "the rule is not asking"),
+    ("audit2.py", 119, "note"): (
+        "the media-sheet inventory skips the blocks drawn as a NOTE, "
+        "which is a style genre and not a section of the sheet. A "
+        "`data-*` would name the block; the rule needs to know how it is "
+        "drawn"),
+}
 
-# The five permanent genre assertions, never refused. Their written
-# reasons live in `classify-rule-anchors.py --exceptions`: the assertion's
-# subject is the applied style, so a data-* would keep it true after the
-# class is gone and the rule would measure less than it does today. They
-# are listed here so a NEW contains() name is recognized as neither.
-GENRE_CLASSES = ("h2", "flux", "ep", "radio", "note")
+# ---- ARM 2, the fifth position: a class name read from the attribute ----
+
+# `e.className.includes('in_library')`, and the same read with a
+# transformation in the middle: `button.className.split(' ')
+# .includes('primary')`. What the pattern pins is the METHOD and its
+# quoted argument; between them and `className` sits a transformation,
+# never a statement boundary. `split` is deliberately NOT in the method
+# list: its argument is the separator, not a class name.
+#
+# The name must LOOK like a class token, and a trailing space is part of
+# the read rather than of the name — `className.replace('ep ', '')`
+# strips the token and the space that follows it.
+CLASS_NAME_READ = re.compile(
+    r"\.className\b[^;\n]{0,40}?\.(?:includes|startsWith|endsWith|indexOf"
+    r"|replace|search|match)\(\s*(['\"])(?P<name>[A-Za-z_][\w-]*) ?\1")
+
+# `x.className === 'card'` — the same read written as an equality. An
+# EMPTY comparison names no class: `e.className === ''` asks whether the
+# element is unclassed, which is a question about the attribute, not
+# about a name.
+CLASS_NAME_EQUALS = re.compile(
+    r"\.className\s*===?\s*(['\"])(?P<name>[A-Za-z_][\w-]*)\1")
+
+# `/searchclear|burger|fab/.test(x.className)` — a TABLE of class names in
+# a regex literal, which is one of the two allowlists an R2-shaped rule
+# carries. No reader opens a regex literal, and every alternation branch
+# in one tested against `className` is a class name.
+CLASS_NAME_REGEX = re.compile(
+    r"/(?P<body>[^/\n]+)/\s*\.test\(\s*[^)\n]*\.className")
+
+# `[...badge.classList].find((c) => TONS[c])` — the class list read as a
+# COLLECTION and matched against a table whose KEYS are the class names.
+# There is no literal to name, which is exactly why nothing saw it: what
+# this shape refuses is the SITE. `add`, `remove` and `toggle` are not
+# here — a rule that writes a class drives the document rather than
+# selecting in it — and `contains` has its own refusal above.
+CLASS_LIST_COLLECTION = re.compile(
+    r"\.\.\.\s*[\w.$]*\.classList\s*\]"
+    r"|\.classList\s*\.\s*(?:find|filter|some|every|includes|indexOf)\s*\(")
+
+# `st.textContent = '.cov{-webkit-line-clamp:' + n + '}'` — a CSS rule the
+# harness INJECTS. Its selector is a selector, and a class token in it
+# dies with the stylesheet exactly like one handed to `querySelector`.
+# The assignment is what tells it apart from a stylesheet read as TEXT
+# (`".splashbar {" in gate`), where the subject IS the source and nothing
+# selects.
+INJECTED_RULE = re.compile(
+    r"\.(?:textContent|innerHTML|innerText)\s*=\s*"
+    r"(['\"])(?P<css>(?:(?!\1)[^\n])*)\1")
 
 # ---- ARM 2 held pass -----------------------------------------------------
 
@@ -469,6 +580,70 @@ def held_occurrences(path: Path, emitted: set[str]) -> list[tuple[int, str]]:
     return found
 
 
+def class_name_reads(path: Path) -> list[tuple[int, str | None]]:
+    """Extracts every class name one harness file READS from the attribute.
+
+    The fifth syntactic position, in its six shapes — the module header
+    names each one and what it costs. A shape that quotes the name yields
+    it; the two that do not — a table matched against a spread
+    `classList` — yield `None`, and the caller names the SITE instead. A
+    name that is never written down is still a dependency on the
+    stylesheet, and refusing only what is quoted would keep the hole
+    exactly where the harness had put it.
+
+    Comments are masked first, `comment_masked` doing it, for the reason
+    every other pass masks them: a read a COMMENT describes is performed
+    by nothing.
+
+    Args:
+        path: A Python file under `HARNESS`.
+
+    Returns:
+        `(line, name)` pairs, in file order — `name` is the class name, or
+        None when the shape names no literal.
+    """
+    text = comment_masked(path.read_text(encoding="utf-8"))
+    found: list[tuple[int, str | None]] = []
+
+    def line_of(offset: int) -> int:
+        return text.count("\n", 0, offset) + 1
+
+    for pattern in (CLASS_NAME_READ, CLASS_NAME_EQUALS):
+        for match in pattern.finditer(text):
+            found.append((line_of(match.start()), match.group("name")))
+    for match in CLASS_NAME_REGEX.finditer(text):
+        line = line_of(match.start())
+        for branch in match.group("body").split("|"):
+            name = re.match(r"[A-Za-z_][\w-]*", branch.strip())
+            if name is not None:
+                found.append((line, name.group(0)))
+    for match in CLASS_LIST_COLLECTION.finditer(text):
+        found.append((line_of(match.start()), None))
+    for match in INJECTED_RULE.finditer(text):
+        css = match.group("css")
+        if "{" not in css:
+            continue                  # not a rule: no selector, no braces
+        for token in class_tokens(css.split("{", 1)[0]):
+            found.append((line_of(match.start()), token[1:]))
+    found.sort()
+    return found
+
+
+def collect_read_findings() -> list[tuple[str, str | None]]:
+    """Collects every class-attribute read the fifth-position pass refuses.
+
+    Returns:
+        `(where, name)` pairs, in file order — the `file:line` and the
+        class name, or None when the shape names no literal.
+    """
+    findings: list[tuple[str, str | None]] = []
+    for path in harness_files():
+        rel = str(path.relative_to(ROOT))
+        for line, name in class_name_reads(path):
+            findings.append((f"{rel}:{line}", name))
+    return findings
+
+
 def harness_files() -> list[Path]:
     """Returns the anchor arm's corpus, in a fixed order.
 
@@ -507,7 +682,7 @@ def collect_anchor_findings() -> list[tuple[str, str, str, str, bool]]:
                 findings.append(
                     ("selection", token, content, f"{rel}:{line}", True))
         for line, name in state_assertions(path):
-            if name in STATE_CLASSES:
+            if (path.name, line, name) not in GENRE_SITES:
                 findings.append(
                     ("assertion", name, name, f"{rel}:{line}", False))
     return findings
@@ -546,13 +721,32 @@ def check_anchor_debt() -> int:
 
     exempt = 0
     violations = 0
+    for where, name in collect_read_findings():
+        violations += 1
+        if name is None:
+            print(f"  {where}: this rule reads the class ATTRIBUTE as a "
+                  "collection and matches it against a table of class names. "
+                  "The names are keys, so nothing quotes them and nothing "
+                  "else in this guard can see them — and they die with the "
+                  "stylesheet all the same. Read the element's `data-*` "
+                  "instead: `element.dataset.tone`.", file=sys.stderr)
+            continue
+        print(f"  {where}: the rule decides on the class name {name!r}, read "
+              "from the class ATTRIBUTE rather than through a selector. That "
+              "is a selection: it dies the day the class is removed, and "
+              "nothing can then say whether the read or the style was at "
+              "fault. Read the element's `data-part` or its state attribute.",
+              file=sys.stderr)
     for kind, name, subject, where, held in collect_anchor_findings():
         violations += 1
         if kind == "assertion":
-            print(f"  {where}: classList.contains({name!r}) asserts a state "
-                  "that has a boolean data-* attribute. Assert the attribute "
-                  "— `hasAttribute('data-open')` — so the rule survives the "
-                  "class.", file=sys.stderr)
+            print(f"  {where}: classList.contains({name!r}) decides on a "
+                  "style class at a site nothing exempts. If the state has a "
+                  "boolean data-* attribute, assert THAT — "
+                  "`hasAttribute('data-open')` — so the rule survives the "
+                  "class; if the subject really is the applied style, declare "
+                  "this SITE in `markup_anchors.GENRE_SITES` with the reason "
+                  "that is true HERE.", file=sys.stderr)
         elif held:
             print(f"  {where}: the string {subject!r} held outside any "
                   f"selection call carries the class token {name!r}. A "
@@ -568,13 +762,8 @@ def check_anchor_debt() -> int:
                   "element's `data-part`.", file=sys.stderr)
     for path in files:
         for line, name in state_assertions(path):
-            if name in GENRE_CLASSES:
+            if (path.name, line, name) in GENRE_SITES:
                 exempt += 1
-            elif name not in STATE_CLASSES:
-                print(f"  {path.relative_to(ROOT)}:{line}: "
-                      f"classList.contains({name!r}) is neither a migrated "
-                      "state nor a listed genre — refused by nothing, "
-                      "counted by nothing", file=sys.stderr)
 
     if violations:
         print(f"\ncheck-markup-contracts: {violations} anchor occurrence(s) "
@@ -586,8 +775,8 @@ def check_anchor_debt() -> int:
         return 1
 
     print(f"check-markup-contracts: 0 class-anchored selection call over "
-          f"{len(files)} harness rule file(s), passed or held, and 0 "
-          f"migrated-state assertion left on a class. {exempt} genre "
-          "assertion(s) exempt: permanent, each reason in "
-          "scripts/classify-rule-anchors.py --exceptions.")
+          f"{len(files)} harness rule file(s), passed or held, 0 class name "
+          "read from the class attribute, and 0 state assertion left on a "
+          f"class. {exempt} genre assertion(s) exempt, by SITE: permanent, "
+          "each reason in scripts/classify-rule-anchors.py --exceptions.")
     return 0

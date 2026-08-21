@@ -74,13 +74,23 @@ async def main():
     # `data-key="mediaSheet:…"`, never by a bare `[data-part="screen"][data-open]` — two screens can
     # carry `open` at once and the seasons must come from the mediaSheet, not from
     # whatever sits under it.
+    #
+    # The episode states come from the two BOOLEAN attributes the cell emits,
+    # not from its class. This is a report and no hold consumes it, which is
+    # precisely why the class read here was worth nothing: at the stylesheet
+    # conversion it would have printed an empty state set as if that were the
+    # answer. It reads three buckets where the class carried five — `pending`
+    # and `acquiring` are both « aired and not owned », which is what this
+    # report is about, and neither has an attribute to be told apart by.
     r=await pg.evaluate("""()=>{const s=document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
       if (!s) return {missingScreen:true};
       const ss=[...s.querySelectorAll('[data-part="season"]')];
       return {seasons:ss.length, open:ss.filter(x=>x.open).length,
               missing:[...s.querySelectorAll('[data-part="season/missing"]')].map(x=>x.textContent),
               fraction:s.querySelector('[data-part="sheet/meta"]')?.textContent.trim(),
-              states:[...new Set([...s.querySelectorAll('[data-part="episode"]')].map(x=>x.className.replace('ep ','')))],
+              states:[...new Set([...s.querySelectorAll('[data-part="episode"]')].map(
+                x=>x.hasAttribute('data-in-library')?'in-library'
+                  :x.hasAttribute('data-announced')?'announced':'missing'))],
               legend:[...s.querySelectorAll('[data-part="legend"] span')].map(x=>x.textContent.trim())};}""")
     print(" ", r)
     await shot(pg, "surfaces-matrix-gaps")

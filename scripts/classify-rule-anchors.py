@@ -67,12 +67,25 @@ read as text.
     both passes; the two populations are told apart by the `held` field
     on each entry.
 
+  * The READ pass: a class name taken from the class ATTRIBUTE rather
+    than through a selector — `className.includes('in_library')`,
+    `className.split(' ').includes('primary')`, `className.replace('ep
+    ', '')`, `className === 'card'`, a regex of class names tested
+    against `className`, a table matched against a SPREAD `classList`,
+    and a CSS rule the harness injects. None of them is
+    selector-shaped, so neither pass above sees one, and four of the six
+    sat on lines a migration had just rewritten. They enter `--tokens`'s
+    total and `--baseline` under `"kind": "read"`; the two shapes that
+    quote no name carry a null token, because a name nobody writes down
+    is a dependency all the same.
+
 WHAT IT DOES NOT READ. A call whose argument is not a string literal — a
 variable, an expression — is a CALL this tool cannot name; the string
 that defines the variable is the held pass's business instead, if it is
 selector-shaped. `classList.contains(...)` assertions are a second
 population: they are reported by `--baseline` under `"kind":
-"assertion"` and never mixed into the selection table. Comments and
+"assertion"` — every one of them whose SITE is not a declared genre
+exception — and never mixed into the selection table. Comments and
 docstrings are read by nothing at runtime, so they are read by nothing
 here: Python comments are blanked exactly, the JS comments of the
 embedded-JS containers are blanked, and a triple-quoted docstring is
@@ -122,141 +135,32 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_ROOT = ROOT / "frontend" / "maquette" / "harness"
 
-# `querySelector(` et al. — every call whose first argument is the selection,
-# whatever object the method hangs off (`document.`, `c.`, `s.`, ...).
-CALL = re.compile(r"(querySelector|querySelectorAll|locator|matches)\s*\(")
-
 # `classList.contains('open')` — the assertion population, one class name per
 # call.
 CONTAINS = re.compile(r"classList\.contains\(\s*(['\"])([^'\"]*)\1\s*\)")
 
-# The seven state classes migrated to the boolean data-* attributes.
-# `classList.contains` on one of these is a state assertion, and it is listed
-# by `--baseline` rather than counted as a selection.
-STATE_CLASSES = ("open", "noposter", "show", "in_library",
-                 "fempty", "fblocked", "announced")
-
-# The five permanent genre assertions, each with its reason for staying on the
-# class. The reason is the same for every entry: the assertion's subject is
-# the applied style, so a data-* would keep it true after the class is gone
-# and the rule would measure less than it does today. A reason-less entry
-# would itself be a violation, exactly as for a `french-ok` pragma — this list
-# cannot produce one, because the reason is a single non-empty constant.
-GENRE_CLASSES = ("h2", "flux", "ep", "radio", "note")
-GENRE_REASON = ("the assertion's subject is the applied style — moving it to "
-                "a `data-*` would keep it true even after the class is gone, "
-                "and the rule would measure less than it does today")
+# The permanent genre assertions, keyed on the SITE and each carrying its own
+# reason. The table is DECLARED next door, in the importable module, and read
+# from here rather than copied: an exemption is a decision, and a decision with
+# two copies is a decision that drifts. What is NOT shared is the extraction —
+# this tool still walks the corpus with its own passes, which is the whole
+# point of a second reader.
+#
+# A shared sentence used to cover five names; it read true of three sites and
+# false of two, and a reason that covers everything distinguishes nothing.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from markup_anchors import GENRE_SITES  # noqa: E402
+# This tool's OWN text readers — see that module's header for why they are a
+# mirror of the guard's and not an import of them.
+from anchor_readers import (  # noqa: E402
+    CALL, class_attribute_reads, class_tokens, emission_tokens,
+    held_selectors, read_literal, strip_interpolations,
+)
 
 # The anchors, printed in a fixed order so a diff of the report means
 # something.
 ANCHORS = ("class", "data-*", "id", "tag", "role")
 
-# ---- the held pass -------------------------------------------------------
-
-# The design sources the false-positive rule reads as the EMISSION side:
-# the shell, the engine and the sources under design/src. A class token
-# is emitted when one of them writes it in a class= / className= value.
-SHELL = ROOT / "frontend" / "maquette" / "design" / "index.html"
-SOURCES = ROOT / "frontend" / "maquette" / "design" / "src"
-
-# The characters a selector can hold, once its `{...}` interpolations
-# are removed. A string carrying anything else — prose, a stray operator
-# — is not selector-shaped and is read by neither pass.
-SELECTOR_ALPHABET = set(
-    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    "0123456789.#[]=\"'`~+>*,:()\\-_^$|/ ")
-
-# A class token followed by a call parenthesis names a method, not a
-# class — CSS class tokens take no arguments. `:has-text(` is fine: its
-# parenthesis hangs off a pseudo-class, not off a class token.
-METHOD_CALL = re.compile(r"^\.[-\w]+\s*\(")
-
-# A quoted literal whose content starts with a selector character —
-# after any LEADING SPACE, because a selector concatenated onto a
-# variable starts with the descendant combinator
-# (`querySelector(s + ' .fback')`) — and holds, up to the closing quote,
-# selector text: plain characters and attribute blocks. An attribute
-# block may carry the delimiter (`a [data-x="y"]` inside a single-quoted
-# string), which is exactly why the pass cannot be a simple quote-pair
-# scan. The leading space sits OUTSIDE the captured group: what is
-# judged is the selector, not the concatenation that hosts it.
-HELD_RE = re.compile(
-    r"""(["'`]) *(?P<sel>[.#\[](?:(?!\1)[^\[\n])*(?:\[[^\[\]\n]*\]"""
-    r"""(?:(?!\1)[^\[\n])*)*)\1""")
-
-# The JS comments of the embedded-JS containers — the same two shapes
-# ARM 1 strips, applied to the content of a triple-quoted string.
-JS_COMMENT = re.compile(r"/\*.*?\*/|//[^\n]*", re.S)
-
-# HTML comments are the shell's shape.
-HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
-
-# `class=` / `className=` — every attribute spelling, whichever side of
-# an assignment or a JSX tag it hangs on. `\b` keeps `subclass =` out.
-CLASS_ATTR = re.compile(r"\bclass(?:Name)?\s*=\s*")
-
-
-def read_literal(text: str, start: int) -> tuple[str, int] | None:
-    """Returns the string literal opening at `start` and the index past it.
-
-    Backslash-escaped characters are skipped, so an escaped delimiter inside
-    the literal does not end it early. A backtick template ends at its closing
-    backtick the same way.
-
-    Args:
-        text: The file text being read.
-        start: Index of the opening quote or backtick.
-
-    Returns:
-        The literal's content and the index just past the closing delimiter,
-        or None when the literal never closes.
-    """
-    delimiter = text[start]
-    i = start + 1
-    while i < len(text):
-        ch = text[i]
-        if ch == "\\":
-            i += 2
-            continue
-        if ch == delimiter:
-            return text[start + 1:i], i + 1
-        i += 1
-    return None
-
-
-def strip_interpolations(selector: str) -> str:
-    """Removes `${...}` spans from a template-literal selector.
-
-    The interpolation's value is unknown at rest, so it is removed and the
-    literal text that remains decides the anchor — a selector written as
-    `[data-lmode="${m}"]` stays data-anchored, because the attribute NAME is
-    literal while only its value is computed.
-
-    Args:
-        selector: A selector read from a backtick template literal.
-
-    Returns:
-        The selector with every balanced `${...}` span removed.
-    """
-    out: list[str] = []
-    i = 0
-    while i < len(selector):
-        if selector.startswith("${", i):
-            depth = 0
-            j = i + 2
-            while j < len(selector):
-                if selector[j] == "{":
-                    depth += 1
-                elif selector[j] == "}":
-                    if depth == 0:
-                        break
-                    depth -= 1
-                j += 1
-            i = j + 1
-            continue
-        out.append(selector[i])
-        i += 1
-    return "".join(out)
 
 
 def anchor_of(selector: str) -> str:
@@ -308,44 +212,6 @@ def anchor_of(selector: str) -> str:
     return "tag"
 
 
-def class_tokens(selector: str) -> list[str]:
-    """Returns every class token in one selector, in reading order.
-
-    A class token is a `.` followed by name characters, outside any `[...]`
-    block — an attribute block's contents are values, not selectors. Every
-    token is returned, not only the strongest anchor's: `#view .swipe` yields
-    `.swipe` even though the selector is id-anchored, because that token dies
-    with the stylesheet exactly like a class-anchored one.
-
-    Args:
-        selector: One selector string, its interpolations already stripped.
-
-    Returns:
-        The `.name` tokens found, each with its leading dot, or an empty list.
-    """
-    tokens: list[str] = []
-    i = 0
-    while i < len(selector):
-        ch = selector[i]
-        if ch == "\\":
-            i += 2
-            continue
-        if ch == "[":
-            end = selector.find("]", i)
-            i = end + 1 if end != -1 else len(selector)
-            continue
-        if ch == ".":
-            j = i + 1
-            while j < len(selector) and (selector[j].isalnum()
-                                         or selector[j] in "-_"):
-                j += 1
-            if j > i + 1:
-                tokens.append(selector[i:j])
-                i = j
-                continue
-        i += 1
-    return tokens
-
 
 def selection_calls(path: Path) -> list[tuple[int, str, str]]:
     """Extracts every literal-argument selection call in one harness file.
@@ -394,360 +260,27 @@ def state_assertions(path: Path) -> list[tuple[int, str]]:
     return found
 
 
-def line_offsets(text: str) -> list[int]:
-    """Returns the character offset of the start of every line.
-
-    tokenize reports positions as `(line, column)`; the masking below
-    needs character offsets, and this table converts between the two.
-
-    Args:
-        text: The file text being read.
-
-    Returns:
-        `offsets[i]` is the offset of line `i + 1`'s first character.
-    """
-    offsets = [0]
-    for match in re.finditer("\n", text):
-        offsets.append(match.end())
-    return offsets
-
-
-def comment_masked(text: str) -> str:
-    """Returns `text` with every comment read by nothing blanked out.
-
-    Python comments are blanked exactly — tokenize knows where a `#`
-    starts a comment and where it does not, which a regex over raw text
-    cannot tell (`#view` inside a string is not a comment). The embedded
-    JS lives in triple-quoted strings: a triple-quoted DOCSTRING is
-    prose and is blanked whole; a triple-quoted CONTAINER is code and
-    its JS comments are blanked the way ARM 1 blanks them. Blanks
-    replace characters and newlines stay, so a candidate found in the
-    masked text still names the original line.
-
-    Args:
-        text: The file text being read.
-
-    Returns:
-        The comment-masked copy — or `text` itself when the file is not
-        valid Python: tokenize then cannot delimit the strings either,
-        and the reader falls back to reading raw, exactly as the call
-        pass always has.
-    """
-    out = list(text)
-
-    def blank(start: int, end: int) -> None:
-        for i in range(start, end):
-            if out[i] != "\n":
-                out[i] = " "
-
-    offsets = line_offsets(text)
-
-    def position(line: int, col: int) -> int:
-        return offsets[line - 1] + col
-
-    try:
-        tokens = list(tokenize.generate_tokens(io.StringIO(text).readline))
-    except (tokenize.TokenError, IndentationError):
-        return text
-    for tok in tokens:
-        if tok.type == tokenize.COMMENT:
-            blank(position(tok.start[0], tok.start[1]),
-                  position(tok.end[0], tok.end[1]))
-    for i, tok in enumerate(tokens):
-        if tok.type != tokenize.STRING or not (
-                tok.string.startswith('"""') or tok.string.startswith("'''")):
-            continue
-        prev = tokens[i - 1] if i else None
-        start = position(tok.start[0], tok.start[1])
-        end = position(tok.end[0], tok.end[1])
-        if prev is None or prev.type in (tokenize.NEWLINE, tokenize.NL,
-                                         tokenize.INDENT, tokenize.DEDENT):
-            blank(start, end)          # a docstring: prose, read by nothing
-            continue
-        content = text[start + 3:end - 3]
-        for match in JS_COMMENT.finditer(content):
-            blank(start + 3 + match.start(), start + 3 + match.end())
-    return "".join(out)
-
-
-def call_argument_starts(text: str) -> set[int]:
-    """Returns the opening-quote offset of every call argument.
-
-    A selector that IS a selection call's argument belongs to the call
-    pass; the held pass reads every OTHER literal.
-
-    Args:
-        text: The file text being read.
-
-    Returns:
-        The set of literal-start offsets the call pass owns.
-    """
-    starts: set[int] = set()
-    for match in CALL.finditer(text):
-        pos = match.end()
-        while pos < len(text) and text[pos] in " \t\n":
-            pos += 1
-        if pos < len(text) and text[pos] in ("'", '"', "`"):
-            starts.add(pos)
-    return starts
-
-
-def strip_braced_spans(selector: str) -> str | None:
-    """Removes every `{...}` interpolation, `${...}` included.
-
-    Mirrored from `markup_anchors.strip_braced_spans`, whose header carries
-    the rationale: an interpolation is an OPAQUE token, and a brace that
-    never balances says the string is stylesheet text, not a selection.
-
-    Args:
-        selector: One candidate string.
-
-    Returns:
-        The string with every balanced `{...}` span removed — and the `$`
-        of a `${...}` with it — or None when a brace never balances.
-    """
-    out: list[str] = []
-    i = 0
-    while i < len(selector):
-        ch = selector[i]
-        if ch == "}":
-            return None
-        if ch != "{":
-            out.append(ch)
-            i += 1
-            continue
-        depth = 0
-        j = i
-        while j < len(selector):
-            if selector[j] == "{":
-                depth += 1
-            elif selector[j] == "}":
-                depth -= 1
-                if depth == 0:
-                    break
-            j += 1
-        if j >= len(selector):
-            return None
-        if out and out[-1] == "$":
-            out.pop()
-        i = j + 1
-    return "".join(out)
-
-
-def outside_attribute_blocks(selector: str) -> str:
-    """Returns `selector` with every `[...]` block removed.
-
-    An attribute block's contents are values, not selector syntax, so a
-    question about SYNTAX is asked of what sits outside them.
-
-    Args:
-        selector: One candidate string.
-
-    Returns:
-        The text outside every `[...]` block.
-    """
-    out: list[str] = []
-    i = 0
-    while i < len(selector):
-        if selector[i] == "[":
-            end = selector.find("]", i)
-            i = end + 1 if end != -1 else len(selector)
-            continue
-        out.append(selector[i])
-        i += 1
-    return "".join(out)
-
-
-def selector_shaped(content: str) -> bool:
-    """True when a held candidate is SHAPED like a selector.
-
-    Mirrored deliberately from `markup_anchors.selector_shaped`, which names
-    the three refusals and the string each was paid for: the two readers must
-    agree or one of them is wrong.
-
-    Args:
-        content: One candidate string, its leading space already trimmed
-            by the pattern that found it.
-
-    Returns:
-        True when the candidate can be read as a selector.
-    """
-    probe = strip_braced_spans(content)
-    if probe is None:
-        return False
-    if any(ch not in SELECTOR_ALPHABET for ch in probe):
-        return False
-    if "=" in outside_attribute_blocks(probe):
-        return False
-    return not METHOD_CALL.match(content)
-
-
-def has_structure(content: str) -> bool:
-    """True when a candidate carries selector structure.
-
-    Structure is what lets a string qualify even when no design site
-    emits its tokens: an attribute block, a comma list, or a combinator
-    (`>`, `+`, `~`, or a space between two non-space parts). A single
-    bare class name has none — which is what the emission half of the
-    rule exists for.
-
-    Args:
-        content: One candidate string.
-
-    Returns:
-        True when the candidate carries at least one structural marker.
-    """
-    if "[" in content or "," in content:
-        return True
-    if ">" in content or "+" in content or "~" in content:
-        return True
-    return re.search(r"\S\s+\S", content) is not None
-
-
-def braced_expression(text: str, open_idx: int) -> tuple[str, int] | None:
-    """Returns the braced expression opening at `open_idx` and the index
-    past its closing brace.
-
-    Args:
-        text: The file text being read.
-        open_idx: Index of the opening `{`.
-
-    Returns:
-        The expression between the braces and the index just past the
-        closing `}`, or None when the braces never balance.
-    """
-    depth = 0
-    for i in range(open_idx, len(text)):
-        ch = text[i]
-        if ch == "{":
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0:
-                return text[open_idx + 1:i], i + 1
-    return None
-
-
-def emission_tokens() -> set[str]:
-    """Returns every class token the three design sites emit.
-
-    An emission is a whitespace-split token of a class= / className=
-    value, read in each of the value's spellings: the plain quoted
-    attribute, the JS assignment (`bar.className = "selbar"`), a
-    backtick template (interpolations stripped, so the literal part
-    decides), and a braced expression (its string and template literals
-    are the class names). A value cut short by a `${...}` interpolation
-    contributes its literal part, and the span's own string literals
-    contribute theirs — `class="card${x ? " fresh" : ""}"` emits both
-    card and fresh. Comments are stripped first: a token a COMMENT
-    carries is emitted by nothing.
-
-    Returns:
-        The set of emitted class names — empty only when the emission
-        corpus is unreadable, which the callers refuse loudly.
-    """
-    files = [p for p in sorted(SOURCES.rglob("*"))
-             if p.is_file() and p.suffix in {".js", ".ts", ".tsx"}]
-    emitted: set[str] = set()
-    for path in [SHELL, *files]:
-        text = path.read_text(encoding="utf-8")
-        text = (HTML_COMMENT.sub(" ", text) if path.suffix == ".html"
-                else JS_COMMENT.sub(" ", text))
-        for match in CLASS_ATTR.finditer(text):
-            pos = match.end()
-            if pos >= len(text):
-                continue
-            ch = text[pos]
-            if ch in ("'", '"'):
-                literal = read_literal(text, pos)
-                if literal is None:
-                    continue
-                value, _ = literal
-                split_at = value.find("${")
-                emitted |= set(value[:split_at if split_at != -1
-                                     else len(value)].split())
-                if split_at == -1:
-                    continue
-                # the span of a template class attribute may itself hold
-                # the computed class names, as string literals
-                braced = braced_expression(text, pos + 1 + split_at + 1)
-                if braced is None:
-                    continue
-                expr, _ = braced
-                for piece in re.findall(r"""["']([^"']*)["']""", expr):
-                    emitted |= set(piece.split())
-            elif ch == "`":
-                literal = read_literal(text, pos)
-                if literal is None:
-                    continue
-                value, _ = literal
-                emitted |= set(strip_interpolations(value).split())
-            elif ch == "{":
-                braced = braced_expression(text, pos)
-                if braced is None:
-                    continue
-                expr, _ = braced
-                for piece in re.findall(r"""["']([^"']*)["']""", expr):
-                    emitted |= set(piece.split())
-                for literal in re.findall(r"`([^`]*)`", expr):
-                    emitted |= set(strip_interpolations(literal).split())
-    return emitted
-
-
-def held_selectors(text: str, emitted: set[str]) -> list[tuple[int, str]]:
-    """Returns every held selector in one file's text, in file order.
-
-    A held selector is a selector-shaped string literal OUTSIDE any
-    selection call's argument position — a selector held in a variable,
-    a table, a helper's argument, a comparison. The candidate regex is
-    stateless on purpose: a French apostrophe or a nested backtick that
-    would desync a quote-pair walker simply fails to match here, and
-    the literal after it is read on its own.
-
-    Args:
-        text: The file text being read.
-        emitted: The class tokens the three design sites emit.
-
-    Returns:
-        `(start, content)` pairs — the literal's opening-quote offset
-        and its content — for every candidate that carries at least one
-        class token and passes the false-positive rule.
-    """
-    masked = comment_masked(text)
-    call_args = call_argument_starts(text)
-    found: list[tuple[int, str]] = []
-    for match in HELD_RE.finditer(masked):
-        if match.start() in call_args:
-            continue
-        content = match.group("sel")
-        if not selector_shaped(content):
-            continue
-        tokens = class_tokens(content)
-        if not tokens:
-            continue
-        if not (has_structure(content)
-                or all(token[1:] in emitted for token in tokens)):
-            continue
-        found.append((match.start(), content))
-    return found
 
 
 def collect(root: Path) -> tuple[list[tuple[str, int, str, str]],
                                   list[tuple[str, int, str]],
-                                  list[tuple[str, int, str]]]:
-    """Collects every selection call, state assertion and held selector.
+                                  list[tuple[str, int, str]],
+                                  list[tuple[str, int, str | None]]]:
+    """Collects every selection call, assertion, held selector and read.
 
     Args:
         root: The directory whose `*.py` files are the corpus.
 
     Returns:
         Selections as `(file, line, method, selector)`, assertions as
-        `(file, line, class_name)` and held selectors as
-        `(file, line, content)`, each in file order.
+        `(file, line, class_name)`, held selectors as
+        `(file, line, content)` and class-attribute reads as
+        `(file, line, class_name_or_None)`, each in file order.
     """
     selections: list[tuple[str, int, str, str]] = []
     assertions: list[tuple[str, int, str]] = []
     held: list[tuple[str, int, str]] = []
+    reads: list[tuple[str, int, str | None]] = []
     emitted = emission_tokens()
     if not emitted:
         print("classify-rule-anchors: no class= / className= emission "
@@ -764,7 +297,9 @@ def collect(root: Path) -> tuple[list[tuple[str, int, str, str]],
         text = path.read_text(encoding="utf-8")
         held += [(rel, text.count("\n", 0, start) + 1, content)
                  for start, content in held_selectors(text, emitted)]
-    return selections, assertions, held
+        reads += [(rel, text.count("\n", 0, start) + 1, name)
+                  for start, name in class_attribute_reads(text)]
+    return selections, assertions, held, reads
 
 
 def print_summary(selections: list[tuple[str, int, str, str]]) -> None:
@@ -784,7 +319,8 @@ def print_summary(selections: list[tuple[str, int, str, str]]) -> None:
 
 
 def print_tokens(selections: list[tuple[str, int, str, str]],
-                 held: list[tuple[str, int, str]]) -> None:
+                 held: list[tuple[str, int, str]],
+                 reads: list[tuple[str, int, str | None]]) -> None:
     """Prints every class token occurrence and the per-selector split.
 
     The total is the lot's real size: every `.token` outside a `[...]` block,
@@ -798,6 +334,11 @@ def print_tokens(selections: list[tuple[str, int, str, str]],
     Args:
         selections: The corpus as `(file, line, method, selector)` tuples.
         held: The held selectors as `(file, line, content)` tuples.
+        reads: The class-attribute reads as `(file, line, name)` tuples —
+            a name read WITHOUT a selector is a dependency on the
+            stylesheet exactly like one written in a selector, and
+            leaving it out of the total would under-count the lot the way
+            the one-bucket rule once did.
     """
     tokens: Counter[str] = Counter()
     carrying = 0
@@ -829,19 +370,29 @@ def print_tokens(selections: list[tuple[str, int, str, str]],
     print(f"{len(selections) - carrying} calls carry no class token at all")
     print(f"{sum(held_tokens.values())} class token occurrences held "
           "outside any selection call")
-    print(f"{sum(tokens.values()) + sum(held_tokens.values())} class token "
-          "occurrences total")
+    print(f"{len(reads)} class name(s) read from the class attribute, "
+          "outside any selector")
+    print(f"{sum(tokens.values()) + sum(held_tokens.values()) + len(reads)} "
+          "class token occurrences total")
 
 
 def print_exceptions() -> None:
-    """Prints the five permanent genre assertions, each with its reason."""
-    for name in GENRE_CLASSES:
-        print(f"{name:<8} {GENRE_REASON}")
+    """Prints the permanent genre assertions: one SITE, one reason.
+
+    The exemption names `file:line class`, never the class alone. A
+    name-keyed exemption exempts every line that name appears on: `flux`
+    and `h2` were exempt as « the applied style » while `machine.py` used
+    them to walk siblings and find the flux list, which is structure, and
+    the written reason described a geometry rule two files over.
+    """
+    for (file, line, name), reason in sorted(GENRE_SITES.items()):
+        print(f"{file}:{line} {name:<8} {reason}")
 
 
 def print_baseline(selections: list[tuple[str, int, str, str]],
                    assertions: list[tuple[str, int, str]],
-                   held: list[tuple[str, int, str]]) -> None:
+                   held: list[tuple[str, int, str]],
+                   reads: list[tuple[str, int, str | None]]) -> None:
     """Prints the class-anchor listing as JSON: one entry per occurrence.
 
     THE LISTING IS EXPECTED EMPTY, and that is what it is for. The guard
@@ -860,6 +411,9 @@ def print_baseline(selections: list[tuple[str, int, str, str]],
         selections: The corpus as `(file, line, method, selector)` tuples.
         assertions: The corpus as `(file, line, class_name)` tuples.
         held: The held selectors as `(file, line, content)` tuples.
+        reads: The class-attribute reads as `(file, line, name)` tuples;
+            they enter under `"kind": "read"`, and the two shapes that
+            quote no name carry `"token": null`.
     """
     entries: list[dict[str, object]] = []
     for rel, line, _, selector in selections:
@@ -872,15 +426,13 @@ def print_baseline(selections: list[tuple[str, int, str, str]],
             entries.append({"kind": "selection", "held": True, "file": rel,
                             "line": line, "selector": content,
                             "token": token})
+    for rel, line, name in reads:
+        entries.append({"kind": "read", "file": rel, "line": line,
+                        "token": name})
     for rel, line, name in assertions:
-        if name in STATE_CLASSES:
+        if (Path(rel).name, line, name) not in GENRE_SITES:
             entries.append({"kind": "assertion", "file": rel,
                             "line": line, "class": name})
-        elif name not in GENRE_CLASSES:
-            print(f"classify-rule-anchors: {rel}:{line}: "
-                  f"`classList.contains('{name}')` is neither a migrated state "
-                  "nor a listed genre — it is counted in neither population",
-                  file=sys.stderr)
     entries.sort(key=lambda e: (str(e["file"]), int(e["line"]), str(e["kind"]),
                                 str(e.get("selector", e.get("class"))),
                                 str(e.get("token", ""))))
@@ -912,7 +464,7 @@ def main() -> int:
               file=sys.stderr)
         return 1
 
-    selections, assertions, held = collect(root)
+    selections, assertions, held, reads = collect(root)
     if not selections:
         print(f"classify-rule-anchors: no selection call found under {root} — "
               "either the extraction broke or the root is wrong",
@@ -922,11 +474,11 @@ def main() -> int:
     if mode == "--summary":
         print_summary(selections)
     elif mode == "--tokens":
-        print_tokens(selections, held)
+        print_tokens(selections, held, reads)
     elif mode == "--exceptions":
         print_exceptions()
     else:
-        print_baseline(selections, assertions, held)
+        print_baseline(selections, assertions, held, reads)
     return 0
 
 
