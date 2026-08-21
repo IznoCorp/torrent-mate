@@ -107,6 +107,15 @@ engine. Doing them in one commit makes the reviewer confront both ends of the bo
 
 ## Sub-phase 4.2 — the episode row and the episode popover
 
+> **`.eppop` is emitted IMPERATIVELY, and the guard could not read that.** Measured on 2026-08-21:
+> no `class=` / `className=` literal carries it; the engine creates the popover with
+> `createElement.className = "eppop"` (`legacy.js:33558`) and reads it back at `:33539` (an
+> engine-internal read, left on the class). The anchor is therefore imperative too —
+> `createElement.dataset.part = "episode/popover"` — and the selection ⇒ emission arm, which read
+> emissions as the source text `data-part="…"`, would have refused a contract that is whole. The arm
+> learns the two imperative forms (`.dataset.part = "…"`, `.setAttribute("data-part", "…")`, literal
+> values only) in the same commit as the anchor: the three ends of a contract move together.
+
 One commit: `refactor(maquette-l02): anchor the episode row and popover on data-part`
 
 - [ ] **Step 1.** Resolve `eppop` at its site first. Locate the conditional `className` expression
