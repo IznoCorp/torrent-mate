@@ -34,7 +34,7 @@ async def main():
           const root=document.querySelector('#dlg').classList.contains('open')?document.querySelector('#dlg')
             :document.querySelector('#screen').classList.contains('open')?document.querySelector('#screen')
             :document.querySelector('#sheet').classList.contains('open')?document.querySelector('#sheet')
-            :document.querySelector('.screen.open[data-key]')
+            :document.querySelector('[data-part="screen"][data-open][data-key]')
             ??document.querySelector('#view');
           return [...root.querySelectorAll('button, a')]
             .filter(x=>x.getBoundingClientRect().height>0 && !x.disabled

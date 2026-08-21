@@ -152,7 +152,7 @@ export function AddScreen() {
     .join("");
 
   return (
-    <section className="screen open" data-key={`add:${mode}`}>
+    <section className="screen open" data-part="screen" data-open="" data-key={`add:${mode}`}>
       <div className="screenbar">
         <button className="fback" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />

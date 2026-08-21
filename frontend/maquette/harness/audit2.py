@@ -49,7 +49,7 @@ async def main():
           const r=document.querySelector('#dlg').classList.contains('open')?'#dlg'
                  :document.querySelector('#screen').classList.contains('open')?'#screen'
                  :document.querySelector('#sheet').classList.contains('open')?'#sheet'
-                 :document.querySelector('.screen.open[data-key]')?'.screen.open[data-key]'
+                 :document.querySelector('[data-part="screen"][data-open][data-key]')?'[data-part="screen"][data-open][data-key]'
                  :'#view';
           const t=document.querySelector(r).innerText;
           const patterns=[[/\\bundefined\\b/,'undefined'],[/\\bNaN\\b/,'NaN'],[/\\bnull\\b/,'null'],
@@ -113,7 +113,7 @@ async def main():
         window.__reset(); applyState({page:'lib', phase:'ready'});
         window.__screens.mediaSheet(t);
         await new Promise(r=>setTimeout(r,240));
-        const b=document.querySelector('.screen.open[data-key^="mediaSheet:"] .body');
+        const b=document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"] .body');
         if (!b) { out[t]=['EMPTY SHEET']; continue; }
         out[t]=[...b.children]
           .filter(x=>x.getBoundingClientRect().height>0 && !x.classList.contains('note'))
@@ -145,15 +145,15 @@ async def main():
     # `acq-ajout-resultats` and `fiche-serie` both left `#screen` for real
     # routes rendered inside `#coquille`: their open/close check is the screen
     # itself, not the legacy layer id. The mediaSheet is named by the identity it
-    # carries (`data-key="mediaSheet:…"`) rather than by a bare `.screen.open`,
+    # carries (`data-key="mediaSheet:…"`) rather than by a bare `[data-part="screen"][data-open]`,
     # which two stacked screens would both answer to. Every case closes the
     # same way from the operator's point of view (the screen's own « Retour »,
     # the scrim for a layer), so only the selector differs.
     R14_CASES = [
         ("followsheet-gaps", "#sheet", "scrim"),
         ("lib-delete", "#dlg", "scrim"),
-        ("mediasheet-series", '.screen.open[data-key^="mediaSheet:"]', "back"),
-        ("acq-add-results", ".screen.open", "back"),
+        ("mediasheet-series", '[data-part="screen"][data-open][data-key^="mediaSheet:"]', "back"),
+        ("acq-add-results", '[data-part="screen"][data-open]', "back"),
     ]
     for id_, sel, closing in R14_CASES:
         await pg.evaluate("(i)=>window.__go(i)", id_); await pg.wait_for_timeout(300)
@@ -226,7 +226,7 @@ async def main():
           // by the identity it carries, or this rule about ALL media sheets
           // would stop seeing the very screen it is named after.
           const root=document.querySelector('#screen.open, #sheet.open')
-                  || document.querySelector('.screen.open[data-key^="mediaSheet:"]');
+                  || document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
           const hero=root && root.querySelector('.hero');
           if (!hero) continue;
           const name=`${s}/${theme||'dark'}`;
@@ -269,7 +269,7 @@ async def main():
         // Same reason as R26 above: the sheet is a route now, and it is where
         // the trailer lives — read it by its key or this rule goes quiet.
         const root=document.querySelector('#screen.open, #sheet.open')
-                || document.querySelector('.screen.open[data-key^="mediaSheet:"]');
+                || document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
         if (!root || !root.querySelector('.hero')) continue;
         const el=root.querySelector('.trailer');
         if (!el) continue;                       // declared absence: stated elsewhere
@@ -298,7 +298,7 @@ async def main():
         // mediaSheet out would silently drop five states from this sweep, and a
         // rule that has gone quiet is not a rule that passes.
         const screen=document.querySelector('#screen.open')
-                  || document.querySelector('.screen.open[data-key^="mediaSheet:"]');
+                  || document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
         const bar=screen?.querySelector('.screenbar');
         if (!bar) continue;
         const btn=bar.querySelector('.fback');
@@ -346,7 +346,7 @@ async def main():
         window.__reset(); applyState({page:'lib', phase:'ready'});
         window.__screens.mediaSheet(title);
         await new Promise(r=>setTimeout(r,240));
-        for (const det of document.querySelectorAll('.screen.open[data-key^="mediaSheet:"] details.season')) {
+        for (const det of document.querySelectorAll('[data-part="screen"][data-open][data-key^="mediaSheet:"] details.season')) {
           const num=Number((det.querySelector('summary')?.textContent||'').match(/Saison\\s+(\\d+)/)?.[1]);
           const owned=ownedFor(title, num);
           if (!owned) continue;
@@ -383,7 +383,7 @@ async def main():
       const waitFor=async(t)=>{
         const key='mediaSheet:'+t.normalize('NFC');
         for (let i=0;i<40;i++) {
-          const el=document.querySelector('.screen.open[data-key^="mediaSheet:"]');
+          const el=document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
           if (el && el.dataset.key===key) return el;
           await new Promise(r=>setTimeout(r,25));
         }

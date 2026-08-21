@@ -37,10 +37,10 @@ async def main():
 
     print("── quality profile ──")
     # These two screens left `#screen` for a real route, rendered inside
-    # `#coquille` — their scrollport is now wherever `.screen.open .port`
+    # `#coquille` — their scrollport is now wherever `[data-part="screen"][data-open] .port`
     # resolves (the React section carries the same classes `#screen` did),
     # not literally inside the legacy container.
-    screen_port = ".screen.open .port"
+    screen_port = '[data-part="screen"][data-open] .port'
     await trial("screen-profile", ".opt.check", 2, "checkbox", port=screen_port)
     await trial("screen-profile", ".opt.radio", 3, "radio button", port=screen_port)
     await trial("screen-profile", ".switch", 0, "switch", port=screen_port)

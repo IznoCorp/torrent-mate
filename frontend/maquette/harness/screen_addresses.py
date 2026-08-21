@@ -101,18 +101,18 @@ RESOLUTION_FOLDER = "Backrooms.2026.MULTi.2160p.WEB-DL"
 RELEASES_TITLE = "Silo"
 
 SCREEN_STATE = """() => {
-  const screen = document.querySelector('.screen.open');
+  const screen = document.querySelector('[data-part="screen"][data-open]');
   return {
     open: !!screen,
     key: screen?.dataset.key ?? null,
-    title: (document.querySelector('.screen.open .screenbar span') || {}).textContent ?? null,
+    title: (document.querySelector('[data-part="screen"][data-open] .screenbar span') || {}).textContent ?? null,
     body: (screen?.querySelector('.body') || {}).textContent ?? '',
     pathname: location.pathname,
   };
 }"""
 
 ADD_STATE = """() => {
-  const screen = document.querySelector('.screen.open');
+  const screen = document.querySelector('[data-part="screen"][data-open]');
   return {
     open: !!screen,
     key: screen?.dataset.key ?? null,
@@ -139,7 +139,7 @@ IMAGES_STATE = """() => {
 # real `Image()`, and reads `complete`/`naturalWidth` off THAT — the exact
 # pair hold (g) is phrased against.
 HEROBG_STATE = """() => {
-  const bg = document.querySelector('.screen.open .herowrap .herobg');
+  const bg = document.querySelector('[data-part="screen"][data-open] .herowrap .herobg');
   const style = bg ? getComputedStyle(bg).backgroundImage : '';
   const found = /url\\(["']?(.*?)["']?\\)/.exec(style || '');
   const url = found ? found[1] : null;
@@ -153,20 +153,20 @@ HEROBG_STATE = """() => {
 }"""
 
 SHEET_STATE = """() => {
-  const screen = document.querySelector('.screen.open');
+  const screen = document.querySelector('[data-part="screen"][data-open]');
   return {
     open: !!screen,
     key: screen?.dataset.key ?? null,
     title: (screen?.querySelector('h2.ht') || {}).textContent ?? null,
     body: (screen?.querySelector('.body') || {}).textContent ?? '',
-    noinfos: [...document.querySelectorAll('.screen.open p.noinfo')].map(
+    noinfos: [...document.querySelectorAll('[data-part="screen"][data-open] p.noinfo')].map(
       (p) => p.textContent),
     pathname: location.pathname,
   };
 }"""
 
 RESOLUTION_STATE = """() => {
-  const screen = document.querySelector('.screen.open[data-key^="resolution:"]');
+  const screen = document.querySelector('[data-part="screen"][data-open][data-key^="resolution:"]');
   return {
     open: !!screen,
     key: screen?.dataset.key ?? null,
@@ -181,7 +181,7 @@ RESOLUTION_STATE = """() => {
 # unknown `title` to fail against, so `candidates` stays what it is
 # regardless of which title the bar shows.
 RELEASES_STATE = """() => {
-  const screen = document.querySelector('.screen.open[data-key^="releases:"]');
+  const screen = document.querySelector('[data-part="screen"][data-open][data-key^="releases:"]');
   return {
     open: !!screen,
     key: screen?.dataset.key ?? null,
@@ -254,7 +254,7 @@ async def main():
                 on_profile["open"] and on_profile["pathname"] == f"/profile/{TITLE}",
                 on_profile["pathname"])
 
-            await pg.evaluate("()=>document.querySelector('.screen.open .fback').click()")
+            await pg.evaluate("""()=>document.querySelector('[data-part="screen"][data-open] .fback').click()""")
             await pg.wait_for_timeout(300)
             returned = await pg.evaluate(SCREEN_STATE)
             journal.check(
@@ -358,7 +358,7 @@ async def main():
             await pg.wait_for_timeout(400)
             left = await pg.evaluate(
                 """() => ({
-                    open: !!document.querySelector('.screen.open'),
+                    open: !!document.querySelector('[data-part="screen"][data-open]'),
                     pathname: location.pathname,
                     search: location.search,
                     page: state.page,
@@ -395,7 +395,7 @@ async def main():
                 f"url={artwork['url']!r} drawn={artwork['drawn']}")
             journal.check("no JS error on deep /mediaSheet entry", not errors, str(errors))
 
-            await pg.evaluate("()=>document.querySelector('.screen.open .fback').click()")
+            await pg.evaluate("""()=>document.querySelector('[data-part="screen"][data-open] .fback').click()""")
             await pg.wait_for_timeout(300)
             sheet_returned = await pg.evaluate(SCREEN_STATE)
             journal.check(
@@ -460,7 +460,7 @@ async def main():
                 f"key={resolution_cold['key']} folder={resolution_cold['folder']!r}")
             journal.check("no JS error on deep /resolution entry", not errors, str(errors))
 
-            await pg.evaluate("()=>document.querySelector('.screen.open .fback').click()")
+            await pg.evaluate("""()=>document.querySelector('[data-part="screen"][data-open] .fback').click()""")
             await pg.wait_for_timeout(300)
             resolution_returned = await pg.evaluate(SCREEN_STATE)
             journal.check(
@@ -490,7 +490,7 @@ async def main():
                 f"candidates={releases_cold['candidates']}")
             journal.check("no JS error on deep /releases entry", not errors, str(errors))
 
-            await pg.evaluate("()=>document.querySelector('.screen.open .fback').click()")
+            await pg.evaluate("""()=>document.querySelector('[data-part="screen"][data-open] .fback').click()""")
             await pg.wait_for_timeout(300)
             releases_returned = await pg.evaluate(SCREEN_STATE)
             journal.check(

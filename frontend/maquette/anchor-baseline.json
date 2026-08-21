@@ -343,54 +343,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/attrs.py",
-    "line": 57,
-    "selector": ".screen.open[data-key^=\"add:\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/attrs.py",
-    "line": 57,
-    "selector": ".screen.open[data-key^=\"add:\"]",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/attrs.py",
-    "line": 76,
-    "selector": ".screen.open[data-key^=\"profile:\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/attrs.py",
-    "line": 76,
-    "selector": ".screen.open[data-key^=\"profile:\"]",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/attrs.py",
-    "line": 99,
-    "selector": ".screen.open[data-key^=\"resolution:\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/attrs.py",
-    "line": 99,
-    "selector": ".screen.open[data-key^=\"resolution:\"]",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/attrs.py",
     "line": 101,
     "selector": ".card[data-nonmedia=\"candidat\"] .poster",
     "token": ".card"
@@ -420,22 +372,6 @@
     "file": "frontend/maquette/harness/audit.py",
     "line": 64,
     "class": "open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit.py",
-    "line": 65,
-    "selector": ".screen.open[data-key]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit.py",
-    "line": 65,
-    "selector": ".screen.open[data-key]",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -622,22 +558,6 @@
     "token": ".port"
   },
   {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/audit.py",
-    "line": 203,
-    "selector": ".screen.open[data-key]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/audit.py",
-    "line": 203,
-    "selector": ".screen.open[data-key]",
-    "token": ".screen"
-  },
-  {
     "kind": "assertion",
     "file": "frontend/maquette/harness/audit.py",
     "line": 208,
@@ -674,22 +594,6 @@
     "class": "open"
   },
   {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit.py",
-    "line": 286,
-    "selector": ".screen.open[data-key]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit.py",
-    "line": 286,
-    "selector": ".screen.open[data-key]",
-    "token": ".screen"
-  },
-  {
     "kind": "assertion",
     "file": "frontend/maquette/harness/audit2.py",
     "line": 49,
@@ -706,38 +610,6 @@
     "file": "frontend/maquette/harness/audit2.py",
     "line": 51,
     "class": "open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 52,
-    "selector": ".screen.open[data-key]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 52,
-    "selector": ".screen.open[data-key]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 52,
-    "selector": ".screen.open[data-key]",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 52,
-    "selector": ".screen.open[data-key]",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -800,24 +672,8 @@
     "held": false,
     "file": "frontend/maquette/harness/audit2.py",
     "line": 116,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"] .body",
+    "selector": "[data-part=\"screen\"][data-open][data-key^=\"mediaSheet:\"] .body",
     "token": ".body"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 116,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"] .body",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 116,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"] .body",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -826,38 +682,6 @@
     "line": 120,
     "selector": ".h2",
     "token": ".h2"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 155,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 155,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 156,
-    "selector": ".screen.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 156,
-    "selector": ".screen.open",
-    "token": ".screen"
   },
   {
     "kind": "assertion",
@@ -991,22 +815,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/audit2.py",
-    "line": 229,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 229,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
     "line": 230,
     "selector": ".hero",
     "token": ".hero"
@@ -1059,22 +867,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/audit2.py",
-    "line": 272,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 272,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
     "line": 273,
     "selector": ".hero",
     "token": ".hero"
@@ -1094,22 +886,6 @@
     "line": 300,
     "selector": "#screen.open",
     "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 301,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 301,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -1148,23 +924,7 @@
     "held": false,
     "file": "frontend/maquette/harness/audit2.py",
     "line": 349,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"] details.season",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 349,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"] details.season",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 349,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"] details.season",
+    "selector": "[data-part=\"screen\"][data-open][data-key^=\"mediaSheet:\"] details.season",
     "token": ".season"
   },
   {
@@ -1210,22 +970,6 @@
     "file": "frontend/maquette/harness/audit2.py",
     "line": 360,
     "class": "in_library"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 386,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 386,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -1325,38 +1069,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/bridge.py",
-    "line": 323,
-    "selector": ".screen.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bridge.py",
-    "line": 323,
-    "selector": ".screen.open",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bridge.py",
-    "line": 324,
-    "selector": ".screen.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bridge.py",
-    "line": 324,
-    "selector": ".screen.open",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bridge.py",
     "line": 325,
     "selector": ".reslist .card",
     "token": ".card"
@@ -1374,24 +1086,8 @@
     "held": false,
     "file": "frontend/maquette/harness/bridge.py",
     "line": 338,
-    "selector": ".screen.open .port",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bridge.py",
-    "line": 338,
-    "selector": ".screen.open .port",
+    "selector": "[data-part=\"screen\"][data-open] .port",
     "token": ".port"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bridge.py",
-    "line": 338,
-    "selector": ".screen.open .port",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -1413,38 +1109,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/bridge.py",
-    "line": 354,
-    "selector": ".screen.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bridge.py",
-    "line": 354,
-    "selector": ".screen.open",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bridge.py",
-    "line": 355,
-    "selector": ".screen.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bridge.py",
-    "line": 355,
-    "selector": ".screen.open",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bridge.py",
     "line": 356,
     "selector": ".reslist .card",
     "token": ".card"
@@ -1462,24 +1126,8 @@
     "held": false,
     "file": "frontend/maquette/harness/bridge.py",
     "line": 358,
-    "selector": ".screen.open .port",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bridge.py",
-    "line": 358,
-    "selector": ".screen.open .port",
+    "selector": "[data-part=\"screen\"][data-open] .port",
     "token": ".port"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bridge.py",
-    "line": 358,
-    "selector": ".screen.open .port",
-    "token": ".screen"
   },
   {
     "kind": "assertion",
@@ -1513,22 +1161,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/bugs.py",
-    "line": 37,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 37,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bugs.py",
     "line": 43,
     "selector": "#sheet .sact",
     "token": ".sact"
@@ -1538,38 +1170,6 @@
     "file": "frontend/maquette/harness/bugs.py",
     "line": 45,
     "class": "open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 46,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 46,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 52,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 52,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -1600,24 +1200,8 @@
     "held": false,
     "file": "frontend/maquette/harness/bugs.py",
     "line": 66,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"] .port",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 66,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"] .port",
+    "selector": "[data-part=\"screen\"][data-open][data-key^=\"mediaSheet:\"] .port",
     "token": ".port"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 66,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"] .port",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -1640,24 +1224,8 @@
     "held": false,
     "file": "frontend/maquette/harness/bugs.py",
     "line": 72,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"] .port",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 72,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"] .port",
+    "selector": "[data-part=\"screen\"][data-open][data-key^=\"mediaSheet:\"] .port",
     "token": ".port"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 72,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"] .port",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -1728,24 +1296,8 @@
     "held": false,
     "file": "frontend/maquette/harness/bugs.py",
     "line": 83,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"] .ht",
+    "selector": "[data-part=\"screen\"][data-open][data-key^=\"mediaSheet:\"] .ht",
     "token": ".ht"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 83,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"] .ht",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 83,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"] .ht",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -1771,22 +1323,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/bugs.py",
-    "line": 133,
-    "selector": ".screen.open [data-panel^=\\\"add:\\\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 133,
-    "selector": ".screen.open [data-panel^=\\\"add:\\\"]",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bugs.py",
     "line": 147,
     "selector": ".addfoot button",
     "token": ".addfoot"
@@ -1801,41 +1337,9 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/bugs.py",
-    "line": 150,
-    "selector": ".screen.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 150,
-    "selector": ".screen.open",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bugs.py",
     "line": 153,
     "selector": ".addfoot button",
     "token": ".addfoot"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 155,
-    "selector": ".screen.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 155,
-    "selector": ".screen.open",
-    "token": ".screen"
   },
   {
     "kind": "assertion",
@@ -2351,22 +1855,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/decision.py",
-    "line": 50,
-    "selector": ".screen.open[data-key^=\"resolution:\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/decision.py",
-    "line": 50,
-    "selector": ".screen.open[data-key^=\"resolution:\"]",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/decision.py",
     "line": 52,
     "selector": ".card",
     "token": ".card"
@@ -2556,22 +2044,6 @@
     "file": "frontend/maquette/harness/dest.py",
     "line": 36,
     "class": "open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/dest.py",
-    "line": 37,
-    "selector": ".screen.open[data-key]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/dest.py",
-    "line": 37,
-    "selector": ".screen.open[data-key]",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -3165,22 +2637,6 @@
   },
   {
     "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/gallery.py",
-    "line": 66,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/gallery.py",
-    "line": 66,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
     "held": true,
     "file": "frontend/maquette/harness/gallery.py",
     "line": 69,
@@ -3236,40 +2692,8 @@
     "held": false,
     "file": "frontend/maquette/harness/ident.py",
     "line": 72,
-    "selector": ".screen.open[data-key^=\\\"resolution:\\\"] .h2",
+    "selector": "[data-part=\"screen\"][data-open][data-key^=\"resolution:\"] .h2",
     "token": ".h2"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/ident.py",
-    "line": 72,
-    "selector": ".screen.open[data-key^=\\\"resolution:\\\"] .h2",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/ident.py",
-    "line": 72,
-    "selector": ".screen.open[data-key^=\\\"resolution:\\\"] .h2",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/ident.py",
-    "line": 79,
-    "selector": ".screen.open[data-key^=\"add:\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/ident.py",
-    "line": 79,
-    "selector": ".screen.open[data-key^=\"add:\"]",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -3961,22 +3385,6 @@
   },
   {
     "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/navigation.py",
-    "line": 59,
-    "selector": ".screen.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/navigation.py",
-    "line": 59,
-    "selector": ".screen.open",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
     "held": true,
     "file": "frontend/maquette/harness/page_host.py",
     "line": 181,
@@ -4489,22 +3897,6 @@
   },
   {
     "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/panel.py",
-    "line": 58,
-    "selector": ".screen.open [data-panel^=\"add:\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/panel.py",
-    "line": 58,
-    "selector": ".screen.open [data-panel^=\"add:\"]",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/panel.py",
     "line": 66,
@@ -4651,40 +4043,8 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 104,
-    "selector": ".screen.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 104,
-    "selector": ".screen.open",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
     "line": 108,
-    "selector": ".screen.open .screenbar span",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 108,
-    "selector": ".screen.open .screenbar span",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 108,
-    "selector": ".screen.open .screenbar span",
+    "selector": "[data-part=\"screen\"][data-open] .screenbar span",
     "token": ".screenbar"
   },
   {
@@ -4694,22 +4054,6 @@
     "line": 109,
     "selector": ".body",
     "token": ".body"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 115,
-    "selector": ".screen.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 115,
-    "selector": ".screen.open",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -4732,7 +4076,7 @@
     "held": false,
     "file": "frontend/maquette/harness/screen_addresses.py",
     "line": 142,
-    "selector": ".screen.open .herowrap .herobg",
+    "selector": "[data-part=\"screen\"][data-open] .herowrap .herobg",
     "token": ".herobg"
   },
   {
@@ -4740,40 +4084,8 @@
     "held": false,
     "file": "frontend/maquette/harness/screen_addresses.py",
     "line": 142,
-    "selector": ".screen.open .herowrap .herobg",
+    "selector": "[data-part=\"screen\"][data-open] .herowrap .herobg",
     "token": ".herowrap"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 142,
-    "selector": ".screen.open .herowrap .herobg",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 142,
-    "selector": ".screen.open .herowrap .herobg",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 156,
-    "selector": ".screen.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 156,
-    "selector": ".screen.open",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -4796,40 +4108,8 @@
     "held": false,
     "file": "frontend/maquette/harness/screen_addresses.py",
     "line": 162,
-    "selector": ".screen.open p.noinfo",
+    "selector": "[data-part=\"screen\"][data-open] p.noinfo",
     "token": ".noinfo"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 162,
-    "selector": ".screen.open p.noinfo",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 162,
-    "selector": ".screen.open p.noinfo",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 169,
-    "selector": ".screen.open[data-key^=\"resolution:\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 169,
-    "selector": ".screen.open[data-key^=\"resolution:\"]",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -4846,22 +4126,6 @@
     "line": 174,
     "selector": ".body",
     "token": ".body"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 184,
-    "selector": ".screen.open[data-key^=\"releases:\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 184,
-    "selector": ".screen.open[data-key^=\"releases:\"]",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -4884,47 +4148,7 @@
     "held": false,
     "file": "frontend/maquette/harness/screen_addresses.py",
     "line": 257,
-    "selector": ".screen.open .fback",
-    "token": ".fback"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 257,
-    "selector": ".screen.open .fback",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 257,
-    "selector": ".screen.open .fback",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 361,
-    "selector": ".screen.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 361,
-    "selector": ".screen.open",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 398,
-    "selector": ".screen.open .fback",
+    "selector": "[data-part=\"screen\"][data-open] .fback",
     "token": ".fback"
   },
   {
@@ -4932,23 +4156,7 @@
     "held": false,
     "file": "frontend/maquette/harness/screen_addresses.py",
     "line": 398,
-    "selector": ".screen.open .fback",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 398,
-    "selector": ".screen.open .fback",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 463,
-    "selector": ".screen.open .fback",
+    "selector": "[data-part=\"screen\"][data-open] .fback",
     "token": ".fback"
   },
   {
@@ -4956,23 +4164,7 @@
     "held": false,
     "file": "frontend/maquette/harness/screen_addresses.py",
     "line": 463,
-    "selector": ".screen.open .fback",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 463,
-    "selector": ".screen.open .fback",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 493,
-    "selector": ".screen.open .fback",
+    "selector": "[data-part=\"screen\"][data-open] .fback",
     "token": ".fback"
   },
   {
@@ -4980,48 +4172,8 @@
     "held": false,
     "file": "frontend/maquette/harness/screen_addresses.py",
     "line": 493,
-    "selector": ".screen.open .fback",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screen_addresses.py",
-    "line": 493,
-    "selector": ".screen.open .fback",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 50,
-    "selector": ".screen.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 50,
-    "selector": ".screen.open",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 51,
-    "selector": ".screen.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 51,
-    "selector": ".screen.open",
-    "token": ".screen"
+    "selector": "[data-part=\"screen\"][data-open] .fback",
+    "token": ".fback"
   },
   {
     "kind": "selection",
@@ -5092,24 +4244,8 @@
     "held": false,
     "file": "frontend/maquette/harness/screens.py",
     "line": 71,
-    "selector": ".screen.open .port",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 71,
-    "selector": ".screen.open .port",
+    "selector": "[data-part=\"screen\"][data-open] .port",
     "token": ".port"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 71,
-    "selector": ".screen.open .port",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -5126,22 +4262,6 @@
     "line": 72,
     "selector": ".reslist .poster",
     "token": ".reslist"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 82,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 82,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -5155,38 +4275,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/screens.py",
-    "line": 97,
-    "selector": ".screen.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 97,
-    "selector": ".screen.open",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 98,
-    "selector": ".screen.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 98,
-    "selector": ".screen.open",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
     "line": 99,
     "selector": ".reslist .card",
     "token": ".card"
@@ -5204,56 +4292,8 @@
     "held": false,
     "file": "frontend/maquette/harness/screens.py",
     "line": 101,
-    "selector": ".screen.open .port",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 101,
-    "selector": ".screen.open .port",
+    "selector": "[data-part=\"screen\"][data-open] .port",
     "token": ".port"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 101,
-    "selector": ".screen.open .port",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 102,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 102,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 116,
-    "selector": ".screen.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 116,
-    "selector": ".screen.open",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -5276,56 +4316,8 @@
     "held": false,
     "file": "frontend/maquette/harness/screens.py",
     "line": 131,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"] .fback",
+    "selector": "[data-part=\"screen\"][data-open][data-key^=\"mediaSheet:\"] .fback",
     "token": ".fback"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 131,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"] .fback",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 131,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"] .fback",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 136,
-    "selector": ".screen.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 136,
-    "selector": ".screen.open",
-    "token": ".screen"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 137,
-    "selector": ".screen.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 137,
-    "selector": ".screen.open",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -5342,22 +4334,6 @@
     "line": 138,
     "selector": ".reslist .card",
     "token": ".reslist"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 139,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 139,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -5372,24 +4348,8 @@
     "held": true,
     "file": "frontend/maquette/harness/scroll.py",
     "line": 43,
-    "selector": ".screen.open .port",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/scroll.py",
-    "line": 43,
-    "selector": ".screen.open .port",
+    "selector": "[data-part=\"screen\"][data-open] .port",
     "token": ".port"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/scroll.py",
-    "line": 43,
-    "selector": ".screen.open .port",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -5966,22 +4926,6 @@
     "token": ".loginsubmit"
   },
   {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/states.py",
-    "line": 41,
-    "selector": ".screen.open[data-key]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/states.py",
-    "line": 41,
-    "selector": ".screen.open[data-key]",
-    "token": ".screen"
-  },
-  {
     "kind": "assertion",
     "file": "frontend/maquette/harness/states.py",
     "line": 42,
@@ -6048,22 +4992,6 @@
     "line": 58,
     "selector": ".pillscroll",
     "token": ".pillscroll"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/surfaces.py",
-    "line": 28,
-    "selector": ".screen.open[data-key^=\"add:\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/surfaces.py",
-    "line": 28,
-    "selector": ".screen.open[data-key^=\"add:\"]",
-    "token": ".screen"
   },
   {
     "kind": "assertion",
@@ -6156,22 +5084,6 @@
     "line": 62,
     "selector": ".ep",
     "token": ".ep"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/surfaces.py",
-    "line": 76,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/surfaces.py",
-    "line": 76,
-    "selector": ".screen.open[data-key^=\"mediaSheet:\"]",
-    "token": ".screen"
   },
   {
     "kind": "selection",
@@ -6474,22 +5386,6 @@
     "line": 297,
     "selector": ".card",
     "token": ".card"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 302,
-    "selector": ".screen.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 302,
-    "selector": ".screen.open",
-    "token": ".screen"
   },
   {
     "kind": "assertion",

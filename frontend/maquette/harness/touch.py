@@ -299,7 +299,7 @@ async def main():
           if (!c) return null;
           const e = new MouseEvent('contextmenu', {bubbles:true, cancelable:true});
           c.dispatchEvent(e);
-          return {inScreen: !!document.querySelector('.screen.open')?.contains(c),
+          return {inScreen: !!document.querySelector('[data-part="screen"][data-open]')?.contains(c),
                   refused: e.defaultPrevented};}""")
         check("a card is drawn above the scrollport",
                  layer is not None and layer["inScreen"], str(layer))

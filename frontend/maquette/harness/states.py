@@ -38,7 +38,7 @@ async def main():
           // count as « no layer » and this rule would measure the page
           // UNDERNEATH — the overflow, the skeletons and the text of a
           // surface the state does not show.
-          const rt = document.querySelector('.screen.open[data-key]');
+          const rt = document.querySelector('[data-part="screen"][data-open][data-key]');
           const layer = sh.classList.contains('open')||sc.classList.contains('open')||dg.classList.contains('open')||!!rt;
           // The route rung comes LAST in the precedence, so every
           // pre-existing case resolves to exactly what it resolved to

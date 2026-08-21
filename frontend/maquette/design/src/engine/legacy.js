@@ -9494,6 +9494,15 @@ import { screens, panel, bridge } from "../seams.js";
   ];
 
   const select = (selector) => document.querySelector(selector);
+  /* The `open` class and the `data-open` attribute name ONE state, so one
+     function writes both. Every layer this engine raises or clears goes
+     through it: rules select and assert the attribute, and an attribute set
+     anywhere the class is not would lie about the layer it describes. */
+  function setOpen(element, on) {
+    element.classList.toggle("open", on);
+    if (on) element.setAttribute("data-open", "");
+    else element.removeAttribute("data-open");
+  }
   const view = select("#view"),
     nav = select("#nav"),
     port = select("#port"),
@@ -10732,8 +10741,8 @@ import { screens, panel, bridge } from "../seams.js";
      made `history.back()` pop past our own entries and leave the page
      entirely. */
   function hideLayers() {
-    select("#drawer").classList.remove("open");
-    select("#screen").classList.remove("open");
+    setOpen(select("#drawer"), false);
+    setOpen(select("#screen"), false);
     // The sheet is the shell's layer: closing it without touching history is
     // what `close(true)` means, the same contract this function has always
     // had for every layer it resets.
@@ -10741,8 +10750,8 @@ import { screens, panel, bridge } from "../seams.js";
     // The scrim stays cleared HERE too: it is shared ground, raised by the
     // drawer and the dialog on their own, and the line above only clears it
     // for a sheet that was actually open.
-    select("#scrim").classList.remove("open");
-    select("#dlg").classList.remove("open");
+    setOpen(select("#scrim"), false);
+    setOpen(select("#dlg"), false);
     closeHarness();
   }
 
@@ -10815,12 +10824,12 @@ import { screens, panel, bridge } from "../seams.js";
      returned. */
   function openDlg(html) {
     select("#dlg").innerHTML = html;
-    select("#dlg").classList.add("open");
-    select("#scrim").classList.add("open");
+    setOpen(select("#dlg"), true);
+    setOpen(select("#scrim"), true);
   }
   function closeDlg() {
-    select("#dlg").classList.remove("open");
-    select("#scrim").classList.remove("open");
+    setOpen(select("#dlg"), false);
+    setOpen(select("#scrim"), false);
   }
 
   /* Re-rendering a screen must NEVER send the operator back to the top:
@@ -10908,7 +10917,7 @@ import { screens, panel, bridge } from "../seams.js";
       }
     }
     if (!alreadyOpen) {
-      element.classList.add("open");
+      setOpen(element, true);
       try {
         __bridge.pushLayer("screen");
       } catch (error) {}
@@ -10940,7 +10949,7 @@ import { screens, panel, bridge } from "../seams.js";
       if (!pop) unwindLayer("screen");
       return;
     }
-    select("#screen").classList.remove("open");
+    setOpen(select("#screen"), false);
     currentRender = null;
     if (!pop) unwindLayer("screen");
   }
@@ -11581,16 +11590,16 @@ import { screens, panel, bridge } from "../seams.js";
         <p class="vv">0.97.34</p>
         <p class="vc">build 71e50163 · à jour</p>
       </div>`;
-    element.classList.add("open");
-    select("#scrim").classList.add("open");
+    setOpen(element, true);
+    setOpen(select("#scrim"), true);
     try {
       __bridge.pushLayer("drawer");
     } catch (error) {}
   }
   function closeDrawer(pop) {
     if (!select("#drawer").classList.contains("open")) return;
-    select("#drawer").classList.remove("open");
-    select("#scrim").classList.remove("open");
+    setOpen(select("#drawer"), false);
+    setOpen(select("#scrim"), false);
     if (!pop) unwindLayer("drawer");
   }
 

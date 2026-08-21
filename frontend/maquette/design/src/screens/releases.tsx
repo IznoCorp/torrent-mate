@@ -45,7 +45,7 @@ export function ReleasesScreen() {
   const { t } = useTranslation();
 
   return (
-    <section className="screen open" data-key={`releases:${title}`}>
+    <section className="screen open" data-part="screen" data-open="" data-key={`releases:${title}`}>
       <div className="screenbar">
         <button className="fback" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />

@@ -54,8 +54,8 @@ PANELS = [
     ("user menu", "sheet-user", None),
     ("suggestion", "acq-discover", '#view [data-panel^="sug:"]'),
     # The add screen left `#screen` for a real route (`/add`, rendered
-    # inside `#coquille`) — its results live under `.screen.open` now.
-    ("search result", "acq-add-results", '.screen.open [data-panel^="add:"]'),
+    # inside `#coquille`) — its results live under `[data-part="screen"][data-open]` now.
+    ("search result", "acq-add-results", '[data-part="screen"][data-open] [data-panel^="add:"]'),
     ("library sort", "lib-grid", "[data-sort]"),
 ]
 

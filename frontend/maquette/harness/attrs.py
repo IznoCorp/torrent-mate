@@ -54,7 +54,7 @@ def check(name, condition, detail=""):
 # buttons, and every check falls on its own numbers — readable — instead of on
 # a TypeError, which is not.
 ADD_SCREEN = """() => {
-  const s = document.querySelector('.screen.open[data-key^="add:"]')
+  const s = document.querySelector('[data-part="screen"][data-open][data-key^="add:"]')
     ?? document.createElement('div');
   const segs = [...s.querySelectorAll('[aria-pressed]')];
   const unselected = segs.find(b => b.getAttribute('aria-pressed') === 'false');
@@ -73,7 +73,7 @@ ADD_SCREEN = """() => {
 # `aria-checked` across radios, checkboxes and switches (screens/profile.tsx).
 # Several are false under the default profile — the same trap, second source.
 PROFILE_SCREEN = """() => {
-  const s = document.querySelector('.screen.open[data-key^="profile:"]')
+  const s = document.querySelector('[data-part="screen"][data-open][data-key^="profile:"]')
     ?? document.createElement('div');
   const opts = [...s.querySelectorAll('[aria-checked]')];
   const unselected = opts.find(b => b.getAttribute('aria-checked') === 'false');
@@ -96,7 +96,7 @@ PROFILE_SCREEN = """() => {
 # « Lucky » is the real case that exercises both branches at once: one of its
 # five candidates has no provider picture, the other four do.
 RESOLUTION_SCREEN = """() => {
-  const s = document.querySelector('.screen.open[data-key^="resolution:"]')
+  const s = document.querySelector('[data-part="screen"][data-open][data-key^="resolution:"]')
     ?? document.createElement('div');
   const posters = [...s.querySelectorAll('.card[data-nonmedia="candidat"] .poster')];
   const titled = posters.filter(el => el.hasAttribute('title'));
