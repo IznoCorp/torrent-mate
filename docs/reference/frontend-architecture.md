@@ -777,59 +777,19 @@ yet. It is built once this plan has proved its shape, and not before: a guard wr
 structure still moving guards the wrong thing. This paragraph is its record, so that "we meant to"
 does not become "we forgot".
 
-### 7.2 The steward — the standing audit, and why it is never the implementer
+### 7.2 Someone audits this file against the work — and it is not you
 
-**Each landed lot is audited against this file by someone who did not implement it.** That
-separation is the whole point: an implementer auditing their own lot compares their intention
-with their work, and those two always agree. The defects this repository keeps paying for —
-a directive that outlived its decision, a guard asserting over nothing, a figure nobody
-recounted — are invisible from inside the wave that produced them.
+**A standing audit checks each landed lot against this plan. It is held by a steward, and the
+steward is never the agent who implemented the lot.** That separation is the point: an
+implementer auditing their own lot compares their intention with their work, and those two always
+agree.
 
-The steward holds **this responsibility and no other**. It does not implement lots, it does not
-arbitrate what belongs to the operator, and it does not inherit its standing from any
-conversation. What follows is the whole of the office.
+**So nothing in that office is yours.** Do not audit your own wave, do not fold an audit into it,
+and do not read the steward's licence to contest this plan as yours — mid-wave, a lot that has
+lost its subject is reported and stopped (§ 7.1), not re-argued. What you owe your wave is § 0 and
+your lot's **Done when**.
 
-**Building the context — from the repository, never from memory.** A steward starts cold and
-must reach the same footing as the one before it. In order: `product-intent.md` (what the product
-must be), this file (what must become true, and in what order), `IMPLEMENTATION.md` (where the
-work stands), `frontend/maquette/README.md` (how the prototype runs and what it has already
-cost), `BUGS.md`, then the landed lot's own design and plan under `docs/features/`. Nothing in
-that list depends on having watched the work happen.
-
-**The audit, in this order.** Each step answers a question the previous one cannot.
-
-1. **Was the order respected?** Is the landed lot the one the selection rule of § 0 designates —
-   not `LANDED`, every dependency `LANDED`? A lot taken out of turn is the first symptom, and the
-   cheapest to see.
-2. **Is every line of its "Done when" true?** Against the repository, never against what the
-   pull request claims. A lot is not finished because its code exists.
-3. **Do the § 3 invariants still hold?** They bind every wave, not only the one that names them.
-   A lot can be irreproachable on its own contract and still push an invariant backwards.
-4. **Does anything contradict a § 2 decision without amending it?** That is the case § 7.1 exists
-   for.
-5. **What has lost its subject?** Documents, guards, pointers, tooling. This is the part nobody
-   does spontaneously, and the part that has cost the most.
-6. **Do the figures still measure?** Every number in this file carries its command. Re-run them.
-   That is how a stale figure is found — never by reading it again.
-
-**What an adjustment lands, and what it must not touch.** It corrects the *directives*: this
-file, `IMPLEMENTATION.md`, `CLAUDE.md`, dead pointers, figures, a lot whose definition or order
-must change. It never rewrites design the operator has validated. And it never carries a fix to
-implementation code: separating "the directives were wrong" from "the code was wrong" into two
-changes is the same rule the steward enforces on everyone else — one kind of change per wave. A
-defect found in landed code is reported and proposed, not repaired in the same breath.
-
-**Contesting the plan carries the burden of proof.** A lot may depart from this file and be
-right to; the steward must be able to say so. But "the plan is wrong" is an opinion until it is
-measured, and an opinion does not amend a binding file. The claim lands with the command that
-produces its evidence, the same standard every figure here is held to. Absent that, the plan
-stands and the departure is the defect.
-
-**Two limits, stated so they are not discovered mid-audit.** The steward cannot certify that the
-rendering did not move: the oracle's measurements are bound to the machine that took them, and
-`--check` refuses to compare across platforms. What the steward can establish is whether the lot
-claimed it, how, and whether the proof holds together — the certification itself stays where the
-oracle runs. And the steward may be auditing text it wrote itself; the anchor is therefore the
-repository and the re-run measurement, never remembered intent. A steward that checks the work
-against its own recollection of what it meant will find they agree.
-
+The office is written down in `docs/reference/frontend-steward.md`, which is addressed to the
+steward and to the operator who instantiates one. It is deliberately not in this file: everything
+here is binding on the agent doing the work, and a procedure meant for someone else, sitting in
+that same reading, becomes an instruction nobody asked for.
