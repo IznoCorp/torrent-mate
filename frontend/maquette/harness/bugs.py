@@ -77,8 +77,8 @@ async def main():
 
     # 7 — a search result leads to its media sheet
     await pg.evaluate("()=>window.__go('acq-add-results')"); await pg.wait_for_timeout(450)
-    has = await pg.evaluate("""()=>!!document.querySelector('.reslist [data-part="card"] [data-part="card/poster"][data-mediasheet]')""")
-    await pg.evaluate("""()=>document.querySelector('.reslist [data-part="card"] [data-part="card/poster"][data-mediasheet]').click()"""); await pg.wait_for_timeout(600)
+    has = await pg.evaluate("""()=>!!document.querySelector('[data-part="result/list"] [data-part="card"] [data-part="card/poster"][data-mediasheet]')""")
+    await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card"] [data-part="card/poster"][data-mediasheet]').click()"""); await pg.wait_for_timeout(600)
     title = await pg.evaluate(
         """()=>document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"] .ht')?.textContent""")
     chk("7. result → media sheet", has and bool(title), f"→ « {title} »")

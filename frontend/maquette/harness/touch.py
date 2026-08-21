@@ -161,7 +161,7 @@ async def main():
 
         await pg.evaluate("()=>window.__go('acq-discover-deck')")
         await pg.wait_for_timeout(350)
-        before = await pg.evaluate("""()=>document.querySelectorAll('.sugwrap, [data-part="deck/card"]').length""")
+        before = await pg.evaluate("""()=>document.querySelectorAll('[data-part="suggestion/wrap"], [data-part="deck/card"]').length""")
         r = await rect('.deck [data-part="deck/card"][data-depth="0"]')
         await drag(cdp, r["x"] + r["width"] / 2, r["y"] + r["height"] / 2, 12, 22, 0)
         await pg.wait_for_timeout(450)

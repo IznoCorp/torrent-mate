@@ -28,14 +28,14 @@ async def main():
     r=await pg.evaluate("""()=>{const s=document.querySelector('[data-part="screen"][data-open][data-key^="add:"]');
       if (!s) return {absent:true};
       // `.res` and `.resbtn` are dead class names — a result row is a
-      // `.reslist [data-part="card"]` today, and its foot action was removed on purpose
-      // (R71: the panel is the single path to the act). Kept pointing at them,
-      // both lines printed zero forever, which reads like « no results » next
-      // to a count that says six.
+      // `[data-part="result/list"] [data-part="card"]` today, and its foot
+      // action was removed on purpose (R71: the panel is the single path to
+      // the act). Kept pointing at them, both lines printed zero forever,
+      // which reads like « no results » next to a count that says six.
       return {open:s.hasAttribute('data-open'),
               count:(s.querySelector('.rescount')||{}).textContent?.trim(),
-              results:s.querySelectorAll('.reslist [data-part="card"]').length,
-              feet:[...s.querySelectorAll('.reslist [data-part="card/foot"]')].map(x=>x.textContent.trim()),
+              results:s.querySelectorAll('[data-part="result/list"] [data-part="card"]').length,
+              feet:[...s.querySelectorAll('[data-part="result/list"] [data-part="card/foot"]')].map(x=>x.textContent.trim()),
               byId:!!s.querySelector('.byid')};}""")
     print(" ", r)
     await pg.screenshot(path="y_ajout.png")

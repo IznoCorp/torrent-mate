@@ -59,9 +59,9 @@ async def main():
     # 3. Suggestion card swipe in the list format.
     await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'discover',phase:'ready'}); window.__store.write({sugMode: 'list'}); render();}")
     await pg.wait_for_timeout(600)
-    before = await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length")
-    await drag(".sugwrap", 200)
-    after = await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length")
+    before = await pg.evaluate("""()=>document.querySelectorAll('[data-part="suggestion/wrap"]').length""")
+    await drag('[data-part="suggestion/wrap"]', 200)
+    after = await pg.evaluate("""()=>document.querySelectorAll('[data-part="suggestion/wrap"]').length""")
     print(f"suggestion, mouse swipe : {before} → {after}  {'PASS' if after < before else 'FAIL'}")
     if not (after < before): failures.append("suggestion, mouse swipe")
 

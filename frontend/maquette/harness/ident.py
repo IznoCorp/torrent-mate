@@ -83,7 +83,7 @@ async def main():
               idBlock:(s.querySelector('.byid summary')||{}).textContent};}""")
     # The card wears no inline action: the verb lives in the result's panel,
     # so the panel is where the rule reads it — same path the finger takes.
-    await pg.evaluate("""()=>document.querySelector('.reslist [data-part="card/body"]').click()"""); await pg.wait_for_timeout(420)
+    await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card/body"]').click()"""); await pg.wait_for_timeout(420)
     r["verbs"] = await pg.evaluate("()=>[...document.querySelectorAll('#sheet .sact.primary')].map(x=>x.textContent.trim())")
     print("search screen            :", r)
     await pg.screenshot(path="p_identifier.png")
@@ -145,7 +145,7 @@ async def main():
     await pg.evaluate("()=>window.__go('acq-now-loaded')"); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>document.querySelector('#fab').click()"); await pg.wait_for_timeout(500)
     opened = await pg.evaluate(
-        """()=>{const r=document.querySelector('.reslist [data-part="card/body"]');"""
+        """()=>{const r=document.querySelector('[data-part="result/list"] [data-part="card/body"]');"""
         " if(!r) return false; r.click(); return true;}")
     await pg.wait_for_timeout(420)
     v = await pg.evaluate("()=>[...document.querySelectorAll('#sheet .sact.primary')].map(x=>x.textContent.trim())")

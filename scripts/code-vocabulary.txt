@@ -697,6 +697,7 @@ width
 window
 words
 world
+wrap
 write
 xl
 xs

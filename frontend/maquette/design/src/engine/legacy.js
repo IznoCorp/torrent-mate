@@ -10288,7 +10288,7 @@ import { screens, panel, bridge } from "../seams.js";
      What stays its own is the swipe wrapper: dismissing a suggestion is a
      gesture no other list has. */
   function sugCardHTML(suggestion, index) {
-    return `<div class="sugwrap" data-dismissable="${index}">
+    return `<div class="sugwrap" data-part="suggestion/wrap" data-dismissable="${index}">
       <div class="sugback">
         <span>${svgIcon(icons.x)}Pas intéressé</span>
         <span>Pas intéressé${svgIcon(icons.x)}</span>

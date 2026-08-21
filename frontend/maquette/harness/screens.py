@@ -49,8 +49,8 @@ async def main():
         start = await pg.evaluate("""()=>({
             screen: !!document.querySelector('[data-part="screen"][data-open]'),
             key: document.querySelector('[data-part="screen"][data-open]')?.dataset.key,
-            cards: document.querySelectorAll('.reslist [data-part="card"]').length,
-            feet: document.querySelectorAll('.reslist [data-part="card/foot"]').length,
+            cards: document.querySelectorAll('[data-part="result/list"] [data-part="card"]').length,
+            feet: document.querySelectorAll('[data-part="result/list"] [data-part="card/foot"]').length,
             query: document.querySelector('#addq')?.value})""")
         check("the results screen is there", start["screen"] and start["cards"] >= 2,
               f"{start['cards']} cards · key {start['key']}")
@@ -59,7 +59,7 @@ async def main():
 
         # The removal above is safe only because the act still has a home:
         # the result's panel must offer it.
-        await pg.evaluate("""()=>document.querySelector('.reslist [data-part="card/body"]').click()""")
+        await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card/body"]').click()""")
         await pg.wait_for_timeout(420)
         act = await pg.evaluate(
             "()=>document.querySelector('#sheet .sact.primary')?.textContent.trim() ?? null")
@@ -69,7 +69,7 @@ async def main():
 
         # ── The reported journey, exit 1: the browser back ──────────────────
         await pg.evaluate("""()=>{document.querySelector('[data-part="screen"][data-open] .port').scrollTop = 300;}""")
-        await pg.evaluate("""()=>document.querySelector('.reslist [data-part="card/poster"]').click()""")
+        await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card/poster"]').click()""")
         await pg.wait_for_timeout(450)
         # The poster's target is a MEDIA SHEET, and it left `#screen` for a
         # real route (`/mediasheet/$title`, rendered inside `#coquille`) as the add
@@ -96,7 +96,7 @@ async def main():
         back = await pg.evaluate("""()=>({
             screen: !!document.querySelector('[data-part="screen"][data-open]'),
             key: document.querySelector('[data-part="screen"][data-open]')?.dataset.key,
-            cards: document.querySelectorAll('.reslist [data-part="card"]').length,
+            cards: document.querySelectorAll('[data-part="result/list"] [data-part="card"]').length,
             query: document.querySelector('#addq')?.value,
             scroll: document.querySelector('[data-part="screen"][data-open] .port')?.scrollTop,
             sheetStillThere: !!document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]')})""")
@@ -122,7 +122,7 @@ async def main():
         # ── Exit 2: the « Retour » button on the sheet ──────────────────────
         await pg.evaluate("()=>window.__go('acq-add-results')")
         await pg.wait_for_timeout(400)
-        await pg.evaluate("""()=>document.querySelector('.reslist [data-part="card/poster"]').click()""")
+        await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card/poster"]').click()""")
         await pg.wait_for_timeout(450)
         # Same mediaSheet as exit 1, and its own « Retour » is clicked on the screen
         # identified as the mediaSheet — never on whatever `[data-part="screen"][data-open]` happens to
@@ -135,7 +135,7 @@ async def main():
         button = await pg.evaluate("""()=>({
             screen: !!document.querySelector('[data-part="screen"][data-open]'),
             key: document.querySelector('[data-part="screen"][data-open]')?.dataset.key,
-            cards: document.querySelectorAll('.reslist [data-part="card"]').length,
+            cards: document.querySelectorAll('[data-part="result/list"] [data-part="card"]').length,
             sheetStillThere: !!document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]')})""")
         check("the sheet's « Retour » button does the same",
               button["screen"] and (button["key"] or "").startswith("add:")

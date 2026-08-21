@@ -270,6 +270,7 @@ export function AddScreen() {
             </p>
             <div
               className="reslist sec"
+              data-part="result/list"
               dangerouslySetInnerHTML={{ __html: rows }}
             />
           </>

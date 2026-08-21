@@ -117,7 +117,7 @@ ADD_STATE = """() => {
     open: !!screen,
     key: screen?.dataset.key ?? null,
     field: document.querySelector('#addq')?.value ?? null,
-    cards: document.querySelectorAll('.reslist [data-part="card"]').length,
+    cards: document.querySelectorAll('[data-part="result/list"] [data-part="card"]').length,
     pathname: location.pathname,
     search: location.search,
   };
