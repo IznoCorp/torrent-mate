@@ -32,7 +32,7 @@ async def main():
       // (R71: the panel is the single path to the act). Kept pointing at them,
       // both lines printed zero forever, which reads like « no results » next
       // to a count that says six.
-      return {open:s.classList.contains('open'),
+      return {open:s.hasAttribute('data-open'),
               count:(s.querySelector('.rescount')||{}).textContent?.trim(),
               results:s.querySelectorAll('.reslist .card').length,
               feet:[...s.querySelectorAll('.reslist .cfoot')].map(x=>x.textContent.trim()),
@@ -46,7 +46,7 @@ async def main():
     print("  after adding an absent title:", await pg.evaluate("()=>document.querySelector('.addfoot')?.textContent.trim()"))
     await pg.click("[data-panel='add:0']"); await pg.wait_for_timeout(450)
     await pg.click("#sheet [data-act='add:0']"); await pg.wait_for_timeout(450)
-    print("  adding an ALREADY owned title:", await pg.evaluate("()=>{const g=document.querySelector('#dlg');return {open:g.classList.contains('open'),title:g.querySelector('h3')?.textContent};}"))
+    print("  adding an ALREADY owned title:", await pg.evaluate("()=>{const g=document.querySelector('#dlg');return {open:g.hasAttribute('data-open'),title:g.querySelector('h3')?.textContent};}"))
     await pg.screenshot(path="y_remplacer.png")
     await pg.evaluate("()=>document.querySelector('#dlgcancel').click()"); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>__close('screen')"); await pg.wait_for_timeout(400)

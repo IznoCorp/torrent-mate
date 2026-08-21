@@ -208,7 +208,7 @@ async def main():
             await press(r["x"] + r["width"] / 2, r["y"] + r["height"] / 2)
             await pg.wait_for_timeout(400)
             out = await pg.evaluate("""()=>({
-              panel: document.querySelector('#sheet').classList.contains('open'),
+              panel: document.querySelector('#sheet').hasAttribute('data-open'),
               selection: String(window.getSelection() || '').length,
               acts: window.__acts})""")
             if not out["panel"]:
@@ -315,7 +315,7 @@ async def main():
         await pg.evaluate("()=>closeSheet()")
         await pg.wait_for_timeout(340)
         check("the panel starts closed", not await pg.evaluate(
-            "()=>document.querySelector('#sheet').classList.contains('open')"))
+            "()=>document.querySelector('#sheet').hasAttribute('data-open')"))
         target = await pg.evaluate("""()=>{
           const port = document.querySelector('#port');
           const a = [...document.querySelectorAll('.poster')]
@@ -331,7 +331,7 @@ async def main():
                             "touchPoints": [{"x": target["x"], "y": target["y"], "id": 1}]})
             await pg.wait_for_timeout(PRESS_MS + 240)
             during = await pg.evaluate(
-                "()=>document.querySelector('#sheet').classList.contains('open')")
+                "()=>document.querySelector('#sheet').hasAttribute('data-open')")
             await cdp.send("Input.dispatchTouchEvent",
                            {"type": "touchEnd", "touchPoints": []})
             await pg.wait_for_timeout(320)
@@ -348,7 +348,7 @@ async def main():
         await pg.evaluate("()=>{closeSheet(); openFollowSheet('Silo');}")
         await pg.wait_for_timeout(450)
         check("a sheet is open", await pg.evaluate(
-            "()=>document.querySelector('#sheet').classList.contains('open')"))
+            "()=>document.querySelector('#sheet').hasAttribute('data-open')"))
 
         async def drag_handle(from_, to, steps=12):
             """Drags one finger down the handle, in steps a thumb really makes."""
@@ -369,7 +369,7 @@ async def main():
 
         await drag_handle(0, 150)
         check("a 150px drag closes the sheet", not await pg.evaluate(
-            "()=>document.querySelector('#sheet').classList.contains('open')"))
+            "()=>document.querySelector('#sheet').hasAttribute('data-open')"))
 
         # A short drag is not a dismissal: it must spring back, and it must not
         # leave the sheet displaced.
@@ -377,7 +377,7 @@ async def main():
         await pg.wait_for_timeout(450)
         await drag_handle(0, 24)
         sheet_state = await pg.evaluate("""()=>({
-          open: document.querySelector('#sheet').classList.contains('open'),
+          open: document.querySelector('#sheet').hasAttribute('data-open'),
           moved: document.querySelector('#sheet').style.transform || ''})""")
         check("a drag too short leaves it open", sheet_state["open"], str(sheet_state))
         check("and put back in place", not sheet_state["moved"], sheet_state["moved"])
@@ -399,7 +399,7 @@ async def main():
         await pg.mouse.up()
         await pg.wait_for_timeout(420)
         check("with a mouse too, a 150px drag closes it", not await pg.evaluate(
-            "()=>document.querySelector('#sheet').classList.contains('open')"))
+            "()=>document.querySelector('#sheet').hasAttribute('data-open')"))
 
         # A cancel is not a lift. The compositor can still take the gesture — a
         # second finger, a system edge swipe — and the sheet must go back where
@@ -424,7 +424,7 @@ async def main():
         await pg.wait_for_timeout(420)
         cancelled = await pg.evaluate("""()=>{
           const s = document.querySelector('#sheet');
-          return {open: s.classList.contains('open'), moved: s.style.transform || ''};}""")
+          return {open: s.hasAttribute('data-open'), moved: s.style.transform || ''};}""")
         check("a cancel does not close the sheet", cancelled["open"], str(cancelled))
         check("and puts it back in place", not cancelled["moved"], cancelled["moved"])
         await pg.evaluate("()=>closeSheet()")

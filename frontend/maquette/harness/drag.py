@@ -135,7 +135,7 @@ async def main():
                  p0[0].startswith("translateX(-"), str(p0))
         check("and it does NOT open the bottom panel",
                  not await pg.evaluate(
-                     "()=>document.querySelector('#sheet').classList.contains('open')"))
+                     "()=>document.querySelector('#sheet').hasAttribute('data-open')"))
 
         await drag(rows[1]["x"], rows[1]["y"], -140)
         p1 = await positions()
@@ -230,7 +230,7 @@ async def main():
         await pg.wait_for_timeout(450)
         check("a plain tap still opens the panel",
                  await pg.evaluate(
-                     "()=>document.querySelector('#sheet').classList.contains('open')"))
+                     "()=>document.querySelector('#sheet').hasAttribute('data-open')"))
         await pg.evaluate("()=>closeSheet()")
         await pg.wait_for_timeout(300)
 
@@ -275,7 +275,7 @@ async def main():
         await pg.wait_for_timeout(450)
         check("with a mouse either, a drag does not open the panel",
                  not await pg.evaluate(
-                     "()=>document.querySelector('#sheet').classList.contains('open')"))
+                     "()=>document.querySelector('#sheet').hasAttribute('data-open')"))
         check("and it did open the drawer",
                  (await positions())[0].startswith("translateX(-"), str(await positions()))
 

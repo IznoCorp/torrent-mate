@@ -39,14 +39,14 @@ async def main():
           // UNDERNEATH — the overflow, the skeletons and the text of a
           // surface the state does not show.
           const rt = document.querySelector('[data-part="screen"][data-open][data-key]');
-          const layer = sh.classList.contains('open')||sc.classList.contains('open')||dg.classList.contains('open')||!!rt;
+          const layer = sh.hasAttribute('data-open')||sc.hasAttribute('data-open')||dg.hasAttribute('data-open')||!!rt;
           // The route rung comes LAST in the precedence, so every
           // pre-existing case resolves to exactly what it resolved to
           // before: a panel or a dialog opened OVER a route is what one is
           // looking at, and stays what is measured.
-          const target = layer ? (dg.classList.contains('open')?dg
-                                 :sc.classList.contains('open')?sc
-                                 :sh.classList.contains('open')?sh:rt) : v;
+          const target = layer ? (dg.hasAttribute('data-open')?dg
+                                 :sc.hasAttribute('data-open')?sc
+                                 :sh.hasAttribute('data-open')?sh:rt) : v;
           return {sk:target.querySelectorAll('.sk').length, txt:target.textContent.replace(/\\s+/g,' ').trim().length,
                   doc:document.documentElement.scrollWidth,
                   // An overflow clipped by an ancestor is not overflow:

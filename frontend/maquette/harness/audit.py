@@ -59,9 +59,9 @@ async def main():
           // opening any of those routes falls through to `#view` and the
           // rules pass on a page the state never shows — a rule gone quiet,
           // not a rule satisfied.
-          const root = document.querySelector('#dlg').classList.contains('open') ? document.querySelector('#dlg')
-                     : document.querySelector('#screen').classList.contains('open') ? document.querySelector('#screen')
-                     : document.querySelector('#sheet').classList.contains('open') ? document.querySelector('#sheet')
+          const root = document.querySelector('#dlg').hasAttribute('data-open') ? document.querySelector('#dlg')
+                     : document.querySelector('#screen').hasAttribute('data-open') ? document.querySelector('#screen')
+                     : document.querySelector('#sheet').hasAttribute('data-open') ? document.querySelector('#sheet')
                      : document.querySelector('[data-part="screen"][data-open][data-key]')
                      ?? document.querySelector('#view');
 
@@ -205,7 +205,7 @@ async def main():
             const el = document.querySelector(sel);
             // The mediaSheet's selector matches only while it is open, so an absent
             // node is a closed layer — not an error, and not a reason to throw.
-            if (!el || !el.classList.contains('open')) continue;
+            if (!el || !el.hasAttribute('data-open')) continue;
             const port = el.querySelector(inner);
             if (!port) continue;
             const pb = parseFloat(getComputedStyle(port).paddingBottom);
@@ -282,7 +282,7 @@ async def main():
           // this check never learned about a screen migrated off `#screen`
           // onto a real route (`/resolution/$folder` among them) — the SAME
           // generic entry as the root ladder's covers it here too.
-          const layer=()=>['#sheet','#screen','#dlg'].some(s=>document.querySelector(s).classList.contains('open'))
+          const layer=()=>['#sheet','#screen','#dlg'].some(s=>document.querySelector(s).hasAttribute('data-open'))
             || !!document.querySelector('[data-part="screen"][data-open][data-key]');
           b.click(); await new Promise(r=>setTimeout(r,320));
           if (snap()===before && !layer()) out.push(`${id} : « ${lab} » changes nothing`);

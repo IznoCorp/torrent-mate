@@ -33,7 +33,7 @@ async def main():
     # inside `#coquille`), so it is read by the identity it carries —
     # `data-key="mediaSheet:…"` — rather than by a layer id it no longer uses, or by
     # a bare `[data-part="screen"][data-open]` that cannot tell two stacked screens apart.
-    r = await pg.evaluate("""()=>({sheet:document.querySelector('#sheet').classList.contains('open'),
+    r = await pg.evaluate("""()=>({sheet:document.querySelector('#sheet').hasAttribute('data-open'),
       screen:!!document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]')})""")
     chk("2. media sheet from a follow sheet", r["screen"] and not r["sheet"], str(r))
 
@@ -42,7 +42,7 @@ async def main():
     await pg.evaluate("()=>[...document.querySelectorAll('[data-panel]')].find(e=>e.dataset.panel.startsWith('sug:')).click()"); await pg.wait_for_timeout(400)
     await pg.evaluate("()=>[...document.querySelectorAll('#sheet .sact')].find(x=>x.textContent.includes('Voir la fiche')).click()")
     await pg.wait_for_timeout(700)
-    r = await pg.evaluate("""()=>({sheet:document.querySelector('#sheet').classList.contains('open'),
+    r = await pg.evaluate("""()=>({sheet:document.querySelector('#sheet').hasAttribute('data-open'),
       screen:!!document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]')})""")
     chk("2b. the same from Découvrir", r["screen"] and not r["sheet"], str(r))
 
@@ -106,13 +106,13 @@ async def main():
     await pg.wait_for_timeout(400)
     await pg.evaluate("()=>document.querySelector('#sheet [data-go=profile]').click()")
     await pg.wait_for_timeout(500)
-    r = await pg.evaluate("""()=>({sheet:document.querySelector('#sheet').classList.contains('open'),
+    r = await pg.evaluate("""()=>({sheet:document.querySelector('#sheet').hasAttribute('data-open'),
       page:state.page,
       onTop:(()=>{const e=document.elementFromPoint(195,700);
         return e && e.closest('#sheet') ? 'sheet' : 'page'})()})""")
     chk("9. profile from the sheet — the sheet leaves", not r["sheet"] and r["page"]=="profile" and r["onTop"]=="page", str(r))
     await pg.go_back(); await pg.wait_for_timeout(600)
-    r = await pg.evaluate("()=>({page:state.page, sheet:document.querySelector('#sheet').classList.contains('open')})")
+    r = await pg.evaluate("()=>({page:state.page, sheet:document.querySelector('#sheet').hasAttribute('data-open')})")
     chk("9b. one back reaches the page held before the sheet", r["page"]=="acq" and not r["sheet"], str(r))
 
     # 10 — B-022: « Voir mes suivis » in the add screen's footer LANDS: the
@@ -146,7 +146,7 @@ async def main():
     # the stable hook the harness has instead.
     foot = await pg.evaluate("()=>!!document.querySelector('.addfoot button')")
     detail = await pg.evaluate("""()=>({added:state.added.size,
-      dlg:document.querySelector('#dlg').classList.contains('open'),
+      dlg:document.querySelector('#dlg').hasAttribute('data-open'),
       screen:!!document.querySelector('[data-part="screen"][data-open]')})""")
     chk("10. a real add brings the screen's footer into being", added and foot, f"added={added} foot={foot} {detail}")
     if foot:

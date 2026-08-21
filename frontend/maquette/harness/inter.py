@@ -55,7 +55,7 @@ async def main():
     await pg.evaluate("()=>document.querySelector('#libitems .swipe .act.remove').click()")
     await pg.wait_for_timeout(400)
     d = await pg.evaluate("""()=>{const g=document.querySelector('#dlg');
-      return {open:g.classList.contains('open'), title:(g.querySelector('h3')||{}).textContent,
+      return {open:g.hasAttribute('data-open'), title:(g.querySelector('h3')||{}).textContent,
               dryrun:!!g.querySelector('.dryrun'), rows:g.querySelectorAll('.manifest li').length,
               choices:[...g.querySelectorAll('.dlgbtn')].map(x=>x.textContent.trim())};}""")
     print(" ", d)

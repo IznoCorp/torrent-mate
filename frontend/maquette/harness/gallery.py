@@ -80,7 +80,7 @@ async def main():
         await pg.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
         await pg.mouse.down(); await pg.wait_for_timeout(640); await pg.mouse.up()
         await pg.wait_for_timeout(400)
-        sheet = await pg.evaluate("()=>document.querySelector('#sheet').classList.contains('open')")
+        sheet = await pg.evaluate("()=>document.querySelector('#sheet').hasAttribute('data-open')")
         verdict = "PASS" if screen_ and sheet else "FAIL"
         if verdict == "FAIL":
             failures.append(f"{name}: tap→sheet {screen_}, long→panel {sheet}")

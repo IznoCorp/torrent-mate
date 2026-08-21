@@ -39,7 +39,7 @@ async def main():
       window.setTimeout(()=>window.dispatchEvent(new PointerEvent('pointerup',p)), 600);}""")
     await pg.wait_for_timeout(900)
     press = await pg.evaluate("""()=>{const s=document.querySelector('#sheet');
-        return {open:s.classList.contains('open'), actions:[...s.querySelectorAll('.sact')].map(x=>x.textContent.trim())};}""")
+        return {open:s.hasAttribute('data-open'), actions:[...s.querySelectorAll('.sact')].map(x=>x.textContent.trim())};}""")
     print("  sheet open      :", press)
     if not press["open"]:
         failures.append("long press opens nothing")

@@ -343,7 +343,7 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/attrs.py",
-    "line": 101,
+    "line": 103,
     "selector": ".card[data-nonmedia=\"candidat\"] .poster",
     "token": ".card"
   },
@@ -351,27 +351,9 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/attrs.py",
-    "line": 101,
+    "line": 103,
     "selector": ".card[data-nonmedia=\"candidat\"] .poster",
     "token": ".poster"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/audit.py",
-    "line": 62,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/audit.py",
-    "line": 63,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/audit.py",
-    "line": 64,
-    "class": "open"
   },
   {
     "kind": "selection",
@@ -558,12 +540,6 @@
     "token": ".port"
   },
   {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/audit.py",
-    "line": 208,
-    "class": "open"
-  },
-  {
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/audit.py",
@@ -586,30 +562,6 @@
     "line": 279,
     "selector": "#view .cfoot",
     "token": ".cfoot"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/audit.py",
-    "line": 285,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 49,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 50,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 51,
-    "class": "open"
   },
   {
     "kind": "selection",
@@ -682,24 +634,6 @@
     "line": 120,
     "selector": ".h2",
     "token": ".h2"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 160,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 163,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 167,
-    "class": "open"
   },
   {
     "kind": "selection",
@@ -790,28 +724,6 @@
     "token": ".swipe"
   },
   {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 205,
-    "class": "open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 228,
-    "selector": "#screen.open, #sheet.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 228,
-    "selector": "#screen.open, #sheet.open",
-    "token": ".open"
-  },
-  {
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/audit2.py",
@@ -851,22 +763,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/audit2.py",
-    "line": 271,
-    "selector": "#screen.open, #sheet.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 271,
-    "selector": "#screen.open, #sheet.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
     "line": 273,
     "selector": ".hero",
     "token": ".hero"
@@ -878,14 +774,6 @@
     "line": 274,
     "selector": ".trailer",
     "token": ".trailer"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 300,
-    "selector": "#screen.open",
-    "token": ".open"
   },
   {
     "kind": "selection",
@@ -1028,36 +916,12 @@
     "token": ".ctitle"
   },
   {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 452,
-    "class": "open"
-  },
-  {
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/audit2.py",
     "line": 453,
     "selector": ".sact",
     "token": ".sact"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/back.py",
-    "line": 44,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/back.py",
-    "line": 45,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/back.py",
-    "line": 46,
-    "class": "open"
   },
   {
     "kind": "assertion",
@@ -1130,12 +994,6 @@
     "token": ".port"
   },
   {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/bridge.py",
-    "line": 359,
-    "class": "open"
-  },
-  {
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/bugs.py",
@@ -1152,24 +1010,12 @@
     "token": ".sact"
   },
   {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 36,
-    "class": "open"
-  },
-  {
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/bugs.py",
     "line": 43,
     "selector": "#sheet .sact",
     "token": ".sact"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 45,
-    "class": "open"
   },
   {
     "kind": "selection",
@@ -1308,18 +1154,6 @@
     "token": ".avatar"
   },
   {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 109,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 115,
-    "class": "open"
-  },
-  {
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/bugs.py",
@@ -1328,24 +1162,12 @@
     "token": ".addfoot"
   },
   {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 149,
-    "class": "open"
-  },
-  {
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/bugs.py",
     "line": 153,
     "selector": ".addfoot button",
     "token": ".addfoot"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/cards.py",
-    "line": 96,
-    "class": "open"
   },
   {
     "kind": "selection",
@@ -2028,24 +1850,6 @@
     "token": ".deck"
   },
   {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/dest.py",
-    "line": 34,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/dest.py",
-    "line": 35,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/dest.py",
-    "line": 36,
-    "class": "open"
-  },
-  {
     "kind": "selection",
     "held": true,
     "file": "frontend/maquette/harness/dest.py",
@@ -2142,12 +1946,6 @@
     "token": ".swipe"
   },
   {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/drag.py",
-    "line": 138,
-    "class": "open"
-  },
-  {
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/drag.py",
@@ -2194,12 +1992,6 @@
     "line": 221,
     "selector": "#view .swipe .cbody",
     "token": ".swipe"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/drag.py",
-    "line": 233,
-    "class": "open"
   },
   {
     "kind": "selection",
@@ -2264,24 +2056,6 @@
     "line": 266,
     "selector": "#view .swipe .cbody",
     "token": ".swipe"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/drag.py",
-    "line": 278,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/drawer.py",
-    "line": 42,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/drawer.py",
-    "line": 43,
-    "class": "open"
   },
   {
     "kind": "selection",
@@ -2644,12 +2418,6 @@
     "token": ".tile"
   },
   {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/gallery.py",
-    "line": 83,
-    "class": "open"
-  },
-  {
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/gallery.py",
@@ -2672,12 +2440,6 @@
     "line": 108,
     "selector": "#view .vsw",
     "token": ".vsw"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/ident.py",
-    "line": 35,
-    "class": "open"
   },
   {
     "kind": "selection",
@@ -2872,12 +2634,6 @@
     "token": ".swipe"
   },
   {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/inter.py",
-    "line": 58,
-    "class": "open"
-  },
-  {
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/inter.py",
@@ -2999,14 +2755,6 @@
   },
   {
     "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/library_sort.py",
-    "line": 133,
-    "selector": "#sheet.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
     "held": true,
     "file": "frontend/maquette/harness/logout.py",
     "line": 103,
@@ -3020,18 +2768,6 @@
     "line": 103,
     "selector": "#sheet button.sact.danger",
     "token": ".sact"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/logout.py",
-    "line": 107,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/logout.py",
-    "line": 108,
-    "class": "open"
   },
   {
     "kind": "selection",
@@ -3160,12 +2896,6 @@
     "line": 204,
     "selector": "#view .flux .fx .fk",
     "token": ".fx"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/machine.py",
-    "line": 212,
-    "class": "open"
   },
   {
     "kind": "selection",
@@ -3467,14 +3197,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/page_host.py",
-    "line": 206,
-    "selector": "#sheet.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/page_host.py",
     "line": 207,
     "selector": "#sheet .sheettitle",
     "token": ".sheettitle"
@@ -3529,27 +3251,11 @@
   },
   {
     "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/page_host.py",
-    "line": 260,
-    "selector": "#sheet.open",
-    "token": ".open"
-  },
-  {
-    "kind": "selection",
     "held": true,
     "file": "frontend/maquette/harness/page_host.py",
     "line": 311,
     "selector": "#view .topic[data-topic='secrets']",
     "token": ".topic"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/page_host.py",
-    "line": 329,
-    "selector": "#sheet.open",
-    "token": ".open"
   },
   {
     "kind": "selection",
@@ -4440,12 +4146,6 @@
     "token": ".selbar"
   },
   {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/selection.py",
-    "line": 42,
-    "class": "open"
-  },
-  {
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/selection.py",
@@ -4926,42 +4626,6 @@
     "token": ".loginsubmit"
   },
   {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/states.py",
-    "line": 42,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/states.py",
-    "line": 42,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/states.py",
-    "line": 42,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/states.py",
-    "line": 47,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/states.py",
-    "line": 48,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/states.py",
-    "line": 49,
-    "class": "open"
-  },
-  {
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/states.py",
@@ -4992,12 +4656,6 @@
     "line": 58,
     "selector": ".pillscroll",
     "token": ".pillscroll"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/surfaces.py",
-    "line": 35,
-    "class": "open"
   },
   {
     "kind": "selection",
@@ -5054,12 +4712,6 @@
     "line": 46,
     "selector": ".addfoot",
     "token": ".addfoot"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/surfaces.py",
-    "line": 49,
-    "class": "open"
   },
   {
     "kind": "selection",
@@ -5318,12 +4970,6 @@
     "token": ".deck"
   },
   {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 211,
-    "class": "open"
-  },
-  {
     "kind": "selection",
     "held": true,
     "file": "frontend/maquette/harness/touch.py",
@@ -5388,54 +5034,12 @@
     "token": ".card"
   },
   {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 318,
-    "class": "open"
-  },
-  {
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/touch.py",
     "line": 321,
     "selector": ".poster",
     "token": ".poster"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 334,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 351,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 372,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 380,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 402,
-    "class": "open"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 427,
-    "class": "open"
   },
   {
     "kind": "selection",

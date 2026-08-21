@@ -130,7 +130,7 @@ async def main():
             drawn = {}
             for sense, reversed_ in (("normal", False), ("inverse", True)):
                 if not await page.evaluate(
-                        "()=>!!document.querySelector('#sheet.open')"):
+                        "()=>!!document.querySelector('#sheet[data-open]')"):
                     await open_sort_panel(page)
                 selector = (f"#sheet .sact[data-setsort='{key}']"
                             + ("[data-reversed='1']" if reversed_

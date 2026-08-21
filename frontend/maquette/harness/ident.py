@@ -32,7 +32,7 @@ async def where(pg):
       address: location.pathname + location.search,
       page: state.page,
       sheet: window.__panel.isOpen(),
-      screen: document.querySelector('#screen').classList.contains('open'),
+      screen: document.querySelector('#screen').hasAttribute('data-open'),
       message: (document.querySelector('#toastmsg')||{}).textContent || '',
       pops: window.__pops.length,
     })""")

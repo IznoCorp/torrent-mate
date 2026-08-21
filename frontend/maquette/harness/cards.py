@@ -93,7 +93,7 @@ async def panel_actions(pg):
     """
     return await pg.evaluate(
         """()=>{const s=document.querySelector('#sheet');
-        if(!s||!s.classList.contains('open')) return null;
+        if(!s||!s.hasAttribute('data-open')) return null;
         return [...s.querySelectorAll('.sact')].map(x=>x.textContent.trim());}"""
     )
 

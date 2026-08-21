@@ -39,8 +39,8 @@ CONTRAST_FLOOR = 4.5
 
 WHERE = """() => ({
   page: state.page,
-  drawer: document.querySelector('#drawer').classList.contains('open'),
-  scrim: document.querySelector('#scrim').classList.contains('open'),
+  drawer: document.querySelector('#drawer').hasAttribute('data-open'),
+  scrim: document.querySelector('#scrim').hasAttribute('data-open'),
   layer: history.state && history.state.layer ? history.state.layer : null,
   nav: history.state && history.state.tm === 'nav' ? history.state.page : null,
 })"""

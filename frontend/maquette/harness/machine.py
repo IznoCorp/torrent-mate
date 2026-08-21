@@ -209,7 +209,7 @@ READ = READ.replace("__BLOCKS__", "".join(
     f"{key}: block({heading!r}),\n    " for heading, key, _, _ in ALL_BLOCKS).strip())
 
 PANEL = """() => ({
-  open: document.querySelector('#sheet').classList.contains('open'),
+  open: document.querySelector('#sheet').hasAttribute('data-open'),
   title: (document.querySelector('.sheettitle') || {}).textContent || '',
   actions: [...document.querySelectorAll('.sheetacts .sact')].map((b) => ({
     text: b.textContent.trim(),

@@ -356,7 +356,7 @@ async def main():
                 cards: document.querySelectorAll('.reslist .card').length,
                 query: document.querySelector('#addq')?.value,
                 scroll: document.querySelector('[data-part="screen"][data-open] .port')?.scrollTop,
-                legacySheetStillThere: document.querySelector('#screen').classList.contains('open')
+                legacySheetStillThere: document.querySelector('#screen').hasAttribute('data-open')
             })"""
         )
 

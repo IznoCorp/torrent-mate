@@ -46,9 +46,9 @@ async def main():
         # otherwise fall through to `#view` and this rule would read a page
         # the state does not show.
         bad=await pg.evaluate("""()=>{
-          const r=document.querySelector('#dlg').classList.contains('open')?'#dlg'
-                 :document.querySelector('#screen').classList.contains('open')?'#screen'
-                 :document.querySelector('#sheet').classList.contains('open')?'#sheet'
+          const r=document.querySelector('#dlg').hasAttribute('data-open')?'#dlg'
+                 :document.querySelector('#screen').hasAttribute('data-open')?'#screen'
+                 :document.querySelector('#sheet').hasAttribute('data-open')?'#sheet'
                  :document.querySelector('[data-part="screen"][data-open][data-key]')?'[data-part="screen"][data-open][data-key]'
                  :'#view';
           const t=document.querySelector(r).innerText;
@@ -157,14 +157,14 @@ async def main():
     ]
     for id_, sel, closing in R14_CASES:
         await pg.evaluate("(i)=>window.__go(i)", id_); await pg.wait_for_timeout(300)
-        opened = await pg.evaluate("(s)=>!!document.querySelector(s)?.classList.contains('open')", sel)
+        opened = await pg.evaluate("(s)=>!!document.querySelector(s)?.hasAttribute('data-open')", sel)
         if closing == "scrim":
             await pg.evaluate("()=>document.querySelector('#scrim').click()"); await pg.wait_for_timeout(300)
-            if await pg.evaluate("(s)=>!!document.querySelector(s)?.classList.contains('open')", sel):
+            if await pg.evaluate("(s)=>!!document.querySelector(s)?.hasAttribute('data-open')", sel):
                 note("R14 layer not closable via the scrim", f"{id_}")
         else:
             await pg.evaluate("(s)=>document.querySelector(s+' .fback').click()", sel); await pg.wait_for_timeout(350)
-            if await pg.evaluate("(s)=>!!document.querySelector(s)?.classList.contains('open')", sel):
+            if await pg.evaluate("(s)=>!!document.querySelector(s)?.hasAttribute('data-open')", sel):
                 note("R14 screen not closable via Back", f"{id_}")
         if not opened: note("R14 layer that does not open", id_)
 
@@ -202,7 +202,7 @@ async def main():
       window.__go('lib-list'); await new Promise(r=>setTimeout(r,260));
       const before=world.lib.length;
       document.querySelector('#libitems .swipe .act.remove').click(); await new Promise(r=>setTimeout(r,320));
-      if (!document.querySelector('#dlg').classList.contains('open')) out.push('deleting a medium: no confirmation');
+      if (!document.querySelector('#dlg').hasAttribute('data-open')) out.push('deleting a medium: no confirmation');
       if (world.lib.length!==before) out.push('deleting a medium: mutation BEFORE confirmation');
       return out;}""")
     for x in rev: note("R17 destruction without a guard", x)
@@ -225,7 +225,7 @@ async def main():
           // The media sheet left `#screen` for a real route; it is added here
           // by the identity it carries, or this rule about ALL media sheets
           // would stop seeing the very screen it is named after.
-          const root=document.querySelector('#screen.open, #sheet.open')
+          const root=document.querySelector('#screen[data-open], #sheet[data-open]')
                   || document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
           const hero=root && root.querySelector('.hero');
           if (!hero) continue;
@@ -268,7 +268,7 @@ async def main():
         window.__go(s); await new Promise(r=>setTimeout(r,300));
         // Same reason as R26 above: the sheet is a route now, and it is where
         // the trailer lives — read it by its key or this rule goes quiet.
-        const root=document.querySelector('#screen.open, #sheet.open')
+        const root=document.querySelector('#screen[data-open], #sheet[data-open]')
                 || document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
         if (!root || !root.querySelector('.hero')) continue;
         const el=root.querySelector('.trailer');
@@ -297,7 +297,7 @@ async def main():
         // otherwise the migrated mediaSheet, named by its own key: leaving the
         // mediaSheet out would silently drop five states from this sweep, and a
         // rule that has gone quiet is not a rule that passes.
-        const screen=document.querySelector('#screen.open')
+        const screen=document.querySelector('#screen[data-open]')
                   || document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
         const bar=screen?.querySelector('.screenbar');
         if (!bar) continue;
@@ -449,7 +449,7 @@ async def main():
           const title=full.slice(0,26);
           cards[i].click(); await new Promise(r=>setTimeout(r,300));
           const sheet=document.querySelector('#sheet');
-          if (!sheet.classList.contains('open')) { out.push(`${state_} · « ${title} » opens nothing`); continue; }
+          if (!sheet.hasAttribute('data-open')) { out.push(`${state_} · « ${title} » opens nothing`); continue; }
           const actions=[...sheet.querySelectorAll('.sact')].map(x=>x.textContent.trim());
           if (!followed.has(full)) {
             for (const a of actions)

@@ -203,7 +203,7 @@ async def main():
         refused = (await tap("#view .flux .fx .fw[data-maintact]")
                    if wanted else "absent")
         panel = await page.evaluate("""()=>({
-          open: !!document.querySelector('#sheet.open'),
+          open: !!document.querySelector('#sheet[data-open]'),
           title: (document.querySelector('#sheet .sheettitle')||{}).textContent || null,
         })""")
         journal.check(
@@ -257,7 +257,7 @@ async def main():
         edited = await page.evaluate("""()=>{
           const field = document.querySelector('#sheetin [data-field]');
           const meta = document.querySelector('#sheet .sheetmeta');
-          return {open: !!document.querySelector('#sheet.open'),
+          return {open: !!document.querySelector('#sheet[data-open]'),
                   field: field ? field.dataset.field : null,
                   meta: meta ? meta.textContent.trim() : null};}""")
         named = identity and edited["meta"] and all(
@@ -326,7 +326,7 @@ async def main():
         await page.wait_for_timeout(250)
         refused = await tap("#view [data-secret]") if key else "absent"
         sheet = await page.evaluate("""()=>({
-          open: !!document.querySelector('#sheet.open'),
+          open: !!document.querySelector('#sheet[data-open]'),
           text: (document.querySelector('#sheet')||{}).textContent || '',
         })""")
         journal.check(

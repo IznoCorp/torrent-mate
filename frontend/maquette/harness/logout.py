@@ -104,8 +104,8 @@ async def main():
         await pg.wait_for_timeout(400)
         after = await pg.evaluate("""()=>({
           login: getComputedStyle(document.querySelector('#login')).display,
-          sheet: document.querySelector('#sheet').classList.contains('open'),
-          scrim: document.querySelector('#scrim').classList.contains('open')})""")
+          sheet: document.querySelector('#sheet').hasAttribute('data-open'),
+          scrim: document.querySelector('#scrim').hasAttribute('data-open')})""")
         check("it leads to the sign-in screen", after["login"] != "none", str(after))
         check("and closes the sheet", not after["sheet"] and not after["scrim"], str(after))
         check("no JS error even with no server-side route", not errors, str(errors))

@@ -31,9 +31,9 @@ async def main():
           // routes would fall through to `#view` and the rule would clear
           // the underlying page's buttons without ever having looked at the
           // screen's own.
-          const root=document.querySelector('#dlg').classList.contains('open')?document.querySelector('#dlg')
-            :document.querySelector('#screen').classList.contains('open')?document.querySelector('#screen')
-            :document.querySelector('#sheet').classList.contains('open')?document.querySelector('#sheet')
+          const root=document.querySelector('#dlg').hasAttribute('data-open')?document.querySelector('#dlg')
+            :document.querySelector('#screen').hasAttribute('data-open')?document.querySelector('#screen')
+            :document.querySelector('#sheet').hasAttribute('data-open')?document.querySelector('#sheet')
             :document.querySelector('[data-part="screen"][data-open][data-key]')
             ??document.querySelector('#view');
           return [...root.querySelectorAll('button, a')]
