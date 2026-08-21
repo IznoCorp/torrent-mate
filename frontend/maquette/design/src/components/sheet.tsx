@@ -81,6 +81,8 @@ export function Sheet({
     <>
       <div
         id="scrim"
+        data-part="scrim"
+        data-open={open || undefined}
         className={"scrim" + (open ? " open" : "")}
         // The scrim is shared ground: the drawer and the dialog raise it
         // themselves and a tap on it closes whichever of the three is up. The
@@ -92,6 +94,8 @@ export function Sheet({
       <div
         ref={sheetRef}
         id="sheet"
+        data-part="sheet"
+        data-open={open || undefined}
         className={"sheet" + (open ? " open" : "")}
       >
         {/* The handle CAPTURES the pointer and claims its axis (`touch-action`
