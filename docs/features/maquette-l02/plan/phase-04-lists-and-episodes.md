@@ -49,11 +49,19 @@ read what it actually evaluates to. If nothing emits it, that is a finding to re
 
 ## Baseline entries removed
 
-**43** class token occurrences — 7 distinct tokens, `reslist`, `sugwrap`, `ep`, `eppop`, `eprow`,
-`eps`, `season`. No assertion entries move in this phase — see ACC-11 below, which is the whole
-point. The baseline goes 490 → 444.
+**46, and the first draft's two sub-phases could remove 36.** `eprow`, `eps` and `season` were named
+by nothing — 10 occurrences with no owner. Measured on the committed 834-entry baseline, call + held:
 
----
+| Sub-phase | Removes | Tokens |
+| --- | --- | --- |
+| 4.1 | **24** | `.reslist` 17 · `.sugwrap` 7 (1 held) |
+| 4.2 | **12** | `.ep` 8 · `.eppop` 4 (no static emitter — resolved at its site first) |
+| 4.3 | **10** | `.eprow` 2 · `.eps` 4 (2 held) · `.season` 4 |
+
+24 + 12 + 10 = **46**. No assertion moves in this phase — see ACC-11. The baseline goes
+**490 → 466 → 454 → 444**. **`wrap` is absent from `scripts/code-vocabulary.txt`** (measured
+2026-08-21), so 4.1's `suggestion/wrap` fails the vocabulary arm until the word is added in the same
+commit — one line, sorted, in the DESIGN section.
 
 ## Sub-phase 4.1 — the result list and the suggestion wrapper
 
@@ -116,6 +124,24 @@ reason. A reason-less entry is itself a violation, as it already is for `french-
 - [ ] **Step 8.** `run.sh` — no violation, hold counts unchanged. Commit.
 
 ---
+
+## Sub-phase 4.3 — the episode row, the episode set and the season
+
+One commit: `refactor(maquette-l02): anchor the episode row, set and season on data-part`
+
+Three tokens the first draft never named, all straddling the engine boundary.
+
+| Token | `data-part` | Emitted by |
+| --- | --- | --- |
+| `.eprow` | `episode/row` | engine + components |
+| `.eps` | `episode/set` | engine + components — the list an episode row belongs to (2 of 4 held) |
+| `.season` | `season` | engine + components — `details.season` in `media.tsx` |
+
+- [ ] **Step 1.** Emit each anchor beside its class at every site, engine included.
+- [ ] **Step 2.** Re-anchor the 10 occurrences by literal replacement with asserted counts, reading
+      them (held included) from the classifier's `--baseline`.
+- [ ] **Step 3.** `--write-baseline` → `10 removed`, landing at **444**. Guard exit 0.
+- [ ] **Step 4.** `run.sh` / hold counts — no violation, unchanged. Commit.
 
 ## Closing proofs — run all three, record what they printed
 

@@ -39,13 +39,19 @@ day its surface converts out of `legacy.js` — which is exactly the day someone
 
 ## Baseline entries removed
 
-**59**: 57 class token occurrences — 13 distinct tokens, `fr`, `fn`, `fk`, `fs`, `fx`,
-`settingrow`, `seg`, `sechead`, `field`, `fieldinput`, `fieldtoggle`, `optlist`, `opt` — plus the
-**2** filter-state assertions `classList.contains('fempty')` and `classList.contains('fblocked')`,
-which become `hasAttribute('data-empty')` and `hasAttribute('data-blocked')`. The baseline goes
-444 → 368 (76 removed: 74 tokens, 17 of them held, + 2 assertions).
+**76, and the first draft could remove 52.** It counted FOUR engine abbreviations where there are
+five — `.fx` is the fifth, 10 occurrences — and named none of the field family. Measured on the
+committed 834-entry baseline, call + held:
 
----
+| Sub-phase | Removes | Tokens |
+| --- | --- | --- |
+| 5.1 | **30** | `.fr` 11 · `.fn` 4 · `.fk` 3 · `.fs` 2 · **`.fx` 10 (1 held)** — the five engine abbreviations |
+| 5.2 | **2** | the `fempty` / `fblocked` assertions → `data-empty` / `data-blocked` |
+| 5.3 | **20** | `.settingrow` 8 (1 held) · `.seg` 6 (2 held) · `.sechead` 6 |
+| 5.4 | **24** | `.fieldinput` 14 (**8 held**) · `.field` 3 (1 held) · `.fieldtoggle` 3 (2 held) · `.opt` 3 (2 held) · `.optlist` 1 |
+
+30 + 2 + 20 + 24 = **76**. The baseline goes **444 → 414 → 412 → 392 → 368**. **`option` is absent
+from `scripts/code-vocabulary.txt`** (measured 2026-08-21); 5.4 adds it in the same commit.
 
 ## Resolve the four abbreviations before naming them — do not guess
 
@@ -69,11 +75,14 @@ that one line is the whole point of the mechanism.
 
 ---
 
-## Sub-phase 5.1 — the four engine-only filter tokens
+## Sub-phase 5.1 — the five engine-only filter tokens
+
+> **Five, not four.** `.fx` is emitted by `legacy.js` alone like the other four and is selected 10
+> times; the first draft counted it among the tail. It is resolved and named with them.
 
 One commit: `refactor(maquette-l02): anchor the filter contracts on data-part`
 
-- [ ] **Step 1.** Resolve `fr`, `fn`, `fk`, `fs` per the section above, and record each meaning.
+- [ ] **Step 1.** Resolve `fr`, `fn`, `fk`, `fs`, **`fx`** per the section above, and record each meaning.
 - [ ] **Step 2.** Emit the resolved `data-part` values beside the existing classes in `legacy.js`.
       The class stays; L07 removes it.
 - [ ] **Step 3.** Check the vocabulary before the guard does:
@@ -132,6 +141,29 @@ _is this word French?_, so a name built from a word nobody wrote into
 - [ ] **Step 6.** `run.sh` — no violation, hold counts unchanged. Commit.
 
 ---
+
+## Sub-phase 5.4 — the field family and the options
+
+One commit: `refactor(maquette-l02): anchor the setting fields and options on data-part`
+
+Components only. More than half of these occurrences are HELD — `page_host.py`'s tables select
+`.fieldinput` by the dozen — so the classifier's `held` entries are most of the work here.
+
+| Token | `data-part` | Emitted by |
+| --- | --- | --- |
+| `.field` | `field` | components (4 sites) |
+| `.fieldinput` | `field/input` | components |
+| `.fieldtoggle` | `field/toggle` | components |
+| `.optlist` | `option/list` | components |
+| `.opt` | `option` | components |
+
+- [ ] **Step 1.** Add `option` to `scripts/code-vocabulary.txt` (re-check first), sorted, DESIGN section.
+- [ ] **Step 2.** Emit each anchor beside its class at every component site.
+- [ ] **Step 3.** Re-anchor the 24 occurrences — 13 of them held — by literal replacement with
+      asserted counts.
+- [ ] **Step 4.** `--write-baseline` → `24 removed`, landing at **368**. Guard exit 0. This
+      sub-phase CLOSES phase 5.
+- [ ] **Step 5.** `run.sh` / hold counts — no violation, unchanged. Commit.
 
 ## Closing proofs — run all three, record what they printed
 
