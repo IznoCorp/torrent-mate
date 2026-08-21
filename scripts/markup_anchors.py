@@ -389,21 +389,30 @@ def emission_tokens() -> set[str]:
     return emitted
 
 
-def held_occurrences(path: Path, emitted: set[str]) -> list[tuple[int, str]]:
-    """Returns every held selector in one harness file, in file order.
+def held_literals(path: Path) -> list[tuple[int, str]]:
+    """Returns every selector-shaped literal one harness file HOLDS.
 
-    A held selector is a selector-shaped string literal OUTSIDE any
-    selection call's argument position — a selector held in a variable,
-    a table, a helper's argument, a comparison.
+    A held literal is a selector-shaped string OUTSIDE any selection
+    call's argument position — a selector held in a variable, a table, a
+    helper's argument, a comparison. It is the extraction, not a rule:
+    what a caller then keeps is the caller's question. ARM 2 keeps the
+    ones carrying class tokens the design sites emit; ARM 3 keeps the
+    ones carrying a `data-part` selection. Both blind spots are the SAME
+    blind spot — a selector no call names — so they are read once here
+    rather than twice, in two readers that would drift apart.
+
+    Comments are masked first, `comment_masked` doing it: it knows a `#`
+    inside a string is not a comment, and it blanks the JS comments
+    inside the triple-quoted containers the harness embeds its page
+    scripts in. Blanks preserve offsets, so a candidate found in the
+    masked text still names its original line.
 
     Args:
         path: A Python file under `HARNESS`.
-        emitted: The class tokens the three design sites emit — the
-            false-positive rule's emission half is decided by this set.
 
     Returns:
-        `(line, content)` pairs, one per candidate that carries at least
-        one class token and passes the false-positive rule.
+        `(line, content)` pairs, in file order — every literal that is
+        selector-shaped and is not a selection call's own argument.
     """
     text = path.read_text(encoding="utf-8")
     masked = comment_masked(text)
@@ -417,13 +426,36 @@ def held_occurrences(path: Path, emitted: set[str]) -> list[tuple[int, str]]:
             continue
         if METHOD_CALL.match(content):
             continue
+        line = text.count("\n", 0, match.start()) + 1
+        found.append((line, content))
+    return found
+
+
+def held_occurrences(path: Path, emitted: set[str]) -> list[tuple[int, str]]:
+    """Returns every held ANCHOR selector in one harness file, in order.
+
+    The extraction is `held_literals`; the rule below is ARM 2's own — a
+    candidate must carry at least one class token, and must either show
+    selector structure or have every one of its tokens emitted by a
+    design site.
+
+    Args:
+        path: A Python file under `HARNESS`.
+        emitted: The class tokens the three design sites emit — the
+            false-positive rule's emission half is decided by this set.
+
+    Returns:
+        `(line, content)` pairs, one per candidate that carries at least
+        one class token and passes the false-positive rule.
+    """
+    found: list[tuple[int, str]] = []
+    for line, content in held_literals(path):
         tokens = class_tokens(content)
         if not tokens:
             continue
         if not (has_structure(content)
                 or all(token[1:] in emitted for token in tokens)):
             continue
-        line = text.count("\n", 0, match.start()) + 1
         found.append((line, content))
     return found
 

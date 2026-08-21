@@ -338,6 +338,109 @@ class TestEscapedPartSelections:
         assert [(path, found) for path in guard.harness_files() if (found := guard.escaped_part_selections(path))] == []
 
 
+class TestHeldPartSelections:
+    """ARM 3's own held blind spot: a `data-part` selection no call names.
+
+    The arm read a selection only where it was the literal ARGUMENT of a
+    selection call. The harness holds selectors as readily as it passes them
+    — `screen_port = '[data-part="screen"][data-open] .port'` handed to a
+    helper, the `R14_CASES` and `layers` tables a loop walks, a ternary whose
+    result a `querySelector` is given one line later. Every one of those is a
+    selection, and a value renamed in the markup would leave them all
+    selecting nothing while the arm printed a green count and said nothing.
+
+    It is the ANCHOR arm's blind spot one attribute over, so it is read
+    through the anchor arm's extraction — `held_literals` — and not through a
+    second reader that would drift from it.
+    """
+
+    # A held selection whose value no source emits: the defect, minimal.
+    HELD = '[data-part="probe/held"]'
+
+    def _fixture(self, tmp_path, source):
+        """Writes `source` as a fixture harness file.
+
+        Args:
+            tmp_path: The pytest fixture.
+            source: The fixture file's text.
+
+        Returns:
+            The path written.
+        """
+        fixture = tmp_path / "fixture.py"
+        fixture.write_text(source, encoding="utf-8")
+        return fixture
+
+    def test_a_held_selection_is_read(self, tmp_path) -> None:
+        """`SEL = '[data-part="probe/held"]'` — held, named by no call.
+
+        Both halves are asserted, because the reading exists exactly where
+        the call pass is blind: `part_selections` finds NOTHING here, and
+        that silence was the whole defect.
+        """
+        fixture = self._fixture(tmp_path, f"SEL = '{self.HELD}'\n")
+
+        assert guard.part_selections(fixture) == []
+        assert guard.held_part_selections(fixture) == [(1, "probe/held")]
+
+    def test_the_arm_refuses_a_held_value_no_source_emits(self, tmp_path, monkeypatch, capsys) -> None:
+        """The refusal is the ARM's, not just the helper's.
+
+        `harness_files` is patched on the entry point, which is the module
+        whose globals `check_part_values` reads.
+        """
+        fixture = self._fixture(tmp_path, f"SEL = '{self.HELD}'\n")
+        monkeypatch.setattr(guard, "harness_files", lambda: [fixture])
+        monkeypatch.setattr(guard, "ROOT", tmp_path)
+
+        assert guard.check_part_values() == 1
+        err = capsys.readouterr().err
+
+        assert "fixture.py:1" in err
+        assert "probe/held" in err
+
+    def test_a_passed_selection_is_not_counted_twice(self, tmp_path) -> None:
+        """A call's own argument belongs to the call pass, and to it alone.
+
+        Counting it on both passes would inflate the printed number by
+        exactly the population the arm already read — the way summing the
+        anchor arm's buckets once announced 974 against a baseline of 834.
+        """
+        fixture = self._fixture(tmp_path, f"querySelector('{self.HELD}')\n")
+
+        assert guard.part_selections(fixture) == [(1, "probe/held")]
+        assert guard.held_part_selections(fixture) == []
+
+    def test_a_comment_holding_a_selection_is_read_by_nothing(self, tmp_path) -> None:
+        """A comment quoting a selector is prose — in Python and in the JS."""
+        # One fixture path, so the two shapes are written and read in turn.
+        assert guard.held_part_selections(self._fixture(tmp_path, f"# held '{self.HELD}'\n")) == []
+        embedded = f'X = """// held \'{self.HELD}\'"""\n'
+
+        assert guard.held_part_selections(self._fixture(tmp_path, embedded)) == []
+
+    def test_a_computed_value_is_skipped_whole(self, tmp_path) -> None:
+        """`[data-part="${k}"]` names no literal, and must not be half-read."""
+        assert guard.held_part_selections(self._fixture(tmp_path, "SEL = '[data-part=\"${k}\"] .port'\n")) == []
+
+    def test_the_repository_holds_selections_the_call_pass_never_saw(self) -> None:
+        """Non-vacuity: this pass reads something on the real harness.
+
+        A pass that finds nothing everywhere is a pass proving nothing, and
+        its green would be indistinguishable from an oversight.
+        """
+        found = {path.name for path in guard.harness_files() if guard.held_part_selections(path)}
+
+        assert len(found) >= 4, found
+
+    def test_the_printed_line_breaks_the_count_down(self, capsys) -> None:
+        """A total nobody can break down is a total nobody can tell is short."""
+        assert guard.check_part_values() == 0
+        line = next(text for text in capsys.readouterr().out.splitlines() if "data-part selection(s) checked" in text)
+
+        assert "of them held)" in line
+
+
 class TestHeldSelectors:
     """The instrument's second blind spot: selectors held outside a call.
 

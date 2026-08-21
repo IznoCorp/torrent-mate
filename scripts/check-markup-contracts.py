@@ -58,6 +58,17 @@ sites that emit the attribute: `frontend/maquette/design/index.html`
 (the shell), `src/engine/legacy.js` (the engine) and every `.ts` /
 `.tsx` component.
 
+AND THE SELECTION SIDE READS BOTH PLACES A SELECTOR LIVES. A selection
+PASSED — the literal argument of `querySelector` et al. — was for a
+while the only one this arm read, and the harness holds selectors as
+readily as it passes them: in a variable a helper is handed, in a table
+a loop walks, in a ternary whose result reaches a call one line later.
+Those are the anchor arm's held pass, one attribute over, so they are
+read through the SAME extraction (`held_literals`) rather than a second
+reader that would drift from it. The printed count says how many of the
+selections it checked were held, because a number that cannot be broken
+down is a number nobody can tell is short.
+
 THE DEFECT CLASS. A rule selecting `[data-part="card/title"]` reads a
 name the markup must emit. A value selected and emitted nowhere is a
 rule selecting nothing — the three-ends contract, caught from the
@@ -103,14 +114,17 @@ reaches `undefined` when the boolean is false, and `undefined` is the
 value React omits from the markup. A bare `data-open={x}` is refused; a
 literal `data-open` with no braces is a constant attribute and fine.
 
-VACUOUS TODAY, BY DESIGN. No boolean state attribute exists yet — phase
-2 writes the first ones. This arm therefore examines ZERO attributes,
-and its green exit proves nothing about it; the count it prints is the
-point. attrs.py's holds measured `aria-*` and `title` — the same
-passthrough, not the same attribute — and owe the real `data-open` a
-second demonstration on the day it first exists; the gap is closed by
-re-measuring, not by analogy. Until then the arm is proven by
-probe-mutation.
+WHAT IT EXAMINES, AND WHY THE COUNT IS PRINTED. The arm reads every
+`data-<state>={…}` expression the components write, and prints how many
+it examined. That number is the point: the arm was VACUOUS for as long
+as no such attribute existed anywhere, and a green exit over zero
+attributes proves nothing about the rule — only that the corpus was
+empty. So the count is what tells a reader whether the green means
+anything, and the arm is proven by probe-mutation besides. attrs.py's
+holds first measured `aria-*` and `title` — the same passthrough, not
+the same attribute — and the real `data-open` was owed its own
+demonstration on the day it first existed; that gap is closed by
+re-measuring, never by analogy.
 
 Usage:
     python3 scripts/check-markup-contracts.py
@@ -131,7 +145,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 # `tests/scripts/test_check_markup_contracts.py` alike.
 from markup_anchors import (  # noqa: E402, F401
     BASELINE, check_anchor_debt, class_tokens, entry_identity, harness_files,
-    held_occurrences, selection_calls, write_baseline,
+    held_literals, held_occurrences, selection_calls, write_baseline,
 )
 # The shared text readers — see that module's header.
 from markup_text import (  # noqa: E402
@@ -286,11 +300,56 @@ def part_selections(path: Path) -> list[tuple[int, str]]:
     """
     found: list[tuple[int, str]] = []
     for line, _, selector in selection_calls(path, strip=False):
-        for match in PART_SELECTED.finditer(selector):
-            value = next(g for g in match.groups() if g is not None)
-            if "${" in value:
-                continue
-            found.append((line, value))
+        found.extend(part_values(line, selector))
+    return found
+
+
+def part_values(line: int, selector: str) -> list[tuple[int, str]]:
+    """Returns the literal `data-part` values one selector selects.
+
+    Args:
+        line: The line the selector was read on, carried through so the
+            caller keeps its position.
+        selector: One selector string, read raw.
+
+    Returns:
+        `(line, value)` tuples, in reading order. A value carrying `${`
+        is computed and is skipped whole, not half-read.
+    """
+    found: list[tuple[int, str]] = []
+    for match in PART_SELECTED.finditer(selector):
+        value = next(g for g in match.groups() if g is not None)
+        if "${" in value:
+            continue
+        found.append((line, value))
+    return found
+
+
+def held_part_selections(path: Path) -> list[tuple[int, str]]:
+    """Extracts every `data-part` value one harness file HOLDS.
+
+    THE BLIND SPOT THIS CLOSES, and it is the anchor arm's, one attribute
+    over. `part_selections` reads a selection only where it is the
+    literal ARGUMENT of a selection call. The harness also holds
+    selectors in variables (`screen_port = '[data-part="screen"]…'`), in
+    tables a later helper walks (`R14_CASES`, the `layers` list), and in
+    a ternary whose result a `querySelector` is handed. Those selections
+    are selections; a value renamed in the markup would leave every one
+    of them selecting nothing while this arm stayed silent about it.
+
+    The extraction is `held_literals` — the SAME one the anchor arm uses,
+    for the same blind spot — and the rule on top of it is this arm's:
+    keep the candidate that carries a literal `data-part` selection.
+
+    Args:
+        path: A Python file under `HARNESS`.
+
+    Returns:
+        `(line, value)` tuples, in file order.
+    """
+    found: list[tuple[int, str]] = []
+    for line, content in held_literals(path):
+        found.extend(part_values(line, content))
     return found
 
 
@@ -419,6 +478,7 @@ def check_part_values() -> int:
 
     violations = 0
     checked = 0
+    held = 0
     for path in files:
         rel = str(path.relative_to(ROOT))
         for line, source in escaped_part_selections(path):
@@ -430,7 +490,10 @@ def check_part_values() -> int:
                   "fewer and say nothing. Host the selector in `'…'` or in a "
                   "triple-quoted string, where nothing needs escaping.",
                   file=sys.stderr)
-        for line, value in part_selections(path):
+        passed = part_selections(path)
+        holds = held_part_selections(path)
+        held += len(holds)
+        for line, value in passed + holds:
             checked += 1
             if value not in emitted:
                 violations += 1
@@ -451,9 +514,9 @@ def check_part_values() -> int:
         return 1
 
     print(f"check-markup-contracts: {checked} data-part selection(s) checked "
-          f"against {len(emitted)} emitted value(s) from "
-          f"{len(emission_paths)} emission site(s) — every selected value "
-          "is emitted. Emitted-but-unselected is fine: not every part "
+          f"({held} of them held) against {len(emitted)} emitted value(s) "
+          f"from {len(emission_paths)} emission site(s) — every selected "
+          "value is emitted. Emitted-but-unselected is fine: not every part "
           "needs a rule.")
     return 0
 
@@ -517,10 +580,12 @@ def check_state_attributes() -> int:
     `{x ? true : undefined}`. A literal `data-open` with no braces is a
     constant attribute and fine.
 
-    VACUOUS TODAY, BY DESIGN: no boolean state attribute exists yet —
-    phase 2 writes the first ones — so this arm examines zero attributes
-    and a green exit proves nothing about it. The count it prints is the
-    point. It is proven by probe-mutation instead.
+    It examines every `data-<state>={…}` expression the components write
+    and prints the count, because that number is what tells a reader
+    whether its green means anything: the arm was VACUOUS for as long as
+    no such attribute existed, and a green exit over an empty corpus
+    proves nothing about the rule. It is proven by probe-mutation
+    besides.
 
     Returns:
         1 when any state attribute is written without an omitting
