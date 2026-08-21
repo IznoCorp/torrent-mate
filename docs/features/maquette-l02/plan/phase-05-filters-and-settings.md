@@ -8,7 +8,7 @@ Phase 4 must have produced, all committed:
   resolved at its own site rather than assumed;
 - `classList.contains('ep')` left in place, and ACC-11 recorded: exactly 5 exceptions, each with a
   non-empty reason;
-- `frontend/maquette/anchor-baseline.json` down to **333 entries** (376 − 43).
+- `frontend/maquette/anchor-baseline.json` down to **444 entries** (490 − 46).
 
 ## Measured on the committed baseline, not estimated
 
@@ -43,7 +43,7 @@ day its surface converts out of `legacy.js` — which is exactly the day someone
 `settingrow`, `seg`, `sechead`, `field`, `fieldinput`, `fieldtoggle`, `optlist`, `opt` — plus the
 **2** filter-state assertions `classList.contains('fempty')` and `classList.contains('fblocked')`,
 which become `hasAttribute('data-empty')` and `hasAttribute('data-blocked')`. The baseline goes
-333 → 274.
+444 → 368 (76 removed: 74 tokens, 17 of them held, + 2 assertions).
 
 ---
 

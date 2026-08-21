@@ -11,10 +11,10 @@ discipline repeats one tier down — the instrument that judges the migration is
 anything is migrated.
 
 **Phase 1 builds the judge and nothing else.** The vocabulary, the guard arm, the independent
-classifier, the baseline holding all 694 live violations, and the wiring that makes the dormant
+classifier, the baseline holding all 834 live violations, and the wiring that makes the dormant
 `oracle.py --contracts` arm run automatically. It migrates zero calls on purpose: a guard written
 after its wave has nothing left to fail on, and was therefore never seen fail. This one lands with
-694 things it holds and a mutation proof that it names them.
+834 things it holds and a mutation proof that it names them.
 
 Phase 1 also carries **ACC-06 before the arm that depends on it**. The `|| undefined` arm rests on
 a belief about how React renders `data-open={false}`. The DESIGN refuses to let a belief be
@@ -40,7 +40,7 @@ rather than at the end, where a drift would already be indistinguishable from th
 Phases 3, 4 and 5 then descend the tail in decreasing cluster size — the card family, the list and
 episode surfaces, the filter and setting rows — each self-contained, each removing its own entries
 from the baseline in the same commit as the migration they correspond to. **Phase 6 takes the
-remaining 271 token occurrences and 3 assertions, empties the baseline, deletes it, and turns the arm's
+remaining 365 token occurrences and 3 assertions, empties the baseline, deletes it, and turns the arm's
 floor into a hard zero in code.** The file is removed rather than left empty, because a file that
 happens to be empty is a floor someone can raise again.
 

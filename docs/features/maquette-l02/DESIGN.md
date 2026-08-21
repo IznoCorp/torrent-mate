@@ -102,7 +102,7 @@ owning phase:
 | --- | --- |
 | class token occurrences across the harness | **633** |
 | state assertions | **61** |
-| **baseline entries** | **694** |
+| **baseline entries** | **694**, then **834** once the held selectors entered the instrument |
 
 ### The second blind spot: selectors the harness HOLDS rather than passes
 
@@ -369,13 +369,14 @@ impossible.
 | Phase | Subject | Approx. calls |
 | --- | --- | --- |
 | 1 | vocabulary, the guard arm, the full baseline, the dormant arm wired, the `data-part` VALUE arm, the per-rule hold-count capture | 0 migrated |
-| 2 | `.screen` / `.sheet` / `.scrim` — and `data-open` on five layers | 63 `.screen` + 72 `.open` + 54 assertions = **189** |
-| 3 | `.card` and its parts — `ctitle`, `cbody`, `cfoot`, `poster`, `cov`, … (14 tokens) | 127 + 2 = **129** |
-| 4 | `.reslist`, `.sugwrap`, `.ep`, `.eppop`, … (7 tokens) | 43 + 0 = **43** |
-| 5 | filters and settings — `fr`, `fn`, `fk`, `fs`, `settingrow`, `seg`, `sechead`, … (13 tokens) | 57 + 2 = **59** |
-| 6 | the tail — 92 distinct tokens — then the baseline is emptied and deleted | 271 + 3 = **274** |
+| 2 | `.screen` / `.sheet` / `.scrim` — and `data-open` on five layers | 69 `.screen` + 78 `.open` + 54 assertions = **201** |
+| 3 | `.card` and its parts — `ctitle`, `cbody`, `cfoot`, `poster`, `cov`, … (14 tokens) | 141 + 2 = **143** |
+| 4 | `.reslist`, `.sugwrap`, `.ep`, `.eppop`, … (7 tokens) | 46 + 0 = **46** |
+| 5 | filters and settings — `fr`, `fn`, `fk`, `fs`, `settingrow`, `seg`, `sechead`, … (13 tokens) | 74 + 2 = **76** |
+| 6 | the tail, 94 of its occurrences held in variables — then the baseline is emptied and deleted | 365 + 3 = **368** |
 
-Baseline: **694** → 505 → 376 → 333 → 274 → **0**. The counts are token OCCURRENCES, not selectors:
+Baseline: **834** → 633 → 490 → 444 → 368 → **0** — 140 of the 834 are selectors the harness holds in
+variables and tables, found by the second blind spot and tagged `held` in the file. The counts are token OCCURRENCES, not selectors:
 one selector can owe work to two phases, and only the occurrence has a single owner.
 
 ## Risks, and what answers each

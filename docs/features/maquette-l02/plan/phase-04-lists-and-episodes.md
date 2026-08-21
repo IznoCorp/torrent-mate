@@ -7,7 +7,7 @@ Phase 3 must have produced, all committed:
 - `data-part="card"`, `card/title`, `card/body`, `card/foot`, `card/cover`, `card/poster` emitted at
   **both** the engine and the component sites;
 - the 2 `noposter` assertions moved to `hasAttribute('data-no-poster')`;
-- `frontend/maquette/anchor-baseline.json` down to **376 entries** (505 − 129);
+- `frontend/maquette/anchor-baseline.json` down to **490 entries** (633 − 143);
 - ACC-03 recorded as `exit=1` naming `cards.py`, its line and `.ctitle`;
 - both `ctitle` sites in `resolution.tsx` anchored (phase 3 owes nothing else on ACC-04).
 
@@ -51,7 +51,7 @@ read what it actually evaluates to. If nothing emits it, that is a finding to re
 
 **43** class token occurrences — 7 distinct tokens, `reslist`, `sugwrap`, `ep`, `eppop`, `eprow`,
 `eps`, `season`. No assertion entries move in this phase — see ACC-11 below, which is the whole
-point. The baseline goes 376 → 333.
+point. The baseline goes 490 → 444.
 
 ---
 
@@ -94,7 +94,7 @@ One commit: `refactor(maquette-l02): anchor the episode row and popover on data-
       **prefix**: `.eppop` starts with `ep`, and a careless pattern rewrites both. Re-read the diff
       and confirm each selector kept its own identity.
 - [ ] **Step 4.** Remove the corresponding baseline entries in this same commit; the phase total
-      across 4.1–4.2 is **43**, and the file must now hold **333**.
+      across 4.1–4.2 is **46** (3 of them held), and the file must now hold **444**.
 - [ ] **Step 5.** **Leave `classList.contains('ep')` exactly as it is.** It is one of the five
       permanent genre exceptions. The distinction is the phase's lesson and it is not cosmetic:
       the selection `.ep` asks _which element is this_, and moves; the assertion

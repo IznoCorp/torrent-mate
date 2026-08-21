@@ -7,7 +7,7 @@ Phase 5 must have produced, all committed:
 - the filter, setting, segment and section-head contracts anchored, with `fr`, `fn`, `fk`, `fs`
   resolved at their sites and their meanings recorded in the commit messages;
 - `data-empty` and `data-blocked` emitted and asserted through `hasAttribute`;
-- `frontend/maquette/anchor-baseline.json` down to **274 entries** (333 − 59);
+- `frontend/maquette/anchor-baseline.json` down to **368 entries** (444 − 76);
 - ACC-12 recorded as `exit=0`.
 
 ## Measured on the committed baseline, not estimated
@@ -41,13 +41,13 @@ spots — so it is worked by site, and each site is finished before the next beg
 
 ## Baseline entries removed
 
-**274 — the remainder, and the file reaches zero.** 271 class token occurrences across **92
-distinct tokens** (`.open` left for phase 2 once it was counted as the second token of every
+**368 — the remainder, and the file reaches zero.** 365 class token occurrences (94 of them held
+in variables and tables) across the tail's distinct tokens (`.open` left for phase 2 once it was counted as the second token of every
 `.screen.open`), plus the last **3** state assertions: `classList.contains('show')` →
 `hasAttribute('data-shown')`, `classList.contains('in_library')` → `hasAttribute('data-in-library')`,
 `classList.contains('announced')` → `hasAttribute('data-announced')`.
 
-Running total across the wave: 189 + 129 + 43 + 59 + 274 = **694**.
+Running total across the wave: 201 + 143 + 46 + 76 + 368 = **834**.
 
 ---
 
