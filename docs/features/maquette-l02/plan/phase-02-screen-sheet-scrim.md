@@ -116,6 +116,12 @@ literal the count is 2 and the criterion ABANDONS. Check first with
 `grep -c 'data-open={open || undefined}' "$F"`; if it is not 1, raise it with the operator and amend
 ACC-05 in `DESIGN.md` before claiming it, exactly as phase 3 does for ACC-04.
 
+- [ ] **Step 2b.** **Extend `harness/attrs.py` to the real `data-*`, closing the gap phase 1 left
+      open.** ACC-06 was demonstrated on `aria-pressed` and on a `title`, because no `data-*` boolean
+      existed yet; `data-open` is the first, and it exists as of Step 1. Add the same four holds
+      against it — `false` present as `"false"` and matched by `[data-open]`, `undefined` absent and
+      unmatched — and mutation-test one of them. Without this, the arm written in 1.4 still rests on
+      React treating `data-*` like `aria-*`, which nothing in this repository has measured.
 - [ ] **Step 3.** Confirm the restore: `git diff --stat …/sheet.tsx` shows only the intended change.
       A restored file is a claim to re-read, not to assume.
 - [ ] **Step 4.** Where a rule asserts the sheet is shown, move it to the attribute:

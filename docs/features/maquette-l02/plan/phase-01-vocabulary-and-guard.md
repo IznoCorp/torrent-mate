@@ -48,26 +48,49 @@ One commit: `docs(maquette-l02): fix the data-part vocabulary before any name is
 
 ## Sub-phase 1.2 — ACC-06, the React trap demonstrated BEFORE the arm that rests on it
 
-One commit: `test(maquette-l02): demonstrate React data-* rendering in the live document`
+One commit: `test(maquette-l02): demonstrate React attribute rendering in the live document`
 
-This runs **before** sub-phase 1.4 writes the `|| undefined` arm. If the demonstration contradicts
-the belief, the arm and the DESIGN paragraph change together.
+This runs **before** sub-phase 1.4 writes the `|| undefined` arm. The DESIGN states the belief and
+refuses to let it be load-bearing: if the demonstration contradicts it, the arm and the DESIGN
+paragraph change together.
 
-- [ ] **Step 1.** Create `frontend/maquette/harness/attrs.py`, following an existing browser rule
-      (read `harness/logout.py` for the `common.open_page()` idiom and the exit-code convention). It
-      asserts **all four** facts in the live document: a `data-*` prop given `false` renders the
-      attribute with the **string** `"false"`; `[data-…]` **matches** it — which is what would send
-      a rule green while it measures nothing; the same prop given `undefined` renders no attribute;
-      and `[data-…]` does not match that one.
-- [ ] **Step 2.** `python3 frontend/maquette/harness/attrs.py; echo "exit=$?"` → `exit=0` (ACC-06).
-      Read the output, not the exit code alone.
-- [ ] **Step 3.** Mutation-test the rule itself: invert one of the four assertions, re-run, confirm
-      it FAILS naming which fact fell, restore. A demonstration that cannot fail demonstrates
+### The subject had to be found, because the obvious one does not exist
+
+The rule must demonstrate **React's** rendering, not the DOM's. React is not exposed on `window`
+(`shell.tsx` republishes `__bridge`, `__go`, `__store`, … and no renderer), and **no `data-*`
+boolean exists in the maquette yet** — the first one is written in phase 2. Written as first
+planned, this sub-phase had no subject.
+
+It has two, both in the live document today, both rendered by the React the maquette actually
+bundles:
+
+| Half of the trap | Where | What it establishes |
+| --- | --- | --- |
+| `false` renders as the **string** `"false"` | `add.tsx:239` `aria-pressed={addKind === value}`, and five `aria-checked={…}` in `profile.tsx` | a presence selector `[aria-pressed]` MATCHES an attribute whose value is false |
+| `undefined` is **omitted** | `resolution.tsx:114` `title={opts.noPoster ? … : undefined}` | the imposed idiom really does remove the attribute |
+
+**The gap, stated rather than glossed.** Those are `aria-*` and a standard attribute; the guard
+concerns `data-*`. React routes `aria-*` and `data-*` through the same passthrough, but « the same
+passthrough » is a belief, and refusing to rest on a belief is this criterion's entire reason for
+existing. So the gap is closed where it can be: **sub-phase 2.2 extends `attrs.py` with the same
+four assertions against the real `data-open`**, on the day that attribute first exists. It is an
+obligation in phase 2's plan, not an implication left for someone to notice.
+
+- [ ] **Step 1.** Create `frontend/maquette/harness/attrs.py`, following an existing browser rule's
+      shape — read `harness/logout.py` for the `common.open_page()` idiom, the `common.Journal`
+      verdict printing and the exit-code convention. It drives the app to a state where the
+      subjects above are rendered, and asserts all four facts, each as its own named hold.
+- [ ] **Step 2.** Run it and read the OUTPUT, not the exit code alone:
+      `python3 frontend/maquette/harness/attrs.py; echo "exit=$?"` → `exit=0` (ACC-06). Record what
+      each hold printed; a hold that passed while its probe returned `None` is a hold that measured
       nothing.
-- [ ] **Step 4.** Run `frontend/maquette/harness/run.sh 2>&1 | tail -3` and **record the printed
-      rule count**. `run.sh` globs `harness/*.py` minus `common.py`, so this file becomes a rule and
-      the count moves from 50 to 51. Write down what it actually printed — ACC-08 is filled in with
-      the real output, never the intended one.
+- [ ] **Step 3.** Mutation-test the rule itself: invert one of the four assertions, re-run, confirm
+      it FAILS and names which fact fell, restore. A demonstration that cannot fail demonstrates
+      nothing.
+- [ ] **Step 4.** Run the full suite and **record the printed rule count**:
+      `frontend/maquette/harness/run.sh 2>&1 | tail -3`. `run.sh` globs `harness/*.py` minus
+      `common.py`, so this file becomes a rule and the count moves 50 → 51. Write down what it
+      actually printed — ACC-08 is filled in with the real output, never the intended one.
 - [ ] **Step 5.** Commit.
 
 ## Sub-phase 1.3 — the independent classifier
