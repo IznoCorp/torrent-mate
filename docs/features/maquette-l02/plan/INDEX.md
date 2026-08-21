@@ -50,7 +50,7 @@ happens to be empty is a floor someone can raise again.
 | 2   | `.screen` / `.sheet` / `.scrim`, and `data-open` on five layers         | `phase-02-screen-sheet-scrim.md`        | [x]    |
 | 3   | `.card` and its parts, `deck/card`, and a state so R26 can fall    | `phase-03-card-and-parts.md`            | [x]    |
 | 4   | the result list, the suggestions, the episode, its row, set and season | `phase-04-lists-and-episodes.md`        | [x]    |
-| 5   | Filters and settings                                              | `phase-05-filters-and-settings.md`      | [ ]    |
+| 5   | the flux's rows, the filter states, the settings and their fields | `phase-05-filters-and-settings.md`      | [x]    |
 | 6   | The tail, then the baseline is emptied and deleted                | `phase-06-tail-and-baseline-removal.md` | [ ]    |
 
 ### Phase 1 runs long on purpose
@@ -363,3 +363,49 @@ command named beside it, on `f7e8073` (branch `refactor/maquette-l02`).
 - **Adding a rule file does not disturb the two audit rules.** `EXPECTED_RULES = 13` in `audit.py`
   and `audit2.py` counts their own internal checks (`R11`, …), not the number of files in the
   directory (`rg -n 'EXPECTED_RULES'`).
+
+## What phase 5 found, and what it cost the plan
+
+1. **The five engine abbreviations are the flux's rows, not filters.** A first brief had written
+   « filter row? ». Read from `legacy.js:7586-7591` and `refonte.html:1687-1720`: `.fx` is a row of
+   the pipeline status list on Arrivées, `.fn` its name, `.fr` its value, `.fs` its sub-line, `.fk`
+   the key inside it — `flux/row`, `flux/name`, `flux/value`, `flux/detail`, `flux/key`. And there
+   are five, not the plan's four: `.fx` had been counted among the tail.
+2. **`.fr` serves two concepts.** `legacy.js:9943` also emits it as a library tile's sub-line, and
+   nine of the eleven `.fr` selections are bare — their concept is the state the rule drives, read
+   rule by rule; the tile ones take `tile/subtitle`.
+3. **The phase named four of its thirteen tokens.** `.fx` and the field family — `field`,
+   `fieldinput`, `fieldtoggle`, `optlist`, `opt`, 24 occurrences, 13 of them held in `page_host.py`'s
+   tables — had no owner; 5.1 grew to five and 5.4 was added.
+4. **`flux` and `option` were absent from the vocabulary**, measured before the sub-phases that coin
+   them.
+5. **`fempty` / `fblocked` are rendered in the row's template string**, not toggled: no component emits
+   them, no `classList` touches them (measured), so `data-empty` / `data-blocked` are emitted in the same
+   template, and the guard's state arm — which reads components — does not count them.
+6. **The `.fr` split had a third and fourth tile read the brief had not named.** 5.1 resolved
+   each bare `.fr` by the state its rule drives: eight are the flux's value, three are a tile's
+   sub-line — `audit.py`'s, and two in `cards.py` (R45, R50) found by reading the rules, corroborated
+   by the stylesheet, which styles `.fr` in exactly those two contexts. `.fw`, the row's inner
+   wrapper, belongs to phase 6 and was left in the baseline on purpose.
+7. **The foreign Trakt edits left by another session vanished from the tree during this phase** —
+   not committed on this branch, not stashed. Every dispatch had been staging by name around them;
+   nothing of this wave touched them.
+8. **The `data-empty` mutation could not bite, and the class's never could either.** `arrivals.py`
+   reads `empty` into its view and no hold consumes it — the dash hold is computed from the result
+   text, `blocked` is consumed, `empty` is not. A dead read on the class, older than the lot; the
+   migration neither created nor cured it. 5.2 proved the wiring by a live probe instead — the
+   attribute mirrors the class row for row, 3 of 9 empty, 1 blocked — and the `data-blocked`
+   mutation fell naming the right hold. Like `card/fresh-tag`, a hold that asserts `empty` is
+   behaviour work, not anchoring: carried, named.
+9. **A French identifier lives in a harness rule under a green gate.** `arrivals.py` reads
+   `window.PIPELINE_UID_POUR_LA_SONDE` — a name someone chose, inside a JavaScript string, so the
+   identifiers arm (which parses Python) never sees it — and nothing DEFINES it: no file under
+   `frontend/` sets that global, so `window.PIPELINE_UID_POUR_LA_SONDE || null` is `null` on every
+   run, a dead read in French. Not this lot's subject; recorded in BUGS.md.
+10. **The brief placed the 13 held entries of 5.4 in the wrong file, and the counts caught it.** It
+    said « page_host.py's tables »; measured on the baseline, `page_host.py` holds none of the five
+    tokens — the held entries sit in `settings.py` (11: the type-to-selector table and the
+    `fill`/`click` arguments) and `scroll.py` (2: `trial()` arguments). Every count the brief named
+    as a tripwire matched (24; 14/3/3/3/1; 8/1/2/2/0), so the agent proceeded and reported the
+    misattribution instead of bending the work to it. A brief is a claim like any report: the
+    numbers are what a dispatch is checked against, not the prose around them.
