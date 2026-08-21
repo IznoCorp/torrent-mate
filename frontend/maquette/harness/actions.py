@@ -19,7 +19,7 @@ async def main():
     cnt = """()=>({takeable:derived.takeable().length, inflight:derived.inflight().length, stuck:derived.stuck().length, blocked:derived.blocked().length,
                    moving:derived.moving().length, follows:world.follows.length,
                    paused:world.follows.filter(f=>f.st==='disabled').length, lib:world.lib.length,
-                   acqBadge:(document.querySelector('[data-page=acq] .navbadge')||{}).textContent||null})"""
+                   acqBadge:(document.querySelector('[data-page=acq] [data-part="shell/tab-badge"]')||{}).textContent||null})"""
 
     await pg.evaluate("()=>window.__go('acq-now-loaded')"); await pg.wait_for_timeout(300)
     a=await pg.evaluate(cnt); print("before grabbing      :", a)
@@ -57,7 +57,7 @@ async def main():
 
     await pg.evaluate("()=>window.__go('acq-follows-list')"); await pg.wait_for_timeout(300)
     a=await pg.evaluate(cnt)
-    await pg.evaluate("()=>{const w=document.querySelector('#view .swipe');w.querySelector('.act.pause').click();}")
+    await pg.evaluate("""()=>{const w=document.querySelector('#view [data-part="swipe"]');w.querySelector('[data-part="swipe/action"].pause').click();}""")
     await pg.wait_for_timeout(400)
     b3=await pg.evaluate(cnt); print("\npause                :", a["paused"], "→", b3["paused"])
     assert b3["paused"]==a["paused"]+1
@@ -65,7 +65,7 @@ async def main():
     b4=await pg.evaluate(cnt); print("  → Annuler restores  :", b4["paused"])
     assert b4["paused"]==a["paused"]
 
-    await pg.evaluate("()=>{const w=document.querySelector('#view .swipe');w.querySelector('.act.remove').click();}")
+    await pg.evaluate("""()=>{const w=document.querySelector('#view [data-part="swipe"]');w.querySelector('[data-part="swipe/action"][data-action="remove"]').click();}""")
     await pg.wait_for_timeout(400)
     b5=await pg.evaluate(cnt); print("\ndrop a follow        :", a["follows"], "→", b5["follows"])
     assert b5["follows"]==a["follows"]-1
@@ -83,7 +83,7 @@ async def main():
     await pg.evaluate("()=>window.__go('lib-selection')"); await pg.wait_for_timeout(350)
     a=await pg.evaluate(cnt)
     await pg.evaluate("()=>document.querySelector('[data-delsel]').click()"); await pg.wait_for_timeout(400)
-    await pg.evaluate("()=>document.querySelector('.dlgbtn.danger').click()"); await pg.wait_for_timeout(450)
+    await pg.evaluate("""()=>document.querySelector('[data-part="dialog/button"][data-tone="danger"]').click()"""); await pg.wait_for_timeout(450)
     b7=await pg.evaluate(cnt); print("\nmultiple deletion    :", a["lib"], "→", b7["lib"])
     assert b7["lib"]==a["lib"]-3
 

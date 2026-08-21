@@ -131,7 +131,7 @@ function ReleaseCard({
           {opts.overview ? <span className="cov" data-part="card/overview">{opts.overview}</span> : ""}
           {confidence ? (
             <span className="cmeta" data-part="card/meta">
-              <span className="chip info">
+              <span className="chip info" data-part="chip">
                 {t("screens.resolution.confidence")} {confidence}
               </span>
             </span>
@@ -204,12 +204,12 @@ function DecisionCard({ decision }: { decision: SettledDecision }) {
               exactly what one comes back for. */}
           {identity ? <span className="creason" data-part="card/reason">{identity}</span> : ""}
           <span className="cmeta" data-part="card/meta">
-            <span className={`chip ${REASON_TONE[decision.reason] ?? "neutral"}`}>
+            <span className={`chip ${REASON_TONE[decision.reason] ?? "neutral"}`} data-part="chip">
               {REASON_LABEL[decision.reason] ?? decision.reason}
             </span>
             {state ? (
               <span
-                className={`chip ${state[0]}`}
+                className={`chip ${state[0]}`} data-part="chip"
                 title={DECISION_STATE_DETAIL[decision.state] ?? ""}
               >
                 {state[1]}
@@ -324,7 +324,7 @@ export function ResolutionScreen() {
       </div>
       <div className="port" data-part="viewport">
         <div className="body" data-region="screen-resolution/body">
-          <div className="note">
+          <div className="note" data-part="note">
             <b>{t("screens.resolution.noteTitle")}</b>{" "}
             {t("screens.resolution.noteOn")} <code>/medias</code>{" "}
             {t("screens.resolution.noteAppeared")}{" "}
@@ -342,7 +342,7 @@ export function ResolutionScreen() {
           <div className="cmeta" data-part="card/meta" style={{ marginBottom: "12px" }}>
             {decision ? (
               <span
-                className={`chip ${REASON_TONE[decision.reason] ?? "neutral"}`}
+                className={`chip ${REASON_TONE[decision.reason] ?? "neutral"}`} data-part="chip"
               >
                 {REASON_LABEL[decision.reason] ?? decision.reason}
               </span>
@@ -363,7 +363,7 @@ export function ResolutionScreen() {
           ) : (
             <p className="rulenote">{t("screens.resolution.noCandidates")}</p>
           )}
-          <div className="empty">
+          <div className="empty" data-part="empty-state">
             <b>{t("screens.resolution.emptyTitle")}</b>
             {t("screens.resolution.emptyBody")}
             <button
@@ -389,7 +389,7 @@ export function ResolutionScreen() {
               ""
             )}
           </div>
-          <div className="note">
+          <div className="note" data-part="note">
             <b>{t("screens.resolution.note2Title")}</b>{" "}
             {t("screens.resolution.note2Body")}
           </div>

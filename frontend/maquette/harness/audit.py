@@ -74,7 +74,7 @@ async def main():
           // so a control could lead nowhere without the rule flinching.
           R.deadButtons = [...root.querySelectorAll('button, a')]
             .filter(el=>el.getBoundingClientRect().height>0 && !el.disabled
-                    && !el.closest('[data-part="harness/bar"]') && !el.closest('.hpanel')
+                    && !el.closest('[data-part="harness/bar"]') && !el.closest('[data-part="harness/panel"]')
                     && !el.closest('details:not([open])'))
             // An href IS a destination — the trailer is a genuine outbound
             // link to YouTube.
@@ -85,7 +85,7 @@ async def main():
 
           // R3 — touch targets: every control is at least 40px on one axis
           R.targetsTooSmall = [...root.querySelectorAll('button,a')].filter(el=>{
-            if (!vis(el) || el.closest('[data-part="harness/bar"]') || el.closest('.hpanel')) return false;
+            if (!vis(el) || el.closest('[data-part="harness/bar"]') || el.closest('[data-part="harness/panel"]')) return false;
             const b=el.getBoundingClientRect();
             // DECLARED EXCEPTION: the episode cell is 31 × 27 in the SHIPPED
             // component. At 13 cells per row, 44px would demand 572px of
@@ -104,7 +104,7 @@ async def main():
           // (overflow-x hidden/clip) AND that fits within the frame itself. A
           // clipping ancestor that overflows clips nothing, it moves the
           // problem.
-          const SCROLLERS = '.pillscroll,.cast,[data-part="episode/set"],.hpanel';
+          const SCROLLERS = '.pillscroll,.cast,[data-part="episode/set"],[data-part="harness/panel"]';
           const clipped = (el) => {
             for (let p = el.parentElement; p && p !== root.parentElement; p = p.parentElement) {
               const ox = getComputedStyle(p).overflowX;
@@ -145,7 +145,7 @@ async def main():
             .map(el=>el.textContent.trim().slice(0,34));
 
           // R7 — no panel renders emptiness in silence
-          R.emptyPanels = [...root.querySelectorAll('.panel')].filter(el=>
+          R.emptyPanels = [...root.querySelectorAll('[data-part="panel"]')].filter(el=>
             el.children.length===0).length;
 
           // R23 — within an option group every row has the same size, and

@@ -159,7 +159,7 @@ SHEET_STATE = """() => {
     key: screen?.dataset.key ?? null,
     title: (screen?.querySelector('h2.ht') || {}).textContent ?? null,
     body: (screen?.querySelector('.body') || {}).textContent ?? '',
-    noinfos: [...document.querySelectorAll('[data-part="screen"][data-open] p.noinfo')].map(
+    noinfos: [...document.querySelectorAll('[data-part="screen"][data-open] p[data-part="no-info"]')].map(
       (p) => p.textContent),
     pathname: location.pathname,
   };
@@ -425,16 +425,17 @@ async def main():
             journal.check("no JS error on an unknown sheet title", not errors, str(errors))
             await ctx.close()
 
-            # ─── Hold (j): a title with no trailer renders p.noinfo in
-            # the trailer's own place — Broadchurch's cast and seasons are
-            # otherwise fully populated, so this is the ONLY p.noinfo the
-            # screen draws; a stray match here would be a real regression,
-            # not a coincidence from an unrelated missing field. ─────────
+            # ─── Hold (j): a title with no trailer renders the no-info
+            # part in the trailer's own place — Broadchurch's cast and
+            # seasons are otherwise fully populated, so this is the ONLY
+            # no-info part the screen draws; a stray match here would be a
+            # real regression, not a coincidence from an unrelated
+            # missing field. ────────────────────────────────────────────
             no_trailer_address = f"{base}/mediasheet/{urllib.parse.quote(TITLE_WITHOUT_TRAILER)}"
             ctx, pg, errors = await open_at(browser, no_trailer_address)
             sheet_no_trailer = await pg.evaluate(SHEET_STATE)
             journal.check(
-                "(j) a sheet with no trailer renders p.noinfo in its place",
+                "(j) a sheet with no trailer renders the no-info part in its place",
                 sheet_no_trailer["open"]
                 and len(sheet_no_trailer["noinfos"]) == 1
                 and "bande-annonce" in sheet_no_trailer["noinfos"][0],

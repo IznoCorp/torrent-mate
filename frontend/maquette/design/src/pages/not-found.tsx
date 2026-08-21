@@ -17,7 +17,7 @@ export function NotFoundPage(): ReactElement {
   return (
     <>
       <div
-        className="empty"
+        className="empty" data-part="empty-state"
         dangerouslySetInnerHTML={{
           __html: emptyInner(
             t("screens.notFound.title"),

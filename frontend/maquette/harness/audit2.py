@@ -75,7 +75,7 @@ async def main():
       window.__go('acq-add-results'); await new Promise(r=>setTimeout(r,240));
       measure('.resbtn','search result');
       window.__go('lib-delete'); await new Promise(r=>setTimeout(r,240));
-      measure('.dlgbtn.danger','dialog (danger)');
+      measure('[data-part="dialog/button"][data-tone="danger"]','dialog (danger)');
       return out;}""")
     print("Primary button geometry:")
     for k,v in geo.items(): print(f"   {k:26} {v}")
@@ -173,7 +173,7 @@ async def main():
     n=await pg.evaluate("""async ()=>{const o={};
       for (const m of ['acq-follows-list','acq-follows-groupe','acq-follows-grid']) {
         window.__go(m); await new Promise(r=>setTimeout(r,240));
-        o[m]=document.querySelectorAll('#view [data-part="card"], #view .tile').length;}
+        o[m]=document.querySelectorAll('#view [data-part="card"], #view [data-part="tile"]').length;}
       return o;}""")
     print("\nItems per Suivis mode:", n)
     if len(set(n.values()))>1: note("R15 inconsistent Suivis modes", json.dumps(n))
@@ -183,11 +183,11 @@ async def main():
     bad=await pg.evaluate("""async ()=>{const out=[];
       for (const s of ['real','loaded']) { window.__store.write({scen: s}); window.__go('acq-now-'+(s==='real'?'idle':'loaded'));
         await new Promise(r=>setTimeout(r,240));
-        const badge=document.querySelector('[data-page=acq] .navbadge');
+        const badge=document.querySelector('[data-page=acq] [data-part="shell/tab-badge"]');
         const expected=derived.takeable().length+derived.blocked().length;
         const read=badge?Number(badge.textContent):0;
         if (read!==expected) out.push(`${s}: badge ${read} != to-grab+to-resolve ${expected}`);
-        const tab=document.querySelector('[data-part="segment"] .n');
+        const tab=document.querySelector('[data-part="segment"] [data-part="segment/count"]');
         const read2=tab?Number(tab.textContent):0;
         if (read2!==expected) out.push(`${s}: tab badge ${read2} != ${expected}`);
       } return out;}""")
@@ -197,11 +197,11 @@ async def main():
     # R17 — every destructive mutation is confirmed or reversible
     rev=await pg.evaluate("""async ()=>{const out=[];
       window.__go('acq-follows-list'); await new Promise(r=>setTimeout(r,240));
-      document.querySelector('#view .swipe .act.remove').click(); await new Promise(r=>setTimeout(r,320));
+      document.querySelector('#view [data-part="swipe"] [data-part="swipe/action"][data-action="remove"]').click(); await new Promise(r=>setTimeout(r,320));
       if (!document.querySelector('#toastundo')) out.push('removing a follow: no undo');
       window.__go('lib-list'); await new Promise(r=>setTimeout(r,260));
       const before=world.lib.length;
-      document.querySelector('#libitems .swipe .act.remove').click(); await new Promise(r=>setTimeout(r,320));
+      document.querySelector('#libitems [data-part="swipe"] [data-part="swipe/action"][data-action="remove"]').click(); await new Promise(r=>setTimeout(r,320));
       if (!document.querySelector('#dlg').hasAttribute('data-open')) out.push('deleting a medium: no confirmation');
       if (world.lib.length!==before) out.push('deleting a medium: mutation BEFORE confirmation');
       return out;}""")
@@ -314,7 +314,7 @@ async def main():
         const port=screen.querySelector('[data-part="viewport"]');
         const text=port && [...port.querySelectorAll('h1,h2,h3,p,span,button,a,label')]
           .find(e=>{const r=e.getBoundingClientRect();
-                    return r.height>0 && (e.textContent||'').trim().length>1 && !e.closest('.note');});
+                    return r.height>0 && (e.textContent||'').trim().length>1 && !e.closest('[data-part="note"]');});
         if (text) {
           const gap=text.getBoundingClientRect().top-rb.bottom;
           if (gap < 8) glued.push(`${s}: text ${Math.round(gap)}px from the bar`);
@@ -352,7 +352,7 @@ async def main():
           if (!owned) continue;
           // BOTH renderings: titled rows AND the numbered matrix.
           const cells=[...det.querySelectorAll('[data-part="episode/row"]')].map(r=>[
-              Number((r.querySelector('.en')?.textContent||'').replace(/\\D/g,'')), r])
+              Number((r.querySelector('[data-part="episode/number"]')?.textContent||'').replace(/\\D/g,'')), r])
             .concat([...det.querySelectorAll('[data-part="episode/set"] [data-part="episode"]')].map(c=>[Number(c.textContent), c]));
           for (const [n, el] of cells) {
             if (!n || el.classList.contains('announced')) continue;

@@ -38,7 +38,7 @@ async def main():
             ??document.querySelector('#view');
           return [...root.querySelectorAll('button, a')]
             .filter(x=>x.getBoundingClientRect().height>0 && !x.disabled
-                       && !x.closest('[data-part="harness/bar"]') && !x.closest('.hpanel')
+                       && !x.closest('[data-part="harness/bar"]') && !x.closest('[data-part="harness/panel"]')
                        && !x.closest('details:not([open])'))
             .filter(x=>Object.keys(x.dataset).length===0 && !x.id && !x.onclick
                        && !/searchclear|burger|avatar|fback|more\b|fab|sel\b|vsw|seg\b|pill|tile|ep\b/.test(x.className))

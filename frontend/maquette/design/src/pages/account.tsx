@@ -15,13 +15,13 @@ export function AccountPage(): ReactElement {
   const { factRowsHTML, emptyInner, ACCOUNT } = useReference();
   const facts = (rows: Parameters<typeof factRowsHTML>[0]) => (
     <ol
-      className="flux"
+      className="flux" data-part="flux"
       dangerouslySetInnerHTML={{ __html: factRowsHTML(rows) }}
     />
   );
   return (
     <>
-      <div className="note">
+      <div className="note" data-part="note">
         <b>{t("screens.accountPage.noteLead")}</b>
         {t("screens.accountPage.noteRest")}
       </div>
@@ -67,7 +67,7 @@ export function AccountPage(): ReactElement {
 
       <h2 className="h2">{t("screens.accountPage.others")}</h2>
       <div
-        className="empty"
+        className="empty" data-part="empty-state"
         dangerouslySetInnerHTML={{
           __html: emptyInner(
             t("screens.accountPage.othersEmptyTitle"),

@@ -62,7 +62,7 @@ function AcquisitionTabs(): ReactElement {
             data-acqtab={tab.id}
           >
             {tab.label}
-            {tab.count ? <span className="n">{tab.count}</span> : null}
+            {tab.count ? <span className="n" data-part="segment/count">{tab.count}</span> : null}
           </button>
         ))}
       </div>
@@ -102,14 +102,14 @@ function NowTab(): ReactElement {
       <div className="body" data-region="acquisition/body">
         {state.phase === "error" ? (
           <div
-            className="surferr"
+            className="surferr" data-part="surface-error"
             dangerouslySetInnerHTML={{
               __html: surfErrInner(t("screens.acquisition.errorNow")),
             }}
           />
         ) : (
           <div
-            className="sec"
+            className="sec" data-part="section"
             dangerouslySetInnerHTML={{ __html: skelCardsInner(4) }}
           />
         )}
@@ -140,7 +140,7 @@ function NowTab(): ReactElement {
   ) =>
     cards.length === 0 || inner === "" ? null : (
       <section
-        className="sec"
+        className="sec" data-part="section"
         dangerouslySetInnerHTML={{
           __html: secInner(pip, title, String(cards.length), inner, note),
         }}
@@ -149,13 +149,13 @@ function NowTab(): ReactElement {
 
   return (
     <div className="body" data-region="acquisition/body">
-      <div className="note">
+      <div className="note" data-part="note">
         <b>{t("screens.acquisition.nowNoteLead")}</b>
         {t("screens.acquisition.nowNoteRest")}
       </div>
       {nothing ? (
         <div
-          className="empty"
+          className="empty" data-part="empty-state"
           dangerouslySetInnerHTML={{
             __html: emptyInner(
               t("screens.acquisition.nowEmptyTitle"),
@@ -360,10 +360,10 @@ function FollowsTab(): ReactElement {
     swipeHTML(
       cardHTML(descriptorOf(follow, showStatus)),
       follow.k === "movie"
-        ? `<button class="act pause" data-swipeact="pause">${svgIcon(icons.x)}${t("screens.acquisition.swipeStopSearching")}</button><button class="act remove" data-swipeact="remove">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`
-        : `<button class="act pause" data-swipeact="pause">${svgIcon(icons.x)}${t("screens.acquisition.swipePause")}</button><button class="act remove" data-swipeact="remove">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`,
+        ? `<button class="act pause" data-part="swipe/action" data-action="pause" data-swipeact="pause">${svgIcon(icons.x)}${t("screens.acquisition.swipeStopSearching")}</button><button class="act remove" data-part="swipe/action" data-action="remove" data-swipeact="remove">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`
+        : `<button class="act pause" data-part="swipe/action" data-action="pause" data-swipeact="pause">${svgIcon(icons.x)}${t("screens.acquisition.swipePause")}</button><button class="act remove" data-part="swipe/action" data-action="remove" data-swipeact="remove">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`,
       follow.st === "pending" || follow.st === "to_grab"
-        ? `<button class="act resume" data-swipeact="${SEARCH_AGAIN}">${svgIcon(icons.refresh)}${t("screens.acquisition.swipeSearch")}</button>`
+        ? `<button class="act resume" data-part="swipe/action" data-action="resume" data-swipeact="${SEARCH_AGAIN}">${svgIcon(icons.refresh)}${t("screens.acquisition.swipeSearch")}</button>`
         : "",
     );
 
@@ -385,14 +385,14 @@ function FollowsTab(): ReactElement {
   if (state.phase === "loading") {
     content = (
       <div
-        className="sec"
+        className="sec" data-part="section"
         dangerouslySetInnerHTML={{ __html: skelCardsInner(5) }}
       />
     );
   } else if (state.phase === "error") {
     content = (
       <div
-        className="surferr"
+        className="surferr" data-part="surface-error"
         dangerouslySetInnerHTML={{
           __html: surfErrInner(t("screens.acquisition.errorFollows")),
         }}
@@ -401,7 +401,7 @@ function FollowsTab(): ReactElement {
   } else if (visible.length === 0) {
     content = (
       <div
-        className="empty"
+        className="empty" data-part="empty-state"
         dangerouslySetInnerHTML={{ __html: emptyInner(
       term !== ""
         ? t("screens.acquisition.emptyFilter", {
@@ -424,7 +424,7 @@ function FollowsTab(): ReactElement {
   } else if (state.followMode === "grid") {
     content = (
       <div
-        className="grid"
+        className="grid" data-part="grid"
         dangerouslySetInnerHTML={{ __html: visible.map(tileOf).join("") }}
       />
     );
@@ -442,10 +442,10 @@ function FollowsTab(): ReactElement {
           return (
             <section
               key={group.l}
-              className="sec"
+              className="sec" data-part="section"
               dangerouslySetInnerHTML={{
                 __html: `
-            <div class="sechead" data-part="section/head"><span class="pip ${group.pip}"></span><span class="t">${group.l}</span><span class="k">${items.length}</span></div>
+            <div class="sechead" data-part="section/head"><span class="pip ${group.pip}" data-part="status-dot"></span><span class="t" data-part="section/title">${group.l}</span><span class="k" data-part="section/count">${items.length}</span></div>
             ${items.map((item) => rowOf(item, showStatus)).join("")}
           `,
               }}
@@ -457,7 +457,7 @@ function FollowsTab(): ReactElement {
   } else {
     content = (
       <div
-        className="sec"
+        className="sec" data-part="section"
         dangerouslySetInnerHTML={{
           __html: visible.map((follow) => rowOf(follow, true)).join(""),
         }}
@@ -552,11 +552,11 @@ function FollowsTab(): ReactElement {
       </div>
       <p className="cadence">{cadenceFR(CADENCE_CRON)}</p>
       <div className="body" data-region="acquisition/body">
-        <div className="note">
+        <div className="note" data-part="note">
           <b>{t("screens.acquisition.followsNoteLead")}</b>
           {t("screens.acquisition.followsNoteRest")}
         </div>
-        <div className="note">
+        <div className="note" data-part="note">
           <b>{t("screens.acquisition.cadenceNoteLead")}</b>
           {t("screens.acquisition.cadenceNoteBefore")}
           <code>{t("screens.acquisition.cadenceNoteInner")}</code>
@@ -667,7 +667,7 @@ function DiscoverTab(): ReactElement {
       <div
         className={`body${state.sugMode === "deck" ? " deckbody" : ""}`}
       >
-        <div className="note">
+        <div className="note" data-part="note">
           <b>{t("screens.acquisition.discoverNoteLead")}</b>
           {t("screens.acquisition.discoverNoteRest")}
         </div>
@@ -684,7 +684,7 @@ function DiscoverTab(): ReactElement {
           </div>
         ) : (
           <div
-            className="surferr"
+            className="surferr" data-part="surface-error"
             style={{
               borderColor:
                 "color-mix(in oklab,var(--warning) 45%,transparent)",
@@ -707,13 +707,13 @@ function DiscoverTab(): ReactElement {
             </button>
           </div>
         )}
-        <div className="note">
+        <div className="note" data-part="note">
           <b>{t("screens.acquisition.callsNoteLead")}</b>
           {t("screens.acquisition.callsNoteBefore")}
           <b>{t("screens.acquisition.callsNoteInner")}</b>
           {t("screens.acquisition.callsNoteAfter")}
         </div>
-        <div className="note">
+        <div className="note" data-part="note">
           <b>{t("screens.acquisition.gesturesNoteLead")}</b>
           {t("screens.acquisition.gesturesNoteBefore")}
           <em>{t("screens.acquisition.gesturesNoteInner")}</em>
@@ -721,12 +721,12 @@ function DiscoverTab(): ReactElement {
         </div>
         {state.phase === "loading" ? (
           <div
-            className="sec"
+            className="sec" data-part="section"
             dangerouslySetInnerHTML={{ __html: skelCardsInner(4) }}
           />
         ) : state.phase === "error" ? (
           <div
-            className="surferr"
+            className="surferr" data-part="surface-error"
             dangerouslySetInnerHTML={{
               __html: surfErrInner(t("screens.acquisition.errorSuggestions")),
             }}
@@ -739,7 +739,7 @@ function DiscoverTab(): ReactElement {
           className="loadfoot"
           hidden={state.phase !== "ready" || state.sugMode === "deck"}
         ></div>
-        <div className="note">
+        <div className="note" data-part="note">
           <b>{t("screens.acquisition.tmdbMissingNoteLead")}</b>
           {t("screens.acquisition.tmdbMissingNoteRest")}
         </div>

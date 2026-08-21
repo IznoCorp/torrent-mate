@@ -71,7 +71,7 @@ function PipelineBar(): ReactElement {
     return (
       <section className="pipeline" data-region="arrivals/pilot-bar">
         <div className="ph">
-          <span className="pip info"></span>
+          <span className="pip info" data-part="status-dot"></span>
           <span className="pt">{t("screens.arrivals.runningTitle")}</span>
           <span className="pq">
             {t("screens.arrivals.stepOf", {
@@ -117,7 +117,7 @@ function PipelineBar(): ReactElement {
   return (
     <section className="pipeline" data-region="arrivals/pilot-bar">
       <div className="ph">
-        <span className="pip neutral"></span>
+        <span className="pip neutral" data-part="status-dot"></span>
         <span className="pt">{t("screens.arrivals.idleTitle")}</span>
         <span className="pq">
           {t("screens.arrivals.idleQualifier", {
@@ -139,11 +139,11 @@ function LastRun(): ReactElement {
   const { PIPELINE, factRowsHTML } = useReference();
   const run = PIPELINE.last;
   return (
-    <section className="sec">
+    <section className="sec" data-part="section">
       <div className="sechead" data-part="section/head">
-        <span className="pip success"></span>
-        <span className="t">{t("screens.arrivals.lastRunTitle")}</span>
-        <span className="k">{run.duree}</span>
+        <span className="pip success" data-part="status-dot"></span>
+        <span className="t" data-part="section/title">{t("screens.arrivals.lastRunTitle")}</span>
+        <span className="k" data-part="section/count">{run.duree}</span>
       </div>
       <div className="live">
         <span
@@ -157,7 +157,7 @@ function LastRun(): ReactElement {
         </span>
       </div>
       <ol
-        className="flux"
+        className="flux" data-part="flux"
         dangerouslySetInnerHTML={{
           __html: factRowsHTML(lastRunRows(PIPELINE.steps, run.facts, t)),
         }}
@@ -185,14 +185,14 @@ export function ArrivalsPage(): ReactElement | null {
     // wrapper appears where the legacy had none.
     return state.phase === "error" ? (
       <div
-        className="surferr"
+        className="surferr" data-part="surface-error"
         dangerouslySetInnerHTML={{
           __html: surfErrInner(t("screens.arrivals.errorSubject")),
         }}
       />
     ) : (
       <div
-        className="sec"
+        className="sec" data-part="section"
         dangerouslySetInnerHTML={{ __html: skelCardsInner(3) }}
       />
     );
@@ -214,7 +214,7 @@ export function ArrivalsPage(): ReactElement | null {
   ) =>
     cards.length === 0 || inner === "" ? null : (
       <section
-        className="sec"
+        className="sec" data-part="section"
         dangerouslySetInnerHTML={{
           __html: secInner(pip, title, String(cards.length), inner, note),
         }}
@@ -223,14 +223,14 @@ export function ArrivalsPage(): ReactElement | null {
 
   return (
     <>
-      <div className="note">
+      <div className="note" data-part="note">
         <b>{t("screens.arrivals.introLead")}</b>
         {t("screens.arrivals.introRest")}
       </div>
       <PipelineBar />
       <LastRun />
       {state.scen === "real" ? (
-        <div className="note">
+        <div className="note" data-part="note">
           <b>{t("screens.arrivals.realLead")}</b>
           {t("screens.arrivals.realMiddle")}
           <code>library.db</code>
@@ -251,7 +251,7 @@ export function ArrivalsPage(): ReactElement | null {
       ) : null}
       {nothing ? (
         <div
-          className="empty"
+          className="empty" data-part="empty-state"
           dangerouslySetInnerHTML={{
             __html: emptyInner(
               t("screens.arrivals.emptyTitle"),

@@ -182,7 +182,7 @@ async def main():
         opened = await page.evaluate("""()=>({
           topic: window.__store.read().state.maintTopic,
           back: !!document.querySelector('#view .crossref[data-maintopic=""]'),
-          rows: document.querySelectorAll('#view .flux [data-part="flux/row"]').length,
+          rows: document.querySelectorAll('#view [data-part="flux"] [data-part="flux/row"]').length,
         })""")
         journal.check(
             "a real tap on a rubric row opens that rubric",
@@ -195,12 +195,12 @@ async def main():
         # every row opening the same one, which is the defect a page whose rows
         # all carry one id would have.
         wanted = await page.evaluate("""()=>{
-          const row = document.querySelector('#view .flux [data-part="flux/row"] .fw[data-maintact]');
+          const row = document.querySelector('#view [data-part="flux"] [data-part="flux/row"] [data-part="flux/row-body"][data-maintact]');
           if (!row) return null;
           const id = row.dataset.maintact;
           const action = window.__referentiel.MAINT_ACTIONS.find((x) => x.id === id);
           return {id, title: action ? action.l : null};}""")
-        refused = (await tap('#view .flux [data-part="flux/row"] .fw[data-maintact]')
+        refused = (await tap('#view [data-part="flux"] [data-part="flux/row"] [data-part="flux/row-body"][data-maintact]')
                    if wanted else "absent")
         panel = await page.evaluate("""()=>({
           open: !!document.querySelector('#sheet[data-open]'),
@@ -427,8 +427,8 @@ async def main():
         refused = await tap("#view [data-selmode='1']")
         selecting = await page.evaluate("""()=>({
           mode: !!window.__store.read().state.selMode,
-          bar: !!document.querySelector('#device .selbar'),
-          rows: document.querySelectorAll('#libitems .selrow[data-tile]').length,
+          bar: !!document.querySelector('#device [data-part="selection/bar"]'),
+          rows: document.querySelectorAll('#libitems [data-part="selection/row"][data-tile]').length,
         })""")
         journal.check(
             "a real tap on « sélectionner » opens selection, bar included",
@@ -555,7 +555,7 @@ async def main():
         refused = await tap("#view [data-fmode='grid']")
         mode = await page.evaluate(
             "()=>({mode: window.__store.read().state.followMode,"
-            " tiles: document.querySelectorAll('#view .grid .tile').length})")
+            """ tiles: document.querySelectorAll('#view [data-part="grid"] [data-part="tile"]').length})""")
         journal.check(
             "a real tap on a display mode really changes the display",
             not refused and mode["mode"] == "grid" and mode["tiles"] > 0,
@@ -569,7 +569,7 @@ async def main():
         suggestions = await page.evaluate(
             "()=>({mode: window.__store.read().state.sugMode,"
             " grid: (document.querySelector('#sugitems')||{}).className,"
-            " tiles: document.querySelectorAll('#sugitems .tile').length})")
+            """ tiles: document.querySelectorAll('#sugitems [data-part="tile"]').length})""")
         journal.check(
             "a real tap on a suggestion mode redraws the suggestions",
             not refused and suggestions["mode"] == "poster"
@@ -615,7 +615,7 @@ async def main():
         await page.evaluate("()=>window.__go('acq-now-loaded')")
         await page.wait_for_timeout(600)
         counters = await page.evaluate(
-            '''()=>[...document.querySelectorAll('#view [data-part="section/head"] .k')]'''
+            '''()=>[...document.querySelectorAll('#view [data-part="section/head"] [data-part="section/count"]')]'''
             ".map((x) => x.textContent)")
         moved = await page.evaluate(
             "()=>{const first = window.__referentiel.derivedTakeable()[0];"
@@ -624,7 +624,7 @@ async def main():
             " return first.t;}")
         await page.wait_for_timeout(700)
         after_action = await page.evaluate(
-            '''()=>[...document.querySelectorAll('#view [data-part="section/head"] .k')]'''
+            '''()=>[...document.querySelectorAll('#view [data-part="section/head"] [data-part="section/count"]')]'''
             ".map((x) => x.textContent)")
         journal.check(
             "an action that moves a medium redraws the page it moved it on",
@@ -675,7 +675,7 @@ async def main():
         # is the half its two siblings above already read.
         stopped = await page.evaluate("""()=>({
           pipe: window.__store.read().state.pipe,
-          idle: !!document.querySelector('#view .pipeline .pip.neutral'),
+          idle: !!document.querySelector('#view .pipeline [data-part="status-dot"].neutral'),
           start: !!document.querySelector('#view .pipeline [data-part="card/foot"].solid'),
           controls: [...document.querySelectorAll('#view [data-pipe]')]
             .map((x) => x.dataset.pipe),

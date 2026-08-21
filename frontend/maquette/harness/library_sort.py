@@ -34,7 +34,7 @@ from playwright.async_api import async_playwright
 # had twenty-four of them and the other end none, so the rule read an empty
 # list and called it a failed reversal. The title is the row's identity
 # everywhere in this prototype; the sheet is a property of some rows.
-TITLES = """()=>[...document.querySelectorAll('#libitems [data-part="card/title"], #libitems .tile .nm')]
+TITLES = """()=>[...document.querySelectorAll('#libitems [data-part="card/title"], #libitems [data-part="tile"] [data-part="tile/title"]')]
   .map((element) => element.textContent.trim())"""
 
 PANEL = """()=>[...document.querySelectorAll('.sheetacts .sact')].map((button) => ({
@@ -87,7 +87,7 @@ async def main():
             1 < len(narrowed) <= 24, f"{len(narrowed)} rows: {narrowed}")
         incomplete = await page.evaluate("""()=>{
           const shown = new Set([...document.querySelectorAll(
-            '#libitems [data-part="card/title"], #libitems .tile b')].map((x) => x.textContent.trim()));
+            '#libitems [data-part="card/title"], #libitems [data-part="tile"] b')].map((x) => x.textContent.trim()));
           return window.__referentiel.INCOMPLETE
             .filter((show) => shown.has(show.t)).map((show) => show.t);}""")
         journal.check(

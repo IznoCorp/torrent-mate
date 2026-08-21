@@ -51,7 +51,7 @@ READ = """() => {
                .map((b) => b.dataset.pipe),
     queued: !!document.querySelector('.pipeline .live'),
     uid: (window.PIPELINE_UID_POUR_LA_SONDE || null),
-    steps: [...document.querySelectorAll('.flux [data-part="flux/row"]')].map((x) => ({
+    steps: [...document.querySelectorAll('[data-part="flux"] [data-part="flux/row"]')].map((x) => ({
       name: x.querySelector('[data-part="flux/name"]').textContent.trim(),
       result: x.querySelector('[data-part="flux/value"]').textContent.trim(),
       sub: x.querySelector('[data-part="flux/detail"]').textContent.trim(),
@@ -59,7 +59,7 @@ READ = """() => {
       empty: x.hasAttribute('data-empty'),
       blocked: x.hasAttribute('data-blocked'),
     })),
-    sections: [...document.querySelectorAll('[data-part="section/head"] .t')].map((x) => x.textContent.trim()),
+    sections: [...document.querySelectorAll('[data-part="section/head"] [data-part="section/title"]')].map((x) => x.textContent.trim()),
   };
 }"""
 

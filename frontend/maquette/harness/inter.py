@@ -33,12 +33,12 @@ async def main():
 
     print("── Suivis: swipe action ──")
     await pg.click('[data-acqtab="follows"]'); await pg.wait_for_timeout(300)
-    await pg.evaluate(SW, ["#view .swipe", -1, 9])
-    print("  transform :", await pg.evaluate("""()=>getComputedStyle(document.querySelector('#view .swipe [data-part="card"]')).transform"""))
+    await pg.evaluate(SW, ['#view [data-part="swipe"]', -1, 9])
+    print("  transform :", await pg.evaluate("""()=>getComputedStyle(document.querySelector('#view [data-part="swipe"] [data-part="card"]')).transform"""))
 
     print("── Library: scrolling + error + end ──")
     await pg.click('[data-page="lib"]'); await pg.wait_for_timeout(400)
-    print("  initial tiles:", await pg.evaluate("()=>document.querySelectorAll('#libitems .tile').length"),
+    print("  initial tiles:", await pg.evaluate("""()=>document.querySelectorAll('#libitems [data-part="tile"]').length"""),
           "|", (await pg.evaluate("()=>document.querySelector('#libcount').textContent")).strip())
     for _ in range(3):
         await pg.evaluate("()=>{const p=document.querySelector('#port');p.scrollTop=p.scrollHeight;}")
@@ -47,17 +47,17 @@ async def main():
     print("  error path shown:", err)
     if err:
         await pg.click("#libretry"); await pg.wait_for_timeout(900)
-    print("  tiles after retry:", await pg.evaluate("()=>document.querySelectorAll('#libitems .tile').length"))
+    print("  tiles after retry:", await pg.evaluate("""()=>document.querySelectorAll('#libitems [data-part="tile"]').length"""))
 
     print("── Médiathèque: deletion ──")
     await pg.click('[data-lmode="list"]'); await pg.wait_for_timeout(350)
-    await pg.evaluate(SW, ["#libitems .swipe", -1, 8])
-    await pg.evaluate("()=>document.querySelector('#libitems .swipe .act.remove').click()")
+    await pg.evaluate(SW, ['#libitems [data-part="swipe"]', -1, 8])
+    await pg.evaluate("""()=>document.querySelector('#libitems [data-part="swipe"] [data-part="swipe/action"][data-action="remove"]').click()""")
     await pg.wait_for_timeout(400)
     d = await pg.evaluate("""()=>{const g=document.querySelector('#dlg');
       return {open:g.hasAttribute('data-open'), title:(g.querySelector('h3')||{}).textContent,
-              dryrun:!!g.querySelector('.dryrun'), rows:g.querySelectorAll('.manifest li').length,
-              choices:[...g.querySelectorAll('.dlgbtn')].map(x=>x.textContent.trim())};}""")
+              dryrun:!!g.querySelector('[data-part="dialog/dry-run"]'), rows:g.querySelectorAll('[data-part="dialog/manifest"] li').length,
+              choices:[...g.querySelectorAll('[data-part="dialog/button"]')].map(x=>x.textContent.trim())};}""")
     print(" ", d)
     await pg.screenshot(path="w_suppression.png")
 

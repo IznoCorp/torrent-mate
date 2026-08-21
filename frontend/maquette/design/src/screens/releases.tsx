@@ -63,7 +63,7 @@ export function ReleasesScreen() {
       </div>
       <div className="port" data-part="viewport">
         <div className="body" data-region="screen-releases/body">
-          <div className="note">
+          <div className="note" data-part="note">
             <b>{t("screens.releases.noteTitle")}</b>{" "}
             {t("screens.releases.noteBeforePourquoi")}{" "}
             <em>{t("screens.releases.notePourquoi")}</em>{" "}
@@ -90,12 +90,12 @@ export function ReleasesScreen() {
                 >
                   {release.res}
                 </span>{" "}
-                <span className="chip">{release.src}</span>{" "}
-                <span className="chip">{release.lang}</span>{" "}
-                <span className="chip">
+                <span className="chip" data-part="chip">{release.src}</span>{" "}
+                <span className="chip" data-part="chip">{release.lang}</span>{" "}
+                <span className="chip" data-part="chip">
                   {release.s} {t("screens.releases.sourcesUnit")}
                 </span>{" "}
-                <span className="chip">
+                <span className="chip" data-part="chip">
                   {String(release.go).replace(".", ",")}{" "}
                   {t("screens.releases.goUnit")}
                 </span>{" "}
@@ -119,7 +119,7 @@ export function ReleasesScreen() {
               </button>
             </article>
           ))}
-          <div className="empty">
+          <div className="empty" data-part="empty-state">
             <b>{t("screens.releases.emptyTitle")}</b>
             {t("screens.releases.emptyBody")}
             <button

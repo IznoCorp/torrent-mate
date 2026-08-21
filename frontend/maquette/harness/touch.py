@@ -151,21 +151,21 @@ async def main():
         #    claim is what makes them survive. Measured, not assumed.
         await pg.evaluate("()=>window.__go('acq-follows-list')")
         await pg.wait_for_timeout(300)
-        r = await rect("#view .swipe")
+        r = await rect('#view [data-part="swipe"]')
         await drag(cdp, r["x"] + r["width"] / 2, r["y"] + r["height"] / 2, 12, -20, 0)
         await pg.wait_for_timeout(300)
         transformed = await pg.evaluate(
-            """()=>getComputedStyle(document.querySelector('#view .swipe [data-part="card"]')).transform""")
+            """()=>getComputedStyle(document.querySelector('#view [data-part="swipe"] [data-part="card"]')).transform""")
         check("a row still opens", transformed not in ("none", "matrix(1, 0, 0, 1, 0, 0)"),
                  transformed)
 
         await pg.evaluate("()=>window.__go('acq-discover-deck')")
         await pg.wait_for_timeout(350)
         before = await pg.evaluate("""()=>document.querySelectorAll('[data-part="suggestion/wrap"], [data-part="deck/card"]').length""")
-        r = await rect('.deck [data-part="deck/card"][data-depth="0"]')
+        r = await rect('[data-part="deck"] [data-part="deck/card"][data-depth="0"]')
         await drag(cdp, r["x"] + r["width"] / 2, r["y"] + r["height"] / 2, 12, 22, 0)
         await pg.wait_for_timeout(450)
-        moved = await pg.evaluate("""()=>{const c=document.querySelector('.deck [data-part="deck/card"][data-depth="0"]');
+        moved = await pg.evaluate("""()=>{const c=document.querySelector('[data-part="deck"] [data-part="deck/card"][data-depth="0"]');
             return c ? c.textContent.replace(/\\s+/g,' ').trim().slice(0,40) : null;}""")
         check("the deck still moves on by one card", bool(moved) and before > 0, str(moved))
 
@@ -188,11 +188,11 @@ async def main():
             await cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
 
         press_surfaces = [
-            ("follows gallery", "acq-follows-grid", ".tile"),
-            ("library gallery", "lib-grid", ".tile"),
+            ("follows gallery", "acq-follows-grid", '[data-part="tile"]'),
+            ("library gallery", "lib-grid", '[data-part="tile"]'),
             ("a card's poster", "acq-follows-list", '#view [data-part="card"] [data-part="card/poster"]'),
             ("a card's body", "acq-follows-list", '#view [data-part="card"] [data-part="card/body"]'),
-            ("deck card", "acq-discover-deck", '.deck [data-part="deck/card"][data-depth="0"]'),
+            ("deck card", "acq-discover-deck", '[data-part="deck"] [data-part="deck/card"][data-depth="0"]'),
         ]
         without_panel, with_selection, fired = [], [], []
         for name, state_, sel in press_surfaces:
@@ -233,7 +233,7 @@ async def main():
         # Each surface is checked in a state that DRAWS it: the deck state has
         # no list poster, and a rule that skips what is absent proves nothing.
         for state_, selectors in (("acq-follows-list", ['[data-part="card/poster"]']),
-                                 ("lib-grid", [".tile"]),
+                                 ("lib-grid", ['[data-part="tile"]']),
                                  ("acq-discover-deck", ['[data-part="deck/card"]']),
                                  ("followsheet-complete", [".sheetposter"])):
             await pg.evaluate("(s)=>window.__go(s)", state_)

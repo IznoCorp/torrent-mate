@@ -77,7 +77,7 @@ async def main():
       if (!s) return {missingScreen:true};
       const ss=[...s.querySelectorAll('[data-part="season"]')];
       return {seasons:ss.length, open:ss.filter(x=>x.open).length,
-              missing:[...s.querySelectorAll('.miss')].map(x=>x.textContent),
+              missing:[...s.querySelectorAll('[data-part="season/missing"]')].map(x=>x.textContent),
               fraction:s.querySelector('.sheetmeta')?.textContent.trim(),
               states:[...new Set([...s.querySelectorAll('[data-part="episode"]')].map(x=>x.className.replace('ep ','')))],
               legend:[...s.querySelectorAll('.legend span')].map(x=>x.textContent.trim())};}""")

@@ -32,13 +32,13 @@ READ = """() => ({
   overflow: document.querySelector('#port').scrollWidth - document.querySelector('#port').clientWidth,
   page: state.page,
   text: document.querySelector('#view').textContent.replace(/\\s+/g, ' ').trim(),
-  empty: (document.querySelector('#view .empty b') || {}).textContent || '',
+  empty: (document.querySelector('#view [data-part="empty-state"] b') || {}).textContent || '',
   exits: [...document.querySelectorAll('#view button')].map((b) => ({
     text: b.textContent.trim(),
     target: Object.keys(b.dataset).join(','),
     inert: b.disabled,
   })),
-  facts: [...document.querySelectorAll('#view .flux [data-part="flux/row"]')].map((x) => ({
+  facts: [...document.querySelectorAll('#view [data-part="flux"] [data-part="flux/row"]')].map((x) => ({
     l: x.querySelector('[data-part="flux/name"]').textContent.trim(),
     v: x.querySelector('[data-part="flux/value"]').textContent.trim(),
     k: (x.querySelector('[data-part="flux/key"]') || {}).textContent || '',

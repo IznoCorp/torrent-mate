@@ -47,7 +47,7 @@ async def main():
           const target = layer ? (dg.hasAttribute('data-open')?dg
                                  :sc.hasAttribute('data-open')?sc
                                  :sh.hasAttribute('data-open')?sh:rt) : v;
-          return {sk:target.querySelectorAll('.sk').length, txt:target.textContent.replace(/\\s+/g,' ').trim().length,
+          return {sk:target.querySelectorAll('[data-skeleton]').length, txt:target.textContent.replace(/\\s+/g,' ').trim().length,
                   doc:document.documentElement.scrollWidth,
                   // An overflow clipped by an ancestor is not overflow:
                   // getBoundingClientRect measures BEFORE clipping. Verify the

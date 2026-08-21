@@ -9,11 +9,11 @@ import asyncio
 from playwright.async_api import async_playwright
 
 GALLERIES = [
-  ("Médiathèque · Médias",    "lib-grid",                ".tile[data-panel]"),
+  ("Médiathèque · Médias",    "lib-grid",                '[data-part="tile"][data-panel]'),
   ("Médiathèque · Incomplets","lib-incomplete",            None),
   ("Médiathèque · Récents",   "lib-recent",               None),
-  ("Suivis · grille",         "acq-follows-grid",         ".tile[data-panel]"),
-  ("Découvrir · affiches",    "acq-discover-posters",    ".tile[data-panel]"),
+  ("Suivis · grille",         "acq-follows-grid",         '[data-part="tile"][data-panel]'),
+  ("Découvrir · affiches",    "acq-discover-posters",    '[data-part="tile"][data-panel]'),
 ]
 
 async def main():
@@ -51,7 +51,7 @@ async def main():
                 print(f"  {name:26} NO GRID CONTROL")
                 continue
             await pg.wait_for_timeout(300)
-            sel = ".tile[data-panel]"
+            sel = '[data-part="tile"][data-panel]'
         n = await pg.locator(sel).count()
         if n == 0:
             failures.append(f"{name}: no tile declares a panel"); print(f"  {name:26} NO PANEL DECLARED"); continue
@@ -66,7 +66,7 @@ async def main():
             """()=>!!document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]')""")
         await pg.evaluate("()=>window.__go(arguments0)" if False else "(i)=>window.__go(i)", state_)
         await pg.wait_for_timeout(350)
-        if sel == ".tile[data-panel]" and not screen_:
+        if sel == '[data-part="tile"][data-panel]' and not screen_:
             pass  # the lens galleries may need the mode click again; re-checked below
 
         # 2. A long press opens the bottom panel.
@@ -103,7 +103,7 @@ async def main():
             await pg.evaluate("([l,m])=>{window.__reset(); applyState({page:'lib',libLens:l,libMode:m,phase:'ready'}); render();}", [lens, mode])
             await pg.wait_for_timeout(420)
             shapes[mode] = await pg.evaluate("""()=>({
-                tiles:document.querySelectorAll('#view .tile[data-panel]').length,
+                tiles:document.querySelectorAll('#view [data-part="tile"][data-panel]').length,
                 cards:document.querySelectorAll('#view [data-part="card"]').length,
                 toggle:!!document.querySelector('#view .vsw')})""")
         ok = (shapes["grid"]["tiles"] > 0 and shapes["list"]["cards"] > 0

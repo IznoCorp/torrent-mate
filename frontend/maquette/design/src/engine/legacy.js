@@ -7057,7 +7057,7 @@ import { screens, panel, bridge } from "../seams.js";
   }
   function chipHTML(chip) {
     return chip
-      ? `<span class="chip ${chip[0]}">${escapeHtml(chip[1])}</span>`
+      ? `<span class="chip ${chip[0]}" data-part="chip">${escapeHtml(chip[1])}</span>`
       : "";
   }
 
@@ -7125,7 +7125,7 @@ import { screens, panel, bridge } from "../seams.js";
       : posterBox(descriptor.t, descriptor.k);
     const poster = hasSheet
       ? `<button class="poster" data-part="card/poster" aria-label="Fiche de ${escapeHtml(descriptor.t)}" data-mediasheet="${escapeHtml(descriptor.t)}">${image}</button>`
-      : `<button class="folder" aria-label="Actions pour le dossier ${escapeHtml(descriptor.t)}" data-panel="${escapeHtml(descriptor.panel || `dossier:${descriptor.t}`)}">${svgIcon(icons.folder, 1.6)}<span class="dlabel">Dossier</span></button>`;
+      : `<button class="folder" data-part="card/folder" aria-label="Actions pour le dossier ${escapeHtml(descriptor.t)}" data-panel="${escapeHtml(descriptor.panel || `dossier:${descriptor.t}`)}">${svgIcon(icons.folder, 1.6)}<span class="dlabel">Dossier</span></button>`;
     /* Two lines, because they answer two questions. The first says WHAT THIS
        MEDIUM IS — how much of it is owned, what state it is in, how it is
        rated. The second annotates that state: what is pending, what has just
@@ -7198,9 +7198,9 @@ import { screens, panel, bridge } from "../seams.js";
      the engine's own acts. */
 
   function swipeHTML(inner, actions, actionsGauche) {
-    return `<div class="swipe"><div class="actions">${
-      actionsGauche ? `<div class="side left">${actionsGauche}</div>` : ""
-    }<div class="side right">${actions}</div></div>${inner}</div>`;
+    return `<div class="swipe" data-part="swipe"><div class="actions">${
+      actionsGauche ? `<div class="side left" data-part="swipe/side" data-side="left">${actionsGauche}</div>` : ""
+    }<div class="side right" data-part="swipe/side" data-side="right">${actions}</div></div>${inner}</div>`;
   }
 
   /* Same split as `skelCardsInner` / `surfErrInner`: a migrated PAGE draws the
@@ -7212,7 +7212,7 @@ import { screens, panel, bridge } from "../seams.js";
 
   function secHTML(pip, title, count, inner, note) {
     if (String(count) === "0" || inner === "") return "";
-    return `<section class="sec">${secInner(pip, title, count, inner, note)}</section>`;
+    return `<section class="sec" data-part="section">${secInner(pip, title, count, inner, note)}</section>`;
   }
   /* Same split as `emptyInner` / `skelCardsInner` / `surfErrInner`: a migrated
      PAGE draws the `<section class="sec">` itself and fills it with this. The
@@ -7220,8 +7220,8 @@ import { screens, panel, bridge } from "../seams.js";
      drawing no section at all — which is what the legacy's empty string did. */
   function secInner(pip, title, count, inner, note) {
     return `
-    <div class="sechead" data-part="section/head"><span class="pip ${pip}"></span><span class="t">${escapeHtml(title)}</span><span class="k">${count}</span></div>
-    ${note ? `<div class="note">${note}</div>` : ""}
+    <div class="sechead" data-part="section/head"><span class="pip ${pip}" data-part="status-dot"></span><span class="t" data-part="section/title">${escapeHtml(title)}</span><span class="k" data-part="section/count">${count}</span></div>
+    ${note ? `<div class="note" data-part="note">${note}</div>` : ""}
     ${inner}
   `;
   }
@@ -7490,19 +7490,19 @@ import { screens, panel, bridge } from "../seams.js";
      all three: that is what « every screen AND every state » means, and it
      is what the parity probe must be able to reach deterministically. */
   function skelCards(count) {
-    return `<div class="sec">${skelCardsInner(count)}</div>`;
+    return `<div class="sec" data-part="section">${skelCardsInner(count)}</div>`;
   }
   /* The inside alone. A migrated PAGE renders the `<div class="sec">` itself —
      React cannot set the outer markup of a node it also draws — and fills it
      with this, so the skeleton stays one emitter rather than two that drift. */
   function skelCardsInner(count) {
-    return '<div class="sk skcard"></div>'.repeat(count);
+    return '<div class="sk skcard" data-skeleton=""></div>'.repeat(count);
   }
   function skelTiles(count) {
-    return `<div class="grid">${'<div class="sk tile"></div>'.repeat(count)}</div>`;
+    return `<div class="grid" data-part="grid">${'<div class="sk tile" data-part="tile" data-skeleton=""></div>'.repeat(count)}</div>`;
   }
   function surfErr(what) {
-    return `<div class="surferr">${surfErrInner(what)}</div>`;
+    return `<div class="surferr" data-part="surface-error">${surfErrInner(what)}</div>`;
   }
   /* Same split as `skelCardsInner`, and for the same reason. */
   function surfErrInner(what) {
@@ -7525,7 +7525,7 @@ import { screens, panel, bridge } from "../seams.js";
      and a caller wanting something outside it adds a field rather than
      passing markup. An envelope guarantees nothing about what it carries. */
   function factsListHTML(lignes) {
-    return `<ol class="flux">${factRowsHTML(lignes)}</ol>`;
+    return `<ol class="flux" data-part="flux">${factRowsHTML(lignes)}</ol>`;
   }
 
   /* The rows alone, without the `<ol>` around them. A migrated PAGE renders
@@ -7581,11 +7581,11 @@ import { screens, panel, bridge } from "../seams.js";
           info: "info",
         };
         const badge = ligne.ton
-          ? `<span class="chip ${TONS[ligne.ton]}">${value}</span>`
+          ? `<span class="chip ${TONS[ligne.ton]}" data-part="chip">${value}</span>`
           : value;
         return `<li class="fx${empty ? " fempty" : ""}${ligne.state === "danger" ? " fblocked" : ""}${
           ligne.target ? " fclick" : ""
-        }" data-part="flux/row"${empty ? ' data-empty=""' : ''}${ligne.state === "danger" ? ' data-blocked=""' : ''}><${tag} class="fw"${target}>
+        }" data-part="flux/row"${empty ? ' data-empty=""' : ''}${ligne.state === "danger" ? ' data-blocked=""' : ''}><${tag} class="fw" data-part="flux/row-body"${target}>
       <span class="fn" data-part="flux/name">${escapeHtml(ligne.l)}</span>
       <span class="fr" data-part="flux/value">${badge}</span>
       <span class="fs" data-part="flux/detail">${ligne.k ? `<span class="fk" data-part="flux/key">${escapeHtml(ligne.k)}</span>` : ""}${
@@ -9516,7 +9516,7 @@ import { screens, panel, bridge } from "../seams.js";
         (
           element,
         ) => `<button data-page="${element.id}" ${currentState().page === element.id ? 'aria-current="page"' : ""}>
-      <span class="ic">${svgIcon(element.ic)}${element.badge ? `<span class="navbadge">${element.badge}</span>` : ""}</span>
+      <span class="ic">${svgIcon(element.ic)}${element.badge ? `<span class="navbadge" data-part="shell/tab-badge">${element.badge}</span>` : ""}</span>
       <span class="lb">${element.l}</span>
     </button>`,
       )
@@ -9936,10 +9936,10 @@ import { screens, panel, bridge } from "../seams.js";
               ? "info"
               : "warning"
       : null;
-    return `<button class="tile${opts.muted ? " off" : ""}" ${opts.index != null ? `data-tile="${opts.index}"` : ""} ${opts.dismiss != null ? `data-dismissable="${escapeHtml(String(opts.dismiss))}"` : ""} data-panel="${escapeHtml(opts.panel || `media:${descriptor.t}`)}" ${sel ? `aria-selected="${selected}"` : `data-mediasheet="${escapeHtml(descriptor.t)}"`}>
+    return `<button class="tile${opts.muted ? " off" : ""}" data-part="tile" ${opts.index != null ? `data-tile="${opts.index}"` : ""} ${opts.dismiss != null ? `data-dismissable="${escapeHtml(String(opts.dismiss))}"` : ""} data-panel="${escapeHtml(opts.panel || `media:${descriptor.t}`)}" ${sel ? `aria-selected="${selected}"` : `data-mediasheet="${escapeHtml(descriptor.t)}"`}>
       <span class="p">${posterBox(descriptor.t, descriptor.k)}</span>
-      ${sel ? `<span class="sel">${svgIcon(icons.check, 3)}</span>` : badge ? `<span class="tilebadge" style="background:var(--${tone})">${escapeHtml(badge.txt)}</span>` : ""}
-      <span class="nm">${escapeHtml(descriptor.t)}</span>
+      ${sel ? `<span class="sel" data-part="selection/check">${svgIcon(icons.check, 3)}</span>` : badge ? `<span class="tilebadge" data-part="tile/badge" style="background:var(--${tone})">${escapeHtml(badge.txt)}</span>` : ""}
+      <span class="nm" data-part="tile/title">${escapeHtml(descriptor.t)}</span>
       <span class="fr" data-part="tile/subtitle">${escapeHtml(sousLigne)}</span>
     </button>`;
   }
@@ -9998,15 +9998,15 @@ import { screens, panel, bridge } from "../seams.js";
   function libRowHTML(item, index) {
     if (currentState().selMode) {
       const has = currentState().selected.has(index);
-      return `<button class="selrow" data-tile="${index}" aria-selected="${has}">
-        <span class="sel">${svgIcon(icons.check, 3)}</span>
+      return `<button class="selrow" data-part="selection/row" data-tile="${index}" aria-selected="${has}">
+        <span class="sel" data-part="selection/check">${svgIcon(icons.check, 3)}</span>
         <span class="poster" data-part="card/poster">${posterBox(item.t)}</span>
         <span class="rowtxt"><span class="ctitle" data-part="card/title" title="${escapeHtml(item.t)}">${escapeHtml(item.t)}</span><span class="csub" data-part="card/subtitle">${escapeHtml(item.f)}</span></span>
       </button>`;
     }
     return swipeHTML(
       cardHTML({ t: item.t, s: item.f, overview: SYNOPSIS[item.t] }),
-      `<button class="act remove" data-swipeact="del" data-del="${escapeHtml(item.t)}">${svgIcon(icons.trash)}Supprimer</button>`,
+      `<button class="act remove" data-part="swipe/action" data-action="remove" data-swipeact="del" data-del="${escapeHtml(item.t)}">${svgIcon(icons.trash)}Supprimer</button>`,
     );
   }
 
@@ -10032,9 +10032,10 @@ import { screens, panel, bridge } from "../seams.js";
     const size = currentState().selected.size;
     const bar = document.createElement("div");
     bar.className = "selbar";
-    bar.innerHTML = `<span class="n">${size === 0 ? "Touchez les affiches à supprimer" : `${size} sélectionné${size > 1 ? "s" : ""}`}</span>
+    bar.dataset.part = "selection/bar";
+    bar.innerHTML = `<span class="n" data-part="selection/caption">${size === 0 ? "Touchez les affiches à supprimer" : `${size} sélectionné${size > 1 ? "s" : ""}`}</span>
       <button data-selmode="0">Annuler</button>
-      <button class="danger" data-delsel="1" ${size === 0 ? "disabled" : ""}>Supprimer</button>`;
+      <button class="danger" data-tone="danger" data-delsel="1" ${size === 0 ? "disabled" : ""}>Supprimer</button>`;
     document.querySelector("#device").appendChild(bar);
   }
 
@@ -10333,7 +10334,7 @@ import { screens, panel, bridge } from "../seams.js";
               )
         }
         <span class="cap">
-          <span class="t">${escapeHtml(suggestion.t)}</span>
+          <span class="t" data-part="deck/title">${escapeHtml(suggestion.t)}</span>
           <span class="m">${escapeHtml(suggestion.y)} · ${escapeHtml(suggestion.k)} · ${escapeHtml(String(suggestion.note))} sur TMDB</span>
           <span class="why">${richText(suggestion.why)}</span>
         </span>
@@ -10363,7 +10364,7 @@ import { screens, panel, bridge } from "../seams.js";
       element,
     ]);
     if (!restants.length) {
-      return `<div class="empty"><b>Vous avez tout parcouru.</b>
+      return `<div class="empty" data-part="empty-state"><b>Vous avez tout parcouru.</b>
         <p>Les ${SUGGESTIONS.length} suggestions du lot ont été vues. La réserve en garde d'autres.</p>
         <button class="btnprimary" data-sugmore="1">${svgIcon(icons.refresh)}Charger 30 de plus</button></div>`;
     }
@@ -10374,7 +10375,7 @@ import { screens, panel, bridge } from "../seams.js";
       )
       .reverse()
       .join("");
-    return `<div class="deck">${pile}</div>`;
+    return `<div class="deck" data-part="deck">${pile}</div>`;
   }
 
 
@@ -10631,7 +10632,7 @@ import { screens, panel, bridge } from "../seams.js";
       foot.innerHTML = `<p class="endmark">Fin de la réserve chargée dans cette maquette — ${SUGGESTIONS.length} des 503 suggestions réellement calculées pour vous. La passe de fond en recalcule après chaque nouvelle note TMDB.</p>`;
       return;
     }
-    foot.innerHTML = `<div style="display:flex;flex-direction:column;gap:14px">${'<div class="sk row" style="height:104px"></div>'.repeat(2)}</div>`;
+    foot.innerHTML = `<div style="display:flex;flex-direction:column;gap:14px">${'<div class="sk row" data-skeleton="" style="height:104px"></div>'.repeat(2)}</div>`;
     if (sugObserver) sugObserver.disconnect();
     sugObserver = new IntersectionObserver(
       (ents) => {
@@ -11578,7 +11579,7 @@ import { screens, panel, bridge } from "../seams.js";
       </nav>
       <div class="grp">
         <p class="sect">Apparence</p>
-        <div class="segmini" role="group" aria-label="Thème">
+        <div class="segmini" data-part="segment-small" role="group" aria-label="Thème">
           ${APPARENCES.map(
             (mode) =>
               `<button data-apparence="${mode}" aria-pressed="${apparenceCourante() === mode}">${mode === "system" ? "Système" : mode === "light" ? "Clair" : "Sombre"}</button>`,
@@ -11612,6 +11613,7 @@ import { screens, panel, bridge } from "../seams.js";
     closeHarness();
     const createElement = document.createElement("div");
     createElement.className = "hpanel";
+    createElement.dataset.part = "harness/panel";
     createElement.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px">
         <h4 style="flex:1">Harnais — hors application</h4>
@@ -12331,8 +12333,8 @@ import { screens, panel, bridge } from "../seams.js";
         openDlg(`<h3>Remplacer « ${escapeHtml(result.t)} » ?</h3>
           <p>Ce ${result.k === "Film" ? "film est déjà" : "média est déjà"} en médiathèque. L'acquisition <b>remplacera</b> la version en place par celle qui sera récupérée.</p>
           <div class="dlgacts">
-            <button class="dlgbtn danger" data-confirmadd="${index}">Remplacer</button>
-            <button class="dlgbtn ghost" id="dlgcancel">Annuler</button>
+            <button class="dlgbtn danger" data-part="dialog/button" data-tone="danger" data-confirmadd="${index}">Remplacer</button>
+            <button class="dlgbtn ghost" data-part="dialog/button" id="dlgcancel">Annuler</button>
           </div>`);
         document.querySelector("#dlgcancel").onclick = closeDlg;
         return;
@@ -12457,10 +12459,10 @@ import { screens, panel, bridge } from "../seams.js";
       : `Supprimer « ${escapeHtml(titles[0])} » ?`;
     openDlg(`
     <h3>${head}</h3>
-    <div class="dryrun">${svgIcon(icons.eye)}Simulation — rien ne sera supprimé tant que vous n'aurez pas validé que cette liste dit vrai.</div>
+    <div class="dryrun" data-part="dialog/dry-run">${svgIcon(icons.eye)}Simulation — rien ne sera supprimé tant que vous n'aurez pas validé que cette liste dit vrai.</div>
     ${
       multi
-        ? `<ul class="manifest">${titles
+        ? `<ul class="manifest" data-part="dialog/manifest">${titles
             .slice(0, 4)
             .map(
               (slice) =>
@@ -12472,7 +12474,7 @@ import { screens, panel, bridge } from "../seams.js";
         : ""
     }
     <p>Voici exactement ce qui serait supprimé :</p>
-    <ul class="manifest">
+    <ul class="manifest" data-part="dialog/manifest">
       <li>Fichiers vidéo <b>${files} · ${size}</b></li>
       <li>Métadonnées (NFO, affiches, fanart) <b>${files * 3} fichiers</b></li>
       <li>Lignes de la médiathèque <b>${titles.length} item${multi ? "s" : ""}</b></li>
@@ -12486,11 +12488,11 @@ import { screens, panel, bridge } from "../seams.js";
     <div class="dlgacts">
       ${
         followed.length > 0
-          ? `<button class="dlgbtn danger" data-toast="Simulation terminée — 0 fichier touché. Le suivi aurait été arrêté.">Supprimer et arrêter le suivi</button>
-      <button class="dlgbtn" data-toast="Simulation terminée — 0 fichier touché. Le suivi aurait été conservé.">Supprimer, garder le suivi</button>`
-          : `<button class="dlgbtn danger" data-toast="Simulation terminée — 0 fichier touché.">Supprimer</button>`
+          ? `<button class="dlgbtn danger" data-part="dialog/button" data-tone="danger" data-toast="Simulation terminée — 0 fichier touché. Le suivi aurait été arrêté.">Supprimer et arrêter le suivi</button>
+      <button class="dlgbtn" data-part="dialog/button" data-toast="Simulation terminée — 0 fichier touché. Le suivi aurait été conservé.">Supprimer, garder le suivi</button>`
+          : `<button class="dlgbtn danger" data-part="dialog/button" data-tone="danger" data-toast="Simulation terminée — 0 fichier touché.">Supprimer</button>`
       }
-      <button class="dlgbtn ghost" id="dlgcancel">Annuler</button>
+      <button class="dlgbtn ghost" data-part="dialog/button" id="dlgcancel">Annuler</button>
     </div>`);
     select("#dlgcancel").onclick = closeDlg;
     select("#dlg")
@@ -33399,7 +33401,7 @@ import { screens, panel, bridge } from "../seams.js";
               ).filter((from) => !held.has(from))
             : [];
         const corps = list
-          ? `<div class="panel" style="margin-top:8px">${list
+          ? `<div class="panel" data-part="panel" style="margin-top:8px">${list
               .map((liste2) => {
                 /* SUBTLE state colour: a 6px dot and the number in the
                    tone. The title stays neutral — it is what one reads
@@ -33418,7 +33420,7 @@ import { screens, panel, bridge } from "../seams.js";
                       : "to_grab";
                 return `<div class="eprow ${episodeState}" data-part="episode/row">
                   <span class="epdot"></span>
-                  <span class="en">E${String(liste2.n).padStart(2, "0")}</span>
+                  <span class="en" data-part="episode/number">E${String(liste2.n).padStart(2, "0")}</span>
                   <span class="et">${escapeHtml(liste2.t)}</span>
                   <span class="ed">${liste2.air ? dateFR(liste2.air) : "date inconnue"}${episodeState === "in_library" ? "" : ` · ${EP_LABEL[episodeState].toLowerCase()}`}</span>
                 </div>`;
@@ -33440,12 +33442,12 @@ import { screens, panel, bridge } from "../seams.js";
                 },
               ).join("")}</div>${
                 ligne.aired == null
-                  ? `<p class="noinfo" style="margin-top:6px">Au-delà de l'épisode ${borne}, le provider ne dit pas combien la saison en compte.</p>`
+                  ? `<p class="noinfo" data-part="no-info" style="margin-top:6px">Au-delà de l'épisode ${borne}, le provider ne dit pas combien la saison en compte.</p>`
                   : ""
               }`
             : ligne.aired === 0 || ligne.aired === null
-              ? `<p class="noinfo" style="margin-top:8px">Saison annoncée : aucun épisode diffusé pour l'instant.</p>`
-              : `<p class="noinfo" style="margin-top:8px">Épisodes non détaillés pour cette saison — la fiche le dit plutôt que d'afficher une liste vide.</p>`;
+              ? `<p class="noinfo" data-part="no-info" style="margin-top:8px">Saison annoncée : aucun épisode diffusé pour l'instant.</p>`
+              : `<p class="noinfo" data-part="no-info" style="margin-top:8px">Épisodes non détaillés pour cette saison — la fiche le dit plutôt que d'afficher une liste vide.</p>`;
         return `<details class="season" data-part="season"${complete || !possede ? "" : " open"}>
           <summary>Saison ${ligne.n}
             <span class="sfr">${
@@ -33455,8 +33457,8 @@ import { screens, panel, bridge } from "../seams.js";
                   ? `${nbOwn}/${ligne.aired ?? "?"}`
                   : `${ligne.aired ?? "?"} ép.`
             }</span>
-            ${possede && manque > 0 ? `<span class="miss">${manque} manquant${manque > 1 ? "s" : ""}</span>` : ""}
-            ${!possede && ligne.air ? `<span class="miss" style="background:transparent;color:var(--muted-foreground);font-weight:400">${dateFR(ligne.air)}</span>` : ""}
+            ${possede && manque > 0 ? `<span class="miss" data-part="season/missing">${manque} manquant${manque > 1 ? "s" : ""}</span>` : ""}
+            ${!possede && ligne.air ? `<span class="miss" data-part="season/missing" style="background:transparent;color:var(--muted-foreground);font-weight:400">${dateFR(ligne.air)}</span>` : ""}
           </summary>
           ${
             missingNums.length

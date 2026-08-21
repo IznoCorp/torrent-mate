@@ -115,7 +115,7 @@ async def main():
         rows = await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="setting/row"]')].map(r => ({
           label: (r.querySelector('.rl')||{}).firstChild?.textContent?.trim()||'',
           path: (r.querySelector('.rf')||{}).textContent||'',
-          header: (r.closest('.panel')?.previousElementSibling||{}).textContent||'',
+          header: (r.closest('[data-part="panel"]')?.previousElementSibling||{}).textContent||'',
           value: (r.querySelector('.rv')||{}).textContent||''}))""")
         check("a topic lists its settings", len(rows) > 10, str(len(rows)))
         mute = [l for l in rows
@@ -204,7 +204,7 @@ async def main():
         await pg.wait_for_timeout(320)
         searched = await pg.evaluate("""()=>({
           results: document.querySelectorAll('[data-part="setting/row"]').length,
-          empty: !!document.querySelector('.empty'),
+          empty: !!document.querySelector('[data-part="empty-state"]'),
           text: (document.querySelector('#view')||{}).textContent||''})""")
         # A FRENCH word must find something: the labels used to be the files'
         # English comments, so « espace » matched no row at all — the search

@@ -47,14 +47,14 @@ export function SystemPage(): ReactElement | null {
     // wrapper appears where the legacy had none.
     return state.phase === "error" ? (
       <div
-        className="surferr"
+        className="surferr" data-part="surface-error"
         dangerouslySetInnerHTML={{
           __html: surfErrInner(t("screens.system.errorSubject")),
         }}
       />
     ) : (
       <div
-        className="sec"
+        className="sec" data-part="section"
         dangerouslySetInnerHTML={{ __html: skelCardsInner(3) }}
       />
     );
@@ -62,19 +62,19 @@ export function SystemPage(): ReactElement | null {
 
   const facts = (rows: Fact[]) => (
     <ol
-      className="flux"
+      className="flux" data-part="flux"
       dangerouslySetInnerHTML={{ __html: factRowsHTML(rows) }}
     />
   );
 
   return (
     <>
-      <div className="note">
+      <div className="note" data-part="note">
         <b>{t("screens.system.introLead")}</b>
         {t("screens.system.introRest")}
       </div>
       {state.fault ? (
-        <div className="note">
+        <div className="note" data-part="note">
           <b>{t("screens.system.faultLead")}</b>
           {t("screens.system.faultRest")}
         </div>
@@ -83,7 +83,7 @@ export function SystemPage(): ReactElement | null {
       {facts(state.fault ? SERVICES_PANNE : SERVICES)}
 
       <h2 className="h2">{t("screens.system.schedulers")}</h2>
-      <div className="note">
+      <div className="note" data-part="note">
         <b>{t("screens.system.schedulerLead")}</b>
         {t("screens.system.schedulerRest")}
       </div>

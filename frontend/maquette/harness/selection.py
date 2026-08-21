@@ -21,8 +21,8 @@ async def main():
     print("lenses            :", await pg.evaluate('''()=>[...document.querySelectorAll('[data-part="segment"] button')].map(b=>b.textContent.trim())'''))
 
     print("\n── grid at rest ──")
-    print("  chips visible      :", await pg.evaluate("()=>document.querySelectorAll('.tile .sel').length"), "(expected 0)")
-    print("  selection bar:", await pg.evaluate("()=>!!document.querySelector('.selbar')"), "(expected False)")
+    print("  chips visible      :", await pg.evaluate("""()=>document.querySelectorAll('[data-part="tile"] [data-part="selection/check"]').length"""), "(expected 0)")
+    print("  selection bar:", await pg.evaluate("""()=>!!document.querySelector('[data-part="selection/bar"]')"""), "(expected False)")
     print("  tap opens the sheet:", await pg.evaluate("()=>!!document.querySelector('[data-tile]').dataset.mediasheet"))
     await pg.screenshot(path="x_grille_repos.png")
 
@@ -48,16 +48,16 @@ async def main():
 
     print("\n── selection mode ──")
     await pg.click('[data-selmode="1"]'); await pg.wait_for_timeout(350)
-    print("  chips     :", await pg.evaluate("()=>document.querySelectorAll('.tile .sel').length"))
-    print("  bar       :", (await pg.evaluate("()=>document.querySelector('.selbar').textContent")).strip()[:52])
+    print("  chips     :", await pg.evaluate("""()=>document.querySelectorAll('[data-part="tile"] [data-part="selection/check"]').length"""))
+    print("  bar       :", (await pg.evaluate("""()=>document.querySelector('[data-part="selection/bar"]').textContent""")).strip()[:52])
     for i in (0,2,5):
         await pg.click(f"[data-tile='{i}']"); await pg.wait_for_timeout(120)
-    print("  after 3 taps:", (await pg.evaluate("()=>document.querySelector('.selbar .n').textContent")).strip())
+    print("  after 3 taps:", (await pg.evaluate("""()=>document.querySelector('[data-part="selection/bar"] [data-part="selection/caption"]').textContent""")).strip())
     await pg.screenshot(path="x_selection.png")
     await pg.click("[data-delsel]"); await pg.wait_for_timeout(400)
     print("  dialog   :", await pg.evaluate("""()=>{const g=document.querySelector('#dlg');
-        return {title:g.querySelector('h3').textContent, rows:g.querySelectorAll('.manifest li').length,
-                choices:[...g.querySelectorAll('.dlgbtn')].map(x=>x.textContent.trim())};}"""))
+        return {title:g.querySelector('h3').textContent, rows:g.querySelectorAll('[data-part="dialog/manifest"] li').length,
+                choices:[...g.querySelectorAll('[data-part="dialog/button"]')].map(x=>x.textContent.trim())};}"""))
     await pg.screenshot(path="x_supprmulti.png")
     print("\nJS errors:", errs or "none")
     print("VERDICT:", "both delete paths are reachable"

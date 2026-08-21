@@ -137,7 +137,7 @@ function TopicView({ topic }: { topic: SettingsTopic }): ReactElement {
           <h2 className="h2" style={{ marginTop: 16 }}>
             <code>{file}.json5</code>
           </h2>
-          <div className="panel">
+          <div className="panel" data-part="panel">
             {settings.map((setting) => (
               <SettingRow key={setting.c} setting={setting} />
             ))}
@@ -169,7 +169,7 @@ export function SettingsPage(): ReactElement | null {
       <>
         <h2 className="h2">{t("screens.settings.secretsTitle")}</h2>
         <p className="qhint">{t("screens.settings.secretsHint")}</p>
-        <div className="panel">
+        <div className="panel" data-part="panel">
           {SECRETS.map((secret) => (
             <button
               className="settingrow"
@@ -194,7 +194,7 @@ export function SettingsPage(): ReactElement | null {
             </button>
           ))}
         </div>
-        <div className="note">
+        <div className="note" data-part="note">
           <b>{t("screens.settings.secretsNoteLead")}</b>
           {t("screens.settings.secretsNoteRest")}
         </div>
@@ -209,7 +209,7 @@ export function SettingsPage(): ReactElement | null {
       return (
         <>
           <div
-            className="empty"
+            className="empty" data-part="empty-state"
             dangerouslySetInnerHTML={{
               __html: emptyInner(t("screens.settings.unknownTopic"), ""),
             }}
@@ -239,7 +239,7 @@ export function SettingsPage(): ReactElement | null {
         <SearchField />
         {found.length === 0 ? (
           <div
-            className="empty"
+            className="empty" data-part="empty-state"
             dangerouslySetInnerHTML={{
               __html: emptyInner(
                 t("screens.settings.noMatchTitle"),
@@ -257,7 +257,7 @@ export function SettingsPage(): ReactElement | null {
                 { found: found.length, total: all.length },
               )}
             </p>
-            <div className="panel">
+            <div className="panel" data-part="panel">
               {found.slice(0, 40).map((setting) => (
                 <SettingRow
                   key={`${setting.f}:${setting.c}`}
@@ -320,7 +320,7 @@ export function SettingsPage(): ReactElement | null {
         </span>
         <span className="rn">{t("screens.settings.arrow")}</span>
       </button>
-      <div className="note">
+      <div className="note" data-part="note">
         <b>{t("screens.settings.mapNoteLead")}</b>
         {t("screens.settings.mapNoteRest")}
       </div>

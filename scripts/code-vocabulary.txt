@@ -114,6 +114,7 @@ cells
 change
 changed
 chart
+check
 chip
 choice
 clean
@@ -183,6 +184,7 @@ distance
 dlg
 dlgcancel
 done
+dot
 down
 drag
 drawer
@@ -502,6 +504,7 @@ release
 released
 releases
 remembered
+remove
 render
 required
 reset
@@ -547,6 +550,7 @@ segment
 segments
 select
 selected
+selection
 selector
 selmode
 semibold
@@ -564,16 +568,19 @@ sheets
 shell
 show
 shown
+side
 sidebar
 sign
 signal
 signout
 size
 skel
+skeleton
 slice
 slot
 slow
 sm
+small
 snug
 soft
 sort
@@ -614,6 +621,7 @@ sugmode
 sugmore
 suite
 surf
+surface
 svg
 swallow
 swatch

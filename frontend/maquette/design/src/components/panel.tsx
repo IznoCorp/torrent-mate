@@ -51,7 +51,7 @@ function RichText({ value }: { value: RichTextValue | null | undefined }) {
 
 function Chip({ chip }: { chip: [string, string] | null | undefined }) {
   if (!chip) return null;
-  return <span className={`chip ${chip[0]}`}>{chip[1]}</span>;
+  return <span className={`chip ${chip[0]}`} data-part="chip">{chip[1]}</span>;
 }
 
 // `posterBox`'s image-or-initials fallback, at panel size. `POSTERS` /
@@ -105,6 +105,7 @@ function ActionButton({ action }: { action: Action | null | undefined }) {
   return (
     <button
       className={`sact${action.ton ? ` ${action.ton}` : ""}`}
+      data-tone={action.ton || undefined}
       disabled={action.desactive || undefined}
       title={action.infobulle || undefined}
       {...attributes}
@@ -163,19 +164,19 @@ function FactsBlock({
   block: Extract<PanelBlock, { type: "faits" }>;
 }) {
   return (
-    <div className="panel sheetfacts">
+    <div className="panel sheetfacts" data-part="panel">
       {(block.lignes ?? []).map((line, index) => (
         <div
           key={index}
           className={`kv${line.pip ? " withpip" : ""}${line.terne ? " upcoming" : ""}`}
         >
           <span>
-            {line.pip ? <span className={`pip ${line.pip}`} /> : null}
+            {line.pip ? <span className={`pip ${line.pip}`} data-part="status-dot" /> : null}
             {line.c}
           </span>
           <span>
             {line.pipValue ? (
-              <span className={`pip ${line.pipValue}`} />
+              <span className={`pip ${line.pipValue}`} data-part="status-dot" />
             ) : null}
             {line.v}
           </span>
@@ -312,7 +313,7 @@ function SeasonDetails({
           {owned}/{aired}
         </span>{" "}
         {complete ? null : (
-          <span className="miss">
+          <span className="miss" data-part="season/missing">
             {missing}{" "}
             {missing > 1 ? t("common.missingPlural") : t("common.missing")}
           </span>

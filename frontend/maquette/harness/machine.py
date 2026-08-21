@@ -143,7 +143,7 @@ CONTRAST = """() => {
     }
     return out;
   };
-  return [...document.querySelectorAll('#view .flux [data-part="flux/value"] .chip')].map((el) => {
+  return [...document.querySelectorAll('#view [data-part="flux"] [data-part="flux/value"] [data-part="chip"]')].map((el) => {
     const s = getComputedStyle(el);
     const own = rgba(s.backgroundColor);
     let background = behind(el);
@@ -178,7 +178,7 @@ READ = """() => {
           // The badge IS the value: a row whose value is a state wears it as
           // a chip. Reading a dot beside the label would measure a shape the
           // interface no longer draws.
-          const badge = x.querySelector('[data-part="flux/value"] .chip');
+          const badge = x.querySelector('[data-part="flux/value"] [data-part="chip"]');
           const TONS = { success: 'success', danger: 'alert',
                          warning: 'warning', info: 'info' };
           return {
@@ -201,7 +201,7 @@ READ = """() => {
     headings: [...document.querySelectorAll('#view .h2')].map((x) => x.textContent.trim()),
     __BLOCKS__
     topics: [...document.querySelectorAll('#view .topic .rt')].map((x) => x.textContent.trim()),
-    commands: [...document.querySelectorAll('#view .flux [data-part="flux/row"] [data-part="flux/key"]')].map((x) => x.textContent.trim()),
+    commands: [...document.querySelectorAll('#view [data-part="flux"] [data-part="flux/row"] [data-part="flux/key"]')].map((x) => x.textContent.trim()),
   };
 }"""
 
@@ -403,13 +403,13 @@ async def main():
         # meaning anything: « 1 863 titres » is neither good nor bad, it is how
         # big the library is. Read from the whole page rather than from the two
         # lists, because the temptation to badge a number lives everywhere.
-        quantities = await pg.evaluate("""() => [...document.querySelectorAll('#view .flux [data-part="flux/row"]')]
+        quantities = await pg.evaluate("""() => [...document.querySelectorAll('#view [data-part="flux"] [data-part="flux/row"]')]
           .map((x) => ({
             l: x.querySelector('[data-part="flux/name"]').textContent.trim(),
             v: x.querySelector('[data-part="flux/value"]').textContent.trim(),
-            badge: !!x.querySelector('[data-part="flux/value"] .chip'),
+            badge: !!x.querySelector('[data-part="flux/value"] [data-part="chip"]'),
             tone: (() => {
-              const c = x.querySelector('[data-part="flux/value"] .chip');
+              const c = x.querySelector('[data-part="flux/value"] [data-part="chip"]');
               const T = { success: 'success', danger: 'alert',
                           warning: 'warning', info: 'info' };
               return c ? T[[...c.classList].find((k) => T[k])] || 'unknown' : null;

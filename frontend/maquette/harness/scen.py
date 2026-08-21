@@ -40,8 +40,8 @@ async def main():
                       // when Système stopped being a wall of `.kv`: it is the
                       // same kind of object, so what this counts is unchanged —
                       // is there structure, or only prose.
-                      cards:v.querySelectorAll('[data-part="card"],.tile,.kv,[data-part="flux/row"]').length,
-                      empty:!!v.querySelector('.empty'),
+                      cards:v.querySelectorAll('[data-part="card"],[data-part="tile"],.kv,[data-part="flux/row"]').length,
+                      empty:!!v.querySelector('[data-part="empty-state"]'),
                       doc:document.documentElement.scrollWidth,
                       spills:[...v.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>390.5&&!e.closest('.pillscroll')&&!e.closest('.cast')).length};}""")
             ok = r['txt'] > 100 and r['doc'] <= 390 and r['spills'] == 0 and (r['cards'] > 0 or r['empty'])

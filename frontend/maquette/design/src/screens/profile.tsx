@@ -100,7 +100,7 @@ export function ProfileScreen() {
       </div>
       <div className="port" data-part="viewport">
         <div className="body" data-region="screen-profile/body">
-          <div className="note">
+          <div className="note" data-part="note">
             <b>{t("screens.profile.noteTitle")}</b>{" "}
             {t("screens.profile.noteBefore")}{" "}
             <em>{t("screens.profile.noteEmphasis")}</em>{" "}
@@ -201,7 +201,7 @@ export function ProfileScreen() {
 
           <div className="qgroup">
             <h2 className="h2">{t("screens.profile.twoLocks")}</h2>
-            <div className="panel">
+            <div className="panel" data-part="panel">
               <div className="kv setting">
                 <span>
                   {t("screens.profile.exclude3d")}
@@ -239,7 +239,7 @@ export function ProfileScreen() {
             </div>
           </div>
 
-          <div className="panel">
+          <div className="panel" data-part="panel">
             <div className="kv">
               <span>{t("screens.profile.candidatesKept")}</span>
               <span>

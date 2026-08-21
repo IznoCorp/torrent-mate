@@ -57,7 +57,7 @@ SCREEN = """() => {
     titleMono: !!s.querySelector('.h2 code'),
     candidates: candidates.map(c => ({
       title: (c.querySelector('[data-part="card/title"]') || {}).textContent || '',
-      confidence: (c.querySelector('.chip') || {}).textContent || null,
+      confidence: (c.querySelector('[data-part="chip"]') || {}).textContent || null,
       posterButton: (c.querySelector('[data-part="card/poster"]') || {}).tagName === 'BUTTON',
       panel: (c.querySelector('[data-part="card/body"]') || {}).dataset?.panel || null,
       poster: (c.querySelector('[data-part="card/poster"] img') || {}).src || null,
@@ -70,7 +70,7 @@ SCREEN = """() => {
       mono: !!c.querySelector('[data-part="card/title"] code'),
       posterButton: (c.querySelector('[data-part="card/poster"]') || {}).tagName === 'BUTTON',
       panel: (c.querySelector('[data-part="card/body"]') || {}).dataset?.panel || null,
-      chips: [...c.querySelectorAll('.chip')].map(x => x.textContent.trim()),
+      chips: [...c.querySelectorAll('[data-part="chip"]')].map(x => x.textContent.trim()),
     })),
     exits: [...s.querySelectorAll('.sact, [data-part="card/foot"]')].map(x => x.textContent.trim()),
     text: (s.textContent || '').replace(/\\s+/g, ' '),

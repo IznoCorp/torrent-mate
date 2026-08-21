@@ -174,7 +174,7 @@ export function AddScreen() {
         {identify ? (
           <div style={{ padding: "12px 14px 0" }}>
             <div
-              className="surferr"
+              className="surferr" data-part="surface-error"
               style={{
                 borderColor: "color-mix(in oklab,var(--info) 45%,transparent)",
                 background: "color-mix(in oklab,var(--info) 8%,transparent)",
@@ -214,7 +214,7 @@ export function AddScreen() {
             />
           </div>
           <div className="addrow">
-            <div className="segmini">
+            <div className="segmini" data-part="segment-small">
               {/* NOT interface copy: these three are the VALUES of
                   `state.addKind`, written to the legacy store, compared
                   against below (`addKind === "Tout"`, `=== "Films"`) and
@@ -284,7 +284,7 @@ export function AddScreen() {
               ))}
             </div>
             <div style={{ padding: "14px" }}>
-              <div className="empty">
+              <div className="empty" data-part="empty-state">
                 <b>{t("screens.add.emptyTitle")}</b>
                 {t("screens.add.emptyBody")}
               </div>
@@ -298,7 +298,7 @@ export function AddScreen() {
               : t("screens.add.byIdAdd")}
           </summary>
           <div className="byidin">
-            <div className="segmini" style={{ alignSelf: "flex-start" }}>
+            <div className="segmini" data-part="segment-small" style={{ alignSelf: "flex-start" }}>
               {["TMDB", "TVDB", "IMDB"].map((element) => (
                 <button
                   key={element}

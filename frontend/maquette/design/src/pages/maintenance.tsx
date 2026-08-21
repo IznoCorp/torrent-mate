@@ -37,14 +37,14 @@ export function MaintenancePage(): ReactElement | null {
   if (state.phase !== "ready") {
     return state.phase === "error" ? (
       <div
-        className="surferr"
+        className="surferr" data-part="surface-error"
         dangerouslySetInnerHTML={{
           __html: surfErrInner(t("screens.maintenance.errorSubject")),
         }}
       />
     ) : (
       <div
-        className="sec"
+        className="sec" data-part="section"
         dangerouslySetInnerHTML={{ __html: skelCardsInner(3) }}
       />
     );
@@ -52,7 +52,7 @@ export function MaintenancePage(): ReactElement | null {
 
   const facts = (rows: Fact[]) => (
     <ol
-      className="flux"
+      className="flux" data-part="flux"
       dangerouslySetInnerHTML={{ __html: factRowsHTML(rows) }}
     />
   );
@@ -67,7 +67,7 @@ export function MaintenancePage(): ReactElement | null {
           {t("screens.maintenance.allCommands")}
         </button>
         <h2 className="h2">{topic.t}</h2>
-        <div className="note">{topic.s}</div>
+        <div className="note" data-part="note">{topic.s}</div>
         {facts(
           actions.map((action) => ({
             l: action.l,
@@ -90,7 +90,7 @@ export function MaintenancePage(): ReactElement | null {
 
   return (
     <>
-      <div className="note">
+      <div className="note" data-part="note">
         <b>{t("screens.maintenance.introLead")}</b>
         {t("screens.maintenance.introRest")}
       </div>
@@ -122,7 +122,7 @@ export function MaintenancePage(): ReactElement | null {
       })}
 
       <h2 className="h2">{t("screens.maintenance.journal")}</h2>
-      <div className="note">
+      <div className="note" data-part="note">
         {t("screens.maintenance.journalNote", { total: JOURNAL.total })}
       </div>
       {facts(JOURNAL.lignes)}

@@ -234,7 +234,7 @@ async def main():
                 await pg.wait_for_timeout(620)
                 starts[lens] = await pg.evaluate("""()=>{
                   const frame = document.querySelector('#device').getBoundingClientRect();
-                  const p = document.querySelector('#view [data-part="card"], #view .tile');
+                  const p = document.querySelector('#view [data-part="card"], #view [data-part="tile"]');
                   return p ? Math.round(p.getBoundingClientRect().top - frame.top) : null;}""")
             without_list = [k for k, v in starts.items() if v is None]
             gap = (max(starts.values()) - min(starts.values())) if not without_list else None

@@ -145,7 +145,7 @@ function SeasonList({
               ).filter((from) => !held.has(from))
             : [];
         const body = list ? (
-          <div className="panel" style={{ marginTop: "8px" }}>
+          <div className="panel" data-part="panel" style={{ marginTop: "8px" }}>
             {list.map((episode) => {
               /* SUBTLE state colour: a 6px dot and the number in the
                  tone. The title stays neutral — it is what one reads
@@ -172,7 +172,7 @@ function SeasonList({
                   key={episode.n}
                 >
                   <span className="epdot"></span>{" "}
-                  <span className="en">
+                  <span className="en" data-part="episode/number">
                     E{String(episode.n).padStart(2, "0")}
                   </span>{" "}
                   <span className="et">{episode.t}</span>{" "}
@@ -223,7 +223,7 @@ function SeasonList({
               })}
             </div>
             {row.aired == null ? (
-              <p className="noinfo" style={{ marginTop: "6px" }}>
+              <p className="noinfo" data-part="no-info" style={{ marginTop: "6px" }}>
                 {t("screens.media.beyondEpisode", { n: bound })}
               </p>
             ) : (
@@ -231,11 +231,11 @@ function SeasonList({
             )}
           </>
         ) : row.aired === 0 || row.aired === null ? (
-          <p className="noinfo" style={{ marginTop: "8px" }}>
+          <p className="noinfo" data-part="no-info" style={{ marginTop: "8px" }}>
             {t("screens.media.seasonAnnounced")}
           </p>
         ) : (
-          <p className="noinfo" style={{ marginTop: "8px" }}>
+          <p className="noinfo" data-part="no-info" style={{ marginTop: "8px" }}>
             {t("screens.media.episodesNotDetailed")}
           </p>
         );
@@ -262,7 +262,7 @@ function SeasonList({
                     : `${row.aired ?? "?"} ${t("screens.media.episodesShort")}`}
               </span>{" "}
               {owns && missing != null && missing > 0 ? (
-                <span className="miss">
+                <span className="miss" data-part="season/missing">
                   {missing}{" "}
                   {missing > 1
                     ? t("common.missingPlural")
@@ -273,7 +273,7 @@ function SeasonList({
               )}{" "}
               {!owns && row.air ? (
                 <span
-                  className="miss"
+                  className="miss" data-part="season/missing"
                   style={{
                     background: "transparent",
                     color: "var(--muted-foreground)",
@@ -497,7 +497,7 @@ export function MediaScreen() {
               </span>
             </a>
           ) : (
-            <p className="noinfo">{t("screens.media.noTrailer")}</p>
+            <p className="noinfo" data-part="no-info">{t("screens.media.noTrailer")}</p>
           )}
 
           <div>
@@ -522,7 +522,7 @@ export function MediaScreen() {
                 ? t("screens.media.castHeadingFilm")
                 : t("screens.media.castHeadingSeries")}
             </h2>
-            <div className="panel" style={{ marginBottom: "10px" }}>
+            <div className="panel" data-part="panel" style={{ marginBottom: "10px" }}>
               <div className="kv">
                 <span>
                   {isFilm
@@ -554,7 +554,7 @@ export function MediaScreen() {
                 ))}
               </div>
             ) : (
-              <p className="noinfo">{t("screens.media.castUnknown")}</p>
+              <p className="noinfo" data-part="no-info">{t("screens.media.castUnknown")}</p>
             )}
           </div>
 
@@ -562,13 +562,13 @@ export function MediaScreen() {
             <h2 className="h2" style={{ marginBottom: "6px" }}>
               {t("screens.media.library")}
             </h2>
-            <div className="panel">
+            <div className="panel" data-part="panel">
               {!owns ? (
                 <>
                   <div className="kv">
                     <span>{t("screens.media.inLibrary")}</span>
                     <span>
-                      <span className="pip neutral"></span>
+                      <span className="pip neutral" data-part="status-dot"></span>
                       {t("screens.media.no")}
                     </span>
                   </div>
@@ -596,7 +596,7 @@ export function MediaScreen() {
                   <div className="kv">
                     <span>{t("screens.media.owned")}</span>
                     <span>
-                      <span className="pip success"></span>
+                      <span className="pip success" data-part="status-dot"></span>
                       {t("screens.media.yes")}
                     </span>
                   </div>
@@ -630,7 +630,7 @@ export function MediaScreen() {
                     <span>{t("screens.media.completeness")}</span>
                     <span>
                       <span
-                        className={`pip ${pct === 100 ? "success" : pct === null ? "neutral" : "warning"}`}
+                        className={`pip ${pct === 100 ? "success" : pct === null ? "neutral" : "warning"}`} data-part="status-dot"
                       ></span>
                       {pct === null
                         ? t("screens.media.unknownFeminine")
@@ -653,7 +653,7 @@ export function MediaScreen() {
             <h2 className="h2" style={{ marginBottom: "6px" }}>
               {t("screens.media.information")}
             </h2>
-            <div className="panel">
+            <div className="panel" data-part="panel">
               <div className="kv">
                 <span>{t("screens.media.follow")}</span>
                 {/* The SECOND follow test, and the strict one: an exact title
@@ -701,7 +701,7 @@ export function MediaScreen() {
                   <Icon paths={icons.refresh} />
                   {t("screens.media.rescrape")}
                 </button>{" "}
-                <button className="sact danger" data-del={title}>
+                <button className="sact danger" data-tone="danger" data-del={title}>
                   <Icon paths={icons.trash} />
                   {t("screens.media.delete")}
                 </button>
@@ -732,7 +732,7 @@ export function MediaScreen() {
             )}
           </div>
 
-          <div className="note">
+          <div className="note" data-part="note">
             <b>{t("screens.media.noteTitle")}</b> {t("screens.media.noteBody")}
           </div>
         </div>

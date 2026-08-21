@@ -78,7 +78,7 @@ async def main():
     # its own absence instead of a TypeError.
     r = await pg.evaluate("""()=>{const s=document.querySelector('[data-part="screen"][data-open][data-key^="add:"]')
         ?? document.createElement('div');
-      return {banner:(s.querySelector('.surferr b')||{}).textContent,
+      return {banner:(s.querySelector('[data-part="surface-error"] b')||{}).textContent,
               query:s.querySelector('#addq')?.value,
               idBlock:(s.querySelector('.byid summary')||{}).textContent};}""")
     # The card wears no inline action: the verb lives in the result's panel,

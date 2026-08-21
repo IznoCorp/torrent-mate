@@ -100,7 +100,7 @@ async def main():
         # 2. Pressing it lands on the entry screen, with the sheet gone. The
         #    prototype is served statically here, so the request to end the
         #    session has nowhere to land — and that must not stop the screen.
-        await pg.click("#sheet button.sact.danger")
+        await pg.click('#sheet button.sact[data-tone="danger"]')
         await pg.wait_for_timeout(400)
         after = await pg.evaluate("""()=>({
           login: getComputedStyle(document.querySelector('#login')).display,

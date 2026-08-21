@@ -248,8 +248,8 @@ async def main():
             await pg.wait_for_timeout(360)
             await mode(pg, "grid")
             refs = await pg.evaluate(
-                """()=>[...document.querySelectorAll('.tile[data-panel]')].map(t=>({
-                    panel:t.dataset.panel, name:t.querySelector('.nm')?.textContent||'',
+                """()=>[...document.querySelectorAll('[data-part="tile"][data-panel]')].map(t=>({
+                    panel:t.dataset.panel, name:t.querySelector('[data-part="tile/title"]')?.textContent||'',
                     subLine:t.querySelector('[data-part="tile/subtitle"]')?.textContent||''}))"""
             )
             if not refs:
@@ -277,12 +277,12 @@ async def main():
             await pg.wait_for_timeout(400)
             await mode(pg, "grid")
             g = await pg.evaluate(
-                """()=>{const t=document.querySelector('.tile'); if(!t) return null;
+                """()=>{const t=document.querySelector('[data-part="tile"]'); if(!t) return null;
                 const grid=t.parentElement, r=t.getBoundingClientRect();
                 return {columns:getComputedStyle(grid).gridTemplateColumns.split(' ').length,
                         gap:getComputedStyle(grid).gap,
                         tile:[Math.round(r.width),Math.round(r.height)],
-                        name:getComputedStyle(t.querySelector('.nm')).fontSize,
+                        name:getComputedStyle(t.querySelector('[data-part="tile/title"]')).fontSize,
                         subLine:getComputedStyle(t.querySelector('[data-part="tile/subtitle"]')).fontSize};}"""
             )
             if g is None:
@@ -313,7 +313,7 @@ async def main():
                 d.style.width = w+'px'; d.style.maxWidth = w+'px';
                 await new Promise(r=>setTimeout(r,180));
                 out.push([Math.round(document.querySelector('#port').getBoundingClientRect().width),
-                          getComputedStyle(document.querySelector('.grid')).gridTemplateColumns.split(' ').length]);
+                          getComputedStyle(document.querySelector('[data-part="grid"]')).gridTemplateColumns.split(' ').length]);
             }
             d.style.width = before; d.style.maxWidth = '';
             return out;}"""
@@ -473,9 +473,9 @@ async def main():
         await pg.wait_for_timeout(360)
         await mode(pg, "grid")
         box = await pg.evaluate(
-            """()=>{const t=document.querySelector('.tile[data-panel]');
+            """()=>{const t=document.querySelector('[data-part="tile"][data-panel]');
             if(!t) return null; const r=t.getBoundingClientRect();
-            return {x:r.x+r.width/2, y:r.y+r.height/2, title:t.querySelector('.nm')?.textContent||''};}"""
+            return {x:r.x+r.width/2, y:r.y+r.height/2, title:t.querySelector('[data-part="tile/title"]')?.textContent||''};}"""
         )
         if box is None:
             failures.append(f"R44 {state_}: no tile to press")
@@ -540,7 +540,7 @@ async def main():
                 if (!a.hasAttribute('data-mediasheet'))
                   out.offending.push('pressable poster with no data-mediasheet: ' + a.className);
               }
-              for (const d of document.querySelectorAll('.folder')) {
+              for (const d of document.querySelectorAll('[data-part="card/folder"]')) {
                 if (!d.getBoundingClientRect().width) continue;
                 out.folders++;
                 if (!d.hasAttribute('data-panel') || d.hasAttribute('data-mediasheet') ||
