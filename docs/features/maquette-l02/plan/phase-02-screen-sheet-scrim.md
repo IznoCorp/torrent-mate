@@ -18,16 +18,17 @@ Phase 1 must have produced, all committed:
 
 ## Emission sites touched
 
-| DOM concept    | `design/index.html`                                 | `engine/legacy.js` | the 23 components                          |
-| -------------- | --------------------------------------------------- | ------------------ | ------------------------------------------ |
-| `screen`       | **yes** — DESIGN row _the shell and the components_ | no                 | **yes** — 5 screens                        |
-| `sheet`        | no                                                  | no                 | **yes** — `sheet.tsx`                      |
-| `scrim`        | no                                                  | no                 | **yes** — `sheet.tsx`                      |
-| `open` (state) | no                                                  | no                 | **yes** — DESIGN row _the components only_ |
+| DOM concept | `design/index.html` (shell) | `engine/legacy.js` | the 23 components |
+| --- | --- | --- | --- |
+| `screen` | **yes** — `:350`, the engine's own screen host | **yes** — `openScreen()` toggles `open` on it | **yes** — 5 sections |
+| `sheet` / `scrim` | no | **yes** — `#scrim` toggled at 5 sites | **yes** — `sheet.tsx:84,95` |
+| `open` (state) | no | **yes** — 14 toggle sites on `#screen`, `#dlg`, `#drawer`, `#scrim` | **yes** — `sheet.tsx` |
 
-Two of the three sites. **The engine is not touched here** — `legacy.js` emits none of the four,
-verified by counting `class=`/`className=` emissions across the three sites. Phase 3 is where the
-engine boundary first matters.
+**All three sites, and the engine most of all.** The first draft said the engine was not touched
+here; it toggles the `open` class at 14 sites on four layers, and every one of those toggles must
+set `data-open` in the same breath or the attribute lies about the class. The 54 assertions this
+phase moves read FIVE layers — `#sheet` (21+), `#screen` (6), `#dlg` (5), `#scrim` (2),
+`#drawer` (2) — and only `#sheet`/`#scrim` are React's; the other three are the engine's alone.
 
 ## Baseline entries removed
 
@@ -69,25 +70,39 @@ per-rule hold counts are the only thing that would say so.
 
 One commit: `refactor(maquette-l02): anchor the screen contract on data-part`
 
-> **THE SHELL'S `screen` IS NOT A SCREEN, and giving it the same value would widen 63 selectors.**
-> There are SIX emission sites, not five. `index.html:350` is `<div class="screen" id="screen">` —
-> the empty MOUNT NODE — and it carries no `open` class. That absence is load-bearing: the harness
-> selects `.screen.open[data-key]` precisely to reach the mounted screen and EXCLUDE the container.
-> Emitting `data-part="screen"` on both would make `[data-part="screen"]` match two elements where
-> `.screen.open` matched one. The mount node takes its own value — `data-part="screen-host"` — and
-> the five screens take `data-part="screen"`.
-> <sub>the hold-count comparator would catch the widening after the fact; not introducing it is better</sub>
+> **`open` IS NOT REDUNDANT, and the mount node IS a screen.** Two earlier readings were wrong and
+> both are recorded: the first draft said `open` in `.screen.open` was static and could be dropped;
+> a correction then said `index.html:350` was a mere mount node deserving its own `screen-host`
+> value. Measured in the live document and in the engine, neither holds.
+>
+> React mounts into `#shell`, inserted BEFORE `#screen` in `#device` (`shell.tsx:696-699`). The
+> five migrated screens are `<section class="screen open" data-key>` inside `#shell`; the engine's
+> OWN screens are `#screen` itself — `openScreen()` does `select("#screen").classList.add("open")`
+> (`legacy.js:10911`). So `.screen.open` resolves to a React section in one state and to `#screen`
+> in another, and `audit2.py:50` tests `#screen.open` BEFORE `.screen.open[data-key]` for exactly
+> that reason. `open` is static on the sections and DYNAMIC on `#screen`, and it is the token that
+> tells them apart. Dropping it widens 19 bare selectors to match the empty host in every
+> React-screen state.
+>
+> <sub>probe: in `mediasheet-series`, `.screen.open` → the SECTION (`data-key="mediaSheet:Silo (2023)"`), `#screen` carries no `open`</sub>
 
-- [ ] **Step 1.** Emit the anchor at the six sites, with TWO values. In the five screens
-      (`add.tsx:155`, `releases.tsx:48`, `resolution.tsx:316`, `media.tsx:385`, `profile.tsx:85`),
-      `className="screen open" data-part="screen"` — **the class stays beside it**; L07 removes it,
-      and keeping both is the separation this lot exists to create. At `index.html:350`, the mount
-      node takes `data-part="screen-host"`, and nothing selects it until something needs to.
-- [ ] **Step 2.** Re-anchor the 30 harness selections headed by `.screen`, through
-      `python3 scripts/rename-identifiers.py` — never by hand, never with an ad-hoc regex.
-      `.screen.open` becomes `[data-part="screen"]`; `.screen.open .fback` becomes
-      `[data-part="screen"] .fback` — **only the head moves here**, the descendant leaf belongs to
-      the phase that owns its concept.
+- [ ] **Step 1.** Emit the anchor at the six sites, ONE value. The five sections
+      (`add.tsx:155`, `releases.tsx:48`, `resolution.tsx:316`, `media.tsx:385`, `profile.tsx:85`)
+      become `className="screen open" data-part="screen" data-open=""` — the class stays beside it,
+      L07 removes it. `index.html:350` becomes `<div class="screen" id="screen" data-part="screen">`,
+      and its `data-open` is DYNAMIC: the engine sets it wherever it sets `open`.
+- [ ] **Step 2.** Re-anchor the 63 `.screen` occurrences: the prefix `.screen.open` becomes
+      **`[data-part="screen"][data-open]`** — BOTH attributes, because both classes were needed. The
+      19 distinct shapes all start with that prefix and all 63 are single-quoted, so a prefix
+      rewrite inside the quotes is well-defined. **Only the prefix moves**: `.screen.open .fback`
+      becomes `[data-part="screen"][data-open] .fback`, and `.fback` waits for the phase that owns
+      it — the baseline is keyed on the token occurrence, so that entry stays.
+      **`scripts/rename-identifiers.py` is struck for this step**: its own header says a selector
+      is a STRING that is « NEVER renamed here », and `--values` is the mode whose read-back proof
+      is skipped. The rewrite is a literal replacement that ASSERTS its counts — 63 `.screen.open`
+      before, 0 after, 63 `[data-part="screen"][data-open]` after — and is then judged by three
+      oracles outside itself: the guard's selection ⇒ emission arm, `classify-rule-anchors.py
+      --tokens` (63 fewer `.screen`), and `harness-hold-counts.py --compare` (unchanged).
 - [ ] **Step 3.** The tool is not the proof. Re-read the diff itself — not its _N file(s) touched_
       line — and confirm no compound selector lost its leaf. Two corruptions in this repository were
       found this way, after the tool reported success.
@@ -98,7 +113,26 @@ One commit: `refactor(maquette-l02): anchor the screen contract on data-part`
 - [ ] **Step 6.** `run.sh` — no violation, and **compare the per-rule hold counts against phase 1's
       run**, rule by rule. Equal, or stop. Commit.
 
-## Sub-phase 2.2 — the `sheet` and `scrim` contracts, and the first `|| undefined`
+## Sub-phase 2.2 — `data-open` on the five layers: React's two, and the engine's four
+
+One commit: `refactor(maquette-l02): mirror the open class into data-open on every layer`
+
+**The engine toggles `open` imperatively at 14 sites, and the two ends must move as one.** A
+`setOpen(element, on)` helper in `legacy.js` that adds/removes the class AND sets/removes
+`data-open` together, used at all 14 (`legacy.js:10735-10745, 10818-10823, 10911, 10943,
+11584-11593`), is the one shape where the attribute cannot drift from the class. Fourteen paired
+lines would be fourteen places for the pair to come apart.
+
+`#scrim` has TWO writers — React renders it (`sheet.tsx:84`) and the engine toggles it (5 sites).
+That is the strangler state and this phase does not resolve it; it mirrors it: React writes
+`data-open={open || undefined}` for the sheet's own state, the engine's helper writes it for the
+drawer's and the dialog's. The class already lives that double life; the attribute follows it.
+
+- [ ] **Step 0.** In `legacy.js`, add `setOpen(element, on)` beside `select()`, and route the 14
+      sites through it. `grep -c 'classList.add("open")\|classList.remove("open")' legacy.js`
+      must read **0** afterwards — a site left behind is an attribute that lies.
+
+
 
 One commit: `refactor(maquette-l02): anchor the sheet and scrim contracts, with data-open`
 
