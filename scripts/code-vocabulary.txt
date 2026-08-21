@@ -71,6 +71,7 @@ attribute
 attributes
 audio
 audios
+avatar
 back
 background
 badge
@@ -88,6 +89,7 @@ border
 borne
 bound
 box
+brand
 bridge
 btn
 button
@@ -237,6 +239,7 @@ font
 foot
 for
 foreground
+form
 found
 fr
 fraction
@@ -258,6 +261,7 @@ hauteur
 hclose
 hd
 head
+header
 heading
 height
 held
@@ -318,6 +322,7 @@ kind
 lab
 label
 labels
+large
 last
 layer
 layers
@@ -594,6 +599,7 @@ strip
 stuck
 subject
 subjects
+submit
 subscribe
 subscription
 subtitle
@@ -684,6 +690,7 @@ verb
 version
 via
 view
+viewport
 visible
 vsw
 waiting
@@ -697,6 +704,7 @@ white
 wide
 width
 window
+wordmark
 words
 world
 wrap

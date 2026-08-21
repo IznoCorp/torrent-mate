@@ -628,7 +628,7 @@ export function PanelContent({
       <Poster poster={descriptor.poster} />
     </span>
   ) : descriptor.avatar ? (
-    <span className="avatar big" aria-hidden="true">
+    <span className="avatar big" data-part="avatar" aria-hidden="true">
       <img src={descriptor.avatar} alt="" />
     </span>
   ) : null;

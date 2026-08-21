@@ -63,15 +63,15 @@ async def main():
     chk("5. cast portraits", n >= 4, f"{n} photos")
 
     # 6 — the last action is no longer glued to the bar
-    r = await pg.evaluate("""()=>{const sc=document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"] .port');
+    r = await pg.evaluate("""()=>{const sc=document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"] [data-part="viewport"]');
       const btn=[...sc.querySelectorAll('.sact')].pop();
-      const bar=document.querySelector('.bottombar').getBoundingClientRect();
+      const bar=document.querySelector('[data-part="shell/tab-bar"]').getBoundingClientRect();
       sc.scrollTop=sc.scrollHeight;
       return {gap:Math.round(bar.top-btn.getBoundingClientRect().bottom)};}""")
     await pg.wait_for_timeout(200)
-    r2 = await pg.evaluate("""()=>{const sc=document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"] .port');
+    r2 = await pg.evaluate("""()=>{const sc=document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"] [data-part="viewport"]');
       const btn=[...sc.querySelectorAll('.sact')].pop();
-      return Math.round(document.querySelector('.bottombar').getBoundingClientRect().top - btn.getBoundingClientRect().bottom);}""")
+      return Math.round(document.querySelector('[data-part="shell/tab-bar"]').getBoundingClientRect().top - btn.getBoundingClientRect().bottom);}""")
     chk("6. gap under the last action", r2 >= 12, f"{r2}px at maximum scroll")
     await pg.screenshot(path="g_fiche_bas.png")
 
@@ -102,7 +102,7 @@ async def main():
     await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>window.__measure(true)")
     await pg.wait_for_timeout(300)
-    await pg.evaluate("()=>document.querySelector('.avatar[data-sheet=utilisateur]').click()")
+    await pg.evaluate("""()=>document.querySelector('[data-part="avatar"][data-sheet=utilisateur]').click()""")
     await pg.wait_for_timeout(400)
     await pg.evaluate("()=>document.querySelector('#sheet [data-go=profile]').click()")
     await pg.wait_for_timeout(500)

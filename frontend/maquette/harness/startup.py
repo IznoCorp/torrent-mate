@@ -118,9 +118,9 @@ async def main():
           const underneath=document.elementFromPoint(rd.x+rd.width/2, rd.y+rd.height/2);
           return {covers: Math.abs(rs.width-rd.width)<1 && Math.abs(rs.height-rd.height)<1,
                   visible: cs.display!=='none' && cs.opacity!=='0',
-                  brand: !!s.querySelector('.brandbig'),
+                  brand: !!s.querySelector('[data-part="brand/large"]'),
                   progress: !!s.querySelector('[role=progressbar]'),
-                  animation: getComputedStyle(s.querySelector('.splashbar i')).animationName,
+                  animation: getComputedStyle(s.querySelector('[data-part="splash/progress"] i')).animationName,
                   text: (s.textContent||'').replace(/\\s+/g,' ').trim(),
                   noControl: s.querySelectorAll('button,a,input').length,
                   inFront: !!(underneath && underneath.closest('#splash'))};}""")
@@ -134,7 +134,7 @@ async def main():
         # than shuttling back and forth: a shuttle answers « how much longer »
         # with nothing, and reads the same at one second and at ten.
         fill = await pg.evaluate("""()=>{
-          const i = document.querySelector('#splash .splashbar i');
+          const i = document.querySelector('#splash [data-part="splash/progress"] i');
           const cs = getComputedStyle(i);
           return {duration: cs.animationDuration, direction: cs.animationDirection,
                   fill: cs.animationFillMode, iterations: cs.animationIterationCount};}""")
@@ -147,7 +147,7 @@ async def main():
         # for them back.
         widths = await pg.evaluate("""async()=>{
           document.documentElement.classList.remove('measuring');
-          const i = document.querySelector('#splash .splashbar i');
+          const i = document.querySelector('#splash [data-part="splash/progress"] i');
           i.style.animation = 'none'; void i.offsetWidth; i.style.animation = '';
           const track = i.parentElement.getBoundingClientRect().width;
           const samples = [];
@@ -216,7 +216,11 @@ async def main():
             expected = normalize(prototype_excerpt("splash").replace(
                 ' id="splash"', ' id="splash" hidden', 1))
             check("extracted from the prototype, never retyped", expected and expected in normalize(gate))
-            check("the gate carries the screen's style", ".splashbar" in gate)
+            # The STYLESHEET, not the document. This reads the CSS the gate
+            # inlines, so what proves the block landed is the RULE OPENER —
+            # a source substring, never a selection, which is why it keeps
+            # the class name the stylesheet is still written in.
+            check("the gate carries the screen's style", ".splashbar {" in gate)
 
             page3 = await ctx.new_page()
             await page3.goto(f"http://127.0.0.1:{PORT}/", wait_until="load")
@@ -243,7 +247,7 @@ async def main():
                   login: getComputedStyle(document.querySelector('#login')).display})))""")
             await page3.fill('input[name="username"]', "quelqu-un")
             await page3.fill('input[name="password"]', "quelque-chose")
-            await page3.click(".loginsubmit")
+            await page3.click('[data-part="login/submit"]')
             await page3.wait_for_timeout(500)
             after = await page3.evaluate(
                 "()=>JSON.parse(sessionStorage.getItem('__startup') || 'null')") or {}

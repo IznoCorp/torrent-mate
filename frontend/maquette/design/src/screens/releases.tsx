@@ -61,7 +61,7 @@ export function ReleasesScreen() {
           {baseTitle(title)}
         </span>
       </div>
-      <div className="port">
+      <div className="port" data-part="viewport">
         <div className="body" data-region="screen-releases/body">
           <div className="note">
             <b>{t("screens.releases.noteTitle")}</b>{" "}

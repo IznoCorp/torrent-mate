@@ -17,7 +17,7 @@ async def main():
     await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>window.__measure(true)")
 
-    async def trial(state_, sel, idx, label, port="#screen .port"):
+    async def trial(state_, sel, idx, label, port='#screen [data-part="viewport"]'):
         await pg.evaluate("(i)=>window.__go(i)", state_); await pg.wait_for_timeout(420)
         await pg.evaluate("(s)=>{const p=document.querySelector(s); p.scrollTop=Math.min(400, p.scrollHeight-p.clientHeight);}", port)
         await pg.wait_for_timeout(180)
@@ -37,10 +37,10 @@ async def main():
 
     print("── quality profile ──")
     # These two screens left `#screen` for a real route, rendered inside
-    # `#coquille` — their scrollport is now wherever `[data-part="screen"][data-open] .port`
+    # `#coquille` — their scrollport is now wherever `[data-part="screen"][data-open] [data-part="viewport"]`
     # resolves (the React section carries the same classes `#screen` did),
     # not literally inside the legacy container.
-    screen_port = '[data-part="screen"][data-open] .port'
+    screen_port = '[data-part="screen"][data-open] [data-part="viewport"]'
     await trial("screen-profile", '[data-part="option"].check', 2, "checkbox",
                 port=screen_port)
     await trial("screen-profile", '[data-part="option"].radio', 3, "radio button",

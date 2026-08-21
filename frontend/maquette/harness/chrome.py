@@ -33,7 +33,7 @@ WIDTHS = [390, 1280]
 # out from under it with one swipe; the avatar cannot. Widening this list to
 # every tappable element would forbid a harness bar at all, which is a rule
 # nobody could satisfy rather than a rule that catches anything.
-CONTROLS = ".avatar, .topbar button, .bottombar button, #fab, .fab"
+CONTROLS = '[data-part="avatar"], [data-part="shell/header"] button, [data-part="shell/tab-bar"] button, #fab, [data-part="shell/add-action"]'
 
 
 async def main():
@@ -62,7 +62,7 @@ async def main():
                 await pg.wait_for_timeout(300)
                 hits = await pg.evaluate(
                     """(sel)=>{
-                      const bar=document.querySelector('.hbtn');
+                      const bar=document.querySelector('[data-part="harness/bar"]');
                       if(!bar) return ['ABSENT'];
                       const a=bar.getBoundingClientRect();
                       if(!a.width) return [];

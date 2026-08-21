@@ -412,7 +412,7 @@ export function MediaScreen() {
           {url ?? t("screens.media.unidentified")}
         </span>
       </div>
-      <div className="port">
+      <div className="port" data-part="viewport">
         <div className="body" data-region="screen-media/body">
           <div
             className={`herowrap${artwork ? "" : " noposter"}`}

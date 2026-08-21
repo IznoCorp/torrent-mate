@@ -32,12 +32,12 @@ HOST = "https://tm-design.iznogoudatall.xyz/"
 # box — because the host page and the phone frame are not required to sit at
 # the same place in the viewport, only to draw the same screen.
 READ = """() => {
-  const frame = document.querySelector('.loginscreen').getBoundingClientRect();
-  const targets = ['.brandbig .mk', '.brandbig .wm', '.brandbig em', '.logincard',
-                   '.loginfield input', '.loginsubmit'];
+  const frame = document.querySelector('[data-part="login"]').getBoundingClientRect();
+  const targets = ['[data-part="brand/large"] [data-part="brand/mark"]', '[data-part="brand/large"] [data-part="brand/wordmark"]', '[data-part="brand/large"] em', '[data-part="login/form"]',
+                   '[data-part="login/field"] input', '[data-part="login/submit"]'];
   const out = {};
   for (const s of targets) {
-    const e = document.querySelector('.loginscreen ' + s);
+    const e = document.querySelector('[data-part="login"] ' + s);
     if (!e) { out[s] = 'ABSENT'; continue; }
     const r = e.getBoundingClientRect(), c = getComputedStyle(e);
     out[s] = {
@@ -47,7 +47,7 @@ READ = """() => {
       weight: c.fontWeight, radius: c.borderRadius,
     };
   }
-  out['__words'] = document.querySelector('.loginscreen')
+  out['__words'] = document.querySelector('[data-part="login"]')
                      .textContent.replace(/\\s+/g, ' ').trim();
   return out;
 }"""

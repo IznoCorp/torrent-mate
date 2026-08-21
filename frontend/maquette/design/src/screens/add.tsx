@@ -170,7 +170,7 @@ export function AddScreen() {
           </span>
         ) : null}
       </div>
-      <div className="port">
+      <div className="port" data-part="viewport">
         {identify ? (
           <div style={{ padding: "12px 14px 0" }}>
             <div

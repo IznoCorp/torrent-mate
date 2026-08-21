@@ -68,7 +68,7 @@ async def main():
         await pg.wait_for_timeout(300)
 
         # ── The reported journey, exit 1: the browser back ──────────────────
-        await pg.evaluate("""()=>{document.querySelector('[data-part="screen"][data-open] .port').scrollTop = 300;}""")
+        await pg.evaluate("""()=>{document.querySelector('[data-part="screen"][data-open] [data-part="viewport"]').scrollTop = 300;}""")
         await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card/poster"]').click()""")
         await pg.wait_for_timeout(450)
         # The poster's target is a MEDIA SHEET, and it left `#screen` for a
@@ -98,7 +98,7 @@ async def main():
             key: document.querySelector('[data-part="screen"][data-open]')?.dataset.key,
             cards: document.querySelectorAll('[data-part="result/list"] [data-part="card"]').length,
             query: document.querySelector('#addq')?.value,
-            scroll: document.querySelector('[data-part="screen"][data-open] .port')?.scrollTop,
+            scroll: document.querySelector('[data-part="screen"][data-open] [data-part="viewport"]')?.scrollTop,
             sheetStillThere: !!document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]')})""")
         check("the back redraws the results list",
               back["screen"] and (back["key"] or "").startswith("add:")

@@ -74,7 +74,7 @@ async def main():
           // so a control could lead nowhere without the rule flinching.
           R.deadButtons = [...root.querySelectorAll('button, a')]
             .filter(el=>el.getBoundingClientRect().height>0 && !el.disabled
-                    && !el.closest('.hbtn') && !el.closest('.hpanel')
+                    && !el.closest('[data-part="harness/bar"]') && !el.closest('.hpanel')
                     && !el.closest('details:not([open])'))
             // An href IS a destination — the trailer is a genuine outbound
             // link to YouTube.
@@ -85,7 +85,7 @@ async def main():
 
           // R3 — touch targets: every control is at least 40px on one axis
           R.targetsTooSmall = [...root.querySelectorAll('button,a')].filter(el=>{
-            if (!vis(el) || el.closest('.hbtn') || el.closest('.hpanel')) return false;
+            if (!vis(el) || el.closest('[data-part="harness/bar"]') || el.closest('.hpanel')) return false;
             const b=el.getBoundingClientRect();
             // DECLARED EXCEPTION: the episode cell is 31 × 27 in the SHIPPED
             // component. At 13 cells per row, 44px would demand 572px of
@@ -120,7 +120,7 @@ async def main():
           // R4b — the measurement that cannot be talked out of it: the
           // scrollport itself must offer NO horizontal scrolling. An illusory
           // clip would show up here.
-          R.horizontalPan = [...root.querySelectorAll('.port,[data-scroll-root]')]
+          R.horizontalPan = [...root.querySelectorAll('[data-part="viewport"],[data-scroll-root]')]
             .filter(el=>el.scrollWidth > el.clientWidth + 1)
             .map(el=>(el.className||el.tagName)+' scrollWidth '+el.scrollWidth+' > '+el.clientWidth);
 
@@ -133,7 +133,7 @@ async def main():
 
           // R6 — an essential title is never truncated to the point of being a
           // guess
-          R.truncatedTitles = [...root.querySelectorAll('.ht,.sheettitle,.dlg h3')].filter(el=>
+          R.truncatedTitles = [...root.querySelectorAll('.ht,.sheettitle,[data-part="dialog"] h3')].filter(el=>
             el.scrollWidth>el.clientWidth+1).map(el=>el.textContent.trim().slice(0,30));
 
           // R6 bis — a card title MAY ellipsize; the list is a list. But the full
@@ -187,7 +187,7 @@ async def main():
           // above it: screen, sheet and dialog. The rule once covered screens
           // only, and the defect came back through sheets.
           R.screenReserve = null;
-          const bar = document.querySelector('.bottombar').getBoundingClientRect().height;
+          const bar = document.querySelector('[data-part="shell/tab-bar"]').getBoundingClientRect().height;
           // Every screen migrated off `#screen` onto a real route is a LAYER
           // like the others — the tab bar passes above it too — and joins
           // this sweep through the SAME generic entry the root ladder above
@@ -197,10 +197,10 @@ async def main():
           // whatever migrates next — naming each one here would have re-open
           // this exact gap on every future migration. Dropping it entirely
           // would leave every state that opens a route inspecting nothing at
-          // all: its `.port` padding and the reachability of its last action
+          // all: its `[data-part="viewport"]` padding and the reachability of its last action
           // are exactly what this rule holds on it.
-          const layers = [['#screen','.port'],['#sheet','.sheetin'],
-                          ['[data-part="screen"][data-open][data-key]','.port']];
+          const layers = [['#screen','[data-part="viewport"]'],['#sheet','.sheetin'],
+                          ['[data-part="screen"][data-open][data-key]','[data-part="viewport"]']];
           for (const [sel, inner] of layers) {
             const el = document.querySelector(sel);
             // The mediaSheet's selector matches only while it is open, so an absent
@@ -219,7 +219,7 @@ async def main():
             const last = btns[btns.length-1];
             if (last) {
               const bb = last.getBoundingClientRect();
-              const barTop = document.querySelector('.bottombar').getBoundingClientRect().top;
+              const barTop = document.querySelector('[data-part="shell/tab-bar"]').getBoundingClientRect().top;
               if (bb.bottom > barTop + 1) R.screenReserve = `${sel}: last button under the bar (${Math.round(bb.bottom - barTop)}px)`;
             }
           }

@@ -311,7 +311,7 @@ async def main():
         (sig[k] ||= []).push(s);
         // Measure the first PIXEL OF TEXT, not the first box: a container can
         // touch the bar through its padding without anything being glued.
-        const port=screen.querySelector('.port');
+        const port=screen.querySelector('[data-part="viewport"]');
         const text=port && [...port.querySelectorAll('h1,h2,h3,p,span,button,a,label')]
           .find(e=>{const r=e.getBoundingClientRect();
                     return r.height>0 && (e.textContent||'').trim().length>1 && !e.closest('.note');});

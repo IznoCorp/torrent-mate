@@ -53,7 +53,7 @@ async def main():
                   // structure, or only prose.
                   cards: v.querySelectorAll('[data-part="card"],.tile,.kv,[data-part="flux/row"]').length,
                   doc: document.documentElement.scrollWidth,
-                  device: Math.round(document.querySelector('.device').getBoundingClientRect().width),
+                  device: Math.round(document.querySelector('[data-part="shell/device"]').getBoundingClientRect().width),
                   spills: [...v.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>390.5&&!e.closest('.pillscroll')).length};}""")
         ok = r['cards'] > 0 and r['content'] > 120 and r['doc'] <= 390 and r['device'] == 390 and r['spills'] == 0
         if not ok: bad += 1

@@ -98,7 +98,7 @@ export function ProfileScreen() {
           {title ? baseTitle(title) : t("screens.profile.defaultProfile")}
         </span>
       </div>
-      <div className="port">
+      <div className="port" data-part="viewport">
         <div className="body" data-region="screen-profile/body">
           <div className="note">
             <b>{t("screens.profile.noteTitle")}</b>{" "}

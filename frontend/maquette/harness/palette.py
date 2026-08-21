@@ -60,10 +60,10 @@ def dangling(source):
 # Where the brand colour must actually land. Each entry names a state, a
 # selector, and which painted property has to carry it.
 PAINTS = [
-    ("signin", ".brandbig .mk", "color", "the brand's funnel"),
-    ("signin", ".brandbig em", "color", "the brand's second word"),
-    ("signin", ".loginsubmit", "backgroundColor", "the sign-in button"),
-    ("startup", ".splashbar i", "backgroundColor", "the startup bar's fill"),
+    ("signin", '[data-part="brand/large"] [data-part="brand/mark"]', "color", "the brand's funnel"),
+    ("signin", '[data-part="brand/large"] em', "color", "the brand's second word"),
+    ("signin", '[data-part="login/submit"]', "backgroundColor", "the sign-in button"),
+    ("startup", '[data-part="splash/progress"] i', "backgroundColor", "the startup bar's fill"),
 ]
 
 
@@ -117,7 +117,7 @@ async def main():
             await pg.wait_for_timeout(120)
             seen = await pg.evaluate("""()=>{
               const lost = [];
-              for (const e of document.querySelectorAll('.loginsubmit, .installgo, .splashbar i')) {
+              for (const e of document.querySelectorAll('[data-part="login/submit"], [data-part="install/action"], [data-part="splash/progress"] i')) {
                 const c = getComputedStyle(e);
                 if (c.backgroundColor === 'rgba(0, 0, 0, 0)' && e.offsetParent !== null)
                   lost.push(e.className);

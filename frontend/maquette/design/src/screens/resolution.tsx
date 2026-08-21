@@ -322,7 +322,7 @@ export function ResolutionScreen() {
           {t("screens.resolution.back")}
         </button>
       </div>
-      <div className="port">
+      <div className="port" data-part="viewport">
         <div className="body" data-region="screen-resolution/body">
           <div className="note">
             <b>{t("screens.resolution.noteTitle")}</b>{" "}

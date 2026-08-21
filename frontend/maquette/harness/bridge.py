@@ -335,7 +335,7 @@ async def main():
         # Scrolled away from the top before leaving, so the return has a
         # position to restore and not merely a list to redraw.
         await pg.evaluate(
-            """()=>{document.querySelector('[data-part="screen"][data-open] .port').scrollTop = 300;}"""
+            """()=>{document.querySelector('[data-part="screen"][data-open] [data-part="viewport"]').scrollTop = 300;}"""
         )
         await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card/poster"]').click()""")
         await pg.wait_for_timeout(450)
@@ -355,7 +355,7 @@ async def main():
                 key: document.querySelector('[data-part="screen"][data-open]')?.dataset.key,
                 cards: document.querySelectorAll('[data-part="result/list"] [data-part="card"]').length,
                 query: document.querySelector('#addq')?.value,
-                scroll: document.querySelector('[data-part="screen"][data-open] .port')?.scrollTop,
+                scroll: document.querySelector('[data-part="screen"][data-open] [data-part="viewport"]')?.scrollTop,
                 legacySheetStillThere: document.querySelector('#screen').hasAttribute('data-open')
             })"""
         )
