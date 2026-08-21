@@ -23,6 +23,11 @@ a belief, so the same four holds are owed a second time, against the real
 `data-open`, on the day that attribute first exists. The gap is closed by
 re-measuring, not by analogy.
 
+The segments are reached through `[aria-pressed]` — the attribute the hold
+measures — never through a class name, because a class anchor added by this
+migration would be a fresh entry on the very burn-down list the migration
+exists to empty.
+
 Each hold is built to FAIL on an absent subject rather than pass over it: a
 probe that returns no element has measured nothing, and a green line printed
 over nothing is the defect this rule is the demonstration of.
@@ -51,7 +56,7 @@ def check(name, condition, detail=""):
 ADD_SCREEN = """() => {
   const s = document.querySelector('.screen.open[data-key^="add:"]')
     ?? document.createElement('div');
-  const segs = [...s.querySelectorAll('.segmini button')];
+  const segs = [...s.querySelectorAll('[aria-pressed]')];
   const unselected = segs.find(b => b.getAttribute('aria-pressed') === 'false');
   return {
     count: segs.length,
