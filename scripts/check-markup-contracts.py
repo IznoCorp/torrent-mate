@@ -49,6 +49,13 @@ header describes what it reads and the two refusals it makes. Only the
 orchestration is here: the arm moved out when this file passed the
 1 000-line block, and the entry point stays the gate's ONE command.
 
+ITS FLOOR IS A HARD ZERO. Any class token in any rule selector — passed
+to a call or held in a variable, a table, a concatenation — is a
+violation on its first occurrence. There is no baseline file, no budget
+and no escape hatch: the burn-down that carried the shipped debt was
+emptied, and the machinery that held it was deleted in the same move
+rather than left behind as a tolerance someone could raise.
+
 ARM 3 — a `data-part` value the harness selects and no source emits.
 Two corpora, one question each side answers. The selection side is the
 harness (`frontend/maquette/harness/*.py`, the same set ARM 2 reads):
@@ -134,7 +141,7 @@ It is not an arm because it asks nothing about markup: it asks whether
 the corpus can be READ at all, which is what every arm assumes and none
 of them checks. Sub-phase 4.1 is why. A rewrite left a raw `"` inside a
 `"…"` Python string in `inter.py` and `mouse.py`; both stopped parsing,
-and every instrument — these four arms, `--write-baseline`,
+and every instrument — these four arms and
 `classify-rule-anchors.py` — read them as text and reported no
 violation. A guard that reports « no violation » over a file it cannot
 read is the defect class this lot exists to end, so the guard refuses
@@ -148,8 +155,6 @@ would be the same silent short count in a new coat.
 
 Usage:
     python3 scripts/check-markup-contracts.py
-    python3 scripts/check-markup-contracts.py --write-baseline
-    python3 scripts/check-markup-contracts.py --write-baseline --allow-additions
 """
 
 from __future__ import annotations
@@ -159,13 +164,13 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-# The anchor arm, next door. `class_tokens`, `entry_identity` and
-# `held_occurrences` are re-exported rather than used here: the arm is driven
-# through this entry point, by the gate and by
-# `tests/scripts/test_check_markup_contracts.py` alike.
+# The anchor arm, next door. `class_tokens` and `held_occurrences` are
+# re-exported rather than used here: the arm is driven through this entry
+# point, by the gate and by `tests/scripts/test_check_markup_contracts.py`
+# alike.
 from markup_anchors import (  # noqa: E402, F401
-    BASELINE, check_anchor_debt, class_tokens, entry_identity, harness_files,
-    held_literals, held_occurrences, selection_calls, write_baseline,
+    check_anchor_debt, class_tokens, harness_files, held_literals,
+    held_occurrences, selection_calls,
 )
 # The shared text readers — see that module's header.
 from markup_text import (  # noqa: E402
@@ -723,23 +728,21 @@ def check_harness_parses() -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Runs the precondition and all four arms, or regenerates the baseline.
+    """Runs the precondition and all four arms.
 
-    Args:
-        argv: The arguments to read. `None` reads the process's own, which is
-            what the entry point below passes; a caller IN-PROCESS — a test —
-            passes its own list, because `sys.argv` under a test runner
-            belongs to the runner.
-
-    The precondition runs FIRST on both paths — the check and the
-    baseline write. A baseline generated over a file Python cannot read is
-    a baseline written from a corpus one file short, and 4.1 wrote one:
-    `--write-baseline` succeeded over `inter.py` and `mouse.py` while
-    neither parsed.
+    The precondition runs FIRST. A corpus one file short measures one file
+    short, and 4.1 is the day that mattered: every instrument read
+    `inter.py` and `mouse.py` as text while neither parsed, and every one
+    of them reported no violation.
 
     A parse failure does not return early. Every arm still runs, over the
     corpus as it stands, so one broken file cannot hide what the arms had
     to say.
+
+    The guard takes NO argument. It once took `--write-baseline` and
+    `--write-baseline --allow-additions`, which regenerated the anchor
+    arm's burn-down list; the burn-down reached zero and the list, the
+    ratchet and the escape hatch went with it.
 
     Args:
         argv: The arguments to read. `None` reads the process's own, which is
@@ -748,22 +751,14 @@ def main(argv: list[str] | None = None) -> int:
             belongs to the runner.
 
     Returns:
-        1 when anything was found or the arguments are unknown, 0
-        otherwise.
+        1 when anything was found or an argument was given, 0 otherwise.
     """
     argv = sys.argv[1:] if argv is None else argv
     if argv:
-        if argv == ["--write-baseline"]:
-            return check_harness_parses() or write_baseline()
-        if argv == ["--write-baseline", "--allow-additions"]:
-            return check_harness_parses() or write_baseline(
-                allow_additions=True)
-        print("check-markup-contracts: unknown arguments — run with no "
-              "argument to check; --write-baseline to regenerate "
-              f"{BASELINE.relative_to(ROOT)}, which refuses to ADD anything "
-              "to the burn-down; or --write-baseline --allow-additions as "
-              "the deliberate escape hatch — nothing in phases 2 to 6 of "
-              "maquette-l02 may use it.", file=sys.stderr)
+        print("check-markup-contracts: unknown arguments — this guard takes "
+              "none. Run it with no argument to check; the `--write-baseline` "
+              "mode is gone, and so is the burn-down baseline it wrote: the "
+              "anchor arm's floor is a hard zero.", file=sys.stderr)
         return 1
     rc = 0
     if check_harness_parses():

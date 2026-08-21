@@ -4,9 +4,8 @@
 SPLIT OUT OF `check-markup-contracts.py`, which this arm took from 149 lines to
 1 275 — past the 1 000-line hard ceiling `check-module-size.py` enforces over
 `scripts/` as well as the package. The entry point keeps the four arms'
-orchestration and stays the gate's ONE command; what this arm reads, refuses
-and writes is all here: both extraction passes, the burn-down baseline, the
-ratchet, and the cross-check against the independent classifier.
+orchestration and stays the gate's ONE command; what this arm reads and
+refuses is all here: both extraction passes and both refusals.
 
 Corpus: `frontend/maquette/harness`, every `*.py` file, read as text.
 
@@ -14,10 +13,17 @@ THE DEFECT CLASS. The harness rules select elements by their style class
 — `querySelector('.card')` — and those names are the stylesheet's. The
 day a surface converts to utility classes the names stop existing, and
 every rule that reads them falls with no way to attribute the failure:
-anchor, or style? This arm refuses NEW class anchors, and holds the ones
-already shipped in a burn-down baseline that later phases of the
-maquette-l02 lot remove entry by entry until the file is empty and
-deleted.
+anchor, or style?
+
+THE FLOOR IS A HARD ZERO. Not a budget, not a burn-down: ANY class token
+in ANY rule selector — passed to a call or held in a variable, a table, a
+concatenation — is a violation, named with its file, its line, its
+selector and its token. There is no list to consult and no tolerance to
+raise, because an empty list is a floor someone can raise again. The debt
+this arm was written against was migrated to `data-part` anchors, and
+what carried it — a burn-down baseline, a ratchet, an
+`--allow-additions` escape hatch — was deleted with it: machinery that
+has lost its subject is machinery nobody dares delete later.
 
 WHAT ARM 2 READS, AND THE TWO REFUSALS.
 
@@ -47,14 +53,16 @@ WHAT ARM 2 READS, AND THE TWO REFUSALS.
         an attribute block, a comma list. `.json5` fails both — nothing
         emits a class named json5, and the string has no structure —
         while `.tile[data-panel]` passes on structure and `.sact`
-        passes on emission. A shape test runs first: the string starts
-        with `.`, `#` or `[`, holds only selector-alphabet characters,
-        and is not a method call (`.render(`). Comments and docstrings
-        are read by nothing at runtime, so they are read by nothing
-        here; a candidate carrying no class token owes the burn-down
-        nothing and is not recorded. A held occurrence is a finding
-        exactly like a call occurrence — the baseline entry differs
-        only in its `held: true` field, never in its identity.
+        passes on emission. A shape test runs first, `selector_shaped`,
+        and it reads the two spellings a selector BUILT at run time
+        takes: a `{...}` interpolation is an opaque token that does not
+        end the selector, and a leading space is the descendant
+        combinator a concatenation supplies (`querySelector(s +
+        ' .fback')`). Comments and docstrings are read by nothing at
+        runtime, so they are read by nothing here; a candidate carrying
+        no class token is not recorded. A held occurrence is a finding
+        exactly like a call occurrence — a selector held in a variable
+        dies with the stylesheet exactly like one written in a call.
 
   2. `classList.contains('<state>')` for one of the seven migrated
      states: open, noposter, show, in_library, fempty, fblocked,
@@ -65,69 +73,28 @@ WHAT ARM 2 READS, AND THE TWO REFUSALS.
      permanent exceptions; each one's written reason lives in
      `scripts/classify-rule-anchors.py` (--exceptions).
 
-THE BURN-DOWN IS A RATCHET, NOT A PROMISE.
-`frontend/maquette/anchor-baseline.json` holds one entry per TOKEN
-OCCURRENCE — a selector can carry tokens owned by two different phases,
-and only the occurrence has a single owner. An occurrence's IDENTITY is
-what it selects and where it is: the multiset of (kind, file, token),
-with the class name filling the token slot for an assertion. The
-`selector` and `line` stored in each entry are DISPLAY fields, refreshed
-freely on every write and never compared: phase 2 rewrites the PREFIX of
-dozens of selectors (`.screen.open .fback` becomes
-`[data-part="screen"][data-open] .fback`) without moving a single token,
-and an identity that included the selector string would see each
-rewritten token as one removed and one added — a regeneration that
-refuses itself on its own committed baseline. A finding whose identity
-the baseline owns is tolerated and counted — multiplicity included, the
-same identity twice is two entries and must stay two; one it does not
-exits 1 naming file, line, selector and token. Every later phase REMOVES
-entries — a baseline that swallowed a NEW violation would ratchet the
-wrong way, and this arm's whole reason to exist is to refuse that.
-
-The baseline is GENERATED, never typed. `--write-baseline` consumes
-`python3 scripts/classify-rule-anchors.py --baseline` — the independent
-second reader, so the classification is cross-checked by something other
-than the guard that enforces it — then holds the two readers against each
-other and writes the file only when they agree on every occurrence.
-
-AND IT REFUSES TO GROW. Before writing, the fresh entries are held
-against the stored baseline on their line-free, selector-free
-identities: any occurrence the stored baseline does not already own
-REFUSES the write — exit 1, naming each one — because a burn-down list
-does not grow. Removals pass silently; that is the burn-down. A pure
-display shift still writes (nothing added, only lines and selector
-spellings refreshed), which phases 2 to 6 depend on: they rewrite
-selector prefixes and edit harness files in every commit. The
-deliberate escape hatch is
-`--write-baseline --allow-additions` — bootstrap, a re-classification, a
-corrupted baseline — which writes regardless and prints loudly what it
-added. Nothing in phases 2 to 6 of maquette-l02 may use it.
+AND THE ZERO IS ONLY WORTH WHAT THE READERS SEE. A floor of zero over a
+corpus a reader walks past is not a floor, which is why the two shapes
+`selector_shaped` now reads were closed BEFORE the floor was declared,
+and why the independent reader — `classify-rule-anchors.py --baseline`,
+whose listing must print an empty list — reads the same corpus through
+its own extraction. Two readers agreeing on zero is a measurement; one
+reader's zero is a claim.
 """
 
 from __future__ import annotations
 
-import json
 import re
-import subprocess
 import sys
-from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 # The shared text readers — see that module's header.
 from markup_text import (  # noqa: E402
     COMMENT, HARNESS, HTML_COMMENT, ROOT, SHELL, SOURCES, braced_expression,
-    comment_masked, read_literal, strip_interpolations,
+    comment_masked, outside_attribute_blocks, read_literal,
+    strip_braced_spans, strip_interpolations,
 )
-
-# The burn-down baseline. Generated, never typed — `--write-baseline`
-# regenerates it from the independent classifier.
-BASELINE = ROOT / "frontend" / "maquette" / "anchor-baseline.json"
-
-# The independent second reader, consumed as a subprocess rather than
-# imported: a baseline the guard derives alone is a classification
-# cross-checked by nothing.
-CLASSIFIER = ROOT / "scripts" / "classify-rule-anchors.py"
 
 # `querySelector(` et al. — every call whose first argument is the
 # selection, whatever object the method hangs off (`document.`, `c.`,
@@ -139,9 +106,9 @@ CALL = re.compile(r"(querySelector|querySelectorAll|locator|matches)\s*\(")
 # per call.
 CONTAINS = re.compile(r"classList\.contains\(\s*(['\"])([^'\"]*)\1\s*\)")
 
-# The seven state classes the maquette-l02 lot migrates to the boolean
-# data-* attributes. `classList.contains` on one of these is a state
-# assertion, refused unless the baseline owns the occurrence.
+# The seven state classes migrated to the boolean data-* attributes.
+# `classList.contains` on one of these is a state assertion, and it is
+# refused: the attribute is what survives the class.
 STATE_CLASSES = ("open", "noposter", "show", "in_library",
                  "fempty", "fblocked", "announced")
 
@@ -154,10 +121,11 @@ GENRE_CLASSES = ("h2", "flux", "ep", "radio", "note")
 
 # ---- ARM 2 held pass -----------------------------------------------------
 
-# The characters a selector can hold. A string carrying anything else —
-# a Python f-string's braces, a `${...}` span, prose — is not
-# selector-shaped and is read by neither pass. Mirrored deliberately
-# from the classifier: the two readers must agree or one is wrong.
+# The characters a selector can hold, once its `{...}` interpolations
+# are removed. A string carrying anything else — prose, a stray operator
+# — is not selector-shaped and is read by neither pass. Mirrored
+# deliberately from the classifier: the two readers must agree or one is
+# wrong.
 SELECTOR_ALPHABET = set(
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     "0123456789.#[]=\"'`~+>*,:()\\-_^$|/ ")
@@ -167,16 +135,20 @@ SELECTOR_ALPHABET = set(
 # parenthesis hangs off a pseudo-class, not off a class token.
 METHOD_CALL = re.compile(r"^\.[-\w]+\s*\(")
 
-# A quoted literal whose content starts with a selector character and
-# holds, up to the closing quote, selector text: plain characters and
-# attribute blocks — an attribute block may carry the delimiter
-# (`'[data-x="y"]'` inside a single-quoted string), which is exactly why
-# the pass cannot be a simple quote-pair scan. Stateless on purpose: a
-# French apostrophe or a nested backtick that would desync a quote-pair
-# walker simply fails to match here, and the literal after it is read on
-# its own.
+# A quoted literal whose content starts with a selector character —
+# after any LEADING SPACE, because a selector concatenated onto a
+# variable starts with the descendant combinator
+# (`querySelector(s + ' .fback')`) — and holds, up to the closing quote,
+# selector text: plain characters and attribute blocks. An attribute
+# block may carry the delimiter (`'[data-x="y"]'` inside a single-quoted
+# string), which is exactly why the pass cannot be a simple quote-pair
+# scan. Stateless on purpose: a French apostrophe or a nested backtick
+# that would desync a quote-pair walker simply fails to match here, and
+# the literal after it is read on its own. The leading space sits
+# OUTSIDE the captured group: what the readers then judge is the
+# selector, not the concatenation that hosts it.
 HELD_RE = re.compile(
-    r"""(["'`])(?P<sel>[.#\[](?:(?!\1)[^\[\n])*(?:\[[^\[\]\n]*\]"""
+    r"""(["'`]) *(?P<sel>[.#\[](?:(?!\1)[^\[\n])*(?:\[[^\[\]\n]*\]"""
     r"""(?:(?!\1)[^\[\n])*)*)\1""")
 
 # `class=` / `className=` — every attribute spelling, whichever side of
@@ -389,6 +361,40 @@ def emission_tokens() -> set[str]:
     return emitted
 
 
+def selector_shaped(content: str) -> bool:
+    """True when a held candidate is SHAPED like a selector.
+
+    The shape test, and it is the half of the held pass that decides what
+    is even a candidate. Three refusals, each paid for by a string the
+    pass would otherwise have called an anchor:
+
+      * a brace that never balances — `.cov{-webkit-line-clamp:`,
+        `.splashbar {` — is stylesheet text, not an interpolation;
+      * a character outside the selector alphabet, once the balanced
+        interpolations are removed;
+      * an `=` OUTSIDE an attribute block — `#splash.hidden = {…}` is a
+        journal label about an element, not a selection of it. A
+        selector's only `=` lives inside `[...]`.
+
+    A method call (`.render(`) is refused last, on the text as written.
+
+    Args:
+        content: One candidate string, its leading space already trimmed
+            by the pattern that found it.
+
+    Returns:
+        True when the candidate can be read as a selector.
+    """
+    probe = strip_braced_spans(content)
+    if probe is None:
+        return False
+    if any(ch not in SELECTOR_ALPHABET for ch in probe):
+        return False
+    if "=" in outside_attribute_blocks(probe):
+        return False
+    return not METHOD_CALL.match(content)
+
+
 def held_literals(path: Path) -> list[tuple[int, str]]:
     """Returns every selector-shaped literal one harness file HOLDS.
 
@@ -407,6 +413,11 @@ def held_literals(path: Path) -> list[tuple[int, str]]:
     scripts in. Blanks preserve offsets, so a candidate found in the
     masked text still names its original line.
 
+    The shape test is `selector_shaped`, in one function, so that the two
+    shapes a run-time-built selector takes — a `{...}` interpolation, a
+    leading space where a concatenation supplies the head — are read the
+    same way by every arm that reads a held selector.
+
     Args:
         path: A Python file under `HARNESS`.
 
@@ -422,9 +433,7 @@ def held_literals(path: Path) -> list[tuple[int, str]]:
         if match.start() in call_args:
             continue
         content = match.group("sel")
-        if any(ch not in SELECTOR_ALPHABET for ch in content):
-            continue
-        if METHOD_CALL.match(content):
+        if not selector_shaped(content):
             continue
         line = text.count("\n", 0, match.start()) + 1
         found.append((line, content))
@@ -470,115 +479,56 @@ def harness_files() -> list[Path]:
     return sorted(p for p in HARNESS.glob("*.py") if p.is_file())
 
 
-def entry_identity(entry: dict[str, object]) -> tuple[str, str, str]:
-    """Returns the line- and selector-free identity of one baseline entry.
-
-    An occurrence's identity is WHAT it selects and WHERE it is:
-    `(kind, file, token)` for a selection entry — the class name filling
-    the token slot for an assertion. The `selector` and `line` fields are
-    deliberately absent: they are DISPLAY fields, refreshed freely on
-    every write, and a phase that rewrites a selector's prefix
-    (`.screen.open .fback` → `[data-part="screen"][data-open] .fback`)
-    must not make the occurrence it carries look new. Multiplicity is
-    the callers' business: this tuple is what a Counter counts.
-
-    Args:
-        entry: One entry of the classifier's `--baseline` list.
-
-    Returns:
-        `(kind, file, token)` — the token slot filled by the class name
-        for an assertion entry.
-
-    Raises:
-        ValueError: The entry's kind is unknown, or a field is missing or
-            of the wrong type.
-    """
-    kind = entry.get("kind")
-    if kind not in ("selection", "assertion"):
-        raise ValueError(f"unknown kind {kind!r}")
-    name = entry.get("token") if kind == "selection" else entry.get("class")
-    selector = entry.get("selector") if kind == "selection" else name
-    if not isinstance(entry.get("file"), str) \
-            or not isinstance(entry.get("line"), int) \
-            or not isinstance(selector, str) \
-            or not isinstance(name, str) \
-            or not isinstance(entry.get("held", False), bool):
-        raise ValueError(f"malformed entry {entry!r}")
-    return (kind, entry["file"], name)
-
-
-def load_baseline() -> Counter[tuple[str, str, str]]:
-    """Loads the burn-down baseline as a multiset of identities.
-
-    A missing file is an EMPTY baseline: the last phase of the lot
-    deletes it once every entry is burned, and the arm's floor becomes a
-    hard zero.
-
-    Returns:
-        The identity → occurrence-count mapping, or an empty Counter when
-        the file does not exist.
-
-    Raises:
-        ValueError: An entry is malformed.
-    """
-    if not BASELINE.is_file():
-        return Counter()
-    entries = json.loads(BASELINE.read_text(encoding="utf-8"))
-    return Counter(entry_identity(entry) for entry in entries)
-
-
-def collect_anchor_findings(
-) -> list[tuple[tuple[str, str, str], str, str, bool]]:
+def collect_anchor_findings() -> list[tuple[str, str, str, str, bool]]:
     """Collects every finding the anchor arm exists to refuse.
 
     Both passes feed it — the call pass reads the selection calls, the
-    held pass reads the selector-shaped strings outside them, and each
-    occurrence is one finding. The identity is the same key for both: a
-    held occurrence of `.tile` and a call occurrence of `.tile` in the
-    same file are two entries with one identity; the `held` flag is the
-    annotation that tells them apart.
+    held pass reads the selector-shaped strings outside them — and each
+    token OCCURRENCE is one finding, because a selector carrying two
+    class tokens carries two of them.
 
     Returns:
-        `(identity, subject, where, held)` tuples, in file order — the
-        line- and selector-free identity `(kind, file, token)` (the class
-        name fills the token slot for an assertion), the full selector
-        for a selection and the class name for an assertion — the
-        DISPLAY subject, carried alongside the identity but never part
-        of it — the `file:line` it was found at for display, and whether
-        the held pass found it.
+        `(kind, name, subject, where, held)` tuples, in file order: the
+        kind (`selection` or `assertion`), the class name the finding is
+        about, the full selector for a selection and the class name for
+        an assertion — the DISPLAY subject — the `file:line` it was
+        found at, and whether the held pass found it.
     """
-    findings: list[tuple[tuple[str, str, str], str, str, bool]] = []
+    findings: list[tuple[str, str, str, str, bool]] = []
     emitted = emission_tokens()
     for path in harness_files():
         rel = str(path.relative_to(ROOT))
         for line, _, selector in selection_calls(path):
             for token in class_tokens(selector):
-                identity = ("selection", rel, token)
-                findings.append((identity, selector, f"{rel}:{line}", False))
+                findings.append(
+                    ("selection", token, selector, f"{rel}:{line}", False))
         for line, content in held_occurrences(path, emitted):
             for token in class_tokens(content):
-                identity = ("selection", rel, token)
-                findings.append((identity, content, f"{rel}:{line}", True))
+                findings.append(
+                    ("selection", token, content, f"{rel}:{line}", True))
         for line, name in state_assertions(path):
             if name in STATE_CLASSES:
-                identity = ("assertion", rel, name)
-                findings.append((identity, name, f"{rel}:{line}", False))
+                findings.append(
+                    ("assertion", name, name, f"{rel}:{line}", False))
     return findings
 
 
 def check_anchor_debt() -> int:
-    """Arm 2: refuses every finding the burn-down baseline does not own.
+    """Arm 2: refuses EVERY class anchor, held or called. The floor is zero.
 
-    Each finding's identity is looked up in the baseline as a MULTISET —
-    the same identity twice is two entries, and a third occurrence is a
-    violation exactly like a new one. Owned findings are tolerated and
-    counted, unowned ones are violations naming file, line, selector and
-    token. A `classList.contains` name that is neither a migrated state
-    nor a listed genre is warned about — exactly as the classifier warns
-    — because it is measured by nothing.
+    There is no list to consult: a class token in a rule selector is a
+    violation on its first occurrence, named with its file, its line, its
+    selector and its token, and so is a `classList.contains` on one of
+    the seven migrated states. The two spellings are printed apart —
+    passed to a call, or held in a variable, a table, a concatenation —
+    because the held ones are the ones a reader forgets exist.
+
+    A `classList.contains` name that is neither a migrated state nor a
+    listed genre is warned about — exactly as the classifier warns —
+    because it is measured by nothing.
 
     Returns:
-        1 when any finding is not owned by the baseline, 0 otherwise.
+        1 when any class anchor was found, 0 otherwise.
     """
     files = harness_files()
     if not files:
@@ -593,58 +543,29 @@ def check_anchor_debt() -> int:
               "selector from a word, so « no held selector » would mean "
               "nothing", file=sys.stderr)
         return 1
-    try:
-        baseline = load_baseline()
-    except (OSError, ValueError, KeyError, TypeError) as err:
-        print(f"check-markup-contracts: {BASELINE.relative_to(ROOT)} cannot "
-              f"be read as a burn-down baseline: {err}. Regenerate it with "
-              "--write-baseline, never by hand (a corrupted baseline cannot "
-              "prove the subset, so the regeneration needs "
-              "--allow-additions).", file=sys.stderr)
-        return 1
 
-    seen: Counter[tuple[str, str, str]] = Counter()
-    # "held" is a SUBSET of "selection", not a third population: a held
-    # occurrence is counted once under its kind and once again here so the
-    # summary can say how many of the selection tokens sit outside a call.
-    # The printed total must therefore never sum the three buckets.
-    tolerated = {"selection": 0, "held": 0, "assertion": 0}
     exempt = 0
     violations = 0
-    for identity, subject, where, held in collect_anchor_findings():
-        kind = identity[0]
-        if seen[identity] < baseline[identity]:
-            seen[identity] += 1
-            tolerated[kind] += 1
-            if kind == "selection" and held:
-                tolerated["held"] += 1
-        elif kind == "selection" and held:
-            violations += 1
+    for kind, name, subject, where, held in collect_anchor_findings():
+        violations += 1
+        if kind == "assertion":
+            print(f"  {where}: classList.contains({name!r}) asserts a state "
+                  "that has a boolean data-* attribute. Assert the attribute "
+                  "— `hasAttribute('data-open')` — so the rule survives the "
+                  "class.", file=sys.stderr)
+        elif held:
             print(f"  {where}: the string {subject!r} held outside any "
-                  f"selection call carries the class token {identity[2]!r}, "
-                  "and the baseline owns no such occurrence. A selector "
-                  "held in a variable or a table dies the day the class is "
-                  "removed exactly like one written in a call. Migrate the "
-                  "occurrence — or if a migration genuinely removed it, "
-                  "regenerate the baseline with --write-baseline; the "
-                  "regeneration refuses to add anything.", file=sys.stderr)
-        elif kind == "selection":
-            violations += 1
-            print(f"  {where}: selector {subject!r} carries the class token "
-                  f"{identity[2]!r}, and the baseline owns no such "
-                  "occurrence. A class token in a rule selection dies the "
-                  "day the class is removed. Migrate the occurrence — or if "
-                  "a migration genuinely removed it, regenerate the baseline "
-                  "with --write-baseline; the regeneration refuses to add "
-                  "anything.", file=sys.stderr)
+                  f"selection call carries the class token {name!r}. A "
+                  "selector held in a variable, a table or a concatenation "
+                  "dies the day the class is removed exactly like one "
+                  "written in a call. Anchor it on the element's "
+                  "`data-part`.", file=sys.stderr)
         else:
-            violations += 1
-            print(f"  {where}: classList.contains({identity[2]!r}) asserts a "
-                  "migrated state, and the baseline owns no such occurrence. "
-                  "Migrate the assertion — or if a migration genuinely "
-                  "removed it, regenerate the baseline with --write-baseline; "
-                  "the regeneration refuses to add anything.",
-                  file=sys.stderr)
+            print(f"  {where}: selector {subject!r} carries the class token "
+                  f"{name!r}. A class token in a rule selection dies the day "
+                  "the class is removed, and nothing can then say whether "
+                  "the anchor or the style was at fault. Anchor it on the "
+                  "element's `data-part`.", file=sys.stderr)
     for path in files:
         for line, name in state_assertions(path):
             if name in GENRE_CLASSES:
@@ -657,180 +578,16 @@ def check_anchor_debt() -> int:
 
     if violations:
         print(f"\ncheck-markup-contracts: {violations} anchor occurrence(s) "
-              "the baseline does not own. The burn-down is a ratchet: "
-              "phases remove entries, nothing adds them — a baseline that "
-              "swallowed a new violation would protect the debt this arm "
-              "exists to burn.", file=sys.stderr)
+              "on a style class. The floor is a hard ZERO — there is no "
+              "baseline, no budget and no escape hatch, because a tolerance "
+              "is a floor someone raises. Anchor the selection on a "
+              "`data-part` value, or the assertion on the state's boolean "
+              "attribute.", file=sys.stderr)
         return 1
 
-    total = tolerated["selection"] + tolerated["assertion"]
-    print(f"check-markup-contracts: {total} anchor "
-          f"occurrence(s) tolerated — {tolerated['selection']} selection "
-          f"token(s), {tolerated['held']} of them held outside any "
-          f"selection call, and {tolerated['assertion']} state "
-          f"assertion(s), every one owned by "
-          f"{BASELINE.relative_to(ROOT)}. {exempt} genre assertion(s) "
-          "exempt: permanent, each reason in "
+    print(f"check-markup-contracts: 0 class-anchored selection call over "
+          f"{len(files)} harness rule file(s), passed or held, and 0 "
+          f"migrated-state assertion left on a class. {exempt} genre "
+          "assertion(s) exempt: permanent, each reason in "
           "scripts/classify-rule-anchors.py --exceptions.")
-    return 0
-
-
-def describe_entry(entry: dict[str, object]) -> str:
-    """Formats one baseline entry for a human, without its display line.
-
-    Args:
-        entry: One entry of the classifier's `--baseline` list.
-
-    Returns:
-        `file: selector … carries the token …` for a selection entry,
-        `file: classList.contains(…)` for an assertion entry.
-    """
-    if entry["kind"] == "selection":
-        if entry.get("held"):
-            return (f"  {entry['file']}: the string {entry['selector']!r} "
-                    f"held outside any selection call carries the token "
-                    f"{entry['token']!r}")
-        return (f"  {entry['file']}: selector {entry['selector']!r} carries "
-                f"the token {entry['token']!r}")
-    return f"  {entry['file']}: classList.contains({entry['class']!r})"
-
-
-def write_baseline(allow_additions: bool = False) -> int:
-    """Regenerates the burn-down baseline from the independent classifier.
-
-    Consumes `python3 scripts/classify-rule-anchors.py --baseline` rather
-    than deriving the entries here: a baseline the guard derives alone is
-    a classification cross-checked by nothing. The two readers are then
-    held against each other — this arm's own extraction must agree with
-    the classifier's list on every occurrence identity AND on every held
-    flag — and the file is written only when they do, so the cross-check
-    is a hard gate and not a step someone remembers to run.
-
-    THE RATCHET. Before writing, the fresh entries are held against the
-    stored baseline on their line- and selector-free identities.
-    Removals pass silently: that is the burn-down. Any occurrence the
-    stored baseline does not already own REFUSES the write — exit 1,
-    naming each one — because a burn-down list does not grow. A pure
-    display shift still writes: nothing was added, only lines and
-    selector spellings refreshed, which phases 2 to 6 depend on as they
-    rewrite selector prefixes and edit harness files in every commit.
-    `allow_additions` is the deliberate escape hatch (bootstrap, a
-    re-classification, a corrupted baseline): it writes regardless and
-    prints loudly what it added. Nothing in phases 2 to 6 of maquette-l02
-    may use it.
-
-    Args:
-        allow_additions: True when the operator deliberately lets the
-            baseline grow. Banned for phases 2 to 6 of maquette-l02.
-
-    Returns:
-        1 when the classifier fails, its output is not a baseline, the
-        two readers disagree, or the write would add occurrences and
-        `allow_additions` is False; 0 when the file was written.
-    """
-    emitted = emission_tokens()
-    if not emitted:
-        print("check-markup-contracts: no class= / className= emission "
-              "found in the design sources — the held pass cannot tell a "
-              "selector from a word, so a regeneration would silently "
-              f"burn every held entry. {BASELINE.name} was NOT written.",
-              file=sys.stderr)
-        return 1
-    run = subprocess.run([sys.executable, str(CLASSIFIER), "--baseline"],
-                         capture_output=True, text=True)
-    if run.returncode != 0:
-        print(f"check-markup-contracts: {CLASSIFIER.name} --baseline "
-              f"failed:\n{run.stderr}", file=sys.stderr)
-        return 1
-    try:
-        entries = json.loads(run.stdout)
-        if not isinstance(entries, list) or not entries:
-            raise ValueError("expected a non-empty list of entries")
-        by_classifier = Counter(entry_identity(entry) for entry in entries)
-    except (ValueError, KeyError, TypeError) as err:
-        print(f"check-markup-contracts: {CLASSIFIER.name} --baseline printed "
-              f"something that is not a baseline ({err}) — "
-              f"{BASELINE.name} was not written.", file=sys.stderr)
-        return 1
-
-    findings = collect_anchor_findings()
-    by_guard = Counter(identity for identity, _, _, _ in findings)
-    # The two readers must agree on the held flags too: an occurrence one
-    # side reads as held and the other as a call is a disagreement, even
-    # though the identity is the same key for both.
-    by_classifier_held = Counter(
-        (entry_identity(entry), bool(entry.get("held"))) for entry in entries)
-    by_guard_held = Counter((identity, held)
-                            for identity, _, _, held in findings)
-    if by_classifier != by_guard or by_classifier_held != by_guard_held:
-        print("check-markup-contracts: the two readers disagree — "
-              f"{CLASSIFIER.name} --baseline holds "
-              f"{sum(by_classifier.values())} occurrence(s) and this arm's "
-              f"own extraction finds {sum(by_guard.values())}.",
-              file=sys.stderr)
-        for key in list(by_classifier - by_guard)[:10]:
-            print(f"  classifier only: {key}", file=sys.stderr)
-        for key in list(by_guard - by_classifier)[:10]:
-            print(f"  guard only: {key}", file=sys.stderr)
-        for key in list(by_classifier_held - by_guard_held)[:10]:
-            print(f"  held flag differs: {key}", file=sys.stderr)
-        return 1
-
-    try:
-        stored = load_baseline()
-    except (OSError, ValueError, KeyError, TypeError) as err:
-        if not allow_additions:
-            print(f"check-markup-contracts: the stored baseline cannot be "
-                  f"read ({err}), so nothing can prove the fresh entries are "
-                  f"a subset of it. {BASELINE.name} was NOT written. Rerun "
-                  "with --write-baseline --allow-additions only when you can "
-                  "account for what it adds.", file=sys.stderr)
-            return 1
-        # Treated as empty: every occurrence is an addition, and the loud
-        # listing below names them all.
-        stored = Counter()
-
-    added = by_classifier - stored
-    removed = sum((stored - by_classifier).values())
-    total = sum(by_classifier.values())
-
-    if added and not allow_additions:
-        sample = {entry_identity(entry): entry for entry in entries}
-        for identity, count in sorted(added.items()):
-            suffix = f"  (×{count})" if count > 1 else ""
-            print(describe_entry(sample[identity]) + suffix,
-                  file=sys.stderr)
-        print(f"\ncheck-markup-contracts: refusing to write the baseline — "
-              f"{sum(added.values())} occurrence(s) would be ADDED, and a "
-              "burn-down list does not grow. Removals "
-              f"({removed}, landing at {total} total) are the burn-down; "
-              "additions are new debt, and a regeneration that absorbs them "
-              "is a ratchet turning the wrong way. Migrate the occurrences "
-              "above, or if this is a deliberate bootstrap / "
-              "re-classification / corruption repair, rerun with "
-              "--write-baseline --allow-additions — nothing in phases 2 to 6 "
-              f"of maquette-l02 may use it. {BASELINE.name} was NOT written.",
-              file=sys.stderr)
-        return 1
-
-    BASELINE.write_text(json.dumps(entries, indent=2) + "\n",
-                        encoding="utf-8")
-    selections = sum(count for (kind, *_), count in by_classifier.items()
-                     if kind == "selection")
-    assertions = total - selections
-    if added:
-        sample = {entry_identity(entry): entry for entry in entries}
-        print("check-markup-contracts: --allow-additions granted — the "
-              f"following {sum(added.values())} occurrence(s) were ADDED to "
-              "a burn-down baseline:", file=sys.stderr)
-        for identity, count in sorted(added.items()):
-            suffix = f"  (×{count})" if count > 1 else ""
-            print(describe_entry(sample[identity]) + suffix,
-                  file=sys.stderr)
-    print(f"check-markup-contracts: wrote "
-          f"{BASELINE.relative_to(ROOT)} — {total} "
-          f"occurrence(s): {selections} selection token(s) and {assertions} "
-          f"state assertion(s), with {removed} removed since the stored "
-          "baseline. The classifier's list and this arm's own extraction "
-          "agree on every entry.")
     return 0

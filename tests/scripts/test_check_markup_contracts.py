@@ -33,9 +33,9 @@ def load():
 
 guard = load()
 # The anchor arm lives in `markup_anchors.py` beside the entry point, which
-# imports it — so loading the guard puts it in `sys.modules`. The ratchet tests
-# below patch the module that OWNS `write_baseline`'s globals: patching the
-# re-export on the entry point would rebind a name that function never reads.
+# imports it — so loading the guard puts it in `sys.modules`. The floor tests
+# below patch the module that OWNS the arm's globals: patching the re-export on
+# the entry point would rebind a name the arm never reads.
 anchors = sys.modules["markup_anchors"]
 
 
@@ -118,21 +118,21 @@ class TestTheTreeItself:
 
         assert guard.main([]) == 0
 
-    def test_the_summary_total_is_the_baseline_length(self, capsys) -> None:
-        """The printed total counts each tolerated occurrence exactly once.
+    def test_the_anchor_arm_reports_a_hard_zero(self, capsys) -> None:
+        """The arm says what it read, and what it read is zero.
 
-        `held` is a SUBSET of `selection`, so summing the three buckets
-        counted the held occurrences twice and announced 974 tolerated
-        against a baseline of 834 — a headline number that agreed with
-        nothing. The baseline's own length is the oracle: every tolerated
-        occurrence is one entry it owns.
+        The count it used to print was « N tolerated », held against a
+        burn-down baseline. There is no baseline any more, so the number
+        that means something is the CORPUS: zero class anchors over every
+        rule file, passed or held. A guard reporting zero over an empty
+        corpus would print the same zero, which is why the file count is
+        in the same sentence.
         """
-        expected = len(json.loads(guard.BASELINE.read_text(encoding="utf-8")))
-
         assert guard.main([]) == 0
-        line = next(text for text in capsys.readouterr().out.splitlines() if "anchor occurrence(s) tolerated" in text)
+        line = next(text for text in capsys.readouterr().out.splitlines() if "class-anchored selection call" in text)
 
-        assert f"{expected} anchor occurrence(s) tolerated" in line
+        assert "0 class-anchored selection call" in line
+        assert f"over {len(guard.harness_files())} harness rule file(s)" in line
 
     def test_it_actually_found_forwarders_to_check(self) -> None:
         """A scope that empties would make « no violation » mean nothing."""
@@ -145,116 +145,116 @@ class TestTheTreeItself:
         assert len(guard.FORWARDER.findall(guard.COMMENT.sub(" ", sources))) >= 5
 
 
-class TestBaselineIdentity:
-    """An occurrence is WHAT is selected and WHERE — never the selector string.
+class TestTheHardZeroFloor:
+    """The FIRST class anchor is refused. There is no list to consult.
 
-    Phase 2 rewrites the PREFIX of dozens of selectors
-    (`'.screen.open .fback'` → `'[data-part="screen"][data-open] .fback'`)
-    without moving the tokens those strings carry. An identity that
-    includes the selector string sees each rewritten token as one removed
-    and one added — a regeneration that refuses itself on its own
-    committed baseline. The selector, like the line, is a display field.
+    These were the ratchet's tests: a burn-down baseline held the shipped
+    debt, an occurrence it owned was tolerated and counted, and a
+    regeneration refused to grow. The burn-down reached zero, and an empty
+    list is a floor someone can raise again — so the file, the ratchet and
+    the `--allow-additions` escape hatch went with the debt they carried.
+
+    What the tests assert therefore inverts: not « an occurrence the
+    baseline does not own is refused » but « an occurrence is refused ».
+    The distinction is the whole sub-phase, and it is exactly what a
+    re-added baseline entry would have hidden.
     """
 
-    FILE = "frontend/maquette/harness/actions.py"
-    LINE = 42
-
-    def _regenerate(self, monkeypatch, tmp_path, stored, fresh):
-        """Wires `write_baseline` to a temp baseline and two faked readers.
-
-        The subject of these tests is the ratchet — `fresh` held against
-        `stored` on their identities — not the cross-check between the
-        classifier subprocess and the guard's own extraction, which the
-        real-tree regeneration exercises end to end. Both readers are
-        therefore faked to return `fresh`, and the baseline path is faked
-        into the test's temp directory.
+    def _fixture(self, tmp_path, source):
+        """Writes `source` as a fixture harness file.
 
         Args:
-            monkeypatch: The pytest fixture.
             tmp_path: The pytest fixture.
-            stored: The entries of the stored baseline.
-            fresh: The entries both readers report now.
+            source: The fixture file's text.
 
         Returns:
-            The temp path the baseline is (or would be) written to.
+            The path written.
         """
-        baseline = tmp_path / "anchor-baseline.json"
-        baseline.write_text(json.dumps(stored), encoding="utf-8")
-        monkeypatch.setattr(anchors, "BASELINE", baseline)
-        # The success message renders the baseline path relative to ROOT;
-        # the real baseline lives under it, the test's temp one does not.
-        monkeypatch.setattr(anchors, "ROOT", tmp_path)
-        done = subprocess.CompletedProcess([], 0, json.dumps(fresh), "")
-        monkeypatch.setattr(anchors.subprocess, "run", lambda *a, **k: done)
-        findings = [
-            (guard.entry_identity(e), e.get("selector", e.get("class")), f"{e['file']}:{e['line']}", False)
-            for e in fresh
-        ]
-        monkeypatch.setattr(anchors, "collect_anchor_findings", lambda: findings)
-        return baseline
+        fixture = tmp_path / "fixture.py"
+        fixture.write_text(source, encoding="utf-8")
+        return fixture
 
-    def _selection(self, selector, token, line=None):
-        """Builds one selection entry, in the classifier's shape.
+    def _arm(self, tmp_path, monkeypatch, source):
+        """Runs the anchor arm over one fixture file.
+
+        `harness_files` and `ROOT` are patched on `markup_anchors`, the
+        module whose globals the arm reads — patching the re-export on the
+        entry point would rebind a name the arm never looks at.
 
         Args:
-            selector: The selector string — a display field.
-            token: The class token the entry owns.
-            line: The display line; default `LINE`.
+            tmp_path: The pytest fixture.
+            monkeypatch: The pytest fixture.
+            source: The fixture harness file's text.
 
         Returns:
-            The entry dict.
+            The arm's exit code.
         """
-        return {
-            "kind": "selection",
-            "file": self.FILE,
-            "line": line if line is not None else self.LINE,
-            "selector": selector,
-            "token": token,
-        }
+        fixture = self._fixture(tmp_path, source)
+        monkeypatch.setattr(anchors, "harness_files", lambda: [fixture])
+        monkeypatch.setattr(anchors, "ROOT", tmp_path)
+        return guard.check_anchor_debt()
 
-    def test_a_selector_prefix_rewrite_is_not_an_addition(self, monkeypatch, tmp_path):
-        """The phase-2 shape: same token, new selector prefix.
+    def test_the_first_class_anchored_call_is_refused(self, tmp_path, monkeypatch, capsys) -> None:
+        """One occurrence, no baseline, exit 1 — naming file, line and token."""
+        assert self._arm(tmp_path, monkeypatch, "querySelector('.card')\n") == 1
+        err = capsys.readouterr().err
 
-        `.fback` under `.screen.open .fback` and under
-        `[data-part="screen"][data-open] .fback` is the same occurrence —
-        the same token in the same file. The regeneration must ACCEPT it:
-        nothing added, and the fresh entry written with its new display
-        selector.
+        assert "fixture.py:1" in err and ".card" in err
+        assert "1 anchor occurrence(s)" in err
+
+    def test_the_first_held_class_anchor_is_refused(self, tmp_path, monkeypatch, capsys) -> None:
+        """A selector held in a variable is refused exactly like a call's."""
+        assert self._arm(tmp_path, monkeypatch, "SEL = '.probe-held .card'\n") == 1
+        err = capsys.readouterr().err
+
+        assert "held outside any selection call" in err
+        assert "2 anchor occurrence(s)" in err, "two tokens in one selector are two occurrences"
+
+    def test_a_migrated_state_assertion_is_refused(self, tmp_path, monkeypatch, capsys) -> None:
+        """`classList.contains('open')` reads a class the state has left."""
+        assert self._arm(tmp_path, monkeypatch, "el.classList.contains('open')\n") == 1
+
+        assert "hasAttribute('data-open')" in capsys.readouterr().err
+
+    def test_a_genre_assertion_is_still_exempt(self, tmp_path, monkeypatch, capsys) -> None:
+        """The five permanent exceptions survive the floor, and are counted."""
+        assert self._arm(tmp_path, monkeypatch, "el.classList.contains('h2')\n") == 0
+
+        assert "1 genre assertion(s) exempt" in capsys.readouterr().out
+
+    def test_the_guard_takes_no_argument_any_more(self, capsys) -> None:
+        """`--write-baseline` is gone, and saying so is part of the removal."""
+        assert guard.main(["--write-baseline"]) == 1
+
+        assert "the burn-down baseline" in capsys.readouterr().err
+
+    def test_nothing_reads_a_baseline_file(self) -> None:
+        """No path, no loader, no writer — and no file on disk.
+
+        A guard that still knew where a baseline lived would be one edit
+        from consulting it again.
         """
-        stored = [self._selection(".screen.open .fback", ".fback")]
-        fresh = [self._selection('[data-part="screen"][data-open] .fback', ".fback")]
-        baseline = self._regenerate(monkeypatch, tmp_path, stored, fresh)
+        assert not (Path(guard.ROOT) / "frontend" / "maquette" / "anchor-baseline.json").exists()
+        assert not [name for name in ("BASELINE", "load_baseline", "write_baseline") if hasattr(anchors, name)]
+        assert "anchor-baseline" not in SCRIPT.read_text(encoding="utf-8")
 
-        assert guard.write_baseline() == 0
-        assert json.loads(baseline.read_text(encoding="utf-8")) == fresh
+    def test_the_second_reader_finds_no_class_anchor_either(self) -> None:
+        """The cross-check that `--write-baseline` used to make, kept.
 
-    def test_a_genuinely_new_token_is_still_refused(self, monkeypatch, tmp_path):
-        """A weaker key must not soften the ratchet: a NEW token is new debt.
-
-        The same file presenting one more occurrence the stored baseline
-        does not own — here `.probe-new`, a token it has never seen — must
-        refuse the write and leave the stored baseline untouched.
+        The regeneration held the guard's own extraction against the
+        independent classifier's and refused to write when they disagreed.
+        Deleting it would leave the floor resting on ONE reader's zero, so
+        the agreement is asserted here instead: both read the real harness,
+        and both must find nothing.
         """
-        stored = [self._selection(".screen.open .fback", ".fback")]
-        fresh = stored + [self._selection(".probe-new", ".probe-new", line=self.LINE + 1)]
-        baseline = self._regenerate(monkeypatch, tmp_path, stored, fresh)
+        run = subprocess.run(
+            [sys.executable, str(SCRIPT.parent / "classify-rule-anchors.py"), "--baseline"],
+            capture_output=True,
+            text=True,
+        )
 
-        assert guard.write_baseline() == 1
-        assert json.loads(baseline.read_text(encoding="utf-8")) == stored
-
-    def test_a_fourth_occurrence_of_an_owned_token_is_an_addition(self, monkeypatch, tmp_path):
-        """Multiplicity: three owned `.card`s gaining a fourth is one added.
-
-        The identity is counted as a multiset — the same identity twice is
-        two entries and must stay two, so a file with three baselined
-        `.card`s presenting a fourth still refuses the write.
-        """
-        stored = [self._selection(".card", ".card", line=self.LINE + i) for i in range(3)]
-        fresh = stored + [self._selection(".card", ".card", line=self.LINE + 9)]
-        baseline = self._regenerate(monkeypatch, tmp_path, stored, fresh)
-
-        assert guard.write_baseline() == 1
-        assert json.loads(baseline.read_text(encoding="utf-8")) == stored
+        assert run.returncode == 0, run.stderr
+        assert json.loads(run.stdout) == []
 
 
 class TestEscapedPartSelections:
@@ -607,6 +607,117 @@ class TestHeldSelectors:
         assert "3 class token occurrences total" in run.stdout
 
 
+class TestInterpolatedAndConcatenatedSelectors:
+    """The held pass's own blind spot: two shapes NEITHER reader could see.
+
+    The held pass qualified a candidate by a SELECTOR ALPHABET, and a
+    selector the harness builds at run time does not spell itself in it:
+
+      * an f-string carries `{…}` interpolations — `f'#sheet
+        [data-part="sheet/action"][data-setsort="{key}"]'` — and the braces
+        are outside the alphabet, so the whole literal was dropped;
+      * a selector CONCATENATED onto a variable starts with the descendant
+        combinator — `querySelector(s + ' .fback')` — and the candidate
+        pattern demanded `.`, `#` or `[` immediately after the quote.
+
+    Both are live selections, and both were read by nothing: not by the
+    anchor arm, not by the part arm, not by the independent classifier. A
+    floor of zero over a corpus a reader cannot see is not a zero, which is
+    why these are read before the floor is declared.
+
+    THE INTERPOLATION IS AN OPAQUE TOKEN. It does not end the selector, and
+    it does not contribute a name either: `.{k}card` yields NO class token,
+    because the class is computed and half-reading a name is worse than not
+    reading it.
+
+    AND THE WIDENING IS A RULE, NOT A WAIVER. Two refusals keep prose and
+    stylesheet text out of a pass that now tolerates braces: an
+    interpolation is a BALANCED `{…}` span, and a selector's only `=` sits
+    inside an attribute block.
+    """
+
+    # A class anchor inside an f-string selector.
+    INTERPOLATED = "SEL = f'#view .swipe[data-index=\"{i}\"]'\n"
+    # A class anchor after a leading space, concatenated onto a variable.
+    CONCATENATED = "await pg.evaluate(\"(s)=>document.querySelector(s + ' .fback')\")\n"
+
+    def _fixture(self, tmp_path, source):
+        """Writes `source` as a fixture harness file.
+
+        Args:
+            tmp_path: The pytest fixture.
+            source: The fixture file's text.
+
+        Returns:
+            The path written.
+        """
+        fixture = tmp_path / "fixture.py"
+        fixture.write_text(source, encoding="utf-8")
+        return fixture
+
+    def test_an_interpolated_selector_is_read(self, tmp_path) -> None:
+        """The braces are opaque, and the selector around them is read."""
+        found = guard.held_occurrences(self._fixture(tmp_path, self.INTERPOLATED), {"swipe"})
+
+        assert found == [(1, '#view .swipe[data-index="{i}"]')]
+        assert guard.class_tokens(found[0][1]) == [".swipe"]
+
+    def test_a_concatenated_selector_is_read(self, tmp_path) -> None:
+        """A leading space is the descendant combinator, not a disqualifier."""
+        assert guard.held_occurrences(self._fixture(tmp_path, self.CONCATENATED), {"fback"}) == [(1, ".fback")]
+
+    def test_a_computed_class_name_yields_no_token(self, tmp_path) -> None:
+        """`.{k}card` names no class at rest, and must not be half-read."""
+        assert guard.class_tokens("#view .{k}card") == []
+
+    def test_a_stylesheet_fragment_is_not_a_selector(self, tmp_path) -> None:
+        """`.cov{-webkit-line-clamp:` opens a brace it never closes."""
+        assert guard.held_occurrences(self._fixture(tmp_path, "CSS = '.cov{-webkit-line-clamp:'\n"), {"cov"}) == []
+
+    def test_a_rule_opening_is_not_a_selector(self, tmp_path) -> None:
+        """`.splashbar {` is a stylesheet rule opening, not a selection."""
+        assert guard.held_occurrences(self._fixture(tmp_path, "CSS = '.splashbar {'\n"), {"splashbar"}) == []
+
+    def test_a_journal_label_is_not_a_selector(self, tmp_path) -> None:
+        """`#splash.hidden = {x}` balances its braces and is still prose.
+
+        A selector's only `=` lives inside an attribute block; a bare one
+        says the string is a message about an element, not a selection of
+        it.
+        """
+        assert guard.held_occurrences(self._fixture(tmp_path, "M = '#splash.hidden = {x}'\n"), {"hidden"}) == []
+
+    def test_the_arm_refuses_both_and_names_them(self, tmp_path, monkeypatch, capsys) -> None:
+        """The refusal is the ARM's: exactly two violations, both named."""
+        fixture = self._fixture(tmp_path, self.INTERPOLATED + self.CONCATENATED)
+        monkeypatch.setattr(anchors, "harness_files", lambda: [fixture])
+        monkeypatch.setattr(anchors, "ROOT", tmp_path)
+
+        assert guard.check_anchor_debt() == 1
+        err = capsys.readouterr().err
+
+        assert "fixture.py:1" in err and ".swipe" in err
+        assert "fixture.py:2" in err and ".fback" in err
+        assert "2 anchor occurrence(s)" in err
+
+    def test_the_classifier_reads_both_shapes_too(self, tmp_path) -> None:
+        """The second reader agrees, or one of the two is wrong.
+
+        The third line is a literal-argument call carrying no class token:
+        the classifier refuses a root with no selection call at all, and
+        that refusal is not what this test is about.
+        """
+        self._fixture(tmp_path, self.INTERPOLATED + self.CONCATENATED + "querySelector('#view')\n")
+        run = subprocess.run(
+            [sys.executable, str(SCRIPT.parent / "classify-rule-anchors.py"), "--baseline", str(tmp_path)],
+            capture_output=True,
+            text=True,
+        )
+
+        assert run.returncode == 0, run.stderr
+        assert [entry["token"] for entry in json.loads(run.stdout)] == [".swipe", ".fback"]
+
+
 class TestHarnessParses:
     r"""The precondition: a rule file Python cannot read is a violation.
 
@@ -615,7 +726,8 @@ class TestHarnessParses:
     selectors hosted in single-line DOUBLE-quoted Python strings: the raw `"`
     ended the literal, and `inter.py` and `mouse.py` STOPPED PARSING. Every
     instrument then read them and reported no violation — this guard exited
-    0, `--write-baseline` wrote happily, `classify-rule-anchors.py` counted.
+    0, the baseline regeneration (a mode since deleted) wrote happily,
+    `classify-rule-anchors.py` counted.
     Only running the rules would have fallen, and that pass takes sixteen
     minutes.
 

@@ -31,9 +31,9 @@ ROOT = Path(__file__).resolve().parent.parent
 SOURCES = ROOT / "frontend" / "maquette" / "design" / "src"
 
 # The anchor arm's corpus: the harness rules, the same `*.py` set
-# `classify-rule-anchors.py` reads. The two readers must share the corpus
-# or the cross-check they are held against each other in `--write-baseline`
-# measures nothing. The part arm reads the same set, from the other end.
+# `classify-rule-anchors.py` reads. The two readers must share the corpus,
+# or « both find zero class anchors » is two answers to two questions. The
+# part arm reads the same set, from the other end.
 HARNESS = ROOT / "frontend" / "maquette" / "harness"
 
 # Comments are stripped before anything is read. `library.tsx` carries a comment
@@ -60,9 +60,9 @@ def parse_failures(paths: Iterable[Path]) -> list[tuple[Path, int, str]]:
     DOUBLE-quoted Python strings: the raw `"` closed the literal, and
     `harness/inter.py` and `harness/mouse.py` STOPPED PARSING. Every
     instrument then read them and reported no violation — the four arms
-    exited 0, `--write-baseline` wrote happily, `classify-rule-anchors.py`
-    counted. Only the sixteen-minute pass that RUNS the rules would have
-    fallen.
+    exited 0, the anchor arm's baseline regeneration (a mode since deleted)
+    wrote happily, `classify-rule-anchors.py` counted. Only the
+    sixteen-minute pass that RUNS the rules would have fallen.
 
     Nothing raised because nothing here parses. The arms read the harness as
     RAW TEXT, and text has no syntax to be wrong. `comment_masked` tokenizes,
@@ -147,6 +147,84 @@ def strip_interpolations(selector: str) -> str:
                     depth -= 1
                 j += 1
             i = j + 1
+            continue
+        out.append(selector[i])
+        i += 1
+    return "".join(out)
+
+
+def strip_braced_spans(selector: str) -> str | None:
+    """Removes every `{...}` interpolation, `${...}` included.
+
+    A selector the harness BUILDS at run time spells its computed parts as
+    braces — a Python f-string's `{key}`, a JS template's `${key}` — and
+    those braces are outside the selector alphabet, so a candidate
+    carrying one used to be dropped whole. The span is an OPAQUE token
+    instead: it does not end the selector, and it contributes no name
+    either, because the readers judge the text that remains and a
+    computed class is a name nothing knows at rest.
+
+    AN INTERPOLATION IS BALANCED, and that is the refusal this returns
+    None for. A lone `{` says the string is stylesheet text (`.cov{-webkit-
+    line-clamp:`) or a rule opening (`.splashbar {`) — neither is a
+    selection, and both carry class tokens that would otherwise be
+    reported as anchors nobody can migrate.
+
+    Args:
+        selector: One candidate string.
+
+    Returns:
+        The string with every balanced `{...}` span removed — and the `$`
+        of a `${...}` with it — or None when a brace never balances.
+    """
+    out: list[str] = []
+    i = 0
+    while i < len(selector):
+        ch = selector[i]
+        if ch == "}":
+            return None
+        if ch != "{":
+            out.append(ch)
+            i += 1
+            continue
+        depth = 0
+        j = i
+        while j < len(selector):
+            if selector[j] == "{":
+                depth += 1
+            elif selector[j] == "}":
+                depth -= 1
+                if depth == 0:
+                    break
+            j += 1
+        if j >= len(selector):
+            return None
+        if out and out[-1] == "$":
+            out.pop()
+        i = j + 1
+    return "".join(out)
+
+
+def outside_attribute_blocks(selector: str) -> str:
+    """Returns `selector` with every `[...]` block removed.
+
+    An attribute block's contents are values, not selector syntax, so a
+    question about the SYNTAX is asked of what sits outside them.
+
+    Args:
+        selector: One candidate string.
+
+    Returns:
+        The text outside every `[...]` block, concatenated. An unclosed
+        `[` swallows the rest, which is what an unclosed block does to a
+        selector too.
+    """
+    out: list[str] = []
+    i = 0
+    while i < len(selector):
+        if selector[i] == "[":
+            end = selector.find("]", i)
+            i = end + 1 if end != -1 else len(selector)
             continue
         out.append(selector[i])
         i += 1

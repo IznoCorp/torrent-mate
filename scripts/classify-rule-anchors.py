@@ -26,10 +26,11 @@ means what is the defect this tool exists to measure:
 `.swipe` class is removed. Over the corpus as first measured, 151 class tokens
 hide behind a stronger anchor this way — 432 selectors fall at the stylesheet
 conversion, not the 281 `--summary` reports. And the unit of work is the token
-OCCURRENCE, not the selector: one selector can carry tokens owned by two
-different phases, so only the occurrence has a single owning phase. That is
-why `--baseline` emits one entry per occurrence, each naming the token that
-entry is about.
+OCCURRENCE, not the selector: one selector can carry tokens two different
+migrations own, so only the occurrence has a single owner. That is why
+`--baseline` emits one entry per occurrence, each naming the token that entry
+is about — a listing now expected EMPTY, since the guard beside this tool
+refuses the first class anchor it finds.
 
 THE PRECEDENCE RULE — the rule IS the --summary measurement. Within ONE
 selector string, classify by the strongest anchor present:
@@ -64,9 +65,7 @@ read as text.
     with no measurement — the second blind spot of the family D4's
     one-bucket rule was found to be. `--tokens` and `--baseline` count
     both passes; the two populations are told apart by the `held` field
-    on each baseline entry. The identity is unchanged: a held occurrence
-    of `.tile` in gallery.py and a call occurrence of `.tile` in
-    gallery.py are two entries with the same key.
+    on each entry.
 
 WHAT IT DOES NOT READ. A call whose argument is not a string literal — a
 variable, an expression — is a CALL this tool cannot name; the string
@@ -89,13 +88,16 @@ index.html`, `design/src/engine/legacy.js` and the sources under
 selector structure: a combinator, an attribute block, a comma list.
 `.json5` fails both — nothing emits a class named json5, and the string
 has no structure — while `.tile[data-panel]` passes on structure and
-`.sact` passes on emission. A shape test runs first: the string starts
-with `.`, `#` or `[`, holds only selector-alphabet characters, and is
-not a method call (`.render(`). A string carrying an interpolation — a
-Python f-string or a `${...}` span — fails the shape test: the computed
-part names no literal at rest. A candidate with no class token is not
-recorded: the burn-down's unit is the class token occurrence, and a
-string with none owes it nothing.
+`.sact` passes on emission. A shape test runs first, `selector_shaped`:
+the string starts with `.`, `#` or `[` — after any LEADING SPACE, since
+a selector concatenated onto a variable begins with the descendant
+combinator — holds only selector-alphabet characters once its BALANCED
+`{...}` interpolations are removed, carries no `=` outside an attribute
+block, and is not a method call (`.render(`). An interpolation is an
+OPAQUE token: it does not end the selector, and it contributes no name,
+because a computed class names no literal at rest. A candidate with no
+class token is not recorded: the unit of the measurement is the class
+token occurrence, and a string with none owes it nothing.
 
 Usage:
     python3 scripts/classify-rule-anchors.py --summary [root]
@@ -128,9 +130,9 @@ CALL = re.compile(r"(querySelector|querySelectorAll|locator|matches)\s*\(")
 # call.
 CONTAINS = re.compile(r"classList\.contains\(\s*(['\"])([^'\"]*)\1\s*\)")
 
-# The seven state classes the lot migrates to the boolean data-* attributes.
-# `classList.contains` on one of these is a state assertion and belongs in the
-# baseline.
+# The seven state classes migrated to the boolean data-* attributes.
+# `classList.contains` on one of these is a state assertion, and it is listed
+# by `--baseline` rather than counted as a selection.
 STATE_CLASSES = ("open", "noposter", "show", "in_library",
                  "fempty", "fblocked", "announced")
 
@@ -157,9 +159,9 @@ ANCHORS = ("class", "data-*", "id", "tag", "role")
 SHELL = ROOT / "frontend" / "maquette" / "design" / "index.html"
 SOURCES = ROOT / "frontend" / "maquette" / "design" / "src"
 
-# The characters a selector can hold. A string carrying anything else —
-# a Python f-string's braces, a `${...}` span, prose — is not
-# selector-shaped and is read by neither pass.
+# The characters a selector can hold, once its `{...}` interpolations
+# are removed. A string carrying anything else — prose, a stray operator
+# — is not selector-shaped and is read by neither pass.
 SELECTOR_ALPHABET = set(
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     "0123456789.#[]=\"'`~+>*,:()\\-_^$|/ ")
@@ -169,13 +171,17 @@ SELECTOR_ALPHABET = set(
 # parenthesis hangs off a pseudo-class, not off a class token.
 METHOD_CALL = re.compile(r"^\.[-\w]+\s*\(")
 
-# A quoted literal whose content starts with a selector character and
-# holds, up to the closing quote, selector text: plain characters and
-# attribute blocks — an attribute block may carry the delimiter (`a
-# [data-x="y"]` inside a single-quoted string), which is exactly why the
-# pass cannot be a simple quote-pair scan.
+# A quoted literal whose content starts with a selector character —
+# after any LEADING SPACE, because a selector concatenated onto a
+# variable starts with the descendant combinator
+# (`querySelector(s + ' .fback')`) — and holds, up to the closing quote,
+# selector text: plain characters and attribute blocks. An attribute
+# block may carry the delimiter (`a [data-x="y"]` inside a single-quoted
+# string), which is exactly why the pass cannot be a simple quote-pair
+# scan. The leading space sits OUTSIDE the captured group: what is
+# judged is the selector, not the concatenation that hosts it.
 HELD_RE = re.compile(
-    r"""(["'`])(?P<sel>[.#\[](?:(?!\1)[^\[\n])*(?:\[[^\[\]\n]*\]"""
+    r"""(["'`]) *(?P<sel>[.#\[](?:(?!\1)[^\[\n])*(?:\[[^\[\]\n]*\]"""
     r"""(?:(?!\1)[^\[\n])*)*)\1""")
 
 # The JS comments of the embedded-JS containers — the same two shapes
@@ -486,6 +492,96 @@ def call_argument_starts(text: str) -> set[int]:
     return starts
 
 
+def strip_braced_spans(selector: str) -> str | None:
+    """Removes every `{...}` interpolation, `${...}` included.
+
+    Mirrored from `markup_anchors.strip_braced_spans`, whose header carries
+    the rationale: an interpolation is an OPAQUE token, and a brace that
+    never balances says the string is stylesheet text, not a selection.
+
+    Args:
+        selector: One candidate string.
+
+    Returns:
+        The string with every balanced `{...}` span removed — and the `$`
+        of a `${...}` with it — or None when a brace never balances.
+    """
+    out: list[str] = []
+    i = 0
+    while i < len(selector):
+        ch = selector[i]
+        if ch == "}":
+            return None
+        if ch != "{":
+            out.append(ch)
+            i += 1
+            continue
+        depth = 0
+        j = i
+        while j < len(selector):
+            if selector[j] == "{":
+                depth += 1
+            elif selector[j] == "}":
+                depth -= 1
+                if depth == 0:
+                    break
+            j += 1
+        if j >= len(selector):
+            return None
+        if out and out[-1] == "$":
+            out.pop()
+        i = j + 1
+    return "".join(out)
+
+
+def outside_attribute_blocks(selector: str) -> str:
+    """Returns `selector` with every `[...]` block removed.
+
+    An attribute block's contents are values, not selector syntax, so a
+    question about SYNTAX is asked of what sits outside them.
+
+    Args:
+        selector: One candidate string.
+
+    Returns:
+        The text outside every `[...]` block.
+    """
+    out: list[str] = []
+    i = 0
+    while i < len(selector):
+        if selector[i] == "[":
+            end = selector.find("]", i)
+            i = end + 1 if end != -1 else len(selector)
+            continue
+        out.append(selector[i])
+        i += 1
+    return "".join(out)
+
+
+def selector_shaped(content: str) -> bool:
+    """True when a held candidate is SHAPED like a selector.
+
+    Mirrored deliberately from `markup_anchors.selector_shaped`, which names
+    the three refusals and the string each was paid for: the two readers must
+    agree or one of them is wrong.
+
+    Args:
+        content: One candidate string, its leading space already trimmed
+            by the pattern that found it.
+
+    Returns:
+        True when the candidate can be read as a selector.
+    """
+    probe = strip_braced_spans(content)
+    if probe is None:
+        return False
+    if any(ch not in SELECTOR_ALPHABET for ch in probe):
+        return False
+    if "=" in outside_attribute_blocks(probe):
+        return False
+    return not METHOD_CALL.match(content)
+
+
 def has_structure(content: str) -> bool:
     """True when a candidate carries selector structure.
 
@@ -624,9 +720,7 @@ def held_selectors(text: str, emitted: set[str]) -> list[tuple[int, str]]:
         if match.start() in call_args:
             continue
         content = match.group("sel")
-        if any(ch not in SELECTOR_ALPHABET for ch in content):
-            continue
-        if METHOD_CALL.match(content):
+        if not selector_shaped(content):
             continue
         tokens = class_tokens(content)
         if not tokens:
@@ -748,18 +842,19 @@ def print_exceptions() -> None:
 def print_baseline(selections: list[tuple[str, int, str, str]],
                    assertions: list[tuple[str, int, str]],
                    held: list[tuple[str, int, str]]) -> None:
-    """Prints the baseline as JSON: one entry per class token occurrence.
+    """Prints the class-anchor listing as JSON: one entry per occurrence.
 
-    The burn-down is keyed on the token OCCURRENCE, not the selector — a
-    selector carrying two class tokens owes work to two entries, because the
-    tokens can be owned by different phases. Each `selection` entry therefore
-    carries the full selector AND the `token` it is about; two tokens in one
-    selector are two entries. An entry the held pass found carries
-    `"held": true`; a call entry carries `"held": false` — the two
-    populations must stay tellable apart, while the identity `(kind, file,
-    token)` stays the same key for both. `assertion` entries carry the
-    class name, and the five genre assertions are permanent exceptions,
-    not part of the baseline.
+    THE LISTING IS EXPECTED EMPTY, and that is what it is for. The guard
+    refuses the first class anchor it finds; this mode is the SECOND reader
+    of the same corpus, by its own extraction, and `[]` from both is the
+    measurement — one reader's zero is a claim.
+
+    The listing is keyed on the token OCCURRENCE, not the selector — a selector
+    carrying two class tokens owes two entries, each carrying the full selector
+    AND the `token` it is about. An entry the held pass found carries
+    `"held": true`; a call entry carries `"held": false` — the two populations
+    must stay tellable apart. `assertion` entries carry the class name, and the
+    five genre assertions are permanent exceptions, listed by `--exceptions`.
 
     Args:
         selections: The corpus as `(file, line, method, selector)` tuples.

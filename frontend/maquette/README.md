@@ -982,6 +982,26 @@ knows that form and `setAttribute("data-part", "…")`, with a literal value onl
 value is unread in every form, so a computed class is anchored with a literal `data-part` at
 the same site.
 
+**The floor is a HARD ZERO, not a burn-down.** `scripts/check-markup-contracts.py`
+refuses the FIRST class token in any rule selector — passed to `querySelector` or held
+in a variable, a table, a concatenation — and the first `classList.contains` on one of
+the seven migrated states. There is no baseline file, no budget and no
+`--allow-additions`: the guard takes no argument at all. The shipped debt was carried by
+a burn-down list while it was being migrated, and list, ratchet and escape hatch were
+deleted in the same move as the last entry — an empty tolerance is a tolerance someone
+raises.
+
+**And the zero is only worth what the readers SEE.** A selector the harness BUILDS
+spells itself in neither shape a naive reader expects: an f-string carries `{…}`
+interpolations, and a selector concatenated onto a variable starts with a space. Both
+were live and read by NOTHING — not the guard, not the independent
+`classify-rule-anchors.py`. The shape test now treats an interpolation as an opaque
+token that does not end the selector, and accepts the leading space; it still refuses a
+brace that never balances (`.splashbar {` is stylesheet text) and an `=` outside an
+attribute block (`#splash.hidden = {…}` is a journal label about an element, not a
+selection of it). Both readers must report zero — `classify-rule-anchors.py --baseline`
+prints `[]` — because one reader's zero is a claim.
+
 ## Where the interface's French lives
 
 **No interface string lives in the code.** The shell's copy is in
