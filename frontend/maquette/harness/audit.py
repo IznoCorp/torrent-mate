@@ -152,8 +152,8 @@ async def main():
           // SHAPE distinguishes single choice (circle) from multiple choice
           // (square). Identical pills stated no rule.
           R.irregularOptions = [];
-          for (const grp of root.querySelectorAll('.optlist')) {
-            const opts = [...grp.querySelectorAll('.opt')];
+          for (const grp of root.querySelectorAll('[data-part="option/list"]')) {
+            const opts = [...grp.querySelectorAll('[data-part="option"]')];
             const t = opts.map(e=>{const b=e.getBoundingClientRect();
               return Math.round(b.width)+'×'+Math.round(b.height);});
             if (new Set(t).size > 1) R.irregularOptions.push('sizes '+[...new Set(t)].join(' / '));

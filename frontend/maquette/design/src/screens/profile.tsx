@@ -121,11 +121,13 @@ export function ProfileScreen() {
             <p className="optkind">{t("screens.profile.singleChoice")}</p>
             <div
               className="optlist"
+              data-part="option/list"
               role="radiogroup"
               aria-label={t("screens.profile.minResolution")}
             >
               <button
                 className="opt radio"
+                data-part="option"
                 role="radio"
                 aria-checked={profile.min_resolution === null}
                 data-qres=""
@@ -141,6 +143,7 @@ export function ProfileScreen() {
                 <button
                   key={reso}
                   className="opt radio"
+                  data-part="option"
                   role="radio"
                   aria-checked={profile.min_resolution === reso}
                   data-qres={reso}
@@ -175,11 +178,12 @@ export function ProfileScreen() {
                 ? ` — ${t("screens.profile.noneChecked")}`
                 : ""}
             </p>
-            <div className="optlist">
+            <div className="optlist" data-part="option/list">
               {AUDIOS.map(([key, label]) => (
                 <button
                   key={key}
                   className="opt check"
+                  data-part="option"
                   role="checkbox"
                   aria-checked={profile.required_audio.includes(key)}
                   data-qaud={key}

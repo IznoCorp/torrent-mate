@@ -315,22 +315,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/audit.py",
-    "line": 155,
-    "selector": ".optlist",
-    "token": ".optlist"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit.py",
-    "line": 156,
-    "selector": ".opt",
-    "token": ".opt"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit.py",
     "line": 170,
     "selector": ".switch",
     "token": ".switch"
@@ -2422,38 +2406,22 @@
     "held": true,
     "file": "frontend/maquette/harness/scroll.py",
     "line": 44,
-    "selector": ".opt.check",
+    "selector": "[data-part=\"option\"].check",
     "token": ".check"
   },
   {
     "kind": "selection",
     "held": true,
     "file": "frontend/maquette/harness/scroll.py",
-    "line": 44,
-    "selector": ".opt.check",
-    "token": ".opt"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/scroll.py",
-    "line": 45,
-    "selector": ".opt.radio",
-    "token": ".opt"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/scroll.py",
-    "line": 45,
-    "selector": ".opt.radio",
+    "line": 46,
+    "selector": "[data-part=\"option\"].radio",
     "token": ".radio"
   },
   {
     "kind": "selection",
     "held": true,
     "file": "frontend/maquette/harness/scroll.py",
-    "line": 46,
+    "line": 48,
     "selector": ".switch",
     "token": ".switch"
   },
@@ -2461,7 +2429,7 @@
     "kind": "selection",
     "held": true,
     "file": "frontend/maquette/harness/scroll.py",
-    "line": 48,
+    "line": 50,
     "selector": ".segmini button",
     "token": ".segmini"
   },
@@ -2621,14 +2589,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/settings.py",
-    "line": 140,
-    "selector": ".field",
-    "token": ".field"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/settings.py",
     "line": 141,
     "selector": ".sact",
     "token": ".sact"
@@ -2669,40 +2629,8 @@
     "kind": "selection",
     "held": true,
     "file": "frontend/maquette/harness/settings.py",
-    "line": 294,
-    "selector": ".fieldtoggle",
-    "token": ".fieldtoggle"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/settings.py",
-    "line": 295,
-    "selector": ".fieldinput[type=number]",
-    "token": ".fieldinput"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/settings.py",
-    "line": 296,
-    "selector": ".fieldinput[type=text]",
-    "token": ".fieldinput"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/settings.py",
     "line": 297,
-    "selector": ".fieldinput.mono",
-    "token": ".fieldinput"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/settings.py",
-    "line": 297,
-    "selector": ".fieldinput.mono",
+    "selector": "[data-part=\"field/input\"].mono",
     "token": ".mono"
   },
   {
@@ -2717,56 +2645,16 @@
     "kind": "selection",
     "held": true,
     "file": "frontend/maquette/harness/settings.py",
-    "line": 299,
-    "selector": ".fieldinput",
-    "token": ".fieldinput"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/settings.py",
     "line": 300,
-    "selector": ".field.readonly",
-    "token": ".field"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/settings.py",
-    "line": 300,
-    "selector": ".field.readonly",
+    "selector": "[data-part=\"field\"].readonly",
     "token": ".readonly"
   },
   {
     "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/settings.py",
-    "line": 301,
-    "selector": ".fieldinput",
-    "token": ".fieldinput"
-  },
-  {
-    "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/settings.py",
     "line": 322,
-    "selector": ".fieldinput, .fieldtoggle, .ladd",
-    "token": ".fieldinput"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/settings.py",
-    "line": 322,
-    "selector": ".fieldinput, .fieldtoggle, .ladd",
-    "token": ".fieldtoggle"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/settings.py",
-    "line": 322,
-    "selector": ".fieldinput, .fieldtoggle, .ladd",
+    "selector": "[data-part=\"field/input\"], [data-part=\"field/toggle\"], .ladd",
     "token": ".ladd"
   },
   {
@@ -2774,56 +2662,8 @@
     "held": false,
     "file": "frontend/maquette/harness/settings.py",
     "line": 323,
-    "selector": ".field.readonly code",
-    "token": ".field"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/settings.py",
-    "line": 323,
-    "selector": ".field.readonly code",
+    "selector": "[data-part=\"field\"].readonly code",
     "token": ".readonly"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/settings.py",
-    "line": 332,
-    "selector": "#sheetin .fieldinput",
-    "token": ".fieldinput"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/settings.py",
-    "line": 333,
-    "selector": "#sheetin .fieldinput",
-    "token": ".fieldinput"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/settings.py",
-    "line": 343,
-    "selector": "#sheetin .fieldinput",
-    "token": ".fieldinput"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/settings.py",
-    "line": 344,
-    "selector": "#sheetin .fieldinput",
-    "token": ".fieldinput"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/settings.py",
-    "line": 353,
-    "selector": "#sheetin .fieldtoggle",
-    "token": ".fieldtoggle"
   },
   {
     "kind": "selection",
@@ -2848,38 +2688,6 @@
     "line": 369,
     "selector": "#sheetin .litem",
     "token": ".litem"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/settings.py",
-    "line": 388,
-    "selector": "#sheetin .fieldinput",
-    "token": ".fieldinput"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/settings.py",
-    "line": 393,
-    "selector": "#sheetin .fieldinput",
-    "token": ".fieldinput"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/settings.py",
-    "line": 394,
-    "selector": "#sheetin .fieldinput",
-    "token": ".fieldinput"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/settings.py",
-    "line": 410,
-    "selector": "#sheetin .fieldinput",
-    "token": ".fieldinput"
   },
   {
     "kind": "selection",

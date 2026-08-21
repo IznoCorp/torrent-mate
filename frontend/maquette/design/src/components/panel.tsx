@@ -410,7 +410,7 @@ function FieldBlock({
 
   if (setting.type === "structure")
     return (
-      <div className="field readonly">
+      <div className="field readonly" data-part="field">
         <p className="rulenote">
           {t("settings.field.structureBefore")}{" "}
           <b>{t("settings.field.structureWord")}</b>{" "}
@@ -422,9 +422,10 @@ function FieldBlock({
 
   if (setting.type === "boolean")
     return (
-      <div className="field">
+      <div className="field" data-part="field">
         <button
           className={`fieldtoggle${v ? " active" : ""}`}
+          data-part="field/toggle"
           role="switch"
           aria-checked={v ? "true" : "false"}
           data-field={id}
@@ -441,7 +442,7 @@ function FieldBlock({
   if (setting.type === "list") {
     const items = Array.isArray(v) ? (v as unknown[]) : [];
     return (
-      <div className="field list">
+      <div className="field list" data-part="field">
         {items.length ? (
           items.map((x, index) => (
             <div className="litem" key={index}>
@@ -478,7 +479,7 @@ function FieldBlock({
   const unit = unitOf(setting);
 
   return (
-    <div className="field">
+    <div className="field" data-part="field">
       <input
         // KEYED BY THE SETTING, and this is a correctness fix, not a hint.
         // `#sheetin` is a persistent node now, where the legacy layer replaced
@@ -492,6 +493,7 @@ function FieldBlock({
         // setting makes a different setting a different node.
         key={id}
         className={`fieldinput${mono ? " mono" : ""}`}
+        data-part="field/input"
         data-field={id}
         type={numeric ? "number" : "text"}
         inputMode={numeric ? "decimal" : undefined}

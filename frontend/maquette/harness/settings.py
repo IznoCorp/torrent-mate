@@ -137,7 +137,7 @@ async def main():
           const s = document.querySelector('#sheetin');
           return {text: (s.textContent||'').replace(/\\s+/g,' '),
                   mono: !!s.querySelector('code'),
-                  field: !!s.querySelector('.field'),
+                  field: !!s.querySelector('[data-part="field"]'),
                   actions: [...s.querySelectorAll('.sact')].map(x=>x.textContent.trim())};}""")
         source = (CONFIG / "thresholds.json5").read_text()
         comment = re.search(r"//\s*(.+?)\n\s*min_free_space_staging_gb", source)
@@ -291,14 +291,14 @@ async def main():
         # Driven by TYPE for the same reason: naming a key here would pass the
         # day that key moves and open something else.
         expected = {
-            "boolean": ".fieldtoggle",
-            "number": ".fieldinput[type=number]",
-            "text": ".fieldinput[type=text]",
-            "path": ".fieldinput.mono",
+            "boolean": '[data-part="field/toggle"]',
+            "number": '[data-part="field/input"][type=number]',
+            "text": '[data-part="field/input"][type=text]',
+            "path": '[data-part="field/input"].mono',
             "list": ".ladd",
-            "duration": ".fieldinput",
-            "structure": ".field.readonly",
-            "empty": ".fieldinput",
+            "duration": '[data-part="field/input"]',
+            "structure": '[data-part="field"].readonly',
+            "empty": '[data-part="field/input"]',
         }
         seen = await pg.evaluate(
             """()=>[...new Set(SETTINGS.flatMap(r => r.r).map(x => x.type))].sort()""")
@@ -319,8 +319,8 @@ async def main():
         await pg.wait_for_timeout(320)
         refusal = await pg.evaluate("""()=>{
           const s = document.querySelector('#sheetin');
-          return {input: !!s.querySelector('.fieldinput, .fieldtoggle, .ladd'),
-                  names: !!s.querySelector('.field.readonly code')};}""")
+          return {input: !!s.querySelector('[data-part="field/input"], [data-part="field/toggle"], .ladd'),
+                  names: !!s.querySelector('[data-part="field"].readonly code')};}""")
         check("a structure offers no field", not refusal["input"], str(refusal))
         check("and it names the file to open", refusal["names"])
 
@@ -329,8 +329,8 @@ async def main():
         # undone by typing the original back — which is the check after.
         await pg.evaluate("()=>window.__go('settings-field-number')")
         await pg.wait_for_timeout(320)
-        await pg.fill("#sheetin .fieldinput", "42")
-        await pg.evaluate("()=>document.querySelector('#sheetin .fieldinput')"
+        await pg.fill('#sheetin [data-part="field/input"]', "42")
+        await pg.evaluate("""()=>document.querySelector('#sheetin [data-part="field/input"]')"""
                           ".dispatchEvent(new Event('change'))")
         await pg.wait_for_timeout(320)
         filed = await pg.evaluate(
@@ -340,8 +340,8 @@ async def main():
 
         original = await pg.evaluate(
             """()=>String(SETTINGS.flatMap(r => r.r).find(x => x.type === 'number').brut)""")
-        await pg.fill("#sheetin .fieldinput", original)
-        await pg.evaluate("()=>document.querySelector('#sheetin .fieldinput')"
+        await pg.fill('#sheetin [data-part="field/input"]', original)
+        await pg.evaluate("""()=>document.querySelector('#sheetin [data-part="field/input"]')"""
                           ".dispatchEvent(new Event('change'))")
         await pg.wait_for_timeout(320)
         check("and typing the file's value back cancels the change",
@@ -350,7 +350,7 @@ async def main():
 
         await pg.evaluate("()=>window.__go('settings-field-boolean')")
         await pg.wait_for_timeout(320)
-        await pg.click("#sheetin .fieldtoggle")
+        await pg.click('#sheetin [data-part="field/toggle"]')
         await pg.wait_for_timeout(320)
         toggled = await pg.evaluate(
             "()=>[...SETTINGS_STATE.modifs.values()].map(v => [v, typeof v])")
@@ -385,13 +385,13 @@ async def main():
           SETTINGS_STATE.topic = SETTINGS.find(r => r.r.includes(x)).id;
           render(); openSetting(settingId(x));
           return {id: settingId(x), own: String(x.brut ?? '')};}"""
-        read_field = """() => {const e = document.querySelector('#sheetin .fieldinput');
+        read_field = """() => {const e = document.querySelector('#sheetin [data-part="field/input"]');
           return e ? {value: e.value, field: e.dataset.field} : null;}"""
 
         first = await pg.evaluate(open_text, 0)
         await pg.wait_for_timeout(330)
-        await pg.fill("#sheetin .fieldinput", PROBE)
-        await pg.evaluate("()=>document.querySelector('#sheetin .fieldinput')"
+        await pg.fill('#sheetin [data-part="field/input"]', PROBE)
+        await pg.evaluate("""()=>document.querySelector('#sheetin [data-part="field/input"]')"""
                           ".dispatchEvent(new Event('change'))")
         await pg.wait_for_timeout(330)
         await pg.evaluate("()=>closeSheet()")
@@ -407,7 +407,7 @@ async def main():
 
         # And what a commit on the second one FILES, which is the half that
         # corrupts the configuration rather than merely misinforming.
-        await pg.evaluate("()=>document.querySelector('#sheetin .fieldinput')"
+        await pg.evaluate("""()=>document.querySelector('#sheetin [data-part="field/input"]')"""
                           ".dispatchEvent(new Event('change'))")
         await pg.wait_for_timeout(330)
         filed = await pg.evaluate(
