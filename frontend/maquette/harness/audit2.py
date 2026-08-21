@@ -237,7 +237,7 @@ async def main():
           const sb=getComputedStyle(bg), rb=bg.getBoundingClientRect(), rh=hero.getBoundingClientRect();
           // The header OCCUPIES the top: it pushes content, it does not float.
           if (sb.position!=='relative') out.push(`${name}: header in ${sb.position}`);
-          const hasVisualHere=!wrap.classList.contains('noposter');
+          const hasVisualHere=!wrap.hasAttribute('data-no-poster');
           // With no visual the field is deliberately short: it holds the place
           // and claims nothing. The threshold applies only to a real image.
           const threshold = hasVisualHere ? 240 : 48;
@@ -250,7 +250,7 @@ async def main():
           // makes the rule true, not good intentions.
           if (!getComputedStyle(bg,'::after').backgroundImage.includes('gradient'))
             out.push(`${name}: header without a legibility gradient`);
-          const hasVisual=!wrap.classList.contains('noposter');
+          const hasVisual=!wrap.hasAttribute('data-no-poster');
           if (hasVisual && sb.backgroundImage==='none') out.push(`${name}: header declared but empty`);
         }
       }

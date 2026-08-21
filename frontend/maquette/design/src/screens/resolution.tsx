@@ -110,6 +110,7 @@ function ReleaseCard({
       <div className="ctop">
         <span
           className="poster"
+          data-part="card/poster"
           title={
             opts.noPoster ? t("screens.resolution.noPosterTitle") : undefined
           }
@@ -127,7 +128,7 @@ function ReleaseCard({
               Carrying it here is also what makes leaving the screen
               unnecessary: an arbitration that sends you to a full sheet to
               decide loses the queue you were working through. */}
-          {opts.overview ? <span className="cov" data-part="card/cover">{opts.overview}</span> : ""}
+          {opts.overview ? <span className="cov" data-part="card/overview">{opts.overview}</span> : ""}
           {confidence ? (
             <span className="cmeta">
               <span className="chip info">
@@ -189,6 +190,7 @@ function DecisionCard({ decision }: { decision: SettledDecision }) {
       <div className="ctop">
         <span
           className="poster"
+          data-part="card/poster"
           dangerouslySetInnerHTML={{ __html: poster }}
         />
         <span className="cbody" data-part="card/body">

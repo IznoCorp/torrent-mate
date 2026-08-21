@@ -141,7 +141,7 @@ async def main():
             seen = await pg.evaluate(
                 """()=>[...document.querySelectorAll('[data-part="card"]')].filter(visible).map(c=>{
                     const b=c.querySelector('[data-part="card/body"]');
-                    const p=c.querySelector('.poster');
+                    const p=c.querySelector('[data-part="card/poster"]');
                     return {title:c.querySelector('[data-part="card/title"]')?.textContent||'',
                             nonMedia:c.dataset.nonmedia||null,
                             panel:b?b.dataset.panel||null:null,
@@ -336,7 +336,7 @@ async def main():
             m = await pg.evaluate(
                 """()=>{const c=document.querySelector('[data-part="card"]:not([data-nonmedia])');
                 if(!c) return null;
-                const p=c.querySelector('.poster'), t=c.querySelector('[data-part="card/title"]');
+                const p=c.querySelector('[data-part="card/poster"]'), t=c.querySelector('[data-part="card/title"]');
                 const rp=p.getBoundingClientRect(), cs=getComputedStyle(c);
                 return {poster:Math.round(rp.width),
                         padding:cs.padding, radius:cs.borderRadius,
@@ -392,7 +392,7 @@ async def main():
             seen_state = await pg.evaluate("""()=>{
               const out = {ratios: [], flush: [], margins: [], overlap: []};
               for (const c of document.querySelectorAll('[data-part="card"]')) {
-                const p = c.querySelector('.poster');
+                const p = c.querySelector('[data-part="card/poster"]');
                 if (!p || !p.getBoundingClientRect().width) continue;
                 const rp = p.getBoundingClientRect(), rc = c.getBoundingClientRect();
                 const title = (c.querySelector('[data-part="card/title"]')||{}).textContent || '?';
@@ -433,7 +433,7 @@ async def main():
             await pg.wait_for_timeout(100)
             cropped += await pg.evaluate("""()=>{
               const out = [];
-              for (const img of document.querySelectorAll('[data-part="card"] .poster img')) {
+              for (const img of document.querySelectorAll('[data-part="card"] [data-part="card/poster"] img')) {
                 const b = img.getBoundingClientRect();
                 if (!b.width || !img.naturalWidth) continue;
                 const rs = img.naturalHeight / img.naturalWidth, rb = b.height / b.width;
@@ -535,7 +535,7 @@ async def main():
               const out = {offending: [], folders: 0};
               // Only a poster one can PRESS makes a promise. A candidate's
               // poster is a picture — a span — and promises nothing at all.
-              for (const a of document.querySelectorAll('button.poster')) {
+              for (const a of document.querySelectorAll('button[data-part="card/poster"]')) {
                 if (!a.getBoundingClientRect().width) continue;
                 if (!a.hasAttribute('data-mediasheet'))
                   out.offending.push('pressable poster with no data-mediasheet: ' + a.className);

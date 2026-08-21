@@ -7124,7 +7124,7 @@ import { screens, panel, bridge } from "../seams.js";
       ? `<span class="pfall"><b>${escapeHtml(initials(descriptor.t))}</b></span>`
       : posterBox(descriptor.t, descriptor.k);
     const poster = hasSheet
-      ? `<button class="poster" aria-label="Fiche de ${escapeHtml(descriptor.t)}" data-mediasheet="${escapeHtml(descriptor.t)}">${image}</button>`
+      ? `<button class="poster" data-part="card/poster" aria-label="Fiche de ${escapeHtml(descriptor.t)}" data-mediasheet="${escapeHtml(descriptor.t)}">${image}</button>`
       : `<button class="folder" aria-label="Actions pour le dossier ${escapeHtml(descriptor.t)}" data-panel="${escapeHtml(descriptor.panel || `dossier:${descriptor.t}`)}">${svgIcon(icons.folder, 1.6)}<span class="dlabel">Dossier</span></button>`;
     /* Two lines, because they answer two questions. The first says WHAT THIS
        MEDIUM IS — how much of it is owned, what state it is in, how it is
@@ -7141,7 +7141,7 @@ import { screens, panel, bridge } from "../seams.js";
         <span class="ctitle" data-part="card/title" title="${escapeHtml(descriptor.t)}">${escapeHtml(descriptor.t)}</span>
         ${descriptor.s ? `<span class="csub">${escapeHtml(descriptor.s)}</span>` : ""}
         ${descriptor.r ? `<span class="creason">${richText(descriptor.r)}</span>` : ""}
-        ${descriptor.overview ? `<span class="cov" data-part="card/cover">${escapeHtml(descriptor.overview)}</span>` : ""}
+        ${descriptor.overview ? `<span class="cov" data-part="card/overview">${escapeHtml(descriptor.overview)}</span>` : ""}
         ${stateRow ? `<span class="cmeta">${stateRow}</span>` : ""}
         ${ligneAnnotations ? `<span class="cannotations">${ligneAnnotations}</span>` : ""}
       </button>
@@ -10000,7 +10000,7 @@ import { screens, panel, bridge } from "../seams.js";
       const has = currentState().selected.has(index);
       return `<button class="selrow" data-tile="${index}" aria-selected="${has}">
         <span class="sel">${svgIcon(icons.check, 3)}</span>
-        <span class="poster">${posterBox(item.t)}</span>
+        <span class="poster" data-part="card/poster">${posterBox(item.t)}</span>
         <span class="rowtxt"><span class="ctitle" data-part="card/title" title="${escapeHtml(item.t)}">${escapeHtml(item.t)}</span><span class="csub">${escapeHtml(item.f)}</span></span>
       </button>`;
     }

@@ -69,7 +69,7 @@ async def main():
 
         # ── The reported journey, exit 1: the browser back ──────────────────
         await pg.evaluate("""()=>{document.querySelector('[data-part="screen"][data-open] .port').scrollTop = 300;}""")
-        await pg.evaluate("()=>document.querySelector('.reslist .poster').click()")
+        await pg.evaluate("""()=>document.querySelector('.reslist [data-part="card/poster"]').click()""")
         await pg.wait_for_timeout(450)
         # The poster's target is a MEDIA SHEET, and it left `#screen` for a
         # real route (`/mediasheet/$title`, rendered inside `#coquille`) as the add
@@ -122,7 +122,7 @@ async def main():
         # ── Exit 2: the « Retour » button on the sheet ──────────────────────
         await pg.evaluate("()=>window.__go('acq-add-results')")
         await pg.wait_for_timeout(400)
-        await pg.evaluate("()=>document.querySelector('.reslist .poster').click()")
+        await pg.evaluate("""()=>document.querySelector('.reslist [data-part="card/poster"]').click()""")
         await pg.wait_for_timeout(450)
         # Same mediaSheet as exit 1, and its own « Retour » is clicked on the screen
         # identified as the mediaSheet — never on whatever `[data-part="screen"][data-open]` happens to

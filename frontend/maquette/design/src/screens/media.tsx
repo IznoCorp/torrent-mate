@@ -400,7 +400,10 @@ export function MediaScreen() {
       </div>
       <div className="port">
         <div className="body" data-region="screen-media/body">
-          <div className={`herowrap${artwork ? "" : " noposter"}`}>
+          <div
+            className={`herowrap${artwork ? "" : " noposter"}`}
+            data-no-poster={!artwork || undefined}
+          >
             <div
               className="herobg"
               aria-hidden="true"

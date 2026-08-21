@@ -317,14 +317,6 @@
   },
   {
     "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/attrs.py",
-    "line": 103,
-    "selector": "[data-part=\"card\"][data-nonmedia=\"candidat\"] .poster",
-    "token": ".poster"
-  },
-  {
-    "kind": "selection",
     "held": true,
     "file": "frontend/maquette/harness/audit.py",
     "line": 77,
@@ -676,18 +668,6 @@
     "token": ".herobg"
   },
   {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 240,
-    "class": "noposter"
-  },
-  {
-    "kind": "assertion",
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 253,
-    "class": "noposter"
-  },
-  {
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/audit2.py",
@@ -854,15 +834,7 @@
     "held": false,
     "file": "frontend/maquette/harness/bridge.py",
     "line": 340,
-    "selector": ".reslist .poster",
-    "token": ".poster"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bridge.py",
-    "line": 340,
-    "selector": ".reslist .poster",
+    "selector": ".reslist [data-part=\"card/poster\"]",
     "token": ".reslist"
   },
   {
@@ -982,15 +954,7 @@
     "held": false,
     "file": "frontend/maquette/harness/bugs.py",
     "line": 80,
-    "selector": ".reslist [data-part=\"card\"] .poster[data-mediasheet]",
-    "token": ".poster"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 80,
-    "selector": ".reslist [data-part=\"card\"] .poster[data-mediasheet]",
+    "selector": ".reslist [data-part=\"card\"] [data-part=\"card/poster\"][data-mediasheet]",
     "token": ".reslist"
   },
   {
@@ -998,15 +962,7 @@
     "held": false,
     "file": "frontend/maquette/harness/bugs.py",
     "line": 81,
-    "selector": ".reslist [data-part=\"card\"] .poster[data-mediasheet]",
-    "token": ".poster"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/bugs.py",
-    "line": 81,
-    "selector": ".reslist [data-part=\"card\"] .poster[data-mediasheet]",
+    "selector": ".reslist [data-part=\"card\"] [data-part=\"card/poster\"][data-mediasheet]",
     "token": ".reslist"
   },
   {
@@ -1048,14 +1004,6 @@
     "line": 97,
     "selector": ".sact",
     "token": ".sact"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
-    "line": 144,
-    "selector": ".poster",
-    "token": ".poster"
   },
   {
     "kind": "selection",
@@ -1125,14 +1073,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/cards.py",
-    "line": 339,
-    "selector": ".poster",
-    "token": ".poster"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
     "line": 344,
     "selector": ".ctop",
     "token": ".ctop"
@@ -1149,22 +1089,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/cards.py",
-    "line": 395,
-    "selector": ".poster",
-    "token": ".poster"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
-    "line": 436,
-    "selector": "[data-part=\"card\"] .poster img",
-    "token": ".poster"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
     "line": 476,
     "selector": ".tile[data-panel]",
     "token": ".tile"
@@ -1176,14 +1100,6 @@
     "line": 478,
     "selector": ".nm",
     "token": ".nm"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
-    "line": 538,
-    "selector": "button.poster",
-    "token": ".poster"
   },
   {
     "kind": "selection",
@@ -1301,41 +1217,9 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/decision.py",
-    "line": 61,
-    "selector": ".poster",
-    "token": ".poster"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/decision.py",
-    "line": 63,
-    "selector": ".poster img",
-    "token": ".poster"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/decision.py",
     "line": 64,
-    "selector": ".poster .pfall",
+    "selector": "[data-part=\"card/poster\"] .pfall",
     "token": ".pfall"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/decision.py",
-    "line": 64,
-    "selector": ".poster .pfall",
-    "token": ".poster"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/decision.py",
-    "line": 71,
-    "selector": ".poster",
-    "token": ".poster"
   },
   {
     "kind": "selection",
@@ -3246,15 +3130,7 @@
     "held": false,
     "file": "frontend/maquette/harness/screens.py",
     "line": 72,
-    "selector": ".reslist .poster",
-    "token": ".poster"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 72,
-    "selector": ".reslist .poster",
+    "selector": ".reslist [data-part=\"card/poster\"]",
     "token": ".reslist"
   },
   {
@@ -3286,15 +3162,7 @@
     "held": false,
     "file": "frontend/maquette/harness/screens.py",
     "line": 125,
-    "selector": ".reslist .poster",
-    "token": ".poster"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 125,
-    "selector": ".reslist .poster",
+    "selector": ".reslist [data-part=\"card/poster\"]",
     "token": ".reslist"
   },
   {
@@ -4165,14 +4033,6 @@
     "kind": "selection",
     "held": true,
     "file": "frontend/maquette/harness/touch.py",
-    "line": 193,
-    "selector": "#view [data-part=\"card\"] .poster",
-    "token": ".poster"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/touch.py",
     "line": 195,
     "selector": ".deck .dcard[data-depth='0']",
     "token": ".dcard"
@@ -4197,14 +4057,6 @@
     "kind": "selection",
     "held": true,
     "file": "frontend/maquette/harness/touch.py",
-    "line": 235,
-    "selector": ".poster",
-    "token": ".poster"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/touch.py",
     "line": 236,
     "selector": ".tile",
     "token": ".tile"
@@ -4224,22 +4076,6 @@
     "line": 238,
     "selector": ".sheetposter",
     "token": ".sheetposter"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 255,
-    "selector": "#view .poster",
-    "token": ".poster"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 321,
-    "selector": ".poster",
-    "token": ".poster"
   },
   {
     "kind": "selection",

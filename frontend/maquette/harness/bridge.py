@@ -337,7 +337,7 @@ async def main():
         await pg.evaluate(
             """()=>{document.querySelector('[data-part="screen"][data-open] .port').scrollTop = 300;}"""
         )
-        await pg.evaluate("()=>document.querySelector('.reslist .poster').click()")
+        await pg.evaluate("""()=>document.querySelector('.reslist [data-part="card/poster"]').click()""")
         await pg.wait_for_timeout(450)
 
         await pg.go_back()

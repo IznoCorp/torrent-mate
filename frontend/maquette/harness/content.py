@@ -145,16 +145,16 @@ async def main():
               const cards = [...document.querySelectorAll('#libitems [data-part="card"]')];
               return {
                 n: cards.length,
-                withPlot: cards.filter(c => c.querySelector('[data-part="card/cover"]')).length,
+                withPlot: cards.filter(c => c.querySelector('[data-part="card/overview"]')).length,
                 clamped: cards.filter(c => {
-                  const e = c.querySelector('[data-part="card/cover"]');
+                  const e = c.querySelector('[data-part="card/overview"]');
                   return e && e.scrollHeight > e.clientHeight + 1;}).length,
                 overflowing: cards.filter(c => {
-                  const e = c.querySelector('[data-part="card/cover"]');
+                  const e = c.querySelector('[data-part="card/overview"]');
                   return e && e.getBoundingClientRect().bottom >
                               c.getBoundingClientRect().bottom + 1;}).length,
                 invented: cards.filter(c => {
-                  const e = c.querySelector('[data-part="card/cover"]');
+                  const e = c.querySelector('[data-part="card/overview"]');
                   return e && !SYNOPSIS[(c.querySelector('[data-part="card/title"]')||{}).textContent];
                 }).map(c => (c.querySelector('[data-part="card/title"]')||{}).textContent)};}""")
             check(f"{name}: the rows carry the synopsis",
@@ -185,7 +185,7 @@ async def main():
                      .filter(c => c.getBoundingClientRect().height > 127).length""")
 
         lines = await pg.evaluate(
-            """()=>Number(getComputedStyle(document.querySelector('#libitems [data-part="card/cover"]'))
+            """()=>Number(getComputedStyle(document.querySelector('#libitems [data-part="card/overview"]'))
                  .webkitLineClamp)""")
         check("the synopsis takes more than two lines", lines > 2, str(lines))
         check("and no card grows for it",
@@ -200,7 +200,7 @@ async def main():
 
         # A clamped line must SAY it is clamped rather than stop mid-word.
         dots = await pg.evaluate(
-            """()=>getComputedStyle(document.querySelector('#libitems [data-part="card/cover"]')).textOverflow""")
+            """()=>getComputedStyle(document.querySelector('#libitems [data-part="card/overview"]')).textOverflow""")
         check("and the cut shows — an ellipsis",
               dots == "ellipsis", dots)
 
@@ -216,7 +216,7 @@ async def main():
               const item = LIBRARY.find(x => x.t === t);
               const d = document.createElement('div');
               d.innerHTML = libRowHTML(item, 0);
-              const cov = d.querySelector('[data-part="card/cover"]');
+              const cov = d.querySelector('[data-part="card/overview"]');
               return cov ? cov.textContent : null;}""", missing[0])
             check("and its row shows no filler text",
                   empty is None, str(empty))

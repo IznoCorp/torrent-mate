@@ -190,7 +190,7 @@ async def main():
         press_surfaces = [
             ("follows gallery", "acq-follows-grid", ".tile"),
             ("library gallery", "lib-grid", ".tile"),
-            ("a card's poster", "acq-follows-list", '#view [data-part="card"] .poster'),
+            ("a card's poster", "acq-follows-list", '#view [data-part="card"] [data-part="card/poster"]'),
             ("a card's body", "acq-follows-list", '#view [data-part="card"] [data-part="card/body"]'),
             ("deck card", "acq-discover-deck", ".deck .dcard[data-depth='0']"),
         ]
@@ -232,7 +232,7 @@ async def main():
         # declaration itself. Exactly like the `touch-action` axis claim.
         # Each surface is checked in a state that DRAWS it: the deck state has
         # no list poster, and a rule that skips what is absent proves nothing.
-        for state_, selectors in (("acq-follows-list", [".poster"]),
+        for state_, selectors in (("acq-follows-list", ['[data-part="card/poster"]']),
                                  ("lib-grid", [".tile"]),
                                  ("acq-discover-deck", [".dcard"]),
                                  ("followsheet-complete", [".sheetposter"])):
@@ -252,7 +252,7 @@ async def main():
         # is not observable from here, so asserting its absence would be a rule
         # that can never fail.
         refusal = await pg.evaluate("""()=>{
-          const target = document.querySelector('#view .poster') ||
+          const target = document.querySelector('#view [data-part="card/poster"]') ||
                          document.querySelector('#view [data-part="card"]');
           const e = new MouseEvent('contextmenu', {bubbles:true, cancelable:true});
           target.dispatchEvent(e);
@@ -318,7 +318,7 @@ async def main():
             "()=>document.querySelector('#sheet').hasAttribute('data-open')"))
         target = await pg.evaluate("""()=>{
           const port = document.querySelector('#port');
-          const a = [...document.querySelectorAll('.poster')]
+          const a = [...document.querySelectorAll('[data-part="card/poster"]')]
             .find(e => e.getBoundingClientRect().width > 0 && !port.contains(e));
           if (!a) return null;
           const r = a.getBoundingClientRect();

@@ -100,7 +100,7 @@ PROFILE_SCREEN = """() => {
 RESOLUTION_SCREEN = """() => {
   const s = document.querySelector('[data-part="screen"][data-open][data-key^="resolution:"]')
     ?? document.createElement('div');
-  const posters = [...s.querySelectorAll('[data-part="card"][data-nonmedia="candidat"] .poster')];
+  const posters = [...s.querySelectorAll('[data-part="card"][data-nonmedia="candidat"] [data-part="card/poster"]')];
   const titled = posters.filter(el => el.hasAttribute('title'));
   const untitled = posters.filter(el => !el.hasAttribute('title'));
   return {
