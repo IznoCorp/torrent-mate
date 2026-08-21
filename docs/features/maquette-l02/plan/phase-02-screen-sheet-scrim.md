@@ -70,21 +70,29 @@ per-rule hold counts are the only thing that would say so.
 
 One commit: `refactor(maquette-l02): anchor the screen contract on data-part`
 
-> **`open` IS NOT REDUNDANT, and the mount node IS a screen.** Two earlier readings were wrong and
-> both are recorded: the first draft said `open` in `.screen.open` was static and could be dropped;
-> a correction then said `index.html:350` was a mere mount node deserving its own `screen-host`
-> value. Measured in the live document and in the engine, neither holds.
+> **THREE READINGS OF `.screen.open`, and only the third is measured.** The first draft said
+> `open` was static and could be dropped. A correction said `index.html:350` was a mere mount node
+> deserving its own `screen-host` value. A second correction said `open` was the token telling two
+> kinds of screen apart — React sections in `#shell` versus the engine's own `#screen`, opened by
+> `openScreen()` at `legacy.js:10911`. Each was reasoned from the code; the third was checked
+> against what RUNS:
 >
-> React mounts into `#shell`, inserted BEFORE `#screen` in `#device` (`shell.tsx:696-699`). The
-> five migrated screens are `<section class="screen open" data-key>` inside `#shell`; the engine's
-> OWN screens are `#screen` itself — `openScreen()` does `select("#screen").classList.add("open")`
-> (`legacy.js:10911`). So `.screen.open` resolves to a React section in one state and to `#screen`
-> in another, and `audit2.py:50` tests `#screen.open` BEFORE `.screen.open[data-key]` for exactly
-> that reason. `open` is static on the sections and DYNAMIC on `#screen`, and it is the token that
-> tells them apart. Dropping it widens 19 bare selectors to match the empty host in every
-> React-screen state.
+> - `openScreen` has one caller: nobody. It is republished on `window` (`legacy.js:34575`) and
+>   referenced by two past-tense comments in `releases.tsx:7` / `resolution.tsx:7`. No harness rule
+>   calls it, no named state in `states.js` mentions `#screen`. The two sites that REMOVE `open`
+>   from `#screen` (`hideLayers()` at `:10736`, a close path at `:10943`) are defensive clears of a
+>   class nothing adds any more.
+> - Probed in `mediasheet-series`: `.screen.open` → the SECTION; `#screen` carries no `open`.
 >
-> <sub>probe: in `mediasheet-series`, `.screen.open` → the SECTION (`data-key="mediaSheet:Silo (2023)"`), `#screen` carries no `open`</sub>
+> **So the engine-screen path is dead today**, `#screen` never opens, `.screen.open` bare only ever
+> matches a React section, and the six `#screen.classList.contains('open')` assertions are
+> vestiges that always read false. The target is STILL `[data-part="screen"][data-open]`, for a
+> more modest reason than disambiguation: **the attribute mirrors the class exactly**. `open` is on
+> the sections, so `data-open` is on the sections; `#screen` has neither, and gets `data-open` from
+> the same engine helper that would give it `open` — so the day someone revives `openScreen()`, the
+> contract already holds and the guard already reads it. A mirror that skips the dead branch is a
+> mirror that lies the moment the branch wakes. `screen-host` stays struck.
+> <sub>the six vestigial assertions move to `hasAttribute('data-open')` in 2.3 and keep reading false — removing them is a later tidy-up, not this lot's</sub>
 
 - [ ] **Step 1.** Emit the anchor at the six sites, ONE value. The five sections
       (`add.tsx:155`, `releases.tsx:48`, `resolution.tsx:316`, `media.tsx:385`, `profile.tsx:85`)
