@@ -30,6 +30,11 @@ def load():
 
 
 guard = load()
+# The anchor arm lives in `markup_anchors.py` beside the entry point, which
+# imports it — so loading the guard puts it in `sys.modules`. The ratchet tests
+# below patch the module that OWNS `write_baseline`'s globals: patching the
+# re-export on the entry point would rebind a name that function never reads.
+anchors = sys.modules["markup_anchors"]
 
 
 class TestReadersOf:
@@ -173,17 +178,17 @@ class TestBaselineIdentity:
         """
         baseline = tmp_path / "anchor-baseline.json"
         baseline.write_text(json.dumps(stored), encoding="utf-8")
-        monkeypatch.setattr(guard, "BASELINE", baseline)
+        monkeypatch.setattr(anchors, "BASELINE", baseline)
         # The success message renders the baseline path relative to ROOT;
         # the real baseline lives under it, the test's temp one does not.
-        monkeypatch.setattr(guard, "ROOT", tmp_path)
+        monkeypatch.setattr(anchors, "ROOT", tmp_path)
         done = subprocess.CompletedProcess([], 0, json.dumps(fresh), "")
-        monkeypatch.setattr(guard.subprocess, "run", lambda *a, **k: done)
+        monkeypatch.setattr(anchors.subprocess, "run", lambda *a, **k: done)
         findings = [
             (guard.entry_identity(e), e.get("selector", e.get("class")), f"{e['file']}:{e['line']}", False)
             for e in fresh
         ]
-        monkeypatch.setattr(guard, "collect_anchor_findings", lambda: findings)
+        monkeypatch.setattr(anchors, "collect_anchor_findings", lambda: findings)
         return baseline
 
     def _selection(self, selector, token, line=None):
