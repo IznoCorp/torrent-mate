@@ -113,12 +113,12 @@ that one line is the whole point of the mechanism.
 > re-host any single-line double-quoted string now carrying `[data-part=\"` in `'…'` or a
 > triple-quoted string — the guard refuses the escaped shape.
 
-## Sub-phase 5.1 — the five engine-only filter tokens
+## Sub-phase 5.1 — the five engine-only tokens: the flux's rows
 
 > **Five, not four.** `.fx` is emitted by `legacy.js` alone like the other four and is selected 10
 > times; the first draft counted it among the tail. It is resolved and named with them.
 
-One commit: `refactor(maquette-l02): anchor the filter contracts on data-part`
+One commit: `refactor(maquette-l02): resolve and anchor the five engine filter tokens on data-part` — « filter » kept in the subject as the name these classes carried; they are the flux's rows
 
 - [ ] **Step 1.** Resolve `fr`, `fn`, `fk`, `fs`, **`fx`** per the section above, and record each meaning.
 - [ ] **Step 2.** Emit the resolved `data-part` values beside the existing classes in `legacy.js`.
@@ -135,7 +135,7 @@ One commit: `refactor(maquette-l02): anchor the filter contracts on data-part`
 - [ ] **Step 6.** `python3 scripts/check-markup-contracts.py; echo "exit=$?"` → `exit=0`.
 - [ ] **Step 7.** `run.sh` — no violation, hold counts unchanged. Commit.
 
-## Sub-phase 5.2 — the filter states `data-empty` and `data-blocked`
+## Sub-phase 5.2 — the flux row's states `data-empty` and `data-blocked`
 
 One commit: `refactor(maquette-l02): anchor the empty and blocked filter states`
 
