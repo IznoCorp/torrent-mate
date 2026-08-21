@@ -49,10 +49,22 @@ let a rename tool rewrite them by accident.
 
 ## Baseline entries removed
 
-**129**: 127 class token occurrences across the card family — 14 distinct tokens, `card`,
-`ctitle`, `cbody`, `cfoot`, `poster`, `cov`, `csub`, `cmeta`, `ctop`, `creason`, `pfall`, `dcard`,
-`freshtag`, `caption` — plus the **2** `classList.contains('noposter')` assertions, which become
-`hasAttribute('data-no-poster')`. The baseline goes 633 → 490.
+**143, and the first draft of this phase could only have removed 121 of them.** Its three
+sub-phases named six tokens — `card`, `ctitle`, `cbody`, `cfoot`, `poster`, `cov` — while the phase
+claimed all fourteen. The other eight (`csub`, `cmeta`, `ctop`, `creason`, `pfall`, `dcard`,
+`freshtag`, `caption`) were named by nothing: **22 occurrences** that would have stayed in the
+baseline with no owner, and the phase's closing count would never have been reached. Measured on
+the committed 834-entry baseline, call + held:
+
+| Sub-phase | Removes | Tokens |
+| --- | --- | --- |
+| 3.1 | **79** | `.card` 44 (4 held) · `.ctitle` 22 · `.cbody` 13 (1 held) |
+| 3.2 | **21** | `.cfoot` 13 (1 held) · `.cov` 8 |
+| 3.3 | **21** | `.poster` 19 (2 held) + the **2** `classList.contains('noposter')` assertions |
+| 3.4 | **22** | `.dcard` 11 (6 held) · `.creason` 3 · `.csub` 2 · `.pfall` 2 · `.cmeta`, `.ctop`, `.freshtag`, `.caption` 1 each |
+
+79 + 21 + 21 + 22 = **143**. The baseline goes **633 → 554 → 533 → 512 → 490**. Each removal is in
+the same commit as the migration it corresponds to.
 
 ## The ACC-04 conflict this phase found — RESOLVED, and the criterion moved out
 
@@ -83,8 +95,12 @@ One commit: `refactor(maquette-l02): anchor the card, title and body contracts o
 - [ ] **Step 2.** The namespace names the owning DOM concept, the leaf names the role, per the
       vocabulary fixed in phase 1: `card`, `card/title`, `card/body`. English, built from words
       `scripts/code-vocabulary.txt` holds.
-- [ ] **Step 3.** Re-anchor the harness selections through `python3 scripts/rename-identifiers.py`,
-      then **re-read the diff** — not the tool's _N file(s) touched_ line. `cards.py` alone carries
+- [ ] **Step 3.** Re-anchor the harness selections by literal replacement that ASSERTS its counts
+      — `scripts/rename-identifiers.py` is struck for selectors, its own header says a selector is
+      « NEVER renamed here ». Read each (file, line, token) from
+      `python3 scripts/classify-rule-anchors.py --baseline`, including the entries tagged `held`
+      (4 `.card`, 1 `.cbody` sit in variables or tables, not in a call), rewrite the token on THAT
+      line, assert the line carried it, then **re-read the diff**. `cards.py` alone carries
       `.ctitle` at `:145`, `:214`, `:339`, `:398`, `:405`, `:442`, `:494`; it also appears in
       `library_sort.py:37,90` and `page_host.py:450`. A compound such as
       `'#libitems .ctitle, #libitems .tile .nm'` is a **selector list**: migrate the `.ctitle` limb
@@ -108,9 +124,8 @@ cp /tmp/l02-acc03.bak "$F"
 
 Expected: `exit=1`, the output naming `cards.py`, its line, and the selector `.ctitle`.
 
-- [ ] **Step 7.** **ACC-04** — the guard falls on a half-moved contract, once amended per the section
-      above. Expected: `exit=1`, naming `card/title` as selected by the harness and emitted by no
-      source. This is the three-ends defect caught from the markup end.
+- [ ] **Step 7.** ACC-04 is NOT claimed here — it needs a single-emitter target and every card
+      token has several; it is phase 4's, on `.reslist`. Nothing to run at this step.
 - [ ] **Step 8.** Confirm both files were restored: `git status --short` clean apart from the
       intended change. A restored file is a claim to re-read, not to assume.
 - [ ] **Step 9.** `run.sh` — no violation, hold counts unchanged. Commit.
@@ -149,6 +164,37 @@ One commit: `refactor(maquette-l02): anchor the card poster and its no-poster st
       unconditionally, confirm the migrated rule FALLS naming the right defect, restore. Commit.
 
 ---
+
+## Sub-phase 3.4 — the card's remaining parts, and the deck's card
+
+One commit: `refactor(maquette-l02): anchor the card's remaining parts and the deck card on data-part`
+
+Eight tokens no earlier draft named. Seven are parts of the library card and take the `card/`
+namespace; one is not a library card at all — `.dcard` is the swipe DECK's card (`deck.py`,
+`mouse.py`, `drag.py` select it, 6 of its 11 occurrences held in tables) — and takes its own
+concept, because a namespace names the owning DOM concept and the deck owns it.
+
+| Token | `data-part` | Emitted by |
+| --- | --- | --- |
+| `.csub` | `card/subtitle` | engine + components |
+| `.cmeta` | `card/meta` | engine + components |
+| `.ctop` | `card/top` | engine + components |
+| `.creason` | `card/reason` | engine + components |
+| `.pfall` | `card/poster-fallback` | engine + components — the initials shown when no poster loads |
+| `.caption` | `card/caption` | engine + components |
+| `.freshtag` | `card/fresh-tag` | engine only |
+| `.dcard` | `deck/card` | engine only |
+
+- [ ] **Step 1.** Check every leaf word against `scripts/code-vocabulary.txt` before writing it;
+      add what is missing in the same commit, one line each, sorted (`fresh` and `tag` are the
+      likely absentees — verify, do not assume).
+- [ ] **Step 2.** Emit each anchor beside its class at every site the table names, engine included.
+- [ ] **Step 3.** Re-anchor the 22 occurrences by literal replacement with asserted counts — 6 of
+      the `.dcard` ones are held in tables (`deck.py:9`, `mouse.py:39,47`, …), read them from the
+      baseline's `held` entries.
+- [ ] **Step 4.** `--write-baseline` → `22 removed`, landing at **490**. Guard exit 0, and its
+      selection ⇒ emission arm names no orphan.
+- [ ] **Step 5.** `run.sh` / hold counts — no violation, unchanged. Commit.
 
 ## Closing proofs — run all three, record what they printed
 
