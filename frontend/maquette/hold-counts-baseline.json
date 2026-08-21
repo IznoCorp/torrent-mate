@@ -1,0 +1,271 @@
+{
+  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 39 of 51 rule(s) report a hold count; the other 12 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
+  "taken_at_commit": "c78c9d66f9c0fd434d7d284c9fa3011a67b12235",
+  "taken_on": "2026-08-21",
+  "suite": "51 of 51 rule(s)",
+  "host": "http://127.0.0.1:8899/wrapped.html",
+  "rules": {
+    "actions.py": {
+      "exit": 0,
+      "count": null,
+      "reason": "no recognized executed-count line in its output"
+    },
+    "address.py": {
+      "exit": 0,
+      "count": 15,
+      "source": "common.Journal summary"
+    },
+    "arrivals.py": {
+      "exit": 0,
+      "count": 24,
+      "source": "common.Journal summary"
+    },
+    "attrs.py": {
+      "exit": 0,
+      "count": 4,
+      "source": "common.Journal summary"
+    },
+    "audit.py": {
+      "exit": 0,
+      "count": 13,
+      "source": "audit rules-executed line"
+    },
+    "audit2.py": {
+      "exit": 0,
+      "count": 13,
+      "source": "audit rules-executed line"
+    },
+    "back.py": {
+      "exit": 0,
+      "count": 12,
+      "source": "common.Journal summary"
+    },
+    "bridge.py": {
+      "exit": 0,
+      "count": 9,
+      "source": "common.Journal summary"
+    },
+    "bugs.py": {
+      "exit": 0,
+      "count": 14,
+      "source": "per-hold PASS/FAIL tally"
+    },
+    "cards.py": {
+      "exit": 0,
+      "count": 65,
+      "source": "own EXECUTED count line"
+    },
+    "chrome.py": {
+      "exit": 0,
+      "count": 164,
+      "source": "own EXECUTED count line"
+    },
+    "content.py": {
+      "exit": 0,
+      "count": 27,
+      "source": "common.Journal summary"
+    },
+    "decision.py": {
+      "exit": 0,
+      "count": 24,
+      "source": "common.Journal summary"
+    },
+    "deck.py": {
+      "exit": 0,
+      "count": null,
+      "reason": "no recognized executed-count line in its output"
+    },
+    "dest.py": {
+      "exit": 0,
+      "count": null,
+      "reason": "no recognized executed-count line in its output"
+    },
+    "drag.py": {
+      "exit": 0,
+      "count": 22,
+      "source": "common.Journal summary"
+    },
+    "drawer.py": {
+      "exit": 0,
+      "count": 26,
+      "source": "common.Journal summary"
+    },
+    "entry.py": {
+      "exit": 0,
+      "count": 10,
+      "source": "common.Journal summary"
+    },
+    "filters.py": {
+      "exit": 0,
+      "count": 9,
+      "source": "per-hold PASS/FAIL tally"
+    },
+    "follows.py": {
+      "exit": 0,
+      "count": null,
+      "reason": "no recognized executed-count line in its output"
+    },
+    "gallery.py": {
+      "exit": 0,
+      "count": null,
+      "reason": "no recognized executed-count line in its output"
+    },
+    "ident.py": {
+      "exit": 0,
+      "count": null,
+      "reason": "no recognized executed-count line in its output"
+    },
+    "images.py": {
+      "exit": 0,
+      "count": 2,
+      "source": "common.Journal summary"
+    },
+    "install.py": {
+      "exit": 0,
+      "count": 13,
+      "source": "common.Journal summary"
+    },
+    "inter.py": {
+      "exit": 0,
+      "count": null,
+      "reason": "no recognized executed-count line in its output"
+    },
+    "library_load.py": {
+      "exit": 0,
+      "count": 8,
+      "source": "common.Journal summary"
+    },
+    "library_sort.py": {
+      "exit": 0,
+      "count": 19,
+      "source": "common.Journal summary"
+    },
+    "logout.py": {
+      "exit": 0,
+      "count": 8,
+      "source": "common.Journal summary"
+    },
+    "machine.py": {
+      "exit": 0,
+      "count": 89,
+      "source": "common.Journal summary"
+    },
+    "mouse.py": {
+      "exit": 0,
+      "count": null,
+      "reason": "no recognized executed-count line in its output"
+    },
+    "navigation.py": {
+      "exit": 0,
+      "count": 11,
+      "source": "common.Journal summary"
+    },
+    "page_host.py": {
+      "exit": 0,
+      "count": 44,
+      "source": "common.Journal summary"
+    },
+    "palette.py": {
+      "exit": 0,
+      "count": 8,
+      "source": "common.Journal summary"
+    },
+    "panel.py": {
+      "exit": 0,
+      "count": 9,
+      "source": "common.Journal summary"
+    },
+    "pop.py": {
+      "exit": 0,
+      "count": null,
+      "reason": "no recognized executed-count line in its output"
+    },
+    "pwa.py": {
+      "exit": 0,
+      "count": 28,
+      "source": "own EXECUTED count line"
+    },
+    "scen.py": {
+      "exit": 0,
+      "count": 16,
+      "source": "renders-conform verdict"
+    },
+    "screen_addresses.py": {
+      "exit": 0,
+      "count": 49,
+      "source": "common.Journal summary"
+    },
+    "screens.py": {
+      "exit": 0,
+      "count": 10,
+      "source": "common.Journal summary"
+    },
+    "scroll.py": {
+      "exit": 0,
+      "count": 4,
+      "source": "per-hold PASS/FAIL tally"
+    },
+    "selection.py": {
+      "exit": 0,
+      "count": null,
+      "reason": "no recognized executed-count line in its output"
+    },
+    "server.py": {
+      "exit": 0,
+      "count": 5,
+      "source": "common.Journal summary"
+    },
+    "settings.py": {
+      "exit": 0,
+      "count": 45,
+      "source": "common.Journal summary"
+    },
+    "shell.py": {
+      "exit": 0,
+      "count": 4,
+      "source": "common.Journal summary"
+    },
+    "startup.py": {
+      "exit": 0,
+      "count": 28,
+      "source": "common.Journal summary"
+    },
+    "states.py": {
+      "exit": 0,
+      "count": 82,
+      "source": "states-conform verdict"
+    },
+    "surfaces.py": {
+      "exit": 0,
+      "count": null,
+      "reason": "no recognized executed-count line in its output"
+    },
+    "sweep.py": {
+      "exit": 0,
+      "count": null,
+      "reason": "no recognized executed-count line in its output"
+    },
+    "switchover.py": {
+      "exit": 0,
+      "count": 11,
+      "source": "common.Journal summary"
+    },
+    "touch.py": {
+      "exit": 0,
+      "count": 25,
+      "source": "common.Journal summary"
+    },
+    "url_state.py": {
+      "exit": 0,
+      "count": 16,
+      "source": "common.Journal summary"
+    }
+  },
+  "totals": {
+    "rules": 51,
+    "parseable": 39,
+    "unparseable": 12,
+    "holds": 985,
+    "failed": 0
+  }
+}
