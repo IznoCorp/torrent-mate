@@ -139,6 +139,23 @@ with the count recorded in the commit. Every phase's burn-down is recalibrated a
 held occurrences are tagged apart from the call ones in the baseline so a reader can tell the two
 populations — and so a third blind spot, if one exists, has a precedent for how it is absorbed.
 
+### The third, found by the first migration: an escaped quote hides a selection from a raw-text reader
+
+Sub-phase 2.1 rewrote 63 `.screen.open` selections into `[data-part="screen"][data-open]` and the
+guard's selection ⇒ emission arm read **55**. The other eight sat in single-line double-quoted
+Python strings, where the selector is spelled `[data-part=\"screen\"]`, and that arm read the
+harness as RAW TEXT: its pattern never matched the escaped form. Nothing refused it — the arm
+counted one fewer, and a count nobody compares is a count nobody reads. The anchor arm, by
+contrast, had read DECODED string values from the start and counted all 69.
+
+Three reader defects in one lot, and they are one family: **a reader that knows one syntactic
+position, or one encoding, for its subject, applied to a corpus that has several.** The
+template-literal call (backticks), the selector held in a variable (not a call argument), the
+escaped quote (an encoding). Each was found by a measurement that disagreed with another — two
+readers, a dry run, a tripwire count — never by reading the reader. The instrument's own rule
+follows: **every arm reads decoded values, and the two readers must agree on every count, or
+the regeneration refuses.**
+
 ### Where the markup lives — measured over all 114 tokens, not a sample
 
 Two earlier passes were wrong, and both are recorded because the correction is the finding. The
