@@ -255,6 +255,89 @@ class TestBaselineIdentity:
         assert json.loads(baseline.read_text(encoding="utf-8")) == stored
 
 
+class TestEscapedPartSelections:
+    r"""ARM 3's silent hole: a `data-part` selection written with escaped quotes.
+
+    The selection side reads the harness as RAW TEXT. A selector hosted in a
+    single-line double-quoted Python string carries its quotes ESCAPED —
+    `'[data-part=\\"screen\\"]'` — and `PART_SELECTED` does not match a
+    backslash where it expects a quote, so the selection is read by nothing.
+    Ten of sub-phase 2.1's 63 selections were silently unread until their host
+    strings were widened; nothing refused the shape, and the arm simply counted
+    one fewer. A count nobody compares is a count nobody reads.
+    """
+
+    # The raw file text `[data-part=\"probe/part\"]` — the escaped shape, as it
+    # appears inside a double-quoted Python string.
+    ESCAPED = '[data-part=\\"probe/part\\"]'
+    # The same selection written so the reader can read it.
+    READABLE = '[data-part="probe/part"]'
+
+    def _fixture(self, tmp_path, source):
+        """Writes `source` as a fixture harness file.
+
+        Args:
+            tmp_path: The pytest fixture.
+            source: The fixture file's text.
+
+        Returns:
+            The path written.
+        """
+        fixture = tmp_path / "fixture.py"
+        fixture.write_text(source, encoding="utf-8")
+        return fixture
+
+    def test_a_held_escaped_selection_is_refused(self, tmp_path):
+        r"""`SEL = "[data-part=\"probe/part\"]"` — the defect's plain shape."""
+        fixture = self._fixture(tmp_path, f'SEL = "{self.ESCAPED}"\n')
+
+        assert guard.escaped_part_selections(fixture) == [(1, f'SEL = "{self.ESCAPED}"')]
+
+    def test_an_escaped_call_is_refused_and_read_by_nothing(self, tmp_path):
+        """The measured shape: a selection call hosted in a `"…"` string.
+
+        Both halves are asserted, because the refusal exists exactly because
+        the reading fails: `part_selections` finds NOTHING here, and without
+        the refusal that silence is the whole defect.
+        """
+        source = "await pg.evaluate(\"()=>document.querySelector('" + self.ESCAPED + "')\")\n"
+        fixture = self._fixture(tmp_path, source)
+
+        assert guard.part_selections(fixture) == []
+        assert [line for line, _ in guard.escaped_part_selections(fixture)] == [1]
+
+    def test_the_two_reading_shapes_are_not_refused(self, tmp_path):
+        """A single-quoted selector inside a triple-quoted host needs no escape."""
+        source = 'await pg.evaluate("""()=>document.querySelector(\'' + self.READABLE + '\')""")\n'
+        fixture = self._fixture(tmp_path, source)
+
+        assert guard.escaped_part_selections(fixture) == []
+        assert guard.part_selections(fixture) == [(1, "probe/part")]
+
+    def test_a_comment_is_refused_by_nothing(self, tmp_path):
+        """A comment quoting the escaped shape is prose, not a selection."""
+        fixture = self._fixture(tmp_path, f"# once written {self.ESCAPED}\n")
+
+        assert guard.escaped_part_selections(fixture) == []
+
+    def test_the_arm_exits_1_and_names_the_file(self, tmp_path, monkeypatch, capsys):
+        """The refusal is the ARM's, not just the helper's.
+
+        `harness_files` is patched on the entry point, which is the module
+        whose globals `check_part_values` reads.
+        """
+        fixture = self._fixture(tmp_path, f'SEL = "{self.ESCAPED}"\n')
+        monkeypatch.setattr(guard, "harness_files", lambda: [fixture])
+        monkeypatch.setattr(guard, "ROOT", tmp_path)
+
+        assert guard.check_part_values() == 1
+        assert "fixture.py:1" in capsys.readouterr().err
+
+    def test_the_harness_carries_no_escaped_selection(self):
+        """Green on this repository: every selection is in a readable shape."""
+        assert [(path, found) for path in guard.harness_files() if (found := guard.escaped_part_selections(path))] == []
+
+
 class TestHeldSelectors:
     """The instrument's second blind spot: selectors held outside a call.
 

@@ -69,12 +69,20 @@ rather than half-read, exactly as ARM 1 skips computed emissions.
 Comments are stripped on both sides: a value a COMMENT carries is
 selected by nothing and emitted by nothing.
 
-VACUOUS TODAY, BY DESIGN. No `data-part` exists anywhere yet — phase 2
-writes the first ones. This arm therefore examines ZERO selections on
-this tree, and a green exit proves nothing about it. The count it
-prints is the point: a number nobody prints is a number nobody can
-notice is zero. It is proven by probe-mutation instead, and becomes
-load-bearing the day phase 2 lands.
+AND THE SELECTION SIDE REFUSES WHAT IT CANNOT READ. It reads the
+harness as RAW TEXT, so a selector hosted in a single-line
+double-quoted Python string reaches it with its quotes ESCAPED —
+`"…querySelector('[data-part=\\"screen\\"]')…"` — and `PART_SELECTED`
+matches no backslash where it expects a quote. Ten of sub-phase 2.1's
+63 selections were read by nothing until their host strings were
+widened, and nothing refused the shape: the arm simply counted one
+fewer, and a count nobody compares is a count nobody reads. So an
+escaped quote on a line carrying a `data-part` selection is a
+violation, whichever end the escape belongs to — the attribute value's
+quotes or the call's own. The instruction is one sentence: host the
+selector in `'…'` or in `\"\"\"…\"\"\"`, where nothing needs escaping.
+The comment mask runs first, exactly as it does for the values: a shape
+a COMMENT quotes is selected by nothing.
 
 ARM 4 — a boolean state attribute written as a bare value.
 Corpus: the components — every `.ts` and `.tsx` file under
@@ -128,6 +136,7 @@ from markup_anchors import (  # noqa: E402, F401
 # The shared text readers — see that module's header.
 from markup_text import (  # noqa: E402
     COMMENT, HARNESS, HTML_COMMENT, ROOT, SHELL, SOURCES, braced_expression,
+    comment_masked,
 )
 
 # `store.write({ pipe: closest.dataset.pipe })` — the handler that FORWARDS a
@@ -146,6 +155,16 @@ EMITTED = re.compile(r"""data-(?P<attr>[a-z][\w-]*)=["'](?P<value>[^"'${]+)["']"
 PART_SELECTED = re.compile(
     r"\[\s*data-part\s*=\s*(?:\"(?P<dq>[^\"]*)\"|"
     r"'(?P<sq>[^']*)'|`(?P<bk>[^`]*)`)\s*\]")
+
+# `[data-part=` — a selection read from the RAW line, whatever quotes
+# follow. The point is to see the ones `PART_SELECTED` cannot: it is the
+# other half of the count comparison, not a second reader of values.
+PART_MENTION = re.compile(r"\[\s*data-part\s*=")
+
+# `\"` or `\'` — a quote escaped because the string hosting it uses the
+# same delimiter. On a line carrying a `data-part` selection, this is the
+# shape the raw-text reader walks straight past.
+ESCAPED_QUOTE = re.compile(r"\\[\"']")
 
 # ---- ARM 4 constants ----------------------------------------------------
 
@@ -275,6 +294,50 @@ def part_selections(path: Path) -> list[tuple[int, str]]:
     return found
 
 
+def escaped_part_selections(path: Path) -> list[tuple[int, str]]:
+    """Returns every `data-part` selection line an escaped quote hides.
+
+    THE CHOICE, AND WHY IT IS A REFUSAL RATHER THAN A DECODE. Reading the
+    escaped shape would mean DECODING the Python literal that hosts it,
+    and no arm of this guard decodes anything today: `read_literal` walks
+    to the closing delimiter and hands back the raw span, `comment_masked`
+    tokenizes only to blank what is prose. So a decode is a NEW decoder,
+    not a reuse — and it would still be partial, because the host string
+    can escape the SELECTION CALL's own quotes too
+    (`"…querySelector(\\'…\\')…"`), and `selection_calls` never returns
+    such a call at all: its argument position holds a backslash, not a
+    quote, so the call is dropped before any value is read. A refusal
+    covers both ends with one question and cannot misread a literal it
+    never parses. What it costs is one sentence of instruction to the
+    author; what it buys is that no `data-part` selection can be unread in
+    silence.
+
+    Comments are masked first — with `comment_masked`, which tokenizes
+    Python and so knows a `#` inside a string is not a comment — because a
+    shape a COMMENT quotes is selected by nothing, exactly as a VALUE a
+    comment carries is emitted by nothing.
+
+    The escape is looked for on the LINE, not inside the selector: a
+    selector split from its escapes by a parser is the parse this refusal
+    exists to avoid. The consequence is stated rather than hidden — a line
+    that carries a readable `data-part` selection AND an unrelated escaped
+    quote is refused too, and the fix is the same sentence.
+
+    Args:
+        path: A Python file under `HARNESS`.
+
+    Returns:
+        `(line, text)` pairs, in file order — the line number and the
+        stripped source line, for the message.
+    """
+    text = comment_masked(path.read_text(encoding="utf-8"))
+    found: list[tuple[int, str]] = []
+    for number, line in enumerate(text.splitlines(), start=1):
+        if PART_MENTION.search(line) and ESCAPED_QUOTE.search(line):
+            found.append((number, line.strip()))
+    return found
+
+
 def emission_files() -> list[Path]:
     """Returns the part arm's emission corpus, in a fixed order.
 
@@ -313,7 +376,8 @@ def emitted_part_values(path: Path) -> set[str]:
 
 
 def check_part_values() -> int:
-    """Arm 3: refuses a selected `data-part` value no source emits.
+    """Arm 3: refuses a selected `data-part` value no source emits, and a
+    selection this arm cannot read.
 
     The direction is ONE-WAY: every value a harness rule selects must be
     emitted somewhere — a selection no emission satisfies is a rule
@@ -321,15 +385,15 @@ def check_part_values() -> int:
     end. An emitted value no rule selects is fine: not every part needs a
     rule.
 
-    VACUOUS TODAY, BY DESIGN: no `data-part` exists yet — phase 2 writes
-    the first ones — so this arm examines zero selections and a green
-    exit proves nothing about it. The count it prints is the point: a
-    number nobody prints is a number nobody can notice is zero. It is
-    proven by probe-mutation instead, and becomes load-bearing the day
-    phase 2 lands.
+    The second refusal guards the FIRST: a selection written with escaped
+    quotes is invisible to a raw-text reader, so the arm would examine one
+    fewer and print a number nobody could tell was short. See
+    `escaped_part_selections` for the shape and for why it is refused
+    rather than decoded.
 
     Returns:
-        1 when a selected value is emitted nowhere, 0 otherwise.
+        1 when a selected value is emitted nowhere or a selection is
+        written in a shape this arm cannot read, 0 otherwise.
     """
     files = harness_files()
     if not files:
@@ -357,6 +421,15 @@ def check_part_values() -> int:
     checked = 0
     for path in files:
         rel = str(path.relative_to(ROOT))
+        for line, source in escaped_part_selections(path):
+            violations += 1
+            print(f"  {rel}:{line}: {source!r} writes a `data-part` selection "
+                  "with an ESCAPED quote, and this arm reads the harness as "
+                  "RAW TEXT — a backslash where a quote is expected makes the "
+                  "selection invisible to it, so the arm would count one "
+                  "fewer and say nothing. Host the selector in `'…'` or in a "
+                  "triple-quoted string, where nothing needs escaping.",
+                  file=sys.stderr)
         for line, value in part_selections(path):
             checked += 1
             if value not in emitted:
@@ -370,9 +443,11 @@ def check_part_values() -> int:
 
     if violations:
         print(f"\ncheck-markup-contracts: {violations} data-part selection(s) "
-              "no source emits. The value a rule selects and the markup "
-              "that emits it are ONE contract — they move together or the "
-              "rule measures nothing.", file=sys.stderr)
+              "no source emits, or written in a shape this arm cannot read. "
+              "The value a rule selects and the markup that emits it are ONE "
+              "contract — they move together or the rule measures nothing; "
+              "and a selection the arm cannot read is one it cannot hold.",
+              file=sys.stderr)
         return 1
 
     print(f"check-markup-contracts: {checked} data-part selection(s) checked "
