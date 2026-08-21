@@ -272,4 +272,9 @@ def test_the_committed_reference_carries_a_platform():
     """The stored file, not just a freshly rendered one."""
     reference = json.loads((ROOT / "frontend" / "maquette" / "oracle-reference.json").read_text(encoding="utf-8"))
     assert reference["platform"]
-    assert reference["counts"] == {"states": 82, "regions": 33}
+    # The pin follows the corpus on purpose. How many states exist is counted by execution
+    # elsewhere (`window.__states()`); what this assertion pins is the COMMITTED reference's
+    # own bookkeeping, so a reference recorded on a different corpus cannot pass. It moves
+    # only when a state is added deliberately — 83 since the `mediasheet-no-poster` state
+    # (7ba93b07).
+    assert reference["counts"] == {"states": 83, "regions": 33}
