@@ -11,6 +11,21 @@ Phase 2 must have produced, all committed:
 - ACC-05 recorded as `exit=1`, the guard naming `sheet.tsx` and `data-open`;
 - ACC-08 recorded: `run.sh` green with per-rule hold counts equal to phase 1's.
 
+## Measured on the committed baseline, not estimated
+
+**127 token occurrences** across the 14 card tokens, which is the 129 this phase removes minus the
+two `noposter` assertions. By token: `.card` 40, `.ctitle` 22, `.poster` 17, `.cfoot` 12,
+`.cbody` 12, `.cov` 8, `.dcard` 5, `.creason` 3, `.csub` 2, `.pfall` 2, and one each of
+`.freshtag`, `.ctop`, `.caption`, `.cmeta`. By file: `cards.py` 27, `content.py` 18,
+`decision.py` 14, `screens.py` 7, `touch.py` 7, `drag.py` 5, `follows.py` 5, then `actions.py`,
+`audit.py`, `audit2.py` 4 each.
+
+**Twelve of the fourteen straddle the engine boundary**; `dcard` and `freshtag` are emitted by the
+engine ALONE. `.cfoot` is the widest spread on the component side — 11 emission sites — so its
+anchor lands in 11 places or the selection ⇒ emission arm names every one it missed.
+
+<sub>`python3 -c` over `anchor-baseline.json` filtered on the 14 tokens, and a `className=`/`class=` count per token over the three sites</sub>
+
 ## Emission sites touched
 
 **Every concept here straddles the engine boundary.** The DESIGN lists `card`, `ctitle`, `cbody`,
