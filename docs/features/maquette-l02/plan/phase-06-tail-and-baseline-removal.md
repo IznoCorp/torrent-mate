@@ -160,7 +160,7 @@ Expected: a line reporting `0 class-anchored selection call` over `harness/*.py`
 python3 scripts/classify-rule-anchors.py --summary; echo "exit=$?"
 ```
 
-Expected: `687 selection calls` with `class 0`, and `exit=0`. **The total must still be 687**: a
+Expected: `class 0`, and `exit=0`, with the total AT LEAST 696 (DESIGN ACC-02, amended in 6.3: measured 700 — every call above the pin is a selector the extractor could not read before). **The total must still be 687**: a
 classifier that stopped SEEING calls would also report zero class anchors, and the two failures are
 indistinguishable from the exit code alone.
 
