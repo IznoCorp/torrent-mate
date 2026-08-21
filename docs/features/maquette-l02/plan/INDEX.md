@@ -49,7 +49,7 @@ happens to be empty is a floor someone can raise again.
 | 1   | Vocabulary, the guard arm, the baseline, the dormant arm, the VALUE arm, hold counts | `phase-01-vocabulary-and-guard.md` | [x]    |
 | 2   | `.screen` / `.sheet` / `.scrim`, and `data-open` on five layers         | `phase-02-screen-sheet-scrim.md`        | [x]    |
 | 3   | `.card` and its parts, `deck/card`, and a state so R26 can fall    | `phase-03-card-and-parts.md`            | [x]    |
-| 4   | `.reslist`, `.sugwrap`, `.ep`, `.eppop`                           | `phase-04-lists-and-episodes.md`        | [ ]    |
+| 4   | the result list, the suggestions, the episode, its row, set and season | `phase-04-lists-and-episodes.md`        | [x]    |
 | 5   | Filters and settings                                              | `phase-05-filters-and-settings.md`      | [ ]    |
 | 6   | The tail, then the baseline is emptied and deleted                | `phase-06-tail-and-baseline-removal.md` | [ ]    |
 
@@ -253,6 +253,47 @@ resolved; the six vestigial `#screen` assertions are a later tidy-up.
    reference recorded on a different corpus must not pass), and it is why `make check` went red at
    this gate: 3.5 moved the corpus to 83 on purpose, and the pin had to move with it, with the commit
    that moved it named beside the number.
+
+## What phase 4 found, and what it cost the plan
+
+1. **The phase named five of its seven tokens.** `eprow`, `eps` and `season` — 10 occurrences — were
+   named by no sub-phase while the phase claimed all 46; sub-phase 4.3 took them, the same repair
+   phases 3 and 5 needed.
+2. **`wrap` was absent from the vocabulary** while the plan already wrote `suggestion/wrap`; measured
+   before 4.1 and added in the commit that coins the value.
+3. **`.eppop` has no static emitter** — it is one of the four computed `className` tokens. Resolved at
+   its site before being anchored, per the plan's Step 1, rather than anchored onto an element that
+   might not exist.
+4. **ACC-04 was claimed here, on the only single-emitter token in three phases.** `.reslist` is emitted
+   once, in `screens/add.tsx`, so renaming that one emitter leaves the value selected and emitted
+   nowhere — the half-moved contract the criterion exists to catch. On every card token the
+   criterion could not bite, because a second emitter kept the arm green. The precondition held
+   (`count == 1`), and the guard named all 17 orphaned calls, not « at least one ».
+5. **A substituted quote broke two rule files, and every instrument read them as green.** A
+   `data-part` value carries a `/`, so its selector needs quotes; substituted into a selector hosted
+   in a single-line double-quoted Python string, the raw `"` ended the literal and `inter.py` and
+   `mouse.py` stopped parsing — while the guard, `--write-baseline`, the oracle and the classifier
+   all stayed green over them. `tokenize` does not raise on a stray quote; it re-lexes and counts one
+   short, silently. Only running the rules would have fallen, sixteen minutes later. The guard now
+   refuses a harness file it cannot parse, and every later sub-phase `py_compile`s the harness after
+   each rewrite, before any proof.
+6. **`tsc --noEmit` IS the maquette's typecheck.** A recorded lesson says `--noEmit` verifies nothing
+   for `frontend/` (project references need `-b`); the maquette's `design/tsconfig.json` carries no
+   references and no composite, so here it checks the whole project. Verified rather than inherited.
+7. **The first imperative emission, and the guard could not read it.** `.eppop` is emitted by
+   `createElement.className = "eppop"` (`legacy.js:33558`), no markup literal anywhere. The anchor
+   is imperative too — `createElement.dataset.part = "episode/popover"` — and the selection ⇒
+   emission arm, which read emissions as the source text `data-part="…"`, would have refused a
+   contract that was whole. The arm learned `.dataset.part = "…"` and `.setAttribute("data-part", "…")`
+   (literal values only) in the same commit as the anchor, red-first: the three ends of a contract
+   move together, or the guard lies about one of them.
+
+Carried: `frontend/maquette/regions.json`'s prose names about 36 anchors that no longer exist —
+`.screen.open` ×30, `.reslist`, `.sugwrap`, `.eppop`, `.cov`, `.cfoot`, `.eps`, `details.season` — in
+descriptions nothing reads (the oracle reads only its `probe` block). Documentation drift, swept in one
+pass at 6.4 when every anchor has moved, rather than half-corrected per sub-phase; `surfaces.py:82` READS a class (`x.className.replace('ep ','')`) — not a selection, tracked by
+no baseline entry, and broken at L07 like the engine's own class reads (`legacy.js:33539` for
+`.eppop`); the `ep` genre assertion stays on the class by ruling, one of the five.
 
 ## The ACCEPTANCE map
 

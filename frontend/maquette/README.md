@@ -974,6 +974,14 @@ belief, not a proof.
 A `data-part` VALUE is a name someone chose, so `scripts/check-no-french.py` will
 read it — it is not an address like `data-go="profil"`, which the guard leaves alone.
 
+**An emission may be imperative.** Most parts are anchored in markup — `class="ep"
+data-part="episode"` — but an element the engine BUILDS carries no markup literal:
+`createElement.className = "eppop"` is such an element, and its anchor sits beside the
+assignment, `createElement.dataset.part = "episode/popover"`. The guard's emission reader
+knows that form and `setAttribute("data-part", "…")`, with a literal value only; a computed
+value is unread in every form, so a computed class is anchored with a literal `data-part` at
+the same site.
+
 ## Where the interface's French lives
 
 **No interface string lives in the code.** The shell's copy is in
