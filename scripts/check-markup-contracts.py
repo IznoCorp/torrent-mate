@@ -722,18 +722,24 @@ def write_baseline(allow_additions: bool = False) -> int:
     return 0
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     """Runs both arms over their corpora, or regenerates the baseline.
+
+    Args:
+        argv: The arguments to read. `None` reads the process's own, which is
+            what the entry point below passes; a caller IN-PROCESS — a test —
+            passes its own list, because `sys.argv` under a test runner
+            belongs to the runner.
 
     Returns:
         1 when anything was found or the arguments are unknown, 0
         otherwise.
     """
-    args = sys.argv[1:]
-    if args:
-        if args == ["--write-baseline"]:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv:
+        if argv == ["--write-baseline"]:
             return write_baseline()
-        if args == ["--write-baseline", "--allow-additions"]:
+        if argv == ["--write-baseline", "--allow-additions"]:
             return write_baseline(allow_additions=True)
         print("check-markup-contracts: unknown arguments — run with no "
               "argument to check; --write-baseline to regenerate "

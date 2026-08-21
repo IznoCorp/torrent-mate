@@ -90,8 +90,24 @@ class TestTheTreeItself:
     """The guard is only real if its scope is."""
 
     def test_the_maquette_has_no_dead_control(self) -> None:
-        """Green on this repository; red here means a real dead button."""
-        assert guard.main() == 0
+        """Green on this repository; red here means a real dead button.
+
+        `main([])` rather than `main()`: a caller in-process passes its own
+        argument list — under a test runner `sys.argv` belongs to the
+        runner, and a guard that reaches for it reads pytest's arguments.
+        """
+        assert guard.main([]) == 0
+
+    def test_main_does_not_read_sys_argv_when_given_an_argv(
+            self, monkeypatch) -> None:
+        """An explicit argv is the only argv the guard may read.
+
+        Whatever the runner put in `sys.argv` must not reach the guard when
+        the caller passed its own list — this is the contract that broke.
+        """
+        monkeypatch.setattr(guard.sys, "argv", ["pytest", "-q", "--tb=short"])
+
+        assert guard.main([]) == 0
 
     def test_it_actually_found_forwarders_to_check(self) -> None:
         """A scope that empties would make « no violation » mean nothing."""
