@@ -187,7 +187,7 @@ async def main():
         const expected=derived.takeable().length+derived.blocked().length;
         const read=badge?Number(badge.textContent):0;
         if (read!==expected) out.push(`${s}: badge ${read} != to-grab+to-resolve ${expected}`);
-        const tab=document.querySelector('.seg .n');
+        const tab=document.querySelector('[data-part="segment"] .n');
         const read2=tab?Number(tab.textContent):0;
         if (read2!==expected) out.push(`${s}: tab badge ${read2} != ${expected}`);
       } return out;}""")

@@ -46,7 +46,7 @@ function LibraryHead(): ReactElement {
   return (
     <>
       <div className="viewtabs" data-region="library/tabs">
-        <div className="seg" role="tablist">
+        <div className="seg" data-part="segment" role="tablist">
           {lenses.map((lens) => (
             <button
               key={lens.id}

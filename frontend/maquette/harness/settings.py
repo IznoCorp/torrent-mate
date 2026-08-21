@@ -112,7 +112,7 @@ async def main():
         # The origin is read as it is SEEN: the row carries the path, its group
         # header carries the file. Reading only the row would pass a screen where
         # nothing on it names a file.
-        rows = await pg.evaluate("""()=>[...document.querySelectorAll('.settingrow')].map(r => ({
+        rows = await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="setting/row"]')].map(r => ({
           label: (r.querySelector('.rl')||{}).firstChild?.textContent?.trim()||'',
           path: (r.querySelector('.rf')||{}).textContent||'',
           header: (r.closest('.panel')?.previousElementSibling||{}).textContent||'',
@@ -158,7 +158,7 @@ async def main():
         pending = await pg.evaluate("""()=>{
           const bar = document.querySelector('#savebar');
           return {bar: !!bar, text: bar ? bar.textContent.replace(/\\s+/g,' ') : '',
-                  marked: document.querySelectorAll('.settingrow.modified').length,
+                  marked: document.querySelectorAll('[data-part="setting/row"].modified').length,
                   insideFrame: bar ? bar.getBoundingClientRect().bottom <=
                     document.querySelector('#device').getBoundingClientRect().bottom + 1 : false};}""")
         check("a change raises the bar", pending["bar"])
@@ -172,7 +172,7 @@ async def main():
         await pg.evaluate("()=>window.__go('settings-secrets')")
         await pg.wait_for_timeout(320)
         secrets = await pg.evaluate("""()=>({
-          rows: [...document.querySelectorAll('.settingrow')].map(r =>
+          rows: [...document.querySelectorAll('[data-part="setting/row"]')].map(r =>
             (r.querySelector('.rv')||{}).textContent.trim()),
           fields: document.querySelectorAll('#view input').length})""")
         check("a secret says whether it is set, never what it holds",
@@ -203,7 +203,7 @@ async def main():
         await pg.evaluate("()=>window.__go('settings-search')")
         await pg.wait_for_timeout(320)
         searched = await pg.evaluate("""()=>({
-          results: document.querySelectorAll('.settingrow').length,
+          results: document.querySelectorAll('[data-part="setting/row"]').length,
           empty: !!document.querySelector('.empty'),
           text: (document.querySelector('#view')||{}).textContent||''})""")
         # A FRENCH word must find something: the labels used to be the files'
@@ -213,7 +213,7 @@ async def main():
               searched["results"] > 0, f"{searched['results']} result(s) for « espace »")
 
         # A result stands alone under no header, so THERE the row names its file.
-        unnamed = await pg.evaluate("""()=>[...document.querySelectorAll('.settingrow .rf')]
+        unnamed = await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="setting/row"] .rf')]
           .map(e => e.textContent).filter(t => !t.includes('.json5'))""")
         check("a search result names its own file",
               not unnamed, str(unnamed[:2]))

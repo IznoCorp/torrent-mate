@@ -7220,7 +7220,7 @@ import { screens, panel, bridge } from "../seams.js";
      drawing no section at all — which is what the legacy's empty string did. */
   function secInner(pip, title, count, inner, note) {
     return `
-    <div class="sechead"><span class="pip ${pip}"></span><span class="t">${escapeHtml(title)}</span><span class="k">${count}</span></div>
+    <div class="sechead" data-part="section/head"><span class="pip ${pip}"></span><span class="t">${escapeHtml(title)}</span><span class="k">${count}</span></div>
     ${note ? `<div class="note">${note}</div>` : ""}
     ${inner}
   `;

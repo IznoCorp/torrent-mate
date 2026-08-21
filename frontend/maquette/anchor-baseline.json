@@ -188,15 +188,7 @@
     "held": false,
     "file": "frontend/maquette/harness/arrivals.py",
     "line": 62,
-    "selector": ".sechead .t",
-    "token": ".sechead"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/arrivals.py",
-    "line": 62,
-    "selector": ".sechead .t",
+    "selector": "[data-part=\"section/head\"] .t",
     "token": ".t"
   },
   {
@@ -468,16 +460,8 @@
     "held": false,
     "file": "frontend/maquette/harness/audit2.py",
     "line": 190,
-    "selector": ".seg .n",
+    "selector": "[data-part=\"segment\"] .n",
     "token": ".n"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 190,
-    "selector": ".seg .n",
-    "token": ".seg"
   },
   {
     "kind": "selection",
@@ -1262,15 +1246,7 @@
     "held": false,
     "file": "frontend/maquette/harness/follows.py",
     "line": 29,
-    "selector": ".sechead .t",
-    "token": ".sechead"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/follows.py",
-    "line": 29,
-    "selector": ".sechead .t",
+    "selector": "[data-part=\"section/head\"] .t",
     "token": ".t"
   },
   {
@@ -1286,15 +1262,7 @@
     "held": false,
     "file": "frontend/maquette/harness/follows.py",
     "line": 32,
-    "selector": ".sechead .t",
-    "token": ".sechead"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/follows.py",
-    "line": 32,
-    "selector": ".sechead .t",
+    "selector": "[data-part=\"section/head\"] .t",
     "token": ".t"
   },
   {
@@ -1318,15 +1286,7 @@
     "held": false,
     "file": "frontend/maquette/harness/follows.py",
     "line": 36,
-    "selector": ".sechead .t",
-    "token": ".sechead"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/follows.py",
-    "line": 36,
-    "selector": ".sechead .t",
+    "selector": "[data-part=\"section/head\"] .t",
     "token": ".t"
   },
   {
@@ -1917,30 +1877,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/page_host.py",
-    "line": 240,
-    "selector": "#view .settingrow[data-setting]",
-    "token": ".settingrow"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/page_host.py",
-    "line": 253,
-    "selector": "#view .settingrow[data-setting]",
-    "token": ".settingrow"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/page_host.py",
-    "line": 255,
-    "selector": "#view .settingrow[data-setting]",
-    "token": ".settingrow"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/page_host.py",
     "line": 259,
     "selector": "#sheet .sheetmeta",
     "token": ".sheetmeta"
@@ -1968,14 +1904,6 @@
     "line": 364,
     "selector": "#view .topic[data-profile]",
     "token": ".topic"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/page_host.py",
-    "line": 386,
-    "selector": "#view .seg [data-lens='rec']",
-    "token": ".seg"
   },
   {
     "kind": "selection",
@@ -2027,14 +1955,6 @@
   },
   {
     "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/page_host.py",
-    "line": 529,
-    "selector": "#view .seg [data-acqtab='follows']",
-    "token": ".seg"
-  },
-  {
-    "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/page_host.py",
     "line": 542,
@@ -2078,23 +1998,7 @@
     "held": false,
     "file": "frontend/maquette/harness/page_host.py",
     "line": 618,
-    "selector": "#view .sechead .k",
-    "token": ".k"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/page_host.py",
-    "line": 618,
-    "selector": "#view .sechead .k",
-    "token": ".sechead"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/page_host.py",
-    "line": 627,
-    "selector": "#view .sechead .k",
+    "selector": "#view [data-part=\"section/head\"] .k",
     "token": ".k"
   },
   {
@@ -2102,8 +2006,8 @@
     "held": false,
     "file": "frontend/maquette/harness/page_host.py",
     "line": 627,
-    "selector": "#view .sechead .k",
-    "token": ".sechead"
+    "selector": "#view [data-part=\"section/head\"] .k",
+    "token": ".k"
   },
   {
     "kind": "selection",
@@ -2565,22 +2469,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/selection.py",
-    "line": 19,
-    "selector": ".seg button",
-    "token": ".seg"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/selection.py",
-    "line": 21,
-    "selector": ".seg button",
-    "token": ".seg"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/selection.py",
     "line": 24,
     "selector": ".tile .sel",
     "token": ".sel"
@@ -2701,14 +2589,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/settings.py",
-    "line": 115,
-    "selector": ".settingrow",
-    "token": ".settingrow"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/settings.py",
     "line": 116,
     "selector": ".rl",
     "token": ".rl"
@@ -2758,24 +2638,8 @@
     "held": false,
     "file": "frontend/maquette/harness/settings.py",
     "line": 161,
-    "selector": ".settingrow.modified",
+    "selector": "[data-part=\"setting/row\"].modified",
     "token": ".modified"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/settings.py",
-    "line": 161,
-    "selector": ".settingrow.modified",
-    "token": ".settingrow"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/settings.py",
-    "line": 175,
-    "selector": ".settingrow",
-    "token": ".settingrow"
   },
   {
     "kind": "selection",
@@ -2784,14 +2648,6 @@
     "line": 176,
     "selector": ".rv",
     "token": ".rv"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/settings.py",
-    "line": 206,
-    "selector": ".settingrow",
-    "token": ".settingrow"
   },
   {
     "kind": "selection",
@@ -2806,16 +2662,8 @@
     "held": false,
     "file": "frontend/maquette/harness/settings.py",
     "line": 216,
-    "selector": ".settingrow .rf",
+    "selector": "[data-part=\"setting/row\"] .rf",
     "token": ".rf"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/settings.py",
-    "line": 216,
-    "selector": ".settingrow .rf",
-    "token": ".settingrow"
   },
   {
     "kind": "selection",
@@ -3192,14 +3040,6 @@
     "line": 57,
     "selector": ".pillscroll",
     "token": ".pillscroll"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/touch.py",
-    "line": 136,
-    "selector": ".seg [aria-selected=\\\"true\\\"]",
-    "token": ".seg"
   },
   {
     "kind": "selection",

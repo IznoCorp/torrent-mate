@@ -140,7 +140,7 @@ function LastRun(): ReactElement {
   const run = PIPELINE.last;
   return (
     <section className="sec">
-      <div className="sechead">
+      <div className="sechead" data-part="section/head">
         <span className="pip success"></span>
         <span className="t">{t("screens.arrivals.lastRunTitle")}</span>
         <span className="k">{run.duree}</span>

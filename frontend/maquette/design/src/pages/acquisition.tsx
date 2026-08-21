@@ -53,7 +53,7 @@ function AcquisitionTabs(): ReactElement {
   ];
   return (
     <div className="viewtabs" data-region="acquisition/tabs">
-      <div className="seg" role="tablist">
+      <div className="seg" data-part="segment" role="tablist">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -445,7 +445,7 @@ function FollowsTab(): ReactElement {
               className="sec"
               dangerouslySetInnerHTML={{
                 __html: `
-            <div class="sechead"><span class="pip ${group.pip}"></span><span class="t">${group.l}</span><span class="k">${items.length}</span></div>
+            <div class="sechead" data-part="section/head"><span class="pip ${group.pip}"></span><span class="t">${group.l}</span><span class="k">${items.length}</span></div>
             ${items.map((item) => rowOf(item, showStatus)).join("")}
           `,
               }}

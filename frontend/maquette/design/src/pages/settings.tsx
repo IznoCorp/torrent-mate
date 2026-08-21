@@ -54,6 +54,7 @@ function SettingRow({
   return (
     <button
       className={`settingrow${edited ? " modified" : ""}`}
+      data-part="setting/row"
       data-setting={identity}
     >
       <span className="rl">
@@ -172,6 +173,7 @@ export function SettingsPage(): ReactElement | null {
           {SECRETS.map((secret) => (
             <button
               className="settingrow"
+              data-part="setting/row"
               data-secret={secret.k}
               key={secret.k}
             >

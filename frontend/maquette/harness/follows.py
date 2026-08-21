@@ -26,14 +26,14 @@ async def main():
     await pg.screenshot(path="s_liste.png")
 
     await pg.click('[data-fmode="group"]'); await pg.wait_for_timeout(350)
-    print("groups rendered   :", await pg.evaluate("()=>[...document.querySelectorAll('.sechead .t')].map(e=>e.textContent)"))
+    print("groups rendered   :", await pg.evaluate('''()=>[...document.querySelectorAll('[data-part="section/head"] .t')].map(e=>e.textContent)'''))
     print("chip hidden in a homogeneous group:", await pg.evaluate("""()=>{
        const secs=[...document.querySelectorAll('.sec')];
-       const upToDate=secs.find(s=>(s.querySelector('.sechead .t')||{}).textContent==='À jour');
+       const upToDate=secs.find(s=>(s.querySelector('[data-part="section/head"] .t')||{}).textContent==='À jour');
        return upToDate? upToDate.querySelectorAll('.chip').length===0 : 'group absent';}"""))
     print("chip kept in a heterogeneous group:", await pg.evaluate("""()=>{
        const secs=[...document.querySelectorAll('.sec')];
-       const d=secs.find(s=>(s.querySelector('.sechead .t')||{}).textContent==='Demandent quelque chose');
+       const d=secs.find(s=>(s.querySelector('[data-part="section/head"] .t')||{}).textContent==='Demandent quelque chose');
        return d? d.querySelectorAll('.chip').length>0 : 'group absent';}"""))
     await pg.screenshot(path="s_groupe.png")
 

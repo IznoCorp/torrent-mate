@@ -133,7 +133,7 @@ async def main():
                 await drag(cdp, r["x"] + r["width"] / 2, r["y"] + 200, 10, direction, 0)
                 await pg.wait_for_timeout(300)
             left = await pg.evaluate(
-                "()=>(document.querySelector('.seg [aria-selected=\"true\"]')||{}).textContent")
+                '''()=>(document.querySelector('[data-part="segment"] [aria-selected="true"]')||{}).textContent''')
             check(f"no drag changes the view ({state_})",
                      (left or "").startswith(expected), str(left))
 

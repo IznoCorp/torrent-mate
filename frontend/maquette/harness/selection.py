@@ -16,9 +16,9 @@ async def main():
     await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>document.querySelector('#toastx').click()")
 
-    print("tab labels:", await pg.evaluate("()=>[...document.querySelectorAll('.seg button')].map(b=>b.textContent.trim())"))
+    print("tab labels:", await pg.evaluate('''()=>[...document.querySelectorAll('[data-part="segment"] button')].map(b=>b.textContent.trim())'''))
     await pg.click('[data-page="lib"]'); await pg.wait_for_timeout(400)
-    print("lenses            :", await pg.evaluate("()=>[...document.querySelectorAll('.seg button')].map(b=>b.textContent.trim())"))
+    print("lenses            :", await pg.evaluate('''()=>[...document.querySelectorAll('[data-part="segment"] button')].map(b=>b.textContent.trim())'''))
 
     print("\n── grid at rest ──")
     print("  chips visible      :", await pg.evaluate("()=>document.querySelectorAll('.tile .sel').length"), "(expected 0)")

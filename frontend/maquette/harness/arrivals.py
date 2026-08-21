@@ -59,7 +59,7 @@ READ = """() => {
       empty: x.hasAttribute('data-empty'),
       blocked: x.hasAttribute('data-blocked'),
     })),
-    sections: [...document.querySelectorAll('.sechead .t')].map((x) => x.textContent.trim()),
+    sections: [...document.querySelectorAll('[data-part="section/head"] .t')].map((x) => x.textContent.trim()),
   };
 }"""
 

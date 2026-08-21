@@ -237,7 +237,7 @@ async def main():
         refused = await tap("#view .topic[data-topic]") if topic else "absent"
         opened = await page.evaluate("""()=>({
           topic: SETTINGS_STATE.topic,
-          rows: document.querySelectorAll('#view .settingrow[data-setting]').length,
+          rows: document.querySelectorAll('#view [data-part="setting/row"][data-setting]').length,
         })""")
         journal.check(
             "a real tap on a settings topic opens THAT topic",
@@ -250,9 +250,9 @@ async def main():
         # `data-field` exists only for the types that offer a field — a
         # structure or a list would fail this hold for the wrong reason.
         identity = await page.evaluate(
-            "()=>{const b = document.querySelector('#view .settingrow[data-setting]');"
+            '''()=>{const b = document.querySelector('#view [data-part="setting/row"][data-setting]');'''
             " return b ? b.dataset.setting : null;}")
-        refused = (await tap("#view .settingrow[data-setting]")
+        refused = (await tap('#view [data-part="setting/row"][data-setting]')
                    if identity else "absent")
         edited = await page.evaluate("""()=>{
           const field = document.querySelector('#sheetin [data-field]');
@@ -383,7 +383,7 @@ async def main():
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(400)
 
-        refused = await tap("#view .seg [data-lens='rec']")
+        refused = await tap("""#view [data-part="segment"] [data-lens='rec']""")
         lens = await page.evaluate("""()=>({
           lens: window.__store.read().state.libLens,
           drawn: (document.querySelector('#view .countline')||{}).textContent || '',
@@ -526,7 +526,7 @@ async def main():
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(400)
 
-        refused = await tap("#view .seg [data-acqtab='follows']")
+        refused = await tap("""#view [data-part="segment"] [data-acqtab='follows']""")
         opened = await page.evaluate("""()=>({
           tab: window.__store.read().state.acqTab,
           field: !!document.querySelector('#view #follq'),
@@ -615,7 +615,7 @@ async def main():
         await page.evaluate("()=>window.__go('acq-now-loaded')")
         await page.wait_for_timeout(600)
         counters = await page.evaluate(
-            "()=>[...document.querySelectorAll('#view .sechead .k')]"
+            '''()=>[...document.querySelectorAll('#view [data-part="section/head"] .k')]'''
             ".map((x) => x.textContent)")
         moved = await page.evaluate(
             "()=>{const first = window.__referentiel.derivedTakeable()[0];"
@@ -624,7 +624,7 @@ async def main():
             " return first.t;}")
         await page.wait_for_timeout(700)
         after_action = await page.evaluate(
-            "()=>[...document.querySelectorAll('#view .sechead .k')]"
+            '''()=>[...document.querySelectorAll('#view [data-part="section/head"] .k')]'''
             ".map((x) => x.textContent)")
         journal.check(
             "an action that moves a medium redraws the page it moved it on",
