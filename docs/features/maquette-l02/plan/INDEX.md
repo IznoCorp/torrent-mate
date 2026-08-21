@@ -48,7 +48,7 @@ happens to be empty is a floor someone can raise again.
 | --- | ----------------------------------------------------------------- | --------------------------------------- | ------ |
 | 1   | Vocabulary, the guard arm, the baseline, the dormant arm, the VALUE arm, hold counts | `phase-01-vocabulary-and-guard.md` | [x]    |
 | 2   | `.screen` / `.sheet` / `.scrim`, and `data-open` on five layers         | `phase-02-screen-sheet-scrim.md`        | [x]    |
-| 3   | `.card` and its parts                                             | `phase-03-card-and-parts.md`            | [ ]    |
+| 3   | `.card` and its parts, `deck/card`, and a state so R26 can fall    | `phase-03-card-and-parts.md`            | [x]    |
 | 4   | `.reslist`, `.sugwrap`, `.ep`, `.eppop`                           | `phase-04-lists-and-episodes.md`        | [ ]    |
 | 5   | Filters and settings                                              | `phase-05-filters-and-settings.md`      | [ ]    |
 | 6   | The tail, then the baseline is emptied and deleted                | `phase-06-tail-and-baseline-removal.md` | [ ]    |
@@ -187,6 +187,72 @@ Carried: three assertions in `audit2.py:160-167` and `audit.py:208` became tauto
 `[data-open]` in the very selector they then test for `data-open` — introduced by the rewrite, not
 by 2.3, harmless on the close path (`?.` yields `undefined`), and a line for a later tidy-up; `#scrim`'s double writer (React and engine) is the strangler state, mirrored and not
 resolved; the six vestigial `#screen` assertions are a later tidy-up.
+
+## What phase 3 found, and what it cost the plan
+
+1. **The phase named six of its fourteen tokens.** Its three sub-phases could remove 121 of the 143
+   entries it claimed; `csub`, `cmeta`, `ctop`, `creason`, `pfall`, `dcard`, `freshtag`, `caption` —
+   22 occurrences — were named by nothing. Sub-phase 3.4 took them. Phases 4 and 5 had the same
+   defect (10 and 24 occurrences), closed the same way before either started.
+2. **`.dcard` is not a card.** It is the swipe DECK's card — `deck.py`, `mouse.py`, `drag.py`
+   select it, six of its eleven occurrences held in tables — and it takes `deck/card`, because a
+   namespace names the concept that owns the element, not the class that styles it.
+3. **Five leaf words were absent from the vocabulary** — `subtitle`, `meta`, `fallback`,
+   `caption`, `fresh` — and a sentence in the plan had guessed two others. Measured before the
+   sub-phase that needs them, added one line each in the commit that coins the values.
+4. **ACC-04 left this phase** when it needed a single-emitter target: every card token has
+   several, so renaming one emitter leaves the value emitted and the arm green. `.reslist`, one
+   emitter, is phase 4's.
+5. **`rename-identifiers.py` was still prescribed by 3.1's draft** after phase 2 had struck it for
+   selectors; struck here too.
+6. **The baseline's `line` is where the literal begins, not where the token is.** For a multi-line
+   JS block in a `"""…"""` string the token can sit lines below; a per-line rewrite aborts. 3.1
+   ran one, discarded it, and redid the 79 through `tokenize`, per string token, after reconciling
+   the corpus count (80) against the baseline (79 — the surplus a JS comment). The later sub-phases
+   were told before they started.
+7. **The formatter hook reformats the whole of `legacy.js` on the first `Edit`** — 33 000 lines,
+   silent in a `--stat` unless read. 3.2 reverted and re-applied its two lines by script; every
+   later sub-phase was told to never use the Edit tool on the engine.
+8. **`card/cover` was a misnomer the plan had fixed and 3.2 followed.** `.cov` holds the card's
+   OVERVIEW — the synopsis, clamped, held by rules named « the rows carry the synopsis » — not a
+   cover image. 3.2 followed the plan and flagged it; 3.3 renamed the value to `card/overview` at its
+   two emitters and eight selections — and `overview` was a sixth word absent from the vocabulary,
+   found by the grep a brief had skipped. A name names what the thing is.
+9. **The plan's 3.3 mutation cannot fell the suite, and it never could.** R26's `noposter` branch
+   reads identically with and without the state, because no named state opens the sheet of one of
+   the three artwork-less titles — a pre-existing hole in the state corpus, not in the migration.
+   3.3 proved the wiring by other means (326 titles, attribute equal to class on all, R26's own body
+   replayed on the three falls naming the 240 px band) and named the hole. The guard would not
+   catch a REMOVED state attribute either: its fourth arm refuses a bare `{x}` and counts the rest,
+   and a count that slips 3 → 2 is remarked by nothing. Carried to the operator: a named state that
+   opens an artwork-less sheet closes both, and it touches the frozen state corpus and the oracle's
+   reference.
+10. **Vocabulary is checked on attribute NAMES too.** 3.3 was refused on `data-no-poster` — `no`
+   was absent — after a brief had measured only the `data-part` leaves. 3.4's brief measures both.
+11. **`card/fresh-tag` is an anchor nothing exercises, and `.freshtag` already was.** 3.4's own
+   oracle — driving all 82 states and counting what each new value selects — read 0 for it; a probe
+   in the follow flow read `[.freshtag, [data-part="card/fresh-tag"]] = [0, 0]`. `actions.py:81`
+   PRINTS the result and asserts nothing, and the flow never produces a `fresh` descriptor. The
+   migration is faithful; the contract has no rule that would fall if either end moved. Unlike R26's
+   branch, there is no rule asleep here — there is none — so it is carried, not closed: a rule that
+   asserts the fresh tag after a follow is behaviour work, not anchoring.
+12. **A named state was added so a planned proof could prove something.** `mediasheet-no-poster`
+   opens the sheet of `Widow's Bay (2026)`, an artwork-less title; the corpus reads 83 by execution.
+   The oracle's reference was re-accepted with the added state — additions only — and the
+   hold-count baseline re-recorded: exactly two rules moved, `states.py` 82 → 83 and `chrome.py`
+   164 → 166, both one-or-two holds per state, nothing else. Then the mutation 3.3 owed was
+   replayed — `data-no-poster` dropped — and **R26 fell**: « visual header not generalised — 2:
+   mediasheet-no-poster/dark: top band of 72px (< 240) », both themes; restored byte-identical, green.
+   The title is `Widow's Bay` WITHOUT the year: the fixture holds two records and the `(2026)` one has
+   artwork — the descriptor's `t` taken verbatim would have left the branch asleep Every dispatch of this phase ran on Opus; the one that added the state
+   ended its turn « waiting on the background record » when the harness moved a 16-minute job to
+   the background on its own, and was resumed with its context once the job had finished.
+13. **L01's test hard-coded the count L01 had ordered counted by execution.**
+   `tests/scripts/test_oracle.py` pins the committed reference at `{"states": 82}` — the one literal
+   82 in the repository, in the lot whose DESIGN says « never by regex ». It is a legitimate pin (a
+   reference recorded on a different corpus must not pass), and it is why `make check` went red at
+   this gate: 3.5 moved the corpus to 83 on purpose, and the pin had to move with it, with the commit
+   that moved it named beside the number.
 
 ## The ACCEPTANCE map
 

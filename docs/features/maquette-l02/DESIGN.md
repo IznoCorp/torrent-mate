@@ -490,7 +490,8 @@ Expected: `exit=1`, and the output names `cards.py`, its line, and the selector 
 > `legacy.js` twice more, so the precondition abandons — and had it not, renaming one emitter of
 > four proves nothing: the other three still emit the value and the arm stays green. **A
 > half-moved-contract mutation needs a target with exactly ONE emitter.** Forty tokens qualify;
-> `.reslist` is the strongest — one emitter in `screens/add.tsx`, selected 15 times.
+> `.reslist` is the strongest — one emitter in `screens/add.tsx`, selected 17 times (15 as call
+> arguments, 2 held in tables, once the instrument read both).
 
 ```bash
 F=frontend/maquette/design/src/screens/add.tsx; cp "$F" /tmp/l02-acc04.bak

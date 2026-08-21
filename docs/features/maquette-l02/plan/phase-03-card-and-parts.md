@@ -235,7 +235,7 @@ and the acceptance diff must be additions only. `states.py` holds the count; it 
 hold-count baseline is re-recorded, and the rule-by-rule diff must show exactly the rules whose
 subject grew — `states.py`, and `audit2.py` if R26 counts per header — and nothing else.
 
-- [ ] **Step 1.** Register `media-sheet-no-poster` in `states.js`, the way its neighbours are
+- [ ] **Step 1.** Register `mediasheet-no-poster` in `states.js`, the way its neighbours are
       registered (read three of them first): it opens the media sheet of `Widow's Bay`, an
       artwork-less title, through the same seam the other sheet states use. Every word of the id is
       in the vocabulary (`no` joined it in 3.3).
