@@ -219,6 +219,7 @@ fill
 film
 filter
 filtered
+filters
 find
 finger
 first
@@ -435,6 +436,7 @@ pick
 pile
 pill
 pills
+pilot
 pipe
 pipeline
 point

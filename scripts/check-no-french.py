@@ -40,8 +40,13 @@ it, so an arm added without a heading here fails the gate:
    whose answer is only ever as good as the list of French words behind it, but
    « is this word one we use? », read from `scripts/code-vocabulary.txt`.
 7. **`data-*` names** — an attribute name is a name someone chose, so it obeys
-   the rule. Their VALUES do not: `data-go="profile"` names a page, and a page
-   id is an address.
+   the rule. The VALUES of the NAMING attributes (`data-part`, `data-region`)
+   do too: a part or region value is a structural name someone chose, so its
+   words are read against the vocabulary. The ADDRESS attributes' values
+   (`data-go`, `data-key`, `data-panel`, `data-page`, `data-mediasheet`,
+   `data-resolve`, `data-follow`, `data-toast`, and anything whose value is a
+   route, a title, a folder or a store datum) stay unread, because a page id
+   is an address, not a name.
 8. **The engine's declared debt** — the French words the legacy engine still
    needs, listed below a banner in the vocabulary and refused to every other
    file, so a vocabulary seeded from the code cannot licence the debt it exists
@@ -588,6 +593,32 @@ def check_vocabulary(violations: list[str]) -> None:
                     "word there if the codebase really speaks it")
 
 
+# The two kinds of VALUED `data-*` attribute, named in the code so that adding
+# an attribute forces the choice of which list it joins. A NAMING value is a
+# structural name someone chose — `library/body` — and is read like a name. An
+# ADDRESS value is not: it is a page id, a route, a title, a folder or a datum
+# the app stores or displays, and no arm may ask it to be English. An attribute
+# in NEITHER list is unread by the value half as well — the rule reads only
+# what NAMING_ATTRIBUTES names, and the name half above still reads every NAME.
+NAMING_ATTRIBUTES = frozenset({"data-part", "data-region"})
+ADDRESS_ATTRIBUTES = frozenset({
+    "data-go", "data-key", "data-panel", "data-page", "data-mediasheet",
+    "data-resolve", "data-follow", "data-toast",
+})
+
+# A naming attribute's literal value, in its three spellings: double-quoted,
+# single-quoted, and the JSX braced-string form. A dynamic value
+# (`data-region={region}`) has no literal to read and is left alone.
+NAMED_VALUE = re.compile(
+    r"\b(?P<attr>" + "|".join(sorted(NAMING_ATTRIBUTES)) + r")"
+    r"""(?:="(?P<dq>[^"]*)"|='(?P<sq>[^']*)'|=\{\s*['"](?P<brace>[^'"]*)['"]\s*\})""")
+
+# The lexicon's ledger is the canonical table of every counter; this key is
+# declared HERE so the arm and its count live in one file. The zero-count hold
+# in `main` still refuses it when it stays empty.
+examined.setdefault("data-part values / markup", 0)
+
+
 def check_data_attributes(violations: list[str]) -> None:
     """Refuses a `data-*` attribute NAME built from a word this codebase lacks.
 
@@ -597,8 +628,15 @@ def check_data_attributes(violations: list[str]) -> None:
     `data-prendre`, `data-maintrub`, `data-qreg` and `data-apparence` stayed,
     green, because no arm looked. A rule with no arm is a sentence in a file.
 
-    The VALUES are not read, and must not be: `data-go="profil"` names a page,
-    and a page id is an address.
+    The VALUES of the NAMING attributes are read too, and of nothing else.
+    `NAMING_ATTRIBUTES` holds `data-part` and `data-region`: a part value is a
+    structural name someone chose (`library/body`), so it obeys the rule a
+    name obeys, split on `/` and `-` and checked word by word. The ADDRESS
+    attributes — `ADDRESS_ATTRIBUTES`: `data-go`, `data-key`, `data-panel`,
+    `data-page`, `data-mediasheet`, `data-resolve`, `data-follow`,
+    `data-toast` — stay unread, because their values are not names:
+    `data-go="profil"` names a page, and a page id, a route, a title, a
+    folder or a store datum is an address.
 
     It asks the vocabulary's question rather than « is this word French? »,
     because the names here are abbreviations — `rub` for « rubrique » is
@@ -639,6 +677,26 @@ def check_data_attributes(violations: list[str]) -> None:
                 violations.append(
                     f"{relative(path)}:{line_no}: the markup name "
                     f"{name!r} is built from "
+                    f"{', '.join(repr(w) for w in unknown)}, which "
+                    f"{'is' if len(unknown) == 1 else 'are'} not in "
+                    f"{relative(VOCABULARY)} — name it in English, or add the "
+                    "word there if the codebase really speaks it")
+        for match in NAMED_VALUE.finditer(source):
+            value = (match.group("dq") or match.group("sq")
+                     or match.group("brace"))
+            # ONE ledger line for the two NAMING attributes, named after
+            # `data-part`: the zero-count hold in `main` refuses a ledger line
+            # that examined nothing, and until phase 2 writes the first
+            # `data-part` there is nothing for a `data-part`-only line to
+            # count. ACC-12 greps this line's name, which pins the wording.
+            examined["data-part values / markup"] += 1
+            line_no = source.count("\n", 0, match.start()) + 1
+            unknown = [w for w in re.split(r"[/-]", value)
+                       if len(w) > 1 and w.lower() not in words]
+            if unknown:
+                violations.append(
+                    f"{relative(path)}:{line_no}: the markup value {value!r} "
+                    f"of {match.group('attr')!r} is built from "
                     f"{', '.join(repr(w) for w in unknown)}, which "
                     f"{'is' if len(unknown) == 1 else 'are'} not in "
                     f"{relative(VOCABULARY)} — name it in English, or add the "
@@ -1002,15 +1060,22 @@ ARMS: tuple[tuple[object, str], ...] = (
 )
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     """Runs every arm in `ARMS` and reports every violation.
 
     The arms are WALKED rather than listed again here: a hand-written second
     list is a count that drifts, and this one drifted three times (see arm 13).
 
+    Args:
+        argv: The command line, defaulting to `sys.argv[1:]`. With `--counts`
+            the examined ledger is printed one line per counter instead of the
+            success line — ACC-12 greps that output for the naming-value
+            count, because a gate proves what it READS, not what it exits.
+
     Returns:
         1 when anything was found, 0 otherwise.
     """
+    counts_only = "--counts" in (sys.argv[1:] if argv is None else argv)
     violations: list[str] = []
     for arm, _ in ARMS:
         arm(violations)
@@ -1028,6 +1093,10 @@ def main() -> int:
               "a reader of the interface sees lives in the i18n resources.",
               file=sys.stderr)
         return 1
+    if counts_only:
+        for what, count in examined.items():
+            print(f"{count} {what}")
+        return 0
     print(f"no-French guardrail: {len(ARMS)} arms ("
           + ", ".join(label for _, label in ARMS)
           + "), no violation — read "
