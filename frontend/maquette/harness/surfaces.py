@@ -2,6 +2,7 @@
 
 import asyncio
 
+from common import shot
 from playwright.async_api import async_playwright
 
 
@@ -38,7 +39,7 @@ async def main():
               feet:[...s.querySelectorAll('[data-part="result/list"] [data-part="card/foot"]')].map(x=>x.textContent.trim()),
               byId:!!s.querySelector('[data-part="add/by-id"]')};}""")
     print(" ", r)
-    await pg.screenshot(path="y_ajout.png")
+    await shot(pg, "surfaces-add")
     # The card wears no inline action: the act lives in the result's panel,
     # so the journey opens the panel first — the same path the finger takes.
     await pg.click("[data-panel='add:3']"); await pg.wait_for_timeout(450)
@@ -47,7 +48,7 @@ async def main():
     await pg.click("[data-panel='add:0']"); await pg.wait_for_timeout(450)
     await pg.click("#sheet [data-act='add:0']"); await pg.wait_for_timeout(450)
     print("  adding an ALREADY owned title:", await pg.evaluate("()=>{const g=document.querySelector('#dlg');return {open:g.hasAttribute('data-open'),title:g.querySelector('h3')?.textContent};}"))
-    await pg.screenshot(path="y_remplacer.png")
+    await shot(pg, "surfaces-replace")
     await pg.evaluate("()=>document.querySelector('#dlgcancel').click()"); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>__close('screen')"); await pg.wait_for_timeout(400)
 
@@ -61,7 +62,7 @@ async def main():
               allCollapsed:ss.every(x=>!x.open), legend:s.querySelectorAll('[data-part="legend"] span').length,
               cells:s.querySelectorAll('[data-part="episode"]').length};}""")
     print(" ", r)
-    await pg.screenshot(path="y_matrice_complete.png")
+    await shot(pg, "surfaces-matrix-complete")
     await pg.evaluate("()=>document.querySelector('#scrim').click()"); await pg.wait_for_timeout(350)
 
     await pg.click('[data-page="lib"]'); await pg.click('[data-lens="inc"]'); await pg.wait_for_timeout(400)
@@ -82,7 +83,7 @@ async def main():
               states:[...new Set([...s.querySelectorAll('[data-part="episode"]')].map(x=>x.className.replace('ep ','')))],
               legend:[...s.querySelectorAll('[data-part="legend"] span')].map(x=>x.textContent.trim())};}""")
     print(" ", r)
-    await pg.screenshot(path="y_matrice_trous.png")
+    await shot(pg, "surfaces-matrix-gaps")
     print("\nJS errors:", errs or "none")
     await b.close()
     # A script that only prints can never fail, and a script that cannot fail

@@ -184,3 +184,22 @@ stylesheet's only attribute selectors are `[aria-checked]`, `[aria-selected]`, `
 **ACC-13 is the third command**: `make check; echo "exit=$?"` → `exit=0`. It now runs
 `oracle.py --contracts` too, wired in phase 1, so the dormant arm that held half of D4 and executed
 nowhere is part of the gate this wave closes on.
+
+---
+
+## Sub-phase 6.5 — the harness writes its screenshots in one place
+
+**What.** The 22 `pg.screenshot(path="…")` calls in eleven rule files now go through one helper,
+`common.shot(pg, name)`, which writes under `frontend/maquette/harness/__screenshots__/`. Every
+capture was renamed in English as `<rule>-<what>`; the directory is ignored by the repository's own
+`.gitignore`, and the two rules `/trailers_cache.json` and `/youtube_quota.json` went with it —
+`trailers.state_file` is anchored under `paths.data_dir`, so nothing writes those at the root.
+
+**Why.** A path relative to the caller lands wherever the caller stands, and every proof here runs
+from the repository root: 127 `.png` files had accumulated there, unseen because a blanket `*.png`
+ignores them all. It is the lesson `audit.py` already carries for `violations.json`.
+
+**The check.** `grep -n 'screenshot(' frontend/maquette/harness/*.py` names no file but `common.py`;
+after a full suite run `ls *.png | wc -l` at the root reads `0` and
+`ls frontend/maquette/harness/__screenshots__ | wc -l` reads `126` (19 fixed + 16 `scen` + 8 `sweep`
++ 83 `states`).

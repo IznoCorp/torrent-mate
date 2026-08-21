@@ -4,6 +4,7 @@ A view that renders nothing FAILS the pass: that is the guard that was missing
 the day a page went blank because a constant had disappeared.
 """
 import asyncio
+from common import shot
 from playwright.async_api import async_playwright
 
 # The state ids here are TEMPLATES — `acq-now-{s}` is completed at run time —
@@ -47,7 +48,7 @@ async def main():
             ok = r['txt'] > 100 and r['doc'] <= 390 and r['spills'] == 0 and (r['cards'] > 0 or r['empty'])
             if not ok: total_bad += 1
             print(("  PASS" if ok else "  FAIL"), f"{name:16}", r)
-            await pg.screenshot(path=f"z_{scen}_{name.replace('/','_')}.png")
+            await shot(pg, f"scen-{scen}-{name.replace('/','_')}")
     print("\nJS errors:", errs or "none")
     print("VERDICT:", "16/16 renders conform" if total_bad == 0 and not errs else f"{total_bad} failure(s)")
     await b.close()

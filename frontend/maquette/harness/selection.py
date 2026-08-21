@@ -1,6 +1,7 @@
 """Multi-selection in the library, and what it enables."""
 
 import asyncio
+from common import shot
 from playwright.async_api import async_playwright
 async def main():
   async with async_playwright() as p:
@@ -24,7 +25,7 @@ async def main():
     print("  chips visible      :", await pg.evaluate("""()=>document.querySelectorAll('[data-part="tile"] [data-part="selection/check"]').length"""), "(expected 0)")
     print("  selection bar:", await pg.evaluate("""()=>!!document.querySelector('[data-part="selection/bar"]')"""), "(expected False)")
     print("  tap opens the sheet:", await pg.evaluate("()=>!!document.querySelector('[data-tile]').dataset.mediasheet"))
-    await pg.screenshot(path="x_grille_repos.png")
+    await shot(pg, "selection-grid-rest")
 
     print("\n── long press ──")
     # A pointer event of type « touch »: the handlers serve finger, mouse and pen
@@ -43,7 +44,7 @@ async def main():
     print("  sheet open      :", press)
     if not press["open"]:
         failures.append("long press opens nothing")
-    await pg.screenshot(path="x_appuilong.png")
+    await shot(pg, "selection-long-press")
     await pg.evaluate("()=>document.querySelector('#scrim').click()"); await pg.wait_for_timeout(350)
 
     print("\n── selection mode ──")
@@ -53,12 +54,12 @@ async def main():
     for i in (0,2,5):
         await pg.click(f"[data-tile='{i}']"); await pg.wait_for_timeout(120)
     print("  after 3 taps:", (await pg.evaluate("""()=>document.querySelector('[data-part="selection/bar"] [data-part="selection/caption"]').textContent""")).strip())
-    await pg.screenshot(path="x_selection.png")
+    await shot(pg, "selection-selected")
     await pg.click("[data-delsel]"); await pg.wait_for_timeout(400)
     print("  dialog   :", await pg.evaluate("""()=>{const g=document.querySelector('#dlg');
         return {title:g.querySelector('h3').textContent, rows:g.querySelectorAll('[data-part="dialog/manifest"] li').length,
                 choices:[...g.querySelectorAll('[data-part="dialog/button"]')].map(x=>x.textContent.trim())};}"""))
-    await pg.screenshot(path="x_supprmulti.png")
+    await shot(pg, "selection-delete-multiple")
     print("\nJS errors:", errs or "none")
     print("VERDICT:", "both delete paths are reachable"
           if not failures and not errs else f"FAILED - {failures or errs}")

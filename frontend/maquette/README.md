@@ -757,6 +757,11 @@ regex built for `rgb()` mean nothing.
 
 ## A trap that cost real time: **screenshots are not an oracle**
 
+Every capture a rule takes goes through `common.shot` and lands in
+`harness/__screenshots__/`, gitignored: a reading aid you open when a rule fails, never a
+proof — a path relative to the caller once scattered 127 of them across the repository
+root, where a blanket `*.png` rule hid every one.
+
 Two captures of the **same, unmodified file** disagreed on 8 to 15 of the 47 states. Skeleton
 shimmer, the media-sheet header entrance, async decode of the embedded WebP visuals: none of
 it settles on a schedule you can wait out reliably. Freezing animations and awaiting

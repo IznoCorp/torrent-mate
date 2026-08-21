@@ -1,6 +1,7 @@
 """Interaction holds: what a tap, a long press and a drag must do."""
 
 import asyncio
+from common import shot
 from playwright.async_api import async_playwright
 
 # Pointer events of type « touch »: the handlers serve finger, mouse and pen
@@ -59,7 +60,7 @@ async def main():
               dryrun:!!g.querySelector('[data-part="dialog/dry-run"]'), rows:g.querySelectorAll('[data-part="dialog/manifest"] li').length,
               choices:[...g.querySelectorAll('[data-part="dialog/button"]')].map(x=>x.textContent.trim())};}""")
     print(" ", d)
-    await pg.screenshot(path="w_suppression.png")
+    await shot(pg, "inter-delete")
 
     print("── Découvrir: batch, panel, drag, undo ──")
     await pg.evaluate("()=>document.querySelector('#dlgcancel').click()"); await pg.wait_for_timeout(300)

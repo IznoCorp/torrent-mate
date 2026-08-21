@@ -17,6 +17,15 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 PROTOTYPE = "http://127.0.0.1:8899/wrapped.html"
 BAR = "─" * 62
 
+# Beside THIS FILE, never in the current directory — the same reason `audit.py`
+# anchors `violations.json`, learned a second time and more expensively.
+# Twenty-two captures were written as `screenshot(path="name.png")`, a path
+# relative to wherever the caller happened to stand, and every proof in this
+# repository is run from the root: 127 `.png` files had piled up there,
+# invisible because a blanket `*.png` rule ignores them all. An artifact with a
+# floating path is an artifact nobody owns and nobody counts.
+SCREENSHOTS = pathlib.Path(__file__).resolve().parent / "__screenshots__"
+
 # THE DESIGN'S SOURCES, and it is a LIST because the design stopped being one
 # file. A rule that greps « the design » must grep all of them.
 #
@@ -138,3 +147,22 @@ async def open_page(browser, **kwargs):
     await pg.evaluate("()=>document.querySelector('#toastx')?.click()")
     await pg.wait_for_timeout(250)
     return ctx, pg
+
+
+async def shot(pg, name):
+    """Captures the page into the harness's one screenshot directory.
+
+    A capture is a READING AID and never an oracle: two captures of the same
+    unmodified file disagree on a third of the states, because skeleton
+    shimmer, sheet entrances and image decoding do not settle on a schedule
+    that can be waited out. What holds a rendering is `oracle.py`.
+
+    Args:
+        pg: The Playwright page to capture.
+        name: The capture's name, without an extension, as `<rule>-<what>` so
+            that listing the directory says which rule wrote which frame. The
+            directory is created here rather than at import time: a rule that
+            takes no capture leaves none behind.
+    """
+    SCREENSHOTS.mkdir(parents=True, exist_ok=True)
+    await pg.screenshot(path=str(SCREENSHOTS / f"{name}.png"))

@@ -8,6 +8,7 @@ next back still worth exactly one step.
 """
 import asyncio
 
+from common import shot
 from playwright.async_api import async_playwright
 
 # Every popstate the document receives, counted from the page itself: a
@@ -86,7 +87,7 @@ async def main():
     await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card/body"]').click()"""); await pg.wait_for_timeout(420)
     r["verbs"] = await pg.evaluate("""()=>[...document.querySelectorAll('#sheet [data-part="sheet/action"][data-tone="primary"]')].map(x=>x.textContent.trim())""")
     print("search screen            :", r)
-    await pg.screenshot(path="p_identifier.png")
+    await shot(pg, "identify")
 
     before_assoc = await where(pg)
     await pg.evaluate("""()=>document.querySelector('#sheet [data-part="sheet/action"][data-tone="primary"]').click()"""); await pg.wait_for_timeout(700)

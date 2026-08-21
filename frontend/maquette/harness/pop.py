@@ -1,6 +1,7 @@
 """Popovers and their dismissal."""
 
 import asyncio
+from common import shot
 from playwright.async_api import async_playwright
 async def main():
   async with async_playwright() as p:
@@ -25,13 +26,13 @@ async def main():
     await pg.evaluate("()=>window.__go('followsheet-gaps')"); await pg.wait_for_timeout(450)
     a = await click_("""()=>[...document.querySelectorAll('[data-part="episode"]')].find(e=>e.className.includes('in_library')).click()""", "owned episode")
     b1 = await click_("""()=>[...document.querySelectorAll('[data-part="episode"]')].find(e=>e.className.includes('to_grab')).click()""", "missing episode")
-    await pg.screenshot(path="m_popover.png")
+    await shot(pg, "pop-episode")
 
     print("── Silo (including announced episodes) ──")
     await pg.evaluate("()=>{closePopEp();window.__go('acq-follows-list');}"); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>openFollowSheet('Silo')"); await pg.wait_for_timeout(450)
     c1 = await click_("""()=>{const l=[...document.querySelectorAll('[data-part="episode"]')];l[l.length-1].click();}""", "last episode")
-    await pg.screenshot(path="m_popover_silo.png")
+    await shot(pg, "pop-last-episode")
 
     print("── closing on outside click ──")
     await pg.evaluate("()=>document.querySelector('#sheet').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}))")
@@ -56,7 +57,7 @@ async def announced():
     await pg.evaluate("""()=>document.querySelector('[data-part="episode"][data-announced]').click()"""); await pg.wait_for_timeout(330)
     txt = await pg.evaluate("""()=>document.querySelector('[data-part="episode/popover"]')?.innerText.replace(/\\n/g,' | ')""")
     print("  popover for an ANNOUNCED episode:", txt)
-    await pg.screenshot(path="m_announced.png")
+    await shot(pg, "pop-announced-episode")
 
     # ITS EDGES MUST BE FINDABLE. The popover floats over a matrix of dark
     # cells on a dark surface: a border in `--border` drew a near-black line on

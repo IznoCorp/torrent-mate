@@ -88,11 +88,13 @@ body
 bold
 border
 borne
+bottom
 bound
 box
 brand
 bridge
 btn
+bugs
 button
 by
 byidv
@@ -253,6 +255,7 @@ fresh
 from
 full
 future
+gaps
 gauche
 gesture
 go
@@ -313,6 +316,7 @@ installed
 installgo
 installsteps
 installsub
+inter
 interval
 ios
 is
@@ -360,6 +364,7 @@ lock
 login
 loginerr
 loginform
+long
 maintact
 maintenance
 maintopic
@@ -369,6 +374,7 @@ manual
 maquette
 mark
 matches
+matrix
 md
 media
 mediasheet
@@ -391,6 +397,7 @@ moving
 mq
 ms
 multi
+multiple
 muted
 name
 names
@@ -511,11 +518,13 @@ releases
 remembered
 remove
 render
+replace
 required
 reset
 resolution
 resolutions
 resolve
+rest
 restart
 restore
 result
@@ -538,6 +547,7 @@ scen
 schedulers
 screen
 screens
+screenshots
 scrim
 scroll
 seams
@@ -571,6 +581,7 @@ sheetgrab
 sheetin
 sheets
 shell
+shot
 show
 shown
 side
@@ -628,9 +639,11 @@ sugmore
 suite
 surf
 surface
+surfaces
 svg
 swallow
 swatch
+sweep
 swipe
 swipeact
 switch

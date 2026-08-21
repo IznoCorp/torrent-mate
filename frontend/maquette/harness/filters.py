@@ -1,5 +1,6 @@
 """Category filters must FILTER, and their parts must sum to the whole."""
 import asyncio
+from common import shot
 from playwright.async_api import async_playwright
 async def main():
   async with async_playwright() as p:
@@ -39,7 +40,7 @@ async def main():
     await pg.evaluate("()=>{const i=document.querySelector('#libq');i.value='dex';i.dispatchEvent(new Event('input',{bubbles:true}));}")
     await pg.wait_for_timeout(350)
     print("\ncombined (Séries + « dex »):", await pg.evaluate("()=>({n:libFiltered().length, titles:libFiltered().map(x=>x.t), count:document.querySelector('#libcount').textContent.replace(/\\s+/g,' ').trim()})"))
-    await pg.screenshot(path="v_filtres.png")
+    await shot(pg, "filters")
     print("\nJS errors:", errs or "none")
     print("VERDICT:", "filters filter, and the parts sum to the whole" if not ko and not errs else f"remaining: {ko}")
     await b.close()

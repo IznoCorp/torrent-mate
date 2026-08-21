@@ -153,10 +153,6 @@ config.json5
 config.json5.v15.bak
 # TMDB keywords cache
 tmdb_keywords_cache.json
-# Trailer feature runtime caches (live under .data/ in prod; this is a safety
-# net for tests/smoke-runs that resolve cache_dir to the repo root).
-/trailers_cache.json
-/youtube_quota.json
 
 # launchd plist is generated from .plist.template via scripts/install-launchd.sh
 # and installed to ~/Library/LaunchAgents/ — never commit the rendered copy
@@ -182,3 +178,8 @@ personalscraper/web/static/*
 # itself after every run; the file is output, never a source, and one copy of it
 # was committed at the repository root by a `git add -A`.
 violations.json
+
+# Every screenshot the harness rules take (`common.shot`) — reading aids, never
+# an oracle, rewritten on each run. The global ~/.gitignore ignores `__*__/`,
+# but a fresh clone on another machine has no such file: the rule lives here.
+frontend/maquette/harness/__screenshots__/

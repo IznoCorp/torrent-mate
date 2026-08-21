@@ -1,6 +1,7 @@
 """Every reported defect has its test, written together with the fix."""
 import asyncio
 
+from common import shot
 from playwright.async_api import async_playwright
 
 
@@ -73,7 +74,7 @@ async def main():
       const btn=[...sc.querySelectorAll('[data-part="sheet/action"]')].pop();
       return Math.round(document.querySelector('[data-part="shell/tab-bar"]').getBoundingClientRect().top - btn.getBoundingClientRect().bottom);}""")
     chk("6. gap under the last action", r2 >= 12, f"{r2}px at maximum scroll")
-    await pg.screenshot(path="g_fiche_bas.png")
+    await shot(pg, "bugs-sheet-bottom")
 
     # 7 — a search result leads to its media sheet
     await pg.evaluate("()=>window.__go('acq-add-results')"); await pg.wait_for_timeout(450)
@@ -89,7 +90,7 @@ async def main():
     await pg.evaluate("()=>document.querySelector('[data-manual]').click()"); await pg.wait_for_timeout(700)
     q = await pg.evaluate("()=>document.querySelector('#addq')?.value")
     chk("8. manual search pre-filled", has and bool(q), f"→ « {q} »")
-    await pg.screenshot(path="g_manuelle.png")
+    await shot(pg, "bugs-manual-search")
 
     # 9 — B-021: a nav control INSIDE a layer lands, and the layer leaves.
     # « Profil et préférences » in the user sheet navigates via data-go; the

@@ -2,6 +2,7 @@
 
 import asyncio
 
+from common import shot
 from playwright.async_api import async_playwright
 
 
@@ -66,7 +67,7 @@ async def main():
         ok = (r['txt']>60 or r['sk']>0) and r['doc']<=390 and r['spills']==0
         if not ok: bad.append((i,r))
         print(("  PASS" if ok else "  FAIL"), f"{i:28}", r)
-        await pg.screenshot(path=f"st_{i}.png")
+        await shot(pg, f"states-{i}")
     print("\nJS errors:", errs or "none")
     print("VERDICT:", f"{len(ids)-len(bad)}/{len(ids)} states conform" + ("" if not bad else f" — failures: {[x[0] for x in bad]}"))
     await b.close()

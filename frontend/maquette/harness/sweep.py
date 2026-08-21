@@ -1,12 +1,18 @@
 """A sweep across every state, looking for what stopped rendering."""
 
 import asyncio
+from common import shot
 from playwright.async_api import async_playwright
 
-VIEWS = [("acq/now",'[data-page="acq"]'), ("acq/suivis",'[data-acqtab="follows"]'),
-         ("acq/decouvrir",'[data-acqtab="discover"]'), ("lib/categories",'[data-page="lib"]'),
-         ("lib/incomplets",'[data-lens="inc"]'), ("lib/recents",'[data-lens="rec"]'),
-         ("arrivees",'[data-page="arr"]'), ("system",'[data-page="sys"]')]
+# The LABEL is a name this tool prints and now also writes as a capture's file
+# name, so it is English like every other name here — and it is the same
+# vocabulary `scen.py` sweeps the same eight views under, rather than a second
+# set of words for one set of screens. The SELECTOR beside it is an address and
+# is untouched.
+VIEWS = [("acq/now",'[data-page="acq"]'), ("acq/follows",'[data-acqtab="follows"]'),
+         ("acq/discover",'[data-acqtab="discover"]'), ("lib/categories",'[data-page="lib"]'),
+         ("lib/incomplete",'[data-lens="inc"]'), ("lib/recent",'[data-lens="rec"]'),
+         ("arrivals",'[data-page="arr"]'), ("system",'[data-page="sys"]')]
 
 async def main():
   async with async_playwright() as p:
@@ -58,7 +64,7 @@ async def main():
         ok = r['cards'] > 0 and r['content'] > 120 and r['doc'] <= 390 and r['device'] == 390 and r['spills'] == 0
         if not ok: bad += 1
         print(("PASS" if ok else "FAIL"), f"{name:16}", r)
-        await pg.screenshot(path=f"w_{name.replace('/','_')}.png")
+        await shot(pg, f"sweep-{name.replace('/','_')}")
     print("\nJS errors:", errs or "none")
     print("VERDICT:", "all 8 views render content, with no overflow" if bad==0 and not errs else f"{bad} view(s) failed")
     await b.close()

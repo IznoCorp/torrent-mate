@@ -1,6 +1,7 @@
 """The follows tab: its list, its groups, and the states it reaches."""
 
 import asyncio
+from common import shot
 from playwright.async_api import async_playwright
 async def main():
   async with async_playwright() as p:
@@ -23,7 +24,7 @@ async def main():
     print("title alone       :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card"]')].slice(0,4).every(c=>{
         const t=c.querySelector('[data-part="card/title"]').getBoundingClientRect(), m=c.querySelector('[data-part="card/meta"]').getBoundingClientRect();
         return t.bottom<=m.top+0.5;})"""))
-    await pg.screenshot(path="s_liste.png")
+    await shot(pg, "follows-list")
 
     await pg.click('[data-fmode="group"]'); await pg.wait_for_timeout(350)
     print("groups rendered   :", await pg.evaluate('''()=>[...document.querySelectorAll('[data-part="section/head"] [data-part="section/title"]')].map(e=>e.textContent)'''))
@@ -35,12 +36,12 @@ async def main():
        const secs=[...document.querySelectorAll('[data-part="section"]')];
        const d=secs.find(s=>(s.querySelector('[data-part="section/head"] [data-part="section/title"]')||{}).textContent==='Demandent quelque chose');
        return d? d.querySelectorAll('[data-part="chip"]').length>0 : 'group absent';}"""))
-    await pg.screenshot(path="s_groupe.png")
+    await shot(pg, "follows-groups")
 
     await pg.click('[data-fmode="grid"]'); await pg.wait_for_timeout(350)
     print("tiles             :", await pg.evaluate("""()=>document.querySelectorAll('[data-part="tile"]').length"""),
           "| badges :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="tile/badge"]')].map(e=>e.textContent)"""))
-    await pg.screenshot(path="s_grille.png")
+    await shot(pg, "follows-grid")
 
     await pg.click('[data-fmode="list"]'); await pg.click('[data-pill="movies"]'); await pg.wait_for_timeout(300)
     print("Films filter      :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card/title"]')].map(e=>e.textContent)"""))
