@@ -47,7 +47,7 @@ happens to be empty is a floor someone can raise again.
 | #   | Phase                                                             | File                                    | Status |
 | --- | ----------------------------------------------------------------- | --------------------------------------- | ------ |
 | 1   | Vocabulary, the guard arm, the baseline, the dormant arm, the VALUE arm, hold counts | `phase-01-vocabulary-and-guard.md` | [x]    |
-| 2   | `.screen` / `.sheet` / `.scrim`, and the static-`open` correction | `phase-02-screen-sheet-scrim.md`        | [ ]    |
+| 2   | `.screen` / `.sheet` / `.scrim`, and `data-open` on five layers         | `phase-02-screen-sheet-scrim.md`        | [x]    |
 | 3   | `.card` and its parts                                             | `phase-03-card-and-parts.md`            | [ ]    |
 | 4   | `.reslist`, `.sugwrap`, `.ep`, `.eppop`                           | `phase-04-lists-and-episodes.md`        | [ ]    |
 | 5   | Filters and settings                                              | `phase-05-filters-and-settings.md`      | [ ]    |
@@ -125,6 +125,68 @@ Carried, not hidden: `host.tsx:142` renders `data-region={region}` from a table 
 names reach the DOM through a value no arm reads; `content.py` is a SECOND live-data rule
 `run.sh`'s header does not name; six `#screen.classList.contains('open')` assertions are
 vestiges of an engine path nothing calls, and move in 2.3 still reading false.
+
+## What phase 2 found, and what it cost the plan
+
+Phase 2 moved the first contract — 138 entries, 834 → 696, every tripwire on its number, three oracles
+green — and the first contract rewrote the phase three times before a line of it landed. Each rewrite is measured, and the sequence is kept because the sequence is the
+lesson.
+
+1. **`.screen.open` was read three ways, and only the third was checked against what runs.** The
+   first draft called `open` static and redundant; a correction made the mount node a mere
+   `screen-host`; a second correction made `open` the token telling the engine's `#screen` apart
+   from React's sections. Then `openScreen()` turned out to have no caller — republished on
+   `window`, named by two past-tense comments, invoked by no rule and no state. The engine-screen
+   path is dead, `#screen` never opens, and the six `#screen.classList.contains('open')`
+   assertions read false for good. The target stayed `[data-part="screen"][data-open]` for a plainer
+   reason: the attribute mirrors the class, on the sections because `open` is there and on `#screen`
+   through the same helper that would set it — so the day the path wakes, the contract already holds.
+2. **Every `.screen.open` carries two tokens, and the burn-down counted one.** Rewriting the prefix
+   removes `.screen` AND `.open`; the per-phase model had put 72 `.open` in the tail. Phase 2 grew
+   from 117 to 189, then to 201 when the held selectors were counted.
+3. **A dry run on a scratch copy found the second blind spot.** Rewriting the 63 baselined lines left
+   24 `.screen.open` behind — 17 comments, and 5 live selectors held in variables and tables that no
+   reader had counted. That became phase 1's last instrument change (140 held occurrences, 834
+   entries) before this phase's first commit.
+4. **The engine IS touched, at 14 sites.** The draft said it was not; it toggles `open` on four
+   layers, and the 54 assertions read five. A `setOpen(element, on)` helper routes all 14 so the
+   attribute cannot drift from the class it mirrors; `#scrim` keeps its two writers, React and the
+   engine, exactly as the class already did.
+5. **`rename-identifiers.py` is struck for selectors**, by its own header — a selector is a STRING
+   it « NEVER » renames, and `--values` is the mode whose read-back proof is skipped. A literal prefix
+   rewrite on baseline-listed lines, asserting its counts and judged by three oracles outside itself,
+   replaced it.
+6. **The DeepSeek provider ran out of credit** between phases; the operator authorised an Opus
+   escalation, same prompts, same guarantor. Every dispatch of this phase ran on Opus.
+7. **The third arm read raw text, and an escaped quote hid a selection from it.** Ten of 2.1's 63
+   `data-part` selections sat in single-line double-quoted Python strings as `[data-part=\"screen\"]`,
+   and the selection ⇒ emission arm counted 55 — one end of eight contracts unwatched, with nothing
+   refusing the shape. The arm now REFUSES the line, with the one-sentence fix, proved by a mutation
+   the unfixed guard let through at 62 of 63 with exit 0 — a decoder was not the answer, because
+   nothing in the instrument decodes a literal and a first decoder would still skip a call whose own
+   quotes are escaped. The same fix named the hole it left: the third arm read a `data-part`
+   selection only as a call argument. It gained the anchor arm's held pass and went from 65 to
+   **74 checked, 9 of them held** — the brief had said 63 and 5, both read from a commit message
+   rather than from a run, and the dispatch reported the tripwires instead of bending to them. Among
+   the nine are three hold MESSAGES in `attrs.py` that quote a selector; they count, by ruling: a
+   message that names what was selected lies the day the value moves, and excluding it would need a
+   prose-or-selector heuristic, which is the half-reading this guard refuses everywhere else.
+8. **The fourth arm became load-bearing in 2.2, measured.** `attrs.py` gained four holds on the
+   real `data-open` — absent on the closed sheet, present on the open one, `[data-part="sheet"]
+   [data-open]` selecting 0 then 1 — closing the gap phase 1 had written into its docstring. The
+   guard's state arm went from `0 state attribute(s) checked` to 2, and ACC-05 fell naming
+   `sheet.tsx:85`. The hold-count baseline moved once, deliberately: `attrs.py` 4 → 8, nothing else.
+9. **2.3 moved 54 assertions and 9 id-head selectors in one line-targeted pass** — 59 lines removed,
+   59 added, each added line its removed line with only the shape substituted, checked pairwise by
+   an oracle outside the tool (`mismatches 0`). Every variable the assertions read through (`s`,
+   `sh`, `sc`, `g`, `sheet`, `sel`) was resolved to a layer that emits `data-open` before it moved.
+   The mutation chose a POSITIVE assertion (`selection.py:42`, « the sheet IS open ») over
+   `logout.py`'s negative one, which would have stayed green under the mutation and proved nothing.
+
+Carried: three assertions in `audit2.py:160-167` and `audit.py:208` became tautological when 2.1 put
+`[data-open]` in the very selector they then test for `data-open` — introduced by the rewrite, not
+by 2.3, harmless on the close path (`?.` yields `undefined`), and a line for a later tidy-up; `#scrim`'s double writer (React and engine) is the strangler state, mirrored and not
+resolved; the six vestigial `#screen` assertions are a later tidy-up.
 
 ## The ACCEPTANCE map
 
