@@ -23,7 +23,7 @@ async def main():
 
     await pg.evaluate("()=>window.__go('acq-now-loaded')"); await pg.wait_for_timeout(300)
     a=await pg.evaluate(cnt); print("before grabbing      :", a)
-    await pg.evaluate("()=>[...document.querySelectorAll('.cfoot')].find(x=>x.textContent.includes('Récupérer')).click()")
+    await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card/foot"]')].find(x=>x.textContent.includes('Récupérer')).click()""")
     await pg.wait_for_timeout(400)
     b1=await pg.evaluate(cnt); print("after grabbing       :", b1)
     assert b1["takeable"]==a["takeable"]-1 and b1["inflight"]==a["inflight"]+1, "the card did not move"
@@ -34,7 +34,7 @@ async def main():
     # way out is the one that used to be missing: agreeing with the machine.
     await pg.evaluate("()=>window.__go('arr-idle')"); await pg.wait_for_timeout(300)
     a=await pg.evaluate(cnt); print("\nbefore resolution    :", {k:a[k] for k in ('stuck','moving')})
-    await pg.evaluate("()=>[...document.querySelectorAll('.cfoot')].find(x=>x.textContent.includes('Résoudre')).click()")
+    await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card/foot"]')].find(x=>x.textContent.includes('Résoudre')).click()""")
     await pg.wait_for_timeout(450)
     assert await pg.evaluate("()=>document.querySelectorAll('[data-nonmedia=candidat]').length")==0, \
         "a folder with no provider answer must offer no candidate"

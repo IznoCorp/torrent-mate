@@ -127,7 +127,7 @@ function ReleaseCard({
               Carrying it here is also what makes leaving the screen
               unnecessary: an arbitration that sends you to a full sheet to
               decide loses the queue you were working through. */}
-          {opts.overview ? <span className="cov">{opts.overview}</span> : ""}
+          {opts.overview ? <span className="cov" data-part="card/cover">{opts.overview}</span> : ""}
           {confidence ? (
             <span className="cmeta">
               <span className="chip info">
@@ -139,7 +139,7 @@ function ReleaseCard({
           )}
         </span>
       </div>
-      <button className="cfoot solid" data-resolve={title}>
+      <button className="cfoot solid" data-part="card/foot" data-resolve={title}>
         {t("screens.resolution.pickThis")}
       </button>
     </div>
@@ -366,6 +366,7 @@ export function ResolutionScreen() {
             {t("screens.resolution.emptyBody")}
             <button
               className="cfoot"
+              data-part="card/foot"
               style={{ marginTop: "10px" }}
               data-manual={folder}
             >

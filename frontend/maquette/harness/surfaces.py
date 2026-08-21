@@ -35,7 +35,7 @@ async def main():
       return {open:s.hasAttribute('data-open'),
               count:(s.querySelector('.rescount')||{}).textContent?.trim(),
               results:s.querySelectorAll('.reslist [data-part="card"]').length,
-              feet:[...s.querySelectorAll('.reslist .cfoot')].map(x=>x.textContent.trim()),
+              feet:[...s.querySelectorAll('.reslist [data-part="card/foot"]')].map(x=>x.textContent.trim()),
               byId:!!s.querySelector('.byid')};}""")
     print(" ", r)
     await pg.screenshot(path="y_ajout.png")

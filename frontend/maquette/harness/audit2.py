@@ -67,7 +67,7 @@ async def main():
         out[name]={h:Math.round(b.height),weight:s.fontWeight,size:s.fontSize,justify:s.justifyContent,
                    radius:s.borderRadius,icon:!!el.querySelector(':scope > svg')};};
       window.__go('acq-now-loaded'); await new Promise(r=>setTimeout(r,220));
-      measure('.cfoot.solid','card footer (primary)');
+      measure('[data-part="card/foot"].solid','card footer (primary)');
       window.__go('followsheet-gaps'); await new Promise(r=>setTimeout(r,240));
       measure('.sact.primary','sheet (primary)');
       window.__go('mediasheet-suggestion-movie'); await new Promise(r=>setTimeout(r,240));

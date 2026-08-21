@@ -7141,13 +7141,13 @@ import { screens, panel, bridge } from "../seams.js";
         <span class="ctitle" data-part="card/title" title="${escapeHtml(descriptor.t)}">${escapeHtml(descriptor.t)}</span>
         ${descriptor.s ? `<span class="csub">${escapeHtml(descriptor.s)}</span>` : ""}
         ${descriptor.r ? `<span class="creason">${richText(descriptor.r)}</span>` : ""}
-        ${descriptor.overview ? `<span class="cov">${escapeHtml(descriptor.overview)}</span>` : ""}
+        ${descriptor.overview ? `<span class="cov" data-part="card/cover">${escapeHtml(descriptor.overview)}</span>` : ""}
         ${stateRow ? `<span class="cmeta">${stateRow}</span>` : ""}
         ${ligneAnnotations ? `<span class="cannotations">${ligneAnnotations}</span>` : ""}
       </button>
     </div>
     ${descriptor.strip ? stripHTML(descriptor.strip) : ""}
-    ${opts.foot ? `<button class="cfoot ${opts.footSolid ? "solid" : ""} ${opts.footTone || ""}" data-act="${escapeHtml(opts.footAct || "")}" ${opts.footDone ? "disabled" : ""}>${escapeHtml(opts.foot)}</button>` : ""}
+    ${opts.foot ? `<button class="cfoot ${opts.footSolid ? "solid" : ""} ${opts.footTone || ""}" data-part="card/foot" data-act="${escapeHtml(opts.footAct || "")}" ${opts.footDone ? "disabled" : ""}>${escapeHtml(opts.foot)}</button>` : ""}
     </div>
   </div>`;
   }

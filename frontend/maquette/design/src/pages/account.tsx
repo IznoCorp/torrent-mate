@@ -61,7 +61,7 @@ export function AccountPage(): ReactElement {
           s: t("screens.accountPage.whereSub"),
         },
       ])}
-      <button className="cfoot" data-signout="1">
+      <button className="cfoot" data-part="card/foot" data-signout="1">
         {t("screens.accountPage.signOut")}
       </button>
 

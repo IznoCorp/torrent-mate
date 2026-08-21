@@ -96,16 +96,16 @@ function PipelineBar(): ReactElement {
                 {t("screens.arrivals.queuedRest")}
               </span>
             </div>
-            <button className="cfoot" data-pipe="stop">
+            <button className="cfoot" data-part="card/foot" data-pipe="stop">
               {t("screens.arrivals.stopPipeline")}
             </button>
           </>
         ) : (
           <div className="pacts">
-            <button className="cfoot" data-pipe="start">
+            <button className="cfoot" data-part="card/foot" data-pipe="start">
               {t("screens.arrivals.runAfterwards")}
             </button>
-            <button className="cfoot" data-pipe="stop">
+            <button className="cfoot" data-part="card/foot" data-pipe="stop">
               {t("screens.arrivals.stop")}
             </button>
           </div>
@@ -125,7 +125,7 @@ function PipelineBar(): ReactElement {
           })}
         </span>
       </div>
-      <button className="cfoot solid" data-pipe="start">
+      <button className="cfoot solid" data-part="card/foot" data-pipe="start">
         {t("screens.arrivals.startPipeline")}
       </button>
     </section>

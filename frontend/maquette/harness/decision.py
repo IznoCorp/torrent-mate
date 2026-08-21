@@ -62,7 +62,7 @@ SCREEN = """() => {
       panel: (c.querySelector('[data-part="card/body"]') || {}).dataset?.panel || null,
       poster: (c.querySelector('.poster img') || {}).src || null,
       noPoster: !!c.querySelector('.poster .pfall'),
-      plot: (c.querySelector('.cov') || {}).textContent || null,
+      plot: (c.querySelector('[data-part="card/cover"]') || {}).textContent || null,
       link: c.querySelectorAll('a, [data-mediasheet]').length,
     })),
     decisions: decisions.map(c => ({
@@ -72,7 +72,7 @@ SCREEN = """() => {
       panel: (c.querySelector('[data-part="card/body"]') || {}).dataset?.panel || null,
       chips: [...c.querySelectorAll('.chip')].map(x => x.textContent.trim()),
     })),
-    exits: [...s.querySelectorAll('.sact, .cfoot')].map(x => x.textContent.trim()),
+    exits: [...s.querySelectorAll('.sact, [data-part="card/foot"]')].map(x => x.textContent.trim()),
     text: (s.textContent || '').replace(/\\s+/g, ' '),
   };
 }"""
@@ -175,7 +175,7 @@ async def main():
             await pg.wait_for_timeout(420)
             if state_ == "arr-idle":
                 await pg.evaluate(
-                    "()=>[...document.querySelectorAll('.cfoot')]"
+                    """()=>[...document.querySelectorAll('[data-part="card/foot"]')]"""
                     ".find(x=>x.textContent.includes('Résoudre')).click()")
                 await pg.wait_for_timeout(420)
             before = await pg.evaluate(f"()=>derived.{list_}().length")

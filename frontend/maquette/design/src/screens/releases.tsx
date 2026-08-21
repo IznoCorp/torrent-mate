@@ -110,6 +110,7 @@ export function ReleasesScreen() {
               )}
               <button
                 className={`cfoot${index === 0 ? " solid" : ""}`}
+                data-part="card/foot"
                 data-take={index}
               >
                 {index === 0
@@ -123,6 +124,7 @@ export function ReleasesScreen() {
             {t("screens.releases.emptyBody")}
             <button
               className="cfoot"
+              data-part="card/foot"
               style={{ marginTop: "10px" }}
               data-profile={title}
             >

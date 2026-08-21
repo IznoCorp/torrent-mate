@@ -62,7 +62,7 @@ async def main():
     # screen was stacked on, and the one the settlement must land back on.
     start = await where(pg)
 
-    await pg.evaluate("()=>[...document.querySelectorAll('.cfoot')].find(x=>x.textContent.includes('Résoudre')).click()")
+    await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card/foot"]')].find(x=>x.textContent.includes('Résoudre')).click()""")
     await pg.wait_for_timeout(420)
     # The arbitration screen left `#screen` for a real route
     # (`/resolution/$folder`, rendered inside `#coquille`): it answers to its

@@ -11,22 +11,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/actions.py",
-    "line": 26,
-    "selector": ".cfoot",
-    "token": ".cfoot"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/actions.py",
-    "line": 37,
-    "selector": ".cfoot",
-    "token": ".cfoot"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/actions.py",
     "line": 60,
     "selector": "#view .swipe",
     "token": ".swipe"
@@ -525,34 +509,10 @@
   },
   {
     "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit.py",
-    "line": 276,
-    "selector": "#view .cfoot",
-    "token": ".cfoot"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit.py",
-    "line": 279,
-    "selector": "#view .cfoot",
-    "token": ".cfoot"
-  },
-  {
-    "kind": "selection",
     "held": true,
     "file": "frontend/maquette/harness/audit2.py",
     "line": 70,
-    "selector": ".cfoot.solid",
-    "token": ".cfoot"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 70,
-    "selector": ".cfoot.solid",
+    "selector": "[data-part=\"card/foot\"].solid",
     "token": ".solid"
   },
   {
@@ -1109,22 +1069,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/cards.py",
-    "line": 213,
-    "selector": ".cfoot",
-    "token": ".cfoot"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
-    "line": 215,
-    "selector": ".cfoot",
-    "token": ".cfoot"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/cards.py",
     "line": 251,
     "selector": ".tile[data-panel]",
     "token": ".tile"
@@ -1325,62 +1269,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/content.py",
-    "line": 148,
-    "selector": ".cov",
-    "token": ".cov"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/content.py",
-    "line": 150,
-    "selector": ".cov",
-    "token": ".cov"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/content.py",
-    "line": 153,
-    "selector": ".cov",
-    "token": ".cov"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/content.py",
-    "line": 157,
-    "selector": ".cov",
-    "token": ".cov"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/content.py",
-    "line": 188,
-    "selector": "#libitems .cov",
-    "token": ".cov"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/content.py",
-    "line": 203,
-    "selector": "#libitems .cov",
-    "token": ".cov"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/content.py",
-    "line": 219,
-    "selector": ".cov",
-    "token": ".cov"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/content.py",
     "line": 237,
     "selector": "#view [data-part=\"card\"], #view .tile",
     "token": ".tile"
@@ -1445,14 +1333,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/decision.py",
-    "line": 65,
-    "selector": ".cov",
-    "token": ".cov"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/decision.py",
     "line": 71,
     "selector": ".poster",
     "token": ".poster"
@@ -1470,24 +1350,8 @@
     "held": false,
     "file": "frontend/maquette/harness/decision.py",
     "line": 75,
-    "selector": ".sact, .cfoot",
-    "token": ".cfoot"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/decision.py",
-    "line": 75,
-    "selector": ".sact, .cfoot",
+    "selector": ".sact, [data-part=\"card/foot\"]",
     "token": ".sact"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/decision.py",
-    "line": 178,
-    "selector": ".cfoot",
-    "token": ".cfoot"
   },
   {
     "kind": "selection",
@@ -2008,14 +1872,6 @@
     "line": 108,
     "selector": "#view .vsw",
     "token": ".vsw"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/ident.py",
-    "line": 65,
-    "selector": ".cfoot",
-    "token": ".cfoot"
   },
   {
     "kind": "selection",
@@ -2982,15 +2838,7 @@
     "held": false,
     "file": "frontend/maquette/harness/page_host.py",
     "line": 679,
-    "selector": "#view .pipeline .cfoot.solid",
-    "token": ".cfoot"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/page_host.py",
-    "line": 679,
-    "selector": "#view .pipeline .cfoot.solid",
+    "selector": "#view .pipeline [data-part=\"card/foot\"].solid",
     "token": ".pipeline"
   },
   {
@@ -2998,7 +2846,7 @@
     "held": false,
     "file": "frontend/maquette/harness/page_host.py",
     "line": 679,
-    "selector": "#view .pipeline .cfoot.solid",
+    "selector": "#view .pipeline [data-part=\"card/foot\"].solid",
     "token": ".solid"
   },
   {
@@ -3358,15 +3206,7 @@
     "held": false,
     "file": "frontend/maquette/harness/screens.py",
     "line": 53,
-    "selector": ".reslist .cfoot",
-    "token": ".cfoot"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/screens.py",
-    "line": 53,
-    "selector": ".reslist .cfoot",
+    "selector": ".reslist [data-part=\"card/foot\"]",
     "token": ".reslist"
   },
   {
@@ -4110,15 +3950,7 @@
     "held": false,
     "file": "frontend/maquette/harness/surfaces.py",
     "line": 38,
-    "selector": ".reslist .cfoot",
-    "token": ".cfoot"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/surfaces.py",
-    "line": 38,
-    "selector": ".reslist .cfoot",
+    "selector": ".reslist [data-part=\"card/foot\"]",
     "token": ".reslist"
   },
   {

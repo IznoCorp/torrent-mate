@@ -25,7 +25,7 @@ export function NotFoundPage(): ReactElement {
           ),
         }}
       />
-      <button className="cfoot solid" data-go="acq">
+      <button className="cfoot solid" data-part="card/foot" data-go="acq">
         {t("screens.notFound.toAcquisition")}
       </button>
       <button className="crossref" data-drawer="1">

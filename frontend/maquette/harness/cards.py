@@ -210,9 +210,9 @@ async def main():
                 await mode(pg, "list")
             inlines = await pg.evaluate(
                 """()=>[...document.querySelectorAll('[data-part="card"]')].filter(visible)
-                    .filter(c=>c.querySelector('.cfoot') && !c.dataset.nonmedia)
+                    .filter(c=>c.querySelector('[data-part="card/foot"]') && !c.dataset.nonmedia)
                     .map(c=>({title:c.querySelector('[data-part="card/title"]')?.textContent||'',
-                              action:c.querySelector('.cfoot').textContent.trim(),
+                              action:c.querySelector('[data-part="card/foot"]').textContent.trim(),
                               panel:c.querySelector('[data-part="card/body"]')?.dataset.panel||null}))"""
             )
             for item in inlines:

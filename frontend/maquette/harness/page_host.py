@@ -676,7 +676,7 @@ async def main():
         stopped = await page.evaluate("""()=>({
           pipe: window.__store.read().state.pipe,
           idle: !!document.querySelector('#view .pipeline .pip.neutral'),
-          start: !!document.querySelector('#view .pipeline .cfoot.solid'),
+          start: !!document.querySelector('#view .pipeline [data-part="card/foot"].solid'),
           controls: [...document.querySelectorAll('#view [data-pipe]')]
             .map((x) => x.dataset.pipe),
         })""")

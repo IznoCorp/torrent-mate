@@ -50,7 +50,7 @@ async def main():
             screen: !!document.querySelector('[data-part="screen"][data-open]'),
             key: document.querySelector('[data-part="screen"][data-open]')?.dataset.key,
             cards: document.querySelectorAll('.reslist [data-part="card"]').length,
-            feet: document.querySelectorAll('.reslist .cfoot').length,
+            feet: document.querySelectorAll('.reslist [data-part="card/foot"]').length,
             query: document.querySelector('#addq')?.value})""")
         check("the results screen is there", start["screen"] and start["cards"] >= 2,
               f"{start['cards']} cards · key {start['key']}")

@@ -273,10 +273,10 @@ async def main():
         pipe:state.pipe});
       for (const id of ['acq-now-loaded','arr-loaded','lib-incomplete']) {
         window.__go(id); await new Promise(r=>setTimeout(r,220));
-        const btns=[...document.querySelectorAll('#view .cfoot')];
+        const btns=[...document.querySelectorAll('#view [data-part="card/foot"]')];
         for (let i=0;i<btns.length;i++){
           window.__go(id); await new Promise(r=>setTimeout(r,200));
-          const b=[...document.querySelectorAll('#view .cfoot')][i]; if(!b) continue;
+          const b=[...document.querySelectorAll('#view [data-part="card/foot"]')][i]; if(!b) continue;
           const lab=b.textContent.trim(); const before=snap();
           // Pre-existing gap found while wiring the generic route rung above:
           // this check never learned about a screen migrated off `#screen`

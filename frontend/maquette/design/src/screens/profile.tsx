@@ -254,6 +254,7 @@ export function ProfileScreen() {
 
           <button
             className="cfoot"
+            data-part="card/foot"
             data-toast={t("screens.profile.rankingToast")}
           >
             <Icon paths={icons.sort} />
