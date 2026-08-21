@@ -98,8 +98,7 @@ class TestTheTreeItself:
         """
         assert guard.main([]) == 0
 
-    def test_main_does_not_read_sys_argv_when_given_an_argv(
-            self, monkeypatch) -> None:
+    def test_main_does_not_read_sys_argv_when_given_an_argv(self, monkeypatch) -> None:
         """An explicit argv is the only argv the guard may read.
 
         Whatever the runner put in `sys.argv` must not reach the guard when
