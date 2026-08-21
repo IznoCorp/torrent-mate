@@ -72,6 +72,7 @@ when the defect comes back.
 | B-037 | `arrivals.py` reads a French global nothing defines      | by review   | `open`       |
 | B-038 | `arrivals.py` reads `empty` and asserts nothing on it    | by mutation | `open`       |
 | B-039 | `actions.py` prints `.freshtag` presence, asserts nothing | by mutation | `open`       |
+| B-040 | Names in files no arm reads: `sweep.py` labels, a region id | by review   | `open`       |
 
 **B-036 — the English campaign missed two state ids, and no arm reads them.**
 `window.__states()` returns **`system-panne`** and **`acq-follows-groupe`**. Both are NAMED STATE
@@ -682,3 +683,15 @@ before L02 anchored the element as `card/fresh-tag` and prints `False` after —
 83 named states: `[.freshtag, [data-part="card/fresh-tag"]] = [0, 0]`. The contract is faithful and
 nothing holds it: neither end can move and fall a rule. A state that produces a fresh follow, or a
 hold after a follow action, is behaviour work outside the anchoring lot (2026-08-21).
+
+**B-040 — French names survive in files no arm of `check-no-french.py` reads.**
+By design (its own docstring, arm 1), the harness's rule scripts are read for their hold LABELS
+only; `states.js` and `legacy.js` are read for the declared debt alone. So five French view labels
+in `sweep.py`'s `VIEWS` table (`acq/suivis`, `acq/decouvrir`, `lib/incomplets`, `lib/recents`,
+`arrivees`) sat under a green gate — `arrivees` is even in `scripts/nofrench_lexicon.py:47` — until
+sub-phase 6.5 of L02 turned them into screenshot file names and renamed them by hand; and
+`regions.json:81` still declares the region id `arrivees/empty`, one of the oracle's 33 keys, which no
+arm reads either. Same family as B-036: a name someone chose, in a file the guard does not open. The
+fix is an arm over the harness's string literals and the oracle's region ids, with the lexicon it
+already has; the region rename moves an oracle reference key and is not an anchoring change
+(2026-08-22).

@@ -51,7 +51,7 @@ happens to be empty is a floor someone can raise again.
 | 3   | `.card` and its parts, `deck/card`, and a state so R26 can fall    | `phase-03-card-and-parts.md`            | [x]    |
 | 4   | the result list, the suggestions, the episode, its row, set and season | `phase-04-lists-and-episodes.md`        | [x]    |
 | 5   | the flux's rows, the filter states, the settings and their fields | `phase-05-filters-and-settings.md`      | [x]    |
-| 6   | The tail, then the baseline is emptied and deleted                | `phase-06-tail-and-baseline-removal.md` | [ ]    |
+| 6   | the tail by emission site, the floor a hard zero, the screenshots | `phase-06-tail-and-baseline-removal.md` | [x]    |
 
 ### Phase 1 runs long on purpose
 
@@ -409,3 +409,128 @@ command named beside it, on `f7e8073` (branch `refactor/maquette-l02`).
     as a tripwire matched (24; 14/3/3/3/1; 8/1/2/2/0), so the agent proceeded and reported the
     misattribution instead of bending the work to it. A brief is a claim like any report: the
     numbers are what a dispatch is checked against, not the prose around them.
+
+## What phase 6 found, and what it cost the plan
+
+1. **The tail was partitioned by EMISSION SITE, token by token, before any of it moved.** 110 tokens,
+   365 occurrences: 17 the shell's (52), 38 with an end in the engine (156), 55 the components' (157)
+   — a file the three dispatches read, so no two could claim one token. A first count had said 92
+   distinct tokens and put `hpanel` and `selbar` among four « computed » ones; measured, those two
+   are assigned in code in `legacy.js` and are the engine's, and only `announced` and `modified`
+   are computed expressions.
+2. **`regions.json`'s prose caught up in one pass.** By the end of phase 4 its descriptions named
+   about 36 anchors that no longer existed — `.screen.open` ×30, `.reslist`, `.eppop`, `.eps`,
+   `details.season`, … — in sentences nothing reads but everyone trusts. Corrected once, when every
+   anchor had moved, rather than half-corrected at every sub-phase.
+3. **The floor became a hard zero in code, and the baseline file was deleted.** A burn-down list
+   with nothing left to burn is dead code; `--write-baseline` and `--allow-additions` went with it.
+   Any class token in any rule selector, passed or held, is a violation from here on.
+4. **One of 6.1's 52 entries was never a selection.** `startup.py:223` tests the CSS the sign-in gate
+   INLINES — `".splashbar" in gate`, a substring of a stylesheet — beside a line that tests the markup
+   with `'id="splash"' in gate`. Anchoring it on `data-part` would have made it always false: no
+   style rule selects a `data-part` until L07. It now names the rule opener, `".splashbar {"`, and
+   says it reads the stylesheet, never the document; stronger than the substring, and the guard's
+   `data-part` count is 386 rather than the forecast 387 for exactly that reason. A class token in a
+   harness string is not always an anchor — the arm counts selections, and this was not one.
+5. **Two refusal lists over `el.className` carry class names the baseline never tracked.**
+   `dest.py:44` and `audit.py:83` exclude `avatar`, `fab`, `fback`, `tile`, `sel`, … by regex over
+   the class attribute — a class READ, like `surfaces.py:82`, not a selection. They break at L07
+   with the classes, and L07 owns them; named here so that day finds them listed.
+6. **Two shell tags carry `data-part` in a position `serve.py` depends on.** The sign-in host
+   rewrites the gate by matching `' id="login" hidden'` and `'<form class="logincard" id="loginform"'`
+   literally (`serve.py:483-485`), so the attribute sits BEFORE the id on `.loginscreen` and AFTER it
+   on the form — verified on the served gate, which still drops `hidden` and still gains its `method`
+   and `action`. A third end of that contract nothing in the guard reads: recorded so that L07, which
+   rewrites those tags, does not break the sign-in host silently.
+7. **A hold fell by six and only the hold-count compare saw it — the finding of the wave.**
+   `panel.tsx:107` builds a sheet action's class from runtime data (`` `sact${action.ton ? ` ${action.ton}` : ""}` ``),
+   so the word `danger` is in no source text a reader can grep. 6.2 anchored the two spelled-out
+   `danger` sites and left the logout sheet's button without its `data-tone`; `logout.py`'s
+   `[data-tone="danger"]` matched nothing and the rule went from 8 holds to 2 — while the guard,
+   `--write-baseline`, the classifier, `check-no-french`, `typecheck` and the oracle were all green.
+   Fixed with `data-tone={action.ton || undefined}`; the full compare re-run reports 0 changed. This
+   is why the twenty-minute proof is the gate and not the guard: the guard proves the text, the
+   compare proves the page.
+8. **A hand-rolled vocabulary script dropped nineteen comment lines and reported success.** Caught by
+   reading `git diff --stat` (`27 ++---` where `8 ++` was expected), restored from the baseline
+   commit, landed at exactly +8 / −0. The CLAUDE.md rule about `rename-identifiers.py` applies to
+   every script that rewrites a file: the diff is the proof, the tool's « done » is not.
+9. **One element where the class and the part disagree, and it is recorded rather than papered over.**
+   `add.tsx:272` carries `className="reslist sec"` and already had `data-part="result/list"` from
+   phase 4; an element has one part, `tsc` refused a second, and the result list keeps its name. The
+   `.sec` selections (`follows.py:31,35`) read the acquisition page's group sections, every one
+   emitted with `data-part="section"` by `acquisition.tsx`, so nothing they read moved.
+10. **ACC-02's pinned total drifted UP, 696 → 700, and every step is a selector the extractor could
+    not read before.** The criterion exists to catch a classifier that stops SEEING calls (a reader
+    blind to calls also reports zero class anchors), so a rising total is the opposite failure:
+    `deck.py:30` held a live `.t` selection in an f-string with escaped quotes — the blind spot the
+    DESIGN names — and became readable once re-hosted. Re-pinned by 6.3 as a floor (`≥ 696`), with
+    this reason beside it in the DESIGN, rather than as an equality that would fail on a repair.
+11. **The modifier rule, written once and applied six times.** A class that qualifies an element
+    already carrying a concept (`danger`, `remove`, `left`/`right`, `sk`) does not become a
+    `data-part` leaf — a leaf would stop the bare-concept selection from matching the modified
+    element. It becomes a sibling attribute, valued when the rules tell variants apart
+    (`data-tone`, `data-action`, `data-side`), a bare marker when the class has no alternatives
+    (`data-skeleton`). Seven boolean states remain seven: none of these is written from a condition
+    except in the absent-when-false idiom.
+12. **Four live class anchors were in neither reader nor the baseline, and the floor would have
+    been a hard zero over them.** A selector built by concatenation (`querySelector(s + ' .fback')`,
+    `audit2.py:166`) starts with a space, so the held pass walks past it; a selector inside an
+    f-string carries `{`/`}`, outside the selector alphabet, so `library_sort.py:135` and
+    `page_host.py:402`/`:544` were invisible. All four anchored by hand in 6.3; the f-string shape is
+    a fourth blind spot of the same family, and 6.4 closes it in the readers before the floor is
+    declared — a zero the reader cannot see through is not a zero.
+13. **One assertion the migration would have made vacuous, for ever.** `touch.py:220` recorded each
+    click as `TAG.className` and tested `".sact" in act` — a substring on a class NAME, counted by
+    the held pass because it is shaped like a selector. Rewritten mechanically it would have gone
+    green and stayed green. The recorder now carries the element's `data-part` beside the class and
+    the hold reads `sheet/action` out of it. Three states, three mutations, three rules fell by name
+    (`back.py`, `pop.py`, `audit2.py` R29 — 12 violations) and stood again after the restore.
+14. **`--write-baseline` cannot write its own terminal state.** It refuses an empty list by
+    construction, so 6.3 is the one sub-phase whose baseline edit was written by hand and
+    cross-checked by both readers (`--baseline` → `[]`, the guard tolerating 0). Expected — 6.4
+    deletes the mode — and recorded so the one hand-written baseline is not mistaken for a bypass.
+15. **Two more class dependencies the instrument never counted.** `content.py:179` injects the CSS
+    rule text `.cov{…}` and `audit2.py` measures `.resbtn` — class reads of a third kind (a style
+    rule and a measurement), beside the `className` regexes and `startup.py:223`. None dies quietly
+    at L07; all are listed in the carried block so that day finds them.
+16. **Widening a reader is a RULE, or it is a waiver.** Tolerating braces naively turned three prose
+    and stylesheet strings into « anchors » nobody could migrate (`bridge.py:302`, `content.py:179`,
+    `startup.py:223`). The widened `selector_shaped()` refuses a brace that never balances — an
+    interpolation balances, a stylesheet fragment does not — and an `=` outside an attribute block,
+    since a selector's only `=` lives inside `[…]`. Re-measured over the whole harness with both
+    readers widened: zero class anchors surfaced, and four held `data-part` selections the part arm
+    had never read joined its count (671 → 675). The floor was declared after that, not before.
+17. **The cross-check `--write-baseline` made is kept as a test, not lost with the flag.** It held
+    the guard's extraction against the second reader's and refused to write on disagreement; that
+    agreement is now `test_the_second_reader_finds_no_class_anchor_either`, run over the real
+    harness. The floor never rests on one reader's zero.
+18. **`regions.json`'s prose: 120 mentions → 50, each sentence read.** The rule: a sentence saying a
+    RULE reads, selects or measures the class moves to the anchor; a sentence about the class as a
+    NAME — a vocabulary record, a rename, a CSS declaration, component code — keeps it, with any
+    false claim that a rule selects it corrected. Four stale attribute readings went with them
+    (`data-cle` → `data-key`, French screen prefixes, two `classList.contains` → `hasAttribute`).
+    The 50 kept are listed with their reasons in 6.4's report; 44 are distinct.
+19. **A recorded mutation was re-executed by the guarantor in its new form, and it bites.** R60's entry
+    said renaming the class `fieldinput` fells five holds; the holds anchor on
+    `[data-part="field/input"]` now. Renaming that VALUE in `panel.tsx`, rebuilding and re-copying:
+    `settings.py` cannot even fill the field — Playwright times out on
+    `#sheetin [data-part="field/input"]` — and, restored, 45 rules execute with no violation. A
+    demonstration that nobody re-ran after the migration is a sentence; this one is a measurement.
+20. **ACC-10's `exit=1` is BSD `ls`; GNU coreutils returns 2 for a missing operand.** The agent's shell
+    had GNU `ls` first on PATH and pasted both; the substance — file gone, zero references in the
+    guard — holds either way. The criterion's expected line names the file's absence, not a shell.
+21. **127 run artefacts at the repository root, invisible under a blanket `*.png`.** Twelve rules
+    called `pg.screenshot(path="…")` with a relative path, so every capture landed wherever the
+    caller stood — the root, from which every proof is run — and `.gitignore`'s `*.png` hid them
+    from `git status` without anyone deciding they should exist. The operator found them by looking
+    at the directory. Sub-phase 6.5: one base path in `common.py`, `harness/__screenshots__/`
+    ignored by name in the repository's own file, the 22 names coined in English since every line
+    was rewritten anyway. Same family as #468 and `violations.json`: a floating output path is an
+    artefact that ends in the history, or in the way.
+22. **Two French names surfaced because a directory listing is a cheap place to read them.** The
+    capture names exposed `states-acq-follows-groupe` and `states-system-panne` (B-036, known) and
+    five French view labels in `sweep.py` that no arm of `check-no-french.py` reads — renamed in 6.5
+    — plus the region id `arrivees/empty` in `regions.json`, an oracle key no arm reads either.
+    Recorded as B-040: the fix is an arm, not a sweep.
+
