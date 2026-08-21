@@ -59,14 +59,30 @@ per-rule hold counts are the only thing that would say so.
 
 ---
 
+> **Measured on the committed baseline**: the 63 phase-2 occurrences are **all `.screen`** — zero
+> `.sheet`, zero `.scrim`, which confirms the harness reaches those two by their ids. They sit in 12
+> files: `screen_addresses.py` 13, `screens.py` 13, `bugs.py` 9, `audit2.py` 7, `bridge.py` 6,
+> `attrs.py` 3, then `audit.py`, `ident.py`, `surfaces.py` 2 each, and one each in `decision.py`,
+> `dest.py`, `gallery.py`.
+
 ## Sub-phase 2.1 — the `screen` contract, all three ends in one commit
 
 One commit: `refactor(maquette-l02): anchor the screen contract on data-part`
 
-- [ ] **Step 1.** Emit the anchor at both sites. In the five screens,
+> **THE SHELL'S `screen` IS NOT A SCREEN, and giving it the same value would widen 63 selectors.**
+> There are SIX emission sites, not five. `index.html:350` is `<div class="screen" id="screen">` —
+> the empty MOUNT NODE — and it carries no `open` class. That absence is load-bearing: the harness
+> selects `.screen.open[data-key]` precisely to reach the mounted screen and EXCLUDE the container.
+> Emitting `data-part="screen"` on both would make `[data-part="screen"]` match two elements where
+> `.screen.open` matched one. The mount node takes its own value — `data-part="screen-host"` — and
+> the five screens take `data-part="screen"`.
+> <sub>the hold-count comparator would catch the widening after the fact; not introducing it is better</sub>
+
+- [ ] **Step 1.** Emit the anchor at the six sites, with TWO values. In the five screens
+      (`add.tsx:155`, `releases.tsx:48`, `resolution.tsx:316`, `media.tsx:385`, `profile.tsx:85`),
       `className="screen open" data-part="screen"` — **the class stays beside it**; L07 removes it,
-      and keeping both is the separation this lot exists to create. Same at the shell's `screen`
-      emission in `frontend/maquette/design/index.html`.
+      and keeping both is the separation this lot exists to create. At `index.html:350`, the mount
+      node takes `data-part="screen-host"`, and nothing selects it until something needs to.
 - [ ] **Step 2.** Re-anchor the 30 harness selections headed by `.screen`, through
       `python3 scripts/rename-identifiers.py` — never by hand, never with an ad-hoc regex.
       `.screen.open` becomes `[data-part="screen"]`; `.screen.open .fback` becomes
