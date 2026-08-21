@@ -59,7 +59,7 @@ the committed 834-entry baseline, call + held:
 | Sub-phase | Removes | Tokens |
 | --- | --- | --- |
 | 3.1 | **79** | `.card` 44 (4 held) · `.ctitle` 22 · `.cbody` 13 (1 held) |
-| 3.2 | **21** | `.cfoot` 13 (1 held) · `.cov` 8 |
+| 3.2 | **21** | `.cfoot` 13 (1 held) · `.cov` 8 — anchored as `card/cover`, renamed `card/overview` by 3.3: `.cov` is the synopsis, not an image |
 | 3.3 | **21** | `.poster` 19 (2 held) + the **2** `classList.contains('noposter')` assertions |
 | 3.4 | **22** | `.dcard` 11 (6 held) · `.creason` 3 · `.csub` 2 · `.pfall` 2 · `.cmeta`, `.ctop`, `.freshtag`, `.caption` 1 each |
 
@@ -83,6 +83,10 @@ selected 15 times — so **ACC-04 is claimed by phase 4**, where `data-part="res
 Nothing is owed here beyond anchoring both `ctitle` sites.
 
 ---
+
+> **Never the Edit tool on `legacy.js`.** A formatter hook reformats the whole engine (33 000 lines) on
+> the first `Edit`, silently in a `--stat`; 3.2 reverted and re-applied by script. Every engine change
+> is applied by a script that rewrites exactly the bytes meant, then `git diff --stat`-checked.
 
 > **Rewrite per string token, never per line.** The baseline's `line` is where the string literal
 > BEGINS; in a multi-line `"""…"""` JS block the token can sit lines below, and a per-line
@@ -147,6 +151,7 @@ is why it gets its own commit: a contract half-moved across six files is the sta
 to make impossible, and a reviewer must see all of its ends in one diff.
 
 - [ ] **Step 1.** Emit `data-part="card/foot"` and `data-part="card/cover"` at every site, engine
+      (**`card/cover` was a misnomer — `.cov` is the card's overview text; 3.3 renames it `card/overview`**),
       included.
 - [ ] **Step 2.** Re-anchor the harness selections; re-read the diff.
 - [ ] **Step 3.** Remove the corresponding baseline entries in this same commit.
@@ -154,6 +159,11 @@ to make impossible, and a reviewer must see all of its ends in one diff.
       unchanged. Commit.
 
 ## Sub-phase 3.3 — the poster, and the `data-no-poster` state
+
+> **Item 0: `card/cover` → `card/overview`.** 3.2 anchored `.cov` as the plan wrote it and flagged that
+> `.cov` holds the synopsis (`descriptor.overview`, line-clamped, held by rules named « the rows carry
+> the synopsis »), not a cover image. Renamed here at its two emitters and eight selections; the guard's
+> third arm keeps selected == emitted. A name names what the thing is.
 
 One commit: `refactor(maquette-l02): anchor the card poster and its no-poster state`
 

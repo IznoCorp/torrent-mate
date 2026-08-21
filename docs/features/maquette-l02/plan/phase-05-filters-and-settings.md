@@ -75,6 +75,10 @@ that one line is the whole point of the mechanism.
 
 ---
 
+> **Never the Edit tool on `legacy.js`.** A formatter hook reformats the whole engine (33 000 lines) on
+> the first `Edit`, silently in a `--stat`; 3.2 reverted and re-applied by script. Every engine change
+> is applied by a script that rewrites exactly the bytes meant, then `git diff --stat`-checked.
+
 > **Rewrite per string token, never per line.** The baseline's `line` is where the string literal
 > BEGINS; in a multi-line `"""…"""` JS block the token can sit lines below, and a per-line
 > rewrite aborts there (3.1 ran one, discarded it, and redid its 79 through `tokenize`). For each
