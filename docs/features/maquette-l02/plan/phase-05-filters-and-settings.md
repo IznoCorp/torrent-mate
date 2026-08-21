@@ -55,6 +55,26 @@ from `scripts/code-vocabulary.txt`** (measured 2026-08-21); 5.4 adds it in the s
 
 ## Resolve the four abbreviations before naming them — do not guess
 
+> **Resolved on 2026-08-21, by reading `legacy.js:7586-7591` and `refonte.html:1687-1720` — they are
+> not filters.** They are the rows of the **flux**, the pipeline status list on Arrivées:
+>
+> | Class | What it is | `data-part` |
+> | --- | --- | --- |
+> | `.fx` | one row — `<li class="fx">`, with `fempty` / `fblocked` / `fclick` modifiers | `flux/row` |
+> | `.fn` | the row's name (`ligne.l`) | `flux/name` |
+> | `.fr` | the row's value — a badge or a figure (`ligne.ton`, `value`) | `flux/value` |
+> | `.fs` | the row's sub-line (`ligne.k`, `ligne.s`) | `flux/detail` |
+> | `.fk` | the key inside the sub-line (`ligne.k`) | `flux/key` |
+>
+> **`.fr` serves two concepts.** `legacy.js:9943` also emits `<span class="fr">` as a library TILE's
+> sub-line (`sousLigne`), and 9 of the harness's 11 `.fr` selections are bare `'.fr'` — their
+> concept is the STATE the rule drives, not the class: `machine.py`'s belong to the flux,
+> `audit.py`'s `#libitems … .fr` to a tile. Each bare one is resolved by reading the rule, and the
+> tile ones take `tile/subtitle` (the tile container itself is phase 6's). **`flux` is absent from
+> the vocabulary** — English, added by 5.1. `fempty` / `fblocked` are rendered in the same template
+> string as the class (`class="fx${empty ? " fempty" : ""}"`), so 5.2 emits `data-empty` /
+> `data-blocked` in that template, not through a `classList` toggle.
+
 `fr`, `fn`, `fk` and `fs` are two-letter names in a 34 626-line engine. **Their meaning is not
 recoverable from the token**, and a wrong guess bakes a wrong name into a contract that phases
 after this one will read as authoritative.
