@@ -62,6 +62,7 @@ the committed 834-entry baseline, call + held:
 | 3.2 | **21** | `.cfoot` 13 (1 held) · `.cov` 8 — anchored as `card/cover`, renamed `card/overview` by 3.3: `.cov` is the synopsis, not an image |
 | 3.3 | **21** | `.poster` 19 (2 held) + the **2** `classList.contains('noposter')` assertions |
 | 3.4 | **22** | `.dcard` 11 (6 held) · `.creason` 3 · `.csub` 2 · `.pfall` 2 · `.cmeta`, `.ctop`, `.freshtag`, `.caption` 1 each |
+| 3.5 | 0 | a named state, so the `data-no-poster` mutation 3.3 owed can bite; oracle reference re-accepted, hold counts re-recorded |
 
 79 + 21 + 21 + 22 = **143**. The baseline goes **633 → 554 → 533 → 512 → 490**. Each removal is in
 the same commit as the migration it corresponds to.
@@ -214,6 +215,41 @@ concept, because a namespace names the owning DOM concept and the deck owns it.
 - [ ] **Step 4.** `--write-baseline` → `22 removed`, landing at **490**. Guard exit 0, and its
       selection ⇒ emission arm names no orphan.
 - [ ] **Step 5.** `run.sh` / hold counts — no violation, unchanged. Commit.
+
+## Sub-phase 3.5 — a named state for the sheet without a poster, so R26 can fall
+
+One commit: `test(maquette-l02): a named state opens an artwork-less sheet — R26's no-poster branch measures at last`
+
+**Why this sub-phase exists, and it was not in the plan.** 3.3's Step 5 prescribed a mutation —
+drop the `data-no-poster` attribute, the rule that reads it must fall — and the mutation could not
+fell the suite. Measured: over all 82 named states, the ten media-sheet headers R26 sweeps carry
+neither the attribute nor the class it replaced, because no state opens the sheet of one of the
+three artwork-less titles (`Batman Caped Crusader`, `Widow's Bay`, `Rick and Morty`). The branch was
+unfalsifiable before 3.3 and after it. A planned proof that proves nothing is the defect this lot
+exists to end, and the operator ruled it closed here (2026-08-21) rather than carried.
+
+**What it touches, and why each is legitimate.** A new entry in `states.js` — the frozen corpus
+gains a state, 82 → 83. The oracle's committed reference then reports the new state as ADDED, not a
+divergence of any existing measurement; it is re-accepted with the added state named in the commit,
+and the acceptance diff must be additions only. `states.py` holds the count; it moves to 83. The
+hold-count baseline is re-recorded, and the rule-by-rule diff must show exactly the rules whose
+subject grew — `states.py`, and `audit2.py` if R26 counts per header — and nothing else.
+
+- [ ] **Step 1.** Register `media-sheet-no-poster` in `states.js`, the way its neighbours are
+      registered (read three of them first): it opens the media sheet of `Widow's Bay`, an
+      artwork-less title, through the same seam the other sheet states use. Every word of the id is
+      in the vocabulary (`no` joined it in 3.3).
+- [ ] **Step 2.** `window.__states()` returns 83, 83 unique — counted by EXECUTION, never by regex.
+- [ ] **Step 3.** `oracle.py --check` → reports the added state; `oracle.py --accept` → the reference
+      gains exactly the new state's 33 regions and changes no existing line (`git diff` on the
+      reference: additions only, and say how many lines). Then `--check` → `no divergence`.
+- [ ] **Step 4.** `states.py` → 83. `harness-hold-counts.py --record`, then the rule-by-rule diff
+      against the committed baseline: name every rule that moved and why; any rule not explained by
+      the new state is a STOP.
+- [ ] **Step 5.** THE MUTATION THE PLAN OWED: make `media.tsx` drop `data-no-poster`, rebuild, run
+      `audit2.py` — R26 must FALL naming `Widow's Bay` and the 240 px band. Restore, rebuild, green.
+- [ ] **Step 6.** `make check`, the oracle, the compare — green. Commit: `states.js`, the oracle
+      reference, `states.py`, the hold-count baseline, by name.
 
 ## Closing proofs — run all three, record what they printed
 
