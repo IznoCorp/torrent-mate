@@ -4,7 +4,7 @@
 
 Phase 3 must have produced, all committed:
 
-- `data-part="card"`, `card/title`, `card/body`, `card/foot`, `card/cover`, `card/poster` emitted at
+- `data-part="card"`, `card/title`, `card/body`, `card/foot`, `card/overview`, `card/poster` emitted at
   **both** the engine and the component sites;
 - the 2 `noposter` assertions moved to `hasAttribute('data-no-poster')`;
 - `frontend/maquette/anchor-baseline.json` down to **490 entries** (633 − 143);

@@ -39,7 +39,7 @@ two commits.
 | `card/title` (`ctitle`)  | no                  | **yes** — `legacy.js:7141`, `:9995` | **yes** — `resolution.tsx:121`, `:195` |
 | `card/body` (`cbody`)    | no                  | **yes**                             | **yes**                                |
 | `card/foot` (`cfoot`)    | no                  | **yes**                             | **yes** — widest spread, 6 files       |
-| `card/cover` (`cov`)     | no                  | **yes**                             | **yes**                                |
+| `card/overview` (`cov`)     | no                  | **yes**                             | **yes**                                |
 | `card/poster` (`poster`) | no                  | **yes**                             | **yes**                                |
 
 The shell emits none of them. `legacy.js` also **reads** `.ctitle` at `:12402` and `:12412`
@@ -150,7 +150,7 @@ One commit: `refactor(maquette-l02): anchor the card foot and cover contracts on
 is why it gets its own commit: a contract half-moved across six files is the state this lot exists
 to make impossible, and a reviewer must see all of its ends in one diff.
 
-- [ ] **Step 1.** Emit `data-part="card/foot"` and `data-part="card/cover"` at every site, engine
+- [ ] **Step 1.** Emit `data-part="card/foot"` and `data-part="card/overview"` at every site, engine
       (**`card/cover` was a misnomer — `.cov` is the card's overview text; 3.3 renames it `card/overview`**),
       included.
 - [ ] **Step 2.** Re-anchor the harness selections; re-read the diff.
