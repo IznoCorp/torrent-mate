@@ -57,6 +57,14 @@ Measured on the committed 834-entry baseline by EMISSION SITE, which is how the 
 
 52 + 148 + 168 = **368**. Running total across the wave: 201 + 143 + 46 + 76 + 368 = **834**.
 
+> **Rewrite per string token, never per line.** The baseline's `line` is where the string literal
+> BEGINS; in a multi-line `"""…"""` JS block the token can sit lines below, and a per-line
+> rewrite aborts there (3.1 ran one, discarded it, and redid its 79 through `tokenize`). For each
+> entry, locate the string token starting at (file, line), rewrite your class token inside it, and
+> reconcile the whole-corpus count of your tokens against the baseline's before you start. Then
+> re-host any single-line double-quoted string now carrying `[data-part=\"` in `'…'` or a
+> triple-quoted string — the guard refuses the escaped shape.
+
 ## Sub-phase 6.1 — the shell tail
 
 One commit: `refactor(maquette-l02): anchor the application shell contracts on data-part`

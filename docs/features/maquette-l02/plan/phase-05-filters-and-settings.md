@@ -75,6 +75,14 @@ that one line is the whole point of the mechanism.
 
 ---
 
+> **Rewrite per string token, never per line.** The baseline's `line` is where the string literal
+> BEGINS; in a multi-line `"""…"""` JS block the token can sit lines below, and a per-line
+> rewrite aborts there (3.1 ran one, discarded it, and redid its 79 through `tokenize`). For each
+> entry, locate the string token starting at (file, line), rewrite your class token inside it, and
+> reconcile the whole-corpus count of your tokens against the baseline's before you start. Then
+> re-host any single-line double-quoted string now carrying `[data-part=\"` in `'…'` or a
+> triple-quoted string — the guard refuses the escaped shape.
+
 ## Sub-phase 5.1 — the five engine-only filter tokens
 
 > **Five, not four.** `.fx` is emitted by `legacy.js` alone like the other four and is selected 10

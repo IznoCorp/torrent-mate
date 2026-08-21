@@ -63,6 +63,14 @@ by nothing — 10 occurrences with no owner. Measured on the committed 834-entry
 2026-08-21), so 4.1's `suggestion/wrap` fails the vocabulary arm until the word is added in the same
 commit — one line, sorted, in the DESIGN section.
 
+> **Rewrite per string token, never per line.** The baseline's `line` is where the string literal
+> BEGINS; in a multi-line `"""…"""` JS block the token can sit lines below, and a per-line
+> rewrite aborts there (3.1 ran one, discarded it, and redid its 79 through `tokenize`). For each
+> entry, locate the string token starting at (file, line), rewrite your class token inside it, and
+> reconcile the whole-corpus count of your tokens against the baseline's before you start. Then
+> re-host any single-line double-quoted string now carrying `[data-part=\"` in `'…'` or a
+> triple-quoted string — the guard refuses the escaped shape.
+
 ## Sub-phase 4.1 — the result list and the suggestion wrapper
 
 One commit: `refactor(maquette-l02): anchor the result list and suggestion wrapper on data-part`
