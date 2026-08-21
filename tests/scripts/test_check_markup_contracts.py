@@ -15,6 +15,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "check-markup-contracts.py"
@@ -110,6 +111,25 @@ class TestTheTreeItself:
 
         assert guard.main([]) == 0
 
+    def test_the_summary_total_is_the_baseline_length(self, capsys) -> None:
+        """The printed total counts each tolerated occurrence exactly once.
+
+        `held` is a SUBSET of `selection`, so summing the three buckets
+        counted the held occurrences twice and announced 974 tolerated
+        against a baseline of 834 — a headline number that agreed with
+        nothing. The baseline's own length is the oracle: every tolerated
+        occurrence is one entry it owns.
+        """
+        expected = len(json.loads(guard.BASELINE.read_text(encoding="utf-8")))
+
+        assert guard.main([]) == 0
+        line = next(
+            text for text in capsys.readouterr().out.splitlines()
+            if "anchor occurrence(s) tolerated" in text
+        )
+
+        assert f"{expected} anchor occurrence(s) tolerated" in line
+
     def test_it_actually_found_forwarders_to_check(self) -> None:
         """A scope that empties would make « no violation » mean nothing."""
         sources = "\n".join(
@@ -163,7 +183,8 @@ class TestBaselineIdentity:
         done = subprocess.CompletedProcess([], 0, json.dumps(fresh), "")
         monkeypatch.setattr(guard.subprocess, "run", lambda *a, **k: done)
         findings = [
-            (guard.entry_identity(e), e.get("selector", e.get("class")), f"{e['file']}:{e['line']}") for e in fresh
+            (guard.entry_identity(e), e.get("selector", e.get("class")),
+             f"{e['file']}:{e['line']}", False) for e in fresh
         ]
         monkeypatch.setattr(guard, "collect_anchor_findings", lambda: findings)
         return baseline
@@ -230,3 +251,93 @@ class TestBaselineIdentity:
 
         assert guard.write_baseline() == 1
         assert json.loads(baseline.read_text(encoding="utf-8")) == stored
+
+
+class TestHeldSelectors:
+    """The instrument's second blind spot: selectors held outside a call.
+
+    A selector held in a variable or a table is read by nothing today —
+    `selection_calls` names only the literal ARGUMENT of a selection call —
+    yet it breaks at L07 exactly like the occurrences already baselined.
+    The held pass reads every selector-shaped string literal outside a
+    selection call, and the false-positive rule — every class token
+    emitted by a design site as a class= / className= token, OR selector
+    structure (a combinator, an attribute block, a comma list) — is a
+    RULE, not a list of exceptions. `.json5` fails both.
+    """
+
+    def _held(self, tmp_path, source, emitted=frozenset()):
+        """Writes `source` as a fixture harness file and reads it back.
+
+        Args:
+            tmp_path: The pytest fixture.
+            source: The fixture file's text.
+            emitted: The class tokens the design sites emit, faked for the
+                test — the false-positive rule's emission half is decided
+                by this set.
+
+        Returns:
+            The `(line, content)` pairs `held_occurrences` found.
+        """
+        fixture = tmp_path / "fixture.py"
+        fixture.write_text(source, encoding="utf-8")
+        return guard.held_occurrences(fixture, emitted)
+
+    def test_a_variable_holding_a_selector_yields_its_tokens(self, tmp_path):
+        """`SEL = ".foo .bar"` then `querySelector(SEL)`: two occurrences.
+
+        The call's argument is a variable, so the first pass names nothing;
+        the held pass reads the definition the variable holds.
+        """
+        found = self._held(tmp_path, 'SEL = ".foo .bar"\nquerySelector(SEL)\n')
+
+        assert found == [(1, ".foo .bar")]
+        assert guard.class_tokens(".foo .bar") == [".foo", ".bar"]
+
+    def test_a_file_extension_is_not_a_selector(self, tmp_path):
+        """`.json5` — nothing emits the class, and it has no structure."""
+        assert self._held(tmp_path, 'EXT = ".json5"\n') == []
+
+    def test_an_emitted_token_qualifies_without_structure(self, tmp_path):
+        """`.sact` passes on emission — and fails without it."""
+        assert self._held(tmp_path, 'SEL = ".sact"\n', {"sact"}) == [(1, ".sact")]
+        assert self._held(tmp_path, 'SEL = ".sact"\n') == []
+
+    def test_a_call_argument_is_not_held(self, tmp_path):
+        """The first pass already reads the literal argument."""
+        assert self._held(tmp_path, 'querySelector(".card")\n', {"card"}) == []
+
+    def test_structure_qualifies_even_when_nothing_emits_the_token(self, tmp_path):
+        """A combinator is selector structure, whatever the emission says."""
+        assert self._held(tmp_path, 'SEL = ".probe-held .card"\n') == \
+            [(1, ".probe-held .card")]
+
+    def test_an_attribute_block_is_selector_structure(self, tmp_path):
+        """`[data-panel]` is a selector, so `.tile[data-panel]` qualifies."""
+        assert self._held(tmp_path, 'SEL = ".tile[data-panel]"\n') == \
+            [(1, ".tile[data-panel]")]
+
+    def test_a_method_call_shape_is_not_a_selector(self, tmp_path):
+        """`.render(` names a method, not a class."""
+        assert self._held(tmp_path, 'SEL = ".render("\n', {"render"}) == []
+
+    def test_a_comment_mention_is_read_by_nothing(self, tmp_path):
+        """A comment quoting a selector is prose, not a selection."""
+        assert self._held(tmp_path, "# mentions '.sact'\n", {"sact"}) == []
+        assert self._held(tmp_path, 'X = """// mentions \'.sact\'"""\n', {"sact"}) == []
+
+    def test_the_classifier_counts_held_occurrences_separately(self, tmp_path):
+        """The two populations are reported apart, and summed."""
+        fixture = tmp_path / "fixture.py"
+        fixture.write_text(
+            'SEL = ".foo .bar"\nquerySelector(SEL)\nquerySelector(".screen")\n')
+        run = subprocess.run(
+            [sys.executable,
+             str(SCRIPT.parent / "classify-rule-anchors.py"),
+             "--tokens", str(tmp_path)],
+            capture_output=True, text=True)
+
+        assert run.returncode == 0, run.stderr
+        assert "2 class token occurrences held outside any selection call" \
+            in run.stdout
+        assert "3 class token occurrences total" in run.stdout

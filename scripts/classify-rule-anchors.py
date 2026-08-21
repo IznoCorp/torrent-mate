@@ -47,19 +47,55 @@ exactly the selectors whose strongest anchor is an attribute. `--tokens` is
 not that naive classifier: it counts every token AND reports the split, so a
 token behind a stronger anchor is a count, never an anchor.
 
-WHAT IT READS. The string argument of every `querySelector`,
-`querySelectorAll`, `locator` and `matches` call across
-`frontend/maquette/harness/*.py`, read as text — both quoting styles and
-template literals. Three calls pass their selector in backticks with a
-`${...}` interpolation inside; the interpolation is unknown at rest and is
-stripped before classifying, so the literal text that remains decides the
-anchor.
+WHAT IT READS. Two passes, one corpus — `frontend/maquette/harness/*.py`,
+read as text.
+
+  * The CALL pass: the string argument of every `querySelector`,
+    `querySelectorAll`, `locator` and `matches` call — both quoting
+    styles and template literals. Three calls pass their selector in
+    backticks with a `${...}` interpolation inside; the interpolation is
+    unknown at rest and is stripped before classifying, so the literal
+    text that remains decides the anchor.
+
+  * The HELD pass: every OTHER selector-shaped string literal — a
+    selector held in a variable, a table, a helper's argument, a
+    comparison. A reader that sees only the call pass never sees
+    `screen_port = ".screen.open .port"`, and the string dies at L07
+    with no measurement — the second blind spot of the family D4's
+    one-bucket rule was found to be. `--tokens` and `--baseline` count
+    both passes; the two populations are told apart by the `held` field
+    on each baseline entry. The identity is unchanged: a held occurrence
+    of `.tile` in gallery.py and a call occurrence of `.tile` in
+    gallery.py are two entries with the same key.
 
 WHAT IT DOES NOT READ. A call whose argument is not a string literal — a
-variable, an expression — is a selection this tool cannot name, and it is not
-counted. `classList.contains(...)` assertions are a second population: they
-are reported by `--baseline` under `"kind": "assertion"` and never mixed into
-the selection table. Nothing outside the harness directory is read.
+variable, an expression — is a CALL this tool cannot name; the string
+that defines the variable is the held pass's business instead, if it is
+selector-shaped. `classList.contains(...)` assertions are a second
+population: they are reported by `--baseline` under `"kind":
+"assertion"` and never mixed into the selection table. Comments and
+docstrings are read by nothing at runtime, so they are read by nothing
+here: Python comments are blanked exactly, the JS comments of the
+embedded-JS containers are blanked, and a triple-quoted docstring is
+skipped whole. Nothing outside the harness directory is READ — the
+design sources enter only as the emission side of the false-positive
+rule below.
+
+THE FALSE-POSITIVE RULE, AND IT IS A RULE, NOT A LIST. A candidate
+string is a selector only if EVERY class token it carries is EMITTED by
+at least one of the three design sites — `frontend/maquette/design/
+index.html`, `design/src/engine/legacy.js` and the sources under
+`design/src` — as a class= / className= token, OR the string carries
+selector structure: a combinator, an attribute block, a comma list.
+`.json5` fails both — nothing emits a class named json5, and the string
+has no structure — while `.tile[data-panel]` passes on structure and
+`.sact` passes on emission. A shape test runs first: the string starts
+with `.`, `#` or `[`, holds only selector-alphabet characters, and is
+not a method call (`.render(`). A string carrying an interpolation — a
+Python f-string or a `${...}` span — fails the shape test: the computed
+part names no literal at rest. A candidate with no class token is not
+recorded: the burn-down's unit is the class token occurrence, and a
+string with none owes it nothing.
 
 Usage:
     python3 scripts/classify-rule-anchors.py --summary [root]
@@ -73,9 +109,11 @@ test can measure a scratch copy without editing the real rules.
 
 from __future__ import annotations
 
+import io
 import json
 import re
 import sys
+import tokenize
 from collections import Counter
 from pathlib import Path
 
@@ -110,6 +148,46 @@ GENRE_REASON = ("the assertion's subject is the applied style — moving it to "
 # The anchors, printed in a fixed order so a diff of the report means
 # something.
 ANCHORS = ("class", "data-*", "id", "tag", "role")
+
+# ---- the held pass -------------------------------------------------------
+
+# The design sources the false-positive rule reads as the EMISSION side:
+# the shell, the engine and the sources under design/src. A class token
+# is emitted when one of them writes it in a class= / className= value.
+SHELL = ROOT / "frontend" / "maquette" / "design" / "index.html"
+SOURCES = ROOT / "frontend" / "maquette" / "design" / "src"
+
+# The characters a selector can hold. A string carrying anything else —
+# a Python f-string's braces, a `${...}` span, prose — is not
+# selector-shaped and is read by neither pass.
+SELECTOR_ALPHABET = set(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "0123456789.#[]=\"'`~+>*,:()\\-_^$|/ ")
+
+# A class token followed by a call parenthesis names a method, not a
+# class — CSS class tokens take no arguments. `:has-text(` is fine: its
+# parenthesis hangs off a pseudo-class, not off a class token.
+METHOD_CALL = re.compile(r"^\.[-\w]+\s*\(")
+
+# A quoted literal whose content starts with a selector character and
+# holds, up to the closing quote, selector text: plain characters and
+# attribute blocks — an attribute block may carry the delimiter (`a
+# [data-x="y"]` inside a single-quoted string), which is exactly why the
+# pass cannot be a simple quote-pair scan.
+HELD_RE = re.compile(
+    r"""(["'`])(?P<sel>[.#\[](?:(?!\1)[^\[\n])*(?:\[[^\[\]\n]*\]"""
+    r"""(?:(?!\1)[^\[\n])*)*)\1""")
+
+# The JS comments of the embedded-JS containers — the same two shapes
+# ARM 1 strips, applied to the content of a triple-quoted string.
+JS_COMMENT = re.compile(r"/\*.*?\*/|//[^\n]*", re.S)
+
+# HTML comments are the shell's shape.
+HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
+
+# `class=` / `className=` — every attribute spelling, whichever side of
+# an assignment or a JSX tag it hangs on. `\b` keeps `subclass =` out.
+CLASS_ATTR = re.compile(r"\bclass(?:Name)?\s*=\s*")
 
 
 def read_literal(text: str, start: int) -> tuple[str, int] | None:
@@ -310,19 +388,278 @@ def state_assertions(path: Path) -> list[tuple[int, str]]:
     return found
 
 
+def line_offsets(text: str) -> list[int]:
+    """Returns the character offset of the start of every line.
+
+    tokenize reports positions as `(line, column)`; the masking below
+    needs character offsets, and this table converts between the two.
+
+    Args:
+        text: The file text being read.
+
+    Returns:
+        `offsets[i]` is the offset of line `i + 1`'s first character.
+    """
+    offsets = [0]
+    for match in re.finditer("\n", text):
+        offsets.append(match.end())
+    return offsets
+
+
+def comment_masked(text: str) -> str:
+    """Returns `text` with every comment read by nothing blanked out.
+
+    Python comments are blanked exactly — tokenize knows where a `#`
+    starts a comment and where it does not, which a regex over raw text
+    cannot tell (`#view` inside a string is not a comment). The embedded
+    JS lives in triple-quoted strings: a triple-quoted DOCSTRING is
+    prose and is blanked whole; a triple-quoted CONTAINER is code and
+    its JS comments are blanked the way ARM 1 blanks them. Blanks
+    replace characters and newlines stay, so a candidate found in the
+    masked text still names the original line.
+
+    Args:
+        text: The file text being read.
+
+    Returns:
+        The comment-masked copy — or `text` itself when the file is not
+        valid Python: tokenize then cannot delimit the strings either,
+        and the reader falls back to reading raw, exactly as the call
+        pass always has.
+    """
+    out = list(text)
+
+    def blank(start: int, end: int) -> None:
+        for i in range(start, end):
+            if out[i] != "\n":
+                out[i] = " "
+
+    offsets = line_offsets(text)
+
+    def position(line: int, col: int) -> int:
+        return offsets[line - 1] + col
+
+    try:
+        tokens = list(tokenize.generate_tokens(io.StringIO(text).readline))
+    except (tokenize.TokenError, IndentationError):
+        return text
+    for tok in tokens:
+        if tok.type == tokenize.COMMENT:
+            blank(position(tok.start[0], tok.start[1]),
+                  position(tok.end[0], tok.end[1]))
+    for i, tok in enumerate(tokens):
+        if tok.type != tokenize.STRING or not (
+                tok.string.startswith('"""') or tok.string.startswith("'''")):
+            continue
+        prev = tokens[i - 1] if i else None
+        start = position(tok.start[0], tok.start[1])
+        end = position(tok.end[0], tok.end[1])
+        if prev is None or prev.type in (tokenize.NEWLINE, tokenize.NL,
+                                         tokenize.INDENT, tokenize.DEDENT):
+            blank(start, end)          # a docstring: prose, read by nothing
+            continue
+        content = text[start + 3:end - 3]
+        for match in JS_COMMENT.finditer(content):
+            blank(start + 3 + match.start(), start + 3 + match.end())
+    return "".join(out)
+
+
+def call_argument_starts(text: str) -> set[int]:
+    """Returns the opening-quote offset of every call argument.
+
+    A selector that IS a selection call's argument belongs to the call
+    pass; the held pass reads every OTHER literal.
+
+    Args:
+        text: The file text being read.
+
+    Returns:
+        The set of literal-start offsets the call pass owns.
+    """
+    starts: set[int] = set()
+    for match in CALL.finditer(text):
+        pos = match.end()
+        while pos < len(text) and text[pos] in " \t\n":
+            pos += 1
+        if pos < len(text) and text[pos] in ("'", '"', "`"):
+            starts.add(pos)
+    return starts
+
+
+def has_structure(content: str) -> bool:
+    """True when a candidate carries selector structure.
+
+    Structure is what lets a string qualify even when no design site
+    emits its tokens: an attribute block, a comma list, or a combinator
+    (`>`, `+`, `~`, or a space between two non-space parts). A single
+    bare class name has none — which is what the emission half of the
+    rule exists for.
+
+    Args:
+        content: One candidate string.
+
+    Returns:
+        True when the candidate carries at least one structural marker.
+    """
+    if "[" in content or "," in content:
+        return True
+    if ">" in content or "+" in content or "~" in content:
+        return True
+    return re.search(r"\S\s+\S", content) is not None
+
+
+def braced_expression(text: str, open_idx: int) -> tuple[str, int] | None:
+    """Returns the braced expression opening at `open_idx` and the index
+    past its closing brace.
+
+    Args:
+        text: The file text being read.
+        open_idx: Index of the opening `{`.
+
+    Returns:
+        The expression between the braces and the index just past the
+        closing `}`, or None when the braces never balance.
+    """
+    depth = 0
+    for i in range(open_idx, len(text)):
+        ch = text[i]
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[open_idx + 1:i], i + 1
+    return None
+
+
+def emission_tokens() -> set[str]:
+    """Returns every class token the three design sites emit.
+
+    An emission is a whitespace-split token of a class= / className=
+    value, read in each of the value's spellings: the plain quoted
+    attribute, the JS assignment (`bar.className = "selbar"`), a
+    backtick template (interpolations stripped, so the literal part
+    decides), and a braced expression (its string and template literals
+    are the class names). A value cut short by a `${...}` interpolation
+    contributes its literal part, and the span's own string literals
+    contribute theirs — `class="card${x ? " fresh" : ""}"` emits both
+    card and fresh. Comments are stripped first: a token a COMMENT
+    carries is emitted by nothing.
+
+    Returns:
+        The set of emitted class names — empty only when the emission
+        corpus is unreadable, which the callers refuse loudly.
+    """
+    files = [p for p in sorted(SOURCES.rglob("*"))
+             if p.is_file() and p.suffix in {".js", ".ts", ".tsx"}]
+    emitted: set[str] = set()
+    for path in [SHELL, *files]:
+        text = path.read_text(encoding="utf-8")
+        text = (HTML_COMMENT.sub(" ", text) if path.suffix == ".html"
+                else JS_COMMENT.sub(" ", text))
+        for match in CLASS_ATTR.finditer(text):
+            pos = match.end()
+            if pos >= len(text):
+                continue
+            ch = text[pos]
+            if ch in ("'", '"'):
+                literal = read_literal(text, pos)
+                if literal is None:
+                    continue
+                value, _ = literal
+                split_at = value.find("${")
+                emitted |= set(value[:split_at if split_at != -1
+                                     else len(value)].split())
+                if split_at == -1:
+                    continue
+                # the span of a template class attribute may itself hold
+                # the computed class names, as string literals
+                braced = braced_expression(text, pos + 1 + split_at + 1)
+                if braced is None:
+                    continue
+                expr, _ = braced
+                for piece in re.findall(r"""["']([^"']*)["']""", expr):
+                    emitted |= set(piece.split())
+            elif ch == "`":
+                literal = read_literal(text, pos)
+                if literal is None:
+                    continue
+                value, _ = literal
+                emitted |= set(strip_interpolations(value).split())
+            elif ch == "{":
+                braced = braced_expression(text, pos)
+                if braced is None:
+                    continue
+                expr, _ = braced
+                for piece in re.findall(r"""["']([^"']*)["']""", expr):
+                    emitted |= set(piece.split())
+                for literal in re.findall(r"`([^`]*)`", expr):
+                    emitted |= set(strip_interpolations(literal).split())
+    return emitted
+
+
+def held_selectors(text: str, emitted: set[str]) -> list[tuple[int, str]]:
+    """Returns every held selector in one file's text, in file order.
+
+    A held selector is a selector-shaped string literal OUTSIDE any
+    selection call's argument position — a selector held in a variable,
+    a table, a helper's argument, a comparison. The candidate regex is
+    stateless on purpose: a French apostrophe or a nested backtick that
+    would desync a quote-pair walker simply fails to match here, and
+    the literal after it is read on its own.
+
+    Args:
+        text: The file text being read.
+        emitted: The class tokens the three design sites emit.
+
+    Returns:
+        `(start, content)` pairs — the literal's opening-quote offset
+        and its content — for every candidate that carries at least one
+        class token and passes the false-positive rule.
+    """
+    masked = comment_masked(text)
+    call_args = call_argument_starts(text)
+    found: list[tuple[int, str]] = []
+    for match in HELD_RE.finditer(masked):
+        if match.start() in call_args:
+            continue
+        content = match.group("sel")
+        if any(ch not in SELECTOR_ALPHABET for ch in content):
+            continue
+        if METHOD_CALL.match(content):
+            continue
+        tokens = class_tokens(content)
+        if not tokens:
+            continue
+        if not (has_structure(content)
+                or all(token[1:] in emitted for token in tokens)):
+            continue
+        found.append((match.start(), content))
+    return found
+
+
 def collect(root: Path) -> tuple[list[tuple[str, int, str, str]],
+                                  list[tuple[str, int, str]],
                                   list[tuple[str, int, str]]]:
-    """Collects every selection call and state assertion under `root`.
+    """Collects every selection call, state assertion and held selector.
 
     Args:
         root: The directory whose `*.py` files are the corpus.
 
     Returns:
-        Selections as `(file, line, method, selector)` and assertions as
-        `(file, line, class_name)`, each in file order.
+        Selections as `(file, line, method, selector)`, assertions as
+        `(file, line, class_name)` and held selectors as
+        `(file, line, content)`, each in file order.
     """
     selections: list[tuple[str, int, str, str]] = []
     assertions: list[tuple[str, int, str]] = []
+    held: list[tuple[str, int, str]] = []
+    emitted = emission_tokens()
+    if not emitted:
+        print("classify-rule-anchors: no class= / className= emission "
+              "found in the design sources — the held pass cannot tell a "
+              "selector from a word, so its count would mean nothing",
+              file=sys.stderr)
     for path in sorted(p for p in root.glob("*.py") if p.is_file()):
         rel = (str(path.relative_to(ROOT))
                if path.is_relative_to(ROOT) else str(path))
@@ -330,7 +667,10 @@ def collect(root: Path) -> tuple[list[tuple[str, int, str, str]],
                        for line, method, selector in selection_calls(path)]
         assertions += [(rel, line, name)
                        for line, name in state_assertions(path)]
-    return selections, assertions
+        text = path.read_text(encoding="utf-8")
+        held += [(rel, text.count("\n", 0, start) + 1, content)
+                 for start, content in held_selectors(text, emitted)]
+    return selections, assertions, held
 
 
 def print_summary(selections: list[tuple[str, int, str, str]]) -> None:
@@ -349,18 +689,21 @@ def print_summary(selections: list[tuple[str, int, str, str]]) -> None:
     print(f"{len(selections)} selection calls")
 
 
-def print_tokens(selections: list[tuple[str, int, str, str]]) -> None:
+def print_tokens(selections: list[tuple[str, int, str, str]],
+                 held: list[tuple[str, int, str]]) -> None:
     """Prints every class token occurrence and the per-selector split.
 
     The total is the lot's real size: every `.token` outside a `[...]` block,
-    however the selector is anchored. The split underneath it names the two
-    populations — the class-only selectors `--summary` already sees, and the
-    tokens hiding behind a stronger anchor that only this mode can see. A
-    token is counted once per occurrence, so one selector carrying two class
-    tokens counts twice.
+    however the selector is anchored, IN a selection call or HELD outside
+    one. The split underneath it names the two populations — the class-only
+    selectors `--summary` already sees, and the tokens hiding behind a
+    stronger anchor that only this mode can see. A token is counted once
+    per occurrence, so one selector carrying two class tokens counts
+    twice.
 
     Args:
         selections: The corpus as `(file, line, method, selector)` tuples.
+        held: The held selectors as `(file, line, content)` tuples.
     """
     tokens: Counter[str] = Counter()
     carrying = 0
@@ -374,16 +717,26 @@ def print_tokens(selections: list[tuple[str, int, str, str]]) -> None:
             class_only += 1
         tokens.update(found)
     behind = carrying - class_only
+    held_tokens: Counter[str] = Counter()
+    for _, _, content in held:
+        held_tokens.update(class_tokens(content))
     print(f"{'token':<20}{'occurrences':>12}")
     print(f"{'-' * 20}{'-' * 12:>13}")
     for name, count in sorted(tokens.items()):
         print(f"{name:<20}{count:>12}")
     print(f"{'-' * 20}{'-' * 12:>13}")
-    print(f"{sum(tokens.values())} class token occurrences")
+    for name, count in sorted(held_tokens.items()):
+        print(f"{name:<20}{count:>12}")
+    print(f"{'-' * 20}{'-' * 12:>13}")
+    print(f"{sum(tokens.values())} class token occurrences in selection calls")
     print(f"{carrying} selectors carry at least one class token")
     print(f"  {class_only} where the class is the only anchor")
     print(f"  {behind} where it hides behind a stronger anchor")
     print(f"{len(selections) - carrying} calls carry no class token at all")
+    print(f"{sum(held_tokens.values())} class token occurrences held "
+          "outside any selection call")
+    print(f"{sum(tokens.values()) + sum(held_tokens.values())} class token "
+          "occurrences total")
 
 
 def print_exceptions() -> None:
@@ -393,26 +746,37 @@ def print_exceptions() -> None:
 
 
 def print_baseline(selections: list[tuple[str, int, str, str]],
-                   assertions: list[tuple[str, int, str]]) -> None:
+                   assertions: list[tuple[str, int, str]],
+                   held: list[tuple[str, int, str]]) -> None:
     """Prints the baseline as JSON: one entry per class token occurrence.
 
     The burn-down is keyed on the token OCCURRENCE, not the selector — a
     selector carrying two class tokens owes work to two entries, because the
     tokens can be owned by different phases. Each `selection` entry therefore
     carries the full selector AND the `token` it is about; two tokens in one
-    selector are two entries. `assertion` entries carry the class name, and
-    the five genre assertions are permanent exceptions, not part of the
-    baseline.
+    selector are two entries. An entry the held pass found carries
+    `"held": true`; a call entry carries `"held": false` — the two
+    populations must stay tellable apart, while the identity `(kind, file,
+    token)` stays the same key for both. `assertion` entries carry the
+    class name, and the five genre assertions are permanent exceptions,
+    not part of the baseline.
 
     Args:
         selections: The corpus as `(file, line, method, selector)` tuples.
         assertions: The corpus as `(file, line, class_name)` tuples.
+        held: The held selectors as `(file, line, content)` tuples.
     """
     entries: list[dict[str, object]] = []
     for rel, line, _, selector in selections:
         for token in class_tokens(selector):
-            entries.append({"kind": "selection", "file": rel, "line": line,
-                            "selector": selector, "token": token})
+            entries.append({"kind": "selection", "held": False, "file": rel,
+                            "line": line, "selector": selector,
+                            "token": token})
+    for rel, line, content in held:
+        for token in class_tokens(content):
+            entries.append({"kind": "selection", "held": True, "file": rel,
+                            "line": line, "selector": content,
+                            "token": token})
     for rel, line, name in assertions:
         if name in STATE_CLASSES:
             entries.append({"kind": "assertion", "file": rel,
@@ -453,7 +817,7 @@ def main() -> int:
               file=sys.stderr)
         return 1
 
-    selections, assertions = collect(root)
+    selections, assertions, held = collect(root)
     if not selections:
         print(f"classify-rule-anchors: no selection call found under {root} — "
               "either the extraction broke or the root is wrong",
@@ -463,11 +827,11 @@ def main() -> int:
     if mode == "--summary":
         print_summary(selections)
     elif mode == "--tokens":
-        print_tokens(selections)
+        print_tokens(selections, held)
     elif mode == "--exceptions":
         print_exceptions()
     else:
-        print_baseline(selections, assertions)
+        print_baseline(selections, assertions, held)
     return 0
 
 

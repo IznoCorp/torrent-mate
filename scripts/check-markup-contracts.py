@@ -56,15 +56,40 @@ deleted.
 
 WHAT ARM 2 READS, AND THE TWO REFUSALS.
 
-  1. A class TOKEN in a selection. The string argument of every
-     `querySelector`, `querySelectorAll`, `locator` and `matches` call is
-     read the way `classify-rule-anchors.py --tokens` reads it: `${...}`
-     interpolations and every `[...]` block are stripped, then EVERY
-     `.token` that remains is a finding — NOT the strongest anchor.
-     `#view .swipe` is id-anchored by precedence and still dies the day
-     the `.swipe` class is removed; a guard that refused only pure class
-     anchors would reproduce the 54 % under-measurement D4's own method
-     was found to make.
+  1. A class TOKEN in a selection, read by TWO passes — a guard that
+     reads only the call pass would reproduce the instrument's second
+     blind spot, where a selector held in a variable or a table dies at
+     L07 with no measurement at all.
+
+     a. The CALL pass: the string argument of every `querySelector`,
+        `querySelectorAll`, `locator` and `matches` call, read the way
+        `classify-rule-anchors.py --tokens` reads it: `${...}`
+        interpolations and every `[...]` block are stripped, then EVERY
+        `.token` that remains is a finding — NOT the strongest anchor.
+        `#view .swipe` is id-anchored by precedence and still dies the
+        day the `.swipe` class is removed; a guard that refused only
+        pure class anchors would reproduce the 54 % under-measurement
+        D4's own method was found to make.
+
+     b. The HELD pass: every OTHER selector-shaped string literal —
+        `screen_port = ".screen.open .port"`, a row of a table, a
+        helper's argument, a comparison. THE FALSE-POSITIVE RULE, AND
+        IT IS A RULE, NOT A LIST: a candidate string is a selector only
+        if EVERY class token it carries is EMITTED by at least one of
+        the three design sites — `index.html`, `src/engine/legacy.js`
+        and the sources under `design/src` — as a class= / className=
+        token, OR the string carries selector structure: a combinator,
+        an attribute block, a comma list. `.json5` fails both — nothing
+        emits a class named json5, and the string has no structure —
+        while `.tile[data-panel]` passes on structure and `.sact`
+        passes on emission. A shape test runs first: the string starts
+        with `.`, `#` or `[`, holds only selector-alphabet characters,
+        and is not a method call (`.render(`). Comments and docstrings
+        are read by nothing at runtime, so they are read by nothing
+        here; a candidate carrying no class token owes the burn-down
+        nothing and is not recorded. A held occurrence is a finding
+        exactly like a call occurrence — the baseline entry differs
+        only in its `held: true` field, never in its identity.
 
   2. `classList.contains('<state>')` for one of the seven migrated
      states: open, noposter, show, in_library, fempty, fblocked,
@@ -176,10 +201,12 @@ Usage:
 
 from __future__ import annotations
 
+import io
 import json
 import re
 import subprocess
 import sys
+import tokenize
 from collections import Counter
 from pathlib import Path
 
@@ -242,6 +269,37 @@ STATE_CLASSES = ("open", "noposter", "show", "in_library",
 # class is gone and the rule would measure less than it does today. They
 # are listed here so a NEW contains() name is recognized as neither.
 GENRE_CLASSES = ("h2", "flux", "ep", "radio", "note")
+
+# ---- ARM 2 held pass -----------------------------------------------------
+
+# The characters a selector can hold. A string carrying anything else —
+# a Python f-string's braces, a `${...}` span, prose — is not
+# selector-shaped and is read by neither pass. Mirrored deliberately
+# from the classifier: the two readers must agree or one is wrong.
+SELECTOR_ALPHABET = set(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "0123456789.#[]=\"'`~+>*,:()\\-_^$|/ ")
+
+# A class token followed by a call parenthesis names a method, not a
+# class — CSS class tokens take no arguments. `:has-text(` is fine: its
+# parenthesis hangs off a pseudo-class, not off a class token.
+METHOD_CALL = re.compile(r"^\.[-\w]+\s*\(")
+
+# A quoted literal whose content starts with a selector character and
+# holds, up to the closing quote, selector text: plain characters and
+# attribute blocks — an attribute block may carry the delimiter
+# (`'[data-x="y"]'` inside a single-quoted string), which is exactly why
+# the pass cannot be a simple quote-pair scan. Stateless on purpose: a
+# French apostrophe or a nested backtick that would desync a quote-pair
+# walker simply fails to match here, and the literal after it is read on
+# its own.
+HELD_RE = re.compile(
+    r"""(["'`])(?P<sel>[.#\[](?:(?!\1)[^\[\n])*(?:\[[^\[\]\n]*\]"""
+    r"""(?:(?!\1)[^\[\n])*)*)\1""")
+
+# `class=` / `className=` — every attribute spelling, whichever side of
+# an assignment or a JSX tag it hangs on. `\b` keeps `subclass =` out.
+CLASS_ATTR = re.compile(r"\bclass(?:Name)?\s*=\s*")
 
 # ---- ARM 3 constants ----------------------------------------------------
 
@@ -516,6 +574,231 @@ def state_assertions(path: Path) -> list[tuple[int, str]]:
     return found
 
 
+def line_offsets(text: str) -> list[int]:
+    """Returns the character offset of the start of every line.
+
+    tokenize reports positions as `(line, column)`; the masking below
+    needs character offsets, and this table converts between the two.
+
+    Args:
+        text: The file text being read.
+
+    Returns:
+        `offsets[i]` is the offset of line `i + 1`'s first character.
+    """
+    offsets = [0]
+    for match in re.finditer("\n", text):
+        offsets.append(match.end())
+    return offsets
+
+
+def comment_masked(text: str) -> str:
+    """Returns `text` with every comment read by nothing blanked out.
+
+    Python comments are blanked exactly — tokenize knows where a `#`
+    starts a comment and where it does not, which a regex over raw text
+    cannot tell (`#view` inside a string is not a comment). The embedded
+    JS lives in triple-quoted strings: a triple-quoted DOCSTRING is
+    prose and is blanked whole; a triple-quoted CONTAINER is code and
+    its JS comments are blanked the way ARM 1 blanks them. Blanks
+    replace characters and newlines stay, so a candidate found in the
+    masked text still names the original line.
+
+    Args:
+        text: The file text being read.
+
+    Returns:
+        The comment-masked copy — or `text` itself when the file is not
+        valid Python: tokenize then cannot delimit the strings either,
+        and the reader falls back to reading raw, exactly as the call
+        pass always has.
+    """
+    out = list(text)
+
+    def blank(start: int, end: int) -> None:
+        for i in range(start, end):
+            if out[i] != "\n":
+                out[i] = " "
+
+    offsets = line_offsets(text)
+
+    def position(line: int, col: int) -> int:
+        return offsets[line - 1] + col
+
+    try:
+        tokens = list(tokenize.generate_tokens(io.StringIO(text).readline))
+    except (tokenize.TokenError, IndentationError):
+        return text
+    for tok in tokens:
+        if tok.type == tokenize.COMMENT:
+            blank(position(tok.start[0], tok.start[1]),
+                  position(tok.end[0], tok.end[1]))
+    for i, tok in enumerate(tokens):
+        if tok.type != tokenize.STRING or not (
+                tok.string.startswith('"""') or tok.string.startswith("'''")):
+            continue
+        prev = tokens[i - 1] if i else None
+        start = position(tok.start[0], tok.start[1])
+        end = position(tok.end[0], tok.end[1])
+        if prev is None or prev.type in (tokenize.NEWLINE, tokenize.NL,
+                                         tokenize.INDENT, tokenize.DEDENT):
+            blank(start, end)          # a docstring: prose, read by nothing
+            continue
+        content = text[start + 3:end - 3]
+        for match in COMMENT.finditer(content):
+            blank(start + 3 + match.start(), start + 3 + match.end())
+    return "".join(out)
+
+
+def call_argument_starts(text: str) -> set[int]:
+    """Returns the opening-quote offset of every call argument.
+
+    A selector that IS a selection call's argument belongs to the call
+    pass; the held pass reads every OTHER literal.
+
+    Args:
+        text: The file text being read.
+
+    Returns:
+        The set of literal-start offsets the call pass owns.
+    """
+    starts: set[int] = set()
+    for match in CALL.finditer(text):
+        pos = match.end()
+        while pos < len(text) and text[pos] in " \t\n":
+            pos += 1
+        if pos < len(text) and text[pos] in ("'", '"', "`"):
+            starts.add(pos)
+    return starts
+
+
+def has_structure(content: str) -> bool:
+    """True when a candidate carries selector structure.
+
+    Structure is what lets a string qualify even when no design site
+    emits its tokens: an attribute block, a comma list, or a combinator
+    (`>`, `+`, `~`, or a space between two non-space parts). A single
+    bare class name has none — which is what the emission half of the
+    rule exists for.
+
+    Args:
+        content: One candidate string.
+
+    Returns:
+        True when the candidate carries at least one structural marker.
+    """
+    if "[" in content or "," in content:
+        return True
+    if ">" in content or "+" in content or "~" in content:
+        return True
+    return re.search(r"\S\s+\S", content) is not None
+
+
+def emission_tokens() -> set[str]:
+    """Returns every class token the three design sites emit.
+
+    An emission is a whitespace-split token of a class= / className=
+    value, read in each of the value's spellings: the plain quoted
+    attribute, the JS assignment (`bar.className = "selbar"`), a
+    backtick template (interpolations stripped, so the literal part
+    decides), and a braced expression (its string and template literals
+    are the class names). A value cut short by a `${...}` interpolation
+    contributes its literal part, and the span's own string literals
+    contribute theirs — `class="card${x ? " fresh" : ""}"` emits both
+    card and fresh. Comments are stripped first: a token a COMMENT
+    carries is emitted by nothing.
+
+    Returns:
+        The set of emitted class names — empty only when the emission
+        corpus is unreadable, which the callers refuse loudly.
+    """
+    files = [p for p in sorted(SOURCES.rglob("*"))
+             if p.is_file() and p.suffix in {".js", ".ts", ".tsx"}]
+    emitted: set[str] = set()
+    for path in [SHELL, *files]:
+        text = path.read_text(encoding="utf-8")
+        text = (HTML_COMMENT.sub(" ", text) if path.suffix == ".html"
+                else COMMENT.sub(" ", text))
+        for match in CLASS_ATTR.finditer(text):
+            pos = match.end()
+            if pos >= len(text):
+                continue
+            ch = text[pos]
+            if ch in ("'", '"'):
+                literal = read_literal(text, pos)
+                if literal is None:
+                    continue
+                value, _ = literal
+                split_at = value.find("${")
+                emitted |= set(value[:split_at if split_at != -1
+                                     else len(value)].split())
+                if split_at == -1:
+                    continue
+                # the span of a template class attribute may itself hold
+                # the computed class names, as string literals
+                braced = braced_expression(text, pos + 1 + split_at + 1)
+                if braced is None:
+                    continue
+                expr, _ = braced
+                for piece in re.findall(r"""["']([^"']*)["']""", expr):
+                    emitted |= set(piece.split())
+            elif ch == "`":
+                literal = read_literal(text, pos)
+                if literal is None:
+                    continue
+                value, _ = literal
+                emitted |= set(strip_interpolations(value).split())
+            elif ch == "{":
+                braced = braced_expression(text, pos)
+                if braced is None:
+                    continue
+                expr, _ = braced
+                for piece in re.findall(r"""["']([^"']*)["']""", expr):
+                    emitted |= set(piece.split())
+                for literal in re.findall(r"`([^`]*)`", expr):
+                    emitted |= set(strip_interpolations(literal).split())
+    return emitted
+
+
+def held_occurrences(path: Path, emitted: set[str]) -> list[tuple[int, str]]:
+    """Returns every held selector in one harness file, in file order.
+
+    A held selector is a selector-shaped string literal OUTSIDE any
+    selection call's argument position — a selector held in a variable,
+    a table, a helper's argument, a comparison.
+
+    Args:
+        path: A Python file under `HARNESS`.
+        emitted: The class tokens the three design sites emit — the
+            false-positive rule's emission half is decided by this set.
+
+    Returns:
+        `(line, content)` pairs, one per candidate that carries at least
+        one class token and passes the false-positive rule.
+    """
+    text = path.read_text(encoding="utf-8")
+    masked = comment_masked(text)
+    call_args = call_argument_starts(text)
+    found: list[tuple[int, str]] = []
+    for match in HELD_RE.finditer(masked):
+        if match.start() in call_args:
+            continue
+        content = match.group("sel")
+        if any(ch not in SELECTOR_ALPHABET for ch in content):
+            continue
+        if METHOD_CALL.match(content):
+            continue
+        tokens = class_tokens(content)
+        if not tokens:
+            continue
+        if not (has_structure(content)
+                or all(token[1:] in emitted for token in tokens)):
+            continue
+        line = text.count("\n", 0, match.start()) + 1
+        found.append((line, content))
+    return found
+
+
 def harness_files() -> list[Path]:
     """Returns the anchor arm's corpus, in a fixed order.
 
@@ -557,7 +840,8 @@ def entry_identity(entry: dict[str, object]) -> tuple[str, str, str]:
     if not isinstance(entry.get("file"), str) \
             or not isinstance(entry.get("line"), int) \
             or not isinstance(selector, str) \
-            or not isinstance(name, str):
+            or not isinstance(name, str) \
+            or not isinstance(entry.get("held", False), bool):
         raise ValueError(f"malformed entry {entry!r}")
     return (kind, entry["file"], name)
 
@@ -583,28 +867,41 @@ def load_baseline() -> Counter[tuple[str, str, str]]:
 
 
 def collect_anchor_findings(
-) -> list[tuple[tuple[str, str, str], str, str]]:
+) -> list[tuple[tuple[str, str, str], str, str, bool]]:
     """Collects every finding the anchor arm exists to refuse.
 
+    Both passes feed it — the call pass reads the selection calls, the
+    held pass reads the selector-shaped strings outside them, and each
+    occurrence is one finding. The identity is the same key for both: a
+    held occurrence of `.tile` and a call occurrence of `.tile` in the
+    same file are two entries with one identity; the `held` flag is the
+    annotation that tells them apart.
+
     Returns:
-        `(identity, subject, where)` tuples, in file order — the
+        `(identity, subject, where, held)` tuples, in file order — the
         line- and selector-free identity `(kind, file, token)` (the class
         name fills the token slot for an assertion), the full selector
         for a selection and the class name for an assertion — the
         DISPLAY subject, carried alongside the identity but never part
-        of it — and the `file:line` it was found at for display.
+        of it — the `file:line` it was found at for display, and whether
+        the held pass found it.
     """
-    findings: list[tuple[tuple[str, str, str], str, str]] = []
+    findings: list[tuple[tuple[str, str, str], str, str, bool]] = []
+    emitted = emission_tokens()
     for path in harness_files():
         rel = str(path.relative_to(ROOT))
         for line, _, selector in selection_calls(path):
             for token in class_tokens(selector):
                 identity = ("selection", rel, token)
-                findings.append((identity, selector, f"{rel}:{line}"))
+                findings.append((identity, selector, f"{rel}:{line}", False))
+        for line, content in held_occurrences(path, emitted):
+            for token in class_tokens(content):
+                identity = ("selection", rel, token)
+                findings.append((identity, content, f"{rel}:{line}", True))
         for line, name in state_assertions(path):
             if name in STATE_CLASSES:
                 identity = ("assertion", rel, name)
-                findings.append((identity, name, f"{rel}:{line}"))
+                findings.append((identity, name, f"{rel}:{line}", False))
     return findings
 
 
@@ -628,6 +925,13 @@ def check_anchor_debt() -> int:
               "the scope is empty, so « no violation » would mean nothing",
               file=sys.stderr)
         return 1
+    emitted = emission_tokens()
+    if not emitted:
+        print("check-markup-contracts: no class= / className= emission "
+              "found in the design sources — the held pass cannot tell a "
+              "selector from a word, so « no held selector » would mean "
+              "nothing", file=sys.stderr)
+        return 1
     try:
         baseline = load_baseline()
     except (OSError, ValueError, KeyError, TypeError) as err:
@@ -639,14 +943,30 @@ def check_anchor_debt() -> int:
         return 1
 
     seen: Counter[tuple[str, str, str]] = Counter()
-    tolerated = {"selection": 0, "assertion": 0}
+    # "held" is a SUBSET of "selection", not a third population: a held
+    # occurrence is counted once under its kind and once again here so the
+    # summary can say how many of the selection tokens sit outside a call.
+    # The printed total must therefore never sum the three buckets.
+    tolerated = {"selection": 0, "held": 0, "assertion": 0}
     exempt = 0
     violations = 0
-    for identity, subject, where in collect_anchor_findings():
+    for identity, subject, where, held in collect_anchor_findings():
         kind = identity[0]
         if seen[identity] < baseline[identity]:
             seen[identity] += 1
             tolerated[kind] += 1
+            if kind == "selection" and held:
+                tolerated["held"] += 1
+        elif kind == "selection" and held:
+            violations += 1
+            print(f"  {where}: the string {subject!r} held outside any "
+                  f"selection call carries the class token {identity[2]!r}, "
+                  "and the baseline owns no such occurrence. A selector "
+                  "held in a variable or a table dies the day the class is "
+                  "removed exactly like one written in a call. Migrate the "
+                  "occurrence — or if a migration genuinely removed it, "
+                  "regenerate the baseline with --write-baseline; the "
+                  "regeneration refuses to add anything.", file=sys.stderr)
         elif kind == "selection":
             violations += 1
             print(f"  {where}: selector {subject!r} carries the class token "
@@ -682,11 +1002,14 @@ def check_anchor_debt() -> int:
               "exists to burn.", file=sys.stderr)
         return 1
 
-    print(f"check-markup-contracts: {sum(tolerated.values())} anchor "
+    total = tolerated["selection"] + tolerated["assertion"]
+    print(f"check-markup-contracts: {total} anchor "
           f"occurrence(s) tolerated — {tolerated['selection']} selection "
-          f"token(s) and {tolerated['assertion']} state assertion(s), every "
-          f"one owned by {BASELINE.relative_to(ROOT)}. {exempt} genre "
-          "assertion(s) exempt: permanent, each reason in "
+          f"token(s), {tolerated['held']} of them held outside any "
+          f"selection call, and {tolerated['assertion']} state "
+          f"assertion(s), every one owned by "
+          f"{BASELINE.relative_to(ROOT)}. {exempt} genre assertion(s) "
+          "exempt: permanent, each reason in "
           "scripts/classify-rule-anchors.py --exceptions.")
     return 0
 
@@ -702,6 +1025,10 @@ def describe_entry(entry: dict[str, object]) -> str:
         `file: classList.contains(…)` for an assertion entry.
     """
     if entry["kind"] == "selection":
+        if entry.get("held"):
+            return (f"  {entry['file']}: the string {entry['selector']!r} "
+                    f"held outside any selection call carries the token "
+                    f"{entry['token']!r}")
         return (f"  {entry['file']}: selector {entry['selector']!r} carries "
                 f"the token {entry['token']!r}")
     return f"  {entry['file']}: classList.contains({entry['class']!r})"
@@ -714,9 +1041,9 @@ def write_baseline(allow_additions: bool = False) -> int:
     than deriving the entries here: a baseline the guard derives alone is
     a classification cross-checked by nothing. The two readers are then
     held against each other — this arm's own extraction must agree with
-    the classifier's list on every occurrence identity — and the file is
-    written only when they do, so the cross-check is a hard gate and not
-    a step someone remembers to run.
+    the classifier's list on every occurrence identity AND on every held
+    flag — and the file is written only when they do, so the cross-check
+    is a hard gate and not a step someone remembers to run.
 
     THE RATCHET. Before writing, the fresh entries are held against the
     stored baseline on their line- and selector-free identities.
@@ -740,6 +1067,14 @@ def write_baseline(allow_additions: bool = False) -> int:
         two readers disagree, or the write would add occurrences and
         `allow_additions` is False; 0 when the file was written.
     """
+    emitted = emission_tokens()
+    if not emitted:
+        print("check-markup-contracts: no class= / className= emission "
+              "found in the design sources — the held pass cannot tell a "
+              "selector from a word, so a regeneration would silently "
+              f"burn every held entry. {BASELINE.name} was NOT written.",
+              file=sys.stderr)
+        return 1
     run = subprocess.run([sys.executable, str(CLASSIFIER), "--baseline"],
                          capture_output=True, text=True)
     if run.returncode != 0:
@@ -757,8 +1092,16 @@ def write_baseline(allow_additions: bool = False) -> int:
               f"{BASELINE.name} was not written.", file=sys.stderr)
         return 1
 
-    by_guard = Counter(identity for identity, _, _ in collect_anchor_findings())
-    if by_classifier != by_guard:
+    findings = collect_anchor_findings()
+    by_guard = Counter(identity for identity, _, _, _ in findings)
+    # The two readers must agree on the held flags too: an occurrence one
+    # side reads as held and the other as a call is a disagreement, even
+    # though the identity is the same key for both.
+    by_classifier_held = Counter(
+        (entry_identity(entry), bool(entry.get("held"))) for entry in entries)
+    by_guard_held = Counter((identity, held)
+                            for identity, _, _, held in findings)
+    if by_classifier != by_guard or by_classifier_held != by_guard_held:
         print("check-markup-contracts: the two readers disagree — "
               f"{CLASSIFIER.name} --baseline holds "
               f"{sum(by_classifier.values())} occurrence(s) and this arm's "
@@ -768,6 +1111,8 @@ def write_baseline(allow_additions: bool = False) -> int:
             print(f"  classifier only: {key}", file=sys.stderr)
         for key in list(by_guard - by_classifier)[:10]:
             print(f"  guard only: {key}", file=sys.stderr)
+        for key in list(by_classifier_held - by_guard_held)[:10]:
+            print(f"  held flag differs: {key}", file=sys.stderr)
         return 1
 
     try:
