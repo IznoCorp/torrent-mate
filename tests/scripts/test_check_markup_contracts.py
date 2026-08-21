@@ -443,6 +443,84 @@ class TestHeldPartSelections:
         assert "of them held)" in line
 
 
+class TestImperativeEmission:
+    """ARM 3's emission blind spot: an element built in script, not markup.
+
+    The reader knew one syntactic position for an emission — the attribute
+    written into markup or JSX as `data-part="value"`. A node the engine
+    builds imperatively carries no such text: it is created, given a class
+    and appended, so its anchor is an assignment. The episode popover is
+    exactly that shape, and the arm would have called a whole contract
+    broken — selected four times, emitted nowhere — while both of its ends
+    were in place.
+
+    A computed value stays unread on both forms, for the reason the arm
+    already skips `${…}`: half-reading a name is worse than not reading it.
+    """
+
+    # The two imperative shapes, and a value no markup could carry.
+    DATASET = 'el.dataset.part = "probe/imperative";\n'
+    SET_ATTRIBUTE = 'el.setAttribute("data-part", "probe/imperative");\n'
+
+    def _source(self, tmp_path, text):
+        """Writes `text` as a fixture emission site.
+
+        Args:
+            tmp_path: The pytest fixture.
+            text: The fixture file's source.
+
+        Returns:
+            The path written.
+        """
+        fixture = tmp_path / "fixture.js"
+        fixture.write_text(text, encoding="utf-8")
+        return fixture
+
+    def test_a_dataset_assignment_emits(self, tmp_path) -> None:
+        """`el.dataset.part = "…"` is an emission, in script rather than markup."""
+        assert guard.emitted_part_values(self._source(tmp_path, self.DATASET)) == {"probe/imperative"}
+
+    def test_a_set_attribute_call_emits(self, tmp_path) -> None:
+        """`el.setAttribute("data-part", "…")` is the same emission, spelled out."""
+        assert guard.emitted_part_values(self._source(tmp_path, self.SET_ATTRIBUTE)) == {"probe/imperative"}
+
+    def test_a_computed_imperative_value_is_skipped_whole(self, tmp_path) -> None:
+        """A value the script computes names no literal to compare against."""
+        computed = 'el.dataset.part = kind;\nel.setAttribute("data-part", `part/${k}`);\n'
+
+        assert guard.emitted_part_values(self._source(tmp_path, computed)) == set()
+
+    def test_a_comment_holding_an_assignment_emits_nothing(self, tmp_path) -> None:
+        """A comment describing the assignment is prose, and emits nothing."""
+        assert guard.emitted_part_values(self._source(tmp_path, "// " + self.DATASET)) == set()
+
+    def test_the_arm_accepts_a_selection_an_imperative_emission_satisfies(self, tmp_path, monkeypatch, capsys) -> None:
+        """The whole arm, not just the helper: a contract in two halves holds.
+
+        Both ends are fixtures — a harness file selecting the probe value and
+        a source emitting it imperatively — so the assertion is about the
+        reader, not about what the repository happens to contain.
+        """
+        harness = tmp_path / "fixture.py"
+        harness.write_text("querySelector('[data-part=\"probe/imperative\"]')\n", encoding="utf-8")
+        source = self._source(tmp_path, self.DATASET)
+        monkeypatch.setattr(guard, "harness_files", lambda: [harness])
+        monkeypatch.setattr(guard, "emission_files", lambda: [guard.SHELL, source])
+        monkeypatch.setattr(guard, "ROOT", tmp_path)
+
+        assert guard.check_part_values() == 0, capsys.readouterr().err
+
+    def test_the_repository_emits_a_part_imperatively(self) -> None:
+        """Non-vacuity: this reading finds something on the real sources.
+
+        A pass that reads nothing anywhere is a pass whose green says
+        nothing, and the engine builds the episode popover in script.
+        """
+        engine = guard.SOURCES / "engine" / "legacy.js"
+
+        assert "episode/popover" in guard.emitted_part_values(engine)
+
+
 class TestHeldSelectors:
     """The instrument's second blind spot: selectors held outside a call.
 

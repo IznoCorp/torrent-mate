@@ -287,6 +287,7 @@ function SeasonDetails({
       <button
         key={number}
         className={`ep ${state}`}
+        data-part="episode"
         data-ep={`${follow.t}|${num}|${number}|${state}`}
         aria-label={`S${String(num).padStart(2, "0")}E${String(number).padStart(2, "0")} — ${reference.EP_LABEL[state]}`}
       >

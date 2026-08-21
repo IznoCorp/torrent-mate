@@ -199,6 +199,7 @@ function SeasonList({
                 return (
                   <span
                     className={`ep ${episodeState}`}
+                    data-part="episode"
                     key={number}
                     aria-label={t("screens.media.episodeAria", {
                       n: number,

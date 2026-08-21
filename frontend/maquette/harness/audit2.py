@@ -353,7 +353,7 @@ async def main():
           // BOTH renderings: titled rows AND the numbered matrix.
           const cells=[...det.querySelectorAll('.eprow')].map(r=>[
               Number((r.querySelector('.en')?.textContent||'').replace(/\\D/g,'')), r])
-            .concat([...det.querySelectorAll('.eps .ep')].map(c=>[Number(c.textContent), c]));
+            .concat([...det.querySelectorAll('.eps [data-part="episode"]')].map(c=>[Number(c.textContent), c]));
           for (const [n, el] of cells) {
             if (!n || el.classList.contains('announced')) continue;
             inspected++;
@@ -399,7 +399,7 @@ async def main():
         // absence, counted APART from a sheet that never opened.
         if (!dets.length) { c.noSeason.push(t); continue; }
         const shapes=new Set(dets.map(d=>
-          d.querySelector('.eprow') ? 'rows' : d.querySelector('.eps .ep') ? 'matrix' : 'empty'));
+          d.querySelector('.eprow') ? 'rows' : d.querySelector('.eps [data-part="episode"]') ? 'matrix' : 'empty'));
         shapes.delete('empty');
         if (shapes.size>1) c.mixed.push(t);
         else if (shapes.has('rows')) c.rows.push(t);

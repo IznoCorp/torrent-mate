@@ -33436,7 +33436,7 @@ import { screens, panel, bridge } from "../seams.js";
                   const episodeState = held.has(number)
                     ? "in_library"
                     : "to_grab";
-                  return `<span class="ep ${episodeState}" aria-label="Épisode ${number} — ${EP_LABEL[episodeState]}">${String(number).padStart(2, "0")}</span>`;
+                  return `<span class="ep ${episodeState}" data-part="episode" aria-label="Épisode ${number} — ${EP_LABEL[episodeState]}">${String(number).padStart(2, "0")}</span>`;
                 },
               ).join("")}</div>${
                 ligne.aired == null
@@ -33556,6 +33556,7 @@ import { screens, panel, bridge } from "../seams.js";
           : `Diffusé le ${airDate}`;
     const createElement = document.createElement("div");
     createElement.className = "eppop";
+    createElement.dataset.part = "episode/popover";
     createElement.innerHTML = `<b>S${String(season).padStart(2, "0")}E${String(episodeNumber).padStart(2, "0")}${episode?.t ? " · " + escapeHtml(episode.t) : ""}</b>${escapeHtml(phrase)}<br><span style="color:var(--muted-foreground)">${escapeHtml(EP_LABEL[state] ?? "")}</span>`;
     document.querySelector("#device").appendChild(createElement);
     const rect = btn.getBoundingClientRect();

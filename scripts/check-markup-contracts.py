@@ -183,6 +183,18 @@ FORWARDER = re.compile(
 # computed, and this rule cannot know what it evaluates to.
 EMITTED = re.compile(r"""data-(?P<attr>[a-z][\w-]*)=["'](?P<value>[^"'${]+)["']""")
 
+# The same emission, written in script rather than in markup. A node the
+# engine BUILDS carries no `data-part="…"` text anywhere: it is created,
+# given its attributes by assignment, then appended. Both shapes read a
+# string literal only — `el.dataset.part = kind` and
+# `setAttribute("data-part", `p/${k}`)` name no literal, and are skipped
+# whole exactly as `EMITTED` skips a computed markup value.
+IMPERATIVE_DATASET = re.compile(
+    r"""\.dataset\.(?P<attr>[a-z][A-Za-z0-9]*)\s*=\s*["'](?P<value>[^"'${]+)["']""")
+IMPERATIVE_SET_ATTRIBUTE = re.compile(
+    r"""\.setAttribute\(\s*["']data-(?P<attr>[a-z][\w-]*)["']\s*,\s*"""
+    r"""["'](?P<value>[^"'${]+)["']\s*\)""")
+
 # `[data-part="card/title"]` in a rule's selector — the equality form in
 # its three quote styles. Only the equality form is read: a presence
 # selection `[data-part]` names no part, and this arm holds VALUES.
@@ -433,6 +445,14 @@ def emission_files() -> list[Path]:
 def emitted_part_values(path: Path) -> set[str]:
     """Returns every literal `data-part` value one emission site emits.
 
+    THREE SHAPES, because a node is not always written as markup. The
+    attribute appears in markup or JSX as `data-part="value"`, and on an
+    element the script BUILDS it can only be an assignment —
+    `el.dataset.part = "value"` or `el.setAttribute("data-part",
+    "value")`. Reading the markup shape alone called the episode
+    popover's contract broken while both of its ends were in place: the
+    engine creates that node, so no source text spells the attribute out.
+
     Comments are stripped before reading: a value a COMMENT carries is
     emitted by nothing, and accepting it would silence the arm over a
     rule that selects nothing. The JS-style stripper covers the sources;
@@ -442,15 +462,18 @@ def emitted_part_values(path: Path) -> set[str]:
         path: One emission site — `index.html` or a source file.
 
     Returns:
-        The literal values emitted as `data-part="value"`. A computed
-        value is not a literal and is not returned.
+        The literal values emitted, in any of the three shapes. A
+        computed value is not a literal and is not returned, whichever
+        shape carries it.
     """
     text = path.read_text(encoding="utf-8")
     if path.suffix == ".html":
         text = HTML_COMMENT.sub(" ", text)
     else:
         text = COMMENT.sub(" ", text)
-    return {match.group("value").strip() for match in EMITTED.finditer(text)
+    readers = (EMITTED, IMPERATIVE_DATASET, IMPERATIVE_SET_ATTRIBUTE)
+    return {match.group("value").strip()
+            for reader in readers for match in reader.finditer(text)
             if match.group("attr") == "part"}
 
 

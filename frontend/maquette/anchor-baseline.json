@@ -728,15 +728,7 @@
     "held": false,
     "file": "frontend/maquette/harness/audit2.py",
     "line": 356,
-    "selector": ".eps .ep",
-    "token": ".ep"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 356,
-    "selector": ".eps .ep",
+    "selector": ".eps [data-part=\"episode\"]",
     "token": ".eps"
   },
   {
@@ -772,15 +764,7 @@
     "held": false,
     "file": "frontend/maquette/harness/audit2.py",
     "line": 402,
-    "selector": ".eps .ep",
-    "token": ".ep"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 402,
-    "selector": ".eps .ep",
+    "selector": ".eps [data-part=\"episode\"]",
     "token": ".eps"
   },
   {
@@ -2593,73 +2577,9 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/pop.py",
-    "line": 20,
-    "selector": ".eppop",
-    "token": ".eppop"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/pop.py",
-    "line": 26,
-    "selector": ".ep",
-    "token": ".ep"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/pop.py",
-    "line": 27,
-    "selector": ".ep",
-    "token": ".ep"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/pop.py",
-    "line": 33,
-    "selector": ".ep",
-    "token": ".ep"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/pop.py",
-    "line": 39,
-    "selector": ".eppop",
-    "token": ".eppop"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/pop.py",
     "line": 56,
-    "selector": ".ep.announced",
+    "selector": "[data-part=\"episode\"].announced",
     "token": ".announced"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/pop.py",
-    "line": 56,
-    "selector": ".ep.announced",
-    "token": ".ep"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/pop.py",
-    "line": 57,
-    "selector": ".eppop",
-    "token": ".eppop"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/pop.py",
-    "line": 67,
-    "selector": ".eppop",
-    "token": ".eppop"
   },
   {
     "kind": "selection",
@@ -3537,14 +3457,6 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/surfaces.py",
-    "line": 62,
-    "selector": ".ep",
-    "token": ".ep"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/surfaces.py",
     "line": 78,
     "selector": ".season",
     "token": ".season"
@@ -3564,14 +3476,6 @@
     "line": 81,
     "selector": ".sheetmeta",
     "token": ".sheetmeta"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/surfaces.py",
-    "line": 82,
-    "selector": ".ep",
-    "token": ".ep"
   },
   {
     "kind": "selection",

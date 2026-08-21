@@ -59,7 +59,7 @@ async def main():
       const ss=[...s.querySelectorAll('.season')];
       return {seasons:ss.length, order:ss.slice(0,3).map(x=>x.querySelector('summary').textContent.replace(/\\s+/g,' ').trim()),
               allCollapsed:ss.every(x=>!x.open), legend:s.querySelectorAll('.legend span').length,
-              cells:s.querySelectorAll('.ep').length};}""")
+              cells:s.querySelectorAll('[data-part="episode"]').length};}""")
     print(" ", r)
     await pg.screenshot(path="y_matrice_complete.png")
     await pg.evaluate("()=>document.querySelector('#scrim').click()"); await pg.wait_for_timeout(350)
@@ -79,7 +79,7 @@ async def main():
       return {seasons:ss.length, open:ss.filter(x=>x.open).length,
               missing:[...s.querySelectorAll('.miss')].map(x=>x.textContent),
               fraction:s.querySelector('.sheetmeta')?.textContent.trim(),
-              states:[...new Set([...s.querySelectorAll('.ep')].map(x=>x.className.replace('ep ','')))],
+              states:[...new Set([...s.querySelectorAll('[data-part="episode"]')].map(x=>x.className.replace('ep ','')))],
               legend:[...s.querySelectorAll('.legend span')].map(x=>x.textContent.trim())};}""")
     print(" ", r)
     await pg.screenshot(path="y_matrice_trous.png")
