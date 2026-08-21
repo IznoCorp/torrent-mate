@@ -55,7 +55,7 @@ async def main():
                   // clipper must itself fit.
                   spills:[...target.querySelectorAll('*')].filter(e=>{
                     if (e.getBoundingClientRect().right<=390.5) return false;
-                    if (e.closest('.pillscroll')||e.closest('.eps')||e.closest('.cast')) return false;
+                    if (e.closest('.pillscroll')||e.closest('[data-part="episode/set"]')||e.closest('.cast')) return false;
                     for (let p=e.parentElement; p; p=p.parentElement) {
                       const ox=getComputedStyle(p).overflowX;
                       if (ox==='hidden'||ox==='clip') return p.getBoundingClientRect().right>390.5;

@@ -344,7 +344,7 @@
     "held": true,
     "file": "frontend/maquette/harness/audit.py",
     "line": 107,
-    "selector": ".pillscroll,.cast,.eps,.hpanel",
+    "selector": ".pillscroll,.cast,[data-part=\"episode/set\"],.hpanel",
     "token": ".cast"
   },
   {
@@ -352,15 +352,7 @@
     "held": true,
     "file": "frontend/maquette/harness/audit.py",
     "line": 107,
-    "selector": ".pillscroll,.cast,.eps,.hpanel",
-    "token": ".eps"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/audit.py",
-    "line": 107,
-    "selector": ".pillscroll,.cast,.eps,.hpanel",
+    "selector": ".pillscroll,.cast,[data-part=\"episode/set\"],.hpanel",
     "token": ".hpanel"
   },
   {
@@ -368,7 +360,7 @@
     "held": true,
     "file": "frontend/maquette/harness/audit.py",
     "line": 107,
-    "selector": ".pillscroll,.cast,.eps,.hpanel",
+    "selector": ".pillscroll,.cast,[data-part=\"episode/set\"],.hpanel",
     "token": ".pillscroll"
   },
   {
@@ -703,33 +695,9 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/audit2.py",
-    "line": 349,
-    "selector": "[data-part=\"screen\"][data-open][data-key^=\"mediaSheet:\"] details.season",
-    "token": ".season"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 354,
-    "selector": ".eprow",
-    "token": ".eprow"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
     "line": 355,
     "selector": ".en",
     "token": ".en"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 356,
-    "selector": ".eps [data-part=\"episode\"]",
-    "token": ".eps"
   },
   {
     "kind": "assertion",
@@ -742,30 +710,6 @@
     "file": "frontend/maquette/harness/audit2.py",
     "line": 360,
     "class": "in_library"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 397,
-    "selector": "details.season",
-    "token": ".season"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 402,
-    "selector": ".eprow",
-    "token": ".eprow"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/audit2.py",
-    "line": 402,
-    "selector": ".eps [data-part=\"episode\"]",
-    "token": ".eps"
   },
   {
     "kind": "selection",
@@ -3402,14 +3346,6 @@
     "held": true,
     "file": "frontend/maquette/harness/states.py",
     "line": 58,
-    "selector": ".eps",
-    "token": ".eps"
-  },
-  {
-    "kind": "selection",
-    "held": true,
-    "file": "frontend/maquette/harness/states.py",
-    "line": 58,
     "selector": ".pillscroll",
     "token": ".pillscroll"
   },
@@ -3441,25 +3377,9 @@
     "kind": "selection",
     "held": false,
     "file": "frontend/maquette/harness/surfaces.py",
-    "line": 59,
-    "selector": ".season",
-    "token": ".season"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/surfaces.py",
     "line": 61,
     "selector": ".legend span",
     "token": ".legend"
-  },
-  {
-    "kind": "selection",
-    "held": false,
-    "file": "frontend/maquette/harness/surfaces.py",
-    "line": 78,
-    "selector": ".season",
-    "token": ".season"
   },
   {
     "kind": "selection",

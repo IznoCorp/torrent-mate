@@ -346,14 +346,14 @@ async def main():
         window.__reset(); applyState({page:'lib', phase:'ready'});
         window.__screens.mediaSheet(title);
         await new Promise(r=>setTimeout(r,240));
-        for (const det of document.querySelectorAll('[data-part="screen"][data-open][data-key^="mediaSheet:"] details.season')) {
+        for (const det of document.querySelectorAll('[data-part="screen"][data-open][data-key^="mediaSheet:"] details[data-part="season"]')) {
           const num=Number((det.querySelector('summary')?.textContent||'').match(/Saison\\s+(\\d+)/)?.[1]);
           const owned=ownedFor(title, num);
           if (!owned) continue;
           // BOTH renderings: titled rows AND the numbered matrix.
-          const cells=[...det.querySelectorAll('.eprow')].map(r=>[
+          const cells=[...det.querySelectorAll('[data-part="episode/row"]')].map(r=>[
               Number((r.querySelector('.en')?.textContent||'').replace(/\\D/g,'')), r])
-            .concat([...det.querySelectorAll('.eps [data-part="episode"]')].map(c=>[Number(c.textContent), c]));
+            .concat([...det.querySelectorAll('[data-part="episode/set"] [data-part="episode"]')].map(c=>[Number(c.textContent), c]));
           for (const [n, el] of cells) {
             if (!n || el.classList.contains('announced')) continue;
             inspected++;
@@ -394,12 +394,12 @@ async def main():
         window.__screens.mediaSheet(t);
         const s=await waitFor(t);
         if (!s) { c.neverOpened.push(t); continue; }
-        const dets=[...s.querySelectorAll('details.season')];
+        const dets=[...s.querySelectorAll('details[data-part="season"]')];
         // A series whose provider declares no season draws none: a stated
         // absence, counted APART from a sheet that never opened.
         if (!dets.length) { c.noSeason.push(t); continue; }
         const shapes=new Set(dets.map(d=>
-          d.querySelector('.eprow') ? 'rows' : d.querySelector('.eps [data-part="episode"]') ? 'matrix' : 'empty'));
+          d.querySelector('[data-part="episode/row"]') ? 'rows' : d.querySelector('[data-part="episode/set"] [data-part="episode"]') ? 'matrix' : 'empty'));
         shapes.delete('empty');
         if (shapes.size>1) c.mixed.push(t);
         else if (shapes.has('rows')) c.rows.push(t);

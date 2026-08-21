@@ -296,7 +296,7 @@ function SeasonDetails({
     );
   });
   return (
-    <details className="season" open={!complete}>
+    <details className="season" data-part="season" open={!complete}>
       <summary>
         {/* The blanks between these children are NOT decoration: the legacy
             `saisonsHTML` carried a line break at each of them, and JSX drops
@@ -318,7 +318,9 @@ function SeasonDetails({
           </span>
         )}
       </summary>
-      <div className="eps">{cells}</div>
+      <div className="eps" data-part="episode/set">
+        {cells}
+      </div>
     </details>
   );
 }

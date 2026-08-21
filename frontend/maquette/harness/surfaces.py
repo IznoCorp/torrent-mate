@@ -56,7 +56,7 @@ async def main():
     # A card body addresses its panel; it no longer opens a sheet of its own.
     await pg.click('[data-panel="media:American Dad!"]'); await pg.wait_for_timeout(500)
     r=await pg.evaluate("""()=>{const s=document.querySelector('#sheet');
-      const ss=[...s.querySelectorAll('.season')];
+      const ss=[...s.querySelectorAll('[data-part="season"]')];
       return {seasons:ss.length, order:ss.slice(0,3).map(x=>x.querySelector('summary').textContent.replace(/\\s+/g,' ').trim()),
               allCollapsed:ss.every(x=>!x.open), legend:s.querySelectorAll('.legend span').length,
               cells:s.querySelectorAll('[data-part="episode"]').length};}""")
@@ -75,7 +75,7 @@ async def main():
     # whatever sits under it.
     r=await pg.evaluate("""()=>{const s=document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
       if (!s) return {missingScreen:true};
-      const ss=[...s.querySelectorAll('.season')];
+      const ss=[...s.querySelectorAll('[data-part="season"]')];
       return {seasons:ss.length, open:ss.filter(x=>x.open).length,
               missing:[...s.querySelectorAll('.miss')].map(x=>x.textContent),
               fraction:s.querySelector('.sheetmeta')?.textContent.trim(),

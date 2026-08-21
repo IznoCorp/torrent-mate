@@ -33416,7 +33416,7 @@ import { screens, panel, bridge } from "../seams.js";
                     : held.has(liste2.n)
                       ? "in_library"
                       : "to_grab";
-                return `<div class="eprow ${episodeState}">
+                return `<div class="eprow ${episodeState}" data-part="episode/row">
                   <span class="epdot"></span>
                   <span class="en">E${String(liste2.n).padStart(2, "0")}</span>
                   <span class="et">${escapeHtml(liste2.t)}</span>
@@ -33429,7 +33429,7 @@ import { screens, panel, bridge } from "../seams.js";
                  matrice répond quand même à « lesquels manquent ». Quand le
                  total diffusé est inconnu, on ne va que jusqu'au plus grand
                  épisode possédé — au-delà, on ne sait pas, et on le dit. */
-              `<div class="eps" style="margin-top:8px">${Array.from(
+              `<div class="eps" data-part="episode/set" style="margin-top:8px">${Array.from(
                 { length: borne },
                 (ignored, index) => {
                   const number = index + 1;
@@ -33446,7 +33446,7 @@ import { screens, panel, bridge } from "../seams.js";
             : ligne.aired === 0 || ligne.aired === null
               ? `<p class="noinfo" style="margin-top:8px">Saison annoncée : aucun épisode diffusé pour l'instant.</p>`
               : `<p class="noinfo" style="margin-top:8px">Épisodes non détaillés pour cette saison — la fiche le dit plutôt que d'afficher une liste vide.</p>`;
-        return `<details class="season"${complete || !possede ? "" : " open"}>
+        return `<details class="season" data-part="season"${complete || !possede ? "" : " open"}>
           <summary>Saison ${ligne.n}
             <span class="sfr">${
               ligne.aired === 0

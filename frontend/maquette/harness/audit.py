@@ -104,7 +104,7 @@ async def main():
           // (overflow-x hidden/clip) AND that fits within the frame itself. A
           // clipping ancestor that overflows clips nothing, it moves the
           // problem.
-          const SCROLLERS = '.pillscroll,.cast,.eps,.hpanel';
+          const SCROLLERS = '.pillscroll,.cast,[data-part="episode/set"],.hpanel';
           const clipped = (el) => {
             for (let p = el.parentElement; p && p !== root.parentElement; p = p.parentElement) {
               const ox = getComputedStyle(p).overflowX;

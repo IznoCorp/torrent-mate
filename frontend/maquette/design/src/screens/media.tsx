@@ -166,7 +166,11 @@ function SeasonList({
                 // Same blanks as the season summary, same reason: the row is
                 // a flex container (they draw nothing) and its `textContent`
                 // is read as one sentence.
-                <div className={`eprow ${episodeState}`} key={episode.n}>
+                <div
+                  className={`eprow ${episodeState}`}
+                  data-part="episode/row"
+                  key={episode.n}
+                >
                   <span className="epdot"></span>{" "}
                   <span className="en">
                     E{String(episode.n).padStart(2, "0")}
@@ -190,7 +194,11 @@ function SeasonList({
              unknown, go no further than the highest owned episode — beyond
              it nothing is known, and it says so. */
           <>
-            <div className="eps" style={{ marginTop: "8px" }}>
+            <div
+              className="eps"
+              data-part="episode/set"
+              style={{ marginTop: "8px" }}
+            >
               {Array.from({ length: bound }, (ignored, index) => {
                 const number = index + 1;
                 const episodeState = held.has(number)
@@ -232,7 +240,12 @@ function SeasonList({
           </p>
         );
         return (
-          <details className="season" key={row.n} open={!(complete || !owns)}>
+          <details
+            className="season"
+            data-part="season"
+            key={row.n}
+            open={!(complete || !owns)}
+          >
             <summary>
               {/* The blanks between these children are NOT decoration: the
                   legacy template carried a line break at each of them, and a
