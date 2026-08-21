@@ -78,12 +78,16 @@ WHAT ARM 2 READS, AND THE TWO REFUSALS.
 THE BURN-DOWN IS A RATCHET, NOT A PROMISE.
 `frontend/maquette/anchor-baseline.json` holds one entry per TOKEN
 OCCURRENCE — a selector can carry tokens owned by two different phases,
-and only the occurrence has a single owner. A finding whose
-(file, line, token) occurrence the baseline owns is tolerated and
-counted; one it does not exits 1 naming file, line, selector and token.
-Every later phase REMOVES entries — a baseline that swallowed a NEW
-violation would ratchet the wrong way, and this arm's whole reason to
-exist is to refuse that.
+and only the occurrence has a single owner. An occurrence's IDENTITY is
+what it selects, not where it sits: the multiset of
+(kind, file, selector, token), with the class name filling both last
+slots for an assertion. The `line` stored in each entry is a DISPLAY
+field, refreshed freely on every write. A finding whose identity the
+baseline owns is tolerated and counted — multiplicity included, the same
+identity twice is two entries and must stay two; one it does not exits 1
+naming file, line, selector and token. Every later phase REMOVES entries
+— a baseline that swallowed a NEW violation would ratchet the wrong way,
+and this arm's whole reason to exist is to refuse that.
 
 The baseline is GENERATED, never typed. `--write-baseline` consumes
 `python3 scripts/classify-rule-anchors.py --baseline` — the independent
@@ -91,9 +95,21 @@ second reader, so the classification is cross-checked by something other
 than the guard that enforces it — then holds the two readers against each
 other and writes the file only when they agree on every occurrence.
 
+AND IT REFUSES TO GROW. Before writing, the fresh entries are held
+against the stored baseline on their line-free identities: any occurrence
+the stored baseline does not already own REFUSES the write — exit 1,
+naming each one — because a burn-down list does not grow. Removals pass
+silently; that is the burn-down. A pure line shift still writes (nothing
+added, only display lines moved), which phases 2 to 6 depend on: they
+edit harness files in every commit. The deliberate escape hatch is
+`--write-baseline --allow-additions` — bootstrap, a re-classification, a
+corrupted baseline — which writes regardless and prints loudly what it
+added. Nothing in phases 2 to 6 of maquette-l02 may use it.
+
 Usage:
     python3 scripts/check-markup-contracts.py
     python3 scripts/check-markup-contracts.py --write-baseline
+    python3 scripts/check-markup-contracts.py --write-baseline --allow-additions
 """
 
 from __future__ import annotations
@@ -405,15 +421,23 @@ def harness_files() -> list[Path]:
     return sorted(p for p in HARNESS.glob("*.py") if p.is_file())
 
 
-def baseline_key(entry: dict[str, object]) -> tuple[str, str, int, str]:
-    """Returns the occurrence key of one baseline entry.
+def entry_identity(entry: dict[str, object]) -> tuple[str, str, str, str]:
+    """Returns the line-free identity of one baseline entry.
+
+    An occurrence's identity is what it selects, not where it sits:
+    `(kind, file, selector, token)` for a selection entry. For an
+    assertion the class name fills both slots — the asserted class is the
+    assertion's only selector. The `line` field is deliberately absent:
+    it is a DISPLAY field, refreshed freely on every write, and a pure
+    line shift must not make every entry look new. Multiplicity is the
+    callers' business: this tuple is what a Counter counts.
 
     Args:
         entry: One entry of the classifier's `--baseline` list.
 
     Returns:
-        `(kind, file, line, name)` — the token for a selection entry, the
-        class name for an assertion entry.
+        `(kind, file, selector, token)` — selector and token both set to
+        the class name for an assertion entry.
 
     Raises:
         ValueError: The entry's kind is unknown, or a field is missing or
@@ -423,66 +447,70 @@ def baseline_key(entry: dict[str, object]) -> tuple[str, str, int, str]:
     if kind not in ("selection", "assertion"):
         raise ValueError(f"unknown kind {kind!r}")
     name = entry.get("token") if kind == "selection" else entry.get("class")
+    selector = entry.get("selector") if kind == "selection" else name
     if not isinstance(entry.get("file"), str) \
             or not isinstance(entry.get("line"), int) \
+            or not isinstance(selector, str) \
             or not isinstance(name, str):
         raise ValueError(f"malformed entry {entry!r}")
-    return (kind, entry["file"], entry["line"], name)
+    return (kind, entry["file"], selector, name)
 
 
-def load_baseline() -> dict[tuple[str, str, int, str], dict[str, object]]:
-    """Loads the burn-down baseline, keyed on the token occurrence.
+def load_baseline() -> Counter[tuple[str, str, str, str]]:
+    """Loads the burn-down baseline as a multiset of identities.
 
     A missing file is an EMPTY baseline: the last phase of the lot
     deletes it once every entry is burned, and the arm's floor becomes a
     hard zero.
 
     Returns:
-        The `(kind, file, line, name)` → entry mapping, or an empty
-        mapping when the file does not exist.
+        The identity → occurrence-count mapping, or an empty Counter when
+        the file does not exist.
+
+    Raises:
+        ValueError: An entry is malformed.
     """
     if not BASELINE.is_file():
-        return {}
+        return Counter()
     entries = json.loads(BASELINE.read_text(encoding="utf-8"))
-    baseline: dict[tuple[str, str, int, str], dict[str, object]] = {}
-    for entry in entries:
-        baseline[baseline_key(entry)] = entry
-    return baseline
+    return Counter(entry_identity(entry) for entry in entries)
 
 
 def collect_anchor_findings(
-) -> list[tuple[tuple[str, str, int, str], str, str]]:
+) -> list[tuple[tuple[str, str, str, str], str, str]]:
     """Collects every finding the anchor arm exists to refuse.
 
     Returns:
-        `(key, subject, where)` tuples, in file order — the occurrence
-        key `(kind, file, line, name)`, the full selector for a selection
-        and the class name for an assertion, and the `file:line` it was
-        found at.
+        `(identity, subject, where)` tuples, in file order — the
+        line-free identity `(kind, file, selector, token)` (the class
+        name fills both slots for an assertion), the full selector for a
+        selection and the class name for an assertion, and the `file:line`
+        it was found at for display.
     """
-    findings: list[tuple[tuple[str, str, int, str], str, str]] = []
+    findings: list[tuple[tuple[str, str, str, str], str, str]] = []
     for path in harness_files():
         rel = str(path.relative_to(ROOT))
         for line, _, selector in selection_calls(path):
             for token in class_tokens(selector):
-                key = ("selection", rel, line, token)
-                findings.append((key, selector, f"{rel}:{line}"))
+                identity = ("selection", rel, selector, token)
+                findings.append((identity, selector, f"{rel}:{line}"))
         for line, name in state_assertions(path):
             if name in STATE_CLASSES:
-                key = ("assertion", rel, line, name)
-                findings.append((key, name, f"{rel}:{line}"))
+                identity = ("assertion", rel, name, name)
+                findings.append((identity, name, f"{rel}:{line}"))
     return findings
 
 
 def check_anchor_debt() -> int:
     """Arm 2: refuses every finding the burn-down baseline does not own.
 
-    Each finding's occurrence key is looked up in the baseline: owned
-    findings are tolerated and counted, unowned ones are violations
-    naming file, line, selector and token. A `classList.contains` name
-    that is neither a migrated state nor a listed genre is warned about
-    — exactly as the classifier warns — because it is measured by
-    nothing.
+    Each finding's identity is looked up in the baseline as a MULTISET —
+    the same identity twice is two entries, and a third occurrence is a
+    violation exactly like a new one. Owned findings are tolerated and
+    counted, unowned ones are violations naming file, line, selector and
+    token. A `classList.contains` name that is neither a migrated state
+    nor a listed genre is warned about — exactly as the classifier warns
+    — because it is measured by nothing.
 
     Returns:
         1 when any finding is not owned by the baseline, 0 otherwise.
@@ -498,30 +526,36 @@ def check_anchor_debt() -> int:
     except (OSError, ValueError, KeyError, TypeError) as err:
         print(f"check-markup-contracts: {BASELINE.relative_to(ROOT)} cannot "
               f"be read as a burn-down baseline: {err}. Regenerate it with "
-              "--write-baseline, never by hand.", file=sys.stderr)
+              "--write-baseline, never by hand (a corrupted baseline cannot "
+              "prove the subset, so the regeneration needs "
+              "--allow-additions).", file=sys.stderr)
         return 1
 
+    seen: Counter[tuple[str, str, str, str]] = Counter()
     tolerated = {"selection": 0, "assertion": 0}
     exempt = 0
     violations = 0
-    for key, subject, where in collect_anchor_findings():
-        kind = key[0]
-        if key in baseline:
+    for identity, subject, where in collect_anchor_findings():
+        kind = identity[0]
+        if seen[identity] < baseline[identity]:
+            seen[identity] += 1
             tolerated[kind] += 1
         elif kind == "selection":
             violations += 1
             print(f"  {where}: selector {subject!r} carries the class token "
-                  f"{key[3]!r}, and no baseline entry owns that occurrence. "
-                  "A class token in a rule selection dies the day the class "
-                  "is removed. If a migration removed this occurrence, "
-                  "regenerate the baseline with --write-baseline — never by "
-                  "adding an entry by hand.", file=sys.stderr)
+                  f"{identity[3]!r}, and the baseline owns no such "
+                  "occurrence. A class token in a rule selection dies the "
+                  "day the class is removed. Migrate the occurrence — or if "
+                  "a migration genuinely removed it, regenerate the baseline "
+                  "with --write-baseline; the regeneration refuses to add "
+                  "anything.", file=sys.stderr)
         else:
             violations += 1
-            print(f"  {where}: classList.contains({key[3]!r}) asserts a "
-                  "migrated state, and no baseline entry owns that "
-                  "occurrence. If a migration removed this assertion, "
-                  "regenerate the baseline with --write-baseline.",
+            print(f"  {where}: classList.contains({identity[3]!r}) asserts a "
+                  "migrated state, and the baseline owns no such occurrence. "
+                  "Migrate the assertion — or if a migration genuinely "
+                  "removed it, regenerate the baseline with --write-baseline; "
+                  "the regeneration refuses to add anything.",
                   file=sys.stderr)
     for path in files:
         for line, name in state_assertions(path):
@@ -550,20 +584,53 @@ def check_anchor_debt() -> int:
     return 0
 
 
-def write_baseline() -> int:
+def describe_entry(entry: dict[str, object]) -> str:
+    """Formats one baseline entry for a human, without its display line.
+
+    Args:
+        entry: One entry of the classifier's `--baseline` list.
+
+    Returns:
+        `file: selector … carries the token …` for a selection entry,
+        `file: classList.contains(…)` for an assertion entry.
+    """
+    if entry["kind"] == "selection":
+        return (f"  {entry['file']}: selector {entry['selector']!r} carries "
+                f"the token {entry['token']!r}")
+    return f"  {entry['file']}: classList.contains({entry['class']!r})"
+
+
+def write_baseline(allow_additions: bool = False) -> int:
     """Regenerates the burn-down baseline from the independent classifier.
 
     Consumes `python3 scripts/classify-rule-anchors.py --baseline` rather
     than deriving the entries here: a baseline the guard derives alone is
     a classification cross-checked by nothing. The two readers are then
     held against each other — this arm's own extraction must agree with
-    the classifier's list on every occurrence key — and the file is
+    the classifier's list on every occurrence identity — and the file is
     written only when they do, so the cross-check is a hard gate and not
     a step someone remembers to run.
 
+    THE RATCHET. Before writing, the fresh entries are held against the
+    stored baseline on their line-free identities. Removals pass
+    silently: that is the burn-down. Any occurrence the stored baseline
+    does not already own REFUSES the write — exit 1, naming each one —
+    because a burn-down list does not grow. A pure line shift still
+    writes: nothing was added, only display lines moved, which phases 2
+    to 6 depend on as they edit harness files in every commit.
+    `allow_additions` is the deliberate escape hatch (bootstrap, a
+    re-classification, a corrupted baseline): it writes regardless and
+    prints loudly what it added. Nothing in phases 2 to 6 of maquette-l02
+    may use it.
+
+    Args:
+        allow_additions: True when the operator deliberately lets the
+            baseline grow. Banned for phases 2 to 6 of maquette-l02.
+
     Returns:
-        1 when the classifier fails, its output is not a baseline, or the
-        two readers disagree; 0 when the file was written.
+        1 when the classifier fails, its output is not a baseline, the
+        two readers disagree, or the write would add occurrences and
+        `allow_additions` is False; 0 when the file was written.
     """
     run = subprocess.run([sys.executable, str(CLASSIFIER), "--baseline"],
                          capture_output=True, text=True)
@@ -575,14 +642,14 @@ def write_baseline() -> int:
         entries = json.loads(run.stdout)
         if not isinstance(entries, list) or not entries:
             raise ValueError("expected a non-empty list of entries")
-        by_classifier = Counter(baseline_key(entry) for entry in entries)
+        by_classifier = Counter(entry_identity(entry) for entry in entries)
     except (ValueError, KeyError, TypeError) as err:
         print(f"check-markup-contracts: {CLASSIFIER.name} --baseline printed "
               f"something that is not a baseline ({err}) — "
               f"{BASELINE.name} was not written.", file=sys.stderr)
         return 1
 
-    by_guard = Counter(key for key, _, _ in collect_anchor_findings())
+    by_guard = Counter(identity for identity, _, _ in collect_anchor_findings())
     if by_classifier != by_guard:
         print("check-markup-contracts: the two readers disagree — "
               f"{CLASSIFIER.name} --baseline holds "
@@ -595,16 +662,63 @@ def write_baseline() -> int:
             print(f"  guard only: {key}", file=sys.stderr)
         return 1
 
+    try:
+        stored = load_baseline()
+    except (OSError, ValueError, KeyError, TypeError) as err:
+        if not allow_additions:
+            print(f"check-markup-contracts: the stored baseline cannot be "
+                  f"read ({err}), so nothing can prove the fresh entries are "
+                  f"a subset of it. {BASELINE.name} was NOT written. Rerun "
+                  "with --write-baseline --allow-additions only when you can "
+                  "account for what it adds.", file=sys.stderr)
+            return 1
+        # Treated as empty: every occurrence is an addition, and the loud
+        # listing below names them all.
+        stored = Counter()
+
+    added = by_classifier - stored
+    removed = sum((stored - by_classifier).values())
+    total = sum(by_classifier.values())
+
+    if added and not allow_additions:
+        sample = {entry_identity(entry): entry for entry in entries}
+        for identity, count in sorted(added.items()):
+            suffix = f"  (×{count})" if count > 1 else ""
+            print(describe_entry(sample[identity]) + suffix,
+                  file=sys.stderr)
+        print(f"\ncheck-markup-contracts: refusing to write the baseline — "
+              f"{sum(added.values())} occurrence(s) would be ADDED, and a "
+              "burn-down list does not grow. Removals "
+              f"({removed}, landing at {total} total) are the burn-down; "
+              "additions are new debt, and a regeneration that absorbs them "
+              "is a ratchet turning the wrong way. Migrate the occurrences "
+              "above, or if this is a deliberate bootstrap / "
+              "re-classification / corruption repair, rerun with "
+              "--write-baseline --allow-additions — nothing in phases 2 to 6 "
+              f"of maquette-l02 may use it. {BASELINE.name} was NOT written.",
+              file=sys.stderr)
+        return 1
+
     BASELINE.write_text(json.dumps(entries, indent=2) + "\n",
                         encoding="utf-8")
     selections = sum(count for (kind, *_), count in by_classifier.items()
                      if kind == "selection")
-    assertions = sum(by_classifier.values()) - selections
+    assertions = total - selections
+    if added:
+        sample = {entry_identity(entry): entry for entry in entries}
+        print("check-markup-contracts: --allow-additions granted — the "
+              f"following {sum(added.values())} occurrence(s) were ADDED to "
+              "a burn-down baseline:", file=sys.stderr)
+        for identity, count in sorted(added.items()):
+            suffix = f"  (×{count})" if count > 1 else ""
+            print(describe_entry(sample[identity]) + suffix,
+                  file=sys.stderr)
     print(f"check-markup-contracts: wrote "
-          f"{BASELINE.relative_to(ROOT)} — {sum(by_classifier.values())} "
+          f"{BASELINE.relative_to(ROOT)} — {total} "
           f"occurrence(s): {selections} selection token(s) and {assertions} "
-          "state assertion(s). The classifier's list and this arm's own "
-          "extraction agree on every entry.")
+          f"state assertion(s), with {removed} removed since the stored "
+          "baseline. The classifier's list and this arm's own extraction "
+          "agree on every entry.")
     return 0
 
 
@@ -619,9 +733,14 @@ def main() -> int:
     if args:
         if args == ["--write-baseline"]:
             return write_baseline()
+        if args == ["--write-baseline", "--allow-additions"]:
+            return write_baseline(allow_additions=True)
         print("check-markup-contracts: unknown arguments — run with no "
-              "argument to check, or --write-baseline to regenerate "
-              f"{BASELINE.relative_to(ROOT)}.", file=sys.stderr)
+              "argument to check; --write-baseline to regenerate "
+              f"{BASELINE.relative_to(ROOT)}, which refuses to ADD anything "
+              "to the burn-down; or --write-baseline --allow-additions as "
+              "the deliberate escape hatch — nothing in phases 2 to 6 of "
+              "maquette-l02 may use it.", file=sys.stderr)
         return 1
     rc = 0
     if check_forwarded_values():
