@@ -41,15 +41,21 @@ spots — so it is worked by site, and each site is finished before the next beg
 
 ## Baseline entries removed
 
-**368 — the remainder, and the file reaches zero.** 365 class token occurrences (94 of them held
-in variables and tables) across the tail's distinct tokens (`.open` left for phase 2 once it was counted as the second token of every
-`.screen.open`), plus the last **3** state assertions: `classList.contains('show')` →
-`hasAttribute('data-shown')`, `classList.contains('in_library')` → `hasAttribute('data-in-library')`,
-`classList.contains('announced')` → `hasAttribute('data-announced')`.
+**368 — the remainder, and the file reaches zero.** 365 class token occurrences across **110
+distinct tokens** (a first draft said 92, counted before the held selectors entered the instrument),
+plus the last **3** state assertions: `classList.contains('show')` → `hasAttribute('data-shown')`,
+`in_library` → `data-in-library`, `announced` → `data-announced`.
 
-Running total across the wave: 201 + 143 + 46 + 76 + 368 = **834**.
+Measured on the committed 834-entry baseline by EMISSION SITE, which is how the sub-phases are cut:
 
----
+| Sub-phase | Removes | What |
+| --- | --- | --- |
+| 6.1 | **52** | the SHELL's tokens — 38 shell-only (21 held: `bottombar`, `brandbig`, `device`, `dlg`, `fab`, `hbtn`, `installgo`, `logincard`, `loginfield`, `loginscreen`, `loginsubmit`, `mk`, `splashbar`, …) + 14 shared shell+components (`avatar`, `port`; 5 held) |
+| 6.2 | **148** | every token with an END IN THE ENGINE — 56 engine-only (13 held: `deck`, `dlgbtn`, `dryrun`, `folder`, `fw`, `left`, `manifest`, `navbadge`, `nm`, `right`, `sel`, `selrow`, `side`, `swipe`, `tilebadge`) + 92 straddling (15 held: `act`, `chip`, `danger`, `empty`, `flux`, `grid`, `miss`, `noinfo`, `note`, `panel`, `pip`, `remove`, `sec`, `segmini`, `sk`, `surf`, `tile`, `topic`, …) |
+| 6.3 | **168** | 155 components-only (36 held; 53 tokens: `addfoot`, `body`, `byid`, `cast`, `countline`, `crossref`, `fback`, `h2`, `hero`, `herobg`, `herowrap`, `ht`, `kv`, `sact`, `sheettitle`, …) + 10 computed (`announced`, `hpanel`, `modified`, `selbar` — each resolved at its site) + the 3 state assertions |
+| 6.4 | 0 | the floor becomes a hard zero in code; the baseline file is deleted |
+
+52 + 148 + 168 = **368**. Running total across the wave: 201 + 143 + 46 + 76 + 368 = **834**.
 
 ## Sub-phase 6.1 — the shell tail
 
