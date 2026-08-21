@@ -104,6 +104,41 @@ owning phase:
 | state assertions | **61** |
 | **baseline entries** | **694** |
 
+### The second blind spot: selectors the harness HOLDS rather than passes
+
+Found by dry-running phase 2's rewrite on a scratch copy. Rewriting the 63 baselined `.screen.open`
+lines left **24** mentions of `.screen.open` behind — 17 in comments, and **5 live selectors** the
+classifier had never counted:
+
+```python
+screen_port = ".screen.open .port"                                        # scroll.py:43
+("mediasheet-series", '.screen.open[data-key^="mediaSheet:"]', "back")    # audit2.py:155
+```
+
+Both readers extract a selector ONLY when it is the literal argument of `querySelector` /
+`querySelectorAll` / `locator` / `matches`. A selector stored in a variable, or in a table a helper
+walks — `tap(selector)`, `querySelector(sel)` — is invisible to them, and it dies at L07 exactly like
+the 633. The 1.3 report had already noted « 32 selection calls pass a variable/expression argument »
+and that « both readers exclude them since no string exists at rest »; what was not measured was how
+many selector strings those 32 calls consume.
+
+**Measured over the whole harness**: every string literal shaped like a selector (starts with `.`,
+`#` or `[`, selector alphabet only, not a Python method call) that sits outside a selection call and
+carries a class token — **113 strings, 146 class token occurrences**, 93 of them in tables. That
+sweep includes false positives — `.json5` ×5 is a file extension in `settings.py`, `.torrentmate` a
+domain fragment — so the figure that enters the instrument is filtered by a RULE rather than a
+list: a candidate is a selector only if every class token it carries is emitted by one of the three
+design sites, or the string carries selector structure (a combinator, an attribute block, a list).
+
+<sub>the call-argument extractor and the template-literal correction are the same family of defect: a reader that knows one syntactic position for its subject, applied to a corpus that has several</sub>
+
+**This enters the instrument in phase 1, before any migration, and it is the one sanctioned use of
+`--write-baseline --allow-additions`.** The ratchet refuses additions by design; a re-classification
+of what the instrument reads is the case the flag's help text names, and it happens once, here,
+with the count recorded in the commit. Every phase's burn-down is recalibrated after it, and the
+held occurrences are tagged apart from the call ones in the baseline so a reader can tell the two
+populations — and so a third blind spot, if one exists, has a precedent for how it is absorbed.
+
 ### Where the markup lives — measured over all 114 tokens, not a sample
 
 Two earlier passes were wrong, and both are recorded because the correction is the finding. The
