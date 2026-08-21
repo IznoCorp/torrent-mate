@@ -19,6 +19,8 @@
       omdb: { enabled: false },
       imdb: { enabled: false },
       rotten_tomatoes: { enabled: false },
+      // Wired but consumed by nothing — see docs/reference/trakt-api.md § Status.
+      // Enable it only together with a consumer, or deprecate the provider.
       trakt: { enabled: false },
     },
     priorities: {

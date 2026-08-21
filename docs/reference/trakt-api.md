@@ -2,12 +2,40 @@
 
 > Trakt.tv API v2 — reference for the `api/metadata/trakt.py` provider.
 > Source: https://trakt.docs.apiary.io/
-> Last updated: 2026-05-06
+> Last updated: 2026-08-21
+
+---
+
+## Status — wired, not consumed
+
+**The Trakt provider is implemented but nothing calls it, and it ships disabled.**
+
+The client (`personalscraper/api/metadata/trakt.py`) is complete and tested, but no
+capability chain routes to it: `config/providers.json5` leaves `RatingProvider` and
+`RecommendationProvider` empty, and `RecommendationProvider` — the only capability Trakt
+alone implements — has no consumer anywhere in the codebase. A provider that is enabled
+is therefore built at boot and never called.
+
+`metadata.providers.trakt.enabled` is `false` for that reason: an activated provider with
+no consumer is a credential that can only ever be spent by accident, never by design.
+
+**This state is temporary and has exactly two exits:**
+
+- **Connect it to a consumer** — add `trakt` to a capability chain in `providers.json5`
+  **and** wire the surface that reads the result. Enabling the provider alone changes
+  nothing.
+- **Deprecate it** — if no Trakt source is needed any more, remove the client module, its
+  `PROVIDER_CREDS` entry in `personalscraper/api/_activation.py`, its builder in
+  `api/metadata/registry/_factory.py`, its config entries and this document.
+
+Do not leave it enabled-but-unrouted: that is the shape that makes an unused third-party
+application look alive while it serves nothing.
 
 ---
 
 ## Table of Contents
 
+- [Status — wired, not consumed](#status--wired-not-consumed)
 - [Authentication](#authentication)
 - [Base URL](#base-url)
 - [Rate Limiting](#rate-limiting)
