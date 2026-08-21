@@ -61,6 +61,12 @@ Measured on the committed 834-entry baseline by EMISSION SITE, which is how the 
 > the first `Edit`, silently in a `--stat`; 3.2 reverted and re-applied by script. Every engine change
 > is applied by a script that rewrites exactly the bytes meant, then `git diff --stat`-checked.
 
+> **`py_compile` every harness file after every rewrite.** A `data-part` value carries a `/`, so its
+> selector needs quotes; substituted into a single-line double-quoted Python string, the raw `"`
+> breaks the file — and the guard, the baseline, the oracle and the classifier all stayed green over
+> two unparseable rule files in 4.1. `python3 -m py_compile frontend/maquette/harness/*.py` takes two
+> seconds and must print nothing, before any proof.
+
 > **Rewrite per string token, never per line.** The baseline's `line` is where the string literal
 > BEGINS; in a multi-line `"""…"""` JS block the token can sit lines below, and a per-line
 > rewrite aborts there (3.1 ran one, discarded it, and redid its 79 through `tokenize`). For each

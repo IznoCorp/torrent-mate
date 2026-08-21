@@ -13,8 +13,8 @@ Phase 3 must have produced, all committed:
 
 **ACC-04 is CLAIMED BY THIS PHASE**, not inherited. It needs a single-emitter target, and phase 3's
 card family has none — every member straddles the engine boundary, so a surviving emitter keeps the
-arm green. `.reslist` has exactly one emitter (`screens/add.tsx`) and is selected 15 times; run
-ACC-04 from `DESIGN.md` as soon as `data-part="result-list"` is emitted in sub-phase 4.1.
+arm green. `.reslist` has exactly one emitter (`screens/add.tsx`) and is selected 17 times; run
+ACC-04 from `DESIGN.md` as soon as `data-part="result/list"` is emitted in sub-phase 4.1.
 
 ## Measured on the committed baseline, not estimated
 
@@ -66,6 +66,12 @@ commit — one line, sorted, in the DESIGN section.
 > **Never the Edit tool on `legacy.js`.** A formatter hook reformats the whole engine (33 000 lines) on
 > the first `Edit`, silently in a `--stat`; 3.2 reverted and re-applied by script. Every engine change
 > is applied by a script that rewrites exactly the bytes meant, then `git diff --stat`-checked.
+
+> **`py_compile` every harness file after every rewrite.** A `data-part` value carries a `/`, so its
+> selector needs quotes; substituted into a single-line double-quoted Python string, the raw `"`
+> breaks the file — and the guard, the baseline, the oracle and the classifier all stayed green over
+> two unparseable rule files in 4.1. `python3 -m py_compile frontend/maquette/harness/*.py` takes two
+> seconds and must print nothing, before any proof.
 
 > **Rewrite per string token, never per line.** The baseline's `line` is where the string literal
 > BEGINS; in a multi-line `"""…"""` JS block the token can sit lines below, and a per-line
