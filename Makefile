@@ -1,4 +1,4 @@
-.PHONY: help clean test test-unit test-integration test-cov test-impacte lint lint-logging check check-frontend format install-dev version update-ytdlp perf-rebaseline openapi fixture harness harness-contracts maquette-oracle
+.PHONY: help clean test test-unit test-integration test-cov test-impacte lint lint-logging check check-frontend format install-dev version update-ytdlp perf-rebaseline openapi fixture harness harness-contracts maquette-oracle maquette-a11y
 
 THRESHOLD := $(shell python3 scripts/get_coverage_threshold.py)
 
@@ -163,5 +163,9 @@ harness-contracts:
 	frontend/maquette/harness/run.sh --contracts
 
 maquette-oracle:
-	@echo "Running the recorded oracle — 82 states x 33 regions against the committed reference..."
+	@echo "Running the recorded oracle — 83 states x 33 regions against the committed reference..."
 	frontend/maquette/harness/run.sh --oracle
+
+maquette-a11y:
+	@echo "Running the accessibility audit — axe-core over the 83 named states..."
+	frontend/maquette/harness/run.sh --a11y
