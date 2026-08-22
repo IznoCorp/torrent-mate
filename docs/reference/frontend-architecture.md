@@ -486,8 +486,8 @@ never to a shared module. `data.ts` is not slimmed, it stops existing.
 **What this lot does NOT touch.** Bundle splitting belongs to L12: it changes loading behaviour,
 and nothing here may change anything observable.
 
-**And one known defect deliberately left alone**: the harness is **52 `.py` files flat, with no
-subdirectory** (the rules plus `common.py`, the shared plumbing), so nothing says which rule
+**And one known defect deliberately left alone**: the harness is **53 `.py` files flat, with no
+subdirectory** (52 rules plus `common.py`, the shared plumbing), so nothing says which rule
 covers which surface without reading it. It is the same disease one level up.
 <sub>`ls frontend/maquette/harness/*.py | wc -l`</sub>
 Moving them means changing as many paths cited across documents and briefs
@@ -770,6 +770,24 @@ The pull request number exists the moment the pull request does. Being an hour a
 is a smaller error than being permanently behind it, and it is self-correcting: a wave that does
 not merge fixes its own row.
 
+**That rule fixed one half of the problem and the count did not move: four waves out of four.**
+It answers « the row is missing while the pull request is open ». It cannot answer « the row is
+wrong once the pull request has merged », because the only branch that could write the landed row
+is the one the merge has just consumed. So the row is now written twice, and the second write is
+the one nobody is holding: **moving a wave from « In flight » to « Last landed » belongs to the
+post-merge steps below, beside re-recording the references** — same moment, same person, same
+list that already says it is not optional.
+
+Recording it there is necessary and, on the evidence, not sufficient: that list has been skipped
+three times out of four as well. **What would settle it is a check rather than a sentence**, and
+the shape is cheap because the row already carries the wave's version: if `personalscraper/__init__.py`
+on `main` has reached the version the « In flight » row names, that wave has landed and the row is
+stale — offline, exact, and it stays green on the wave's own branch, where the two differ by
+construction. It would say nothing between waves, when no row names a version, and whoever builds
+it should make that silence legible rather than let a vacuous pass read as a verdict. It is written
+here as a diagnosis with its mechanism, **not built**: a guard is code, and the steward who found
+this does not carry code (§ 7.2).
+
 **The oracle is a LOCAL gate, and that changes who can close a wave.** Its measurements are bound
 to the machine that took them — the same unmodified tree reads differently on a Linux runner — so
 `--check` refuses to compare across a mismatch and the oracle is never wired into CI. An agent
@@ -793,6 +811,10 @@ that build and copy it would measure the previous build, or nothing. There is no
 This is written here rather than in the state section because that is where it was written when
 the wave that had just written it merged without doing it — a mandatory manual step recorded only
 in a file about *where things stand* is a step the next wave never reads.
+
+**The same moment owes a third thing: move the wave's row from « In flight » to « Last landed »**,
+and name the next lot. It sits here, with the two commands, for the reason the paragraph above
+gives — it is the only step of the three that cannot be done from the wave's own branch.
 
 **The maquette first.** Nothing about a surface is decided anywhere else. A surface is drawn
 before it is coded, with named states and a rule that bites.

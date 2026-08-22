@@ -44,9 +44,10 @@ stale table read as current for three days.
 
 |                            |                                                                                                                                                                                                                                                                                                                                             |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Last landed**            | **L03 — accessibility**, Phase 1. PR **#475**, merged 2026-08-22, version 0.98.18. Its two references were re-recorded by **#476**, and both pointers are ancestors of `HEAD` — verified                                                                                                                                                    |
-| **In flight**              | **L04 — boundaries and the tree**, Phase 1. Branch `refactor/maquette-l04`, version 0.98.21, **PR #478** — this row was written the moment the pull request opened (§ 5 of the architecture file), not after the merge. Design: `docs/features/maquette-l04/DESIGN.md` · plan: `…/plan/INDEX.md`. All six phases are `[x]`; the oracle is at **0 divergence over 2 739 measurements** and the full 52-rule suite reports no violation |
-| **Before it**              | L02 — PR **#470**, version 0.98.13 · L01 — PR **#467**, version 0.98.10. Both archived under `docs/archive/features/`                                                                                                                                                                                                                       |
+| **Last landed**            | **L04 — boundaries and the tree**, Phase 1. PR **#478**, merged 2026-08-22, version 0.98.21. Its two references were re-recorded on `chore/l04-references` (`8df61380`) and carried onto `main` by **#479**; both pointers name `66813063`, an ancestor of `HEAD` — verified |
+| **In flight**              | **none.** A wave writes its own row here when its pull request opens, and the post-merge steps move it to « Last landed » (§ 5 of the architecture file) |
+| **Next**                   | **L05 — Routing**, Phase 1. Its dependencies (L01, L04) are `LANDED` and it **runs alone**. `docs/reference/frontend-architecture.md` decides which lot, never this table |
+| **Before it**              | L03 — PR **#475**, version 0.98.18 · L02 — PR **#470**, version 0.98.13 · L01 — PR **#467**, version 0.98.10. All three archived under `docs/archive/features/`; `docs/features/maquette-l04/` is still live and belongs beside them |
 | **What decides the order** | `docs/reference/frontend-architecture.md`, never this table. This table says only where the work STANDS                                                                                                                                                                                                                                     |
 
 **What L04 is, in one line**: the maquette's 26 files stop being grouped by KIND and get grouped
@@ -65,10 +66,13 @@ move (two tools read its literal path), and the three files that die at L13 shar
 repository.
 
 **What L04 is NOT**: bundle splitting (that is L12 — it changes loading behaviour), the harness's
-52 flat `.py` files (recorded and deliberately unscheduled), and B-036 / B-040, which belong to
+53 flat `.py` files (recorded and deliberately unscheduled), and B-036 / B-040, which belong to
 their own waves.
 
-**Next action**: `/implement:phase` at Phase 1.
+**Next action**: open L05 with `/implement:feature` — codename `maquette-l05`, and no wave opens
+without its design and its plan. Branch from `main` once **#479** has landed: that pull request
+carries the corrected hold-count baseline (`panel.py` 9 → 12), and a branch taken before it gets a
+false movement out of `--compare` on its first run.
 
 **What L03 is, in one line**: landmarks, accessible names, focus management on every layer, the
 keyboard paths — and `axe-core` in the gate at a hard zero. Four decisions were arbitrated by the
