@@ -22,7 +22,7 @@
 // `__screens`, `__panel` and `__bridge` itself, so those stay published for it,
 // and R74 describes them as what they now are — a driving surface, not a
 // bridge between two worlds.
-import type { PanelDescriptor } from "./components/panel";
+import type { PanelDescriptor } from "./ui/panel/contract";
 
 // The nav cluster's primitives. Named as the fragment spells them, because the
 // fragment is the caller.

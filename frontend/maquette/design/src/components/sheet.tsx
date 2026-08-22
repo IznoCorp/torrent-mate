@@ -18,7 +18,8 @@
 // content after closing.
 import { useLayoutEffect, useRef } from "react";
 import { useUiState } from "../data";
-import { PanelContent, type PanelDescriptor } from "./panel";
+import { PanelContent } from "../ui/panel";
+import type { PanelDescriptor } from "../ui/panel/contract";
 
 // How far the sheet must travel before the lift closes it — the legacy
 // `SEUIL_FERMETURE`, unchanged.
