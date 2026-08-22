@@ -57,7 +57,7 @@ async def main():
     await shot(pg, "selection-selected")
     await pg.click("[data-delsel]"); await pg.wait_for_timeout(400)
     print("  dialog   :", await pg.evaluate("""()=>{const g=document.querySelector('#dlg');
-        return {title:g.querySelector('h3').textContent, rows:g.querySelectorAll('[data-part="dialog/manifest"] li').length,
+        return {title:g.querySelector('h1,h2,h3').textContent, rows:g.querySelectorAll('[data-part="dialog/manifest"] li').length,
                 choices:[...g.querySelectorAll('[data-part="dialog/button"]')].map(x=>x.textContent.trim())};}"""))
     await shot(pg, "selection-delete-multiple")
     print("\nJS errors:", errs or "none")

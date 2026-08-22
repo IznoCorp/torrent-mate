@@ -316,7 +316,13 @@ export function ResolutionScreen() {
   // are one value. A target the door could not resolve at all reaches this
   // screen as the legacy's own last resort, « élément inconnu ».
   return (
-    <section className="screen open" data-part="screen" data-open="" data-key={`resolution:${folder}`}>
+    <section
+      className="screen open"
+      data-part="screen"
+      data-open=""
+      data-key={`resolution:${folder}`}
+      aria-label={folder}
+    >
       <div className="screenbar" data-part="screen/bar">
         <button className="fback" data-part="screen/back" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />

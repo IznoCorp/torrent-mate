@@ -82,6 +82,7 @@ export function Sheet({
       <div
         id="scrim"
         data-part="scrim"
+        aria-hidden="true"
         data-open={open || undefined}
         className={"scrim" + (open ? " open" : "")}
         // The scrim is shared ground: the drawer and the dialog raise it
@@ -91,11 +92,19 @@ export function Sheet({
         // leaving the other two open.
         onClick={() => window.__closeLayers?.()}
       />
+      {/* A MODAL DIALOG, and only while it is open. The layer is rendered
+          always — closed is a class, not an absence — so a permanent
+          `role="dialog"` would leave a nameless dialog in the tree at all
+          times, which an assistive technology announces and a reader cannot
+          reach. The role appears with the descriptor that names it. */}
       <div
         ref={sheetRef}
         id="sheet"
         data-part="sheet"
         data-open={open || undefined}
+        role={open ? "dialog" : undefined}
+        aria-modal={open ? true : undefined}
+        aria-label={open ? descriptor?.title : undefined}
         className={"sheet" + (open ? " open" : "")}
       >
         {/* The handle CAPTURES the pointer and claims its axis (`touch-action`

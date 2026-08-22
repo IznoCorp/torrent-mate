@@ -432,6 +432,7 @@ function FieldBlock({
           className={`fieldtoggle${v ? " active" : ""}`}
           data-part="field/toggle"
           role="switch"
+          aria-label={settingLabel(setting)}
           aria-checked={v ? "true" : "false"}
           data-field={id}
           data-to={v ? "non" : "oui"}
@@ -618,7 +619,7 @@ export function PanelContent({
 }): JSX.Element {
   const identity = (
     <>
-      <h3 className="sheettitle" data-part="sheet/title">{descriptor.title}</h3>
+      <h2 className="sheettitle" data-part="sheet/title">{descriptor.title}</h2>
       {descriptor.subtitle ? (
         <span className="sheetsub">{descriptor.subtitle}</span>
       ) : null}

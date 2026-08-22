@@ -102,7 +102,7 @@ function NowTab(): ReactElement {
       <div className="body" data-part="surface/body" data-region="acquisition/body">
         {state.phase === "error" ? (
           <div
-            className="surferr" data-part="surface-error"
+            className="surferr" data-part="surface-error" role="alert"
             dangerouslySetInnerHTML={{
               __html: surfErrInner(t("screens.acquisition.errorNow")),
             }}
@@ -392,7 +392,7 @@ function FollowsTab(): ReactElement {
   } else if (state.phase === "error") {
     content = (
       <div
-        className="surferr" data-part="surface-error"
+        className="surferr" data-part="surface-error" role="alert"
         dangerouslySetInnerHTML={{
           __html: surfErrInner(t("screens.acquisition.errorFollows")),
         }}
@@ -686,7 +686,7 @@ function DiscoverTab(): ReactElement {
           </div>
         ) : (
           <div
-            className="surferr" data-part="surface-error"
+            className="surferr" data-part="surface-error" role="alert"
             style={{
               borderColor:
                 "color-mix(in oklab,var(--warning) 45%,transparent)",
@@ -728,7 +728,7 @@ function DiscoverTab(): ReactElement {
           />
         ) : state.phase === "error" ? (
           <div
-            className="surferr" data-part="surface-error"
+            className="surferr" data-part="surface-error" role="alert"
             dangerouslySetInnerHTML={{
               __html: surfErrInner(t("screens.acquisition.errorSuggestions")),
             }}

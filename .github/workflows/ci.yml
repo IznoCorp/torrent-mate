@@ -200,6 +200,19 @@ jobs:
       # is the failure `tests/conftest.py` was just fixed for.
       - run: frontend/maquette/harness/run.sh --contracts
         if: needs.changes.outputs.maquette == 'true'
+      # The accessibility tier, as its own step and not folded into the subset
+      # above: the contracts answer « did a NAME move without all of its ends? »
+      # and an accessibility violation is not that question. Cheap enough for a
+      # per-PR gate — one browser, 83 states, ~25 s.
+      #
+      # WHAT IT PROVES TODAY, stated plainly because the answer is « less than
+      # it will »: L03 lands this tier RECORDING, so it reports a count and
+      # exits 0. What it therefore guards right now is that the instrument RUNS
+      # on the runner — axe-core installed by `npm ci`, the states reachable,
+      # the frame at rest — which is the failure that would otherwise be found
+      # on the day the floor is armed. L03's last phase makes it a refusal.
+      - run: frontend/maquette/harness/run.sh --a11y
+        if: needs.changes.outputs.maquette == 'true'
 
   typecheck:
     name: typecheck

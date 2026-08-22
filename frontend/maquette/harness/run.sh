@@ -21,8 +21,16 @@
 #                 renders what it promised.
 #   --oracle      a THIRD tier, and it duplicates neither: the rules say the
 #                 BEHAVIOUR still holds, the oracle says the RENDERING did not
-#                 move. `frontend/maquette/oracle.py --check`, ~25 s over 82
+#                 move. `frontend/maquette/oracle.py --check`, ~25 s over 83
 #                 states x 33 regions, against a committed reference.
+#   --a11y        a FOURTH tier, and it duplicates none of the three: the rules
+#                 say the behaviour holds, the oracle says the rendering did not
+#                 move, this says the markup is USABLE — landmarks, accessible
+#                 names, ARIA. `frontend/maquette/a11y.py`, axe-core over the
+#                 same 83 states. It is cheap enough that CI runs it on every
+#                 maquette pull request, beside `--contracts` and not inside it:
+#                 an accessibility defect is not a NAME that moved, and a tier
+#                 that answers two questions answers neither clearly.
 #
 # The suite needs the prototype BUILT and copied where the harness reads it, so
 # this script does that first rather than trusting whoever runs it to remember:
@@ -33,6 +41,7 @@
 #     frontend/maquette/harness/run.sh              # all 50 rules
 #     frontend/maquette/harness/run.sh --contracts  # the name-contract subset
 #     frontend/maquette/harness/run.sh --oracle     # the recorded oracle alone
+#     frontend/maquette/harness/run.sh --a11y       # the accessibility audit alone
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -60,10 +69,15 @@ CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py)
 # measures the previous build, and an ORACLE measuring the previous build says
 # « no divergence » about a change it never saw.
 ORACLE_ONLY=0
+A11Y_ONLY=0
 if [ "${1:-}" = "--oracle" ]; then
   ORACLE_ONLY=1
   scripts=()
   label="recorded oracle only"
+elif [ "${1:-}" = "--a11y" ]; then
+  A11Y_ONLY=1
+  scripts=()
+  label="accessibility audit only"
 elif [ "${1:-}" = "--contracts" ]; then
   scripts=("${CONTRACTS[@]}")
   label="contract subset (${#CONTRACTS[@]} rules)"
@@ -118,8 +132,22 @@ if [ "$failed" -gt 0 ]; then
   echo "harness: $failed of ${#scripts[@]} rule(s) FAILED — run the script alone to see which hold fell." >&2
   exit 1
 fi
-if [ "$ORACLE_ONLY" -eq 0 ]; then
+if [ "$ORACLE_ONLY" -eq 0 ] && [ "$A11Y_ONLY" -eq 0 ]; then
   echo "harness: ${#scripts[@]} rule(s), no violation."
+fi
+
+# The FOURTH tier. Before the oracle, because the two answer different questions
+# and this one is the cheaper of them to act on: a control with no accessible
+# name is a defect wherever the rectangles landed.
+#
+# NEVER ON `--contracts`, for the same reason the oracle is kept out of it — but
+# not for the same cost. The contracts subset answers « did a NAME move without
+# all of its ends? », and an accessibility violation is not that question. CI
+# runs this tier as its own step, beside the contracts one.
+if [ "${1:-}" != "--contracts" ] && [ "$ORACLE_ONLY" -eq 0 ]; then
+  echo
+  echo "Running the accessibility audit (the markup is usable)…"
+  python3 "${HERE}/../a11y.py" --check
 fi
 
 # The third tier. Run last, because a rendering that moved is worth knowing about
@@ -134,7 +162,7 @@ fi
 # metrics, not a change to anything. Same reason `arrivals.py` is kept out of the
 # subset: a hold that fails on the runner for a reason foreign to the change
 # under test teaches nobody anything and gets muted.
-if [ "${1:-}" != "--contracts" ]; then
+if [ "${1:-}" != "--contracts" ] && [ "$A11Y_ONLY" -eq 0 ]; then
   echo
   echo "Running the recorded oracle (the rendering did not move)…"
   python3 "${HERE}/../oracle.py" --check

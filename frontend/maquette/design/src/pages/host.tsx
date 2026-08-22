@@ -104,6 +104,10 @@ function setReleased(next: boolean): void {
 
 declare global {
   interface Window {
+    // The page table the fragment draws the tab bar from. Read here for ONE
+    // value — the page's name — and see `PageHeading` for why it is read
+    // rather than restated.
+    PAGES_OF?: () => { id: string; l: string }[];
     // Called by the fragment's `render()` immediately BEFORE it writes `#view`
     // for a page the shell does not own.
     __releasePage?: () => void;
@@ -121,8 +125,36 @@ window.__releasePage = () => {
 
 window.__shellPages = Object.keys(PAGES);
 
+/**
+ * The page's name, as a heading no one sees and every screen reader reads.
+ *
+ * WHY IT EXISTS. axe reported `page-has-heading-one` on 49 of the 83 named
+ * states: the prototype has 26 `<h2>` and a single `<h1>`, on the login screen.
+ * A page whose sections are all level two has an outline that starts in the
+ * middle, and a screen reader navigating by heading finds no top.
+ *
+ * WHY IT IS HIDDEN. The interface deliberately shows no page title — the tab
+ * bar says where you are, and that is a design decision this lot does not get
+ * to overturn. `.visually-hidden` keeps the element out of the layout and IN
+ * the accessibility tree, and being out of flow it moves no rectangle the
+ * oracle measures.
+ *
+ * WHY THE TEXT IS READ AND NOT RESTATED. The name already exists, once, in the
+ * fragment's page table — the same string the tab bar prints. Copying it into
+ * `fr.json` today would create a second source that drifts silently until
+ * someone renames a tab. It moves there in ONE step when the tab bar migrates
+ * and the fragment's table goes with it, which is D5's « dies by subtraction »
+ * applied to a string.
+ */
+function PageHeading({ page }: { page: string }): ReactElement | null {
+  const entry = window.PAGES_OF?.().find((candidate) => candidate.id === page);
+  if (!entry?.l) return null;
+  return <h1 className="visually-hidden" data-part="page/heading">{entry.l}</h1>;
+}
+
 export function PageHost(): ReactElement | null {
   const page = useUiState().page as string | undefined;
+  const phase = useUiState().phase as string | undefined;
   const migrated = page ? PAGES[page] : undefined;
   const isReleased = useSyncExternalStore(subscribeRelease, () => released);
 
@@ -133,18 +165,33 @@ export function PageHost(): ReactElement | null {
     if (migrated && released) setReleased(false);
   });
 
+  // `aria-busy` ON THE MAIN REGION, from the ONE place that knows every page's
+  // phase. Marked on each page instead, it would be eight call sites and the
+  // eighth would be forgotten — this repository has paid for that shape more
+  // than once. A screen reader that is told a region is busy stops reading its
+  // half-built contents and waits.
+  useLayoutEffect(() => {
+    const main = document.getElementById("port");
+    if (!main) return;
+    if (migrated && phase === "loading") main.setAttribute("aria-busy", "true");
+    else main.removeAttribute("aria-busy");
+  }, [migrated, phase]);
+
   if (!migrated || isReleased) return null;
   const view = document.getElementById("view");
   if (!view) return null;
   const { Body, root, region } = migrated;
   return createPortal(
-    root ? (
-      <div className={root} data-region={region}>
+    <>
+      <PageHeading page={page as string} />
+      {root ? (
+        <div className={root} data-region={region}>
+          <Body />
+        </div>
+      ) : (
         <Body />
-      </div>
-    ) : (
-      <Body />
-    ),
+      )}
+    </>,
     view,
   );
 }

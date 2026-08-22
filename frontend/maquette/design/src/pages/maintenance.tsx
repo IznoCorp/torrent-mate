@@ -37,7 +37,7 @@ export function MaintenancePage(): ReactElement | null {
   if (state.phase !== "ready") {
     return state.phase === "error" ? (
       <div
-        className="surferr" data-part="surface-error"
+        className="surferr" data-part="surface-error" role="alert"
         dangerouslySetInnerHTML={{
           __html: surfErrInner(t("screens.maintenance.errorSubject")),
         }}

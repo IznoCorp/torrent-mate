@@ -366,7 +366,8 @@
       "added": "ajouté",
       "addedPlural": "ajoutés",
       "seeFollows": "Voir mes suivis →",
-      "alreadyInLibrary": "Déjà en médiathèque"
+      "alreadyInLibrary": "Déjà en médiathèque",
+      "landmark": "Ajout d'un média"
     },
     "resolution": {
       "back": "Retour",
@@ -693,7 +694,9 @@
       "pendingOne": "{{count}} modification en attente",
       "pendingMany": "{{count}} modifications en attente",
       "willWrite": "Écrira {{files}}.",
-      "save": "Enregistrer"
+      "save": "Enregistrer",
+      "clearLabel": "Effacer la recherche",
+      "saveBarLabel": "Modifications non enregistrées"
     }
   }
 }

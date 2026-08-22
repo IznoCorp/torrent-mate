@@ -42,8 +42,16 @@ READ = """()=>{
   const view = document.querySelector('#view');
   if (!view) return {absent: true};
   return {
-    children: view.children.length,
-    roots: [...view.children].map((element) => element.className),
+    children: [...view.children]
+      .filter((element) => element.dataset.part !== 'page/heading').length,
+    roots: [...view.children]
+      // The page HEADING is drawn by the host for every migrated page and is
+      // not one of the page's roots: it is `<h1>` naming the page, kept out of
+      // the layout by `.visually-hidden`. Counting it here would make every
+      // page look as though it emitted one root too many.
+      .filter((element) => element.dataset.part !== 'page/heading')
+      .map((element) => element.className),
+    heading: view.querySelector('[data-part="page/heading"]')?.textContent ?? null,
     elements: view.querySelectorAll('*').length,
     text: view.textContent.replace(/\\s+/g,' ').trim().length,
   };}"""
@@ -505,7 +513,9 @@ async def main():
                             " window.__referentiel.render();}")
         await page.wait_for_timeout(500)
         returned = await page.evaluate("""()=>({
-          roots: [...document.querySelector('#view').children].map((x) => x.className),
+          roots: [...document.querySelector('#view').children]
+            .filter((x) => x.dataset.part !== 'page/heading')
+            .map((x) => x.className),
           rows: document.querySelectorAll('#view [data-part="topic"][data-topic]').length,
         })""")
         journal.check(
@@ -788,7 +798,9 @@ async def main():
         await cold.wait_for_timeout(500)
         landed = await cold.evaluate("""()=>({
           page: window.__store.read().state.page,
-          roots: [...document.querySelector('#view').children].map((x) => x.className),
+          roots: [...document.querySelector('#view').children]
+            .filter((x) => x.dataset.part !== 'page/heading')
+            .map((x) => x.className),
           bar: !!document.querySelector('#view [data-part="pipeline"] [data-pipe]'),
         })""")
         journal.check(

@@ -255,7 +255,7 @@ import { screens, panel, bridge } from "../seams.js";
       t: "Kyma, l'onde mystérieuse",
       serie: null,
       since: "9 août",
-      searches: 11,
+      searches: 12,
       k: "movie",
       y: 2026,
       st: "pending",
@@ -9936,7 +9936,7 @@ import { screens, panel, bridge } from "../seams.js";
               ? "info"
               : "warning"
       : null;
-    return `<button class="tile${opts.muted ? " off" : ""}" data-part="tile" ${opts.index != null ? `data-tile="${opts.index}"` : ""} ${opts.dismiss != null ? `data-dismissable="${escapeHtml(String(opts.dismiss))}"` : ""} data-panel="${escapeHtml(opts.panel || `media:${descriptor.t}`)}" ${sel ? `aria-selected="${selected}"` : `data-mediasheet="${escapeHtml(descriptor.t)}"`}>
+    return `<button class="tile${opts.muted ? " off" : ""}" data-part="tile" ${opts.index != null ? `data-tile="${opts.index}"` : ""} ${opts.dismiss != null ? `data-dismissable="${escapeHtml(String(opts.dismiss))}"` : ""} data-panel="${escapeHtml(opts.panel || `media:${descriptor.t}`)}" ${sel ? `aria-pressed="${selected}"` : `data-mediasheet="${escapeHtml(descriptor.t)}"`}>
       <span class="p">${posterBox(descriptor.t, descriptor.k)}</span>
       ${sel ? `<span class="sel" data-part="selection/check">${svgIcon(icons.check, 3)}</span>` : badge ? `<span class="tilebadge" data-part="tile/badge" style="background:var(--${tone})">${escapeHtml(badge.txt)}</span>` : ""}
       <span class="nm" data-part="tile/title">${escapeHtml(descriptor.t)}</span>
@@ -9998,7 +9998,7 @@ import { screens, panel, bridge } from "../seams.js";
   function libRowHTML(item, index) {
     if (currentState().selMode) {
       const has = currentState().selected.has(index);
-      return `<button class="selrow" data-part="selection/row" data-tile="${index}" aria-selected="${has}">
+      return `<button class="selrow" data-part="selection/row" data-tile="${index}" aria-pressed="${has}">
         <span class="sel" data-part="selection/check">${svgIcon(icons.check, 3)}</span>
         <span class="poster" data-part="card/poster">${posterBox(item.t)}</span>
         <span class="rowtxt"><span class="ctitle" data-part="card/title" title="${escapeHtml(item.t)}">${escapeHtml(item.t)}</span><span class="csub" data-part="card/subtitle">${escapeHtml(item.f)}</span></span>
@@ -10033,6 +10033,11 @@ import { screens, panel, bridge } from "../seams.js";
     const bar = document.createElement("div");
     bar.className = "selbar";
     bar.dataset.part = "selection/bar";
+    /* A named region, so the caption and the two actions stop being page
+       content adrift outside every landmark. The bar exists only while a
+       selection does, which is exactly what the name says. */
+    bar.setAttribute("role", "region");
+    bar.setAttribute("aria-label", "Sélection en cours");
     bar.innerHTML = `<span class="n" data-part="selection/caption">${size === 0 ? "Touchez les affiches à supprimer" : `${size} sélectionné${size > 1 ? "s" : ""}`}</span>
       <button data-selmode="0">Annuler</button>
       <button class="danger" data-tone="danger" data-delsel="1" ${size === 0 ? "disabled" : ""}>Supprimer</button>`;
@@ -10836,8 +10841,17 @@ import { screens, panel, bridge } from "../seams.js";
      otherwise have its scrim cleared a frame later, by a close that already
      returned. */
   function openDlg(html) {
-    select("#dlg").innerHTML = html;
-    setOpen(select("#dlg"), true);
+    const element = select("#dlg");
+    element.innerHTML = html;
+    /* A dialog has to NAME itself, and it cannot take that name from its
+       content the way a section does. Every dialog this function opens starts
+       with its own heading, so the name is read from it here — once, where the
+       markup arrives — rather than through an `aria-labelledby` id that each
+       template string would have to keep in step with the shell. */
+    const heading = element.querySelector("h1, h2, h3");
+    if (heading) element.setAttribute("aria-label", heading.textContent.trim());
+    else element.removeAttribute("aria-label");
+    setOpen(element, true);
     setOpen(select("#scrim"), true);
   }
   function closeDlg() {
@@ -12269,7 +12283,7 @@ import { screens, panel, bridge } from "../seams.js";
       // paintSelBar() below draws the bar directly, not through render():
       // the explicit bump is what tells React the selection changed.
       store.touch();
-      closest.setAttribute("aria-selected", String(currentState().selected.has(index)));
+      closest.setAttribute("aria-pressed", String(currentState().selected.has(index)));
       paintSelBar();
       return;
     }
@@ -12342,7 +12356,7 @@ import { screens, panel, bridge } from "../seams.js";
       // its single settlement needs, so this close is the follow branches'.
       panel.close();
       if (result.owned) {
-        openDlg(`<h3>Remplacer « ${escapeHtml(result.t)} » ?</h3>
+        openDlg(`<h2>Remplacer « ${escapeHtml(result.t)} » ?</h2>
           <p>Ce ${result.k === "Film" ? "film est déjà" : "média est déjà"} en médiathèque. L'acquisition <b>remplacera</b> la version en place par celle qui sera récupérée.</p>
           <div class="dlgacts">
             <button class="dlgbtn danger" data-part="dialog/button" data-tone="danger" data-confirmadd="${index}">Remplacer</button>
@@ -12470,7 +12484,7 @@ import { screens, panel, bridge } from "../seams.js";
       ? `Supprimer ${titles.length} médias ?`
       : `Supprimer « ${escapeHtml(titles[0])} » ?`;
     openDlg(`
-    <h3>${head}</h3>
+    <h2>${head}</h2>
     <div class="dryrun" data-part="dialog/dry-run">${svgIcon(icons.eye)}Simulation — rien ne sera supprimé tant que vous n'aurez pas validé que cette liste dit vrai.</div>
     ${
       multi

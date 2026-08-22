@@ -348,6 +348,36 @@ def current_commit():
     return proc.stdout.strip()
 
 
+def provenance_of(commit):
+    """Says whether a baseline's commit can still be placed in this history.
+
+    A SQUASH MERGE ANSWERS « no », and that is the case this exists for. A
+    baseline is recorded on a feature branch and names the branch commit it
+    measured; squashing replaces every one of those with a single new commit,
+    so the sha in the file stops existing — on a fresh clone it is not there at
+    all. Nothing was wrong with the measurement. The pointer went dangling,
+    silently, and `hold-counts-baseline.json` sat that way for four days under a
+    green gate because this tool read the field only to print it.
+
+    Args:
+        commit: The sha the baseline carries.
+
+    Returns:
+        One of `"ancestor"`, `"unreachable"` (the object is not in this clone)
+        or `"not-an-ancestor"` (it exists but is not in HEAD's history).
+    """
+    if not commit or commit == "unknown":
+        return "unreachable"
+    exists = subprocess.run(["git", "cat-file", "-e", f"{commit}^{{commit}}"],
+                            cwd=ROOT, capture_output=True, check=False)
+    if exists.returncode != 0:
+        return "unreachable"
+    ancestry = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", commit, "HEAD"],
+        cwd=ROOT, capture_output=True, check=False)
+    return "ancestor" if ancestry.returncode == 0 else "not-an-ancestor"
+
+
 def print_coverage(results):
     """States the coverage ceiling of the run that just happened.
 
@@ -477,6 +507,38 @@ def cmd_compare(baseline_path, only=None):
         base_commit = baseline.get("taken_at_commit", "unknown")
     except (json.JSONDecodeError, KeyError) as exc:
         print(f"unreadable baseline {baseline_path}: {exc}", file=sys.stderr)
+        return 2
+
+    # THE PROVENANCE GATE, AND IT REFUSES WHERE THE ORACLE ONLY WARNS.
+    #
+    # `oracle.py --check` appends « NOT an ancestor of HEAD » to its output and
+    # compares anyway. That is a defensible choice for a 36 000-line rendering
+    # reference. It is the wrong one here, and the evidence is this very file:
+    # the baseline shipped pointing at `c7714c38`, a commit the L02 squash
+    # replaced, and nothing said so for four days — because a warning nobody
+    # reads and a field nobody checks fail the same way.
+    #
+    # What a hold-count comparison IS makes the difference. It is the whole of
+    # « the suite is green at unchanged hold counts », the proof that catches
+    # what a green suite cannot: at L02 only this comparison saw the logout
+    # contract fall. Run against a baseline whose provenance cannot be
+    # established, that proof degrades into a sentence.
+    #
+    # Refusing is affordable because it enforces a step that already exists: a
+    # wave re-records this file at its close, exactly as it re-records the
+    # oracle's reference.
+    provenance = provenance_of(base_commit)
+    if provenance != "ancestor":
+        why = ("does not exist in this clone" if provenance == "unreachable"
+               else "exists but is not an ancestor of HEAD")
+        print(f"refusing to compare: the baseline names {base_commit[:8]}, "
+              f"which {why}.\n"
+              "  A squash merge replaces the commit a branch-recorded baseline "
+              "names, so the pointer goes dangling while every count in the "
+              "file stays perfectly good.\n"
+              "  Re-record it on this tree — 20-25 min, the full suite:\n"
+              f"    python3 scripts/harness-hold-counts.py --record "
+              f"{baseline_path}", file=sys.stderr)
         return 2
 
     if only is not None:

@@ -43,6 +43,7 @@ import http.cookies
 import http.server
 import json
 import os
+import re
 import secrets
 import socketserver
 import subprocess
@@ -480,7 +481,17 @@ def login_page(refused: bool) -> bytes:
     markup = extract(markup_source, "markup")
     # The screen is drawn hidden inside the shell and centred against it. Here
     # it IS the page, so it drops both.
-    markup = markup.replace(' id="login" hidden', ' id="login"', 1)
+    #
+    # THE `hidden` IS REMOVED BY PATTERN, NOT BY ADJACENCY. This was
+    # `replace(' id="login" hidden', …)`, which needed the two attributes to
+    # remain neighbours in the markup — and `str.replace` that matches nothing
+    # returns the string unchanged, silently. Adding one attribute between them
+    # served a sign-in screen that was still `hidden`: every element measured
+    # 0x0, six holds in `entry.py` fell at once and `startup.py` timed out
+    # filling a form that was not there. The markup may now carry whatever
+    # attributes it needs, in whatever order.
+    markup = re.sub(r'(<div[^>]*\bid="login"[^>]*?)\s+hidden\b', r"\1", markup,
+                    count=1)
     markup = markup.replace('<form class="logincard" id="loginform"',
                             '<form class="logincard" id="loginform" method="post" action="/login"', 1)
     if refused:

@@ -44,10 +44,85 @@ stale table read as current for three days.
 
 | | |
 | --- | --- |
-| **Last landed** | **L02 — test anchors move to `data-*`**, Phase 0. PR **#470**, merged 2026-08-22, version 0.98.13. It carried the `docs/cold-start` commit, which was not a PR of its own |
-| **Next** | **L03 — accessibility**, Phase 1. Its dependency (L01) is satisfied. `docs/reference/frontend-architecture.md` decides which lot, never this table |
+| **In flight** | **L03 — accessibility**, Phase 1. Branch `feat/maquette-l03`, version 0.98.18, PR merged **manually**. Design: `docs/features/maquette-l03/DESIGN.md` · plan: `…/plan/INDEX.md` |
+| **Last landed** | **L02 — test anchors move to `data-*`**, Phase 0. PR **#470**, merged 2026-08-22, version 0.98.13. It carried the `docs/cold-start` commit, which was not a PR of its own. Archived to `docs/archive/features/maquette-l02/` |
 | **Before it** | L01 — the recorded oracle, PR **#467**, version 0.98.10. Archived to `docs/archive/features/maquette-l01/` |
-| **Design + plan of L02** | `docs/features/maquette-l02/DESIGN.md`, `…/plan/INDEX.md` — 6 phases, 13 ACC criteria, all fallen |
+| **What decides the order** | `docs/reference/frontend-architecture.md`, never this table. This table says only where the work STANDS |
+
+**What L03 is, in one line**: landmarks, accessible names, focus management on every layer, the
+keyboard paths — and `axe-core` in the gate at a hard zero. Four decisions were arbitrated by the
+operator on 2026-08-22 and are recorded in its DESIGN § 2: the focus MECHANISM is written
+shell-side and survives L13 while only attributes go into the dying engine; the audit is
+`axe-core` on its own `--a11y` tier, in CI on every PR; the oracle floor is **zero divergence**,
+tag substitutions neutralised in CSS rather than accepted; and colour contrast is measured,
+recorded and handed to L06 rather than enforced here. Touch-target size and B-036 are named as
+out of scope in § 6.
+
+**Phases of L03** — the plan is `docs/features/maquette-l03/plan/INDEX.md`, which owns the
+reasoning and the 18 ACCEPTANCE criteria. This table owns only the status.
+
+| # | Phase | File | Status |
+| --- | --- | --- | --- |
+| 1 | The instrument, and the debt recorded | `plan/phase-01-instrument-and-debt.md` | [x] |
+| 2 | Landmarks and structure | `plan/phase-02-landmarks-and-structure.md` | [x] |
+| 3 | Accessible names | `plan/phase-03-accessible-names.md` | [x] |
+| 4 | Focus manager and keyboard paths | `plan/phase-04-focus-and-keyboard.md` | [x] |
+| 5 | Live regions and states | `plan/phase-05-live-regions.md` | [x] |
+| 6 | The floor bites | `plan/phase-06-the-floor-bites.md` | [x] |
+
+### L03 is complete on its branch — 744 accessibility violations to 0, and nothing moved
+
+`axe-core` over the 83 named states: **744 violations over 7 rules → 0**. The oracle: **0
+divergence over 2 739 measurements**, at the close of every phase. The floor is a hard zero, in
+`run.sh --a11y` (a fourth tier), in the full suite and in CI on every maquette pull request.
+
+| | |
+| --- | --- |
+| The instrument | `frontend/maquette/a11y.py` — axe-core over the 83 states, three modes, importing `oracle.py`'s plumbing rather than copying it |
+| What an audit cannot see | **R81** (`harness/focus.py`, 15 holds): focus in and back out, `Escape`, the skip link landing FOCUS, `aria-busy`, every error surface announcing |
+| The starting line | `a11y-debt.json`, which `--record` now refuses to overwrite: it is a starting line, not a snapshot |
+| Handed to L06 | `a11y-contrast.json` — 42 contrast findings on 10 elements, 27 of them one badge. Touch-target size was expected to be a debt and is **not**: `target-size` is applicable and reports 0 |
+
+**Four findings, and three of them are about instruments rather than about markup.**
+
+1. **The audit's first version was a vacuous gate.** Scoped to `.device` — the phone frame, the
+   product, an entirely reasonable choice — five page-level axe rules go `inapplicable` without a
+   word. It reported « 0 violation » for `landmark-one-main` on a tree with zero `<main>`.
+2. **The hold-count baseline's commit pointer was dangling**, and `--compare` read that field only
+   to print it. It refuses now — more strictly than `oracle.py --check`, which only warns.
+3. **A hold-count recording needs a tree AT REST**, and « the served copy is frozen at the start »
+   is true and insufficient: `entry.py` and `startup.py` compare against the design host, and
+   `serve.py` re-reads `index.html` on every request. Editing during a recording made them measure
+   a new document against an old build. **This is the trap the next wave will meet unchanged.**
+4. **The CI step guarding the maquette fixture was red on `main`** — one drifted value — and
+   `--record` refuses a baseline taken on a red suite, so proof n° 2 was unobtainable until it was
+   repaired.
+
+**And the rule found three defects in the focus manager on its first run**, one of which is worth
+carrying: `focus()` on an element inside an `inert` subtree does nothing, silently — so restoring
+focus before clearing the mark left the caret on `<body>` at every close. The manager reproduced
+the exact defect it exists to prevent.
+
+**One arbitration is the operator's and is reversible**: `maximum-scale=1, user-scalable=no` is
+gone from the viewport meta. It was 83 of the 744 (WCAG 1.4.4, zoom forbidden), and iOS Safari has
+ignored `user-scalable=no` since version 10 — but it undoes a deliberate PWA choice.
+
+**Phase 1 found three things nobody was looking for.** The hold-count baseline
+pointed at `c7714c38`, a commit the L02 squash replaced — not an ancestor of `HEAD`, absent from
+a fresh clone — and `--compare` read that field only to print it, where `oracle.py --check` at
+least warns. It refuses now. The maquette's follow fixture had drifted from `acquire.db`, so the
+CI step guarding it was red on `main` and no baseline could be recorded at all. And the first
+version of the new audit was a VACUOUS GATE: scoped to `.device` it made five page-level axe
+rules `inapplicable` and reported « 0 violation » for `landmark-one-main` on a prototype with
+zero `<main>` elements.
+
+**The debt, measured before the wave touched it**: 744 violations over 7 rules across the 83
+states — 533 `region`, 83 `meta-viewport`, 49 `landmark-one-main`, 49 `page-has-heading-one`,
+24 `aria-allowed-attr`, 4 `scrollable-region-focusable`, 2 `button-name` — plus 42
+colour-contrast findings held for L06. The instrument reproduces: two recordings of one tree are
+byte-identical.
+
+**Next action**: `/implement:phase` continues at Phase 2.
 
 **What L02 settled, measured on `main` after the merge**: **0 selection calls anchored on a CSS
 class**, out of 699 in `harness/*.py` — 473 on `data-*`, 188 on an id, 33 on a bare tag, 5 on a
@@ -59,7 +134,7 @@ guard rather than sitting beside it, and its floor is a hard zero.
 > « baseline 834 → 0 » and « baseline burn-down 342 → 0 » of the same thing. The end state is
 > measured above and is not in doubt; the starting figure is, and guessing which is right would
 > put a third number into circulation. Whoever knows should say so in
-> `docs/features/maquette-l02/plan/INDEX.md`; until then neither is cited.
+> `docs/archive/features/maquette-l02/plan/INDEX.md`; until then neither is cited.
 
 ### What the next session needs to know before touching anything
 

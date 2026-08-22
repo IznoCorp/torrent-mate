@@ -50,6 +50,7 @@ import { ReleasesScreen } from "./screens/releases";
 import { ResolutionScreen } from "./screens/resolution";
 import { PageHost } from "./pages/host";
 import { createStore, type Store } from "./store";
+import { installFocusManager } from "./focus";
 import { installSeams } from "./seams";
 
 // R69's addressable state, validated — absent means "unchanged", as before.
@@ -697,6 +698,11 @@ const mountNode = document.getElementById("shell")!;
 const device = document.getElementById("device");
 const legacyScreen = document.getElementById("screen");
 if (device && legacyScreen) device.insertBefore(mountNode, legacyScreen);
+
+// Focus follows the layers, and it is installed before the first render so the
+// very first drawer an operator opens is already covered. It asks nothing of
+// the engine: it watches the `data-open` attribute both worlds already emit.
+installFocusManager();
 
 ReactDOM.createRoot(mountNode).render(
   <React.StrictMode>

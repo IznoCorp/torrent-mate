@@ -61,6 +61,47 @@
     outline-offset: 2px;
   }
 
+  /* Present to an assistive technology, absent from the layout.
+     `clip-path` rather than `display: none` or `visibility: hidden`: those two
+     remove the element from the accessibility tree as well, which would hide
+     the very thing this exists to expose. The 1px box with `overflow: hidden`
+     is what keeps a screen reader reading it while nothing is painted, and
+     `white-space: nowrap` stops a long label wrapping into a tall invisible
+     column that a stray scrollbar would then reveal. */
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* The skip link. Out of flow at all times, so it adds no box and the oracle
+     measures no difference; it simply comes back on screen when focused.
+     Positioned against the phone frame rather than the viewport, because in
+     this prototype the frame IS the application — the same reason the bottom
+     bar is repositioned in the declared harness deviation above. */
+  .skip-link {
+    position: absolute;
+    z-index: 60;
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, -120%);
+    padding: 10px 16px;
+    border-radius: 0 0 10px 10px;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .skip-link:focus-visible {
+    transform: translate(-50%, 0);
+  }
+
   /* DECLARED HARNESS DEVIATION
      The real bottom bar is `position: fixed` against the viewport — correct
      in the app, where the viewport IS the phone. Inside a phone frame
@@ -3316,7 +3357,7 @@
     visibility: visible;
     transform: translateY(-50%) scale(1);
   }
-  .dlg h3 {
+  .dlg h2 {
     margin: 0 0 8px;
     font-size: 15px;
     font-weight: 700;
@@ -3609,12 +3650,12 @@
     width: 13px;
     height: 13px;
   }
-  .tile[aria-selected="true"] .sel {
+  .tile[aria-pressed="true"] .sel {
     background: var(--primary);
     border-color: var(--primary);
     color: var(--primary-foreground);
   }
-  .tile[aria-selected="true"] .p {
+  .tile[aria-pressed="true"] .p {
     outline: 2px solid var(--primary);
     outline-offset: -2px;
   }
@@ -3633,7 +3674,7 @@
     padding: 9px;
     text-align: left;
   }
-  .selrow[aria-selected="true"] {
+  .selrow[aria-pressed="true"] {
     border-color: var(--primary);
     box-shadow: 0 0 0 1px var(--primary);
   }
