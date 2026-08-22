@@ -87,6 +87,15 @@ function setBackgroundInert(layer: Element | null): void {
     // would mark the very layer that is open. Its children are walked instead.
     const nodes = child.id === "shell" ? Array.from(child.children) : [child];
     for (const node of nodes) {
+      // THE SCRIM IS NEVER INERT. It is not background — it is the layer's own
+      // backdrop, and tapping it is how the layer closes on a phone. Marked
+      // inert it stops receiving pointer events at all, so a tap outside the
+      // drawer did nothing: `drawer.py` caught it as history that would not
+      // move, which is what that hold is for.
+      if (node.id === "scrim") {
+        node.removeAttribute("inert");
+        continue;
+      }
       const contains = layer ? node === layer || node.contains(layer) : false;
       if (layer && !contains) node.setAttribute("inert", "");
       else node.removeAttribute("inert");
