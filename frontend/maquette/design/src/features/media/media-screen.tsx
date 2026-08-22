@@ -27,8 +27,8 @@ import {
   useMediaReference,
   type MediaReference,
   type MediaSheet,
-} from "../features/media/reference";
-import { useStoreContent, useWorld } from "../lib/store-access";
+} from "../../features/media/reference";
+import { useStoreContent, useWorld } from "../../lib/store-access";
 
 // The exact shape `svgIcon(paths, strokeWidth)` produced as an HTML string —
 // rebuilt as a real element so it composes with JSX. Same helper as

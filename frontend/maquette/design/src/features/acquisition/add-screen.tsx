@@ -38,10 +38,10 @@ import { useTranslation } from "react-i18next";
 // today for two reasons: `go` is a hoisted function declaration there, so
 // its binding is live before either module's body runs, and this module has
 // no top-level side effect that could observe shell.tsx mid-evaluation.
-import { Icon } from "../components/icon";
-import { go } from "../lib/navigate";
-import { useAcquisitionReference } from "../features/acquisition/reference";
-import { useStoreContent, useUiState, writeUiState } from "../lib/store-access";
+import { Icon } from "../../ui/icon";
+import { go } from "../../lib/navigate";
+import { useAcquisitionReference } from "../../features/acquisition/reference";
+import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
 
 type Mode = "follow" | "identify";
 

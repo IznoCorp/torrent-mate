@@ -46,10 +46,10 @@ import { useTranslation } from "react-i18next";
 // dictionary-by-direct-import rule `panel.tsx` follows for the settings
 // dictionaries, and for the same reason — an index into a table is not a
 // sentence, and `t()` would only wrap the lookup in a second one.
-import fr from "../i18n/fr.json";
-import { useArrivalsReference, type PendingDecision, type SettledDecision } from "../features/arrivals/reference";
-import { type QueueCard } from "../lib/engine-queue";
-import { useStoreContent } from "../lib/store-access";
+import fr from "../../i18n/fr.json";
+import { useArrivalsReference, type PendingDecision, type SettledDecision } from "../../features/arrivals/reference";
+import { type QueueCard } from "../../lib/engine-queue";
+import { useStoreContent } from "../../lib/store-access";
 
 // Same helper as `media.tsx`'s, `profile.tsx`'s, `add.tsx`'s and
 // `releases.tsx`'s, still not shared: the extraction those files' comments

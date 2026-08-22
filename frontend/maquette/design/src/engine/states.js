@@ -42,7 +42,7 @@ import {
   settingId,
   resetSettings,
   render,
-} from "./engine/legacy.js";
+} from "./legacy.js";
 
 const STATES = [
     [

@@ -9,9 +9,9 @@
 // geometry it measured on the legacy `#screen`.
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { Icon } from "../components/icon";
-import { useReleasesReference, type Release, type Resolution } from "../features/releases/reference";
-import { useUiState, writeUiState } from "../lib/store-access";
+import { Icon } from "../../ui/icon";
+import { useReleasesReference, type Release, type Resolution } from "../../features/releases/reference";
+import { useUiState, writeUiState } from "../../lib/store-access";
 
 // The field names are the legacy state's own — `state.profil` is written and
 // read by the engine under these exact keys.

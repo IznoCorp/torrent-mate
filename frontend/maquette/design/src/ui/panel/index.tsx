@@ -23,7 +23,7 @@
 import { Fragment, type JSX } from "react";
 import { useTranslation } from "react-i18next";
 import { useEngineDrawing } from "../../lib/engine-drawing";
-import { Icon } from "../../components/icon";
+import { Icon } from "../../ui/icon";
 import {
   refuseBlock,
   registerBlock,

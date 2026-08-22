@@ -21,9 +21,9 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
-import { Icon } from "../components/icon";
-import { useLibraryReference, type IncompleteShow, type LibraryRow } from "../features/library/reference";
-import { useStoreContent, useUiState, writeUiState } from "../lib/store-access";
+import { Icon } from "../../ui/icon";
+import { useLibraryReference, type IncompleteShow, type LibraryRow } from "../../features/library/reference";
+import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
 
 // The three lenses, in the order the tab bar draws them. The count on
 // « Incomplets » is the drawing's own, exactly as the legacy hard-coded it.

@@ -42,14 +42,14 @@ import { useLayoutEffect, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { useUiState } from "../lib/store-access";
-import { AccountPage } from "./account";
-import { AcquisitionPage } from "./acquisition";
-import { ArrivalsPage } from "./arrivals";
-import { LibraryPage } from "./library";
-import { MaintenancePage } from "./maintenance";
-import { NotFoundPage } from "./not-found";
-import { SettingsPage } from "./settings";
-import { SystemPage } from "./system";
+import { AccountPage } from "../features/account/page";
+import { AcquisitionPage } from "../features/acquisition/page";
+import { ArrivalsPage } from "../features/arrivals/page";
+import { LibraryPage } from "../features/library/page";
+import { MaintenancePage } from "../features/maintenance/page";
+import { NotFoundPage } from "../app/not-found";
+import { SettingsPage } from "../features/settings/page";
+import { SystemPage } from "../features/system/page";
 
 type MigratedPage = {
   Body: () => ReactElement | null;

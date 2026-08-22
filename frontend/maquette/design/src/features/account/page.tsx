@@ -8,8 +8,8 @@
 // twice when it arrives.
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
-import { useAccountReference } from "../features/account/reference";
-import { useEngineDrawing } from "../lib/engine-drawing";
+import { useAccountReference } from "../../features/account/reference";
+import { useEngineDrawing } from "../../lib/engine-drawing";
 
 export function AccountPage(): ReactElement {
   const { t } = useTranslation();

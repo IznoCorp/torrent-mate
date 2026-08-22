@@ -28,10 +28,10 @@ import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { createPortal } from "react-dom";
-import { Icon } from "../components/icon";
-import { useSettingsReference, type Setting, type SettingsTopic } from "../features/settings/reference";
-import { useStoreContent } from "../lib/store-access";
-import { settingLabel } from "../settings-labels";
+import { Icon } from "../../ui/icon";
+import { useSettingsReference, type Setting, type SettingsTopic } from "../../features/settings/reference";
+import { useStoreContent } from "../../lib/store-access";
+import { settingLabel } from "../../features/settings/labels";
 
 // The pending-edit marker and the row's own identity live on the same element:
 // the row IS the control the delegation reads.

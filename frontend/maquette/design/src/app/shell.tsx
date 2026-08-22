@@ -12,7 +12,7 @@
 // The i18n bootstrap is imported FIRST, for its side effect (initialising
 // `i18next`) — every migrated screen calls `useTranslation()`, and the
 // first of them can render before any other import here settles.
-import "./i18n";
+import "../i18n";
 // The legacy engine, for its side effect too, and the order matters more
 // here than anywhere else in this file. It used to be a classic script
 // inside the fragment, evaluated while the document parsed — everything it
@@ -23,54 +23,42 @@ import "./i18n";
 // body, so importing it HERE is what makes it run FIRST. Moving this line
 // below any other statement would not reorder anything — imports hoist —
 // but writing it anywhere else would suggest otherwise.
-import "./engine/legacy.js";
+import "../engine/legacy.js";
 // The scenario table, registered with the engine as this module evaluates —
 // after the engine, because it imports twenty names from it. It is the
 // harness's fixture, not the product's, and the engine looks its states up
 // there rather than carrying them.
-import "./states.js";
+import "../engine/states.js";
 import {
   createBrowserHistory,
-  createRootRoute,
-  createRoute,
   createRouter,
-  Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
 import React from "react";
 import { flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
 import ReactDOM from "react-dom/client";
-import { Sheet } from "./components/sheet";
-import { refuseBlock, type PanelDescriptor } from "./ui/panel/contract";
+import { refuseBlock, type PanelDescriptor } from "../ui/panel/contract";
 // The two panel blocks that belong to a domain, imported for their SIDE
 // EFFECT: each declares its kind to the panel's contract and registers what
 // draws it as it evaluates. Nothing else imports them — a panel is opened by
 // a legacy producer through `window.__panel`, never by a component holding a
 // reference to the block — so the boot is where they have to be named, and
 // `app/` naming what a feature contributes at boot is exactly its job.
-import "./features/media/panel-seasons";
-import "./features/settings/panel-field";
-import { AddScreen } from "./screens/add";
-import { MediaScreen } from "./screens/media";
-import { ProfileScreen } from "./screens/profile";
-import { ReleasesScreen } from "./screens/releases";
-import { ResolutionScreen } from "./screens/resolution";
-import { PageHost } from "./pages/host";
+import "../features/media/panel-seasons";
+import "../features/settings/panel-field";
 import { createStore, type Store } from "./store";
 import { installFocusManager } from "./focus";
-import { installSeams } from "./seams";
-import { go, installNavigation } from "./lib/navigate";
+import { rootRoute } from "./root-route";
+import { addRoute } from "../routes/add";
+import { catchAllRoute } from "../routes/index";
+import { mediaRoute } from "../routes/media-sheet";
+import { profileRoute } from "../routes/profile";
+import { releasesRoute } from "../routes/releases";
+import { resolutionRoute } from "../routes/resolution";
+import { installSeams } from "../engine/seams";
+import { go, installNavigation } from "../lib/navigate";
 
-// R69's addressable state, validated — absent means "unchanged", as before.
-type SearchParams = {
-  page?: string;
-  tab?: string;
-  lens?: string;
-  mode?: string;
-  cat?: string;
-  rub?: string;
-};
 
 // The bridge's contract, stated once. The verbs are the legacy nav cluster's
 // primitives, and their names are the fragment's own; the state objects
@@ -164,96 +152,6 @@ declare global {
 // shell mounts on is written once, by the single writer, in the right order.
 const history = createBrowserHistory();
 
-// The root renders the matched route, the bottom-sheet layer and the PAGE host
-// — the last two belong to no route. The sheet opens over whatever is on screen
-// (a React route, a legacy `#screen`, a plain page), so it is mounted once and
-// its visibility is a class rather than a mount. The page host is mounted for
-// the same reason from the other side: a PAGE has no address of its own, it is
-// a value of `state.page`, so nothing in the route table can select it — see
-// `pages/host.tsx` for why it portals into the legacy `#view`.
-const rootRoute = createRootRoute({
-  component: () => (
-    <>
-      <Outlet />
-      <PageHost />
-      <Sheet close={closePanel} />
-    </>
-  ),
-});
-const catchAllRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/",
-  validateSearch: (raw: Record<string, unknown>): SearchParams => {
-    const read: SearchParams = {};
-    for (const name of ["page", "tab", "lens", "mode", "cat", "rub"] as const)
-      if (typeof raw[name] === "string" && raw[name])
-        read[name] = raw[name] as string;
-    return read;
-  },
-  component: () => null, // the legacy DOM lives outside the React root until its surfaces migrate
-});
-// The quality-profile screen: a real route, rendering a final component
-// INSIDE the React root — a surface reached directly rather than through the
-// legacy fragment. `$title` is percent-encoded and
-// NFC-normalised by both ends of the bridge (`go()` below on write,
-// `ProfileScreen` on read) so a title carrying combining characters survives
-// the round trip through the URL unchanged.
-const profileRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/profile/$title",
-  component: ProfileScreen,
-});
-// The second screen route, and the first whose OWN search params are
-// router-owned rather than merely read: `q` (the typed query) and `mode`
-// ("follow" — follow a new title — or "identify" — associate a stuck
-// folder, reached from the resolution screen's manual search) live here for
-// as long as the address reads `/add`, replacing `state.addQ`/
-// `state.addMode` as the SOURCE of truth on this path (see `add.tsx`'s own
-// doc comment for the transitional contract with the one legacy reader that
-// remains). Absent means "follow" / no query, the same "absent is unchanged"
-// convention `catchAllRoute`'s `validateSearch` already uses above.
-type AddSearchParams = { q?: string; mode?: "follow" | "identify" };
-const addRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/add",
-  validateSearch: (raw: Record<string, unknown>): AddSearchParams => {
-    const read: AddSearchParams = {};
-    if (typeof raw.q === "string" && raw.q) read.q = raw.q;
-    if (raw.mode === "identify") read.mode = "identify";
-    return read;
-  },
-  component: AddScreen,
-});
-// The media sheet: ONE screen for every medium, reached from a poster, a
-// tile, a suggestion or a panel act. `$title` follows `/profile/$title`'s
-// discipline exactly — percent-encoded, NFC-normalised on both ends. NO
-// search param: the legacy sheet had no open-season state either; a
-// `<details open>` is computed per render and toggled natively by the finger,
-// so there is nothing here for the address to carry.
-const mediaRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/mediasheet/$title",
-  component: MediaScreen,
-});
-// "Choose another release": the ranking's own reasoning, made inspectable.
-// `$title` follows `/mediasheet/$title`'s discipline exactly — percent-encoded,
-// NFC-normalised on both ends. No search param: same reason as the media
-// sheet — nothing here for the address to carry.
-const releasesRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/releases/$title",
-  component: ReleasesScreen,
-});
-// The arbitration screen: what is stuck, and which medium it is. `$folder` is
-// the FOLDER as it is on disk — not a media title, which is precisely what is
-// missing — percent-encoded and NFC-normalised on both ends like every other
-// `$` param here. No search param: the screen carries no state of its own, and
-// an answer changes the queue rather than the address.
-const resolutionRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/resolution/$folder",
-  component: ResolutionScreen,
-});
 // A thrown component used to fail into a bare `null` — the exact failure
 // shape this whole architecture exists to kill: a blank phone frame with
 // nothing on screen saying why, and nothing in the console pointing at it

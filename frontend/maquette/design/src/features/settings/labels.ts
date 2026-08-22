@@ -25,8 +25,8 @@
 // hold asserting an empty set is also satisfied by a detector that stopped
 // recording: the wave that moved this code out of the fragment had first to
 // bring the recording with it, or the hold would have gone green on nothing.
-import fr from "./i18n/fr.json";
-import { type Setting } from "./features/settings/reference";
+import fr from "../../i18n/fr.json";
+import { type Setting } from "../../features/settings/reference";
 
 // Keyed by the setting-name suffix the split below produces — a suffix is
 // data, not French.

@@ -16,7 +16,7 @@
 // this screen leans on, exactly as `media.tsx` and `profile.tsx`.
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { useReleasesReference } from "../features/releases/reference";
+import { useReleasesReference } from "../../features/releases/reference";
 
 // Same helper as `media.tsx`'s, `profile.tsx`'s and `add.tsx`'s, still not
 // shared: the extraction those files' comments call for is a follow-up of

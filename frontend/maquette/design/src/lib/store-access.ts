@@ -9,7 +9,7 @@
 // and eight reference members and thirty domain types, which is how seventeen
 // of twenty-five modules came to import one file.
 import { useSyncExternalStore } from "react";
-import type { StoreContent, UiState } from "../store";
+import type { StoreContent, UiState } from "../app/store";
 
 function subscribe(callback: () => void): () => void {
   const subscription = window.__store.store.subscribe(callback);

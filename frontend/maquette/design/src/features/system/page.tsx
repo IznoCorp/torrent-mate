@@ -18,9 +18,9 @@
 // itself, because React cannot set the outer markup of a node it also renders.
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
-import { useSystemReference } from "../features/system/reference";
-import { type Fact } from "../lib/engine-drawing";
-import { useUiState } from "../lib/store-access";
+import { useSystemReference } from "../../features/system/reference";
+import { type Fact } from "../../lib/engine-drawing";
+import { useUiState } from "../../lib/store-access";
 
 export function SystemPage(): ReactElement | null {
   const state = useUiState();

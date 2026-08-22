@@ -22,10 +22,10 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
-import { Icon } from "../components/icon";
-import { useAcquisitionReference, type Follow } from "../features/acquisition/reference";
-import { type QueueCard } from "../lib/engine-queue";
-import { useStoreContent, useUiState, writeUiState } from "../lib/store-access";
+import { Icon } from "../../ui/icon";
+import { useAcquisitionReference, type Follow } from "../../features/acquisition/reference";
+import { type QueueCard } from "../../lib/engine-queue";
+import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
 
 // The swipe action a follow that can be searched again reveals. It is a
 // data-ATTRIBUTE VALUE the document-level delegation dispatches on — a contract

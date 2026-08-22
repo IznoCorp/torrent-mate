@@ -13,8 +13,8 @@
 import { useTranslation } from "react-i18next";
 import { useSettingsReference, type Setting } from "./reference";
 import { useEngineDrawing } from "../../lib/engine-drawing";
-import { Icon } from "../../components/icon";
-import { settingLabel, unitOf } from "../../settings-labels";
+import { Icon } from "../../ui/icon";
+import { settingLabel, unitOf } from "../../features/settings/labels";
 import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
 
 // The kind this file adds to the panel's block map. Declared here, beside what

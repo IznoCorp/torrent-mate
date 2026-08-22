@@ -25,9 +25,9 @@
 // all.
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
-import { useArrivalsReference, type PipelineFact } from "../features/arrivals/reference";
-import { type QueueCard } from "../lib/engine-queue";
-import { useUiState } from "../lib/store-access";
+import { useArrivalsReference, type PipelineFact } from "../../features/arrivals/reference";
+import { type QueueCard } from "../../lib/engine-queue";
+import { useUiState } from "../../lib/store-access";
 
 // The nine steps, told as the last run left them. A step with nothing recorded
 // at all reads « rien à faire »; a step that BLOCKED something says so and
