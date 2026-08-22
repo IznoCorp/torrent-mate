@@ -149,14 +149,13 @@ def split_contrast(findings: list) -> tuple[list, list]:
     return enforced, contrast
 
 
-async def audit_state(page, state: str, regions: dict, recipe: dict,
-                      rules: list | None) -> list:
+async def audit_state(page, state: str, recipe: dict,
+                      rules: list | None) -> tuple:
     """Drives one named state and audits it once it is at rest.
 
     Args:
         page: The page being driven.
         state: A state id `window.__go` accepts.
-        regions: The region table — the geometry the settle signal watches.
         recipe: The oracle's `probe` block.
         rules: When given, the only axe rules to run.
 
@@ -169,10 +168,26 @@ async def audit_state(page, state: str, regions: dict, recipe: dict,
     # The same two-pass neutralise-and-settle the oracle uses, and for the same
     # measured reason: the boot toast is raised asynchronously, so a single pass
     # loses the race on the first state driven.
+    #
+    # WITHOUT THE REGIONS, AND THAT IS THE WHOLE DIFFERENCE FROM THE ORACLE.
+    # Handed a region table, `settle()` additionally requires the measured
+    # GEOMETRY to be identical across two consecutive samples, and refuses
+    # outright when it is not — the right demand for an instrument that records
+    # rectangles, and the wrong one here. This audit reads the accessibility
+    # tree: a control has its name and its role whether or not its box has
+    # stopped moving to the last sub-pixel.
+    #
+    # It is not a theoretical distinction. This tier runs in CI, where the
+    # oracle deliberately never does, so its geometry loop had never been
+    # exercised on a Linux runner — and there the frame does not come to rest
+    # within eight samples. The audit failed with « the measured geometry still
+    # moved », about a difference it does not measure. What is still waited for
+    # is the finite animations and two frames, which is what stops a control
+    # being audited before it exists.
     await oracle.neutralise(page, recipe)
-    await oracle.settle(page, regions)
+    await oracle.settle(page)
     await oracle.neutralise(page, recipe)
-    await oracle.settle(page, regions)
+    await oracle.settle(page)
 
     run = dict(AXE_OPTIONS)
     if rules:
@@ -194,7 +209,7 @@ async def audit_everything(rules: list | None) -> tuple:
         document-level rules.
     """
     started = time.monotonic()
-    recipe, regions = oracle.load_recipe(), oracle.load_regions()
+    recipe = oracle.load_recipe()
     bundle = axe_bundle()
     async with oracle.browser_driver()() as playwright:
         browser = await playwright.chromium.launch(channel="chrome")
@@ -205,8 +220,7 @@ async def audit_everything(rules: list | None) -> tuple:
         states = await page.evaluate("()=>window.__states()")
         per_state, modal_states = {}, set()
         for state in states:
-            modal, findings = await audit_state(
-                page, state, regions, recipe, rules)
+            modal, findings = await audit_state(page, state, recipe, rules)
             per_state[state] = findings
             if modal:
                 modal_states.add(state)
