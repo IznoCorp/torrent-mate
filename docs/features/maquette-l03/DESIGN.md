@@ -32,7 +32,7 @@ the lot's starting line, and the burn-down is measured against them and no other
 
 **The 3-button figure is not the number, and the design says so on purpose.** The engine builds
 buttons from helper functions and template strings; a static scan cannot see them. The real count
-is what `axe-core` reports over the 83 rendered states, and P0 exists to record it before anything
+is what `axe-core` reports over the 83 rendered states, and Phase 1 exists to record it before anything
 is touched.
 
 ### Two findings that shape the lot
@@ -113,7 +113,7 @@ neutralised in the stylesheet, and **the oracle arbitrates, not the author**.
 visual language), not L03's.
 
 **Decided:** the rule runs, its result is **recorded** — how many, where — and filed as an input
-to L06's dossier. It does **not** fail L03's gate.
+to L06's case file. It does **not** fail L03's gate.
 
 **Rejected:** including it (L03 would then decide the visual language before L06 arbitrates it,
 and the oracle would move everywhere). Disabling it (« not measured » reads as « no problem »,
@@ -237,7 +237,7 @@ Named here so that « not done » is a decision on the record rather than an ove
 | Risk | What it would look like | Response |
 | --- | --- | --- |
 | A tag substitution is not layout-neutral | The oracle reports divergences on regions the lot never meant to move | The oracle is the arbiter: neutralise in CSS until it is green, or drop that substitution. **Never** `--accept` |
-| `axe-core` finds a large first violation count | P0 records a number the wave then has to burn down inside its own scope | P0 exists precisely to surface that number **before** any change. If it is large enough to change the lot's shape, that is an arbitration to bring to the operator, not a target to quietly trim |
+| `axe-core` finds a large first violation count | Phase 1 records a number the wave then has to burn down inside its own scope | Phase 1 exists precisely to surface that number **before** any change. If it is large enough to change the lot's shape, that is an arbitration to bring to the operator, not a target to quietly trim |
 | Engine-side aria labels add French to a file under a guard | `check-no-french.py` fails | **Verified on `main` before the spec was written, not assumed.** `check_strings` builds its scope from `.ts`/`.tsx` under the shell, so `legacy.js` string literals are read by no arm, and `check_unread_javascript` names the file as exempt with its reason. Separately, `check_french_debt` bounds the 25 declared debt **words** (names, not strings) to that same file. The production-app ratchet (`french-exemption-baseline.json`) reads `frontend/src` and is not concerned |
 | `inert` on the background breaks the harness's own driving | Rules that click through a layer stop working | The harness bar (`.hbtn`) sits outside the layer roots; hold counts in proof 2 catch any rule that falls |
 
@@ -245,17 +245,17 @@ Named here so that « not done » is a decision on the record rather than an ove
 
 ## 8. Phases
 
-**P0 comes first because the instrument comes before the change.** That is L01's lesson applied to
+**Phase 1 comes first because the instrument comes before the change.** That is L01's lesson applied to
 its own successor: measured before, a burn-down is a fact; measured after, it is an opinion.
 
 | # | Phase | What it delivers |
 | --- | --- | --- |
-| **P0** | The instrument, and the debt recorded | `axe-core` wired, the `--a11y` tier, CI step, and the **violation count on `main` before anything is touched**, per state and per rule |
-| **P1** | Landmarks and structure (U1) | `<main>`, region roles and labels, one `<h1>` per screen, skip link, `aria-current`, document title per route — all by substitution, oracle green |
-| **P2** | Accessible names (U2) | Every control named; component labels extracted into `fr.json` through `useTranslation()`, engine labels as French literals under the named exemption |
-| **P3** | Focus manager and keyboard paths (U3, U4) | The `data-open` observer: trigger memory, initial focus, trap via `inert`, restore on close. `Escape` through the existing `window.__closeLayers`; tab bar navigable |
-| **P4** | Live regions and states (U5) | `role="status"` on the toast, `aria-busy` on loading surfaces, announced errors |
-| **P5** | The floor bites | Hard zero enforced, mutation test, documentation, oracle green, hold counts unchanged |
+| **1** | The instrument, and the debt recorded | `axe-core` wired, the `--a11y` tier, CI step, and the **violation count on `main` before anything is touched**, per state and per rule |
+| **2** | Landmarks and structure (U1) | `<main>`, region roles and labels, one `<h1>` per screen, skip link, `aria-current`, document title per route — all by substitution, oracle green |
+| **3** | Accessible names (U2) | Every control named; component labels extracted into `fr.json` through `useTranslation()`, engine labels as French literals under the named exemption |
+| **4** | Focus manager and keyboard paths (U3, U4) | The `data-open` observer: trigger memory, initial focus, trap via `inert`, restore on close. `Escape` through the existing `window.__closeLayers`; tab bar navigable |
+| **5** | Live regions and states (U5) | `role="status"` on the toast, `aria-busy` on loading surfaces, announced errors |
+| **6** | The floor bites | Hard zero enforced, mutation test, documentation, oracle green, hold counts unchanged |
 
 ---
 

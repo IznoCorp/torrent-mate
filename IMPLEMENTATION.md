@@ -58,6 +58,24 @@ tag substitutions neutralised in CSS rather than accepted; and colour contrast i
 recorded and handed to L06 rather than enforced here. Touch-target size and B-036 are named as
 out of scope in § 6.
 
+**Phases of L03** — the plan is `docs/features/maquette-l03/plan/INDEX.md`, which owns the
+reasoning and the 18 ACCEPTANCE criteria. This table owns only the status.
+
+| # | Phase | File | Status |
+| --- | --- | --- | --- |
+| 1 | The instrument, and the debt recorded | `plan/phase-01-instrument-and-debt.md` | [ ] |
+| 2 | Landmarks and structure | `plan/phase-02-landmarks-and-structure.md` | [ ] |
+| 3 | Accessible names | `plan/phase-03-accessible-names.md` | [ ] |
+| 4 | Focus manager and keyboard paths | `plan/phase-04-focus-and-keyboard.md` | [ ] |
+| 5 | Live regions and states | `plan/phase-05-live-regions.md` | [ ] |
+| 6 | The floor bites | `plan/phase-06-the-floor-bites.md` | [ ] |
+
+**Next action**: run `/implement:phase`. Phase 1 gates every other one — it builds the
+accessibility instrument, records the debt before the wave touches it, and repairs the
+hold-count baseline, whose `taken_at_commit` (`c7714c38`) is **not an ancestor of `HEAD`**:
+the same dangling-pointer defect #473 fixed on the oracle, on the instrument that carries this
+wave's proof n° 2, and `--compare` does not check it.
+
 **What L02 settled, measured on `main` after the merge**: **0 selection calls anchored on a CSS
 class**, out of 699 in `harness/*.py` — 473 on `data-*`, 188 on an id, 33 on a bare tag, 5 on a
 role. The floor is held by ARM 2 of `scripts/check-markup-contracts.py`, which **extends** that
