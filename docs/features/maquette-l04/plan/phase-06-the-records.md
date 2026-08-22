@@ -130,3 +130,34 @@ request, and re-recorded with the oracle after the squash merge. No other rule's
 its first wording would have been satisfied by DELETING the defect row, which would lose what the
 lot existed to fix. § 7.1 asks for the measurement to be refreshed, not for the defect to be
 unwritten.
+
+## 7. What the FULL suite caught that nothing else did
+
+**The gate found a defect this wave had introduced, and it is worth more than the fix.**
+`panel.py` — R56 — **failed**, its hold count reported as 9 → 3. The rule crashed:
+`block_kind_ends()`, the reader added in phase 2 to hold the three ends of a block
+registration, read the boot file as `design/src/shell.tsx`, and **phase 4 moved the shell into
+`app/`**. A `FileNotFoundError`, three holds in, on the rule this wave had just extended.
+
+Three things it says, and none of them is « a path was wrong »:
+
+1. **`--contracts` does not cover it.** That tier is five rules; `panel.py` is not among them. It
+   ran green after phase 4 and said nothing, and it is the tier CI runs on every pull request.
+   **Only the full suite, the gate before a merge, sees this class at all.**
+2. **A rule I wrote in phase 2 broke in phase 4 by my own hand**, in the phase whose entire
+   subject is « pointers move with their files ». Phase 4's own list enumerated four of them and
+   was complete for the pointers that existed when it was written — this one had been created two
+   phases earlier, by this same wave, and was not on it.
+3. **The crash was the honest failure mode**, and that is the one thing that went right: the rule
+   died loudly rather than passing over a file it could not read. A reader that had answered
+   « no boot import found » would have reported a false violation, and one that had shrugged
+   would have gone green over nothing.
+
+**The fix names the boot file ONCE** (`BOOT_FILE`), and builds the import needle relative to that
+file rather than assuming it sits at the root — so the next move is a one-line change instead of
+a crash. Re-proved by mutation after the repoint: with the boot import removed, the hold falls and
+names `features/media/panel-seasons`; restored, twelve holds, no violation. **A repointed rule
+that was never seen red proves only that it agrees with the new tree.**
+
+`panel.py`'s count is therefore 9 → **12**, three holds added by this wave for the registration
+contract — declared, and re-recorded into the baseline after the merge.

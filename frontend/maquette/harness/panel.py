@@ -48,6 +48,15 @@ from playwright.async_api import async_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
+# The file that boots the application, relative to `design/src`. This rule
+# reads it to answer « does anything make this block's module evaluate? », and
+# that can only be answered in the file that starts everything. It is named
+# once, here: read inline, a move of the shell crashes this rule instead of
+# adjusting it — which is exactly what happened the day the shell moved into
+# `app/`, and the contract tier does not run this rule, so only the full
+# suite before the merge said so.
+BOOT_FILE = "app/shell.tsx"
+
 _journal = None
 
 
@@ -104,7 +113,7 @@ def block_kind_ends():
     """
     source_root = ROOT / "design" / "src"
     declared, registered, unimported = set(), set(), []
-    boot = (source_root / "shell.tsx").read_text(encoding="utf-8")
+    boot = (source_root / BOOT_FILE).read_text(encoding="utf-8")
     for file in sorted(source_root.rglob("*.ts")) + sorted(source_root.rglob("*.tsx")):
         text = file.read_text(encoding="utf-8")
         # A `PanelBlockMap` body, wherever it is declared or augmented. Its
@@ -115,7 +124,10 @@ def block_kind_ends():
         registered |= set(calls)
         if calls and "ui/panel" not in file.as_posix():
             stem = file.relative_to(source_root).as_posix().rsplit(".", 1)[0]
-            if f'"./{stem}"' not in boot:
+            # The boot writes its import RELATIVE TO ITSELF, so the needle is
+            # built the same way rather than assumed to start at the root.
+            up = "../" * (len(pathlib.PurePosixPath(BOOT_FILE).parts) - 1) or "./"
+            if f'"{up}{stem}"' not in boot:
                 unimported.append(stem)
     return declared, registered, unimported
 
