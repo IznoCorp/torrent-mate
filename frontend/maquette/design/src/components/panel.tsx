@@ -432,6 +432,7 @@ function FieldBlock({
           className={`fieldtoggle${v ? " active" : ""}`}
           data-part="field/toggle"
           role="switch"
+          aria-label={settingLabel(setting)}
           aria-checked={v ? "true" : "false"}
           data-field={id}
           data-to={v ? "non" : "oui"}

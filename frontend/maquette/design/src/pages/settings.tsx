@@ -82,7 +82,11 @@ function SearchField(): ReactElement {
         autoComplete="off"
       />
       {SETTINGS_STATE.q ? (
-        <button className="searchclear" data-qsettings="">
+        <button
+          className="searchclear"
+          data-qsettings=""
+          aria-label={t("screens.settings.clearLabel")}
+        >
           <Icon paths={icons.x} />
         </button>
       ) : null}
