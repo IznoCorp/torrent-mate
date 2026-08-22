@@ -696,10 +696,21 @@ but cannot certify it. Plan the wave knowing the certification happens where the
 
 **And re-record the reference after the squash merge.** The reference names the commit it
 measured; squashing replaces that commit, so on a fresh clone the pointer names nothing and
-`--check` refuses to run at all. It is one command, and it is written here rather than in the
-state section because that is where it was written when the wave that had just written it merged
-without doing it — a mandatory manual step recorded only in a file about *where things stand* is a
-step the next wave never reads.
+`--check` refuses to run at all. **It is two commands, and the first is not optional:**
+
+```
+make maquette-oracle                            # builds, copies to the served root, starts 8899
+python3 frontend/maquette/oracle.py --record    # then records against what is actually served
+```
+
+`make maquette-oracle` runs `--check`, so it FAILS on a dangling reference — that is expected, and
+it is run for its preparation: `oracle.py` reads `http://127.0.0.1:8899/wrapped.html`, and without
+that build and copy it would measure the previous build, or nothing. There is no make target for
+`--record`; `make maquette-oracle --record` passes the flag to `make`, not to the oracle.
+
+This is written here rather than in the state section because that is where it was written when
+the wave that had just written it merged without doing it — a mandatory manual step recorded only
+in a file about *where things stand* is a step the next wave never reads.
 
 **The maquette first.** Nothing about a surface is decided anywhere else. A surface is drawn
 before it is coded, with named states and a rule that bites.
