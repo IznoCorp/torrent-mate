@@ -44,11 +44,12 @@ failure mode this tool exists to catch. `--compare` treats every transition
 to or from unparseable as a movement, and lists the rules unparseable on both
 sides on every run, so the blind spot stays visible.
 
-THE COVERAGE CEILING IS STATED, NOT HIDDEN. 39 of 51 rules report a hold
-count; the other 12 print a prose verdict and are compared on their exit
-status alone. That sentence is printed on every run, recorded in the
-baseline's `what` field, and written here: it is the honest ceiling of
-ACC-08. A rule with no count is compared on EXIT STATUS — the baseline and
+THE COVERAGE CEILING IS STATED, NOT HIDDEN. Some rules report a hold count;
+the others print a prose verdict and are compared on their exit status alone.
+The two figures are COUNTED on every run, printed on the `coverage:` line and
+recorded in the baseline's `what` field — they are deliberately not repeated
+here, because a figure written where nothing recounts it is a figure that goes
+stale unread, and this one had. That line is the honest ceiling of ACC-08. A rule with no count is compared on EXIT STATUS — the baseline and
 the run both record each rule's exit code, and a no-count rule that goes from
 green to red fails the comparison like any movement.
 
@@ -59,8 +60,8 @@ only the summary says otherwise is an instrument that cannot be believed.
 
 MODES:
 
-    --record FILE    runs the suite (20-25 minutes, one headless Chrome per
-                     rule) and writes the table to FILE. Exits 1 if any rule
+    --record FILE    runs the suite (one headless Chrome per rule, several
+                     at a time) and writes the table to FILE. Exits 1 if any rule
                      failed — a baseline is only meaningful on a green suite
                      — but writes the table anyway so the failure can be
                      read.
@@ -73,7 +74,7 @@ MODES:
                      must never look like a rule passing.
     --only RULES     comma-separated rule basenames, for both modes: run only
                      those. A quick mutation proof compares a small recorded
-                     subset instead of the 25-minute suite. `--record --only`
+                     subset instead of the whole suite. `--record --only`
                      refuses unknown names; `--compare --only` accepts a name
                      that has left the disk since the baseline, so its
                      disappearance is reported instead of rejected.
@@ -92,6 +93,7 @@ The baseline recorded at commit c78c9d66 (2026-08-21) lives at
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import datetime
 import json
 import os
@@ -109,6 +111,26 @@ DESIGN = ROOT / "frontend" / "maquette" / "design"
 SERVED = Path("/tmp/tm-refonte")
 PROTOTYPE_URL = "http://127.0.0.1:8899/wrapped.html"
 RULE_TIMEOUT_SECONDS = 600
+
+
+def default_jobs():
+    """Says how many rules to run at once when nothing asked for a number.
+
+    The rules are independent processes reading a static file server, so what
+    bounds them is the machine — each one launches its own headless Chrome —
+    not correctness. `TM_HARNESS_JOBS` is the same knob `run.sh` reads, so one
+    setting governs both runners; `TM_HARNESS_JOBS=1` restores the strictly
+    serial run.
+
+    Returns:
+        The requested count, at least 1. A value that is not a positive
+        integer is ignored rather than obeyed: a typo in an environment
+        variable must not silently halve the parallelism.
+    """
+    asked = os.environ.get("TM_HARNESS_JOBS", "").strip()
+    if asked.isdigit() and int(asked) > 0:
+        return int(asked)
+    return os.cpu_count() or 4
 
 # (label, pattern, shape, group) — tried in order, first pattern with a match
 # wins. Shape "number": the count is a figure the rule printed; the LAST match
@@ -261,13 +283,14 @@ def run_rule(name):
     return {"exit": exit_code, "count": count, "pattern": pattern}
 
 
-def run_suite(only=None):
+def run_suite(only=None, jobs=None):
     """Runs the rules in run.sh's order, printing progress to stderr.
 
     Args:
         only: An optional list of basenames restricting the run; a selected
             name that has left the disk since the baseline keeps its slot
             and is reported on the progress line instead of being hidden.
+        jobs: How many rules to run at once; None asks default_jobs().
 
     Returns:
         A dict mapping each rule's basename to its run_rule() result. A
@@ -285,30 +308,41 @@ def run_suite(only=None):
     scope = (f"subset ({len(names)} of {len(available)} rule(s) — --only)"
              if only is not None
              else f"the full suite ({len(names)} rule(s))")
-    print(f"running {scope} — one headless Chrome per rule, 20-25 minutes "
-          f"expected for the full suite", file=sys.stderr)
+    jobs = max(1, min(jobs or default_jobs(), len(names) or 1))
+    print(f"running {scope} — one headless Chrome per rule, {jobs} at a time",
+          file=sys.stderr)
     results = {}
-    for index, name in enumerate(names, start=1):
-        print(f"[{index}/{len(names)}] {name}", end="",
-              file=sys.stderr, flush=True)
-        if not (HARNESS / name).is_file():
-            print(" — not on disk, skipped", file=sys.stderr, flush=True)
-            continue
-        result = run_rule(name)
-        parts = []
-        if result["count"] is None:
-            parts.append(f"unparseable (exit {result['exit']})")
-        else:
-            parts.append(f"{result['count']} hold(s) — {result['pattern']}")
-        # A failing rule must read as failing ON ITS OWN LINE — a detail
-        # line shaped like a passing one, with only the summary saying
-        # otherwise, is an instrument that cannot be believed.
-        if result["exit"] == "timeout":
-            parts.append("RULE FAILED (timed out)")
-        elif result["exit"] != 0:
-            parts.append(f"RULE FAILED (exit {result['exit']})")
-        print(f" — {' — '.join(parts)}", file=sys.stderr, flush=True)
-        results[name] = result
+    # The rules run concurrently, but the progress lines are printed in the
+    # RULE order, not the order they finished: `map` yields in submission
+    # order. A progress log whose order depends on scheduling cannot be
+    # diffed against the previous one, which is most of what it is read for.
+    # The trade is live feedback — a slow early rule holds back the lines of
+    # the rules that finished behind it.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as pool:
+        planned = [(name, pool.submit(run_rule, name)
+                    if (HARNESS / name).is_file() else None)
+                   for name in names]
+        for index, (name, future) in enumerate(planned, start=1):
+            print(f"[{index}/{len(names)}] {name}", end="",
+                  file=sys.stderr, flush=True)
+            if future is None:
+                print(" — not on disk, skipped", file=sys.stderr, flush=True)
+                continue
+            result = future.result()
+            parts = []
+            if result["count"] is None:
+                parts.append(f"unparseable (exit {result['exit']})")
+            else:
+                parts.append(f"{result['count']} hold(s) — {result['pattern']}")
+            # A failing rule must read as failing ON ITS OWN LINE — a detail
+            # line shaped like a passing one, with only the summary saying
+            # otherwise, is an instrument that cannot be believed.
+            if result["exit"] == "timeout":
+                parts.append("RULE FAILED (timed out)")
+            elif result["exit"] != 0:
+                parts.append(f"RULE FAILED (exit {result['exit']})")
+            print(f" — {' — '.join(parts)}", file=sys.stderr, flush=True)
+            results[name] = result
     return results
 
 
@@ -402,12 +436,13 @@ def _print_host_hint():
           f"copies and starts the host), then retry.", file=sys.stderr)
 
 
-def cmd_record(target, only=None):
+def cmd_record(target, only=None, jobs=None):
     """Runs the suite and writes the per-rule table to `target`.
 
     Args:
         target: The JSON file to write.
         only: An optional list of basenames restricting the run.
+        jobs: How many rules to run at once; None asks default_jobs().
 
     Returns:
         0 when the suite was green, 1 when any rule failed (the table is
@@ -426,7 +461,7 @@ def cmd_record(target, only=None):
     if not host_serves_prototype():
         _print_host_hint()
         return 2
-    results = run_suite(only)
+    results = run_suite(only, jobs=jobs)
     rules = {name: rule_entry(result) for name, result in results.items()}
     parseable = [entry for entry in rules.values()
                  if entry["count"] is not None]
@@ -482,7 +517,7 @@ def cmd_record(target, only=None):
     return 0
 
 
-def cmd_compare(baseline_path, only=None):
+def cmd_compare(baseline_path, only=None, jobs=None):
     """Runs the suite and fails on ANY movement against the baseline.
 
     Args:
@@ -490,6 +525,7 @@ def cmd_compare(baseline_path, only=None):
         only: An optional list of basenames restricting the run. Unlike
             --record, a selected name may have left the disk since the
             baseline: it is then reported MISSING, not rejected.
+        jobs: How many rules to run at once; None asks default_jobs().
 
     Returns:
         0 when the suite is green at unchanged per-rule hold counts; 1 when
@@ -536,7 +572,7 @@ def cmd_compare(baseline_path, only=None):
               "  A squash merge replaces the commit a branch-recorded baseline "
               "names, so the pointer goes dangling while every count in the "
               "file stays perfectly good.\n"
-              "  Re-record it on this tree — 20-25 min, the full suite:\n"
+              "  Re-record it on this tree, the full suite:\n"
               f"    python3 scripts/harness-hold-counts.py --record "
               f"{baseline_path}", file=sys.stderr)
         return 2
@@ -557,7 +593,7 @@ def cmd_compare(baseline_path, only=None):
         _print_host_hint()
         return 2
     print(f"baseline taken at commit {base_commit[:8]}", file=sys.stderr)
-    results = run_suite(only)
+    results = run_suite(only, jobs=jobs)
 
     changed = []          # (name, before, after) — before/after: int or None
     exit_changed = []     # (name, before_exit, after_exit) — countless rules
@@ -654,12 +690,16 @@ def main(argv=None):
                         help="comma-separated rule basenames — run and "
                              "compare only those (a quick mutation proof "
                              "compares a small recorded subset instead of "
-                             "the 25-minute suite)")
+                             "the whole suite)")
+    parser.add_argument("--jobs", metavar="N", type=int, default=None,
+                        help="how many rules to run at once (default: the "
+                             "machine's processor count, or TM_HARNESS_JOBS; "
+                             "1 runs them strictly one after another)")
     args = parser.parse_args(argv)
     only = None if args.only is None else args.only
     if args.record:
-        return cmd_record(Path(args.record), only=only)
-    return cmd_compare(Path(args.compare), only=only)
+        return cmd_record(Path(args.record), only=only, jobs=args.jobs)
+    return cmd_compare(Path(args.compare), only=only, jobs=args.jobs)
 
 
 if __name__ == "__main__":

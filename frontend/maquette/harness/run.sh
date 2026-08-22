@@ -3,22 +3,30 @@
 # Runs the maquette's rule suite — the only thing that measures the prototype as
 # it actually renders.
 #
-# WHY THIS EXISTS. The 50 rules ran nowhere automatically: not in CI, not in
+# WHY THIS EXISTS. The rules ran nowhere automatically: not in CI, not in
 # `make check`, which merely printed a reminder to rebuild before running them
 # by hand. The main proof mechanism of the prototype executed only when someone
 # thought of it — and on 2026-08-20 a rename that looked contained broke SIX
 # contracts, four of which only this suite could see. `make lint`, `make test`
 # and `make check` were all green while the pipeline's stop button was dead.
 #
-# TWO TIERS, because 50 headless-Chrome runs cost 20-25 minutes and that is not
-# a per-PR price worth paying:
+# TWO TIERS. One headless Chrome per rule is minutes even run in parallel, and
+# some rules read what only the operator's machine has — neither is a price a
+# pull request can pay on every push:
 #
 #   --contracts   the rules that break when a NAME moves — a state id, a
 #                 `data-*` value, a route, a store field. Minutes, so CI runs
-#                 this on every pull request.
-#   (no flag)     all of them. The gate before a wave is merged; slow on
-#                 purpose, and the only thing that proves a surface still
-#                 renders what it promised.
+#                 this on every pull request. Running them at once buys this
+#                 tier almost nothing — `audit2.py` is one of the five and is
+#                 nearly the whole of its cost — which is the same sentence as
+#                 the floor named below, read from the other end.
+#   (no flag)     all of them. The gate before a wave is merged, and the only
+#                 thing that proves a surface still renders what it promised.
+#                 Its floor is the SLOWEST SINGLE RULE, not the total: run one
+#                 at a time the suite measured 792 s on a four-core machine
+#                 and 224 s run four at a time, of which `audit2.py` alone is
+#                 170 s. Making the suite cheaper now means making that rule
+#                 cheaper.
 #   --oracle      a THIRD tier, and it duplicates neither: the rules say the
 #                 BEHAVIOUR still holds, the oracle says the RENDERING did not
 #                 move. `frontend/maquette/oracle.py --check`, ~25 s over 83
@@ -38,7 +46,7 @@
 # cost this project two debugging sessions.
 #
 # Usage:
-#     frontend/maquette/harness/run.sh              # all 50 rules
+#     frontend/maquette/harness/run.sh              # every rule
 #     frontend/maquette/harness/run.sh --contracts  # the name-contract subset
 #     frontend/maquette/harness/run.sh --oracle     # the recorded oracle alone
 #     frontend/maquette/harness/run.sh --a11y       # the accessibility audit alone
@@ -107,13 +115,56 @@ if ! lsof -nP -iTCP:8899 -sTCP:LISTEN >/dev/null 2>&1; then
   sleep 2
 fi
 
-echo "Running the ${label}…"
+# HOW MANY RULES AT ONCE. They are independent processes reading a STATIC file
+# server, so nothing couples them: the only two that write, write to their own
+# fixed paths (`violations.json` beside this script, `/tmp/tm-refonte/_r73`),
+# and no rule reads another's output. What couples them is the MACHINE — each
+# one launches its own Chrome — so the ceiling here is cores and memory, not
+# correctness. Run serially, the suite is dozens of browser startups laid end
+# to end: most of its cost, and none of its value.
+#
+# `TM_HARNESS_JOBS=1` restores the strictly serial run, and it is the escape
+# hatch that matters: a rule that measures a settle can read a contended CPU as
+# a slow animation. A rule that needs the machine to itself is a finding to
+# record, not a reason to run all of them alone.
+JOBS="${TM_HARNESS_JOBS:-}"
+if [ -z "$JOBS" ]; then
+  JOBS="$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)"
+fi
+
+# Each rule writes to its own log, and the FAILURES are reported after the run
+# in the rule order — never the order they happened to finish. A report whose
+# order depends on scheduling cannot be diffed against the previous one.
+LOGS="$(mktemp -d)"
+trap 'rm -rf "$LOGS"' EXIT
+
 failed=0
-# `${scripts[@]}` on an EMPTY array is an unbound variable under `set -u` with
-# the bash macOS ships, so the `--oracle` tier — which runs no rule script —
-# skips the loop by name rather than by expanding nothing.
-for s in ${scripts[@]+"${scripts[@]}"}; do
-  if ! out="$(python3 "${HERE}/${s}" 2>&1)"; then
+# The `--oracle` and `--a11y` tiers run no rule script, and an empty array is
+# both an unbound variable under `set -u` with the bash macOS ships AND empty
+# input to `xargs`, which GNU runs once and BSD runs never. They are therefore
+# skipped BY NAME rather than by expanding nothing — one condition, not two
+# mirrored ones, so the announcement cannot drift from what actually runs.
+if [ "$ORACLE_ONLY" -eq 1 ] || [ "$A11Y_ONLY" -eq 1 ]; then
+  echo "Running the ${label}…"
+else
+  echo "Running the ${label}, ${JOBS} at a time…"
+  # `-n 1` rather than `-I`: it needs no replacement string, so there is one
+  # less flag whose exact behaviour has to hold across the GNU and BSD xargs
+  # this script runs under. The rule name arrives as `$1` — `$0` is the `_`
+  # placeholder `bash -c` consumes — and the two paths through the environment.
+  printf '%s\n' "${scripts[@]}" \
+    | HARNESS_DIR="$HERE" HARNESS_LOGS="$LOGS" xargs -P "$JOBS" -n 1 bash -c '
+        rule="$1"
+        # No `else`: the `if` exits 0 whichever way the rule went, so a fallen
+        # rule does not abort `xargs` and take the rules after it with it.
+        # Absence of the `.ok` marker IS the failure, read back below.
+        if python3 "$HARNESS_DIR/$rule" > "$HARNESS_LOGS/$rule.out" 2>&1; then
+          : > "$HARNESS_LOGS/$rule.ok"
+        fi
+      ' _
+
+  for s in "${scripts[@]}"; do
+    [ -f "${LOGS}/${s}.ok" ] && continue
     echo "  FAILED: $s"
     # The holds that fell — and if the filter matches nothing, the TAIL, because
     # not every rule speaks the same way. `audit2.py` uses no `common.Journal`:
@@ -121,12 +172,13 @@ for s in ${scripts[@]+"${scripts[@]}"}; do
     # filter below returned zero lines for it and the log read « FAILED:
     # audit2.py » and stopped — verbatim the defect this block was added to fix.
     # A filter that can return nothing must have a floor.
+    out="$(cat "${LOGS}/${s}.out")"
     hits="$(echo "$out" | grep -E "FAIL|Error|Traceback|error:|violation|■" | head -12)"
     [ -z "$hits" ] && hits="$(echo "$out" | tail -12)"
     echo "$hits" | sed 's/^/      /'
     failed=$((failed + 1))
-  fi
-done
+  done
+fi
 
 if [ "$failed" -gt 0 ]; then
   echo "harness: $failed of ${#scripts[@]} rule(s) FAILED — run the script alone to see which hold fell." >&2
