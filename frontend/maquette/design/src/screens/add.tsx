@@ -39,7 +39,7 @@ import { useTranslation } from "react-i18next";
 // its binding is live before either module's body runs, and this module has
 // no top-level side effect that could observe shell.tsx mid-evaluation.
 import { Icon } from "../components/icon";
-import { go } from "../shell";
+import { go } from "../lib/navigate";
 import {
   writeUiState,
   useStoreContent,

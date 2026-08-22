@@ -52,6 +52,7 @@ import { PageHost } from "./pages/host";
 import { createStore, type Store } from "./store";
 import { installFocusManager } from "./focus";
 import { installSeams } from "./seams";
+import { go, installNavigation } from "./lib/navigate";
 
 // R69's addressable state, validated — absent means "unchanged", as before.
 type SearchParams = {
@@ -461,26 +462,13 @@ history.subscribe(({ action, location }) => {
   if (remembered) restoreScroll(remembered, restoreToken);
 });
 
-// The ONLY programmatic navigator in `src/`: R76 forbids a bare
-// `router.navigate()` anywhere else, because the library batches its
-// commits into a microtask — two writes issued in the same task would merge
-// into a single history entry, and the legacy unwinding logic COUNTS
-// entries. The immediate `flush()` is what keeps native `pushState`
-// semantics (one call, one entry) across the boundary.
-export function go(target: {
-  to: string;
-  params?: Record<string, string>;
-  search?: Record<string, unknown>;
-  replace?: boolean;
-}): void {
-  void router.navigate({
-    to: target.to,
-    params: target.params,
-    search: target.search,
-    replace: target.replace ?? false,
-  });
-  history.flush();
-}
+// `go()` — the ONLY programmatic navigator in `src/` — lives in
+// `lib/navigate.ts`. It is handed the router and the history here, once,
+// before anything can navigate: a verb that knows only a path and its
+// parameters belongs with the domain-free helpers, and while it lived in this
+// file a screen component importing it pointed back at the module that renders
+// that very screen.
+installNavigation(router, history);
 // What a migrated legacy call site invokes instead of its old `openX(...)`.
 // NFC-normalised here, once, on write — `ProfileScreen` normalises again on
 // read so an entry arriving by direct URL (not through this bridge) is

@@ -45,12 +45,28 @@ export type Screens = {
   add: (q?: string, mode?: string) => void;
 };
 
-// The single panel, as a producer asks for it.
+// The single panel, as a producer asks for it. `isOpen()` answers from the
+// STORE, never from the DOM: a legacy caller asks mid-task ("is a layer up
+// before I open a screen?") and the store is already right at that instant,
+// whatever React has committed. `pop` mirrors the legacy `closeSheet(pop)` —
+// truthy means the history entry is ALREADY being popped, so the layer must
+// not unwind one of its own.
 export type Panel = {
   open: (descriptor: PanelDescriptor) => void;
   close: (pop?: boolean) => void;
   isOpen: () => boolean;
 };
+
+// The published half of the same seam. It is declared HERE, beside the type it
+// publishes, and not in the module that holds the domain hooks: declaring it
+// there made that module import the panel component for one type, while the
+// panel component imported it back for its own — a cycle whose two halves were
+// a duplicate of THIS declaration.
+declare global {
+  interface Window {
+    __panel: Panel;
+  }
+}
 
 // Read by the engine at CALL time, never at import time.
 //

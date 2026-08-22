@@ -13,7 +13,8 @@ matters most: two navigations decided in the same synchronous handler.
 What this holds to:
 
 1. `navigate(` appears in `design/src/` exactly TWICE, comments blanked: once
-   inside `go()`'s own body — the product's single door — and once in the
+   inside `go()`'s own body in `lib/navigate.ts` — the product's single
+   door — and once in the
    engine's `window.__go`, which is not a journey but the harness's state
    driver resetting the router before it applies a named state. Both are
    named and bounded; a third would fail. A source-level count, the same
@@ -108,9 +109,20 @@ def without_line_comments(source):
     return "\n".join(lines)
 
 
+# The file `go()` lives in. It is carried as a NAME because this rule reads
+# `go()`'s own body to tell the single door from a second one, and a body can
+# only be found in the file that holds it. `go()` left the shell when a screen
+# component importing it made the shell and that screen point at each other;
+# the verb knows only a path and its parameters, so it lives with the
+# domain-free helpers. A rule left naming the old file would have gone on
+# counting the one legitimate call as a violation — which is exactly how it
+# failed, once, and that failure is what proved it reads what it names.
+GO_HOME = "navigate.ts"
+
+
 def count_navigate_outside_go(design_src):
     """Counts `navigate(` calls under `design/src/`, and how many sit
-    outside `go()`'s own body in `shell.tsx`.
+    outside `go()`'s own body in `lib/navigate.ts`.
 
     Args:
         design_src: The `design/src/` directory.
@@ -145,7 +157,7 @@ def count_navigate_outside_go(design_src):
             # would be a real door, and would fail here.
             engine_calls.extend(positions)
             continue
-        if file.name != "shell.tsx":
+        if file.name != GO_HOME:
             outside_go += len(positions)
             continue
         start, end = go_body_bounds(cleaned)

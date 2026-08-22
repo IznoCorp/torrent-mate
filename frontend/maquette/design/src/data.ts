@@ -3,7 +3,6 @@
 // Their IMPLEMENTATION is what the backend-binding mission will replace;
 // components must never reach around them to the store or the engine.
 import { useSyncExternalStore } from "react";
-import type { PanelDescriptor } from "./components/panel";
 import type { StoreContent, UiState } from "./store";
 
 function subscribe(callback: () => void): () => void {
@@ -569,23 +568,9 @@ export type Reference = {
 // `{ [key: string]: unknown }` shape (see store.ts) — a reader casts at the
 // point of use, exactly as `add.tsx` already does for `resolveTarget`.
 
-// The shell's bottom-panel API — what a legacy producer calls instead of the
-// dead `openSheet(html)`. `isOpen()` answers from the STORE, never from the
-// DOM: a legacy caller asks mid-task ("is a layer up before I open a screen?")
-// and the store is already right at that instant, whatever React has committed.
-// The three member names are the seam the fragment calls by.
-export type Panel = {
-  open: (descripteur: PanelDescriptor) => void;
-  // `pop` mirrors the legacy `closeSheet(pop)`: truthy means the history entry
-  // is ALREADY being popped, so the layer must not unwind one of its own.
-  close: (pop?: boolean) => void;
-  isOpen: () => boolean;
-};
-
 declare global {
   interface Window {
     __referentiel: Reference;
-    __panel: Panel;
     // The engine's own multi-layer closer, published by refonte.html: the
     // scrim covers the drawer, the dialog and the sheet alike, and a tap on it
     // closes whichever is up. Optional for the same reason
