@@ -44,11 +44,12 @@ failure mode this tool exists to catch. `--compare` treats every transition
 to or from unparseable as a movement, and lists the rules unparseable on both
 sides on every run, so the blind spot stays visible.
 
-THE COVERAGE CEILING IS STATED, NOT HIDDEN. 39 of 51 rules report a hold
-count; the other 12 print a prose verdict and are compared on their exit
-status alone. That sentence is printed on every run, recorded in the
-baseline's `what` field, and written here: it is the honest ceiling of
-ACC-08. A rule with no count is compared on EXIT STATUS — the baseline and
+THE COVERAGE CEILING IS STATED, NOT HIDDEN. Some rules report a hold count;
+the others print a prose verdict and are compared on their exit status alone.
+The two figures are COUNTED on every run, printed on the `coverage:` line and
+recorded in the baseline's `what` field — they are deliberately not repeated
+here, because a figure written where nothing recounts it is a figure that goes
+stale unread, and this one had. That line is the honest ceiling of ACC-08. A rule with no count is compared on EXIT STATUS — the baseline and
 the run both record each rule's exit code, and a no-count rule that goes from
 green to red fails the comparison like any movement.
 
@@ -59,8 +60,8 @@ only the summary says otherwise is an instrument that cannot be believed.
 
 MODES:
 
-    --record FILE    runs the suite (20-25 minutes, one headless Chrome per
-                     rule) and writes the table to FILE. Exits 1 if any rule
+    --record FILE    runs the suite (one headless Chrome per rule, several
+                     at a time) and writes the table to FILE. Exits 1 if any rule
                      failed — a baseline is only meaningful on a green suite
                      — but writes the table anyway so the failure can be
                      read.
@@ -73,7 +74,7 @@ MODES:
                      must never look like a rule passing.
     --only RULES     comma-separated rule basenames, for both modes: run only
                      those. A quick mutation proof compares a small recorded
-                     subset instead of the 25-minute suite. `--record --only`
+                     subset instead of the whole suite. `--record --only`
                      refuses unknown names; `--compare --only` accepts a name
                      that has left the disk since the baseline, so its
                      disappearance is reported instead of rejected.
@@ -441,6 +442,7 @@ def cmd_record(target, only=None, jobs=None):
     Args:
         target: The JSON file to write.
         only: An optional list of basenames restricting the run.
+        jobs: How many rules to run at once; None asks default_jobs().
 
     Returns:
         0 when the suite was green, 1 when any rule failed (the table is
@@ -523,6 +525,7 @@ def cmd_compare(baseline_path, only=None, jobs=None):
         only: An optional list of basenames restricting the run. Unlike
             --record, a selected name may have left the disk since the
             baseline: it is then reported MISSING, not rejected.
+        jobs: How many rules to run at once; None asks default_jobs().
 
     Returns:
         0 when the suite is green at unchanged per-rule hold counts; 1 when
@@ -569,7 +572,7 @@ def cmd_compare(baseline_path, only=None, jobs=None):
               "  A squash merge replaces the commit a branch-recorded baseline "
               "names, so the pointer goes dangling while every count in the "
               "file stays perfectly good.\n"
-              "  Re-record it on this tree — 20-25 min, the full suite:\n"
+              "  Re-record it on this tree, the full suite:\n"
               f"    python3 scripts/harness-hold-counts.py --record "
               f"{baseline_path}", file=sys.stderr)
         return 2

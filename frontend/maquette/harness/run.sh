@@ -3,22 +3,27 @@
 # Runs the maquette's rule suite — the only thing that measures the prototype as
 # it actually renders.
 #
-# WHY THIS EXISTS. The 50 rules ran nowhere automatically: not in CI, not in
+# WHY THIS EXISTS. The rules ran nowhere automatically: not in CI, not in
 # `make check`, which merely printed a reminder to rebuild before running them
 # by hand. The main proof mechanism of the prototype executed only when someone
 # thought of it — and on 2026-08-20 a rename that looked contained broke SIX
 # contracts, four of which only this suite could see. `make lint`, `make test`
 # and `make check` were all green while the pipeline's stop button was dead.
 #
-# TWO TIERS, because 50 headless-Chrome runs cost 20-25 minutes and that is not
-# a per-PR price worth paying:
+# TWO TIERS. One headless Chrome per rule is minutes even run in parallel, and
+# some rules read what only the operator's machine has — neither is a price a
+# pull request can pay on every push:
 #
 #   --contracts   the rules that break when a NAME moves — a state id, a
 #                 `data-*` value, a route, a store field. Minutes, so CI runs
 #                 this on every pull request.
-#   (no flag)     all of them. The gate before a wave is merged; slow on
-#                 purpose, and the only thing that proves a surface still
-#                 renders what it promised.
+#   (no flag)     all of them. The gate before a wave is merged, and the only
+#                 thing that proves a surface still renders what it promised.
+#                 Its floor is the SLOWEST SINGLE RULE, not the total: run one
+#                 at a time the suite measured 794 s on a four-core machine
+#                 and 224 s run four at a time, of which `audit2.py` alone is
+#                 169 s. Making the suite cheaper now means making that rule
+#                 cheaper.
 #   --oracle      a THIRD tier, and it duplicates neither: the rules say the
 #                 BEHAVIOUR still holds, the oracle says the RENDERING did not
 #                 move. `frontend/maquette/oracle.py --check`, ~25 s over 83
@@ -38,7 +43,7 @@
 # cost this project two debugging sessions.
 #
 # Usage:
-#     frontend/maquette/harness/run.sh              # all 50 rules
+#     frontend/maquette/harness/run.sh              # every rule
 #     frontend/maquette/harness/run.sh --contracts  # the name-contract subset
 #     frontend/maquette/harness/run.sh --oracle     # the recorded oracle alone
 #     frontend/maquette/harness/run.sh --a11y       # the accessibility audit alone

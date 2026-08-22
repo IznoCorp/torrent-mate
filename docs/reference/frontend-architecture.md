@@ -341,7 +341,7 @@ list.
 **What it does not do.** It is not a functional test — the rule suite is, and it now runs by
 itself: `frontend/maquette/harness/run.sh` builds the prototype, copies it where the harness
 reads it, and runs the rules in two tiers — `--contracts` (minutes, on every pull request) and
-the full suite (20-25 minutes, the gate before a wave merges). The oracle is a **third** tier and
+the full suite (the gate before a wave merges). The oracle is a **third** tier and
 does not duplicate either: rules say the behaviour still holds, the oracle says the rendering did
 not move. It is not a screenshot (D8).
 

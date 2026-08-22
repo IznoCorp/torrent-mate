@@ -155,7 +155,7 @@ check-frontend:
 	cd frontend && npm run build
 
 harness:
-	@echo "Running the maquette rule suite (50 rules, 20-25 min) — the wave gate..."
+	@echo "Running the maquette rule suite — the wave gate; one headless Chrome per rule, as many at a time as this machine has processors..."
 	frontend/maquette/harness/run.sh
 
 harness-contracts:

@@ -833,7 +833,8 @@ the two apart.
 **Run it with `harness/run.sh`, never by hand.** The script builds the prototype and refreshes
 the copy the rules read before measuring anything — that copy is manual, and a stale one measures
 the previous build without saying so. Two tiers: `--contracts` (5 rules, minutes, wired into CI
-on every maquette PR) and no flag (all 50, 20-25 minutes, the gate before a wave merges).
+on every maquette PR) and no flag (all of them, the gate before a wave merges — one headless
+Chrome per rule, as many at a time as the machine has processors).
 
 Until 2026-08-20 the suite ran NOWHERE automatically — not in CI, not in `make check`, which only
 printed a reminder. That day a rename broke six contracts and four were visible to nothing else.
