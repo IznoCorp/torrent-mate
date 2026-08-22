@@ -65,6 +65,12 @@ Update `IMPLEMENTATION.md` § « Where the frontend work stands »: L03 moves fr
 *Last landed*, with its PR number, its version and its measured end state. Mark the lot `LANDED`
 in `docs/reference/frontend-architecture.md`.
 
+**A wave that ADDS a rule cannot report « no change », and saying otherwise would be the kind of
+green this repository exists to distrust.** `--compare` exits 1 the moment a rule appears, which
+is right — a rule appearing IS a change to the suite. The criterion is therefore the report's
+CONTENT: one appearance, named, and no count moved on anything the baseline already held. The
+baseline is re-recorded at the close, which is when `focus.py` joins it.
+
 **And the step that a wave has now forgotten twice**: after the squash merge, re-record the
 oracle reference (`make maquette-oracle`, then `python3 frontend/maquette/oracle.py --record`,
 commit) *and* re-record the hold-count baseline. The squash replaces the commit both files name,
@@ -95,7 +101,7 @@ inapplicable axe rule and a passing one look identical from outside.
 | ID | Command | Expected |
 | --- | --- | --- |
 | ACC-13 | `frontend/maquette/harness/run.sh --a11y` | 0 violations over 83 states, `color-contrast` excepted |
-| ACC-14 | `python3 scripts/harness-hold-counts.py --compare frontend/maquette/hold-counts-baseline.json` | no changed count |
+| ACC-14 | `python3 scripts/harness-hold-counts.py --compare frontend/maquette/hold-counts-baseline.json` | exactly one difference — `focus.py` APPEARED — and no changed count on any rule the baseline held |
 | ACC-15 | `python3 frontend/maquette/oracle.py --check` | 0 divergence |
 | ACC-16 | the mutation record in 6.2's commit body | both holds seen RED, each naming the right defect, both restored |
 | ACC-17 | `make check` | exit 0 |

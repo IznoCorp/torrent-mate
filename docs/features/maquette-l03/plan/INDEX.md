@@ -53,7 +53,7 @@ merge.
 | ACC-11 | 4 | `Escape` closes the top layer in every layered state; the rule reports 0 failures |
 | ACC-12 | 5 | `python3 frontend/maquette/a11y.py --check --rules aria-valid-attr-value,aria-required-attr,region` reports 0 violations |
 | ACC-13 | 6 | `frontend/maquette/harness/run.sh --a11y` reports **0 violations** over 83 states, `color-contrast` excepted |
-| ACC-14 | 6 | `python3 scripts/harness-hold-counts.py --compare frontend/maquette/hold-counts-baseline.json` reports no changed count |
+| ACC-14 | 6 | `python3 scripts/harness-hold-counts.py --compare frontend/maquette/hold-counts-baseline.json` reports **exactly one difference: `focus.py` APPEARED** — the wave's own new rule — and no changed count on any rule the baseline already held. `--compare` exits 1 on an appearance, which is correct behaviour and not a pass: the criterion is the CONTENT of the report, read, not its exit code |
 | ACC-15 | 6 | `python3 frontend/maquette/oracle.py --check` reports 0 divergence |
 | ACC-16 | 6 | The mutation record shows the a11y rule and the focus rule each seen RED on a deliberate break, each naming the right defect, then restored |
 | ACC-17 | 6 | `make check` exits 0 |
