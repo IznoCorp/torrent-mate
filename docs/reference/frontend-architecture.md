@@ -1,7 +1,8 @@
 # Frontend architecture — the target the maquette is built towards
 
 **This file says what the maquette must BECOME, and in what order. It never says where the work
-stands** — that is `IMPLEMENTATION.md` § THE OBJECTIVE, and it is the only file that says it.
+stands** — that is `IMPLEMENTATION.md` § « Where the frontend work stands », and it is the only
+file that says it.
 
 The maquette is the next version of the frontend and it REPLACES the shipped one: on switchover
 day `frontend/src` is archived and `frontend/maquette/` takes its place (`product-intent.md`
@@ -13,7 +14,9 @@ is the plan for it.
 
 ## 0. Picking up work — read this first
 
-1. Read `IMPLEMENTATION.md` § THE OBJECTIVE. It carries the measured inventory and the state.
+1. Read `IMPLEMENTATION.md` § « Where the frontend work stands » — which lot landed, which is
+   next. Its § THE OBJECTIVE carries the measured inventory, not the state; the two are different
+   sections and this file used to name only the second.
 2. Come back here and find **the first lot whose status is not `LANDED` and whose dependencies
    are all `LANDED`**. That is the work. There is no other selection rule, and lots are not
    reordered for convenience.
@@ -100,7 +103,7 @@ that lands D1, with the reason written down — never left to contradict this.
 **typed component variants** (`class-variance-authority`), not as hand-written CSS class names:
 `<Card variant="compact" tone="warning">`, not `class="card card--compact"`.
 
-**Replaces.** The 4 043-line hand-written semantic stylesheet of `refonte.html`.
+**Replaces.** The 4 052-line hand-written semantic stylesheet of `refonte.html`.
 <sub>`awk 'NR>=188' frontend/maquette/design/refonte.html | wc -l`</sub>
 
 **Why.** Three reasons, in order of weight. Tailwind **enforces a scale by construction**, which
@@ -117,7 +120,9 @@ a style class fails when the STYLE changes, which is the opposite of what a rule
 coupling is the thing to remove (L02), and it is worth removing whether or not Tailwind lands.
 
 **What it costs, and it is accepted.** Roughly eight times the surface of the scale work alone.
-280 harness selection calls to re-anchor. A handful of selectors Tailwind cannot express
+The re-anchoring this depended on is **paid**: L02 took the class-anchored selections to a hard
+zero, so what Tailwind still costs from here is the conversion alone. A handful of selectors it
+cannot express
 (`:has()`, deep descendant combinators) stay in the base layer. Visual diffs become noisier —
 they move from CSS rules into JSX.
 
@@ -147,9 +152,13 @@ a file that no longer holds its subject.
 **Decision.** A harness rule selects on `data-*` attributes and on structural ids. Never on a CSS
 class.
 
-**Measured today**: 684 selection calls in `harness/*.py` — 280 anchored on a CSS class (40 %),
-276 on an id, 92 on `data-*`, 32 on a bare tag, 4 on a role.
+**Measured after L02**: 699 selection calls in `harness/*.py` — **0 anchored on a CSS class**,
+473 on `data-*`, 188 on an id, 33 on a bare tag, 5 on a role.
 <sub>method: extract the string argument of every `querySelector|querySelectorAll|locator|matches` call in `harness/*.py` and classify it</sub>
+
+<sub>Before L02 the same command read 684 calls, 281 of them on a class — that figure is what the
+lot existed to burn down, and it is kept here as the measure of what moved, never as a
+description of the tree.</sub>
 
 **Why not accessible roles**, which would be the modern default: the markup cannot carry them
 yet — 13 `role=`, 1 `<nav>`, **0 `<main>`, 0 `tabindex`** across the maquette. Roles become a
@@ -165,12 +174,12 @@ file reveals.
 cross-cutting parts are lifted once and early; the rest dies with each surface as that surface is
 converted and wired.
 
-**Why, and this is a measurement rather than a preference.** `legacy.js` is 34 627 lines, of
+**Why, and this is a measurement rather than a preference.** `legacy.js` is 34 650 lines, of
 which **27 678 (79 %) are fixtures** — `SHEETS_RAW` alone is 20 538 lines of episode catalogue.
 The engine's actual code is about **6 949 lines**.
 <sub>method: bracket-match every `const X = [` / `const X = {` declaration and sum the spans over 100 lines</sub>
 Most of that fixture stops existing when real data arrives. Killing the engine before the data
-layer means facing 34 627 lines; killing it as surfaces convert means facing seven thousand,
+layer means facing 34 650 lines; killing it as surfaces convert means facing seven thousand,
 in pieces, each with the oracle green.
 
 **What is cross-cutting and does NOT strangle surface by surface**: navigation (`__go` and the
@@ -355,7 +364,7 @@ on L08**, so plan the two together rather than against each other. And once L12 
 transitions, a transition in flight moves the very rectangles this measures: the oracle reads
 **at rest**, which its settle signal must guarantee rather than assume.
 
-#### L02 — Test anchors move to `data-*` · `NOT STARTED` · *depends on L01*
+#### L02 — Test anchors move to `data-*` · `LANDED` · *depends on L01*
 
 **Objective.** No rule selects on a style class. 280 calls move onto `data-*` contracts.
 
@@ -451,9 +460,9 @@ never to a shared module. `data.ts` is not slimmed, it stops existing.
 **What this lot does NOT touch.** Bundle splitting belongs to L12: it changes loading behaviour,
 and nothing here may change anything observable.
 
-**And one known defect deliberately left alone**: the harness is **51 `.py` files flat, with no
-subdirectory** (50 rules plus `common.py`, the shared plumbing), so nothing says which rule covers
-which surface without reading it. It is the same disease one level up.
+**And one known defect deliberately left alone**: the harness is **52 `.py` files flat, with no
+subdirectory** (the rules plus `common.py`, the shared plumbing), so nothing says which rule
+covers which surface without reading it. It is the same disease one level up.
 <sub>`ls frontend/maquette/harness/*.py | wc -l`</sub>
 Moving them means changing as many paths cited across documents and briefs
 — a real cost for a gain in comfort. It is recorded here so it is known, and it is not scheduled;
@@ -679,6 +688,19 @@ failure and **no error** (an error means collection crashed and everything after
 accepted with reasons. The suite runs itself now; it used to run only when someone remembered,
 and on the day it did not, six contracts broke under three green gates.
 
+**The oracle is a LOCAL gate, and that changes who can close a wave.** Its measurements are bound
+to the machine that took them — the same unmodified tree reads differently on a Linux runner — so
+`--check` refuses to compare across a mismatch and the oracle is never wired into CI. An agent
+working anywhere but that machine can establish that a wave *claims* the rendering held, and how,
+but cannot certify it. Plan the wave knowing the certification happens where the oracle runs.
+
+**And re-record the reference after the squash merge.** The reference names the commit it
+measured; squashing replaces that commit, so on a fresh clone the pointer names nothing and
+`--check` refuses to run at all. It is one command, and it is written here rather than in the
+state section because that is where it was written when the wave that had just written it merged
+without doing it — a mandatory manual step recorded only in a file about *where things stand* is a
+step the next wave never reads.
+
 **The maquette first.** Nothing about a surface is decided anywhere else. A surface is drawn
 before it is coded, with named states and a rule that bites.
 
@@ -748,7 +770,9 @@ today; L06 must keep that true as the token source moves.
 
 ---
 
-## 7. Amending this file
+## 7. Amending this file, and who watches it
+
+### 7.1 Amending
 
 **A plan that runs for months will outlive some of its own decisions.** That is not a failure of
 the plan; executing a decision that has lost its subject is.
@@ -771,3 +795,20 @@ files do not exist, or a cross-reference pointing at a dead path — is wanted a
 yet. It is built once this plan has proved its shape, and not before: a guard written against a
 structure still moving guards the wrong thing. This paragraph is its record, so that "we meant to"
 does not become "we forgot".
+
+### 7.2 Someone audits this file against the work — and it is not you
+
+**A standing audit checks each landed lot against this plan. It is held by a steward, and the
+steward is never the agent who implemented the lot.** That separation is the point: an
+implementer auditing their own lot compares their intention with their work, and those two always
+agree.
+
+**So nothing in that office is yours.** Do not audit your own wave, do not fold an audit into it,
+and do not read the steward's licence to contest this plan as yours — mid-wave, a lot that has
+lost its subject is reported and stopped (§ 7.1), not re-argued. What you owe your wave is § 0 and
+your lot's **Done when**.
+
+The office is written down in `docs/reference/frontend-steward.md`, which is addressed to the
+steward and to the operator who instantiates one. It is deliberately not in this file: everything
+here is binding on the agent doing the work, and a procedure meant for someone else, sitting in
+that same reading, becomes an instruction nobody asked for.
