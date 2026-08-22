@@ -159,9 +159,11 @@ class.
 lot existed to burn down, and it is kept here as the measure of what moved, never as a
 description of the tree.</sub>
 
-**Why not accessible roles**, which would be the modern default: the markup cannot carry them
-yet — 13 `role=`, 2 `<nav>`, **0 `<main>`, 0 `tabindex`** across the maquette. Roles become a
-legitimate anchor once L03 lands; they are not a prerequisite for anything.
+**Why not accessible roles** — the reason held when this was written and no longer does. The
+markup could not carry them: 13 `role=`, 2 `<nav>`, **0 `<main>`, 0 `tabindex`**. L03 has landed,
+so roles and landmarks ARE a legitimate anchor now. The 699 existing selections are not
+re-anchored onto them — `data-*` is not worse, and churn with no defect to point at is churn — but
+a NEW rule may select a role where that reads better than a `data-*` invented for it.
 
 **A `data-*` contract has three ends** — the markup that emits it, the `dataset.x` that reads it,
 and the rule that taps it. They move in ONE step, or the interface half-works in a way no single
@@ -383,7 +385,7 @@ suite is green at unchanged hold counts.
 
 ### Phase 1 — The contracts of markup and structure
 
-#### L03 — Accessibility · `NOT STARTED` · *depends on L01*
+#### L03 — Accessibility · `LANDED` · *depended on L01*
 
 **Objective.** Landmarks, roles, accessible names, focus order, focus visibility, keyboard paths,
 and focus management on every layer opening and closing.
@@ -392,6 +394,23 @@ and focus management on every layer opening and closing.
 layer traps and restores focus; the whole application is reachable by keyboard; an automated
 audit runs in the gate; and the oracle is green — the non-visual part of this lot must move
 nothing.
+
+**Landed** — branch `feat/maquette-l03`, design and plan in `docs/archive/features/maquette-l03/`.
+`axe-core` over the 83 named states went from **744 violations over 7 rules to 0**, with the
+oracle at **0 divergence over 2 739 measurements**: the non-visual part moved nothing, measured
+rather than asserted. The gate is `frontend/maquette/harness/run.sh --a11y` — a fourth tier, in
+the full suite and in CI on every maquette pull request — and its floor is a hard zero, no
+threshold and no tolerated list.
+
+**What an audit cannot see is held by R81** (`harness/focus.py`, 15 holds): focus entering a layer
+and returning to the control that opened it, `Escape`, the skip link landing FOCUS and not merely
+scroll, `aria-busy`, and every error surface announcing. An audit reads the markup of one moment;
+these are sequences, and the two instruments do not overlap.
+
+**Two rules are asked only where they can be answered**, and it is a condition rather than a list
+of excepted states: `landmark-one-main` and `page-has-heading-one` describe the document AT REST,
+and with a modal layer open the background is deliberately `inert`, therefore out of the
+accessibility tree. The split is printed on every run — 65 states asked, 18 could not.
 
 #### L04 — Boundaries and the tree · `NOT STARTED` · *depends on L01* · **runs alone**
 
@@ -514,9 +533,25 @@ runtime token with no fallback resolves to nothing until the script has run, whi
 flash. The engine dies in L13, so these need a home before then: either the shell publishes them,
 or they stop being runtime values. Deciding it here is cheap; discovering it in L13 is not.
 
+**L03 HANDS THIS LOT A MEASUREMENT, and it is a number rather than a worry.** Colour contrast is
+an accessibility criterion that lands on the palette, so L03 measured it, recorded it and
+deliberately did not enforce it (D-L03-4): `frontend/maquette/a11y-contrast.json` holds
+**42 `color-contrast` findings over 18 of the 83 named states, on 10 distinct elements.** They are
+concentrated rather than scattered — 27 of the 42 are the count badge `.c` inside the category and
+filter chips (`button[data-cat="…"]`, `button[data-pill="…"]`), the rest the danger button's tone
+and the bold lead of the two error surfaces. **Folding the scale is the moment those are fixed**,
+because a contrast repair is a palette decision and the palette is this lot's subject.
+<sub>`python3 frontend/maquette/a11y.py --record` refreshes that file; it is a live handover, not
+a frozen record.</sub>
+
+**And one thing L03 measured that this lot does NOT inherit**: touch-target size (WCAG 2.5.8) was
+expected to be a debt and is not. `target-size` runs, is applicable — 49 nodes evaluated in a
+single state, none of them skipped — and reports **0 violations over the 83 states**.
+
 **Done when.** The scale is declared in one place; no declaration sits outside it; a check refuses
-the next one; the `--tm-*` family has a decided home and its fallbacks still hold; the oracle
-records the intended visual changes as accepted, each reviewed.
+the next one; the `--tm-*` family has a decided home and its fallbacks still hold; the 42 contrast
+findings are gone and `a11y.py`'s contrast run is empty; the oracle records the intended visual
+changes as accepted, each reviewed.
 
 #### L07 — Tailwind and CVA, surface by surface · `NOT STARTED` · *depends on L02, L04, L06*
 

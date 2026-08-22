@@ -254,7 +254,16 @@ def report(payload: dict, what: str) -> str:
 
 
 async def record() -> int:
-    """Writes the two debt files — the wave's starting line.
+    """Writes the debt record, once, and refreshes the contrast handover.
+
+    `a11y-debt.json` IS A STARTING LINE AND NOT A SNAPSHOT, so this refuses to
+    overwrite one that exists. The distinction is not pedantry: run on a tree
+    where the wave has done its work, `--record` writes zeros over the only
+    record of what the wave found — measured, by walking into it — and the
+    figure a future reader needs is gone with no trace that it ever existed.
+
+    `a11y-contrast.json` is the opposite kind of file: a live handover to L06,
+    refreshed every time, because what matters there is what is owed NOW.
 
     Returns:
         A process exit code.
@@ -263,14 +272,19 @@ async def record() -> int:
     enforced = {s: split_contrast(f)[0] for s, f in per_state.items()}
     contrast = {s: split_contrast(f)[1] for s, f in per_state.items()}
 
-    DEBT_FILE.write_text(report(
-        enforced,
-        "The accessibility debt of the maquette as L03 found it — one entry per "
-        "named state, listing every axe-core violation and the elements it "
-        "names. THIS IS A RECORD, NEVER A TOLERANCE: `--check` compares against "
-        "zero, not against this file. `color-contrast` is not here; it is in "
-        "a11y-contrast.json, handed to L06 by decision D-L03-4."),
-        encoding="utf-8")
+    if DEBT_FILE.exists():
+        print(f"{DEBT_FILE.name} exists and is LEFT ALONE — it is a starting "
+              "line, not a snapshot. Delete it deliberately if a new wave is "
+              "opening its own record.")
+    else:
+        DEBT_FILE.write_text(report(
+            enforced,
+            "The accessibility debt of the maquette as L03 found it — one entry "
+            "per named state, listing every axe-core violation and the elements "
+            "it names. THIS IS A RECORD, NEVER A TOLERANCE: `--check` compares "
+            "against zero, not against this file. `color-contrast` is not here; "
+            "it is in a11y-contrast.json, handed to L06 by D-L03-4."),
+            encoding="utf-8")
     CONTRAST_FILE.write_text(report(
         contrast,
         "The `color-contrast` findings, measured and deliberately NOT enforced "
@@ -279,10 +293,10 @@ async def record() -> int:
         "problem »."),
         encoding="utf-8")
 
-    print(f"recorded {len(states)} states in {seconds:.1f}s")
+    print(f"measured {len(states)} states in {seconds:.1f}s")
     print(f"  {len(states) - len(modal)} state(s) asked the document rules "
           f"{DOCUMENT_RULES}; {len(modal)} had a modal layer open and could not")
-    print(f"  {DEBT_FILE.name}: {sum(tally(enforced).values())} violation(s), "
+    print(f"  measured now: {sum(tally(enforced).values())} violation(s) over "
           f"{len(tally(enforced))} rule(s)")
     print(f"  {CONTRAST_FILE.name}: "
           f"{sum(tally(contrast).values())} contrast finding(s)")

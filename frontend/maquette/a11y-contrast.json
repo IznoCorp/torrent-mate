@@ -1,6 +1,6 @@
 {
   "$comment": "The `color-contrast` findings, measured and deliberately NOT enforced by L03's gate: they target the palette, which is L06's subject. Recorded rather than skipped, because « not measured » reads as « no problem ».",
-  "takenAtCommit": "129ea8a7c9fbf3dd9c3edcbb7924deb27be29188",
+  "takenAtCommit": "cf4f882bb8a1866c66ee56327084d97992917e78",
   "platform": "Darwin/arm64",
   "counts": {
     "states": 83,
