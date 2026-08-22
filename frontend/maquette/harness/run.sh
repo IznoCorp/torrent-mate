@@ -16,7 +16,10 @@
 #
 #   --contracts   the rules that break when a NAME moves — a state id, a
 #                 `data-*` value, a route, a store field. Minutes, so CI runs
-#                 this on every pull request.
+#                 this on every pull request. Running them at once buys this
+#                 tier almost nothing — `audit2.py` is one of the five and is
+#                 nearly the whole of its cost — which is the same sentence as
+#                 the floor named below, read from the other end.
 #   (no flag)     all of them. The gate before a wave is merged, and the only
 #                 thing that proves a surface still renders what it promised.
 #                 Its floor is the SLOWEST SINGLE RULE, not the total: run one
