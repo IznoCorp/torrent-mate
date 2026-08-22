@@ -120,7 +120,7 @@ SELF = {Path(__file__).name, "nofrench_lexicon.py"}
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from nofrench_lexicon import *  # noqa: E402, F403
 from nofrench_scan import (  # noqa: E402
-    TS_DECLARATION, code_only, inside_quotes, python_declarations,
+    TS_DECLARATION, code_only, inside_quotes, pragma_on, python_declarations,
     python_string_literals, script_string_literals,
 )
 # Arms 11 and 12 — the two that COUNT rather than refuse. They stay in `ARMS`;
@@ -148,7 +148,7 @@ from nofrench_lexicon import (  # noqa: E402
     FRENCH_TOKENS, FROZEN_IDENTIFIERS, FROZEN_PATH_SEGMENTS, HARNESS, MAQUETTE,
     REGIONS, ROOT, SCRIPTS, SHELL, VOCABULARY, deaccent, french_tokens_in,
     french_tokens_in_flat, has_accent, read, relative, scope_of,
-    pragma_on, split_identifier, tracked_paths,
+    split_identifier, tracked_paths,
 )
 # The words this codebase's names are built from — see its own header.
 # The line in that file below which the words are French on purpose, and the

@@ -15,8 +15,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from nofrench_lexicon import (  # noqa: E402
     ROOT, examined, french_tokens_in, has_accent, offending_string, read,
-    pragma_on, relative, tracked_paths,
+    relative, tracked_paths,
 )
+from nofrench_scan import pragma_on  # noqa: E402
 
 
 SHELL_BY_NAME = {"Makefile"}

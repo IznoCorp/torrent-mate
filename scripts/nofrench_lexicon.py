@@ -21,13 +21,6 @@ import subprocess
 import unicodedata
 from pathlib import Path
 
-# `inside_quotes` is the one SCANNER this module needs: `pragma_on` owns the
-# `PRAGMA` pattern, which lives here with the other lexical constants, and a
-# pragma written INSIDE a string is not a pragma. Two arms read it — arm 1 over
-# every source, arm 9 over the shell scripts — so it sits with the constant
-# rather than in either arm's file.
-from nofrench_scan import inside_quotes
-
 ROOT = Path(__file__).resolve().parent.parent
 MAQUETTE = ROOT / "frontend" / "maquette"
 VOCABULARY = ROOT / "scripts" / "code-vocabulary.txt"
@@ -211,8 +204,6 @@ WORD = re.compile(r"[A-Za-zÀ-ɏ]+")
 # guillemets. A quotation is not a French name in the code — it is the code
 # naming what the reader of the interface sees — so it is removed before judging.
 QUOTED_UI = re.compile(r"«[^»]*»")
-PRAGMA = re.compile(
-    r"(?:#|//|/\*)\s*french-ok:\s*(?P<reason>[^*]*)")
 
 
 def deaccent(text: str) -> str:
@@ -507,36 +498,6 @@ def vocabulary(debt_only: bool = False) -> set[str]:
             words.add(line.strip().lower())
     return words
 
-
-def pragma_on(lines: list[str], line_no: int) -> str | None:
-    """Returns the reason a line's french-ok pragma cites, or None.
-
-    Args:
-        lines: The file's lines.
-        line_no: The 1-based line the literal starts on.
-
-    Returns:
-        The cited reason, "" when the pragma cites nothing, or None when the
-        line carries no pragma. The line ABOVE counts too: a JSX attribute has
-        no room for a trailing comment.
-
-        THE LINE BELOW DELIBERATELY DOES NOT. This docstring used to promise it
-        — for the wrapped-literal case — and implementing that promise turned
-        every pragma into a THREE-line grant: a brand-new French literal parked
-        next to any of the twenty-one existing pragmas became invisible. A
-        wrapped literal can carry its pragma on the line above like everything
-        else; licensing a neighbour is a bigger hole than the one it closed.
-    """
-    for candidate in (line_no, line_no - 1):
-        if not 1 <= candidate <= len(lines):
-            continue
-        line = lines[candidate - 1]
-        found = PRAGMA.search(line)
-        # A pragma written INSIDE a string is not a pragma. Without this, one
-        # literal reading `"# french-ok: …"` licensed its neighbours.
-        if found and not inside_quotes(line, found.start()):
-            return found.group("reason").strip()
-    return None
 
 # `docs/` is the ONE tree the file-name arm does not walk: dated records keep
 # the names they were written with, and rewriting a record would falsify it.
