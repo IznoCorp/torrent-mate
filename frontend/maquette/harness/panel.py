@@ -54,8 +54,8 @@ PANELS = [
     ("user menu", "sheet-user", None),
     ("suggestion", "acq-discover", '#view [data-panel^="sug:"]'),
     # The add screen left `#screen` for a real route (`/add`, rendered
-    # inside `#coquille`) — its results live under `.screen.open` now.
-    ("search result", "acq-add-results", '.screen.open [data-panel^="add:"]'),
+    # inside `#coquille`) — its results live under `[data-part="screen"][data-open]` now.
+    ("search result", "acq-add-results", '[data-part="screen"][data-open] [data-panel^="add:"]'),
     ("library sort", "lib-grid", "[data-sort]"),
 ]
 
@@ -63,12 +63,12 @@ READ = """() => {
   const p = document.querySelector('#sheetin');
   const inline = [...p.querySelectorAll('[style]')]
     .map(e => e.tagName + '.' + e.className);
-  const actions = [...p.querySelectorAll('.sact')].map(b => ({
+  const actions = [...p.querySelectorAll('[data-part="sheet/action"]')].map(b => ({
     text: (b.textContent || '').trim().slice(0, 34),
     data: Object.keys(b.dataset).length,
     disabled: b.disabled}));
   return {empty: (p.textContent || '').trim().length < 8,
-          titles: p.querySelectorAll('.sheettitle').length,
+          titles: p.querySelectorAll('[data-part="sheet/title"]').length,
           inline, actions,
           unknown: [...p.querySelectorAll('*')].filter(e =>
             e.tagName === 'DIV' && e.className === '').length};

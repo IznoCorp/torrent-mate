@@ -17,6 +17,7 @@ looking for « what does the guard refuse? » still finds every arm in one file.
 from __future__ import annotations
 
 import re
+import subprocess
 import unicodedata
 from pathlib import Path
 
@@ -203,8 +204,6 @@ WORD = re.compile(r"[A-Za-zÀ-ɏ]+")
 # guillemets. A quotation is not a French name in the code — it is the code
 # naming what the reader of the interface sees — so it is removed before judging.
 QUOTED_UI = re.compile(r"«[^»]*»")
-PRAGMA = re.compile(
-    r"(?:#|//|/\*)\s*french-ok:\s*(?P<reason>[^*]*)")
 
 
 def deaccent(text: str) -> str:
@@ -498,3 +497,34 @@ def vocabulary(debt_only: bool = False) -> set[str]:
         if not debt_only or below:
             words.add(line.strip().lower())
     return words
+
+
+# `docs/` is the ONE tree the file-name arm does not walk: dated records keep
+# the names they were written with, and rewriting a record would falsify it.
+UNWATCHED_ROOTS = ("docs/",)
+
+
+def tracked_paths() -> list[str]:
+    """Returns every path in the repository the guard watches.
+
+    The WHOLE repository, minus `docs/` — four named roots used to be the scope,
+    which left `hooks/`, `config.example/`, `.github/` and the root itself
+    unwatched while the docstring said « anywhere ».
+
+    Untracked-but-not-ignored files are listed too (`--others
+    --exclude-standard`): a file created five minutes ago is exactly the one
+    the arm exists to catch, and it is not tracked until it is added — a gate
+    that only reads the index says nothing until after the commit it should
+    have blocked.
+
+    It lives here, with the corpora, because TWO arms walk it: the file-name
+    arm and the shell-script arm, which is the only one whose corpus is `.sh`.
+
+    Returns:
+        Every watched path, repository-relative, sorted.
+    """
+    listed = subprocess.run(
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+        cwd=ROOT, capture_output=True, text=True, check=True)
+    return sorted({p for p in listed.stdout.split("\0")
+                   if p and not p.startswith(UNWATCHED_ROOTS)})

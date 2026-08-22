@@ -314,15 +314,15 @@ async def main():
         await pg.wait_for_timeout(400)
 
         # The add screen left `#screen` for a real route (`/add`, rendered
-        # inside `#coquille`): its results live under `.screen.open` now —
+        # inside `#coquille`): its results live under `[data-part="screen"][data-open]` now —
         # the FICHE this journey opens next stays fully legacy, still
         # `#screen`. Not read here (nothing has opened yet), but read
         # explicitly below once the mediaSheet is expected to have closed.
         start_state = await pg.evaluate(
             """()=>({
-                screen: !!document.querySelector('.screen.open'),
-                key: document.querySelector('.screen.open')?.dataset.key,
-                cards: document.querySelectorAll('.reslist .card').length,
+                screen: !!document.querySelector('[data-part="screen"][data-open]'),
+                key: document.querySelector('[data-part="screen"][data-open]')?.dataset.key,
+                cards: document.querySelectorAll('[data-part="result/list"] [data-part="card"]').length,
                 query: document.querySelector('#addq')?.value
             })"""
         )
@@ -335,15 +335,15 @@ async def main():
         # Scrolled away from the top before leaving, so the return has a
         # position to restore and not merely a list to redraw.
         await pg.evaluate(
-            "()=>{document.querySelector('.screen.open .port').scrollTop = 300;}"
+            """()=>{document.querySelector('[data-part="screen"][data-open] [data-part="viewport"]').scrollTop = 300;}"""
         )
-        await pg.evaluate("()=>document.querySelector('.reslist .poster').click()")
+        await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card/poster"]').click()""")
         await pg.wait_for_timeout(450)
 
         await pg.go_back()
         await pg.wait_for_timeout(500)
 
-        # R-7: `.screen.open` alone is AMBIGUOUS once a migrated screen and
+        # R-7: `[data-part="screen"][data-open]` alone is AMBIGUOUS once a migrated screen and
         # the legacy `#screen` can both carry `open` at once — `#coquille`
         # mounts BEFORE the legacy fragment in DOM order, so
         # `document.querySelector` always resolves the React screen first
@@ -351,12 +351,12 @@ async def main():
         # journey opened) that failed to close. Read explicitly here.
         back_state = await pg.evaluate(
             """()=>({
-                screen: !!document.querySelector('.screen.open'),
-                key: document.querySelector('.screen.open')?.dataset.key,
-                cards: document.querySelectorAll('.reslist .card').length,
+                screen: !!document.querySelector('[data-part="screen"][data-open]'),
+                key: document.querySelector('[data-part="screen"][data-open]')?.dataset.key,
+                cards: document.querySelectorAll('[data-part="result/list"] [data-part="card"]').length,
                 query: document.querySelector('#addq')?.value,
-                scroll: document.querySelector('.screen.open .port')?.scrollTop,
-                legacySheetStillThere: document.querySelector('#screen').classList.contains('open')
+                scroll: document.querySelector('[data-part="screen"][data-open] [data-part="viewport"]')?.scrollTop,
+                legacySheetStillThere: document.querySelector('#screen').hasAttribute('data-open')
             })"""
         )
 

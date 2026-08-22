@@ -178,11 +178,11 @@ async def main():
         await page.evaluate("()=>window.__store.write({page: 'maint', maintTopic: null})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(300)
-        refused = await tap("#view .topic[data-maintopic='scan']")
+        refused = await tap("""#view [data-part="topic"][data-maintopic='scan']""")
         opened = await page.evaluate("""()=>({
           topic: window.__store.read().state.maintTopic,
-          back: !!document.querySelector('#view .crossref[data-maintopic=""]'),
-          rows: document.querySelectorAll('#view .flux .fx').length,
+          back: !!document.querySelector('#view [data-part="cross-reference"][data-maintopic=""]'),
+          rows: document.querySelectorAll('#view [data-part="flux"] [data-part="flux/row"]').length,
         })""")
         journal.check(
             "a real tap on a rubric row opens that rubric",
@@ -195,16 +195,16 @@ async def main():
         # every row opening the same one, which is the defect a page whose rows
         # all carry one id would have.
         wanted = await page.evaluate("""()=>{
-          const row = document.querySelector('#view .flux .fx .fw[data-maintact]');
+          const row = document.querySelector('#view [data-part="flux"] [data-part="flux/row"] [data-part="flux/row-body"][data-maintact]');
           if (!row) return null;
           const id = row.dataset.maintact;
           const action = window.__referentiel.MAINT_ACTIONS.find((x) => x.id === id);
           return {id, title: action ? action.l : null};}""")
-        refused = (await tap("#view .flux .fx .fw[data-maintact]")
+        refused = (await tap('#view [data-part="flux"] [data-part="flux/row"] [data-part="flux/row-body"][data-maintact]')
                    if wanted else "absent")
         panel = await page.evaluate("""()=>({
-          open: !!document.querySelector('#sheet.open'),
-          title: (document.querySelector('#sheet .sheettitle')||{}).textContent || null,
+          open: !!document.querySelector('#sheet[data-open]'),
+          title: (document.querySelector('#sheet [data-part="sheet/title"]')||{}).textContent || null,
         })""")
         journal.check(
             "and a real tap on a command row opens THAT command's panel",
@@ -232,12 +232,12 @@ async def main():
         await page.wait_for_timeout(300)
 
         topic = await page.evaluate(
-            "()=>{const b = document.querySelector('#view .topic[data-topic]');"
+            """()=>{const b = document.querySelector('#view [data-part="topic"][data-topic]');"""
             " return b ? b.dataset.topic : null;}")
-        refused = await tap("#view .topic[data-topic]") if topic else "absent"
+        refused = await tap('#view [data-part="topic"][data-topic]') if topic else "absent"
         opened = await page.evaluate("""()=>({
           topic: SETTINGS_STATE.topic,
-          rows: document.querySelectorAll('#view .settingrow[data-setting]').length,
+          rows: document.querySelectorAll('#view [data-part="setting/row"][data-setting]').length,
         })""")
         journal.check(
             "a real tap on a settings topic opens THAT topic",
@@ -250,14 +250,14 @@ async def main():
         # `data-field` exists only for the types that offer a field — a
         # structure or a list would fail this hold for the wrong reason.
         identity = await page.evaluate(
-            "()=>{const b = document.querySelector('#view .settingrow[data-setting]');"
+            '''()=>{const b = document.querySelector('#view [data-part="setting/row"][data-setting]');'''
             " return b ? b.dataset.setting : null;}")
-        refused = (await tap("#view .settingrow[data-setting]")
+        refused = (await tap('#view [data-part="setting/row"][data-setting]')
                    if identity else "absent")
         edited = await page.evaluate("""()=>{
           const field = document.querySelector('#sheetin [data-field]');
-          const meta = document.querySelector('#sheet .sheetmeta');
-          return {open: !!document.querySelector('#sheet.open'),
+          const meta = document.querySelector('#sheet [data-part="sheet/meta"]');
+          return {open: !!document.querySelector('#sheet[data-open]'),
                   field: field ? field.dataset.field : null,
                   meta: meta ? meta.textContent.trim() : null};}""")
         named = identity and edited["meta"] and all(
@@ -308,7 +308,7 @@ async def main():
             f"redemarrage={restart_left}" if not refused
             else f"data-restart {refused} (the save above raises it)")
 
-        refused = await tap("#view .topic[data-topic='secrets']")
+        refused = await tap("""#view [data-part="topic"][data-topic='secrets']""")
         listed = await page.evaluate(
             "()=>({topic: SETTINGS_STATE.topic,"
             " rows: document.querySelectorAll('#view [data-secret]').length})")
@@ -326,7 +326,7 @@ async def main():
         await page.wait_for_timeout(250)
         refused = await tap("#view [data-secret]") if key else "absent"
         sheet = await page.evaluate("""()=>({
-          open: !!document.querySelector('#sheet.open'),
+          open: !!document.querySelector('#sheet[data-open]'),
           text: (document.querySelector('#sheet')||{}).textContent || '',
         })""")
         journal.check(
@@ -358,10 +358,10 @@ async def main():
         # a ROUTE, so what proves the tap landed is the address — the address
         # the ROW NAMED, and only if it was not already there before the tap.
         profile = await page.evaluate(
-            "()=>{const b = document.querySelector('#view .topic[data-profile]');"
+            """()=>{const b = document.querySelector('#view [data-part="topic"][data-profile]');"""
             " return b ? b.dataset.profile : null;}")
         before_address = await page.evaluate("()=>location.pathname")
-        refused = await tap("#view .topic[data-profile]") if profile else "absent"
+        refused = await tap('#view [data-part="topic"][data-profile]') if profile else "absent"
         await page.wait_for_timeout(400)
         address = await page.evaluate("()=>location.pathname")
         journal.check(
@@ -383,10 +383,10 @@ async def main():
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(400)
 
-        refused = await tap("#view .seg [data-lens='rec']")
+        refused = await tap("""#view [data-part="segment"] [data-lens='rec']""")
         lens = await page.evaluate("""()=>({
           lens: window.__store.read().state.libLens,
-          drawn: (document.querySelector('#view .countline')||{}).textContent || '',
+          drawn: (document.querySelector('#view [data-part="count-line"]')||{}).textContent || '',
         })""")
         journal.check(
             "a real tap on a lens opens THAT lens",
@@ -397,12 +397,13 @@ async def main():
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(400)
         wanted = await page.evaluate(
-            "()=>{const b = [...document.querySelectorAll('#view .pill[data-cat]')]"
+            """()=>{const b = [...document.querySelectorAll('#view [data-part="pill"][data-cat]')]"""
             ".find((x) => x.dataset.cat !== 'all'); return b ? b.dataset.cat : null;}")
-        refused = (await tap(f"#view .pill[data-cat='{wanted}']") if wanted else "absent")
+        refused = (await tap(f"""#view [data-part="pill"][data-cat='{wanted}']""")
+                   if wanted else "absent")
         chosen = await page.evaluate(
             "()=>({cat: window.__store.read().state.libCat,"
-            " pressed: (document.querySelector('#view .pill[aria-pressed=true]')||{})"
+            """ pressed: (document.querySelector('#view [data-part="pill"][aria-pressed=true]')||{})"""
             ".dataset?.cat || null})")
         journal.check(
             "a real tap on a category pill filters by THAT category",
@@ -427,8 +428,8 @@ async def main():
         refused = await tap("#view [data-selmode='1']")
         selecting = await page.evaluate("""()=>({
           mode: !!window.__store.read().state.selMode,
-          bar: !!document.querySelector('#device .selbar'),
-          rows: document.querySelectorAll('#libitems .selrow[data-tile]').length,
+          bar: !!document.querySelector('#device [data-part="selection/bar"]'),
+          rows: document.querySelectorAll('#libitems [data-part="selection/row"][data-tile]').length,
         })""")
         journal.check(
             "a real tap on « sélectionner » opens selection, bar included",
@@ -444,10 +445,10 @@ async def main():
         # the attribute still names the row it belongs to — the half a moved
         # emitter can break.
         named = await page.evaluate("""()=>{
-          const rows = [...document.querySelectorAll('#libitems .card')];
+          const rows = [...document.querySelectorAll('#libitems [data-part="card"]')];
           const first = rows[0];
           const action = first ? first.parentElement.querySelector('[data-del]') : null;
-          const title = first ? (first.querySelector('.ctitle')||{}).textContent : null;
+          const title = first ? (first.querySelector('[data-part="card/title"]')||{}).textContent : null;
           return {title: title ? title.trim() : null,
                   del: action ? action.dataset.del : null};}""")
         journal.check(
@@ -505,7 +506,7 @@ async def main():
         await page.wait_for_timeout(500)
         returned = await page.evaluate("""()=>({
           roots: [...document.querySelector('#view').children].map((x) => x.className),
-          rows: document.querySelectorAll('#view .topic[data-topic]').length,
+          rows: document.querySelectorAll('#view [data-part="topic"][data-topic]').length,
         })""")
         journal.check(
             "leaving a migrated page with an unsaved change, and coming back, "
@@ -526,11 +527,11 @@ async def main():
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(400)
 
-        refused = await tap("#view .seg [data-acqtab='follows']")
+        refused = await tap("""#view [data-part="segment"] [data-acqtab='follows']""")
         opened = await page.evaluate("""()=>({
           tab: window.__store.read().state.acqTab,
           field: !!document.querySelector('#view #follq'),
-          rows: document.querySelectorAll('#view .card').length,
+          rows: document.querySelectorAll('#view [data-part="card"]').length,
         })""")
         journal.check(
             "a real tap on a tab opens THAT tab",
@@ -539,12 +540,13 @@ async def main():
             str(opened) if not refused else f"data-acqtab {refused}")
 
         wanted = await page.evaluate(
-            "()=>{const b = [...document.querySelectorAll('#view .pill[data-pill]')]"
+            """()=>{const b = [...document.querySelectorAll('#view [data-part="pill"][data-pill]')]"""
             ".find((x) => x.dataset.pill !== 'tout'); return b ? b.dataset.pill : null;}")
-        refused = (await tap(f"#view .pill[data-pill='{wanted}']") if wanted else "absent")
+        refused = (await tap(f"""#view [data-part="pill"][data-pill='{wanted}']""")
+                   if wanted else "absent")
         filtered = await page.evaluate(
             "()=>({pill: window.__store.read().state.pill,"
-            " pressed: (document.querySelector('#view .pill[aria-pressed=true]')||{})"
+            """ pressed: (document.querySelector('#view [data-part="pill"][aria-pressed=true]')||{})"""
             ".dataset?.pill || null})")
         journal.check(
             "a real tap on a pill filters by THAT pill",
@@ -555,7 +557,7 @@ async def main():
         refused = await tap("#view [data-fmode='grid']")
         mode = await page.evaluate(
             "()=>({mode: window.__store.read().state.followMode,"
-            " tiles: document.querySelectorAll('#view .grid .tile').length})")
+            """ tiles: document.querySelectorAll('#view [data-part="grid"] [data-part="tile"]').length})""")
         journal.check(
             "a real tap on a display mode really changes the display",
             not refused and mode["mode"] == "grid" and mode["tiles"] > 0,
@@ -569,7 +571,7 @@ async def main():
         suggestions = await page.evaluate(
             "()=>({mode: window.__store.read().state.sugMode,"
             " grid: (document.querySelector('#sugitems')||{}).className,"
-            " tiles: document.querySelectorAll('#sugitems .tile').length})")
+            """ tiles: document.querySelectorAll('#sugitems [data-part="tile"]').length})""")
         journal.check(
             "a real tap on a suggestion mode redraws the suggestions",
             not refused and suggestions["mode"] == "poster"
@@ -615,7 +617,7 @@ async def main():
         await page.evaluate("()=>window.__go('acq-now-loaded')")
         await page.wait_for_timeout(600)
         counters = await page.evaluate(
-            "()=>[...document.querySelectorAll('#view .sechead .k')]"
+            '''()=>[...document.querySelectorAll('#view [data-part="section/head"] [data-part="section/count"]')]'''
             ".map((x) => x.textContent)")
         moved = await page.evaluate(
             "()=>{const first = window.__referentiel.derivedTakeable()[0];"
@@ -624,7 +626,7 @@ async def main():
             " return first.t;}")
         await page.wait_for_timeout(700)
         after_action = await page.evaluate(
-            "()=>[...document.querySelectorAll('#view .sechead .k')]"
+            '''()=>[...document.querySelectorAll('#view [data-part="section/head"] [data-part="section/count"]')]'''
             ".map((x) => x.textContent)")
         journal.check(
             "an action that moves a medium redraws the page it moved it on",
@@ -647,7 +649,7 @@ async def main():
                             " phase: 'ready', pipe: 'idle', scen: 'loaded'})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(320)
-        refused = await tap("#view .pipeline [data-pipe='start']")
+        refused = await tap("""#view [data-part="pipeline"] [data-pipe='start']""")
         started = await page.evaluate(
             "()=>({pipe: window.__store.read().state.pipe,"
             " controls: [...document.querySelectorAll('#view [data-pipe]')]"
@@ -660,23 +662,23 @@ async def main():
 
         # DOIT-4, the one the bar exists for: asked DURING a run, another pass
         # is QUEUED — visibly — never refused with « busy, try again ».
-        refused = await tap("#view .pipeline [data-pipe='start']")
+        refused = await tap("""#view [data-part="pipeline"] [data-pipe='start']""")
         queued = await page.evaluate(
             "()=>({pipe: window.__store.read().state.pipe,"
-            " live: !!document.querySelector('#view .pipeline .live')})")
+            """ live: !!document.querySelector('#view [data-part="pipeline"] [data-part="live-activity"]')})""")
         journal.check(
             "and asked again DURING a run, the next pass is queued, not refused",
             not refused and queued["pipe"] == "queued" and queued["live"],
             str(queued) if not refused else f"data-pipe='start' {refused}")
 
-        refused = await tap("#view .pipeline [data-pipe='stop']")
+        refused = await tap("""#view [data-part="pipeline"] [data-pipe='stop']""")
         # The STORE and the DRAWING, because a component that kept drawing the
         # running bar over a stopped pipeline satisfies the store alone — which
         # is the half its two siblings above already read.
         stopped = await page.evaluate("""()=>({
           pipe: window.__store.read().state.pipe,
-          idle: !!document.querySelector('#view .pipeline .pip.neutral'),
-          start: !!document.querySelector('#view .pipeline .cfoot.solid'),
+          idle: !!document.querySelector('#view [data-part="pipeline"] [data-part="status-dot"][data-tone="neutral"]'),
+          start: !!document.querySelector('#view [data-part="pipeline"] [data-part="card/foot"][data-solid]'),
           controls: [...document.querySelectorAll('#view [data-pipe]')]
             .map((x) => x.dataset.pipe),
         })""")
@@ -690,7 +692,7 @@ async def main():
         # `data-go` — the attribute B-024's containment argument counts. It is
         # drawn only outside the real-data scenario, which the block named at
         # its head.
-        refused = await tap("#view .crossref[data-go='acq']")
+        refused = await tap("""#view [data-part="cross-reference"][data-go='acq']""")
         landed = await page.evaluate("()=>window.__store.read().state.page")
         journal.check(
             "a real tap on the crossref lands on Acquisition",
@@ -787,7 +789,7 @@ async def main():
         landed = await cold.evaluate("""()=>({
           page: window.__store.read().state.page,
           roots: [...document.querySelector('#view').children].map((x) => x.className),
-          bar: !!document.querySelector('#view .pipeline [data-pipe]'),
+          bar: !!document.querySelector('#view [data-part="pipeline"] [data-pipe]'),
         })""")
         journal.check(
             "a cold deep address lands on the page it names, drawn by the shell",

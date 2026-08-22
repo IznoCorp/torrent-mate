@@ -9,11 +9,11 @@ import asyncio
 from playwright.async_api import async_playwright
 
 GALLERIES = [
-  ("Médiathèque · Médias",    "lib-grid",                ".tile[data-panel]"),
+  ("Médiathèque · Médias",    "lib-grid",                '[data-part="tile"][data-panel]'),
   ("Médiathèque · Incomplets","lib-incomplete",            None),
   ("Médiathèque · Récents",   "lib-recent",               None),
-  ("Suivis · grille",         "acq-follows-grid",         ".tile[data-panel]"),
-  ("Découvrir · affiches",    "acq-discover-posters",    ".tile[data-panel]"),
+  ("Suivis · grille",         "acq-follows-grid",         '[data-part="tile"][data-panel]'),
+  ("Découvrir · affiches",    "acq-discover-posters",    '[data-part="tile"][data-panel]'),
 ]
 
 async def main():
@@ -51,7 +51,7 @@ async def main():
                 print(f"  {name:26} NO GRID CONTROL")
                 continue
             await pg.wait_for_timeout(300)
-            sel = ".tile[data-panel]"
+            sel = '[data-part="tile"][data-panel]'
         n = await pg.locator(sel).count()
         if n == 0:
             failures.append(f"{name}: no tile declares a panel"); print(f"  {name:26} NO PANEL DECLARED"); continue
@@ -59,14 +59,14 @@ async def main():
         # 1. A tap opens the media sheet. The sheet left `#screen` for a real
         # route (`/mediasheet/$title`, rendered inside `#coquille`), so it is read by
         # the identity it carries — `data-key="mediaSheet:…"` — and not by a bare
-        # `.screen.open`, which cannot tell two stacked screens apart.
+        # `[data-part="screen"][data-open]`, which cannot tell two stacked screens apart.
         await pg.locator(sel).first.click()
         await pg.wait_for_timeout(500)
         screen_ = await pg.evaluate(
-            """()=>!!document.querySelector('.screen.open[data-key^="mediaSheet:"]')""")
+            """()=>!!document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]')""")
         await pg.evaluate("()=>window.__go(arguments0)" if False else "(i)=>window.__go(i)", state_)
         await pg.wait_for_timeout(350)
-        if sel == ".tile[data-panel]" and not screen_:
+        if sel == '[data-part="tile"][data-panel]' and not screen_:
             pass  # the lens galleries may need the mode click again; re-checked below
 
         # 2. A long press opens the bottom panel.
@@ -80,7 +80,7 @@ async def main():
         await pg.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
         await pg.mouse.down(); await pg.wait_for_timeout(640); await pg.mouse.up()
         await pg.wait_for_timeout(400)
-        sheet = await pg.evaluate("()=>document.querySelector('#sheet').classList.contains('open')")
+        sheet = await pg.evaluate("()=>document.querySelector('#sheet').hasAttribute('data-open')")
         verdict = "PASS" if screen_ and sheet else "FAIL"
         if verdict == "FAIL":
             failures.append(f"{name}: tap→sheet {screen_}, long→panel {sheet}")
@@ -103,9 +103,9 @@ async def main():
             await pg.evaluate("([l,m])=>{window.__reset(); applyState({page:'lib',libLens:l,libMode:m,phase:'ready'}); render();}", [lens, mode])
             await pg.wait_for_timeout(420)
             shapes[mode] = await pg.evaluate("""()=>({
-                tiles:document.querySelectorAll('#view .tile[data-panel]').length,
-                cards:document.querySelectorAll('#view .card').length,
-                toggle:!!document.querySelector('#view .vsw')})""")
+                tiles:document.querySelectorAll('#view [data-part="tile"][data-panel]').length,
+                cards:document.querySelectorAll('#view [data-part="card"]').length,
+                toggle:!!document.querySelector('#view [data-part="view/switch"]')})""")
         ok = (shapes["grid"]["tiles"] > 0 and shapes["list"]["cards"] > 0
               and shapes["grid"]["toggle"] and shapes["list"]["toggle"])
         print(f"  library lens « {lens} »        both layouts: {'OK' if ok else 'FAIL'}  {shapes}")

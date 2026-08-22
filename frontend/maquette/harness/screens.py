@@ -43,14 +43,14 @@ async def main():
         await pg.evaluate("()=>window.__go('acq-add-results')")
         await pg.wait_for_timeout(400)
         # The add screen left `#screen` for a real route (`/add`, rendered
-        # inside `#coquille`): its results list is `.screen.open`, not
+        # inside `#coquille`): its results list is `[data-part="screen"][data-open]`, not
         # literally `#screen` — and so is the FICHE this journey opens further
         # down (`/mediasheet/$title`). Each is named by its own `data-key`.
         start = await pg.evaluate("""()=>({
-            screen: !!document.querySelector('.screen.open'),
-            key: document.querySelector('.screen.open')?.dataset.key,
-            cards: document.querySelectorAll('.reslist .card').length,
-            feet: document.querySelectorAll('.reslist .cfoot').length,
+            screen: !!document.querySelector('[data-part="screen"][data-open]'),
+            key: document.querySelector('[data-part="screen"][data-open]')?.dataset.key,
+            cards: document.querySelectorAll('[data-part="result/list"] [data-part="card"]').length,
+            feet: document.querySelectorAll('[data-part="result/list"] [data-part="card/foot"]').length,
             query: document.querySelector('#addq')?.value})""")
         check("the results screen is there", start["screen"] and start["cards"] >= 2,
               f"{start['cards']} cards · key {start['key']}")
@@ -59,47 +59,47 @@ async def main():
 
         # The removal above is safe only because the act still has a home:
         # the result's panel must offer it.
-        await pg.evaluate("()=>document.querySelector('.reslist .cbody').click()")
+        await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card/body"]').click()""")
         await pg.wait_for_timeout(420)
         act = await pg.evaluate(
-            "()=>document.querySelector('#sheet .sact.primary')?.textContent.trim() ?? null")
+            """()=>document.querySelector('#sheet [data-part="sheet/action"][data-tone="primary"]')?.textContent.trim() ?? null""")
         check("the result's panel carries the act", bool(act), f"« {act} »")
         await pg.evaluate("()=>window.__close('sheet')")
         await pg.wait_for_timeout(300)
 
         # ── The reported journey, exit 1: the browser back ──────────────────
-        await pg.evaluate("()=>{document.querySelector('.screen.open .port').scrollTop = 300;}")
-        await pg.evaluate("()=>document.querySelector('.reslist .poster').click()")
+        await pg.evaluate("""()=>{document.querySelector('[data-part="screen"][data-open] [data-part="viewport"]').scrollTop = 300;}""")
+        await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card/poster"]').click()""")
         await pg.wait_for_timeout(450)
         # The poster's target is a MEDIA SHEET, and it left `#screen` for a
         # real route (`/mediasheet/$title`, rendered inside `#coquille`) as the add
         # screen did before it. It is read by its own IDENTITY — the screen
-        # carrying `data-key="mediaSheet:…"` — and not by a bare `.screen.open`:
+        # carrying `data-key="mediaSheet:…"` — and not by a bare `[data-part="screen"][data-open]`:
         # two screens can carry `open` at once, and a selector that cannot
         # tell them apart is exactly the ambiguity the explicit reads below
         # exist to remove.
         sheet_screen = await pg.evaluate("""()=>{
-            const f = document.querySelector('.screen.open[data-key^="mediaSheet:"]');
-            return {screen: !!f, hero: !!f?.querySelector('.herowrap'),
+            const f = document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
+            return {screen: !!f, hero: !!f?.querySelector('[data-part="hero"]'),
                     key: f?.dataset.key};}""")
         check("the poster opens the media sheet on the same layer",
               sheet_screen["screen"] and sheet_screen["hero"], f"key {sheet_screen['key']}")
 
         await pg.go_back()
         await pg.wait_for_timeout(500)
-        # R-7: `.screen.open` alone is AMBIGUOUS once two screens can carry
+        # R-7: `[data-part="screen"][data-open]` alone is AMBIGUOUS once two screens can carry
         # `open` at the same time — the arrival is therefore identified by its
         # `data-key` below, and the screen one is leaving is looked up by ITS
         # own key rather than by a class shared with everything else. A mediaSheet
-        # that failed to close is what a bare `.screen.open` would mask, so it
+        # that failed to close is what a bare `[data-part="screen"][data-open]` would mask, so it
         # is read explicitly, by identity.
         back = await pg.evaluate("""()=>({
-            screen: !!document.querySelector('.screen.open'),
-            key: document.querySelector('.screen.open')?.dataset.key,
-            cards: document.querySelectorAll('.reslist .card').length,
+            screen: !!document.querySelector('[data-part="screen"][data-open]'),
+            key: document.querySelector('[data-part="screen"][data-open]')?.dataset.key,
+            cards: document.querySelectorAll('[data-part="result/list"] [data-part="card"]').length,
             query: document.querySelector('#addq')?.value,
-            scroll: document.querySelector('.screen.open .port')?.scrollTop,
-            sheetStillThere: !!document.querySelector('.screen.open[data-key^="mediaSheet:"]')})""")
+            scroll: document.querySelector('[data-part="screen"][data-open] [data-part="viewport"]')?.scrollTop,
+            sheetStillThere: !!document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]')})""")
         check("the back redraws the results list",
               back["screen"] and (back["key"] or "").startswith("add:")
               and back["cards"] == start["cards"]
@@ -113,7 +113,7 @@ async def main():
         await pg.go_back()
         await pg.wait_for_timeout(450)
         left = await pg.evaluate("""()=>({
-            screen: !!document.querySelector('.screen.open'),
+            screen: !!document.querySelector('[data-part="screen"][data-open]'),
             page: state.page})""")
         check("and one more back leaves the layer",
               not left["screen"] and left["page"] == "acq",
@@ -122,21 +122,21 @@ async def main():
         # ── Exit 2: the « Retour » button on the sheet ──────────────────────
         await pg.evaluate("()=>window.__go('acq-add-results')")
         await pg.wait_for_timeout(400)
-        await pg.evaluate("()=>document.querySelector('.reslist .poster').click()")
+        await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card/poster"]').click()""")
         await pg.wait_for_timeout(450)
         # Same mediaSheet as exit 1, and its own « Retour » is clicked on the screen
-        # identified as the mediaSheet — never on whatever `.screen.open` happens to
+        # identified as the mediaSheet — never on whatever `[data-part="screen"][data-open]` happens to
         # resolve first.
         await pg.evaluate(
-            """()=>document.querySelector('.screen.open[data-key^="mediaSheet:"] .fback').click()""")
+            """()=>document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"] [data-part="screen/back"]').click()""")
         await pg.wait_for_timeout(500)
         # R-7: same read by identity as exit 1's `back` — a mediaSheet that failed
-        # to close here is exactly what a bare `.screen.open` would miss.
+        # to close here is exactly what a bare `[data-part="screen"][data-open]` would miss.
         button = await pg.evaluate("""()=>({
-            screen: !!document.querySelector('.screen.open'),
-            key: document.querySelector('.screen.open')?.dataset.key,
-            cards: document.querySelectorAll('.reslist .card').length,
-            sheetStillThere: !!document.querySelector('.screen.open[data-key^="mediaSheet:"]')})""")
+            screen: !!document.querySelector('[data-part="screen"][data-open]'),
+            key: document.querySelector('[data-part="screen"][data-open]')?.dataset.key,
+            cards: document.querySelectorAll('[data-part="result/list"] [data-part="card"]').length,
+            sheetStillThere: !!document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]')})""")
         check("the sheet's « Retour » button does the same",
               button["screen"] and (button["key"] or "").startswith("add:")
               and button["cards"] == start["cards"],

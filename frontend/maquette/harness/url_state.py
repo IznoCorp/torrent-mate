@@ -41,7 +41,7 @@ WHERE = """() => ({
   tab: state.acqTab,
   lens: state.libLens,
   mode: state.libMode,
-  empty: (document.querySelector('#view .empty b') || {}).textContent || '',
+  empty: (document.querySelector('#view [data-part="empty-state"] b') || {}).textContent || '',
   notFound: state.notFound || '',
 })"""
 

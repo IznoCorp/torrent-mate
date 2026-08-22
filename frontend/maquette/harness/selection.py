@@ -1,6 +1,7 @@
 """Multi-selection in the library, and what it enables."""
 
 import asyncio
+from common import shot
 from playwright.async_api import async_playwright
 async def main():
   async with async_playwright() as p:
@@ -16,15 +17,15 @@ async def main():
     await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>document.querySelector('#toastx').click()")
 
-    print("tab labels:", await pg.evaluate("()=>[...document.querySelectorAll('.seg button')].map(b=>b.textContent.trim())"))
+    print("tab labels:", await pg.evaluate('''()=>[...document.querySelectorAll('[data-part="segment"] button')].map(b=>b.textContent.trim())'''))
     await pg.click('[data-page="lib"]'); await pg.wait_for_timeout(400)
-    print("lenses            :", await pg.evaluate("()=>[...document.querySelectorAll('.seg button')].map(b=>b.textContent.trim())"))
+    print("lenses            :", await pg.evaluate('''()=>[...document.querySelectorAll('[data-part="segment"] button')].map(b=>b.textContent.trim())'''))
 
     print("\n── grid at rest ──")
-    print("  chips visible      :", await pg.evaluate("()=>document.querySelectorAll('.tile .sel').length"), "(expected 0)")
-    print("  selection bar:", await pg.evaluate("()=>!!document.querySelector('.selbar')"), "(expected False)")
+    print("  chips visible      :", await pg.evaluate("""()=>document.querySelectorAll('[data-part="tile"] [data-part="selection/check"]').length"""), "(expected 0)")
+    print("  selection bar:", await pg.evaluate("""()=>!!document.querySelector('[data-part="selection/bar"]')"""), "(expected False)")
     print("  tap opens the sheet:", await pg.evaluate("()=>!!document.querySelector('[data-tile]').dataset.mediasheet"))
-    await pg.screenshot(path="x_grille_repos.png")
+    await shot(pg, "selection-grid-rest")
 
     print("\n── long press ──")
     # A pointer event of type « touch »: the handlers serve finger, mouse and pen
@@ -39,26 +40,26 @@ async def main():
       window.setTimeout(()=>window.dispatchEvent(new PointerEvent('pointerup',p)), 600);}""")
     await pg.wait_for_timeout(900)
     press = await pg.evaluate("""()=>{const s=document.querySelector('#sheet');
-        return {open:s.classList.contains('open'), actions:[...s.querySelectorAll('.sact')].map(x=>x.textContent.trim())};}""")
+        return {open:s.hasAttribute('data-open'), actions:[...s.querySelectorAll('[data-part="sheet/action"]')].map(x=>x.textContent.trim())};}""")
     print("  sheet open      :", press)
     if not press["open"]:
         failures.append("long press opens nothing")
-    await pg.screenshot(path="x_appuilong.png")
+    await shot(pg, "selection-long-press")
     await pg.evaluate("()=>document.querySelector('#scrim').click()"); await pg.wait_for_timeout(350)
 
     print("\n── selection mode ──")
     await pg.click('[data-selmode="1"]'); await pg.wait_for_timeout(350)
-    print("  chips     :", await pg.evaluate("()=>document.querySelectorAll('.tile .sel').length"))
-    print("  bar       :", (await pg.evaluate("()=>document.querySelector('.selbar').textContent")).strip()[:52])
+    print("  chips     :", await pg.evaluate("""()=>document.querySelectorAll('[data-part="tile"] [data-part="selection/check"]').length"""))
+    print("  bar       :", (await pg.evaluate("""()=>document.querySelector('[data-part="selection/bar"]').textContent""")).strip()[:52])
     for i in (0,2,5):
         await pg.click(f"[data-tile='{i}']"); await pg.wait_for_timeout(120)
-    print("  after 3 taps:", (await pg.evaluate("()=>document.querySelector('.selbar .n').textContent")).strip())
-    await pg.screenshot(path="x_selection.png")
+    print("  after 3 taps:", (await pg.evaluate("""()=>document.querySelector('[data-part="selection/bar"] [data-part="selection/caption"]').textContent""")).strip())
+    await shot(pg, "selection-selected")
     await pg.click("[data-delsel]"); await pg.wait_for_timeout(400)
     print("  dialog   :", await pg.evaluate("""()=>{const g=document.querySelector('#dlg');
-        return {title:g.querySelector('h3').textContent, rows:g.querySelectorAll('.manifest li').length,
-                choices:[...g.querySelectorAll('.dlgbtn')].map(x=>x.textContent.trim())};}"""))
-    await pg.screenshot(path="x_supprmulti.png")
+        return {title:g.querySelector('h3').textContent, rows:g.querySelectorAll('[data-part="dialog/manifest"] li').length,
+                choices:[...g.querySelectorAll('[data-part="dialog/button"]')].map(x=>x.textContent.trim())};}"""))
+    await shot(pg, "selection-delete-multiple")
     print("\nJS errors:", errs or "none")
     print("VERDICT:", "both delete paths are reachable"
           if not failures and not errs else f"FAILED - {failures or errs}")

@@ -143,7 +143,7 @@ CONTRAST = """() => {
     }
     return out;
   };
-  return [...document.querySelectorAll('#view .flux .fr .chip')].map((el) => {
+  return [...document.querySelectorAll('#view [data-part="flux"] [data-part="flux/value"] [data-part="chip"]')].map((el) => {
     const s = getComputedStyle(el);
     const own = rgba(s.backgroundColor);
     let background = behind(el);
@@ -162,34 +162,42 @@ CONTRAST = """() => {
 READ = """() => {
   const port = document.querySelector('#port');
   const block = (heading) => {
-    const headings = [...document.querySelectorAll('#view .h2')];
+    const headings = [...document.querySelectorAll('#view [data-part="heading"]')];
     const t = headings.find((x) => x.textContent.trim() === heading);
     // NO HEADING and NO LIST UNDER ONE are different defects — the first sends
     // a reader to the strings, the second to the component — so the miss says
     // which of the two it was rather than one word for both.
     if (!t) return {heading: false, rows: null};
+    // WHICH SIBLING IS THE LIST, and did we run into the next heading first
+    // — both are questions about STRUCTURE, and both parts are emitted and
+    // selected by this same file three lines up and two hundred down. They
+    // read the class until 6.6, under a genre exemption whose written reason
+    // — « the subject is the applied style » — described a geometry rule two
+    // files over and was simply false here.
     let n = t.nextElementSibling;
-    while (n && !n.classList.contains('flux')) {
-      if (n.classList.contains('h2')) return {heading: true, rows: null};
+    while (n && !n.matches('[data-part="flux"]')) {
+      if (n.matches('[data-part="heading"]')) return {heading: true, rows: null};
       n = n.nextElementSibling;
     }
     return {heading: true, rows: n
-      ? [...n.querySelectorAll('.fx')].map((x) => {
+      ? [...n.querySelectorAll('[data-part="flux/row"]')].map((x) => {
           // The badge IS the value: a row whose value is a state wears it as
           // a chip. Reading a dot beside the label would measure a shape the
           // interface no longer draws.
-          const badge = x.querySelector('.fr .chip');
+          const badge = x.querySelector('[data-part="flux/value"] [data-part="chip"]');
           const TONS = { success: 'success', danger: 'alert',
                          warning: 'warning', info: 'info' };
           return {
-            l: x.querySelector('.fn').textContent.trim(),
-            v: x.querySelector('.fr').textContent.trim(),
-            s: x.querySelector('.fs').textContent.trim(),
+            l: x.querySelector('[data-part="flux/name"]').textContent.trim(),
+            v: x.querySelector('[data-part="flux/value"]').textContent.trim(),
+            s: x.querySelector('[data-part="flux/detail"]').textContent.trim(),
             // Reported in the operator's vocabulary, which is what the data is
-            // written in: the stylesheet's `danger` is their `alert`.
-            tone: badge
-              ? TONS[[...badge.classList].find((c) => TONS[c])] || 'unknown'
-              : null,
+            // written in: the emitted `danger` is their `alert`. The tone is
+            // read from `data-tone`, which every chip emitter writes from the
+            // SAME expression as its class — matching the class list against
+            // the table's keys named those keys as class names, and no
+            // instrument could see a class name that is never quoted.
+            tone: badge ? TONS[badge.dataset.tone] || 'unknown' : null,
           };
         })
       : null};
@@ -198,10 +206,10 @@ READ = """() => {
     overflow: port.scrollWidth - port.clientWidth,
     text: document.querySelector('#view').textContent,
     simulated: document.querySelector('#view').textContent.includes('SIMULÉE'),
-    headings: [...document.querySelectorAll('#view .h2')].map((x) => x.textContent.trim()),
+    headings: [...document.querySelectorAll('#view [data-part="heading"]')].map((x) => x.textContent.trim()),
     __BLOCKS__
-    topics: [...document.querySelectorAll('#view .topic .rt')].map((x) => x.textContent.trim()),
-    commands: [...document.querySelectorAll('#view .flux .fx .fk')].map((x) => x.textContent.trim()),
+    topics: [...document.querySelectorAll('#view [data-part="topic"] [data-part="topic/title"]')].map((x) => x.textContent.trim()),
+    commands: [...document.querySelectorAll('#view [data-part="flux"] [data-part="flux/row"] [data-part="flux/key"]')].map((x) => x.textContent.trim()),
   };
 }"""
 
@@ -209,9 +217,9 @@ READ = READ.replace("__BLOCKS__", "".join(
     f"{key}: block({heading!r}),\n    " for heading, key, _, _ in ALL_BLOCKS).strip())
 
 PANEL = """() => ({
-  open: document.querySelector('#sheet').classList.contains('open'),
-  title: (document.querySelector('.sheettitle') || {}).textContent || '',
-  actions: [...document.querySelectorAll('.sheetacts .sact')].map((b) => ({
+  open: document.querySelector('#sheet').hasAttribute('data-open'),
+  title: (document.querySelector('[data-part="sheet/title"]') || {}).textContent || '',
+  actions: [...document.querySelectorAll('[data-part="sheet/actions"] [data-part="sheet/action"]')].map((b) => ({
     text: b.textContent.trim(),
     inert: b.disabled,
     why: b.getAttribute('title') || '',
@@ -403,16 +411,16 @@ async def main():
         # meaning anything: « 1 863 titres » is neither good nor bad, it is how
         # big the library is. Read from the whole page rather than from the two
         # lists, because the temptation to badge a number lives everywhere.
-        quantities = await pg.evaluate("""() => [...document.querySelectorAll('#view .flux .fx')]
+        quantities = await pg.evaluate("""() => [...document.querySelectorAll('#view [data-part="flux"] [data-part="flux/row"]')]
           .map((x) => ({
-            l: x.querySelector('.fn').textContent.trim(),
-            v: x.querySelector('.fr').textContent.trim(),
-            badge: !!x.querySelector('.fr .chip'),
+            l: x.querySelector('[data-part="flux/name"]').textContent.trim(),
+            v: x.querySelector('[data-part="flux/value"]').textContent.trim(),
+            badge: !!x.querySelector('[data-part="flux/value"] [data-part="chip"]'),
             tone: (() => {
-              const c = x.querySelector('.fr .chip');
+              const c = x.querySelector('[data-part="flux/value"] [data-part="chip"]');
               const T = { success: 'success', danger: 'alert',
                           warning: 'warning', info: 'info' };
-              return c ? T[[...c.classList].find((k) => T[k])] || 'unknown' : null;
+              return c ? T[c.dataset.tone] || 'unknown' : null;
             })(),
           }))
           .filter((r) => r.badge && /^[\\d\\s  ]+$/.test(r.v.replace(/titres|éléments/g, '')))""")

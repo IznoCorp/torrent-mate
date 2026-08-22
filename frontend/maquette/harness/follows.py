@@ -1,6 +1,7 @@
 """The follows tab: its list, its groups, and the states it reaches."""
 
 import asyncio
+from common import shot
 from playwright.async_api import async_playwright
 async def main():
   async with async_playwright() as p:
@@ -16,36 +17,36 @@ async def main():
     await pg.evaluate("()=>document.querySelector('#toastx').click()")
     await pg.click('[data-acqtab="follows"]'); await pg.wait_for_timeout(350)
 
-    print("modes offered     :", await pg.evaluate("()=>[...document.querySelectorAll('.vsw button')].map(b=>b.getAttribute('aria-label'))"))
-    print("chips             :", await pg.evaluate("()=>[...document.querySelectorAll('.pill')].map(b=>b.textContent.trim())"))
-    print("list order        :", await pg.evaluate("()=>[...document.querySelectorAll('.ctitle')].map(e=>e.textContent).slice(0,6)"))
-    print("dot across a chip :", await pg.evaluate("()=>{const c=document.querySelector('.chip');const s=getComputedStyle(c,'::before');return {w:s.width,h:s.height,radius:s.borderRadius};}"))
-    print("title alone       :", await pg.evaluate("""()=>[...document.querySelectorAll('.card')].slice(0,4).every(c=>{
-        const t=c.querySelector('.ctitle').getBoundingClientRect(), m=c.querySelector('.cmeta').getBoundingClientRect();
+    print("modes offered     :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="view/switch"] button')].map(b=>b.getAttribute('aria-label'))"""))
+    print("chips             :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="pill"]')].map(b=>b.textContent.trim())"""))
+    print("list order        :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card/title"]')].map(e=>e.textContent).slice(0,6)"""))
+    print("dot across a chip :", await pg.evaluate("""()=>{const c=document.querySelector('[data-part="chip"]');const s=getComputedStyle(c,'::before');return {w:s.width,h:s.height,radius:s.borderRadius};}"""))
+    print("title alone       :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card"]')].slice(0,4).every(c=>{
+        const t=c.querySelector('[data-part="card/title"]').getBoundingClientRect(), m=c.querySelector('[data-part="card/meta"]').getBoundingClientRect();
         return t.bottom<=m.top+0.5;})"""))
-    await pg.screenshot(path="s_liste.png")
+    await shot(pg, "follows-list")
 
     await pg.click('[data-fmode="group"]'); await pg.wait_for_timeout(350)
-    print("groups rendered   :", await pg.evaluate("()=>[...document.querySelectorAll('.sechead .t')].map(e=>e.textContent)"))
+    print("groups rendered   :", await pg.evaluate('''()=>[...document.querySelectorAll('[data-part="section/head"] [data-part="section/title"]')].map(e=>e.textContent)'''))
     print("chip hidden in a homogeneous group:", await pg.evaluate("""()=>{
-       const secs=[...document.querySelectorAll('.sec')];
-       const upToDate=secs.find(s=>(s.querySelector('.sechead .t')||{}).textContent==='À jour');
-       return upToDate? upToDate.querySelectorAll('.chip').length===0 : 'group absent';}"""))
+       const secs=[...document.querySelectorAll('[data-part="section"]')];
+       const upToDate=secs.find(s=>(s.querySelector('[data-part="section/head"] [data-part="section/title"]')||{}).textContent==='À jour');
+       return upToDate? upToDate.querySelectorAll('[data-part="chip"]').length===0 : 'group absent';}"""))
     print("chip kept in a heterogeneous group:", await pg.evaluate("""()=>{
-       const secs=[...document.querySelectorAll('.sec')];
-       const d=secs.find(s=>(s.querySelector('.sechead .t')||{}).textContent==='Demandent quelque chose');
-       return d? d.querySelectorAll('.chip').length>0 : 'group absent';}"""))
-    await pg.screenshot(path="s_groupe.png")
+       const secs=[...document.querySelectorAll('[data-part="section"]')];
+       const d=secs.find(s=>(s.querySelector('[data-part="section/head"] [data-part="section/title"]')||{}).textContent==='Demandent quelque chose');
+       return d? d.querySelectorAll('[data-part="chip"]').length>0 : 'group absent';}"""))
+    await shot(pg, "follows-groups")
 
     await pg.click('[data-fmode="grid"]'); await pg.wait_for_timeout(350)
-    print("tiles             :", await pg.evaluate("()=>document.querySelectorAll('.tile').length"),
-          "| badges :", await pg.evaluate("()=>[...document.querySelectorAll('.tilebadge')].map(e=>e.textContent)"))
-    await pg.screenshot(path="s_grille.png")
+    print("tiles             :", await pg.evaluate("""()=>document.querySelectorAll('[data-part="tile"]').length"""),
+          "| badges :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="tile/badge"]')].map(e=>e.textContent)"""))
+    await shot(pg, "follows-grid")
 
     await pg.click('[data-fmode="list"]'); await pg.click('[data-pill="movies"]'); await pg.wait_for_timeout(300)
-    print("Films filter      :", await pg.evaluate("()=>[...document.querySelectorAll('.ctitle')].map(e=>e.textContent)"))
-    print("film label        :", await pg.evaluate("()=>document.querySelector('.chip').textContent"))
-    print("film actions      :", await pg.evaluate("()=>[...document.querySelectorAll('.swipe .act')].slice(0,2).map(e=>e.textContent.trim())"))
+    print("Films filter      :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card/title"]')].map(e=>e.textContent)"""))
+    print("film label        :", await pg.evaluate("""()=>document.querySelector('[data-part="chip"]').textContent"""))
+    print("film actions      :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="swipe"] [data-part="swipe/action"]')].slice(0,2).map(e=>e.textContent.trim())"""))
     print("\nJS errors:", errs or "none")
     await b.close()
     # A script that only prints can never fail, and a script that cannot fail

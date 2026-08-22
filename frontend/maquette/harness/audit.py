@@ -59,10 +59,10 @@ async def main():
           // opening any of those routes falls through to `#view` and the
           // rules pass on a page the state never shows — a rule gone quiet,
           // not a rule satisfied.
-          const root = document.querySelector('#dlg').classList.contains('open') ? document.querySelector('#dlg')
-                     : document.querySelector('#screen').classList.contains('open') ? document.querySelector('#screen')
-                     : document.querySelector('#sheet').classList.contains('open') ? document.querySelector('#sheet')
-                     : document.querySelector('.screen.open[data-key]')
+          const root = document.querySelector('#dlg').hasAttribute('data-open') ? document.querySelector('#dlg')
+                     : document.querySelector('#screen').hasAttribute('data-open') ? document.querySelector('#screen')
+                     : document.querySelector('#sheet').hasAttribute('data-open') ? document.querySelector('#sheet')
+                     : document.querySelector('[data-part="screen"][data-open][data-key]')
                      ?? document.querySelector('#view');
 
           // R1 — every tappable poster leads to a FILLED-IN sheet
@@ -70,22 +70,29 @@ async def main():
             .filter(t=>{const f=sheetFor(t); return !f || !f.ov || !f.g || !(f.cast||[]).length;});
 
           // R2 — HARDENED: a button must have a declared DESTINATION, not
-          // merely a known class. Whitelisting by class blessed every `.sact`,
-          // so a control could lead nowhere without the rule flinching.
+          // merely a known class. Whitelisting by class blessed every sheet
+          // action, so a control could lead nowhere without the rule
+          // flinching.
           R.deadButtons = [...root.querySelectorAll('button, a')]
             .filter(el=>el.getBoundingClientRect().height>0 && !el.disabled
-                    && !el.closest('.hbtn') && !el.closest('.hpanel')
+                    && !el.closest('[data-part="harness/bar"]') && !el.closest('[data-part="harness/panel"]')
                     && !el.closest('details:not([open])'))
             // An href IS a destination — the trailer is a genuine outbound
             // link to YouTube.
             .filter(el=>!el.getAttribute('href') || el.getAttribute('href')==='#')
-            .filter(el=>Object.keys(el.dataset).length===0 && !el.id && !el.onclick
-                    && !/searchclear|burger|avatar|fback|more\b|fab|sel\b|vsw|seg\b|pill|tile|ep\b/.test(el.className))
+            // A second allowlist used to sit here — twelve style-class tokens
+            // in a regex tested against `className`, one of R2's two lists.
+            // Measured dead: neutralised whole, `deadButtons` stays empty,
+            // because every control it named now carries a `data-part` and
+            // the dataset test on this line already clears them. It would
+            // have started reporting all twelve as destination-less the day
+            // the stylesheet converted, for a reason nothing could name.
+            .filter(el=>Object.keys(el.dataset).length===0 && !el.id && !el.onclick)
             .map(el=>'« '+el.textContent.trim().slice(0,28)+' »');
 
           // R3 — touch targets: every control is at least 40px on one axis
           R.targetsTooSmall = [...root.querySelectorAll('button,a')].filter(el=>{
-            if (!vis(el) || el.closest('.hbtn') || el.closest('.hpanel')) return false;
+            if (!vis(el) || el.closest('[data-part="harness/bar"]') || el.closest('[data-part="harness/panel"]')) return false;
             const b=el.getBoundingClientRect();
             // DECLARED EXCEPTION: the episode cell is 31 × 27 in the SHIPPED
             // component. At 13 cells per row, 44px would demand 572px of
@@ -104,7 +111,7 @@ async def main():
           // (overflow-x hidden/clip) AND that fits within the frame itself. A
           // clipping ancestor that overflows clips nothing, it moves the
           // problem.
-          const SCROLLERS = '.pillscroll,.cast,.eps,.hpanel';
+          const SCROLLERS = '[data-part="pill/list"],[data-part="cast"],[data-part="episode/set"],[data-part="harness/panel"]';
           const clipped = (el) => {
             for (let p = el.parentElement; p && p !== root.parentElement; p = p.parentElement) {
               const ox = getComputedStyle(p).overflowX;
@@ -120,7 +127,7 @@ async def main():
           // R4b — the measurement that cannot be talked out of it: the
           // scrollport itself must offer NO horizontal scrolling. An illusory
           // clip would show up here.
-          R.horizontalPan = [...root.querySelectorAll('.port,[data-scroll-root]')]
+          R.horizontalPan = [...root.querySelectorAll('[data-part="viewport"],[data-scroll-root]')]
             .filter(el=>el.scrollWidth > el.clientWidth + 1)
             .map(el=>(el.className||el.tagName)+' scrollWidth '+el.scrollWidth+' > '+el.clientWidth);
 
@@ -133,27 +140,27 @@ async def main():
 
           // R6 — an essential title is never truncated to the point of being a
           // guess
-          R.truncatedTitles = [...root.querySelectorAll('.ht,.sheettitle,.dlg h3')].filter(el=>
+          R.truncatedTitles = [...root.querySelectorAll('[data-part="hero/title"],[data-part="sheet/title"],[data-part="dialog"] h3')].filter(el=>
             el.scrollWidth>el.clientWidth+1).map(el=>el.textContent.trim().slice(0,30));
 
           // R6 bis — a card title MAY ellipsize; the list is a list. But the full
           // string must stay reachable, because for an unidentified arrival the
           // release name IS its identity, and the truncation lands on the group —
           // exactly what tells two versions of the same media apart.
-          R.lostTitles = [...root.querySelectorAll('.ctitle')].filter(el=>
+          R.lostTitles = [...root.querySelectorAll('[data-part="card/title"]')].filter(el=>
             el.scrollWidth>el.clientWidth+1 && !el.getAttribute('title'))
             .map(el=>el.textContent.trim().slice(0,34));
 
           // R7 — no panel renders emptiness in silence
-          R.emptyPanels = [...root.querySelectorAll('.panel')].filter(el=>
+          R.emptyPanels = [...root.querySelectorAll('[data-part="panel"]')].filter(el=>
             el.children.length===0).length;
 
           // R23 — within an option group every row has the same size, and
           // SHAPE distinguishes single choice (circle) from multiple choice
           // (square). Identical pills stated no rule.
           R.irregularOptions = [];
-          for (const grp of root.querySelectorAll('.optlist')) {
-            const opts = [...grp.querySelectorAll('.opt')];
+          for (const grp of root.querySelectorAll('[data-part="option/list"]')) {
+            const opts = [...grp.querySelectorAll('[data-part="option"]')];
             const t = opts.map(e=>{const b=e.getBoundingClientRect();
               return Math.round(b.width)+'×'+Math.round(b.height);});
             if (new Set(t).size > 1) R.irregularOptions.push('sizes '+[...new Set(t)].join(' / '));
@@ -167,7 +174,7 @@ async def main():
           // length of the label beside it. A chip inside a flex row took the
           // text's height.
           R.irregularSwitches = [];
-          const sw = [...root.querySelectorAll('.switch')];
+          const sw = [...root.querySelectorAll('[data-part="switch"]')];
           if (sw.length > 1) {
             const sizes = sw.map(e=>{const b=e.getBoundingClientRect();
               return Math.round(b.width)+'×'+Math.round(b.height);});
@@ -179,7 +186,7 @@ async def main():
           R.subLines = [];
           if (stateId.startsWith('lib-') && !stateId.includes('incomplete')) {
             const expected = /^(\\d{4}|année inconnue) · (Film|Série)$/;
-            R.subLines = [...root.querySelectorAll('#libitems .csub, #libitems .fr')]
+            R.subLines = [...root.querySelectorAll('#libitems [data-part="card/subtitle"], #libitems [data-part="tile/subtitle"]')]
               .map(e=>e.textContent.trim()).filter(t=>t && !expected.test(t)).slice(0,5);
           }
 
@@ -187,25 +194,25 @@ async def main():
           // above it: screen, sheet and dialog. The rule once covered screens
           // only, and the defect came back through sheets.
           R.screenReserve = null;
-          const bar = document.querySelector('.bottombar').getBoundingClientRect().height;
+          const bar = document.querySelector('[data-part="shell/tab-bar"]').getBoundingClientRect().height;
           // Every screen migrated off `#screen` onto a real route is a LAYER
           // like the others — the tab bar passes above it too — and joins
           // this sweep through the SAME generic entry the root ladder above
-          // uses: any open `.screen.open[data-key]`, never a per-identity
+          // uses: any open `[data-part="screen"][data-open][data-key]`, never a per-identity
           // prefix. One generic entry covers the mediaSheet, the add screen, the
           // arbitration screen, the release picker, the quality profile and
           // whatever migrates next — naming each one here would have re-open
           // this exact gap on every future migration. Dropping it entirely
           // would leave every state that opens a route inspecting nothing at
-          // all: its `.port` padding and the reachability of its last action
+          // all: its `[data-part="viewport"]` padding and the reachability of its last action
           // are exactly what this rule holds on it.
-          const layers = [['#screen','.port'],['#sheet','.sheetin'],
-                          ['.screen.open[data-key]','.port']];
+          const layers = [['#screen','[data-part="viewport"]'],['#sheet','[data-part="sheet/viewport"]'],
+                          ['[data-part="screen"][data-open][data-key]','[data-part="viewport"]']];
           for (const [sel, inner] of layers) {
             const el = document.querySelector(sel);
             // The mediaSheet's selector matches only while it is open, so an absent
             // node is a closed layer — not an error, and not a reason to throw.
-            if (!el || !el.classList.contains('open')) continue;
+            if (!el || !el.hasAttribute('data-open')) continue;
             const port = el.querySelector(inner);
             if (!port) continue;
             const pb = parseFloat(getComputedStyle(port).paddingBottom);
@@ -219,7 +226,7 @@ async def main():
             const last = btns[btns.length-1];
             if (last) {
               const bb = last.getBoundingClientRect();
-              const barTop = document.querySelector('.bottombar').getBoundingClientRect().top;
+              const barTop = document.querySelector('[data-part="shell/tab-bar"]').getBoundingClientRect().top;
               if (bb.bottom > barTop + 1) R.screenReserve = `${sel}: last button under the bar (${Math.round(bb.bottom - barTop)}px)`;
             }
           }
@@ -273,17 +280,17 @@ async def main():
         pipe:state.pipe});
       for (const id of ['acq-now-loaded','arr-loaded','lib-incomplete']) {
         window.__go(id); await new Promise(r=>setTimeout(r,220));
-        const btns=[...document.querySelectorAll('#view .cfoot')];
+        const btns=[...document.querySelectorAll('#view [data-part="card/foot"]')];
         for (let i=0;i<btns.length;i++){
           window.__go(id); await new Promise(r=>setTimeout(r,200));
-          const b=[...document.querySelectorAll('#view .cfoot')][i]; if(!b) continue;
+          const b=[...document.querySelectorAll('#view [data-part="card/foot"]')][i]; if(!b) continue;
           const lab=b.textContent.trim(); const before=snap();
           // Pre-existing gap found while wiring the generic route rung above:
           // this check never learned about a screen migrated off `#screen`
           // onto a real route (`/resolution/$folder` among them) — the SAME
           // generic entry as the root ladder's covers it here too.
-          const layer=()=>['#sheet','#screen','#dlg'].some(s=>document.querySelector(s).classList.contains('open'))
-            || !!document.querySelector('.screen.open[data-key]');
+          const layer=()=>['#sheet','#screen','#dlg'].some(s=>document.querySelector(s).hasAttribute('data-open'))
+            || !!document.querySelector('[data-part="screen"][data-open][data-key]');
           b.click(); await new Promise(r=>setTimeout(r,320));
           if (snap()===before && !layer()) out.push(`${id} : « ${lab} » changes nothing`);
           ['#scrim'].forEach(s=>document.querySelector(s).click());

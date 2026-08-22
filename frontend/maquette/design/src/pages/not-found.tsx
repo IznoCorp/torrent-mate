@@ -17,7 +17,7 @@ export function NotFoundPage(): ReactElement {
   return (
     <>
       <div
-        className="empty"
+        className="empty" data-part="empty-state"
         dangerouslySetInnerHTML={{
           __html: emptyInner(
             t("screens.notFound.title"),
@@ -25,10 +25,10 @@ export function NotFoundPage(): ReactElement {
           ),
         }}
       />
-      <button className="cfoot solid" data-go="acq">
+      <button className="cfoot solid" data-part="card/foot" data-solid="" data-go="acq">
         {t("screens.notFound.toAcquisition")}
       </button>
-      <button className="crossref" data-drawer="1">
+      <button className="crossref" data-part="cross-reference" data-drawer="1">
         {t("screens.notFound.allPages")}
         <span>{t("screens.notFound.menuLink")}</span>
       </button>

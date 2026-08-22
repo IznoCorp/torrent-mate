@@ -1,0 +1,276 @@
+# Phase 6 — the tail, then the baseline is emptied and deleted
+
+## Gate
+
+Phase 5 must have produced, all committed:
+
+- the filter, setting, segment and section-head contracts anchored, with `fr`, `fn`, `fk`, `fs`
+  resolved at their sites and their meanings recorded in the commit messages;
+- `data-empty` and `data-blocked` emitted and asserted through `hasAttribute`;
+- `frontend/maquette/anchor-baseline.json` down to **368 entries** (444 − 76);
+- ACC-12 recorded as `exit=0`.
+
+## Measured on the committed baseline, not estimated
+
+**271 token occurrences across 92 distinct tokens**, once `.open` is counted where it belongs
+(phase 2, the second token of every `.screen.open`). The head of the distribution: `.swipe` 20,
+`.tile` 20, `.sact` 18, `.chip` 10, `.act` 9, `.port` 8, `.flux` 7, `.pipeline` 7, `.h2` 7,
+`.t` 6, `.fback` 6 — and a long tail of ones and twos. By file: `audit2.py` 32, `page_host.py`
+32, `screen_addresses.py` 28, `bugs.py` 25, `screens.py` 19, `settings.py` 16.
+
+Eleven of these tokens are the SHELL's (`index.html`: `bottombar`, `loginscreen`, `splashbar`,
+`dlg`, `hbtn`, `installgo`, `brandbig`, `device`, `loginsubmit`, plus `port` and `screen` shared),
+and three are computed (`announced`, `modified`, `selbar`) — each resolved at its own site.
+
+## Emission sites touched
+
+**All three, and this is the only phase that touches the shell at scale.** The tail is a long one —
+the DESIGN measured 96 distinct root tokens across 133 distinct selectors in 36 files, not a few hot
+spots — so it is worked by site, and each site is finished before the next begins.
+
+| Group                 | Site                               | What it holds                                                                                              |
+| --------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| the shell-only tokens | `design/index.html`                | 9 tokens — `bottombar`, `loginscreen`, `loginsubmit`, `splashbar`, `dlg`, `hbtn`, `installgo` and the rest |
+| the engine-only tail  | `engine/legacy.js`                 | the remainder of the 17 — `dlgbtn`, `deck`, `manifest`, `nm`, `sel` and the rest                           |
+| the component tail    | the 23 components                  | the remainder of the 48 — `sact`, `body`, `field` and the rest                                             |
+| the straddling tail   | `legacy.js` **and** the components | the remainder of the 34 — `chip`, `tile` and the rest                                                      |
+| the computed tokens   | resolved per site                  | `announced`, `modified`, `selbar` — `eppop` was resolved in phase 4                                        |
+
+**Eleven tokens have an end in the shell, which no lot converts** — `index.html` keeps its
+`data-part` for good. That makes this the most durable work in the wave, not the leftovers.
+
+## Baseline entries removed
+
+**368 — the remainder, and the file reaches zero.** 365 class token occurrences across **110
+distinct tokens** (a first draft said 92, counted before the held selectors entered the instrument),
+plus the last **3** state assertions: `classList.contains('show')` → `hasAttribute('data-shown')`,
+`in_library` → `data-in-library`, `announced` → `data-announced`.
+
+Measured on the committed 834-entry baseline by EMISSION SITE, which is how the sub-phases are cut:
+
+| Sub-phase | Removes | What |
+| --- | --- | --- |
+| 6.1 | **52** | the SHELL's tokens — 38 shell-only (21 held: `bottombar`, `brandbig`, `device`, `dlg`, `fab`, `hbtn`, `installgo`, `logincard`, `loginfield`, `loginscreen`, `loginsubmit`, `mk`, `splashbar`, …) + 14 shared shell+components (`avatar`, `port`; 5 held) |
+| 6.2 | **156** | every token with an END IN THE ENGINE, literal or imperative (`hpanel`, `selbar` are assigned in code) — 64 engine-only (13 held: `deck`, `dlgbtn`, `dryrun`, `folder`, `fw`, `left`, `manifest`, `navbadge`, `nm`, `right`, `sel`, `selrow`, `side`, `swipe`, `tilebadge`) + 92 straddling (15 held: `act`, `chip`, `danger`, `empty`, `flux`, `grid`, `miss`, `noinfo`, `note`, `panel`, `pip`, `remove`, `sec`, `segmini`, `sk`, `surf`, `tile`, `topic`, …) |
+| 6.3 | **160** | 147 components-only (36 held; 53 tokens: `addfoot`, `body`, `byid`, `cast`, `countline`, `crossref`, `fback`, `h2`, `hero`, `herobg`, `herowrap`, `ht`, `kv`, `sact`, `sheettitle`, …) + 10 without a markup literal — measured 2026-08-21 after 4.1: `hpanel` (4) and `selbar` (4) are IMPERATIVE (`className =` / `classList.add` in code — anchor beside the assignment with `.dataset.part`, which the guard reads since 4.2), while `announced` (1) and `modified` (1) are COMPUTED expressions (`className={… ? "modified" : …}`) — anchor the element with a literal `data-part` at that site + the 3 state assertions |
+| 6.4 | 0 | the floor becomes a hard zero in code; the baseline file is deleted |
+
+52 + 156 + 160 = **368** — re-pinned on 2026-08-21 once imperative emissions were read: `hpanel` and `selbar` are the engine's, not « computed ». Running total across the wave: 201 + 143 + 46 + 76 + 368 = **834**.
+
+> **Never the Edit tool on `legacy.js`.** A formatter hook reformats the whole engine (33 000 lines) on
+> the first `Edit`, silently in a `--stat`; 3.2 reverted and re-applied by script. Every engine change
+> is applied by a script that rewrites exactly the bytes meant, then `git diff --stat`-checked.
+
+> **`py_compile` every harness file after every rewrite.** A `data-part` value carries a `/`, so its
+> selector needs quotes; substituted into a single-line double-quoted Python string, the raw `"`
+> breaks the file — and the guard, the baseline, the oracle and the classifier all stayed green over
+> two unparseable rule files in 4.1. `python3 -m py_compile frontend/maquette/harness/*.py` takes two
+> seconds and must print nothing, before any proof.
+
+> **Rewrite per string token, never per line.** The baseline's `line` is where the string literal
+> BEGINS; in a multi-line `"""…"""` JS block the token can sit lines below, and a per-line
+> rewrite aborts there (3.1 ran one, discarded it, and redid its 79 through `tokenize`). For each
+> entry, locate the string token starting at (file, line), rewrite your class token inside it, and
+> reconcile the whole-corpus count of your tokens against the baseline's before you start. Then
+> re-host any single-line double-quoted string now carrying `[data-part=\"` in `'…'` or a
+> triple-quoted string — the guard refuses the escaped shape.
+
+## Sub-phase 6.1 — the shell tail
+
+One commit: `refactor(maquette-l02): anchor the application shell contracts on data-part`
+
+- [ ] **Step 1.** Work `frontend/maquette/design/index.html` — 374 lines, 47 `class=` — and emit a
+      `data-part` beside each class the harness selects on. The shell is the site both earlier
+      analysis passes missed; enumerate from the baseline's remaining entries rather than by reading
+      the file for likely candidates.
+- [ ] **Step 2.** Re-anchor the corresponding harness selections; re-read the diff.
+- [ ] **Step 3.** Remove those baseline entries in this same commit.
+- [ ] **Step 4.** `python3 scripts/check-markup-contracts.py; echo "exit=$?"` → `exit=0`;
+      `run.sh` → no violation, hold counts unchanged. Commit.
+
+## Sub-phase 6.2 — the engine tail and the straddling tail
+
+One commit: `refactor(maquette-l02): anchor the remaining engine-side contracts on data-part`
+
+- [ ] **Step 1.** Emit the remaining `data-part` values in `legacy.js`, and — for every token the
+      components also emit — at the component sites in the **same** commit. A concept whose markup
+      sits on both sides of the engine boundary moves as one contract or not at all.
+- [ ] **Step 2.** Beware the short tokens. `nm` and `sel` are two letters, and `sel` is a substring
+      of `selbar` and `selection`. Re-read the diff; the rename tool's read-back check does not
+      cover `--values` runs or Python files.
+- [ ] **Step 3.** Re-anchor the harness selections, remove the baseline entries in this same commit.
+- [ ] **Step 4.** `check-markup-contracts.py` → `exit=0`; `run.sh` → no violation, hold counts
+      unchanged. Commit.
+
+## Sub-phase 6.3 — the component tail, the computed tokens and the last three states
+
+One commit: `refactor(maquette-l02): anchor the component tail and the last three states`
+
+- [ ] **Step 1.** Emit the remaining component-side `data-part` values.
+- [ ] **Step 2.** Resolve `announced`, `modified` and `selbar` **at their own sites**. Each is a
+      conditional `className` expression; read what each branch evaluates to and anchor where the
+      element is built. A token nothing emits is a rule already selecting nothing — if one of the
+      three turns out to be emitted by no branch, record that finding rather than inventing an
+      anchor for it.
+- [ ] **Step 3.** Emit the last three states in the imposed idiom — `data-shown={isShown ||
+  undefined}`, `data-in-library={isInLibrary || undefined}`, `data-announced={isAnnounced ||
+  undefined}` — and move their three assertions to `hasAttribute`.
+- [ ] **Step 4.** Mutation-test each of the three: make the emitting site drop the attribute
+      unconditionally, confirm the rule FALLS and names the right defect, restore. `announced` is
+      also computed, so its mutation proves both halves at once.
+- [ ] **Step 5.** Remove the last baseline entries in this same commit. **The file now holds 0.**
+- [ ] **Step 6.** `check-markup-contracts.py` → `exit=0`; `run.sh` → no violation, hold counts
+      unchanged. Commit.
+
+## Sub-phase 6.4 — the floor becomes a hard zero in code
+
+One commit: `refactor(maquette-l02): delete the anchor baseline and make the floor a hard zero`
+
+The burn-down was a ratchet, not a promise. An empty file is a floor someone can raise again, so the
+file goes and the tolerance goes with it.
+
+- [ ] **Step 1.** Delete `frontend/maquette/anchor-baseline.json`.
+- [ ] **Step 2.** Remove every reference to it from `scripts/check-markup-contracts.py`, including
+      the `--write-baseline` mode. The arm now refuses the **first** class-anchored selection, with
+      no list to consult. Update the per-arm docstring so the file still says what it actually
+      measures.
+- [ ] **Step 3.** **ACC-10** — the baseline is empty and gone:
+
+```bash
+ls frontend/maquette/anchor-baseline.json; echo "exit=$?"
+grep -c "anchor-baseline" scripts/check-markup-contracts.py
+```
+
+Expected: `No such file or directory`, `exit=1`, and `0` references left in the guard.
+
+- [ ] **Step 4.** Mutation-test the hard floor, because a guard whose baseline just disappeared is a
+      guard nobody has seen fail in its final form: re-introduce one class-anchored selection in any
+      `harness/*.py`, confirm `exit=1` and that it is named, restore.
+- [ ] **Step 5.** **ACC-01** — zero class-anchored selection calls remain:
+
+```bash
+python3 scripts/check-markup-contracts.py; echo "exit=$?"
+```
+
+Expected: a line reporting `0 class-anchored selection call` over `harness/*.py`, and `exit=0`.
+
+- [ ] **Step 6.** **ACC-02** — the same conclusion from a reader that is not the guard:
+
+```bash
+python3 scripts/classify-rule-anchors.py --summary; echo "exit=$?"
+```
+
+Expected: `class 0`, and `exit=0`, with the total AT LEAST 696 (DESIGN ACC-02, amended in 6.3: measured 700 — every call above the pin is a selector the extractor could not read before). **The total must still be 687**: a
+classifier that stopped SEEING calls would also report zero class anchors, and the two failures are
+indistinguishable from the exit code alone.
+
+- [ ] **Step 7.** Commit.
+
+---
+
+## Closing proofs — run all three, record what they printed
+
+```bash
+python3 frontend/maquette/oracle.py --check          # no divergence, exit 0
+frontend/maquette/harness/run.sh                     # no violation, per-rule hold counts UNCHANGED
+make check                                           # exit 0
+```
+
+**ACC-07 is claimed here**, over the whole wave: the oracle green means 694 anchors were added
+across three emission sites and no pixel moved. That is checkable rather than asserted because the
+stylesheet's only attribute selectors are `[aria-checked]`, `[aria-selected]`, `[aria-pressed]`,
+`[aria-current]`, `[data-theme]` and `[data-depth]` — none on `data-part` or the seven states.
+
+**ACC-13 is the third command**: `make check; echo "exit=$?"` → `exit=0`. It now runs
+`oracle.py --contracts` too, wired in phase 1, so the dormant arm that held half of D4 and executed
+nowhere is part of the gate this wave closes on.
+
+---
+
+## Sub-phase 6.5 — the harness writes its screenshots in one place
+
+**What.** The 22 `pg.screenshot(path="…")` calls in eleven rule files now go through one helper,
+`common.shot(pg, name)`, which writes under `frontend/maquette/harness/__screenshots__/`. Every
+capture was renamed in English as `<rule>-<what>`; the directory is ignored by the repository's own
+`.gitignore`.
+
+**Corrected in 6.6.** That commit also removed `/trailers_cache.json` and `/youtube_quota.json`,
+on the reasoning that `trailers.state_file` is anchored under `paths.data_dir`. It is anchored
+there by DEFAULT and the field is `str | None`: `orchestrator.py:754` resolves
+`cache_dir = Path(config.trailers.state_file).parent`, so a config that sets it relative resolves
+the parent to the CWD and both files land at the repository root — which is what the comment those
+two lines carried says, and it is still true. The lines are back, and nothing about this
+sub-phase's own change motivated their removal.
+
+**Why.** A path relative to the caller lands wherever the caller stands, and every proof here runs
+from the repository root: 127 `.png` files had accumulated there, unseen because a blanket `*.png`
+ignores them all. It is the lesson `audit.py` already carries for `violations.json`.
+
+**The check.** `grep -n 'screenshot(' frontend/maquette/harness/*.py` names no file but `common.py`;
+after a full suite run `ls *.png | wc -l` at the root reads `0` and
+`ls frontend/maquette/harness/__screenshots__ | wc -l` reads `126` (19 fixed + 16 `scen` + 8 `sweep`
++ 83 `states`).
+
+---
+
+## Sub-phase 6.6 — the adversarial review's findings, each mutated before it was fixed
+
+**What.** Thirteen findings from the review of `c0b4f213..c9e19d3a`, in four blocks. Every one was
+mutated RED first — the mutation run, its output kept — then fixed, then mutated again.
+
+**The readers learn a FIFTH syntactic position.** Both of them knew four places a class name can
+occupy; a rule can also read the class ATTRIBUTE and decide on a name it finds there, with no
+selector anywhere. Six shapes — `className.includes('x')`, `className.split(' ').includes('x')`,
+`className.replace('x ', '')`, `className === 'x'`, a regex of class names `.test`ed against
+`className`, a table matched against a spread `classList`, and a CSS rule the harness INJECTS.
+Eleven live sites, and four of them sat on lines this lot's own migration had rewritten. Tested
+with a planted fixture per shape, RED before the arm existed.
+
+**Every one of the eleven is anchored on what the markup emits.** `pop.py` on
+`data-in-library` / `data-announced` (« missing » is the absence of both, which is WIDER than the
+class `to_grab`: the component also renders `pending` and `acquiring`, and both are aired and not
+owned, which is what the hold asks about). Eleven chip emitters, seven of which carry a tone, now
+emit `data-tone` from the SAME expression as the class, and `machine.py` reads
+`badge.dataset.tone`. `library_sort.py` reads `data-tone === 'primary'`. `machine.py`'s sibling
+walk is `matches('[data-part="flux"]')` / `[data-part="heading"]`. `content.py`'s injected clamp
+selects `[data-part="card/overview"]`, and ARM 3 learns to read injected rules — no other
+extraction can reach one, because a rule text carries unbalanced braces. `surfaces.py` derives its
+episode states from the two attributes.
+
+**The twelve-token class regex in `dest.py` and `audit.py` is DELETED, not translated.** Measured:
+neutralised whole, both counts stay at 0, because every control it named now carries a `data-part`
+and the `Object.keys(dataset).length === 0` filter above it already clears them. The review
+expected the count to rise at L07; it does not rise even with the regex gone today.
+
+**The genre exemption is keyed on the SITE.** One sentence covered five names, read true of three
+sites and false of two. `machine.py:172-173` used `flux` and `h2` for structure. Three sites
+remain, each with its own reason; a `contains` at an undeclared site is now refused rather than
+warned about.
+
+**ARM 4's corpus is DERIVED.** A tuple of seven names, twelve shipped; the five it missed were
+selected by presence from five rules. It is now every `data-*` the harness selects by PRESENCE and
+never compares the value of — 24 attributes, 14 writes, both printed.
+
+**ARM 3 holds every NAMING attribute**, not `data-part` alone, and the list is declared once in
+`markup_text` because the French guard asks a different question of the same set. Widening it to
+every valued `data-*` was measured and refused: 44 false findings, all addresses emitted from a
+computed expression.
+
+**The French guard's value arm learns the two imperative spellings** — three values were read by
+nothing — and gains `data-tone`, `data-action`, `data-side`: 463 examined becomes 484. One word,
+`resume`, was owed to the vocabulary.
+
+**Five modules split out**, because the file that was to receive these arms stood at 985 non-blank
+lines against a 1 000 ceiling: arm 7 (its two halves ask one question of the same markup), arm 9
+(its corpus is the shell), arm 10 (the one oracle from outside this repository), ARM 4 of the
+markup guard, and the classifier's own mirrored readers.
+`python3 scripts/check-module-size.py --root scripts` is CLEAN, where it warned before this
+sub-phase started.
+
+**The proofs.** `check-markup-contracts.py` → exit 0 over 52 rule files, 0 class-anchored
+selections, 0 class names read from the attribute, 3 genre sites exempt, 696 naming-attribute
+selections against 26 emission sites, 14 state writes over 24 derived attributes.
+`classify-rule-anchors.py --tokens` → 0 class token occurrences total.
+`check-no-french.py` → exit 0, 14 arms, 484 `data-part` values.
+`oracle.py --check` → no divergence. `harness-hold-counts.py --compare` →
+`0 rule(s) changed hold count`.

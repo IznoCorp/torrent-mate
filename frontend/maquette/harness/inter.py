@@ -1,6 +1,7 @@
 """Interaction holds: what a tap, a long press and a drag must do."""
 
 import asyncio
+from common import shot
 from playwright.async_api import async_playwright
 
 # Pointer events of type « touch »: the handlers serve finger, mouse and pen
@@ -33,42 +34,42 @@ async def main():
 
     print("── Suivis: swipe action ──")
     await pg.click('[data-acqtab="follows"]'); await pg.wait_for_timeout(300)
-    await pg.evaluate(SW, ["#view .swipe", -1, 9])
-    print("  transform :", await pg.evaluate("()=>getComputedStyle(document.querySelector('#view .swipe .card')).transform"))
+    await pg.evaluate(SW, ['#view [data-part="swipe"]', -1, 9])
+    print("  transform :", await pg.evaluate("""()=>getComputedStyle(document.querySelector('#view [data-part="swipe"] [data-part="card"]')).transform"""))
 
     print("── Library: scrolling + error + end ──")
     await pg.click('[data-page="lib"]'); await pg.wait_for_timeout(400)
-    print("  initial tiles:", await pg.evaluate("()=>document.querySelectorAll('#libitems .tile').length"),
+    print("  initial tiles:", await pg.evaluate("""()=>document.querySelectorAll('#libitems [data-part="tile"]').length"""),
           "|", (await pg.evaluate("()=>document.querySelector('#libcount').textContent")).strip())
     for _ in range(3):
         await pg.evaluate("()=>{const p=document.querySelector('#port');p.scrollTop=p.scrollHeight;}")
         await pg.wait_for_timeout(900)
-    err = await pg.evaluate("()=>{const e=document.querySelector('.loaderr');return !!e;}")
+    err = await pg.evaluate("""()=>{const e=document.querySelector('[data-part="load-error"]');return !!e;}""")
     print("  error path shown:", err)
     if err:
         await pg.click("#libretry"); await pg.wait_for_timeout(900)
-    print("  tiles after retry:", await pg.evaluate("()=>document.querySelectorAll('#libitems .tile').length"))
+    print("  tiles after retry:", await pg.evaluate("""()=>document.querySelectorAll('#libitems [data-part="tile"]').length"""))
 
     print("── Médiathèque: deletion ──")
     await pg.click('[data-lmode="list"]'); await pg.wait_for_timeout(350)
-    await pg.evaluate(SW, ["#libitems .swipe", -1, 8])
-    await pg.evaluate("()=>document.querySelector('#libitems .swipe .act.remove').click()")
+    await pg.evaluate(SW, ['#libitems [data-part="swipe"]', -1, 8])
+    await pg.evaluate("""()=>document.querySelector('#libitems [data-part="swipe"] [data-part="swipe/action"][data-action="remove"]').click()""")
     await pg.wait_for_timeout(400)
     d = await pg.evaluate("""()=>{const g=document.querySelector('#dlg');
-      return {open:g.classList.contains('open'), title:(g.querySelector('h3')||{}).textContent,
-              dryrun:!!g.querySelector('.dryrun'), rows:g.querySelectorAll('.manifest li').length,
-              choices:[...g.querySelectorAll('.dlgbtn')].map(x=>x.textContent.trim())};}""")
+      return {open:g.hasAttribute('data-open'), title:(g.querySelector('h3')||{}).textContent,
+              dryrun:!!g.querySelector('[data-part="dialog/dry-run"]'), rows:g.querySelectorAll('[data-part="dialog/manifest"] li').length,
+              choices:[...g.querySelectorAll('[data-part="dialog/button"]')].map(x=>x.textContent.trim())};}""")
     print(" ", d)
-    await pg.screenshot(path="w_suppression.png")
+    await shot(pg, "inter-delete")
 
     print("── Découvrir: batch, panel, drag, undo ──")
     await pg.evaluate("()=>document.querySelector('#dlgcancel').click()"); await pg.wait_for_timeout(300)
     await pg.click('[data-page="acq"]'); await pg.click('[data-acqtab="discover"]'); await pg.wait_for_timeout(450)
-    print("  initial batch   :", await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length"))
+    print("  initial batch   :", await pg.evaluate("""()=>document.querySelectorAll('[data-part="suggestion/wrap"]').length"""))
     await pg.evaluate(SW, ["[data-dismissable='0']", 1, 9])
-    print("  after right swipe:", await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length"))
+    print("  after right swipe:", await pg.evaluate("""()=>document.querySelectorAll('[data-part="suggestion/wrap"]').length"""))
     await pg.click("#toastundo"); await pg.wait_for_timeout(350)
-    print("  after Annuler   :", await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length"))
+    print("  after Annuler   :", await pg.evaluate("""()=>document.querySelectorAll('[data-part="suggestion/wrap"]').length"""))
     print("\nJS errors:", errs or "none")
     await b.close()
     # A script that only prints can never fail, and a script that cannot fail

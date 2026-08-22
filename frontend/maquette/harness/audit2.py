@@ -46,10 +46,10 @@ async def main():
         # otherwise fall through to `#view` and this rule would read a page
         # the state does not show.
         bad=await pg.evaluate("""()=>{
-          const r=document.querySelector('#dlg').classList.contains('open')?'#dlg'
-                 :document.querySelector('#screen').classList.contains('open')?'#screen'
-                 :document.querySelector('#sheet').classList.contains('open')?'#sheet'
-                 :document.querySelector('.screen.open[data-key]')?'.screen.open[data-key]'
+          const r=document.querySelector('#dlg').hasAttribute('data-open')?'#dlg'
+                 :document.querySelector('#screen').hasAttribute('data-open')?'#screen'
+                 :document.querySelector('#sheet').hasAttribute('data-open')?'#sheet'
+                 :document.querySelector('[data-part="screen"][data-open][data-key]')?'[data-part="screen"][data-open][data-key]'
                  :'#view';
           const t=document.querySelector(r).innerText;
           const patterns=[[/\\bundefined\\b/,'undefined'],[/\\bNaN\\b/,'NaN'],[/\\bnull\\b/,'null'],
@@ -67,15 +67,15 @@ async def main():
         out[name]={h:Math.round(b.height),weight:s.fontWeight,size:s.fontSize,justify:s.justifyContent,
                    radius:s.borderRadius,icon:!!el.querySelector(':scope > svg')};};
       window.__go('acq-now-loaded'); await new Promise(r=>setTimeout(r,220));
-      measure('.cfoot.solid','card footer (primary)');
+      measure('[data-part="card/foot"][data-solid]','card footer (primary)');
       window.__go('followsheet-gaps'); await new Promise(r=>setTimeout(r,240));
-      measure('.sact.primary','sheet (primary)');
+      measure('[data-part="sheet/action"][data-tone="primary"]','sheet (primary)');
       window.__go('mediasheet-suggestion-movie'); await new Promise(r=>setTimeout(r,240));
-      measure('.mediaadd','media sheet (add)');
+      measure('[data-part="media/add"]','media sheet (add)');
       window.__go('acq-add-results'); await new Promise(r=>setTimeout(r,240));
       measure('.resbtn','search result');
       window.__go('lib-delete'); await new Promise(r=>setTimeout(r,240));
-      measure('.dlgbtn.danger','dialog (danger)');
+      measure('[data-part="dialog/button"][data-tone="danger"]','dialog (danger)');
       return out;}""")
     print("Primary button geometry:")
     for k,v in geo.items(): print(f"   {k:26} {v}")
@@ -113,11 +113,11 @@ async def main():
         window.__reset(); applyState({page:'lib', phase:'ready'});
         window.__screens.mediaSheet(t);
         await new Promise(r=>setTimeout(r,240));
-        const b=document.querySelector('.screen.open[data-key^="mediaSheet:"] .body');
+        const b=document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"] [data-part="surface/body"]');
         if (!b) { out[t]=['EMPTY SHEET']; continue; }
         out[t]=[...b.children]
           .filter(x=>x.getBoundingClientRect().height>0 && !x.classList.contains('note'))
-          .map(x=>{const hh=x.querySelector('.h2');
+          .map(x=>{const hh=x.querySelector('[data-part="heading"]');
             return hh ? hh.textContent.trim() : (x.className||x.tagName).toString().split(' ')[0];});
       }
       return out;}""")
@@ -145,26 +145,26 @@ async def main():
     # `acq-ajout-resultats` and `fiche-serie` both left `#screen` for real
     # routes rendered inside `#coquille`: their open/close check is the screen
     # itself, not the legacy layer id. The mediaSheet is named by the identity it
-    # carries (`data-key="mediaSheet:…"`) rather than by a bare `.screen.open`,
+    # carries (`data-key="mediaSheet:…"`) rather than by a bare `[data-part="screen"][data-open]`,
     # which two stacked screens would both answer to. Every case closes the
     # same way from the operator's point of view (the screen's own « Retour »,
     # the scrim for a layer), so only the selector differs.
     R14_CASES = [
         ("followsheet-gaps", "#sheet", "scrim"),
         ("lib-delete", "#dlg", "scrim"),
-        ("mediasheet-series", '.screen.open[data-key^="mediaSheet:"]', "back"),
-        ("acq-add-results", ".screen.open", "back"),
+        ("mediasheet-series", '[data-part="screen"][data-open][data-key^="mediaSheet:"]', "back"),
+        ("acq-add-results", '[data-part="screen"][data-open]', "back"),
     ]
     for id_, sel, closing in R14_CASES:
         await pg.evaluate("(i)=>window.__go(i)", id_); await pg.wait_for_timeout(300)
-        opened = await pg.evaluate("(s)=>!!document.querySelector(s)?.classList.contains('open')", sel)
+        opened = await pg.evaluate("(s)=>!!document.querySelector(s)?.hasAttribute('data-open')", sel)
         if closing == "scrim":
             await pg.evaluate("()=>document.querySelector('#scrim').click()"); await pg.wait_for_timeout(300)
-            if await pg.evaluate("(s)=>!!document.querySelector(s)?.classList.contains('open')", sel):
+            if await pg.evaluate("(s)=>!!document.querySelector(s)?.hasAttribute('data-open')", sel):
                 note("R14 layer not closable via the scrim", f"{id_}")
         else:
-            await pg.evaluate("(s)=>document.querySelector(s+' .fback').click()", sel); await pg.wait_for_timeout(350)
-            if await pg.evaluate("(s)=>!!document.querySelector(s)?.classList.contains('open')", sel):
+            await pg.evaluate("""(s)=>document.querySelector(s+' [data-part="screen/back"]').click()""", sel); await pg.wait_for_timeout(350)
+            if await pg.evaluate("(s)=>!!document.querySelector(s)?.hasAttribute('data-open')", sel):
                 note("R14 screen not closable via Back", f"{id_}")
         if not opened: note("R14 layer that does not open", id_)
 
@@ -173,7 +173,7 @@ async def main():
     n=await pg.evaluate("""async ()=>{const o={};
       for (const m of ['acq-follows-list','acq-follows-groupe','acq-follows-grid']) {
         window.__go(m); await new Promise(r=>setTimeout(r,240));
-        o[m]=document.querySelectorAll('#view .card, #view .tile').length;}
+        o[m]=document.querySelectorAll('#view [data-part="card"], #view [data-part="tile"]').length;}
       return o;}""")
     print("\nItems per Suivis mode:", n)
     if len(set(n.values()))>1: note("R15 inconsistent Suivis modes", json.dumps(n))
@@ -183,11 +183,11 @@ async def main():
     bad=await pg.evaluate("""async ()=>{const out=[];
       for (const s of ['real','loaded']) { window.__store.write({scen: s}); window.__go('acq-now-'+(s==='real'?'idle':'loaded'));
         await new Promise(r=>setTimeout(r,240));
-        const badge=document.querySelector('[data-page=acq] .navbadge');
+        const badge=document.querySelector('[data-page=acq] [data-part="shell/tab-badge"]');
         const expected=derived.takeable().length+derived.blocked().length;
         const read=badge?Number(badge.textContent):0;
         if (read!==expected) out.push(`${s}: badge ${read} != to-grab+to-resolve ${expected}`);
-        const tab=document.querySelector('.seg .n');
+        const tab=document.querySelector('[data-part="segment"] [data-part="segment/count"]');
         const read2=tab?Number(tab.textContent):0;
         if (read2!==expected) out.push(`${s}: tab badge ${read2} != ${expected}`);
       } return out;}""")
@@ -197,12 +197,12 @@ async def main():
     # R17 — every destructive mutation is confirmed or reversible
     rev=await pg.evaluate("""async ()=>{const out=[];
       window.__go('acq-follows-list'); await new Promise(r=>setTimeout(r,240));
-      document.querySelector('#view .swipe .act.remove').click(); await new Promise(r=>setTimeout(r,320));
+      document.querySelector('#view [data-part="swipe"] [data-part="swipe/action"][data-action="remove"]').click(); await new Promise(r=>setTimeout(r,320));
       if (!document.querySelector('#toastundo')) out.push('removing a follow: no undo');
       window.__go('lib-list'); await new Promise(r=>setTimeout(r,260));
       const before=world.lib.length;
-      document.querySelector('#libitems .swipe .act.remove').click(); await new Promise(r=>setTimeout(r,320));
-      if (!document.querySelector('#dlg').classList.contains('open')) out.push('deleting a medium: no confirmation');
+      document.querySelector('#libitems [data-part="swipe"] [data-part="swipe/action"][data-action="remove"]').click(); await new Promise(r=>setTimeout(r,320));
+      if (!document.querySelector('#dlg').hasAttribute('data-open')) out.push('deleting a medium: no confirmation');
       if (world.lib.length!==before) out.push('deleting a medium: mutation BEFORE confirmation');
       return out;}""")
     for x in rev: note("R17 destruction without a guard", x)
@@ -225,19 +225,19 @@ async def main():
           // The media sheet left `#screen` for a real route; it is added here
           // by the identity it carries, or this rule about ALL media sheets
           // would stop seeing the very screen it is named after.
-          const root=document.querySelector('#screen.open, #sheet.open')
-                  || document.querySelector('.screen.open[data-key^="mediaSheet:"]');
-          const hero=root && root.querySelector('.hero');
+          const root=document.querySelector('#screen[data-open], #sheet[data-open]')
+                  || document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
+          const hero=root && root.querySelector('[data-part="hero/content"]');
           if (!hero) continue;
           const name=`${s}/${theme||'dark'}`;
-          const wrap=hero.closest('.herowrap');
-          if (!wrap) { out.push(`${name}: sheet without .herowrap`); continue; }
-          const bg=wrap.querySelector('.herobg');
+          const wrap=hero.closest('[data-part="hero"]');
+          if (!wrap) { out.push(`${name}: sheet without a hero`); continue; }
+          const bg=wrap.querySelector('[data-part="hero/background"]');
           if (!bg) { out.push(`${name}: sheet without a header`); continue; }
           const sb=getComputedStyle(bg), rb=bg.getBoundingClientRect(), rh=hero.getBoundingClientRect();
           // The header OCCUPIES the top: it pushes content, it does not float.
           if (sb.position!=='relative') out.push(`${name}: header in ${sb.position}`);
-          const hasVisualHere=!wrap.classList.contains('noposter');
+          const hasVisualHere=!wrap.hasAttribute('data-no-poster');
           // With no visual the field is deliberately short: it holds the place
           // and claims nothing. The threshold applies only to a real image.
           const threshold = hasVisualHere ? 240 : 48;
@@ -250,7 +250,7 @@ async def main():
           // makes the rule true, not good intentions.
           if (!getComputedStyle(bg,'::after').backgroundImage.includes('gradient'))
             out.push(`${name}: header without a legibility gradient`);
-          const hasVisual=!wrap.classList.contains('noposter');
+          const hasVisual=!wrap.hasAttribute('data-no-poster');
           if (hasVisual && sb.backgroundImage==='none') out.push(`${name}: header declared but empty`);
         }
       }
@@ -268,10 +268,10 @@ async def main():
         window.__go(s); await new Promise(r=>setTimeout(r,300));
         // Same reason as R26 above: the sheet is a route now, and it is where
         // the trailer lives — read it by its key or this rule goes quiet.
-        const root=document.querySelector('#screen.open, #sheet.open')
-                || document.querySelector('.screen.open[data-key^="mediaSheet:"]');
-        if (!root || !root.querySelector('.hero')) continue;
-        const el=root.querySelector('.trailer');
+        const root=document.querySelector('#screen[data-open], #sheet[data-open]')
+                || document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
+        if (!root || !root.querySelector('[data-part="hero/content"]')) continue;
+        const el=root.querySelector('[data-part="media/trailer"]');
         if (!el) continue;                       // declared absence: stated elsewhere
         if (el.tagName!=='A') { out.push(`${s}: trailer as <${el.tagName}>, not a link`); continue; }
         const href=el.getAttribute('href')||'';
@@ -297,11 +297,11 @@ async def main():
         // otherwise the migrated mediaSheet, named by its own key: leaving the
         // mediaSheet out would silently drop five states from this sweep, and a
         // rule that has gone quiet is not a rule that passes.
-        const screen=document.querySelector('#screen.open')
-                  || document.querySelector('.screen.open[data-key^="mediaSheet:"]');
-        const bar=screen?.querySelector('.screenbar');
+        const screen=document.querySelector('#screen[data-open]')
+                  || document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
+        const bar=screen?.querySelector('[data-part="screen/bar"]');
         if (!bar) continue;
-        const btn=bar.querySelector('.fback');
+        const btn=bar.querySelector('[data-part="screen/back"]');
         if (!btn) { glued.push(`${s}: bar without a back control`); continue; }
         const sb=getComputedStyle(bar), sx=getComputedStyle(btn), rb=bar.getBoundingClientRect();
         // A bar outside the flow pushes nothing: it ends up covering.
@@ -311,10 +311,10 @@ async def main():
         (sig[k] ||= []).push(s);
         // Measure the first PIXEL OF TEXT, not the first box: a container can
         // touch the bar through its padding without anything being glued.
-        const port=screen.querySelector('.port');
+        const port=screen.querySelector('[data-part="viewport"]');
         const text=port && [...port.querySelectorAll('h1,h2,h3,p,span,button,a,label')]
           .find(e=>{const r=e.getBoundingClientRect();
-                    return r.height>0 && (e.textContent||'').trim().length>1 && !e.closest('.note');});
+                    return r.height>0 && (e.textContent||'').trim().length>1 && !e.closest('[data-part="note"]');});
         if (text) {
           const gap=text.getBoundingClientRect().top-rb.bottom;
           if (gap < 8) glued.push(`${s}: text ${Math.round(gap)}px from the bar`);
@@ -346,18 +346,18 @@ async def main():
         window.__reset(); applyState({page:'lib', phase:'ready'});
         window.__screens.mediaSheet(title);
         await new Promise(r=>setTimeout(r,240));
-        for (const det of document.querySelectorAll('.screen.open[data-key^="mediaSheet:"] details.season')) {
+        for (const det of document.querySelectorAll('[data-part="screen"][data-open][data-key^="mediaSheet:"] details[data-part="season"]')) {
           const num=Number((det.querySelector('summary')?.textContent||'').match(/Saison\\s+(\\d+)/)?.[1]);
           const owned=ownedFor(title, num);
           if (!owned) continue;
           // BOTH renderings: titled rows AND the numbered matrix.
-          const cells=[...det.querySelectorAll('.eprow')].map(r=>[
-              Number((r.querySelector('.en')?.textContent||'').replace(/\\D/g,'')), r])
-            .concat([...det.querySelectorAll('.eps .ep')].map(c=>[Number(c.textContent), c]));
+          const cells=[...det.querySelectorAll('[data-part="episode/row"]')].map(r=>[
+              Number((r.querySelector('[data-part="episode/number"]')?.textContent||'').replace(/\\D/g,'')), r])
+            .concat([...det.querySelectorAll('[data-part="episode/set"] [data-part="episode"]')].map(c=>[Number(c.textContent), c]));
           for (const [n, el] of cells) {
-            if (!n || el.classList.contains('announced')) continue;
+            if (!n || el.hasAttribute('data-announced')) continue;
             inspected++;
-            const shown=el.classList.contains('in_library');
+            const shown=el.hasAttribute('data-in-library');
             if (shown !== owned.has(n))
               out.push(`${title} S${num}E${n}: shown ${shown?'present':'missing'}, actually ${owned.has(n)?'present':'missing'}`);
           }
@@ -383,7 +383,7 @@ async def main():
       const waitFor=async(t)=>{
         const key='mediaSheet:'+t.normalize('NFC');
         for (let i=0;i<40;i++) {
-          const el=document.querySelector('.screen.open[data-key^="mediaSheet:"]');
+          const el=document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
           if (el && el.dataset.key===key) return el;
           await new Promise(r=>setTimeout(r,25));
         }
@@ -394,12 +394,12 @@ async def main():
         window.__screens.mediaSheet(t);
         const s=await waitFor(t);
         if (!s) { c.neverOpened.push(t); continue; }
-        const dets=[...s.querySelectorAll('details.season')];
+        const dets=[...s.querySelectorAll('details[data-part="season"]')];
         // A series whose provider declares no season draws none: a stated
         // absence, counted APART from a sheet that never opened.
         if (!dets.length) { c.noSeason.push(t); continue; }
         const shapes=new Set(dets.map(d=>
-          d.querySelector('.eprow') ? 'rows' : d.querySelector('.eps .ep') ? 'matrix' : 'empty'));
+          d.querySelector('[data-part="episode/row"]') ? 'rows' : d.querySelector('[data-part="episode/set"] [data-part="episode"]') ? 'matrix' : 'empty'));
         shapes.delete('empty');
         if (shapes.size>1) c.mixed.push(t);
         else if (shapes.has('rows')) c.rows.push(t);
@@ -443,14 +443,14 @@ async def main():
           window.__go(state_); await new Promise(r=>setTimeout(r,300));
           const toggle=document.querySelector('[data-lmode="list"]');
           if (toggle) { toggle.click(); await new Promise(r=>setTimeout(r,260)); }
-          const cards=[...document.querySelectorAll('#view .card .cbody')];
+          const cards=[...document.querySelectorAll('#view [data-part="card"] [data-part="card/body"]')];
           if (i>=cards.length) break;
-          const full=cards[i].querySelector('.ctitle')?.textContent ?? '?';
+          const full=cards[i].querySelector('[data-part="card/title"]')?.textContent ?? '?';
           const title=full.slice(0,26);
           cards[i].click(); await new Promise(r=>setTimeout(r,300));
           const sheet=document.querySelector('#sheet');
-          if (!sheet.classList.contains('open')) { out.push(`${state_} · « ${title} » opens nothing`); continue; }
-          const actions=[...sheet.querySelectorAll('.sact')].map(x=>x.textContent.trim());
+          if (!sheet.hasAttribute('data-open')) { out.push(`${state_} · « ${title} » opens nothing`); continue; }
+          const actions=[...sheet.querySelectorAll('[data-part="sheet/action"]')].map(x=>x.textContent.trim());
           if (!followed.has(full)) {
             for (const a of actions)
               if (/^(Mettre en pause|Ne plus chercher|Retirer)/.test(a))

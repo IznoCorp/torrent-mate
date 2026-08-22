@@ -6,7 +6,7 @@ nothing about a gesture that has to claim an axis.
 import asyncio
 from playwright.async_api import async_playwright
 
-SEL = '.dcard[data-depth="0"]'
+SEL = '[data-part="deck/card"][data-depth="0"]'
 
 async def main():
   async with async_playwright() as p:
@@ -27,11 +27,12 @@ async def main():
         await pg.wait_for_timeout(600)
 
     async def title():
-        return await pg.evaluate(f'()=>document.querySelector(\'{SEL} .t\').textContent')
+        return await pg.evaluate(
+            f"""()=>document.querySelector('{SEL} [data-part="deck/title"]').textContent""")
 
     async def swipe(dx):
         await pg.evaluate("""(dx)=>{
-          const c=document.querySelector('.dcard[data-depth="0"]');
+          const c=document.querySelector('[data-part="deck/card"][data-depth="0"]');
           const r=c.getBoundingClientRect(), x=r.left+r.width/2, y=r.top+r.height/2;
           // Real PointerEvents of type « touch »: the handlers now serve finger,
           // mouse and pen through one path, and the axis claim still lives in
@@ -64,7 +65,7 @@ async def main():
     # The axis claim is what makes a REAL touch gesture reach us instead of
     # being taken by the browser. A synthetic event never exercises it, so it is
     # asserted on the declaration itself.
-    axis = await pg.evaluate("()=>getComputedStyle(document.querySelector('.deck')).touchAction")
+    axis = await pg.evaluate("""()=>getComputedStyle(document.querySelector('[data-part="deck"]')).touchAction""")
     print(f"       axis claim on the deck: {axis}")
     ok = (t1 != t0 and n1 == n0 and comes_back) and (t3 != t2 and n3 == 1 and undo) and axis == "pan-y"
     print("\nJS errors:", errs or "none")

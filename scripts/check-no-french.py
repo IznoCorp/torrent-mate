@@ -40,17 +40,25 @@ it, so an arm added without a heading here fails the gate:
    whose answer is only ever as good as the list of French words behind it, but
    « is this word one we use? », read from `scripts/code-vocabulary.txt`.
 7. **`data-*` names** — an attribute name is a name someone chose, so it obeys
-   the rule. Their VALUES do not: `data-go="profile"` names a page, and a page
-   id is an address.
+   the rule. The VALUES of the NAMING attributes (`data-part`, `data-region`,
+   `data-tone`, `data-action`, `data-side`) do too: such a value is a
+   structural name someone chose, so its words are read against the
+   vocabulary — body in `nofrench_values.py`. The ADDRESS attributes' values
+   (`data-go`, `data-key`, `data-panel`, `data-page`, `data-mediasheet`,
+   `data-resolve`, `data-follow`, `data-toast`, and anything whose value is a
+   route, a title, a folder or a store datum) stay unread, because a page id
+   is an address, not a name.
 8. **The engine's declared debt** — the French words the legacy engine still
    needs, listed below a banner in the vocabulary and refused to every other
    file, so a vocabulary seeded from the code cannot licence the debt it exists
    to catch.
 9. **Shell scripts** — every line a `.sh` prints is the tool speaking, and no
-   arm read one at all until three all-French scripts turned up.
+   arm read one at all until three all-French scripts turned up. Body in
+   `nofrench_shell.py`, whose corpus no other arm reads.
 10. **Dictionary** — a declared name built from a word French knows and English
    does not. Fail-soft when `aspell` is absent, and it SAYS so: absence must
-   never read as cleanliness.
+   never read as cleanliness. Body in `nofrench_dictionary.py` — it is the one
+   arm whose oracle comes from outside this repository.
 11. **App interface text** — `frontend/src` is exempt by the operator's ruling,
    and the exemption is a RATCHET: the French there is counted and refused to
    grow. Body in `nofrench_ratchets.py`.
@@ -112,8 +120,8 @@ SELF = {Path(__file__).name, "nofrench_lexicon.py"}
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from nofrench_lexicon import *  # noqa: E402, F403
 from nofrench_scan import (  # noqa: E402
-    code_only, inside_quotes, python_declarations, python_string_literals,
-    script_string_literals,
+    TS_DECLARATION, code_only, inside_quotes, pragma_on, python_declarations,
+    python_string_literals, script_string_literals,
 )
 # Arms 11 and 12 — the two that COUNT rather than refuse. They stay in `ARMS`;
 # only their bodies live next door, where that module's header says why.
@@ -125,12 +133,22 @@ from nofrench_css import (  # noqa: E402
     CSS_SELECTOR, allowed_class, check_custom_properties, css_allowlist,
     declared_css_classes,
 )
+# The VALUE half of arm 7 — see that module's header for the seam, the five
+# spellings a value takes and why the attribute list is shared with the markup
+# guard rather than copied.
+from nofrench_values import (  # noqa: E402
+    check_data_attributes, check_named_values,
+)
+# Arm 10 — the one oracle from outside this repository. See its header.
+from nofrench_dictionary import check_dictionary  # noqa: E402
+# Arm 9 — the only arm whose corpus is the shell. See its header.
+from nofrench_shell import check_shell_scripts  # noqa: E402
 from nofrench_lexicon import (  # noqa: E402
     DEBT_BANNER, vocabulary, DEBT_FILE, DICTIONARY_EXCEPTIONS, EXTRACTED_CSS, FRAGMENT,
     FRENCH_TOKENS, FROZEN_IDENTIFIERS, FROZEN_PATH_SEGMENTS, HARNESS, MAQUETTE,
     REGIONS, ROOT, SCRIPTS, SHELL, VOCABULARY, deaccent, french_tokens_in,
     french_tokens_in_flat, has_accent, read, relative, scope_of,
-    split_identifier,
+    split_identifier, tracked_paths,
 )
 # The words this codebase's names are built from — see its own header.
 # The line in that file below which the words are French on purpose, and the
@@ -153,37 +171,6 @@ HOLD_LABEL = re.compile(
 # a scanner that only reads string literals walks straight past the very thing
 # arm 1 exists to find: `<p>Réglages du système</p>` is not a literal.
 JSX_TEXT = re.compile(r">([^<>{}]+)<")
-
-
-def pragma_on(lines: list[str], line_no: int) -> str | None:
-    """Returns the reason a line's french-ok pragma cites, or None.
-
-    Args:
-        lines: The file's lines.
-        line_no: The 1-based line the literal starts on.
-
-    Returns:
-        The cited reason, "" when the pragma cites nothing, or None when the
-        line carries no pragma. The line ABOVE counts too: a JSX attribute has
-        no room for a trailing comment.
-
-        THE LINE BELOW DELIBERATELY DOES NOT. This docstring used to promise it
-        — for the wrapped-literal case — and implementing that promise turned
-        every pragma into a THREE-line grant: a brand-new French literal parked
-        next to any of the twenty-one existing pragmas became invisible. A
-        wrapped literal can carry its pragma on the line above like everything
-        else; licensing a neighbour is a bigger hole than the one it closed.
-    """
-    for candidate in (line_no, line_no - 1):
-        if not 1 <= candidate <= len(lines):
-            continue
-        line = lines[candidate - 1]
-        found = PRAGMA.search(line)
-        # A pragma written INSIDE a string is not a pragma. Without this, one
-        # literal reading `"# french-ok: …"` licensed its neighbours.
-        if found and not inside_quotes(line, found.start()):
-            return found.group("reason").strip()
-    return None
 
 
 def remedy(path: Path) -> str:
@@ -284,9 +271,6 @@ def check_strings(violations: list[str]) -> None:
 
 # ── arm 2: identifiers ───────────────────────────────────────────────────────
 
-TS_DECLARATION = re.compile(
-    r"\b(?:const|let|var|function|class|interface|type|enum)\s+"
-    r"(?P<name>[A-Za-z_$][\w$À-ɏ]*)")
 
 
 def check_identifiers(violations: list[str]) -> None:
@@ -337,31 +321,6 @@ def check_identifiers(violations: list[str]) -> None:
 
 
 # ── arm 3: file names ────────────────────────────────────────────────────────
-
-# `docs/` is the ONE tree this arm does not walk: dated records keep the names
-# they were written with, and rewriting a record would falsify it.
-UNWATCHED_ROOTS = ("docs/",)
-
-
-def tracked_paths() -> list[str]:
-    """Returns every path in the repository this arm watches.
-
-    The WHOLE repository, minus `docs/` — four named roots used to be the scope,
-    which left `hooks/`, `config.example/`, `.github/` and the root itself
-    unwatched while the docstring said « anywhere ».
-
-    Untracked-but-not-ignored files are listed too (`--others
-    --exclude-standard`): a file created five minutes ago is exactly the one
-    this arm exists to catch, and it is not tracked until it is added — a gate
-    that only reads the index says nothing until after the commit it should
-    have blocked.
-    """
-    listed = subprocess.run(
-        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
-        cwd=ROOT, capture_output=True, text=True, check=True)
-    return sorted({p for p in listed.stdout.split("\0")
-                   if p and not p.startswith(UNWATCHED_ROOTS)})
-
 
 def check_file_names(violations: list[str]) -> None:
     """Runs the file-name arm over every tracked path segment."""
@@ -588,123 +547,6 @@ def check_vocabulary(violations: list[str]) -> None:
                     "word there if the codebase really speaks it")
 
 
-def check_data_attributes(violations: list[str]) -> None:
-    """Refuses a `data-*` attribute NAME built from a word this codebase lacks.
-
-    CLAUDE.md brings these names under the rule — a `data-*` name is a name
-    someone chose — and until now nothing read them. Nineteen were renamed by
-    hand in the same wave that wrote the rule, and four were missed:
-    `data-prendre`, `data-maintrub`, `data-qreg` and `data-apparence` stayed,
-    green, because no arm looked. A rule with no arm is a sentence in a file.
-
-    The VALUES are not read, and must not be: `data-go="profil"` names a page,
-    and a page id is an address.
-
-    It asks the vocabulary's question rather than « is this word French? »,
-    because the names here are abbreviations — `rub` for « rubrique » is
-    invisible to any list of French words, and `maintopic` is not.
-
-    Args:
-        violations: The accumulator every arm appends to.
-    """
-    words = vocabulary()
-    sources = [p for p in SHELL.rglob("*")
-               if p.is_file() and p.suffix in {".ts", ".tsx", ".js"}]
-    # `design/index.html` is the application shell's markup since SP4-fin wave
-    # 2, and it was read by no arm: `id="coquille"` — the React mount point —
-    # sat there in French while every gate was green.
-    # And `frontend/index.html` beside it: the maquette's twin was added when
-    # `id="coquille"` was found in it, and the PRODUCTION app's own shell markup
-    # — the one actually served — was left unread by the same arm.
-    sources += [FRAGMENT, MAQUETTE / "design" / "index.html",
-                ROOT / "frontend" / "index.html"]
-    sources += [p for p in (ROOT / "frontend" / "src").rglob("*")
-                if p.is_file() and p.suffix in {".ts", ".tsx", ".css"}]
-    for path in sorted(sources):
-        source = read(path)
-        for match in re.finditer(
-                r"\bdata-([a-zA-Z][\w-]*)"
-                r"|\bid=\"([A-Za-z][\w-]*)\""
-                # `id='coquille'` and `id={'coquille'}` name the same element as
-                # `id="coquille"`; only the double-quoted spelling was read.
-                r"|\bid='([A-Za-z][\w-]*)'"
-                r"|\bid=\{\s*['\"]([A-Za-z][\w-]*)['\"]\s*\}", source):
-            name = (match.group(1) or match.group(2)
-                    or match.group(3) or match.group(4))
-            examined["data-* names / markup"] += 1
-            line_no = source.count("\n", 0, match.start()) + 1
-            unknown = [w for w in split_identifier(name)
-                       if len(w) > 1 and w.lower() not in words]
-            if unknown:
-                violations.append(
-                    f"{relative(path)}:{line_no}: the markup name "
-                    f"{name!r} is built from "
-                    f"{', '.join(repr(w) for w in unknown)}, which "
-                    f"{'is' if len(unknown) == 1 else 'are'} not in "
-                    f"{relative(VOCABULARY)} — name it in English, or add the "
-                    "word there if the codebase really speaks it")
-
-
-SHELL_BY_NAME = {"Makefile"}
-
-
-def first_line(path: Path) -> str:
-    """The file's first line, or "" when it cannot be read as text."""
-    try:
-        with path.open(encoding="utf-8", errors="ignore") as handle:
-            return handle.readline()
-    except OSError:
-        return ""
-
-
-def check_shell_scripts(violations: list[str]) -> None:
-    """Refuses French in a `.sh` — every line of one is the tool speaking.
-
-    NO ARM READ `.sh` AT ALL, and three of this repository's nine shell scripts
-    were written in French throughout — the two deploy scripts and the poller,
-    which between them are the only sanctioned way to put anything in front of
-    the operator. The rule has always covered them: a message a tool prints is
-    English. Nothing had ever looked.
-
-    A shell script has no i18n bundle and renders nothing to a reader of the
-    interface, so the distinction the other arms draw — code here, copy there —
-    does not exist in one. Every line is read, comment and message alike.
-
-    Args:
-        violations: The accumulator every arm appends to.
-    """
-    for relative_path in tracked_paths():
-        path = ROOT / relative_path
-        if not path.is_file():
-            continue
-        # A SCRIPT IS A SCRIPT WHETHER OR NOT ITS NAME ENDS IN `.sh`. Matching
-        # the extension alone left every git hook out — `hooks/pre-commit`,
-        # `hooks/pre-push`, `hooks/commit-msg`, `scripts/pre-push` — plus the
-        # Makefile and a PM2 `.cjs` declaration, all of which print to the
-        # operator and none of which any arm read. Three all-French `.sh` files
-        # were once found this way; these are the same class, one naming
-        # convention over.
-        # `.py` carries a shebang too and is already read, line by line, by the
-        # string and identifier arms; pulling it in here would double every
-        # finding and trip on the accent RANGES in this file's own regexes.
-        if path.suffix == ".py":
-            continue
-        if not (relative_path.endswith((".sh", ".cjs", ".mjs"))
-                or path.name in SHELL_BY_NAME
-                or first_line(path).startswith("#!")):
-            continue
-        lines = read(path).splitlines()
-        for line_no, line in enumerate(lines, start=1):
-            examined["lines / shell scripts"] += 1
-            reason = offending_string(line)
-            if not reason:
-                continue
-            if pragma_on(lines, line_no):
-                continue
-            violations.append(
-                f"{relative_path}:{line_no}: French in a shell script "
-                f"({reason}) — a developer tool speaks English: {line.strip()[:60]!r}")
-
 
 def check_unread_javascript(violations: list[str]) -> None:
     """Refuses a `.js` under the shell that no arm reads, except the engine.
@@ -744,107 +586,6 @@ def check_unread_javascript(violations: list[str]) -> None:
 # Words `aspell` reports as French-and-not-English that are NOT French names
 # here. Each is a real word of this codebase's trade, and each is written down
 # because an exemption nobody can read is indistinguishable from an oversight.
-def dictionary_suspects(words: set[str]) -> set[str]:
-    """Returns the words French knows and English does not.
-
-    AN ORACLE FROM OUTSIDE THE REPOSITORY. The other arms ask questions whose
-    answers this repository writes itself — a 199-word list of French tokens, a
-    vocabulary of allowed words — and a list is only ever as good as what
-    somebody thought to put in it. `aspell` was not written by anyone here, so
-    it does not share this codebase's blind spots.
-
-    IT HAS ITS OWN, AND THEY ARE NAMED HERE RATHER THAN DISCOVERED LATER: a word
-    that is French AND English is invisible to it. `corps`, `page`, `route`,
-    `image`, `message`, `note`, `cause`, `train`, `pays`, `fin`, `son` are all
-    known to English, so this arm cannot see them — `corps` is live in
-    `frontend/src` today and no arm catches it. That is what the VOCABULARY arm
-    is for, and why this one is added beside it rather than in place of it.
-
-    Args:
-        words: The lowercased words the declared names are built from.
-
-    Returns:
-        The suspects, exceptions already removed. Empty when aspell is absent.
-    """
-    if not words:
-        return set()
-    listed = sorted(words)
-    try:
-        unknown_english = set(subprocess.run(
-            ["aspell", "--lang=en", "list"], input="\n".join(listed),
-            capture_output=True, text=True, check=True).stdout.split())
-        unknown_french = set(subprocess.run(
-            ["aspell", "--lang=fr", "list"], input="\n".join(listed),
-            capture_output=True, text=True, check=True).stdout.split())
-    except (OSError, subprocess.CalledProcessError):
-        # Fail SOFT and SAY SO: a machine without the dictionaries must not
-        # report a cleanliness it never measured.
-        print("check-no-french: aspell absent — the dictionary arm measured "
-              "NOTHING (install aspell, aspell-en, aspell-fr)", file=sys.stderr)
-        return set()
-    return {w for w in listed
-            if w in unknown_english and w not in unknown_french
-            and w not in DICTIONARY_EXCEPTIONS}
-
-
-def declared_names() -> list[tuple[str, str, int]]:
-    """Every declared identifier the guard walks, as (path, name, line).
-
-    ONE collection, shared. The identifier arm and the dictionary arm must read
-    the same scope or the narrower one silently certifies the wider — which is
-    the shape of every hole this file has had.
-
-    Returns:
-        (relative path, declared name, 1-based line) for each declaration.
-    """
-    out: list[tuple[str, str, int]] = []
-    python = ([MAQUETTE / "serve.py", MAQUETTE / "resync.py"]
-              + sorted(HARNESS.glob("*.py"))
-              + [p for p in sorted(SCRIPTS.rglob("*.py"))
-                 if p.name != Path(__file__).name]
-              + sorted((ROOT / "frontend" / "scripts").glob("*.py"))
-              + sorted((ROOT / "personalscraper").rglob("*.py"))
-              + sorted((ROOT / "tests").rglob("*.py")))
-    for path in python:
-        for name, line_no in python_declarations(read(path)):
-            out.append((relative(path), name, line_no))
-    web = [p for p in SHELL.rglob("*") if p.is_file() and p.suffix in {".ts", ".tsx"}]
-    web += sorted(HARNESS.glob("*.mjs"))
-    web += [p for p in (ROOT / "frontend" / "src").rglob("*")
-            if p.is_file() and p.suffix in {".ts", ".tsx"}]
-    for path in sorted(web):
-        if "i18n" in path.parts:
-            continue
-        source = read(path)
-        for match in TS_DECLARATION.finditer(source):
-            out.append((relative(path), match.group("name"),
-                        source.count("\n", 0, match.start()) + 1))
-    return out
-
-
-def check_dictionary(violations: list[str]) -> None:
-    """Refuses a declared name built from a word French knows and English does not.
-
-    Args:
-        violations: The accumulator every arm appends to.
-    """
-    owners: dict[str, list[str]] = {}
-    for path, name, line_no in declared_names():
-        for word in split_identifier(name):
-            if len(word) > 2 and word.isalpha():
-                owners.setdefault(word.lower(), []).append(f"{path}:{line_no}: {name!r}")
-    examined["name words / dictionary"] += len(owners)
-    for word in sorted(dictionary_suspects(set(owners))):
-        where = owners[word][0]
-        violations.append(
-            f"{where} is built from {word!r}, which French knows and English "
-            f"does not — name it in English, or add it to DICTIONARY_EXCEPTIONS "
-            f"in {relative(Path(__file__))} with the reason it is not French here")
-
-
-
-
-
 # ── arm 13: the self-description ─────────────────────────────────────────────
 #
 # THREE FILES CARRIED THREE COUNTS AND NOT ONE WAS RIGHT. This docstring said
@@ -1002,15 +743,22 @@ ARMS: tuple[tuple[object, str], ...] = (
 )
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     """Runs every arm in `ARMS` and reports every violation.
 
     The arms are WALKED rather than listed again here: a hand-written second
     list is a count that drifts, and this one drifted three times (see arm 13).
 
+    Args:
+        argv: The command line, defaulting to `sys.argv[1:]`. With `--counts`
+            the examined ledger is printed one line per counter instead of the
+            success line — ACC-12 greps that output for the naming-value
+            count, because a gate proves what it READS, not what it exits.
+
     Returns:
         1 when anything was found, 0 otherwise.
     """
+    counts_only = "--counts" in (sys.argv[1:] if argv is None else argv)
     violations: list[str] = []
     for arm, _ in ARMS:
         arm(violations)
@@ -1028,6 +776,10 @@ def main() -> int:
               "a reader of the interface sees lives in the i18n resources.",
               file=sys.stderr)
         return 1
+    if counts_only:
+        for what, count in examined.items():
+            print(f"{count} {what}")
+        return 0
     print(f"no-French guardrail: {len(ARMS)} arms ("
           + ", ".join(label for _, label in ARMS)
           + "), no violation — read "

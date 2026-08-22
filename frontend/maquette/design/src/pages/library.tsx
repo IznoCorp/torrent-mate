@@ -46,7 +46,7 @@ function LibraryHead(): ReactElement {
   return (
     <>
       <div className="viewtabs" data-region="library/tabs">
-        <div className="seg" role="tablist">
+        <div className="seg" data-part="segment" role="tablist">
           {lenses.map((lens) => (
             <button
               key={lens.id}
@@ -55,7 +55,7 @@ function LibraryHead(): ReactElement {
               data-lens={lens.id}
             >
               {lens.label}
-              {lens.count ? <span className="n">{lens.count}</span> : null}
+              {lens.count ? <span className="n" data-part="segment/count">{lens.count}</span> : null}
             </button>
           ))}
         </div>
@@ -121,12 +121,13 @@ function LibraryHead(): ReactElement {
           ) : null}
         </div>
         <div className="pillbar">
-          <div className="pillscroll">
+          <div className="pillscroll" data-part="pill/list">
             {state.libLens === "cat"
               ? CATS.map((category) => (
                   <button
                     key={category.id}
                     className="pill"
+                    data-part="pill"
                     aria-pressed={state.libCat === category.id}
                     data-cat={category.id}
                   >
@@ -137,7 +138,7 @@ function LibraryHead(): ReactElement {
               : null}
           </div>
           <div className="vswwrap">
-            <div className="vsw">
+            <div className="vsw" data-part="view/switch">
               <button
                 aria-pressed={state.libMode === "list"}
                 data-lmode="list"
@@ -212,7 +213,7 @@ function EmptyLibrary(): ReactElement {
   const filter = category && category.of ? category.l.toLowerCase() : null;
   if ((state.q as string).trim() !== "") {
     return (
-      <div className="empty">
+      <div className="empty" data-part="empty-state">
         <b>
           {t("screens.library.emptySearchLead", { query: state.q as string })}
           {filter
@@ -236,7 +237,7 @@ function EmptyLibrary(): ReactElement {
     );
   }
   return (
-    <div className="empty">
+    <div className="empty" data-part="empty-state">
       <b>
         {t("screens.library.emptyCategoryLead", {
           category: filter ?? t("screens.library.emptyCategoryFallback"),
@@ -351,9 +352,9 @@ function LibraryList(): ReactElement {
   let items: ReactElement;
   if (state.phase === "loading") {
     items = (
-      <div id="libitems" className={grid ? "grid" : "sec"}>
+      <div id="libitems" className={grid ? "grid" : "sec"} data-part={grid ? "grid" : "section"}>
         {Array.from({ length: grid ? 9 : 5 }, (_, index) => (
-          <div key={index} className={grid ? "sk tile" : "sk skcard"} />
+          <div key={index} className={grid ? "sk tile" : "sk skcard"} data-skeleton="" data-part={grid ? "tile" : undefined} />
         ))}
       </div>
     );
@@ -361,15 +362,15 @@ function LibraryList(): ReactElement {
     items = (
       <div
         id="libitems"
-        className={grid ? "grid" : "sec"}
+        className={grid ? "grid" : "sec"} data-part={grid ? "grid" : "section"}
         dangerouslySetInnerHTML={{
-          __html: `<div class="surferr">${surfErrInner(t("screens.library.errorSubject"))}</div>`,
+          __html: `<div class="surferr" data-part="surface-error">${surfErrInner(t("screens.library.errorSubject"))}</div>`,
         }}
       />
     );
   } else if (rows.length === 0) {
     items = (
-      <div id="libitems" className={grid ? "grid" : "sec"}>
+      <div id="libitems" className={grid ? "grid" : "sec"} data-part={grid ? "grid" : "section"}>
         <EmptyLibrary />
       </div>
     );
@@ -384,7 +385,7 @@ function LibraryList(): ReactElement {
       <div
         key={version}
         id="libitems"
-        className={grid ? "grid" : "sec"}
+        className={grid ? "grid" : "sec"} data-part={grid ? "grid" : "section"}
         dangerouslySetInnerHTML={{
           __html: rows
             .slice(0, count)
@@ -415,7 +416,7 @@ function LibraryList(): ReactElement {
       );
     } else if (state.libErr) {
       foot = (
-        <div className="loaderr">
+        <div className="loaderr" data-part="load-error">
           <b>{t("screens.library.loadErrorLead")}</b>
           {t("screens.library.loadErrorRest", { count })}
           {/* THE ONLY CONTROL ON A MIGRATED PAGE THAT IS NOT DELEGATED. Every
@@ -439,15 +440,15 @@ function LibraryList(): ReactElement {
       );
     } else {
       foot = grid ? (
-        <div className="grid">
+        <div className="grid" data-part="grid">
           {Array.from({ length: 3 }, (_, index) => (
-            <div key={index} className="sk tile" />
+            <div key={index} className="sk tile" data-part="tile" data-skeleton="" />
           ))}
         </div>
       ) : (
-        <div className="sec">
+        <div className="sec" data-part="section">
           {Array.from({ length: 2 }, (_, index) => (
-            <div key={index} className="sk row" />
+            <div key={index} className="sk row" data-skeleton="" />
           ))}
         </div>
       );
@@ -473,13 +474,13 @@ export function LibraryPage(): ReactElement | null {
     return (
       <>
         <LibraryHead />
-        <div className="countline" data-region="library/count-line">
-          <span className="pip warning"></span>
+        <div className="countline" data-part="count-line" data-region="library/count-line">
+          <span className="pip warning" data-part="status-dot"></span>
           <span>{t("screens.library.incompleteTitle")}</span>
           <b style={{ marginLeft: "auto" }}>{INCOMPLETE_COUNT}</b>
         </div>
-        <div className="body" data-region="library/body">
-          <div className="note">
+        <div className="body" data-part="surface/body" data-region="library/body">
+          <div className="note" data-part="note">
             <b>{t("screens.library.incompleteNoteLead")}</b>
             {t("screens.library.incompleteNoteMiddle")}
             <code>{t("screens.library.incompleteUnknown")}</code>
@@ -489,7 +490,7 @@ export function LibraryPage(): ReactElement | null {
           </div>
           {state.libMode === "grid" ? (
             <div
-              className="grid"
+              className="grid" data-part="grid"
               dangerouslySetInnerHTML={{
                 __html: INCOMPLETE.map((show: IncompleteShow) =>
                   tileHTML(
@@ -504,7 +505,7 @@ export function LibraryPage(): ReactElement | null {
             />
           ) : (
             <div
-              className="sec"
+              className="sec" data-part="section"
               dangerouslySetInnerHTML={{
                 __html: INCOMPLETE.map((show: IncompleteShow) =>
                   cardHTML({
@@ -531,11 +532,11 @@ export function LibraryPage(): ReactElement | null {
     return (
       <>
         <LibraryHead />
-        <div className="countline" data-region="library/count-line">
+        <div className="countline" data-part="count-line" data-region="library/count-line">
           <span>{t("screens.library.recentTitle")}</span>
         </div>
-        <div className="body" data-region="library/body">
-          <div className="note">
+        <div className="body" data-part="surface/body" data-region="library/body">
+          <div className="note" data-part="note">
             <b>{t("screens.library.recentNoteLead")}</b>
             {t("screens.library.recentNoteMiddle")}
             <em>{t("screens.library.recentNoteEmphasis")}</em>
@@ -550,7 +551,7 @@ export function LibraryPage(): ReactElement | null {
   return (
     <>
       <LibraryHead />
-      <div className="countline" data-region="library/count-line">
+      <div className="countline" data-part="count-line" data-region="library/count-line">
         <CountLine />
         <button className="linkbtn" data-selmode="1">
           {t("screens.library.select")}
@@ -559,15 +560,15 @@ export function LibraryPage(): ReactElement | null {
           <SortLabel />
         </button>
       </div>
-      <div className="body" data-region="library/body">
-        <div className="note">
+      <div className="body" data-part="surface/body" data-region="library/body">
+        <div className="note" data-part="note">
           <b>{t("screens.library.mediaNoteLead")}</b>
           {t("screens.library.mediaNoteMiddle")}
           <code>{t("screens.library.mediaNoteRoute")}</code>
           {t("screens.library.mediaNoteEnd")}
         </div>
         <LibraryList />
-        <div className="note">
+        <div className="note" data-part="note">
           <b>{t("screens.library.loadingNoteLead")}</b>
           {t("screens.library.loadingNoteMiddle")}
           <code>{t("screens.library.loadingNoteDatabase")}</code>

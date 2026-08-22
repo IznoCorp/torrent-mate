@@ -182,3 +182,8 @@ personalscraper/web/static/*
 # itself after every run; the file is output, never a source, and one copy of it
 # was committed at the repository root by a `git add -A`.
 violations.json
+
+# Every screenshot the harness rules take (`common.shot`) — reading aids, never
+# an oracle, rewritten on each run. The global ~/.gitignore ignores `__*__/`,
+# but a fresh clone on another machine has no such file: the rule lives here.
+frontend/maquette/harness/__screenshots__/

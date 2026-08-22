@@ -2,6 +2,7 @@
 
 import asyncio
 
+from common import shot
 from playwright.async_api import async_playwright
 
 
@@ -22,32 +23,32 @@ async def main():
     await pg.click("#fab"); await pg.wait_for_timeout(500)
     # The add screen left `#screen` for a real route (`/add`, rendered inside
     # `#coquille`), and is read by the identity it carries — `data-key="add:…"`
-    # (the mode it was opened in) — never by a bare `.screen.open`, which two
+    # (the mode it was opened in) — never by a bare `[data-part="screen"][data-open]`, which two
     # stacked screens would both answer to. Read at the old layer id, this block
     # measured an empty node and printed zeros for a screen full of results.
-    r=await pg.evaluate("""()=>{const s=document.querySelector('.screen.open[data-key^="add:"]');
+    r=await pg.evaluate("""()=>{const s=document.querySelector('[data-part="screen"][data-open][data-key^="add:"]');
       if (!s) return {absent:true};
       // `.res` and `.resbtn` are dead class names — a result row is a
-      // `.reslist .card` today, and its foot action was removed on purpose
-      // (R71: the panel is the single path to the act). Kept pointing at them,
-      // both lines printed zero forever, which reads like « no results » next
-      // to a count that says six.
-      return {open:s.classList.contains('open'),
-              count:(s.querySelector('.rescount')||{}).textContent?.trim(),
-              results:s.querySelectorAll('.reslist .card').length,
-              feet:[...s.querySelectorAll('.reslist .cfoot')].map(x=>x.textContent.trim()),
-              byId:!!s.querySelector('.byid')};}""")
+      // `[data-part="result/list"] [data-part="card"]` today, and its foot
+      // action was removed on purpose (R71: the panel is the single path to
+      // the act). Kept pointing at them, both lines printed zero forever,
+      // which reads like « no results » next to a count that says six.
+      return {open:s.hasAttribute('data-open'),
+              count:(s.querySelector('[data-part="result/count"]')||{}).textContent?.trim(),
+              results:s.querySelectorAll('[data-part="result/list"] [data-part="card"]').length,
+              feet:[...s.querySelectorAll('[data-part="result/list"] [data-part="card/foot"]')].map(x=>x.textContent.trim()),
+              byId:!!s.querySelector('[data-part="add/by-id"]')};}""")
     print(" ", r)
-    await pg.screenshot(path="y_ajout.png")
+    await shot(pg, "surfaces-add")
     # The card wears no inline action: the act lives in the result's panel,
     # so the journey opens the panel first — the same path the finger takes.
     await pg.click("[data-panel='add:3']"); await pg.wait_for_timeout(450)
     await pg.click("#sheet [data-act='add:3']"); await pg.wait_for_timeout(450)
-    print("  after adding an absent title:", await pg.evaluate("()=>document.querySelector('.addfoot')?.textContent.trim()"))
+    print("  after adding an absent title:", await pg.evaluate("""()=>document.querySelector('[data-part="add/foot"]')?.textContent.trim()"""))
     await pg.click("[data-panel='add:0']"); await pg.wait_for_timeout(450)
     await pg.click("#sheet [data-act='add:0']"); await pg.wait_for_timeout(450)
-    print("  adding an ALREADY owned title:", await pg.evaluate("()=>{const g=document.querySelector('#dlg');return {open:g.classList.contains('open'),title:g.querySelector('h3')?.textContent};}"))
-    await pg.screenshot(path="y_remplacer.png")
+    print("  adding an ALREADY owned title:", await pg.evaluate("()=>{const g=document.querySelector('#dlg');return {open:g.hasAttribute('data-open'),title:g.querySelector('h3')?.textContent};}"))
+    await shot(pg, "surfaces-replace")
     await pg.evaluate("()=>document.querySelector('#dlgcancel').click()"); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>__close('screen')"); await pg.wait_for_timeout(400)
 
@@ -56,12 +57,12 @@ async def main():
     # A card body addresses its panel; it no longer opens a sheet of its own.
     await pg.click('[data-panel="media:American Dad!"]'); await pg.wait_for_timeout(500)
     r=await pg.evaluate("""()=>{const s=document.querySelector('#sheet');
-      const ss=[...s.querySelectorAll('.season')];
+      const ss=[...s.querySelectorAll('[data-part="season"]')];
       return {seasons:ss.length, order:ss.slice(0,3).map(x=>x.querySelector('summary').textContent.replace(/\\s+/g,' ').trim()),
-              allCollapsed:ss.every(x=>!x.open), legend:s.querySelectorAll('.legend span').length,
-              cells:s.querySelectorAll('.ep').length};}""")
+              allCollapsed:ss.every(x=>!x.open), legend:s.querySelectorAll('[data-part="legend"] span').length,
+              cells:s.querySelectorAll('[data-part="episode"]').length};}""")
     print(" ", r)
-    await pg.screenshot(path="y_matrice_complete.png")
+    await shot(pg, "surfaces-matrix-complete")
     await pg.evaluate("()=>document.querySelector('#scrim').click()"); await pg.wait_for_timeout(350)
 
     await pg.click('[data-page="lib"]'); await pg.click('[data-lens="inc"]'); await pg.wait_for_timeout(400)
@@ -70,19 +71,29 @@ async def main():
     await pg.click("[data-mediasheet='Les aventures de Tintin']"); await pg.wait_for_timeout(600)
     # The media sheet left `#screen` for a real route (`/mediasheet/$title`, rendered
     # inside `#coquille`): it is read by the identity it carries,
-    # `data-key="mediaSheet:…"`, never by a bare `.screen.open` — two screens can
+    # `data-key="mediaSheet:…"`, never by a bare `[data-part="screen"][data-open]` — two screens can
     # carry `open` at once and the seasons must come from the mediaSheet, not from
     # whatever sits under it.
-    r=await pg.evaluate("""()=>{const s=document.querySelector('.screen.open[data-key^="mediaSheet:"]');
+    #
+    # The episode states come from the two BOOLEAN attributes the cell emits,
+    # not from its class. This is a report and no hold consumes it, which is
+    # precisely why the class read here was worth nothing: at the stylesheet
+    # conversion it would have printed an empty state set as if that were the
+    # answer. It reads three buckets where the class carried five — `pending`
+    # and `acquiring` are both « aired and not owned », which is what this
+    # report is about, and neither has an attribute to be told apart by.
+    r=await pg.evaluate("""()=>{const s=document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
       if (!s) return {missingScreen:true};
-      const ss=[...s.querySelectorAll('.season')];
+      const ss=[...s.querySelectorAll('[data-part="season"]')];
       return {seasons:ss.length, open:ss.filter(x=>x.open).length,
-              missing:[...s.querySelectorAll('.miss')].map(x=>x.textContent),
-              fraction:s.querySelector('.sheetmeta')?.textContent.trim(),
-              states:[...new Set([...s.querySelectorAll('.ep')].map(x=>x.className.replace('ep ','')))],
-              legend:[...s.querySelectorAll('.legend span')].map(x=>x.textContent.trim())};}""")
+              missing:[...s.querySelectorAll('[data-part="season/missing"]')].map(x=>x.textContent),
+              fraction:s.querySelector('[data-part="sheet/meta"]')?.textContent.trim(),
+              states:[...new Set([...s.querySelectorAll('[data-part="episode"]')].map(
+                x=>x.hasAttribute('data-in-library')?'in-library'
+                  :x.hasAttribute('data-announced')?'announced':'missing'))],
+              legend:[...s.querySelectorAll('[data-part="legend"] span')].map(x=>x.textContent.trim())};}""")
     print(" ", r)
-    await pg.screenshot(path="y_matrice_trous.png")
+    await shot(pg, "surfaces-matrix-gaps")
     print("\nJS errors:", errs or "none")
     await b.close()
     # A script that only prints can never fail, and a script that cannot fail

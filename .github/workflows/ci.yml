@@ -137,6 +137,7 @@ jobs:
       - run: python scripts/check-no-french.py
       - run: python3 scripts/check-css-tokens.py
       - run: python3 scripts/check-markup-contracts.py
+      - run: python3 frontend/maquette/oracle.py --contracts
 
   # `make check` runs twelve guards; CI ran ONE of them (no-french), so eleven
   # were developer-machine checks describing themselves as gates. A gate proves
@@ -181,10 +182,10 @@ jobs:
         if: needs.changes.outputs.maquette == 'true'
       - uses: actions/setup-node@v4
         if: needs.changes.outputs.maquette == 'true'
-        with: { node-version: '22' }
+        with: { node-version: "22" }
       - uses: actions/setup-python@v5
         if: needs.changes.outputs.maquette == 'true'
-        with: { python-version: '3.12' }
+        with: { python-version: "3.12" }
       - run: pip install playwright && python -m playwright install --with-deps chromium
         if: needs.changes.outputs.maquette == 'true'
       - run: npm ci --prefix frontend/maquette/design

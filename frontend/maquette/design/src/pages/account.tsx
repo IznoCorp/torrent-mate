@@ -15,18 +15,18 @@ export function AccountPage(): ReactElement {
   const { factRowsHTML, emptyInner, ACCOUNT } = useReference();
   const facts = (rows: Parameters<typeof factRowsHTML>[0]) => (
     <ol
-      className="flux"
+      className="flux" data-part="flux"
       dangerouslySetInnerHTML={{ __html: factRowsHTML(rows) }}
     />
   );
   return (
     <>
-      <div className="note">
+      <div className="note" data-part="note">
         <b>{t("screens.accountPage.noteLead")}</b>
         {t("screens.accountPage.noteRest")}
       </div>
 
-      <h2 className="h2">{t("screens.accountPage.you")}</h2>
+      <h2 className="h2" data-part="heading">{t("screens.accountPage.you")}</h2>
       {facts([
         {
           l: t("screens.accountPage.identifier"),
@@ -41,7 +41,7 @@ export function AccountPage(): ReactElement {
         },
       ])}
 
-      <h2 className="h2">{t("screens.accountPage.session")}</h2>
+      <h2 className="h2" data-part="heading">{t("screens.accountPage.session")}</h2>
       {facts([
         {
           l: t("screens.accountPage.duration"),
@@ -61,13 +61,13 @@ export function AccountPage(): ReactElement {
           s: t("screens.accountPage.whereSub"),
         },
       ])}
-      <button className="cfoot" data-signout="1">
+      <button className="cfoot" data-part="card/foot" data-signout="1">
         {t("screens.accountPage.signOut")}
       </button>
 
-      <h2 className="h2">{t("screens.accountPage.others")}</h2>
+      <h2 className="h2" data-part="heading">{t("screens.accountPage.others")}</h2>
       <div
-        className="empty"
+        className="empty" data-part="empty-state"
         dangerouslySetInnerHTML={{
           __html: emptyInner(
             t("screens.accountPage.othersEmptyTitle"),

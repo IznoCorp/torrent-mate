@@ -69,6 +69,10 @@ when the defect comes back.
 | B-034 | `TestQuickMode` reads a foreign `os.scandir` caller    | by gate     | `open`       |
 | B-035 | `test_continues_on_per_file_error` writes no backup    | by gate     | `open`       |
 | B-036 | Two state ids are still French: `panne`, `groupe`      | by review   | `open`       |
+| B-037 | `arrivals.py` reads a French global nothing defines      | by review   | `open`       |
+| B-038 | `arrivals.py` reads `empty` and asserts nothing on it    | by mutation | `open`       |
+| B-039 | `actions.py` prints `.freshtag` presence, asserts nothing | by mutation | `open`       |
+| B-040 | Names in files no arm reads: `sweep.py` labels, a region id | by review   | `open`       |
 
 **B-036 — the English campaign missed two state ids, and no arm reads them.**
 `window.__states()` returns **`system-panne`** and **`acq-follows-groupe`**. Both are NAMED STATE
@@ -654,3 +658,40 @@ were invisible because the rule measured a named state instead of the path actua
 load, a real finger, a real browser menu. One — B-012 — was my own over-correction of the one
 before it. And two rules had to be thrown away before one held, for the same reason both times:
 asserting that a panel is open AFTER the finger lifts proves nothing, since a tap opens it too.
+
+**B-037 — a French identifier, and a dead one, in a harness rule under a green gate.**
+`frontend/maquette/harness/arrivals.py:53` reads `window.PIPELINE_UID_POUR_LA_SONDE || null`. The
+name is French — a name someone chose, which CLAUDE.md §Language covers — and it sits inside a
+JavaScript string, so the identifiers arm of `scripts/check-no-french.py`, which parses Python,
+never sees it. And nothing under `frontend/` DEFINES that global: the expression is `null` on every
+run, and R66 obtains the run uid from the text the prototype prints instead. A dead read, in French,
+that fourteen arms walked past. Found by a sub-phase of L02 reading the rule it was migrating (2026-08-21),
+not by a guard.
+
+**B-038 — `arrivals.py` reads `empty` into its view and no hold consumes it.**
+The rule's `READ` collects `empty` for every flux row (`classList.contains('fempty')`, now
+`hasAttribute('data-empty')`), but the only holds that could use it compute the dash from the
+result text and consume `blocked` alone. So the `fempty` read was dead on the class before L02 and is
+dead on the attribute after it: a mutation dropping `data-empty` leaves the suite green
+(`24 rules EXECUTED — no violation`), while the same mutation on `data-blocked` fells the right
+hold. A hold « a row with nothing to do is marked empty » (3 of 9 rows today) closes it; it moves
+R66's hold count, which is why it was not written inside the migration (2026-08-21).
+
+**B-039 — `actions.py:81` prints whether `.freshtag` exists and asserts nothing.**
+The follow flow the rule drives never produces a `fresh` descriptor, so the probe printed `False`
+before L02 anchored the element as `card/fresh-tag` and prints `False` after — measured across all
+83 named states: `[.freshtag, [data-part="card/fresh-tag"]] = [0, 0]`. The contract is faithful and
+nothing holds it: neither end can move and fall a rule. A state that produces a fresh follow, or a
+hold after a follow action, is behaviour work outside the anchoring lot (2026-08-21).
+
+**B-040 — French names survive in files no arm of `check-no-french.py` reads.**
+By design (its own docstring, arm 1), the harness's rule scripts are read for their hold LABELS
+only; `states.js` and `legacy.js` are read for the declared debt alone. So five French view labels
+in `sweep.py`'s `VIEWS` table (`acq/suivis`, `acq/decouvrir`, `lib/incomplets`, `lib/recents`,
+`arrivees`) sat under a green gate — `arrivees` is even in `scripts/nofrench_lexicon.py:47` — until
+sub-phase 6.5 of L02 turned them into screenshot file names and renamed them by hand; and
+`regions.json:81` still declares the region id `arrivees/empty`, one of the oracle's 33 keys, which no
+arm reads either. Same family as B-036: a name someone chose, in a file the guard does not open. The
+fix is an arm over the harness's string literals and the oracle's region ids, with the lexicon it
+already has; the region rename moves an oracle reference key and is not an anchoring change
+(2026-08-22).

@@ -93,8 +93,8 @@ async def panel_actions(pg):
     """
     return await pg.evaluate(
         """()=>{const s=document.querySelector('#sheet');
-        if(!s||!s.classList.contains('open')) return null;
-        return [...s.querySelectorAll('.sact')].map(x=>x.textContent.trim());}"""
+        if(!s||!s.hasAttribute('data-open')) return null;
+        return [...s.querySelectorAll('[data-part="sheet/action"]')].map(x=>x.textContent.trim());}"""
     )
 
 
@@ -139,17 +139,17 @@ async def main():
             if state_.startswith("lib-"):
                 await mode(pg, "list")
             seen = await pg.evaluate(
-                """()=>[...document.querySelectorAll('.card')].filter(visible).map(c=>{
-                    const b=c.querySelector('.cbody');
-                    const p=c.querySelector('.poster');
-                    return {title:c.querySelector('.ctitle')?.textContent||'',
+                """()=>[...document.querySelectorAll('[data-part="card"]')].filter(visible).map(c=>{
+                    const b=c.querySelector('[data-part="card/body"]');
+                    const p=c.querySelector('[data-part="card/poster"]');
+                    return {title:c.querySelector('[data-part="card/title"]')?.textContent||'',
                             nonMedia:c.dataset.nonmedia||null,
                             panel:b?b.dataset.panel||null:null,
                             directSheet:b?b.dataset.sheet||null:null,
                             posterIsButton:p?p.tagName==='BUTTON':false,
                             posterToSheet:p?p.dataset.mediasheet||null:null,
                             posterToPanel:p?p.dataset.panel||null:null,
-                            posterUnknown:p?(p.querySelector('.pfall b')||{}).textContent==='?':false};})"""
+                            posterUnknown:p?(p.querySelector('[data-part="card/poster-fallback"] b')||{}).textContent==='?':false};})"""
             )
             if not seen:
                 failures.append(f"R41 {state_}: no card at all — the state draws nothing")
@@ -209,11 +209,11 @@ async def main():
             if state_.startswith("lib-"):
                 await mode(pg, "list")
             inlines = await pg.evaluate(
-                """()=>[...document.querySelectorAll('.card')].filter(visible)
-                    .filter(c=>c.querySelector('.cfoot') && !c.dataset.nonmedia)
-                    .map(c=>({title:c.querySelector('.ctitle')?.textContent||'',
-                              action:c.querySelector('.cfoot').textContent.trim(),
-                              panel:c.querySelector('.cbody')?.dataset.panel||null}))"""
+                """()=>[...document.querySelectorAll('[data-part="card"]')].filter(visible)
+                    .filter(c=>c.querySelector('[data-part="card/foot"]') && !c.dataset.nonmedia)
+                    .map(c=>({title:c.querySelector('[data-part="card/title"]')?.textContent||'',
+                              action:c.querySelector('[data-part="card/foot"]').textContent.trim(),
+                              panel:c.querySelector('[data-part="card/body"]')?.dataset.panel||null}))"""
             )
             for item in inlines:
                 executed += 1
@@ -223,7 +223,7 @@ async def main():
                     failures.append(f"R43 {state_} « {item['title']} »: no panel to compare against")
                     continue
                 await pg.evaluate(
-                    "(s)=>document.querySelector(`.cbody[data-panel=\"${s.replace(/\"/g,'')}\"]`)?.click()",
+                    """(s)=>document.querySelector(`[data-part="card/body"][data-panel="${s.replace(/"/g,'')}"]`)?.click()""",
                     item["panel"],
                 )
                 await pg.wait_for_timeout(420)
@@ -248,9 +248,9 @@ async def main():
             await pg.wait_for_timeout(360)
             await mode(pg, "grid")
             refs = await pg.evaluate(
-                """()=>[...document.querySelectorAll('.tile[data-panel]')].map(t=>({
-                    panel:t.dataset.panel, name:t.querySelector('.nm')?.textContent||'',
-                    subLine:t.querySelector('.fr')?.textContent||''}))"""
+                """()=>[...document.querySelectorAll('[data-part="tile"][data-panel]')].map(t=>({
+                    panel:t.dataset.panel, name:t.querySelector('[data-part="tile/title"]')?.textContent||'',
+                    subLine:t.querySelector('[data-part="tile/subtitle"]')?.textContent||''}))"""
             )
             if not refs:
                 failures.append(f"R45 {state_}: no tile declares a panel")
@@ -277,13 +277,13 @@ async def main():
             await pg.wait_for_timeout(400)
             await mode(pg, "grid")
             g = await pg.evaluate(
-                """()=>{const t=document.querySelector('.tile'); if(!t) return null;
+                """()=>{const t=document.querySelector('[data-part="tile"]'); if(!t) return null;
                 const grid=t.parentElement, r=t.getBoundingClientRect();
                 return {columns:getComputedStyle(grid).gridTemplateColumns.split(' ').length,
                         gap:getComputedStyle(grid).gap,
                         tile:[Math.round(r.width),Math.round(r.height)],
-                        name:getComputedStyle(t.querySelector('.nm')).fontSize,
-                        subLine:getComputedStyle(t.querySelector('.fr')).fontSize};}"""
+                        name:getComputedStyle(t.querySelector('[data-part="tile/title"]')).fontSize,
+                        subLine:getComputedStyle(t.querySelector('[data-part="tile/subtitle"]')).fontSize};}"""
             )
             if g is None:
                 failures.append(f"R50 {state_}: no tile at all")
@@ -313,7 +313,7 @@ async def main():
                 d.style.width = w+'px'; d.style.maxWidth = w+'px';
                 await new Promise(r=>setTimeout(r,180));
                 out.push([Math.round(document.querySelector('#port').getBoundingClientRect().width),
-                          getComputedStyle(document.querySelector('.grid')).gridTemplateColumns.split(' ').length]);
+                          getComputedStyle(document.querySelector('[data-part="grid"]')).gridTemplateColumns.split(' ').length]);
             }
             d.style.width = before; d.style.maxWidth = '';
             return out;}"""
@@ -334,19 +334,19 @@ async def main():
             if state_.startswith("lib-"):
                 await mode(pg, "list")
             m = await pg.evaluate(
-                """()=>{const c=document.querySelector('.card:not([data-nonmedia])');
+                """()=>{const c=document.querySelector('[data-part="card"]:not([data-nonmedia])');
                 if(!c) return null;
-                const p=c.querySelector('.poster'), t=c.querySelector('.ctitle');
+                const p=c.querySelector('[data-part="card/poster"]'), t=c.querySelector('[data-part="card/title"]');
                 const rp=p.getBoundingClientRect(), cs=getComputedStyle(c);
                 return {poster:Math.round(rp.width),
                         padding:cs.padding, radius:cs.borderRadius,
                         title:getComputedStyle(t).fontSize,
-                        gap:getComputedStyle(c.querySelector('.ctop')).gap};}"""
+                        gap:getComputedStyle(c.querySelector('[data-part="card/top"]')).gap};}"""
             )
             if m:
                 metrics[state_] = m
             truncated += await pg.evaluate(
-                """()=>[...document.querySelectorAll('.creason')]
+                """()=>[...document.querySelectorAll('[data-part="card/reason"]')]
                     .filter(e=>e.scrollHeight>e.clientHeight+1)
                     .map(e=>e.textContent.slice(0,60))"""
             )
@@ -391,18 +391,18 @@ async def main():
             await pg.wait_for_timeout(110)
             seen_state = await pg.evaluate("""()=>{
               const out = {ratios: [], flush: [], margins: [], overlap: []};
-              for (const c of document.querySelectorAll('.card')) {
-                const p = c.querySelector('.poster');
+              for (const c of document.querySelectorAll('[data-part="card"]')) {
+                const p = c.querySelector('[data-part="card/poster"]');
                 if (!p || !p.getBoundingClientRect().width) continue;
                 const rp = p.getBoundingClientRect(), rc = c.getBoundingClientRect();
-                const title = (c.querySelector('.ctitle')||{}).textContent || '?';
+                const title = (c.querySelector('[data-part="card/title"]')||{}).textContent || '?';
                 out.ratios.push(Math.round(rp.height / rp.width * 100) / 100);
                 for (const [edge, gap] of [['top', rp.top - rc.top],
                                            ['left', rp.left - rc.left],
                                            ['bottom', rc.bottom - rp.bottom]])
                   if (Math.abs(gap) > 1.5)
                     out.flush.push(`${title} — ${edge} at ${gap.toFixed(1)}px`);
-                const t = c.querySelector('.ctitle');
+                const t = c.querySelector('[data-part="card/title"]');
                 if (t) {
                   const rt = t.getBoundingClientRect();
                   if (rt.left < rp.right - 0.5) out.overlap.push(title);
@@ -433,13 +433,13 @@ async def main():
             await pg.wait_for_timeout(100)
             cropped += await pg.evaluate("""()=>{
               const out = [];
-              for (const img of document.querySelectorAll('.card .poster img')) {
+              for (const img of document.querySelectorAll('[data-part="card"] [data-part="card/poster"] img')) {
                 const b = img.getBoundingClientRect();
                 if (!b.width || !img.naturalWidth) continue;
                 const rs = img.naturalHeight / img.naturalWidth, rb = b.height / b.width;
                 const loss = rs > rb ? 1 - rb / rs : 1 - rs / rb;
                 if (loss > 0.02)
-                  out.push([(img.closest('.card').querySelector('.ctitle')||{})
+                  out.push([(img.closest('[data-part="card"]').querySelector('[data-part="card/title"]')||{})
                               .textContent.slice(0, 24), Math.round(loss * 100)]);
               }
               return out;}""")
@@ -473,9 +473,9 @@ async def main():
         await pg.wait_for_timeout(360)
         await mode(pg, "grid")
         box = await pg.evaluate(
-            """()=>{const t=document.querySelector('.tile[data-panel]');
+            """()=>{const t=document.querySelector('[data-part="tile"][data-panel]');
             if(!t) return null; const r=t.getBoundingClientRect();
-            return {x:r.x+r.width/2, y:r.y+r.height/2, title:t.querySelector('.nm')?.textContent||''};}"""
+            return {x:r.x+r.width/2, y:r.y+r.height/2, title:t.querySelector('[data-part="tile/title"]')?.textContent||''};}"""
         )
         if box is None:
             failures.append(f"R44 {state_}: no tile to press")
@@ -491,7 +491,7 @@ async def main():
 
             await mode(pg, "list")
             await pg.evaluate(
-                "(t)=>[...document.querySelectorAll('.card')].find(c=>c.querySelector('.ctitle')?.textContent===t)?.querySelector('.cbody')?.click()",
+                """(t)=>[...document.querySelectorAll('[data-part="card"]')].find(c=>c.querySelector('[data-part="card/title"]')?.textContent===t)?.querySelector('[data-part="card/body"]')?.click()""",
                 box["title"],
             )
             await pg.wait_for_timeout(430)
@@ -535,12 +535,12 @@ async def main():
               const out = {offending: [], folders: 0};
               // Only a poster one can PRESS makes a promise. A candidate's
               // poster is a picture — a span — and promises nothing at all.
-              for (const a of document.querySelectorAll('button.poster')) {
+              for (const a of document.querySelectorAll('button[data-part="card/poster"]')) {
                 if (!a.getBoundingClientRect().width) continue;
                 if (!a.hasAttribute('data-mediasheet'))
                   out.offending.push('pressable poster with no data-mediasheet: ' + a.className);
               }
-              for (const d of document.querySelectorAll('.folder')) {
+              for (const d of document.querySelectorAll('[data-part="card/folder"]')) {
                 if (!d.getBoundingClientRect().width) continue;
                 out.folders++;
                 if (!d.hasAttribute('data-panel') || d.hasAttribute('data-mediasheet') ||

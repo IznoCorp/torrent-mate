@@ -757,6 +757,11 @@ regex built for `rgb()` mean nothing.
 
 ## A trap that cost real time: **screenshots are not an oracle**
 
+Every capture a rule takes goes through `common.shot` and lands in
+`harness/__screenshots__/`, gitignored: a reading aid you open when a rule fails, never a
+proof — a path relative to the caller once scattered 127 of them across the repository
+root, where a blanket `*.png` rule hid every one.
+
 Two captures of the **same, unmodified file** disagreed on 8 to 15 of the 47 states. Skeleton
 shimmer, the media-sheet header entrance, async decode of the embedded WebP visuals: none of
 it settles on a schedule you can wait out reliably. Freezing animations and awaiting
@@ -952,6 +957,69 @@ Two things are NOT covered by that rule, and confusing them is how a rule goes q
   follow/episode state tokens, the config keys the settings dictionaries are keyed by: those
   are contracts, and renaming one moves the contract rather than a name. The frozen ones are
   listed, each with the reason it was kept, in `regions.json`'s `$vocabulary`.
+
+## The data-* vocabulary (L02)
+
+**One attribute, `data-part`, its value namespaced by `/`**: `card`, `card/title`,
+`card/poster`. The namespace names the owning DOM concept; the leaf names the role.
+The style class STAYS beside it — `className="ctitle" data-part="card/title"` — the
+class still styles, and L07 removes it. Keeping both is not duplication: it is the
+separation L02 exists to create.
+
+**Boolean state attributes carry no value, and the list is DERIVED, not
+enumerated.** An attribute is one when the harness asks whether it is THERE —
+`[data-open]`, `hasAttribute('data-open')` — and never what it says. Twenty-four
+qualify today: `data-announced`, `data-blocked`, `data-clearq`, `data-confirmadd`,
+`data-delsel`, `data-drawer`, `data-edited`, `data-empty`, `data-in-library`,
+`data-leave`, `data-manual`, `data-mono`, `data-no-poster`, `data-open`,
+`data-qsettings`, `data-read-only`, `data-resolve`, `data-restart`, `data-save`,
+`data-scroll-root`, `data-shown`, `data-skeleton`, `data-solid`, `data-sort`. Do not
+maintain that list by hand — `check-markup-contracts.py` prints what it derived on
+every run. It was a hand-written tuple of SEVEN for one wave, and twelve shipped.
+
+**In a component, a state attribute is `data-open={isOpen || undefined}` — never
+`data-open={isOpen}`.** React renders `data-*` as strings, so `false` becomes the
+string `"false"` and `[data-open]` then matches ALWAYS: a rule goes green while it
+measures nothing. The trap is not a remembered convention — `harness/attrs.py`
+demonstrates it in the live document, rule 51 of the suite, and ARM 4 of
+`check-markup-contracts.py` refuses the spelling that falls into it.
+
+A NAMING attribute's VALUE is a name someone chose, so `scripts/check-no-french.py`
+reads it — 484 values today, through `nofrench_values.py`. Five attributes qualify
+(`markup_text.NAMING_ATTRIBUTES`: `data-part`, `data-region`, `data-tone`,
+`data-action`, `data-side`), and the markup guard reads the SAME list to hold a
+different question — every value a rule selects is emitted somewhere. An ADDRESS is
+not a name: `data-go="profil"` names a page, and the guards leave it alone.
+
+**An emission may be imperative.** Most parts are anchored in markup — `class="ep"
+data-part="episode"` — but an element the engine BUILDS carries no markup literal:
+`createElement.className = "eppop"` is such an element, and its anchor sits beside the
+assignment, `createElement.dataset.part = "episode/popover"`. The guard's emission reader
+knows that form and `setAttribute("data-part", "…")`, with a literal value only; a computed
+value is unread in every form, so a computed class is anchored with a literal `data-part` at
+the same site.
+
+**The floor is a HARD ZERO, not a burn-down.** `scripts/check-markup-contracts.py`
+refuses the FIRST class token in any rule selector — passed to `querySelector`, held
+in a variable, a table, a concatenation, or READ from the class attribute without a
+selector at all (`className.includes('x')`, a regex of class names, a table matched
+against a spread `classList`, an injected CSS rule) — and the first
+`classList.contains` at a site `GENRE_SITES` does not exempt, by `file:line`. There is no baseline file, no budget and no
+`--allow-additions`: the guard takes no argument at all. The shipped debt was carried by
+a burn-down list while it was being migrated, and list, ratchet and escape hatch were
+deleted in the same move as the last entry — an empty tolerance is a tolerance someone
+raises.
+
+**And the zero is only worth what the readers SEE.** A selector the harness BUILDS
+spells itself in neither shape a naive reader expects: an f-string carries `{…}`
+interpolations, and a selector concatenated onto a variable starts with a space. Both
+were live and read by NOTHING — not the guard, not the independent
+`classify-rule-anchors.py`. The shape test now treats an interpolation as an opaque
+token that does not end the selector, and accepts the leading space; it still refuses a
+brace that never balances (`.splashbar {` is stylesheet text) and an `=` outside an
+attribute block (`#splash.hidden = {…}` is a journal label about an element, not a
+selection of it). Both readers must report zero — `classify-rule-anchors.py --baseline`
+prints `[]` — because one reader's zero is a claim.
 
 ## Where the interface's French lives
 

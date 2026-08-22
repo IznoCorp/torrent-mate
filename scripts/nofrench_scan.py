@@ -96,6 +96,57 @@ def script_string_literals(source: str) -> list[tuple[int, str]]:
     return literals
 
 
+# `# french-ok: <reason>` — the pragma that licenses one line, and the reason it
+# cites. It lives with the scanners rather than with the lexicon because THIS
+# file is read by arms 1, 2 and 6 and the lexicon is not: `SELF` names the two
+# files whose French IS their subject, and code moved into one of them stops
+# being examined. A scope that empties by hand is the defect this guard exists
+# against, and it does not get to happen to the guard's own sources.
+PRAGMA = re.compile(
+    r"(?:#|//|/\*)\s*french-ok:\s*(?P<reason>[^*]*)")
+
+
+def pragma_on(lines: list[str], line_no: int) -> str | None:
+    """Returns the reason a line's french-ok pragma cites, or None.
+
+    Args:
+        lines: The file's lines.
+        line_no: The 1-based line the literal starts on.
+
+    Returns:
+        The cited reason, "" when the pragma cites nothing, or None when the
+        line carries no pragma. The line ABOVE counts too: a JSX attribute has
+        no room for a trailing comment.
+
+        THE LINE BELOW DELIBERATELY DOES NOT. This docstring used to promise it
+        — for the wrapped-literal case — and implementing that promise turned
+        every pragma into a THREE-line grant: a brand-new French literal parked
+        next to any of the twenty-one existing pragmas became invisible. A
+        wrapped literal can carry its pragma on the line above like everything
+        else; licensing a neighbour is a bigger hole than the one it closed.
+    """
+    for candidate in (line_no, line_no - 1):
+        if not 1 <= candidate <= len(lines):
+            continue
+        line = lines[candidate - 1]
+        found = PRAGMA.search(line)
+        # A pragma written INSIDE a string is not a pragma. Without this, one
+        # literal reading `"# french-ok: …"` licensed its neighbours.
+        if found and not inside_quotes(line, found.start()):
+            return found.group("reason").strip()
+    return None
+
+
+# A TypeScript DECLARATION — the keyword that introduces a name, and the name.
+# Two arms read it: arm 2 asks whether the name is a word this codebase speaks,
+# arm 10 asks a dictionary whether it is French. One reader, so the two arms
+# cannot end up reading two different populations.
+TS_DECLARATION = re.compile(
+    r"\b(?:const|let|var|function|class|interface|type|enum)\s+"
+    # french-ok: a Latin-1 letter RANGE, not a word
+    r"(?P<name>[A-Za-z_$][\w$À-ɏ]*)")
+
+
 def python_declarations(source: str) -> list[tuple[str, int]]:
     """Returns every name a Python module DECLARES, with its line.
 

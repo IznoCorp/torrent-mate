@@ -35,33 +35,33 @@ async def main():
     # 1. Slide cards — the case the operator reported.
     await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'discover',phase:'ready'}); window.__store.write({sugMode: 'deck'}); render();}")
     await pg.wait_for_timeout(600)
-    t0 = await pg.evaluate("()=>document.querySelector('.dcard[data-depth=\"0\"] .t').textContent")
-    await drag('.dcard[data-depth="0"]', -180)
-    t1 = await pg.evaluate("()=>document.querySelector('.dcard[data-depth=\"0\"] .t').textContent")
+    t0 = await pg.evaluate("""()=>document.querySelector('[data-part="deck/card"][data-depth="0"] [data-part="deck/title"]').textContent""")
+    await drag('[data-part="deck/card"][data-depth="0"]', -180)
+    t1 = await pg.evaluate("""()=>document.querySelector('[data-part="deck/card"][data-depth="0"] [data-part="deck/title"]').textContent""")
     print(f"slide cards, mouse left : « {t0[:24]} » → « {t1[:24]} »  {'PASS' if t1 != t0 else 'FAIL'}")
     if not (t1 != t0): failures.append("slide cards, mouse left")
     # Reset between gestures: chaining two drags without one measures the
     # second against the state the first left, which is not what is being asked.
     await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'discover',phase:'ready'}); window.__store.write({sugMode: 'deck'}); render();}")
     await pg.wait_for_timeout(600)
-    await drag('.dcard[data-depth="0"]', 180)
+    await drag('[data-part="deck/card"][data-depth="0"]', 180)
     n = await pg.evaluate("()=>state.sugGone.size")
     print(f"slide cards, mouse right: dismissed {n}  {'PASS' if n == 1 else 'FAIL'}")
     if not (n == 1): failures.append("slide cards, mouse right")
 
     # 2. Card swipe in Suivis.
     await pg.evaluate("()=>window.__go('acq-follows-list')"); await pg.wait_for_timeout(500)
-    await drag(".swipe", -150)
-    tr = await pg.evaluate("()=>{const c=document.querySelector('.swipe .card'); return getComputedStyle(c).transform;}")
+    await drag('[data-part="swipe"]', -150)
+    tr = await pg.evaluate("""()=>{const c=document.querySelector('[data-part="swipe"] [data-part="card"]'); return getComputedStyle(c).transform;}""")
     print(f"follow row, mouse swipe : {tr[:34]}  {'PASS' if tr != 'none' else 'FAIL'}")
     if not (tr != 'none'): failures.append("follow row, mouse swipe")
 
     # 3. Suggestion card swipe in the list format.
     await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'discover',phase:'ready'}); window.__store.write({sugMode: 'list'}); render();}")
     await pg.wait_for_timeout(600)
-    before = await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length")
-    await drag(".sugwrap", 200)
-    after = await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length")
+    before = await pg.evaluate("""()=>document.querySelectorAll('[data-part="suggestion/wrap"]').length""")
+    await drag('[data-part="suggestion/wrap"]', 200)
+    after = await pg.evaluate("""()=>document.querySelectorAll('[data-part="suggestion/wrap"]').length""")
     print(f"suggestion, mouse swipe : {before} → {after}  {'PASS' if after < before else 'FAIL'}")
     if not (after < before): failures.append("suggestion, mouse swipe")
 
@@ -87,14 +87,14 @@ async def main():
         for direction, dx in (("right", 150), ("left", -150)):
             await pg.evaluate(f"()=>window.__go({state_!r})")
             await pg.wait_for_timeout(480)
-            if not await pg.evaluate("()=>document.querySelectorAll('#view .swipe').length"):
+            if not await pg.evaluate("""()=>document.querySelectorAll('#view [data-part="swipe"]').length"""):
                 continue
             await pg.evaluate("()=>{window.__clicks = [];}")
-            await drag("#view .swipe", dx)
+            await drag('#view [data-part="swipe"]', dx)
             clicks = await pg.evaluate("()=>window.__clicks")
             passed = bool(clicks) and all(c["swallowed"] for c in clicks)
             position = await pg.evaluate(
-                "()=>(document.querySelector('#view .swipe .card')||{}).style?.transform || 'at rest'")
+                """()=>(document.querySelector('#view [data-part="swipe"] [data-part="card"]')||{}).style?.transform || 'at rest'""")
             print(f"{list_label}, drag {direction:<7}: click swallowed {passed} · position {position}"
                   f"  {'PASS' if passed else 'FAIL'}")
             if not passed:

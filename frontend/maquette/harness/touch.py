@@ -133,7 +133,7 @@ async def main():
                 await drag(cdp, r["x"] + r["width"] / 2, r["y"] + 200, 10, direction, 0)
                 await pg.wait_for_timeout(300)
             left = await pg.evaluate(
-                "()=>(document.querySelector('.seg [aria-selected=\"true\"]')||{}).textContent")
+                '''()=>(document.querySelector('[data-part="segment"] [aria-selected="true"]')||{}).textContent''')
             check(f"no drag changes the view ({state_})",
                      (left or "").startswith(expected), str(left))
 
@@ -151,21 +151,21 @@ async def main():
         #    claim is what makes them survive. Measured, not assumed.
         await pg.evaluate("()=>window.__go('acq-follows-list')")
         await pg.wait_for_timeout(300)
-        r = await rect("#view .swipe")
+        r = await rect('#view [data-part="swipe"]')
         await drag(cdp, r["x"] + r["width"] / 2, r["y"] + r["height"] / 2, 12, -20, 0)
         await pg.wait_for_timeout(300)
         transformed = await pg.evaluate(
-            "()=>getComputedStyle(document.querySelector('#view .swipe .card')).transform")
+            """()=>getComputedStyle(document.querySelector('#view [data-part="swipe"] [data-part="card"]')).transform""")
         check("a row still opens", transformed not in ("none", "matrix(1, 0, 0, 1, 0, 0)"),
                  transformed)
 
         await pg.evaluate("()=>window.__go('acq-discover-deck')")
         await pg.wait_for_timeout(350)
-        before = await pg.evaluate("()=>document.querySelectorAll('.sugwrap, .dcard').length")
-        r = await rect(".deck .dcard[data-depth='0']")
+        before = await pg.evaluate("""()=>document.querySelectorAll('[data-part="suggestion/wrap"], [data-part="deck/card"]').length""")
+        r = await rect('[data-part="deck"] [data-part="deck/card"][data-depth="0"]')
         await drag(cdp, r["x"] + r["width"] / 2, r["y"] + r["height"] / 2, 12, 22, 0)
         await pg.wait_for_timeout(450)
-        moved = await pg.evaluate("""()=>{const c=document.querySelector(".deck .dcard[data-depth='0']");
+        moved = await pg.evaluate("""()=>{const c=document.querySelector('[data-part="deck"] [data-part="deck/card"][data-depth="0"]');
             return c ? c.textContent.replace(/\\s+/g,' ').trim().slice(0,40) : null;}""")
         check("the deck still moves on by one card", bool(moved) and before > 0, str(moved))
 
@@ -188,19 +188,24 @@ async def main():
             await cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
 
         press_surfaces = [
-            ("follows gallery", "acq-follows-grid", ".tile"),
-            ("library gallery", "lib-grid", ".tile"),
-            ("a card's poster", "acq-follows-list", "#view .card .poster"),
-            ("a card's body", "acq-follows-list", "#view .card .cbody"),
-            ("deck card", "acq-discover-deck", ".deck .dcard[data-depth='0']"),
+            ("follows gallery", "acq-follows-grid", '[data-part="tile"]'),
+            ("library gallery", "lib-grid", '[data-part="tile"]'),
+            ("a card's poster", "acq-follows-list", '#view [data-part="card"] [data-part="card/poster"]'),
+            ("a card's body", "acq-follows-list", '#view [data-part="card"] [data-part="card/body"]'),
+            ("deck card", "acq-discover-deck", '[data-part="deck"] [data-part="deck/card"][data-depth="0"]'),
         ]
         without_panel, with_selection, fired = [], [], []
         for name, state_, sel in press_surfaces:
             await pg.evaluate("(s)=>window.__go(s)", state_)
             await pg.wait_for_timeout(420)
-            await pg.evaluate("()=>{window.__acts=[];"
-                              "document.addEventListener('click', e=>window.__acts.push("
-                              "(e.target.tagName||'')+'.'+(e.target.className||'')), false);}")
+            # The recorded act carries the ANCHOR beside the class: the
+            # assertion below asks whether a sheet action fired, and a class
+            # name is not what identifies one any more.
+            await pg.evaluate('''()=>{window.__acts=[];
+              document.addEventListener('click', e=>window.__acts.push(
+                (e.target.tagName||'')+'.'+(e.target.className||'')+' '
+                + ((e.target.closest('[data-part]')||{dataset:{}}).dataset.part||'')),
+                false);}''')
             r = await rect(sel)
             if r is None:
                 without_panel.append(f"{name} (target absent)")
@@ -208,7 +213,7 @@ async def main():
             await press(r["x"] + r["width"] / 2, r["y"] + r["height"] / 2)
             await pg.wait_for_timeout(400)
             out = await pg.evaluate("""()=>({
-              panel: document.querySelector('#sheet').classList.contains('open'),
+              panel: document.querySelector('#sheet').hasAttribute('data-open'),
               selection: String(window.getSelection() || '').length,
               acts: window.__acts})""")
             if not out["panel"]:
@@ -217,7 +222,7 @@ async def main():
                 with_selection.append(name)
             # The panel opens UNDER the finger: the lift must not activate its
             # primary action. That is what a long press on a follow was doing.
-            if any(".sact" in act for act in out["acts"]):
+            if any("sheet/action" in act for act in out["acts"]):
                 fired.append(f"{name} → {out['acts']}")
             await pg.evaluate("()=>window.__close && window.__close('sheet')")
             await pg.wait_for_timeout(150)
@@ -232,10 +237,10 @@ async def main():
         # declaration itself. Exactly like the `touch-action` axis claim.
         # Each surface is checked in a state that DRAWS it: the deck state has
         # no list poster, and a rule that skips what is absent proves nothing.
-        for state_, selectors in (("acq-follows-list", [".poster"]),
-                                 ("lib-grid", [".tile"]),
-                                 ("acq-discover-deck", [".dcard"]),
-                                 ("followsheet-complete", [".sheetposter"])):
+        for state_, selectors in (("acq-follows-list", ['[data-part="card/poster"]']),
+                                 ("lib-grid", ['[data-part="tile"]']),
+                                 ("acq-discover-deck", ['[data-part="deck/card"]']),
+                                 ("followsheet-complete", ['[data-part="sheet/poster"]'])):
             await pg.evaluate("(s)=>window.__go(s)", state_)
             await pg.wait_for_timeout(320)
             refusal = await pg.evaluate(PRESS_GUARD, selectors)
@@ -252,8 +257,8 @@ async def main():
         # is not observable from here, so asserting its absence would be a rule
         # that can never fail.
         refusal = await pg.evaluate("""()=>{
-          const target = document.querySelector('#view .poster') ||
-                         document.querySelector('#view .card');
+          const target = document.querySelector('#view [data-part="card/poster"]') ||
+                         document.querySelector('#view [data-part="card"]');
           const e = new MouseEvent('contextmenu', {bubbles:true, cancelable:true});
           target.dispatchEvent(e);
           return {on: target.className, refused: e.defaultPrevented};}""")
@@ -294,12 +299,12 @@ async def main():
         # same.
         layer = await pg.evaluate("""()=>{
           const port = document.querySelector('#port');
-          const c = [...document.querySelectorAll('.card')]
+          const c = [...document.querySelectorAll('[data-part="card"]')]
             .find(e => e.getBoundingClientRect().width > 0 && !port.contains(e));
           if (!c) return null;
           const e = new MouseEvent('contextmenu', {bubbles:true, cancelable:true});
           c.dispatchEvent(e);
-          return {inScreen: !!document.querySelector('.screen.open')?.contains(c),
+          return {inScreen: !!document.querySelector('[data-part="screen"][data-open]')?.contains(c),
                   refused: e.defaultPrevented};}""")
         check("a card is drawn above the scrollport",
                  layer is not None and layer["inScreen"], str(layer))
@@ -315,10 +320,10 @@ async def main():
         await pg.evaluate("()=>closeSheet()")
         await pg.wait_for_timeout(340)
         check("the panel starts closed", not await pg.evaluate(
-            "()=>document.querySelector('#sheet').classList.contains('open')"))
+            "()=>document.querySelector('#sheet').hasAttribute('data-open')"))
         target = await pg.evaluate("""()=>{
           const port = document.querySelector('#port');
-          const a = [...document.querySelectorAll('.poster')]
+          const a = [...document.querySelectorAll('[data-part="card/poster"]')]
             .find(e => e.getBoundingClientRect().width > 0 && !port.contains(e));
           if (!a) return null;
           const r = a.getBoundingClientRect();
@@ -331,7 +336,7 @@ async def main():
                             "touchPoints": [{"x": target["x"], "y": target["y"], "id": 1}]})
             await pg.wait_for_timeout(PRESS_MS + 240)
             during = await pg.evaluate(
-                "()=>document.querySelector('#sheet').classList.contains('open')")
+                "()=>document.querySelector('#sheet').hasAttribute('data-open')")
             await cdp.send("Input.dispatchTouchEvent",
                            {"type": "touchEnd", "touchPoints": []})
             await pg.wait_for_timeout(320)
@@ -348,7 +353,7 @@ async def main():
         await pg.evaluate("()=>{closeSheet(); openFollowSheet('Silo');}")
         await pg.wait_for_timeout(450)
         check("a sheet is open", await pg.evaluate(
-            "()=>document.querySelector('#sheet').classList.contains('open')"))
+            "()=>document.querySelector('#sheet').hasAttribute('data-open')"))
 
         async def drag_handle(from_, to, steps=12):
             """Drags one finger down the handle, in steps a thumb really makes."""
@@ -369,7 +374,7 @@ async def main():
 
         await drag_handle(0, 150)
         check("a 150px drag closes the sheet", not await pg.evaluate(
-            "()=>document.querySelector('#sheet').classList.contains('open')"))
+            "()=>document.querySelector('#sheet').hasAttribute('data-open')"))
 
         # A short drag is not a dismissal: it must spring back, and it must not
         # leave the sheet displaced.
@@ -377,7 +382,7 @@ async def main():
         await pg.wait_for_timeout(450)
         await drag_handle(0, 24)
         sheet_state = await pg.evaluate("""()=>({
-          open: document.querySelector('#sheet').classList.contains('open'),
+          open: document.querySelector('#sheet').hasAttribute('data-open'),
           moved: document.querySelector('#sheet').style.transform || ''})""")
         check("a drag too short leaves it open", sheet_state["open"], str(sheet_state))
         check("and put back in place", not sheet_state["moved"], sheet_state["moved"])
@@ -399,7 +404,7 @@ async def main():
         await pg.mouse.up()
         await pg.wait_for_timeout(420)
         check("with a mouse too, a 150px drag closes it", not await pg.evaluate(
-            "()=>document.querySelector('#sheet').classList.contains('open')"))
+            "()=>document.querySelector('#sheet').hasAttribute('data-open')"))
 
         # A cancel is not a lift. The compositor can still take the gesture — a
         # second finger, a system edge swipe — and the sheet must go back where
@@ -424,7 +429,7 @@ async def main():
         await pg.wait_for_timeout(420)
         cancelled = await pg.evaluate("""()=>{
           const s = document.querySelector('#sheet');
-          return {open: s.classList.contains('open'), moved: s.style.transform || ''};}""")
+          return {open: s.hasAttribute('data-open'), moved: s.style.transform || ''};}""")
         check("a cancel does not close the sheet", cancelled["open"], str(cancelled))
         check("and puts it back in place", not cancelled["moved"], cancelled["moved"])
         await pg.evaluate("()=>closeSheet()")

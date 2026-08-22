@@ -32,16 +32,16 @@ READ = """() => ({
   overflow: document.querySelector('#port').scrollWidth - document.querySelector('#port').clientWidth,
   page: state.page,
   text: document.querySelector('#view').textContent.replace(/\\s+/g, ' ').trim(),
-  empty: (document.querySelector('#view .empty b') || {}).textContent || '',
+  empty: (document.querySelector('#view [data-part="empty-state"] b') || {}).textContent || '',
   exits: [...document.querySelectorAll('#view button')].map((b) => ({
     text: b.textContent.trim(),
     target: Object.keys(b.dataset).join(','),
     inert: b.disabled,
   })),
-  facts: [...document.querySelectorAll('#view .flux .fx')].map((x) => ({
-    l: x.querySelector('.fn').textContent.trim(),
-    v: x.querySelector('.fr').textContent.trim(),
-    k: (x.querySelector('.fk') || {}).textContent || '',
+  facts: [...document.querySelectorAll('#view [data-part="flux"] [data-part="flux/row"]')].map((x) => ({
+    l: x.querySelector('[data-part="flux/name"]').textContent.trim(),
+    v: x.querySelector('[data-part="flux/value"]').textContent.trim(),
+    k: (x.querySelector('[data-part="flux/key"]') || {}).textContent || '',
   })),
 })"""
 
@@ -111,7 +111,7 @@ async def main():
         await pg.tap('[data-sheet="utilisateur"]')
         await pg.wait_for_timeout(420)
         menu = await pg.evaluate(
-            """()=>[...document.querySelectorAll('.sheetacts .sact')].map((b) => ({
+            """()=>[...document.querySelectorAll('[data-part="sheet/actions"] [data-part="sheet/action"]')].map((b) => ({
                  text: b.textContent.trim(), inert: b.disabled,
                  target: Object.entries(b.dataset).map(([k, v]) => k + '=' + v).join(',')}))""")
         profile = [m for m in menu if "Profil" in m["text"]]
@@ -121,7 +121,7 @@ async def main():
                       profile and not profile[0]["inert"] and profile[0]["target"],
                       str(profile))
 
-        await pg.tap('.sheetacts .sact:has-text("Profil")')
+        await pg.tap('[data-part="sheet/actions"] [data-part="sheet/action"]:has-text("Profil")')
         await pg.wait_for_timeout(420)
         account = await pg.evaluate(READ)
         journal.check("the menu entry does open the account surface",

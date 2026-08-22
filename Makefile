@@ -84,6 +84,7 @@ check: lint test-cov
 	python3 scripts/check-no-french.py
 	python3 scripts/check-css-tokens.py
 	python3 scripts/check-markup-contracts.py
+	python3 frontend/maquette/oracle.py --contracts
 	python3 scripts/check-i18n-placeholders.py
 	python3 scripts/check-command-safety.py
 	python3 scripts/audit-cli-coverage.py

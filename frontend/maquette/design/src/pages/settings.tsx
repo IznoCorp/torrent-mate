@@ -54,13 +54,15 @@ function SettingRow({
   return (
     <button
       className={`settingrow${edited ? " modified" : ""}`}
+      data-edited={edited || undefined}
+      data-part="setting/row"
       data-setting={identity}
     >
-      <span className="rl">
+      <span className="rl" data-part="setting/label">
         {settingLabel(setting)}{" "}
-        <span className="rf">{origin}</span>
+        <span className="rf" data-part="setting/origin">{origin}</span>
       </span>
-      <span className="rv">{String(displayedValue(setting))}</span>
+      <span className="rv" data-part="setting/value">{String(displayedValue(setting))}</span>
     </button>
   );
 }
@@ -129,14 +131,14 @@ function TopicView({ topic }: { topic: SettingsTopic }): ReactElement {
   }
   return (
     <>
-      <h2 className="h2">{topic.t}</h2>
+      <h2 className="h2" data-part="heading">{topic.t}</h2>
       <p className="qhint">{topic.s}</p>
       {[...byFile.entries()].map(([file, settings]) => (
         <Fragment key={file}>
-          <h2 className="h2" style={{ marginTop: 16 }}>
+          <h2 className="h2" data-part="heading" style={{ marginTop: 16 }}>
             <code>{file}.json5</code>
           </h2>
-          <div className="panel">
+          <div className="panel" data-part="panel">
             {settings.map((setting) => (
               <SettingRow key={setting.c} setting={setting} />
             ))}
@@ -166,21 +168,23 @@ export function SettingsPage(): ReactElement | null {
   if (SETTINGS_STATE.topic === "secrets") {
     return (
       <>
-        <h2 className="h2">{t("screens.settings.secretsTitle")}</h2>
+        <h2 className="h2" data-part="heading">{t("screens.settings.secretsTitle")}</h2>
         <p className="qhint">{t("screens.settings.secretsHint")}</p>
-        <div className="panel">
+        <div className="panel" data-part="panel">
           {SECRETS.map((secret) => (
             <button
               className="settingrow"
+              data-part="setting/row"
               data-secret={secret.k}
               key={secret.k}
             >
-              <span className="rl">
+              <span className="rl" data-part="setting/label">
                 {secret.l}{" "}
-                <span className="rf">{secret.k}</span>
+                <span className="rf" data-part="setting/origin">{secret.k}</span>
               </span>
               <span
                 className="rv"
+                data-part="setting/value"
                 dangerouslySetInnerHTML={{
                   __html: chipHTML(
                     secret.def
@@ -192,7 +196,7 @@ export function SettingsPage(): ReactElement | null {
             </button>
           ))}
         </div>
-        <div className="note">
+        <div className="note" data-part="note">
           <b>{t("screens.settings.secretsNoteLead")}</b>
           {t("screens.settings.secretsNoteRest")}
         </div>
@@ -207,7 +211,7 @@ export function SettingsPage(): ReactElement | null {
       return (
         <>
           <div
-            className="empty"
+            className="empty" data-part="empty-state"
             dangerouslySetInnerHTML={{
               __html: emptyInner(t("screens.settings.unknownTopic"), ""),
             }}
@@ -237,7 +241,7 @@ export function SettingsPage(): ReactElement | null {
         <SearchField />
         {found.length === 0 ? (
           <div
-            className="empty"
+            className="empty" data-part="empty-state"
             dangerouslySetInnerHTML={{
               __html: emptyInner(
                 t("screens.settings.noMatchTitle"),
@@ -255,7 +259,7 @@ export function SettingsPage(): ReactElement | null {
                 { found: found.length, total: all.length },
               )}
             </p>
-            <div className="panel">
+            <div className="panel" data-part="panel">
               {found.slice(0, 40).map((setting) => (
                 <SettingRow
                   key={`${setting.f}:${setting.c}`}
@@ -275,13 +279,13 @@ export function SettingsPage(): ReactElement | null {
     <>
       <SearchField />
       {SETTINGS_STATE.readOnly ? (
-        <div className="loaderr">
+        <div className="loaderr" data-part="load-error">
           <b>{t("screens.settings.readOnlyLead")}</b>
           {t("screens.settings.readOnlyRest")}
         </div>
       ) : null}
       {SETTINGS_STATE.redemarrage ? (
-        <div className="loaderr">
+        <div className="loaderr" data-part="load-error">
           <b>{t("screens.settings.restartLead")}</b>{" "}
           {changedFiles().join(", ") ||
             t("screens.settings.restartSomeSettings")}
@@ -292,33 +296,33 @@ export function SettingsPage(): ReactElement | null {
         </div>
       ) : null}
       {SETTINGS.map((topic) => (
-        <button className="topic" data-topic={topic.id} key={topic.id}>
+        <button className="topic" data-part="topic" data-topic={topic.id} key={topic.id}>
           <span style={{ minWidth: 0, flex: 1 }}>
-            <span className="rt">{topic.t}</span>
-            <span className="rs">{topic.s}</span>
+            <span className="rt" data-part="topic/title">{topic.t}</span>
+            <span className="rs" data-part="topic/subtitle">{topic.s}</span>
           </span>
-          <span className="rn">{topic.r.length}</span>
+          <span className="rn" data-part="topic/count">{topic.r.length}</span>
         </button>
       ))}
-      <button className="topic" data-topic="secrets">
+      <button className="topic" data-part="topic" data-topic="secrets">
         <span style={{ minWidth: 0, flex: 1 }}>
-          <span className="rt">{t("screens.settings.secretsTitle")}</span>
-          <span className="rs">
+          <span className="rt" data-part="topic/title">{t("screens.settings.secretsTitle")}</span>
+          <span className="rs" data-part="topic/subtitle">
             {t("screens.settings.secretsSubtitle")}
           </span>
         </span>
-        <span className="rn">{SECRETS.length}</span>
+        <span className="rn" data-part="topic/count">{SECRETS.length}</span>
       </button>
-      <button className="topic" data-profile="global">
+      <button className="topic" data-part="topic" data-profile="global">
         <span style={{ minWidth: 0, flex: 1 }}>
-          <span className="rt">{t("screens.settings.rankingTitle")}</span>
-          <span className="rs">
+          <span className="rt" data-part="topic/title">{t("screens.settings.rankingTitle")}</span>
+          <span className="rs" data-part="topic/subtitle">
             {t("screens.settings.rankingSubtitle")}
           </span>
         </span>
-        <span className="rn">{t("screens.settings.arrow")}</span>
+        <span className="rn" data-part="topic/count">{t("screens.settings.arrow")}</span>
       </button>
-      <div className="note">
+      <div className="note" data-part="note">
         <b>{t("screens.settings.mapNoteLead")}</b>
         {t("screens.settings.mapNoteRest")}
       </div>

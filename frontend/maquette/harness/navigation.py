@@ -56,7 +56,7 @@ TITLE = "Silo"
 OTHER_TITLE = "House of the Dragon"
 
 SCREEN_STATE = """() => {
-  const screen = document.querySelector('.screen.open');
+  const screen = document.querySelector('[data-part="screen"][data-open]');
   return {
     open: !!screen,
     key: screen?.dataset.key ?? null,

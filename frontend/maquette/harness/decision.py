@@ -43,36 +43,36 @@ SCREEN = """() => {
   // The arbitration screen left `#screen` for a real route
   // (`/resolution/$folder`, rendered inside `#coquille`), so it answers to
   // its own identity now, the way the mediaSheet and the add screen already do.
-  // The identity rather than a bare `.screen.open`: two screens can carry
+  // The identity rather than a bare `[data-part="screen"][data-open]`: two screens can carry
   // `open` at once, and this rule must measure THIS one. An absent screen
   // reads as an empty one, so every check below falls on its own number —
   // readable — instead of on a TypeError, which is not.
-  const s = document.querySelector('.screen.open[data-key^="resolution:"]')
+  const s = document.querySelector('[data-part="screen"][data-open][data-key^="resolution:"]')
     ?? document.createElement('div');
-  const cards = [...s.querySelectorAll('.card')];
+  const cards = [...s.querySelectorAll('[data-part="card"]')];
   const decisions = cards.filter(c => c.dataset.nonmedia === 'decision');
   const candidates = cards.filter(c => c.dataset.nonmedia === 'candidat');
   return {
-    title: (s.querySelector('.h2') || {}).textContent || '',
-    titleMono: !!s.querySelector('.h2 code'),
+    title: (s.querySelector('[data-part="heading"]') || {}).textContent || '',
+    titleMono: !!s.querySelector('[data-part="heading"] code'),
     candidates: candidates.map(c => ({
-      title: (c.querySelector('.ctitle') || {}).textContent || '',
-      confidence: (c.querySelector('.chip') || {}).textContent || null,
-      posterButton: (c.querySelector('.poster') || {}).tagName === 'BUTTON',
-      panel: (c.querySelector('.cbody') || {}).dataset?.panel || null,
-      poster: (c.querySelector('.poster img') || {}).src || null,
-      noPoster: !!c.querySelector('.poster .pfall'),
-      plot: (c.querySelector('.cov') || {}).textContent || null,
+      title: (c.querySelector('[data-part="card/title"]') || {}).textContent || '',
+      confidence: (c.querySelector('[data-part="chip"]') || {}).textContent || null,
+      posterButton: (c.querySelector('[data-part="card/poster"]') || {}).tagName === 'BUTTON',
+      panel: (c.querySelector('[data-part="card/body"]') || {}).dataset?.panel || null,
+      poster: (c.querySelector('[data-part="card/poster"] img') || {}).src || null,
+      noPoster: !!c.querySelector('[data-part="card/poster"] [data-part="card/poster-fallback"]'),
+      plot: (c.querySelector('[data-part="card/overview"]') || {}).textContent || null,
       link: c.querySelectorAll('a, [data-mediasheet]').length,
     })),
     decisions: decisions.map(c => ({
-      folder: (c.querySelector('.ctitle') || {}).textContent || '',
-      mono: !!c.querySelector('.ctitle code'),
-      posterButton: (c.querySelector('.poster') || {}).tagName === 'BUTTON',
-      panel: (c.querySelector('.cbody') || {}).dataset?.panel || null,
-      chips: [...c.querySelectorAll('.chip')].map(x => x.textContent.trim()),
+      folder: (c.querySelector('[data-part="card/title"]') || {}).textContent || '',
+      mono: !!c.querySelector('[data-part="card/title"] code'),
+      posterButton: (c.querySelector('[data-part="card/poster"]') || {}).tagName === 'BUTTON',
+      panel: (c.querySelector('[data-part="card/body"]') || {}).dataset?.panel || null,
+      chips: [...c.querySelectorAll('[data-part="chip"]')].map(x => x.textContent.trim()),
     })),
-    exits: [...s.querySelectorAll('.sact, .cfoot')].map(x => x.textContent.trim()),
+    exits: [...s.querySelectorAll('[data-part="sheet/action"], [data-part="card/foot"]')].map(x => x.textContent.trim()),
     text: (s.textContent || '').replace(/\\s+/g, ' '),
   };
 }"""
@@ -175,7 +175,7 @@ async def main():
             await pg.wait_for_timeout(420)
             if state_ == "arr-idle":
                 await pg.evaluate(
-                    "()=>[...document.querySelectorAll('.cfoot')]"
+                    """()=>[...document.querySelectorAll('[data-part="card/foot"]')]"""
                     ".find(x=>x.textContent.includes('Résoudre')).click()")
                 await pg.wait_for_timeout(420)
             before = await pg.evaluate(f"()=>derived.{list_}().length")

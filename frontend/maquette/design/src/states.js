@@ -538,6 +538,14 @@ const STATES = [
       },
     ],
     [
+      "mediasheet-no-poster",
+      "Fiche — sans affiche",
+      () => {
+        applyState({ page: "lib", phase: "ready" });
+        window.__screens.mediaSheet("Widow's Bay");
+      },
+    ],
+    [
       "drawer-navigation",
       "Tiroir de navigation (hamburger)",
       () => {

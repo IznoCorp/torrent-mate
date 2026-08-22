@@ -19,11 +19,11 @@ async def main():
     cnt = """()=>({takeable:derived.takeable().length, inflight:derived.inflight().length, stuck:derived.stuck().length, blocked:derived.blocked().length,
                    moving:derived.moving().length, follows:world.follows.length,
                    paused:world.follows.filter(f=>f.st==='disabled').length, lib:world.lib.length,
-                   acqBadge:(document.querySelector('[data-page=acq] .navbadge')||{}).textContent||null})"""
+                   acqBadge:(document.querySelector('[data-page=acq] [data-part="shell/tab-badge"]')||{}).textContent||null})"""
 
     await pg.evaluate("()=>window.__go('acq-now-loaded')"); await pg.wait_for_timeout(300)
     a=await pg.evaluate(cnt); print("before grabbing      :", a)
-    await pg.evaluate("()=>[...document.querySelectorAll('.cfoot')].find(x=>x.textContent.includes('Récupérer')).click()")
+    await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card/foot"]')].find(x=>x.textContent.includes('Récupérer')).click()""")
     await pg.wait_for_timeout(400)
     b1=await pg.evaluate(cnt); print("after grabbing       :", b1)
     assert b1["takeable"]==a["takeable"]-1 and b1["inflight"]==a["inflight"]+1, "the card did not move"
@@ -34,7 +34,7 @@ async def main():
     # way out is the one that used to be missing: agreeing with the machine.
     await pg.evaluate("()=>window.__go('arr-idle')"); await pg.wait_for_timeout(300)
     a=await pg.evaluate(cnt); print("\nbefore resolution    :", {k:a[k] for k in ('stuck','moving')})
-    await pg.evaluate("()=>[...document.querySelectorAll('.cfoot')].find(x=>x.textContent.includes('Résoudre')).click()")
+    await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card/foot"]')].find(x=>x.textContent.includes('Résoudre')).click()""")
     await pg.wait_for_timeout(450)
     assert await pg.evaluate("()=>document.querySelectorAll('[data-nonmedia=candidat]').length")==0, \
         "a folder with no provider answer must offer no candidate"
@@ -57,7 +57,7 @@ async def main():
 
     await pg.evaluate("()=>window.__go('acq-follows-list')"); await pg.wait_for_timeout(300)
     a=await pg.evaluate(cnt)
-    await pg.evaluate("()=>{const w=document.querySelector('#view .swipe');w.querySelector('.act.pause').click();}")
+    await pg.evaluate("""()=>{const w=document.querySelector('#view [data-part="swipe"]');w.querySelector('[data-part="swipe/action"][data-action="pause"]').click();}""")
     await pg.wait_for_timeout(400)
     b3=await pg.evaluate(cnt); print("\npause                :", a["paused"], "→", b3["paused"])
     assert b3["paused"]==a["paused"]+1
@@ -65,7 +65,7 @@ async def main():
     b4=await pg.evaluate(cnt); print("  → Annuler restores  :", b4["paused"])
     assert b4["paused"]==a["paused"]
 
-    await pg.evaluate("()=>{const w=document.querySelector('#view .swipe');w.querySelector('.act.remove').click();}")
+    await pg.evaluate("""()=>{const w=document.querySelector('#view [data-part="swipe"]');w.querySelector('[data-part="swipe/action"][data-action="remove"]').click();}""")
     await pg.wait_for_timeout(400)
     b5=await pg.evaluate(cnt); print("\ndrop a follow        :", a["follows"], "→", b5["follows"])
     assert b5["follows"]==a["follows"]-1
@@ -73,17 +73,17 @@ async def main():
     await pg.evaluate("()=>window.__go('acq-discover')"); await pg.wait_for_timeout(350)
     a=await pg.evaluate(cnt)
     await pg.evaluate("()=>[...document.querySelectorAll('[data-panel]')].find(e=>e.dataset.panel.startsWith('sug:')).click()"); await pg.wait_for_timeout(400)
-    await pg.evaluate("()=>document.querySelector('#sheet .sact.primary').click()"); await pg.wait_for_timeout(450)
+    await pg.evaluate("""()=>document.querySelector('#sheet [data-part="sheet/action"][data-tone="primary"]').click()"""); await pg.wait_for_timeout(450)
     b6=await pg.evaluate(cnt); print("\nfollow a suggestion  :", a["follows"], "→", b6["follows"])
     assert b6["follows"]==a["follows"]+1
     await pg.evaluate("()=>window.__go('acq-follows-list',{keep:true})"); await pg.wait_for_timeout(350)
-    print("  → at the head of Suivis :", await pg.evaluate("()=>document.querySelector('.ctitle').textContent"),
-          "| chip Nouveau :", await pg.evaluate("()=>!!document.querySelector('.freshtag')"))
+    print("  → at the head of Suivis :", await pg.evaluate("""()=>document.querySelector('[data-part="card/title"]').textContent"""),
+          "| chip Nouveau :", await pg.evaluate("""()=>!!document.querySelector('[data-part="card/fresh-tag"]')"""))
 
     await pg.evaluate("()=>window.__go('lib-selection')"); await pg.wait_for_timeout(350)
     a=await pg.evaluate(cnt)
     await pg.evaluate("()=>document.querySelector('[data-delsel]').click()"); await pg.wait_for_timeout(400)
-    await pg.evaluate("()=>document.querySelector('.dlgbtn.danger').click()"); await pg.wait_for_timeout(450)
+    await pg.evaluate("""()=>document.querySelector('[data-part="dialog/button"][data-tone="danger"]').click()"""); await pg.wait_for_timeout(450)
     b7=await pg.evaluate(cnt); print("\nmultiple deletion    :", a["lib"], "→", b7["lib"])
     assert b7["lib"]==a["lib"]-3
 

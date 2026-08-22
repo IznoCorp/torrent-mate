@@ -45,9 +45,9 @@ export function ReleasesScreen() {
   const { t } = useTranslation();
 
   return (
-    <section className="screen open" data-key={`releases:${title}`}>
-      <div className="screenbar">
-        <button className="fback" onClick={() => window.__bridge.back()}>
+    <section className="screen open" data-part="screen" data-open="" data-key={`releases:${title}`}>
+      <div className="screenbar" data-part="screen/bar">
+        <button className="fback" data-part="screen/back" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.releases.back")}
         </button>{" "}
@@ -61,20 +61,21 @@ export function ReleasesScreen() {
           {baseTitle(title)}
         </span>
       </div>
-      <div className="port">
-        <div className="body" data-region="screen-releases/body">
-          <div className="note">
+      <div className="port" data-part="viewport">
+        <div className="body" data-part="surface/body" data-region="screen-releases/body">
+          <div className="note" data-part="note">
             <b>{t("screens.releases.noteTitle")}</b>{" "}
             {t("screens.releases.noteBeforePourquoi")}{" "}
             <em>{t("screens.releases.notePourquoi")}</em>{" "}
             {t("screens.releases.noteAfterPourquoi")}
           </div>
-          <p className="rescount" style={{ padding: 0 }}>
+          <p className="rescount" data-part="result/count" style={{ padding: 0 }}>
             <b>{RELEASES.length}</b> {t("screens.releases.rescount")}
           </p>
           {RELEASES.map((release, index) => (
             <article
               className={`rel${index === 0 ? " best" : ""}`}
+              data-part="release"
               key={release.n}
             >
               <span className="rn">{release.n}</span>{" "}
@@ -90,12 +91,12 @@ export function ReleasesScreen() {
                 >
                   {release.res}
                 </span>{" "}
-                <span className="chip">{release.src}</span>{" "}
-                <span className="chip">{release.lang}</span>{" "}
-                <span className="chip">
+                <span className="chip" data-part="chip">{release.src}</span>{" "}
+                <span className="chip" data-part="chip">{release.lang}</span>{" "}
+                <span className="chip" data-part="chip">
                   {release.s} {t("screens.releases.sourcesUnit")}
                 </span>{" "}
-                <span className="chip">
+                <span className="chip" data-part="chip">
                   {String(release.go).replace(".", ",")}{" "}
                   {t("screens.releases.goUnit")}
                 </span>{" "}
@@ -110,6 +111,8 @@ export function ReleasesScreen() {
               )}
               <button
                 className={`cfoot${index === 0 ? " solid" : ""}`}
+                data-solid={index === 0 || undefined}
+                data-part="card/foot"
                 data-take={index}
               >
                 {index === 0
@@ -118,11 +121,12 @@ export function ReleasesScreen() {
               </button>
             </article>
           ))}
-          <div className="empty">
+          <div className="empty" data-part="empty-state">
             <b>{t("screens.releases.emptyTitle")}</b>
             {t("screens.releases.emptyBody")}
             <button
               className="cfoot"
+              data-part="card/foot"
               style={{ marginTop: "10px" }}
               data-profile={title}
             >

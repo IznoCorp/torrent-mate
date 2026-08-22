@@ -10,7 +10,9 @@ That reverses the order of work:
 
 1. **Finish the prototype first — every page.** Especially the ones that exist IN PRODUCTION and
    are not yet drawn here. A surface that production has and the prototype does not is a hole in
-   the v1, not a later phase. The inventory is below and it is exhaustive.
+   the v1, not a later phase. The inventory is below and it is exhaustive. ⚠ **« Every page » is
+   the SCOPE, never the running order** — that is `docs/reference/frontend-architecture.md`'s
+   thirteen lots, and where they stand is § « Where the frontend work stands » just below.
 2. **Then the operator judges.** The prototype is bound to the backend only once the operator
    considers the design AND the front-end architecture solid enough. That judgement is theirs, it
    is not a checklist, and no amount of green rules substitutes for it.
@@ -42,9 +44,10 @@ stale table read as current for three days.
 
 | | |
 | --- | --- |
-| **Last landed** | **L01 — the recorded oracle**, Phase 0. PR **#467**, merged 2026-08-20, version 0.98.10 |
-| **Next** | **L02 — test anchors move to `data-*`**, Phase 0. Its dependency (L01) is satisfied |
-| **Design + plan of L01** | `docs/features/maquette-l01/DESIGN.md`, `…/plan/INDEX.md` — 17 ACC criteria, each executed |
+| **Last landed** | **L01 — the recorded oracle**, Phase 0. PR **#467**, merged 2026-08-20, version 0.98.10. Archived to `docs/archive/features/maquette-l01/` |
+| **In flight** | **L02 — test anchors move to `data-*`**, Phase 0. Branch `refactor/maquette-l02`, version 0.98.13 (0.98.12 was taken by #469 on main while the wave ran). It carries the `docs/cold-start` commit, which is not a PR of its own. **All 6 phases gated** — the instrument; the first contracts; the card family; the lists and episodes; the flux, filters and settings; the tail by emission site, then the baseline deleted and the floor a hard zero — baseline 834 → 0, 83 states, 992 holds unchanged, all 13 ACC fallen; the harness's screenshots moved to `harness/__screenshots__/` (6.5, operator 2026-08-22). **Next: feature-pr** — push, PR, CI, adversarial review, squash merge. Findings per phase in `docs/features/maquette-l02/plan/INDEX.md` § What phase N found. Every dispatch since the end of phase 1 runs on Opus: the DeepSeek provider is out of credit |
+| **Next after it** | The architecture file's Phase 1 — `docs/reference/frontend-architecture.md` decides which lot, never this table |
+| **Design + plan of L02** | `docs/features/maquette-l02/DESIGN.md`, `…/plan/INDEX.md` — 6 phases, 13 ACC criteria, baseline burn-down 342 → 0 |
 
 ### What the next session needs to know before touching anything
 
@@ -57,8 +60,9 @@ stale table read as current for three days.
    squashing replaces that commit, so the pointer goes dangling on a fresh clone. `--check` now
    says so on its own — « NOT an ancestor of HEAD » — but the fix is a command, not a warning to
    live with.
-3. **L02's subject is measured and waiting**: 684 selection calls in `harness/*.py`, of which
-   **280 are anchored on a CSS class** (D4). Half of D4's contract is already held by
+3. **L02's subject is measured and IN FLIGHT**: 684 selection calls in `harness/*.py`, of which
+   **281 are anchored on a CSS class** — the total reproduces D4 exactly, the split differs by a
+   handful of role selectors and the DESIGN records why. Half of D4's contract is already held by
    `scripts/check-markup-contracts.py`, which refuses a `data-*` VALUE no reader understands —
    L02 must EXTEND that guard rather than add a second one beside it. The other half, what a rule
    may anchor on, is L02's own.
@@ -377,7 +381,15 @@ state; 82 named states driving 50 rule scripts over 80 recorded rules; the engin
 the fragment (which is now a title and a stylesheet); English names throughout with the shell's
 copy in i18n resources; colour and elevation tokenised — **186 of 188** `color:` declarations (`(?<![-\w])color\s*:`; a `\bcolor` regex reads 203/206 because `-` is a non-word character and `background-color` matches it), and the 55 raw values left in BLOCK 2 are all token DECLARATIONS, which is where they belong.
 
-**REMAINS**, in the order the work actually has to happen:
+**REMAINS** — the four subjects, and this list is NOT an order.
+
+> ⚠ **The order is `docs/reference/frontend-architecture.md`'s thirteen lots, and nothing else.**
+> This list used to open « in the order the work actually has to happen », and that sentence
+> survived #466 by four days while naming an order that file had replaced. Read as an order it
+> sends the next session to draw `/control` or to open the visual language — and the visual
+> language is lot **L06**, which `depends on L01` under a Phase 0 that says « Nothing else may
+> start ». **Which lot comes next is § « Where the frontend work stands », at the top of this
+> file.**
 
 1. **The two pages the mission re-opened** — `/control` (8 panels) and `/pipeline` (10 panels).
 2. **The visual language (SP5b)** — type, radius and spacing have no scale at all: 21 distinct

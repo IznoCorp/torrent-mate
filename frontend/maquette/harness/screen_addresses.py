@@ -23,7 +23,7 @@ What it holds to:
 3. One back from a screen reached by walking there lands where the walk
    started, with the screen gone — the screen owns no address once closed.
 4. The address is written only while the screen is open: walking onto it
-   writes `/profile/…`, and the ONLY way off it is back (`.fback` calls
+   writes `/profile/…`, and the ONLY way off it is back (`screen/back` calls
    `__bridge.back()`, nothing else) — so closing it is, by construction,
    also the address returning to what it was.
 5. A wrong deep address does not raise, blank the frame, or invent a
@@ -101,23 +101,23 @@ RESOLUTION_FOLDER = "Backrooms.2026.MULTi.2160p.WEB-DL"
 RELEASES_TITLE = "Silo"
 
 SCREEN_STATE = """() => {
-  const screen = document.querySelector('.screen.open');
+  const screen = document.querySelector('[data-part="screen"][data-open]');
   return {
     open: !!screen,
     key: screen?.dataset.key ?? null,
-    title: (document.querySelector('.screen.open .screenbar span') || {}).textContent ?? null,
-    body: (screen?.querySelector('.body') || {}).textContent ?? '',
+    title: (document.querySelector('[data-part="screen"][data-open] [data-part="screen/bar"] span') || {}).textContent ?? null,
+    body: (screen?.querySelector('[data-part="surface/body"]') || {}).textContent ?? '',
     pathname: location.pathname,
   };
 }"""
 
 ADD_STATE = """() => {
-  const screen = document.querySelector('.screen.open');
+  const screen = document.querySelector('[data-part="screen"][data-open]');
   return {
     open: !!screen,
     key: screen?.dataset.key ?? null,
     field: document.querySelector('#addq')?.value ?? null,
-    cards: document.querySelectorAll('.reslist .card').length,
+    cards: document.querySelectorAll('[data-part="result/list"] [data-part="card"]').length,
     pathname: location.pathname,
     search: location.search,
   };
@@ -132,14 +132,14 @@ IMAGES_STATE = """() => {
 }"""
 
 # `MediaScreen` draws its own artwork through a CSS `background-image`, not
-# an `<img>` tag (`.herowrap .herobg`) — so `IMAGES_STATE`'s generic
+# an `<img>` tag (`hero` / `hero/background`) — so `IMAGES_STATE`'s generic
 # `<img>` sweep, which is what proves hold 2 for `ProfileScreen` (a screen
 # that draws no image of its own), does not see it at all. Proof here
 # instead re-fetches the SAME url the computed style resolves through a
 # real `Image()`, and reads `complete`/`naturalWidth` off THAT — the exact
 # pair hold (g) is phrased against.
 HEROBG_STATE = """() => {
-  const bg = document.querySelector('.screen.open .herowrap .herobg');
+  const bg = document.querySelector('[data-part="screen"][data-open] [data-part="hero"] [data-part="hero/background"]');
   const style = bg ? getComputedStyle(bg).backgroundImage : '';
   const found = /url\\(["']?(.*?)["']?\\)/.exec(style || '');
   const url = found ? found[1] : null;
@@ -153,25 +153,25 @@ HEROBG_STATE = """() => {
 }"""
 
 SHEET_STATE = """() => {
-  const screen = document.querySelector('.screen.open');
+  const screen = document.querySelector('[data-part="screen"][data-open]');
   return {
     open: !!screen,
     key: screen?.dataset.key ?? null,
-    title: (screen?.querySelector('h2.ht') || {}).textContent ?? null,
-    body: (screen?.querySelector('.body') || {}).textContent ?? '',
-    noinfos: [...document.querySelectorAll('.screen.open p.noinfo')].map(
+    title: (screen?.querySelector('h2[data-part="hero/title"]') || {}).textContent ?? null,
+    body: (screen?.querySelector('[data-part="surface/body"]') || {}).textContent ?? '',
+    noinfos: [...document.querySelectorAll('[data-part="screen"][data-open] p[data-part="no-info"]')].map(
       (p) => p.textContent),
     pathname: location.pathname,
   };
 }"""
 
 RESOLUTION_STATE = """() => {
-  const screen = document.querySelector('.screen.open[data-key^="resolution:"]');
+  const screen = document.querySelector('[data-part="screen"][data-open][data-key^="resolution:"]');
   return {
     open: !!screen,
     key: screen?.dataset.key ?? null,
-    folder: (screen?.querySelector('h2.h2 code') || {}).textContent ?? null,
-    body: (screen?.querySelector('.body') || {}).textContent ?? '',
+    folder: (screen?.querySelector('h2[data-part="heading"] code') || {}).textContent ?? null,
+    body: (screen?.querySelector('[data-part="surface/body"]') || {}).textContent ?? '',
     pathname: location.pathname,
   };
 }"""
@@ -181,12 +181,12 @@ RESOLUTION_STATE = """() => {
 # unknown `title` to fail against, so `candidates` stays what it is
 # regardless of which title the bar shows.
 RELEASES_STATE = """() => {
-  const screen = document.querySelector('.screen.open[data-key^="releases:"]');
+  const screen = document.querySelector('[data-part="screen"][data-open][data-key^="releases:"]');
   return {
     open: !!screen,
     key: screen?.dataset.key ?? null,
-    bar: (screen?.querySelector('.screenbar span') || {}).textContent ?? null,
-    candidates: screen ? screen.querySelectorAll('.rel').length : 0,
+    bar: (screen?.querySelector('[data-part="screen/bar"] span') || {}).textContent ?? null,
+    candidates: screen ? screen.querySelectorAll('[data-part="release"]').length : 0,
     pathname: location.pathname,
   };
 }"""
@@ -254,7 +254,7 @@ async def main():
                 on_profile["open"] and on_profile["pathname"] == f"/profile/{TITLE}",
                 on_profile["pathname"])
 
-            await pg.evaluate("()=>document.querySelector('.screen.open .fback').click()")
+            await pg.evaluate("""()=>document.querySelector('[data-part="screen"][data-open] [data-part="screen/back"]').click()""")
             await pg.wait_for_timeout(300)
             returned = await pg.evaluate(SCREEN_STATE)
             journal.check(
@@ -358,7 +358,7 @@ async def main():
             await pg.wait_for_timeout(400)
             left = await pg.evaluate(
                 """() => ({
-                    open: !!document.querySelector('.screen.open'),
+                    open: !!document.querySelector('[data-part="screen"][data-open]'),
                     pathname: location.pathname,
                     search: location.search,
                     page: state.page,
@@ -395,7 +395,7 @@ async def main():
                 f"url={artwork['url']!r} drawn={artwork['drawn']}")
             journal.check("no JS error on deep /mediaSheet entry", not errors, str(errors))
 
-            await pg.evaluate("()=>document.querySelector('.screen.open .fback').click()")
+            await pg.evaluate("""()=>document.querySelector('[data-part="screen"][data-open] [data-part="screen/back"]').click()""")
             await pg.wait_for_timeout(300)
             sheet_returned = await pg.evaluate(SCREEN_STATE)
             journal.check(
@@ -425,16 +425,17 @@ async def main():
             journal.check("no JS error on an unknown sheet title", not errors, str(errors))
             await ctx.close()
 
-            # ─── Hold (j): a title with no trailer renders p.noinfo in
-            # the trailer's own place — Broadchurch's cast and seasons are
-            # otherwise fully populated, so this is the ONLY p.noinfo the
-            # screen draws; a stray match here would be a real regression,
-            # not a coincidence from an unrelated missing field. ─────────
+            # ─── Hold (j): a title with no trailer renders the no-info
+            # part in the trailer's own place — Broadchurch's cast and
+            # seasons are otherwise fully populated, so this is the ONLY
+            # no-info part the screen draws; a stray match here would be a
+            # real regression, not a coincidence from an unrelated
+            # missing field. ────────────────────────────────────────────
             no_trailer_address = f"{base}/mediasheet/{urllib.parse.quote(TITLE_WITHOUT_TRAILER)}"
             ctx, pg, errors = await open_at(browser, no_trailer_address)
             sheet_no_trailer = await pg.evaluate(SHEET_STATE)
             journal.check(
-                "(j) a sheet with no trailer renders p.noinfo in its place",
+                "(j) a sheet with no trailer renders the no-info part in its place",
                 sheet_no_trailer["open"]
                 and len(sheet_no_trailer["noinfos"]) == 1
                 and "bande-annonce" in sheet_no_trailer["noinfos"][0],
@@ -460,7 +461,7 @@ async def main():
                 f"key={resolution_cold['key']} folder={resolution_cold['folder']!r}")
             journal.check("no JS error on deep /resolution entry", not errors, str(errors))
 
-            await pg.evaluate("()=>document.querySelector('.screen.open .fback').click()")
+            await pg.evaluate("""()=>document.querySelector('[data-part="screen"][data-open] [data-part="screen/back"]').click()""")
             await pg.wait_for_timeout(300)
             resolution_returned = await pg.evaluate(SCREEN_STATE)
             journal.check(
@@ -490,7 +491,7 @@ async def main():
                 f"candidates={releases_cold['candidates']}")
             journal.check("no JS error on deep /releases entry", not errors, str(errors))
 
-            await pg.evaluate("()=>document.querySelector('.screen.open .fback').click()")
+            await pg.evaluate("""()=>document.querySelector('[data-part="screen"][data-open] [data-part="screen/back"]').click()""")
             await pg.wait_for_timeout(300)
             releases_returned = await pg.evaluate(SCREEN_STATE)
             journal.check(

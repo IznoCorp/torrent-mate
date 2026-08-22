@@ -29,7 +29,7 @@ from playwright.async_api import async_playwright
 READ = """()=>({
   foot: (document.querySelector('#libload')||{}).textContent || '',
   retry: !!document.querySelector('#libretry'),
-  rows: document.querySelectorAll('#libitems .card, #libitems .tile').length,
+  rows: document.querySelectorAll('#libitems [data-part="card"], #libitems [data-part="tile"]').length,
   count: window.__store.read().state.libCount,
   err: !!window.__store.read().state.libErr,
   total: window.__referentiel.libFiltered().length,

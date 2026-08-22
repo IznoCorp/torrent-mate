@@ -21,6 +21,7 @@ from __future__ import annotations
 import importlib.util
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -37,6 +38,11 @@ def load():
 
 
 guard = load()
+# Arm 10 lives in `nofrench_dictionary.py` beside the entry point, which imports
+# it — so loading the guard puts it in `sys.modules`. The dictionary tests patch
+# the module that OWNS the arm's globals: patching the re-export on the entry
+# point would rebind a name the arm never reads.
+dictionary = sys.modules["nofrench_dictionary"]
 aspell = pytest.mark.skipif(shutil.which("aspell") is None, reason="aspell absent — the dictionary arm fail-softs")
 
 
@@ -120,17 +126,17 @@ class TestDictionaryArm:
     @aspell
     def test_a_french_only_word_is_a_suspect(self) -> None:
         """`calcul` is French and not English — the blacklist never knew it."""
-        assert "calcul" in guard.dictionary_suspects({"calcul"})
+        assert "calcul" in dictionary.dictionary_suspects({"calcul"})
 
     @aspell
     def test_an_english_word_is_not(self) -> None:
         """An ordinary English word must never be a suspect."""
-        assert guard.dictionary_suspects({"status", "follow", "library"}) == set()
+        assert dictionary.dictionary_suspects({"status", "follow", "library"}) == set()
 
     @aspell
     def test_a_declared_exception_is_not(self) -> None:
         """Every exception carries its reason; none of them may be flagged."""
-        assert guard.dictionary_suspects(set(guard.DICTIONARY_EXCEPTIONS)) == set()
+        assert dictionary.dictionary_suspects(set(dictionary.DICTIONARY_EXCEPTIONS)) == set()
 
     @aspell
     def test_a_word_BOTH_languages_know_is_invisible_to_this_arm(self) -> None:
@@ -141,11 +147,11 @@ class TestDictionaryArm:
         this a word we use? » can. This test exists so that limit is a recorded
         fact rather than a surprise.
         """
-        assert guard.dictionary_suspects({"corps", "page", "route", "image"}) == set()
+        assert dictionary.dictionary_suspects({"corps", "page", "route", "image"}) == set()
 
     def test_every_exception_carries_a_reason(self) -> None:
         """An exemption nobody can read is indistinguishable from an oversight."""
-        empty = [w for w, reason in guard.DICTIONARY_EXCEPTIONS.items() if not reason.strip()]
+        empty = [w for w, reason in dictionary.DICTIONARY_EXCEPTIONS.items() if not reason.strip()]
         assert empty == []
 
     def test_no_dictionaries_measures_nothing_and_says_so(self, monkeypatch, capsys) -> None:
@@ -154,9 +160,9 @@ class TestDictionaryArm:
         def absent(*args, **kwargs):
             raise OSError("aspell not installed")
 
-        monkeypatch.setattr(guard.subprocess, "run", absent)
+        monkeypatch.setattr(dictionary.subprocess, "run", absent)
 
-        assert guard.dictionary_suspects({"calcul"}) == set()
+        assert dictionary.dictionary_suspects({"calcul"}) == set()
         assert "measured" in capsys.readouterr().err
 
 

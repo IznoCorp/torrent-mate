@@ -106,10 +106,11 @@ function ReleaseCard({
   const { posterBox } = useReference();
   const { t } = useTranslation();
   return (
-    <div className="card" data-nonmedia={opts.genre || "release"}>
-      <div className="ctop">
+    <div className="card" data-part="card" data-nonmedia={opts.genre || "release"}>
+      <div className="ctop" data-part="card/top">
         <span
           className="poster"
+          data-part="card/poster"
           title={
             opts.noPoster ? t("screens.resolution.noPosterTitle") : undefined
           }
@@ -117,9 +118,9 @@ function ReleaseCard({
             __html: posterBox(title, opts.k, { exact: opts.exact }),
           }}
         />
-        <span className="cbody">
-          <span className="ctitle">{title}</span>
-          <span className="csub">{meta}</span>
+        <span className="cbody" data-part="card/body">
+          <span className="ctitle" data-part="card/title">{title}</span>
+          <span className="csub" data-part="card/subtitle">{meta}</span>
           {/* The synopsis is what actually SEPARATES four series with nearly
               the same name, so it belongs on the card that asks to choose
               between them. It is an `overview`, not a reason: it clamps
@@ -127,10 +128,10 @@ function ReleaseCard({
               Carrying it here is also what makes leaving the screen
               unnecessary: an arbitration that sends you to a full sheet to
               decide loses the queue you were working through. */}
-          {opts.overview ? <span className="cov">{opts.overview}</span> : ""}
+          {opts.overview ? <span className="cov" data-part="card/overview">{opts.overview}</span> : ""}
           {confidence ? (
-            <span className="cmeta">
-              <span className="chip info">
+            <span className="cmeta" data-part="card/meta">
+              <span className="chip info" data-part="chip" data-tone="info">
                 {t("screens.resolution.confidence")} {confidence}
               </span>
             </span>
@@ -139,7 +140,7 @@ function ReleaseCard({
           )}
         </span>
       </div>
-      <button className="cfoot solid" data-resolve={title}>
+      <button className="cfoot solid" data-part="card/foot" data-solid="" data-resolve={title || undefined}>
         {t("screens.resolution.pickThis")}
       </button>
     </div>
@@ -180,34 +181,36 @@ function DecisionCard({ decision }: { decision: SettledDecision }) {
   const poster =
     settled && decision.choice
       ? posterBox(decision.choice.t, decision.k)
-      : `<span class="pfall">${svgIcon(decision.k === "movie" ? icons.film : icons.tv, 1.25)}<b>?</b></span>`;
+      : `<span class="pfall" data-part="card/poster-fallback">${svgIcon(decision.k === "movie" ? icons.film : icons.tv, 1.25)}<b>?</b></span>`;
   const identity = decision.choice
     ? `${decision.choice.t} · ${decision.choice.p.toUpperCase()} ${decision.choice.id} · ${VIA_LABEL[decision.choice.via] ?? decision.choice.via}`
     : null;
   return (
-    <div className="card" data-nonmedia="decision">
-      <div className="ctop">
+    <div className="card" data-part="card" data-nonmedia="decision">
+      <div className="ctop" data-part="card/top">
         <span
           className="poster"
+          data-part="card/poster"
           dangerouslySetInnerHTML={{ __html: poster }}
         />
-        <span className="cbody">
-          <span className="ctitle" title={decision.d}>
+        <span className="cbody" data-part="card/body">
+          <span className="ctitle" data-part="card/title" title={decision.d}>
             <code>{decision.d}</code>
           </span>
-          <span className="csub">{decision.when}</span>
+          <span className="csub" data-part="card/subtitle">{decision.when}</span>
           {/* What was chosen is the most useful line here — it is the answer
               one comes back to read — so it wraps rather than truncating. On
               one line it lost its provider id and how it was found, which is
               exactly what one comes back for. */}
-          {identity ? <span className="creason">{identity}</span> : ""}
-          <span className="cmeta">
-            <span className={`chip ${REASON_TONE[decision.reason] ?? "neutral"}`}>
+          {identity ? <span className="creason" data-part="card/reason">{identity}</span> : ""}
+          <span className="cmeta" data-part="card/meta">
+            <span className={`chip ${REASON_TONE[decision.reason] ?? "neutral"}`} data-part="chip"
+              data-tone={REASON_TONE[decision.reason] ?? "neutral"}>
               {REASON_LABEL[decision.reason] ?? decision.reason}
             </span>
             {state ? (
               <span
-                className={`chip ${state[0]}`}
+                className={`chip ${state[0]}`} data-part="chip" data-tone={state[0]}
                 title={DECISION_STATE_DETAIL[decision.state] ?? ""}
               >
                 {state[1]}
@@ -313,23 +316,23 @@ export function ResolutionScreen() {
   // are one value. A target the door could not resolve at all reaches this
   // screen as the legacy's own last resort, « élément inconnu ».
   return (
-    <section className="screen open" data-key={`resolution:${folder}`}>
-      <div className="screenbar">
-        <button className="fback" onClick={() => window.__bridge.back()}>
+    <section className="screen open" data-part="screen" data-open="" data-key={`resolution:${folder}`}>
+      <div className="screenbar" data-part="screen/bar">
+        <button className="fback" data-part="screen/back" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.resolution.back")}
         </button>
       </div>
-      <div className="port">
-        <div className="body" data-region="screen-resolution/body">
-          <div className="note">
+      <div className="port" data-part="viewport">
+        <div className="body" data-part="surface/body" data-region="screen-resolution/body">
+          <div className="note" data-part="note">
             <b>{t("screens.resolution.noteTitle")}</b>{" "}
             {t("screens.resolution.noteOn")} <code>/medias</code>{" "}
             {t("screens.resolution.noteAppeared")}{" "}
             <em>{t("screens.resolution.noteUnder")}</em>{" "}
             {t("screens.resolution.noteRest")}
           </div>
-          <h2 className="h2">
+          <h2 className="h2" data-part="heading">
             <code>{folder}</code>
           </h2>
           <p className="qhint">
@@ -337,10 +340,11 @@ export function ResolutionScreen() {
               ? (REASON_DETAIL[decision.reason] ?? "")
               : t("screens.resolution.noMediaIdentified")}
           </p>
-          <div className="cmeta" style={{ marginBottom: "12px" }}>
+          <div className="cmeta" data-part="card/meta" style={{ marginBottom: "12px" }}>
             {decision ? (
               <span
-                className={`chip ${REASON_TONE[decision.reason] ?? "neutral"}`}
+                className={`chip ${REASON_TONE[decision.reason] ?? "neutral"}`} data-part="chip"
+                data-tone={REASON_TONE[decision.reason] ?? "neutral"}
               >
                 {REASON_LABEL[decision.reason] ?? decision.reason}
               </span>
@@ -348,7 +352,7 @@ export function ResolutionScreen() {
               ""
             )}
             {pending.length > 1 ? (
-              <span className="caption">
+              <span className="caption" data-part="card/caption">
                 {rank} {t("screens.resolution.outOf")} {pending.length}{" "}
                 {t("screens.resolution.waiting")}
               </span>
@@ -361,24 +365,25 @@ export function ResolutionScreen() {
           ) : (
             <p className="rulenote">{t("screens.resolution.noCandidates")}</p>
           )}
-          <div className="empty">
+          <div className="empty" data-part="empty-state">
             <b>{t("screens.resolution.emptyTitle")}</b>
             {t("screens.resolution.emptyBody")}
             <button
               className="cfoot"
+              data-part="card/foot"
               style={{ marginTop: "10px" }}
-              data-manual={folder}
+              data-manual={folder || undefined}
             >
               {t("screens.resolution.searchManually")}
             </button>
           </div>
-          <div className="sheetacts secondary">
-            <button className="sact" data-leave={folder}>
+          <div className="sheetacts secondary" data-part="sheet/actions">
+            <button className="sact" data-part="sheet/action" data-leave={folder || undefined}>
               <Icon paths={icons.check} />
               {t("screens.resolution.leaveAsIs")}
             </button>
             {pending.length > 1 ? (
-              <button className="sact" data-next={folder}>
+              <button className="sact" data-part="sheet/action" data-next={folder}>
                 <Icon paths={icons.right} />
                 {t("screens.resolution.next")}
               </button>
@@ -386,13 +391,13 @@ export function ResolutionScreen() {
               ""
             )}
           </div>
-          <div className="note">
+          <div className="note" data-part="note">
             <b>{t("screens.resolution.note2Title")}</b>{" "}
             {t("screens.resolution.note2Body")}
           </div>
           {DECISIONS_REGLEES.length > 0 ? (
             <>
-              <h2 className="h2" style={{ marginTop: "18px" }}>
+              <h2 className="h2" data-part="heading" style={{ marginTop: "18px" }}>
                 {t("screens.resolution.settledHeading")}
               </h2>
               <p className="qhint">{t("screens.resolution.settledHint")}</p>

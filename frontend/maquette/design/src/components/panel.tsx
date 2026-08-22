@@ -51,7 +51,7 @@ function RichText({ value }: { value: RichTextValue | null | undefined }) {
 
 function Chip({ chip }: { chip: [string, string] | null | undefined }) {
   if (!chip) return null;
-  return <span className={`chip ${chip[0]}`}>{chip[1]}</span>;
+  return <span className={`chip ${chip[0]}`} data-part="chip" data-tone={chip[0]}>{chip[1]}</span>;
 }
 
 // `posterBox`'s image-or-initials fallback, at panel size. `POSTERS` /
@@ -70,7 +70,7 @@ function Poster({ poster }: { poster: { t: string; k?: string } }) {
         ? icons.tv
         : icons.clap;
   return (
-    <span className="pfall">
+    <span className="pfall" data-part="card/poster-fallback">
       <Icon paths={iconPath} strokeWidth={1.25} />
       <b>{initials(poster.t)}</b>
     </span>
@@ -105,6 +105,8 @@ function ActionButton({ action }: { action: Action | null | undefined }) {
   return (
     <button
       className={`sact${action.ton ? ` ${action.ton}` : ""}`}
+      data-part="sheet/action"
+      data-tone={action.ton || undefined}
       disabled={action.desactive || undefined}
       title={action.infobulle || undefined}
       {...attributes}
@@ -126,7 +128,7 @@ function ActionsBlock({
   );
   if (!list.length) return null;
   return (
-    <div className={`sheetacts${block.secondary ? " secondary" : ""}`}>
+    <div className={`sheetacts${block.secondary ? " secondary" : ""}`} data-part="sheet/actions">
       {list.map((action, index) => (
         <ActionButton key={index} action={action} />
       ))}
@@ -163,19 +165,20 @@ function FactsBlock({
   block: Extract<PanelBlock, { type: "faits" }>;
 }) {
   return (
-    <div className="panel sheetfacts">
+    <div className="panel sheetfacts" data-part="panel">
       {(block.lignes ?? []).map((line, index) => (
         <div
           key={index}
           className={`kv${line.pip ? " withpip" : ""}${line.terne ? " upcoming" : ""}`}
+          data-part="key-value"
         >
           <span>
-            {line.pip ? <span className={`pip ${line.pip}`} /> : null}
+            {line.pip ? <span className={`pip ${line.pip}`} data-part="status-dot" /> : null}
             {line.c}
           </span>
           <span>
             {line.pipValue ? (
-              <span className={`pip ${line.pipValue}`} />
+              <span className={`pip ${line.pipValue}`} data-part="status-dot" />
             ) : null}
             {line.v}
           </span>
@@ -287,6 +290,9 @@ function SeasonDetails({
       <button
         key={number}
         className={`ep ${state}`}
+        data-part="episode"
+        data-announced={state === "announced" || undefined}
+        data-in-library={state === "in_library" || undefined}
         data-ep={`${follow.t}|${num}|${number}|${state}`}
         aria-label={`S${String(num).padStart(2, "0")}E${String(number).padStart(2, "0")} — ${reference.EP_LABEL[state]}`}
       >
@@ -295,7 +301,7 @@ function SeasonDetails({
     );
   });
   return (
-    <details className="season" open={!complete}>
+    <details className="season" data-part="season" open={!complete}>
       <summary>
         {/* The blanks between these children are NOT decoration: the legacy
             `saisonsHTML` carried a line break at each of them, and JSX drops
@@ -311,13 +317,15 @@ function SeasonDetails({
           {owned}/{aired}
         </span>{" "}
         {complete ? null : (
-          <span className="miss">
+          <span className="miss" data-part="season/missing">
             {missing}{" "}
             {missing > 1 ? t("common.missingPlural") : t("common.missing")}
           </span>
         )}
       </summary>
-      <div className="eps">{cells}</div>
+      <div className="eps" data-part="episode/set">
+        {cells}
+      </div>
     </details>
   );
 }
@@ -348,7 +356,7 @@ function SeasonsBlock({
   ]);
   return (
     <>
-      <div className="legend">
+      <div className="legend" data-part="legend">
         {EP_ORDER.filter((state) => statesPresent.has(state)).map((state) => (
           <span key={state}>
             <i className={EP_SWATCH[state]} />
@@ -407,7 +415,7 @@ function FieldBlock({
 
   if (setting.type === "structure")
     return (
-      <div className="field readonly">
+      <div className="field readonly" data-part="field" data-read-only="">
         <p className="rulenote">
           {t("settings.field.structureBefore")}{" "}
           <b>{t("settings.field.structureWord")}</b>{" "}
@@ -419,9 +427,10 @@ function FieldBlock({
 
   if (setting.type === "boolean")
     return (
-      <div className="field">
+      <div className="field" data-part="field">
         <button
           className={`fieldtoggle${v ? " active" : ""}`}
+          data-part="field/toggle"
           role="switch"
           aria-checked={v ? "true" : "false"}
           data-field={id}
@@ -438,13 +447,14 @@ function FieldBlock({
   if (setting.type === "list") {
     const items = Array.isArray(v) ? (v as unknown[]) : [];
     return (
-      <div className="field list">
+      <div className="field list" data-part="field">
         {items.length ? (
           items.map((x, index) => (
-            <div className="litem" key={index}>
+            <div className="litem" data-part="field/list-item" key={index}>
               <span>{String(x)}</span>
               <button
                 className="lremove"
+                data-part="field/list-remove"
                 data-deletefield={id}
                 data-index={index}
                 aria-label={t("settings.field.removeAria", {
@@ -461,7 +471,7 @@ function FieldBlock({
         ) : (
           <p className="rulenote">{t("settings.field.emptyList")}</p>
         )}
-        <button className="ladd" data-addfield={id}>
+        <button className="ladd" data-part="field/list-add" data-addfield={id}>
           <Icon paths={icons.plus} />
           {t("settings.field.add")}
         </button>
@@ -475,7 +485,7 @@ function FieldBlock({
   const unit = unitOf(setting);
 
   return (
-    <div className="field">
+    <div className="field" data-part="field">
       <input
         // KEYED BY THE SETTING, and this is a correctness fix, not a hint.
         // `#sheetin` is a persistent node now, where the legacy layer replaced
@@ -489,6 +499,8 @@ function FieldBlock({
         // setting makes a different setting a different node.
         key={id}
         className={`fieldinput${mono ? " mono" : ""}`}
+        data-part="field/input"
+        data-mono={mono || undefined}
         data-field={id}
         type={numeric ? "number" : "text"}
         inputMode={numeric ? "decimal" : undefined}
@@ -606,12 +618,12 @@ export function PanelContent({
 }): JSX.Element {
   const identity = (
     <>
-      <h3 className="sheettitle">{descriptor.title}</h3>
+      <h3 className="sheettitle" data-part="sheet/title">{descriptor.title}</h3>
       {descriptor.subtitle ? (
         <span className="sheetsub">{descriptor.subtitle}</span>
       ) : null}
       {descriptor.meta ? (
-        <p className="sheetmeta">
+        <p className="sheetmeta" data-part="sheet/meta">
           <RichText value={descriptor.meta} />
         </p>
       ) : null}
@@ -619,11 +631,11 @@ export function PanelContent({
     </>
   );
   const poster = descriptor.poster ? (
-    <span className="sheetposter">
+    <span className="sheetposter" data-part="sheet/poster">
       <Poster poster={descriptor.poster} />
     </span>
   ) : descriptor.avatar ? (
-    <span className="avatar big" aria-hidden="true">
+    <span className="avatar big" data-part="avatar" aria-hidden="true">
       <img src={descriptor.avatar} alt="" />
     </span>
   ) : null;

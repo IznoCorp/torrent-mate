@@ -39,7 +39,7 @@ def check(name, condition, detail=""):
 
 
 GEOMETRY = """() => {
-  const sw = document.querySelector('#view .swipe');
+  const sw = document.querySelector('#view [data-part="swipe"]');
   if (!sw) return null;
   const rs = sw.getBoundingClientRect();
   const side = (s) => {
@@ -47,12 +47,12 @@ GEOMETRY = """() => {
     if (!e) return null;
     const r = e.getBoundingClientRect();
     return {l: Math.round(r.width * 10) / 10,
-            actions: e.querySelectorAll('.act').length};
+            actions: e.querySelectorAll('[data-part="swipe/action"]').length};
   };
   return {
-    right: side('.side.right'), left: side('.side.left'),
+    right: side('[data-part="swipe/side"][data-side="right"]'), left: side('[data-part="swipe/side"][data-side="left"]'),
     // What spills past the row is what a rounded card cannot hide.
-    spills: [...sw.querySelectorAll('.act')].map(x => {
+    spills: [...sw.querySelectorAll('[data-part="swipe/action"]')].map(x => {
       const r = x.getBoundingClientRect();
       return Math.round(Math.max(rs.left - r.left, r.right - rs.right) * 10) / 10;}),
   };
@@ -119,14 +119,14 @@ async def main():
             await pg.wait_for_timeout(430)
 
         rows = await pg.evaluate(
-            """()=>[...document.querySelectorAll('#view .swipe')].slice(0, 2).map(s => {
+            """()=>[...document.querySelectorAll('#view [data-part="swipe"]')].slice(0, 2).map(s => {
                  const r = s.getBoundingClientRect();
                  return {x: r.x + r.width * 0.6, y: r.y + r.height / 2};})""")
         check("at least two rows are drawn", len(rows) >= 2, str(len(rows)))
 
         async def positions():
             return await pg.evaluate(
-                """()=>[...document.querySelectorAll('#view .swipe .card')].slice(0, 2)
+                """()=>[...document.querySelectorAll('#view [data-part="swipe"] [data-part="card"]')].slice(0, 2)
                      .map(c => c.style.transform || '')""")
 
         await drag(rows[0]["x"], rows[0]["y"], -140)
@@ -135,7 +135,7 @@ async def main():
                  p0[0].startswith("translateX(-"), str(p0))
         check("and it does NOT open the bottom panel",
                  not await pg.evaluate(
-                     "()=>document.querySelector('#sheet').classList.contains('open')"))
+                     "()=>document.querySelector('#sheet').hasAttribute('data-open')"))
 
         await drag(rows[1]["x"], rows[1]["y"], -140)
         p1 = await positions()
@@ -159,7 +159,7 @@ async def main():
         async def where_is_it():
             """The first row's own offset, in pixels, 0 when it is at rest."""
             return await pg.evaluate(
-                """()=>{const c = document.querySelector('#view .swipe .card');
+                """()=>{const c = document.querySelector('#view [data-part="swipe"] [data-part="card"]');
                        const t = c && c.style.transform;
                        return t ? parseFloat(t.slice(t.indexOf('(') + 1)) : 0;}""")
 
@@ -214,11 +214,11 @@ async def main():
         # a programmatic click carries no pointerdown, so it never clears the
         # mark the previous drag left, and the probe would measure its own
         # shortcut rather than the interface.
-        await pg.evaluate("()=>{document.querySelectorAll('#view .swipe .card')"
+        await pg.evaluate("""()=>{document.querySelectorAll('#view [data-part="swipe"] [data-part="card"]')"""
                           ".forEach(c => c.style.transform = '');}")
         await pg.wait_for_timeout(250)
         body = await pg.evaluate(
-            """()=>{const b = document.querySelector('#view .swipe .cbody');
+            """()=>{const b = document.querySelector('#view [data-part="swipe"] [data-part="card/body"]');
                    const r = b.getBoundingClientRect();
                    return {x: r.x + r.width / 2, y: r.y + 12};}""")
         await cdp.send("Input.dispatchTouchEvent",
@@ -230,7 +230,7 @@ async def main():
         await pg.wait_for_timeout(450)
         check("a plain tap still opens the panel",
                  await pg.evaluate(
-                     "()=>document.querySelector('#sheet').classList.contains('open')"))
+                     "()=>document.querySelector('#sheet').hasAttribute('data-open')"))
         await pg.evaluate("()=>closeSheet()")
         await pg.wait_for_timeout(300)
 
@@ -241,17 +241,17 @@ async def main():
         await pg.evaluate("()=>window.__go('acq-follows-list')")
         await pg.wait_for_timeout(550)
         rows = await pg.evaluate(
-            """()=>[...document.querySelectorAll('#view .swipe')].slice(0, 1).map(s => {
+            """()=>[...document.querySelectorAll('#view [data-part="swipe"]')].slice(0, 1).map(s => {
                  const r = s.getBoundingClientRect();
                  return {x: r.x + r.width * 0.6, y: r.y + r.height / 2};})""")
         check("the list is on screen again", len(rows) == 1, str(len(rows)))
         await drag(rows[0]["x"], rows[0]["y"], -140)
         reachable = await pg.evaluate("""()=>{
-          const a = document.querySelector('#view .swipe .side.right .act');
+          const a = document.querySelector('#view [data-part="swipe"] [data-part="swipe/side"][data-side="right"] [data-part="swipe/action"]');
           if (!a) return null;
           const r = a.getBoundingClientRect();
           const onTop = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
-          return !!(onTop && onTop.closest('.act'));}""")
+          return !!(onTop && onTop.closest('[data-part="swipe/action"]'));}""")
         check("the revealed button really is under the finger",
                  reachable is True, str(reachable))
 
@@ -263,7 +263,7 @@ async def main():
         await pg.evaluate("()=>window.__go('acq-follows-list')")
         await pg.wait_for_timeout(520)
         body = await pg.evaluate(
-            """()=>{const b = document.querySelector('#view .swipe .cbody');
+            """()=>{const b = document.querySelector('#view [data-part="swipe"] [data-part="card/body"]');
                    const r = b.getBoundingClientRect();
                    return {x: r.x + r.width / 2, y: r.y + 14};}""")
         await pg.mouse.move(body["x"], body["y"])
@@ -275,7 +275,7 @@ async def main():
         await pg.wait_for_timeout(450)
         check("with a mouse either, a drag does not open the panel",
                  not await pg.evaluate(
-                     "()=>document.querySelector('#sheet').classList.contains('open')"))
+                     "()=>document.querySelector('#sheet').hasAttribute('data-open')"))
         check("and it did open the drawer",
                  (await positions())[0].startswith("translateX(-"), str(await positions()))
 

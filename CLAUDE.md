@@ -86,7 +86,8 @@ implementation directives change IN THE SAME MOVE. What loses its subject is rem
 architecture decisions (the address model, Tailwind + typed variants, where CSS lives, what a
 rule may anchor on, how the legacy engine dies) and the ordered lots that get there, each with
 its own definition of done. Read it before any frontend work beyond drawing a surface; the
-state of that work is `IMPLEMENTATION.md` § THE OBJECTIVE and lives nowhere else.
+state of that work — **which lot landed, which one is next** — is `IMPLEMENTATION.md`
+§ « Where the frontend work stands », and lives nowhere else.
 
 #### The mission — dictated by the operator, 2026-08-19 (SUPERSEDES any narrower reading)
 

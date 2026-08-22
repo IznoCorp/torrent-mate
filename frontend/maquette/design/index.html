@@ -84,7 +84,7 @@
          too: the mount node, then the stylesheet the fragment still carries,
          then this. -->
 <div class="stage">
-  <div class="device" id="device">
+  <div class="device" id="device" data-part="shell/device">
     <!-- login:splash:start -->
     <!-- The startup screen, and it is FIRST on purpose.
 
@@ -96,9 +96,10 @@
          It carries no controls: there is nothing to do yet, and a disabled
          control would only invite a tap that answers nothing. -->
     <div class="splash" id="splash">
-      <div class="brandbig">
+      <div class="brandbig" data-part="brand/large">
         <svg
           class="mk"
+          data-part="brand/mark"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -109,10 +110,11 @@
         >
           <path d="M3 4h18l-7 8v7l-4 2v-9z" />
         </svg>
-        <span class="wm">Torrent<em>Mate</em></span>
+        <span class="wm" data-part="brand/wordmark">Torrent<em>Mate</em></span>
       </div>
       <div
         class="splashbar"
+        data-part="splash/progress"
         role="progressbar"
         aria-label="Chargement de l'interface"
       >
@@ -122,7 +124,7 @@
     </div>
     <!-- login:splash:end -->
 
-    <header class="topbar">
+    <header class="topbar" data-part="shell/header">
       <button
         class="burger"
         aria-label="Ouvrir le menu de navigation"
@@ -142,6 +144,7 @@
       <a class="brand" href="#" onclick="return false;">
         <svg
           class="mk"
+          data-part="brand/mark"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -152,7 +155,7 @@
         >
           <path d="M3 4h18l-7 8v7l-4 2v-9z" />
         </svg>
-        <span class="wm">Torrent<em>Mate</em></span>
+        <span class="wm" data-part="brand/wordmark">Torrent<em>Mate</em></span>
       </a>
       <div class="sp">
         <span class="ps-dot ps-dot--done" title="Temps réel connecté">
@@ -161,6 +164,7 @@
         </span>
         <button
           class="avatar"
+          data-part="avatar"
           data-sheet="utilisateur"
           aria-label="Menu utilisateur"
         >
@@ -169,7 +173,7 @@
       </div>
     </header>
 
-    <div class="port" id="port">
+    <div class="port" id="port" data-part="viewport">
       <div class="ptr" id="ptr"><div class="spin"></div></div>
       <div id="view"></div>
     </div>
@@ -213,7 +217,7 @@
               «&nbsp;Ajouter&nbsp;».
             </li>
           </ol>
-          <button class="installgo" id="installgo">
+          <button class="installgo" id="installgo" data-part="install/action">
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -248,10 +252,11 @@
          navigation bar would offer destinations that answer with a redirect.
          It carries no credentials of its own — the server decides, and a
          password living in a page anyone can read is not a password. -->
-    <div class="loginscreen" id="login" hidden>
-      <div class="brandbig">
+    <div class="loginscreen" data-part="login" id="login" hidden>
+      <div class="brandbig" data-part="brand/large">
         <svg
           class="mk"
+          data-part="brand/mark"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -262,12 +267,12 @@
         >
           <path d="M3 4h18l-7 8v7l-4 2v-9z" />
         </svg>
-        <span class="wm">Torrent<em>Mate</em></span>
+        <span class="wm" data-part="brand/wordmark">Torrent<em>Mate</em></span>
       </div>
-      <form class="logincard" id="loginform" autocomplete="on">
+      <form class="logincard" id="loginform" data-part="login/form" autocomplete="on">
         <h1 class="logintitle">Connexion</h1>
         <p class="loginsub">Accès à votre médiathèque et à vos acquisitions.</p>
-        <label class="loginfield">
+        <label class="loginfield" data-part="login/field">
           <span>Identifiant</span>
           <input
             type="text"
@@ -278,7 +283,7 @@
             required
           />
         </label>
-        <label class="loginfield">
+        <label class="loginfield" data-part="login/field">
           <span>Mot de passe</span>
           <input
             type="password"
@@ -288,12 +293,12 @@
           />
         </label>
         <p class="loginerr" id="loginerr" hidden>Identifiants invalides</p>
-        <button class="loginsubmit" type="submit">Se connecter</button>
+        <button class="loginsubmit" data-part="login/submit" type="submit">Se connecter</button>
       </form>
     </div>
     <!-- login:markup:end -->
 
-    <div class="hbtn">
+    <div class="hbtn" data-part="harness/bar">
       <button
         id="notesBtn"
         aria-pressed="false"
@@ -328,7 +333,7 @@
       </button>
     </div>
 
-    <button class="fab" id="fab" aria-label="Ajouter un média" hidden>
+    <button class="fab" id="fab" data-part="shell/add-action" aria-label="Ajouter un média" hidden>
       <svg
         viewBox="0 0 24 24"
         fill="none"
@@ -340,20 +345,20 @@
       </svg>
     </button>
 
-    <nav class="bottombar" id="nav" aria-label="Navigation principale"></nav>
+    <nav class="bottombar" id="nav" data-part="shell/tab-bar" aria-label="Navigation principale"></nav>
 
     <aside
       class="drawer"
       id="drawer"
       aria-label="Navigation principale"
     ></aside>
-    <div class="screen" id="screen"></div>
+    <div class="screen" id="screen" data-part="screen"></div>
     <!-- The scrim and the bottom sheet are rendered by the shell
          (`src/components/sheet.tsx`), at these same ids and classes, into
          `#shell` — which sits inside this frame, earlier in document order.
          They are absent here on purpose: two elements answering `#sheet` is
          one of them being measured and the other being shown. -->
-    <div class="dlg" id="dlg"></div>
+    <div class="dlg" id="dlg" data-part="dialog"></div>
     <div class="toast" id="toast">
       <span id="toastmsg"></span
       ><button id="toastx" aria-label="Fermer">

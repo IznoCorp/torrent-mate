@@ -2,6 +2,7 @@
 
 import asyncio
 
+from common import shot
 from playwright.async_api import async_playwright
 
 
@@ -38,16 +39,16 @@ async def main():
           // count as « no layer » and this rule would measure the page
           // UNDERNEATH — the overflow, the skeletons and the text of a
           // surface the state does not show.
-          const rt = document.querySelector('.screen.open[data-key]');
-          const layer = sh.classList.contains('open')||sc.classList.contains('open')||dg.classList.contains('open')||!!rt;
+          const rt = document.querySelector('[data-part="screen"][data-open][data-key]');
+          const layer = sh.hasAttribute('data-open')||sc.hasAttribute('data-open')||dg.hasAttribute('data-open')||!!rt;
           // The route rung comes LAST in the precedence, so every
           // pre-existing case resolves to exactly what it resolved to
           // before: a panel or a dialog opened OVER a route is what one is
           // looking at, and stays what is measured.
-          const target = layer ? (dg.classList.contains('open')?dg
-                                 :sc.classList.contains('open')?sc
-                                 :sh.classList.contains('open')?sh:rt) : v;
-          return {sk:target.querySelectorAll('.sk').length, txt:target.textContent.replace(/\\s+/g,' ').trim().length,
+          const target = layer ? (dg.hasAttribute('data-open')?dg
+                                 :sc.hasAttribute('data-open')?sc
+                                 :sh.hasAttribute('data-open')?sh:rt) : v;
+          return {sk:target.querySelectorAll('[data-skeleton]').length, txt:target.textContent.replace(/\\s+/g,' ').trim().length,
                   doc:document.documentElement.scrollWidth,
                   // An overflow clipped by an ancestor is not overflow:
                   // getBoundingClientRect measures BEFORE clipping. Verify the
@@ -55,7 +56,7 @@ async def main():
                   // clipper must itself fit.
                   spills:[...target.querySelectorAll('*')].filter(e=>{
                     if (e.getBoundingClientRect().right<=390.5) return false;
-                    if (e.closest('.pillscroll')||e.closest('.eps')||e.closest('.cast')) return false;
+                    if (e.closest('[data-part="pill/list"]')||e.closest('[data-part="episode/set"]')||e.closest('[data-part="cast"]')) return false;
                     for (let p=e.parentElement; p; p=p.parentElement) {
                       const ox=getComputedStyle(p).overflowX;
                       if (ox==='hidden'||ox==='clip') return p.getBoundingClientRect().right>390.5;
@@ -66,7 +67,7 @@ async def main():
         ok = (r['txt']>60 or r['sk']>0) and r['doc']<=390 and r['spills']==0
         if not ok: bad.append((i,r))
         print(("  PASS" if ok else "  FAIL"), f"{i:28}", r)
-        await pg.screenshot(path=f"st_{i}.png")
+        await shot(pg, f"states-{i}")
     print("\nJS errors:", errs or "none")
     print("VERDICT:", f"{len(ids)-len(bad)}/{len(ids)} states conform" + ("" if not bad else f" — failures: {[x[0] for x in bad]}"))
     await b.close()

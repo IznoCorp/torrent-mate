@@ -34,14 +34,18 @@ from playwright.async_api import async_playwright
 # had twenty-four of them and the other end none, so the rule read an empty
 # list and called it a failed reversal. The title is the row's identity
 # everywhere in this prototype; the sheet is a property of some rows.
-TITLES = """()=>[...document.querySelectorAll('#libitems .ctitle, #libitems .tile .nm')]
+TITLES = """()=>[...document.querySelectorAll('#libitems [data-part="card/title"], #libitems [data-part="tile"] [data-part="tile/title"]')]
   .map((element) => element.textContent.trim())"""
 
-PANEL = """()=>[...document.querySelectorAll('.sheetacts .sact')].map((button) => ({
+PANEL = """()=>[...document.querySelectorAll('[data-part="sheet/actions"] [data-part="sheet/action"]')].map((button) => ({
   text: button.textContent.trim(),
   sort: button.dataset.setsort || null,
   reversed: button.dataset.reversed === '1',
-  current: button.className.split(' ').includes('primary'),
+  // « which sort is in force » is read from the tone the action emits, not
+  // from the class that paints it: `data-tone` is written from the same
+  // expression as the class, three holds below depend on this field, and a
+  // class read is not a shape any reader of this repository could see.
+  current: button.dataset.tone === 'primary',
 }))"""
 
 
@@ -87,7 +91,7 @@ async def main():
             1 < len(narrowed) <= 24, f"{len(narrowed)} rows: {narrowed}")
         incomplete = await page.evaluate("""()=>{
           const shown = new Set([...document.querySelectorAll(
-            '#libitems .ctitle, #libitems .tile b')].map((x) => x.textContent.trim()));
+            '#libitems [data-part="card/title"], #libitems [data-part="tile"] b')].map((x) => x.textContent.trim()));
           return window.__referentiel.INCOMPLETE
             .filter((show) => shown.has(show.t)).map((show) => show.t);}""")
         journal.check(
@@ -130,9 +134,9 @@ async def main():
             drawn = {}
             for sense, reversed_ in (("normal", False), ("inverse", True)):
                 if not await page.evaluate(
-                        "()=>!!document.querySelector('#sheet.open')"):
+                        "()=>!!document.querySelector('#sheet[data-open]')"):
                     await open_sort_panel(page)
-                selector = (f"#sheet .sact[data-setsort='{key}']"
+                selector = (f"""#sheet [data-part="sheet/action"][data-setsort='{key}']"""
                             + ("[data-reversed='1']" if reversed_
                                else ":not([data-reversed])"))
                 control = page.locator(selector).first
