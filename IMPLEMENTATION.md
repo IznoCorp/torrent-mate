@@ -44,10 +44,19 @@ stale table read as current for three days.
 
 | | |
 | --- | --- |
-| **Last landed** | **L02 — test anchors move to `data-*`**, Phase 0. PR **#470**, merged 2026-08-22, version 0.98.13. It carried the `docs/cold-start` commit, which was not a PR of its own |
-| **Next** | **L03 — accessibility**, Phase 1. Its dependency (L01) is satisfied. `docs/reference/frontend-architecture.md` decides which lot, never this table |
+| **In flight** | **L03 — accessibility**, Phase 1. Branch `feat/maquette-l03`, version 0.98.18, PR merged **manually**. Design: `docs/features/maquette-l03/DESIGN.md` · plan: `…/plan/INDEX.md` |
+| **Last landed** | **L02 — test anchors move to `data-*`**, Phase 0. PR **#470**, merged 2026-08-22, version 0.98.13. It carried the `docs/cold-start` commit, which was not a PR of its own. Archived to `docs/archive/features/maquette-l02/` |
 | **Before it** | L01 — the recorded oracle, PR **#467**, version 0.98.10. Archived to `docs/archive/features/maquette-l01/` |
-| **Design + plan of L02** | `docs/features/maquette-l02/DESIGN.md`, `…/plan/INDEX.md` — 6 phases, 13 ACC criteria, all fallen |
+| **What decides the order** | `docs/reference/frontend-architecture.md`, never this table. This table says only where the work STANDS |
+
+**What L03 is, in one line**: landmarks, accessible names, focus management on every layer, the
+keyboard paths — and `axe-core` in the gate at a hard zero. Four decisions were arbitrated by the
+operator on 2026-08-22 and are recorded in its DESIGN § 2: the focus MECHANISM is written
+shell-side and survives L13 while only attributes go into the dying engine; the audit is
+`axe-core` on its own `--a11y` tier, in CI on every PR; the oracle floor is **zero divergence**,
+tag substitutions neutralised in CSS rather than accepted; and colour contrast is measured,
+recorded and handed to L06 rather than enforced here. Touch-target size and B-036 are named as
+out of scope in § 6.
 
 **What L02 settled, measured on `main` after the merge**: **0 selection calls anchored on a CSS
 class**, out of 699 in `harness/*.py` — 473 on `data-*`, 188 on an id, 33 on a bare tag, 5 on a
@@ -59,7 +68,7 @@ guard rather than sitting beside it, and its floor is a hard zero.
 > « baseline 834 → 0 » and « baseline burn-down 342 → 0 » of the same thing. The end state is
 > measured above and is not in doubt; the starting figure is, and guessing which is right would
 > put a third number into circulation. Whoever knows should say so in
-> `docs/features/maquette-l02/plan/INDEX.md`; until then neither is cited.
+> `docs/archive/features/maquette-l02/plan/INDEX.md`; until then neither is cited.
 
 ### What the next session needs to know before touching anything
 
