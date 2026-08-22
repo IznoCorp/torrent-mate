@@ -138,18 +138,16 @@ fi
 LOGS="$(mktemp -d)"
 trap 'rm -rf "$LOGS"' EXIT
 
-# The tiers that run no rule script say so without a parallelism nobody uses.
+failed=0
+# The `--oracle` and `--a11y` tiers run no rule script, and an empty array is
+# both an unbound variable under `set -u` with the bash macOS ships AND empty
+# input to `xargs`, which GNU runs once and BSD runs never. They are therefore
+# skipped BY NAME rather than by expanding nothing — one condition, not two
+# mirrored ones, so the announcement cannot drift from what actually runs.
 if [ "$ORACLE_ONLY" -eq 1 ] || [ "$A11Y_ONLY" -eq 1 ]; then
   echo "Running the ${label}…"
 else
   echo "Running the ${label}, ${JOBS} at a time…"
-fi
-failed=0
-# The `--oracle` and `--a11y` tiers run no rule script, and an empty array is
-# both an unbound variable under `set -u` with the bash macOS ships AND empty
-# input to `xargs`, which GNU runs once and BSD runs never. The tiers are
-# therefore skipped BY NAME rather than by expanding nothing.
-if [ "$ORACLE_ONLY" -eq 0 ] && [ "$A11Y_ONLY" -eq 0 ]; then
   # `-n 1` rather than `-I`: it needs no replacement string, so there is one
   # less flag whose exact behaviour has to hold across the GNU and BSD xargs
   # this script runs under. The rule name arrives as `$1` — `$0` is the `_`
