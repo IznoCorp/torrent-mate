@@ -137,6 +137,7 @@ jobs:
       - run: python scripts/check-no-french.py
       - run: python3 scripts/check-css-tokens.py
       - run: python3 scripts/check-markup-contracts.py
+      - run: python3 scripts/check-frontend-boundaries.py
       - run: python3 frontend/maquette/oracle.py --contracts
 
   # `make check` runs twelve guards; CI ran ONE of them (no-french), so eleven

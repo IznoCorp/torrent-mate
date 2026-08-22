@@ -19,13 +19,25 @@ guarantees a builder CAN make:
   · a block type nobody declared is refused rather than drawn empty.
 
 The builder and the verb have MOVED: the constructor is the component
-`design/src/components/panel.tsx`, and a producer opens a panel by calling
+`design/src/ui/panel/index.tsx`, and a producer opens a panel by calling
 the shell's `window.__panel.open(descripteur)` rather than the engine's own
 `openSheet(panneauHTML({…}))`. The two source checks below follow them there.
 What they hold is unchanged — one constructor, no second one, and every caller
 handing FACTS rather than markup — and the behavioural checks that follow are
 untouched: they read the panel as drawn, and a panel is a panel wherever it is
 built.
+
+THE BLOCK KINDS ARE NO LONGER A CLOSED SWITCH, and that adds one failure mode
+this rule now holds. The two kinds that know a domain — the season matrix and
+the setting field — live with those domains and REGISTER themselves with the
+panel's contract, so the panel imports no feature. A registration has three
+ends: the kind declared in `PanelBlockMap`, the `registerBlock` call that says
+what draws it, and — for a kind outside `ui/panel` — the boot import that makes
+that file evaluate at all. Nothing imports a block module otherwise: a panel is
+opened by a legacy producer through `window.__panel`, never by a component
+holding a reference to the block. Two of the three ends present is a panel that
+throws on a kind it declares, and it throws where the PRODUCER wrote it, far
+from the file that forgot.
 """
 import asyncio
 import pathlib
@@ -35,6 +47,15 @@ from common import Journal, design_source, open_page
 from playwright.async_api import async_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+# The file that boots the application, relative to `design/src`. This rule
+# reads it to answer « does anything make this block's module evaluate? », and
+# that can only be answered in the file that starts everything. It is named
+# once, here: read inline, a move of the shell crashes this rule instead of
+# adjusting it — which is exactly what happened the day the shell moved into
+# `app/`, and the contract tier does not run this rule, so only the full
+# suite before the merge said so.
+BOOT_FILE = "app/shell.tsx"
 
 _journal = None
 
@@ -75,6 +96,42 @@ READ = """() => {
 }"""
 
 
+
+def block_kind_ends():
+    """Reads the three ends of every panel block kind, from the sources.
+
+    A kind is DECLARED in `PanelBlockMap` — in the contract itself for the
+    kinds that know no domain, in a `declare module` augmentation for a
+    feature's own. It is REGISTERED by a `registerBlock("kind", …)` call. And
+    when it is registered outside `ui/panel`, the file holding that call must
+    be IMPORTED at boot, because nothing else imports it.
+
+    Returns:
+        `(declared, registered, unimported)` — the set of kinds declared, the
+        set registered, and the registering files outside `ui/panel` that the
+        shell does not import.
+    """
+    source_root = ROOT / "design" / "src"
+    declared, registered, unimported = set(), set(), []
+    boot = (source_root / BOOT_FILE).read_text(encoding="utf-8")
+    for file in sorted(source_root.rglob("*.ts")) + sorted(source_root.rglob("*.tsx")):
+        text = file.read_text(encoding="utf-8")
+        # A `PanelBlockMap` body, wherever it is declared or augmented. Its
+        # entries are `kind: {…}` at one level of nesting.
+        for body in re.findall(r"interface PanelBlockMap\s*\{(.*?)\n\}", text, re.S):
+            declared |= set(re.findall(r"^\s{2,4}([A-Za-z_][A-Za-z0-9_]*)\s*:", body, re.M))
+        calls = re.findall(r'registerBlock\(\s*"([^"]+)"', text)
+        registered |= set(calls)
+        if calls and "ui/panel" not in file.as_posix():
+            stem = file.relative_to(source_root).as_posix().rsplit(".", 1)[0]
+            # The boot writes its import RELATIVE TO ITSELF, so the needle is
+            # built the same way rather than assumed to start at the root.
+            up = "../" * (len(pathlib.PurePosixPath(BOOT_FILE).parts) - 1) or "./"
+            if f'"{up}{stem}"' not in boot:
+                unimported.append(stem)
+    return declared, registered, unimported
+
+
 async def main():
     global _journal
     _journal = Journal("R56 — one single panel")
@@ -83,7 +140,7 @@ async def main():
     # both in the engine now — reading the fragment alone would count no
     # callers at all and still call it « no violation ».
     source = design_source()
-    component = (ROOT / "design" / "src" / "components" / "panel.tsx").read_text()
+    component = (ROOT / "design" / "src" / "ui" / "panel" / "index.tsx").read_text()
 
     # 1. No caller hands markup to the panel. Read on the SOURCE, because that
     #    is where a panel is asked for; the DOM only shows what came out. A
@@ -115,6 +172,19 @@ async def main():
           "panneauHTML is back in the design's sources"
           if "function panneauHTML(" in source else
           f"{component.count('export function PanelContent(')} PanelContent")
+
+    # 3. EVERY DECLARED KIND HAS A RENDERER, AND EVERY RENDERER IS REACHED.
+    #    The switch is a registry now, so a kind can be declared with nothing
+    #    drawing it, or drawn by a file nothing imports — two spellings of the
+    #    same defect, and both throw at the PRODUCER rather than here.
+    declared, registered, unimported = block_kind_ends()
+    check("every declared block kind has a registered renderer",
+          declared == registered,
+          f"declared not registered: {sorted(declared - registered)} · "
+          f"registered not declared: {sorted(registered - declared)}")
+    check("every block module outside ui/panel is imported at boot",
+          not unimported, ", ".join(unimported))
+    check("there really are block kinds", len(declared) >= 5, f"{len(declared)} kinds")
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")

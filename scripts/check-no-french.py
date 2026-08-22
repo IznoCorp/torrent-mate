@@ -569,7 +569,7 @@ def check_unread_javascript(violations: list[str]) -> None:
     # identifiers predate the rule and only a conversion — not a rename — will
     # reach them. `legacy.js` is the engine; `states.js` is the scenario table
     # lifted out of it, whose entries call the engine's own French names.
-    allowed = {SHELL / "engine" / "legacy.js", SHELL / "states.js"}
+    allowed = {SHELL / "engine" / "legacy.js", SHELL / "engine" / "states.js"}
     unread = {path for path in SHELL.rglob("*.js") if path.is_file()}
     for path in sorted(unread - allowed):
         violations.append(
