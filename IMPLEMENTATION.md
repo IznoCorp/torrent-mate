@@ -44,10 +44,22 @@ stale table read as current for three days.
 
 | | |
 | --- | --- |
-| **Last landed** | **L01 — the recorded oracle**, Phase 0. PR **#467**, merged 2026-08-20, version 0.98.10. Archived to `docs/archive/features/maquette-l01/` |
-| **In flight** | **L02 — test anchors move to `data-*`**, Phase 0. Branch `refactor/maquette-l02`, version 0.98.13 (0.98.12 was taken by #469 on main while the wave ran). It carries the `docs/cold-start` commit, which is not a PR of its own. **All 6 phases gated** — the instrument; the first contracts; the card family; the lists and episodes; the flux, filters and settings; the tail by emission site, then the baseline deleted and the floor a hard zero — baseline 834 → 0, 83 states, 992 holds unchanged, all 13 ACC fallen; the harness's screenshots moved to `harness/__screenshots__/` (6.5, operator 2026-08-22). **Next: feature-pr** — push, PR, CI, adversarial review, squash merge. Findings per phase in `docs/features/maquette-l02/plan/INDEX.md` § What phase N found. Every dispatch since the end of phase 1 runs on Opus: the DeepSeek provider is out of credit |
-| **Next after it** | The architecture file's Phase 1 — `docs/reference/frontend-architecture.md` decides which lot, never this table |
-| **Design + plan of L02** | `docs/features/maquette-l02/DESIGN.md`, `…/plan/INDEX.md` — 6 phases, 13 ACC criteria, baseline burn-down 342 → 0 |
+| **Last landed** | **L02 — test anchors move to `data-*`**, Phase 0. PR **#470**, merged 2026-08-22, version 0.98.13. It carried the `docs/cold-start` commit, which was not a PR of its own |
+| **Next** | **L03 — accessibility**, Phase 1. Its dependency (L01) is satisfied. `docs/reference/frontend-architecture.md` decides which lot, never this table |
+| **Before it** | L01 — the recorded oracle, PR **#467**, version 0.98.10. Archived to `docs/archive/features/maquette-l01/` |
+| **Design + plan of L02** | `docs/features/maquette-l02/DESIGN.md`, `…/plan/INDEX.md` — 6 phases, 13 ACC criteria, all fallen |
+
+**What L02 settled, measured on `main` after the merge**: **0 selection calls anchored on a CSS
+class**, out of 699 in `harness/*.py` — 473 on `data-*`, 188 on an id, 33 on a bare tag, 5 on a
+role. The floor is held by ARM 2 of `scripts/check-markup-contracts.py`, which **extends** that
+guard rather than sitting beside it, and its floor is a hard zero.
+<sub>method: extract the string argument of every `querySelector|querySelectorAll|locator|matches` call in `harness/*.py` and classify it</sub>
+
+> ⚠ **Two figures for one burn-down, and neither is re-measurable now.** The wave's own rows said
+> « baseline 834 → 0 » and « baseline burn-down 342 → 0 » of the same thing. The end state is
+> measured above and is not in doubt; the starting figure is, and guessing which is right would
+> put a third number into circulation. Whoever knows should say so in
+> `docs/features/maquette-l02/plan/INDEX.md`; until then neither is cited.
 
 ### What the next session needs to know before touching anything
 
@@ -60,12 +72,13 @@ stale table read as current for three days.
    squashing replaces that commit, so the pointer goes dangling on a fresh clone. `--check` now
    says so on its own — « NOT an ancestor of HEAD » — but the fix is a command, not a warning to
    live with.
-3. **L02's subject is measured and IN FLIGHT**: 684 selection calls in `harness/*.py`, of which
-   **281 are anchored on a CSS class** — the total reproduces D4 exactly, the split differs by a
-   handful of role selectors and the DESIGN records why. Half of D4's contract is already held by
-   `scripts/check-markup-contracts.py`, which refuses a `data-*` VALUE no reader understands —
-   L02 must EXTEND that guard rather than add a second one beside it. The other half, what a rule
-   may anchor on, is L02's own.
+3. ⚠ **THE ORACLE REFERENCE IS DANGLING RIGHT NOW, and only this machine can mend it.** Its
+   `baseCommit` is `c7714c38`, a commit of the L02 branch that the squash merge replaced, so
+   `git cat-file -e c7714c38` fails on a fresh clone and `--check` refuses to compare. This is
+   point 2 of this very list, met anyway by the wave that had just written it — which is why the
+   step has moved into the plan's § 5 method, where a wave reads it. **Run
+   `make maquette-oracle --record` and commit the reference.** Nothing else here is blocked by it,
+   and nothing that follows can be proved until it is done.
 4. **B-036 is open and belongs to a wave, not to a tidy-up**: `system-panne` and
    `acq-follows-groupe` are still French state ids, and **no arm of `check-no-french.py` reads
    the state table**. Fixing the two names without adding the arm repeats the reason they
