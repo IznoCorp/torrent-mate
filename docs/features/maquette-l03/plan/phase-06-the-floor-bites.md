@@ -72,6 +72,24 @@ and Phase 1 taught this wave what a dangling pointer costs when nothing checks i
 
 Commit: `docs(maquette-l03): the wave's record, and what the next session needs`
 
+## What the mutations actually reported
+
+Both were run against the committed tree and restored afterwards.
+
+| Mutation | What the gate said |
+| --- | --- |
+| One `aria-label` removed from the settings search's clear button | `a11y.py --check` exit 1, naming the state (`settings-search`), the rule (`button-name`, critical) and the element (`.searchclear`) |
+| The focus restoration disabled in `focus.ts` | R81 exit 1, naming both layers and printing the landing: « active: BODY » |
+
+Neither merely went red: each named the defect precisely enough to act on without reading the
+diff, which is the property that stops a gate from being disabled the first time it fires.
+
+**And two defects were found by USING the tools rather than by running them.** `--record` was
+happy to overwrite `a11y-debt.json` on a repaired tree, writing zeros over the only record of what
+the wave had found — walked into in this session. It refuses now, and says why. `target-size` was
+expected to hand L06 a debt and reports zero — checked rather than believed, because an
+inapplicable axe rule and a passing one look identical from outside.
+
 ## Verification — the full ACCEPTANCE re-exercise
 
 | ID | Command | Expected |

@@ -79,6 +79,24 @@ Commit: `test(maquette-l03): a rule holds that focus enters a layer and comes ba
 | — | `python3 frontend/maquette/oracle.py --check` | 0 divergence — `inert` and `tabindex` change no computed style |
 | — | `frontend/maquette/harness/run.sh` (full suite) | no rule falls; `inert` on the background must not blind a rule that drives through a layer |
 
+## ⚠ What this phase actually cost, recorded because the next one will meet it
+
+**Six defects, and the rule found five of them.** The sixth — the one the rule could not find —
+is the interesting one.
+
+| Found by | Defect |
+| --- | --- |
+| R81, first run | Focus was never restored: `focus()` on an element inside an `inert` subtree does nothing, silently, and every trigger sits in the background the layer had just marked. The mark comes off first now |
+| R81, first run | The skip link moved the view and not the focus. `<a href="#port">` should focus a target carrying `tabindex="-1"`; the router owns the URL and the hash never reaches default handling |
+| R81, first run | …and one was in the RULE: it tabbed from wherever the layer holds had left focus. The browser's sequential focus starting point is set by the last CLICK and `blur()` does not move it |
+| **Reading the code** | **`LAYERS` selected the screen as `#screen`.** One legacy screen carries that id; FIVE migrated ones are `<section data-part="screen">` with no id. The manager was blind to five of its six layers and R81 was green, because R81 drove the drawer and the sheet and nothing else |
+| R81, once pointed at a screen | `Escape` did nothing: `__closeLayers` closes the three layers the scrim covers and deliberately not a screen, which is a history entry closed by a back |
+| R81, once pointed at a screen | The stack never unwound. `isOpen()` read `data-open` alone; a migrated screen is UNMOUNTED, and a detached node keeps every attribute it had |
+
+**The lesson is the repository's own, paid again**: a rule proves what it READS. The manager and
+the rule were written together from the same mental model, so the rule inherited its blind spot
+exactly. What broke the loop was reading the code against the markup — not another gate.
+
 ## Risk this phase carries
 
 `inert` on the background could break rules that click through an open layer. The harness bar
