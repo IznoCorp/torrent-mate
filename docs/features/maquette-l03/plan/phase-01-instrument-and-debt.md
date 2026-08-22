@@ -6,7 +6,7 @@ Produced before this phase starts:
 
 - `docs/features/maquette-l03/DESIGN.md` on `feat/maquette-l03`, version 0.98.18.
 - `main` merged in at `f5568068` or later, so the oracle reference (`baseCommit 8adc5643`) is an
-  ancestor of `HEAD` and `oracle.py --check` will compare rather than refuse.
+  ancestor of `HEAD` and `oracle.py --check` compares without warning about its provenance.
 
 **Nothing in Phases 2–6 may start before this phase closes.** Every later phase promises « the
 rendering did not move » and « the violation count went down »; neither statement exists until
@@ -22,9 +22,11 @@ Three things are broken or absent, and all three are load-bearing for the wave's
    the L02 branch that the squash merge replaced. It is **not an ancestor of `HEAD`** and does
    not exist on a fresh clone. This is the same defect `oracle.py` had (#473), on the instrument
    that carries proof 2 of this wave.
-3. **`--compare` does not check that pointer.** It reads `taken_at_commit` and prints it.
-   `oracle.py --check` refuses on a mismatch and says « NOT an ancestor of HEAD »; this tool says
-   nothing, so the baseline can rot in silence for as long as nobody thinks to look.
+3. **`--compare` does not check that pointer.** It reads `taken_at_commit` and prints it, and
+   that is all. `oracle.py --check` at least *warns* — it appends « NOT an ancestor of HEAD: a
+   squash merge replaced that commit, so re-record it ». It does **not** refuse; the only thing
+   it refuses on is a platform mismatch. This tool does neither, so the baseline rots in silence
+   for as long as nobody thinks to look, which is exactly what happened.
 
 ## Sub-phases
 
@@ -75,9 +77,18 @@ Commit: `docs(maquette-l03): record the accessibility debt as it stands before t
 ### 1.4 — Repair the hold-count baseline, and make it refuse to rot
 
 Re-record `hold-counts-baseline.json` on the branch (`--record`, the full 20-25 min suite) so its
-`taken_at_commit` is an ancestor of `HEAD`. Then give `--compare` the guard `oracle.py --check`
-already has: **refuse to compare when the baseline commit is unreachable or is not an ancestor of
-`HEAD`**, and say which of the two it is.
+`taken_at_commit` is an ancestor of `HEAD`. Then give `--compare` a guard, and make it **stronger
+than the oracle's, on purpose**: the oracle only warns, and a warning is what let this baseline
+sit dangling for four days under a green gate. `--compare` **refuses** when the baseline commit is
+unreachable or is not an ancestor of `HEAD`, says which of the two it is, and names the command
+that fixes it.
+
+**Why refusing is affordable here and is not for the oracle.** Both files must be re-recorded
+after a squash merge; the difference is what a wrong comparison costs. A hold count is the whole
+of proof n° 2 — « the suite is green at unchanged hold counts » — and a comparison against a
+baseline whose provenance cannot be established turns that proof back into a sentence. The
+re-record is already a required step of every wave's close (Phase 6.4), so the guard enforces a
+step that exists rather than inventing one.
 
 Fix the stale echo in the `maquette-oracle` Makefile target: it announces « 82 states x 33
 regions » where the reference holds 83.
