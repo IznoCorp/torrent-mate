@@ -73,6 +73,36 @@ when the defect comes back.
 | B-038 | `arrivals.py` reads `empty` and asserts nothing on it    | by mutation | `open`       |
 | B-039 | `actions.py` prints `.freshtag` presence, asserts nothing | by mutation | `open`       |
 | B-040 | Names in files no arm reads: `sweep.py`, a region id, `oracle.py` | by review   | `open`       |
+| B-041 | `check-frontend-boundaries.py` has no committed test                | by audit    | `open`       |
+| B-042 | An orphan `http.server` holds port 8900 on the operator's machine   | by review   | `open`       |
+
+**B-041 — the newest guard is the only one of its family with nothing to re-run.**
+`scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
+(#478). Its pull request reports **twelve mutations, each seen red and restored** — the work was
+done. What is missing is that it can be done again: there is no file under `tests/scripts/`, so
+the proof exists as a sentence in a merged pull request body and nowhere a gate can reach.
+
+Invariant 11 of `docs/reference/frontend-architecture.md` asks that every change land with a rule
+that bites, mutation-tested. A mutation performed once in a session satisfies the letter on the
+day and nothing afterwards: the arm that stops biting next month falls silent, and silence is
+what this register exists to refuse. **The four closest members of the same family all have
+theirs** — `test_check_no_french.py`, `test_check_css_tokens.py`, `test_check_markup_contracts.py`,
+`test_check_module_size.py`.
+
+Found by the steward's audit of L04, not by a gate — a guard with no test is invisible to every
+guard. **Not fixed here**: the office that found it does not carry code (`docs/reference/frontend-steward.md`),
+and the test belongs with whoever wrote the eight arms and knows which mutation each one deserves.
+
+**B-042 — a stray process holds a port nothing in the repository claims.**
+A `python3 -m http.server` listens on **8900** on the operator's machine, working directory
+`/private/tmp/tm-a11y-probe`, and **no file in this repository mentions that port**. It is the
+residue of an accessibility probe launched by hand during L03. Harmless in itself — 9.6 MB — and
+reported by the L04 wave, which correctly declined to repair something that was not its own.
+
+It is written here because that report lived only in a merged pull request body, which is the
+same defect as B-041 read from the other end: a finding recorded where nothing re-reads it has
+not been recorded. The port the harness actually uses is **8899**; `run.sh` starts it and reuses
+it deliberately, and that one is not this.
 
 **B-036 — the English campaign missed two state ids, and no arm reads them.**
 `window.__states()` returns **`system-panne`** and **`acq-follows-groupe`**. Both are NAMED STATE
