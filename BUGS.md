@@ -72,7 +72,7 @@ when the defect comes back.
 | B-037 | `arrivals.py` reads a French global nothing defines      | by review   | `open`       |
 | B-038 | `arrivals.py` reads `empty` and asserts nothing on it    | by mutation | `open`       |
 | B-039 | `actions.py` prints `.freshtag` presence, asserts nothing | by mutation | `open`       |
-| B-040 | Names in files no arm reads: `sweep.py` labels, a region id | by review   | `open`       |
+| B-040 | Names in files no arm reads: `sweep.py`, a region id, `oracle.py` | by review   | `open`       |
 
 **B-036 — the English campaign missed two state ids, and no arm reads them.**
 `window.__states()` returns **`system-panne`** and **`acq-follows-groupe`**. Both are NAMED STATE
@@ -695,3 +695,20 @@ arm reads either. Same family as B-036: a name someone chose, in a file the guar
 fix is an arm over the harness's string literals and the oracle's region ids, with the lexicon it
 already has; the region rename moves an oracle reference key and is not an anchoring change
 (2026-08-22).
+
+**Widened 2026-08-22 by the steward's audit of L02, because the fix above is written too narrow.**
+`frontend/maquette/oracle.py` uses the French verb « entérine » three times, and line 953 is the
+`--accept` HELP STRING — a message the tool prints, which `CLAUDE.md` requires to be English. An
+arm over the harness's string literals and the oracle's region ids would not reach it: it is
+neither.
+
+**The mechanism is a second one, and it is the part worth fixing.** The guard reads
+`frontend/maquette/` by an ENUMERATED list — `MAQUETTE / "serve.py"` and `MAQUETTE / "resync.py"`,
+at three call sites — never by a glob. `oracle.py` and `fidelity.py` sit in that directory and are
+in **no corpus at all**, so it is not that an arm reads them narrowly: nothing opens them. A list
+hand-edited every time a sibling lands beside it goes stale, and this one did the day L01 added a
+file. Widening the corpus to the directory closes both this and whatever lands there next; the
+three words alone close neither.
+
+Scope measured before reporting: three occurrences, one word, one file — `fidelity.py` is clean.
+<sub>`grep -n "entérine" frontend/maquette/*.py` · `grep -n 'MAQUETTE / "' scripts/check-no-french.py`</sub>

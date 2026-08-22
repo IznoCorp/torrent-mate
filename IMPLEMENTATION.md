@@ -76,9 +76,10 @@ guard rather than sitting beside it, and its floor is a hard zero.
    `baseCommit` is `c7714c38`, a commit of the L02 branch that the squash merge replaced, so
    `git cat-file -e c7714c38` fails on a fresh clone and `--check` refuses to compare. This is
    point 2 of this very list, met anyway by the wave that had just written it — which is why the
-   step has moved into the plan's § 5 method, where a wave reads it. **Run
-   `make maquette-oracle --record` and commit the reference.** Nothing else here is blocked by it,
-   and nothing that follows can be proved until it is done.
+   step has moved into the plan's § 5 method, where a wave reads it, **with the two commands it
+   actually takes**: `make maquette-oracle` for the build and the host, then
+   `python3 frontend/maquette/oracle.py --record`. Commit the reference. Nothing else here is
+   blocked by it, and nothing that follows can be proved until it is done.
 4. **B-036 is open and belongs to a wave, not to a tidy-up**: `system-panne` and
    `acq-follows-groupe` are still French state ids, and **no arm of `check-no-french.py` reads
    the state table**. Fixing the two names without adding the arm repeats the reason they
