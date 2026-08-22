@@ -25,11 +25,11 @@ proves only that it agrees with the code.
 | # | Phase | File | Status |
 | --- | --- | --- | --- |
 | 1 | The instrument, and the debt recorded | phase-01-instrument-and-debt.md | [x] |
-| 2 | Landmarks and structure | phase-02-landmarks-and-structure.md | [ ] |
-| 3 | Accessible names | phase-03-accessible-names.md | [ ] |
-| 4 | Focus manager and keyboard paths | phase-04-focus-and-keyboard.md | [ ] |
-| 5 | Live regions and states | phase-05-live-regions.md | [ ] |
-| 6 | The floor bites | phase-06-the-floor-bites.md | [ ] |
+| 2 | Landmarks and structure | phase-02-landmarks-and-structure.md | [x] |
+| 3 | Accessible names | phase-03-accessible-names.md | [x] |
+| 4 | Focus manager and keyboard paths | phase-04-focus-and-keyboard.md | [x] |
+| 5 | Live regions and states | phase-05-live-regions.md | [x] |
+| 6 | The floor bites | phase-06-the-floor-bites.md | [x] |
 
 ## ACCEPTANCE criteria
 
