@@ -548,7 +548,18 @@ export function MediaScreen() {
               </div>
             </div>
             {sheet?.cast?.length ? (
-              <div className="cast" data-part="cast" data-noswipe="">
+              <div
+                className="cast"
+                data-part="cast"
+                data-noswipe=""
+                tabIndex={0}
+                role="group"
+                aria-label={
+                  isFilm
+                    ? t("screens.media.castHeadingFilm")
+                    : t("screens.media.castHeadingSeries")
+                }
+              >
                 {sheet.cast.map((cast) => (
                   <figure key={cast.n}>
                     <span className="ca" data-part="cast/avatar">

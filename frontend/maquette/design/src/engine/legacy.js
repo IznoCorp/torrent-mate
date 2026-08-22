@@ -10033,6 +10033,11 @@ import { screens, panel, bridge } from "../seams.js";
     const bar = document.createElement("div");
     bar.className = "selbar";
     bar.dataset.part = "selection/bar";
+    /* A named region, so the caption and the two actions stop being page
+       content adrift outside every landmark. The bar exists only while a
+       selection does, which is exactly what the name says. */
+    bar.setAttribute("role", "region");
+    bar.setAttribute("aria-label", "Sélection en cours");
     bar.innerHTML = `<span class="n" data-part="selection/caption">${size === 0 ? "Touchez les affiches à supprimer" : `${size} sélectionné${size > 1 ? "s" : ""}`}</span>
       <button data-selmode="0">Annuler</button>
       <button class="danger" data-tone="danger" data-delsel="1" ${size === 0 ? "disabled" : ""}>Supprimer</button>`;
@@ -10836,8 +10841,17 @@ import { screens, panel, bridge } from "../seams.js";
      otherwise have its scrim cleared a frame later, by a close that already
      returned. */
   function openDlg(html) {
-    select("#dlg").innerHTML = html;
-    setOpen(select("#dlg"), true);
+    const element = select("#dlg");
+    element.innerHTML = html;
+    /* A dialog has to NAME itself, and it cannot take that name from its
+       content the way a section does. Every dialog this function opens starts
+       with its own heading, so the name is read from it here — once, where the
+       markup arrives — rather than through an `aria-labelledby` id that each
+       template string would have to keep in step with the shell. */
+    const heading = element.querySelector("h1, h2, h3");
+    if (heading) element.setAttribute("aria-label", heading.textContent.trim());
+    else element.removeAttribute("aria-label");
+    setOpen(element, true);
     setOpen(select("#scrim"), true);
   }
   function closeDlg() {

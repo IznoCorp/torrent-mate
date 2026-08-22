@@ -390,7 +390,16 @@
          `#shell` — which sits inside this frame, earlier in document order.
          They are absent here on purpose: two elements answering `#sheet` is
          one of them being measured and the other being shown. -->
-    <div class="dlg" id="dlg" data-part="dialog"></div>
+    <!-- The confirmation layer, declared for what it is. The engine fills it
+         with a heading and a choice and raises the scrim behind it; without
+         the role, an assistive technology met an anonymous box and the
+         content inside it counted as page content adrift outside every
+         landmark. The NAME is set by `openDlg()`, which reads the heading it
+         has just written — a dialog does not take its name from its content
+         the way a named section does, and an `aria-labelledby` id would have
+         to be kept in step by every template string that opens one. -->
+    <div class="dlg" id="dlg" data-part="dialog" role="dialog"
+      aria-modal="true"></div>
     <div class="toast" id="toast">
       <span id="toastmsg"></span
       ><button id="toastx" aria-label="Fermer">

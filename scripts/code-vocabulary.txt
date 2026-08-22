@@ -118,6 +118,7 @@ change
 changed
 chart
 check
+child
 chip
 choice
 clean
@@ -125,6 +126,7 @@ clearq
 clef
 click
 close
+closed
 closest
 cls
 code
@@ -137,6 +139,7 @@ complete
 config
 confirmadd
 containers
+contains
 content
 copy
 corps
@@ -236,6 +239,7 @@ first
 fkind
 flux
 fmode
+focus
 folder
 follow
 followed
@@ -249,6 +253,7 @@ form
 found
 fr
 fraction
+frame
 frames
 freq
 fresh
@@ -301,6 +306,7 @@ inc
 incoming
 incomplete
 index
+inert
 inflight
 info
 initial
@@ -318,6 +324,7 @@ installsteps
 installsub
 inter
 interval
+into
 ios
 is
 item
@@ -366,9 +373,11 @@ login
 loginerr
 loginform
 long
+main
 maintact
 maintenance
 maintopic
+manager
 manifest
 manque
 manual
@@ -501,6 +510,7 @@ real
 reason
 recent
 recents
+reconcile
 record
 rect
 ref

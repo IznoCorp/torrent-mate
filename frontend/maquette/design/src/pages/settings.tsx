@@ -107,7 +107,12 @@ function SaveBar(): ReactElement | null {
   if (!device) return null;
   const files = changedFiles().map(fileName).join(", ");
   return createPortal(
-    <div className="savebar" id="savebar">
+    <div
+      className="savebar"
+      id="savebar"
+      role="region"
+      aria-label={t("screens.settings.saveBarLabel")}
+    >
       <span className="sn">
         <b>
           {t(

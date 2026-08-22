@@ -86,6 +86,26 @@ AXE_CONTEXT = {"exclude": [[".hbtn"]]}
 # gate that fails on those fails on questions rather than on defects.
 AXE_OPTIONS = {"resultTypes": ["violations"]}
 
+# TWO RULES DESCRIBE THE DOCUMENT AT REST, and a modal layer is not rest.
+#
+# `landmark-one-main` and `page-has-heading-one` ask a question about the whole
+# page: is there a main region, is there a level-one heading. When a modal layer
+# is open the answer is legitimately « not reachable » — the focus manager marks
+# everything behind the layer `inert`, which removes it from the accessibility
+# tree, and that is the correct behaviour rather than a defect. axe then reports
+# a document with no main, on a document whose main is deliberately unreachable.
+#
+# THIS IS A CONDITION, NOT A LIST OF EXCEPTED STATES, and the difference is the
+# whole reason it is acceptable. Nothing is named here — the audit asks the
+# document whether a modal layer is open and answers accordingly, so a state
+# that stops opening one is measured again with no edit to this file. And the
+# split is PRINTED at the end of every run: a number nobody compares is a number
+# nobody reads, and « quietly skipped » is how a floor becomes decorative.
+DOCUMENT_RULES = ("landmark-one-main", "page-has-heading-one")
+
+MODAL_OPEN = """()=>Boolean(document.querySelector('[role="dialog"][data-open],'
+  + ' [aria-modal="true"][data-open], #drawer[data-open], #dlg[data-open]'))"""
+
 RUN_AXE = """async ([options])=>{
   const result = await window.axe.run(options.context, options.run);
   return result.violations.map((violation)=>({
@@ -141,7 +161,9 @@ async def audit_state(page, state: str, regions: dict, recipe: dict,
         rules: When given, the only axe rules to run.
 
     Returns:
-        The state's findings, sorted by rule so the output is stable.
+        A `(modal, findings)` pair — whether a modal layer was open, which says
+        which rules could be asked, and the findings sorted by rule so the
+        output is stable.
     """
     await page.evaluate("(id)=>window.__go(id)", state)
     # The same two-pass neutralise-and-settle the oracle uses, and for the same
@@ -155,16 +177,21 @@ async def audit_state(page, state: str, regions: dict, recipe: dict,
     run = dict(AXE_OPTIONS)
     if rules:
         run["runOnly"] = {"type": "rule", "values": rules}
+    modal = await page.evaluate(MODAL_OPEN)
+    if modal:
+        run["rules"] = {name: {"enabled": False} for name in DOCUMENT_RULES}
     findings = await page.evaluate(
         RUN_AXE, [{"context": AXE_CONTEXT, "run": run}])
-    return sorted(findings, key=lambda f: (f["rule"], f["targets"]))
+    return modal, sorted(findings, key=lambda f: (f["rule"], f["targets"]))
 
 
 async def audit_everything(rules: list | None) -> tuple:
     """Drives every named state once and audits each of them.
 
     Returns:
-        A `(per_state, states, seconds)` triple.
+        A `(per_state, states, seconds, modal_states)` tuple. `modal_states` is
+        the set measured with a modal layer open, and therefore without the two
+        document-level rules.
     """
     started = time.monotonic()
     recipe, regions = oracle.load_recipe(), oracle.load_regions()
@@ -176,13 +203,16 @@ async def audit_everything(rules: list | None) -> tuple:
         # would re-inject on every navigation, and the prototype navigates.
         await page.add_script_tag(content=bundle)
         states = await page.evaluate("()=>window.__states()")
-        per_state = {}
+        per_state, modal_states = {}, set()
         for state in states:
-            per_state[state] = await audit_state(
+            modal, findings = await audit_state(
                 page, state, regions, recipe, rules)
+            per_state[state] = findings
+            if modal:
+                modal_states.add(state)
         await context.close()
         await browser.close()
-    return per_state, states, time.monotonic() - started
+    return per_state, states, time.monotonic() - started, modal_states
 
 
 def tally(per_state: dict) -> dict:
@@ -229,7 +259,7 @@ async def record() -> int:
     Returns:
         A process exit code.
     """
-    per_state, states, seconds = await audit_everything(None)
+    per_state, states, seconds, modal = await audit_everything(None)
     enforced = {s: split_contrast(f)[0] for s, f in per_state.items()}
     contrast = {s: split_contrast(f)[1] for s, f in per_state.items()}
 
@@ -250,6 +280,8 @@ async def record() -> int:
         encoding="utf-8")
 
     print(f"recorded {len(states)} states in {seconds:.1f}s")
+    print(f"  {len(states) - len(modal)} state(s) asked the document rules "
+          f"{DOCUMENT_RULES}; {len(modal)} had a modal layer open and could not")
     print(f"  {DEBT_FILE.name}: {sum(tally(enforced).values())} violation(s), "
           f"{len(tally(enforced))} rule(s)")
     print(f"  {CONTRAST_FILE.name}: "
@@ -270,7 +302,7 @@ async def check(rules: list | None, enforce: bool) -> int:
     Returns:
         A process exit code.
     """
-    per_state, states, seconds = await audit_everything(rules)
+    per_state, states, seconds, modal = await audit_everything(rules)
     enforced = {s: split_contrast(f)[0] for s, f in per_state.items()}
     contrast_total = sum(
         len(f["targets"]) for findings in per_state.values()
@@ -292,6 +324,9 @@ async def check(rules: list | None, enforce: bool) -> int:
     scope = f", rules: {','.join(rules)}" if rules else ""
     print(f"a11y: {len(states)} states{scope}, {total} violation(s) over "
           f"{len(counts)} rule(s), in {seconds:.1f}s")
+    print(f"a11y: {len(states) - len(modal)} state(s) asked "
+          f"{'/'.join(DOCUMENT_RULES)}; {len(modal)} had a modal layer open, "
+          "whose `inert` background is correct and makes those two unanswerable")
     if contrast_total and not rules:
         print(f"a11y: {contrast_total} colour-contrast finding(s) — recorded "
               f"for L06, not part of this floor (D-L03-4)")

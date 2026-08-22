@@ -695,7 +695,8 @@
       "pendingMany": "{{count}} modifications en attente",
       "willWrite": "Écrira {{files}}.",
       "save": "Enregistrer",
-      "clearLabel": "Effacer la recherche"
+      "clearLabel": "Effacer la recherche",
+      "saveBarLabel": "Modifications non enregistrées"
     }
   }
 }
