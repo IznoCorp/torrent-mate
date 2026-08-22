@@ -72,14 +72,23 @@ guard rather than sitting beside it, and its floor is a hard zero.
    squashing replaces that commit, so the pointer goes dangling on a fresh clone. `--check` now
    says so on its own — « NOT an ancestor of HEAD » — but the fix is a command, not a warning to
    live with.
-3. ⚠ **THE ORACLE REFERENCE IS DANGLING RIGHT NOW, and only this machine can mend it.** Its
-   `baseCommit` is `c7714c38`, a commit of the L02 branch that the squash merge replaced, so
-   `git cat-file -e c7714c38` fails on a fresh clone and `--check` refuses to compare. This is
-   point 2 of this very list, met anyway by the wave that had just written it — which is why the
-   step has moved into the plan's § 5 method, where a wave reads it, **with the two commands it
-   actually takes**: `make maquette-oracle` for the build and the host, then
-   `python3 frontend/maquette/oracle.py --record`. Commit the reference. Nothing else here is
-   blocked by it, and nothing that follows can be proved until it is done.
+3. **The oracle reference was dangling, and it is mended** — PR **#473**, `baseCommit` now
+   `8adc5643`, an ancestor of `HEAD`. Nothing is blocked. What is worth keeping is the shape of
+   the incident and one thing it proved for free:
+
+   - It was point 2 of this very list, met anyway by the wave that had just written it. The step
+     has therefore moved into the plan's § 5 method, where a wave reads it, with the two commands
+     it actually takes.
+   - **The re-record changed ONE line of 35 651** — `baseCommit` — and left every measurement
+     byte-identical. So the reference was stale only in its pointer, and, unplanned, **the oracle
+     is deterministic**: two recordings of the same tree on the same machine produce the same
+     file. L01 proved the instrument BITES; nothing had proved it REPRODUCES, and an oracle that
+     did not would have cried at every wave.
+
+   ⚠ **And the paragraph this replaces said « DANGLING RIGHT NOW » four days after it stopped
+   being true.** An urgent state written into a handover list is a statement nobody retires when
+   it resolves — the mirror of the lesson above, and the same file. Anything here phrased as
+   *right now* is a claim to re-check before citing.
 4. **B-036 is open and belongs to a wave, not to a tidy-up**: `system-panne` and
    `acq-follows-groupe` are still French state ids, and **no arm of `check-no-french.py` reads
    the state table**. Fixing the two names without adding the arm repeats the reason they
@@ -90,8 +99,10 @@ guard rather than sitting beside it, and its floor is a hard zero.
    do not silently pick one.**
 
 **What it delivers.** `frontend/maquette/oracle.py`, three modes (`--record`, `--check`,
-`--accept`) plus `--contracts` and `--coverage`, measuring **82 named states × 33 regions =
-2 706 measurements in ~24 s** against a committed reference of 35 650 lines. Wired as a THIRD
+`--accept`) plus `--contracts` and `--coverage`, measuring **83 named states × 33 regions =
+2 739 measurements in ~24 s** against a committed reference of 36 237 lines. L01 delivered it at
+82 states; L02 added one, and this paragraph kept L01's figures — re-measure before citing.
+<sub>`python3 -c "import json;c=json.load(open('frontend/maquette/oracle-reference.json'))['counts'];print(c)"` · `wc -l frontend/maquette/oracle-reference.json`</sub> Wired as a THIRD
 tier: `frontend/maquette/harness/run.sh --oracle` and `make maquette-oracle`, deliberately not in
 `make check`.
 

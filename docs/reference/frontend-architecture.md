@@ -122,9 +122,8 @@ coupling is the thing to remove (L02), and it is worth removing whether or not T
 **What it costs, and it is accepted.** Roughly eight times the surface of the scale work alone.
 The re-anchoring this depended on is **paid**: L02 took the class-anchored selections to a hard
 zero, so what Tailwind still costs from here is the conversion alone. A handful of selectors it
-cannot express
-(`:has()`, deep descendant combinators) stay in the base layer. Visual diffs become noisier —
-they move from CSS rules into JSX.
+cannot express (`:has()`, deep descendant combinators) stay in the base layer. Visual diffs
+become noisier — they move from CSS rules into JSX.
 
 **Three conditions, and none is optional.** The oracle exists first (L01). The anchors move
 first (L02). Tailwind's scan is confined to the maquette — it has already leaked 936 bytes into
@@ -161,7 +160,7 @@ lot existed to burn down, and it is kept here as the measure of what moved, neve
 description of the tree.</sub>
 
 **Why not accessible roles**, which would be the modern default: the markup cannot carry them
-yet — 13 `role=`, 1 `<nav>`, **0 `<main>`, 0 `tabindex`** across the maquette. Roles become a
+yet — 13 `role=`, 2 `<nav>`, **0 `<main>`, 0 `tabindex`** across the maquette. Roles become a
 legitimate anchor once L03 lands; they are not a prerequisite for anything.
 
 **A `data-*` contract has three ends** — the markup that emits it, the `dataset.x` that reads it,
