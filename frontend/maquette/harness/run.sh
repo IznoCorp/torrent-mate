@@ -23,9 +23,9 @@
 #   (no flag)     all of them. The gate before a wave is merged, and the only
 #                 thing that proves a surface still renders what it promised.
 #                 Its floor is the SLOWEST SINGLE RULE, not the total: run one
-#                 at a time the suite measured 794 s on a four-core machine
+#                 at a time the suite measured 792 s on a four-core machine
 #                 and 224 s run four at a time, of which `audit2.py` alone is
-#                 169 s. Making the suite cheaper now means making that rule
+#                 170 s. Making the suite cheaper now means making that rule
 #                 cheaper.
 #   --oracle      a THIRD tier, and it duplicates neither: the rules say the
 #                 BEHAVIOUR still holds, the oracle says the RENDERING did not
