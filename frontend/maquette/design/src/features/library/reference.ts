@@ -1,0 +1,67 @@
+// the Médiathèque — the library as a browsable list
+//
+// The slice of `window.__referentiel` this feature reads, and nothing else.
+//
+// The engine publishes ONE object; what it publishes is not one subject. A
+// single 340-line declaration of all of it made every module that needed two
+// members depend on all hundred and eight, and seventeen of twenty-five
+// modules did. Each slice is declared where its subject lives instead, and the
+// global's own type is their intersection (app/reference.d.ts) — so a
+// reader imports nothing to be typed, and a member nobody's subject claims has
+// nowhere to be written down.
+
+import type { QueueCard } from "../../lib/engine-queue";
+
+import type { EngineDrawing } from "../../lib/engine-drawing";
+
+// A show the index knows is INCOMPLETE: owned over announced, and the year
+// that tells two shows of the same name apart.
+export type IncompleteShow = { t: string; o: number; a: number; y: number };
+
+// A library CATEGORY pill: its id, its name, the count it claims, and the
+// engine's own category ids it stands for (`null` for « Tout »).
+export type LibraryCategory = {
+  id: string;
+  l: string;
+  c: number;
+  of: string[] | null;
+};
+
+// A library ROW as the recent list holds one: a title and the line under it.
+export type LibraryRow = { t: string; f: string };
+
+export type LibraryReference = EngineDrawing & {
+  CATS: LibraryCategory[];
+  RECENT: LibraryRow[];
+  INCOMPLETE: IncompleteShow[];
+  // The page size the count line and the infinite scroll both speak in.
+  LIB_PAGE: number;
+  libRowHTML: (item: LibraryRow | QueueCard, index: number) => string;
+  libFiltered: () => (LibraryRow | QueueCard)[];
+  // How many titles the prototype really carries — the number the end mark
+  // says out loud.
+  libraryLoaded: () => number;
+  // The selection bar lives in `#device` and stays the FRAGMENT's: a component
+  // asks for a repaint after it draws, exactly where `fillLib` asked for one.
+  paintSelBar: () => void;
+  // Every sort, in both directions, each with its own name — the table E-001
+  // made two-dimensional. A rule reads the NAMES from here rather than
+  // restating them.
+  TRIS: Record<string, { normal: string; inverse: string }>;
+};
+
+/**
+ * Reads this feature's slice of the engine's published reference object.
+ *
+ * The object is read-only reference data the engine publishes ONCE, at
+ * definition time, well before any component's module evaluates — so a plain
+ * accessor is the right shape, not a subscription: there is nothing here for a
+ * component to miss by reading it straight.
+ *
+ * Returns:
+ *     The slice, typed. The global's own declaration (app/reference.d.ts) is the
+ *     intersection of every slice, so no cast is needed here.
+ */
+export function useLibraryReference(): LibraryReference {
+  return window.__referentiel;
+}

@@ -195,6 +195,7 @@ dot
 down
 drag
 drawer
+drawing
 draws
 dry
 duration
@@ -381,6 +382,7 @@ manager
 manifest
 manque
 manual
+map
 maquette
 mark
 matches
@@ -529,6 +531,8 @@ releases
 remembered
 remove
 render
+renderer
+renderers
 replace
 required
 reset

@@ -32,7 +32,7 @@
    because narrowing it means editing the instrument that measures the move.
 */
 
-import { screens, panel, bridge } from "../seams.js";
+import { screens, panel, bridge } from "./seams.js";
 
   /* TorrentMate — mobile-first redesign prototype
      Data: real library titles (1,861 items). */
