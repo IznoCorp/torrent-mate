@@ -295,9 +295,11 @@ async def check(rules: list | None, enforce: bool) -> int:
     Args:
         rules: When given, the only axe rules to run — how a phase enforces the
             part it owns before the rest is clean.
-        enforce: Exit non-zero on any enforced violation. Phase 1 lands this
-            tier RECORDING; Phase 6 arms it. A gate that is red from the day it
-            lands is a gate someone mutes, and a muted gate reads as green.
+        enforce: Exit non-zero on any enforced violation. THE FLOOR IS A HARD
+            ZERO — no threshold, no tolerated list, no baseline file to compare
+            against. `a11y-debt.json` records where the wave started and is
+            never consulted here: a debt file a gate reads is a tolerance, and
+            a tolerance is how a floor stops being one.
 
     Returns:
         A process exit code.
@@ -333,7 +335,8 @@ async def check(rules: list | None, enforce: bool) -> int:
     if total and enforce:
         return 1
     if total:
-        print("a11y: the floor is not armed yet — Phase 6 makes this a refusal.")
+        print("a11y: --record-only, so this run REPORTS and does not refuse. "
+              "The floor is zero.")
     return 0
 
 
@@ -348,15 +351,17 @@ def main(argv=None) -> int:
                       help="audit every state and report what was found")
     parser.add_argument("--rules", metavar="R1,R2",
                         help="restrict the audit to these axe rules")
-    parser.add_argument("--enforce", action="store_true",
-                        help="exit 1 on any enforced violation (Phase 6 arms "
-                             "this by default; before that it is opt-in)")
+    parser.add_argument("--record-only", action="store_true",
+                        help="report without failing. Nothing in this "
+                             "repository passes it: it exists so a wave can "
+                             "SEE a count while it burns one down, and a run "
+                             "that uses it says so on its own last line")
     arguments = parser.parse_args(argv)
     rules = ([r.strip() for r in arguments.rules.split(",") if r.strip()]
              if arguments.rules else None)
     if arguments.record:
         return asyncio.run(record())
-    return asyncio.run(check(rules, arguments.enforce))
+    return asyncio.run(check(rules, not arguments.record_only))
 
 
 if __name__ == "__main__":

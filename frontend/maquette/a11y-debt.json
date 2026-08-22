@@ -1,5 +1,5 @@
 {
-  "$comment": "The accessibility debt of the maquette as L03 found it — one entry per named state, listing every axe-core violation and the elements it names. THIS IS A RECORD, NEVER A TOLERANCE: `--check` compares against zero, not against this file. `color-contrast` is not here; it is in a11y-contrast.json, handed to L06 by decision D-L03-4.",
+  "$comment": "The accessibility debt of the maquette as L03 FOUND it, before the wave touched anything — 744 violations over 7 rules across the 83 named states. THIS IS A RECORD, AND IT IS NOT A TOLERANCE: `--check` compares against zero and never reads this file. A debt file a gate consults is a tolerance, and a tolerance is how a floor stops being one. `color-contrast` is not here; it is in a11y-contrast.json, handed to L06 by decision D-L03-4.",
   "takenAtCommit": "129ea8a7c9fbf3dd9c3edcbb7924deb27be29188",
   "platform": "Darwin/arm64",
   "counts": {
