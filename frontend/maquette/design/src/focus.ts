@@ -24,10 +24,22 @@
 // THE BACKGROUND IS THE FRAME'S OTHER CHILDREN, never the layer's ancestors.
 // Marking `document.body` inert would mark the layer too.
 
-// The layer roots, most-recently-opened last. The order is the stacking order
-// the engine already unwinds — drawer, then screen, then sheet — so the topmost
-// open layer is the last one here that carries `data-open`.
-const LAYERS = ["#drawer", "#screen", "#sheet", "#dlg"] as const;
+// The layer roots, in the stacking order the engine already unwinds — drawer,
+// then screen, then sheet — so the topmost open layer is the last one here that
+// carries `data-open`.
+//
+// A SCREEN IS SELECTED BY ITS PART, NEVER BY `#screen`. There is one legacy
+// screen with that id and FIVE migrated ones that are `<section data-part=
+// "screen">` with no id at all, so an id selector traps focus in the layer the
+// engine still draws and silently ignores every screen that has been converted
+// — which is most of them, and all of the ones a later lot will add. This was
+// the shape of the first version of this file.
+const LAYERS = [
+  "#drawer",
+  '[data-part="screen"]',
+  "#sheet",
+  "#dlg",
+] as const;
 
 // Where focus goes when a layer opens: the first control the reader would
 // reach anyway. `[autofocus]` first, so a layer can name its own entry point.
@@ -41,12 +53,21 @@ let stack: Restore[] = [];
 let observer: MutationObserver | null = null;
 
 function isOpen(node: Element): boolean {
-  return node.hasAttribute("data-open");
+  // `isConnected` FIRST, and it is not defensive noise. The drawer, the sheet
+  // and the dialog stay in the document and lose `data-open` when they close;
+  // a migrated screen is UNMOUNTED instead, and a detached node keeps every
+  // attribute it had. Reading the attribute alone, the stack held a layer that
+  // was open forever, nothing was ever unwound, and focus stayed where the
+  // vanished screen had left it — on `<body>`.
+  return node.isConnected && node.hasAttribute("data-open");
 }
 
 function openLayers(): Element[] {
-  return LAYERS.map((selector) => document.querySelector(selector))
-    .filter((node): node is Element => Boolean(node) && isOpen(node as Element));
+  // `querySelectorAll`, because a selector here can match several elements:
+  // the legacy screen and every migrated one answer to the same part.
+  return LAYERS.flatMap((selector) =>
+    [...document.querySelectorAll(selector)].filter(isOpen),
+  );
 }
 
 /**
@@ -113,7 +134,18 @@ function reconcile(): void {
   if (unwinding && !top) setBackgroundInert(null);
   while (stack.length && !isOpen(stack[stack.length - 1].layer)) {
     const closed = stack.pop() as Restore;
-    if (!open.length && closed.trigger?.isConnected) closed.trigger.focus();
+    if (open.length) continue;
+    // THE TRIGGER MAY NOT EXIST ANY MORE, and for a screen it usually does not:
+    // it was a poster in the library, and closing the screen re-renders the
+    // list, so the node that was clicked is replaced by an equal-looking new
+    // one. Focusing a detached element does nothing, so the caret would stay on
+    // `<body>` — the very outcome this whole module exists to prevent, arrived
+    // at by a different road than the `inert` one.
+    //
+    // The fallback is the main region rather than nothing: the reader lands
+    // back in the content they came from instead of at the top of the document.
+    if (closed.trigger?.isConnected) closed.trigger.focus();
+    else document.getElementById("port")?.focus();
   }
 
   if (!top) {
@@ -175,12 +207,21 @@ export function installFocusManager(): void {
     "keydown",
     (event) => {
       if (event.key !== "Escape") return;
-      if (!openLayers().length) return;
+      const open = openLayers();
+      if (!open.length) return;
       event.preventDefault();
-      // The verb the engine already publishes, and the ladder it already
-      // unwinds — drawer, then screen, then sheet. Writing a second closer here
-      // would give the interface two answers to one gesture.
-      window.__closeLayers?.();
+      // TWO VERBS, because the layers close two different ways and pretending
+      // otherwise leaves one of them stuck. `__closeLayers` closes the dialog,
+      // the sheet and the drawer — the three the scrim covers — and it
+      // deliberately does not close a SCREEN: a screen is a history entry, and
+      // what closes one is a back. Sending Escape to `__closeLayers` on a
+      // screen did nothing at all, silently, with the background still inert.
+      //
+      // Both verbs are the ones the interface already has. Nothing new is
+      // written here: a second closer would give one gesture two answers.
+      const top = open[open.length - 1];
+      if (top.matches('[data-part="screen"]')) window.__bridge?.back();
+      else window.__closeLayers?.();
     },
     true,
   );

@@ -35,6 +35,12 @@ from playwright.async_api import async_playwright
 LAYERS = (
     ("drawer", '[data-drawer="1"]', "#drawer"),
     ("sheet", '[data-sheet="utilisateur"]', "#sheet"),
+    # A MIGRATED SCREEN, and it is here because leaving it out is exactly
+    # how the manager shipped blind to five of its six layers: there is one
+    # legacy screen carrying `id="screen"` and five React ones carrying no
+    # id at all, so a rule that only drove the drawer and the sheet was
+    # green over a manager selecting `#screen`.
+    ("screen", '[data-mediasheet]', '[data-part="screen"][data-open]'),
 )
 
 # Where the tab order must stop while a layer is up. `#port` is the main region
@@ -62,9 +68,16 @@ SURFACES = """()=>{
   return [all.length,
     all.filter((node)=>node.getAttribute('role') === 'alert').length];}"""
 
-TRIGGER_HAS_FOCUS = """(selector)=>{
+# Where focus must be once a layer has closed: on the control that opened it,
+# or — when closing the layer re-rendered that control out of existence, which
+# is what happens to a poster behind a screen — on the main region. Never on
+# `<body>`, which is the caret being dropped.
+RESTORED = """(selector)=>{
   const trigger = document.querySelector(selector);
-  return Boolean(trigger && document.activeElement === trigger);}"""
+  const active = document.activeElement;
+  if (trigger && active === trigger) return "the trigger";
+  if (active && active.id === "port") return "the main region (trigger re-rendered)";
+  return active ? (active.id || active.tagName) : "nothing";}"""
 
 
 async def main():
@@ -95,10 +108,11 @@ async def main():
                 f"closing the {name} gives the background back",
                 not closed["backgroundInert"],
                 f"{BACKGROUND} inert: {closed['backgroundInert']}")
+            landed_on = await page.evaluate(RESTORED, opener)
             journal.check(
-                f"closing the {name} returns focus to the control that opened it",
-                await page.evaluate(TRIGGER_HAS_FOCUS, opener),
-                f"active: {closed['active']}")
+                f"closing the {name} puts focus back somewhere the reader was",
+                landed_on.startswith("the "),
+                f"focus went to {landed_on}")
 
         # THE SKIP LINK, on a FRESH PAGE, which is also how a reader meets it.
         #
