@@ -966,18 +966,30 @@ The style class STAYS beside it — `className="ctitle" data-part="card/title"` 
 class still styles, and L07 removes it. Keeping both is not duplication: it is the
 separation L02 exists to create.
 
-**Seven boolean state attributes, no value**: `data-open`, `data-no-poster`,
-`data-empty`, `data-blocked`, `data-announced`, `data-in-library`, `data-shown`.
+**Boolean state attributes carry no value, and the list is DERIVED, not
+enumerated.** An attribute is one when the harness asks whether it is THERE —
+`[data-open]`, `hasAttribute('data-open')` — and never what it says. Twenty-four
+qualify today: `data-announced`, `data-blocked`, `data-clearq`, `data-confirmadd`,
+`data-delsel`, `data-drawer`, `data-edited`, `data-empty`, `data-in-library`,
+`data-leave`, `data-manual`, `data-mono`, `data-no-poster`, `data-open`,
+`data-qsettings`, `data-read-only`, `data-resolve`, `data-restart`, `data-save`,
+`data-scroll-root`, `data-shown`, `data-skeleton`, `data-solid`, `data-sort`. Do not
+maintain that list by hand — `check-markup-contracts.py` prints what it derived on
+every run. It was a hand-written tuple of SEVEN for one wave, and twelve shipped.
 
 **In a component, a state attribute is `data-open={isOpen || undefined}` — never
 `data-open={isOpen}`.** React renders `data-*` as strings, so `false` becomes the
 string `"false"` and `[data-open]` then matches ALWAYS: a rule goes green while it
-measures nothing. The trap is not a remembered convention — `harness/attrs.py` will
-demonstrate it in the live document, and until that rule exists this paragraph is a
-belief, not a proof.
+measures nothing. The trap is not a remembered convention — `harness/attrs.py`
+demonstrates it in the live document, rule 51 of the suite, and ARM 4 of
+`check-markup-contracts.py` refuses the spelling that falls into it.
 
-A `data-part` VALUE is a name someone chose, so `scripts/check-no-french.py` will
-read it — it is not an address like `data-go="profil"`, which the guard leaves alone.
+A NAMING attribute's VALUE is a name someone chose, so `scripts/check-no-french.py`
+reads it — 484 values today, through `nofrench_values.py`. Five attributes qualify
+(`markup_text.NAMING_ATTRIBUTES`: `data-part`, `data-region`, `data-tone`,
+`data-action`, `data-side`), and the markup guard reads the SAME list to hold a
+different question — every value a rule selects is emitted somewhere. An ADDRESS is
+not a name: `data-go="profil"` names a page, and the guards leave it alone.
 
 **An emission may be imperative.** Most parts are anchored in markup — `class="ep"
 data-part="episode"` — but an element the engine BUILDS carries no markup literal:
@@ -988,9 +1000,11 @@ value is unread in every form, so a computed class is anchored with a literal `d
 the same site.
 
 **The floor is a HARD ZERO, not a burn-down.** `scripts/check-markup-contracts.py`
-refuses the FIRST class token in any rule selector — passed to `querySelector` or held
-in a variable, a table, a concatenation — and the first `classList.contains` on one of
-the seven migrated states. There is no baseline file, no budget and no
+refuses the FIRST class token in any rule selector — passed to `querySelector`, held
+in a variable, a table, a concatenation, or READ from the class attribute without a
+selector at all (`className.includes('x')`, a regex of class names, a table matched
+against a spread `classList`, an injected CSS rule) — and the first
+`classList.contains` at a site `GENRE_SITES` does not exempt, by `file:line`. There is no baseline file, no budget and no
 `--allow-additions`: the guard takes no argument at all. The shipped debt was carried by
 a burn-down list while it was being migrated, and list, ratchet and escape hatch were
 deleted in the same move as the last entry — an empty tolerance is a tolerance someone

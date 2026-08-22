@@ -229,6 +229,16 @@ create.
 Boolean attributes, no value: `data-open`, `data-no-poster`, `data-empty`, `data-blocked`,
 `data-announced`, `data-in-library`, `data-shown`.
 
+> **Amended in 6.6 — 2026-08-22.** Seven was what this section listed and TWELVE shipped:
+> `data-edited`, `data-mono`, `data-solid`, `data-read-only` and `data-skeleton` were coined
+> by the wave, selected by presence from five rules, and read by the React-trap arm never —
+> its corpus was a hard-coded tuple of these seven names. The arm's corpus is **derived** now,
+> and the list above is a snapshot rather than a definition: an attribute is a boolean state
+> when the harness asks whether it is THERE (`[data-x]`, `hasAttribute('data-x')`) and never
+> what it says, in a selector or through `element.dataset.x`. Twenty-four qualify today and
+> `check-markup-contracts.py` prints what it derived on every run. The lesson is the one this
+> lot keeps paying: a corpus written by hand certifies the moment it was typed.
+
 ```js
 document.querySelector('[data-part="sheet"][data-open]')   // selection
 el.hasAttribute('data-open')                               // assertion
@@ -278,6 +288,16 @@ The five stay because the assertion's SUBJECT is the applied style. Moving them 
 would make them true even after the style class is gone — the rule would measure less than it does
 today, which is the opposite of the point.
 
+> **Amended in 6.6 — 2026-08-22.** The exemption is keyed on the SITE now (`file:line class`),
+> not on the class name, and each site carries the reason that is true THERE. One sentence
+> covered five names; it read true of three sites and false of two. `machine.py:172-173` used
+> `flux` and `h2` to walk siblings and find which one is the flux list — pure structure, with
+> `[data-part="flux"]` and `[data-part="heading"]` both emitted and both selected by that same
+> file — and it was exempt under a reason that describes a geometry rule two files over. Those
+> two sites moved to `matches('[data-part=…]')`; three remain, in `markup_anchors.GENRE_SITES`.
+> A `classList.contains` at a site nobody declared is now REFUSED rather than warned about: a
+> warning is not a floor.
+
 Leaving the 61 behind was the alternative and it is worse than doing nothing: `.screen.open`
 forces `data-open` to exist anyway for the selection side, so 54 assertions would go on reading
 the class next to it. **One state, two sources of truth, free to diverge** — the three-ends defect,
@@ -298,6 +318,16 @@ What the arm reads and refuses:
 | --- | --- |
 | a selector anchored on a CSS class | the string argument of `querySelector(All)` / `locator` / `matches` in `harness/*.py` |
 | `classList.contains('<state>')` for any of the 7 migrated states | `harness/*.py` |
+
+> **Amended in 6.6 — 2026-08-22.** Those two refusals name FOUR syntactic positions a class
+> name can occupy, and there is a fifth: a rule can read the class ATTRIBUTE and decide on a
+> name it finds there, without ever writing a selector. Six shapes —
+> `className.includes('x')`, `className.split(' ').includes('x')`,
+> `className.replace('x ', '')`, `className === 'x'`, a regex of class names `.test`ed against
+> `className`, a table matched against a spread `classList`, and a CSS rule the harness
+> INJECTS. Eleven live sites, four of them on lines this lot's own migration had rewritten:
+> the selector beside them moved to `data-part` while the class read stayed, inches away. Both
+> readers learn the position, and the floor covers it.
 | a `data-part` value the harness selects and no source emits | selection ⇒ emission, the three-ends defect |
 | `data-<state>={x}` written without `\|\| undefined` | the components, for the React trap above |
 

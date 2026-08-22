@@ -192,8 +192,15 @@ nowhere is part of the gate this wave closes on.
 **What.** The 22 `pg.screenshot(path="…")` calls in eleven rule files now go through one helper,
 `common.shot(pg, name)`, which writes under `frontend/maquette/harness/__screenshots__/`. Every
 capture was renamed in English as `<rule>-<what>`; the directory is ignored by the repository's own
-`.gitignore`, and the two rules `/trailers_cache.json` and `/youtube_quota.json` went with it —
-`trailers.state_file` is anchored under `paths.data_dir`, so nothing writes those at the root.
+`.gitignore`.
+
+**Corrected in 6.6.** That commit also removed `/trailers_cache.json` and `/youtube_quota.json`,
+on the reasoning that `trailers.state_file` is anchored under `paths.data_dir`. It is anchored
+there by DEFAULT and the field is `str | None`: `orchestrator.py:754` resolves
+`cache_dir = Path(config.trailers.state_file).parent`, so a config that sets it relative resolves
+the parent to the CWD and both files land at the repository root — which is what the comment those
+two lines carried says, and it is still true. The lines are back, and nothing about this
+sub-phase's own change motivated their removal.
 
 **Why.** A path relative to the caller lands wherever the caller stands, and every proof here runs
 from the repository root: 127 `.png` files had accumulated there, unseen because a blanket `*.png`
@@ -203,3 +210,67 @@ ignores them all. It is the lesson `audit.py` already carries for `violations.js
 after a full suite run `ls *.png | wc -l` at the root reads `0` and
 `ls frontend/maquette/harness/__screenshots__ | wc -l` reads `126` (19 fixed + 16 `scen` + 8 `sweep`
 + 83 `states`).
+
+---
+
+## Sub-phase 6.6 — the adversarial review's findings, each mutated before it was fixed
+
+**What.** Thirteen findings from the review of `c0b4f213..c9e19d3a`, in four blocks. Every one was
+mutated RED first — the mutation run, its output kept — then fixed, then mutated again.
+
+**The readers learn a FIFTH syntactic position.** Both of them knew four places a class name can
+occupy; a rule can also read the class ATTRIBUTE and decide on a name it finds there, with no
+selector anywhere. Six shapes — `className.includes('x')`, `className.split(' ').includes('x')`,
+`className.replace('x ', '')`, `className === 'x'`, a regex of class names `.test`ed against
+`className`, a table matched against a spread `classList`, and a CSS rule the harness INJECTS.
+Eleven live sites, and four of them sat on lines this lot's own migration had rewritten. Tested
+with a planted fixture per shape, RED before the arm existed.
+
+**Every one of the eleven is anchored on what the markup emits.** `pop.py` on
+`data-in-library` / `data-announced` (« missing » is the absence of both, which is WIDER than the
+class `to_grab`: the component also renders `pending` and `acquiring`, and both are aired and not
+owned, which is what the hold asks about). Eleven chip emitters, seven of which carry a tone, now
+emit `data-tone` from the SAME expression as the class, and `machine.py` reads
+`badge.dataset.tone`. `library_sort.py` reads `data-tone === 'primary'`. `machine.py`'s sibling
+walk is `matches('[data-part="flux"]')` / `[data-part="heading"]`. `content.py`'s injected clamp
+selects `[data-part="card/overview"]`, and ARM 3 learns to read injected rules — no other
+extraction can reach one, because a rule text carries unbalanced braces. `surfaces.py` derives its
+episode states from the two attributes.
+
+**The twelve-token class regex in `dest.py` and `audit.py` is DELETED, not translated.** Measured:
+neutralised whole, both counts stay at 0, because every control it named now carries a `data-part`
+and the `Object.keys(dataset).length === 0` filter above it already clears them. The review
+expected the count to rise at L07; it does not rise even with the regex gone today.
+
+**The genre exemption is keyed on the SITE.** One sentence covered five names, read true of three
+sites and false of two. `machine.py:172-173` used `flux` and `h2` for structure. Three sites
+remain, each with its own reason; a `contains` at an undeclared site is now refused rather than
+warned about.
+
+**ARM 4's corpus is DERIVED.** A tuple of seven names, twelve shipped; the five it missed were
+selected by presence from five rules. It is now every `data-*` the harness selects by PRESENCE and
+never compares the value of — 24 attributes, 14 writes, both printed.
+
+**ARM 3 holds every NAMING attribute**, not `data-part` alone, and the list is declared once in
+`markup_text` because the French guard asks a different question of the same set. Widening it to
+every valued `data-*` was measured and refused: 44 false findings, all addresses emitted from a
+computed expression.
+
+**The French guard's value arm learns the two imperative spellings** — three values were read by
+nothing — and gains `data-tone`, `data-action`, `data-side`: 463 examined becomes 484. One word,
+`resume`, was owed to the vocabulary.
+
+**Five modules split out**, because the file that was to receive these arms stood at 985 non-blank
+lines against a 1 000 ceiling: arm 7 (its two halves ask one question of the same markup), arm 9
+(its corpus is the shell), arm 10 (the one oracle from outside this repository), ARM 4 of the
+markup guard, and the classifier's own mirrored readers.
+`python3 scripts/check-module-size.py --root scripts` is CLEAN, where it warned before this
+sub-phase started.
+
+**The proofs.** `check-markup-contracts.py` → exit 0 over 52 rule files, 0 class-anchored
+selections, 0 class names read from the attribute, 3 genre sites exempt, 696 naming-attribute
+selections against 26 emission sites, 14 state writes over 24 derived attributes.
+`classify-rule-anchors.py --tokens` → 0 class token occurrences total.
+`check-no-french.py` → exit 0, 14 arms, 484 `data-part` values.
+`oracle.py --check` → no divergence. `harness-hold-counts.py --compare` →
+`0 rule(s) changed hold count`.
