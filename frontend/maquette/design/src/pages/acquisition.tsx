@@ -23,13 +23,9 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Icon } from "../components/icon";
-import type { Follow, QueueCard } from "../data";
-import {
-  useReference,
-  useStoreContent,
-  useUiState,
-  writeUiState,
-} from "../data";
+import { useAcquisitionReference, type Follow } from "../features/acquisition/reference";
+import { type QueueCard } from "../lib/engine-queue";
+import { useStoreContent, useUiState, writeUiState } from "../lib/store-access";
 
 // The swipe action a follow that can be searched again reveals. It is a
 // data-ATTRIBUTE VALUE the document-level delegation dispatches on — a contract
@@ -41,7 +37,11 @@ const SEARCH_AGAIN = "chercher"; // french-ok: a data-attribute value, a contrac
 function AcquisitionTabs(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const { icons, derivedTakeable, derivedBlocked } = useReference();
+  const {
+    icons,
+    derivedTakeable,
+    derivedBlocked,
+  } = useAcquisitionReference();
   const tabs = [
     {
       id: "now",
@@ -95,7 +95,7 @@ function NowTab(): ReactElement {
     derivedNotfound,
     derivedDoneToday,
     derivedStuck,
-  } = useReference();
+  } = useAcquisitionReference();
 
   if (state.phase !== "ready") {
     return (
@@ -255,7 +255,7 @@ function FollowsTab(): ReactElement {
     GROUPS,
     CADENCE_CRON,
     derivedFollows,
-  } = useReference();
+  } = useAcquisitionReference();
 
   const follows = derivedFollows();
   const pills = [
@@ -588,7 +588,7 @@ function DiscoverTab(): ReactElement {
     sugFoot,
     mountDeck,
     deckHTML,
-  } = useReference();
+  } = useAcquisitionReference();
 
   // THE FRAGMENT FILLS WHAT THIS DRAWS, and it has to be asked AFTER the
   // drawing: `render()` calls the same verbs, but it calls them before React

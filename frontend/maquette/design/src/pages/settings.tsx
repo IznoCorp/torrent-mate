@@ -29,8 +29,8 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../components/icon";
-import type { Setting, SettingsTopic } from "../data";
-import { useReference, useStoreContent } from "../data";
+import { useSettingsReference, type Setting, type SettingsTopic } from "../features/settings/reference";
+import { useStoreContent } from "../lib/store-access";
 import { settingLabel } from "../settings-labels";
 
 // The pending-edit marker and the row's own identity live on the same element:
@@ -42,8 +42,12 @@ function SettingRow({
   setting: Setting;
   withFile?: boolean;
 }): ReactElement {
-  const { SETTINGS_STATE, settingId, displayedValue, fileName } =
-    useReference();
+  const {
+    SETTINGS_STATE,
+    settingId,
+    displayedValue,
+    fileName,
+  } = useSettingsReference();
   const identity = settingId(setting);
   const edited = SETTINGS_STATE.modifs.has(identity);
   // `withFile` is false when a group header already names the file: repeating it
@@ -68,7 +72,7 @@ function SettingRow({
 }
 
 function SearchField(): ReactElement {
-  const { SETTINGS_STATE, icons } = useReference();
+  const { SETTINGS_STATE, icons } = useSettingsReference();
   const { t } = useTranslation();
   return (
     <div className="search" style={{ marginBottom: 12 }}>
@@ -99,7 +103,11 @@ function SearchField(): ReactElement {
 // save. Its host is `#device`, a sibling of the page's own container, so this
 // page has a second portal: the one piece of it that renders outside its host.
 function SaveBar(): ReactElement | null {
-  const { SETTINGS_STATE, changedFiles, fileName } = useReference();
+  const {
+    SETTINGS_STATE,
+    changedFiles,
+    fileName,
+  } = useSettingsReference();
   const { t } = useTranslation();
   const pending = SETTINGS_STATE.modifs.size;
   if (pending === 0) return null;
@@ -172,7 +180,7 @@ export function SettingsPage(): ReactElement | null {
     chipHTML,
     allSettings,
     changedFiles,
-  } = useReference();
+  } = useSettingsReference();
 
   if (SETTINGS_STATE.topic === "secrets") {
     return (

@@ -49,7 +49,7 @@ import { refuseBlock, type PanelDescriptor } from "./ui/panel/contract";
 // a legacy producer through `window.__panel`, never by a component holding a
 // reference to the block — so the boot is where they have to be named, and
 // `app/` naming what a feature contributes at boot is exactly its job.
-import "./features/acquisition/panel-seasons";
+import "./features/media/panel-seasons";
 import "./features/settings/panel-field";
 import { AddScreen } from "./screens/add";
 import { MediaScreen } from "./screens/media";

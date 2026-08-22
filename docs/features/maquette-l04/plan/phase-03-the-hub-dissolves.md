@@ -10,22 +10,26 @@ is the instruction: « `data.ts` is not slimmed, it stops existing. »
 | Part                                                                                    | Size                        | Goes to                                              |
 | --------------------------------------------------------------------------------------- | --------------------------- | ---------------------------------------------------- |
 | Store access — `useStoreContent`, `useUiState`, `useWorld`, `writeUiState`, `subscribe` | ~25 lines                   | `lib/store-access.ts` — domain-free, renders nothing |
-| ~30 domain type declarations — `Follow`, `LibraryRow`, `Setting`, `PendingDecision`, …  | ~190 lines                  | their feature's `model.ts`                           |
+| ~30 domain type declarations — `Follow`, `LibraryRow`, `Setting`, `PendingDecision`, …  | ~190 lines                  | their feature's `reference.ts`, beside the members that name them                           |
 | `type Reference` + `useReference()` + the `Window` declaration                          | ~340 lines, **108 members** | cut below                                            |
 
 ## How the 108 members are cut
 
-Measured by regexing each member name over every module and grouping modules by feature:
+Measured by matching each member name over every module WITH COMMENTS STRIPPED, and
+grouping modules by feature. The stripping is not a detail: a first reader counted
+`actionResolve`, `actionLeave` and `secHTML` as read because they are NAMED in comments,
+and putting three live-looking members into a slice nobody reads is the small end of the
+same mistake that would have deleted a used one. Two readers were run and crossed.
 
 | Bucket                                                             | Count                                                                                                                                                                                                        | Destination                                                                                                           |
 | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
 | Read by exactly **one** feature                                    | **73**                                                                                                                                                                                                       | that feature's own slice + accessor                                                                                   |
-| Read by **no component at all** (engine-only)                      | **7** — `PENDING_DECISIONS`, `RECENT`, `SYNOPSIS`, `actionTake`, `factsListHTML`, `skelCards`, `surfErr`                                                                                                     | **deleted from the type**                                                                                             |
+| Read by **no component at all** (engine-only)                      | **10** — `PENDING_DECISIONS`, `RECENT`, `SYNOPSIS`, `actionTake`, `actionResolve`, `actionLeave`, `factsListHTML`, `secHTML`, `skelCards`, `surfErr`                                                                                                     | **deleted from the type**                                                                                             |
 | Shared, and **not domain** — drawing plumbing the engine publishes | `escapeHtml`, `svgIcon`, `icons`, `emptyInner`, `surfErrInner`, `skelCardsInner`, `factRowsHTML`, `cardHTML`, `tileHTML`, `secInner`, `render`, `toast`, `initials`, `baseTitle`, `posterBox`, `paintSelBar` | `lib/engine-drawing.ts` — returns strings, knows no domain, exempt from the fan-in ceiling by the guard's own wording |
 | Shared with the panel, **dissolved by phase 2**                    | 8 — `seasonsOf`, `ownedFor`, `sheetFor`, `EP_LABEL`, `POSTERS`, `TODAY`, `settingId`, `fileName`                                                                                                             | the feature that took the block                                                                                       |
 | Genuinely shared between two domains                               | the remainder                                                                                                                                                                                                | **arbitrated one by one, and each arbitration recorded in this file as the phase runs**                               |
 
-**Deleting the 7 engine-only members is not a cleanup taken in passing.** They are members of a
+**Deleting the 10 engine-only members is not a cleanup taken in passing.** They are members of a
 TYPE describing a runtime object; the object keeps publishing them, and the engine keeps using
 them. Removing them from the type removes a claim no component makes — and `tsc` proves the
 removal is safe, because a reading site would fail.

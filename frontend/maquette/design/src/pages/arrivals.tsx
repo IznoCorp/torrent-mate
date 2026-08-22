@@ -25,8 +25,9 @@
 // all.
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
-import type { PipelineFact, QueueCard } from "../data";
-import { useReference, useUiState } from "../data";
+import { useArrivalsReference, type PipelineFact } from "../features/arrivals/reference";
+import { type QueueCard } from "../lib/engine-queue";
+import { useUiState } from "../lib/store-access";
 
 // The nine steps, told as the last run left them. A step with nothing recorded
 // at all reads « rien à faire »; a step that BLOCKED something says so and
@@ -64,7 +65,7 @@ function lastRunRows(
 function PipelineBar(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const { PIPELINE } = useReference();
+  const { PIPELINE } = useArrivalsReference();
 
   if (state.pipe === "running" || state.pipe === "queued") {
     const step = PIPELINE.steps[3];
@@ -136,7 +137,7 @@ function PipelineBar(): ReactElement {
 // recorded; nothing here is derived from what the page shows.
 function LastRun(): ReactElement {
   const { t } = useTranslation();
-  const { PIPELINE, factRowsHTML } = useReference();
+  const { PIPELINE, factRowsHTML } = useArrivalsReference();
   const run = PIPELINE.last;
   return (
     <section className="sec" data-part="section">
@@ -178,7 +179,7 @@ export function ArrivalsPage(): ReactElement | null {
     derivedStuck,
     derivedMoving,
     derivedSettled,
-  } = useReference();
+  } = useArrivalsReference();
 
   if (state.phase !== "ready") {
     // Each emits ONE root element, and this draws that element itself so no

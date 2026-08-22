@@ -16,7 +16,7 @@
 // this screen leans on, exactly as `media.tsx` and `profile.tsx`.
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { useReference } from "../data";
+import { useReleasesReference } from "../features/releases/reference";
 
 // Same helper as `media.tsx`'s, `profile.tsx`'s and `add.tsx`'s, still not
 // shared: the extraction those files' comments call for is a follow-up of
@@ -41,7 +41,11 @@ export function ReleasesScreen() {
   // Defensive: `__screens.releases` already normalises on write, but an entry
   // reached by a typed/bookmarked URL did not necessarily go through it.
   const title = raw.normalize("NFC");
-  const { icons, baseTitle, RELEASES } = useReference();
+  const {
+    icons,
+    baseTitle,
+    RELEASES,
+  } = useReleasesReference();
   const { t } = useTranslation();
 
   return (

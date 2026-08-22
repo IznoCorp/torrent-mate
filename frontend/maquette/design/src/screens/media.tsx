@@ -24,12 +24,11 @@
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import {
-  useStoreContent,
-  useWorld,
-  useReference,
+  useMediaReference,
+  type MediaReference,
   type MediaSheet,
-  type Reference,
-} from "../data";
+} from "../features/media/reference";
+import { useStoreContent, useWorld } from "../lib/store-access";
 
 // The exact shape `svgIcon(paths, strokeWidth)` produced as an HTML string —
 // rebuilt as a real element so it composes with JSX. Same helper as
@@ -102,7 +101,13 @@ function SeasonList({
   catalog: CatalogSeason[];
   title: string;
 }) {
-  const { ownedFor, plages, dateFR, EP_LABEL, TODAY } = useReference();
+  const {
+    ownedFor,
+    plages,
+    dateFR,
+    EP_LABEL,
+    TODAY,
+  } = useMediaReference();
   const { t } = useTranslation();
   const eps = sheet?.eps ?? {};
   const rows: SeasonRow[] = owns
@@ -312,7 +317,7 @@ function SeasonList({
 // The banner prefers the wide visual; the vertical poster is only a fallback,
 // and nothing at all when there is neither — same resolution order as the
 // legacy sheet, base title included.
-function artworkFor(reference: Reference, title: string): string | null {
+function artworkFor(reference: MediaReference, title: string): string | null {
   const { HERO_IMAGES, POSTERS, baseTitle } = reference;
   return (
     HERO_IMAGES[title] ??
@@ -337,7 +342,7 @@ export function MediaScreen() {
   useStoreContent((c) => c.version);
   const world = useWorld() as { follows?: Follow[] } | null;
   const follows = world?.follows ?? [];
-  const reference = useReference();
+  const reference = useMediaReference();
   const { t } = useTranslation();
   const {
     icons,

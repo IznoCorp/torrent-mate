@@ -41,7 +41,7 @@
 import { useLayoutEffect, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
 import { createPortal, flushSync } from "react-dom";
-import { useUiState } from "../data";
+import { useUiState } from "../lib/store-access";
 import { AccountPage } from "./account";
 import { AcquisitionPage } from "./acquisition";
 import { ArrivalsPage } from "./arrivals";

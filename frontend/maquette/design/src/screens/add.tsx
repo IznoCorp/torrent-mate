@@ -40,12 +40,8 @@ import { useTranslation } from "react-i18next";
 // no top-level side effect that could observe shell.tsx mid-evaluation.
 import { Icon } from "../components/icon";
 import { go } from "../lib/navigate";
-import {
-  writeUiState,
-  useStoreContent,
-  useUiState,
-  useReference,
-} from "../data";
+import { useAcquisitionReference } from "../features/acquisition/reference";
+import { useStoreContent, useUiState, writeUiState } from "../lib/store-access";
 
 type Mode = "follow" | "identify";
 
@@ -72,8 +68,14 @@ export function AddScreen() {
   const added = state.added as Set<number>;
   const resolveTarget = state.resolveTarget as string | null;
 
-  const { icons, baseTitle, SEARCH, cardHTML, addVerb, render } =
-    useReference();
+  const {
+    icons,
+    baseTitle,
+    SEARCH,
+    cardHTML,
+    addVerb,
+    render,
+  } = useAcquisitionReference();
   const { t } = useTranslation();
 
   function write(patch: Record<string, unknown>): void {

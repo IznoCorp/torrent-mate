@@ -18,8 +18,9 @@
 // list) — and the delegation is what writes them.
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
-import { useReference, useUiState } from "../data";
-import type { Fact } from "../data";
+import { useMaintenanceReference } from "../features/maintenance/reference";
+import { type Fact } from "../lib/engine-drawing";
+import { useUiState } from "../lib/store-access";
 
 export function MaintenancePage(): ReactElement | null {
   const state = useUiState();
@@ -32,7 +33,7 @@ export function MaintenancePage(): ReactElement | null {
     MAINT_ACTIONS,
     RISQUES,
     JOURNAL,
-  } = useReference();
+  } = useMaintenanceReference();
 
   if (state.phase !== "ready") {
     return state.phase === "error" ? (

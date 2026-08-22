@@ -22,13 +22,8 @@ import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Icon } from "../components/icon";
-import type { IncompleteShow, LibraryRow } from "../data";
-import {
-  useReference,
-  useStoreContent,
-  useUiState,
-  writeUiState,
-} from "../data";
+import { useLibraryReference, type IncompleteShow, type LibraryRow } from "../features/library/reference";
+import { useStoreContent, useUiState, writeUiState } from "../lib/store-access";
 
 // The three lenses, in the order the tab bar draws them. The count on
 // « Incomplets » is the drawing's own, exactly as the legacy hard-coded it.
@@ -37,7 +32,12 @@ const INCOMPLETE_COUNT = 47;
 function LibraryHead(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const { icons, CATS, LIB_PAGE, render } = useReference();
+  const {
+    icons,
+    CATS,
+    LIB_PAGE,
+    render,
+  } = useLibraryReference();
   const lenses = [
     { id: "cat", label: t("screens.library.lensMedia") },
     { id: "rec", label: t("screens.library.lensRecent") },
@@ -167,7 +167,7 @@ function LibraryHead(): ReactElement {
 function CountLine(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const { CATS, libFiltered } = useReference();
+  const { CATS, libFiltered } = useLibraryReference();
   const total = libFiltered().length;
   const shown = Math.min(state.libCount as number, total);
   const category = CATS.find((entry) => entry.id === state.libCat);
@@ -208,7 +208,7 @@ function CountLine(): ReactElement {
 function EmptyLibrary(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const { CATS } = useReference();
+  const { CATS } = useLibraryReference();
   const category = CATS.find((entry) => entry.id === state.libCat);
   const filter = category && category.of ? category.l.toLowerCase() : null;
   if ((state.q as string).trim() !== "") {
@@ -268,7 +268,7 @@ function LibraryList(): ReactElement {
     paintSelBar,
     libraryLoaded,
     LIB_PAGE,
-  } = useReference();
+  } = useLibraryReference();
   const footRef = useRef<HTMLDivElement | null>(null);
   const grid = state.libMode === "grid";
   const rows = libFiltered();
@@ -468,7 +468,11 @@ function LibraryList(): ReactElement {
 export function LibraryPage(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
-  const { INCOMPLETE, cardHTML, tileHTML } = useReference();
+  const {
+    INCOMPLETE,
+    cardHTML,
+    tileHTML,
+  } = useLibraryReference();
 
   if (state.libLens === "inc") {
     return (
@@ -584,7 +588,7 @@ export function LibraryPage(): ReactElement | null {
 // rather than restated here.
 function SortLabel(): ReactElement {
   const state = useUiState();
-  const { icons, TRIS } = useReference();
+  const { icons, TRIS } = useLibraryReference();
   const ways = TRIS[state.sortKey as string];
   return (
     <>

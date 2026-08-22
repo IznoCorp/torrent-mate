@@ -7,12 +7,13 @@
 // that exists would quietly turn a mistyped link into a different one.
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
-import { useReference, useUiState } from "../data";
+import { useEngineDrawing } from "../lib/engine-drawing";
+import { useUiState } from "../lib/store-access";
 
 export function NotFoundPage(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const { emptyInner, escapeHtml } = useReference();
+  const { emptyInner, escapeHtml } = useEngineDrawing();
   const asked = (state.notFound as string) || t("screens.notFound.bodyFallback");
   return (
     <>

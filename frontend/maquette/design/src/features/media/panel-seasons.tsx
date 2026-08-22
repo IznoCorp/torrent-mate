@@ -10,7 +10,7 @@
 // same tags, same classes, same `data-*`, so the document-level delegation
 // (`.ep[data-ep]`) keeps working unchanged.
 import { useTranslation } from "react-i18next";
-import { useReference, type Reference } from "../../data";
+import { useMediaReference, type MediaReference } from "./reference";
 import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
 
 // The slice of a "follow" record the season blocks read: `t` for lookups
@@ -19,7 +19,7 @@ import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
 // ever read, whatever else the caller's object carries.
 export type Follow = { t: string; st?: string };
 
-export type Season = ReturnType<Reference["seasonsOf"]>[number];
+export type Season = ReturnType<MediaReference["seasonsOf"]>[number];
 
 // The kind this file adds to the panel's block map. Declared here, beside what
 // draws it, so the two halves of the contract cannot drift apart.
@@ -59,7 +59,7 @@ type EpisodeCatalog = { n: number; air?: string | null }[];
 // at the end of the season — the same correction `epState` applies on the
 // media sheet.
 function epState(
-  reference: Reference,
+  reference: MediaReference,
   follow: Follow,
   seasonNum: number,
   number: number,
@@ -81,7 +81,7 @@ function epState(
 }
 
 function catalogFor(
-  reference: Reference,
+  reference: MediaReference,
   follow: Follow,
   number: number,
 ): EpisodeCatalog | null {
@@ -97,7 +97,7 @@ function SeasonDetails({
 }: {
   follow: Follow;
   season: Season;
-  reference: Reference;
+  reference: MediaReference;
 }) {
   const { t } = useTranslation();
   const [num, rawAired, owned] = season;
@@ -168,7 +168,7 @@ function SeasonsBlock({
 }: {
   block: { type: "saisons" } & PanelBlockMap["saisons"];
 }) {
-  const reference = useReference();
+  const reference = useMediaReference();
   const { isFollowed: follow, seasons: seasons } = block;
   const hasUpcoming = seasons.some((season) =>
     (catalogFor(reference, follow, season[0]) ?? []).some(

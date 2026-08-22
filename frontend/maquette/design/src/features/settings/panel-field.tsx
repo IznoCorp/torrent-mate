@@ -11,7 +11,8 @@
 // field alike, so a curated label cannot say one thing on a row and another
 // above it.
 import { useTranslation } from "react-i18next";
-import { useReference, type Setting } from "../../data";
+import { useSettingsReference, type Setting } from "./reference";
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { Icon } from "../../components/icon";
 import { settingLabel, unitOf } from "../../settings-labels";
 import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
@@ -46,8 +47,8 @@ function FieldBlock({
     typedValue,
     changeSetting,
     openSetting,
-    icons,
-  } = useReference();
+  } = useSettingsReference();
+  const { icons } = useEngineDrawing();
   const { t } = useTranslation();
   const { setting: setting } = block;
   const id = settingId(setting);

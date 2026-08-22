@@ -10,13 +10,8 @@
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { Icon } from "../components/icon";
-import {
-  writeUiState,
-  useUiState,
-  useReference,
-  type Release,
-  type Resolution,
-} from "../data";
+import { useReleasesReference, type Release, type Resolution } from "../features/releases/reference";
+import { useUiState, writeUiState } from "../lib/store-access";
 
 // The field names are the legacy state's own — `state.profil` is written and
 // read by the engine under these exact keys.
@@ -58,7 +53,13 @@ export function ProfileScreen() {
   const title = raw.normalize("NFC");
   const state = useUiState();
   const profile = state.profile as QualityProfile;
-  const { RELEASES, RESOLUTIONS, AUDIOS, icons, baseTitle } = useReference();
+  const {
+    RELEASES,
+    RESOLUTIONS,
+    AUDIOS,
+    icons,
+    baseTitle,
+  } = useReleasesReference();
   const { t } = useTranslation();
   const kept = countKept(profile, RELEASES);
 

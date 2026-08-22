@@ -22,7 +22,7 @@
 // component re-renders when the language changes.
 import { Fragment, type JSX } from "react";
 import { useTranslation } from "react-i18next";
-import { useReference } from "../../data";
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { Icon } from "../../components/icon";
 import {
   refuseBlock,
@@ -63,7 +63,12 @@ function Chip({ chip }: { chip: [string, string] | null | undefined }) {
 // `opts` — the panel head never asks for the `exact` (no base-title
 // fallback) variant.
 function Poster({ poster }: { poster: { t: string; k?: string } }) {
-  const { POSTERS, baseTitle, icons, initials } = useReference();
+  const {
+    POSTERS,
+    baseTitle,
+    icons,
+    initials,
+  } = useEngineDrawing();
   const src = POSTERS[poster.t] ?? POSTERS[baseTitle(poster.t)];
   if (src) return <img src={src} alt="" loading="lazy" />;
   const iconPath =

@@ -47,13 +47,9 @@ import { useTranslation } from "react-i18next";
 // dictionaries, and for the same reason — an index into a table is not a
 // sentence, and `t()` would only wrap the lookup in a second one.
 import fr from "../i18n/fr.json";
-import {
-  useStoreContent,
-  useReference,
-  type QueueCard,
-  type PendingDecision,
-  type SettledDecision,
-} from "../data";
+import { useArrivalsReference, type PendingDecision, type SettledDecision } from "../features/arrivals/reference";
+import { type QueueCard } from "../lib/engine-queue";
+import { useStoreContent } from "../lib/store-access";
 
 // Same helper as `media.tsx`'s, `profile.tsx`'s, `add.tsx`'s and
 // `releases.tsx`'s, still not shared: the extraction those files' comments
@@ -103,7 +99,7 @@ function ReleaseCard({
     overview?: string;
   };
 }) {
-  const { posterBox } = useReference();
+  const { posterBox } = useArrivalsReference();
   const { t } = useTranslation();
   return (
     <div className="card" data-part="card" data-nonmedia={opts.genre || "release"}>
@@ -175,7 +171,7 @@ function DecisionCard({ decision }: { decision: SettledDecision }) {
     REASON_TONE,
     REASON_LABEL,
     VIA_LABEL,
-  } = useReference();
+  } = useArrivalsReference();
   const settled = decision.state != null;
   const state = settled ? DECISION_STATE[decision.state] : null;
   const poster =
@@ -294,7 +290,7 @@ export function ResolutionScreen() {
     decisionPending,
     derivedBlocked,
     derivedStuck,
-  } = useReference();
+  } = useArrivalsReference();
   const { t } = useTranslation();
   // A folder either HAS a pending decision or it has none, and the screen must
   // not borrow one. Showing another folder's candidates would be the worst

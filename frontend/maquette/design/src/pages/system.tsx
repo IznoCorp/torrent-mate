@@ -18,8 +18,9 @@
 // itself, because React cannot set the outer markup of a node it also renders.
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
-import type { Fact } from "../data";
-import { useReference, useUiState } from "../data";
+import { useSystemReference } from "../features/system/reference";
+import { type Fact } from "../lib/engine-drawing";
+import { useUiState } from "../lib/store-access";
 
 export function SystemPage(): ReactElement | null {
   const state = useUiState();
@@ -37,7 +38,7 @@ export function SystemPage(): ReactElement | null {
     INDEX,
     DEPENDENCIES,
     ERRORS,
-  } = useReference();
+  } = useSystemReference();
 
   // The two non-ready surfaces, emitted by the fragment exactly as before. The
   // host element is the `div.body` the legacy returned, so what goes here is

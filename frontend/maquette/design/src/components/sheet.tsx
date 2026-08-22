@@ -17,7 +17,7 @@
 // both states on the same element, and the legacy `#sheetin` likewise kept its
 // content after closing.
 import { useLayoutEffect, useRef } from "react";
-import { useUiState } from "../data";
+import { useUiState } from "../lib/store-access";
 import { PanelContent } from "../ui/panel";
 import type { PanelDescriptor } from "../ui/panel/contract";
 

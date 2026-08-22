@@ -8,11 +8,13 @@
 // twice when it arrives.
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
-import { useReference } from "../data";
+import { useAccountReference } from "../features/account/reference";
+import { useEngineDrawing } from "../lib/engine-drawing";
 
 export function AccountPage(): ReactElement {
   const { t } = useTranslation();
-  const { factRowsHTML, emptyInner, ACCOUNT } = useReference();
+  const { ACCOUNT } = useAccountReference();
+  const { factRowsHTML, emptyInner } = useEngineDrawing();
   const facts = (rows: Parameters<typeof factRowsHTML>[0]) => (
     <ol
       className="flux" data-part="flux"

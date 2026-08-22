@@ -37,7 +37,7 @@ lot's starting line.
 | `Reference`, the hub's largest type                      | **340 lines**, **108 members**                                | bracket-match `export type Reference = {` and count top-level keys                                                       |
 | … of which read by exactly one prospective feature       | **73**                                                        | regex each member name over every module, group modules by prospective feature                                           |
 | … read by 2 to 6 features                                | **28**                                                        | same                                                                                                                     |
-| … read by no component at all (engine-only)              | **7**                                                         | same                                                                                                                     |
+| … read by no component at all (engine-only) | **10** | same, comments stripped — three of them (`actionResolve`, `actionLeave`, `secHTML`) are NAMED only inside comments, and a first reader counted that as a read |
 | … shared _with the panel_ — dissolved by decision D3     | **15 of the 28**                                              | same                                                                                                                     |
 | **Files ≥ 400 non-blank lines** (engine excluded)        | **8**                                                         | `grep -cve '^\s*$'` per `.ts`/`.tsx`/`.js`                                                                               |
 | **Files ≥ 250** (engine excluded)                        | **12**                                                        | same                                                                                                                     |
@@ -156,7 +156,7 @@ one is how a guard starts having a list).
 
 ### D-L04-4 — `data.ts` is cut for good, not moved
 
-**Decided:** the 73 single-owner members go to their feature; the 7 members no component reads are
+**Decided:** the 73 single-owner members go to their feature; the 10 members no component reads are
 **deleted from the type**; the drawing plumbing goes to `lib/`; the handful genuinely shared
 between two domains after D-L04-3 is arbitrated one by one and recorded in the plan. `data.ts`
 stops existing.

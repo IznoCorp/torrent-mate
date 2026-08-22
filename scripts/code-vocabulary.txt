@@ -195,6 +195,7 @@ dot
 down
 drag
 drawer
+drawing
 draws
 dry
 duration
