@@ -57,14 +57,24 @@ and no escape hatch: the burn-down that carried the shipped debt was
 emptied, and the machinery that held it was deleted in the same move
 rather than left behind as a tolerance someone could raise.
 
-ARM 3 — a `data-part` value the harness selects and no source emits.
-Two corpora, one question each side answers. The selection side is the
-harness (`frontend/maquette/harness/*.py`, the same set ARM 2 reads):
-every `[data-part="value"]` in a rule's selector — the three quote
-styles, a template literal's included. The emission side is the three
-sites that emit the attribute: `frontend/maquette/design/index.html`
-(the shell), `src/engine/legacy.js` (the engine) and every `.ts` /
-`.tsx` component.
+ARM 3 — a NAMING-attribute value the harness selects and no source
+emits. Two corpora, one question each side answers. The selection side
+is the harness (`frontend/maquette/harness/*.py`, the same set ARM 2
+reads): every `[data-part="value"]`, `[data-tone="danger"]`, … in a
+rule's selector — the three quote styles, a template literal's
+included. The emission side is the three sites that emit the attribute:
+`frontend/maquette/design/index.html` (the shell), `src/engine/legacy.js`
+(the engine) and every `.ts` / `.tsx` component.
+
+WHICH ATTRIBUTES: `markup_text.NAMING_ATTRIBUTES`, the same list the
+French guard reads, declared once so the two questions cannot end up
+asked of two different sets. `data-tone` was coined by one wave,
+selected WITH A VALUE at ten harness call sites, and was in neither —
+so a renamed tone would have left ten rules selecting nothing with no
+static refusal at all. Widening this arm to EVERY valued `data-*` was
+measured and refused: it reports 44 further selections as unemitted, and
+all 44 are addresses emitted from a computed expression, which names no
+literal to compare.
 
 AND THE SELECTION SIDE READS BOTH PLACES A SELECTOR LIVES. A selection
 PASSED — the literal argument of `querySelector` et al. — was for a
@@ -111,36 +121,6 @@ selector in `'…'` or in `\"\"\"…\"\"\"`, where nothing needs escaping.
 The comment mask runs first, exactly as it does for the values: a shape
 a COMMENT quotes is selected by nothing.
 
-ARM 4 — a boolean state attribute written as a bare value.
-Corpus: the components — every `.ts` and `.tsx` file under
-`frontend/maquette/design/src`, read as text.
-
-THE DEFECT CLASS, MEASURED, NOT BELIEVED. React renders the boolean
-`false` into an attribute as the STRING "false": the attribute is
-PRESENT, a presence selector such as `[data-open]` matches it ALWAYS,
-and a hold built on that selector stays green while the state it claims
-to read is never absent. harness/attrs.py demonstrated both halves in
-the live document — the string "false" renders, and the presence
-selector matches it. So the seven state attributes — data-open,
-data-no-poster, data-empty, data-blocked, data-announced,
-data-in-library, data-shown — must be written so a false state omits
-them. The accepted spellings are `data-open={x || undefined}`, or the
-equivalent `{x ? "" : undefined}` / `{x ? true : undefined}`: each
-reaches `undefined` when the boolean is false, and `undefined` is the
-value React omits from the markup. A bare `data-open={x}` is refused; a
-literal `data-open` with no braces is a constant attribute and fine.
-
-WHAT IT EXAMINES, AND WHY THE COUNT IS PRINTED. The arm reads every
-`data-<state>={…}` expression the components write, and prints how many
-it examined. That number is the point: the arm was VACUOUS for as long
-as no such attribute existed anywhere, and a green exit over zero
-attributes proves nothing about the rule — only that the corpus was
-empty. So the count is what tells a reader whether the green means
-anything, and the arm is proven by probe-mutation besides. attrs.py's
-holds first measured `aria-*` and `title` — the same passthrough, not
-the same attribute — and the real `data-open` was owed its own
-demonstration on the day it first existed; that gap is closed by
-re-measuring, never by analogy.
 
 THE PRECONDITION, AND IT IS NOT A FIFTH ARM. Before any arm reads the
 harness, every `frontend/maquette/harness/*.py` file is handed to the
@@ -183,9 +163,12 @@ from markup_anchors import (  # noqa: E402, F401
 )
 # The shared text readers — see that module's header.
 from markup_text import (  # noqa: E402
-    COMMENT, HARNESS, HTML_COMMENT, ROOT, SHELL, SOURCES, braced_expression,
-    comment_masked, parse_failures,
+    COMMENT, HARNESS, HTML_COMMENT, NAMING_ATTRIBUTES, ROOT, SHELL, SOURCES,
+    attribute_of, comment_masked, parse_failures,
 )
+# ARM 4, next door. Its corpus is DERIVED from what the harness selects by
+# presence — see that module's header for the seven-name tuple it replaced.
+from markup_states import check_state_attributes  # noqa: E402
 
 # `store.write({ pipe: closest.dataset.pipe })` — the handler that FORWARDS a
 # markup value into a store field. The two names differ often enough
@@ -209,43 +192,24 @@ IMPERATIVE_SET_ATTRIBUTE = re.compile(
     r"""\.setAttribute\(\s*["']data-(?P<attr>[a-z][\w-]*)["']\s*,\s*"""
     r"""["'](?P<value>[^"'${]+)["']\s*\)""")
 
-# `[data-part="card/title"]` in a rule's selector — the equality form in
-# its three quote styles. Only the equality form is read: a presence
-# selection `[data-part]` names no part, and this arm holds VALUES.
-PART_SELECTED = re.compile(
-    r"\[\s*data-part\s*=\s*(?:\"(?P<dq>[^\"]*)\"|"
-    r"'(?P<sq>[^']*)'|`(?P<bk>[^`]*)`)\s*\]")
+# `[data-part="card/title"]`, `[data-tone="danger"]` in a rule's selector
+# — the equality form, in its three quote styles, for every NAMING
+# attribute. Only the equality form is read: a presence selection
+# `[data-part]` names no value, and this arm holds VALUES.
+NAMED_SELECTED = re.compile(
+    r"\[\s*(?P<attr>" + "|".join(NAMING_ATTRIBUTES) + r")\s*=\s*"
+    r"""(?:\"(?P<dq>[^\"]*)\"|'(?P<sq>[^']*)'|`(?P<bk>[^`]*)`)\s*\]""")
 
 # `[data-part=` — a selection read from the RAW line, whatever quotes
-# follow. The point is to see the ones `PART_SELECTED` cannot: it is the
+# follow. The point is to see the ones `NAMED_SELECTED` cannot: it is the
 # other half of the count comparison, not a second reader of values.
-PART_MENTION = re.compile(r"\[\s*data-part\s*=")
+NAMED_MENTION = re.compile(
+    r"\[\s*(?:" + "|".join(NAMING_ATTRIBUTES) + r")\s*=")
 
 # `\"` or `\'` — a quote escaped because the string hosting it uses the
 # same delimiter. On a line carrying a `data-part` selection, this is the
 # shape the raw-text reader walks straight past.
 ESCAPED_QUOTE = re.compile(r"\\[\"']")
-
-# ---- ARM 4 constants ----------------------------------------------------
-
-# The seven boolean state attributes, the migration's destination for the
-# seven state classes of ARM 2 (open → data-open, noposter →
-# data-no-poster, fempty → data-empty, …). Class names and attribute
-# names differ on purpose: each side keeps its own naming.
-STATE_ATTRS = ("open", "no-poster", "empty", "blocked",
-               "announced", "in-library", "shown")
-
-# `data-open={` — a state attribute written from a braced JSX expression.
-# The literal attribute (no braces) is a constant and fine; the
-# expression is what the trap turns on.
-STATE_WRITTEN = re.compile(
-    "data-(?P<attr>" + "|".join(STATE_ATTRS) + r")\s*=\s*\{")
-
-# The three spellings that omit the attribute when the state is false, so
-# a presence selector never matches a false value. `undefined` (like
-# `null`) is the value React omits from the markup, and each tail reaches
-# it exactly when the boolean is false — the bare `{x}` reaches it never.
-OMITTING_TAILS = ("||undefined", "?\"\":undefined", "?true:undefined")
 
 
 def readers_of(field: str, sources: str) -> set[str]:
@@ -328,8 +292,8 @@ def check_forwarded_values() -> int:
     return 0
 
 
-def part_selections(path: Path) -> list[tuple[int, str]]:
-    """Extracts every literal `data-part` value one harness file selects.
+def named_selections(path: Path) -> list[tuple[int, str, str]]:
+    """Extracts every literal NAMING-attribute value one harness file selects.
 
     Reads the RAW selector — `selection_calls(..., strip=False)` — because
     a value built from a template interpolation is computed at run time:
@@ -340,18 +304,18 @@ def part_selections(path: Path) -> list[tuple[int, str]]:
         path: A Python file under `HARNESS`.
 
     Returns:
-        `(line, value)` tuples, in file order. A value carrying `${` is
-        skipped, not half-read; a presence selection `[data-part]` names
-        no value and is not returned.
+        `(line, attribute, value)` tuples, in file order. A value carrying
+        `${` is skipped, not half-read; a presence selection `[data-part]`
+        names no value and is not returned.
     """
-    found: list[tuple[int, str]] = []
+    found: list[tuple[int, str, str]] = []
     for line, _, selector in selection_calls(path, strip=False):
-        found.extend(part_values(line, selector))
+        found.extend(named_values(line, selector))
     return found
 
 
-def part_values(line: int, selector: str) -> list[tuple[int, str]]:
-    """Returns the literal `data-part` values one selector selects.
+def named_values(line: int, selector: str) -> list[tuple[int, str, str]]:
+    """Returns the literal naming-attribute values one selector selects.
 
     Args:
         line: The line the selector was read on, carried through so the
@@ -359,20 +323,22 @@ def part_values(line: int, selector: str) -> list[tuple[int, str]]:
         selector: One selector string, read raw.
 
     Returns:
-        `(line, value)` tuples, in reading order. A value carrying `${`
-        is computed and is skipped whole, not half-read.
+        `(line, attribute, value)` tuples, in reading order. A value
+        carrying `${` is computed and is skipped whole, not half-read.
     """
-    found: list[tuple[int, str]] = []
-    for match in PART_SELECTED.finditer(selector):
-        value = next(g for g in match.groups() if g is not None)
+    found: list[tuple[int, str, str]] = []
+    for match in NAMED_SELECTED.finditer(selector):
+        attribute = match.group("attr")
+        value = next(g for g in (match.group("dq"), match.group("sq"),
+                                 match.group("bk")) if g is not None)
         if "${" in value:
             continue
-        found.append((line, value))
+        found.append((line, attribute, value))
     return found
 
 
-def held_part_selections(path: Path) -> list[tuple[int, str]]:
-    """Extracts every `data-part` value one harness file HOLDS.
+def held_named_selections(path: Path) -> list[tuple[int, str, str]]:
+    """Extracts every naming-attribute value one harness file HOLDS.
 
     THE BLIND SPOT THIS CLOSES, and it is the anchor arm's, one attribute
     over. `part_selections` reads a selection only where it is the
@@ -391,11 +357,11 @@ def held_part_selections(path: Path) -> list[tuple[int, str]]:
         path: A Python file under `HARNESS`.
 
     Returns:
-        `(line, value)` tuples, in file order.
+        `(line, attribute, value)` tuples, in file order.
     """
-    found: list[tuple[int, str]] = []
+    found: list[tuple[int, str, str]] = []
     for line, content in held_literals(path):
-        found.extend(part_values(line, content))
+        found.extend(named_values(line, content))
     return found
 
 
@@ -418,21 +384,21 @@ def injected_rule_selections(path: Path) -> list[tuple[int, str]]:
         path: A Python file under `HARNESS`.
 
     Returns:
-        `(line, value)` tuples, in file order.
+        `(line, attribute, value)` tuples, in file order.
     """
     text = comment_masked(path.read_text(encoding="utf-8"))
-    found: list[tuple[int, str]] = []
+    found: list[tuple[int, str, str]] = []
     for match in INJECTED_RULE.finditer(text):
         css = match.group("css")
         if "{" not in css:
             continue
         line = text.count("\n", 0, match.start()) + 1
-        found.extend(part_values(line, css.split("{", 1)[0]))
+        found.extend(named_values(line, css.split("{", 1)[0]))
     return found
 
 
-def escaped_part_selections(path: Path) -> list[tuple[int, str]]:
-    """Returns every `data-part` selection line an escaped quote hides.
+def escaped_named_selections(path: Path) -> list[tuple[int, str]]:
+    """Returns every naming-attribute selection an escaped quote hides.
 
     THE CHOICE, AND WHY IT IS A REFUSAL RATHER THAN A DECODE. Reading the
     escaped shape would mean DECODING the Python literal that hosts it,
@@ -470,7 +436,7 @@ def escaped_part_selections(path: Path) -> list[tuple[int, str]]:
     text = comment_masked(path.read_text(encoding="utf-8"))
     found: list[tuple[int, str]] = []
     for number, line in enumerate(text.splitlines(), start=1):
-        if PART_MENTION.search(line) and ESCAPED_QUOTE.search(line):
+        if NAMED_MENTION.search(line) and ESCAPED_QUOTE.search(line):
             found.append((number, line.strip()))
     return found
 
@@ -488,8 +454,8 @@ def emission_files() -> list[Path]:
     return [SHELL, *files]
 
 
-def emitted_part_values(path: Path) -> set[str]:
-    """Returns every literal `data-part` value one emission site emits.
+def emitted_named_values(path: Path) -> dict[str, set[str]]:
+    """Returns every literal NAMING-attribute value one emission site emits.
 
     THREE SHAPES, because a node is not always written as markup. The
     attribute appears in markup or JSX as `data-part="value"`, and on an
@@ -508,24 +474,32 @@ def emitted_part_values(path: Path) -> set[str]:
         path: One emission site — `index.html` or a source file.
 
     Returns:
-        The literal values emitted, in any of the three shapes. A
-        computed value is not a literal and is not returned, whichever
-        shape carries it.
+        One set of literal values per naming attribute, keyed by the
+        attribute's full name. A computed value is not a literal and is
+        not returned, whichever shape carries it.
     """
     text = path.read_text(encoding="utf-8")
     if path.suffix == ".html":
         text = HTML_COMMENT.sub(" ", text)
     else:
         text = COMMENT.sub(" ", text)
+    wanted = {name.removeprefix("data-"): name for name in NAMING_ATTRIBUTES}
+    # `.dataset.readOnly` spells `data-read-only`; the imperative reader
+    # hands back the property name, so it is put back into its attribute
+    # spelling before the lookup.
+    found: dict[str, set[str]] = {name: set() for name in NAMING_ATTRIBUTES}
     readers = (EMITTED, IMPERATIVE_DATASET, IMPERATIVE_SET_ATTRIBUTE)
-    return {match.group("value").strip()
-            for reader in readers for match in reader.finditer(text)
-            if match.group("attr") == "part"}
+    for reader in readers:
+        for match in reader.finditer(text):
+            attribute = wanted.get(attribute_of(match.group("attr")))
+            if attribute is not None:
+                found[attribute].add(match.group("value").strip())
+    return found
 
 
-def check_part_values() -> int:
-    """Arm 3: refuses a selected `data-part` value no source emits, and a
-    selection this arm cannot read.
+def check_named_values() -> int:
+    """Arm 3: refuses a selected NAMING-attribute value no source emits,
+    and a selection this arm cannot read.
 
     The direction is ONE-WAY: every value a harness rule selects must be
     emitted somewhere — a selection no emission satisfies is a rule
@@ -536,7 +510,7 @@ def check_part_values() -> int:
     The second refusal guards the FIRST: a selection written with escaped
     quotes is invisible to a raw-text reader, so the arm would examine one
     fewer and print a number nobody could tell was short. See
-    `escaped_part_selections` for the shape and for why it is refused
+    `escaped_named_selections` for the shape and for why it is refused
     rather than decoded.
 
     Returns:
@@ -561,164 +535,59 @@ def check_part_values() -> int:
               "nothing", file=sys.stderr)
         return 1
 
-    emitted: set[str] = set()
+    emitted: dict[str, set[str]] = {name: set() for name in NAMING_ATTRIBUTES}
     for path in emission_paths:
-        emitted |= emitted_part_values(path)
+        for attribute, values in emitted_named_values(path).items():
+            emitted[attribute] |= values
 
     violations = 0
-    checked = 0
+    checked: dict[str, int] = {name: 0 for name in NAMING_ATTRIBUTES}
     held = 0
     for path in files:
         rel = str(path.relative_to(ROOT))
-        for line, source in escaped_part_selections(path):
+        for line, source in escaped_named_selections(path):
             violations += 1
-            print(f"  {rel}:{line}: {source!r} writes a `data-part` selection "
-                  "with an ESCAPED quote, and this arm reads the harness as "
-                  "RAW TEXT — a backslash where a quote is expected makes the "
-                  "selection invisible to it, so the arm would count one "
-                  "fewer and say nothing. Host the selector in `'…'` or in a "
-                  "triple-quoted string, where nothing needs escaping.",
-                  file=sys.stderr)
-        passed = part_selections(path)
-        holds = held_part_selections(path)
+            print(f"  {rel}:{line}: {source!r} writes a naming-attribute "
+                  "selection with an ESCAPED quote, and this arm reads the "
+                  "harness as RAW TEXT — a backslash where a quote is "
+                  "expected makes the selection invisible to it, so the arm "
+                  "would count one fewer and say nothing. Host the selector "
+                  "in `'…'` or in a triple-quoted string, where nothing "
+                  "needs escaping.", file=sys.stderr)
+        passed = named_selections(path)
+        holds = held_named_selections(path)
         injected = injected_rule_selections(path)
         held += len(holds)
-        for line, value in passed + holds + injected:
-            checked += 1
-            if value not in emitted:
+        for line, attribute, value in passed + holds + injected:
+            checked[attribute] += 1
+            if value not in emitted[attribute]:
                 violations += 1
                 print(f"  {rel}:{line}: the rule selects "
-                      f"[data-part={value!r}], and no source emits it. A "
+                      f"[{attribute}={value!r}], and no source emits it. A "
                       "value selected and emitted nowhere is a rule "
                       "selecting nothing — the three-ends contract, caught "
                       "from the markup end. Emit the value, or stop "
                       "selecting it.", file=sys.stderr)
 
     if violations:
-        print(f"\ncheck-markup-contracts: {violations} data-part selection(s) "
-              "no source emits, or written in a shape this arm cannot read. "
-              "The value a rule selects and the markup that emits it are ONE "
-              "contract — they move together or the rule measures nothing; "
-              "and a selection the arm cannot read is one it cannot hold.",
-              file=sys.stderr)
+        print(f"\ncheck-markup-contracts: {violations} naming-attribute "
+              "selection(s) no source emits, or written in a shape this arm "
+              "cannot read. The value a rule selects and the markup that "
+              "emits it are ONE contract — they move together or the rule "
+              "measures nothing; and a selection the arm cannot read is one "
+              "it cannot hold.", file=sys.stderr)
         return 1
 
-    print(f"check-markup-contracts: {checked} data-part selection(s) checked "
-          f"({held} of them held) against {len(emitted)} emitted value(s) "
-          f"from {len(emission_paths)} emission site(s) — every selected "
-          "value is emitted. Emitted-but-unselected is fine: not every part "
-          "needs a rule.")
+    breakdown = ", ".join(f"{checked[name]} {name} against "
+                          f"{len(emitted[name])} emitted"
+                          for name in NAMING_ATTRIBUTES)
+    print(f"check-markup-contracts: {sum(checked.values())} naming-attribute "
+          f"selection(s) checked ({held} of them held) over "
+          f"{len(emission_paths)} emission site(s) — {breakdown} — every "
+          "selected value is emitted. Emitted-but-unselected is fine: not "
+          "every part needs a rule.")
     return 0
 
-
-def state_attribute_writes(path: Path) -> list[tuple[int, str, str]]:
-    """Extracts every braced boolean-state write in one component file.
-
-    Comments are stripped before reading — a write a COMMENT describes
-    was rejected, exactly like ARM 1's `prete`. The corpus is the
-    components: the `.ts` / `.tsx` files under `design/src`.
-
-    Args:
-        path: A component file.
-
-    Returns:
-        `(line, attribute, expression)` tuples, in file order — the
-        expression as written between the braces. A brace pair that never
-        balances is skipped, not guessed at.
-    """
-    text = COMMENT.sub(" ", path.read_text(encoding="utf-8"))
-    found: list[tuple[int, str, str]] = []
-    for match in STATE_WRITTEN.finditer(text):
-        # The match ends past the `{`; the walk starts on it.
-        braced = braced_expression(text, match.end() - 1)
-        if braced is None:
-            continue
-        expression, _ = braced
-        line = text.count("\n", 0, match.start()) + 1
-        found.append((line, match.group("attr"), expression))
-    return found
-
-
-def omits_when_false(expression: str) -> bool:
-    """True when the braced expression spells one of the omitting idioms.
-
-    Whitespace is not meaning — `{x || undefined}` and `{x||undefined}`
-    are the same spelling — so the expression is flattened before the
-    comparison. Each accepted tail reaches `undefined` exactly when the
-    boolean is false, and `undefined` is the value React omits from the
-    markup; a bare `{x}` reaches it never.
-
-    Args:
-        expression: The braced expression, as written.
-
-    Returns:
-        True when the flattened expression ends with one of
-        `OMITTING_TAILS`.
-    """
-    flat = re.sub(r"\s+", "", expression)
-    return flat.endswith(OMITTING_TAILS)
-
-
-def check_state_attributes() -> int:
-    """Arm 4: refuses a boolean state attribute written as a bare value.
-
-    React renders the boolean `false` as the STRING "false" — the
-    attribute is PRESENT, `[data-open]` matches it ALWAYS, and a hold
-    built on it stays green while the state is never absent
-    (measured: harness/attrs.py). A write must therefore spell an
-    omission: `data-open={x || undefined}`, or `{x ? "" : undefined}` /
-    `{x ? true : undefined}`. A literal `data-open` with no braces is a
-    constant attribute and fine.
-
-    It examines every `data-<state>={…}` expression the components write
-    and prints the count, because that number is what tells a reader
-    whether its green means anything: the arm was VACUOUS for as long as
-    no such attribute existed, and a green exit over an empty corpus
-    proves nothing about the rule. It is proven by probe-mutation
-    besides.
-
-    Returns:
-        1 when any state attribute is written without an omitting
-        spelling, 0 otherwise.
-    """
-    files = [p for p in sorted(SOURCES.rglob("*"))
-             if p.is_file() and p.suffix in {".ts", ".tsx"}]
-    if not files:
-        print(f"check-markup-contracts: no component files under {SOURCES} "
-              "— the scope is empty, so « no violation » would mean "
-              "nothing", file=sys.stderr)
-        return 1
-
-    violations = 0
-    checked = 0
-    for path in files:
-        rel = str(path.relative_to(ROOT))
-        for line, attr, expression in state_attribute_writes(path):
-            checked += 1
-            if omits_when_false(expression):
-                continue
-            violations += 1
-            print(f"  {rel}:{line}: `data-{attr}={{...}}` is written without "
-                  "a spelling that omits the attribute when its state is "
-                  f"false. React renders the boolean false as the STRING "
-                  f"\"false\" — the attribute is PRESENT, and a "
-                  f"`[data-{attr}]` selector matches it ALWAYS, so a hold "
-                  "built on it stays green while the state is never absent "
-                  "(measured: harness/attrs.py). Write `data-"
-                  f"{attr}={{x || undefined}}` — or `{{x ? \"\" : undefined}}`"
-                  f" / `{{x ? true : undefined}}`.", file=sys.stderr)
-
-    if violations:
-        print(f"\ncheck-markup-contracts: {violations} state attribute(s) "
-              "written as a bare value. A boolean state attribute must be "
-              "written so a false state OMITS it — the accepted spellings "
-              "are the ones that reach `undefined`.", file=sys.stderr)
-        return 1
-
-    print(f"check-markup-contracts: {checked} state attribute(s) checked, "
-          "every one written with a spelling that omits the attribute when "
-          "its state is false.")
-    return 0
 
 
 def check_harness_parses() -> int:
@@ -809,7 +678,7 @@ def main(argv: list[str] | None = None) -> int:
         rc = 1
     if check_anchor_debt():
         rc = 1
-    if check_part_values():
+    if check_named_values():
         rc = 1
     if check_state_attributes():
         rc = 1

@@ -51,6 +51,29 @@ SHELL = SOURCES.parent / "index.html"
 # reads the sources. Same question, one stripper per corpus.
 HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
 
+# THE NAMING ATTRIBUTES — the `data-*` whose VALUES are names someone
+# chose, not data the app stores or displays. `card/overview`,
+# `library/body`, `primary`, `danger`, `left` are vocabulary; a page id, a
+# route, a title and a folder are addresses.
+#
+# The list is HERE, in one place, because two guards ask two questions of
+# exactly the same set and a second copy is a second thing to move: the
+# markup guard holds « every value a rule selects is emitted somewhere »
+# (ARM 3) and the French guard holds « every value is built from words
+# this codebase speaks ». `data-tone` was coined by one wave, selected
+# with a value at ten harness call sites, and was in neither list — so a
+# renamed tone left ten rules selecting nothing with no static refusal,
+# and a French tone value passed the French gate.
+#
+# THE SCOPE IS DELIBERATE AND IT WAS MEASURED. Widening ARM 3 to EVERY
+# valued `data-*` reports 44 selections as unemitted, and every one of
+# them is a false finding: `data-page`, `data-lens`, `data-acqtab` and
+# their kind are emitted from a COMPUTED expression, which names no
+# literal for the arm to compare. Those are addresses, and an address is
+# not this list's business.
+NAMING_ATTRIBUTES = ("data-part", "data-region", "data-tone",
+                     "data-action", "data-side")
+
 
 def parse_failures(paths: Iterable[Path]) -> list[tuple[Path, int, str]]:
     """Returns every file the Python parser refuses, with the parser's word.
@@ -329,3 +352,19 @@ def comment_masked(text: str) -> str:
         for match in COMMENT.finditer(content):
             blank(start + 3 + match.start(), start + 3 + match.end())
     return "".join(out)
+
+
+def attribute_of(dataset_name: str) -> str:
+    """Returns the attribute spelling of a `dataset` property name.
+
+    `element.dataset.noPoster` is `data-no-poster`. The two spellings are
+    the same name, and comparing them as written would have let a value
+    READ in JavaScript pass for an attribute nothing reads.
+
+    Args:
+        dataset_name: The property name as written after `.dataset.`.
+
+    Returns:
+        The `data-` attribute's name, without its prefix.
+    """
+    return re.sub(r"([A-Z])", lambda m: "-" + m.group(1).lower(), dataset_name)

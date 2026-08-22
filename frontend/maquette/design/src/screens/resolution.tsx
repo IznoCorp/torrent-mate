@@ -140,7 +140,7 @@ function ReleaseCard({
           )}
         </span>
       </div>
-      <button className="cfoot solid" data-part="card/foot" data-solid="" data-resolve={title}>
+      <button className="cfoot solid" data-part="card/foot" data-solid="" data-resolve={title || undefined}>
         {t("screens.resolution.pickThis")}
       </button>
     </div>
@@ -372,13 +372,13 @@ export function ResolutionScreen() {
               className="cfoot"
               data-part="card/foot"
               style={{ marginTop: "10px" }}
-              data-manual={folder}
+              data-manual={folder || undefined}
             >
               {t("screens.resolution.searchManually")}
             </button>
           </div>
           <div className="sheetacts secondary" data-part="sheet/actions">
-            <button className="sact" data-part="sheet/action" data-leave={folder}>
+            <button className="sact" data-part="sheet/action" data-leave={folder || undefined}>
               <Icon paths={icons.check} />
               {t("screens.resolution.leaveAsIs")}
             </button>

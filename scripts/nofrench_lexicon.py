@@ -17,8 +17,16 @@ looking for « what does the guard refuse? » still finds every arm in one file.
 from __future__ import annotations
 
 import re
+import subprocess
 import unicodedata
 from pathlib import Path
+
+# `inside_quotes` is the one SCANNER this module needs: `pragma_on` owns the
+# `PRAGMA` pattern, which lives here with the other lexical constants, and a
+# pragma written INSIDE a string is not a pragma. Two arms read it — arm 1 over
+# every source, arm 9 over the shell scripts — so it sits with the constant
+# rather than in either arm's file.
+from nofrench_scan import inside_quotes
 
 ROOT = Path(__file__).resolve().parent.parent
 MAQUETTE = ROOT / "frontend" / "maquette"
@@ -498,3 +506,64 @@ def vocabulary(debt_only: bool = False) -> set[str]:
         if not debt_only or below:
             words.add(line.strip().lower())
     return words
+
+
+def pragma_on(lines: list[str], line_no: int) -> str | None:
+    """Returns the reason a line's french-ok pragma cites, or None.
+
+    Args:
+        lines: The file's lines.
+        line_no: The 1-based line the literal starts on.
+
+    Returns:
+        The cited reason, "" when the pragma cites nothing, or None when the
+        line carries no pragma. The line ABOVE counts too: a JSX attribute has
+        no room for a trailing comment.
+
+        THE LINE BELOW DELIBERATELY DOES NOT. This docstring used to promise it
+        — for the wrapped-literal case — and implementing that promise turned
+        every pragma into a THREE-line grant: a brand-new French literal parked
+        next to any of the twenty-one existing pragmas became invisible. A
+        wrapped literal can carry its pragma on the line above like everything
+        else; licensing a neighbour is a bigger hole than the one it closed.
+    """
+    for candidate in (line_no, line_no - 1):
+        if not 1 <= candidate <= len(lines):
+            continue
+        line = lines[candidate - 1]
+        found = PRAGMA.search(line)
+        # A pragma written INSIDE a string is not a pragma. Without this, one
+        # literal reading `"# french-ok: …"` licensed its neighbours.
+        if found and not inside_quotes(line, found.start()):
+            return found.group("reason").strip()
+    return None
+
+# `docs/` is the ONE tree the file-name arm does not walk: dated records keep
+# the names they were written with, and rewriting a record would falsify it.
+UNWATCHED_ROOTS = ("docs/",)
+
+
+def tracked_paths() -> list[str]:
+    """Returns every path in the repository the guard watches.
+
+    The WHOLE repository, minus `docs/` — four named roots used to be the scope,
+    which left `hooks/`, `config.example/`, `.github/` and the root itself
+    unwatched while the docstring said « anywhere ».
+
+    Untracked-but-not-ignored files are listed too (`--others
+    --exclude-standard`): a file created five minutes ago is exactly the one
+    the arm exists to catch, and it is not tracked until it is added — a gate
+    that only reads the index says nothing until after the commit it should
+    have blocked.
+
+    It lives here, with the corpora, because TWO arms walk it: the file-name
+    arm and the shell-script arm, which is the only one whose corpus is `.sh`.
+
+    Returns:
+        Every watched path, repository-relative, sorted.
+    """
+    listed = subprocess.run(
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+        cwd=ROOT, capture_output=True, text=True, check=True)
+    return sorted({p for p in listed.stdout.split("\0")
+                   if p and not p.startswith(UNWATCHED_ROOTS)})

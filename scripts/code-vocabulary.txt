@@ -524,6 +524,7 @@ reset
 resolution
 resolutions
 resolve
+resume
 rest
 restart
 restore

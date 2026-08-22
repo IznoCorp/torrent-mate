@@ -96,6 +96,16 @@ def script_string_literals(source: str) -> list[tuple[int, str]]:
     return literals
 
 
+# A TypeScript DECLARATION — the keyword that introduces a name, and the name.
+# Two arms read it: arm 2 asks whether the name is a word this codebase speaks,
+# arm 10 asks a dictionary whether it is French. One reader, so the two arms
+# cannot end up reading two different populations.
+TS_DECLARATION = re.compile(
+    r"\b(?:const|let|var|function|class|interface|type|enum)\s+"
+    # french-ok: a Latin-1 letter RANGE, not a word
+    r"(?P<name>[A-Za-z_$][\w$À-ɏ]*)")
+
+
 def python_declarations(source: str) -> list[tuple[str, int]]:
     """Returns every name a Python module DECLARES, with its line.
 
