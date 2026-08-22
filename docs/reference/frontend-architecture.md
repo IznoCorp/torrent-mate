@@ -415,29 +415,34 @@ of excepted states: `landmark-one-main` and `page-has-heading-one` describe the 
 and with a modal layer open the background is deliberately `inert`, therefore out of the
 accessibility tree. The split is printed on every run — 65 states asked, 18 could not.
 
-#### L04 — Boundaries and the tree · `NOT STARTED` · *depends on L01* · **runs alone**
+#### L04 — Boundaries and the tree · `LANDED` · *depended on L01* · **ran alone**
 
 **Why here.** Every lot after this one creates files. Deciding afterwards means moving them
 twice. **And why it depends on the oracle**: this lot breaks two import cycles, which is a change
 to code and not a move — without the oracle nothing proves the rendering survived it.
 
-**What is wrong today, measured.**
+**What was wrong, and what the lot did to it.** The left column is the measurement that
+SCHEDULED this lot; the right one is what the same command reports now. Refreshing it is the
+wave's duty rather than an amendment (§ 7.1): what was decided is untouched, and a figure left
+standing after the work that falsified it is the stale-directive disease this file exists to
+fight.
 
-| Defect | Measurement |
-| --- | --- |
-| **Two import cycles** | `components/panel.tsx ↔ data.ts` and `screens/add.tsx ↔ shell.tsx` |
-| **One hub module** | `data.ts`, **17 importers** of ~21 modules — it holds 4 store hooks, ~30 domain types and fixtures at once |
-| Its symptom | 6 files import `data` twice, once for types and once for values |
-| **Grouped by technical kind** | changing one feature means opening `pages/…`, `components/…`, `data.ts` and `i18n/fr.json` |
-| A split about to become a lie | `pages/` ÷ `screens/` encodes a distinction D1 removes |
-| **No bundle splitting at all** | zero `lazy()`, zero dynamic `import()`; the page table imports all 8 pages statically |
-| No unit-level test | all proof is the browser harness; a pure function is proved through a browser |
-| Names that say nothing | `data.ts`, `store.ts`, `panel.tsx` — and `media.tsx` is a screen while `library.tsx` is a page |
+| Defect | Measured before | Now |
+| --- | --- | --- |
+| **Two import cycles** | `components/panel.tsx ↔ data.ts` and `screens/add.tsx ↔ shell.tsx` — 3 simple cycles over 2 back-edges | **0**, held by `check-frontend-boundaries.py --arm cycles`. The first back-edge's whole substance was a DUPLICATE: `data.ts` declared a `Panel` type byte-identical to the one already in `seams.ts` |
+| **One hub module** | `data.ts`, **17 importers** of ~21 modules — 4 store hooks, ~30 domain types and the engine's 108-member surface at once | **it does not exist.** The store hooks are `lib/store-access.ts`, the engine's surface is two `lib/engine-*.ts` layers plus one slice per feature, and 10 members no component read are gone from the type |
+| Its symptom | 6 files import `data` twice, once for types and once for values | **0**, held by `--arm duplicate-import` |
+| **Grouped by technical kind** | changing one feature means opening `pages/…`, `components/…`, `data.ts` and `i18n/fr.json` | grouped by SUBJECT: `features/<domain>/` holds its page, its screens and its slice |
+| A split about to become a lie | `pages/` ÷ `screens/` encodes a distinction D1 removes | both folders are gone |
+| **No bundle splitting at all** | zero `lazy()`, zero dynamic `import()` | **unchanged, and deliberately** — it belongs to L12, which changes loading behaviour where this lot changed nothing observable |
+| No unit-level test | all proof is the browser harness; a pure function is proved through a browser | **unchanged.** Arbitrated by the operator on 2026-08-22 and OWNED BY L09 — see the note under that lot: the mock layer a non-vacuous test rests on is L08's, and tests written before it would invent their own fakes |
+| Names that say nothing | `data.ts`, `store.ts`, `panel.tsx` — and `media.tsx` is a screen while `library.tsx` is a page | each file is named for what it holds, inside the subject that changes it |
 
-<sub>cycles and fan-in: resolve every relative `from "…"` in `design/src` (excluding `engine/`) into a graph, then walk it</sub>
+<sub>every figure: `python3 scripts/check-frontend-boundaries.py`, which prints what each of its eight arms derived</sub>
 
-**What is right today and must be protected**: **0 `any`, 0 `as any`, 0 `@ts-ignore`,
-0 `@ts-expect-error`. A ratchet from zero is free now and impossible to introduce later.**
+**What was right and is now HELD**: 0 `any`, 0 `as any`, 0 `@ts-ignore`, 0 `@ts-expect-error` —
+a ratchet from zero, which was free then and impossible to introduce later. `--arm typing` holds
+it at a hard zero.
 
 **The target tree.**
 
@@ -643,6 +648,16 @@ accepted explicitly — never waved through as "the data changed".
 An action must answer the finger before the network does. Every mutation carries its optimistic
 path and its rollback; a surface that waits for a round trip to acknowledge a tap feels like a
 web page, and no amount of animation later repairs that.
+
+**THIS LOT OWES THE UNIT-TEST LAYER, and the debt is L04's, deliberately handed here.** The
+maquette has no test runner at all: every proof is a browser rule, so a pure function is proved
+through a browser. L04 measured **11** pure functions worth testing — the meatiest being
+`epState`, whose **8 branches** are touched today by **3 assertions in one browser rule** — and
+the operator arbitrated on 2026-08-22 that nothing be installed then. The reason is this lot's
+own dependency: **L08 builds the mock layer**, seeded from the fixtures it replaces, and tests
+written before it exists would invent their fakes by hand — which is precisely what makes a test
+vacuous, twice paid for in this repository. The target tree already reserves
+`features/<domain>/*.test.ts`; what is missing is the runner and the tests, and they belong here.
 
 **Done when.** No surface reads a fixture; the fixture literals are gone from the engine; state
 ownership is settled — no ambient mutable object read from everywhere; every mutation has an

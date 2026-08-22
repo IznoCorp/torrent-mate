@@ -246,6 +246,16 @@ The rule that decides where a file goes, quoted from the architecture file:
 | `i18n/`                 | the resource bundle                                                                                                | unmoved (D-L04-5)                                                                                 |
 | `styles/`, `mocks/`     | declared by the tree guard, created by L06/L07 and L08                                                             | —                                                                                                 |
 
+> **What the measurement changed in this table, recorded rather than quietly edited.** Two
+> features exist that this table did not name, and one screen moved. `features/media/` owns the
+> media catalogue — `sheetFor`, `seasonsOf`, `ownedFor`, `EP_LABEL`, `TODAY` — because the season
+> matrix and the media sheet read exactly that and nothing else of each other's subjects; leaving
+> them apart made eight members look « shared between two features » when they are one subject
+> read twice. `features/releases/` owns `RELEASES`, `RESOLUTIONS`, `AUDIOS` with the
+> release-choice screen AND the quality-profile screen: the profile screen reads the release
+> vocabulary and none of the settings one, so this table's original placement of it under
+> Configuration was wrong. Both corrections come from the readership measurement, not from taste.
+
 **Two placements that needed the rule rather than a habit.** `pages/not-found.tsx` renders the
 shell's own answer to an unknown page id and belongs to no domain — it changes when the shell
 changes, so it is `app/`, not a one-file feature. `screens/profile.tsx` is the quality-profile

@@ -91,8 +91,42 @@ The hold-count baseline is re-recorded the same way, and **both pointers are ver
 ## Proof
 
 - `--arm size --list-grandfathered` output equals the committed list.
-- `git grep -n 'Two import cycles' docs/reference/frontend-architecture.md` returns nothing.
-- The full rule suite (`harness/run.sh`, not `--contracts`) exits 0 at **unchanged hold counts** —
-  the report's CONTENT is read, not its exit code.
+- L04's defect table carries a **Now** column and its cycles row reads 0 — see the ACC-26
+  amendment in the plan's own table for why « returns nothing » was the wrong criterion.
+- The full rule suite at unchanged hold counts on every rule but `panel.py`, which goes 9 → 12
+  for the registration contract this wave added — declared, not absorbed. The report's
+  CONTENT is read, not its exit code.
 - `make maquette-oracle` → 0 divergence over 2 739 measurements.
 - `make lint` · `make test` (0 failed, **0 error**) · `make check` all exit 0.
+
+## 6. What this phase actually recorded — the outcome
+
+**The grandfathered list, derived not typed** (`--arm size --list-grandfathered`), 7 files:
+
+| File | Lines | Converting lot |
+| --- | --- | --- |
+| `engine/legacy.js` | 34 300 | **L13** — the engine dies by subtraction |
+| `features/acquisition/page.tsx` | 762 | L07, then L09 |
+| `features/media/media-screen.tsx` | 756 | L07, then L09 |
+| `engine/states.js` | 711 | **L13** — the table goes with the engine it drives |
+| `features/library/page.tsx` | 583 | L07, then L09 |
+| `app/shell.tsx` | 576 | L05 — routing, then L13 for what is left of the boot |
+| `features/arrivals/resolution-screen.tsx` | 412 | L07, then L09 |
+
+**Two files left the list by ceasing to exist**: `data.ts` (558) and `components/panel.tsx` (628).
+`app/shell.tsx` fell from 682 to 576 as the routes left it. Four files sit above the 250-line
+warning and below the ceiling — `add-screen` 359, `settings/page` 340, `arrivals/page` 288,
+`profile-screen` 278 — and are recorded here rather than in the list, which is for the block
+ceiling only.
+
+**The hold counts moved on ONE rule, and it is declared rather than absorbed.** `panel.py` goes
+from **9 holds to 12**: the three ends of a block-kind registration (`every declared block kind
+has a registered renderer`, `every block module outside ui/panel is imported at boot`, `there
+really are block kinds`). That is the method working — a change lands with its rule — but a
+changed count is exactly what the baseline exists to surface, so it is named here, in the pull
+request, and re-recorded with the oracle after the squash merge. No other rule's count moves.
+
+**ACC-26 was amended in this phase**, and the reason is on the record in the plan's own table:
+its first wording would have been satisfied by DELETING the defect row, which would lose what the
+lot existed to fix. § 7.1 asks for the measurement to be refreshed, not for the defect to be
+unwritten.
