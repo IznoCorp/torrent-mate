@@ -24,7 +24,7 @@ proves only that it agrees with the code.
 
 | # | Phase | File | Status |
 | --- | --- | --- | --- |
-| 1 | The instrument, and the debt recorded | phase-01-instrument-and-debt.md | [ ] |
+| 1 | The instrument, and the debt recorded | phase-01-instrument-and-debt.md | [x] |
 | 2 | Landmarks and structure | phase-02-landmarks-and-structure.md | [ ] |
 | 3 | Accessible names | phase-03-accessible-names.md | [ ] |
 | 4 | Focus manager and keyboard paths | phase-04-focus-and-keyboard.md | [ ] |
@@ -44,6 +44,7 @@ merge.
 | ACC-03 | 1 | `git merge-base --is-ancestor "$(python3 -c 'import json;print(json.load(open("frontend/maquette/hold-counts-baseline.json"))["taken_at_commit"])')" HEAD` exits 0 |
 | ACC-04 | 1 | `python3 scripts/harness-hold-counts.py --compare frontend/maquette/hold-counts-baseline.json --only logout` refuses a baseline whose commit is not an ancestor of HEAD, naming it |
 | ACC-05 | 1 | `grep -c '83 states' Makefile` returns 1 and `grep -c '82 states' Makefile` returns 0 |
+| ACC-19 | 1 | `python3 scripts/refresh-maquette-fixture.py --check` exits 0 |
 | ACC-06 | 2 | `grep -rEc '<main([ >/]\|$)' frontend/maquette/design/index.html` returns 1 |
 | ACC-07 | 2 | `python3 frontend/maquette/oracle.py --check` reports 0 divergence |
 | ACC-08 | 3 | `python3 frontend/maquette/a11y.py --check --rules button-name,link-name,image-alt,label` reports 0 violations over 83 states |

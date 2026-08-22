@@ -95,6 +95,35 @@ regions » where the reference holds 83.
 
 Commit: `fix(maquette-l03): a hold-count baseline whose commit is gone cannot be compared against`
 
+### 1.5 — The fixture that made the suite unrecordable
+
+`scripts/refresh-maquette-fixture.py --check` exits 1 on `main` — verified by checking `main`
+out and running it there, not inferred. One value has drifted: « Kyma, l'onde mystérieuse ·
+searches: fixture 11 vs database 12 ». The CI step that runs it on every maquette pull request
+is red before this branch exists, and the harness rule `content.py` fails for the same value.
+
+It is repaired here rather than reported, because `--record` **refuses to write a baseline taken
+on a red suite** — so with this standing, proof n° 2 cannot be obtained at all.
+
+Commit: `fix(maquette-l03): refresh the follow fixture, which had drifted from acquire.db`
+
+## ⚠ The trap this phase paid for, and the next wave will meet it too
+
+**A hold-count recording needs a QUIESCENT tree, and « the served copy is frozen » is not
+enough.** `run.sh` and `harness-hold-counts.py` build and copy the prototype ONCE at the start,
+so editing `design/src` mid-run does not disturb the rules that read `/tmp/tm-refonte`. That
+reasoning is correct, and it is incomplete — three rules do not read that copy:
+
+| Rule | What it really reads |
+| --- | --- |
+| `entry.py`, `startup.py` | the **design host** on 8712, and `serve.py` re-reads `index.html` **from disk on every request** — markup is hot, only its Python is cold |
+| `content.py` | the operator's live `acquire.db` |
+
+Edited during the first recording, `index.html` was therefore served NEW to the host and OLD in
+the prototype copy: `entry.py` reported six « renders the same on both sides » failures with
+`host=0` everywhere, and `startup.py` timed out filling a form. Neither was a defect in anything.
+**The recording was discarded and retaken on a stopped tree.**
+
 ## Verification
 
 | ID | Command | Expected |

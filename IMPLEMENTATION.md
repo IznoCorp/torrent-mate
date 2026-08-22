@@ -63,18 +63,29 @@ reasoning and the 18 ACCEPTANCE criteria. This table owns only the status.
 
 | # | Phase | File | Status |
 | --- | --- | --- | --- |
-| 1 | The instrument, and the debt recorded | `plan/phase-01-instrument-and-debt.md` | [ ] |
+| 1 | The instrument, and the debt recorded | `plan/phase-01-instrument-and-debt.md` | [x] |
 | 2 | Landmarks and structure | `plan/phase-02-landmarks-and-structure.md` | [ ] |
 | 3 | Accessible names | `plan/phase-03-accessible-names.md` | [ ] |
 | 4 | Focus manager and keyboard paths | `plan/phase-04-focus-and-keyboard.md` | [ ] |
 | 5 | Live regions and states | `plan/phase-05-live-regions.md` | [ ] |
 | 6 | The floor bites | `plan/phase-06-the-floor-bites.md` | [ ] |
 
-**Next action**: run `/implement:phase`. Phase 1 gates every other one — it builds the
-accessibility instrument, records the debt before the wave touches it, and repairs the
-hold-count baseline, whose `taken_at_commit` (`c7714c38`) is **not an ancestor of `HEAD`**:
-the same dangling-pointer defect #473 fixed on the oracle, on the instrument that carries this
-wave's proof n° 2, and `--compare` does not check it.
+**Phase 1 is done, and it found three things nobody was looking for.** The hold-count baseline
+pointed at `c7714c38`, a commit the L02 squash replaced — not an ancestor of `HEAD`, absent from
+a fresh clone — and `--compare` read that field only to print it, where `oracle.py --check` at
+least warns. It refuses now. The maquette's follow fixture had drifted from `acquire.db`, so the
+CI step guarding it was red on `main` and no baseline could be recorded at all. And the first
+version of the new audit was a VACUOUS GATE: scoped to `.device` it made five page-level axe
+rules `inapplicable` and reported « 0 violation » for `landmark-one-main` on a prototype with
+zero `<main>` elements.
+
+**The debt, measured before the wave touched it**: 744 violations over 7 rules across the 83
+states — 533 `region`, 83 `meta-viewport`, 49 `landmark-one-main`, 49 `page-has-heading-one`,
+24 `aria-allowed-attr`, 4 `scrollable-region-focusable`, 2 `button-name` — plus 42
+colour-contrast findings held for L06. The instrument reproduces: two recordings of one tree are
+byte-identical.
+
+**Next action**: `/implement:phase` continues at Phase 2.
 
 **What L02 settled, measured on `main` after the merge**: **0 selection calls anchored on a CSS
 class**, out of 699 in `harness/*.py` — 473 on `data-*`, 188 on an id, 33 on a bare tag, 5 on a
