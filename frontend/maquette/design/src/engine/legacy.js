@@ -255,7 +255,7 @@ import { screens, panel, bridge } from "../seams.js";
       t: "Kyma, l'onde mystérieuse",
       serie: null,
       since: "9 août",
-      searches: 11,
+      searches: 12,
       k: "movie",
       y: 2026,
       st: "pending",
