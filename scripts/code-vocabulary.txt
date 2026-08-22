@@ -352,6 +352,7 @@ library
 libretry
 light
 line
+link
 list
 listener
 listeners
@@ -593,6 +594,7 @@ signout
 size
 skel
 skeleton
+skip
 slice
 slot
 slow

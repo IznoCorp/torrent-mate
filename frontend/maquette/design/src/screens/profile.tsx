@@ -82,7 +82,13 @@ export function ProfileScreen() {
   }
 
   return (
-    <section className="screen open" data-part="screen" data-open="" data-key={`profile:${title}`}>
+    <section
+      className="screen open"
+      data-part="screen"
+      data-open=""
+      data-key={`profile:${title}`}
+      aria-label={title}
+    >
       <div className="screenbar" data-part="screen/bar">
         <button className="fback" data-part="screen/back" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />

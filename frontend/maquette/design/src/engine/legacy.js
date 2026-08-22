@@ -12342,7 +12342,7 @@ import { screens, panel, bridge } from "../seams.js";
       // its single settlement needs, so this close is the follow branches'.
       panel.close();
       if (result.owned) {
-        openDlg(`<h3>Remplacer « ${escapeHtml(result.t)} » ?</h3>
+        openDlg(`<h2>Remplacer « ${escapeHtml(result.t)} » ?</h2>
           <p>Ce ${result.k === "Film" ? "film est déjà" : "média est déjà"} en médiathèque. L'acquisition <b>remplacera</b> la version en place par celle qui sera récupérée.</p>
           <div class="dlgacts">
             <button class="dlgbtn danger" data-part="dialog/button" data-tone="danger" data-confirmadd="${index}">Remplacer</button>
@@ -12470,7 +12470,7 @@ import { screens, panel, bridge } from "../seams.js";
       ? `Supprimer ${titles.length} médias ?`
       : `Supprimer « ${escapeHtml(titles[0])} » ?`;
     openDlg(`
-    <h3>${head}</h3>
+    <h2>${head}</h2>
     <div class="dryrun" data-part="dialog/dry-run">${svgIcon(icons.eye)}Simulation — rien ne sera supprimé tant que vous n'aurez pas validé que cette liste dit vrai.</div>
     ${
       multi

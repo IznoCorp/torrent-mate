@@ -399,7 +399,13 @@ export function MediaScreen() {
   const trailer = trailerIds[title] ?? trailerIds[baseTitle(title)] ?? null;
 
   return (
-    <section className="screen open" data-part="screen" data-open="" data-key={`mediaSheet:${title}`}>
+    <section
+      className="screen open"
+      data-part="screen"
+      data-open=""
+      data-key={`mediaSheet:${title}`}
+      aria-label={title}
+    >
       <div className="screenbar" data-part="screen/bar">
         <button className="fback" data-part="screen/back" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />

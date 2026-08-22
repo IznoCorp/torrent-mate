@@ -618,7 +618,7 @@ export function PanelContent({
 }): JSX.Element {
   const identity = (
     <>
-      <h3 className="sheettitle" data-part="sheet/title">{descriptor.title}</h3>
+      <h2 className="sheettitle" data-part="sheet/title">{descriptor.title}</h2>
       {descriptor.subtitle ? (
         <span className="sheetsub">{descriptor.subtitle}</span>
       ) : null}

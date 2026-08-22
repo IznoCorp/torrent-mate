@@ -3,10 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <base href="/" />
-    <meta
-      name="viewport"
-      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
-    />
+    <!-- NO `maximum-scale` AND NO `user-scalable=no`, and it is a decision
+         rather than an omission. Those two directives forbid the pinch-zoom
+         WCAG 1.4.4 requires, and axe reported the failure on all 83 named
+         states — the single largest per-state count in the wave's opening
+         measurement. They were there to stop iOS zooming a focused input; iOS
+         Safari has ignored `user-scalable=no` since version 10, so what they
+         actually bought was the violation. -->
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>TorrentMate Design</title>
     <!-- pwa:start — the document half of installability. The server half
          (manifest body, sw.js, brand assets, the offline page) stays in
@@ -95,7 +99,10 @@
 
          It carries no controls: there is nothing to do yet, and a disabled
          control would only invite a tap that answers nothing. -->
-    <div class="splash" id="splash">
+    <!-- A NAMED REGION, so what it draws is not content adrift outside every
+         landmark. It is not `<main>`: `#port` already is, and two of them make
+         a landmark list a guessing game exactly as two identical names do. -->
+    <div class="splash" id="splash" role="region" aria-label="Démarrage">
       <div class="brandbig" data-part="brand/large">
         <svg
           class="mk"
@@ -123,6 +130,15 @@
       <p class="splashmsg">Chargement de votre médiathèque…</p>
     </div>
     <!-- login:splash:end -->
+
+    <!-- FIRST IN THE FRAME, because a skip link that is not the first stop is
+         a skip link nobody reaches. It is off-screen until focused — see
+         `.skip-link` in the stylesheet — so it costs the layout nothing and the
+         oracle measures no difference: an unfocused element is never styled by
+         `:focus-visible`, and this one is out of flow either way. -->
+    <a class="skip-link" href="#port" data-part="shell/skip-link"
+      >Aller au contenu</a
+    >
 
     <header class="topbar" data-part="shell/header">
       <button
@@ -173,10 +189,25 @@
       </div>
     </header>
 
-    <div class="port" id="port" data-part="viewport">
+    <!-- THE MAIN LANDMARK, and it is a substitution rather than a wrapper.
+         `<main>` and `<div>` are both `display: block`, so nothing moves;
+         wrapping `#view` in a new `<main>` would have added a box, and with it
+         a layout risk the oracle would have had to arbitrate. Every selector
+         that reads this element reads it by id — none by tag — so the harness
+         is unaffected.
+
+         It is `#port` rather than `#view` because `#port` is what a « skip to
+         content » link must land on: it is the scroller, and focusing the inner
+         node would leave the viewport scrolled elsewhere.
+
+         `tabindex="-1"` makes it focusable BY SCRIPT ONLY — it does not enter
+         the tab order. Without it the skip link jumps the browser's scroll
+         position but not its focus, and the next Tab resumes from the top of
+         the document, which is the bug that makes most skip links useless. -->
+    <main class="port" id="port" data-part="viewport" tabindex="-1">
       <div class="ptr" id="ptr"><div class="spin"></div></div>
       <div id="view"></div>
-    </div>
+    </main>
 
     <!-- Install proposal. Two paths, because the two platforms do not offer the
          same thing: Android and desktop fire a native install event the page can
@@ -184,7 +215,8 @@
          guide and walks the actual steps rather than saying « installez-moi ».
          It sits ABOVE the tab bar: anchored to the bottom edge, its close button
          lands under the fixed bar and cannot be reached. -->
-    <div class="installbar" id="installbar" hidden>
+    <div class="installbar" id="installbar" role="region"
+      aria-label="Installation de l'application" hidden>
       <div class="installcard">
         <div class="installtext">
           <p class="installtitle">Installer l'application</p>
@@ -252,7 +284,8 @@
          navigation bar would offer destinations that answer with a redirect.
          It carries no credentials of its own — the server decides, and a
          password living in a page anyone can read is not a password. -->
-    <div class="loginscreen" data-part="login" id="login" hidden>
+    <div class="loginscreen" data-part="login" id="login" role="region"
+      aria-label="Connexion" hidden>
       <div class="brandbig" data-part="brand/large">
         <svg
           class="mk"
@@ -347,11 +380,10 @@
 
     <nav class="bottombar" id="nav" data-part="shell/tab-bar" aria-label="Navigation principale"></nav>
 
-    <aside
-      class="drawer"
-      id="drawer"
-      aria-label="Navigation principale"
-    ></aside>
+    <!-- NOT « Navigation principale »: the tab bar already carries that name,
+         and two landmarks answering to one name make a screen reader's landmark
+         list a guessing game. This one is the panel the burger opens. -->
+    <aside class="drawer" id="drawer" aria-label="Menu"></aside>
     <div class="screen" id="screen" data-part="screen"></div>
     <!-- The scrim and the bottom sheet are rendered by the shell
          (`src/components/sheet.tsx`), at these same ids and classes, into

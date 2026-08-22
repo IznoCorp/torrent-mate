@@ -152,7 +152,13 @@ export function AddScreen() {
     .join("");
 
   return (
-    <section className="screen open" data-part="screen" data-open="" data-key={`add:${mode}`}>
+    <section
+      className="screen open"
+      data-part="screen"
+      data-open=""
+      data-key={`add:${mode}`}
+      aria-label={t("screens.add.landmark")}
+    >
       <div className="screenbar" data-part="screen/bar">
         <button className="fback" data-part="screen/back" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />

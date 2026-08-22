@@ -366,7 +366,8 @@
       "added": "ajouté",
       "addedPlural": "ajoutés",
       "seeFollows": "Voir mes suivis →",
-      "alreadyInLibrary": "Déjà en médiathèque"
+      "alreadyInLibrary": "Déjà en médiathèque",
+      "landmark": "Ajout d'un média"
     },
     "resolution": {
       "back": "Retour",
