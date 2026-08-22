@@ -44,9 +44,9 @@ stale table read as current for three days.
 
 | | |
 | --- | --- |
-| **In flight** | **L03 — accessibility**, Phase 1. Branch `feat/maquette-l03`, version 0.98.18, PR merged **manually**. Design: `docs/features/maquette-l03/DESIGN.md` · plan: `…/plan/INDEX.md` |
-| **Last landed** | **L02 — test anchors move to `data-*`**, Phase 0. PR **#470**, merged 2026-08-22, version 0.98.13. It carried the `docs/cold-start` commit, which was not a PR of its own. Archived to `docs/archive/features/maquette-l02/` |
-| **Before it** | L01 — the recorded oracle, PR **#467**, version 0.98.10. Archived to `docs/archive/features/maquette-l01/` |
+| **Last landed** | **L03 — accessibility**, Phase 1. PR **#475**, merged 2026-08-22, version 0.98.18. Its two references were re-recorded by **#476**, and both pointers are ancestors of `HEAD` — verified |
+| **Next** | **L04 — boundaries and the tree**, Phase 1. Dependency (L01) satisfied, and it **runs alone**. `docs/reference/frontend-architecture.md` decides which lot, never this table |
+| **Before it** | L02 — PR **#470**, version 0.98.13 · L01 — PR **#467**, version 0.98.10. Both archived under `docs/archive/features/` |
 | **What decides the order** | `docs/reference/frontend-architecture.md`, never this table. This table says only where the work STANDS |
 
 **What L03 is, in one line**: landmarks, accessible names, focus management on every layer, the
@@ -79,7 +79,7 @@ divergence over 2 739 measurements**, at the close of every phase. The floor is 
 | | |
 | --- | --- |
 | The instrument | `frontend/maquette/a11y.py` — axe-core over the 83 states, three modes, importing `oracle.py`'s plumbing rather than copying it |
-| What an audit cannot see | **R81** (`harness/focus.py`, 15 holds): focus in and back out, `Escape`, the skip link landing FOCUS, `aria-busy`, every error surface announcing |
+| What an audit cannot see | **R81** (`harness/focus.py`, **20 holds**) — the recorded figure, from `hold-counts-baseline.json` → `rules["focus.py"].count`, which is a runtime count by `common.Journal`. The wave's prose said 15 and the source has 10 `check()` call sites, five of them inside a loop over the layers: neither is the answer, and only the recording is: focus in and back out, `Escape`, the skip link landing FOCUS, `aria-busy`, every error surface announcing |
 | The starting line | `a11y-debt.json`, which `--record` now refuses to overwrite: it is a starting line, not a snapshot |
 | Handed to L06 | `a11y-contrast.json` — 42 contrast findings on 10 elements, 27 of them one badge. Touch-target size was expected to be a debt and is **not**: `target-size` is applicable and reports 0 |
 

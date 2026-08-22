@@ -193,8 +193,11 @@ delegation, the boot, `/login` and the splash close the plan as L13.
 **Decision.** Accessibility is planned, proved and landed as its own wave (L03), not absorbed
 into other lots.
 
-**Why.** It is nearly absent — 0 `<main>`, 0 `tabindex`, 13 `role=`.
-<sub>`grep -rc 'tabindex' frontend/maquette/design/src frontend/maquette/design/*.html`</sub>
+**Why it was scheduled, and it is history now.** Accessibility was nearly absent — 0 `<main>`,
+0 `tabindex`, 13 `role=`. **L03 landed and closed it**: 4 `<main>`, 7 `tabindex`, 32 `role=`, and
+744 axe violations over 7 rules taken to a hard zero across the 83 named states, held by
+`a11y.py` on its own `--a11y` tier.
+<sub>`grep -rho 'tabindex' frontend/maquette/design/src frontend/maquette/design/*.html | wc -l`</sub>
 It serves the native-feel objective directly (focus management, assistive technology, keyboard
 paths), and — this is what makes it schedulable anywhere — `role`, `aria-*` and `tabindex` are
 **invisible to the oracle**: they change neither a rectangle nor a computed style. Only element
@@ -694,7 +697,15 @@ remedy is one empty listener, never a per-component JavaScript state.
 today. It is what makes haptics a one-file change if the platform ever allows them (D9).
 
 **Mobile geometry.** Safe areas, dynamic viewport units, contained overscroll, no accidental zoom
-on focus, the virtual keyboard resizing content rather than the viewport, scroll restored per
+on focus — **and that one is now LIVE rather than theoretical**: L03 removed `maximum-scale=1,
+user-scalable=no` from the viewport meta, rightly, since they forbid the pinch-zoom WCAG 1.4.4
+requires and iOS Safari has ignored `user-scalable=no` since version 10. But they also masked a
+defect nobody fixed: the maquette's fields are **13 px (`.search input`), 14 px (`.fieldinput`)
+and 12 px (`.fieldinput.mono`)**, all under the 16 px threshold at which iOS zooms a focused
+input. The removal did not create that; it stopped hiding it. The fix is the 16 px this lot
+already owes, not the meta coming back.
+<sub>`awk '/(input\|textarea\|select)[^{}]*\{/{r=$0} /font-size/{print r" → "$0}' frontend/maquette/design/refonte.html`</sub>
+Then: contained overscroll, the virtual keyboard resizing content rather than the viewport, scroll restored per
 history entry.
 
 **The performance floor**, because none of the above survives a slow surface. The library holds
@@ -735,6 +746,14 @@ failure and **no error** (an error means collection crashed and everything after
 `--contracts` tier, which is the per-pull-request one — and the oracle green or its divergences
 accepted with reasons. The suite runs itself now; it used to run only when someone remembered,
 and on the day it did not, six contracts broke under three green gates.
+
+**Write the landed row when the pull request opens, not after the merge.** A wave edits
+`IMPLEMENTATION.md` on its own branch, so a row that waits for the merge to be written is a row
+that never gets written — three consecutive waves left the table announcing themselves « in
+flight » after landing, and each time the next reader was told the previous lot was still running.
+The pull request number exists the moment the pull request does. Being an hour ahead of the merge
+is a smaller error than being permanently behind it, and it is self-correcting: a wave that does
+not merge fixes its own row.
 
 **The oracle is a LOCAL gate, and that changes who can close a wave.** Its measurements are bound
 to the machine that took them — the same unmodified tree reads differently on a Linux runner — so
@@ -845,6 +864,17 @@ nobody could justify.
 **Who may change this file.** The operator arbitrates; an agent proposes. A decision in § 2 is
 amended by adding what replaces it and naming what it makes void — never by quietly editing the
 old text, and never in a wave that also implements it.
+
+**One thing that is NOT an amendment, and the distinction is load-bearing.** A decision's
+*measured rationale* expires when a wave does the work that decision scheduled — D6 said
+accessibility was « nearly absent » and L03 made that false by construction. Refreshing that
+measurement, in the wave that caused it, is the wave's DUTY, not an amendment: what it decided is
+untouched, and leaving the old figure standing is the stale-directive disease this file exists to
+fight. **The decision is the operator's; the measurement under it belongs to whoever made it
+move.** This paragraph exists because the rule above, read literally, would have obliged L03 to
+leave D4 asserting that the markup could not carry roles on the day it made it carry them — and
+the wave rightly ignored it. It refreshed D4 and missed D6, which is a lapse of execution, not of
+principle.
 
 **When a decision changes, the implementation directives change in the same move.** What loses
 its subject is removed, not kept "just in case".
