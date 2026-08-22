@@ -544,14 +544,28 @@ because a contrast repair is a palette decision and the palette is this lot's su
 <sub>`python3 frontend/maquette/a11y.py --record` refreshes that file; it is a live handover, not
 a frozen record.</sub>
 
+**A SECOND THING L03 HANDS OVER, and it is the price of a decision the operator took knowingly.**
+L03 removed `maximum-scale=1, user-scalable=no` from the viewport meta — 83 of its 744 violations,
+one per state, WCAG 1.4.4. Those directives were forbidding the pinch-zoom a low-vision reader
+depends on, and the hard-zero floor left no third option: excluding the rule would have been a
+tolerated list of one.
+
+What they were also buying, measured rather than assumed: **`.search input` is `font-size: 13px`**,
+below the 16px threshold at which iOS auto-zooms a focused field. So on iPhone, focusing the search
+field now zooms the page. **The clean repair is 16px on that field, and it belongs here** because it
+moves the type scale — which L03 could not do under a floor of zero oracle divergence. Until this
+lot runs, the interface trades one field's comfort for zoom returned to everyone, and the operator
+arbitrated it that way on 2026-08-22.
+
 **And one thing L03 measured that this lot does NOT inherit**: touch-target size (WCAG 2.5.8) was
 expected to be a debt and is not. `target-size` runs, is applicable — 49 nodes evaluated in a
 single state, none of them skipped — and reports **0 violations over the 83 states**.
 
 **Done when.** The scale is declared in one place; no declaration sits outside it; a check refuses
 the next one; the `--tm-*` family has a decided home and its fallbacks still hold; the 42 contrast
-findings are gone and `a11y.py`'s contrast run is empty; the oracle records the intended visual
-changes as accepted, each reviewed.
+findings are gone and `a11y.py`'s contrast run is empty; `.search input` reads at least 16px so a
+focused field no longer zooms iOS; the oracle records the intended visual changes as accepted, each
+reviewed.
 
 #### L07 — Tailwind and CVA, surface by surface · `NOT STARTED` · *depends on L02, L04, L06*
 
