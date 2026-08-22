@@ -154,6 +154,7 @@ function PageHeading({ page }: { page: string }): ReactElement | null {
 
 export function PageHost(): ReactElement | null {
   const page = useUiState().page as string | undefined;
+  const phase = useUiState().phase as string | undefined;
   const migrated = page ? PAGES[page] : undefined;
   const isReleased = useSyncExternalStore(subscribeRelease, () => released);
 
@@ -163,6 +164,18 @@ export function PageHost(): ReactElement | null {
   useLayoutEffect(() => {
     if (migrated && released) setReleased(false);
   });
+
+  // `aria-busy` ON THE MAIN REGION, from the ONE place that knows every page's
+  // phase. Marked on each page instead, it would be eight call sites and the
+  // eighth would be forgotten — this repository has paid for that shape more
+  // than once. A screen reader that is told a region is busy stops reading its
+  // half-built contents and waits.
+  useLayoutEffect(() => {
+    const main = document.getElementById("port");
+    if (!main) return;
+    if (migrated && phase === "loading") main.setAttribute("aria-busy", "true");
+    else main.removeAttribute("aria-busy");
+  }, [migrated, phase]);
 
   if (!migrated || isReleased) return null;
   const view = document.getElementById("view");

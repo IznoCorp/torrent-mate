@@ -364,7 +364,7 @@ function LibraryList(): ReactElement {
         id="libitems"
         className={grid ? "grid" : "sec"} data-part={grid ? "grid" : "section"}
         dangerouslySetInnerHTML={{
-          __html: `<div class="surferr" data-part="surface-error">${surfErrInner(t("screens.library.errorSubject"))}</div>`,
+          __html: `<div class="surferr" data-part="surface-error" role="alert">${surfErrInner(t("screens.library.errorSubject"))}</div>`,
         }}
       />
     );

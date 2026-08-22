@@ -9936,7 +9936,7 @@ import { screens, panel, bridge } from "../seams.js";
               ? "info"
               : "warning"
       : null;
-    return `<button class="tile${opts.muted ? " off" : ""}" data-part="tile" ${opts.index != null ? `data-tile="${opts.index}"` : ""} ${opts.dismiss != null ? `data-dismissable="${escapeHtml(String(opts.dismiss))}"` : ""} data-panel="${escapeHtml(opts.panel || `media:${descriptor.t}`)}" ${sel ? `aria-selected="${selected}"` : `data-mediasheet="${escapeHtml(descriptor.t)}"`}>
+    return `<button class="tile${opts.muted ? " off" : ""}" data-part="tile" ${opts.index != null ? `data-tile="${opts.index}"` : ""} ${opts.dismiss != null ? `data-dismissable="${escapeHtml(String(opts.dismiss))}"` : ""} data-panel="${escapeHtml(opts.panel || `media:${descriptor.t}`)}" ${sel ? `aria-pressed="${selected}"` : `data-mediasheet="${escapeHtml(descriptor.t)}"`}>
       <span class="p">${posterBox(descriptor.t, descriptor.k)}</span>
       ${sel ? `<span class="sel" data-part="selection/check">${svgIcon(icons.check, 3)}</span>` : badge ? `<span class="tilebadge" data-part="tile/badge" style="background:var(--${tone})">${escapeHtml(badge.txt)}</span>` : ""}
       <span class="nm" data-part="tile/title">${escapeHtml(descriptor.t)}</span>
@@ -9998,7 +9998,7 @@ import { screens, panel, bridge } from "../seams.js";
   function libRowHTML(item, index) {
     if (currentState().selMode) {
       const has = currentState().selected.has(index);
-      return `<button class="selrow" data-part="selection/row" data-tile="${index}" aria-selected="${has}">
+      return `<button class="selrow" data-part="selection/row" data-tile="${index}" aria-pressed="${has}">
         <span class="sel" data-part="selection/check">${svgIcon(icons.check, 3)}</span>
         <span class="poster" data-part="card/poster">${posterBox(item.t)}</span>
         <span class="rowtxt"><span class="ctitle" data-part="card/title" title="${escapeHtml(item.t)}">${escapeHtml(item.t)}</span><span class="csub" data-part="card/subtitle">${escapeHtml(item.f)}</span></span>
@@ -12283,7 +12283,7 @@ import { screens, panel, bridge } from "../seams.js";
       // paintSelBar() below draws the bar directly, not through render():
       // the explicit bump is what tells React the selection changed.
       store.touch();
-      closest.setAttribute("aria-selected", String(currentState().selected.has(index)));
+      closest.setAttribute("aria-pressed", String(currentState().selected.has(index)));
       paintSelBar();
       return;
     }

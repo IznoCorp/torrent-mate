@@ -1,4 +1,8 @@
-"""R81 — a layer takes focus when it opens and gives it back when it closes.
+"""R81 — what an assistive technology is told, and an audit cannot see.
+
+Three things live here, and they share one property: `a11y.py` cannot see any
+of them. Focus MOVING, a surface saying it is BUSY, and an error ANNOUNCING
+itself are facts about a sequence, or about a state the audit is not driving.
 
 WHY A RULE AND NOT THE ACCESSIBILITY AUDIT. `a11y.py` reads the markup of ONE
 MOMENT. Focus management is a SEQUENCE: something was focused, a layer opened,
@@ -48,13 +52,23 @@ FOCUS_STATE = """([layer, background])=>{
     backgroundInert: Boolean(behind && behind.hasAttribute('inert')),
   };}"""
 
+# The error surfaces of one state, and how many of them announce. Hosted in a
+# triple-quoted string on purpose: `check-markup-contracts.py` reads this file
+# as TEXT to pair every `data-*` a rule selects with the markup that emits it,
+# and an escaped quote hides the selection from it — the arm would count one
+# fewer and say nothing.
+SURFACES = """()=>{
+  const all = [...document.querySelectorAll('[data-part="surface-error"]')];
+  return [all.length,
+    all.filter((node)=>node.getAttribute('role') === 'alert').length];}"""
+
 TRIGGER_HAS_FOCUS = """(selector)=>{
   const trigger = document.querySelector(selector);
   return Boolean(trigger && document.activeElement === trigger);}"""
 
 
 async def main():
-    journal = Journal("R81 — focus enters a layer, and comes back out")
+    journal = Journal("R81 — focus enters a layer, and the interface says what it is doing")
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel="chrome")
         context, page = await open_page(browser)
@@ -112,6 +126,51 @@ async def main():
             "the scroll position",
             landed == "port", f"active: {landed!r}")
         await fresh_context.close()
+
+        # WHAT THE INTERFACE SAYS WHILE IT WORKS, here for the same reason as
+        # the rest: an audit reads a moment, and « busy » is a moment it is not
+        # driving.
+        #
+        # The busy mark is set in ONE place — the page host, the only thing that
+        # knows every page's phase. Marked page by page it would be eight call
+        # sites, and the eighth would be forgotten.
+        await page.evaluate("(id)=>window.__go(id)", "lib-loading")
+        await page.wait_for_timeout(400)
+        journal.check(
+            "a page that is loading says so",
+            await page.evaluate(
+                "()=>document.querySelector('#port')?.getAttribute('aria-busy')"
+            ) == "true",
+            "aria-busy while loading")
+        await page.evaluate("(id)=>window.__go(id)", "lib-grid")
+        await page.wait_for_timeout(400)
+        journal.check(
+            "and stops saying so once it has loaded",
+            await page.evaluate(
+                "()=>document.querySelector('#port')?.hasAttribute('aria-busy')"
+            ) is False,
+            "aria-busy cleared")
+
+        # EVERY error surface announces, over EVERY state that renders one.
+        #
+        # The shape is repeated at nine call sites across six files, which is
+        # exactly where the ninth gets forgotten — so this drives every named
+        # state whose id says error and sums what it finds. A first version of
+        # this hold drove one state, found one surface and called that a count:
+        # a hold that samples and reads like a census is worse than no hold,
+        # because it is believed.
+        seen, announced = 0, 0
+        for state in [s for s in await page.evaluate("()=>window.__states()")
+                      if "error" in s]:
+            await page.evaluate("(id)=>window.__go(id)", state)
+            await page.wait_for_timeout(300)
+            found = await page.evaluate(SURFACES)
+            seen += found[0]
+            announced += found[1]
+        journal.check(
+            "every error surface reaches a listener, not only a reader",
+            seen > 0 and seen == announced,
+            f"{announced} of {seen} surface(s) announce, over the error states")
 
         await context.close()
         await browser.close()

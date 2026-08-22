@@ -400,7 +400,17 @@
          to be kept in step by every template string that opens one. -->
     <div class="dlg" id="dlg" data-part="dialog" role="dialog"
       aria-modal="true"></div>
-    <div class="toast" id="toast">
+    <!-- ANNOUNCED, not merely shown. This is the interface's one
+         general-purpose « something happened » channel, and a screen reader
+         said nothing about any of it. `role="status"` is polite: it waits
+         for a pause rather than cutting across what is being read, which is
+         right for a message that is informative and never blocking.
+
+         THE REGION EXISTS BEFORE THE TEXT DOES, and that ordering is the
+         whole mechanism: a live region inserted together with its content
+         announces nothing. This element is in the document from the first
+         parse and the engine writes only `#toastmsg` inside it. -->
+    <div class="toast" id="toast" role="status" aria-live="polite">
       <span id="toastmsg"></span
       ><button id="toastx" aria-label="Fermer">
         <svg

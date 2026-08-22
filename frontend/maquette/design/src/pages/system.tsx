@@ -47,7 +47,7 @@ export function SystemPage(): ReactElement | null {
     // wrapper appears where the legacy had none.
     return state.phase === "error" ? (
       <div
-        className="surferr" data-part="surface-error"
+        className="surferr" data-part="surface-error" role="alert"
         dangerouslySetInnerHTML={{
           __html: surfErrInner(t("screens.system.errorSubject")),
         }}

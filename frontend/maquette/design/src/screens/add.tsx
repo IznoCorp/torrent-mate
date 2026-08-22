@@ -180,7 +180,7 @@ export function AddScreen() {
         {identify ? (
           <div style={{ padding: "12px 14px 0" }}>
             <div
-              className="surferr" data-part="surface-error"
+              className="surferr" data-part="surface-error" role="alert"
               style={{
                 borderColor: "color-mix(in oklab,var(--info) 45%,transparent)",
                 background: "color-mix(in oklab,var(--info) 8%,transparent)",
