@@ -7616,6 +7616,7 @@ import { screens, panel, bridge } from "./seams.js";
     const deleted = action.r === "destructive";
     const blanc = deleted ? true : !!currentState().maintBlanc;
     panel.open({
+      address: "action:" + id,
       title: action.l,
       subtitle: action.id,
       meta: action.d,
@@ -9355,6 +9356,7 @@ import { screens, panel, bridge } from "./seams.js";
     const courante = displayedValue(setting);
     const changed = SETTINGS_STATE.modifs.has(id);
     panel.open({
+      address: "setting:" + id,
       title: window.__settingLabels.label(setting),
       meta: [{ m: `${setting.f}.json5 · ${setting.c}` }],
       ...(changed ? { puce: ["info", "modifié, pas encore écrit"] } : {}),
@@ -33659,6 +33661,7 @@ import { screens, panel, bridge } from "./seams.js";
         ? `${own}/${aired}`
         : (stFraction(follow) ?? "—");
     panel.open({
+      address: "follow:" + title,
       title: follow.t,
       poster: { t: follow.t, k: follow.k },
       meta: `${follow.y ? String(follow.y) + " · " : ""}${isFilm ? "Film" : "Série"}${frac ? " · " + frac + " épisodes" : ""}`,
@@ -33829,6 +33832,7 @@ import { screens, panel, bridge } from "./seams.js";
       ["Rangé en médiathèque", "à venir", "todo"],
     ];
     panel.open({
+      address: "journey:" + title,
       title: title,
       meta: [
         "Parcours de l'acquisition · release ",
@@ -34484,6 +34488,32 @@ import { screens, panel, bridge } from "./seams.js";
       pilotage = true;
       showSignIn(false);
       pilotage = false;
+    }
+    /* An ADDRESSED panel reopens on a cold load — otherwise its address would
+       be decoration, written but never read. The table is here, beside the
+       producers it names, and a `<kind>` it does not carry is IGNORED rather
+       than guessed at: a stale link naming a panel nobody serves must land on
+       the page, never on an invented one. */
+    if (arrival.panel) {
+      const [kind, subject] = [
+        arrival.panel.slice(0, arrival.panel.indexOf(":")),
+        arrival.panel.slice(arrival.panel.indexOf(":") + 1),
+      ];
+      const REOPEN = {
+        follow: openFollowSheet,
+        journey: openJourneySheet,
+        setting: openSetting,
+        action: openActionMaintenance,
+      };
+      if (REOPEN[kind]) {
+        pilotage = true;
+        try {
+          REOPEN[kind](subject);
+        } catch (error) {
+          console.error("reopening the addressed panel failed", error);
+        }
+        pilotage = false;
+      }
     }
     /* The address is put back on the entry one arrives on, so a back from
        anywhere reaches the page the link named rather than a bare

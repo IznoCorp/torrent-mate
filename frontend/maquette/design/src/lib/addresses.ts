@@ -66,8 +66,15 @@ const DIALS = [
   { parameter: "topic", field: "maintTopic", default: "", of: "maint" },
 ] as const;
 
+/** The parameter the addressed panel travels under — D1's second tier. It
+ * belongs to no page: a panel opens over whichever one is showing. */
+export const PANEL_PARAMETER = "panel";
+
 /** The query parameters any page may carry — read by the addressing guard. */
-export const DIAL_PARAMETERS: readonly string[] = DIALS.map((d) => d.parameter);
+export const DIAL_PARAMETERS: readonly string[] = [
+  ...DIALS.map((d) => d.parameter),
+  PANEL_PARAMETER,
+];
 
 /** The dials one page carries, by the parameter name each appears under. */
 export function dialsOfPage(page: string): readonly string[] {
@@ -82,6 +89,8 @@ export type Destination = {
   notFound?: string;
   /** The sign-in screen is asked for, over whatever page the address names. */
   signIn?: boolean;
+  /** The addressed panel asked for, as `<kind>:<subject>`. */
+  panel?: string;
 };
 
 /**
@@ -99,9 +108,14 @@ export type Destination = {
  *     rendered as the not-found surface, and giving it an address of its own
  *     would rewrite a mistyped link into a different one.
  */
-export function addressOf(page: string, values: Record<string, unknown>): string {
+export function addressOf(
+  page: string,
+  values: Record<string, unknown>,
+  panel?: string,
+): string {
   const path = PAGE_PATHS[page] ?? "/";
   const query = new URLSearchParams();
+  if (panel) query.set(PANEL_PARAMETER, panel);
   for (const dial of DIALS) {
     if (dial.of !== page) continue;
     const value = values[dial.field];
@@ -139,6 +153,7 @@ export function destinationOf(pathname: string, search: string): Destination {
     const value = query.get(dial.parameter);
     if (value) dials[dial.field] = value;
   }
-  if (page === NOT_FOUND_PAGE) return { page, dials, notFound: pathname };
-  return { page, dials };
+  const panel = query.get(PANEL_PARAMETER) || undefined;
+  if (page === NOT_FOUND_PAGE) return { page, dials, notFound: pathname, panel };
+  return { page, dials, panel };
 }

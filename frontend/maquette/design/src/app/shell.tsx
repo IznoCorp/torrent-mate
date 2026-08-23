@@ -74,7 +74,7 @@ import { go, installNavigation } from "../lib/navigate";
 type Bridge = {
   record: (state: unknown, url: string) => void;
   replace: (state: unknown, url?: string) => void;
-  pushLayer: (layer: string) => void;
+  pushLayer: (layer: string, url?: string) => void;
   back: () => void;
   // Settling SEVERAL entries at once — the door a caller uses instead of
   // saying `back()` twice in the same task. `n` counts ENTRIES, and the
@@ -280,8 +280,12 @@ window.__bridge = {
     history.replace(url ?? history.location.href, state);
     history.flush();
   },
-  pushLayer: (layer: string) => {
-    history.push(history.location.href, { layer });
+  pushLayer: (layer: string, url?: string) => {
+    // A layer that carries an ADDRESS pushes it; one that does not keeps the
+    // address it opened over. That is D1's tier split, expressed in one
+    // argument: tier 2 is addressable and reopens on a reload, tier 3 is
+    // transient and Back still closes it.
+    history.push(url ?? history.location.href, { layer });
     history.flush();
   },
   back: () => history.back(),
@@ -528,7 +532,19 @@ function openPanel(descriptor: PanelDescriptor): void {
     store.write({ panelDescriptor: descriptor, panelOpen: true }),
   );
   try {
-    window.__bridge.pushLayer("sheet");
+    // D1's second tier: a panel whose subject is stable travels in the query,
+    // so a reload reopens it. One with no `address` is transient and keeps the
+    // address it opened over.
+    window.__bridge.pushLayer(
+      "sheet",
+      descriptor.address
+        ? addressOf(
+            String(window.__store.read().state.page ?? ""),
+            window.__store.read().state,
+            descriptor.address,
+          )
+        : undefined,
+    );
   } catch (error) {
     // B-026's own residual: `window.__bridge` is assigned synchronously at this
     // module's top level, before any producer can call `open` — so unlike
