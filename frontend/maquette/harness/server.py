@@ -30,12 +30,41 @@ import pathlib
 import threading
 from collections.abc import Iterator
 
-# Never one of these, for a SCRATCH server: 8710/8711/8712 are the reverse
-# proxy's routes to prod, staging and the design host, and 8899 is the
-# prototype's own host — every rule reads it, and a second server there would
-# just race it for the socket. `serve_forever` is exempt because it IS that
-# host; the guard exists to stop a RULE, not the thing being guarded.
+# Never one of these: 8710/8711/8712 are the reverse proxy's routes to prod,
+# staging and the design host, and 8899 is the prototype's own host — every
+# rule reads it, and a second server there would just race it for the socket.
+# The HOST is exempt from 8899 alone, because it IS that host; nothing is ever
+# exempt from the proxy's three, and « nothing » includes the host: `--serve
+# 8710` would put the prototype on the port Caddy sends prod's traffic to.
 RESERVED_PORTS = (8710, 8711, 8712, 8899)
+
+# The prototype's own host, and the only reservation anything may claim.
+HOST_PORT = 8899
+
+
+def refuse_reserved(port: int, *, host_allowed: bool) -> None:
+    """Refuses a port that belongs to something else, before any socket is asked for.
+
+    Args:
+        port: The loopback port about to be bound. 0 asks the kernel for a
+            free one and is never reserved.
+        host_allowed: True for the prototype's own host, which may bind
+            `HOST_PORT` because it IS that host; False for a scratch server,
+            which may bind none of the reserved ports at all.
+
+    Raises:
+        ValueError: When `port` is reserved and this caller may not have it.
+            Named rather than described: the message carries the port, so a
+            misconfigured launcher says which number it asked for.
+    """
+    if port not in RESERVED_PORTS:
+        return
+    if host_allowed and port == HOST_PORT:
+        return
+    raise ValueError(
+        f"refusing to bind port {port}: it is reserved "
+        f"({RESERVED_PORTS[0]}/{RESERVED_PORTS[1]}/{RESERVED_PORTS[2]} are the reverse "
+        f"proxy's routes, {HOST_PORT} is the prototype's host)")
 
 
 class FallbackHandler(http.server.SimpleHTTPRequestHandler):
@@ -156,8 +185,7 @@ def start_server(port: int, root: pathlib.Path) -> Iterator[int]:
     Raises:
         ValueError: When `port` is one of `RESERVED_PORTS`.
     """
-    if port in RESERVED_PORTS:
-        raise ValueError(f"reserved port: {port}")
+    refuse_reserved(port, host_allowed=False)
     handler = functools.partial(FallbackHandler, directory=str(root))
     # ThreadingHTTPServer's constructor binds and listens before returning
     # (bind_and_activate defaults to True) — by the time this line completes,
@@ -182,10 +210,12 @@ def serve_forever(port: int, root: pathlib.Path) -> None:
     """Serves `root` on `port` in the FOREGROUND, until the process is killed.
 
     This is the prototype's own host, not a rule's scratch server, and the
-    difference is the port guard. `start_server` refuses `RESERVED_PORTS`
-    because a RULE binding 8899 would race the host for the socket; here the
-    caller IS that host, so the guard has no subject and is not applied. The
-    reservation keeps its meaning for every other caller.
+    difference is ONE port. `start_server` refuses every reservation, because
+    a rule binding 8899 would race the host for the socket; here the caller IS
+    that host, so 8899 is the one number it may have. The proxy's three are
+    refused to it exactly as they are to a rule — `--serve 8710` would put the
+    prototype on the port Caddy sends prod's traffic to, and « the caller is
+    the host » is no reason to hand it a port that is somebody else's.
 
     The host must fold unknown addresses onto the document: a page sits at a
     real path (`/media`), and a plain `http.server` answers 404 for every path
@@ -194,9 +224,14 @@ def serve_forever(port: int, root: pathlib.Path) -> None:
     for a reason unrelated to whatever was being measured.
 
     Args:
-        port: The loopback port to bind.
+        port: The loopback port to bind. `HOST_PORT` is the one reservation
+            this caller may claim.
         root: The directory to serve. Must contain `wrapped.html`.
+
+    Raises:
+        ValueError: When `port` is a reservation that is not this host's.
     """
+    refuse_reserved(port, host_allowed=True)
     handler = functools.partial(FallbackHandler, directory=str(root))
     http.server.ThreadingHTTPServer(("127.0.0.1", port), handler).serve_forever()
 
@@ -319,6 +354,48 @@ if __name__ == "__main__":
             isinstance(port, int) and port != 0 and port not in RESERVED_PORTS
             and second_holds,
             second_evidence)
+
+    # ── the ports nothing here may bind ───────────────────────────────────
+    # `--serve 8710` used to be accepted: the host had no guard at all, and
+    # the only thing keeping the prototype off the port Caddy routes prod's
+    # traffic to was that prod happened to be holding the socket. Read
+    # through `serve_forever` itself rather than through the helper alone, so
+    # the CALL is held and not merely the check — with the socket constructor
+    # swapped for one that refuses, a broken guard is a caught assertion here
+    # instead of a server left listening on a port that is not ours.
+    def never_bind(*arguments: object, **keywords: object) -> None:
+        """Stands in for the socket, so a guard that failed is caught, not bound."""
+        raise AssertionError("reached the socket")
+
+    real_server = http.server.ThreadingHTTPServer
+    http.server.ThreadingHTTPServer = never_bind  # type: ignore[assignment,misc]
+    try:
+        serve_forever(8710, PROOF_ROOT)
+        proxy_port = "bound it"
+    except ValueError as refused:
+        proxy_port = f"refused: {refused}"
+    except AssertionError as reached:
+        proxy_port = f"NOT refused, {reached}"
+    finally:
+        http.server.ThreadingHTTPServer = real_server  # type: ignore[misc]
+
+    try:
+        refuse_reserved(HOST_PORT, host_allowed=True)
+        own_port = "kept"
+    except ValueError as refused:
+        own_port = f"refused: {refused}"
+    try:
+        refuse_reserved(HOST_PORT, host_allowed=False)
+        rule_port = "accepted"
+    except ValueError:
+        rule_port = "refused"
+    journal.check(
+        "the host refuses a reverse-proxy port before it reaches the socket, "
+        "and keeps only its own",
+        proxy_port.startswith("refused:") and "8710" in proxy_port
+        and own_port == "kept" and rule_port == "refused",
+        f"8710 → {proxy_port} · {HOST_PORT} as the host → {own_port} · "
+        f"{HOST_PORT} as a rule → {rule_port}")
 
     # ── the HOST, not a scratch server ────────────────────────────────────
     # Everything above proves the HANDLER, on a scratch port. This proves the
