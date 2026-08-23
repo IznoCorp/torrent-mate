@@ -131,7 +131,7 @@ def start_server(port: int, root: pathlib.Path) -> Iterator[None]:
 
     Files under `root` are served as-is; any path with no file behind it
     instead answers `root/wrapped.html` — the fallback that lets a deep
-    client-side address (`/profile/…`, `/add`, `/resolution/<dossier
+    client-side address (`/quality/…`, `/add`, `/resolution/<dossier
     portant des points>`) be requested directly rather than only reached by
     navigating there inside an already-loaded document — EXCEPT under
     `FallbackHandler.ASSET_PREFIXES`, where a missing file still 404s.
@@ -230,7 +230,7 @@ if __name__ == "__main__":
     with start_server(PROOF_PORT, PROOF_ROOT):
         base = f"http://127.0.0.1:{PROOF_PORT}"
 
-        with urllib.request.urlopen(f"{base}/profile/X%20Y", timeout=5) as response:
+        with urllib.request.urlopen(f"{base}/quality/X%20Y", timeout=5) as response:
             profile_status, profile_body = response.status, response.read()
         journal.check(
             "a deep address answers 200 + the document",

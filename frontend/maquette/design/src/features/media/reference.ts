@@ -28,6 +28,12 @@ export type Trailer = {
 
 export type MediaReference = EngineDrawing & {
   sheetFor: (title: string) => MediaSheet | null;
+  // The sheet's ADDRESS is `/media/:provider/:id` (DOIT-11), the catalogue is
+  // keyed by title: these two cross the vocabularies, in the engine, from the
+  // fixture itself. `null` from `addressIdsFor` is §11's explicit case — a
+  // medium with no provider id has no sheet, and leads to the resolution.
+  titleForProviderId: (provider: string, id: string) => string | null;
+  addressIdsFor: (title: string) => { provider: string; id: string } | null;
   seasonsOf: (title: string) => [number, number | null, number][];
   ownedFor: (title: string, season: number) => Set<number> | null;
   EP_LABEL: Record<string, string>;

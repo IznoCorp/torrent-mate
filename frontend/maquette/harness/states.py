@@ -32,7 +32,7 @@ async def main():
           // Every screen migrated off `#screen` onto a real route (the mediaSheet
           // at `/mediasheet/$title`, the add screen at `/add`, the arbitration
           // screen at `/resolution/$folder`, the release picker at
-          // `/releases/$title`, the quality profile at `/profile/$title`) is
+          // `/releases/$title`, the quality profile at `/quality/$name`) is
           // read through ONE generic rung — any OPEN screen carries a
           // `data-key`, so its presence is enough, never a per-identity
           // prefix. Without it, a state opening one of those routes would

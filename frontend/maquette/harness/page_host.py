@@ -375,7 +375,7 @@ async def main():
         journal.check(
             "a real tap on the quality-profile row goes to ITS address",
             not refused and profile is not None
-            and address == f"/profile/{profile}" and before_address != address,
+            and address == f"/quality/{profile}" and before_address != address,
             f"{before_address} → {address} for data-profile={profile!r}"
             if not refused else f"data-profile {refused}")
         await page.evaluate("()=>window.__bridge.back()")

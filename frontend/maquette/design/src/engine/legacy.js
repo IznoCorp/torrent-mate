@@ -9816,6 +9816,8 @@ import { screens, panel, bridge } from "./seams.js";
     trailerIds,
     EP_LABEL,
     sheetFor,
+    titleForProviderId,
+    addressIdsFor,
     seasonsOf,
     ownedFor,
     plages,
@@ -11114,7 +11116,7 @@ import { screens, panel, bridge } from "./seams.js";
     // Ownership, once more, decided by the entry's own SHAPE: only an entry
     // that carries the guard's own marker (written once, at boot, by
     // __bridge.remplacer({ tm: "garde" })) is the guard. Anything else that
-    // falls through here — notably an entry the ROUTER wrote for /profile/$title
+    // falls through here — notably an entry the ROUTER wrote for /quality/$name
     // or /ajout, which carries neither "layer" nor "tm" — is not ours to
     // react to: the router has already re-rendered by the new URL, so a true
     // no-op is the correct handling, not "treat every unrecognised shape as
@@ -33231,6 +33233,41 @@ import { screens, panel, bridge } from "./seams.js";
     }
     return byNumber;
   })();
+  /* THE REVERSE OF `sheetFor`, and the one place that crosses the two
+     vocabularies. The catalogue is keyed by TITLE; the media sheet's address is
+     `/media/:provider/:id`, which DOIT-11 writes literally and which production
+     already serves. Built once, from the fixture itself, so the two can never
+     disagree — a second hand-written table is how they would.
+
+     First writer wins: a title is reachable by each of its providers, and two
+     titles sharing an id would be a defect in the fixture rather than something
+     to arbitrate here. */
+  const SHEETS_BY_PROVIDER_ID = new Map();
+  function providerKey(provider, id) {
+    return provider + ":" + id;
+  }
+  function titleForProviderId(provider, id) {
+    if (!SHEETS_BY_PROVIDER_ID.size)
+      for (const [title, sheet] of Object.entries(SHEETS_RAW))
+        for (const [name, value] of Object.entries((sheet && sheet.ids) || {}))
+          if (value && !SHEETS_BY_PROVIDER_ID.has(providerKey(name, value)))
+            SHEETS_BY_PROVIDER_ID.set(providerKey(name, value), title);
+    return SHEETS_BY_PROVIDER_ID.get(providerKey(provider, id)) ?? null;
+  }
+  /* The provider a title is ADDRESSED by. TVDB first, then TMDB — the same
+     order the sheet already displays, so the address and what it shows cannot
+     drift apart. `null` means the media carries no provider id, which §11 makes
+     an explicit case rather than a gap: it has no sheet, and the surface must
+     lead to the resolution instead of to a dead link. */
+  function addressIdsFor(title) {
+    const sheet = sheetFor(title);
+    const ids = (sheet && sheet.ids) || null;
+    if (!ids) return null;
+    if (ids.tvdb) return { provider: "tvdb", id: String(ids.tvdb) };
+    if (ids.tmdb) return { provider: "tmdb", id: String(ids.tmdb) };
+    return null;
+  }
+
   function sheetFor(title) {
     if (title == null) return null;
     const direct = SHEETS_RAW[title] ?? SHEETS_RAW[baseTitle(title)];
@@ -34571,7 +34608,7 @@ Object.assign(window, {
   proposerInstallation, ptr, publishBarHeight, refPanel, collapseCard,
   refreshDeck, settingId, resetSettings, render, renderNav,
   richText, seasonsOf, sheetSeasonsHTML, secHTML, secInner, seedWorld,
-  select, sheetFor, skelCards, skelCardsInner, skelTiles, sortLabel,
+  select, sheetFor, titleForProviderId, addressIdsFor, skelCards, skelCardsInner, skelTiles, sortLabel,
   leaveQueue, stFraction, stLabel, stripHTML, sugCardHTML, sugFoot,
   sugTileHTML, sugVerb, followPress, onIOSSafari, onEngineBack,
   surfErr, surfErrInner, svgIcon, swipeHTML, tileHTML, toast, toastUndo,

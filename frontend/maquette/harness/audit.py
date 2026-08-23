@@ -48,7 +48,7 @@ async def main():
           // Every screen migrated off `#screen` onto a real route (the media
           // sheet at `/mediasheet/$title`, the add screen at `/add`, the
           // arbitration screen at `/resolution/$folder`, the release picker
-          // at `/releases/$title`, the quality profile at `/profile/$title`)
+          // at `/releases/$title`, the quality profile at `/quality/$name`)
           // answers to ONE generic rung: any OPEN screen carries a `data-key`,
           // so the identity itself is never read here, only its presence —
           // naming each prefix would have re-opened the same hole for the

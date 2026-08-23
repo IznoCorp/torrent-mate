@@ -11,16 +11,16 @@
 
 import { createRoute } from "@tanstack/react-router";
 import { rootRoute } from "../app/root-route";
-import { ProfileScreen } from "../features/releases/profile-screen";
+import { QualityScreen } from "../features/releases/quality-screen";
 
 // The quality-profile screen: a real route, rendering a final component
 // INSIDE the React root — a surface reached directly rather than through the
 // legacy fragment. `$title` is percent-encoded and
 // NFC-normalised by both ends of the bridge (`go()` below on write,
-// `ProfileScreen` on read) so a title carrying combining characters survives
+// `QualityScreen` on read) so a title carrying combining characters survives
 // the round trip through the URL unchanged.
-export const profileRoute = createRoute({
+export const qualityRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/profile/$title",
-  component: ProfileScreen,
+  path: "/quality/$name",
+  component: QualityScreen,
 });

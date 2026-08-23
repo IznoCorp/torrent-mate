@@ -60,7 +60,7 @@ import { maintenanceRoute } from "../routes/maintenance";
 import { settingsRoute } from "../routes/settings";
 import { systemRoute } from "../routes/system";
 import { mediaRoute } from "../routes/media-sheet";
-import { profileRoute } from "../routes/profile";
+import { qualityRoute } from "../routes/quality";
 import { releasesRoute } from "../routes/releases";
 import { resolutionRoute } from "../routes/resolution";
 import { installSeams } from "../engine/seams";
@@ -216,7 +216,7 @@ const router = createRouter({
     settingsRoute,
     accountRoute,
     // The screens, which do render.
-    profileRoute,
+    qualityRoute,
     addRoute,
     mediaRoute,
     releasesRoute,
@@ -236,7 +236,7 @@ const router = createRouter({
 // Registers `router` as THE router for every `useParams`/`useNavigate` call
 // in the tree, so a screen component (in its own file, importing neither
 // `router` nor `rootRoute` — that would cycle back to this module) still gets
-// fully typed params from a bare path literal like `/profile/$title`.
+// fully typed params from a bare path literal like `/quality/$name`.
 declare module "@tanstack/react-router" {
   interface Register {
     router: typeof router;
@@ -408,14 +408,26 @@ history.subscribe(({ action, location }) => {
 // that very screen.
 installNavigation(router, history);
 // What a migrated legacy call site invokes instead of its old `openX(...)`.
-// NFC-normalised here, once, on write — `ProfileScreen` normalises again on
+// NFC-normalised here, once, on write — `QualityScreen` normalises again on
 // read so an entry arriving by direct URL (not through this bridge) is
 // covered too.
 window.__screens = {
   profile: (title: string) =>
-    go({ to: "/profile/$title", params: { title: title.normalize("NFC") } }),
-  mediaSheet: (title: string) =>
-    go({ to: "/mediasheet/$title", params: { title: title.normalize("NFC") } }),
+    go({ to: "/quality/$name", params: { name: title.normalize("NFC") } }),
+  // The sheet is addressed by PROVIDER ID (DOIT-11), and callers hold a title,
+  // so the crossing happens here — the seam, which is where every other
+  // title-to-address translation already happens.
+  //
+  // §11's single exception is honoured rather than worked around: a medium with
+  // no provider id has NO sheet, and the surface must lead to the resolution
+  // instead of to a dead link. Measured on the fixture the day this landed, all
+  // 259 sheets carry ids, so this branch is unreachable today — it is here
+  // because the rule is, not because a case demanded it.
+  mediaSheet: (title: string) => {
+    const ids = window.__referentiel.addressIdsFor(title.normalize("NFC"));
+    if (!ids) return window.__screens.resolution();
+    go({ to: "/media/$provider/$id", params: ids });
+  },
   // The legacy `openReleases`'s own first line, transplanted here rather than
   // into the component: `state.relatedTitle` is what the `data-take`
   // click-delegation branch reads once the operator picks a candidate, and it

@@ -46,8 +46,8 @@ function countKept(profile: QualityProfile, releases: Release[]): number {
   }).length;
 }
 
-export function ProfileScreen() {
-  const { title: raw } = useParams({ from: "/profile/$title" });
+export function QualityScreen() {
+  const { name: raw } = useParams({ from: "/quality/$name" });
   // Defensive: `__screens.profil` already normalises on write, but an entry
   // reached by a typed/bookmarked URL did not necessarily go through it.
   const title = raw.normalize("NFC");
