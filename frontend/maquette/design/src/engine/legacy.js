@@ -34526,9 +34526,17 @@ import { screens, panel, bridge } from "./seams.js";
     const entry = REOPEN[kind];
     if (asked.notFound || !subject || !entry || !entry.resolves(subject)) {
       /* ENGLISH, and not in the i18n resources: a console message is a tool
-         message, read by a developer, never by a reader of the interface. */
+         message, read by a developer, never by a reader of the interface.
+
+         AND IT SAYS WHICH REFUSAL IT IS. A panel asked for over an address
+         nothing serves is refused for the ADDRESS, not for the panel: the
+         subject may well be one this interface holds, and reporting it as
+         unheld sends the reader looking for a missing medium instead of a
+         mistyped path. */
       console.warn(
-        "the addressed panel names nothing this interface holds, and is ignored:",
+        asked.notFound
+          ? "the addressed panel is declined because the address itself is not served:"
+          : "the addressed panel names nothing this interface holds, and is ignored:",
         asked.panel,
       );
       return false;

@@ -84,7 +84,13 @@ What this holds to:
    rather than an entry quietly skipped.
 13. EVERY addressed panel kind reopens cold. The table has four and one was
    exercised; a kind nothing opens from an address is a kind whose address is
-   decoration, written and never read.
+   decoration, written and never read. And the two panels DROPPED before
+   anything can decline them — one carrying no value, one asked for over the
+   sign-in screen — say so out loud. The parameter leaves the address either
+   way, and a parameter that disappears without a word is one nobody can
+   account for from the outside; the words are held against the engine's own
+   source as well as heard on a console, so rewording one fells this rule
+   rather than quietly leaving it listening for a line nothing prints.
 """
 import asyncio
 import json
@@ -92,7 +98,7 @@ import pathlib
 import re
 import urllib.parse
 
-from common import PHONE
+from common import PHONE, design_source
 from playwright.async_api import async_playwright
 
 PROTOTYPE = "http://127.0.0.1:8899/"
@@ -235,6 +241,18 @@ BOOT_WRITES = (
     ("the arrival address", "replaceState", f'url.includes("{BOOT_ADDRESS}")', NAV_MARKER),
     ("the exit guard", "replaceState", f'given.tm === "{GUARD_MARKER}"', GUARD_MARKER),
     ("the arrival entry", "pushState", "true", NAV_MARKER),
+)
+
+# The two ways an addressed panel is dropped BEFORE anything can decline it —
+# an empty value names no panel at all, and one asked for over the sign-in
+# screen is never read, the gate covering everything there is to open over.
+# Each is a parameter that leaves the address, and the engine says so on the
+# console. The address to ask for it, and the words the engine says.
+PANEL_DROPS = (
+    ("carrying no value", "acquisition?panel=",
+     "the addressed panel carries no value, so nothing is opened:"),
+    ("asked for over the sign-in screen", "login?panel=follow:Silo",
+     "the sign-in screen covers everything, so the addressed panel is dropped:"),
 )
 
 WHERE = """() => ({
@@ -616,6 +634,42 @@ async def main():
         journal.check("and off what the interface will compose from it",
                       lost["notFound"] == "/nimportequoi", lost["notFound"])
         await ctx.close()
+
+        # AND THE TWO DROPS THAT HAPPEN BEFORE ANYTHING CAN DECLINE ANYTHING.
+        # The value above is REFUSED — the interface read it and said no. These
+        # two never get that far: an empty value names no panel, and a panel
+        # asked for over the sign-in screen is never read at all. Either way the
+        # parameter leaves the address, and a parameter that disappears without
+        # a word is one nobody can account for from the outside.
+        #
+        # The words are read TWICE, and the second reading is what keeps the
+        # first honest: off the ENGINE'S OWN SOURCE, and off a live console. A
+        # hold that only listens goes quiet the day the message is reworded —
+        # it waits for a line that can no longer be printed and reports the
+        # silence as a defect it cannot name. Held against the source, a reword
+        # fells the rule here, where it says what changed.
+        source = design_source()
+        for wanted, address, message in PANEL_DROPS:
+            journal.check(
+                f"the engine still says, in those words, why a panel {wanted} is dropped",
+                message in source, message)
+            ctx = await b.new_context(**PHONE)
+            pg = await ctx.new_page()
+            logged = []
+            errors = []
+            pg.on("console", lambda entry, sink=logged: sink.append(entry.text))
+            pg.on("pageerror", lambda e, sink=errors: sink.append(str(e)))
+            await pg.goto(PROTOTYPE + address, wait_until="load")
+            await pg.evaluate("()=>window.__loadingDone?.()")
+            await pg.wait_for_timeout(400)
+            journal.check(
+                f"a panel {wanted} is dropped OUT LOUD",
+                any(message in line for line in logged),
+                f"/{address} -> {logged}")
+            journal.check("and the address it left carries no panel",
+                          "panel=" not in query(pg.url), pg.url)
+            journal.check(f"no JS error dropping a panel {wanted}", not errors, str(errors))
+            await ctx.close()
 
         # ── 5. back walks the addresses in reverse ─────────────────────────
         ctx, pg, errors = await open_page(b)

@@ -556,9 +556,9 @@ window.__screens = {
    Composing it from `state.page` instead is not a cosmetic difference. A
    screen is a ROUTE, mounted by the router, so pushing the page's own path
    stops the route matching and the screen the operator linked to unmounts
-   behind the panel — measured on `/media/$provider/$id`, which is the wave's
-   headline surface. Off a screen, the page composes its address as it always
-   did: the page IS the surface there. */
+   behind the panel — measured on `/media/$provider/$id`. Off a screen, the
+   page composes its address as it always did: the page IS the surface
+   there. */
 function panelAddress(address: string): string {
   if (isScreenPath(window.location.pathname))
     return (
