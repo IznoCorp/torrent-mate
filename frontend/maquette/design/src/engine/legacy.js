@@ -11001,16 +11001,6 @@ import { screens, panel, bridge } from "./seams.js";
   const BACK_WINDOW = 5000;
   let pilotage = false;
   let armedExit = 0;
-  // The legacy engine's own address BASE — "/" in production, but whatever a
-  // static host answers the document under otherwise (the rule harness's
-  // 8899 server names it "/wrapped.html"). Computed once at boot by the
-  // shell (shell.tsx, using the router's OWN matching — see its own
-  // comment) and handed through window.__startEngine, because deciding
-  // it here would mean re-deriving what the router owns from a second,
-  // independently-maintained list. Defaulted to "/" so a call made before
-  // the boot handshake (there should be none) fails toward the common case
-  // rather than toward whatever the document happens to be opened from.
-  let baseAddress = "/";
 
   /* ── L'URL PORTE L'ÉTAT (DOIT-10) ─────────────────────────────────────
      « Chaque détail a son URL » is a rule of the constitution, and the
@@ -11031,63 +11021,17 @@ import { screens, panel, bridge } from "./seams.js";
 
      Only what DIFFERS from the opening state is written, so the common case
      has a clean URL and a link carries only what it means to carry. */
-  const URL_DEFAULTS = {
-    page: "acq",
-    tab: "now",
-    lens: "cat",
-    mode: "grid",
-    cat: "all",
-    rub: "",
-  };
+  /* ── THE ADDRESS IS THE SHELL'S ───────────────────────────────────────
+     This engine used to compose and parse every page address itself: a table
+     of dial defaults, a builder that dropped whatever sat at its default, and
+     a reader that put them back. All three left for `lib/addresses.ts`, and
+     that departure is the point rather than a tidy-up — a page now has a REAL
+     PATH (`/media`, not `?page=lib`), which is D1, and which of them is called
+     what is a naming convention rather than navigation logic.
 
-  function urlFromState() {
-    // Built on adresseBase, never on location.pathname: writing over the
-    // CURRENT pathname would either clobber a router-owned address (the
-    // C1 hole) or, once it does not, still be redundant with what pushing
-    // onto the shared history already achieves on its own — the router
-    // subscribes to that same history instance (Transitioner mounts
-    // `router.history.subscribe(router.load)`) and re-derives its matches
-    // from whatever URL lands there, regardless of who pushed it. A legacy
-    // nav writing `baseAddress + "?page=lib"` while the address reads
-    // `/add` is exactly what makes the router notice the address no
-    // longer matches `/add` and unmount the screen — no navigate() call
-    // needed on this side of the bridge.
-    const courant = {
-      page: currentState().page,
-      tab: currentState().acqTab,
-      lens: currentState().libLens,
-      mode: currentState().libMode,
-      cat: currentState().libCat,
-      rub: currentState().maintTopic || "",
-    };
-    const params = new URLSearchParams();
-    for (const [name, value] of Object.entries(courant))
-      if (value && value !== URL_DEFAULTS[name])
-        params.set(name, String(value));
-    const query = params.toString();
-    return baseAddress + (query ? "?" + query : "");
-  }
-
-  /* Reads back what the URL carries. An absent parameter is not « empty »: it
-     is « unchanged », so nothing is written for it and the opening state
-     stands. A page nobody serves is left AS IT IS rather than corrected here —
-     `render()` is what turns an unknown id into the not-found surface, and
-     silently rewriting it here would mean a mistyped address quietly became a
-     different one. */
-  function stateFromUrl() {
-    const params = new URLSearchParams(location.search);
-    const lu = {};
-    const take = (param, field) => {
-      if (params.has(param) && params.get(param)) lu[field] = params.get(param);
-    };
-    take("page", "page");
-    take("tab", "acqTab");
-    take("lens", "libLens");
-    take("mode", "libMode");
-    take("cat", "libCat");
-    take("rub", "maintTopic");
-    return lu;
-  }
+     What stays here is navigation logic proper: WHEN to record an arrival,
+     what state to carry on the entry, and how a back unwinds the layers. The
+     engine says where it is; `window.__address` says what that is called. */
 
   function navigationState() {
     return {
@@ -11116,7 +11060,7 @@ import { screens, panel, bridge } from "./seams.js";
   function recordPath() {
     if (pilotage) return;
     try {
-      __bridge.record(navigationState(), urlFromState());
+      __bridge.record(navigationState(), window.__address.compose(currentState()));
     } catch (error) {
       console.error("noterLeChemin : écriture de navigation échouée", error);
       window.__navEchec = true;
@@ -11832,7 +11776,7 @@ import { screens, panel, bridge } from "./seams.js";
       port.scrollTop = 0;
       render();
       try {
-        if (onLayer) __bridge.replace(navigationState(), urlFromState());
+        if (onLayer) __bridge.replace(navigationState(), window.__address.compose(currentState()));
         else recordPath();
       } catch (error) {
         console.error("data-go : écriture de navigation échouée", error);
@@ -12152,7 +12096,7 @@ import { screens, panel, bridge } from "./seams.js";
       port.scrollTop = 0;
       render();
       try {
-        if (onDrawer) __bridge.replace(navigationState(), urlFromState());
+        if (onDrawer) __bridge.replace(navigationState(), window.__address.compose(currentState()));
         else recordPath();
       } catch (error) {
         console.error("data-navgo : écriture de navigation échouée", error);
@@ -34436,10 +34380,6 @@ import { screens, panel, bridge } from "./seams.js";
      visible, truthful failure instead of an app with mute verbs. */
   window.__startEngine = function (deps) {
     store = deps.store;
-    // Set before any write can happen (`adoptState`/`adoptWorld` below
-    // do not write to history, but the earliest legacy write is one line
-    // away): urlDeLEtat() must never compose against the placeholder "/".
-    baseAddress = deps.base;
     store.adoptState(INITIAL_STATE);
     store.adoptWorld(world);
     /* No subscription here anymore. The only thing this one ever did was
@@ -34455,14 +34395,28 @@ import { screens, panel, bridge } from "./seams.js";
     /* The opening state comes from the ADDRESS, before the first paint: a
        reload that lands on the opening page rather than where one was is the
        defect DOIT-10 names, and it is fixed here rather than corrected after
-       a frame the operator would see. */
-    Object.assign(state, stateFromUrl());
+       a frame the operator would see. The page now travels in the PATH, so
+       this reads both halves. */
+    const arrival = window.__address.parse(location.pathname, location.search);
+    Object.assign(state, { page: arrival.page }, arrival.dials);
+    if (arrival.notFound) state.notFound = arrival.notFound;
     /* Kept from BEFORE the first render, because rendering an unknown id
        moves the state onto the not-found surface — and rewriting the
        address to match would make a mistyped link quietly become a
        different one. A browser answering 404 leaves the address alone; so
-       does this. */
-    const arrivalAddress = location.pathname + location.search;
+       does this.
+
+       THE BARE ROOT IS THE ONE EXCEPTION, and it is a settlement rather than
+       a correction: `/` is where a bookmark, a bare link and an installed
+       app's scope all land, and it names no page. It settles onto the home
+       page's own address. A REPLACE, never a push — nothing is inserted, so
+       the first Back still reaches the guard entry underneath rather than
+       bouncing off a redirect. Any OTHER address is kept exactly as it was
+       asked for, which is the whole of the paragraph above. */
+    const arrivalAddress =
+      location.pathname === "/"
+        ? window.__address.compose(currentState())
+        : location.pathname + location.search;
     render();
     /* The address is put back on the entry one arrives on, so a back from
        anywhere reaches the page the link named rather than a bare
@@ -34592,7 +34546,7 @@ Object.assign(window, {
   RISQUES, SEARCH, SEASONS, SECRETS, SERVICES, SERVICES_PANNE, SETTLED,
   SETTLED_REAL, STRIP_LABELS, STUCK, STUCK_REAL, ST_LABEL,
   ST_LABEL_MOVIE, ST_TONE, SUGGESTIONS, SUG_BATCH, SYNOPSIS, TAKEABLE,
-  TRIS, URGENCY, URL_DEFAULTS, VIA_LABEL, actionLeave, actionPause,
+  TRIS, URGENCY, VIA_LABEL, actionLeave, actionPause,
   actionTake, actionResolve, actionRetirer, actionFollow,
   actionDelete, addVerb, showSignIn, showStartup,
   showInstallation, cancelPress, apparenceCourante,
@@ -34602,7 +34556,7 @@ Object.assign(window, {
   dateFR, startPageGesture, decisionPending, deckCardHTML, deckHTML,
   deckOrder, signOut, alreadyInstalled, derived, unwindLayer,
   dismissSug, emptyInner, endCardDrag, endDeckDrag, endPageDrag,
-  endSugDrag, epState, escapeHtml, stateFromUrl, navigationState,
+  endSugDrag, epState, escapeHtml, navigationState,
   factRowsHTML, closePopEp, closeDrawer, changedFiles, fillSug,
   gridBadge, hideLayers, icons, initials, initialsOf, drawerWidth,
   libFiltered, libRowHTML, factsListHTML, loadMoreSug, hideSignIn,
@@ -34621,13 +34575,12 @@ Object.assign(window, {
   leaveQueue, stFraction, stLabel, stripHTML, sugCardHTML, sugFoot,
   sugTileHTML, sugVerb, followPress, onIOSSafari, onEngineBack,
   surfErr, surfErrInner, svgIcon, swipeHTML, tileHTML, toast, toastUndo,
-  allSettings, trailerIds, sortLibrary, urlFromState, displayedValue,
+  allSettings, trailerIds, sortLibrary, displayedValue,
   rawValue, typedValue, view,
 });
 
 // Read live, because the engine reassigns each of these.
 Object.defineProperties(window, {
-  baseAddress: { get: () => baseAddress, configurable: true },
   press: { get: () => press, configurable: true },
   cardDrag: { get: () => cardDrag, configurable: true },
   openCard: { get: () => openCard, configurable: true },

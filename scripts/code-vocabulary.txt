@@ -172,12 +172,15 @@ dependencies
 depth
 derived
 descriptor
+destination
 destructive
 detail
 details
 dev
 device
+dial
 dialog
+dials
 diffuses
 direct
 direction
@@ -283,6 +286,7 @@ hgo
 hide
 hint
 history
+home
 host
 hot
 hours
@@ -461,11 +465,13 @@ page
 pages
 paint
 panel
+parameters
 params
 part
 passer
 password
 path
+paths
 pause
 pct
 pending
@@ -754,6 +760,7 @@ words
 world
 wrap
 write
+written
 xl
 xs
 year

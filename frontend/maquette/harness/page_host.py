@@ -792,7 +792,7 @@ async def main():
         # first paint does not fell this hold. What fells it is the parser
         # ceasing to read `page`, which is the promise itself.
         cold = await context.new_page()
-        await cold.goto(f"{PROTOTYPE}?page=arr", wait_until="load")
+        await cold.goto(f"{PROTOTYPE}arrivals", wait_until="load")
         await cold.evaluate("()=>window.__loadingDone?.()")
         await cold.evaluate("()=>document.querySelector('#toastx')?.click()")
         await cold.wait_for_timeout(500)

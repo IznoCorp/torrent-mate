@@ -50,13 +50,21 @@ import "../features/settings/panel-field";
 import { createStore, type Store } from "./store";
 import { installFocusManager } from "./focus";
 import { rootRoute } from "./root-route";
+import { accountRoute } from "../routes/account";
+import { acquisitionRoute } from "../routes/acquisition";
 import { addRoute } from "../routes/add";
-import { catchAllRoute } from "../routes/index";
+import { arrivalsRoute } from "../routes/arrivals";
+import { rootAddressRoute } from "../routes/index";
+import { libraryRoute } from "../routes/library";
+import { maintenanceRoute } from "../routes/maintenance";
+import { settingsRoute } from "../routes/settings";
+import { systemRoute } from "../routes/system";
 import { mediaRoute } from "../routes/media-sheet";
 import { profileRoute } from "../routes/profile";
 import { releasesRoute } from "../routes/releases";
 import { resolutionRoute } from "../routes/resolution";
 import { installSeams } from "../engine/seams";
+import { addressOf, destinationOf } from "../lib/addresses";
 import { go, installNavigation } from "../lib/navigate";
 
 
@@ -111,11 +119,24 @@ declare global {
     // below, once the store exists and the bridge is real. Optional because
     // a module that failed to evaluate is exactly the case this boot order
     // is built to leave visible — the startup screen, not a crash here.
-    // `base` is the legacy engine's own address root (see its computation
-    // below) — "/" in production, whatever else a static host answers the
-    // document under otherwise (the rule harness's 8899 server names it
-    // "/wrapped.html"). The deps object's own keys are the engine's.
-    __startEngine?: (deps: { store: Store; base: string }) => void;
+    // It no longer receives an address ROOT. It used to compose every page
+    // address itself against one, which is exactly the addressing the shell
+    // has taken over: the engine says WHERE IT IS, `__address` says what that
+    // is called. The deps object's own keys are the engine's.
+    __startEngine?: (deps: { store: Store }) => void;
+    // The address model, handed to the engine. `compose` turns the state it
+    // holds into the address that state should be seen at; `parse` turns an
+    // address back into the state it names. Both are `lib/addresses.ts` — the
+    // engine reaches them through a seam rather than importing, for the same
+    // reason it reaches everything else that way.
+    __address: {
+      compose: (state: Record<string, unknown>) => string;
+      parse: (pathname: string, search: string) => {
+        page: string;
+        dials: Record<string, string>;
+        notFound?: string;
+      };
+    };
     // The domain hooks and the probes read the engine's state through this.
     __store: Store;
     __screens: Screens;
@@ -183,7 +204,18 @@ function ScreenError({ error }: { error: unknown }) {
 
 const router = createRouter({
   routeTree: rootRoute.addChildren([
-    catchAllRoute,
+    // The pages, one address each. Their components render nothing: a page's
+    // markup lands in the legacy `#view` through the page host, and declaring
+    // the route is what makes the address KNOWN rather than nobody's.
+    rootAddressRoute,
+    acquisitionRoute,
+    libraryRoute,
+    arrivalsRoute,
+    systemRoute,
+    maintenanceRoute,
+    settingsRoute,
+    accountRoute,
+    // The screens, which do render.
     profileRoute,
     addRoute,
     mediaRoute,
@@ -547,21 +579,21 @@ window.__unknownPanel = () => refuseBlock({ type: "ceci-n-existe-pas" });
 // truthful failure instead of an app with mute verbs.
 const store = createStore();
 window.__store = store;
-// The legacy engine's own address BASE, decided by the ROUTER's OWN
-// matching rather than by a second, independently-maintained list of the
-// two screen paths: `getMatchedRoutes` is the cleanest fit here — a pure,
-// synchronous lookup keyed on a bare pathname, unlike `router.state.matches`
-// (needs a load this router has not run yet, since RouterProvider has not
-// mounted) or `router.navigate` (this is a read, not a navigation). A
-// pathname that resolves to a registered route (`/`, `/profile/$title`,
-// `/add`, `/mediasheet/$title` — any of them) is router territory, and the shared
-// production root for all of them is "/"; a pathname the router does not
-// recognise at all (the harness's own "/wrapped.html") is the legacy
-// engine's ground exactly as it is.
-const [, , matchedRoute] = router.getMatchedRoutes(location.pathname);
-const base = matchedRoute ? "/" : location.pathname;
+// The address model, published for the engine. It reads `state.page` and the
+// dial fields straight off the object the engine hands over — the engine's own
+// vocabulary, so nothing translates on the way across.
+window.__address = {
+  compose: (state) => addressOf(String(state.page ?? ""), state),
+  parse: destinationOf,
+};
+// No address BASE is computed any more, and its disappearance is the
+// subtraction this lot exists for. It answered « what does this engine
+// compose its page addresses against? », a question that only had to be asked
+// because the engine composed them at all. It does not: a page has a real
+// path, `lib/addresses.ts` holds which, and the harness's own host serves
+// every one of them off `/` like any single-page host.
 const start = window.__startEngine;
-if (typeof start === "function") start({ store: store, base });
+if (typeof start === "function") start({ store: store });
 
 // `#shell` starts, in the markup, as a static sibling of `.stage` —
 // index.html knows nothing about the phone frame the fragment draws. A

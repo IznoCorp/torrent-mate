@@ -243,7 +243,7 @@ async def main():
             ctx, pg, errors = await open_at(browser, f"{base}/")
             start = await pg.evaluate(SCREEN_STATE)
             journal.check("the starting point has no screen open",
-                             not start["open"] and start["pathname"] == "/",
+                             not start["open"] and start["pathname"] == "/acquisition",
                              start["pathname"])
 
             await pg.evaluate(f"()=>window.__screens.profile({json.dumps(TITLE)})")
@@ -304,7 +304,7 @@ async def main():
             ctx, pg, errors = await open_at(browser, f"{base}/")
             add_start = await pg.evaluate(SCREEN_STATE)
             journal.check("the starting point has no screen open (before /ajout)",
-                             not add_start["open"] and add_start["pathname"] == "/",
+                             not add_start["open"] and add_start["pathname"] == "/acquisition",
                              add_start["pathname"])
 
             await pg.evaluate("()=>window.__screens.add('')")
@@ -368,8 +368,8 @@ async def main():
                 "tapping « Médiathèque » from /ajout makes the screen LEAVE",
                 not left["open"], f"open={left['open']}")
             journal.check(
-                "the address returns to the legacy language (base + ?page=lib)",
-                left["pathname"] == "/" and left["search"] == "?page=lib",
+                "the address returns to the library's own path (/media)",
+                left["pathname"] == "/media" and left["search"] == "",
                 f"{left['pathname']}{left['search']}")
             journal.check(
                 "and the page rendered really is the library",
