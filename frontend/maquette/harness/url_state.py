@@ -446,7 +446,7 @@ async def main():
             journal.check(
                 f"arriving on « {page} » writes the address the model declares for it",
                 path(pg.url) == PAGE_PATHS[page] and landed == page and not errors,
-                f"{page} -> {pg.url} · state.page={landed} · {errors}")
+                f"{page} -> {pg.url} · landed on page {landed} · {errors}")
             await ctx.close()
 
         # ── 13. every addressed panel kind reopens cold ────────────────────
