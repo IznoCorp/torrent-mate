@@ -69,8 +69,8 @@ repository.
 53 flat `.py` files (recorded and deliberately unscheduled), and B-036 / B-040, which belong to
 their own waves.
 
-**Next action**: phases 8–12 are complete — `/implement:feature-pr` re-runs the gate, pushes,
-re-polls CI on #484, then `/implement:pr-review` runs cycle 4.
+**Next action**: phase 13 — cycle 4's one blocking finding (the stale floor flag). Cycle 5 is
+the loop's ceiling; after it, merge or escalate.
 
 ### Review cycles — PR #484
 
@@ -104,6 +104,14 @@ sandwiched — rule 2 fails exactly on the finger-reachable walks), 1 major-prem
 sits above the layers » is false; two branches lean on the sentence), comment rot from the fourth
 boot seam, and reader/hold minors → `plan/phase-12-pr-fixes-cycle-3.md`.
 
+### Cycle 4
+
+One reviewer over phase 12 + the R82 split, real taps, 2026-08-24. The split verified hold-
+conserving (96 checks, multiset-compared); the continuation's lifecycle attacked and not
+broken; the 12.3 premise re-verified true. Retained: 1 critical — `homeFloorExists` written
+once at boot, stale after the 404's escape lays the floor (12 Backs to leave; re-opens 12.2
+via the drawer) — and two overstating sentences → `plan/phase-13-pr-fixes-cycle-4.md`.
+
 **Phases of L05** — the plan is `docs/features/maquette-l05/plan/INDEX.md`, which owns the
 reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
 
@@ -121,6 +129,7 @@ reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
 | 10  | PR #484 fixes, review cycle 2 — what phase 9 opened | `plan/phase-10-pr-fixes-cycle-2.md` | [x]    |
 | 11  | The navigation path — § 16 rules 1–3, D1b (operator, 2026-08-24) | `plan/phase-11-navigation-path.md` | [x]    |
 | 12  | PR #484 fixes, review cycle 3 — the layer walks | `plan/phase-12-pr-fixes-cycle-3.md` | [x]    |
+| 13  | PR #484 fixes, review cycle 4 — the stale floor flag | `plan/phase-13-pr-fixes-cycle-4.md` | [ ]    |
 
 **What L05 is, in one line**: the eight pages leave `?page=` for a real path, the address model
 leaves the engine for `lib/addresses.ts` — the first subtraction of D5 — and the harness host
