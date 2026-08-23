@@ -478,6 +478,42 @@ def validate_search_bodies(text: str) -> list[str]:
     return bodies
 
 
+def engine_page_ids(root: Path) -> list[str]:
+    """Read the page ids the engine's own `PAGES_OF()` declares.
+
+    The array is extracted by counting brackets before its entries are read:
+    a bare `id: "…"` pattern over the whole module would collect every other
+    identifier in thirty thousand lines, and a line-anchored one would depend
+    on an indentation the formatter owns.
+
+    Args:
+        root: The directory to read.
+
+    Returns:
+        The ids, in declaration order; an empty list when the engine or the
+        declaration is absent.
+    """
+    engine = root / "engine" / "legacy.js"
+    if not engine.is_file():
+        return []
+    text = engine.read_text(encoding="utf-8")
+    declaration = text.find("const PAGES_OF")
+    if declaration == -1:
+        return []
+    opening = text.find("[", declaration)
+    if opening == -1:
+        return []
+    depth = 0
+    for offset, character in enumerate(text[opening:], opening):
+        if character == "[":
+            depth += 1
+        elif character == "]":
+            depth -= 1
+            if depth == 0:
+                return re.findall(r'id:\s*"([^"]+)"', text[opening:offset])
+    return []
+
+
 def arm_addressing(root: Path) -> int:
     """Refuse a page identity in a query, a dial in a path, or an undeclared screen.
 
@@ -501,6 +537,12 @@ def arm_addressing(root: Path) -> int:
     frame rather than a page of its own, so a route the table does not carry
     resolves to the not-found page underneath the screen — invisible until the
     screen closes, which is why an offline reader is what catches it.
+
+    And the PAGES, against the engine that draws them: `PAGE_PATHS` says which
+    path names a page, `PAGES_OF()` says which pages exist, and a page in one
+    and not the other is either an address leading nowhere or a surface nobody
+    can link to. The not-found page is the engine's alone — it names a surface
+    rather than a place, and composes the address it was asked for.
 
     Args:
         root: The directory to read.
@@ -599,8 +641,35 @@ def arm_addressing(root: Path) -> int:
         violations.append(
             f'lib/addresses.ts: SCREEN_PATHS declares "{path}", which no route serves — '
             f"a declaration outliving its route is how the table stops describing the tree")
+
+    # And the PAGES themselves, against the engine that draws them. The table
+    # says which path names a page; `PAGES_OF()` says which pages exist. A page
+    # in one and not the other is an address leading nowhere or a surface
+    # nobody can link to — invisible either way until someone types the
+    # address, which is the case an offline reader is for. The not-found page
+    # is the one id that is the engine's alone: it names a surface rather than
+    # a place, so it has no path by design (D-8.2 — it composes the address it
+    # was asked for).
+    declared_not_found = set(re.findall(r'NOT_FOUND_PAGE = "([^"]+)"', declaration))
+    engine_pages = set(engine_page_ids(root))
+    if engine_pages:
+        for page in sorted(engine_pages - pages - declared_not_found):
+            violations.append(
+                f'engine/legacy.js: PAGES_OF() declares the page « {page} », which '
+                f"PAGE_PATHS gives no address — a surface nobody can link to")
+        for page in sorted(pages - engine_pages):
+            violations.append(
+                f'lib/addresses.ts: PAGE_PATHS declares an address for « {page} », which '
+                f"PAGES_OF() does not draw — an address leading nowhere")
+    elif (root / "engine" / "legacy.js").is_file():
+        violations.append(
+            "engine/legacy.js: PAGES_OF() reads to nothing — the page tables cannot be "
+            "held against each other, and a reader that stays green over a declaration "
+            "it cannot read is the failure `arm_cycles` names")
+
     print(f"  addressing: {len(files)} route file(s), {len(dials)} dial(s), "
-          f"{len(pages)} page(s), {len(screen_paths)} screen(s), {len(violations)} violation(s)")
+          f"{len(pages)} page(s) against {len(engine_pages)} the engine draws, "
+          f"{len(screen_paths)} screen(s), {len(violations)} violation(s)")
     for entry in violations:
         print("    " + entry, file=sys.stderr)
     return len(violations)

@@ -8,6 +8,11 @@ deleted `lib/addresses.ts` reported « 0 dial(s), 0 page(s) » and clean. A
 reader that stays green over a tree it cannot read is the failure the guard's
 own cycle arm names — so absence is a violation and the inline shape is read.
 
+The arm also holds the two PAGE tables against each other — `PAGE_PATHS` and
+the engine's `PAGES_OF()` — because a page in one and not the other is an
+address leading nowhere or a surface nobody can link to, and both cases are
+invisible until someone types the address.
+
 Each mutation case copies the real maquette tree into a scratch directory,
 mutates the copy, and runs the arm over it: the cases measure the arm over the
 corpus it really reads, and the green case proves it still reads the repository.
@@ -49,7 +54,7 @@ def copy_design_src(tmp_path: Path) -> Path:
 
 
 class TestAddressingArm:
-    """The four mutation cases, then the real tree, unmodified, reading clean."""
+    """The six mutation cases, then the real tree, unmodified, reading clean."""
 
     def test_a_deleted_address_model_is_a_violation(self, tmp_path, capsys) -> None:
         """Refuse a missing `lib/addresses.ts` — a tree the arm cannot read must not read clean."""
@@ -123,6 +128,39 @@ class TestAddressingArm:
         captured = capsys.readouterr()
         assert violations == 1
         assert any("declares « page » as a search parameter" in line for line in captured.err.splitlines())
+
+    def test_e_a_page_the_engine_does_not_draw_is_a_violation(self, tmp_path, capsys) -> None:
+        """Refuse an address for a page `PAGES_OF()` never draws — a link leading nowhere."""
+        root = copy_design_src(tmp_path)
+        model = root / "lib" / "addresses.ts"
+        model.write_text(
+            model.read_text(encoding="utf-8").replace(
+                '  acq: "/acquisition",',
+                '  acq: "/acquisition",\n  ghost: "/ghost",',
+            ),
+            encoding="utf-8",
+        )
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations >= 1
+        assert any("« ghost »" in line and "PAGES_OF() does not draw" in line for line in captured.err.splitlines())
+
+    def test_f_a_page_with_no_address_is_a_violation(self, tmp_path, capsys) -> None:
+        """Refuse a page the engine draws and the model gives no address — nobody can link to it."""
+        root = copy_design_src(tmp_path)
+        engine = root / "engine" / "legacy.js"
+        engine.write_text(
+            engine.read_text(encoding="utf-8").replace(
+                '      id: "acq",',
+                '      id: "phantom",\n      l: "Phantom",\n    },\n    {\n      id: "acq",',
+                1,
+            ),
+            encoding="utf-8",
+        )
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations >= 1
+        assert any("« phantom »" in line and "no address" in line for line in captured.err.splitlines())
 
     def test_the_real_tree_reads_clean(self, capsys) -> None:
         """The unmodified repository reports zero violations — the arm still reads the tree it guards."""
