@@ -329,10 +329,14 @@ function artworkFor(reference: MediaReference, title: string): string | null {
 }
 
 export function MediaScreen() {
-  const { title: raw } = useParams({ from: "/mediasheet/$title" });
-  // Defensive: `__screens.mediaSheet` already normalises on write, but an entry
-  // reached by a typed/bookmarked URL did not necessarily go through it.
-  const title = raw.normalize("NFC");
+  // The address names a PROVIDER ID (DOIT-11); the catalogue is keyed by title.
+  // The crossing happens in the engine, from the fixture itself, so the two
+  // cannot drift. An id nobody carries resolves to `null` and the screen
+  // renders its own honest empty case — the same answer it already gave an
+  // unknown title, and the only honest one for a stale bookmark.
+  const { provider, id } = useParams({ from: "/media/$provider/$id" });
+  const lookup = useMediaReference();
+  const title = (lookup.titleForProviderId(provider, id) ?? "").normalize("NFC");
   // `world.follows` is MUTATED IN PLACE by the still-legacy follow act
   // (`actionFollow`, refonte.html) — the reference never changes, so
   // `useWorld()` alone would not notice. Subscribing to `version` forces the

@@ -75,7 +75,7 @@ EMITTED = (
 # `serve.py`, which is the password-protected design host on 8712 — it answers
 # 401 without a session, and this would then measure the sign-in screen: a green
 # run over nothing.
-PROTOTYPE = "http://127.0.0.1:8899/wrapped.html"
+PROTOTYPE = "http://127.0.0.1:8899/"
 
 # Rectangles are rounded before they are compared. `getBoundingClientRect()`
 # returns fractions, and sub-pixel layout at DPR 2 produces legitimate halves —

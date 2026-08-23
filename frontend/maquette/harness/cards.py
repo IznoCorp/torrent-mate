@@ -33,7 +33,7 @@ import sys
 
 from playwright.async_api import async_playwright
 
-URL = "http://127.0.0.1:8899/wrapped.html"
+URL = "http://127.0.0.1:8899/"
 
 # Every state that draws cards, overlays included. The list was once shorter,
 # and the two screens missing from it — resolution and release choice — were

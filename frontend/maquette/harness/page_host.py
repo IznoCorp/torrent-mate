@@ -375,7 +375,7 @@ async def main():
         journal.check(
             "a real tap on the quality-profile row goes to ITS address",
             not refused and profile is not None
-            and address == f"/profile/{profile}" and before_address != address,
+            and address == f"/quality/{profile}" and before_address != address,
             f"{before_address} → {address} for data-profile={profile!r}"
             if not refused else f"data-profile {refused}")
         await page.evaluate("()=>window.__bridge.back()")
@@ -792,7 +792,7 @@ async def main():
         # first paint does not fell this hold. What fells it is the parser
         # ceasing to read `page`, which is the promise itself.
         cold = await context.new_page()
-        await cold.goto(f"{PROTOTYPE}?page=arr", wait_until="load")
+        await cold.goto(f"{PROTOTYPE}arrivals", wait_until="load")
         await cold.evaluate("()=>window.__loadingDone?.()")
         await cold.evaluate("()=>document.querySelector('#toastx')?.click()")
         await cold.wait_for_timeout(500)

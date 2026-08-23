@@ -1,23 +1,23 @@
-"""A static server that lets deep client-side paths be requested directly.
+"""The prototype's host, and the reason it is not a plain static server.
 
-The plain `http.server` on 8899 — the one every existing rule points at —
-answers a file for a file's own path and nothing else: request `/profile/12`
-against it and the answer is 404, because no such file exists on disk. The
-router only ever sees a path like that from inside an already-loaded
-document, never from a fresh navigation, so nothing measured through 8899
-can tell a reload, a shared link, or a browser back button from a 404.
+A plain `http.server` answers a file for a file's own path and nothing else:
+request `/media` against it and the answer is 404, because no such file exists
+on disk. Every page now sits on a real path, so that answer is wrong twice
+over — a reload, a shared link and a browser Back all arrive as fresh
+navigations, and the router would render its not-found page for each. Nothing
+measured through such a host could tell a deep address from a broken one.
 
-This module holds the server that closes that gap, and nothing else. Files
-under its root are served as-is; any other path that does not resolve to an
-existing file instead answers `wrapped.html`, exactly the way a host serving
-a single-page application is expected to — EXCEPT under `ASSET_PREFIXES`,
-where a missing file stays a 404: a route-shaped address can carry dots of
-its own (a release folder name, `Backrooms.2026.MULTi.2160p.WEB-DL`, is not
-a file extension), so a dot in the final segment is no longer what decides
-the fold. It is not a replacement for 8899: that server keeps its narrower
-job, and every existing rule keeps pointing at it. This one is a second,
-thread-backed server a rule can start on its own scratch port, hand a root,
-and stop again without leaving a process behind.
+Files under the served root go out as-is; any other path with no file behind
+it answers `wrapped.html`, the way a host serving a single-page application is
+expected to. Two sets are excepted, and a missing file in either stays a 404:
+`ASSET_PREFIXES`, the directories that hold real addressable files, and
+`ASSET_PATHS`, the root-level resources the document itself asks for. A dot in
+the final segment is deliberately NOT what decides the fold — a release folder
+name (`Backrooms.2026.MULTi.2160p.WEB-DL`) carries dots and is not a file.
+
+It is used two ways. `serve_forever` is the HOST on 8899 that `run.sh` starts
+and every rule reads. `start_server` is a scratch server a rule can raise on
+its own port, hand a root, and drop again without leaving a process behind.
 """
 
 from __future__ import annotations
@@ -30,10 +30,11 @@ import pathlib
 import threading
 from collections.abc import Iterator
 
-# Never one of these: 8710/8711/8712 are the reverse proxy's routes to prod
-# and staging, and 8899 is the prototype's own host — 45 rules already point
-# at it, and a second server on the same port would just race it for the
-# socket.
+# Never one of these, for a SCRATCH server: 8710/8711/8712 are the reverse
+# proxy's routes to prod, staging and the design host, and 8899 is the
+# prototype's own host — every rule reads it, and a second server there would
+# just race it for the socket. `serve_forever` is exempt because it IS that
+# host; the guard exists to stop a RULE, not the thing being guarded.
 RESERVED_PORTS = (8710, 8711, 8712, 8899)
 
 
@@ -68,9 +69,31 @@ class FallbackHandler(http.server.SimpleHTTPRequestHandler):
 
     # The only directories under a served root this handler answers a
     # missing path from with a 404 rather than the document — real,
-    # addressable static files (`assets/…`, `vite/…`), never a route param
-    # that merely happens to contain a dot.
-    ASSET_PREFIXES = ("/assets/", "/vite/")
+    # addressable static files (`assets/…`, `vite/…`, the dev entry under
+    # `src/…`), never a route param that merely happens to contain a dot.
+    ASSET_PREFIXES = ("/assets/", "/vite/", "/src/")
+
+    # And the root-level files the DOCUMENT ITSELF asks for. They are not a
+    # directory, so no prefix covers them, and they must 404 when absent for
+    # the same reason: they are resources, never addresses.
+    #
+    # This is written from the browser's own behaviour rather than guessed.
+    # `index.html` registers `/sw.js` and links the other three; the harness
+    # root carries none of them (the design host synthesises them). Folded onto
+    # the document they answer 200 `text/html`, and the browser then logs « The
+    # script has an unsupported MIME type ('text/html') » — a console ERROR,
+    # which is a failure for every rule that counts them. A host claiming to
+    # have a service worker it does not have is also simply untrue.
+    #
+    # Deciding this by a dot in the last segment is exactly what the class
+    # docstring above refuses, and for a reason already paid for: a release
+    # folder name carries dots and is not a file. So these are NAMED.
+    ASSET_PATHS = (
+        "/sw.js",
+        "/manifest.webmanifest",
+        "/favicon.svg",
+        "/apple-touch-icon.png",
+    )
 
     def translate_path(self, path: str) -> str:
         """Returns the filesystem path a request resolves to.
@@ -81,16 +104,16 @@ class FallbackHandler(http.server.SimpleHTTPRequestHandler):
 
         Returns:
             The resolved path from the parent implementation when it names
-            an existing file, or falls under `ASSET_PREFIXES` (a missing
-            asset reference stays a 404, never the document);
-            `directory/wrapped.html` for every other path with no file
-            behind it.
+            an existing file, or falls under `ASSET_PREFIXES`, or IS one of
+            `ASSET_PATHS` (a missing asset reference stays a 404, never the
+            document); `directory/wrapped.html` for every other path with no
+            file behind it.
         """
         resolved = super().translate_path(path)
         if os.path.isfile(resolved):
             return resolved
         path_ = path.split("?", 1)[0]
-        if path_.startswith(self.ASSET_PREFIXES):
+        if path_.startswith(self.ASSET_PREFIXES) or path_ in self.ASSET_PATHS:
             return resolved
         return os.path.join(self.directory, "wrapped.html")
 
@@ -108,7 +131,7 @@ def start_server(port: int, root: pathlib.Path) -> Iterator[None]:
 
     Files under `root` are served as-is; any path with no file behind it
     instead answers `root/wrapped.html` — the fallback that lets a deep
-    client-side address (`/profile/…`, `/add`, `/resolution/<dossier
+    client-side address (`/quality/…`, `/add`, `/resolution/<dossier
     portant des points>`) be requested directly rather than only reached by
     navigating there inside an already-loaded document — EXCEPT under
     `FallbackHandler.ASSET_PREFIXES`, where a missing file still 404s.
@@ -146,15 +169,53 @@ def start_server(port: int, root: pathlib.Path) -> Iterator[None]:
         thread.join(timeout=5)
 
 
+def serve_forever(port: int, root: pathlib.Path) -> None:
+    """Serves `root` on `port` in the FOREGROUND, until the process is killed.
+
+    This is the prototype's own host, not a rule's scratch server, and the
+    difference is the port guard. `start_server` refuses `RESERVED_PORTS`
+    because a RULE binding 8899 would race the host for the socket; here the
+    caller IS that host, so the guard has no subject and is not applied. The
+    reservation keeps its meaning for every other caller.
+
+    The host must fold unknown addresses onto the document: a page sits at a
+    real path (`/media`), and a plain `http.server` answers 404 for every path
+    with no file behind it — which the router would render as its not-found
+    page, collapsing every rule, the oracle and the accessibility audit at once
+    for a reason unrelated to whatever was being measured.
+
+    Args:
+        port: The loopback port to bind.
+        root: The directory to serve. Must contain `wrapped.html`.
+    """
+    handler = functools.partial(FallbackHandler, directory=str(root))
+    http.server.ThreadingHTTPServer(("127.0.0.1", port), handler).serve_forever()
+
+
 if __name__ == "__main__":
     import sys
     import urllib.error
     import urllib.request
 
+    # `--serve` is the HOST; the bare invocation is the RULE. They are split by
+    # a flag rather than by which module is run, because `run.sh` executes every
+    # `*.py` in this directory as a rule: overloading the bare invocation into a
+    # launcher would block the suite forever on this file, and removing the
+    # self-proof to avoid that would silently drop a rule from the count.
+    if "--serve" in sys.argv:
+        arguments = sys.argv[sys.argv.index("--serve") + 1:]
+        serve_forever(int(arguments[0]), pathlib.Path(arguments[1]))
+        sys.exit(0)
+
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
     from common import Journal
 
-    PROOF_PORT = 8917
+    # NOT 8917: `screen_addresses.py` declares that port in its own docstring
+    # (« this rule runs entirely against 8917 ») and binds it. Both are rules,
+    # they sit next to each other alphabetically, and since the suite began
+    # running several at a time they can hold the socket at the same moment —
+    # « Address already in use », attributed to whichever lost the race.
+    PROOF_PORT = 8918
     PROOF_ROOT = pathlib.Path("/tmp/tm-refonte")
 
     journal = Journal("server.py — the fallback answers deep addresses")
@@ -169,7 +230,7 @@ if __name__ == "__main__":
     with start_server(PROOF_PORT, PROOF_ROOT):
         base = f"http://127.0.0.1:{PROOF_PORT}"
 
-        with urllib.request.urlopen(f"{base}/profile/X%20Y", timeout=5) as response:
+        with urllib.request.urlopen(f"{base}/quality/X%20Y", timeout=5) as response:
             profile_status, profile_body = response.status, response.read()
         journal.check(
             "a deep address answers 200 + the document",
@@ -192,6 +253,24 @@ if __name__ == "__main__":
             "a missing asset UNDER A SERVED DIRECTORY 404s instead of folding to the document",
             missing_status == 404, f"status {missing_status}")
 
+        # The same promise for the root-level resources the document asks for
+        # by name. Folded onto the document they answer 200 `text/html`, the
+        # browser logs an unsupported MIME type, and every rule counting console
+        # errors fails somewhere that looks nothing like a host setting.
+        folded = []
+        for named in FallbackHandler.ASSET_PATHS:
+            try:
+                with urllib.request.urlopen(f"{base}{named}", timeout=5) as response:
+                    if response.status == 200:
+                        folded.append(named)
+            except urllib.error.HTTPError as error:
+                if error.code != 404:
+                    folded.append(f"{named} → {error.code}")
+        journal.check(
+            "a missing root-level resource the document NAMES 404s "
+            "instead of folding to the document",
+            not folded, f"folded: {folded or 'none'}")
+
         # The regression this fold exists to close: a route-shaped address
         # whose deepest segment carries dots of its own — a release folder
         # name, never a file extension outside ASSET_PREFIXES — must fold
@@ -205,5 +284,27 @@ if __name__ == "__main__":
             "still answers the document",
             folder_status == 200 and folder_body == expected,
             f"status {folder_status}, {len(folder_body)} bytes")
+
+    # ── the HOST, not a scratch server ────────────────────────────────────
+    # Everything above proves the HANDLER, on a scratch port. This proves the
+    # thing the suite actually reads: the host on 8899, which `run.sh` starts
+    # through `--serve`. It is the hold that falls if anyone puts a plain
+    # `python3 -m http.server` back there — that server answers a file for a
+    # file's own path and 404 for every address the router owns, so the router
+    # would render its not-found page and every rule after it would measure
+    # that. Without this hold the failure looks like a broken interface rather
+    # than a misconfigured host, which is a day of debugging in the wrong file.
+    HOST = "http://127.0.0.1:8899"
+    try:
+        with urllib.request.urlopen(f"{HOST}/media", timeout=5) as response:
+            host_status: object = response.status
+    except urllib.error.HTTPError as error:
+        host_status = error.code
+    except OSError as trouble:  # noqa: BLE001 — a host that is not up IS the finding
+        host_status = f"unreachable: {trouble}"
+    journal.check(
+        "the HOST on 8899 folds a router-owned address onto the document "
+        "(a plain http.server would 404 here)",
+        host_status == 200, f"GET {HOST}/media → {host_status}")
 
     journal.summary()

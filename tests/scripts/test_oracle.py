@@ -146,9 +146,16 @@ def test_it_reads_the_harness_host_never_the_design_host():
     Pointed at it, this would measure the sign-in screen and report every state
     as identical — a green run over nothing, which is the failure this whole
     instrument exists to make impossible.
+
+    It reads the host's ROOT, not `wrapped.html`. A page sits at a real path
+    since L05, and `/wrapped.html` matches no route: pointed there the router
+    would render its not-found page and all 2 739 measurements would describe
+    that instead of the prototype. The harness host folds every unresolved
+    address onto the document, so the root is the address to read.
     """
     module = load()
-    assert module.PROTOTYPE == "http://127.0.0.1:8899/wrapped.html"
+    assert module.PROTOTYPE == "http://127.0.0.1:8899/"
+    assert "wrapped.html" not in module.PROTOTYPE
     assert "8712" not in module.PROTOTYPE
 
 

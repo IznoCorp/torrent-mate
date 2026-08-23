@@ -27,9 +27,15 @@ def check(name, condition, detail=""):
 
 # Reading the interface AFTER a back that left the document raises instead of
 # naming the defect. A crash is a failure nobody can read.
+#
+# The test is the ORIGIN, never the file name. Every address the router owns —
+# `/`, `/add`, a page's own path — is served by the same document and carries no
+# « wrapped.html » anywhere in it, so a name test would report « the document was
+# left » about a journey that never left it. `ident.py` met this first and wrote
+# the answer down; this is the same answer.
 async def where(pg):
     """Where the interface is, or None when the document is gone."""
-    if pg.is_closed() or "wrapped.html" not in pg.url:
+    if pg.is_closed() or not pg.url.startswith("http://127.0.0.1:8899"):
         return None
     try:
         return await pg.evaluate(WHERE)
@@ -137,7 +143,7 @@ async def main():
         await pg.go_back()
         await pg.wait_for_timeout(600)
         check("a second back inside the window exhausts the history",
-              "wrapped.html" not in pg.url, pg.url[:60])
+              not pg.url.startswith("http://127.0.0.1:8899"), pg.url[:60])
 
         check("no JS error", not errors, str(errors))
         await b.close()

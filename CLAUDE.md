@@ -340,10 +340,12 @@ enforced by `scripts/check-no-french.py` (fourteen arms, in `make check` and in 
   an answer. A value is a datum the app STORES or DISPLAYS — a title, a folder, a status
   string from the backend. If a human typed it to designate something, it is a name. **Route paths are NOT on this list any more**
   — #456 struck them off on the operator's ruling (« une route et un paramètre sont des NOMS,
-  pas des données ») and renamed the three French addresses, answering the old ones with
-  redirects. This sentence kept exempting them for four days afterwards, which is why
-  `/deconnexion` on the design host is still French: nothing reads a route the rule says is
-  not its business. Each such literal
+  pas des données ») and renamed the French addresses, answering the old ones with redirects.
+  ⚠ This paragraph used to add « which is why `/deconnexion` on the design host is still
+  French », and that had stopped being true: `serve.py` serves `/logout` and `/login`, and
+  `harness/logout.py` holds both — which is why that rule sits in the `--contracts` tier. A
+  sentence that outlives its subject is read as current by the next session; this one was, and
+  it sent L05 looking for three French routes that had already been renamed. Each such literal
   carries a `# french-ok: <reason>` / `// french-ok: <reason>` pragma; a pragma with no reason
   is itself a violation. The frozen CSS-class exceptions live in
   `frontend/maquette/regions.json`'s `$vocabulary`, each with the reason it was kept.

@@ -43,7 +43,7 @@ import asyncio
 import pathlib
 import re
 
-from common import Journal, design_source, open_page
+from common import PHONE, PROTOTYPE, Journal, design_source, open_page
 from playwright.async_api import async_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -232,6 +232,65 @@ async def main():
         # no-French-in-code rule applies to it and the assertion follows it.
         check("an undeclared block is refused",
               "unknown panel block" in refusal, refusal)
+
+        # 4. D1's THREE TIERS, applied. A panel whose subject is stable and
+        #    nameable travels in the query and reopens on a reload; a layer
+        #    with no subject writes no address at all and Back still closes
+        #    it. An index into a list the engine regenerates is deliberately
+        #    NOT addressable: after that list moves, such an address would
+        #    reopen about something the operator never asked for.
+        ctx2 = await b.new_context(**PHONE)
+        pg2 = await ctx2.new_page()
+        await pg2.goto(PROTOTYPE, wait_until="load")
+        await pg2.evaluate("()=>window.__loadingDone?.()")
+        await pg2.wait_for_timeout(300)
+
+        await pg2.evaluate("()=>window.openFollowSheet('Silo')")
+        await pg2.wait_for_timeout(400)
+        addressed = pg2.url
+        check("an addressed panel writes its address",
+              "panel=follow" in addressed, addressed)
+
+        await pg2.go_back()
+        await pg2.wait_for_timeout(400)
+        check("and Back takes the address off with the panel",
+              "panel=" not in pg2.url and not await pg2.evaluate("()=>window.__panel.isOpen()"),
+              pg2.url)
+        await ctx2.close()
+
+        # The cold journey: the address alone must reopen it, or it is
+        # decoration — written and never read.
+        ctx3 = await b.new_context(**PHONE)
+        pg3 = await ctx3.new_page()
+        cold_errors = []
+        pg3.on("pageerror", lambda e: cold_errors.append(str(e)))
+        await pg3.goto(addressed, wait_until="load")
+        await pg3.evaluate("()=>window.__loadingDone?.()")
+        await pg3.wait_for_timeout(600)
+        check("a reload at that address reopens the panel",
+              await pg3.evaluate("()=>window.__panel.isOpen()"), pg3.url)
+        check("no JS error reopening it cold", not cold_errors, str(cold_errors))
+        await ctx3.close()
+
+        # A menu has no subject, so it is tier 3: no address, Back still shuts
+        # it. Reading the OTHER side of the same rule is what stops « every
+        # layer writes an address » passing as « the tiers are applied ».
+        ctx4 = await b.new_context(**PHONE)
+        pg4 = await ctx4.new_page()
+        await pg4.goto(PROTOTYPE, wait_until="load")
+        await pg4.evaluate("()=>window.__loadingDone?.()")
+        await pg4.wait_for_timeout(300)
+        before = pg4.url
+        await pg4.evaluate("()=>window.openUserSheet()")
+        await pg4.wait_for_timeout(400)
+        check("a transient layer writes NO address",
+              pg4.url == before and await pg4.evaluate("()=>window.__panel.isOpen()"),
+              f"{before} -> {pg4.url}")
+        await pg4.go_back()
+        await pg4.wait_for_timeout(400)
+        check("and Back still closes it",
+              not await pg4.evaluate("()=>window.__panel.isOpen()"), pg4.url)
+        await ctx4.close()
 
         check("no JS error", not errors, str(errors))
         await b.close()

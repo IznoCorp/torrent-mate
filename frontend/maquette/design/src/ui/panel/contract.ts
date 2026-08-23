@@ -82,6 +82,14 @@ export type PanelBlock = {
 // `panneauHTML` (no guard around it), so it is required here, not optional
 // as a first read of the legacy source might suggest.
 export type PanelDescriptor = {
+  // The panel's ADDRESS, as `<kind>:<subject>` — D1's second tier, where a
+  // screen state travels in the query. Present on the panels whose subject is
+  // stable and nameable, absent on the ones that are not: a menu has no
+  // subject, and a panel keyed on a POSITION in a list the engine regenerates
+  // would, after that list moved, reopen about something the operator never
+  // asked for. Absent means transient — Back still closes it, it simply has no
+  // URL, which is D1's third tier.
+  address?: string;
   title: string;
   subtitle?: string;
   meta?: RichTextValue;

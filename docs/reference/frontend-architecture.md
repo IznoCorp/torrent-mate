@@ -81,10 +81,11 @@ which thing is being looked at. The **query carries the STATE** — how it is be
 **Why.** Every detail owes its URL (`product-intent.md` DOIT-10). A path makes a surface
 shareable, reloadable, and gives the phone's Back button a coherent meaning.
 
-**What it costs, and it is accepted.** The maquette stops opening from `file://`. Path routing
-needs a host that rewrites unknown addresses onto the document; `harness/server.py` already does,
-`serve.py` serves the build, and the reverse proxy will. Opening the file by double-click is the
-single use lost.
+**What it costs, and it is PAID.** The maquette stops opening from `file://` — the single use
+lost, and it is gone rather than pending. Path routing needs a host that rewrites unknown
+addresses onto the document: `serve.py` already did, the reverse proxy will, and the harness host
+moved from a plain `http.server` to `server.py --serve` in L05, which is what makes every rule,
+the oracle and the accessibility audit read a page at a real path instead of a not-found page.
 
 **What becomes void.** R69 holds the opposite rule today. It is renegotiated in the same wave
 that lands D1, with the reason written down — never left to contradict this.
@@ -183,9 +184,13 @@ Most of that fixture stops existing when real data arrives. Killing the engine b
 layer means facing 34 650 lines; killing it as surfaces convert means facing seven thousand,
 in pieces, each with the oracle green.
 
-**What is cross-cutting and does NOT strangle surface by surface**: navigation (`__go` and the
-82 named states, lifted by L05), the document-level event delegation, the boot handshake, and the
-254 top-level declarations republished on `window` for the harness to drive through. The
+**What is cross-cutting and does NOT strangle surface by surface**: the document-level event
+delegation, the boot handshake, and the 254 top-level declarations republished on `window` for the
+harness to drive through. **Navigation was on this list and is LIFTED**: L05 took the address
+model out of the engine — `URL_DEFAULTS`, `urlFromState`, `stateFromUrl` and the `baseAddress`
+plumbing — leaving it the navigation LOGIC (when to record an arrival, what the entry carries, how
+a back unwinds the layers). `openScreen` went with them, having lost every caller. `__go` and the
+named states remain the harness's own driving seam and belong to L13. The
 delegation, the boot, `/login` and the splash close the plan as L13.
 
 ### D6 — Accessibility is a lot, not a side effect
@@ -510,7 +515,7 @@ it waits for a stronger reason than tidiness.
 Plus: the tree matches the target, `data.ts` no longer exists, and grandfathered files are listed
 with their converting lot.
 
-#### L05 — Routing · `NOT STARTED` · *depends on L01, L04*
+#### L05 — Routing · `LANDED` · *depended on L01, L04*
 
 **Objective.** D1 in force. Every page and screen on a real path, state in the query, layers
 ranked in three tiers.
@@ -804,7 +809,7 @@ python3 frontend/maquette/oracle.py --record    # then records against what is a
 ```
 
 `make maquette-oracle` runs `--check`, so it FAILS on a dangling reference — that is expected, and
-it is run for its preparation: `oracle.py` reads `http://127.0.0.1:8899/wrapped.html`, and without
+it is run for its preparation: `oracle.py` reads `http://127.0.0.1:8899/`, and without
 that build and copy it would measure the previous build, or nothing. There is no make target for
 `--record`; `make maquette-oracle --record` passes the flag to `make`, not to the oracle.
 

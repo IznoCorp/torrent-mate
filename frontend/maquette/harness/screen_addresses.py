@@ -1,13 +1,13 @@
 """R75 — a screen route answers a real address, cold, and only while it is open.
 
-`ProfileScreen` (Task 9) is the first screen drawn from a real path rather than
+`QualityScreen` (Task 9) is the first screen drawn from a real path rather than
 from the legacy fragment's own state machine, so it is also the first screen
 whose address can be typed, bookmarked or shared — and the first for which a
 missing detail (a fallback route on the host, a `<base>` tag in the envelope)
 only shows up once something is actually served from BELOW the document
 root. `server.py` (Task 8) is what makes that depth reachable at all: the
 plain 8899 host 45 other rules already point at answers a 404 for
-`/profile/…`, because no such file exists — nothing served through it can
+`/quality/…`, because no such file exists — nothing served through it can
 tell a deep reload from a broken link. This rule runs entirely against 8917.
 
 What it holds to:
@@ -16,7 +16,7 @@ What it holds to:
    just a fresh browser handed the URL.
 2. Whatever that screen draws resolves through the document's `<base>`,
    the same way it would from `/` — proven not by the screen's own markup
-   (`ProfileScreen` draws no `<img>` of its own, only inline SVG) but by every
+   (`QualityScreen` draws no `<img>` of its own, only inline SVG) but by every
    image the WHOLE document loads at that depth: the legacy fragment mounts
    underneath it, on its own default page, and draws real posters through
    the same relative `assets/…` paths every other screen uses.
@@ -34,7 +34,7 @@ What it holds to:
 
 EXTENDED (SP4b) to `MediaScreen` — the media sheet, the one screen every
 poster, tile, suggestion and panel act already led to, now also reachable
-as `/mediasheet/$title` on its own. Unlike `ProfileScreen`, this screen DOES draw
+as `/media/$provider/$id` on its own. Unlike `QualityScreen`, this screen DOES draw
 an image of its own (the hero/poster banner), so its own artwork is the
 proof at this depth rather than a stand-in read off the legacy fragment
 underneath. And unlike a `QualityProfile` name, a title here resolves
@@ -159,6 +159,7 @@ SHEET_STATE = """() => {
     key: screen?.dataset.key ?? null,
     title: (screen?.querySelector('h2[data-part="hero/title"]') || {}).textContent ?? null,
     body: (screen?.querySelector('[data-part="surface/body"]') || {}).textContent ?? '',
+    bar: (screen?.querySelector('[data-part="screen/bar"]') || {}).textContent ?? '',
     noinfos: [...document.querySelectorAll('[data-part="screen"][data-open] p[data-part="no-info"]')].map(
       (p) => p.textContent),
     pathname: location.pathname,
@@ -215,7 +216,7 @@ async def main():
             base = f"http://127.0.0.1:{PORT}"
 
             # ─── Hold 1: deep entry opens the promised screen, cold ────────
-            title_address = f"{base}/profile/{urllib.parse.quote(TITLE)}"
+            title_address = f"{base}/quality/{urllib.parse.quote(TITLE)}"
             ctx, pg, errors = await open_at(browser, title_address)
             state_ = await pg.evaluate(SCREEN_STATE)
             journal.check(
@@ -243,7 +244,7 @@ async def main():
             ctx, pg, errors = await open_at(browser, f"{base}/")
             start = await pg.evaluate(SCREEN_STATE)
             journal.check("the starting point has no screen open",
-                             not start["open"] and start["pathname"] == "/",
+                             not start["open"] and start["pathname"] == "/acquisition",
                              start["pathname"])
 
             await pg.evaluate(f"()=>window.__screens.profile({json.dumps(TITLE)})")
@@ -251,7 +252,7 @@ async def main():
             on_profile = await pg.evaluate(SCREEN_STATE)
             journal.check(
                 "walking to the profile WRITES the address",
-                on_profile["open"] and on_profile["pathname"] == f"/profile/{TITLE}",
+                on_profile["open"] and on_profile["pathname"] == f"/quality/{TITLE}",
                 on_profile["pathname"])
 
             await pg.evaluate("""()=>document.querySelector('[data-part="screen"][data-open] [data-part="screen/back"]').click()""")
@@ -266,7 +267,7 @@ async def main():
             await ctx.close()
 
             # ─── Hold 5: a wrong deep address renders the honest empty case ──
-            wrong_address = f"{base}/profile/{UNKNOWN_ADDRESS}"
+            wrong_address = f"{base}/quality/{UNKNOWN_ADDRESS}"
             ctx, pg, errors = await open_at(browser, wrong_address)
             lost = await pg.evaluate(SCREEN_STATE)
             journal.check(
@@ -304,7 +305,7 @@ async def main():
             ctx, pg, errors = await open_at(browser, f"{base}/")
             add_start = await pg.evaluate(SCREEN_STATE)
             journal.check("the starting point has no screen open (before /ajout)",
-                             not add_start["open"] and add_start["pathname"] == "/",
+                             not add_start["open"] and add_start["pathname"] == "/acquisition",
                              add_start["pathname"])
 
             await pg.evaluate("()=>window.__screens.add('')")
@@ -368,8 +369,8 @@ async def main():
                 "tapping « Médiathèque » from /ajout makes the screen LEAVE",
                 not left["open"], f"open={left['open']}")
             journal.check(
-                "the address returns to the legacy language (base + ?page=lib)",
-                left["pathname"] == "/" and left["search"] == "?page=lib",
+                "the address returns to the library's own path (/media)",
+                left["pathname"] == "/media" and left["search"] == "",
                 f"{left['pathname']}{left['search']}")
             journal.check(
                 "and the page rendered really is the library",
@@ -379,11 +380,22 @@ async def main():
 
             # ─── Holds (f)-(h): the mediaSheet's deep entry, its OWN artwork,
             # one Back — same server, same `open_at`, a second screen. ──
-            sheet_address = f"{base}/mediasheet/{urllib.parse.quote(SHEET_TITLE)}"
+            # The sheet is addressed by PROVIDER ID (DOIT-11), and the id is
+            # DERIVED from the running application rather than written down
+            # here: a constant nothing verifies against its source is a
+            # coupling, and this one would rot the day the fixture moved.
+            ctx, pg, errors = await open_at(browser, f"{base}/")
+            sheet_ids = await pg.evaluate(
+                f"()=>window.addressIdsFor({json.dumps(SHEET_TITLE)})")
+            await ctx.close()
+            journal.check(
+                "(e2) the media sheet's own address ids are resolvable",
+                bool(sheet_ids), f"{SHEET_TITLE} -> {sheet_ids}")
+            sheet_address = f"{base}/media/{sheet_ids['provider']}/{sheet_ids['id']}"
             ctx, pg, errors = await open_at(browser, sheet_address)
             sheet_cold = await pg.evaluate(SHEET_STATE)
             journal.check(
-                "(f) a deep /mediaSheet address opens the promised media sheet, cold",
+                "(f) a deep /media/:provider/:id address opens the promised sheet, cold",
                 sheet_cold["open"]
                 and sheet_cold["key"] == f"mediaSheet:{SHEET_TITLE}"
                 and sheet_cold["title"] == SHEET_TITLE.split(" (")[0],
@@ -393,7 +405,7 @@ async def main():
                 "(g) the hero/poster the sheet draws ITSELF really loads",
                 artwork["url"] is not None and artwork["drawn"],
                 f"url={artwork['url']!r} drawn={artwork['drawn']}")
-            journal.check("no JS error on deep /mediaSheet entry", not errors, str(errors))
+            journal.check("no JS error on deep /media/:provider/:id entry", not errors, str(errors))
 
             await pg.evaluate("""()=>document.querySelector('[data-part="screen"][data-open] [data-part="screen/back"]').click()""")
             await pg.wait_for_timeout(300)
@@ -405,17 +417,25 @@ async def main():
             journal.check("no JS error during the back from the sheet", not errors, str(errors))
             await ctx.close()
 
-            # ─── Hold (i): an unknown title renders the SAME honest
+            # ─── Hold (i): an id nobody carries renders the SAME honest
             # template `openFiche` always did — no not-found branch to
-            # mirror, only a gabarit whose fields say "inconnu" ──────────
-            wrong_sheet_address = f"{base}/mediasheet/{UNKNOWN_ADDRESS}"
+            # mirror, only a gabarit whose fields say "inconnu".
+            #
+            # It used to assert the screen ECHOED the unknown title back. An
+            # address keyed on a provider id cannot: it names an id, not a
+            # title, and inventing one to echo would be the interface making
+            # something up. What is measured instead is what the screen
+            # actually owes a stale bookmark — it renders, it does not raise,
+            # and it says in its own bar that the medium is unidentified.
+            # An id nobody carries — a stale bookmark's exact shape.
+            wrong_sheet_address = f"{base}/media/tvdb/000000"
             ctx, pg, errors = await open_at(browser, wrong_sheet_address)
             sheet_lost = await pg.evaluate(SHEET_STATE)
             journal.check(
-                "(i) an unknown title still renders the sheet, honestly — openFiche(title)'s "
-                "own template had no « not found » branch",
+                "(i) an id nobody carries still renders the sheet, honestly — "
+                "openFiche(title)'s own template had no « not found » branch",
                 sheet_lost["open"]
-                and sheet_lost["title"] == "N'Existe Pas"
+                and "non identifié" in sheet_lost["bar"]
                 and "Métadonnées inconnues" in sheet_lost["body"]
                 and "Genres inconnus" in sheet_lost["body"],
                 f"key={sheet_lost['key']} title={sheet_lost['title']!r}")
@@ -431,7 +451,12 @@ async def main():
             # no-info part the screen draws; a stray match here would be a
             # real regression, not a coincidence from an unrelated
             # missing field. ────────────────────────────────────────────
-            no_trailer_address = f"{base}/mediasheet/{urllib.parse.quote(TITLE_WITHOUT_TRAILER)}"
+            ctx, pg, errors = await open_at(browser, f"{base}/")
+            no_trailer_ids = await pg.evaluate(
+                f"()=>window.addressIdsFor({json.dumps(TITLE_WITHOUT_TRAILER)})")
+            await ctx.close()
+            no_trailer_address = (
+                f"{base}/media/{no_trailer_ids['provider']}/{no_trailer_ids['id']}")
             ctx, pg, errors = await open_at(browser, no_trailer_address)
             sheet_no_trailer = await pg.evaluate(SHEET_STATE)
             journal.check(

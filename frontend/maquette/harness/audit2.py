@@ -14,7 +14,7 @@ async def main():
     ctx=await b.new_context(viewport={"width":390,"height":844},device_scale_factor=2,is_mobile=True,has_touch=True)
     pg=await ctx.new_page(); errs=[]
     pg.on("pageerror", lambda e: errs.append(str(e)))
-    await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
+    await pg.goto("http://127.0.0.1:8899/", wait_until="load")
     # The startup screen covers the frame for as long as the load it stands
     # for lasts. Nothing is being fetched here, so the harness closes that
     # wait through the same seam the app uses, rather than sleeping it out.
@@ -381,7 +381,16 @@ async def main():
       // exit code. Waiting for THE SCREEN ONE ASKED FOR — its own key — removes
       // the guess, and a timeout is reported instead of silently skipped.
       const waitFor=async(t)=>{
-        const key='mediaSheet:'+t.normalize('NFC');
+        // The sheet is addressed by PROVIDER ID, so two catalogue keys for one
+        // work — « Rick and Morty » and « Rick and Morty (2013) » — share ONE
+        // address and open ONE sheet, keyed by whichever title the reverse
+        // index resolved. Waiting for the title one ASKED for would report
+        // « never opened » about a sheet that opened correctly. Resolved
+        // through the application's own two functions rather than a rule of
+        // thumb about year suffixes.
+        const ids=window.addressIdsFor(t);
+        const canonical=ids ? (window.titleForProviderId(ids.provider, ids.id) ?? t) : t;
+        const key='mediaSheet:'+canonical.normalize('NFC');
         for (let i=0;i<40;i++) {
           const el=document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
           if (el && el.dataset.key===key) return el;

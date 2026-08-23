@@ -80,7 +80,7 @@ async def main():
         pg = await ctx.new_page()
         errors = []
         pg.on("pageerror", lambda e: errors.append(str(e)))
-        await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
+        await pg.goto("http://127.0.0.1:8899/", wait_until="load")
         await pg.evaluate("()=>document.querySelector('#toastx').click()")
 
         global _journal
@@ -186,7 +186,7 @@ async def main():
         #    made the bar play a second time in a document that was already
         #    rendered. What it asserts now is what the screen is FOR.
         page2 = await ctx.new_page()
-        await page2.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
+        await page2.goto("http://127.0.0.1:8899/", wait_until="load")
         await page2.wait_for_timeout(400)
         check("gone once the document has loaded — it covers nothing any more",
                  await page2.evaluate(
@@ -323,7 +323,7 @@ async def main():
           const frame = () => { record(); requestAnimationFrame(frame); };
           requestAnimationFrame(frame);
         })()""")
-        await cold.goto("http://127.0.0.1:8899/wrapped.html", wait_until="commit")
+        await cold.goto("http://127.0.0.1:8899/", wait_until="commit")
         await cold.wait_for_timeout(3000)
         samples = await cold.evaluate("()=>window.__samples")
 
@@ -350,7 +350,7 @@ async def main():
         # follows has to be played out to be judged at all. Same screen, same
         # seam, a duration instead of an observation.
         played = await ctx.new_page()
-        await played.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
+        await played.goto("http://127.0.0.1:8899/", wait_until="load")
         await played.evaluate("()=>window.__loadingDone?.()")
         await played.evaluate("()=>window.__go('signin')")
         await played.wait_for_timeout(350)

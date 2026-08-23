@@ -336,7 +336,7 @@ import { screens, panel, bridge } from "./seams.js";
       t: "President Curtis",
       serie: "Continuing",
       since: "29 juillet",
-      searches: 18,
+      searches: 19,
       k: "show",
       y: 2026,
       st: "up_to_date",
@@ -1374,7 +1374,6 @@ import { screens, panel, bridge } from "./seams.js";
     "Lord of the Flies": "assets/posters/59ce5717.webp",
     Prescott: "assets/posters/3fb8dd59.webp",
     Rafa: "assets/posters/7ee68e22.webp",
-    "Widow's Bay (2026)": "assets/posters/4c10db8a.webp",
     "Fantômes contre fantômes": "assets/posters/3dbfcf02.webp",
     "La Cité des Anges": "assets/posters/dad3ad5b.webp",
     "Les Griffes de la Nuit": "assets/posters/a40c6144.webp",
@@ -1787,7 +1786,6 @@ import { screens, panel, bridge } from "./seams.js";
     "Lord of the Flies": "assets/heroes/69196ecb.webp",
     Prescott: "assets/heroes/d52bfe36.webp",
     Rafa: "assets/heroes/a1685f20.webp",
-    "Widow's Bay (2026)": "assets/heroes/4f013004.webp",
     "Fantômes contre fantômes": "assets/heroes/a77bb78f.webp",
     "La Cité des Anges": "assets/heroes/e3751361.webp",
     "Les Griffes de la Nuit": "assets/heroes/1c9c10d0.webp",
@@ -7618,6 +7616,7 @@ import { screens, panel, bridge } from "./seams.js";
     const deleted = action.r === "destructive";
     const blanc = deleted ? true : !!currentState().maintBlanc;
     panel.open({
+      address: "action:" + id,
       title: action.l,
       subtitle: action.id,
       meta: action.d,
@@ -9357,6 +9356,7 @@ import { screens, panel, bridge } from "./seams.js";
     const courante = displayedValue(setting);
     const changed = SETTINGS_STATE.modifs.has(id);
     panel.open({
+      address: "setting:" + id,
       title: window.__settingLabels.label(setting),
       meta: [{ m: `${setting.f}.json5 · ${setting.c}` }],
       ...(changed ? { puce: ["info", "modifié, pas encore écrit"] } : {}),
@@ -9816,6 +9816,8 @@ import { screens, panel, bridge } from "./seams.js";
     trailerIds,
     EP_LABEL,
     sheetFor,
+    titleForProviderId,
+    addressIdsFor,
     seasonsOf,
     ownedFor,
     plages,
@@ -10883,74 +10885,18 @@ import { screens, panel, bridge } from "./seams.js";
   let currentRender = null;
   let unwinding = false;
 
-  function openScreen(html, cle, renderFn) {
-    const element = select("#screen");
-    const alreadyOpen = element.classList.contains("open");
-    const sameScreen = alreadyOpen && cle != null && element.dataset.key === cle;
-    if (alreadyOpen && !sameScreen && !unwinding && currentRender) {
-      screenStack.push({
-        renderFn: currentRender,
-        scrollY: element.querySelector(".port")?.scrollTop ?? 0,
-      });
-      try {
-        __bridge.pushLayer("screen");
-      } catch (error) {}
-    }
-    let startY = 0;
-    let field = null;
-    if (sameScreen) {
-      startY = element.querySelector(".port")?.scrollTop ?? 0;
-      const activeElement = document.activeElement;
-      if (activeElement && element.contains(activeElement) && activeElement.id)
-        field = { id: activeElement.id, pos: activeElement.selectionStart };
-    }
-    element.innerHTML = html;
-    if (cle != null) element.dataset.key = cle;
-    else delete element.dataset.key;
-    if (sameScreen) {
-      const port = element.querySelector(".port");
-      if (port && startY > 0) {
-        /* Restoring ONCE is not enough: posters load after the content is
-           replaced, the page is briefly too short and the browser resets
-           scrolling to 0. Reapply the position on the next frame, then once
-           more when images have finished — otherwise the add screen scrolls
-           back up on its own. */
-        port.scrollTop = startY;
-        requestAnimationFrame(() => {
-          port.scrollTop = startY;
-        });
-        const imgs = [...element.querySelectorAll("img")].filter(
-          (element2) => !element2.complete,
-        );
-        let restant = imgs.length;
-        imgs.forEach((img) =>
-          img.addEventListener(
-            "load",
-            () => {
-              if (--restant <= 0) port.scrollTop = startY;
-            },
-            { once: true },
-          ),
-        );
-      }
-      if (field) {
-        const element2 = element.querySelector("#" + field.id);
-        if (element2) {
-          element2.focus();
-          try {
-            element2.setSelectionRange(field.pos, field.pos);
-          } catch (error) {}
-        }
-      }
-    }
-    if (!alreadyOpen) {
-      setOpen(element, true);
-      try {
-        __bridge.pushLayer("screen");
-      } catch (error) {}
-    }
-    currentRender = renderFn ?? null;
-  }
+  /* `openScreen` LIVED HERE, and it left with the navigation this lot took
+     out of the engine. Every screen it used to raise — the media sheet, the
+     quality profile, the add screen, the arbitration screen, the release
+     picker — is a real route now, so it had no callers left at all.
+
+     D5 says the engine dies by SUBTRACTION, surface by surface, and this is
+     the moment: a thing that has lost its subject is removed then, not
+     later. Machinery nobody can justify is machinery nobody dares delete.
+
+     `closeScreen`, `#screen` and the `#screen.open` branch of the back
+     handler STAY — they still serve the layer ladder, and a subtraction
+     that takes a live path with it is not a subtraction. */
   function closeScreen(pop) {
     if (!select("#screen").classList.contains("open")) return;
     const previous = screenStack.pop();
@@ -11001,16 +10947,6 @@ import { screens, panel, bridge } from "./seams.js";
   const BACK_WINDOW = 5000;
   let pilotage = false;
   let armedExit = 0;
-  // The legacy engine's own address BASE — "/" in production, but whatever a
-  // static host answers the document under otherwise (the rule harness's
-  // 8899 server names it "/wrapped.html"). Computed once at boot by the
-  // shell (shell.tsx, using the router's OWN matching — see its own
-  // comment) and handed through window.__startEngine, because deciding
-  // it here would mean re-deriving what the router owns from a second,
-  // independently-maintained list. Defaulted to "/" so a call made before
-  // the boot handshake (there should be none) fails toward the common case
-  // rather than toward whatever the document happens to be opened from.
-  let baseAddress = "/";
 
   /* ── L'URL PORTE L'ÉTAT (DOIT-10) ─────────────────────────────────────
      « Chaque détail a son URL » is a rule of the constitution, and the
@@ -11031,63 +10967,17 @@ import { screens, panel, bridge } from "./seams.js";
 
      Only what DIFFERS from the opening state is written, so the common case
      has a clean URL and a link carries only what it means to carry. */
-  const URL_DEFAULTS = {
-    page: "acq",
-    tab: "now",
-    lens: "cat",
-    mode: "grid",
-    cat: "all",
-    rub: "",
-  };
+  /* ── THE ADDRESS IS THE SHELL'S ───────────────────────────────────────
+     This engine used to compose and parse every page address itself: a table
+     of dial defaults, a builder that dropped whatever sat at its default, and
+     a reader that put them back. All three left for `lib/addresses.ts`, and
+     that departure is the point rather than a tidy-up — a page now has a REAL
+     PATH (`/media`, not `?page=lib`), which is D1, and which of them is called
+     what is a naming convention rather than navigation logic.
 
-  function urlFromState() {
-    // Built on adresseBase, never on location.pathname: writing over the
-    // CURRENT pathname would either clobber a router-owned address (the
-    // C1 hole) or, once it does not, still be redundant with what pushing
-    // onto the shared history already achieves on its own — the router
-    // subscribes to that same history instance (Transitioner mounts
-    // `router.history.subscribe(router.load)`) and re-derives its matches
-    // from whatever URL lands there, regardless of who pushed it. A legacy
-    // nav writing `baseAddress + "?page=lib"` while the address reads
-    // `/add` is exactly what makes the router notice the address no
-    // longer matches `/add` and unmount the screen — no navigate() call
-    // needed on this side of the bridge.
-    const courant = {
-      page: currentState().page,
-      tab: currentState().acqTab,
-      lens: currentState().libLens,
-      mode: currentState().libMode,
-      cat: currentState().libCat,
-      rub: currentState().maintTopic || "",
-    };
-    const params = new URLSearchParams();
-    for (const [name, value] of Object.entries(courant))
-      if (value && value !== URL_DEFAULTS[name])
-        params.set(name, String(value));
-    const query = params.toString();
-    return baseAddress + (query ? "?" + query : "");
-  }
-
-  /* Reads back what the URL carries. An absent parameter is not « empty »: it
-     is « unchanged », so nothing is written for it and the opening state
-     stands. A page nobody serves is left AS IT IS rather than corrected here —
-     `render()` is what turns an unknown id into the not-found surface, and
-     silently rewriting it here would mean a mistyped address quietly became a
-     different one. */
-  function stateFromUrl() {
-    const params = new URLSearchParams(location.search);
-    const lu = {};
-    const take = (param, field) => {
-      if (params.has(param) && params.get(param)) lu[field] = params.get(param);
-    };
-    take("page", "page");
-    take("tab", "acqTab");
-    take("lens", "libLens");
-    take("mode", "libMode");
-    take("cat", "libCat");
-    take("rub", "maintTopic");
-    return lu;
-  }
+     What stays here is navigation logic proper: WHEN to record an arrival,
+     what state to carry on the entry, and how a back unwinds the layers. The
+     engine says where it is; `window.__address` says what that is called. */
 
   function navigationState() {
     return {
@@ -11116,7 +11006,7 @@ import { screens, panel, bridge } from "./seams.js";
   function recordPath() {
     if (pilotage) return;
     try {
-      __bridge.record(navigationState(), urlFromState());
+      __bridge.record(navigationState(), window.__address.compose(currentState()));
     } catch (error) {
       console.error("noterLeChemin : écriture de navigation échouée", error);
       window.__navEchec = true;
@@ -11170,7 +11060,7 @@ import { screens, panel, bridge } from "./seams.js";
     // Ownership, once more, decided by the entry's own SHAPE: only an entry
     // that carries the guard's own marker (written once, at boot, by
     // __bridge.remplacer({ tm: "garde" })) is the guard. Anything else that
-    // falls through here — notably an entry the ROUTER wrote for /profile/$title
+    // falls through here — notably an entry the ROUTER wrote for /quality/$name
     // or /ajout, which carries neither "layer" nor "tm" — is not ours to
     // react to: the router has already re-rendered by the new URL, so a true
     // no-op is the correct handling, not "treat every unrecognised shape as
@@ -11252,15 +11142,38 @@ import { screens, panel, bridge } from "./seams.js";
      surface; who may see it is decided by the server that serves this file. A
      password written into a page is readable by everyone the page reaches,
      which is the opposite of what a password is for. */
+  /* The sign-in screen sits on a real path (D1). It is not a page — it is a
+     layer covering everything — but it is what one SEES, and every screen owes
+     an address. The refusal is a STATE of that address, not a second one: it is
+     not a place anyone links to.
+
+     Written through the same single writer every other address goes through, in
+     REPLACE: signing in is not a step of the walk one goes back through, and a
+     back out of the gate onto the page it guards would be a lie.
+
+     Never under `pilotage`: `__go` drives a named state without touching
+     history, which R74 holds, and the harness reaching the sign-in state must
+     not move the address. */
   function showSignIn(avecErreur) {
     document.querySelector("#login").hidden = false;
     document.querySelector("#loginerr").hidden = !avecErreur;
     if (avecErreur) document.querySelector("#loginform").reset();
+    if (!pilotage)
+      try {
+        __bridge.replace(navigationState(), window.__address.signInPath);
+      } catch (error) {}
   }
 
   function hideSignIn() {
+    const wasShown = !document.querySelector("#login").hidden;
     document.querySelector("#login").hidden = true;
     document.querySelector("#loginerr").hidden = true;
+    /* The address follows the screen off, so the gate does not stay in the bar
+       over the application it has just let through. */
+    if (wasShown && !pilotage)
+      try {
+        __bridge.replace(navigationState(), window.__address.compose(currentState()));
+      } catch (error) {}
   }
 
   /* Signing out ends the session and lands on the entry screen.
@@ -11614,8 +11527,8 @@ import { screens, panel, bridge } from "./seams.js";
       </div>
       <div class="ver">
         <p class="vt">Version déployée</p>
-        <p class="vv">0.97.34</p>
-        <p class="vc">build 71e50163 · à jour</p>
+        <p class="vv">0.98.23</p>
+        <p class="vc">build 58d0d4fd · à jour</p>
       </div>`;
     setOpen(element, true);
     setOpen(select("#scrim"), true);
@@ -11832,7 +11745,7 @@ import { screens, panel, bridge } from "./seams.js";
       port.scrollTop = 0;
       render();
       try {
-        if (onLayer) __bridge.replace(navigationState(), urlFromState());
+        if (onLayer) __bridge.replace(navigationState(), window.__address.compose(currentState()));
         else recordPath();
       } catch (error) {
         console.error("data-go : écriture de navigation échouée", error);
@@ -12152,7 +12065,7 @@ import { screens, panel, bridge } from "./seams.js";
       port.scrollTop = 0;
       render();
       try {
-        if (onDrawer) __bridge.replace(navigationState(), urlFromState());
+        if (onDrawer) __bridge.replace(navigationState(), window.__address.compose(currentState()));
         else recordPath();
       } catch (error) {
         console.error("data-navgo : écriture de navigation échouée", error);
@@ -33287,6 +33200,41 @@ import { screens, panel, bridge } from "./seams.js";
     }
     return byNumber;
   })();
+  /* THE REVERSE OF `sheetFor`, and the one place that crosses the two
+     vocabularies. The catalogue is keyed by TITLE; the media sheet's address is
+     `/media/:provider/:id`, which DOIT-11 writes literally and which production
+     already serves. Built once, from the fixture itself, so the two can never
+     disagree — a second hand-written table is how they would.
+
+     First writer wins: a title is reachable by each of its providers, and two
+     titles sharing an id would be a defect in the fixture rather than something
+     to arbitrate here. */
+  const SHEETS_BY_PROVIDER_ID = new Map();
+  function providerKey(provider, id) {
+    return provider + ":" + id;
+  }
+  function titleForProviderId(provider, id) {
+    if (!SHEETS_BY_PROVIDER_ID.size)
+      for (const [title, sheet] of Object.entries(SHEETS_RAW))
+        for (const [name, value] of Object.entries((sheet && sheet.ids) || {}))
+          if (value && !SHEETS_BY_PROVIDER_ID.has(providerKey(name, value)))
+            SHEETS_BY_PROVIDER_ID.set(providerKey(name, value), title);
+    return SHEETS_BY_PROVIDER_ID.get(providerKey(provider, id)) ?? null;
+  }
+  /* The provider a title is ADDRESSED by. TVDB first, then TMDB — the same
+     order the sheet already displays, so the address and what it shows cannot
+     drift apart. `null` means the media carries no provider id, which §11 makes
+     an explicit case rather than a gap: it has no sheet, and the surface must
+     lead to the resolution instead of to a dead link. */
+  function addressIdsFor(title) {
+    const sheet = sheetFor(title);
+    const ids = (sheet && sheet.ids) || null;
+    if (!ids) return null;
+    if (ids.tvdb) return { provider: "tvdb", id: String(ids.tvdb) };
+    if (ids.tmdb) return { provider: "tmdb", id: String(ids.tmdb) };
+    return null;
+  }
+
   function sheetFor(title) {
     if (title == null) return null;
     const direct = SHEETS_RAW[title] ?? SHEETS_RAW[baseTitle(title)];
@@ -33657,6 +33605,7 @@ import { screens, panel, bridge } from "./seams.js";
         ? `${own}/${aired}`
         : (stFraction(follow) ?? "—");
     panel.open({
+      address: "follow:" + title,
       title: follow.t,
       poster: { t: follow.t, k: follow.k },
       meta: `${follow.y ? String(follow.y) + " · " : ""}${isFilm ? "Film" : "Série"}${frac ? " · " + frac + " épisodes" : ""}`,
@@ -33827,6 +33776,7 @@ import { screens, panel, bridge } from "./seams.js";
       ["Rangé en médiathèque", "à venir", "todo"],
     ];
     panel.open({
+      address: "journey:" + title,
       title: title,
       meta: [
         "Parcours de l'acquisition · release ",
@@ -34436,10 +34386,6 @@ import { screens, panel, bridge } from "./seams.js";
      visible, truthful failure instead of an app with mute verbs. */
   window.__startEngine = function (deps) {
     store = deps.store;
-    // Set before any write can happen (`adoptState`/`adoptWorld` below
-    // do not write to history, but the earliest legacy write is one line
-    // away): urlDeLEtat() must never compose against the placeholder "/".
-    baseAddress = deps.base;
     store.adoptState(INITIAL_STATE);
     store.adoptWorld(world);
     /* No subscription here anymore. The only thing this one ever did was
@@ -34455,15 +34401,64 @@ import { screens, panel, bridge } from "./seams.js";
     /* The opening state comes from the ADDRESS, before the first paint: a
        reload that lands on the opening page rather than where one was is the
        defect DOIT-10 names, and it is fixed here rather than corrected after
-       a frame the operator would see. */
-    Object.assign(state, stateFromUrl());
+       a frame the operator would see. The page now travels in the PATH, so
+       this reads both halves. */
+    const arrival = window.__address.parse(location.pathname, location.search);
+    Object.assign(state, { page: arrival.page }, arrival.dials);
+    if (arrival.notFound) state.notFound = arrival.notFound;
     /* Kept from BEFORE the first render, because rendering an unknown id
        moves the state onto the not-found surface — and rewriting the
        address to match would make a mistyped link quietly become a
        different one. A browser answering 404 leaves the address alone; so
-       does this. */
-    const arrivalAddress = location.pathname + location.search;
+       does this.
+
+       THE BARE ROOT IS THE ONE EXCEPTION, and it is a settlement rather than
+       a correction: `/` is where a bookmark, a bare link and an installed
+       app's scope all land, and it names no page. It settles onto the home
+       page's own address. A REPLACE, never a push — nothing is inserted, so
+       the first Back still reaches the guard entry underneath rather than
+       bouncing off a redirect. Any OTHER address is kept exactly as it was
+       asked for, which is the whole of the paragraph above. */
+    const arrivalAddress =
+      location.pathname === "/"
+        ? window.__address.compose(currentState())
+        : location.pathname + location.search;
     render();
+    /* A cold `/login` raises the gate over a frame that is already drawn,
+       which is the whole reason its address resolves to a page underneath
+       rather than to nothing. Under `pilotage` so the raise does not rewrite
+       the address it was just read from. */
+    if (arrival.signIn) {
+      pilotage = true;
+      showSignIn(false);
+      pilotage = false;
+    }
+    /* An ADDRESSED panel reopens on a cold load — otherwise its address would
+       be decoration, written but never read. The table is here, beside the
+       producers it names, and a `<kind>` it does not carry is IGNORED rather
+       than guessed at: a stale link naming a panel nobody serves must land on
+       the page, never on an invented one. */
+    if (arrival.panel) {
+      const [kind, subject] = [
+        arrival.panel.slice(0, arrival.panel.indexOf(":")),
+        arrival.panel.slice(arrival.panel.indexOf(":") + 1),
+      ];
+      const REOPEN = {
+        follow: openFollowSheet,
+        journey: openJourneySheet,
+        setting: openSetting,
+        action: openActionMaintenance,
+      };
+      if (REOPEN[kind]) {
+        pilotage = true;
+        try {
+          REOPEN[kind](subject);
+        } catch (error) {
+          console.error("reopening the addressed panel failed", error);
+        }
+        pilotage = false;
+      }
+    }
     /* The address is put back on the entry one arrives on, so a back from
        anywhere reaches the page the link named rather than a bare
        document. */
@@ -34592,7 +34587,7 @@ Object.assign(window, {
   RISQUES, SEARCH, SEASONS, SECRETS, SERVICES, SERVICES_PANNE, SETTLED,
   SETTLED_REAL, STRIP_LABELS, STUCK, STUCK_REAL, ST_LABEL,
   ST_LABEL_MOVIE, ST_TONE, SUGGESTIONS, SUG_BATCH, SYNOPSIS, TAKEABLE,
-  TRIS, URGENCY, URL_DEFAULTS, VIA_LABEL, actionLeave, actionPause,
+  TRIS, URGENCY, VIA_LABEL, actionLeave, actionPause,
   actionTake, actionResolve, actionRetirer, actionFollow,
   actionDelete, addVerb, showSignIn, showStartup,
   showInstallation, cancelPress, apparenceCourante,
@@ -34602,7 +34597,7 @@ Object.assign(window, {
   dateFR, startPageGesture, decisionPending, deckCardHTML, deckHTML,
   deckOrder, signOut, alreadyInstalled, derived, unwindLayer,
   dismissSug, emptyInner, endCardDrag, endDeckDrag, endPageDrag,
-  endSugDrag, epState, escapeHtml, stateFromUrl, navigationState,
+  endSugDrag, epState, escapeHtml, navigationState,
   factRowsHTML, closePopEp, closeDrawer, changedFiles, fillSug,
   gridBadge, hideLayers, icons, initials, initialsOf, drawerWidth,
   libFiltered, libRowHTML, factsListHTML, loadMoreSug, hideSignIn,
@@ -34610,24 +34605,23 @@ Object.assign(window, {
   mountDeck, mountLoaders, mountSearch, fileName, normalisedKey,
   recordPath, openAddSheet, openDeleteDialog, openDetailSheet, openDlg,
   openFollowSheet, openHarness, openJourneySheet, openPanel, openMoreSheet,
-  openScreen, openSheet, openSugSheet, openUserSheet,
+  openSheet, openSugSheet, openUserSheet,
   openActionMaintenance, openPopEp, openSetting, openSecret,
   openDrawer, paintSelBar, panelUnderFinger, passerSug, screenStack,
   plages, ownedFor, posterBox, nextSearchFR,
   proposerInstallation, ptr, publishBarHeight, refPanel, collapseCard,
   refreshDeck, settingId, resetSettings, render, renderNav,
   richText, seasonsOf, sheetSeasonsHTML, secHTML, secInner, seedWorld,
-  select, sheetFor, skelCards, skelCardsInner, skelTiles, sortLabel,
+  select, sheetFor, titleForProviderId, addressIdsFor, skelCards, skelCardsInner, skelTiles, sortLabel,
   leaveQueue, stFraction, stLabel, stripHTML, sugCardHTML, sugFoot,
   sugTileHTML, sugVerb, followPress, onIOSSafari, onEngineBack,
   surfErr, surfErrInner, svgIcon, swipeHTML, tileHTML, toast, toastUndo,
-  allSettings, trailerIds, sortLibrary, urlFromState, displayedValue,
+  allSettings, trailerIds, sortLibrary, displayedValue,
   rawValue, typedValue, view,
 });
 
 // Read live, because the engine reassigns each of these.
 Object.defineProperties(window, {
-  baseAddress: { get: () => baseAddress, configurable: true },
   press: { get: () => press, configurable: true },
   cardDrag: { get: () => cardDrag, configurable: true },
   openCard: { get: () => openCard, configurable: true },

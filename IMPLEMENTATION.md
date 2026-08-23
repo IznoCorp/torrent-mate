@@ -45,8 +45,8 @@ stale table read as current for three days.
 |                            |                                                                                                                                                                                                                                                                                                                                             |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Last landed**            | **L04 — boundaries and the tree**, Phase 1. PR **#478**, merged 2026-08-22, version 0.98.21. Its two references were re-recorded on `chore/l04-references` (`8df61380`) and carried onto `main` by **#479**; both pointers name `66813063`, an ancestor of `HEAD` — verified |
-| **In flight**              | **none.** A wave writes its own row here when its pull request opens, and the post-merge steps move it to « Last landed » (§ 5 of the architecture file) |
-| **Next**                   | **L05 — Routing**, Phase 1. Its dependencies (L01, L04) are `LANDED` and it **runs alone**. `docs/reference/frontend-architecture.md` decides which lot, never this table |
+| **In flight**              | **L05 — Routing**, Phase 1. PR **#482**, version 0.98.24. D1 in force: the eight pages on real paths, the address model out of the engine, the media sheet on `/media/:provider/:id`, the panel addressed, R69 renegotiated. Suite 52/52, oracle 1 reviewed divergence, hold counts up-only |
+| **Next**                   | **L06 — The scale**, Phase 2, once L05 merges. `docs/reference/frontend-architecture.md` decides which lot, never this table |
 | **Before it**              | L03 — PR **#475**, version 0.98.18 · L02 — PR **#470**, version 0.98.13 · L01 — PR **#467**, version 0.98.10. All three archived under `docs/archive/features/`; `docs/features/maquette-l04/` is still live and belongs beside them |
 | **What decides the order** | `docs/reference/frontend-architecture.md`, never this table. This table says only where the work STANDS                                                                                                                                                                                                                                     |
 
@@ -73,6 +73,24 @@ their own waves.
 without its design and its plan. Branch from `main` once **#479** has landed: that pull request
 carries the corrected hold-count baseline (`panel.py` 9 → 12), and a branch taken before it gets a
 false movement out of `--compare` on its first run.
+
+**Phases of L05** — the plan is `docs/features/maquette-l05/plan/INDEX.md`, which owns the
+reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
+
+| #   | Phase                                  | File                                        | Status |
+| --- | -------------------------------------- | ------------------------------------------- | ------ |
+| 1   | The harness's ground                   | `plan/phase-01-the-harness-ground.md`       | [x]    |
+| 2   | The pages take their paths             | `plan/phase-02-pages-take-paths.md`         | [x]    |
+| 3   | The screens are renamed                | `plan/phase-03-the-screen-renames.md`       | [x]    |
+| 4   | The sign-in screen gets its address    | `plan/phase-04-login.md`                    | [x]    |
+| 5   | The panel tier                         | `plan/phase-05-the-panel-tier.md`           | [x]    |
+| 6   | The offline guard, and one subtraction | `plan/phase-06-the-guard-and-the-subtraction.md` | [x] |
+| 7   | The records, and the gate              | `plan/phase-07-the-records.md`              | [x]    |
+
+**What L05 is, in one line**: the eight pages leave `?page=` for a real path, the address model
+leaves the engine for `lib/addresses.ts` — the first subtraction of D5 — and the harness host
+moves to one that answers a real path, which is what lets a rule drive by URL instead of through
+a seam that dies with the engine.
 
 **What L03 is, in one line**: landmarks, accessible names, focus management on every layer, the
 keyboard paths — and `axe-core` in the gate at a hard zero. Four decisions were arbitrated by the
@@ -398,20 +416,27 @@ them — running the wrong one is a green run over nothing.
 
 |                  | Port     | What                                                                                                    | Started by                  |
 | ---------------- | -------- | ------------------------------------------------------------------------------------------------------- | --------------------------- |
-| **Harness host** | **8899** | a plain `http.server` rooted in `/private/tmp/tm-refonte`, serving `wrapped.html` — a COPY of the build | by hand; usually already up |
+| **Harness host** | **8899** | `harness/server.py --serve`, rooted in `/private/tmp/tm-refonte`, serving a COPY of the build at `/` and folding every router-owned address onto it | `run.sh`, or by hand |
 | **Design host**  | **8712** | `serve.py`, scrypt password-protected (`tm-design.iznogoudatall.xyz`)                                   | PM2 (`torrentmate-design`)  |
 
-`harness/common.py` pins the first one: `PROTOTYPE = "http://127.0.0.1:8899/wrapped.html"`.
+`harness/common.py` pins the first one: `PROTOTYPE = "http://127.0.0.1:8899/"`.
 Never 8710/8711/8712/8899 for a server of your own — `harness/server.py`'s `RESERVED_PORTS`
 names all four, and the reverse proxy routes the first three to production, staging and the
 design host.
 
 **`python3 serve.py 8899` is wrong**, and it is the recipe this file used to carry: `serve.py`
 is the DESIGN host, it answers **401** without a session, and the harness would then measure the
-sign-in screen — every rule green, nothing measured. A plain `http.server` is exactly right for
-the harness _because of where it is rooted_: on the copy of the BUILD, not on `design/`. Rooted
-on the sources it would serve unbuilt TypeScript and measure nothing real — that is the
-distinction the old sentence lost.
+sign-in screen — every rule green, nothing measured.
+
+**A plain `python3 -m http.server` is wrong too, and that one is newer.** It was right while a
+page lived in the query: the document had one address, `/wrapped.html`, and a static server
+serves a file at its own path. Since L05 a page sits on a real path, and a plain server answers
+404 to every one of them — which the router renders as its not-found page, so the whole suite
+would measure that instead of whatever was under test. `harness/server.py --serve` folds any
+address with no file behind it onto the document, and keeps a 404 for the resources that really
+are files (`/vite/…`, `/assets/…`, `/sw.js`, `/manifest.webmanifest`). What has not changed is
+where it is ROOTED: on the copy of the BUILD, never on `design/`, which would serve unbuilt
+TypeScript and measure nothing real.
 
 ```bash
 # 1. Rebuild, and refresh the copy the harness reads — BEFORE EVERY RUN.
@@ -422,7 +447,7 @@ rm -rf /tmp/tm-refonte/vite && { [ -d dist/vite ] && cp -R dist/vite /tmp/tm-ref
 ln -sfn "$(git rev-parse --show-toplevel)/frontend/maquette/design/assets" /tmp/tm-refonte/assets
 
 # 2. The harness host — check before starting, it is usually already running.
-lsof -nP -iTCP:8899 -sTCP:LISTEN || (cd /private/tmp/tm-refonte && python3 -m http.server 8899 --bind 127.0.0.1 &)
+lsof -nP -iTCP:8899 -sTCP:LISTEN || (python3 frontend/maquette/harness/server.py --serve 8899 /tmp/tm-refonte &)
 ```
 
 Two traps, each paid for twice. A STALE COPY of the rule scripts can end up in
