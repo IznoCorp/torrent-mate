@@ -434,6 +434,40 @@ async def main():
               f"{pg5.url} · armedExit={await pg5.evaluate('()=>window.armedExit')}")
         await ctx5.close()
 
+        # AND THE PARAMETER IS RECOGNISED BY ITS NAME, not by the letters it
+        # happens to be spelled with. A query name may be percent-encoded —
+        # `%70anel` IS `panel` — and `URLSearchParams` decodes, so the reader
+        # that opens the panel has always seen it. The reader that takes it
+        # back off the arrival address compared raw text, so the panel reopened
+        # AND its parameter survived the strip: the entry the first Back lands
+        # on still named a panel, and a reload there brought back what the
+        # gesture had just closed.
+        ctx9 = await b.new_context(**PHONE)
+        pg9 = await ctx9.new_page()
+        encoded_errors = []
+        pg9.on("pageerror", lambda e: encoded_errors.append(str(e)))
+        await pg9.goto(PROTOTYPE + f"acquisition?%70anel=follow:{FOLLOW_TITLE}",
+                       wait_until="load")
+        await pg9.evaluate("()=>window.__loadingDone?.()")
+        await pg9.wait_for_timeout(600)
+        check("a percent-encoded panel parameter reopens the panel it names",
+              await pg9.evaluate("()=>window.__panel.isOpen()")
+              and await pg9.evaluate(
+                  "()=>(window.__store.read().state.panelDescriptor||{}).title")
+              == FOLLOW_TITLE,
+              f"{pg9.url} · panel={await pg9.evaluate('()=>window.__panel.isOpen()')}")
+        await pg9.go_back()
+        await pg9.wait_for_timeout(500)
+        check("and one Back takes it off the address, however it was spelled",
+              not await pg9.evaluate("()=>window.__panel.isOpen()")
+              and "panel=" not in pg9.url.lower()
+              and "%70anel=" not in pg9.url.lower()
+              and pg9.url.endswith("/acquisition"),
+              pg9.url)
+        check("no JS error on a percent-encoded panel parameter",
+              not encoded_errors, str(encoded_errors))
+        await ctx9.close()
+
         # A PANEL OVER A SCREEN HANGS OFF THE SCREEN'S OWN PATH. The panel's
         # address used to be composed from the page UNDERNEATH, which under a
         # screen is the home page — so opening a panel over the media sheet

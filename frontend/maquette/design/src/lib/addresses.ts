@@ -111,6 +111,31 @@ const DIALS = [
 export const PANEL_PARAMETER = "panel";
 
 /**
+ * The name a query pair carries, DECODED — `%70anel` is `panel`.
+ *
+ * A name is compared after decoding because that is how the reader on the
+ * other side sees it: `URLSearchParams` decodes, so `%70anel=` names the panel
+ * to everything that opens one, and a comparison against the raw text would
+ * agree with none of them. A name that is not valid encoding is compared as it
+ * was written — deciding what to do about it is nobody's business here, and
+ * throwing would take a whole address down over one malformed pair.
+ *
+ * Args:
+ *     pair: One `name=value` pair of a query string.
+ *
+ * Returns:
+ *     The decoded name, or the raw one when it cannot be decoded.
+ */
+function decodedName(pair: string): string {
+  const name = pair.split("=")[0];
+  try {
+    return decodeURIComponent(name);
+  } catch {
+    return name;
+  }
+}
+
+/**
  * Drops the panel parameter from a query string, keeping the rest verbatim.
  *
  * The panel tier is the one part of an address a reader can ask for and the
@@ -120,22 +145,29 @@ export const PANEL_PARAMETER = "panel";
  * or it did not, and an address naming a panel nothing opened would be a
  * parameter the interface never honoured.
  *
+ * The parameter is recognised by its DECODED name, because the readers that
+ * open a panel decode too: matching the raw text let `%70anel=` reopen a panel
+ * AND survive this strip, so the entry a Back lands on still named it.
+ *
  * The kept pairs are copied as they were WRITTEN rather than re-serialised: a
  * round trip through `URLSearchParams` rewrites `%20` as `+` and would change
- * an address that was only being passed through.
+ * an address that was only being passed through. « Verbatim » has one
+ * exception, and it is the empty pair (`a=1&&b=2`, `?&`): it carries no name
+ * and no value, so re-emitting it would be re-emitting punctuation.
  *
  * Args:
  *     search: The query string, leading `?` included or not.
  *
  * Returns:
- *     The query string without the panel parameter, leading `?` included when
- *     anything is left, and the empty string when nothing is.
+ *     The query string without the panel parameter and without empty pairs,
+ *     leading `?` included when anything is left, and the empty string when
+ *     nothing is.
  */
 export function withoutPanel(search: string): string {
   const raw = search.startsWith("?") ? search.slice(1) : search;
   const kept = raw
     .split("&")
-    .filter((pair) => pair !== "" && pair.split("=")[0] !== PANEL_PARAMETER);
+    .filter((pair) => pair !== "" && decodedName(pair) !== PANEL_PARAMETER);
   return kept.length ? "?" + kept.join("&") : "";
 }
 
@@ -199,6 +231,9 @@ export type Destination = {
  *     values: The current value of every dial, keyed by its STORE FIELD —
  *         the engine's own vocabulary, so a caller reads its state and hands
  *         it over without translating.
+ *     panel: The addressed panel showing over the page, as `<kind>:<subject>`.
+ *         Absent when none is, and ignored for the not-found page, which is
+ *         not a state a panel opens over.
  *
  * Returns:
  *     The path, plus the query for whatever differs from the opening state.
