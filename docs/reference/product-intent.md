@@ -391,6 +391,41 @@ cité dans un commentaire reste en français, puisque c'est ce que l'écran affi
 
 ---
 
+## §16 — Le chemin de navigation (règle gravée)
+
+**La navigation doit être fluide, et Retour doit refaire le chemin emprunté.** Dictée par
+l'opérateur le 2026-08-23. Elle prolonge DOIT-10 et se lit en deux règles, dans cet ordre — la
+seconde ne prend jamais le pas sur la première.
+
+**1. Quand il y a un chemin, Retour le suit exactement.** L'utilisateur qui est allé des
+Arrivées à une résolution revient aux Arrivées. Celui qui a ouvert une fiche depuis une
+recherche revient **à sa recherche**, pas à la médiathèque. L'appli ne substitue jamais une
+destination « logique » à celle d'où l'utilisateur vient réellement.
+
+**2. Quand il n'y a pas de chemin, la page du dessous est le parent naturel.** Un lien ouvert
+depuis l'extérieur — un message, un signet, un onglet restauré — n'a pas d'historique à
+dépiler. Ce qui se trouve alors sous l'écran est **la page dont il relève** : la médiathèque
+sous une fiche média, les Arrivées sous une résolution. **Jamais l'accueil par défaut.**
+
+**Et ce parent est rendu, pas seulement enregistré.** Fermer l'écran révèle une page déjà en
+place ; c'est ce qui fait la fluidité. Un écran qui se ferme sur du vide, ou qui renvoie à
+l'accueil, a rompu le chemin même s'il a répondu à la bonne adresse.
+
+**La garde de sortie ne se déclenche qu'en haut de ce chemin** — quand il n'y a plus rien à
+remonter, pas au premier Retour d'un écran ouvert à froid.
+
+**Ce que cela interdit explicitement**, parce que c'est l'erreur qui se commet en appliquant la
+règle 2 sans la règle 1 : faire remonter Retour au parent déclaré **alors qu'un historique
+existe**. Ce serait expédier à la médiathèque l'utilisateur venu de sa recherche. L'historique
+d'abord ; le parent est un plancher, pas une destination.
+
+**Ce que cela impose à la preuve.** Les deux cas se vérifient séparément : un parcours fait
+dans l'application dont le Retour revient à l'origine réelle, **et** un lien froid dont le
+Retour monte au parent. Une tenue qui ne mesure que le chargement à froid a déjà laissé passer
+deux défauts sur la vague L05 — c'est précisément ainsi qu'ils sont passés sous des règles
+vertes.
+
+
 ## Ce que l'interface DOIT faire (DOIT-1 … DOIT-11)
 
 1. **DOIT-1 — Tout montrer, en français clair.** Chaque média a un état compréhensible sans être
@@ -414,7 +449,7 @@ cité dans un commentaire reste en français, puisque c'est ce que l'écran affi
    horizontal — le mobile est le poste principal, pas une adaptation. Une information
    essentielle ne partage pas sa ligne ni ne se fait tronquer ; le desktop reste
    pleinement fonctionnel mais n'est pas le point de départ du dessin.
-10. **DOIT-10 — Retrouvable.** Chaque détail a son URL ; Retour ferme ce qu'il doit fermer.
+10. **DOIT-10 — Retrouvable.** Chaque détail a son URL ; Retour ferme ce qu'il doit fermer, et il **refait le chemin emprunté** (§16).
 11. **DOIT-11 — Être consultable.** Tout média affiché ouvre sa fiche détail ; la fiche dit ce qu'est le média (titre, année, synopsis, réalisateur, bande-annonce ; pour une série : saisons, épisodes, statut) **et** où il en est chez nous (possédé ou non, complétude par saison). La fiche est atteignable par un lien stable (`/media/:provider/:id`).
 
 ## Ce que l'interface NE DOIT PAS faire (NE-DOIT-PAS-1 … NE-DOIT-PAS-9)

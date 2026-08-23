@@ -98,6 +98,44 @@ that lands D1, with the reason written down — never left to contradict this.
 | Screen state | an actions panel, a filter drawer | a **query parameter** |
 | Transient | a sort menu, a confirmation | **no URL**, but Back still closes it |
 
+### D1b — History decides Back; the parent page is only the floor
+
+**Decision, dictated by the operator on 2026-08-23** and written into the constitution as
+`product-intent.md` § 16, which is the authority — this entry says what the implementation owes.
+Two rules, in this order, and the second never overrides the first:
+
+1. **Where a history entry exists, Back follows it exactly.** The entry the reader actually came
+   from, never a declared parent. A reader who opened a sheet from a search returns to that
+   search.
+2. **Where none exists** — a link opened from outside, a bookmark, a restored tab — the page
+   beneath a screen is **the page it belongs to**: the library under a media sheet, the arrivals
+   under a resolution. Never the home page by default.
+
+**And that parent is RENDERED, not merely recorded.** Closing the screen reveals a page already
+in place. A screen that closes onto nothing has broken the path even though it answered the right
+address.
+
+**Replaces** the reading under which every screen resolved to the home page. That reading was not
+only a UX default: it is the mechanism behind a defect found in review — a cold screen address
+carrying a panel composed the panel's entry over the home page, and the sheet unmounted behind it.
+Naming the real parent removes the cause, not just the symptom.
+
+**The trap this decision exists to forbid**, because it is what implementing rule 2 without rule 1
+produces: sending Back to the declared parent **while a history entry exists**. History first; the
+parent is a floor, never a destination.
+
+**The exit guard fires at the top of that path only** — when there is nothing left to climb, not
+on the first Back out of a cold screen.
+
+**What it costs in proof, and this is the part that has already been paid once.** The two cases
+are held separately: an in-app walk whose Back returns to the real origin, AND a cold link whose
+Back climbs to the parent. A hold that exercises only the cold load is how two of this wave's
+defects passed under green rules; a hold written for this decision that measures one case is a
+hold that certifies the other.
+
+**Who implements it.** The L05 repair wave, which owns the address model while it is open — not a
+separate wave: reopening that model twice would pay for the proof twice.
+
 ### D2 — Tailwind v4 provides the implementation; CVA components provide the API
 
 **Decision.** Styling goes through Tailwind utilities. The design vocabulary is expressed as
@@ -262,7 +300,10 @@ reasoning is kept so the alternatives are not proposed again as if new.
 ## 3. Invariants — true at the end of every wave
 
 1. **The URL and the interface never contradict each other.** D1's rule holds in both
-   directions: no page identity in the query, no sort or filter in the path.
+   directions: no page identity in the query, no sort or filter in the path. And D1b's: Back
+   follows the history entry where there is one, climbs to the real parent where there is none,
+   and the two cases are held separately — a hold that walks only the cold load leaves the other
+   half unmeasured.
 2. **No rule selects on a style class.** (After L02.)
 3. **No value outside the scale.** A raw `padding: 13px` or `font-size: 15px` is refused, the way
    an undeclared `var()` already is.
