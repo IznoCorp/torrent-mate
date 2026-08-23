@@ -33571,14 +33571,22 @@ import { screens, panel, bridge } from "./seams.js";
      « rien n'est connu de celui-ci » is one of the truths a library title can
      carry — and wrong for a door anyone can type, where the same fallback
      turns a stale link into a medium that does not exist. So the question is
-     asked apart from the opening, and only an ADDRESS asks it. The four
-     sources are the ones the panel itself reads. */
+     asked apart from the opening, and only an ADDRESS asks it.
+
+     THE MEMBERSHIP IS EXACT, and it reads the three sources the opener itself
+     matches exactly. A sheet is not a fourth one, deliberately: `sheetFor` is
+     built to be FORGIVING, because the lists it serves truncate their titles.
+     It answers on any prefix of more than six characters, and — being a
+     bracket read on a plain object — it answers for `constructor` and every
+     other name `Object.prototype` carries. Both hand back a title the opener
+     then finds in none of its own sources, so it synthesises exactly the
+     medium the address was meant to be refused for. A title that only has a
+     sheet is not a follow. */
   function knownMedium(title) {
     return (
       world.follows.some((follow) => follow.t === title) ||
       INCOMPLETE.some((entry) => entry.t === title) ||
-      LIBRARY.some((entry) => entry.t === title) ||
-      sheetFor(title) != null
+      LIBRARY.some((entry) => entry.t === title)
     );
   }
 

@@ -57,6 +57,11 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 # suite before the merge said so.
 BOOT_FILE = "app/shell.tsx"
 
+# What the boot logs when an addressed panel was accepted and then failed to
+# open. A value the address model REFUSES never reaches the opener, so this
+# text appearing at all is a subject that got through without being held.
+REOPEN_CRASH = "reopening the addressed panel failed"
+
 _journal = None
 
 
@@ -286,12 +291,22 @@ async def main():
             Returns:
                 `(url, open, title, errors)` — the address settled on, whether
                 a panel is up, the title the panel descriptor names, and any
-                JS error the load raised.
+                JS error the load raised. A refused value is refused BEFORE the
+                opener runs, so the boot's own « reopening the addressed panel
+                failed » counts as one of those errors: a subject the opener
+                chokes on is a subject that was never held.
             """
             context = await b.new_context(**PHONE)
             page = await context.new_page()
             raised = []
             page.on("pageerror", lambda e: raised.append(str(e)))
+
+            def note_reopen_crash(message):
+                """Keeps the boot's reopen crash beside the page errors."""
+                if REOPEN_CRASH in message.text:
+                    raised.append(message.text)
+
+            page.on("console", note_reopen_crash)
             await page.goto(PROTOTYPE + "acquisition" + query, wait_until="load")
             await page.evaluate("()=>window.__loadingDone?.()")
             await page.wait_for_timeout(600)
@@ -324,6 +339,27 @@ async def main():
         check("a subject no source holds opens nothing, and names nothing",
               not is_open and "panel=" not in url and title != unknown and not raised,
               f"{url} · title={title!r} · {raised}")
+
+        # AND « HELD » IS EXACT MEMBERSHIP, which the value above cannot show:
+        # it misses both of the ways a title used to be accepted without being
+        # in any of the sources the opener matches. The media-sheet lookup was
+        # once consulted here, and it is deliberately forgiving — it answers on
+        # a prefix of more than six characters, and, reading a plain object by
+        # bracket, it answers for every name `Object.prototype` carries. Each
+        # of the four below is refused by exact membership and by nothing else.
+        for subject, wanted in (
+            ("American", "a subject resolved only by a sheet's prefix opens nothing"),
+            ("constructor",
+             "a subject resolved only through Object.prototype opens nothing"),
+            ("Silo (2023)",
+             "a sheet key whose medium is followed under another title opens nothing"),
+            ("silo", "a subject that differs from a followed title by case opens nothing"),
+        ):
+            url, is_open, title, raised = await cold(
+                "?panel=follow:" + subject.replace(" ", "%20"))
+            check(wanted,
+                  not is_open and "panel=" not in url and title != subject and not raised,
+                  f"{url} · title={title!r} · {raised}")
 
         # THE GUARD IS NOT THE PANEL'S TO SPEND. Reopened cold, the panel used
         # to push its layer entry BEFORE the boot wrote the exit guard, so the
