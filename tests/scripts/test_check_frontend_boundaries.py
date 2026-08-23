@@ -389,8 +389,7 @@ class TestAddressingArm:
         root = copy_design_src(tmp_path)
         write_add_route(
             root,
-            '  validateSearch: (raw: Record<string, unknown>) => '
-            '({ q: String(raw?.["page"] ?? "") }),\n',
+            '  validateSearch: (raw: Record<string, unknown>) => ({ q: String(raw?.["page"] ?? "") }),\n',
         )
         violations = guard.arm_addressing(root)
         captured = capsys.readouterr()
@@ -402,8 +401,7 @@ class TestAddressingArm:
         root = copy_design_src(tmp_path)
         write_add_route(
             root,
-            '  validateSearch: (raw: Record<string, unknown>) => '
-            '({ "page": String(raw.q ?? "") }),\n',
+            '  validateSearch: (raw: Record<string, unknown>) => ({ "page": String(raw.q ?? "") }),\n',
         )
         violations = guard.arm_addressing(root)
         captured = capsys.readouterr()
@@ -415,8 +413,7 @@ class TestAddressingArm:
         root = copy_design_src(tmp_path)
         write_add_route(
             root,
-            '  validateSearch: ({ "page": asked }: Record<string, unknown>) => '
-            '({ q: String(asked ?? "") }),\n',
+            '  validateSearch: ({ "page": asked }: Record<string, unknown>) => ({ q: String(asked ?? "") }),\n',
         )
         violations = guard.arm_addressing(root)
         captured = capsys.readouterr()
