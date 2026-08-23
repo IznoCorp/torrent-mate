@@ -69,8 +69,9 @@ repository.
 53 flat `.py` files (recorded and deliberately unscheduled), and B-036 / B-040, which belong to
 their own waves.
 
-**Next action**: phases 8 and 9 are complete on `fix/maquette-l05` — `/implement:feature-pr`
-re-runs the gate, pushes, re-polls CI on #484, then `/implement:pr-review` runs cycle 2.
+**Next action**: phase 10 — the findings of PR #484's second review cycle — is the next `[ ]`
+row; `/implement:phase` runs it, then `/implement:feature-pr` pushes and re-polls CI, then
+`/implement:pr-review` runs cycle 3.
 
 ### Review cycles — PR #484
 
@@ -82,6 +83,17 @@ Four reviewers (code, tests, comments, silent failures), 2026-08-23. Retained: 2
 pre-existing bug numbers in old comments, the README's `/profile` row, the French `recordPath`
 message, `switchover.py`'s pipe (rejected twice). Open for the operator: a second Back after a
 cold screen reaches the exit guard — the documented design, questioned.
+
+### Cycle 2
+
+Two reviewers (code+silent failures, tests+comments) over phase 9's diff, 2026-08-23. Cycle-1
+findings verified closed. Retained: 3 major — the reopen fires on a Back onto a buried sheet entry
+(a wrong interface, introduced by 9.4); R69's seam wraps `pushState` only (two boot catches held
+by nothing); the reader takes an inline return type's `{` as the body and counts a call as a read
+— plus 2 medium and minors → `plan/phase-10-pr-fixes-cycle-2.md`. Ignored with reason: library
+titles reaching the synthesised fallback from an address (the in-app door's own behaviour, D-8.3),
+`armedExit` on the reopen branch (pre-existing shape), four TypeScript shapes refused as « cannot
+read » (deliberate).
 
 **Phases of L05** — the plan is `docs/features/maquette-l05/plan/INDEX.md`, which owns the
 reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
@@ -97,6 +109,7 @@ reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
 | 7   | The records, and the gate              | `plan/phase-07-the-records.md`              | [x]    |
 | 8   | PR fixes, review cycle 1 — the four blocking defects | `plan/phase-08-pr-fixes-cycle-1.md` | [x]    |
 | 9   | PR #484 fixes, review cycle 1 — what four reviewers found | `plan/phase-09-pr-fixes-cycle-1.md` | [x]    |
+| 10  | PR #484 fixes, review cycle 2 — what phase 9 opened | `plan/phase-10-pr-fixes-cycle-2.md` | [ ]    |
 
 **What L05 is, in one line**: the eight pages leave `?page=` for a real path, the address model
 leaves the engine for `lib/addresses.ts` — the first subtraction of D5 — and the harness host
