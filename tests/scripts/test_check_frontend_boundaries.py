@@ -468,15 +468,15 @@ class TestAddressingArm:
         root = copy_design_src(tmp_path)
         model = root / "lib" / "addresses.ts"
         model.write_text(
-            model.read_text(encoding="utf-8").replace('"/media/$provider/$id": "lib"',
-                                                      '"/media/$provider/$id": "nowhere"'),
+            model.read_text(encoding="utf-8").replace(
+                '"/media/$provider/$id": "lib"', '"/media/$provider/$id": "nowhere"'
+            ),
             encoding="utf-8",
         )
         violations = guard.arm_addressing(root)
         captured = capsys.readouterr()
         assert violations == 1, captured.err
-        assert any("« nowhere »" in line and "/media/$provider/$id" in line
-                   for line in captured.err.splitlines())
+        assert any("« nowhere »" in line and "/media/$provider/$id" in line for line in captured.err.splitlines())
 
     def test_the_real_tree_reads_clean(self, capsys) -> None:
         """The unmodified repository reports zero violations — the arm still reads the tree it guards."""
