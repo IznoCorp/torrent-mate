@@ -21,7 +21,7 @@ import sys
 
 from playwright.async_api import async_playwright
 
-URL = "http://127.0.0.1:8899/wrapped.html"
+URL = "http://127.0.0.1:8899/"
 
 # Both sides of the 520px breakpoint: below it the frame fills the window,
 # above it the frame is centred and the bar has to follow it.

@@ -12,7 +12,7 @@ async def main():
     c=await b.new_context(viewport={"width":390,"height":844},device_scale_factor=2,is_mobile=True,has_touch=True)
     pg=await c.new_page(); errs=[]
     pg.on("pageerror", lambda e: errs.append(str(e)))
-    await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
+    await pg.goto("http://127.0.0.1:8899/", wait_until="load")
     # The startup screen covers the frame for as long as the load it stands
     # for lasts. Nothing is being fetched here, so the harness closes that
     # wait through the same seam the app uses, rather than sleeping it out.
@@ -32,7 +32,7 @@ async def main():
           // Every screen migrated off `#screen` onto a real route (the mediaSheet
           // at `/mediasheet/$title`, the add screen at `/add`, the arbitration
           // screen at `/resolution/$folder`, the release picker at
-          // `/releases/$title`, the quality profile at `/profile/$title`) is
+          // `/releases/$title`, the quality profile at `/quality/$name`) is
           // read through ONE generic rung — any OPEN screen carries a
           // `data-key`, so its presence is enough, never a per-identity
           // prefix. Without it, a state opening one of those routes would

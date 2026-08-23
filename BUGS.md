@@ -75,6 +75,12 @@ when the defect comes back.
 | B-040 | Names in files no arm reads: `sweep.py`, a region id, `oracle.py` | by review   | `open`       |
 | B-041 | `check-frontend-boundaries.py` has no committed test                | by audit    | `open`       |
 | B-042 | An orphan `http.server` holds port 8900 on the operator's machine   | by review   | `open`       |
+| B-043 | A deep media address lands the 404 page underneath it               | by review   | `open`       |
+| B-044 | A 404's address recomposes to `/` after a cold load                 | by review   | `open`       |
+| B-045 | `?panel=follows` without its colon is accepted, and fabricates media | by review   | `open`       |
+| B-046 | The fallback port moved onto `switchover.py`'s, whose bind error is swallowed | by review | `open` |
+| B-047 | The navigation-failure flag is raised by no guard and read by no rule | by review   | `open`       |
+| B-048 | The ninth boundary arm stays green with `addresses.ts` deleted      | by review   | `open`       |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -103,6 +109,34 @@ It is written here because that report lived only in a merged pull request body,
 same defect as B-041 read from the other end: a finding recorded where nothing re-reads it has
 not been recorded. The port the harness actually uses is **8899**; `run.sh` starts it and reuses
 it deliberately, and that one is not this.
+
+**B-043 to B-048 — what L05 left on `main`, and why they are here rather than only in a phase file.**
+All six were found by an adversarial review that did not write the code, and reproduced by the L05
+wave itself before it stopped. Each is written up in full — with the command that establishes it and
+what its repair must hold — in `docs/features/maquette-l05/plan/phase-08-pr-fixes-cycle-1.md`, which
+is on `main`. **That file is the source of truth and these entries are the index into it**; a phase
+plan is archived with its wave, and a defect that outlives the wave has to be findable after that.
+The four blocking ones (B-043 to B-046) were known before the merge and merged anyway, so they are
+on `main` now.
+
+- **B-043** — a deep address to a media sheet opens the screen but leaves `state.page = 404`
+  underneath, so Back reads « Adresse introuvable ». It is a **regression** against the tree before
+  the wave, on the wave's own headline feature, and R75 stays green because the screen covers the
+  frame.
+- **B-044** — a 404's address recomposes to `/`, so a mistyped link becomes a real page on the Back
+  after a cold load. R69's fourth hold measures only the cold load and cannot see it.
+- **B-045** — `?panel=follows`, with no colon, is accepted as a genre because the separator search
+  returns −1, and an unknown subject fabricates a media that does not exist, labelled « à jour » and
+  now reachable from a URL.
+- **B-046** — the fallback port moved onto the one `switchover.py` uses. That script swallows its
+  bind error, so a port collision would surface as R73 reporting a broken sign-in — a rule giving a
+  confident wrong reason, which is worse than a rule that fails.
+- **B-047** — the navigation-failure flag those sign-in guards are meant to raise is not raised by
+  them, and **no rule reads it** — not after the wave and not before it. That is why they passed: a
+  flag nothing reads cannot fail. Same family as B-038 and B-039.
+- **B-048** — the ninth arm of `check-frontend-boundaries.py` reports clean over a tree with
+  `addresses.ts` deleted (`0 dial(s), 0 page(s)`). A guard that stays green on a tree it cannot read
+  is the shape its own neighbour's docstring names. Same family as B-041.
 
 **B-036 — the English campaign missed two state ids, and no arm reads them.**
 `window.__states()` returns **`system-panne`** and **`acq-follows-groupe`**. Both are NAMED STATE

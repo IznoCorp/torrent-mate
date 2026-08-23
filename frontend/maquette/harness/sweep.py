@@ -39,7 +39,7 @@ async def main():
             return
         errs.append("console:" + m.text + " ← " + url)
     pg.on("console", _console)
-    await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
+    await pg.goto("http://127.0.0.1:8899/", wait_until="load")
     # The startup screen covers the frame for as long as the load it stands
     # for lasts. Nothing is being fetched here, so the harness closes that
     # wait through the same seam the app uses, rather than sleeping it out.

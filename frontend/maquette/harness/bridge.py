@@ -284,7 +284,7 @@ async def main():
         # which would force the very effect this hold exists to observe.
         # What is measured here is whether the screen came off BEFORE this
         # harness ever touched that seam — proof the real handshake ran.
-        await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
+        await pg.goto("http://127.0.0.1:8899/", wait_until="load")
         probe = await pg.evaluate(
             """()=>({
                 starter: typeof window.__startEngine,
@@ -392,7 +392,7 @@ async def main():
         pg = await ctx.new_page()
         pg.on("pageerror", lambda e: errors.append(str(e)))
         await pg.goto(
-            "http://127.0.0.1:8899/wrapped.html?page=lib&mode=list", wait_until="load"
+            "http://127.0.0.1:8899/media?mode=list", wait_until="load"
         )
         await pg.evaluate("()=>window.__loadingDone?.()")
         await pg.evaluate("()=>document.querySelector('#toastx')?.click()")
@@ -405,7 +405,7 @@ async def main():
             })"""
         )
         check(
-            "direct entry on ?page=lib&mode=list sets the promised state",
+            "direct entry on /media?mode=list sets the promised state",
             state["page"] == "lib" and state["libMode"] == "list",
             f"page={state['page']} libMode={state['libMode']}",
         )

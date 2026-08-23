@@ -50,13 +50,21 @@ import "../features/settings/panel-field";
 import { createStore, type Store } from "./store";
 import { installFocusManager } from "./focus";
 import { rootRoute } from "./root-route";
+import { accountRoute } from "../routes/account";
+import { acquisitionRoute } from "../routes/acquisition";
 import { addRoute } from "../routes/add";
-import { catchAllRoute } from "../routes/index";
+import { arrivalsRoute } from "../routes/arrivals";
+import { rootAddressRoute } from "../routes/index";
+import { libraryRoute } from "../routes/library";
+import { maintenanceRoute } from "../routes/maintenance";
+import { settingsRoute } from "../routes/settings";
+import { systemRoute } from "../routes/system";
 import { mediaRoute } from "../routes/media-sheet";
-import { profileRoute } from "../routes/profile";
+import { qualityRoute } from "../routes/quality";
 import { releasesRoute } from "../routes/releases";
 import { resolutionRoute } from "../routes/resolution";
 import { installSeams } from "../engine/seams";
+import { addressOf, destinationOf, SIGN_IN_PATH } from "../lib/addresses";
 import { go, installNavigation } from "../lib/navigate";
 
 
@@ -66,7 +74,7 @@ import { go, installNavigation } from "../lib/navigate";
 type Bridge = {
   record: (state: unknown, url: string) => void;
   replace: (state: unknown, url?: string) => void;
-  pushLayer: (layer: string) => void;
+  pushLayer: (layer: string, url?: string) => void;
   back: () => void;
   // Settling SEVERAL entries at once — the door a caller uses instead of
   // saying `back()` twice in the same task. `n` counts ENTRIES, and the
@@ -111,11 +119,27 @@ declare global {
     // below, once the store exists and the bridge is real. Optional because
     // a module that failed to evaluate is exactly the case this boot order
     // is built to leave visible — the startup screen, not a crash here.
-    // `base` is the legacy engine's own address root (see its computation
-    // below) — "/" in production, whatever else a static host answers the
-    // document under otherwise (the rule harness's 8899 server names it
-    // "/wrapped.html"). The deps object's own keys are the engine's.
-    __startEngine?: (deps: { store: Store; base: string }) => void;
+    // It no longer receives an address ROOT. It used to compose every page
+    // address itself against one, which is exactly the addressing the shell
+    // has taken over: the engine says WHERE IT IS, `__address` says what that
+    // is called. The deps object's own keys are the engine's.
+    __startEngine?: (deps: { store: Store }) => void;
+    // The address model, handed to the engine. `compose` turns the state it
+    // holds into the address that state should be seen at; `parse` turns an
+    // address back into the state it names. Both are `lib/addresses.ts` — the
+    // engine reaches them through a seam rather than importing, for the same
+    // reason it reaches everything else that way.
+    __address: {
+      /** The sign-in screen's own path, so the engine writes it by name. */
+      signInPath: string;
+      compose: (state: Record<string, unknown>) => string;
+      parse: (pathname: string, search: string) => {
+        page: string;
+        dials: Record<string, string>;
+        notFound?: string;
+        signIn?: boolean;
+      };
+    };
     // The domain hooks and the probes read the engine's state through this.
     __store: Store;
     __screens: Screens;
@@ -183,8 +207,19 @@ function ScreenError({ error }: { error: unknown }) {
 
 const router = createRouter({
   routeTree: rootRoute.addChildren([
-    catchAllRoute,
-    profileRoute,
+    // The pages, one address each. Their components render nothing: a page's
+    // markup lands in the legacy `#view` through the page host, and declaring
+    // the route is what makes the address KNOWN rather than nobody's.
+    rootAddressRoute,
+    acquisitionRoute,
+    libraryRoute,
+    arrivalsRoute,
+    systemRoute,
+    maintenanceRoute,
+    settingsRoute,
+    accountRoute,
+    // The screens, which do render.
+    qualityRoute,
     addRoute,
     mediaRoute,
     releasesRoute,
@@ -204,7 +239,7 @@ const router = createRouter({
 // Registers `router` as THE router for every `useParams`/`useNavigate` call
 // in the tree, so a screen component (in its own file, importing neither
 // `router` nor `rootRoute` — that would cycle back to this module) still gets
-// fully typed params from a bare path literal like `/profile/$title`.
+// fully typed params from a bare path literal like `/quality/$name`.
 declare module "@tanstack/react-router" {
   interface Register {
     router: typeof router;
@@ -245,8 +280,12 @@ window.__bridge = {
     history.replace(url ?? history.location.href, state);
     history.flush();
   },
-  pushLayer: (layer: string) => {
-    history.push(history.location.href, { layer });
+  pushLayer: (layer: string, url?: string) => {
+    // A layer that carries an ADDRESS pushes it; one that does not keeps the
+    // address it opened over. That is D1's tier split, expressed in one
+    // argument: tier 2 is addressable and reopens on a reload, tier 3 is
+    // transient and Back still closes it.
+    history.push(url ?? history.location.href, { layer });
     history.flush();
   },
   back: () => history.back(),
@@ -376,14 +415,26 @@ history.subscribe(({ action, location }) => {
 // that very screen.
 installNavigation(router, history);
 // What a migrated legacy call site invokes instead of its old `openX(...)`.
-// NFC-normalised here, once, on write — `ProfileScreen` normalises again on
+// NFC-normalised here, once, on write — `QualityScreen` normalises again on
 // read so an entry arriving by direct URL (not through this bridge) is
 // covered too.
 window.__screens = {
   profile: (title: string) =>
-    go({ to: "/profile/$title", params: { title: title.normalize("NFC") } }),
-  mediaSheet: (title: string) =>
-    go({ to: "/mediasheet/$title", params: { title: title.normalize("NFC") } }),
+    go({ to: "/quality/$name", params: { name: title.normalize("NFC") } }),
+  // The sheet is addressed by PROVIDER ID (DOIT-11), and callers hold a title,
+  // so the crossing happens here — the seam, which is where every other
+  // title-to-address translation already happens.
+  //
+  // §11's single exception is honoured rather than worked around: a medium with
+  // no provider id has NO sheet, and the surface must lead to the resolution
+  // instead of to a dead link. Measured on the fixture the day this landed, all
+  // 259 sheets carry ids, so this branch is unreachable today — it is here
+  // because the rule is, not because a case demanded it.
+  mediaSheet: (title: string) => {
+    const ids = window.__referentiel.addressIdsFor(title.normalize("NFC"));
+    if (!ids) return window.__screens.resolution();
+    go({ to: "/media/$provider/$id", params: ids });
+  },
   // The legacy `openReleases`'s own first line, transplanted here rather than
   // into the component: `state.relatedTitle` is what the `data-take`
   // click-delegation branch reads once the operator picks a candidate, and it
@@ -481,7 +532,19 @@ function openPanel(descriptor: PanelDescriptor): void {
     store.write({ panelDescriptor: descriptor, panelOpen: true }),
   );
   try {
-    window.__bridge.pushLayer("sheet");
+    // D1's second tier: a panel whose subject is stable travels in the query,
+    // so a reload reopens it. One with no `address` is transient and keeps the
+    // address it opened over.
+    window.__bridge.pushLayer(
+      "sheet",
+      descriptor.address
+        ? addressOf(
+            String(window.__store.read().state.page ?? ""),
+            window.__store.read().state,
+            descriptor.address,
+          )
+        : undefined,
+    );
   } catch (error) {
     // B-026's own residual: `window.__bridge` is assigned synchronously at this
     // module's top level, before any producer can call `open` — so unlike
@@ -547,21 +610,22 @@ window.__unknownPanel = () => refuseBlock({ type: "ceci-n-existe-pas" });
 // truthful failure instead of an app with mute verbs.
 const store = createStore();
 window.__store = store;
-// The legacy engine's own address BASE, decided by the ROUTER's OWN
-// matching rather than by a second, independently-maintained list of the
-// two screen paths: `getMatchedRoutes` is the cleanest fit here — a pure,
-// synchronous lookup keyed on a bare pathname, unlike `router.state.matches`
-// (needs a load this router has not run yet, since RouterProvider has not
-// mounted) or `router.navigate` (this is a read, not a navigation). A
-// pathname that resolves to a registered route (`/`, `/profile/$title`,
-// `/add`, `/mediasheet/$title` — any of them) is router territory, and the shared
-// production root for all of them is "/"; a pathname the router does not
-// recognise at all (the harness's own "/wrapped.html") is the legacy
-// engine's ground exactly as it is.
-const [, , matchedRoute] = router.getMatchedRoutes(location.pathname);
-const base = matchedRoute ? "/" : location.pathname;
+// The address model, published for the engine. It reads `state.page` and the
+// dial fields straight off the object the engine hands over — the engine's own
+// vocabulary, so nothing translates on the way across.
+window.__address = {
+  signInPath: SIGN_IN_PATH,
+  compose: (state) => addressOf(String(state.page ?? ""), state),
+  parse: destinationOf,
+};
+// No address BASE is computed any more, and its disappearance is the
+// subtraction this lot exists for. It answered « what does this engine
+// compose its page addresses against? », a question that only had to be asked
+// because the engine composed them at all. It does not: a page has a real
+// path, `lib/addresses.ts` holds which, and the harness's own host serves
+// every one of them off `/` like any single-page host.
 const start = window.__startEngine;
-if (typeof start === "function") start({ store: store, base });
+if (typeof start === "function") start({ store: store });
 
 // `#shell` starts, in the markup, as a static sibling of `.stage` —
 // index.html knows nothing about the phone frame the fragment draws. A
