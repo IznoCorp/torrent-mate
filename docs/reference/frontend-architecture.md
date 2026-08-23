@@ -308,7 +308,7 @@ is unchanged, and that promise is currently unprovable: `fidelity.py` cannot run
 it compared are deleted, no recording is committed, and the state ids have been renamed in two
 separate waves since.
 
-#### L01 — The recorded oracle · `LANDED` · **runs alone**
+#### L01 — The recorded oracle · `LANDED`
 
 **Objective.** One command that says whether the maquette renders today what it rendered at a
 known-good commit.
@@ -420,7 +420,7 @@ of excepted states: `landmark-one-main` and `page-has-heading-one` describe the 
 and with a modal layer open the background is deliberately `inert`, therefore out of the
 accessibility tree. The split is printed on every run — 65 states asked, 18 could not.
 
-#### L04 — Boundaries and the tree · `LANDED` · *depended on L01* · **ran alone**
+#### L04 — Boundaries and the tree · `LANDED` · *depended on L01*
 
 **Why here.** Every lot after this one creates files. Deciding afterwards means moving them
 twice. **And why it depends on the oracle**: this lot breaks two import cycles, which is a change
@@ -618,10 +618,7 @@ This phase is the bulk of the remaining work. The pages are finished; the applic
 worker against none.
 <sub>commands in `IMPLEMENTATION.md` § THE OBJECTIVE</sub>
 
-#### L08 — The data contract and the mocks · `NOT STARTED` · *depends on L04* · **Track B**
-
-This is the one lot that may run alongside the rendering track (§ 5): it creates its own files
-and changes no rendering, so it never writes the oracle's reference.
+#### L08 — The data contract and the mocks · `NOT STARTED` · *depends on L04*
 
 **Objective.** D7 in force. The contract the interface requires, plus a mock layer serving it, so
 the maquette codes against a real shape with no backend touched.
@@ -824,43 +821,38 @@ gives — it is the only step of the three that cannot be done from the wave's o
 **The maquette first.** Nothing about a surface is decided anywhere else. A surface is drawn
 before it is coded, with named states and a rule that bites.
 
-### Running two lots at once
+### One lot at a time
 
-The plan is long and the temptation to parallelise is real. **One criterion decides it, and it is
-the only one:**
+**The lots run strictly in sequence — one lot, one branch, one merge, then the next.** The
+operator ruled this on 2026-08-22, and it settles a question this file used to leave open.
 
-> A lot may run alongside another **only if it never writes the oracle's reference.**
+The temptation to parallelise is real and this plan indulged it: it defined a criterion — a lot
+may run alongside another only if it never writes the oracle's reference — applied it to the
+thirteen lots, and found exactly one qualifying pair, L08 beside the rendering track. The gain
+was costed in the same breath as **a fraction of the calendar, not a transformation**, with part
+of it spent on the second branch rebasing and re-running a full adversarial review. Weighed
+against a failure mode nothing announces, that trade was refused. **Sequence is the ruling; the
+pair no longer exists to be scheduled.**
 
-The reference is the single shared proof artefact. Two branches that each accept divergences
-merge two "validated" states, and **one can mask the other's regression** with nothing to show
-for it. Every other collision — two branches editing one file — announces itself as a conflict.
-This one does not.
-
-**Exactly one pair qualifies**, and it is not a scheduling preference but the result of applying
-the criterion to the thirteen lots:
-
-```
-Track A (rendering)   L02 → L03 → L05 → L06 → L07 ──┐
-                                                     ├──→ L09 → …
-Track B (data)               L08 ───────────────────┘
-```
-
-**L01 and L04 run alone.** Nothing is verifiable before the oracle exists, and L04 moves files,
-so anything running beside it collides.
-
-Costed honestly: the gain is a fraction of the calendar, not a transformation, and part of it is
-spent on the second branch rebasing and re-running a full adversarial review.
+**The risk that decided it is worth keeping, because it is the one that does not announce
+itself.** The oracle's reference is the single shared proof artefact. Two branches that each
+accept divergences merge two "validated" states, and **one can mask the other's regression** with
+nothing to show for it. Every other collision — two branches editing one file — arrives as a
+conflict someone has to resolve. This one arrives as green.
 
 **What is refused, and why it stays refused:**
 
-- **Two agents on one track.** Conflicts on the same markup, and failures nobody can attribute.
+- **Two agents on one lot.** Conflicts on the same markup, and failures nobody can attribute.
 - **Merging L07 and L09 into one per-surface wave.** It is the tempting optimisation — it halves
   the number of waves — and it destroys both proofs. L07 proves the rendering did not change;
   L09 changes where the data comes from. Together, a conversion defect and a wiring defect are
-  indistinguishable.
-- **L10 beside L11.** Both touch the cache configuration. Small gain, real risk.
+  indistinguishable. Sequence does not make this one safe: it is not a scheduling question.
 - **Skipping the oracle to move faster.** It is what makes everything else provable. Removing it
   does not save time; it removes the ability to know.
+
+**Which lot is next is decided by § 0's selection rule** — not `LANDED`, every dependency
+`LANDED` — and never by which one happens to be unblocked earliest. Where two are eligible, the
+lower number goes first unless this file says otherwise.
 
 ---
 

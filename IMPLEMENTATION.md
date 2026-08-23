@@ -69,10 +69,16 @@ repository.
 53 flat `.py` files (recorded and deliberately unscheduled), and B-036 / B-040, which belong to
 their own waves.
 
-**Next action**: open L05 with `/implement:feature` — codename `maquette-l05`, and no wave opens
-without its design and its plan. Branch from `main` once **#479** has landed: that pull request
-carries the corrected hold-count baseline (`panel.py` 9 → 12), and a branch taken before it gets a
-false movement out of `--compare` on its first run.
+**Next action**, and the first two are owed before any lot opens:
+
+1. **Re-record both references from the tip of `main`.** The oracle's is DANGLING — it names
+   `6a4f8391`, a commit of the deleted `refactor/maquette-l05` branch that the squash replaced, so
+   `oracle.py --check` refuses to run at all and the wave gate cannot close. The hold-count
+   baseline is not dangling but is four rules behind, all four movements declared upward by L05.
+2. **Repair L05's four blocking defects** — `docs/features/maquette-l05/plan/phase-08-pr-fixes-cycle-1.md`
+   is on `main`, written, with the command that establishes each finding. They are on `main` now.
+3. **Then L06 — The scale**, with `/implement:feature`: no wave opens without its design and its
+   plan.
 
 **Phases of L05** — the plan is `docs/features/maquette-l05/plan/INDEX.md`, which owns the
 reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
@@ -91,6 +97,18 @@ reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
 leaves the engine for `lib/addresses.ts` — the first subtraction of D5 — and the harness host
 moves to one that answers a real path, which is what lets a rule drive by URL instead of through
 a seam that dies with the engine.
+
+**What L05 left open, and it is on `main`**: four blocking defects, found by an adversarial review
+that did not write the code and reproduced by the wave itself before it stopped. A deep address to
+a media sheet lands the 404 page underneath it (`state.page = 404`, so Back reads « Adresse
+introuvable ») — a regression against the tree before it, on the wave's own headline feature, and
+R75 stays green because the screen covers the frame. A 404's address recomposes to `/`, which R69's
+fourth hold cannot see because it only measures the cold load. `?panel=follows` without its colon
+is accepted as a genre and an unknown subject fabricates a media labelled « à jour », reachable
+from a URL. And the fallback port moved onto `switchover.py`'s, whose bind error is swallowed, so
+R73 would report a broken sign-in where there is a port collision. Two further findings sit beside
+them: the navigation-failure flag those guards are meant to raise is read by no rule, here or
+before, and the ninth boundary arm stays green if `addresses.ts` is deleted.
 
 **What L03 is, in one line**: landmarks, accessible names, focus management on every layer, the
 keyboard paths — and `axe-core` in the gate at a hard zero. Four decisions were arbitrated by the
