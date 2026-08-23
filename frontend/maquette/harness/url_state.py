@@ -72,14 +72,16 @@ What this holds to:
    find — so the flag is read with a write broken on purpose, and again at the
    end of an ordinary walk, where it must still be false. « Every writer »
    is read literally, and it is the whole of the hold: the gate's release as
-   well as its raise, and the BOOT's own three, which no gesture can reach and
-   which are therefore broken from OUTSIDE the page, before its first script
-   runs. THREE writes need THREE seams, one load each — the settlement of the
-   arrival address and the exit guard both travel through `replaceState`, the
-   arrival entry through `pushState`, so a seam over one primitive refuses one
-   of them and leaves the other two catches held by nothing. Each seam records
-   the address and the state it refused, and each hold reads that back: a
-   refusal the boot did not issue would otherwise read as a catch that worked.
+   well as its raise, and the BOOT's own, which no gesture can reach and which
+   are therefore broken from OUTSIDE the page, before its first script runs.
+   The boot writes FOUR times over the address this rule opens — the
+   settlement of the arrival address and the exit guard through
+   `replaceState`, the floor beneath the arrival and the arrival entry through
+   `pushState` — so FOUR writes need FOUR seams, one load each: a seam over one
+   primitive refuses one of them and leaves the other catches held by nothing.
+   Each seam records the address and the state it refused, and each hold reads
+   that back: a refusal the boot did not issue would otherwise read as a catch
+   that worked.
 11. A back puts EVERY dial back. The history entry carries the state one
    arrived in, so a dial the entry does not carry is a dial no back can
    restore — the address drops it while the interface goes on showing it, a
@@ -117,14 +119,17 @@ What this holds to:
    one page too early answers the same address as one that does not.
 17. (e) A setting leaves NO entry. A lens, an inner tab and a maintenance topic
    each write the address and leave the history depth exactly as it was, and
-   one Back afterwards leaves the surface instead of undoing the setting. A
-   stack of settings is what makes Back undo a sort where the reader meant to
-   leave the screen.
+   one Back afterwards never UNDOES the setting. What that Back reaches is not
+   the same on all three, which is why the hold names what they share: from the
+   library and the maintenance page it leaves the surface, and from the
+   acquisition tab — a setting made ON the entry page — it reaches the exit
+   guard, the entry page being where the stack ends. A stack of settings is
+   what makes Back undo a sort where the reader meant to leave the screen.
 
 Holds 14 to 17 are SEPARATE on purpose. A rule that exercises only the cold
-load let two of this wave's defects through under green holds, so the in-app
-walk, the cold floor, the page switch and the guard are measured one by one,
-each on `history.length` and `armedExit` rather than on the address alone.
+load let two defects through under green holds, so the in-app walk, the cold
+floor, the page switch and the guard are measured one by one, each on
+`history.length` and `armedExit` rather than on the address alone.
 """
 import asyncio
 import json
@@ -399,10 +404,12 @@ async def main():
         # the interface is already drawn by then, so a refusal leaves a real
         # screen standing on an address nothing wrote.
         #
-        # THREE writes, THREE seams, a fresh context each. One seam refuses one
-        # write: the load that has its settlement refused is not the load that
-        # has its guard refused, and a rule holding only the third of them held
-        # the other two catches by nothing at all.
+        # ONE SEAM PER WRITE, a fresh context each. The load that has its
+        # settlement refused is not the load that has its guard refused, and a
+        # rule holding only one of them held the other catches by nothing at
+        # all. The count comes from `BOOT_WRITES`, so the seam a fifth write
+        # would need is owed on the day it is added rather than the day
+        # somebody notices.
         for wanted, primitive, condition, marker, written in BOOT_WRITES:
             ctx = await b.new_context(**PHONE)
             await ctx.add_init_script(refuse_one_boot_write(primitive, condition))
@@ -910,8 +917,10 @@ async def main():
         # than written down: what a lens or a topic is called is the engine's
         # business, and a value invented here would measure nothing when it
         # stops existing. Two holds each — the depth is unchanged, and the
-        # Back afterwards LEAVES the surface instead of undoing the setting,
-        # which is the whole of what a stack of settings costs.
+        # Back afterwards never UNDOES the setting, which is the whole of what
+        # a stack of settings costs. Named for what all three share: the
+        # acquisition tab is a setting made on the ENTRY page, so its Back
+        # reaches the guard rather than another surface.
         for wanted, address, page, reader in SETTING_WALKS:
             ctx, pg, errors = await open_page(b, PROTOTYPE + address)
             found = await pg.evaluate(reader)
@@ -932,7 +941,7 @@ async def main():
             landed = await pg.evaluate(WHERE)
             undone = landed["page"] == page and query(pg.url) == ""
             journal.check(
-                f"and one Back off {wanted} leaves the surface instead of undoing it",
+                f"and one Back off {wanted} never undoes it",
                 not undone, f"page={landed['page']} at {pg.url}")
             journal.check(f"no JS error setting {wanted}", not errors, str(errors))
             await ctx.close()

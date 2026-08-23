@@ -66,14 +66,13 @@ pass over every parent being wrong but one.
 import asyncio
 import json
 import pathlib
-import re
 import sys
 import urllib.parse
 
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, Journal
+from common import PAGE_PATHS, PHONE, SCREEN_PARENTS, Journal
 from server import start_server
 
 SERVED_ROOT = pathlib.Path("/tmp/tm-refonte")
@@ -81,13 +80,10 @@ SERVED_ROOT = pathlib.Path("/tmp/tm-refonte")
 # Where a Retour from a screen opened COLD lands: on the page the screen
 # BELONGS TO, at that page's own address — not the bare root, which names no
 # page, and not the home page for all of them, which is the default § 16 rule 3
-# replaces. Both tables are READ off the address model rather than written down
-# here: a copy of a table drifts the day a screen moves, and it drifts silently
-# because nothing renders it.
-MODEL = pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "lib" / "addresses.ts"
-DECLARATION = MODEL.read_text(encoding="utf-8")
-PAGE_PATHS = dict(re.findall(r'^\s{2}(\w+):\s*"(/[^"]*)"', DECLARATION, re.M))
-SCREEN_PARENTS = dict(re.findall(r'^\s{2}"(/[^"]*)":\s*"(\w+)"', DECLARATION, re.M))
+# replaces. Both tables are READ off the address model, and read ONCE: they are
+# `common.py`'s now, so this file imports them instead of running the two
+# regular expressions a second time. A second reader of the same declaration is
+# a second thing to keep in step, which is the drift the reading was for.
 
 
 def parent_path(route):

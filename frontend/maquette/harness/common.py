@@ -176,18 +176,10 @@ async def shot(pg, name):
 
 
 # ── the address model ─────────────────────────────────────────────────────
-# The page a path names. Kept in step with `design/src/lib/addresses.ts`,
-# which is the model the address rules measure — a contract has three ends,
-# and this is one of them.
-HOME = "/acquisition"
-HOME_PAGE = "acq"
-LIBRARY = "/media"
-ARRIVALS = "/arrivals"
-
-# And the model itself, READ rather than transcribed. The dial list and the
+# READ rather than transcribed. The dial list and the
 # page table were both written out once, and the dial list had already
-# drifted — five names against the model's six — in the very wave that wrote
-# the comment forbidding a second list. A copy nothing renders drifts in
+# drifted — five names against the model's six — under the very comment that
+# forbids a second list. A copy nothing renders drifts in
 # silence, so the names come from the declaration, exactly as
 # `scripts/check-frontend-boundaries.py` reads them. They live here rather
 # than in one rule so that the next rule to need an address reads the model
@@ -211,15 +203,29 @@ PAGE_PATHS = dict(re.findall(r'^\s{2}(\w+):\s*"(/[^"]*)"', DECLARATION, re.M))
 SCREEN_PARENTS = dict(re.findall(r'^\s{2}"(/[^"]*)":\s*"(\w+)"', DECLARATION, re.M))
 SCREEN_PATHS = tuple(SCREEN_PARENTS)
 
+# THE THREE ADDRESSES THE RULES NAME, derived from the table above rather than
+# written beside it. They were literals five lines from the declaration they
+# repeat, which is the drift this whole section exists to refuse — the page
+# table is read, and then the four addresses read off it by hand. The names
+# stay: a rule saying HOME says what it means, where `PAGE_PATHS["acq"]` says
+# how it is looked up.
+HOME_PAGE = re.search(r'HOME_PAGE = "(\w+)"', DECLARATION).group(1)
+HOME = PAGE_PATHS[HOME_PAGE]
+LIBRARY = PAGE_PATHS["lib"]
+ARRIVALS = PAGE_PATHS["arr"]
+
 # ── the boot's history seam ───────────────────────────────────────────────
 # The boot's own writers run before anything in the document can reach the
 # bridge, so a cold load cannot break them the way an in-app gesture does.
 # What is left is the history primitives themselves, wrapped before the first
-# script of the page runs. And the boot writes THREE times, not once: the
-# settlement and the guard both travel through `replaceState`, the arrival
-# entry through `pushState`. A seam over `pushState` alone therefore refuses
-# one write and says nothing whatever about the other two — measured: either
-# `replace` catch reverted to a bare call left every hold over it green.
+# script of the page runs. And the boot writes FOUR times over the address
+# below, not once: the settlement and the guard both travel through
+# `replaceState`, the floor beneath the arrival and the arrival entry through
+# `pushState`. A seam over `pushState` alone therefore refuses one write and
+# says nothing whatever about the others — measured: either `replace` catch
+# reverted to a bare call left every hold over it green. FOUR is this
+# address's count and not a law: a home arrival needs no floor and writes
+# three, a screen address puts its parent down as well and writes five.
 BOOT_DIAL = "lens=inc"
 BOOT_ADDRESS = f"media?{BOOT_DIAL}"
 BOOT_PATH = "/" + BOOT_ADDRESS
@@ -264,8 +270,8 @@ History.prototype.PRIMITIVE = function (...args) {
 # One seam per boot write, in the order the boot issues them, each with the
 # marker its entry carries. The settlement is recognised by the ADDRESS it
 # writes, the guard by the marker in its state — it writes no address of its
-# own — and the arrival entry is the first push of the load, whatever it
-# carries. What each seam refused is read back against these: a boot that
+# own — and each of the two pushes by the address it carries, the floor's and
+# the arrival's. What each seam refused is read back against these: a boot that
 # stopped writing through the primitive while some later writer still did would
 # otherwise read as a swallowed refusal instead of a rotted seam.
 # Each seam also carries the ADDRESS its write should have been carrying: the

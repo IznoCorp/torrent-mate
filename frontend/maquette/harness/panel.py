@@ -467,9 +467,14 @@ async def main():
 
         # AND A LAYER ENTRY CAN BE BURIED, which is the case the two walks above
         # cannot show: both stand on the panel's entry with the panel's own page
-        # underneath. The tab bar sits ABOVE the layers, so it is tappable while
-        # a panel is up — and a tab tap closes the panel WITHOUT popping, then
-        # records the new page ON TOP of the panel's entry. Backing over that
+        # underneath. A tab tap made while a panel is up closes the panel
+        # WITHOUT popping, then records the new page ON TOP of the panel's
+        # entry. The tap is DRIVEN, not touched, and that is the honest reading
+        # of what this walk proves: hit-tested at the design's own viewport,
+        # every layer kind covers the centre of every tab button, so no finger
+        # reaches a tab over a layer. `node.click()` does, and so will any
+        # future surface that offers a page switch over one — which is the
+        # shape the engine's step-over branch exists for. Backing over that
         # page lands on a layer entry whose panel closed long ago, on a page it
         # was never opened over: reopening it there raises the panel over the
         # wrong frame and settles an address naming the page underneath. It is
@@ -522,7 +527,7 @@ async def main():
         # AND THE SAME TAP TOWARDS THE ENTRY PAGE, which is the direction the
         # walk above cannot take: it leaves the entry page, and coming BACK to
         # it is the one page switch that steps onto the floor instead of
-        # writing. A layer's entry is on top at that moment — the tab bar
+        # writing. A layer's entry is on top at that moment — the driven tap
         # closes the panel without popping — so stepping back would land on the
         # page being left, with the destination drawn over it. The destination
         # takes the layer's entry instead, and what is held is the outcome: the

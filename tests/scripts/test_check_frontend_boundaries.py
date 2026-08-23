@@ -384,6 +384,45 @@ class TestAddressingArm:
         assert violations == 1, captured.err
         assert any("« page »" in line and "inline" in line for line in captured.err.splitlines())
 
+    def test_t2_an_optional_chained_index_is_read(self, tmp_path, capsys) -> None:
+        """Refuse `raw?.["page"]` — the two spellings of a read are one read."""
+        root = copy_design_src(tmp_path)
+        write_add_route(
+            root,
+            '  validateSearch: (raw: Record<string, unknown>) => '
+            '({ q: String(raw?.["page"] ?? "") }),\n',
+        )
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations == 1, captured.err
+        assert any("« page »" in line and "inline" in line for line in captured.err.splitlines())
+
+    def test_t3_a_quoted_literal_key_is_read(self, tmp_path, capsys) -> None:
+        """Refuse `({ "page": … })` — a key in quotes is the key it spells."""
+        root = copy_design_src(tmp_path)
+        write_add_route(
+            root,
+            '  validateSearch: (raw: Record<string, unknown>) => '
+            '({ "page": String(raw.q ?? "") }),\n',
+        )
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations == 1, captured.err
+        assert any("« page »" in line and "inline" in line for line in captured.err.splitlines())
+
+    def test_t4_a_quoted_destructured_key_is_read(self, tmp_path, capsys) -> None:
+        """Refuse `({ "page": name }) => …` — quoting the bound key does not hide it."""
+        root = copy_design_src(tmp_path)
+        write_add_route(
+            root,
+            '  validateSearch: ({ "page": asked }: Record<string, unknown>) => '
+            '({ q: String(asked ?? "") }),\n',
+        )
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations == 1, captured.err
+        assert any("« page »" in line and "inline" in line for line in captured.err.splitlines())
+
     def test_u_a_comment_is_not_a_member(self, tmp_path, capsys) -> None:
         """A note, a block comment and a string naming `validateSearch` are text, not members."""
         root = copy_design_src(tmp_path)

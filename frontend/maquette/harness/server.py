@@ -29,6 +29,7 @@ import http.server
 import os
 import pathlib
 import re
+import tempfile
 import threading
 from collections.abc import Iterator
 
@@ -232,19 +233,46 @@ def serve_forever(port: int, root: pathlib.Path) -> None:
     http.server.ThreadingHTTPServer(("127.0.0.1", port), handler).serve_forever()
 
 
+# A Python comment and a Python string, the three quoting styles included. The
+# reader below blanks them IN PLACE — spaces for everything but the newlines —
+# so a line number counted afterwards is still the source's own.
+_PROSE = re.compile(
+    r'''#[^\n]*|"""(?:\\.|[^\\])*?"""|\'\'\'(?:\\.|[^\\])*?\'\'\''''
+    r'''|"(?:\\.|[^"\\\n])*"|\'(?:\\.|[^\'\\\n])*\'''',
+    re.S)
+
+
+def without_prose(text: str) -> str:
+    """Blanks every Python comment and string literal, leaving offsets where they were.
+
+    Args:
+        text: A Python source.
+
+    Returns:
+        The same text, its comments and string literals replaced by spaces.
+    """
+    return _PROSE.sub(lambda prose: re.sub(r"[^\n]", " ", prose.group(0)), text)
+
+
 def scratch_call_offenders(directory: pathlib.Path) -> list[str]:
     """Names the `start_server` call sites under `directory` that pass a port.
 
     Reads each `*.py` file's WHOLE text and finds every `start_server(` in
     it, then reads the argument list with a balanced-parentheses walk,
     tolerant of newlines and of nested calls: a call the formatter wrapped
-    over two lines is still seen, and `start_server(f(a, b))` is not flagged
-    for its inner comma. A call is an offender when its TOP-LEVEL argument
-    list carries a comma — a second argument, the port — or is empty. A
-    `def start_server(...)` line is the definition, not a call, and is
+    over two lines is still seen, and a call whose argument is itself a call is
+    not flagged for its inner comma. A call is an offender when its TOP-LEVEL
+    argument list carries a comma — a second argument, the port — or is empty.
+    A `def start_server(...)` line is the definition, not a call, and is
     skipped. An alias import (`from server import start_server as X`) never
     reaches this reader, because the aliased name is what its call sites
     would use — a reach this hold does not claim.
+
+    AND PROSE IS NOT CODE. An example written in a docstring or behind a `#`
+    used to be read as a call site, so the sentence explaining the rule could
+    fail it — and the only fix available to whoever hit that would be to delete
+    the explanation. Comments and string literals are blanked before the scan,
+    in place, so the line numbers below are still the source's own.
 
     Args:
         directory: The harness directory; every `*.py` in it is read.
@@ -254,7 +282,7 @@ def scratch_call_offenders(directory: pathlib.Path) -> list[str]:
     """
     offenders: list[str] = []
     for sibling in sorted(directory.glob("*.py")):
-        text = sibling.read_text(encoding="utf-8")
+        text = without_prose(sibling.read_text(encoding="utf-8"))
         for match in re.finditer(r"\bstart_server\(", text):
             line = text.count("\n", 0, match.start()) + 1
             line_start = text.rfind("\n", 0, match.start()) + 1
@@ -479,6 +507,26 @@ if __name__ == "__main__":
         ", ".join(offenders)
         if offenders else
         f"{len(list(harness_directory.glob('*.py')))} file(s) read, no call passes a port")
+
+    # AND THE READER READS CODE, NOT PROSE. An example written in a docstring
+    # or behind a `#` is an example: a reader that flags one reports a defect
+    # whose only fix is deleting the sentence that explains the rule. Both
+    # directions are held over a scratch tree, because a reader that saw
+    # nothing at all would pass the first half on its own.
+    with tempfile.TemporaryDirectory() as scratch:
+        room = pathlib.Path(scratch)
+        (room / "prose.py").write_text(
+            '"""An example, and it is prose: start_server(8918, ROOT)."""\n'
+            "# start_server(8899, ROOT) behind a hash is prose too\n"
+            "start_server(ROOT)\n",
+            encoding="utf-8")
+        written_as_prose = scratch_call_offenders(room)
+        journal.check("a call site written in prose is not a call site",
+                      written_as_prose == [], f"{written_as_prose}")
+        (room / "real.py").write_text("start_server(8918, ROOT)\n", encoding="utf-8")
+        really_called = scratch_call_offenders(room)
+        journal.check("and a real call passing a port still is one",
+                      really_called == ["real.py:1"], f"{really_called}")
 
     # ── the HOST, not a scratch server ────────────────────────────────────
     # Everything above proves the HANDLER, on a scratch port. This proves the

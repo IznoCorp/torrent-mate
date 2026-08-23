@@ -442,6 +442,9 @@ def arm_one_address(root: Path) -> int:
 
 
 _MEMBER_NAME = re.compile(r"[A-Za-z_$][\w$]*")
+# A key written in quotes, read off the SOURCE — the scanned text has had
+# its strings blanked, which is exactly why this cannot be read there.
+_QUOTED_KEY = re.compile(r"""['"]([A-Za-z_$][\w$]*)['"]""")
 
 
 def _skip_blank(text: str, offset: int) -> int:
@@ -546,8 +549,11 @@ def _read_callable(scan: str, offset: int) -> tuple[tuple[int, int], str, str] |
         offset: The index of the `function` keyword, or of the parameter list.
 
     Returns:
-        The body's span, the declared return type as written, and the parameter
-        list as written — or None when the shape is not one this reader follows.
+        The body's span, the declared return type as written, and the SPAN of
+        the parameter list — or None when the shape is not one this reader
+        follows. The parameter list is handed back as a span and not as text
+        because a key there may be QUOTED, and quotes are blanked in `scan`:
+        only the caller, which holds the source, can read one.
     """
     if scan.startswith("function", offset):
         cursor = _skip_blank(scan, offset + len("function"))
@@ -558,7 +564,7 @@ def _read_callable(scan: str, offset: int) -> tuple[tuple[int, int], str, str] |
     closing = _balanced(scan, offset, "(", ")")
     if closing == -1:
         return None
-    parameters = scan[offset + 1:closing]
+    parameters = (offset + 1, closing)
     cursor = _skip_blank(scan, closing + 1)
     returned = ""
     if cursor < len(scan) and scan[cursor] == ":":
@@ -598,7 +604,7 @@ def _declaration_of(scan: str, name: str) -> int | None:
     return _skip_blank(scan, bound.end()) if bound else None
 
 
-def literal_keys(body: str) -> set[str]:
+def literal_keys(body: str, source: str | None = None) -> set[str]:
     """Read the keys of every object literal in a function body.
 
     A key sits in exactly one place: straight after the `{` that opens its
@@ -609,14 +615,23 @@ def literal_keys(body: str) -> set[str]:
     reads nothing at all. The body is scanned as a literal itself: an arrow
     handing back `({ … })` gives its object over with the braces stripped.
 
+    A KEY MAY BE QUOTED — `({ "page": … })` is the same declaration as
+    `({ page: … })` — and a quote is blanked out of the scanned text, so the
+    source is read alongside it. `_strip_noise` blanks IN PLACE, which is what
+    makes the two line up offset for offset.
+
     Args:
-        body: The function body, without its own braces.
+        body: The function body, without its own braces, comments and strings
+            blanked.
+        source: The same body unblanked, of the same length. Omitted, a quoted
+            key simply is not read.
 
     Returns:
         Every key name the body's object literals declare.
     """
     keys: set[str] = set()
     scan = "{" + body + "}"
+    written = "{" + source + "}" if source is not None else None
     depth: list[str] = []
     expecting = False
     index = 0
@@ -640,6 +655,13 @@ def literal_keys(body: str) -> set[str]:
                 index = named.end()
                 continue
             expecting = False
+        elif written is not None and expecting and written[index] in "\"'":
+            quoted = _QUOTED_KEY.match(written, index)
+            if quoted is not None and scan[_skip_blank(scan, quoted.end()):][:1] == ":":
+                keys.add(quoted.group(1))
+                expecting = False
+                index = quoted.end()
+                continue
         index += 1
     return keys
 
@@ -650,8 +672,12 @@ def _destructured_keys(parameters: str) -> set[str]:
     `({ page, ...rest }) => …` reads the query as surely as `raw.page` does, and
     the reader that never looked at the parameter list saw neither.
 
+    A bound key may be QUOTED — `({ "page": asked }) => …` binds the query's
+    `page` under another name — so the parameter list is read from the SOURCE
+    and both spellings are collected.
+
     Args:
-        parameters: The parameter list, without its parentheses.
+        parameters: The parameter list, without its parentheses, as written.
 
     Returns:
         Every name bound at a property's position.
@@ -659,9 +685,10 @@ def _destructured_keys(parameters: str) -> set[str]:
     keys: set[str] = set()
     for pattern in re.findall(r"\{([^{}]*)\}", parameters):
         for entry in pattern.split(","):
-            named = re.match(r"\s*([A-Za-z_$][\w$]*)", entry)
+            named = re.match(r"""\s*(?:['"]([A-Za-z_$][\w$]*)['"]|([A-Za-z_$][\w$]*))""",
+                             entry)
             if named:
-                keys.add(named.group(1))
+                keys.add(named.group(1) or named.group(2))
     return keys
 
 
@@ -713,7 +740,7 @@ def validate_search_bodies(text: str) -> tuple[list[tuple[str, str, str]], list[
                 elif scan.startswith("=>", after):
                     # A single parameter needs no parentheses: `raw => ({ … })`.
                     span = _read_body(scan, after)
-                    reading = None if span is None else (span, "", named.group(0))
+                    reading = None if span is None else (span, "", named.span())
                 elif scan[after:after + 1] == "(":
                     reading = None
                 else:
@@ -730,8 +757,8 @@ def validate_search_bodies(text: str) -> tuple[list[tuple[str, str, str]], list[
                 "its validateSearch is written in a shape this reader does not follow — "
                 "it cannot read that body, and a body nobody read is a body nobody holds")
             continue
-        (start, end), returned, parameters = reading
-        readings.append((text[start:end], returned, parameters))
+        (start, end), returned, (opened, closed) = reading
+        readings.append((text[start:end], returned, text[opened:closed]))
     return readings, unreadable
 
 
@@ -903,7 +930,7 @@ def arm_addressing(root: Path) -> int:
             inline.update(re.findall(r"""raw\s*(?:\?\.)?\[\s*['"](\w+)['"]\s*\]""", body))
             inline.update(re.findall(r"raw\s*\??\.\s*(\w+)", code))
             inline.update(re.findall(r"read\.(\w+)\s*=", code))
-            inline.update(literal_keys(code))
+            inline.update(literal_keys(code, body))
             inline.update(_destructured_keys(parameters))
             # A return type written INLINE declares its keys right here rather
             # than under a name — and a name carries no colon, so one read

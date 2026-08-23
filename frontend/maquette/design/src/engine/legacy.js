@@ -11092,6 +11092,14 @@ import { screens, panel, bridge } from "./seams.js";
   function switchPage(leaving) {
     if (pilotage) return;
     const arriving = currentState().page;
+    /* A LAYER'S ENTRY ON TOP, reached from a site that does not route to
+       `switchPageFromLayer` — which today means the tab bar, and only through
+       `node.click()`: hit-tested at the design's own viewport, every layer
+       kind covers the centre of every tab button, so no finger arrives here
+       with a layer up. The arm stays: it keeps the stack honest for the next
+       surface that offers a page switch over a layer, and the shape it guards
+       against is the one the BACK branch of the direction-aware reopen has to
+       step over. */
     const onLayer = Boolean(history.state && history.state.layer);
     if (arriving === leaving) return replacePath();
     if (leaving === window.__address.homePage) return recordPath();
@@ -11215,12 +11223,22 @@ import { screens, panel, bridge } from "./seams.js";
 
        BACK, or a jump: the entry is a closed panel's LEFTOVER, and reopening
        it there would raise the panel over a page it was never opened on. The
-       tab bar sits ABOVE the layers, so a tap on it closes the panel WITHOUT
-       popping and then records the new page on top of the panel's entry,
-       burying it. Backing over that page lands on a `{ layer: "sheet" }` entry
-       whose panel has long been closed — a place the operator was never in and
-       cannot be shown. So it is stepped OVER, and one more back lands on the
-       arrival entry beneath.
+       shape comes from a tab-bar tap made while a panel is up: the tap closes
+       the panel WITHOUT popping and then records the new page on top of the
+       panel's entry, burying it. Backing over that page lands on a
+       `{ layer: "sheet" }` entry whose panel has long been closed — a place
+       the operator was never in and cannot be shown. So it is stepped OVER,
+       and one more back lands on the arrival entry beneath.
+
+       WHO CAN MAKE THAT SHAPE, measured rather than assumed. « The tab bar
+       sits above the layers » is what this paragraph used to say, and it is
+       false: hit-tested at the design's own viewport, the drawer, the account
+       menu, a follow panel and a covered screen each cover the centre of every
+       `#nav button[data-page]`. No finger reaches a tab over a layer. What
+       does reach it is `node.click()`, which is how the shape is produced and
+       held — and any future surface that puts a page switch over a layer will
+       reach it too. The branch guards the stack against that surface; it is
+       not dead, it is unreachable by touch on TODAY's layout.
 
        That second pop is NOT announced to the unwind latch, and the absence is
        the decision: the latch exists to make a pop a NO-OP, because a layer
@@ -34819,13 +34837,18 @@ import { screens, panel, bridge } from "./seams.js";
        anywhere reaches the page the link named rather than a bare
        document.
 
-       THE THREE WRITES BELOW RAISE THE FLAG LIKE EVERY OTHER WRITER. They
-       used to swallow, on the reading that a boot-time refusal leaves the
+       EVERY WRITE BELOW RAISES THE FLAG LIKE EVERY OTHER WRITER, and there
+       are four of them on an ordinary page arrival — the arrival address, the
+       exit guard, the floor beneath the arrival and the arrival entry. The
+       count is the ARRIVAL's, not a law: the home page needs no floor and a
+       screen address puts its parent down as well.
+
+       They used to swallow, on the reading that a boot-time refusal leaves the
        startup screen up rather than a rendered interface disagreeing with its
        address — and that reading is false here: `render()` runs above, and
        the startup screen comes off between the first write and the second.
        A refusal here leaves a drawn interface on an address nobody wrote,
-       and the last of the three is the entry the panel's own layer is stacked
+       and the last of them is the entry the panel's own layer is stacked
        on: lose it and the first Back spends the guard instead. */
     try {
       __bridge.replace(navigationState(), arrivalAddress);
