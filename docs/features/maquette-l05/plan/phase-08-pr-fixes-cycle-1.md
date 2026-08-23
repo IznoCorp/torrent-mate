@@ -121,7 +121,8 @@ absence is a violation; add the inline shape; add
 - Three of four `REOPEN` kinds are exercised by nothing; four of seven page
   addresses are asserted nowhere; nothing holds `PAGE_PATHS` against the
   engine's `PAGES_OF()`.
-- The oracle reference was recorded at commit 8 of 13 — re-record at the tip.
+- ~~The oracle reference was recorded at commit 8 of 13 — re-record at the tip.~~
+  DONE outside this phase (#483): both references were re-recorded at the tip.
 
 ---
 

@@ -63,6 +63,8 @@ What this holds to:
 """
 import asyncio
 import json
+import pathlib
+import re
 import urllib.parse
 
 from common import PHONE
@@ -70,14 +72,27 @@ from playwright.async_api import async_playwright
 
 PROTOTYPE = "http://127.0.0.1:8899/"
 
-# The page a path names, and the dials a query may carry. Kept in step with
-# `design/src/lib/addresses.ts`, which is the model this rule measures — a
-# contract has three ends, and this is one of them.
+# The page a path names. Kept in step with `design/src/lib/addresses.ts`,
+# which is the model this rule measures — a contract has three ends, and this
+# is one of them.
 HOME = "/acquisition"
 HOME_PAGE = "acq"
 LIBRARY = "/media"
 ARRIVALS = "/arrivals"
-DIAL_PARAMETERS = ("tab", "lens", "mode", "cat", "topic")
+
+# And the model itself, READ rather than transcribed. The dial list and the
+# page table were both written out here once, and the dial list had already
+# drifted — five names against the model's six — in the very wave that wrote
+# the comment forbidding a second list. A copy nothing renders drifts in
+# silence, so the names come from the declaration, exactly as
+# `scripts/check-frontend-boundaries.py` reads them.
+MODEL = pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "lib" / "addresses.ts"
+DECLARATION = MODEL.read_text(encoding="utf-8")
+DIAL_PARAMETERS = tuple(
+    re.findall(r'parameter:\s*"([^"]+)"', DECLARATION)
+    + re.findall(r'PANEL_PARAMETER = "([^"]+)"', DECLARATION)
+)
+PAGE_PATHS = dict(re.findall(r'^\s{2}(\w+):\s*"(/[^"]*)"', DECLARATION, re.M))
 
 # One concrete address per SCREEN route, the routes being the other end of the
 # `SCREEN_PATHS` contract. The media sheet's is DERIVED from the running
@@ -130,6 +145,14 @@ async def main():
     from common import Journal
 
     journal = Journal("R69 — the address carries the state, and a reload lands back on it")
+
+    # Read before anything is driven: every hold below is measured against the
+    # model, so a model this rule read wrongly would make the rest describe
+    # something else. Six is the count the declaration carries — five dials
+    # and the panel parameter — and the number is written down so that adding
+    # a dial without telling this rule is a failure rather than a silence.
+    journal.check("the rule reads the model's dials, and the model declares six",
+                  len(DIAL_PARAMETERS) == 6, f"{len(DIAL_PARAMETERS)}: {DIAL_PARAMETERS}")
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")
