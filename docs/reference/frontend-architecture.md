@@ -804,7 +804,7 @@ python3 frontend/maquette/oracle.py --record    # then records against what is a
 ```
 
 `make maquette-oracle` runs `--check`, so it FAILS on a dangling reference — that is expected, and
-it is run for its preparation: `oracle.py` reads `http://127.0.0.1:8899/wrapped.html`, and without
+it is run for its preparation: `oracle.py` reads `http://127.0.0.1:8899/`, and without
 that build and copy it would measure the previous build, or nothing. There is no make target for
 `--record`; `make maquette-oracle --record` passes the flag to `make`, not to the oracle.
 

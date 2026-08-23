@@ -52,7 +52,7 @@ none of these measures a stale build.
 | ACC-09 | `python3 scripts/check-frontend-boundaries.py`                                                                                                              | all nine arms, 0 violations, exit 0                                                                              |
 | ACC-10 | `python3 frontend/maquette/harness/screen_addresses.py`                                                                                                     | R75 including the four renamed addresses, exit 0                                                                 |
 | ACC-11 | `python3 frontend/maquette/harness/navigation.py`                                                                                                           | R76 — exactly one `navigate()` call site, exit 0                                                                 |
-| ACC-12 | `python3 frontend/maquette/harness/back.py && python3 frontend/maquette/harness/screens.py && python3 frontend/maquette/harness/bridge.py`                  | R59, R71, R74 green at UNCHANGED rule code, exit 0                                                               |
+| ACC-12 | `python3 frontend/maquette/harness/back.py && python3 frontend/maquette/harness/screens.py && python3 frontend/maquette/harness/bridge.py`                  | R59, R71, R74 green at unchanged ASSERTIONS (see ACC-21), exit 0                                                               |
 | ACC-13 | `grep -c "urlFromState\|stateFromUrl\|URL_DEFAULTS\|function openScreen" frontend/maquette/design/src/engine/legacy.js`                                     | `0`                                                                                                              |
 | ACC-14 | `grep -rn "page=" frontend/maquette/design/src frontend/maquette/harness/*.py \| grep -v "data-page" \| wc -l`                                              | `0` — no page identity survives in a query                                                                       |
 | ACC-15 | `make lint`                                                                                                                                                 | 0 error                                                                                                          |
@@ -61,10 +61,28 @@ none of these measures a stale build.
 | ACC-18 | `python3 scripts/check-no-french.py`                                                                                                                        | 0 violation, exit 0                                                                                              |
 | ACC-19 | `frontend/maquette/harness/run.sh --contracts`                                                                                                              | 5 rules, no violation, exit 0                                                                                    |
 | ACC-20 | `python3 frontend/maquette/a11y.py --check`                                                                                                                 | hard zero, exit 0                                                                                                |
-| ACC-21 | `git log --oneline main..HEAD -- frontend/maquette/harness/back.py frontend/maquette/harness/screens.py frontend/maquette/harness/bridge.py`                | empty — R59/R71/R74 are byte-identical against the merge point                                                   |
+| ACC-21 | `git diff main..HEAD -- frontend/maquette/harness/back.py frontend/maquette/harness/screens.py frontend/maquette/harness/bridge.py` | only the itemised address moves — **not one changed `check(...)` assertion** |
 
 **ACC-21 is the one that says the wave did not cheat.** R59, R71 and R74 are the behaviour
 invariants the bridge must keep; passing them by editing them proves nothing.
+
+⚠ **It was first written as « byte-identical » and that was unsatisfiable**, found before executing
+rather than at the gate. The host moves in phase 1, so a rule navigating to `.../wrapped.html`
+cannot keep that literal and still load the page. The line the criterion holds is therefore not
+« no edit » but « **no edited assertion** »:
+
+- **May move**, each occurrence itemised in the phase report: the navigation target (`pg.goto(...)`,
+  a module-level `URL` / `PROTOTYPE` constant), and the origin test standing in for « the document
+  was left ».
+- **May not move**: any `check(...)` / `journal.check(...)` call — its name, its condition, its
+  detail.
+
+The origin test is a defect being repaired, not a convenience. `back.py:32` and `back.py:140`
+assert `"wrapped.html" not in pg.url`, which under D1 reads « the document was left » about an
+address that never left it. `harness/ident.py:22-28` already met this and wrote the answer down —
+« the test is the origin, never the file name: a router-owned address (`/`, `/add`) is served by
+the same document and carries no « wrapped.html » anywhere in it ». `back.py` adopts the form its
+sibling already proved, and the reason travels with it.
 
 ---
 

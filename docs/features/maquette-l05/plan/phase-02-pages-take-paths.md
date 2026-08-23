@@ -65,7 +65,7 @@ name its own defect.
 - ACC-07 (R69's six holds), ACC-13 (`urlFromState`/`stateFromUrl`/`URL_DEFAULTS` gone), ACC-14
   (no `page=` outside `data-page`).
 - ACC-11 (R76 — still exactly one `navigate()` call site) and ACC-12 (R59/R71/R74 green at
-  **unchanged rule code**; ACC-21 proves they were not edited).
+  **unchanged assertions**; ACC-21 says exactly what may and may not move in them).
 - ACC-03, ACC-04, ACC-05 green. **A divergence in the oracle is accepted one by one with a written
   reason, never in a block** — this wave moves navigation, and a rectangle that moved is a question,
   not a formality.

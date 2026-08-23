@@ -14,7 +14,7 @@ and how the document is opened.
 import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-PROTOTYPE = "http://127.0.0.1:8899/wrapped.html"
+PROTOTYPE = "http://127.0.0.1:8899/"
 BAR = "─" * 62
 
 # Beside THIS FILE, never in the current directory — the same reason `audit.py`

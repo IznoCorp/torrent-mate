@@ -93,7 +93,7 @@ async def main():
 
         pg2 = await ctx.new_page()
         pg2.on("pageerror", lambda e: errors.append(f"prototype: {e}"))
-        await pg2.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
+        await pg2.goto("http://127.0.0.1:8899/", wait_until="load")
         await pg2.evaluate("()=>document.querySelector('#toastx').click()")
         await pg2.wait_for_timeout(250)
         await pg2.evaluate("()=>signOut()")

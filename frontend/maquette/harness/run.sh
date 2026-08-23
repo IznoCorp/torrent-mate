@@ -106,12 +106,20 @@ rm -rf "$SERVED/vite"
 [ -d "$DESIGN/dist/vite" ] && cp -R "$DESIGN/dist/vite" "$SERVED/vite"
 ln -sfn "$DESIGN/assets" "$SERVED/assets"
 
-# The harness reads http://127.0.0.1:8899/wrapped.html — a PLAIN http.server
-# rooted on that copy. Never `serve.py`, which is the password-protected design
-# host on 8712: it answers 401 and the suite would measure the sign-in screen.
+# The harness reads http://127.0.0.1:8899/ — `server.py --serve`, rooted on that
+# copy. Never `serve.py`, which is the password-protected design host on 8712:
+# it answers 401 and the suite would measure the sign-in screen.
+#
+# NOT a plain `python3 -m http.server`, and that is not a preference. A page
+# sits at a real path (`/media`); a plain server answers a file for a file's own
+# path and 404 for everything else, so the router would render its not-found
+# page and every rule, the oracle and the accessibility audit would fail at once
+# for a reason having nothing to do with the change under test. `server.py`
+# folds any address with no file behind it onto the document, the way a host
+# serving a single-page application is expected to.
 if ! lsof -nP -iTCP:8899 -sTCP:LISTEN >/dev/null 2>&1; then
   echo "Starting the harness host on 127.0.0.1:8899…"
-  (cd "$SERVED" && python3 -m http.server 8899 --bind 127.0.0.1 >/dev/null 2>&1 &)
+  (python3 "$HERE/server.py" --serve 8899 "$SERVED" >/dev/null 2>&1 &)
   sleep 2
 fi
 

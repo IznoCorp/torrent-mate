@@ -398,20 +398,27 @@ them — running the wrong one is a green run over nothing.
 
 |                  | Port     | What                                                                                                    | Started by                  |
 | ---------------- | -------- | ------------------------------------------------------------------------------------------------------- | --------------------------- |
-| **Harness host** | **8899** | a plain `http.server` rooted in `/private/tmp/tm-refonte`, serving `wrapped.html` — a COPY of the build | by hand; usually already up |
+| **Harness host** | **8899** | `harness/server.py --serve`, rooted in `/private/tmp/tm-refonte`, serving a COPY of the build at `/` and folding every router-owned address onto it | `run.sh`, or by hand |
 | **Design host**  | **8712** | `serve.py`, scrypt password-protected (`tm-design.iznogoudatall.xyz`)                                   | PM2 (`torrentmate-design`)  |
 
-`harness/common.py` pins the first one: `PROTOTYPE = "http://127.0.0.1:8899/wrapped.html"`.
+`harness/common.py` pins the first one: `PROTOTYPE = "http://127.0.0.1:8899/"`.
 Never 8710/8711/8712/8899 for a server of your own — `harness/server.py`'s `RESERVED_PORTS`
 names all four, and the reverse proxy routes the first three to production, staging and the
 design host.
 
 **`python3 serve.py 8899` is wrong**, and it is the recipe this file used to carry: `serve.py`
 is the DESIGN host, it answers **401** without a session, and the harness would then measure the
-sign-in screen — every rule green, nothing measured. A plain `http.server` is exactly right for
-the harness _because of where it is rooted_: on the copy of the BUILD, not on `design/`. Rooted
-on the sources it would serve unbuilt TypeScript and measure nothing real — that is the
-distinction the old sentence lost.
+sign-in screen — every rule green, nothing measured.
+
+**A plain `python3 -m http.server` is wrong too, and that one is newer.** It was right while a
+page lived in the query: the document had one address, `/wrapped.html`, and a static server
+serves a file at its own path. Since L05 a page sits on a real path, and a plain server answers
+404 to every one of them — which the router renders as its not-found page, so the whole suite
+would measure that instead of whatever was under test. `harness/server.py --serve` folds any
+address with no file behind it onto the document, and keeps a 404 for the resources that really
+are files (`/vite/…`, `/assets/…`, `/sw.js`, `/manifest.webmanifest`). What has not changed is
+where it is ROOTED: on the copy of the BUILD, never on `design/`, which would serve unbuilt
+TypeScript and measure nothing real.
 
 ```bash
 # 1. Rebuild, and refresh the copy the harness reads — BEFORE EVERY RUN.
@@ -422,7 +429,7 @@ rm -rf /tmp/tm-refonte/vite && { [ -d dist/vite ] && cp -R dist/vite /tmp/tm-ref
 ln -sfn "$(git rev-parse --show-toplevel)/frontend/maquette/design/assets" /tmp/tm-refonte/assets
 
 # 2. The harness host — check before starting, it is usually already running.
-lsof -nP -iTCP:8899 -sTCP:LISTEN || (cd /private/tmp/tm-refonte && python3 -m http.server 8899 --bind 127.0.0.1 &)
+lsof -nP -iTCP:8899 -sTCP:LISTEN || (python3 frontend/maquette/harness/server.py --serve 8899 /tmp/tm-refonte &)
 ```
 
 Two traps, each paid for twice. A STALE COPY of the rule scripts can end up in

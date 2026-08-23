@@ -34,7 +34,7 @@ import asyncio
 from common import PHONE
 from playwright.async_api import async_playwright
 
-PROTOTYPE = "http://127.0.0.1:8899/wrapped.html"
+PROTOTYPE = "http://127.0.0.1:8899/"
 
 WHERE = """() => ({
   page: state.page,

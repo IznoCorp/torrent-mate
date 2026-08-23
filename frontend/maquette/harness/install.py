@@ -65,7 +65,7 @@ async def open_proto(p, **kwargs):
                               device_scale_factor=2, is_mobile=True, has_touch=True,
                               **kwargs)
     pg = await ctx.new_page()
-    await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
+    await pg.goto("http://127.0.0.1:8899/", wait_until="load")
     # The startup screen covers the frame for as long as the load it stands
     # for lasts. Nothing is being fetched here, so the harness closes that
     # wait through the same seam the app uses, rather than sleeping it out.
@@ -136,7 +136,7 @@ async def main():
         # A standalone launch, declared the way a launcher declares it.
         await pg.add_init_script(
             "Object.defineProperty(navigator, 'standalone', { get: () => true });")
-        await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
+        await pg.goto("http://127.0.0.1:8899/", wait_until="load")
         await pg.evaluate("()=>document.querySelector('#toastx').click()")
         await pg.wait_for_timeout(1600)
         installed = await pg.evaluate(BANNER)
