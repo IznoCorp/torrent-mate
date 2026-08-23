@@ -65,6 +65,7 @@ arm
 armed
 arrival
 arrivals
+arriving
 artwork
 asked
 at
@@ -354,6 +355,7 @@ layer
 layers
 leading
 leave
+leaving
 left
 legacy
 legend

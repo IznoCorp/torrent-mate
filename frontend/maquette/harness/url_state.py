@@ -40,7 +40,11 @@ What this holds to:
    write is where the not-found state used to compose the bare root.
    « As typed » is the whole address, QUERY INCLUDED — keeping the path and
    dropping the rest is the same rewrite, only quieter.
-5. Back walks the addresses in reverse, not only the screens.
+5. Back walks the addresses in reverse — the ARRIVALS, which is not the same
+   list as the addresses that were written. § 16 renegotiates what belongs in
+   that list, and holds (a) to (e) below are where it is measured; a page
+   switch writes an address and stacks nothing, so backing over three visited
+   pages is exactly what this rule now refuses.
 6. No page identity survives in a query, and no dial in a path. This is
    invariant 1 read in both directions, and it is the hold the renegotiation
    adds: the shape D1 forbids is not merely absent today, it is refused.
@@ -96,6 +100,31 @@ What this holds to:
    account for from the outside; the words are held against the engine's own
    source as well as heard on a console, so rewording one fells this rule
    rather than quietly leaving it listening for a line nothing prints.
+14. (a) A Back returns to the REAL ORIGIN, setting and all. Opening a sheet
+   from a filtered library and backing off it lands on that filtered library,
+   never on the page's root; opening a panel from the add screen's search and
+   backing off it lands on the search. This is § 16 rule 1 said the way the
+   reader feels it, and it is the hold rule 3 would break if it were applied
+   without it — sending the reader who came from a search to the library.
+15. (c) Switching a top-level page STACKS NOTHING. Three pages walked leave
+   exactly one entry behind, the entry page's own, so a Back from any of them
+   lands there rendered with the guard still beneath — and tapping the entry
+   page's own tab steps back onto that floor rather than laying a second copy
+   of it down.
+16. (d) The exit guard arms at the TOP and nowhere else. A Back from another
+   page does not arm it; a Back from the entry page does. Read on the engine's
+   own `armedExit`, because the address alone says nothing: a guard that arms
+   one page too early answers the same address as one that does not.
+17. (e) A setting leaves NO entry. A lens, an inner tab and a maintenance topic
+   each write the address and leave the history depth exactly as it was, and
+   one Back afterwards leaves the surface instead of undoing the setting. A
+   stack of settings is what makes Back undo a sort where the reader meant to
+   leave the screen.
+
+Holds 14 to 17 are SEPARATE on purpose. A rule that exercises only the cold
+load let two of this wave's defects through under green holds, so the in-app
+walk, the cold floor, the page switch and the guard are measured one by one,
+each on `history.length` and `armedExit` rather than on the address alone.
 """
 import asyncio
 import json
@@ -272,6 +301,33 @@ PANEL_DROPS = (
     ("asked for over the sign-in screen", "login?panel=follow:Silo",
      "the sign-in screen covers everything, so the addressed panel is dropped:"),
 )
+
+# The settings held by (e), one per page that carries one: what to tap is READ
+# off the running interface, because a lens, a tab or a topic is the engine's
+# vocabulary and a value written down here measures nothing the day it moves.
+# Each reader answers the selector to tap and the query that setting should
+# write, or null when the page offers none — which is a fixture this rule has
+# to report rather than a walk it silently skips.
+SETTING_WALKS = (
+    ("the library lens", "media", "lib",
+     """()=>{const found = [...document.querySelectorAll('[data-lens]')]
+          .map((node) => node.dataset.lens).find((value) => value && value !== 'cat');
+        return found ? ['[data-lens="' + found + '"]', 'lens=' + found] : null;}"""),
+    ("the acquisition tab", "acquisition", "acq",
+     """()=>{const found = [...document.querySelectorAll('[data-acqtab]')]
+          .map((node) => node.dataset.acqtab).find((value) => value && value !== 'now');
+        return found ? ['[data-acqtab="' + found + '"]', 'tab=' + found] : null;}"""),
+    ("the maintenance topic", "maintenance", "maint",
+     """()=>{const found = [...document.querySelectorAll('[data-maintopic]')]
+          .map((node) => node.dataset.maintopic).filter(Boolean)[0];
+        return found ? ['[data-maintopic="' + found + '"]', 'topic=' + found] : null;}"""),
+)
+
+# What the add screen is left showing after a Back off a panel it opened.
+SEARCH_BACK = """() => ({
+  open: !!document.querySelector('[data-part="screen"][data-open]'),
+  field: (document.querySelector('#addq') || {}).value || '',
+})"""
 
 WHERE = """() => ({
   page: state.page,
@@ -730,25 +786,32 @@ async def main():
             journal.check(f"no JS error dropping a panel {wanted}", not errors, str(errors))
             await ctx.close()
 
-        # ── 5. back walks the addresses in reverse ─────────────────────────
+        # ── 5 + (c). a page switch writes the address and stacks nothing ───
+        # The three pages are walked in one go, and what is measured is the
+        # DEPTH: under the model the stack is the entry page plus at most one,
+        # so three pages leave exactly one entry behind. Backing over the
+        # pages one visited is the gesture no platform offers and the one a
+        # web application betrays itself with.
         ctx, pg, errors = await open_page(b)
-        await pg.tap('#nav button[data-page="lib"]')
-        await pg.wait_for_timeout(340)
-        await pg.tap('#nav button[data-page="arr"]')
-        await pg.wait_for_timeout(340)
-        journal.check("after two steps, the address is the second one's",
+        depth = await pg.evaluate("()=>history.length")
+        for page in ("lib", "sys", "arr"):
+            await pg.tap(f'#nav button[data-page="{page}"]')
+            await pg.wait_for_timeout(340)
+        walked = await pg.evaluate("()=>history.length")
+        journal.check("after three steps, the address is the third one's",
                       path(pg.url) == ARRIVALS, pg.url)
+        journal.check(
+            "and walking three top-level pages left exactly ONE entry behind",
+            walked - depth == 1, f"history.length {depth} -> {walked}")
         await pg.go_back()
         await pg.wait_for_timeout(420)
-        journal.check("a back returns to the first one's address",
-                      path(pg.url) == LIBRARY, pg.url)
-        journal.check("and the screen is the one that address names",
-                      (await pg.evaluate(WHERE))["page"] == "lib",
-                      (await pg.evaluate(WHERE))["page"])
-        await pg.go_back()
-        await pg.wait_for_timeout(420)
-        journal.check("a second back returns to the opening address",
-                      path(pg.url) == HOME and query(pg.url) == "", pg.url)
+        landed = await pg.evaluate(WHERE)
+        armed = await pg.evaluate("()=>window.armedExit")
+        journal.check(
+            "one Back lands on the entry page, rendered, with the guard still beneath it",
+            path(pg.url) == HOME and query(pg.url) == ""
+            and landed["page"] == HOME_PAGE and not armed,
+            f"{pg.url} · page={landed['page']} · armedExit={armed}")
         journal.check("no JS error during the backs", not errors, str(errors))
         # The flag's general meaning, read once over an ordinary walk rather
         # than over an injected failure: pages, a dial and two backs have all
@@ -757,6 +820,151 @@ async def main():
         journal.check("no navigation write failed during the walk",
                       await pg.evaluate("()=>window.__navEchec") is False,
                       f"__navEchec={await pg.evaluate('()=>window.__navEchec')}")
+        await ctx.close()
+
+        # And the same Back from each of the other pages, one at a time: a
+        # walk that only ever measures the LAST page tells nothing about the
+        # ones before it, and « lands on the entry page » is a promise every
+        # page makes.
+        for page in ("lib", "sys"):
+            ctx, pg, errors = await open_page(b)
+            await pg.tap(f'#nav button[data-page="{page}"]')
+            await pg.wait_for_timeout(340)
+            await pg.go_back()
+            await pg.wait_for_timeout(500)
+            landed = await pg.evaluate(WHERE)
+            armed = await pg.evaluate("()=>window.armedExit")
+            journal.check(
+                f"a Back from « {page} » lands on the entry page too, guard untouched",
+                path(pg.url) == HOME and landed["page"] == HOME_PAGE and not armed,
+                f"{pg.url} · page={landed['page']} · armedExit={armed}")
+            journal.check(f"no JS error backing off « {page} »", not errors, str(errors))
+            await ctx.close()
+
+        # And the entry page's own tab, which is the one direction that must
+        # not write at all: the floor is already one entry down, so it is
+        # stepped BACK onto. Pushing or replacing there would leave two
+        # acquisition entries and a Back that changes nothing on screen.
+        ctx, pg, errors = await open_page(b)
+        await pg.tap('#nav button[data-page="lib"]')
+        await pg.wait_for_timeout(340)
+        await pg.tap('#nav button[data-page="acq"]')
+        await pg.wait_for_timeout(500)
+        home_again = await pg.evaluate(WHERE)
+        journal.check(
+            "tapping the entry page's own tab steps back onto the floor",
+            path(pg.url) == HOME and query(pg.url) == "" and home_again["page"] == HOME_PAGE,
+            f"{pg.url} · page={home_again['page']}")
+        await pg.go_back()
+        await pg.wait_for_timeout(500)
+        armed = await pg.evaluate("()=>window.armedExit")
+        journal.check(
+            "and the very next Back arms the exit guard — nothing was laid down twice",
+            bool(armed), f"armedExit={armed} at {path(pg.url)}")
+        journal.check("no JS error stepping back onto the entry page", not errors, str(errors))
+        await ctx.close()
+
+        # ── (d) the exit guard arms at the TOP, and nowhere else ───────────
+        # The address says nothing here: a guard armed one page too early
+        # answers exactly the same address as one that is not armed at all, so
+        # the engine's own record is what is read, twice, in one walk.
+        ctx, pg, errors = await open_page(b, PROTOTYPE + "media")
+        await pg.go_back()
+        await pg.wait_for_timeout(500)
+        armed_off_page = await pg.evaluate("()=>window.armedExit")
+        journal.check(
+            "a Back from a page other than the entry page does NOT arm the exit guard",
+            not armed_off_page, f"armedExit={armed_off_page} at {path(pg.url)}")
+        await pg.go_back()
+        await pg.wait_for_timeout(500)
+        armed_at_home = await pg.evaluate("()=>window.armedExit")
+        journal.check("and a Back from the entry page does",
+                      bool(armed_at_home), f"armedExit={armed_at_home} at {path(pg.url)}")
+        journal.check("no JS error walking down to the guard", not errors, str(errors))
+        await ctx.close()
+
+        # ── (e) a setting leaves NO entry ──────────────────────────────────
+        # Three of them, on three pages, each read off the interface rather
+        # than written down: what a lens or a topic is called is the engine's
+        # business, and a value invented here would measure nothing when it
+        # stops existing. Two holds each — the depth is unchanged, and the
+        # Back afterwards LEAVES the surface instead of undoing the setting,
+        # which is the whole of what a stack of settings costs.
+        for wanted, address, page, reader in SETTING_WALKS:
+            ctx, pg, errors = await open_page(b, PROTOTYPE + address)
+            found = await pg.evaluate(reader)
+            if not journal.check(f"the interface offers {wanted} to set", bool(found), f"{found}"):
+                await ctx.close()
+                continue
+            selector, expected = found
+            depth = await pg.evaluate("()=>history.length")
+            await pg.tap(selector)
+            await pg.wait_for_timeout(420)
+            after = await pg.evaluate("()=>history.length")
+            journal.check(
+                f"setting {wanted} writes the address and leaves NO entry behind",
+                after == depth and query(pg.url) == expected,
+                f"history.length {depth} -> {after} · {pg.url}")
+            await pg.go_back()
+            await pg.wait_for_timeout(500)
+            landed = await pg.evaluate(WHERE)
+            undone = landed["page"] == page and query(pg.url) == ""
+            journal.check(
+                f"and one Back off {wanted} leaves the surface instead of undoing it",
+                not undone, f"page={landed['page']} at {pg.url}")
+            journal.check(f"no JS error setting {wanted}", not errors, str(errors))
+            await ctx.close()
+
+        # ── (a) a Back returns to the REAL ORIGIN, setting and all ─────────
+        # § 16 rule 1 read the way the reader feels it: whoever opened a sheet
+        # from a filtered library comes back to that filtered library. It is
+        # also the hold rule 3 would break if the parent were treated as a
+        # destination rather than as a floor — the Back would go to the
+        # library's root and the filter would be gone.
+        ctx, pg, errors = await open_page(b, PROTOTYPE + "media?lens=inc")
+        depth = await pg.evaluate("()=>history.length")
+        await pg.evaluate(f"()=>window.__screens.mediaSheet({json.dumps(SHEET_TITLE)})")
+        await pg.wait_for_timeout(500)
+        opened = await pg.evaluate("()=>history.length")
+        journal.check(
+            "opening a sheet from a filtered library stacks exactly one arrival",
+            opened - depth == 1 and path(pg.url).startswith("/media/"),
+            f"history.length {depth} -> {opened} · {pg.url}")
+        await pg.go_back()
+        await pg.wait_for_timeout(500)
+        origin = await pg.evaluate(WHERE)
+        armed = await pg.evaluate("()=>window.armedExit")
+        journal.check(
+            "and one Back returns to the library AS IT WAS FILTERED, not to its root",
+            path(pg.url) == LIBRARY and query(pg.url) == "lens=inc"
+            and origin["page"] == "lib" and origin["lens"] == "inc" and not armed,
+            f"{pg.url} · page={origin['page']} lens={origin['lens']} armedExit={armed}")
+        journal.check("no JS error backing off the sheet", not errors, str(errors))
+        await ctx.close()
+
+        # The same promise from the OTHER surface the constitution names: a
+        # search. The add screen's own search REPLACES, so the entry the panel
+        # is opened from is the search itself — and that is what a Back has to
+        # give back, the screen still standing and the query still typed.
+        ctx, pg, errors = await open_page(b, PROTOTYPE + "add?q=lucky")
+        opened_panel = await pg.evaluate(
+            """()=>{const card = document.querySelector(
+                 '[data-part="card/body"][data-panel]');
+               if (!card) return null; card.click(); return card.dataset.panel;}""")
+        await pg.wait_for_timeout(450)
+        panel_open = await pg.evaluate("()=>window.__panel.isOpen()")
+        journal.check("a result of the add screen's search opens its panel",
+                      bool(opened_panel) and panel_open,
+                      f"panel={opened_panel!r} open={panel_open}")
+        await pg.go_back()
+        await pg.wait_for_timeout(500)
+        search_back = await pg.evaluate(SEARCH_BACK)
+        journal.check(
+            "and one Back returns to the SEARCH it was opened from, screen still standing",
+            path(pg.url) == "/add" and query(pg.url) == "q=lucky"
+            and search_back["open"] and search_back["field"] == "lucky",
+            f"{pg.url} · open={search_back['open']} field={search_back['field']!r}")
+        journal.check("no JS error backing off the search's panel", not errors, str(errors))
         await ctx.close()
 
         # ── 12. every page the model declares has its address ──────────────
@@ -831,23 +1039,29 @@ async def main():
             await pg.wait_for_timeout(400)
             journal.check("selecting a maintenance topic writes it into the query",
                           query(pg.url) == f"topic={topic}", pg.url)
-            await pg.tap('#nav button[data-page="sys"]')
-            await pg.wait_for_timeout(400)
-            await pg.go_back()
+            # A page switch no longer stacks, so the walk that used to leave
+            # the topic entry behind is not the walk that exercises this any
+            # more: the topic entry is the one one is standing on. Leaving the
+            # page steps back onto the floor — which must drop the topic from
+            # the interface, the floor carrying none — and stepping forward
+            # onto the topic entry again must put it back. A dial the entry
+            # does not carry cannot survive that round trip.
+            await pg.tap('#nav button[data-page="acq"]')
+            await pg.wait_for_timeout(500)
+            cleared = await pg.evaluate("()=>state.maintTopic")
+            journal.check(
+                "stepping back onto the floor drops the topic from the interface, "
+                "not only from the address",
+                path(pg.url) == HOME and query(pg.url) == "" and not cleared,
+                f"{pg.url} · maintTopic={cleared!r}")
+            await pg.go_forward()
             await pg.wait_for_timeout(500)
             back_topic = await pg.evaluate("()=>state.maintTopic")
-            journal.check("a back onto a topic address restores the topic the address names",
+            journal.check("and the topic entry puts the topic back, address and interface both",
                           path(pg.url) == "/maintenance"
                           and query(pg.url) == f"topic={topic}"
                           and back_topic == topic,
                           f"{pg.url} · maintTopic={back_topic!r}")
-            await pg.go_back()
-            await pg.wait_for_timeout(500)
-            cleared = await pg.evaluate("()=>state.maintTopic")
-            journal.check(
-                "and a second back drops the topic from the interface as well as the address",
-                path(pg.url) == "/maintenance" and query(pg.url) == "" and not cleared,
-                f"{pg.url} · maintTopic={cleared!r}")
             journal.check("no JS error walking the topic back", not errors, str(errors))
         await ctx.close()
 

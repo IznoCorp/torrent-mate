@@ -11018,6 +11018,75 @@ import { screens, panel, bridge } from "./seams.js";
     }
   }
 
+  /* Records that the surface is being looked at ANOTHER WAY. § 16 rule 1
+     splits every navigation in two: opening a surface is an arrival and
+     stacks, adjusting one is a setting and replaces the entry it is on. A
+     filter, an inner tab, a sort or a lens recorded as an arrival is what
+     makes Retour undo a sort where the reader meant to leave the screen —
+     the single gesture that tells a web application from a native one.
+
+     The address is still WRITTEN, exactly as an arrival writes it: a setting
+     belongs in the URL (« chaque détail a son URL »), it simply does not
+     belong in the path one walked. Same catch as every other writer: a write
+     that fails leaves the address and the interface disagreeing, and a
+     disagreement nothing records is one nobody can find. */
+  function replacePath() {
+    if (pilotage) return;
+    try {
+      __bridge.replace(navigationState(), window.__address.compose(currentState()));
+    } catch (error) {
+      console.error("replacePath: writing the navigation failed", error);
+      window.__navEchec = true;
+    }
+  }
+
+  /* Settles history for a top-level page switch the interface has ALREADY
+     applied. § 16 rule 2: the main pages are destinations, not steps of a
+     journey, so visiting them stacks nothing. Under any of them the stack is
+     the entry page plus at most one, which is what makes Retour from anywhere
+     land on the entry page and Retour from the entry page arm the exit guard.
+     No platform stacks the tabs one has visited, and a reader tapping Retour
+     to leave should not rewind their pages one by one.
+
+     Three verbs, and which applies is decided by the page one came FROM:
+     · from the entry page, the destination is PUSHED — the floor has to stay
+       beneath it, and replacing would send the first Retour into the guard;
+     · to the entry page, the floor is already one entry down, so it is stepped
+       BACK onto: pushing or replacing would leave two of it, and a Retour
+       that changes nothing;
+     · between two other pages, the top of the stack is REPLACED.
+     Tapping the page one is already on replaces too — it is not an arrival.
+
+     A LAYER'S ENTRY ON TOP is the one shape this cannot step back over. The
+     tab bar sits above the layers, so a tap closes the panel WITHOUT popping
+     and the layer's entry is still the current one; stepping back would land
+     on the page one is leaving, with the destination drawn over it. The
+     destination takes that entry instead, which is the contract the `data-go`
+     and `data-navgo` sites already have for a layer entry.
+
+     Args:
+         leaving: The page id the interface was on before the write above. It
+             is read at the call site because the store already holds the
+             destination by the time history is settled — rendering first is
+             what keeps the switch instant. */
+  function switchPage(leaving) {
+    if (pilotage) return;
+    const arriving = currentState().page;
+    const onLayer = Boolean(history.state && history.state.layer);
+    if (arriving === leaving) return replacePath();
+    if (leaving === window.__address.homePage) return recordPath();
+    if (arriving === window.__address.homePage && !onLayer) {
+      try {
+        __bridge.back();
+      } catch (error) {
+        console.error("switchPage: stepping back onto the entry page failed", error);
+        window.__navEchec = true;
+      }
+      return;
+    }
+    replacePath();
+  }
+
   /* The bridge announces a back the way `popstate` did — for a back, a
      forward and a jump alike — and hands over the state of the entry now
      CURRENT, which is the entry the gesture landed on. That is what
@@ -11681,7 +11750,7 @@ import { screens, panel, bridge } from "./seams.js";
       SETTINGS_STATE.q = "";
       port.scrollTop = 0;
       render();
-      recordPath();
+      replacePath();
       return;
     }
     if (closest.dataset.setting) {
@@ -11759,11 +11828,12 @@ import { screens, panel, bridge } from "./seams.js";
     if (closest.dataset.page) {
       // Navigating CLOSES whatever is open above: without this, one changed
       // page while staying stuck on the media sheet.
+      const leaving = currentState().page;
       hideLayers();
       store.write({ page: closest.dataset.page });
       port.scrollTop = 0;
       render();
-      recordPath();
+      switchPage(leaving);
       return;
     }
     if (closest.dataset.go) {
@@ -11778,6 +11848,7 @@ import { screens, panel, bridge } from "./seams.js";
          push would race, the asynchronous pop landing after the push and
          overwriting it. */
       const onLayer = history.state && history.state.layer;
+      const leaving = currentState().page;
       closeDrawer(true);
       panel.close(true);
       // This empties the covered-screen STACK too, so the DOM ends up clean
@@ -11800,7 +11871,7 @@ import { screens, panel, bridge } from "./seams.js";
       render();
       try {
         if (onLayer) __bridge.replace(navigationState(), window.__address.compose(currentState()));
-        else recordPath();
+        else switchPage(leaving);
       } catch (error) {
         console.error("data-go : écriture de navigation échouée", error);
         window.__navEchec = true;
@@ -11811,7 +11882,7 @@ import { screens, panel, bridge } from "./seams.js";
       store.write({ acqTab: closest.dataset.acqtab });
       port.scrollTop = 0;
       render();
-      recordPath();
+      replacePath();
       return;
     }
     if (closest.dataset.lens) {
@@ -11823,7 +11894,7 @@ import { screens, panel, bridge } from "./seams.js";
       });
       port.scrollTop = 0;
       render();
-      recordPath();
+      replacePath();
       return;
     }
     if (closest.dataset.cat) {
@@ -12073,7 +12144,7 @@ import { screens, panel, bridge } from "./seams.js";
       store.write({ maintTopic: closest.dataset.maintopic || null });
       port.scrollTop = 0;
       render();
-      recordPath();
+      replacePath();
       return;
     }
     if (closest.dataset.maintact) {
@@ -12114,13 +12185,14 @@ import { screens, panel, bridge } from "./seams.js";
          pop would land after the push and overwrite it. The close is
          therefore told not to touch history at all. */
       const onDrawer = history.state && history.state.layer === "drawer";
+      const leaving = currentState().page;
       closeDrawer(true);
       store.write({ page: id });
       port.scrollTop = 0;
       render();
       try {
         if (onDrawer) __bridge.replace(navigationState(), window.__address.compose(currentState()));
-        else recordPath();
+        else switchPage(leaving);
       } catch (error) {
         console.error("data-navgo : écriture de navigation échouée", error);
         window.__navEchec = true;
