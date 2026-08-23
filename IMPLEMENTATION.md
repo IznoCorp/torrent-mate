@@ -45,8 +45,8 @@ stale table read as current for three days.
 |                            |                                                                                                                                                                                                                                                                                                                                             |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Last landed**            | **L05 — Routing**, Phase 1. PR **#482**, merged 2026-08-23, version 0.98.24, squash `c4e52ca5`. Both references re-recorded from main's tip and verified ancestors of `HEAD`. ⚠ **It merged with four CONFIRMED defects on the operator's decision** — they are `docs/features/maquette-l05/plan/phase-08-pr-fixes-cycle-1.md`, and phase 8 comes BEFORE L06 |
-| **In flight**              | **none.** A wave writes its own row here when its pull request opens, and the post-merge steps move it to « Last landed » (§ 5 of the architecture file) |
-| **Next**                   | **Phase 8 of L05 first** — four confirmed defects landed with #482, one of them a REGRESSION against `main`: a cold screen address puts the not-found page underneath, so the DOIT-11 link to a media sheet answers « Adresse introuvable » on Retour. Then **L06 — The scale**, Phase 2 |
+| **In flight**              | **Phase 8 of L05 — the repair of its four blocking defects** (B-043 to B-046, plus B-047 and B-048 which the phase carries as 8.5 and 8.6). Branch `fix/maquette-l05`, version 0.98.27, PR **#TBD-PR**. Each defect reproduced before its fix, each fix landing with a hold that bites, mutation-tested. CHANGES BEHAVIOUR: the three post-merge steps are owed after it — re-record both references from `main`'s tip, then move this row to « Last landed » and name L06 |
+| **Next**                   | **L06 — The scale**, Phase 2, once phase 8 has merged AND its post-merge steps have run. The lots run strictly in sequence (operator, 2026-08-22). `docs/reference/frontend-architecture.md` decides which lot, never this table |
 | **Before it**              | L03 — PR **#475**, version 0.98.18 · L02 — PR **#470**, version 0.98.13 · L01 — PR **#467**, version 0.98.10. All three archived under `docs/archive/features/`; `docs/features/maquette-l04/` is still live and belongs beside them |
 | **What decides the order** | `docs/reference/frontend-architecture.md`, never this table. This table says only where the work STANDS                                                                                                                                                                                                                                     |
 
@@ -69,16 +69,14 @@ repository.
 53 flat `.py` files (recorded and deliberately unscheduled), and B-036 / B-040, which belong to
 their own waves.
 
-**Next action**, and the first two are owed before any lot opens:
-
-1. **Re-record both references from the tip of `main`.** The oracle's is DANGLING — it names
-   `6a4f8391`, a commit of the deleted `refactor/maquette-l05` branch that the squash replaced, so
-   `oracle.py --check` refuses to run at all and the wave gate cannot close. The hold-count
-   baseline is not dangling but is four rules behind, all four movements declared upward by L05.
-2. **Repair L05's four blocking defects** — `docs/features/maquette-l05/plan/phase-08-pr-fixes-cycle-1.md`
-   is on `main`, written, with the command that establishes each finding. They are on `main` now.
-3. **Then L06 — The scale**, with `/implement:feature`: no wave opens without its design and its
-   plan.
+**Next action**: phase 8 is in flight on `fix/maquette-l05` (row above). When its pull request
+has merged: `git checkout main && git pull`, `make maquette-oracle` (expected to fail on the
+pointer), `python3 frontend/maquette/oracle.py --record`,
+`python3 scripts/harness-hold-counts.py --record frontend/maquette/hold-counts-baseline.json` —
+all from `main`'s tip, BEFORE any branch is taken — then review every oracle divergence and name
+every hold-count movement, move the row, and archive `docs/features/maquette-l04/` and
+`docs/features/maquette-l05/` beside L01–L03. Then **L06 — The scale**, with `/implement:feature`:
+no wave opens without its design and its plan.
 
 **Phases of L05** — the plan is `docs/features/maquette-l05/plan/INDEX.md`, which owns the
 reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
@@ -92,6 +90,7 @@ reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
 | 5   | The panel tier                         | `plan/phase-05-the-panel-tier.md`           | [x]    |
 | 6   | The offline guard, and one subtraction | `plan/phase-06-the-guard-and-the-subtraction.md` | [x] |
 | 7   | The records, and the gate              | `plan/phase-07-the-records.md`              | [x]    |
+| 8   | PR fixes, review cycle 1 — the four blocking defects | `plan/phase-08-pr-fixes-cycle-1.md` | [ ]    |
 
 **What L05 is, in one line**: the eight pages leave `?page=` for a real path, the address model
 leaves the engine for `lib/addresses.ts` — the first subtraction of D5 — and the harness host
