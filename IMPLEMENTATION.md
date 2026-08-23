@@ -69,10 +69,20 @@ repository.
 53 flat `.py` files (recorded and deliberately unscheduled), and B-036 / B-040, which belong to
 their own waves.
 
-**Next action**: all phases of L05 are complete on `fix/maquette-l05` — open its pull request
-(`/implement:feature-pr`), then the three post-merge steps from `main`'s tip (see the « In flight »
-row), then archive `docs/features/maquette-l04/` and `docs/features/maquette-l05/`, then **L06 — The
-scale** with `/implement:feature`: no wave opens without its design and its plan.
+**Next action**: phase 9 — the findings of PR #484's first review cycle — is the next `[ ]`
+row; `/implement:phase` runs it, then `/implement:feature-pr` pushes and re-polls CI, then
+`/implement:pr-review` runs cycle 2.
+
+### Review cycles — PR #484
+
+### Cycle 1
+
+Four reviewers (code, tests, comments, silent failures), 2026-08-23. Retained: 2 major
+(`knownMedium` leans on the fuzzy `sheetFor`; the B-046 hold tolerates a fixed scratch port),
+6 medium, a batch of minors → `plan/phase-09-pr-fixes-cycle-1.md`. Ignored with reason: the
+pre-existing bug numbers in old comments, the README's `/profile` row, the French `recordPath`
+message, `switchover.py`'s pipe (rejected twice). Open for the operator: a second Back after a
+cold screen reaches the exit guard — the documented design, questioned.
 
 **Phases of L05** — the plan is `docs/features/maquette-l05/plan/INDEX.md`, which owns the
 reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
@@ -87,6 +97,7 @@ reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
 | 6   | The offline guard, and one subtraction | `plan/phase-06-the-guard-and-the-subtraction.md` | [x] |
 | 7   | The records, and the gate              | `plan/phase-07-the-records.md`              | [x]    |
 | 8   | PR fixes, review cycle 1 — the four blocking defects | `plan/phase-08-pr-fixes-cycle-1.md` | [x]    |
+| 9   | PR #484 fixes, review cycle 1 — what four reviewers found | `plan/phase-09-pr-fixes-cycle-1.md` | [ ]    |
 
 **What L05 is, in one line**: the eight pages leave `?page=` for a real path, the address model
 leaves the engine for `lib/addresses.ts` — the first subtraction of D5 — and the harness host
