@@ -482,8 +482,32 @@ def _balanced(text: str, start: int, opener: str, closer: str) -> int:
     return -1
 
 
-def _read_body(text: str, cursor: int, returned: str) -> tuple[str, str] | None:
-    """Read a function's body from its arrow or its opening brace.
+# A comment, or a string literal in any of the three quotings. Ordered so the
+# first opener encountered wins: a `//` inside a block comment is comment text,
+# and a quote inside a comment opens nothing.
+_NOISE = re.compile(r"""//[^\n]*|/\*.*?\*/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`""", re.S)
+
+
+def _strip_noise(text: str) -> str:
+    """Blank every comment and string literal, leaving each offset where it was.
+
+    The reader below walks braces and matches on names, and both are fooled by
+    text that only LOOKS like code: a `// validateSearch: …` note was read AS a
+    member and failed the build over a legitimate comment. Blanking in place
+    keeps every offset aligned with the source, so a caller can locate a body
+    here and still slice it from the text it came from.
+
+    Args:
+        text: The source being read.
+
+    Returns:
+        The same text, every comment and string blanked out with spaces.
+    """
+    return _NOISE.sub(lambda noise: re.sub(r"[^\n]", " ", noise.group(0)), text)
+
+
+def _read_body(scan: str, cursor: int) -> tuple[int, int] | None:
+    """Find the span of a function's body, from its arrow or its opening brace.
 
     An arrow may hand back a parenthesised object literal, so parentheses are
     stepped over after the arrow. Anything else between the head and a brace
@@ -491,83 +515,99 @@ def _read_body(text: str, cursor: int, returned: str) -> tuple[str, str] | None:
     than scanning on to an unrelated brace further down the file.
 
     Args:
-        text: The source being read.
+        scan: The route text, with its comments and strings blanked.
         cursor: The index of the arrow, or of the body's opening brace.
-        returned: The declared return type, as written, or empty.
 
     Returns:
-        The body without its braces and the declared return type, or None.
+        The body's span, its braces excluded, or None.
     """
-    if text.startswith("=>", cursor):
+    if scan.startswith("=>", cursor):
         cursor += 2
-        while cursor < len(text) and (text[cursor].isspace() or text[cursor] == "("):
+        while cursor < len(scan) and (scan[cursor].isspace() or scan[cursor] == "("):
             cursor += 1
-    if cursor >= len(text) or text[cursor] != "{":
+    if cursor >= len(scan) or scan[cursor] != "{":
         return None
-    closing = _balanced(text, cursor, "{", "}")
+    closing = _balanced(scan, cursor, "{", "}")
     if closing == -1:
         return None
-    return text[cursor + 1:closing], returned
+    return cursor + 1, closing
 
 
-def _read_callable(text: str, offset: int) -> tuple[str, str] | None:
-    """Read one function's body and declared return type, from its head.
+def _read_callable(scan: str, offset: int) -> tuple[tuple[int, int], str, str] | None:
+    """Read one function's body span, declared return type and parameter list.
+
+    A return type may be written INLINE — `(raw): { page?: string } => …` — and
+    its brace sits exactly where a braced body's does. It is read as the TYPE,
+    the arrow behind it opening the body; the reader that took the first brace
+    it found measured the type, reported a body, and matched none of its keys.
 
     Args:
-        text: The source being read.
+        scan: The route text, with its comments and strings blanked.
         offset: The index of the `function` keyword, or of the parameter list.
 
     Returns:
-        The body and the declared return type, or None when the shape is not
-        one this reader follows.
+        The body's span, the declared return type as written, and the parameter
+        list as written — or None when the shape is not one this reader follows.
     """
-    if text.startswith("function", offset):
-        cursor = _skip_blank(text, offset + len("function"))
-        named = _MEMBER_NAME.match(text, cursor)
-        offset = _skip_blank(text, named.end()) if named else cursor
-    if offset >= len(text) or text[offset] != "(":
+    if scan.startswith("function", offset):
+        cursor = _skip_blank(scan, offset + len("function"))
+        named = _MEMBER_NAME.match(scan, cursor)
+        offset = _skip_blank(scan, named.end()) if named else cursor
+    if offset >= len(scan) or scan[offset] != "(":
         return None
-    closing = _balanced(text, offset, "(", ")")
+    closing = _balanced(scan, offset, "(", ")")
     if closing == -1:
         return None
-    cursor = _skip_blank(text, closing + 1)
-    if cursor < len(text) and text[cursor] == ":":
-        ends = [p for p in (text.find("=>", cursor), text.find("{", cursor)) if p != -1]
-        if not ends:
-            return None
-        return _read_body(text, min(ends), text[cursor + 1:min(ends)].strip())
-    return _read_body(text, cursor, "")
+    parameters = scan[offset + 1:closing]
+    cursor = _skip_blank(scan, closing + 1)
+    returned = ""
+    if cursor < len(scan) and scan[cursor] == ":":
+        head = _skip_blank(scan, cursor + 1)
+        if scan[head:head + 1] == "{":
+            end = _balanced(scan, head, "{", "}")
+            if end == -1:
+                return None
+            returned = scan[head + 1:end]
+            cursor = _skip_blank(scan, end + 1)
+        else:
+            ends = [p for p in (scan.find("=>", cursor), scan.find("{", cursor)) if p != -1]
+            if not ends:
+                return None
+            returned = scan[cursor + 1:min(ends)].strip()
+            cursor = min(ends)
+    body = _read_body(scan, cursor)
+    return None if body is None else (body, returned, parameters)
 
 
-def _referenced_callable(text: str, name: str) -> tuple[str, str] | None:
-    """Read the body of the function a `validateSearch` member points at.
+def _declaration_of(scan: str, name: str) -> int | None:
+    """Find where this file declares `name`, if it declares it at all.
 
     Args:
-        text: The route file's source.
+        scan: The route text, with its comments and strings blanked.
         name: The referenced name.
 
     Returns:
-        The body and the declared return type, or None when this file declares
-        no such function.
+        The offset a callable reader starts from, or None when this file
+        declares no such name.
     """
     escaped = re.escape(name)
-    declared = re.search(rf"\bfunction\s+{escaped}\s*\(", text)
+    declared = re.search(rf"\bfunction\s+{escaped}\s*\(", scan)
     if declared:
-        return _read_callable(text, declared.start())
-    bound = re.search(rf"\b(?:const|let|var)\s+{escaped}\s*(?::[^=\n]*)?=\s*", text)
-    if bound:
-        return _read_callable(text, _skip_blank(text, bound.end()))
-    return None
+        return declared.start()
+    bound = re.search(rf"\b(?:const|let|var)\s+{escaped}\s*(?::[^=\n]*)?=\s*", scan)
+    return _skip_blank(scan, bound.end()) if bound else None
 
 
 def literal_keys(body: str) -> set[str]:
     """Read the keys of every object literal in a function body.
 
-    The body is scanned as a literal itself — an arrow handing back `({ … })`
-    gives its object over with the braces already stripped — and the innermost
-    literals are collapsed as they are read, so a key sitting behind a nested
-    one is still reached. The reader this replaces took the FIRST key of a
-    literal and stopped, so `{ tab: …, page: … }` walked past it.
+    A key sits in exactly one place: straight after the `{` that opens its
+    literal, or after a `,` at that same brace depth. The reader this replaces
+    took every `identifier :` in the text, so `const cfg: string` and the `acq`
+    of `raw.x ? acq : sys` were collected as page keys — and this arm is in
+    `make check` and in CI, so an invented key fails the build over a body that
+    reads nothing at all. The body is scanned as a literal itself: an arrow
+    handing back `({ … })` gives its object over with the braces stripped.
 
     Args:
         body: The function body, without its own braces.
@@ -577,64 +617,121 @@ def literal_keys(body: str) -> set[str]:
     """
     keys: set[str] = set()
     scan = "{" + body + "}"
-    while re.search(r"\{[^{}]*\}", scan):
-        for literal in re.findall(r"\{[^{}]*\}", scan):
-            keys.update(re.findall(r"(\w+)\s*:", literal))
-        scan = re.sub(r"\{[^{}]*\}", "0", scan)
+    depth: list[str] = []
+    expecting = False
+    index = 0
+    while index < len(scan):
+        character = scan[index]
+        if character in "{[(":
+            depth.append(character)
+            expecting = character == "{"
+        elif character in "}])":
+            if depth:
+                depth.pop()
+            expecting = False
+        elif character == ",":
+            expecting = bool(depth) and depth[-1] == "{"
+        elif not character.isspace():
+            named = _MEMBER_NAME.match(scan, index)
+            if named is not None:
+                if expecting and scan[_skip_blank(scan, named.end()):][:1] == ":":
+                    keys.add(named.group(0))
+                expecting = False
+                index = named.end()
+                continue
+            expecting = False
+        index += 1
     return keys
 
 
-def validate_search_bodies(text: str) -> tuple[list[tuple[str, str]], list[str]]:
+def _destructured_keys(parameters: str) -> set[str]:
+    """Read the query keys a destructured parameter list binds.
+
+    `({ page, ...rest }) => …` reads the query as surely as `raw.page` does, and
+    the reader that never looked at the parameter list saw neither.
+
+    Args:
+        parameters: The parameter list, without its parentheses.
+
+    Returns:
+        Every name bound at a property's position.
+    """
+    keys: set[str] = set()
+    for pattern in re.findall(r"\{([^{}]*)\}", parameters):
+        for entry in pattern.split(","):
+            named = re.match(r"\s*([A-Za-z_$][\w$]*)", entry)
+            if named:
+                keys.add(named.group(1))
+    return keys
+
+
+def validate_search_bodies(text: str) -> tuple[list[tuple[str, str, str]], list[str]]:
     """Read every `validateSearch` member of a route file, bounded to the member.
+
+    The file is stripped of its comments and its string literals first — a
+    comment naming the member was read AS the member — and every offset below is
+    taken from that stripped text, while the body is sliced from the source, so
+    a `raw["page"]` still reads as the key it is.
 
     The search is anchored on the member and follows only what may legally sit
     there: `: (…) =>`, `: function`, the method shorthand `(…) {`, or a bare
     NAME — a reference to a function declared in the same file. The unbounded
     reader this replaces took the next `=>` ANYWHERE below the member, so a
-    reference read an unrelated block; in the other direction the same scan
-    would have invented a violation out of a legitimate refactor.
+    reference read an unrelated block. A name followed by `(` is a CALL, not a
+    reference: what it hands back is decided at runtime, so the reader says it
+    cannot read that member rather than measuring the callee's own body and
+    counting it as this one's.
 
-    A reference that resolves to nothing is not silence: the reader says it
-    cannot read that member, because a body nobody read is a body nobody holds.
+    A member that resolves to nothing is not silence: the reader says it cannot
+    read it, because a body nobody read is a body nobody holds — and it says
+    WHICH way it failed, a name this file declares nowhere being a different
+    defect from a name declared in a shape the reader does not follow.
 
     Args:
         text: The route file's source.
 
     Returns:
-        A pair — one (body, declared return type) per member read, and one
-        sentence per member whose body could not be reached.
+        A pair — one (body, declared return type, parameter list) per member
+        read, and one sentence per member whose body could not be reached.
     """
-    readings: list[tuple[str, str]] = []
+    readings: list[tuple[str, str, str]] = []
     unreadable: list[str] = []
-    for member in re.finditer(r"\bvalidateSearch\s*[:(]", text):
+    scan = _strip_noise(text)
+    for member in re.finditer(r"\bvalidateSearch\s*[:(]", scan):
         cursor = member.end() - 1
-        if text[cursor] == "(":
-            reading = _read_callable(text, cursor)
+        if scan[cursor] == "(":
+            reading = _read_callable(scan, cursor)
         else:
-            cursor = _skip_blank(text, cursor + 1)
-            if text.startswith("function", cursor) or (cursor < len(text) and text[cursor] == "("):
-                reading = _read_callable(text, cursor)
+            cursor = _skip_blank(scan, cursor + 1)
+            if scan.startswith("function", cursor) or scan[cursor:cursor + 1] == "(":
+                reading = _read_callable(scan, cursor)
             else:
-                named = _MEMBER_NAME.match(text, cursor)
+                named = _MEMBER_NAME.match(scan, cursor)
+                after = _skip_blank(scan, named.end()) if named else cursor
                 if named is None:
                     reading = None
-                elif text.startswith("=>", _skip_blank(text, named.end())):
+                elif scan.startswith("=>", after):
                     # A single parameter needs no parentheses: `raw => ({ … })`.
-                    reading = _read_body(text, _skip_blank(text, named.end()), "")
+                    span = _read_body(scan, after)
+                    reading = None if span is None else (span, "", named.group(0))
+                elif scan[after:after + 1] == "(":
+                    reading = None
                 else:
-                    reading = _referenced_callable(text, named.group(0))
-                    if reading is None:
+                    declared = _declaration_of(scan, named.group(0))
+                    if declared is None:
                         unreadable.append(
                             f"its validateSearch names « {named.group(0)} », which this file "
                             f"declares nowhere — the reader cannot read that body, and a body "
                             f"nobody read is a body nobody holds")
                         continue
+                    reading = _read_callable(scan, declared)
         if reading is None:
             unreadable.append(
                 "its validateSearch is written in a shape this reader does not follow — "
                 "it cannot read that body, and a body nobody read is a body nobody holds")
             continue
-        readings.append(reading)
+        (start, end), returned, parameters = reading
+        readings.append((text[start:end], returned, parameters))
     return readings, unreadable
 
 
@@ -780,26 +877,31 @@ def arm_addressing(root: Path) -> int:
 
         # The same declaration written INLINE in `validateSearch`, with no
         # named type to read: `validateSearch: (raw) => ({ page: … })`. The
-        # named-type reader above saw only declared types, so a route that
-        # reads a page id straight out of the raw query escaped it entirely.
-        # The body is read BOUNDED to its own member — shorthand, arrow,
-        # function, or a reference resolved in this same file — and then
-        # everything it reads, returns, or names as its return type is
-        # collected. Four equivalents of the one shape below were mutation-
-        # proved to read clean, so the reader closes on the member rather than
-        # on the next arrow it can find; and a member whose body cannot be
-        # reached is a violation in its own right, because a reader silent over
-        # what it could not read is the blindness this file exists to refuse.
+        # named-type reader above saw only declared types, so a route reading a
+        # page id straight out of the raw query escaped it entirely. The body is
+        # read BOUNDED to its own member, and then everything it reads, returns,
+        # names as its return type or binds in its parameters is collected. A
+        # member whose body cannot be reached is a violation in its own right,
+        # because a reader silent over what it could not read is the blindness
+        # this file exists to refuse.
         inline = set()
         readings, unreadable = validate_search_bodies(text)
         bodies_read += len(readings)
         for sentence in unreadable:
             violations.append(f"{module}: {sentence}")
-        for body, returned in readings:
-            inline.update(re.findall(r'raw\["(\w+)"\]', body))
-            inline.update(re.findall(r"raw\.(\w+)", body))
-            inline.update(re.findall(r"read\.(\w+)\s*=", body))
-            inline.update(literal_keys(body))
+        for body, returned, parameters in readings:
+            # The body is the SOURCE slice, so a quoted key still reads as one;
+            # everything that scans for CODE reads it with its noise blanked.
+            code = _strip_noise(body)
+            inline.update(re.findall(r"""raw\s*(?:\?\.)?\[\s*['"](\w+)['"]\s*\]""", body))
+            inline.update(re.findall(r"raw\s*\??\.\s*(\w+)", code))
+            inline.update(re.findall(r"read\.(\w+)\s*=", code))
+            inline.update(literal_keys(code))
+            inline.update(_destructured_keys(parameters))
+            # A return type written INLINE declares its keys right here rather
+            # than under a name — and a name carries no colon, so one read
+            # serves both shapes.
+            inline.update(re.findall(r"(\w+)\s*\??\s*:", returned))
             for named in re.findall(r"\w+", returned):
                 for shape in re.findall(
                         rf"type\s+{re.escape(named)}\s*=\s*\{{([^{{}}]*)\}}", text, re.S):
