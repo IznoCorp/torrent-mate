@@ -34693,6 +34693,46 @@ import { screens, panel, bridge } from "./seams.js";
       console.error("boot: writing the exit guard failed", error);
       window.__navEchec = true;
     }
+    /* AND THE STACK UNDER IT IS SYNTHESISED FROM THE HIERARCHY. A link opened
+       from a message, a bookmark or a restored tab has no stack to unwind, so
+       what a Back finds under the arrival is built here — and what it finds is
+       the page the arrival BELONGS TO, never the home page by default: the
+       library under a media sheet, the arrivals under a resolution. The home
+       page is the FLOOR every other page stands on, which is what makes one
+       Back from any page land there and the exit guard reachable from one
+       place only.
+
+       The entries go on in hierarchy order and the arrival's own goes on LAST,
+       because the router renders by URL: an entry written after it would draw
+       another surface. They are all written before the first paint, so none of
+       the intermediate addresses is ever seen.
+
+       An address nobody serves gets no floor. It is kept exactly as it was
+       typed, and putting a page under it would answer a mistyped link with a
+       journey the operator never made. The sign-in screen gets none either:
+       it covers everything, so it belongs to no page and its own address is
+       already the home page's entry.
+
+       The parent is RENDERED as well as recorded — `state.page` is it, from
+       the same reading, above — so closing a screen reveals a page already in
+       place instead of whatever frame it happened to cover. */
+    const homePage = window.__address.homePage;
+    const beneath = [];
+    if (!arrival.notFound && (arrival.screen || arrival.page !== homePage)) {
+      beneath.push(homePage);
+      if (arrival.screen && arrival.page !== homePage) beneath.push(arrival.page);
+    }
+    for (const under of beneath) {
+      try {
+        __bridge.record(
+          Object.assign(navigationState(), { page: under }),
+          window.__address.compose(Object.assign({}, currentState(), { page: under })),
+        );
+      } catch (error) {
+        console.error("boot: recording the entry beneath the arrival failed", error);
+        window.__navEchec = true;
+      }
+    }
     /* Pushed with the address one ARRIVED at rather than with the one the
        state now implies. Rendering an unknown id moves the state onto the
        not-found surface, and deriving the address from it here rewrote a

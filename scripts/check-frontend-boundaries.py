@@ -789,11 +789,13 @@ def arm_addressing(root: Path) -> int:
     L02's lesson, paid for once already.
 
     It also holds the SCREEN paths, and that is a contract with three ends: the
-    `SCREEN_PATHS` table declares them, the route files serve them, and this
-    reads both and refuses a difference. A screen is a layer over the home
-    frame rather than a page of its own, so a route the table does not carry
-    resolves to the not-found page underneath the screen — invisible until the
-    screen closes, which is why an offline reader is what catches it.
+    `SCREEN_PARENTS` table declares them, the route files serve them, and this
+    reads both and refuses a difference. A screen is a layer over a page rather
+    than a page of its own, so a route the table does not carry resolves to the
+    not-found page underneath the screen — invisible until the screen closes,
+    which is why an offline reader is what catches it. The table's VALUES are
+    held too: the page a screen belongs to has to be a page `PAGE_PATHS`
+    carries, or the screen closes onto a surface nothing can draw.
 
     And the PAGES, against the engine that draws them: `PAGE_PATHS` says which
     path names a page, `PAGES_OF()` says which pages exist, and a page in one
@@ -819,7 +821,12 @@ def arm_addressing(root: Path) -> int:
     # The same reading, one level over: the page table's VALUES are the paths a
     # page claims, and the screen table's entries are the paths a screen does.
     page_paths = set(re.findall(r'^\s{2}\w+:\s*"(/[^"]*)"', declaration, re.M))
-    screen_paths = set(re.findall(r'^\s{2}"(/[^"]*)"', declaration, re.M))
+    # The screen table is read as PAIRS — the path a screen answers and the
+    # page it belongs to. The parent is half the declaration: a screen resolves
+    # to it, and a page nobody serves put underneath one is the not-found
+    # surface again, only spelled differently.
+    screen_parents = dict(re.findall(r'^\s{2}"(/[^"]*)":\s*"(\w+)"', declaration, re.M))
+    screen_paths = set(screen_parents)
     # The page table read as PAIRS as well: a path the table promises and no
     # route file answers is an address that reaches the not-found page, and
     # only the pair can name the page it was promised for.
@@ -916,12 +923,18 @@ def arm_addressing(root: Path) -> int:
     screen_routes = {path for path in served if path not in page_paths and path != "/"}
     for path in sorted(screen_routes - screen_paths):
         violations.append(
-            f'lib/addresses.ts: "{path}" is served by a route and declared by no SCREEN_PATHS '
+            f'lib/addresses.ts: "{path}" is served by a route and declared by no SCREEN_PARENTS '
             f"entry — it would resolve to the not-found page underneath its screen")
     for path in sorted(screen_paths - screen_routes):
         violations.append(
-            f'lib/addresses.ts: SCREEN_PATHS declares "{path}", which no route serves — '
+            f'lib/addresses.ts: SCREEN_PARENTS declares "{path}", which no route serves — '
             f"a declaration outliving its route is how the table stops describing the tree")
+    for path, parent in sorted(screen_parents.items()):
+        if parent not in pages:
+            violations.append(
+                f'lib/addresses.ts: SCREEN_PARENTS puts « {parent} » under "{path}", and '
+                f"PAGE_PATHS carries no such page — the screen would close onto a page "
+                f"nothing can draw or address")
     for page, path in sorted(page_addresses.items()):
         if path not in served:
             violations.append(

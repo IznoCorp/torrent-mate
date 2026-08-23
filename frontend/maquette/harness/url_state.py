@@ -52,11 +52,16 @@ What this holds to:
    replaces it with the home page's address — a replace, never a push, so
    nothing is inserted and the first Back still reaches the guard entry
    underneath instead of bouncing off a redirect.
-9. A SCREEN address resolves to the page underneath it, exactly as `/login`
-   does. A screen is a layer over the home frame, not a page of its own, so
-   putting the not-found surface below it means the operator who opened a
-   stable link is told the address leads nowhere the moment they close the
-   screen. Every screen route is opened cold here, and one of them is closed.
+9. A SCREEN address resolves to the page it BELONGS TO, and that page is under
+   it as a rendered entry rather than as a fallback. A screen is a layer over a
+   page, not a page of its own, so putting the not-found surface below it means
+   the operator who opened a stable link is told the address leads nowhere the
+   moment they close the screen — and putting the HOME page below all five
+   means the reader who opened a media sheet closes it onto the acquisition
+   page, which is not where the sheet came from. Every screen route is opened
+   cold here, every one of them is closed, and what the Retour reveals is the
+   parent's own surface at the parent's own address with the exit guard still
+   two entries down.
 10. A navigation write that fails is on record: the flag is raised by every
    writer, and this rule reads it. A refused write leaves the address and the
    interface disagreeing, and a disagreement nothing records is one nobody can
@@ -124,13 +129,17 @@ DIAL_PARAMETERS = tuple(
     + re.findall(r'PANEL_PARAMETER = "([^"]+)"', DECLARATION)
 )
 PAGE_PATHS = dict(re.findall(r'^\s{2}(\w+):\s*"(/[^"]*)"', DECLARATION, re.M))
-# And the SCREEN routes, from the same declaration and with the same regex
-# `scripts/check-frontend-boundaries.py` uses. A `$segment` stands for any
-# one non-empty segment; what fills it is this rule's, the LIST is the
-# model's. Written out here it was a copy, and a copy of a table drifts the
-# day a screen is added — silently, because a screen this rule never opens
-# is a screen this rule never contradicts.
-SCREEN_PATHS = tuple(re.findall(r'^\s{2}"(/[^"]*)"', DECLARATION, re.M))
+# And the SCREEN routes WITH THE PAGE EACH BELONGS TO, from the same
+# declaration and with the same regex `scripts/check-frontend-boundaries.py`
+# uses. A `$segment` stands for any one non-empty segment; what fills it is
+# this rule's, the TABLE is the model's. Written out here it was a copy, and a
+# copy of a table drifts the day a screen is added — silently, because a screen
+# this rule never opens is a screen this rule never contradicts. The PARENT is
+# read for the same reason it is declared: what sits under a screen is the page
+# it belongs to, and a rule that expected the home page under every one of them
+# would agree with the defect § 16 rule 3 names.
+SCREEN_PARENTS = dict(re.findall(r'^\s{2}"(/[^"]*)":\s*"(\w+)"', DECLARATION, re.M))
+SCREEN_PATHS = tuple(SCREEN_PARENTS)
 
 # How the interface OFFERS each page, so its address can be read off a real
 # arrival rather than off a cold load that proves only the other direction.
@@ -237,10 +246,19 @@ History.prototype.PRIMITIVE = function (...args) {
 # carries. What each seam refused is read back against these: a boot that
 # stopped writing through the primitive while some later writer still did would
 # otherwise read as a swallowed refusal instead of a rotted seam.
+# Each seam also carries the ADDRESS its write should have been carrying: the
+# boot pushes the FLOOR before the arrival now, so a seam matching « the first
+# push » would refuse the floor and a hold naming the arrival would report the
+# wrong write as caught.
 BOOT_WRITES = (
-    ("the arrival address", "replaceState", f'url.includes("{BOOT_ADDRESS}")', NAV_MARKER),
-    ("the exit guard", "replaceState", f'given.tm === "{GUARD_MARKER}"', GUARD_MARKER),
-    ("the arrival entry", "pushState", "true", NAV_MARKER),
+    ("the arrival address", "replaceState", f'url.includes("{BOOT_ADDRESS}")',
+     NAV_MARKER, BOOT_PATH),
+    ("the exit guard", "replaceState", f'given.tm === "{GUARD_MARKER}"',
+     GUARD_MARKER, BOOT_PATH),
+    ("the floor beneath the arrival", "pushState", f'url.endsWith("{HOME}")',
+     NAV_MARKER, HOME),
+    ("the arrival entry", "pushState", f'url.includes("{BOOT_ADDRESS}")',
+     NAV_MARKER, BOOT_PATH),
 )
 
 # The two ways an addressed panel is dropped BEFORE anything can decline it —
@@ -422,7 +440,7 @@ async def main():
         # write: the load that has its settlement refused is not the load that
         # has its guard refused, and a rule holding only the third of them held
         # the other two catches by nothing at all.
-        for wanted, primitive, condition, marker in BOOT_WRITES:
+        for wanted, primitive, condition, marker, written in BOOT_WRITES:
             ctx = await b.new_context(**PHONE)
             await ctx.add_init_script(refuse_one_boot_write(primitive, condition))
             pg = await ctx.new_page()
@@ -443,10 +461,10 @@ async def main():
             # entry it was writing.
             journal.check(
                 f"the seam refused the boot's write of {wanted}, and it is the boot's own",
-                refused.get("url") == BOOT_PATH
+                refused.get("url") == written
                 and (refused.get("state") or {}).get("tm") == marker,
                 f"refused={refused.get('url')!r} "
-                f"state.tm={(refused.get('state') or {}).get('tm')!r} · wanted {BOOT_PATH!r}/{marker!r}")
+                f"state.tm={(refused.get('state') or {}).get('tm')!r} · wanted {written!r}/{marker!r}")
             journal.check(
                 f"and a refused write of {wanted} is on record like any other",
                 booted["failed"] is True,
@@ -500,12 +518,32 @@ async def main():
                       f"{len(screens)} composed of {len(SCREEN_PATHS)} declared: "
                       f"{[route for route, _ in screens]}")
         for route, address in screens:
+            parent = SCREEN_PARENTS[route]
             ctx, pg, errors = await open_page(b, PROTOTYPE + address)
             under = await pg.evaluate(WHERE)
             journal.check(
-                f"a cold {route} shows the home page underneath the screen",
-                under["page"] == HOME_PAGE and under["notFound"] == "",
-                f"/{address} -> page={under['page']} notFound={under['notFound']!r}")
+                f"a cold {route} shows « {parent} » — the page it belongs to — underneath",
+                under["page"] == parent and under["notFound"] == "",
+                f"/{address} -> page={under['page']} wanted {parent} "
+                f"notFound={under['notFound']!r}")
+            # And the floor is a whole ENTRY, not only a rendered page: one
+            # Retour has to reveal that page AT ITS OWN ADDRESS without
+            # reaching the exit guard, which is what tells a synthesised stack
+            # from a screen closing onto the frame it happened to cover.
+            went_back = await pg.evaluate(
+                """()=>{const button = document.querySelector(
+                     '[data-part="screen"][data-open] [data-part="screen/back"]');
+                   if (!button) return false; button.click(); return true;}""")
+            await pg.wait_for_timeout(420)
+            revealed = await pg.evaluate(WHERE)
+            armed = await pg.evaluate("()=>window.armedExit")
+            journal.check(
+                f"a Retour from a cold {route} lands on « {parent} » at its own address, "
+                f"the exit guard untouched",
+                went_back and revealed["page"] == parent
+                and path(pg.url) == PAGE_PATHS[parent] and not armed,
+                f"back={went_back} page={revealed['page']} at {path(pg.url)} "
+                f"wanted {PAGE_PATHS[parent]} · armedExit={armed}")
             journal.check(f"no JS error on a cold {route}", not errors, str(errors))
             await ctx.close()
 
@@ -521,13 +559,34 @@ async def main():
                    + ' [data-part="screen/back"]').click()""")
             await pg.wait_for_timeout(420)
             closed = await pg.evaluate(WHERE)
+            sheet_parent = SCREEN_PARENTS["/media/$provider/$id"]
             journal.check(
-                "closing a screen opened cold leaves the home page showing, "
+                "closing a screen opened cold leaves the page it belongs to showing, "
                 "not the not-found one",
-                closed["page"] == HOME_PAGE and NOT_FOUND_TEXT not in closed["empty"],
-                f"page={closed['page']} empty={closed['empty']!r} at {path(pg.url)}")
+                closed["page"] == sheet_parent and NOT_FOUND_TEXT not in closed["empty"],
+                f"page={closed['page']} wanted {sheet_parent} "
+                f"empty={closed['empty']!r} at {path(pg.url)}")
             journal.check("no JS error closing a screen opened cold", not errors, str(errors))
             await ctx.close()
+
+        # And the floor under a PAGE opened cold, which no screen hold can
+        # reach: the entry beneath a top-level page is the home page's own, so
+        # one Back lands there, rendered, with the exit guard still one entry
+        # further down. Without that entry the same Back spends the guard, and
+        # the operator who opened a link to the library is one gesture from
+        # leaving the application.
+        ctx, pg, errors = await open_page(b, PROTOTYPE + "media")
+        await pg.go_back()
+        await pg.wait_for_timeout(500)
+        floor = await pg.evaluate(WHERE)
+        armed = await pg.evaluate("()=>window.armedExit")
+        journal.check(
+            "a Back from a page opened cold lands on the home page, rendered, "
+            "and does not reach the exit guard",
+            path(pg.url) == HOME and floor["page"] == HOME_PAGE and not armed,
+            f"{path(pg.url)} · page={floor['page']} · armedExit={armed}")
+        journal.check("no JS error backing off a page opened cold", not errors, str(errors))
+        await ctx.close()
 
         # ── 2. walking writes the address ──────────────────────────────────
         ctx, pg, errors = await open_page(b)

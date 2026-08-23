@@ -46,24 +46,61 @@ export const NOT_FOUND_PAGE = "404";
 // that is already built rather than over nothing.
 export const SIGN_IN_PATH = "/login";
 
-// The screen addresses. A screen is not a PAGE either — it is a layer drawn
-// OVER the home frame — but D1 gives it a real path, so its address has to
-// resolve to the page UNDERNEATH exactly as `SIGN_IN_PATH` does. Resolving it
-// to the not-found page instead puts « this address leads nowhere » beneath a
-// screen the operator opened from a stable link, and the moment the screen
-// closes that is all they are left with.
+// The screen addresses, each with the page it BELONGS TO. A screen is not a
+// PAGE — it is a layer drawn over a frame — but D1 gives it a real path, so
+// its address has to resolve to the page UNDERNEATH exactly as `SIGN_IN_PATH`
+// does. Resolving it to the not-found page instead puts « this address leads
+// nowhere » beneath a screen the operator opened from a stable link, and the
+// moment the screen closes that is all they are left with.
 //
-// This list is the SINGLE declaration the routes, the addressing rule and the
+// AND THE PAGE UNDERNEATH IS THE REAL PARENT, never the home page by default.
+// A link opened from outside has no stack to unwind, so what sits under the
+// screen is the page it belongs to — the library under a media sheet, the
+// arrivals under a resolution. Each parent below is read off the surface the
+// screen's opener is EMITTED FROM, not chosen: the sheet is the library's
+// object, a resolution is an arrival's, and the release picker, the quality
+// profile and the add screen are all opened from the acquisition page.
+//
+// This table is the SINGLE declaration the routes, the addressing rule and the
 // offline guard are all held against: a screen route with no entry here, or an
-// entry no route claims, is a violation. A `$segment` stands for any one
-// non-empty segment, the way the route files write it.
-export const SCREEN_PATHS: readonly string[] = [
-  "/add",
-  "/quality/$name",
-  "/media/$provider/$id",
-  "/releases/$title",
-  "/resolution/$folder",
-];
+// entry no route claims, is a violation, and so is a parent that is not a page
+// the page table carries. A `$segment` stands for any one non-empty segment,
+// the way the route files write it.
+export const SCREEN_PARENTS: Readonly<Record<string, string>> = {
+  "/add": "acq",
+  "/quality/$name": "acq",
+  "/media/$provider/$id": "lib",
+  "/releases/$title": "acq",
+  "/resolution/$folder": "arr",
+};
+
+/** The screen paths alone, for the readers that need the list rather than the
+ * hierarchy — matching a path is one of them. */
+export const SCREEN_PATHS: readonly string[] = Object.keys(SCREEN_PARENTS);
+
+/**
+ * The page a screen address belongs to, for the paths that name a screen.
+ *
+ * Args:
+ *     pathname: The address's path.
+ *
+ * Returns:
+ *     The parent page's id when the path matches a `SCREEN_PARENTS` key, a
+ *     `$segment` standing for any one non-empty segment; undefined when the
+ *     path names no screen.
+ */
+export function screenParentOf(pathname: string): string | undefined {
+  const asked = pathname.split("/").filter(Boolean);
+  for (const declared of SCREEN_PATHS) {
+    const segments = declared.split("/").filter(Boolean);
+    if (
+      segments.length === asked.length &&
+      segments.every((segment, index) => segment.startsWith("$") || segment === asked[index])
+    )
+      return SCREEN_PARENTS[declared];
+  }
+  return undefined;
+}
 
 /**
  * Tells whether a path is one of the screen addresses.
@@ -72,18 +109,12 @@ export const SCREEN_PATHS: readonly string[] = [
  *     pathname: The address's path.
  *
  * Returns:
- *     True when the path matches a `SCREEN_PATHS` entry, a `$segment`
- *     standing for any one non-empty segment.
+ *     True when the path names a screen — one matcher, asked the other way
+ *     round, because two matchers over one table are two answers waiting to
+ *     differ.
  */
 export function isScreenPath(pathname: string): boolean {
-  const asked = pathname.split("/").filter(Boolean);
-  return SCREEN_PATHS.some((declared) => {
-    const segments = declared.split("/").filter(Boolean);
-    return (
-      segments.length === asked.length &&
-      segments.every((segment, index) => segment.startsWith("$") || segment === asked[index])
-    );
-  });
+  return screenParentOf(pathname) !== undefined;
 }
 
 // Every dial: the query parameter that carries it, the store field it writes,
@@ -221,6 +252,11 @@ export type Destination = {
   signIn?: boolean;
   /** The addressed panel asked for, as `<kind>:<subject>`. */
   panel?: string;
+  /** The address names a SCREEN, and `page` is therefore the page it belongs
+   * to rather than the surface the address itself draws. A caller that has to
+   * build the path from the hierarchy — the boot, synthesising a stack no
+   * gesture left behind — cannot tell the two apart from `page` alone. */
+  screen?: boolean;
 };
 
 /**
@@ -294,7 +330,11 @@ export function addressOf(
  *
  * Returns:
  *     The page the path names and the dials the query sets. A screen address
- *     resolves to the page underneath it, the way the sign-in one does. A path
+ *     resolves to the page it BELONGS TO — the library under a media sheet,
+ *     the arrivals under a resolution — and says that it is a screen, so a
+ *     caller can tell the page it drew from the page it stands on. The sign-in
+ *     screen keeps the home page underneath: it covers everything, so it
+ *     belongs to no page in particular. A path
  *     neither a page nor a screen claims resolves to the not-found page,
  *     carrying the address AS ASKED — path AND query, nothing dropped —
  *     because deriving a corrected address from it is the interface rewriting
@@ -309,7 +349,8 @@ export function destinationOf(pathname: string, search: string): Destination {
   // The panel tier is independent of which page shows — a panel opens over
   // whichever surface is underneath, a screen included.
   const panel = query.get(PANEL_PARAMETER) || undefined;
-  if (isScreenPath(pathname)) return { page: HOME_PAGE, dials: {}, panel };
+  const parent = screenParentOf(pathname);
+  if (parent !== undefined) return { page: parent, dials: {}, panel, screen: true };
   const page =
     PAGE_OF_PATH[pathname] ?? (pathname === "/" ? HOME_PAGE : NOT_FOUND_PAGE);
   const dials: Record<string, string> = {};

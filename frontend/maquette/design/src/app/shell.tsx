@@ -67,6 +67,7 @@ import { installSeams } from "../engine/seams";
 import {
   addressOf,
   destinationOf,
+  HOME_PAGE,
   isScreenPath,
   PANEL_PARAMETER,
   SIGN_IN_PATH,
@@ -145,6 +146,10 @@ declare global {
     __address: {
       /** The sign-in screen's own path, so the engine writes it by name. */
       signInPath: string;
+      /** The page every other page sits on — the root of the hierarchy. The
+       * engine synthesises a stack from it on a cold link and steps back onto
+       * it when a tab is tapped, and neither is the engine's to name. */
+      homePage: string;
       /** The name the addressed panel travels under, so the engine can ask
        * whether an address carried one at all without spelling it itself. */
       panelParameter: string;
@@ -160,6 +165,7 @@ declare global {
         notFound?: string;
         signIn?: boolean;
         panel?: string;
+        screen?: boolean;
       };
     };
     // The domain hooks and the probes read the engine's state through this.
@@ -683,6 +689,7 @@ window.__store = store;
 // vocabulary, so nothing translates on the way across.
 window.__address = {
   signInPath: SIGN_IN_PATH,
+  homePage: HOME_PAGE,
   panelParameter: PANEL_PARAMETER,
   withoutPanel: withoutPanel,
   compose: (state) => addressOf(String(state.page ?? ""), state),

@@ -1,7 +1,8 @@
 """Tests for the addressing arm of the frontend-boundary guard.
 
 The arm refuses a page identity travelling in the query (`?page=`), a dial
-promoted into the path, and a screen the model does not declare. An adversarial
+promoted into the path, a screen the model does not declare, and a screen put
+under a page the model does not carry. An adversarial
 review mutation-proved two blind spots: an inline `validateSearch` with no
 named `SearchParams` type escaped the declared-type reader entirely, and a
 deleted `lib/addresses.ts` reported « 0 dial(s), 0 page(s) » and clean. A
@@ -277,7 +278,7 @@ class TestAddressingArm:
         assert violations == 1
         offender = [line for line in captured.err.splitlines() if "« profile »" in line]
         assert offender and "/account" in offender[0]
-        assert "SCREEN_PATHS" not in captured.err
+        assert "SCREEN_PARENTS" not in captured.err
 
     def test_m_the_summary_counts_the_bodies_it_read(self, capsys) -> None:
         """The summary says how many validateSearch bodies were read — one per route declaring it."""
@@ -461,6 +462,21 @@ class TestAddressingArm:
         captured = capsys.readouterr()
         assert violations == 1, captured.err
         assert "declares nowhere" in captured.err
+
+    def test_z_a_screen_parent_that_is_no_page_is_a_violation(self, tmp_path, capsys) -> None:
+        """Refuse a screen belonging to a page the table does not carry — it would close onto nothing."""
+        root = copy_design_src(tmp_path)
+        model = root / "lib" / "addresses.ts"
+        model.write_text(
+            model.read_text(encoding="utf-8").replace('"/media/$provider/$id": "lib"',
+                                                      '"/media/$provider/$id": "nowhere"'),
+            encoding="utf-8",
+        )
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations == 1, captured.err
+        assert any("« nowhere »" in line and "/media/$provider/$id" in line
+                   for line in captured.err.splitlines())
 
     def test_the_real_tree_reads_clean(self, capsys) -> None:
         """The unmodified repository reports zero violations — the arm still reads the tree it guards."""

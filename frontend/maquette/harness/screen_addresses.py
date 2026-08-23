@@ -49,15 +49,24 @@ printing "inconnu" in its place. What the harness holds for the mediaSheet:
 (f) a deep address opens it cold, `h2.ht` carrying the promised title;
 (g) the hero/poster the screen draws ITSELF actually loads — proven on the
 image the CSS background resolves to, not on a stand-in; (h) one Back
-lands exactly where holds 3+4 already prove it does for `ProfileScreen`; (i)
+lands on the page the sheet BELONGS TO, the way holds 3+4 prove it does for
+`ProfileScreen`; (i)
 an unknown title renders the SAME honest template, mirroring `openFiche`'s
 own null path rather than inventing a not-found surface for it; (j) a
 title the provider gave no trailer to renders `p.noinfo` in the
 trailer's own place, never a silently missing section.
+
+AND WHERE A COLD RETOUR LANDS IS THE PARENT'S ADDRESS, not the home page's.
+Holds (h), (l) and (n) each name their own page — the library under the sheet,
+the arrivals under a resolution, the acquisition page under the release picker
+— because a stack synthesised from the hierarchy is what puts a real page under
+a link opened from outside, and a rule expecting one page under all three would
+pass over every parent being wrong but one.
 """
 import asyncio
 import json
 import pathlib
+import re
 import sys
 import urllib.parse
 
@@ -69,10 +78,29 @@ from server import start_server
 
 SERVED_ROOT = pathlib.Path("/tmp/tm-refonte")
 
-# Where a Retour from a screen opened COLD lands. The screen's own entry is
-# left behind and the page underneath writes its address, so what is measured
-# is the HOME page's own path — not the bare root, which names no page.
-HOME = "/acquisition"
+# Where a Retour from a screen opened COLD lands: on the page the screen
+# BELONGS TO, at that page's own address — not the bare root, which names no
+# page, and not the home page for all of them, which is the default § 16 rule 3
+# replaces. Both tables are READ off the address model rather than written down
+# here: a copy of a table drifts the day a screen moves, and it drifts silently
+# because nothing renders it.
+MODEL = pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "lib" / "addresses.ts"
+DECLARATION = MODEL.read_text(encoding="utf-8")
+PAGE_PATHS = dict(re.findall(r'^\s{2}(\w+):\s*"(/[^"]*)"', DECLARATION, re.M))
+SCREEN_PARENTS = dict(re.findall(r'^\s{2}"(/[^"]*)":\s*"(\w+)"', DECLARATION, re.M))
+
+
+def parent_path(route):
+    """The address of the page a screen route belongs to.
+
+    Args:
+        route: The screen's declared path, `$segment` placeholders included.
+
+    Returns:
+        The parent page's own path, as `PAGE_PATHS` declares it.
+    """
+    return PAGE_PATHS[SCREEN_PARENTS[route]]
+
 
 TITLE = "Silo"
 # Typed by hand, on purpose: the apostrophe is left unescaped, exactly the
@@ -416,10 +444,12 @@ async def main():
             await pg.wait_for_timeout(300)
             sheet_returned = await pg.evaluate(SCREEN_STATE)
             journal.check(
-                "(h) a Retour from the sheet lands on the default page, screen gone, "
-                "at the home page's own address",
-                not sheet_returned["open"] and sheet_returned["pathname"] == HOME,
-                sheet_returned["pathname"])
+                "(h) a Retour from the sheet lands on the page it belongs to, screen "
+                "gone, at that page's own address",
+                not sheet_returned["open"]
+                and sheet_returned["pathname"] == parent_path("/media/$provider/$id"),
+                f"{sheet_returned['pathname']} · wanted "
+                f"{parent_path('/media/$provider/$id')}")
             journal.check("no JS error during the back from the sheet", not errors, str(errors))
             await ctx.close()
 
@@ -496,10 +526,12 @@ async def main():
             await pg.wait_for_timeout(300)
             resolution_returned = await pg.evaluate(SCREEN_STATE)
             journal.check(
-                "(l) a Retour from the resolution lands on the default page, "
-                "screen gone, at the home page's own address",
-                not resolution_returned["open"] and resolution_returned["pathname"] == HOME,
-                resolution_returned["pathname"])
+                "(l) a Retour from the resolution lands on the page it belongs to, "
+                "screen gone, at that page's own address",
+                not resolution_returned["open"]
+                and resolution_returned["pathname"] == parent_path("/resolution/$folder"),
+                f"{resolution_returned['pathname']} · wanted "
+                f"{parent_path('/resolution/$folder')}")
             journal.check("no JS error during the back from the resolution",
                              not errors, str(errors))
             await ctx.close()
@@ -526,10 +558,12 @@ async def main():
             await pg.wait_for_timeout(300)
             releases_returned = await pg.evaluate(SCREEN_STATE)
             journal.check(
-                "(n) a Retour from the releases lands on the default page, "
-                "screen gone, at the home page's own address",
-                not releases_returned["open"] and releases_returned["pathname"] == HOME,
-                releases_returned["pathname"])
+                "(n) a Retour from the releases lands on the page it belongs to, "
+                "screen gone, at that page's own address",
+                not releases_returned["open"]
+                and releases_returned["pathname"] == parent_path("/releases/$title"),
+                f"{releases_returned['pathname']} · wanted "
+                f"{parent_path('/releases/$title')}")
             journal.check("no JS error during the back from the releases",
                              not errors, str(errors))
             await ctx.close()
