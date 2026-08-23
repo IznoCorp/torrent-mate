@@ -68,6 +68,7 @@ import {
   addressOf,
   destinationOf,
   isScreenPath,
+  PANEL_PARAMETER,
   SIGN_IN_PATH,
   withoutPanel,
   withPanel,
@@ -138,6 +139,9 @@ declare global {
     __address: {
       /** The sign-in screen's own path, so the engine writes it by name. */
       signInPath: string;
+      /** The name the addressed panel travels under, so the engine can ask
+       * whether an address carried one at all without spelling it itself. */
+      panelParameter: string;
       /** A query string with the panel parameter taken off, rest verbatim. */
       withoutPanel: (search: string) => string;
       compose: (state: Record<string, unknown>) => string;
@@ -149,6 +153,7 @@ declare global {
         dials: Record<string, string>;
         notFound?: string;
         signIn?: boolean;
+        panel?: string;
       };
     };
     // The domain hooks and the probes read the engine's state through this.
@@ -670,6 +675,7 @@ window.__store = store;
 // vocabulary, so nothing translates on the way across.
 window.__address = {
   signInPath: SIGN_IN_PATH,
+  panelParameter: PANEL_PARAMETER,
   withoutPanel: withoutPanel,
   compose: (state) => addressOf(String(state.page ?? ""), state),
   parse: destinationOf,

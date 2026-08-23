@@ -34592,6 +34592,28 @@ import { screens, panel, bridge } from "./seams.js";
       location.pathname === "/"
         ? window.__address.compose(currentState())
         : location.pathname + window.__address.withoutPanel(arrivalSearch);
+    /* TWO WAYS AN ADDRESSED PANEL IS DROPPED BEFORE ANYTHING CAN DECLINE IT,
+       and both used to be silent. An EMPTY value names no panel at all, and a
+       panel asked for over the SIGN-IN screen is never even read — the gate
+       covers everything, so there is nothing for a panel to open over. Either
+       way the parameter has just come off the arrival address above, and a
+       parameter that disappears without a word is one nobody can account for
+       from the outside. The value the interface DECLINES already says so; these
+       two are the values it never got as far as declining.
+
+       ENGLISH, and not in the i18n resources, like every other console
+       message: a developer reads it, never a reader of the interface. */
+    if (
+      !arrival.panel &&
+      new URLSearchParams(arrivalSearch).has(window.__address.panelParameter)
+    ) {
+      console.warn(
+        arrival.signIn
+          ? "the sign-in screen covers everything, so the addressed panel is dropped:"
+          : "the addressed panel carries no value, so nothing is opened:",
+        location.pathname + arrivalSearch,
+      );
+    }
     render();
     /* A cold `/login` raises the gate over a frame that is already drawn,
        which is the whole reason its address resolves to a page underneath
