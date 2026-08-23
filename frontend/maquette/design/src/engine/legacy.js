@@ -11196,15 +11196,38 @@ import { screens, panel, bridge } from "./seams.js";
      surface; who may see it is decided by the server that serves this file. A
      password written into a page is readable by everyone the page reaches,
      which is the opposite of what a password is for. */
+  /* The sign-in screen sits on a real path (D1). It is not a page — it is a
+     layer covering everything — but it is what one SEES, and every screen owes
+     an address. The refusal is a STATE of that address, not a second one: it is
+     not a place anyone links to.
+
+     Written through the same single writer every other address goes through, in
+     REPLACE: signing in is not a step of the walk one goes back through, and a
+     back out of the gate onto the page it guards would be a lie.
+
+     Never under `pilotage`: `__go` drives a named state without touching
+     history, which R74 holds, and the harness reaching the sign-in state must
+     not move the address. */
   function showSignIn(avecErreur) {
     document.querySelector("#login").hidden = false;
     document.querySelector("#loginerr").hidden = !avecErreur;
     if (avecErreur) document.querySelector("#loginform").reset();
+    if (!pilotage)
+      try {
+        __bridge.replace(navigationState(), window.__address.signInPath);
+      } catch (error) {}
   }
 
   function hideSignIn() {
+    const wasShown = !document.querySelector("#login").hidden;
     document.querySelector("#login").hidden = true;
     document.querySelector("#loginerr").hidden = true;
+    /* The address follows the screen off, so the gate does not stay in the bar
+       over the application it has just let through. */
+    if (wasShown && !pilotage)
+      try {
+        __bridge.replace(navigationState(), window.__address.compose(currentState()));
+      } catch (error) {}
   }
 
   /* Signing out ends the session and lands on the entry screen.
@@ -34453,6 +34476,15 @@ import { screens, panel, bridge } from "./seams.js";
         ? window.__address.compose(currentState())
         : location.pathname + location.search;
     render();
+    /* A cold `/login` raises the gate over a frame that is already drawn,
+       which is the whole reason its address resolves to a page underneath
+       rather than to nothing. Under `pilotage` so the raise does not rewrite
+       the address it was just read from. */
+    if (arrival.signIn) {
+      pilotage = true;
+      showSignIn(false);
+      pilotage = false;
+    }
     /* The address is put back on the entry one arrives on, so a back from
        anywhere reaches the page the link named rather than a bare
        document. */

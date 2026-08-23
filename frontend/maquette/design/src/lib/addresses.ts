@@ -38,6 +38,14 @@ export const HOME_PAGE = "acq";
 /** The page an address nobody serves lands on. */
 export const NOT_FOUND_PAGE = "404";
 
+// The sign-in screen's address. It is not a PAGE — it is a layer that covers
+// everything, so it names no entry in the page table — but D1 says every screen
+// sits on a real path, and this is a screen: it is the whole of what one sees.
+// Its address therefore resolves to the home page UNDERNEATH plus the flag that
+// raises it, which is what lets a cold `/login` show the sign-in over a frame
+// that is already built rather than over nothing.
+export const SIGN_IN_PATH = "/login";
+
 // Every dial: the query parameter that carries it, the store field it writes,
 // and the value at which it is ABSENT from the address.
 //
@@ -72,6 +80,8 @@ export type Destination = {
   page: string;
   dials: Record<string, string>;
   notFound?: string;
+  /** The sign-in screen is asked for, over whatever page the address names. */
+  signIn?: boolean;
 };
 
 /**
@@ -119,6 +129,7 @@ export function addressOf(page: string, values: Record<string, unknown>): string
  *     does.
  */
 export function destinationOf(pathname: string, search: string): Destination {
+  if (pathname === SIGN_IN_PATH) return { page: HOME_PAGE, dials: {}, signIn: true };
   const page =
     PAGE_OF_PATH[pathname] ?? (pathname === "/" ? HOME_PAGE : NOT_FOUND_PAGE);
   const dials: Record<string, string> = {};

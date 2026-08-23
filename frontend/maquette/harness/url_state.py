@@ -40,7 +40,11 @@ What this holds to:
 6. No page identity survives in a query, and no dial in a path. This is
    invariant 1 read in both directions, and it is the hold the renegotiation
    adds: the shape D1 forbids is not merely absent today, it is refused.
-7. The bare root SETTLES rather than redirects. `/` names no page, so the boot
+7. The sign-in screen sits on a real path too. It is not a page — it is a
+   layer covering everything — but it is what one SEES, and D1 gives every
+   screen an address, so `/login` resolves to the page underneath plus the flag
+   that raises the gate.
+8. The bare root SETTLES rather than redirects. `/` names no page, so the boot
    replaces it with the home page's address — a replace, never a push, so
    nothing is inserted and the first Back still reaches the guard entry
    underneath instead of bouncing off a redirect.
@@ -121,6 +125,39 @@ async def main():
         armed = await pg.evaluate("()=>window.armedExit")
         journal.check("the root SETTLED rather than redirected — one back reaches the guard",
                       bool(armed), f"armedExit={armed} · at {path(pg.url)}")
+        await ctx.close()
+
+        # ── the sign-in screen sits on a real path too ─────────────────────
+        # It is not a page — it is a layer covering everything — but it is what
+        # one SEES, and D1 gives every screen an address. Its address resolves
+        # to the page UNDERNEATH plus the flag that raises the gate, which is
+        # what lets a cold `/login` cover a frame already drawn.
+        ctx, pg, errors = await open_page(b, PROTOTYPE + "login")
+        gate = await pg.evaluate(
+            """()=>({raised: !document.querySelector('#login').hidden,
+                     page: state.page})""")
+        journal.check("a cold /login raises the sign-in screen",
+                      gate["raised"], f"raised={gate['raised']} over page={gate['page']}")
+        journal.check("and it keeps its own address",
+                      path(pg.url) == "/login", pg.url)
+        journal.check("no JS error on a cold /login", not errors, str(errors))
+        await ctx.close()
+
+        # ── and the gate WRITES that address when it is raised from inside ──
+        # The cold hold above reads the address; this one proves the other
+        # direction. Without it the rule passes over a gate that never writes
+        # anything — measured: severing the write left every hold above green.
+        ctx, pg, errors = await open_page(b)
+        before = path(pg.url)
+        await pg.evaluate("()=>window.showSignIn(false)")
+        await pg.wait_for_timeout(300)
+        journal.check("raising the gate from inside writes its address",
+                      path(pg.url) == "/login", f"{before} -> {path(pg.url)}")
+        await pg.evaluate("()=>window.hideSignIn()")
+        await pg.wait_for_timeout(300)
+        journal.check("and letting it through gives the address back",
+                      path(pg.url) == HOME, pg.url)
+        journal.check("no JS error raising and clearing the gate", not errors, str(errors))
         await ctx.close()
 
         # ── 2. walking writes the address ──────────────────────────────────
