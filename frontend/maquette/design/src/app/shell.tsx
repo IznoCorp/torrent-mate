@@ -555,6 +555,34 @@ function panelAddress(address: string): string {
   return addressOf(String(state.page ?? ""), state, address);
 }
 
+/* Raised while a panel is being put back onto the entry that ALREADY records
+   it. It is the one case where a panel opens and history must not move: a
+   Forward lands on the layer entry the first open pushed, and that entry is
+   already there, already `{ layer: "sheet" }`, already carrying the panel's own
+   address. Pushing a second one would leave a duplicate the next Back spends
+   without taking the panel's address off. */
+let onCurrentEntry = false;
+
+/**
+ * Runs a producer's open with the history write suppressed.
+ *
+ * The producer is called through this door rather than handed an argument,
+ * because the argument would have to travel through every producer that opens
+ * a panel — and they open it by describing FACTS, which is the whole of what
+ * they are meant to know.
+ *
+ * Args:
+ *     open: The producer call that opens the panel.
+ */
+function openPanelOnCurrentEntry(open: () => void): void {
+  onCurrentEntry = true;
+  try {
+    open();
+  } finally {
+    onCurrentEntry = false;
+  }
+}
+
 function openPanel(descriptor: PanelDescriptor): void {
   // Same order as the legacy `openSheet`: the layer first, the history entry
   // second. This file is SHELL code — the seam itself — so it writes the store
@@ -562,6 +590,7 @@ function openPanel(descriptor: PanelDescriptor): void {
   flushSync(() =>
     store.write({ panelDescriptor: descriptor, panelOpen: true }),
   );
+  if (onCurrentEntry) return;
   try {
     // D1's second tier: a panel whose subject is stable travels in the query,
     // so a reload reopens it. One with no `address` is transient and keeps the
@@ -608,6 +637,7 @@ window.__panel = {
   open: openPanel,
   close: closePanel,
   isOpen: isPanelOpen,
+  openOnCurrentEntry: openPanelOnCurrentEntry,
 };
 
 // The engine reads these three by import rather than off `window` — same

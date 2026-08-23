@@ -11047,6 +11047,19 @@ import { screens, panel, bridge } from "./seams.js";
       return;
     }
 
+    /* A FORWARD onto a layer entry, which is the one direction nothing walked.
+       Going back off a panel leaves its entry AHEAD in the history; stepping
+       forward onto it fell through every branch below — no layer is open, and
+       the entry carries no `tm` — so the address read `?panel=…` with nothing
+       open, and a reload at it brought back what the gesture had not. The
+       entry names the panel in its own address, so it is asked for again;
+       nothing is pushed, because this entry IS the panel's. A value that no
+       longer resolves leaves the entry alone and says so. */
+    if (etatCourant && etatCourant.layer === "sheet" && !panel.isOpen()) {
+      reopenAddressedPanel(location.search, true);
+      return;
+    }
+
     const state = etatCourant;
     if (state && state.tm === "nav") {
       armedExit = 0;
@@ -34418,6 +34431,96 @@ import { screens, panel, bridge } from "./seams.js";
      and the dismissal threshold. Nothing binds here anymore: `#sheetgrab` does
      not exist when this script runs. */
 
+  /* An ADDRESSED panel reopens on a cold load — otherwise its address would
+     be decoration, written but never read. The table is here, beside the
+     producers it names, and every entry answers TWO questions: how to open
+     the panel, and whether the subject is one this interface HOLDS.
+
+     THREE WAYS A VALUE IS REFUSED, and all three land the reader on the page
+     with a clean address rather than on a panel nobody serves: a value that
+     is not `<kind>:<subject>`, a kind the table does not carry, and a
+     subject nobody holds. The last is why `resolves` exists at all — the
+     producers answer for anything, which is right for the door inside the
+     application (see `knownMedium`) and wrong for a door anyone can type.
+
+     Split on the FIRST colon only, because a subject carries its own: a
+     setting is addressed `<file>:<key>`, and a title like « Dexter:
+     Resurrection » would otherwise name a medium that does not exist. */
+  const REOPEN = {
+    follow: { open: openFollowSheet, resolves: knownMedium },
+    journey: {
+      open: openJourneySheet,
+      /* A journey is reached from the follow panel's own action, which
+         carries the medium's title, and from nowhere else. So it answers for
+         a medium this interface holds, plus the acquisitions in flight —
+         which are what a journey describes. */
+      resolves: (subject) =>
+        knownMedium(subject) || INFLIGHT.some((entry) => entry.t === subject),
+    },
+    setting: {
+      open: openSetting,
+      resolves: (subject) =>
+        allSettings().some((setting) => settingId(setting) === subject),
+    },
+    action: {
+      open: openActionMaintenance,
+      resolves: (subject) =>
+        MAINT_ACTIONS.some((action) => action.id === subject),
+    },
+  };
+
+  /**
+   * Opens the panel an address names, when the interface holds its subject.
+   *
+   * ONE reader for `panel=`, and it is one because it is asked from two
+   * places: the boot, on a cold load, and a FORWARD back onto a layer entry.
+   * Two readers of one parameter are two answers waiting to differ, and the
+   * second of them was missing entirely — a Forward re-entered the panel's own
+   * entry with nothing open, so the address named a panel the interface was
+   * not showing and a reload at it brought back what the gesture had not.
+   *
+   * Args:
+   *     search: The query string the value is read from.
+   *     onCurrentEntry: True when the entry recording this panel already
+   *         exists and is the one being stood on, so nothing is pushed.
+   *
+   * Returns:
+   *     True when a panel was opened, false when the value was refused — a
+   *     refusal leaves the caller's entry alone and says why.
+   */
+  function reopenAddressedPanel(search, onCurrentEntry) {
+    const asked = window.__address.parse(location.pathname, search);
+    if (!asked.panel) return false;
+    const separator = asked.panel.indexOf(":");
+    const kind = separator > 0 ? asked.panel.slice(0, separator) : "";
+    const subject = separator > 0 ? asked.panel.slice(separator + 1) : "";
+    const entry = REOPEN[kind];
+    if (asked.notFound || !subject || !entry || !entry.resolves(subject)) {
+      /* ENGLISH, and not in the i18n resources: a console message is a tool
+         message, read by a developer, never by a reader of the interface. */
+      console.warn(
+        "the addressed panel names nothing this interface holds, and is ignored:",
+        asked.panel,
+      );
+      return false;
+    }
+    /* Under `pilotage` because nothing here records a path of its own. The
+       layer entry the panel pushes is not a path, and on a cold load it is
+       pushed regardless — that entry is the point. */
+    const pilotageBefore = pilotage;
+    pilotage = true;
+    try {
+      if (onCurrentEntry) panel.openOnCurrentEntry(() => entry.open(subject));
+      else entry.open(subject);
+    } catch (error) {
+      console.error("reopening the addressed panel failed", error);
+      return false;
+    } finally {
+      pilotage = pilotageBefore;
+    }
+    return true;
+  }
+
   /* The engine no longer boots itself. The shell — store created, bridge
      real — starts it, so no write ever needs recording and replaying, and a
      module that never evaluates leaves the startup screen on screen: a
@@ -34441,7 +34544,11 @@ import { screens, panel, bridge } from "./seams.js";
        defect DOIT-10 names, and it is fixed here rather than corrected after
        a frame the operator would see. The page now travels in the PATH, so
        this reads both halves. */
-    const arrival = window.__address.parse(location.pathname, location.search);
+    /* Read ONCE, and kept: the writes below settle the address, so by the
+       time the panel is asked for at the end of this boot `location.search`
+       no longer carries what was typed. */
+    const arrivalSearch = location.search;
+    const arrival = window.__address.parse(location.pathname, arrivalSearch);
     Object.assign(state, { page: arrival.page }, arrival.dials);
     /* The address as asked, PANEL PARAMETER EXCEPTED — and it is taken off for
        exactly the reason the arrival address below takes it off: a panel the
@@ -34483,7 +34590,7 @@ import { screens, panel, bridge } from "./seams.js";
     const arrivalAddress =
       location.pathname === "/"
         ? window.__address.compose(currentState())
-        : location.pathname + window.__address.withoutPanel(location.search);
+        : location.pathname + window.__address.withoutPanel(arrivalSearch);
     render();
     /* A cold `/login` raises the gate over a frame that is already drawn,
        which is the whole reason its address resolves to a page underneath
@@ -34493,68 +34600,6 @@ import { screens, panel, bridge } from "./seams.js";
       pilotage = true;
       showSignIn(false);
       pilotage = false;
-    }
-    /* An ADDRESSED panel reopens on a cold load — otherwise its address would
-       be decoration, written but never read. The table is here, beside the
-       producers it names, and every entry answers TWO questions: how to open
-       the panel, and whether the subject is one this interface HOLDS.
-
-       THREE WAYS A VALUE IS REFUSED, and all three land the reader on the page
-       with a clean address rather than on a panel nobody serves: a value that
-       is not `<kind>:<subject>`, a kind the table does not carry, and a
-       subject nobody holds. The last is why `resolves` exists at all — the
-       producers answer for anything, which is right for the door inside the
-       application (see `knownMedium`) and wrong for a door anyone can type.
-
-       Split on the FIRST colon only, because a subject carries its own: a
-       setting is addressed `<file>:<key>`, and a title like « Dexter:
-       Resurrection » would otherwise name a medium that does not exist. */
-    const REOPEN = {
-      follow: { open: openFollowSheet, resolves: knownMedium },
-      journey: {
-        open: openJourneySheet,
-        /* A journey is reached from the follow panel's own action, which
-           carries the medium's title, and from nowhere else. So it answers for
-           a medium this interface holds, plus the acquisitions in flight —
-           which are what a journey describes. */
-        resolves: (subject) =>
-          knownMedium(subject) || INFLIGHT.some((entry) => entry.t === subject),
-      },
-      setting: {
-        open: openSetting,
-        resolves: (subject) =>
-          allSettings().some((setting) => settingId(setting) === subject),
-      },
-      action: {
-        open: openActionMaintenance,
-        resolves: (subject) =>
-          MAINT_ACTIONS.some((action) => action.id === subject),
-      },
-    };
-    /* Decided here, applied at the very end of this boot: the panel's own
-       history entry has to sit ON TOP of the arrival entry, and that entry
-       does not exist yet. */
-    let reopenPanel = null;
-    if (arrival.panel) {
-      const separator = arrival.panel.indexOf(":");
-      const kind = separator > 0 ? arrival.panel.slice(0, separator) : "";
-      const subject = separator > 0 ? arrival.panel.slice(separator + 1) : "";
-      const entry = REOPEN[kind];
-      /* AND A FOURTH REFUSAL: never over an address nobody serves. The model
-         already says the not-found page is not a state anyone links to, so a
-         panel asked for over it is asked for over nothing — closing it would
-         leave the reader on « this address leads nowhere », and the panel's own
-         entry would have to carry an address the model declines to compose. */
-      if (!arrival.notFound && subject && entry && entry.resolves(subject)) {
-        reopenPanel = () => entry.open(subject);
-      } else {
-        /* ENGLISH, and not in the i18n resources: a console message is a tool
-           message, read by a developer, never by a reader of the interface. */
-        console.warn(
-          "the addressed panel names nothing this interface holds, and is ignored:",
-          arrival.panel,
-        );
-      }
     }
     /* The address is put back on the entry one arrives on, so a back from
        anywhere reaches the page the link named rather than a bare
@@ -34589,18 +34634,9 @@ import { screens, panel, bridge } from "./seams.js";
        consumed the guard's, `panel=` stayed in the address for good and the
        « one more back to leave » warning could never arm.
 
-       Under `pilotage` for the same reason the sign-in raise above is: nothing
-       here records a path of its own. The layer entry the panel pushes is not
-       a path, and it is pushed regardless — that entry is the point. */
-    if (reopenPanel) {
-      pilotage = true;
-      try {
-        reopenPanel();
-      } catch (error) {
-        console.error("reopening the addressed panel failed", error);
-      }
-      pilotage = false;
-    }
+       It PUSHES that entry, which is what tells the reader apart from the
+       Forward the same function serves. */
+    reopenAddressedPanel(arrivalSearch, false);
     /* The welcome hint disappears on first interaction: a bubble that
        returns over an open sheet is a nuisance, not help. */
     let hintShown = false;

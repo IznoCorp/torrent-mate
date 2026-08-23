@@ -383,7 +383,10 @@ async def main():
         # nothing else; the SECOND reaches the guard.
         ctx5 = await b.new_context(**PHONE)
         pg5 = await ctx5.new_page()
-        await pg5.goto(PROTOTYPE + "acquisition?panel=follow:Silo", wait_until="load")
+        walk_errors = []
+        pg5.on("pageerror", lambda e: walk_errors.append(str(e)))
+        await pg5.goto(PROTOTYPE + f"acquisition?panel=follow:{FOLLOW_TITLE}",
+                       wait_until="load")
         await pg5.evaluate("()=>window.__loadingDone?.()")
         await pg5.wait_for_timeout(600)
         check("a valid subject reopens the panel it names",
@@ -399,6 +402,31 @@ async def main():
               and pg5.url.endswith("/acquisition")
               and not await pg5.evaluate("()=>window.armedExit"),
               f"{pg5.url} · armedExit={await pg5.evaluate('()=>window.armedExit')}")
+
+        # AND HISTORY GOES BOTH WAYS. The Back leaves the panel's entry AHEAD,
+        # and stepping forward onto it used to land on an address naming a
+        # panel with nothing open — invariant 1 broken in the one direction
+        # nothing walked, and a reload at that address brought back what the
+        # gesture had not. The entry names the panel, so the panel comes back.
+        await pg5.go_forward()
+        await pg5.wait_for_timeout(500)
+        check("a Forward onto the panel's own entry opens it again",
+              await pg5.evaluate("()=>window.__panel.isOpen()")
+              and await pg5.evaluate(
+                  "()=>(window.__store.read().state.panelDescriptor||{}).title")
+              == FOLLOW_TITLE
+              and "panel=" in pg5.url,
+              f"{pg5.url} · panel={await pg5.evaluate('()=>window.__panel.isOpen()')}")
+        await pg5.go_back()
+        await pg5.wait_for_timeout(500)
+        check("and the Back after it closes the panel and takes its address off",
+              not await pg5.evaluate("()=>window.__panel.isOpen()")
+              and "panel=" not in pg5.url
+              and pg5.url.endswith("/acquisition"),
+              f"{pg5.url} · panel={await pg5.evaluate('()=>window.__panel.isOpen()')}")
+        check("no JS error walking the panel's entry forward and back",
+              not walk_errors, str(walk_errors))
+
         await pg5.go_back()
         await pg5.wait_for_timeout(450)
         check("and the second Back is the one that reaches the guard",

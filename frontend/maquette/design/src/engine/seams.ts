@@ -55,6 +55,11 @@ export type Panel = {
   open: (descriptor: PanelDescriptor) => void;
   close: (pop?: boolean) => void;
   isOpen: () => boolean;
+  // Opening onto the entry that already records the panel — a Forward back
+  // onto a layer entry. The producer is run through this door, with the
+  // history write suppressed, because the entry it would push is the one
+  // being stood on.
+  openOnCurrentEntry: (open: () => void) => void;
 };
 
 // The published half of the same seam. It is declared HERE, beside the type it
