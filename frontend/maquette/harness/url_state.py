@@ -48,8 +48,15 @@ What this holds to:
    replaces it with the home page's address — a replace, never a push, so
    nothing is inserted and the first Back still reaches the guard entry
    underneath instead of bouncing off a redirect.
+9. A SCREEN address resolves to the page underneath it, exactly as `/login`
+   does. A screen is a layer over the home frame, not a page of its own, so
+   putting the not-found surface below it means the operator who opened a
+   stable link is told the address leads nowhere the moment they close the
+   screen. Every screen route is opened cold here, and one of them is closed.
 """
 import asyncio
+import json
+import urllib.parse
 
 from common import PHONE
 from playwright.async_api import async_playwright
@@ -60,9 +67,24 @@ PROTOTYPE = "http://127.0.0.1:8899/"
 # `design/src/lib/addresses.ts`, which is the model this rule measures — a
 # contract has three ends, and this is one of them.
 HOME = "/acquisition"
+HOME_PAGE = "acq"
 LIBRARY = "/media"
 ARRIVALS = "/arrivals"
 DIAL_PARAMETERS = ("tab", "lens", "mode", "cat", "topic")
+
+# One concrete address per SCREEN route, the routes being the other end of the
+# `SCREEN_PATHS` contract. The media sheet's is DERIVED from the running
+# application rather than written down: it is keyed on a provider id, and a
+# constant nothing verifies against its source rots the day the fixture moves.
+SHEET_TITLE = "Silo (2023)"
+QUALITY_PROFILE = "Test Profile"
+RESOLUTION_FOLDER = "Backrooms.2026.MULTi.2160p.WEB-DL"
+RELEASES_TITLE = "Silo"
+
+# What the not-found surface says. Asserted, never authored: this is the
+# interface's own rendered output, and translating it here would stop the hold
+# measuring anything.
+NOT_FOUND_TEXT = "Cette adresse ne mène nulle part."  # french-ok: rendered interface text a hold asserts
 
 WHERE = """() => ({
   page: state.page,
@@ -158,6 +180,51 @@ async def main():
         journal.check("and letting it through gives the address back",
                       path(pg.url) == HOME, pg.url)
         journal.check("no JS error raising and clearing the gate", not errors, str(errors))
+        await ctx.close()
+
+        # ── 9. a screen address resolves to the page UNDERNEATH ────────────
+        # Same reasoning as `/login` above, applied to every screen route: a
+        # screen covers the frame, so while it is open nothing reveals which
+        # page it sits on — and a not-found page underneath surfaces only once
+        # the screen closes, on the stable link the wave exists to serve.
+        ctx, pg, errors = await open_page(b)
+        sheet_ids = await pg.evaluate(f"()=>window.addressIdsFor({json.dumps(SHEET_TITLE)})")
+        await ctx.close()
+        journal.check("the media sheet's own address ids are resolvable",
+                      bool(sheet_ids), f"{SHEET_TITLE} -> {sheet_ids}")
+        sheet_address = f"media/{sheet_ids['provider']}/{sheet_ids['id']}"
+        screens = [
+            ("/add", "add"),
+            ("/quality/$name", f"quality/{urllib.parse.quote(QUALITY_PROFILE)}"),
+            ("/media/$provider/$id", sheet_address),
+            ("/resolution/$folder", f"resolution/{urllib.parse.quote(RESOLUTION_FOLDER)}"),
+            ("/releases/$title", f"releases/{urllib.parse.quote(RELEASES_TITLE)}"),
+        ]
+        for route, address in screens:
+            ctx, pg, errors = await open_page(b, PROTOTYPE + address)
+            under = await pg.evaluate(WHERE)
+            journal.check(
+                f"a cold {route} shows the home page underneath the screen",
+                under["page"] == HOME_PAGE and under["notFound"] == "",
+                f"/{address} -> page={under['page']} notFound={under['notFound']!r}")
+            journal.check(f"no JS error on a cold {route}", not errors, str(errors))
+            await ctx.close()
+
+        # And the one walk that exposes what the cold reads cannot: closing the
+        # screen. The frame underneath is what the operator is left with, so it
+        # is the frame that has to be the home page rather than the surface
+        # saying the address leads nowhere.
+        ctx, pg, errors = await open_page(b, PROTOTYPE + sheet_address)
+        await pg.evaluate(
+            """()=>document.querySelector('[data-part="screen"][data-open]'
+               + ' [data-part="screen/back"]').click()""")
+        await pg.wait_for_timeout(420)
+        closed = await pg.evaluate(WHERE)
+        journal.check(
+            "closing a screen opened cold leaves the home page showing, not the not-found one",
+            closed["page"] == HOME_PAGE and NOT_FOUND_TEXT not in closed["empty"],
+            f"page={closed['page']} empty={closed['empty']!r} at {path(pg.url)}")
+        journal.check("no JS error closing a screen opened cold", not errors, str(errors))
         await ctx.close()
 
         # ── 2. walking writes the address ──────────────────────────────────

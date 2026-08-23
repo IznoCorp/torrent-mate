@@ -46,6 +46,46 @@ export const NOT_FOUND_PAGE = "404";
 // that is already built rather than over nothing.
 export const SIGN_IN_PATH = "/login";
 
+// The screen addresses. A screen is not a PAGE either — it is a layer drawn
+// OVER the home frame — but D1 gives it a real path, so its address has to
+// resolve to the page UNDERNEATH exactly as `SIGN_IN_PATH` does. Resolving it
+// to the not-found page instead puts « this address leads nowhere » beneath a
+// screen the operator opened from a stable link, and the moment the screen
+// closes that is all they are left with.
+//
+// This list is the SINGLE declaration the routes, the addressing rule and the
+// offline guard are all held against: a screen route with no entry here, or an
+// entry no route claims, is a violation. A `$segment` stands for any one
+// non-empty segment, the way the route files write it.
+export const SCREEN_PATHS: readonly string[] = [
+  "/add",
+  "/quality/$name",
+  "/media/$provider/$id",
+  "/releases/$title",
+  "/resolution/$folder",
+];
+
+/**
+ * Tells whether a path is one of the screen addresses.
+ *
+ * Args:
+ *     pathname: The address's path.
+ *
+ * Returns:
+ *     True when the path matches a `SCREEN_PATHS` entry, a `$segment`
+ *     standing for any one non-empty segment.
+ */
+export function isScreenPath(pathname: string): boolean {
+  const asked = pathname.split("/").filter(Boolean);
+  return SCREEN_PATHS.some((declared) => {
+    const segments = declared.split("/").filter(Boolean);
+    return (
+      segments.length === asked.length &&
+      segments.every((segment, index) => segment.startsWith("$") || segment === asked[index])
+    );
+  });
+}
+
 // Every dial: the query parameter that carries it, the store field it writes,
 // and the value at which it is ABSENT from the address.
 //
@@ -136,24 +176,28 @@ export function addressOf(
  *     search: Its query string, leading `?` included or not.
  *
  * Returns:
- *     The page the path names and the dials the query sets. A path no page
- *     claims resolves to the not-found page, carrying the address AS ASKED —
- *     deriving a corrected address from it is the interface rewriting the
- *     operator's link behind their back, which a browser answering 404 never
- *     does.
+ *     The page the path names and the dials the query sets. A screen address
+ *     resolves to the page underneath it, the way the sign-in one does. A path
+ *     neither a page nor a screen claims resolves to the not-found page,
+ *     carrying the address AS ASKED — deriving a corrected address from it is
+ *     the interface rewriting the operator's link behind their back, which a
+ *     browser answering 404 never does.
  */
 export function destinationOf(pathname: string, search: string): Destination {
   if (pathname === SIGN_IN_PATH) return { page: HOME_PAGE, dials: {}, signIn: true };
+  const query = new URLSearchParams(search);
+  // The panel tier is independent of which page shows — a panel opens over
+  // whichever surface is underneath, a screen included.
+  const panel = query.get(PANEL_PARAMETER) || undefined;
+  if (isScreenPath(pathname)) return { page: HOME_PAGE, dials: {}, panel };
   const page =
     PAGE_OF_PATH[pathname] ?? (pathname === "/" ? HOME_PAGE : NOT_FOUND_PAGE);
   const dials: Record<string, string> = {};
-  const query = new URLSearchParams(search);
   for (const dial of DIALS) {
     if (dial.of !== page) continue;
     const value = query.get(dial.parameter);
     if (value) dials[dial.field] = value;
   }
-  const panel = query.get(PANEL_PARAMETER) || undefined;
   if (page === NOT_FOUND_PAGE) return { page, dials, notFound: pathname, panel };
   return { page, dials, panel };
 }
