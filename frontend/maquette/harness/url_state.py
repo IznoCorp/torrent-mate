@@ -65,6 +65,15 @@ What this holds to:
    restore — the address drops it while the interface goes on showing it, a
    disagreement no cold load can reveal because a cold load has no interface
    to keep anything from.
+12. EVERY page has its address, not most of them. Four of the seven were
+   asserted nowhere, because the nav carries four and a rule written from the
+   nav measures the nav. The pages come from the model, so a page added
+   tomorrow is covered the day it is added rather than the day someone
+   remembers, and a page this rule does not know how to reach is a failure
+   rather than an entry quietly skipped.
+13. EVERY addressed panel kind reopens cold. The table has four and one was
+   exercised; a kind nothing opens from an address is a kind whose address is
+   decoration, written and never read.
 """
 import asyncio
 import json
@@ -98,6 +107,36 @@ DIAL_PARAMETERS = tuple(
     + re.findall(r'PANEL_PARAMETER = "([^"]+)"', DECLARATION)
 )
 PAGE_PATHS = dict(re.findall(r'^\s{2}(\w+):\s*"(/[^"]*)"', DECLARATION, re.M))
+
+# How the interface OFFERS each page, so its address can be read off a real
+# arrival rather than off a cold load that proves only the other direction.
+# The nav carries four of the seven; the system page cross-references two more
+# and the account panel the last, which is why a rule written from the nav
+# measured four addresses and called that every page. A step beginning `JS:`
+# is a verb the engine publishes — the account panel has no control of its own
+# until it is open. This table is held against the model below: a page the
+# model declares and this does not is a violation, so the seventh page is
+# covered the day it is added.
+PAGE_WALKS = {
+    "acq": ['#nav button[data-page="acq"]'],
+    "lib": ['#nav button[data-page="lib"]'],
+    "arr": ['#nav button[data-page="arr"]'],
+    "sys": ['#nav button[data-page="sys"]'],
+    "maint": ['#nav button[data-page="sys"]', '[data-page="maint"]'],
+    "cfg": ['#nav button[data-page="sys"]', '[data-page="cfg"]'],
+    "profile": ["JS:window.openUserSheet()", '[data-go="profile"]'],
+}
+
+# The four kinds the boot's REOPEN table carries, and where the SUBJECT of
+# each is read from — the engine's own republished surface, never a value
+# typed in here: a subject nobody holds is refused, so an invented one would
+# measure the refusal instead of the reopening.
+PANEL_SUBJECTS = {
+    "follow": "()=>window.__store.read().world.follows[0].t",
+    "journey": "()=>window.INFLIGHT[0].t",
+    "setting": "()=>window.settingId(window.allSettings()[0])",
+    "action": "()=>window.MAINT_ACTIONS[0].id",
+}
 
 # One concrete address per SCREEN route, the routes being the other end of the
 # `SCREEN_PATHS` contract. The media sheet's is DERIVED from the running
@@ -390,6 +429,53 @@ async def main():
                       await pg.evaluate("()=>window.__navEchec") is False,
                       f"__navEchec={await pg.evaluate('()=>window.__navEchec')}")
         await ctx.close()
+
+        # ── 12. every page the model declares has its address ──────────────
+        journal.check("every page the model declares is one this rule knows how to reach",
+                      set(PAGE_WALKS) == set(PAGE_PATHS),
+                      f"walked {sorted(PAGE_WALKS)} · declared {sorted(PAGE_PATHS)}")
+        for page, steps in PAGE_WALKS.items():
+            ctx, pg, errors = await open_page(b)
+            for step in steps:
+                if step.startswith("JS:"):
+                    await pg.evaluate("()=>{" + step[3:] + "}")
+                else:
+                    await pg.tap(step)
+                await pg.wait_for_timeout(420)
+            landed = await pg.evaluate("()=>state.page")
+            journal.check(
+                f"arriving on « {page} » writes the address the model declares for it",
+                path(pg.url) == PAGE_PATHS[page] and landed == page and not errors,
+                f"{page} -> {pg.url} · state.page={landed} · {errors}")
+            await ctx.close()
+
+        # ── 13. every addressed panel kind reopens cold ────────────────────
+        # One of the four was exercised anywhere; the other three were opened
+        # by nothing, so their `resolves` could have refused every subject in
+        # the world and no rule would have noticed. The subject of each comes
+        # from the engine's own surface, because a subject nobody holds is
+        # REFUSED — an invented one would measure the refusal and pass for the
+        # wrong reason.
+        ctx, pg, errors = await open_page(b)
+        subjects = {kind: await pg.evaluate(reader) for kind, reader in PANEL_SUBJECTS.items()}
+        await ctx.close()
+        journal.check("every panel kind has a subject the interface really holds",
+                      all(subjects.values()), f"{subjects}")
+        for kind, subject in subjects.items():
+            address = (PROTOTYPE + "acquisition?panel="
+                       + urllib.parse.quote(f"{kind}:{subject}", safe=""))
+            ctx, pg, errors = await open_page(b, address)
+            await pg.wait_for_timeout(400)
+            reopened = await pg.evaluate(
+                """()=>({open: window.__panel.isOpen(),
+                         title: (window.__store.read().state.panelDescriptor||{}).title||''})""")
+            journal.check(
+                f"a cold ?panel={kind}:… reopens the panel it names",
+                reopened["open"] and bool(reopened["title"])
+                and "panel=" in query(pg.url) and not errors,
+                f"{kind}:{subject} -> open={reopened['open']} "
+                f"title={reopened['title']!r} at {pg.url} · {errors}")
+            await ctx.close()
 
         # ── 11. a back puts EVERY dial back, not most of them ──────────────
         # The history entry carries the state one arrived in, and a dial left
