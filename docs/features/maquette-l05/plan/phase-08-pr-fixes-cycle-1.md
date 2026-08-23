@@ -237,14 +237,22 @@ arrivalAddress)` — not merely after the guard. The panel pushes its own layer 
   `switchover.py` keeps 8918 (it spawns `serve.py` as a process and needs a number) and stops
   swallowing stderr on a failed boot — a bind error is printed, not hidden.
 - **D-8.5 — the navigation-failure flag.** `showSignIn`/`hideSignIn` log and raise
-  `window.__navEchec` like every other writer. R69 reads it raised in THREE places, each over a
-  writer broken on purpose: the gate's RAISE, with `__bridge.replace` made to throw from the
+  `window.__navEchec` like every other writer. R69 reads it raised over FIVE writers broken on
+  purpose, one load each: the gate's RAISE, with `__bridge.replace` made to throw from the
   page; the gate's RELEASE, which needs a context block of its own because the first walk puts
   the bridge back before letting the gate through, so that catch would otherwise only ever run
-  over a write that works (9.6); and the BOOT's three writes, which no gesture can reach and are
-  therefore broken from OUTSIDE the page, before its first script runs (9.8). A fourth read
-  closes an ordinary walk, where the flag must still be false — the general meaning, measured
-  where nothing was injected.
+  over a write that works (9.6); and the BOOT's three, which no gesture can reach and are
+  therefore broken from OUTSIDE the page, before its first script runs (9.8). Three writes take
+  THREE seams, and one seam was not enough: the settlement of the arrival address and the exit
+  guard both travel through `replaceState`, the arrival entry through `pushState`, so a seam
+  over `pushState` alone held one catch and left the other two held by nothing — either of them
+  reverted to a bare call and the rule stayed green. Each seam refuses the FIRST call that is
+  the boot's own (the settlement by the arrival address it carries, the guard by the marker in
+  its state, the entry by being the load's first push) and records the address and the state it
+  refused; each block reads that back — the refusal was the boot's own write, not a later
+  writer's — beside the flag, the interface drawn and no JS error. A last read closes an
+  ordinary walk, where the flag must still be false — the general meaning, measured where
+  nothing was injected.
 - **D-8.6 — the addressing arm.** Absence of `lib/addresses.ts` is a violation; an inline
   `validateSearch: (raw) => ({ page: … })` is read; `tests/scripts/test_check_frontend_boundaries.py`
   carries SIXTEEN cases, not the four this decision was written with: those four (the two above,

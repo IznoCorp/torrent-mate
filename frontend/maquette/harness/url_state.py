@@ -65,7 +65,12 @@ What this holds to:
    is read literally, and it is the whole of the hold: the gate's release as
    well as its raise, and the BOOT's own three, which no gesture can reach and
    which are therefore broken from OUTSIDE the page, before its first script
-   runs.
+   runs. THREE writes need THREE seams, one load each — the settlement of the
+   arrival address and the exit guard both travel through `replaceState`, the
+   arrival entry through `pushState`, so a seam over one primitive refuses one
+   of them and leaves the other two catches held by nothing. Each seam records
+   the address and the state it refused, and each hold reads that back: a
+   refusal the boot did not issue would otherwise read as a catch that worked.
 11. A back puts EVERY dial back. The history entry carries the state one
    arrived in, so a dial the entry does not carry is a dial no back can
    restore — the address drops it while the interface goes on showing it, a
@@ -171,25 +176,66 @@ RELEASES_TITLE = "Silo"
 NOT_FOUND_TEXT = "Cette adresse ne mène nulle part."  # french-ok: rendered interface text a hold asserts
 
 # The boot's own writers run before anything in the document can reach the
-# bridge, so a cold load cannot break them the way the walks below do. The one
-# seam left is `history.pushState` itself, wrapped before the first script of
-# the page runs: it refuses the FIRST push carrying this dial — which is the
-# boot's record of the arrival entry, the entry an addressed panel is later
-# stacked on — and lets every later push through.
+# bridge, so a cold load cannot break them the way the walks below do. What is
+# left is the history primitives themselves, wrapped before the first script of
+# the page runs. And the boot writes THREE times, not once: the settlement and
+# the guard both travel through `replaceState`, the arrival entry through
+# `pushState`. A seam over `pushState` alone therefore refuses one write and
+# says nothing whatever about the other two — measured: either `replace` catch
+# reverted to a bare call left every hold here green.
 BOOT_DIAL = "lens=inc"
 BOOT_ADDRESS = f"media?{BOOT_DIAL}"
-REFUSE_THE_BOOT_WRITE = """
-const nativePush = History.prototype.pushState;
+BOOT_PATH = "/" + BOOT_ADDRESS
+# The markers the boot's entries carry, read back off the refused write so a
+# hold can say the refusal was the boot's own. They are the ENGINE's data,
+# matched here and never authored here.
+NAV_MARKER = "nav"
+GUARD_MARKER = "garde"  # french-ok: the engine's own history marker, matched not authored
+
+
+def refuse_one_boot_write(primitive, condition):
+    """Composes an init script refusing exactly ONE of the boot's history writes.
+
+    Args:
+        primitive: The `History.prototype` method to wrap — `pushState` for
+            the arrival entry, `replaceState` for the two before it.
+        condition: A JavaScript expression over `url` (the address the call
+            carries) and `given` (its state argument), true for the one call
+            to refuse.
+
+    Returns:
+        The script, installed before the page's first script runs. It refuses
+        the FIRST call the condition matches, records the address and the state
+        it refused on `window.__refused`, and lets every later call through.
+    """
+    return """
+const native = History.prototype.PRIMITIVE;
 let refused = false;
-History.prototype.pushState = function (...args) {
-  if (!refused && String(args[2] ?? "").includes("DIAL")) {
+History.prototype.PRIMITIVE = function (...args) {
+  const url = String(args[2] ?? "");
+  const given = args[0] || {};
+  if (!refused && (CONDITION)) {
     refused = true;
-    window.__refused = true;
+    window.__refused = { url: url, state: given };
     throw new Error("refused");
   }
-  return nativePush.apply(this, args);
+  return native.apply(this, args);
 };
-""".replace("DIAL", BOOT_DIAL)
+""".replace("PRIMITIVE", primitive).replace("CONDITION", condition)
+
+
+# One seam per boot write, in the order the boot issues them, each with the
+# marker its entry carries. The settlement is recognised by the ADDRESS it
+# writes, the guard by the marker in its state — it writes no address of its
+# own — and the arrival entry is the first push of the load, whatever it
+# carries. What each seam refused is read back against these: a boot that
+# stopped writing through the primitive while some later writer still did would
+# otherwise read as a swallowed refusal instead of a rotted seam.
+BOOT_WRITES = (
+    ("the arrival address", "replaceState", f'url.includes("{BOOT_ADDRESS}")', NAV_MARKER),
+    ("the exit guard", "replaceState", f'given.tm === "{GUARD_MARKER}"', GUARD_MARKER),
+    ("the arrival entry", "pushState", "true", NAV_MARKER),
+)
 
 WHERE = """() => ({
   page: state.page,
@@ -353,27 +399,46 @@ async def main():
         # looking, and those three are exactly where a swallow costs most —
         # the interface is already drawn by then, so a refusal leaves a real
         # screen standing on an address nothing wrote.
-        ctx = await b.new_context(**PHONE)
-        await ctx.add_init_script(REFUSE_THE_BOOT_WRITE)
-        pg = await ctx.new_page()
-        errors = []
-        pg.on("pageerror", lambda e: errors.append(str(e)))
-        await pg.goto(PROTOTYPE + BOOT_ADDRESS, wait_until="load")
-        await pg.evaluate("()=>window.__loadingDone?.()")
-        await pg.wait_for_timeout(400)
-        booted = await pg.evaluate(
-            """()=>({page: state.page, refused: window.__refused === true,
-                     failed: window.__navEchec})""")
-        # Read first, and separately: a seam that stopped firing would make
-        # the hold below fall for a reason that has nothing to do with the
-        # flag, and a hold blaming the wrong thing is worse than none.
-        journal.check("the seam really did refuse the boot's write",
-                      booted["refused"], f"refused={booted['refused']}")
-        journal.check("and a refused boot write is on record like any other",
-                      booted["failed"] is True,
-                      f"__navEchec={booted['failed']} · page={booted['page']}")
-        journal.check("no JS error when a boot write is refused", not errors, str(errors))
-        await ctx.close()
+        #
+        # THREE writes, THREE seams, a fresh context each. One seam refuses one
+        # write: the load that has its settlement refused is not the load that
+        # has its guard refused, and a rule holding only the third of them held
+        # the other two catches by nothing at all.
+        for wanted, primitive, condition, marker in BOOT_WRITES:
+            ctx = await b.new_context(**PHONE)
+            await ctx.add_init_script(refuse_one_boot_write(primitive, condition))
+            pg = await ctx.new_page()
+            errors = []
+            pg.on("pageerror", lambda e, sink=errors: sink.append(str(e)))
+            await pg.goto(PROTOTYPE + BOOT_ADDRESS, wait_until="load")
+            await pg.evaluate("()=>window.__loadingDone?.()")
+            await pg.wait_for_timeout(400)
+            booted = await pg.evaluate(
+                """()=>({page: state.page, refused: window.__refused || null,
+                         failed: window.__navEchec})""")
+            refused = booted["refused"] or {}
+            # Read first, and separately: a seam that stopped firing would make
+            # the holds below fall for a reason that has nothing to do with the
+            # flag, and a hold blaming the wrong thing is worse than none. WHICH
+            # write was caught is part of that reading — the refusal has to be
+            # the boot's own, by the address it carries and by the marker of the
+            # entry it was writing.
+            journal.check(
+                f"the seam refused the boot's write of {wanted}, and it is the boot's own",
+                refused.get("url") == BOOT_PATH
+                and (refused.get("state") or {}).get("tm") == marker,
+                f"refused={refused.get('url')!r} "
+                f"state.tm={(refused.get('state') or {}).get('tm')!r} · wanted {BOOT_PATH!r}/{marker!r}")
+            journal.check(
+                f"and a refused write of {wanted} is on record like any other",
+                booted["failed"] is True,
+                f"__navEchec={booted['failed']} · page={booted['page']}")
+            journal.check(
+                f"the interface is drawn even though {wanted} could not be written",
+                bool(booted["page"]), f"page={booted['page']}")
+            journal.check(f"no JS error when the boot's write of {wanted} is refused",
+                          not errors, str(errors))
+            await ctx.close()
 
         # ── 9. a screen address resolves to the page UNDERNEATH ────────────
         # Same reasoning as `/login` above, applied to every screen route: a
