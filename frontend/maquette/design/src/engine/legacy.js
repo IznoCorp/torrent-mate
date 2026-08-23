@@ -11161,7 +11161,10 @@ import { screens, panel, bridge } from "./seams.js";
     if (!pilotage)
       try {
         __bridge.replace(navigationState(), window.__address.signInPath);
-      } catch (error) {}
+      } catch (error) {
+        console.error("sign-in gate: navigation write failed", error);
+        window.__navEchec = true;
+      }
   }
 
   function hideSignIn() {
@@ -11173,7 +11176,10 @@ import { screens, panel, bridge } from "./seams.js";
     if (wasShown && !pilotage)
       try {
         __bridge.replace(navigationState(), window.__address.compose(currentState()));
-      } catch (error) {}
+      } catch (error) {
+        console.error("sign-in release: navigation write failed", error);
+        window.__navEchec = true;
+      }
   }
 
   /* Signing out ends the session and lands on the entry screen.

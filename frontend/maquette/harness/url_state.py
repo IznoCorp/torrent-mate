@@ -55,6 +55,11 @@ What this holds to:
    putting the not-found surface below it means the operator who opened a
    stable link is told the address leads nowhere the moment they close the
    screen. Every screen route is opened cold here, and one of them is closed.
+10. A navigation write that fails is on record: the flag is raised by every
+   writer, and this rule reads it. A refused write leaves the address and the
+   interface disagreeing, and a disagreement nothing records is one nobody can
+   find — so the flag is read with a write broken on purpose, and again at the
+   end of an ordinary walk, where it must still be false.
 """
 import asyncio
 import json
@@ -182,6 +187,33 @@ async def main():
         journal.check("and letting it through gives the address back",
                       path(pg.url) == HOME, pg.url)
         journal.check("no JS error raising and clearing the gate", not errors, str(errors))
+        await ctx.close()
+
+        # ── 10. a navigation write that FAILS is on record ─────────────────
+        # Every writer in the engine logs and raises `__navEchec` when the
+        # bridge refuses its write, because otherwise the address and the
+        # interface disagree with nothing anywhere saying so. The sign-in
+        # writers are the pair an address can reach without any gesture, so
+        # they are the pair broken on purpose here: the bridge is a plain
+        # object, so its `replace` is swapped for one that throws and put back
+        # afterwards — `delete` restores nothing.
+        ctx, pg, errors = await open_page(b)
+        await pg.evaluate(
+            """()=>{ window.__savedReplace = window.__bridge.replace;
+                     window.__bridge.replace = () => { throw new Error("refused"); }; }""")
+        await pg.evaluate("()=>window.showSignIn(false)")
+        await pg.wait_for_timeout(300)
+        broken = await pg.evaluate(
+            """()=>({raised: !document.querySelector('#login').hidden,
+                     failed: window.__navEchec})""")
+        journal.check("the gate is raised even when its address cannot be written",
+                      broken["raised"], f"raised={broken['raised']} at {path(pg.url)}")
+        journal.check("and the failed navigation write is on record",
+                      broken["failed"] is True, f"__navEchec={broken['failed']}")
+        await pg.evaluate("()=>{ window.__bridge.replace = window.__savedReplace; }")
+        await pg.evaluate("()=>window.hideSignIn()")
+        await pg.wait_for_timeout(300)
+        journal.check("no JS error when a navigation write is refused", not errors, str(errors))
         await ctx.close()
 
         # ── 9. a screen address resolves to the page UNDERNEATH ────────────
@@ -322,6 +354,13 @@ async def main():
         journal.check("a second back returns to the opening address",
                       path(pg.url) == HOME and query(pg.url) == "", pg.url)
         journal.check("no JS error during the backs", not errors, str(errors))
+        # The flag's general meaning, read once over an ordinary walk rather
+        # than over an injected failure: pages, a dial and two backs have all
+        # written the address, and none of those writes was refused. Nothing
+        # ever clears the flag back to false, so this reads the whole walk.
+        journal.check("no navigation write failed during the walk",
+                      await pg.evaluate("()=>window.__navEchec") is False,
+                      f"__navEchec={await pg.evaluate('()=>window.__navEchec')}")
         await ctx.close()
 
         await b.close()
