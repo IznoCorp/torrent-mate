@@ -13,14 +13,26 @@ the engine's `PAGES_OF()` — because a page in one and not the other is an
 address leading nowhere or a surface nobody can link to, and both cases are
 invisible until someone types the address.
 
+A second review then mutation-proved the inline reader itself: it closed ONE
+shape and three equivalents still read clean — a method shorthand, a reference
+to a helper, a return type not called `*SearchParams`, and a returned literal
+whose page key is not the first one. A page declared in `PAGE_PATHS` with no
+route file was green too. So the reader is bounded to its own member, a
+reference is resolved (and a reference resolving to nothing is a violation,
+never silence), and the summary says how many bodies it actually read — a
+number nobody prints is a number nobody can hold against the tree.
+
 Each mutation case copies the real maquette tree into a scratch directory,
 mutates the copy, and runs the arm over it: the cases measure the arm over the
 corpus it really reads, and the green case proves it still reads the repository.
+A rewritten route keeps `path: "/add"` so the screen cross-check stays quiet and
+the violation count measures the case alone.
 """
 
 from __future__ import annotations
 
 import importlib.util
+import re
 import shutil
 from pathlib import Path
 
@@ -53,8 +65,30 @@ def copy_design_src(tmp_path: Path) -> Path:
     return root
 
 
+def write_add_route(root: Path, member: str, prelude: str = "") -> None:
+    """Rewrite the `/add` route around one `validateSearch` member.
+
+    The path stays `/add` so the screen cross-check stays quiet and the case's
+    own shape is the only thing the violation count measures.
+
+    Args:
+        root: The scratch tree's root.
+        member: The `validateSearch` member, written as it sits in the route.
+        prelude: What the case declares above the route — a helper, a type.
+    """
+    (root / "routes" / "add.tsx").write_text(
+        'import { createRoute } from "@tanstack/react-router";\n'
+        'import { rootRoute } from "../app/root-route";\n'
+        "\n" + prelude + "export const addRoute = createRoute({\n"
+        "  getParentRoute: () => rootRoute,\n"
+        '  path: "/add",\n' + member + "  component: () => null,\n"
+        "});\n",
+        encoding="utf-8",
+    )
+
+
 class TestAddressingArm:
-    """The six mutation cases, then the real tree, unmodified, reading clean."""
+    """The twelve mutation cases, then the real tree, unmodified, reading clean."""
 
     def test_a_deleted_address_model_is_a_violation(self, tmp_path, capsys) -> None:
         """Refuse a missing `lib/addresses.ts` — a tree the arm cannot read must not read clean."""
@@ -161,6 +195,94 @@ class TestAddressingArm:
         captured = capsys.readouterr()
         assert violations >= 1
         assert any("« phantom »" in line and "no address" in line for line in captured.err.splitlines())
+
+    def test_g_a_method_shorthand_is_read(self, tmp_path, capsys) -> None:
+        """Refuse the shorthand — `validateSearch(raw) { … }` carries no colon to anchor on."""
+        root = copy_design_src(tmp_path)
+        write_add_route(
+            root,
+            '  validateSearch(raw: Record<string, unknown>) {\n    return { page: String(raw.page ?? "") };\n  },\n',
+        )
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations == 1
+        assert any("« page »" in line and "inline" in line for line in captured.err.splitlines())
+
+    def test_h_a_helper_reference_is_resolved(self, tmp_path, capsys) -> None:
+        """Refuse the reference — `validateSearch: readSearch` names a body in the same file."""
+        root = copy_design_src(tmp_path)
+        write_add_route(
+            root,
+            "  validateSearch: readSearch,\n",
+            prelude="function readSearch(raw: Record<string, unknown>) {\n"
+            '  return { page: String(raw.page ?? "") };\n'
+            "}\n"
+            "\n",
+        )
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations == 1
+        assert any("« page »" in line and "inline" in line for line in captured.err.splitlines())
+
+    def test_i_a_reference_resolving_to_nothing_is_a_violation(self, tmp_path, capsys) -> None:
+        """Refuse silence — a body the reader cannot reach must not be read as an empty one."""
+        root = copy_design_src(tmp_path)
+        write_add_route(root, "  validateSearch: readSearch,\n")
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations == 1
+        assert any("cannot read" in line and "readSearch" in line for line in captured.err.splitlines())
+
+    def test_j_a_return_type_under_another_name_is_read(self, tmp_path, capsys) -> None:
+        """Refuse a page in the declared return type, whatever that type is called."""
+        root = copy_design_src(tmp_path)
+        write_add_route(
+            root,
+            "  validateSearch: (s: Record<string, unknown>): AddQuery => {\n"
+            "    const out: AddQuery = {};\n"
+            "    return out;\n"
+            "  },\n",
+            prelude="type AddQuery = { page?: string };\n\n",
+        )
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations == 1
+        assert any("« page »" in line for line in captured.err.splitlines())
+
+    def test_k_a_page_key_that_is_not_the_first_is_read(self, tmp_path, capsys) -> None:
+        """Refuse a page key anywhere in the returned literal, not only in first position."""
+        root = copy_design_src(tmp_path)
+        write_add_route(
+            root,
+            '  validateSearch: (raw) => ({ tab: String(raw.tab ?? ""), page: "acq" }),\n',
+        )
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations == 1
+        assert any("« page »" in line for line in captured.err.splitlines())
+
+    def test_l_a_page_path_no_route_serves_is_a_violation(self, tmp_path, capsys) -> None:
+        """Refuse an address the table promises and no route file answers."""
+        root = copy_design_src(tmp_path)
+        (root / "routes" / "account.tsx").unlink()
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations == 1
+        offender = [line for line in captured.err.splitlines() if "« profile »" in line]
+        assert offender and "/account" in offender[0]
+        assert "SCREEN_PATHS" not in captured.err
+
+    def test_m_the_summary_counts_the_bodies_it_read(self, capsys) -> None:
+        """The summary says how many validateSearch bodies were read — one per route declaring it."""
+        guard.arm_addressing(DESIGN_SRC)
+        captured = capsys.readouterr()
+        declaring = [
+            route
+            for route in sorted((DESIGN_SRC / "routes").glob("*.tsx"))
+            if re.search(r"validateSearch\s*[:(]", route.read_text(encoding="utf-8"))
+        ]
+        assert declaring, "the routes declare no validateSearch — the count would prove nothing"
+        assert f"{len(declaring)} validateSearch" in captured.out
 
     def test_the_real_tree_reads_clean(self, capsys) -> None:
         """The unmodified repository reports zero violations — the arm still reads the tree it guards."""
