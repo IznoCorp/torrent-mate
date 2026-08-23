@@ -59,7 +59,10 @@ BOOT_FILE = "app/shell.tsx"
 
 # What the boot logs when an addressed panel was accepted and then failed to
 # open. A value the address model REFUSES never reaches the opener, so this
-# text appearing at all is a subject that got through without being held.
+# text appearing at all is a subject that got through without being held —
+# which is why it is worth quoting in a fallen hold's message. It is EVIDENCE
+# and not the measure: the same catch raises the engine's navigation-failure
+# flag, and a flag survives the day someone rewords the line.
 REOPEN_CRASH = "reopening the addressed panel failed"
 
 # The medium whose SCREEN a panel is opened over. The screen's own address is
@@ -307,23 +310,32 @@ async def main():
         async def cold(query):
             """Opens the acquisition page cold at one panel query.
 
+            A refused value is refused BEFORE the opener runs, so a load that
+            reaches the opener at all is a subject that was never held — and
+            the opener CRASHING is one of the ways that shows. What records
+            that crash is the engine's own navigation-failure flag, raised by
+            the catch around the reopen: the console line beside it says the
+            same thing in words, and words get reworded, so the flag is what
+            the holds read and the line is what they quote.
+
             Returns:
-                `(url, open, title, errors)` — the address settled on, whether
-                a panel is up, the title the panel descriptor names, and any
-                JS error the load raised. A refused value is refused BEFORE the
-                opener runs, so the boot's own « reopening the addressed panel
-                failed » counts as one of those errors: a subject the opener
-                chokes on is a subject that was never held.
+                `(url, open, title, errors, failed, notes)` — the address
+                settled on, whether a panel is up, the title the panel
+                descriptor names, any JS error the load raised, whether the
+                engine recorded a navigation failure, and the reopen-crash
+                lines the console carried. The flag is read after the boot has
+                settled, so it answers for the whole load.
             """
             context = await b.new_context(**PHONE)
             page = await context.new_page()
             raised = []
+            notes = []
             page.on("pageerror", lambda e: raised.append(str(e)))
 
             def note_reopen_crash(message):
-                """Keeps the boot's reopen crash beside the page errors."""
+                """Keeps the boot's reopen crash as evidence beside the flag."""
                 if REOPEN_CRASH in message.text:
-                    raised.append(message.text)
+                    notes.append(message.text)
 
             page.on("console", note_reopen_crash)
             await page.goto(PROTOTYPE + "acquisition" + query, wait_until="load")
@@ -335,29 +347,32 @@ async def main():
                 await page.evaluate(
                     "()=>(window.__store.read().state.panelDescriptor||{}).title||''"),
                 raised,
+                await page.evaluate("()=>window.__navEchec === true"),
+                notes,
             )
             await context.close()
             return seen
 
-        url, is_open, title, raised = await cold("?panel=follows")
+        url, is_open, title, raised, failed, notes = await cold("?panel=follows")
         check("a panel value that is not kind:subject opens nothing",
-              not is_open and "panel=" not in url and not raised,
-              f"{url} · title={title!r} · {raised}")
+              not is_open and "panel=" not in url and not raised and not failed,
+              f"{url} · title={title!r} · {raised} · __navEchec={failed} · {notes}")
 
-        url, is_open, title, raised = await cold("?panel=nobody:Silo")
+        url, is_open, title, raised, failed, notes = await cold("?panel=nobody:Silo")
         check("a panel kind the table does not carry opens nothing",
-              not is_open and "panel=" not in url and not raised,
-              f"{url} · title={title!r} · {raised}")
+              not is_open and "panel=" not in url and not raised and not failed,
+              f"{url} · title={title!r} · {raised} · __navEchec={failed} · {notes}")
 
         # The one that fabricated a medium: the producer's synthesised fallback
         # was reachable FROM AN ADDRESS, so any title at all opened a panel
         # describing a series this library has never heard of.
         unknown = "Ceci N'Existe Pas"  # french-ok: a title no source holds
-        url, is_open, title, raised = await cold(
+        url, is_open, title, raised, failed, notes = await cold(
             "?panel=follow:" + unknown.replace(" ", "%20").replace("'", "%27"))
         check("a subject no source holds opens nothing, and names nothing",
-              not is_open and "panel=" not in url and title != unknown and not raised,
-              f"{url} · title={title!r} · {raised}")
+              not is_open and "panel=" not in url and title != unknown
+              and not raised and not failed,
+              f"{url} · title={title!r} · {raised} · __navEchec={failed} · {notes}")
 
         # AND « HELD » IS EXACT MEMBERSHIP, which the value above cannot show:
         # it misses both of the ways a title used to be accepted without being
@@ -366,6 +381,16 @@ async def main():
         # a prefix of more than six characters, and, reading a plain object by
         # bracket, it answers for every name `Object.prototype` carries. Each
         # of the four below is refused by exact membership and by nothing else.
+        #
+        # AND WHAT A SUBJECT THAT GOT THROUGH LOOKS LIKE IS NOT ALWAYS AN OPEN
+        # PANEL. `constructor` reaches an opener that chokes on it before it
+        # can draw anything, so the panel stays closed and the parameter comes
+        # off the address exactly as a refusal would leave them — every visible
+        # conjunct green over the defect the hold is named for. The engine's
+        # navigation-failure flag is what separates the two, so it is read here
+        # for all of them; the console line the same catch writes is quoted as
+        # evidence and held by nothing, because a reworded line would otherwise
+        # take the hold with it.
         for subject, wanted in (
             ("American", "a subject resolved only by a sheet's prefix opens nothing"),
             ("constructor",
@@ -374,11 +399,12 @@ async def main():
              "a sheet key whose medium is followed under another title opens nothing"),
             ("silo", "a subject that differs from a followed title by case opens nothing"),
         ):
-            url, is_open, title, raised = await cold(
+            url, is_open, title, raised, failed, notes = await cold(
                 "?panel=follow:" + subject.replace(" ", "%20"))
             check(wanted,
-                  not is_open and "panel=" not in url and title != subject and not raised,
-                  f"{url} · title={title!r} · {raised}")
+                  not is_open and "panel=" not in url and title != subject
+                  and not raised and not failed,
+                  f"{url} · title={title!r} · {raised} · __navEchec={failed} · {notes}")
 
         # THE GUARD IS NOT THE PANEL'S TO SPEND. Reopened cold, the panel used
         # to push its layer entry BEFORE the boot wrote the exit guard, so the
