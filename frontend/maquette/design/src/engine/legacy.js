@@ -10947,6 +10947,17 @@ import { screens, panel, bridge } from "./seams.js";
   const BACK_WINDOW = 5000;
   let pilotage = false;
   let armedExit = 0;
+  /* WHETHER THE HOME PAGE HAS AN ENTRY AT OR BENEATH THE ARRIVAL. The boot's
+     synthesis answers it, and the page-switch verbs read it: stepping BACK
+     onto a floor that was never laid lands on the exit guard instead, which
+     arms the exit on an arrival the reader never made as a back — and one
+     gesture later the document is gone. Only an address nobody serves has no
+     floor; it is kept exactly as typed, so nothing is put under it.
+
+     False until the synthesis writes it, which is safe rather than
+     conservative: nothing in the interface can switch page before the boot
+     has run. */
+  let homeFloorExists = false;
 
   /* ── L'URL PORTE L'ÉTAT (DOIT-10) ─────────────────────────────────────
      « Chaque détail a son URL » is a rule of the constitution, and the
@@ -11076,6 +11087,13 @@ import { screens, panel, bridge } from "./seams.js";
     if (arriving === leaving) return replacePath();
     if (leaving === window.__address.homePage) return recordPath();
     if (arriving === window.__address.homePage && !onLayer) {
+      /* NO FLOOR, NO STEP BACK. The entry one down is then the exit guard,
+         and stepping onto it arms the exit from an arrival nobody made as a
+         back: the next back leaves the document, from a page whose whole
+         purpose is to offer a way out. The switch RECORDS instead — the
+         address as typed stays one back away, which is what a wrong address
+         is owed, and the guard sits one further down where it belongs. */
+      if (!homeFloorExists) return recordPath();
       try {
         __bridge.back();
       } catch (error) {
@@ -34805,6 +34823,12 @@ import { screens, panel, bridge } from "./seams.js";
         window.__navEchec = true;
       }
     }
+    /* AND WHAT THE SYNTHESIS LAID IS RECORDED, because a verb one gesture
+       away depends on it. Read off what the loop above actually did rather
+       than re-derived from the arrival: the home page is either under the
+       arrival or IS the arrival, and only an address nobody serves has
+       neither. */
+    homeFloorExists = beneath[0] === homePage || arrival.page === homePage;
     /* Pushed with the address one ARRIVED at rather than with the one the
        state now implies. Rendering an unknown id moves the state onto the
        not-found surface, and deriving the address from it here rewrote a

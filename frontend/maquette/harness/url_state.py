@@ -624,6 +624,49 @@ async def main():
                       failed is False, f"__navEchec={failed}")
         await ctx.close()
 
+        # AND THE SURFACE'S OWN WAY OUT DOES NOT SPEND THE GUARD. A not-found
+        # arrival has no floor under it — that is the hold above, kept — so the
+        # page switch its own control offers cannot step BACK onto one: the
+        # entry one down is the exit guard, and arming it on an arrival nobody
+        # made as a back leaves the document on the very next gesture, from the
+        # one surface whose whole purpose is to offer a way out. The switch
+        # records instead, and the three measurements below are what says so:
+        # the depth GREW, the guard is untouched, and the address as typed is
+        # still one back away.
+        ctx, pg, errors = await open_page(b, wrong)
+        depth = await pg.evaluate("()=>history.length")
+        await pg.tap(f'[data-go="{HOME_PAGE}"]')
+        await pg.wait_for_timeout(420)
+        armed = await pg.evaluate("()=>window.armedExit")
+        after = await pg.evaluate("()=>history.length")
+        journal.check(
+            "the not-found page's own way out RECORDS, and leaves the exit guard alone",
+            path(pg.url) == HOME and not armed and after - depth == 1,
+            f"{pg.url} · armedExit={armed} · history.length {depth} -> {after}")
+        await pg.go_back()
+        await pg.wait_for_timeout(500)
+        # Read through the DEPARTURE, never past it. The defect this walk
+        # exists for ends with the document gone, and an interface read on a
+        # page that has left raises where it should name what happened — a
+        # crash is a failure nobody can read.
+        returned = await pg.evaluate(WHERE) if pg.url.startswith(PROTOTYPE) else None
+        journal.check(
+            "one Back off it returns to the address as typed, on the surface made for it",
+            returned is not None
+            and path(pg.url) == "/nimportequoi" and query(pg.url) == ""
+            and returned["page"] == "404" and returned["notFound"] == "/nimportequoi",
+            f"{pg.url} · {returned if returned else 'the document was left'}")
+        if returned is not None:
+            await pg.go_back()
+            await pg.wait_for_timeout(500)
+        armed = (await pg.evaluate("()=>window.armedExit")
+                 if pg.url.startswith(PROTOTYPE) else None)
+        journal.check("and only the NEXT Back arms the exit guard",
+                      bool(armed), f"armedExit={armed} at {pg.url}")
+        journal.check("no JS error leaving the not-found page by its own control",
+                      not errors, str(errors))
+        await ctx.close()
+
         # AND « AS TYPED » IS THE WHOLE ADDRESS, query included. The walk above
         # uses a path with nothing after the `?`, so it cannot see the half of
         # the rewrite that keeps the path and drops the rest: the arrival looks

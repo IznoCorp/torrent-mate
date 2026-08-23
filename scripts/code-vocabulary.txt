@@ -226,6 +226,7 @@ escape
 event
 exec
 executions
+exists
 exit
 fab
 fact
@@ -246,6 +247,7 @@ find
 finger
 first
 fkind
+floor
 flux
 fmode
 focus
