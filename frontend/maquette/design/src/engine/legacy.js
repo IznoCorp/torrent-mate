@@ -34514,6 +34514,7 @@ import { screens, panel, bridge } from "./seams.js";
       else entry.open(subject);
     } catch (error) {
       console.error("reopening the addressed panel failed", error);
+      window.__navEchec = true;
       return false;
     } finally {
       pilotage = pilotageBefore;
@@ -34603,10 +34604,22 @@ import { screens, panel, bridge } from "./seams.js";
     }
     /* The address is put back on the entry one arrives on, so a back from
        anywhere reaches the page the link named rather than a bare
-       document. */
+       document.
+
+       THE THREE WRITES BELOW RAISE THE FLAG LIKE EVERY OTHER WRITER. They
+       used to swallow, on the reading that a boot-time refusal leaves the
+       startup screen up rather than a rendered interface disagreeing with its
+       address — and that reading is false here: `render()` runs above, and
+       the startup screen comes off between the first write and the second.
+       A refusal here leaves a drawn interface on an address nobody wrote,
+       and the last of the three is the entry the panel's own layer is stacked
+       on: lose it and the first Back spends the guard instead. */
     try {
       __bridge.replace(navigationState(), arrivalAddress);
-    } catch (error) {}
+    } catch (error) {
+      console.error("boot: writing the arrival address failed", error);
+      window.__navEchec = true;
+    }
     /* The interface exists from here on, so the startup screen has nothing
        left to cover — but it does not come off on that line. It comes off
        when the wait it covers RESOLVES, which is the only rule that serves
@@ -34617,7 +34630,10 @@ import { screens, panel, bridge } from "./seams.js";
        document opens on, so the guard has to BE that entry. */
     try {
       __bridge.replace({ tm: "garde" });
-    } catch (error) {}
+    } catch (error) {
+      console.error("boot: writing the exit guard failed", error);
+      window.__navEchec = true;
+    }
     /* Pushed with the address one ARRIVED at rather than with the one the
        state now implies. Rendering an unknown id moves the state onto the
        not-found surface, and deriving the address from it here rewrote a
@@ -34626,7 +34642,10 @@ import { screens, panel, bridge } from "./seams.js";
        the address alone. */
     try {
       __bridge.record(navigationState(), arrivalAddress);
-    } catch (error) {}
+    } catch (error) {
+      console.error("boot: recording the arrival entry failed", error);
+      window.__navEchec = true;
+    }
     /* AND THE PANEL LAST OF ALL, so its layer entry sits on top of the arrival
        entry exactly as one opened from inside the application does. Opened
        before the guard was written, the panel's entry was the one the guard's

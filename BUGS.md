@@ -25,6 +25,7 @@ when the defect comes back.
 | `open`       | Reproduced and diagnosed, not yet fixed.                       |
 | `fixing`     | Being worked on right now. Exactly one bug may hold this.      |
 | `to confirm` | Fixed, rule green, mutation proven — waiting for the operator. |
+| `fixed #NNN` | Fixed on a branch, in the pull request named — not on `main` yet. |
 | `closed`     | Operator confirmed on a real device.                           |
 
 ---
@@ -75,12 +76,12 @@ when the defect comes back.
 | B-040 | Names in files no arm reads: `sweep.py`, a region id, `oracle.py` | by review   | `open`       |
 | B-041 | `check-frontend-boundaries.py` has no committed test                | by audit    | `open`       |
 | B-042 | An orphan `http.server` holds port 8900 on the operator's machine   | by review   | `open`       |
-| B-043 | A deep media address lands the 404 page underneath it               | by review   | `open`       |
-| B-044 | A 404's address recomposes to `/` after a cold load                 | by review   | `open`       |
-| B-045 | `?panel=follows` without its colon is accepted, and fabricates media | by review   | `open`       |
-| B-046 | The fallback port moved onto `switchover.py`'s, whose bind error is swallowed | by review | `open` |
-| B-047 | The navigation-failure flag is raised by no guard and read by no rule | by review   | `open`       |
-| B-048 | The ninth boundary arm stays green with `addresses.ts` deleted      | by review   | `open`       |
+| B-043 | A deep media address lands the 404 page underneath it               | by review   | `fixed #484` |
+| B-044 | A 404's address recomposes to `/` after a cold load                 | by review   | `fixed #484` |
+| B-045 | `?panel=follows` without its colon is accepted, and fabricates media | by review   | `fixed #484` |
+| B-046 | The fallback port moved onto `switchover.py`'s, whose bind error is swallowed | by review | `fixed #484` |
+| B-047 | The navigation-failure flag is raised by no guard and read by no rule | by review   | `fixed #484` |
+| B-048 | The ninth boundary arm stays green with `addresses.ts` deleted      | by review   | `fixed #484` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -137,6 +138,9 @@ on `main` now.
 - **B-048** — the ninth arm of `check-frontend-boundaries.py` reports clean over a tree with
   `addresses.ts` deleted (`0 dial(s), 0 page(s)`). A guard that stays green on a tree it cannot read
   is the shape its own neighbour's docstring names. Same family as B-041.
+
+All six are repaired on `fix/maquette-l05` and land with **#484**, each with the hold that falls
+when it comes back.
 
 **B-036 — the English campaign missed two state ids, and no arm reads them.**
 `window.__states()` returns **`system-panne`** and **`acq-follows-groupe`**. Both are NAMED STATE
@@ -322,6 +326,14 @@ them. None is reproduced on a device yet; each entry below records the walk that
   leaves the splash/boot state visible rather than a rendered interface disagreeing with
   its URL, which is the lower-risk failure mode DOIT-10 is not written against. Settles
   when the legacy engine itself dies (SP4-end), not before.
+  **The residual is closed on `fix/maquette-l05` (#484), and its justification had stopped being
+  true.** « Boot-time, pre-render » no longer describes those three writes: `render()` runs above
+  the first of them and `__loadingDone()` between the first and the second, so a refusal leaves a
+  fully drawn interface standing on an address nothing wrote — the failure mode DOIT-10 IS written
+  against, not the lower-risk one. The third is also the entry an addressed panel's layer is
+  stacked on, so losing it makes the first Back spend the exit guard instead. All three now log in
+  English and raise `window.__navEchec`, and R69 reads the flag on a cold load whose boot write is
+  refused from outside the page.
   **A fourth swallow, found by the SP4b final review and fixed, not left residual.**
   `shell.tsx`'s `openPanel` wrapped `window.__pont.coucher("sheet")` in the same
   silent `try { … } catch {}`, inherited from the legacy `openSheet`'s own guard around this

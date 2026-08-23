@@ -61,7 +61,11 @@ What this holds to:
    writer, and this rule reads it. A refused write leaves the address and the
    interface disagreeing, and a disagreement nothing records is one nobody can
    find — so the flag is read with a write broken on purpose, and again at the
-   end of an ordinary walk, where it must still be false.
+   end of an ordinary walk, where it must still be false. « Every writer »
+   is read literally, and it is the whole of the hold: the gate's release as
+   well as its raise, and the BOOT's own three, which no gesture can reach and
+   which are therefore broken from OUTSIDE the page, before its first script
+   runs.
 11. A back puts EVERY dial back. The history entry carries the state one
    arrived in, so a dial the entry does not carry is a dial no back can
    restore — the address drops it while the interface goes on showing it, a
@@ -153,6 +157,27 @@ RELEASES_TITLE = "Silo"
 # interface's own rendered output, and translating it here would stop the hold
 # measuring anything.
 NOT_FOUND_TEXT = "Cette adresse ne mène nulle part."  # french-ok: rendered interface text a hold asserts
+
+# The boot's own writers run before anything in the document can reach the
+# bridge, so a cold load cannot break them the way the walks below do. The one
+# seam left is `history.pushState` itself, wrapped before the first script of
+# the page runs: it refuses the FIRST push carrying this dial — which is the
+# boot's record of the arrival entry, the entry an addressed panel is later
+# stacked on — and lets every later push through.
+BOOT_DIAL = "lens=inc"
+BOOT_ADDRESS = f"media?{BOOT_DIAL}"
+REFUSE_THE_BOOT_WRITE = """
+const nativePush = History.prototype.pushState;
+let refused = false;
+History.prototype.pushState = function (...args) {
+  if (!refused && String(args[2] ?? "").includes("DIAL")) {
+    refused = true;
+    window.__refused = true;
+    throw new Error("refused");
+  }
+  return nativePush.apply(this, args);
+};
+""".replace("DIAL", BOOT_DIAL)
 
 WHERE = """() => ({
   page: state.page,
@@ -308,6 +333,34 @@ async def main():
                       released["failed"] is True, f"__navEchec={released['failed']}")
         await pg.evaluate("()=>{ window.__bridge.replace = window.__savedReplace; }")
         journal.check("no JS error when a release write is refused", not errors, str(errors))
+        await ctx.close()
+
+        # And the BOOT's writers, which no gesture can reach: they run before
+        # the page can be touched, so the refusal is installed from outside it.
+        # « Every writer » has to mean the ones that fire when nobody is
+        # looking, and those three are exactly where a swallow costs most —
+        # the interface is already drawn by then, so a refusal leaves a real
+        # screen standing on an address nothing wrote.
+        ctx = await b.new_context(**PHONE)
+        await ctx.add_init_script(REFUSE_THE_BOOT_WRITE)
+        pg = await ctx.new_page()
+        errors = []
+        pg.on("pageerror", lambda e: errors.append(str(e)))
+        await pg.goto(PROTOTYPE + BOOT_ADDRESS, wait_until="load")
+        await pg.evaluate("()=>window.__loadingDone?.()")
+        await pg.wait_for_timeout(400)
+        booted = await pg.evaluate(
+            """()=>({page: state.page, refused: window.__refused === true,
+                     failed: window.__navEchec})""")
+        # Read first, and separately: a seam that stopped firing would make
+        # the hold below fall for a reason that has nothing to do with the
+        # flag, and a hold blaming the wrong thing is worse than none.
+        journal.check("the seam really did refuse the boot's write",
+                      booted["refused"], f"refused={booted['refused']}")
+        journal.check("and a refused boot write is on record like any other",
+                      booted["failed"] is True,
+                      f"__navEchec={booted['failed']} · page={booted['page']}")
+        journal.check("no JS error when a boot write is refused", not errors, str(errors))
         await ctx.close()
 
         # ── 9. a screen address resolves to the page UNDERNEATH ────────────
