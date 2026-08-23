@@ -189,14 +189,17 @@ reformatting whole files around a three-line change, which is the churn L02 was 
 
 ### Decisions taken for this phase (the orchestrator's; the operator reviews them in the PR)
 
-- **D-8.1 — which page sits under a screen.** A screen address resolves to the page underneath
-  the way `SIGN_IN_PATH` already does: `HOME_PAGE`. That is the tree before L05 (where
-  `stateFromUrl()` read only the query and `page` fell back to `acq`), so it is the regression
-  undone and nothing more; a per-screen mapping (the media sheet over the library, a
-  resolution over the arrivals) is a UX proposal for the operator, not this phase's to decide.
-  The screen paths are DECLARED in `lib/addresses.ts` as `SCREEN_PATHS` — the five `path:`
-  literals of the screen routes, one list — and an offline check holds that list against the
-  route files (the three ends of the contract: the table, the routes, the rule).
+- **D-8.1 — which page sits under a screen. STRUCK by phase 11, and this is the record rather
+  than a deletion.** It read: « a screen address resolves to the page underneath the way
+  `SIGN_IN_PATH` already does: `HOME_PAGE` … a per-screen mapping (the media sheet over the
+  library, a resolution over the arrivals) is a UX proposal for the operator, not this phase's
+  to decide. » The operator decided it. `product-intent.md` § 16 rule 3 puts the REAL PARENT
+  under a screen — the library under a media sheet, the arrivals under a resolution — and
+  RENDERED, not merely recorded; `frontend-architecture.md` D1b assigns rules 1 to 3 to this
+  wave. Phase 11 carries it: `SCREEN_PATHS` becomes `SCREEN_PARENTS`, path to parent page, and
+  the offline check holds the keys against the route files AND each value against `PAGE_PATHS`
+  — the three ends of the contract are unchanged (the table, the routes, the rule), the table
+  simply says one thing more.
 - **D-8.2 — what the not-found state composes.** `addressOf(NOT_FOUND_PAGE, values)` returns
   `values.notFound` — the address exactly as asked — and THROWS when that is missing, never
   `/`. A refusal, because a state that composes to another state's address is the rewrite hold

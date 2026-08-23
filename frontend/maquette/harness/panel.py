@@ -519,6 +519,53 @@ async def main():
               f"{pg10.url} · armedExit={await pg10.evaluate('()=>window.armedExit')}")
         await ctx10.close()
 
+        # AND THE SAME TAP TOWARDS THE ENTRY PAGE, which is the direction the
+        # walk above cannot take: it leaves the entry page, and coming BACK to
+        # it is the one page switch that steps onto the floor instead of
+        # writing. A layer's entry is on top at that moment — the tab bar
+        # closes the panel without popping — so stepping back would land on the
+        # page being left, with the destination drawn over it. The destination
+        # takes the layer's entry instead, and what is held is the outcome: the
+        # entry page, its own address, no panel, and a Back that still has the
+        # floor to find rather than the document to leave.
+        ctx11 = await b.new_context(**PHONE)
+        pg11 = await ctx11.new_page()
+        towards_errors = []
+        pg11.on("pageerror", lambda e: towards_errors.append(str(e)))
+        await pg11.goto(PROTOTYPE + "maintenance", wait_until="load")
+        await pg11.evaluate("()=>window.__loadingDone?.()")
+        await pg11.wait_for_timeout(600)
+        # A topic first: the actions are drawn inside one, so a page opened at
+        # its root offers none and the walk would measure an empty selector.
+        await pg11.evaluate(
+            "()=>{const node = document.querySelector('[data-maintopic]');"
+            " if (node) node.click();}")
+        await pg11.wait_for_timeout(500)
+        action = await pg11.evaluate(
+            "()=>{const node = document.querySelector('[data-maintact]');"
+            " if (!node) return ''; node.click(); return node.dataset.maintact;}")
+        await pg11.wait_for_timeout(500)
+        check("a maintenance action opens its panel over a page that is not the entry one",
+              bool(action) and await pg11.evaluate("()=>window.__panel.isOpen()"),
+              f"action={action!r} · {pg11.url}")
+        await pg11.evaluate(
+            f"()=>document.querySelector('#nav button[data-page=\"{BURIED_FROM}\"]').click()")
+        await pg11.wait_for_timeout(700)
+        check("a tab tap towards the entry page over an open panel lands on the entry page",
+              await pg11.evaluate("()=>window.__store.read().state.page") == BURIED_FROM
+              and not await pg11.evaluate("()=>window.__panel.isOpen()")
+              and pg11.url.endswith("/acquisition"),
+              f"{pg11.url} · page="
+              f"{await pg11.evaluate('()=>window.__store.read().state.page')}"
+              f" · panel={await pg11.evaluate('()=>window.__panel.isOpen()')}")
+        await pg11.go_back()
+        await pg11.wait_for_timeout(700)
+        check("and the Back after it is still inside the application",
+              pg11.url.startswith(PROTOTYPE), pg11.url)
+        check("no JS error tapping the entry page's tab over a panel",
+              not towards_errors, str(towards_errors))
+        await ctx11.close()
+
         # AND THE PARAMETER IS RECOGNISED BY ITS NAME, not by the letters it
         # happens to be spelled with. A query name may be percent-encoded —
         # `%70anel` IS `panel` — and `URLSearchParams` decodes, so the reader
