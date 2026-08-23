@@ -128,47 +128,25 @@ each on `history.length` and `armedExit` rather than on the address alone.
 """
 import asyncio
 import json
-import pathlib
-import re
 import urllib.parse
 
-from common import PHONE, design_source
-from playwright.async_api import async_playwright
-
-PROTOTYPE = "http://127.0.0.1:8899/"
-
-# The page a path names. Kept in step with `design/src/lib/addresses.ts`,
-# which is the model this rule measures — a contract has three ends, and this
-# is one of them.
-HOME = "/acquisition"
-HOME_PAGE = "acq"
-LIBRARY = "/media"
-ARRIVALS = "/arrivals"
-
-# And the model itself, READ rather than transcribed. The dial list and the
-# page table were both written out here once, and the dial list had already
-# drifted — five names against the model's six — in the very wave that wrote
-# the comment forbidding a second list. A copy nothing renders drifts in
-# silence, so the names come from the declaration, exactly as
-# `scripts/check-frontend-boundaries.py` reads them.
-MODEL = pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "lib" / "addresses.ts"
-DECLARATION = MODEL.read_text(encoding="utf-8")
-DIAL_PARAMETERS = tuple(
-    re.findall(r'parameter:\s*"([^"]+)"', DECLARATION)
-    + re.findall(r'PANEL_PARAMETER = "([^"]+)"', DECLARATION)
+from common import (
+    ARRIVALS,
+    BOOT_ADDRESS,
+    BOOT_WRITES,
+    DIAL_PARAMETERS,
+    HOME,
+    HOME_PAGE,
+    LIBRARY,
+    PAGE_PATHS,
+    PHONE,
+    PROTOTYPE,
+    SCREEN_PARENTS,
+    SCREEN_PATHS,
+    design_source,
+    refuse_one_boot_write,
 )
-PAGE_PATHS = dict(re.findall(r'^\s{2}(\w+):\s*"(/[^"]*)"', DECLARATION, re.M))
-# And the SCREEN routes WITH THE PAGE EACH BELONGS TO, from the same
-# declaration and with the same regex `scripts/check-frontend-boundaries.py`
-# uses. A `$segment` stands for any one non-empty segment; what fills it is
-# this rule's, the TABLE is the model's. Written out here it was a copy, and a
-# copy of a table drifts the day a screen is added — silently, because a screen
-# this rule never opens is a screen this rule never contradicts. The PARENT is
-# read for the same reason it is declared: what sits under a screen is the page
-# it belongs to, and a rule that expected the home page under every one of them
-# would agree with the defect § 16 rule 3 names.
-SCREEN_PARENTS = dict(re.findall(r'^\s{2}"(/[^"]*)":\s*"(\w+)"', DECLARATION, re.M))
-SCREEN_PATHS = tuple(SCREEN_PARENTS)
+from playwright.async_api import async_playwright
 
 # How the interface OFFERS each page, so its address can be read off a real
 # arrival rather than off a cold load that proves only the other direction.
@@ -218,77 +196,6 @@ RELEASES_TITLE = "Silo"
 # interface's own rendered output, and translating it here would stop the hold
 # measuring anything.
 NOT_FOUND_TEXT = "Cette adresse ne mène nulle part."  # french-ok: rendered interface text a hold asserts
-
-# The boot's own writers run before anything in the document can reach the
-# bridge, so a cold load cannot break them the way the walks below do. What is
-# left is the history primitives themselves, wrapped before the first script of
-# the page runs. And the boot writes THREE times, not once: the settlement and
-# the guard both travel through `replaceState`, the arrival entry through
-# `pushState`. A seam over `pushState` alone therefore refuses one write and
-# says nothing whatever about the other two — measured: either `replace` catch
-# reverted to a bare call left every hold here green.
-BOOT_DIAL = "lens=inc"
-BOOT_ADDRESS = f"media?{BOOT_DIAL}"
-BOOT_PATH = "/" + BOOT_ADDRESS
-# The markers the boot's entries carry, read back off the refused write so a
-# hold can say the refusal was the boot's own. They are the ENGINE's data,
-# matched here and never authored here.
-NAV_MARKER = "nav"
-GUARD_MARKER = "garde"  # french-ok: the engine's own history marker, matched not authored
-
-
-def refuse_one_boot_write(primitive, condition):
-    """Composes an init script refusing exactly ONE of the boot's history writes.
-
-    Args:
-        primitive: The `History.prototype` method to wrap — `pushState` for
-            the arrival entry, `replaceState` for the two before it.
-        condition: A JavaScript expression over `url` (the address the call
-            carries) and `given` (its state argument), true for the one call
-            to refuse.
-
-    Returns:
-        The script, installed before the page's first script runs. It refuses
-        the FIRST call the condition matches, records the address and the state
-        it refused on `window.__refused`, and lets every later call through.
-    """
-    return """
-const native = History.prototype.PRIMITIVE;
-let refused = false;
-History.prototype.PRIMITIVE = function (...args) {
-  const url = String(args[2] ?? "");
-  const given = args[0] || {};
-  if (!refused && (CONDITION)) {
-    refused = true;
-    window.__refused = { url: url, state: given };
-    throw new Error("refused");
-  }
-  return native.apply(this, args);
-};
-""".replace("PRIMITIVE", primitive).replace("CONDITION", condition)
-
-
-# One seam per boot write, in the order the boot issues them, each with the
-# marker its entry carries. The settlement is recognised by the ADDRESS it
-# writes, the guard by the marker in its state — it writes no address of its
-# own — and the arrival entry is the first push of the load, whatever it
-# carries. What each seam refused is read back against these: a boot that
-# stopped writing through the primitive while some later writer still did would
-# otherwise read as a swallowed refusal instead of a rotted seam.
-# Each seam also carries the ADDRESS its write should have been carrying: the
-# boot pushes the FLOOR before the arrival now, so a seam matching « the first
-# push » would refuse the floor and a hold naming the arrival would report the
-# wrong write as caught.
-BOOT_WRITES = (
-    ("the arrival address", "replaceState", f'url.includes("{BOOT_ADDRESS}")',
-     NAV_MARKER, BOOT_PATH),
-    ("the exit guard", "replaceState", f'given.tm === "{GUARD_MARKER}"',
-     GUARD_MARKER, BOOT_PATH),
-    ("the floor beneath the arrival", "pushState", f'url.endsWith("{HOME}")',
-     NAV_MARKER, HOME),
-    ("the arrival entry", "pushState", f'url.includes("{BOOT_ADDRESS}")',
-     NAV_MARKER, BOOT_PATH),
-)
 
 # The two ways an addressed panel is dropped BEFORE anything can decline it —
 # an empty value names no panel at all, and one asked for over the sign-in
