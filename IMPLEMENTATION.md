@@ -69,14 +69,10 @@ repository.
 53 flat `.py` files (recorded and deliberately unscheduled), and B-036 / B-040, which belong to
 their own waves.
 
-**Next action**: phase 8 is in flight on `fix/maquette-l05` (row above). When its pull request
-has merged: `git checkout main && git pull`, `make maquette-oracle` (expected to fail on the
-pointer), `python3 frontend/maquette/oracle.py --record`,
-`python3 scripts/harness-hold-counts.py --record frontend/maquette/hold-counts-baseline.json` —
-all from `main`'s tip, BEFORE any branch is taken — then review every oracle divergence and name
-every hold-count movement, move the row, and archive `docs/features/maquette-l04/` and
-`docs/features/maquette-l05/` beside L01–L03. Then **L06 — The scale**, with `/implement:feature`:
-no wave opens without its design and its plan.
+**Next action**: all phases of L05 are complete on `fix/maquette-l05` — open its pull request
+(`/implement:feature-pr`), then the three post-merge steps from `main`'s tip (see the « In flight »
+row), then archive `docs/features/maquette-l04/` and `docs/features/maquette-l05/`, then **L06 — The
+scale** with `/implement:feature`: no wave opens without its design and its plan.
 
 **Phases of L05** — the plan is `docs/features/maquette-l05/plan/INDEX.md`, which owns the
 reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
@@ -90,7 +86,7 @@ reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
 | 5   | The panel tier                         | `plan/phase-05-the-panel-tier.md`           | [x]    |
 | 6   | The offline guard, and one subtraction | `plan/phase-06-the-guard-and-the-subtraction.md` | [x] |
 | 7   | The records, and the gate              | `plan/phase-07-the-records.md`              | [x]    |
-| 8   | PR fixes, review cycle 1 — the four blocking defects | `plan/phase-08-pr-fixes-cycle-1.md` | [ ]    |
+| 8   | PR fixes, review cycle 1 — the four blocking defects | `plan/phase-08-pr-fixes-cycle-1.md` | [x]    |
 
 **What L05 is, in one line**: the eight pages leave `?page=` for a real path, the address model
 leaves the engine for `lib/addresses.ts` — the first subtraction of D5 — and the harness host
