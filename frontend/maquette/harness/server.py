@@ -126,8 +126,8 @@ class FallbackHandler(http.server.SimpleHTTPRequestHandler):
 
 
 @contextlib.contextmanager
-def start_server(port: int, root: pathlib.Path) -> Iterator[None]:
-    """Serves `root` on `port` for the lifetime of the `with` block.
+def start_server(port: int, root: pathlib.Path) -> Iterator[int]:
+    """Serves `root` on a scratch port for the lifetime of the `with` block.
 
     Files under `root` are served as-is; any path with no file behind it
     instead answers `root/wrapped.html` — the fallback that lets a deep
@@ -136,15 +136,22 @@ def start_server(port: int, root: pathlib.Path) -> Iterator[None]:
     navigating there inside an already-loaded document — EXCEPT under
     `FallbackHandler.ASSET_PREFIXES`, where a missing file still 404s.
 
+    `port` 0 asks the kernel for a free port, and the port actually bound
+    is yielded so the caller composes its addresses from the truth rather
+    than from the request: a scratch server has no reason to want a fixed
+    port, and a fixed one is a list that drifts — rules that pick from the
+    same list eventually collide on one socket.
+
     Args:
-        port: The loopback port to bind. Must not be one of
-            `RESERVED_PORTS`.
+        port: The loopback port to bind; 0 means any free port. A non-zero
+            port must not be one of `RESERVED_PORTS`.
         root: The directory to serve. Must contain `wrapped.html`.
 
     Yields:
-        Nothing — the server runs on a daemon thread for the block's
-        duration and is reachable at `http://127.0.0.1:{port}/` as soon as
-        the `with` statement is entered.
+        int: The loopback port actually bound — `port` when it was
+        non-zero, the kernel's choice when it was 0. The server runs on a
+        daemon thread for the block's duration and is reachable on that
+        port as soon as the `with` statement is entered.
 
     Raises:
         ValueError: When `port` is one of `RESERVED_PORTS`.
@@ -162,7 +169,9 @@ def start_server(port: int, root: pathlib.Path) -> Iterator[None]:
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
-        yield
+        # The truth about where the server listens — the request said 0, the
+        # kernel decided, and the caller composes addresses from this.
+        yield server.server_address[1]
     finally:
         server.shutdown()
         server.server_close()
@@ -210,12 +219,9 @@ if __name__ == "__main__":
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
     from common import Journal
 
-    # NOT 8917: `screen_addresses.py` declares that port in its own docstring
-    # (« this rule runs entirely against 8917 ») and binds it. Both are rules,
-    # they sit next to each other alphabetically, and since the suite began
-    # running several at a time they can hold the socket at the same moment —
-    # « Address already in use », attributed to whichever lost the race.
-    PROOF_PORT = 8918
+    # The scratch port is ephemeral: 0 asks the kernel for a free one and the
+    # port actually bound comes back from the context manager. A fixed port is
+    # a list that drifts, and rules picking from the same list collide on it.
     PROOF_ROOT = pathlib.Path("/tmp/tm-refonte")
 
     journal = Journal("server.py — the fallback answers deep addresses")
@@ -227,8 +233,8 @@ if __name__ == "__main__":
         journal.summary()
     bundle = bundles[0]
 
-    with start_server(PROOF_PORT, PROOF_ROOT):
-        base = f"http://127.0.0.1:{PROOF_PORT}"
+    with start_server(0, PROOF_ROOT) as port:
+        base = f"http://127.0.0.1:{port}"
 
         with urllib.request.urlopen(f"{base}/quality/X%20Y", timeout=5) as response:
             profile_status, profile_body = response.status, response.read()
@@ -284,6 +290,35 @@ if __name__ == "__main__":
             "still answers the document",
             folder_status == 200 and folder_body == expected,
             f"status {folder_status}, {len(folder_body)} bytes")
+
+        # A scratch server wanting a FIXED port is what this rule once
+        # carried, and it is how two rules race one socket. Port 0 hands the
+        # choice to the kernel; raising a SECOND scratch server while the
+        # first is up proves the two never collide — it must get a different
+        # free port and answer the same deep address on it.
+        try:
+            with start_server(0, PROOF_ROOT) as second_port:
+                with urllib.request.urlopen(
+                    f"http://127.0.0.1:{second_port}/quality/X%20Y", timeout=5
+                ) as response:
+                    second_status, second_body = response.status, response.read()
+            second_holds = (
+                isinstance(second_port, int)
+                and second_port != 0
+                and second_port != port
+                and second_port not in RESERVED_PORTS
+                and second_status == 200
+                and second_body == expected)
+            second_evidence = (
+                f"first {port}, second {second_port}, status {second_status}")
+        except OSError as error:
+            second_holds = False
+            second_evidence = f"first {port}, second server refused: {error}"
+        journal.check(
+            "a scratch server bound on port 0 reports a real ephemeral port",
+            isinstance(port, int) and port != 0 and port not in RESERVED_PORTS
+            and second_holds,
+            second_evidence)
 
     # ── the HOST, not a scratch server ────────────────────────────────────
     # Everything above proves the HANDLER, on a scratch port. This proves the

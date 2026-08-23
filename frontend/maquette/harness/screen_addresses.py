@@ -8,7 +8,8 @@ only shows up once something is actually served from BELOW the document
 root. `server.py` (Task 8) is what makes that depth reachable at all: the
 plain 8899 host 45 other rules already point at answers a 404 for
 `/quality/…`, because no such file exists — nothing served through it can
-tell a deep reload from a broken link. This rule runs entirely against 8917.
+tell a deep reload from a broken link. This rule runs against an ephemeral
+scratch port.
 
 What it holds to:
 
@@ -66,7 +67,6 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from common import PHONE, Journal
 from server import start_server
 
-PORT = 8917
 SERVED_ROOT = pathlib.Path("/tmp/tm-refonte")
 
 # Where a Retour from a screen opened COLD lands. The screen's own entry is
@@ -217,8 +217,8 @@ async def main():
     async with async_playwright() as p:
         browser = await p.chromium.launch(channel="chrome")
 
-        with start_server(PORT, SERVED_ROOT):
-            base = f"http://127.0.0.1:{PORT}"
+        with start_server(0, SERVED_ROOT) as port:
+            base = f"http://127.0.0.1:{port}"
 
             # ─── Hold 1: deep entry opens the promised screen, cold ────────
             title_address = f"{base}/quality/{urllib.parse.quote(TITLE)}"
