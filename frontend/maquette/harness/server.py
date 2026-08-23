@@ -28,6 +28,7 @@ import functools
 import http.server
 import os
 import pathlib
+import re
 import threading
 from collections.abc import Iterator
 
@@ -231,8 +232,61 @@ def serve_forever(port: int, root: pathlib.Path) -> None:
     http.server.ThreadingHTTPServer(("127.0.0.1", port), handler).serve_forever()
 
 
+def scratch_call_offenders(directory: pathlib.Path) -> list[str]:
+    """Names the `start_server` call sites under `directory` that pass a port.
+
+    Reads each `*.py` file's WHOLE text and finds every `start_server(` in
+    it, then reads the argument list with a balanced-parentheses walk,
+    tolerant of newlines and of nested calls: a call the formatter wrapped
+    over two lines is still seen, and `start_server(f(a, b))` is not flagged
+    for its inner comma. A call is an offender when its TOP-LEVEL argument
+    list carries a comma — a second argument, the port — or is empty. A
+    `def start_server(...)` line is the definition, not a call, and is
+    skipped. An alias import (`from server import start_server as X`) never
+    reaches this reader, because the aliased name is what its call sites
+    would use — a reach this hold does not claim.
+
+    Args:
+        directory: The harness directory; every `*.py` in it is read.
+
+    Returns:
+        list[str]: One `file:line` per offending call site, in read order.
+    """
+    offenders: list[str] = []
+    for sibling in sorted(directory.glob("*.py")):
+        text = sibling.read_text(encoding="utf-8")
+        for match in re.finditer(r"\bstart_server\(", text):
+            line = text.count("\n", 0, match.start()) + 1
+            line_start = text.rfind("\n", 0, match.start()) + 1
+            if text[line_start:match.start()].lstrip().startswith("def "):
+                continue  # the definition, not a call site
+            depth = 1
+            cursor = match.end()
+            while depth and cursor < len(text):
+                if text[cursor] == "(":
+                    depth += 1
+                elif text[cursor] == ")":
+                    depth -= 1
+                cursor += 1
+            if depth:
+                continue  # unbalanced — not a call this reader can judge
+            arguments = text[match.end():cursor - 1]
+            nested = 0
+            passes_a_port = False
+            for character in arguments:
+                if character == "(":
+                    nested += 1
+                elif character == ")":
+                    nested -= 1
+                elif character == "," and nested == 0:
+                    passes_a_port = True
+                    break
+            if passes_a_port or not arguments.strip():
+                offenders.append(f"{sibling.name}:{line}")
+    return offenders
+
+
 if __name__ == "__main__":
-    import errno
     import sys
     import urllib.error
     import urllib.request
@@ -353,13 +407,12 @@ if __name__ == "__main__":
             second_evidence = (
                 f"first {port}, second server unreachable: {unreachable.reason}")
         except OSError as error:
-            # And here « refused » is the truth: the socket, not the protocol.
-            refused = (isinstance(error, ConnectionRefusedError)
-                       or error.errno == errno.EADDRINUSE)
-            second_evidence = (
-                f"first {port}, second server "
-                + (f"refused: {error}" if refused else f"failed to start: {error}"))
+            # A socket error reaching HERE is not the request's: urlopen
+            # wraps connection failures in URLError, caught above, and a
+            # port-0 bind has no fixed address to collide on — so there is
+            # nothing left to name but the raise itself.
             second_holds = False
+            second_evidence = f"first {port}, second server failed to start: {error}"
         journal.check(
             "a scratch server yields a real ephemeral port, and a second never races it",
             isinstance(port, int) and port != 0 and port not in RESERVED_PORTS
@@ -412,26 +465,20 @@ if __name__ == "__main__":
     # A fixed port on a scratch server is invisible to every live hold
     # above: a non-zero, non-reserved one like 8918 answers « not 0 » and
     # « not reserved » both, so the rule stayed green over it — and two
-    # rules set to that port would race one socket. What is read here is the call
-    # sites themselves — every `*.py` in this directory, the same glob
+    # rules set to that port would race one socket. What is read here is the
+    # call sites themselves — every `*.py` in this directory, the same glob
     # `page_host.py` reads — and a call that still passes a port is named,
     # file and line. Reading the sources rather than running them is what
-    # makes the hold bite on files nothing imports.
-    import re  # block-local like the urllib pair above, beside its one use
-    sources = sorted(pathlib.Path(__file__).resolve().parent.glob("*.py"))
-    offenders = []
-    for sibling in sources:
-        for number, line in enumerate(
-            sibling.read_text(encoding="utf-8").splitlines(), start=1):
-            for match in re.finditer(r"start_server\(([^)]*)\)", line):
-                arguments = match.group(1).strip()
-                if not arguments or "," in arguments:
-                    offenders.append(f"{sibling.name}:{number}")
+    # makes the hold bite on files nothing imports. The reader lives in
+    # `scratch_call_offenders`, beside the host code it guards.
+    harness_directory = pathlib.Path(__file__).resolve().parent
+    offenders = scratch_call_offenders(harness_directory)
     journal.check(
         "every scratch server is raised without a port",
         not offenders,
         ", ".join(offenders)
-        if offenders else f"{len(sources)} file(s) read, no call passes a port")
+        if offenders else
+        f"{len(list(harness_directory.glob('*.py')))} file(s) read, no call passes a port")
 
     # ── the HOST, not a scratch server ────────────────────────────────────
     # Everything above proves the HANDLER, on a scratch port. This proves the
