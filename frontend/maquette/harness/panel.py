@@ -272,6 +272,90 @@ async def main():
         check("no JS error reopening it cold", not cold_errors, str(cold_errors))
         await ctx3.close()
 
+        # AN ADDRESS IS TYPED, PASTED AND KEPT FOR MONTHS, so the panel
+        # parameter is the one part of an address the interface must be able to
+        # DECLINE. Three shapes of refusal, and the same answer to all three:
+        # the page underneath, with the parameter taken off — never a panel
+        # built out of the value itself. The engine's producers answer for
+        # anything they are handed (a medium nobody holds still gets a panel,
+        # which is the right answer for the door inside the application), so
+        # what is read here is that the URL door asks a question first.
+        async def cold(query):
+            """Opens the acquisition page cold at one panel query.
+
+            Returns:
+                `(url, open, title, errors)` — the address settled on, whether
+                a panel is up, the title the panel descriptor names, and any
+                JS error the load raised.
+            """
+            context = await b.new_context(**PHONE)
+            page = await context.new_page()
+            raised = []
+            page.on("pageerror", lambda e: raised.append(str(e)))
+            await page.goto(PROTOTYPE + "acquisition" + query, wait_until="load")
+            await page.evaluate("()=>window.__loadingDone?.()")
+            await page.wait_for_timeout(600)
+            seen = (
+                page.url,
+                await page.evaluate("()=>window.__panel.isOpen()"),
+                await page.evaluate(
+                    "()=>(window.__store.read().state.panelDescriptor||{}).title||''"),
+                raised,
+            )
+            await context.close()
+            return seen
+
+        url, is_open, title, raised = await cold("?panel=follows")
+        check("a panel value that is not kind:subject opens nothing",
+              not is_open and "panel=" not in url and not raised,
+              f"{url} · title={title!r} · {raised}")
+
+        url, is_open, title, raised = await cold("?panel=nobody:Silo")
+        check("a panel kind the table does not carry opens nothing",
+              not is_open and "panel=" not in url and not raised,
+              f"{url} · title={title!r} · {raised}")
+
+        # The one that fabricated a medium: the producer's synthesised fallback
+        # was reachable FROM AN ADDRESS, so any title at all opened a panel
+        # describing a series this library has never heard of.
+        unknown = "Ceci N'Existe Pas"  # french-ok: a title no source holds
+        url, is_open, title, raised = await cold(
+            "?panel=follow:" + unknown.replace(" ", "%20").replace("'", "%27"))
+        check("a subject no source holds opens nothing, and names nothing",
+              not is_open and "panel=" not in url and title != unknown and not raised,
+              f"{url} · title={title!r} · {raised}")
+
+        # THE GUARD IS NOT THE PANEL'S TO SPEND. Reopened cold, the panel used
+        # to push its layer entry BEFORE the boot wrote the exit guard, so the
+        # guard's marker landed on the panel's own entry: closing the panel
+        # spent it, `panel=` never left the address, and the « one more back to
+        # leave » warning could not arm at all. One Back closes the panel and
+        # nothing else; the SECOND reaches the guard.
+        ctx5 = await b.new_context(**PHONE)
+        pg5 = await ctx5.new_page()
+        await pg5.goto(PROTOTYPE + "acquisition?panel=follow:Silo", wait_until="load")
+        await pg5.evaluate("()=>window.__loadingDone?.()")
+        await pg5.wait_for_timeout(600)
+        check("a valid subject reopens the panel it names",
+              await pg5.evaluate("()=>window.__panel.isOpen()")
+              and await pg5.evaluate(
+                  "()=>(window.__store.read().state.panelDescriptor||{}).title") == "Silo",
+              pg5.url)
+        await pg5.go_back()
+        await pg5.wait_for_timeout(450)
+        check("the first Back closes it and spends no guard",
+              not await pg5.evaluate("()=>window.__panel.isOpen()")
+              and "panel=" not in pg5.url
+              and pg5.url.endswith("/acquisition")
+              and not await pg5.evaluate("()=>window.armedExit"),
+              f"{pg5.url} · armedExit={await pg5.evaluate('()=>window.armedExit')}")
+        await pg5.go_back()
+        await pg5.wait_for_timeout(450)
+        check("and the second Back is the one that reaches the guard",
+              bool(await pg5.evaluate("()=>window.armedExit")),
+              f"{pg5.url} · armedExit={await pg5.evaluate('()=>window.armedExit')}")
+        await ctx5.close()
+
         # A menu has no subject, so it is tier 3: no address, Back still shuts
         # it. Reading the OTHER side of the same rule is what stops « every
         # layer writes an address » passing as « the tiers are applied ».

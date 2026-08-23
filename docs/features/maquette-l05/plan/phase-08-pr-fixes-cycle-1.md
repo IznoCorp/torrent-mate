@@ -201,13 +201,33 @@ reformatting whole files around a three-line change, which is the churn L02 was 
   `/`. A refusal, because a state that composes to another state's address is the rewrite hold
   4 forbids; and the `state.notFound` field is what the boot already writes, so nothing new is
   carried.
-- **D-8.3 — the panel address.** A value with no `:` is refused (no reopen, `panel=` stripped).
-  An unknown kind is refused (as the comment already promised). An unknown SUBJECT is refused
-  BEFORE opening: each `REOPEN` producer answers whether the subject resolves, and
-  `openFollowSheet` loses its synthesised fallback — a follow nobody holds has no panel, and
-  the four producers are asked the same question through the same shape. The reopen happens
-  AFTER the guard entry is written, so the guard marker never lands on the panel's entry; when
-  nothing reopened, the arrival address is recorded WITHOUT `panel=`.
+- **D-8.3 — the panel address** (recorded as IMPLEMENTED, which differs from the first draft of
+  this decision on two points named below). A value that is not `<kind>:<subject>` — no colon,
+  an empty kind, an empty subject — is refused, and so is a kind the `REOPEN` table does not
+  carry. An unknown SUBJECT is refused BEFORE anything opens: every `REOPEN` entry is now
+  `{ open, resolves }`, one shape for all four, and `resolves` reads the source that kind is
+  really drawn from — `knownMedium` (follows, `INCOMPLETE`, `LIBRARY`, or a `sheetFor`) for
+  `follow`; `knownMedium` plus `INFLIGHT` for `journey`, because a journey is reached from the
+  follow panel's own action and describes an acquisition in flight; `allSettings()`/`settingId`
+  for `setting`; `MAINT_ACTIONS` for `action`. A refusal logs one English `console.warn` naming
+  the value.
+  **First difference from the draft: `openFollowSheet` KEEPS its synthesised fallback.** It is
+  the door inside the application — `openDetailSheet` sends every medium to the same panel, and
+  a library title with no follow is a legitimate « nothing is known about this one », validated
+  by the operator. What changes is that the URL door no longer reaches that fallback with a
+  subject nobody holds; the question is asked apart from the opening, and only an address asks
+  it.
+  **Second difference: the reopen moves to the very END of the boot**, after
+  `__bridge.replace({ tm: "garde" })` AND after `__bridge.record(navigationState(),
+arrivalAddress)` — not merely after the guard. The panel pushes its own layer entry through
+  `panel.open` → `pushLayer`, and that entry has to sit ON TOP of the arrival entry exactly as
+  an in-app open does; landing it under the guard is what made closing the panel spend the
+  guard. `arrivalAddress` is therefore stripped of `panel=` in BOTH branches (the bare-root
+  settlement and the verbatim one), through one pure helper `withoutPanel(search)` in
+  `lib/addresses.ts`, published on the `window.__address` seam: when the panel reopens its own
+  entry carries the parameter, and when it does not the existing
+  `__bridge.replace(navigationState(), arrivalAddress)` — already ahead of the guard write —
+  takes it off the visible address too.
 - **D-8.4 — the scratch port.** `start_server(0, root)` binds an ephemeral port and the context
   manager yields the port it got; `PROOF_PORT` and `screen_addresses.py`'s `PORT` go away.
   `switchover.py` keeps 8918 (it spawns `serve.py` as a process and needs a number) and stops

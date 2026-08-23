@@ -340,6 +340,7 @@ jsx
 kept
 key
 kind
+known
 lab
 label
 labels
@@ -595,6 +596,7 @@ selection
 selector
 selmode
 semibold
+separator
 series
 services
 set
@@ -760,6 +762,7 @@ white
 wide
 width
 window
+without
 wordmark
 words
 world

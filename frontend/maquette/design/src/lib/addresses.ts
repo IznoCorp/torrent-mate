@@ -110,6 +110,35 @@ const DIALS = [
  * belongs to no page: a panel opens over whichever one is showing. */
 export const PANEL_PARAMETER = "panel";
 
+/**
+ * Drops the panel parameter from a query string, keeping the rest verbatim.
+ *
+ * The panel tier is the one part of an address a reader can ask for and the
+ * interface can legitimately decline — the subject may be one nobody holds. The
+ * address the arrival is RECORDED at therefore never carries it: either the
+ * panel reopened, and it pushes its own entry carrying its own address on top,
+ * or it did not, and an address naming a panel nothing opened would be a
+ * parameter the interface never honoured.
+ *
+ * The kept pairs are copied as they were WRITTEN rather than re-serialised: a
+ * round trip through `URLSearchParams` rewrites `%20` as `+` and would change
+ * an address that was only being passed through.
+ *
+ * Args:
+ *     search: The query string, leading `?` included or not.
+ *
+ * Returns:
+ *     The query string without the panel parameter, leading `?` included when
+ *     anything is left, and the empty string when nothing is.
+ */
+export function withoutPanel(search: string): string {
+  const raw = search.startsWith("?") ? search.slice(1) : search;
+  const kept = raw
+    .split("&")
+    .filter((pair) => pair !== "" && pair.split("=")[0] !== PANEL_PARAMETER);
+  return kept.length ? "?" + kept.join("&") : "";
+}
+
 /** The query parameters any page may carry — read by the addressing guard. */
 export const DIAL_PARAMETERS: readonly string[] = [
   ...DIALS.map((d) => d.parameter),

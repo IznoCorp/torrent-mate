@@ -33552,6 +33552,24 @@ import { screens, panel, bridge } from "./seams.js";
     );
   }
 
+  /* Does this interface HOLD a medium by that title?
+     `openFollowSheet` below answers for ANYTHING: a title it recognises in
+     none of its sources still gets a panel, synthesised from the title alone.
+     That is right for the in-app door — every medium opens the same panel, and
+     « rien n'est connu de celui-ci » is one of the truths a library title can
+     carry — and wrong for a door anyone can type, where the same fallback
+     turns a stale link into a medium that does not exist. So the question is
+     asked apart from the opening, and only an ADDRESS asks it. The four
+     sources are the ones the panel itself reads. */
+  function knownMedium(title) {
+    return (
+      world.follows.some((follow) => follow.t === title) ||
+      INCOMPLETE.some((entry) => entry.t === title) ||
+      LIBRARY.some((entry) => entry.t === title) ||
+      sheetFor(title) != null
+    );
+  }
+
   function openFollowSheet(title) {
     const follow = world.follows.find((follow2) => follow2.t === title) ||
       INCOMPLETE.map((INCOMPLETE2) => ({
@@ -34418,11 +34436,19 @@ import { screens, panel, bridge } from "./seams.js";
        page's own address. A REPLACE, never a push — nothing is inserted, so
        the first Back still reaches the guard entry underneath rather than
        bouncing off a redirect. Any OTHER address is kept exactly as it was
-       asked for, which is the whole of the paragraph above. */
+       asked for, which is the whole of the paragraph above.
+
+       THE PANEL PARAMETER IS THE ONE THING TAKEN OFF, and it is taken off in
+       both branches, whether the panel reopens or not. A panel that reopens
+       pushes its OWN entry carrying its own address on top of this one, so
+       leaving it here too would put it on both and a Back off the panel would
+       land on an address still naming it. A panel that does NOT reopen was
+       declined, and an address naming a panel nothing opened is a parameter
+       the interface never honoured. Either way this entry is the page. */
     const arrivalAddress =
       location.pathname === "/"
         ? window.__address.compose(currentState())
-        : location.pathname + location.search;
+        : location.pathname + window.__address.withoutPanel(location.search);
     render();
     /* A cold `/login` raises the gate over a frame that is already drawn,
        which is the whole reason its address resolves to a page underneath
@@ -34435,28 +34461,59 @@ import { screens, panel, bridge } from "./seams.js";
     }
     /* An ADDRESSED panel reopens on a cold load — otherwise its address would
        be decoration, written but never read. The table is here, beside the
-       producers it names, and a `<kind>` it does not carry is IGNORED rather
-       than guessed at: a stale link naming a panel nobody serves must land on
-       the page, never on an invented one. */
+       producers it names, and every entry answers TWO questions: how to open
+       the panel, and whether the subject is one this interface HOLDS.
+
+       THREE WAYS A VALUE IS REFUSED, and all three land the reader on the page
+       with a clean address rather than on a panel nobody serves: a value that
+       is not `<kind>:<subject>`, a kind the table does not carry, and a
+       subject nobody holds. The last is why `resolves` exists at all — the
+       producers answer for anything, which is right for the door inside the
+       application (see `knownMedium`) and wrong for a door anyone can type.
+
+       Split on the FIRST colon only, because a subject carries its own: a
+       setting is addressed `<file>:<key>`, and a title like « Dexter:
+       Resurrection » would otherwise name a medium that does not exist. */
+    const REOPEN = {
+      follow: { open: openFollowSheet, resolves: knownMedium },
+      journey: {
+        open: openJourneySheet,
+        /* A journey is reached from the follow panel's own action, which
+           carries the medium's title, and from nowhere else. So it answers for
+           a medium this interface holds, plus the acquisitions in flight —
+           which are what a journey describes. */
+        resolves: (subject) =>
+          knownMedium(subject) || INFLIGHT.some((entry) => entry.t === subject),
+      },
+      setting: {
+        open: openSetting,
+        resolves: (subject) =>
+          allSettings().some((setting) => settingId(setting) === subject),
+      },
+      action: {
+        open: openActionMaintenance,
+        resolves: (subject) =>
+          MAINT_ACTIONS.some((action) => action.id === subject),
+      },
+    };
+    /* Decided here, applied at the very end of this boot: the panel's own
+       history entry has to sit ON TOP of the arrival entry, and that entry
+       does not exist yet. */
+    let reopenPanel = null;
     if (arrival.panel) {
-      const [kind, subject] = [
-        arrival.panel.slice(0, arrival.panel.indexOf(":")),
-        arrival.panel.slice(arrival.panel.indexOf(":") + 1),
-      ];
-      const REOPEN = {
-        follow: openFollowSheet,
-        journey: openJourneySheet,
-        setting: openSetting,
-        action: openActionMaintenance,
-      };
-      if (REOPEN[kind]) {
-        pilotage = true;
-        try {
-          REOPEN[kind](subject);
-        } catch (error) {
-          console.error("reopening the addressed panel failed", error);
-        }
-        pilotage = false;
+      const separator = arrival.panel.indexOf(":");
+      const kind = separator > 0 ? arrival.panel.slice(0, separator) : "";
+      const subject = separator > 0 ? arrival.panel.slice(separator + 1) : "";
+      const entry = REOPEN[kind];
+      if (subject && entry && entry.resolves(subject)) {
+        reopenPanel = () => entry.open(subject);
+      } else {
+        /* ENGLISH, and not in the i18n resources: a console message is a tool
+           message, read by a developer, never by a reader of the interface. */
+        console.warn(
+          "the addressed panel names nothing this interface holds, and is ignored:",
+          arrival.panel,
+        );
       }
     }
     /* The address is put back on the entry one arrives on, so a back from
@@ -34485,6 +34542,25 @@ import { screens, panel, bridge } from "./seams.js";
     try {
       __bridge.record(navigationState(), arrivalAddress);
     } catch (error) {}
+    /* AND THE PANEL LAST OF ALL, so its layer entry sits on top of the arrival
+       entry exactly as one opened from inside the application does. Opened
+       before the guard was written, the panel's entry was the one the guard's
+       marker replaced: the panel then had no entry of its own, closing it
+       consumed the guard's, `panel=` stayed in the address for good and the
+       « one more back to leave » warning could never arm.
+
+       Under `pilotage` for the same reason the sign-in raise above is: nothing
+       here records a path of its own. The layer entry the panel pushes is not
+       a path, and it is pushed regardless — that entry is the point. */
+    if (reopenPanel) {
+      pilotage = true;
+      try {
+        reopenPanel();
+      } catch (error) {
+        console.error("reopening the addressed panel failed", error);
+      }
+      pilotage = false;
+    }
     /* The welcome hint disappears on first interaction: a bubble that
        returns over an open sheet is a nuisance, not help. */
     let hintShown = false;

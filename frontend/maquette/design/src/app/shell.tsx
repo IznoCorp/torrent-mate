@@ -64,7 +64,12 @@ import { qualityRoute } from "../routes/quality";
 import { releasesRoute } from "../routes/releases";
 import { resolutionRoute } from "../routes/resolution";
 import { installSeams } from "../engine/seams";
-import { addressOf, destinationOf, SIGN_IN_PATH } from "../lib/addresses";
+import {
+  addressOf,
+  destinationOf,
+  SIGN_IN_PATH,
+  withoutPanel,
+} from "../lib/addresses";
 import { go, installNavigation } from "../lib/navigate";
 
 
@@ -132,6 +137,8 @@ declare global {
     __address: {
       /** The sign-in screen's own path, so the engine writes it by name. */
       signInPath: string;
+      /** A query string with the panel parameter taken off, rest verbatim. */
+      withoutPanel: (search: string) => string;
       compose: (state: Record<string, unknown>) => string;
       parse: (pathname: string, search: string) => {
         page: string;
@@ -615,6 +622,7 @@ window.__store = store;
 // vocabulary, so nothing translates on the way across.
 window.__address = {
   signInPath: SIGN_IN_PATH,
+  withoutPanel: withoutPanel,
   compose: (state) => addressOf(String(state.page ?? ""), state),
   parse: destinationOf,
 };
