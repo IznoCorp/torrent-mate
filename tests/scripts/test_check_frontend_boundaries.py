@@ -22,6 +22,13 @@ reference is resolved (and a reference resolving to nothing is a violation,
 never silence), and the summary says how many bodies it actually read — a
 number nobody prints is a number nobody can hold against the tree.
 
+A third review then mutation-proved the reader's TEXT: it scanned comments and string
+literals as if they were code, so a legitimate `// validateSearch: …` note failed the
+build, while an inline return type, a call, a destructured parameter and two `raw`
+spellings all read clean and were counted as bodies read. So the route text is stripped
+of its comments and its string literals before the member scan, the declared type and the
+body are told apart, and a key is read only where an object-literal key can sit.
+
 Each mutation case copies the real maquette tree into a scratch directory,
 mutates the copy, and runs the arm over it: the cases measure the arm over the
 corpus it really reads, and the green case proves it still reads the repository.
@@ -88,7 +95,7 @@ def write_add_route(root: Path, member: str, prelude: str = "") -> None:
 
 
 class TestAddressingArm:
-    """The fourteen mutation cases, then the real tree, unmodified, reading clean."""
+    """The mutation cases, then the real tree, unmodified, reading clean."""
 
     def test_a_deleted_address_model_is_a_violation(self, tmp_path, capsys) -> None:
         """Refuse a missing `lib/addresses.ts` — a tree the arm cannot read must not read clean."""
@@ -309,6 +316,151 @@ class TestAddressingArm:
         assert violations == 1
         assert "cannot read" in captured.err
         assert "« page »" not in captured.err
+
+    def test_p_an_inline_return_type_is_not_the_body(self, tmp_path, capsys) -> None:
+        """Refuse a page behind an inline return type — its brace must not be read as the body."""
+        root = copy_design_src(tmp_path)
+        write_add_route(
+            root,
+            "  validateSearch: (raw: Record<string, unknown>): { page?: string } =>"
+            ' ({ page: String(raw.page ?? "") }),\n',
+        )
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations == 1, captured.err
+        assert any("« page »" in line and "inline" in line for line in captured.err.splitlines())
+
+    def test_q_a_call_is_not_a_reference(self, tmp_path, capsys) -> None:
+        """A CALL names no body this reader can follow — and the factory's body is not counted."""
+        root = copy_design_src(tmp_path)
+        write_add_route(
+            root,
+            '  validateSearch: reader("page"),\n',
+            prelude="function reader(key: string) {\n"
+            '  return (raw: Record<string, unknown>) => ({ [key]: String(raw[key] ?? "") });\n'
+            "}\n"
+            "\n",
+        )
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations == 1, captured.err
+        assert "cannot read" in captured.err
+        assert "3 validateSearch body(ies) read" in captured.out
+
+    def test_r_a_destructured_parameter_is_read(self, tmp_path, capsys) -> None:
+        """Refuse a page pulled out of the parameter list — `({ page, ...rest }) => …`."""
+        root = copy_design_src(tmp_path)
+        write_add_route(
+            root,
+            '  validateSearch: ({ page, ...rest }: Record<string, unknown>) => ({ ...rest, p: String(page ?? "") }),\n',
+        )
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations == 1, captured.err
+        assert any("« page »" in line and "inline" in line for line in captured.err.splitlines())
+
+    def test_s_a_single_quoted_index_is_read(self, tmp_path, capsys) -> None:
+        """Refuse `raw['page']` — a quote is a spelling, not an escape from the guard."""
+        root = copy_design_src(tmp_path)
+        write_add_route(
+            root,
+            "  validateSearch: (raw: Record<string, unknown>) => ({ q: String(raw['page'] ?? \"\") }),\n",
+        )
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations == 1, captured.err
+        assert any("« page »" in line and "inline" in line for line in captured.err.splitlines())
+
+    def test_t_an_optional_chain_is_read(self, tmp_path, capsys) -> None:
+        """Refuse `raw?.page` — an optional chain reads the same query as a plain one."""
+        root = copy_design_src(tmp_path)
+        write_add_route(
+            root,
+            '  validateSearch: (raw: Record<string, unknown>) => ({ q: String(raw?.page ?? "") }),\n',
+        )
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations == 1, captured.err
+        assert any("« page »" in line and "inline" in line for line in captured.err.splitlines())
+
+    def test_u_a_comment_is_not_a_member(self, tmp_path, capsys) -> None:
+        """A note, a block comment and a string naming `validateSearch` are text, not members."""
+        root = copy_design_src(tmp_path)
+        write_add_route(
+            root,
+            '  validateSearch: (raw: Record<string, unknown>) => ({ q: String(raw.q ?? "") }),\n',
+            prelude="// validateSearch: the raw query is never trusted here.\n"
+            "/* validateSearch (raw) names nothing outside this note. */\n"
+            'const NOTE = "validateSearch: x";\n'
+            "export const note = () => NOTE;\n"
+            "\n",
+        )
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations == 0, captured.err
+        assert "4 validateSearch body(ies) read" in captured.out
+
+    def test_v_a_type_annotation_is_not_an_object_key(self, tmp_path, capsys) -> None:
+        """A declaration's type and a ternary's operands sit where no object key can — read neither."""
+        root = copy_design_src(tmp_path)
+        write_add_route(
+            root,
+            "  validateSearch: (raw: Record<string, unknown>): AddSearchParams => {\n"
+            "    const read: AddSearchParams = {};\n"
+            '    const cfg: string = "";\n'
+            "    const pick = raw.x ? acq : sys;\n"
+            '    if (typeof raw.q === "string" && raw.q) read.q = raw.q;\n'
+            "    return read;\n"
+            "  },\n",
+            prelude='type AddSearchParams = { q?: string };\nconst acq = "a";\nconst sys = "s";\n\n',
+        )
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations == 0, captured.err
+
+    def test_w_the_summary_falls_when_a_body_goes_unread(self, tmp_path, capsys) -> None:
+        """The bodies-read count MOVES: an unreadable member reports one fewer than the routes declare."""
+        root = copy_design_src(tmp_path)
+        write_add_route(
+            root,
+            '  validateSearch: reader("page"),\n',
+            prelude="function reader(key: string) {\n"
+            '  return (raw: Record<string, unknown>) => ({ [key]: String(raw[key] ?? "") });\n'
+            "}\n"
+            "\n",
+        )
+        declaring = [
+            route
+            for route in sorted((root / "routes").glob("*.tsx"))
+            if re.search(r"validateSearch\s*[:(]", route.read_text(encoding="utf-8"))
+        ]
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations == 1, captured.err
+        assert f"{len(declaring) - 1} validateSearch body(ies) read" in captured.out
+
+    def test_x_a_declared_name_is_not_a_name_declared_nowhere(self, tmp_path, capsys) -> None:
+        """A name this file DOES declare, in a shape the reader does not follow, is named as such."""
+        root = copy_design_src(tmp_path)
+        write_add_route(
+            root,
+            "  validateSearch: readSearch,\n",
+            prelude='const readSearch = async (raw: Record<string, unknown>) => ({ page: "x" });\n\n',
+        )
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations == 1, captured.err
+        assert "does not follow" in captured.err
+        assert "declares nowhere" not in captured.err
+
+    def test_y_a_name_absent_from_the_file_declares_nowhere(self, tmp_path, capsys) -> None:
+        """The « declares nowhere » sentence is reserved for a name the file never declares."""
+        root = copy_design_src(tmp_path)
+        write_add_route(root, "  validateSearch: readSearch,\n")
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations == 1, captured.err
+        assert "declares nowhere" in captured.err
 
     def test_the_real_tree_reads_clean(self, capsys) -> None:
         """The unmodified repository reports zero violations — the arm still reads the tree it guards."""
