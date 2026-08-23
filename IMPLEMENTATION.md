@@ -69,9 +69,8 @@ repository.
 53 flat `.py` files (recorded and deliberately unscheduled), and B-036 / B-040, which belong to
 their own waves.
 
-**Next action**: phase 9 — the findings of PR #484's first review cycle — is the next `[ ]`
-row; `/implement:phase` runs it, then `/implement:feature-pr` pushes and re-polls CI, then
-`/implement:pr-review` runs cycle 2.
+**Next action**: phases 8 and 9 are complete on `fix/maquette-l05` — `/implement:feature-pr`
+re-runs the gate, pushes, re-polls CI on #484, then `/implement:pr-review` runs cycle 2.
 
 ### Review cycles — PR #484
 
@@ -97,7 +96,7 @@ reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
 | 6   | The offline guard, and one subtraction | `plan/phase-06-the-guard-and-the-subtraction.md` | [x] |
 | 7   | The records, and the gate              | `plan/phase-07-the-records.md`              | [x]    |
 | 8   | PR fixes, review cycle 1 — the four blocking defects | `plan/phase-08-pr-fixes-cycle-1.md` | [x]    |
-| 9   | PR #484 fixes, review cycle 1 — what four reviewers found | `plan/phase-09-pr-fixes-cycle-1.md` | [ ]    |
+| 9   | PR #484 fixes, review cycle 1 — what four reviewers found | `plan/phase-09-pr-fixes-cycle-1.md` | [x]    |
 
 **What L05 is, in one line**: the eight pages leave `?page=` for a real path, the address model
 leaves the engine for `lib/addresses.ts` — the first subtraction of D5 — and the harness host
