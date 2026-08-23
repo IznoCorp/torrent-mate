@@ -34443,7 +34443,22 @@ import { screens, panel, bridge } from "./seams.js";
        this reads both halves. */
     const arrival = window.__address.parse(location.pathname, location.search);
     Object.assign(state, { page: arrival.page }, arrival.dials);
-    if (arrival.notFound) state.notFound = arrival.notFound;
+    /* The address as asked, PANEL PARAMETER EXCEPTED — and it is taken off for
+       exactly the reason the arrival address below takes it off: a panel the
+       interface declined is not part of the address one is left on. This field
+       is not decoration, it is what every later write of this state COMPOSES,
+       so a parameter left in it comes back into the bar on the first Back.
+       Everything else the operator typed is kept, query included. Read off
+       what the model parsed rather than off `location` a second time: two
+       readings of one address are two answers waiting to differ. */
+    if (arrival.notFound) {
+      const queryAt = arrival.notFound.indexOf("?");
+      state.notFound =
+        queryAt < 0
+          ? arrival.notFound
+          : arrival.notFound.slice(0, queryAt) +
+            window.__address.withoutPanel(arrival.notFound.slice(queryAt));
+    }
     /* Kept from BEFORE the first render, because rendering an unknown id
        moves the state onto the not-found surface — and rewriting the
        address to match would make a mistyped link quietly become a

@@ -155,6 +155,9 @@ export function dialsOfPage(page: string): readonly string[] {
 export type Destination = {
   page: string;
   dials: Record<string, string>;
+  /** The whole address as asked — path AND query. Keeping only the path is
+   * still a rewrite: the first write of this state gives back a link the
+   * operator never typed, and everything after the `?` has silently gone. */
   notFound?: string;
   /** The sign-in screen is asked for, over whatever page the address names. */
   signIn?: boolean;
@@ -232,9 +235,12 @@ export function addressOf(
  *     The page the path names and the dials the query sets. A screen address
  *     resolves to the page underneath it, the way the sign-in one does. A path
  *     neither a page nor a screen claims resolves to the not-found page,
- *     carrying the address AS ASKED — deriving a corrected address from it is
- *     the interface rewriting the operator's link behind their back, which a
- *     browser answering 404 never does.
+ *     carrying the address AS ASKED — path AND query, nothing dropped —
+ *     because deriving a corrected address from it is the interface rewriting
+ *     the operator's link behind their back, which a browser answering 404
+ *     never does. Half of it kept is a rewrite too, and a quieter one: the
+ *     path survives, the query is gone, and the first write puts the shortened
+ *     address in the bar.
  */
 export function destinationOf(pathname: string, search: string): Destination {
   if (pathname === SIGN_IN_PATH) return { page: HOME_PAGE, dials: {}, signIn: true };
@@ -251,6 +257,13 @@ export function destinationOf(pathname: string, search: string): Destination {
     const value = query.get(dial.parameter);
     if (value) dials[dial.field] = value;
   }
-  if (page === NOT_FOUND_PAGE) return { page, dials, notFound: pathname, panel };
+  if (page === NOT_FOUND_PAGE) {
+    // Normalised, not re-serialised: the caller may hand the query with its
+    // leading `?` or without, and the pairs are kept as they were WRITTEN for
+    // the same reason `withoutPanel` keeps them — a round trip through
+    // `URLSearchParams` rewrites `%20` as `+`, which is a different address.
+    const raw = search.startsWith("?") ? search.slice(1) : search;
+    return { page, dials, notFound: pathname + (raw ? "?" + raw : ""), panel };
+  }
   return { page, dials, panel };
 }

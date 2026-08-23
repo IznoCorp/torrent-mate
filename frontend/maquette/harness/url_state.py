@@ -38,6 +38,8 @@ What this holds to:
    their back. A browser answering 404 leaves it as typed. This covers the
    BACK as well as the cold load: the guard puts back where one is, and that
    write is where the not-found state used to compose the home page's path.
+   « As typed » is the whole address, QUERY INCLUDED — keeping the path and
+   dropping the rest is the same rewrite, only quieter.
 5. Back walks the addresses in reverse, not only the screens.
 6. No page identity survives in a query, and no dial in a path. This is
    invariant 1 read in both directions, and it is the hold the renegotiation
@@ -399,6 +401,39 @@ async def main():
                       bool(armed), f"armedExit={armed}")
         journal.check("and composing the not-found address was answered, not refused",
                       failed is False, f"__navEchec={failed}")
+        await ctx.close()
+
+        # AND « AS TYPED » IS THE WHOLE ADDRESS, query included. The walk above
+        # uses a path with nothing after the `?`, so it cannot see the half of
+        # the rewrite that keeps the path and drops the rest: the arrival looks
+        # untouched, and the first write puts a shorter link in the bar than
+        # the one that was opened.
+        with_query = PROTOTYPE + "nimportequoi?x=1"
+        ctx, pg, errors = await open_page(b, with_query)
+        lost = await pg.evaluate(WHERE)
+        journal.check("an unknown address keeps its query on arrival",
+                      path(pg.url) == "/nimportequoi" and query(pg.url) == "x=1", pg.url)
+        journal.check("and the interface names the whole of what was asked for",
+                      lost["notFound"] == "/nimportequoi?x=1", lost["notFound"])
+        await pg.go_back()
+        await pg.wait_for_timeout(500)
+        journal.check("and a Back re-pushes it whole, query and all",
+                      path(pg.url) == "/nimportequoi" and query(pg.url) == "x=1", pg.url)
+        journal.check("no JS error on an unknown address carrying a query",
+                      not errors, str(errors))
+        await ctx.close()
+
+        # The panel parameter is the ONE thing an unknown address does not keep,
+        # and for the reason every other address does not keep it either: it
+        # names a panel the interface declined, so it is not part of the address
+        # one is left on. Kept in this field it would come BACK into the bar on
+        # the first write of the state.
+        ctx, pg, errors = await open_page(b, PROTOTYPE + "nimportequoi?panel=follow:Silo")
+        lost = await pg.evaluate(WHERE)
+        journal.check("a declined panel is off the unknown address that named it",
+                      path(pg.url) == "/nimportequoi" and query(pg.url) == "", pg.url)
+        journal.check("and off what the interface will compose from it",
+                      lost["notFound"] == "/nimportequoi", lost["notFound"])
         await ctx.close()
 
         # ── 5. back walks the addresses in reverse ─────────────────────────
