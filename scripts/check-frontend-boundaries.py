@@ -675,7 +675,7 @@ def engine_page_ids(root: Path) -> list[str]:
 
 
 def arm_addressing(root: Path) -> int:
-    """Refuse a page identity in a query, a dial in a path, or an undeclared screen.
+    """Refuse a page identity in a query, a dial in a path, an undeclared screen, or a page table nothing serves.
 
     Invariant 1 says the URL and the interface never contradict each other, and
     D1 says which half carries what: the PATH carries the identity — which thing
@@ -833,8 +833,8 @@ def arm_addressing(root: Path) -> int:
     # nobody can link to — invisible either way until someone types the
     # address, which is the case an offline reader is for. The not-found page
     # is the one id that is the engine's alone: it names a surface rather than
-    # a place, so it has no path by design (D-8.2 — it composes the address it
-    # was asked for).
+    # a place, so it has no path by design — it composes the address it was
+    # asked for.
     declared_not_found = set(re.findall(r'NOT_FOUND_PAGE = "([^"]+)"', declaration))
     engine_pages = set(engine_page_ids(root))
     if engine_pages:

@@ -232,6 +232,7 @@ def serve_forever(port: int, root: pathlib.Path) -> None:
 
 
 if __name__ == "__main__":
+    import errno
     import sys
     import urllib.error
     import urllib.request
@@ -341,9 +342,24 @@ if __name__ == "__main__":
                 and second_body == expected)
             second_evidence = (
                 f"first {port}, second {second_port}, status {second_status}")
-        except OSError as error:
+        except urllib.error.HTTPError as answered:
+            # An HTTP status is not a bind failure, and « refused » said it
+            # was: the second server ANSWERED, and reading its answer as a
+            # collision sends the next reader to the wrong half of this rule.
             second_holds = False
-            second_evidence = f"first {port}, second server refused: {error}"
+            second_evidence = f"first {port}, second server answered {answered.code}"
+        except urllib.error.URLError as unreachable:
+            second_holds = False
+            second_evidence = (
+                f"first {port}, second server unreachable: {unreachable.reason}")
+        except OSError as error:
+            # And here « refused » is the truth: the socket, not the protocol.
+            refused = (isinstance(error, ConnectionRefusedError)
+                       or error.errno == errno.EADDRINUSE)
+            second_evidence = (
+                f"first {port}, second server "
+                + (f"refused: {error}" if refused else f"failed to start: {error}"))
+            second_holds = False
         journal.check(
             "a scratch server yields a real ephemeral port, and a second never races it",
             isinstance(port, int) and port != 0 and port not in RESERVED_PORTS

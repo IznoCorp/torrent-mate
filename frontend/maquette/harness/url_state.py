@@ -37,7 +37,7 @@ What this holds to:
    a different one — the interface correcting the operator's address behind
    their back. A browser answering 404 leaves it as typed. This covers the
    BACK as well as the cold load: the guard puts back where one is, and that
-   write is where the not-found state used to compose the home page's path.
+   write is where the not-found state used to compose the bare root.
    « As typed » is the whole address, QUERY INCLUDED — keeping the path and
    dropping the rest is the same rewrite, only quieter.
 5. Back walks the addresses in reverse, not only the screens.
@@ -113,12 +113,19 @@ DIAL_PARAMETERS = tuple(
     + re.findall(r'PANEL_PARAMETER = "([^"]+)"', DECLARATION)
 )
 PAGE_PATHS = dict(re.findall(r'^\s{2}(\w+):\s*"(/[^"]*)"', DECLARATION, re.M))
+# And the SCREEN routes, from the same declaration and with the same regex
+# `scripts/check-frontend-boundaries.py` uses. A `$segment` stands for any
+# one non-empty segment; what fills it is this rule's, the LIST is the
+# model's. Written out here it was a copy, and a copy of a table drifts the
+# day a screen is added — silently, because a screen this rule never opens
+# is a screen this rule never contradicts.
+SCREEN_PATHS = tuple(re.findall(r'^\s{2}"(/[^"]*)"', DECLARATION, re.M))
 
 # How the interface OFFERS each page, so its address can be read off a real
 # arrival rather than off a cold load that proves only the other direction.
 # The nav carries four of the seven; the system page cross-references two more
 # and the account panel the last, which is why a rule written from the nav
-# measured four addresses and called that every page. A step beginning `JS:`
+# measured three addresses and called that every page. A step beginning `JS:`
 # is a verb the engine publishes — the account panel has no control of its own
 # until it is open. This table is held against the model below: a page the
 # model declares and this does not is a violation, so the seventh page is
@@ -137,17 +144,22 @@ PAGE_WALKS = {
 # each is read from — the engine's own republished surface, never a value
 # typed in here: a subject nobody holds is refused, so an invented one would
 # measure the refusal instead of the reopening.
+# Each reader answers "" rather than reaching into an empty list: a fixture
+# with no follow, no acquisition in flight or no maintenance action is a
+# fixture this rule has to REPORT, and an exception inside `page.evaluate`
+# ends the run at the line it was thrown from instead.
 PANEL_SUBJECTS = {
-    "follow": "()=>window.__store.read().world.follows[0].t",
-    "journey": "()=>window.INFLIGHT[0].t",
-    "setting": "()=>window.settingId(window.allSettings()[0])",
-    "action": "()=>window.MAINT_ACTIONS[0].id",
+    "follow": "()=>(window.__store.read().world.follows[0]||{}).t||''",
+    "journey": "()=>(window.INFLIGHT[0]||{}).t||''",
+    "setting": "()=>{const s=window.allSettings()[0]; return s?window.settingId(s):'';}",
+    "action": "()=>(window.MAINT_ACTIONS[0]||{}).id||''",
 }
 
-# One concrete address per SCREEN route, the routes being the other end of the
-# `SCREEN_PATHS` contract. The media sheet's is DERIVED from the running
-# application rather than written down: it is keyed on a provider id, and a
-# constant nothing verifies against its source rots the day the fixture moves.
+# One concrete value per `$segment` a screen route carries, so the address
+# this rule opens is composed FROM the model's route rather than written
+# beside it. The media sheet's two are DERIVED from the running application:
+# they are provider ids, and a constant nothing verifies against its source
+# rots the day the fixture moves.
 SHEET_TITLE = "Silo (2023)"
 QUALITY_PROFILE = "Test Profile"
 RESOLUTION_FOLDER = "Backrooms.2026.MULTi.2160p.WEB-DL"
@@ -371,16 +383,39 @@ async def main():
         ctx, pg, errors = await open_page(b)
         sheet_ids = await pg.evaluate(f"()=>window.addressIdsFor({json.dumps(SHEET_TITLE)})")
         await ctx.close()
-        journal.check("the media sheet's own address ids are resolvable",
-                      bool(sheet_ids), f"{SHEET_TITLE} -> {sheet_ids}")
-        sheet_address = f"media/{sheet_ids['provider']}/{sheet_ids['id']}"
-        screens = [
-            ("/add", "add"),
-            ("/quality/$name", f"quality/{urllib.parse.quote(QUALITY_PROFILE)}"),
-            ("/media/$provider/$id", sheet_address),
-            ("/resolution/$folder", f"resolution/{urllib.parse.quote(RESOLUTION_FOLDER)}"),
-            ("/releases/$title", f"releases/{urllib.parse.quote(RELEASES_TITLE)}"),
-        ]
+        # A fixture that moved leaves this empty, and reading a provider id off
+        # it would raise where the rule should FALL: a traceback names the line
+        # it died on, a fallen hold names the promise nobody could keep.
+        sheet_resolved = journal.check(
+            "the media sheet's own address ids are resolvable",
+            bool(sheet_ids and sheet_ids.get("provider") and sheet_ids.get("id")),
+            f"{SHEET_TITLE} -> {sheet_ids}")
+        sheet_address = (
+            f"media/{sheet_ids['provider']}/{sheet_ids['id']}" if sheet_resolved else "")
+        examples = {
+            "/quality/$name": {"$name": QUALITY_PROFILE},
+            "/resolution/$folder": {"$folder": RESOLUTION_FOLDER},
+            "/releases/$title": {"$title": RELEASES_TITLE},
+        }
+        if sheet_resolved:
+            examples["/media/$provider/$id"] = {
+                "$provider": sheet_ids["provider"], "$id": sheet_ids["id"]}
+        screens = []
+        for route in SCREEN_PATHS:
+            filled = examples.get(route, {})
+            segments = route.strip("/").split("/")
+            if any(part.startswith("$") and part not in filled for part in segments):
+                continue
+            screens.append((route, "/".join(
+                urllib.parse.quote(str(filled[part]), safe="") if part.startswith("$")
+                else part for part in segments)))
+        # The count is the model's. A screen declared and composed by nothing
+        # here is a screen this rule silently stops opening, which is the whole
+        # failure the derivation exists to make loud.
+        journal.check("every screen the model declares has a concrete address here",
+                      len(screens) == len(SCREEN_PATHS),
+                      f"{len(screens)} composed of {len(SCREEN_PATHS)} declared: "
+                      f"{[route for route, _ in screens]}")
         for route, address in screens:
             ctx, pg, errors = await open_page(b, PROTOTYPE + address)
             under = await pg.evaluate(WHERE)
@@ -394,19 +429,22 @@ async def main():
         # And the one walk that exposes what the cold reads cannot: closing the
         # screen. The frame underneath is what the operator is left with, so it
         # is the frame that has to be the home page rather than the surface
-        # saying the address leads nowhere.
-        ctx, pg, errors = await open_page(b, PROTOTYPE + sheet_address)
-        await pg.evaluate(
-            """()=>document.querySelector('[data-part="screen"][data-open]'
-               + ' [data-part="screen/back"]').click()""")
-        await pg.wait_for_timeout(420)
-        closed = await pg.evaluate(WHERE)
-        journal.check(
-            "closing a screen opened cold leaves the home page showing, not the not-found one",
-            closed["page"] == HOME_PAGE and NOT_FOUND_TEXT not in closed["empty"],
-            f"page={closed['page']} empty={closed['empty']!r} at {path(pg.url)}")
-        journal.check("no JS error closing a screen opened cold", not errors, str(errors))
-        await ctx.close()
+        # saying the address leads nowhere. It hangs off the derived address,
+        # so it is skipped — never guessed at — when that address is not there.
+        if sheet_resolved:
+            ctx, pg, errors = await open_page(b, PROTOTYPE + sheet_address)
+            await pg.evaluate(
+                """()=>document.querySelector('[data-part="screen"][data-open]'
+                   + ' [data-part="screen/back"]').click()""")
+            await pg.wait_for_timeout(420)
+            closed = await pg.evaluate(WHERE)
+            journal.check(
+                "closing a screen opened cold leaves the home page showing, "
+                "not the not-found one",
+                closed["page"] == HOME_PAGE and NOT_FOUND_TEXT not in closed["empty"],
+                f"page={closed['page']} empty={closed['empty']!r} at {path(pg.url)}")
+            journal.check("no JS error closing a screen opened cold", not errors, str(errors))
+            await ctx.close()
 
         # ── 2. walking writes the address ──────────────────────────────────
         ctx, pg, errors = await open_page(b)
@@ -575,6 +613,8 @@ async def main():
         journal.check("every panel kind has a subject the interface really holds",
                       all(subjects.values()), f"{subjects}")
         for kind, subject in subjects.items():
+            if not subject:
+                continue
             address = (PROTOTYPE + "acquisition?panel="
                        + urllib.parse.quote(f"{kind}:{subject}", safe=""))
             ctx, pg, errors = await open_page(b, address)
@@ -602,30 +642,35 @@ async def main():
         topics = await pg.evaluate(
             """()=>[...document.querySelectorAll('[data-maintopic]')]
                  .map((node) => node.dataset.maintopic).filter(Boolean)""")
-        journal.check("the maintenance page offers a topic to select",
-                      bool(topics), f"{topics}")
-        topic = topics[0]
-        await pg.tap(f'[data-maintopic="{topic}"]')
-        await pg.wait_for_timeout(400)
-        journal.check("selecting a maintenance topic writes it into the query",
-                      query(pg.url) == f"topic={topic}", pg.url)
-        await pg.tap('#nav button[data-page="sys"]')
-        await pg.wait_for_timeout(400)
-        await pg.go_back()
-        await pg.wait_for_timeout(500)
-        back_topic = await pg.evaluate("()=>state.maintTopic")
-        journal.check("a back onto a topic address restores the topic the address names",
-                      path(pg.url) == "/maintenance"
-                      and query(pg.url) == f"topic={topic}"
-                      and back_topic == topic,
-                      f"{pg.url} · maintTopic={back_topic!r}")
-        await pg.go_back()
-        await pg.wait_for_timeout(500)
-        cleared = await pg.evaluate("()=>state.maintTopic")
-        journal.check("and a second back drops the topic from the interface as well as the address",
-                      path(pg.url) == "/maintenance" and query(pg.url) == "" and not cleared,
-                      f"{pg.url} · maintTopic={cleared!r}")
-        journal.check("no JS error walking the topic back", not errors, str(errors))
+        # A page offering no topic at all fells the hold below and stops there:
+        # the walk that follows is a walk THROUGH a topic, so with none to take
+        # it would raise on the empty list and take the rest of the rule with
+        # it — a fixture's silence reported as a crash.
+        if journal.check("the maintenance page offers a topic to select",
+                         bool(topics), f"{topics}"):
+            topic = topics[0]
+            await pg.tap(f'[data-maintopic="{topic}"]')
+            await pg.wait_for_timeout(400)
+            journal.check("selecting a maintenance topic writes it into the query",
+                          query(pg.url) == f"topic={topic}", pg.url)
+            await pg.tap('#nav button[data-page="sys"]')
+            await pg.wait_for_timeout(400)
+            await pg.go_back()
+            await pg.wait_for_timeout(500)
+            back_topic = await pg.evaluate("()=>state.maintTopic")
+            journal.check("a back onto a topic address restores the topic the address names",
+                          path(pg.url) == "/maintenance"
+                          and query(pg.url) == f"topic={topic}"
+                          and back_topic == topic,
+                          f"{pg.url} · maintTopic={back_topic!r}")
+            await pg.go_back()
+            await pg.wait_for_timeout(500)
+            cleared = await pg.evaluate("()=>state.maintTopic")
+            journal.check(
+                "and a second back drops the topic from the interface as well as the address",
+                path(pg.url) == "/maintenance" and query(pg.url) == "" and not cleared,
+                f"{pg.url} · maintTopic={cleared!r}")
+            journal.check("no JS error walking the topic back", not errors, str(errors))
         await ctx.close()
 
         await b.close()

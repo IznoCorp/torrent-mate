@@ -207,11 +207,13 @@ reformatting whole files around a three-line change, which is the churn L02 was 
   an empty kind, an empty subject — is refused, and so is a kind the `REOPEN` table does not
   carry. An unknown SUBJECT is refused BEFORE anything opens: every `REOPEN` entry is now
   `{ open, resolves }`, one shape for all four, and `resolves` reads the source that kind is
-  really drawn from — `knownMedium` (follows, `INCOMPLETE`, `LIBRARY`, or a `sheetFor`) for
-  `follow`; `knownMedium` plus `INFLIGHT` for `journey`, because a journey is reached from the
-  follow panel's own action and describes an acquisition in flight; `allSettings()`/`settingId`
-  for `setting`; `MAINT_ACTIONS` for `action`. A refusal logs one English `console.warn` naming
-  the value.
+  really drawn from — `knownMedium` for `follow`, which since 9.1 is EXACT membership in
+  `world.follows`, `INCOMPLETE` and `LIBRARY` and nothing else: the media-sheet lookup it used
+  to consult answers on a seven-character prefix and through `Object.prototype`, so it said yes
+  to names this interface does not hold; `knownMedium` plus `INFLIGHT` for `journey`, because a
+  journey is reached from the follow panel's own action and describes an acquisition in flight;
+  `allSettings()`/`settingId` for `setting`; `MAINT_ACTIONS` for `action`. A refusal logs one
+  English `console.warn` naming the value.
   **First difference from the draft: `openFollowSheet` KEEPS its synthesised fallback.** It is
   the door inside the application — `openDetailSheet` sends every medium to the same panel, and
   a library title with no follow is a legitimate « nothing is known about this one », validated
@@ -223,10 +225,11 @@ reformatting whole files around a three-line change, which is the churn L02 was 
 arrivalAddress)` — not merely after the guard. The panel pushes its own layer entry through
   `panel.open` → `pushLayer`, and that entry has to sit ON TOP of the arrival entry exactly as
   an in-app open does; landing it under the guard is what made closing the panel spend the
-  guard. `arrivalAddress` is therefore stripped of `panel=` in BOTH branches (the bare-root
-  settlement and the verbatim one), through one pure helper `withoutPanel(search)` in
-  `lib/addresses.ts`, published on the `window.__address` seam: when the panel reopens its own
-  entry carries the parameter, and when it does not the existing
+  guard. `arrivalAddress` therefore carries no `panel=` on EITHER branch, and the two arrive
+  there differently: the VERBATIM branch strips it, through one pure helper
+  `withoutPanel(search)` in `lib/addresses.ts` published on the `window.__address` seam, while
+  the bare-root settlement composes the address from the state and never had one to take off.
+  When the panel reopens its own entry carries the parameter, and when it does not the existing
   `__bridge.replace(navigationState(), arrivalAddress)` — already ahead of the guard write —
   takes it off the visible address too.
 - **D-8.4 — the scratch port.** `start_server(0, root)` binds an ephemeral port and the context
@@ -234,11 +237,20 @@ arrivalAddress)` — not merely after the guard. The panel pushes its own layer 
   `switchover.py` keeps 8918 (it spawns `serve.py` as a process and needs a number) and stops
   swallowing stderr on a failed boot — a bind error is printed, not hidden.
 - **D-8.5 — the navigation-failure flag.** `showSignIn`/`hideSignIn` log and raise
-  `window.__navEchec` like every other writer. One hold in R69: with `__bridge.replace`
-  made to throw from the page, raising the gate sets the flag — and the rule reads it.
+  `window.__navEchec` like every other writer. R69 reads it raised in THREE places, each over a
+  writer broken on purpose: the gate's RAISE, with `__bridge.replace` made to throw from the
+  page; the gate's RELEASE, which needs a context block of its own because the first walk puts
+  the bridge back before letting the gate through, so that catch would otherwise only ever run
+  over a write that works (9.6); and the BOOT's three writes, which no gesture can reach and are
+  therefore broken from OUTSIDE the page, before its first script runs (9.8). A fourth read
+  closes an ordinary walk, where the flag must still be false — the general meaning, measured
+  where nothing was injected.
 - **D-8.6 — the addressing arm.** Absence of `lib/addresses.ts` is a violation; an inline
   `validateSearch: (raw) => ({ page: … })` is read; `tests/scripts/test_check_frontend_boundaries.py`
-  carries the four mutations (the two above, plus the two the arm already refused).
+  carries SIXTEEN cases, not the four this decision was written with: those four (the two above,
+  plus the two the arm already refused), two more for the page table against the engine, the
+  nine 9.7 added — one per shape the inline reader could not see and one per branch it now
+  closes — and one that reads the real tree and finds it clean.
 - **D-8.7 — the smaller ones.** `url_state.py`'s dial list reads SIX (adds `panel`);
   `navigationState()` carries `maintTopic` and `onEngineBack` applies it; `serve_forever`
   refuses `RESERVED_PORTS` except 8899 (its own); R69 exercises every `REOPEN` kind cold and
