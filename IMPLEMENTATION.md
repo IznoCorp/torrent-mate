@@ -45,8 +45,8 @@ stale table read as current for three days.
 |                            |                                                                                                                                                                                                                                                                                                                                             |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Last landed**            | **L04 — boundaries and the tree**, Phase 1. PR **#478**, merged 2026-08-22, version 0.98.21. Its two references were re-recorded on `chore/l04-references` (`8df61380`) and carried onto `main` by **#479**; both pointers name `66813063`, an ancestor of `HEAD` — verified |
-| **In flight**              | **none.** A wave writes its own row here when its pull request opens, and the post-merge steps move it to « Last landed » (§ 5 of the architecture file) |
-| **Next**                   | **L05 — Routing**, Phase 1. Its dependencies (L01, L04) are `LANDED` and it **runs alone**. `docs/reference/frontend-architecture.md` decides which lot, never this table |
+| **In flight**              | **L05 — Routing**, Phase 1. PR **#482**, version 0.98.24. D1 in force: the eight pages on real paths, the address model out of the engine, the media sheet on `/media/:provider/:id`, the panel addressed, R69 renegotiated. Suite 52/52, oracle 1 reviewed divergence, hold counts up-only |
+| **Next**                   | **L06 — The scale**, Phase 2, once L05 merges. `docs/reference/frontend-architecture.md` decides which lot, never this table |
 | **Before it**              | L03 — PR **#475**, version 0.98.18 · L02 — PR **#470**, version 0.98.13 · L01 — PR **#467**, version 0.98.10. All three archived under `docs/archive/features/`; `docs/features/maquette-l04/` is still live and belongs beside them |
 | **What decides the order** | `docs/reference/frontend-architecture.md`, never this table. This table says only where the work STANDS                                                                                                                                                                                                                                     |
 
@@ -73,6 +73,24 @@ their own waves.
 without its design and its plan. Branch from `main` once **#479** has landed: that pull request
 carries the corrected hold-count baseline (`panel.py` 9 → 12), and a branch taken before it gets a
 false movement out of `--compare` on its first run.
+
+**Phases of L05** — the plan is `docs/features/maquette-l05/plan/INDEX.md`, which owns the
+reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
+
+| #   | Phase                                  | File                                        | Status |
+| --- | -------------------------------------- | ------------------------------------------- | ------ |
+| 1   | The harness's ground                   | `plan/phase-01-the-harness-ground.md`       | [x]    |
+| 2   | The pages take their paths             | `plan/phase-02-pages-take-paths.md`         | [x]    |
+| 3   | The screens are renamed                | `plan/phase-03-the-screen-renames.md`       | [x]    |
+| 4   | The sign-in screen gets its address    | `plan/phase-04-login.md`                    | [x]    |
+| 5   | The panel tier                         | `plan/phase-05-the-panel-tier.md`           | [x]    |
+| 6   | The offline guard, and one subtraction | `plan/phase-06-the-guard-and-the-subtraction.md` | [x] |
+| 7   | The records, and the gate              | `plan/phase-07-the-records.md`              | [x]    |
+
+**What L05 is, in one line**: the eight pages leave `?page=` for a real path, the address model
+leaves the engine for `lib/addresses.ts` — the first subtraction of D5 — and the harness host
+moves to one that answers a real path, which is what lets a rule drive by URL instead of through
+a seam that dies with the engine.
 
 **What L03 is, in one line**: landmarks, accessible names, focus management on every layer, the
 keyboard paths — and `axe-core` in the gate at a hard zero. Four decisions were arbitrated by the
