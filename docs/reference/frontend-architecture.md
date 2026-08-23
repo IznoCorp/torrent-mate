@@ -98,43 +98,56 @@ that lands D1, with the reason written down — never left to contradict this.
 | Screen state | an actions panel, a filter drawer | a **query parameter** |
 | Transient | a sort menu, a confirmation | **no URL**, but Back still closes it |
 
-### D1b — History decides Back; the parent page is only the floor
+### D1b — Back pops a stack of deliberate arrivals; the parent is only the floor
 
-**Decision, dictated by the operator on 2026-08-23** and written into the constitution as
-`product-intent.md` § 16, which is the authority — this entry says what the implementation owes.
-Two rules, in this order, and the second never overrides the first:
+**Decision, dictated by the operator on 2026-08-23 and completed on 2026-08-24.** The
+constitution's `product-intent.md` § 16 is the authority; this entry says what the
+implementation owes. Four rules, and the order is the substance.
 
-1. **Where a history entry exists, Back follows it exactly.** The entry the reader actually came
-   from, never a declared parent. A reader who opened a sheet from a search returns to that
-   search.
-2. **Where none exists** — a link opened from outside, a bookmark, a restored tab — the page
-   beneath a screen is **the page it belongs to**: the library under a media sheet, the arrivals
-   under a resolution. Never the home page by default.
+1. **Back pops, and the stack holds only deliberate arrivals.** Opening a surface — a sheet, a
+   resolution, a panel — pushes. Adjusting one — a filter, an inner tab, a sort, a lens —
+   replaces. The engine already works this way: `recordPath()` is the only general push site and
+   its own comment says it records where the operator has ARRIVED. **This decision makes that
+   discipline a rule instead of a habit**, because it is the whole of what separates a native
+   feel from a web one: a stack of settings makes Back undo a sort where the reader meant to
+   leave the screen.
+2. **Switching a top-level page REPLACES.** Back from any page returns to `/acquisition`, the
+   entry page; Back from there arms the exit guard. No platform stacks visited tabs — iOS gives
+   each tab its own stack and forbids crossing, Android returns to the start destination and then
+   exits. The Android reading is taken because a system Back drives a PWA. The exit guard
+   (`armedExit`, the five-second window, the toast) already exists and only has a role under this
+   rule: under a stacking model it is almost never reached.
+3. **Where no stack exists, synthesise it from the hierarchy.** A cold link poses the real parent
+   under the screen — the library under a media sheet, the arrivals under a resolution — and that
+   parent is **rendered**, not merely recorded. A screen that closes onto nothing has broken the
+   path even though it answered the right address.
+4. **Up is a separate gesture, and it is drawn.** Back pops; Up climbs one level whatever the
+   path. Every screen carries the name of the page it belongs to in its header, and a tap climbs
+   there. An installed PWA has no browser chrome, so Up exists only if the interface draws it —
+   **this is maquette work, not engine work**, and no lot currently carries it.
 
-**And that parent is RENDERED, not merely recorded.** Closing the screen reveals a page already
-in place. A screen that closes onto nothing has broken the path even though it answered the right
-address.
+**Replaces** the reading under which every screen resolved to the home page. That was not only a
+UX default: it is the mechanism behind a reviewed defect — a cold screen address carrying a panel
+composed the panel's entry over the home page and the sheet unmounted behind it. Naming the real
+parent removes the cause.
 
-**Replaces** the reading under which every screen resolved to the home page. That reading was not
-only a UX default: it is the mechanism behind a defect found in review — a cold screen address
-carrying a panel composed the panel's entry over the home page, and the sheet unmounted behind it.
-Naming the real parent removes the cause, not just the symptom.
+**The trap this decision exists to forbid**: sending **Back** to the declared parent while a
+stack entry exists. History first; the parent is a floor, never a destination.
 
-**The trap this decision exists to forbid**, because it is what implementing rule 2 without rule 1
-produces: sending Back to the declared parent **while a history entry exists**. History first; the
-parent is a floor, never a destination.
+**Deliberately not done, so it is a choice and not an omission**: per-page stacks. Leaving the
+library with a sheet open and returning lands on the library's root, not back in the sheet. iOS
+would restore it. Simulating it is real machinery and it cuts both ways — a screen that reopens
+somewhere other than its root surprises as often as it helps. It is added only if real use asks.
 
-**The exit guard fires at the top of that path only** — when there is nothing left to climb, not
-on the first Back out of a cold screen.
+**What it costs in proof, and this part has already been paid once.** The cases are held
+SEPARATELY: an in-app walk whose Back returns to the real origin, a cold link whose floor is the
+parent, a page switch that stacks nothing, and an exit guard that arms only at the top. A hold
+that exercises only the cold load is how two of this wave's defects passed under green rules.
 
-**What it costs in proof, and this is the part that has already been paid once.** The two cases
-are held separately: an in-app walk whose Back returns to the real origin, AND a cold link whose
-Back climbs to the parent. A hold that exercises only the cold load is how two of this wave's
-defects passed under green rules; a hold written for this decision that measures one case is a
-hold that certifies the other.
-
-**Who implements it.** The L05 repair wave, which owns the address model while it is open — not a
-separate wave: reopening that model twice would pay for the proof twice.
+**Who implements it.** Rules 1 to 3 belong to the L05 repair wave, which owns the address model
+while it is open — reopening that model twice would pay for the proof twice. Rule 4 is a surface
+that does not exist yet: it is drawn in the maquette first, like every surface, and the lot that
+carries it has still to be named.
 
 ### D2 — Tailwind v4 provides the implementation; CVA components provide the API
 
@@ -300,10 +313,10 @@ reasoning is kept so the alternatives are not proposed again as if new.
 ## 3. Invariants — true at the end of every wave
 
 1. **The URL and the interface never contradict each other.** D1's rule holds in both
-   directions: no page identity in the query, no sort or filter in the path. And D1b's: Back
-   follows the history entry where there is one, climbs to the real parent where there is none,
-   and the two cases are held separately — a hold that walks only the cold load leaves the other
-   half unmeasured.
+   directions: no page identity in the query, no sort or filter in the path. And D1b's: opening a
+   surface pushes, adjusting one replaces, switching a top-level page replaces, and the parent is
+   the floor only where no stack entry exists. The cases are held separately — a hold that walks
+   only the cold load leaves the others unmeasured.
 2. **No rule selects on a style class.** (After L02.)
 3. **No value outside the scale.** A raw `padding: 13px` or `font-size: 15px` is refused, the way
    an undeclared `var()` already is.

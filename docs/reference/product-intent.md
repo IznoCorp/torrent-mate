@@ -393,38 +393,75 @@ cité dans un commentaire reste en français, puisque c'est ce que l'écran affi
 
 ## §16 — Le chemin de navigation (règle gravée)
 
-**La navigation doit être fluide, et Retour doit refaire le chemin emprunté.** Dictée par
-l'opérateur le 2026-08-23. Elle prolonge DOIT-10 et se lit en deux règles, dans cet ordre — la
-seconde ne prend jamais le pas sur la première.
+**La navigation doit être fluide, et revenir en arrière doit refaire le chemin emprunté.**
+Dictée par l'opérateur les 2026-08-23 et 2026-08-24, en prolongement de DOIT-10. Quatre règles,
+et l'ordre compte.
 
-**1. Quand il y a un chemin, Retour le suit exactement.** L'utilisateur qui est allé des
-Arrivées à une résolution revient aux Arrivées. Celui qui a ouvert une fiche depuis une
-recherche revient **à sa recherche**, pas à la médiathèque. L'appli ne substitue jamais une
-destination « logique » à celle d'où l'utilisateur vient réellement.
+### 1. Retour dépile, et la pile ne contient que des arrivées délibérées
 
-**2. Quand il n'y a pas de chemin, la page du dessous est le parent naturel.** Un lien ouvert
-depuis l'extérieur — un message, un signet, un onglet restauré — n'a pas d'historique à
-dépiler. Ce qui se trouve alors sous l'écran est **la page dont il relève** : la médiathèque
+Retour ramène à l'arrivée précédente — l'endroit d'où le lecteur vient réellement. Celui qui a
+ouvert une fiche depuis une recherche revient **à sa recherche**, pas à la médiathèque.
+
+Ce qui rend cela possible est une discipline, et c'est elle la vraie règle : **ouvrir une
+surface empile ; régler une surface remplace.** Ouvrir une fiche, une résolution, un panneau
+est une arrivée. Changer un filtre, un onglet interne, un tri, un objectif est un réglage : la
+même surface regardée autrement. Un réglage n'entre jamais dans la pile — sans quoi Retour
+défait un tri là où le lecteur voulait sortir de l'écran, et c'est exactement la sensation
+qu'une application web donne quand elle est mal faite.
+
+### 2. Changer de page principale REMPLACE
+
+Les pages principales sont des destinations de premier niveau, pas des étapes d'un parcours.
+Passer d'Acquisition à la Médiathèque **n'empile rien**. Retour depuis n'importe quelle page
+ramène à **Acquisition**, la page d'entrée ; Retour depuis Acquisition arme la garde de sortie.
+
+**Aucune plateforme n'empile l'historique des onglets visités**, et c'est le geste qui trahit
+le plus vite une application web : le lecteur tape Retour pour sortir et se retrouve à
+rembobiner ses pages une à une. iOS donne à chaque onglet sa pile et ne permet aucun retour
+entre onglets ; Android ramène à la destination de départ puis quitte. La règle ci-dessus est
+la lecture Android, retenue parce que c'est un Retour système qui pilote une PWA.
+
+**Ce que cette règle ne donne PAS, et c'est un choix, pas un oubli** : il n'y a pas de pile par
+page. Quitter la Médiathèque alors qu'une fiche y est ouverte, puis y revenir, ramène à la
+racine de la Médiathèque et non dans la fiche. Un natif iOS restaurerait la fiche. On commence
+sans ; on ne l'ajoutera que si l'usage réel le réclame, parce qu'un écran qui se rouvre
+ailleurs qu'à sa racine surprend autant qu'il rend service.
+
+### 3. Sans pile, elle se synthétise depuis la hiérarchie
+
+Un lien ouvert depuis l'extérieur — un message, un signet, un onglet restauré — n'a pas de pile
+à dépiler. Ce qui se trouve alors sous l'écran est **la page dont il relève** : la médiathèque
 sous une fiche média, les Arrivées sous une résolution. **Jamais l'accueil par défaut.**
 
 **Et ce parent est rendu, pas seulement enregistré.** Fermer l'écran révèle une page déjà en
-place ; c'est ce qui fait la fluidité. Un écran qui se ferme sur du vide, ou qui renvoie à
-l'accueil, a rompu le chemin même s'il a répondu à la bonne adresse.
+place ; c'est ce qui fait la fluidité. Un écran qui se ferme sur du vide a rompu le chemin même
+s'il a répondu à la bonne adresse.
 
-**La garde de sortie ne se déclenche qu'en haut de ce chemin** — quand il n'y a plus rien à
-remonter, pas au premier Retour d'un écran ouvert à froid.
+### 4. Remonter est un geste distinct, et il est dessiné
 
-**Ce que cela interdit explicitement**, parce que c'est l'erreur qui se commet en appliquant la
-règle 2 sans la règle 1 : faire remonter Retour au parent déclaré **alors qu'un historique
-existe**. Ce serait expédier à la médiathèque l'utilisateur venu de sa recherche. L'historique
-d'abord ; le parent est un plancher, pas une destination.
+Retour dépile ; **Remonter va au parent**, un niveau, quel que soit le chemin parcouru. Ce sont
+deux gestes différents et on ne détourne jamais l'un pour faire l'autre. Chaque écran porte donc
+dans son en-tête **le nom de la page dont il relève**, et un tap y remonte directement — sans
+quoi une fiche ouverte depuis une fiche ouverte depuis une fiche demande trois Retours pour
+rejoindre la médiathèque, ce qu'aucune application ne fait subir.
 
-**Ce que cela impose à la preuve.** Les deux cas se vérifient séparément : un parcours fait
-dans l'application dont le Retour revient à l'origine réelle, **et** un lien froid dont le
-Retour monte au parent. Une tenue qui ne mesure que le chargement à froid a déjà laissé passer
-deux défauts sur la vague L05 — c'est précisément ainsi qu'ils sont passés sous des règles
-vertes.
+Sur un téléphone, une PWA installée n'a pas de barre de navigateur : le seul Retour est le
+geste système. **Remonter n'existe donc que si l'interface le dessine.** C'est un élément de la
+maquette, pas un comportement du moteur.
 
+### Ce que tout cela interdit, nommément
+
+Faire remonter **Retour** au parent déclaré alors qu'une pile existe. Ce serait expédier à la
+médiathèque le lecteur venu de sa recherche. C'est l'erreur que produit la règle 3 appliquée
+sans la règle 1, et c'est pour l'interdire que les quatre règles sont écrites dans cet ordre.
+
+### Ce que cela impose à la preuve
+
+Les cas se vérifient **séparément** : un parcours fait dans l'application dont le Retour revient
+à l'origine réelle, un lien froid dont le dessous est le parent, un changement de page qui
+n'empile rien, et une garde de sortie qui ne s'arme qu'en haut. Une tenue qui ne mesure que le
+chargement à froid a déjà laissé passer deux défauts sur la vague L05 — c'est précisément ainsi
+qu'ils sont passés sous des règles vertes.
 
 ## Ce que l'interface DOIT faire (DOIT-1 … DOIT-11)
 
