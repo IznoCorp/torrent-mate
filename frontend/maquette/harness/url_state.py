@@ -814,6 +814,78 @@ async def main():
         journal.check("no JS error stepping back onto the entry page", not errors, str(errors))
         await ctx.close()
 
+        # AND THE SAME RULE FOR A SWITCH MADE FROM A LAYER, which is where it
+        # was being broken: the drawer and the account menu are the two page
+        # switches a finger reaches while something is open over the page, and
+        # both used to give the destination the LAYER's entry — leaving the
+        # abandoned page's entry sandwiched underneath. Rule 2 verbatim forbids
+        # the shape that produces: a Back from the destination landing on the
+        # page one had just left, two entries for the same page, three Backs to
+        # leave. The address alone shows none of it — the destination's own
+        # address is right either way — so what is measured is the WALK BACK:
+        # every stop the rule allows, in order, and then the guard.
+        #
+        # `history.length` is reported and not asserted on, because a traversal
+        # cannot shrink it: rewinding to the floor leaves the abandoned entries
+        # AHEAD, exactly as the entry page's own tab already does. What the rule
+        # is about is the way back, and the stops below are it.
+        for wanted, opening, tap, arriving, address, stops in (
+            # Arriving home, the destination IS the floor, so there is no stop
+            # between it and the guard.
+            ("the drawer", "[data-drawer]", f'#drawer [data-navgo="{HOME_PAGE}"]',
+             HOME_PAGE, HOME, ()),
+            # Anywhere else, exactly one: the entry page, and never the
+            # médiathèque the layer was opened from.
+            ("the account menu", "JS:window.openUserSheet()", '[data-go="profile"]',
+             "profile", PAGE_PATHS["profile"], ((HOME, HOME_PAGE),)),
+        ):
+            ctx, pg, errors = await open_page(b, PROTOTYPE + LIBRARY.lstrip("/"))
+            depth = await pg.evaluate("()=>history.length")
+            if opening.startswith("JS:"):
+                await pg.evaluate("()=>{" + opening[3:] + ";}")
+            else:
+                await pg.tap(opening)
+            await pg.wait_for_timeout(420)
+            await pg.tap(tap)
+            await pg.wait_for_timeout(620)
+            landed = await pg.evaluate(WHERE)
+            armed = await pg.evaluate("()=>window.armedExit")
+            after = await pg.evaluate("()=>history.length")
+            journal.check(
+                f"a page switch from {wanted} lands on its destination with the guard untouched",
+                path(pg.url) == address and landed["page"] == arriving and not armed,
+                f"{pg.url} · page={landed['page']} · armedExit={armed}"
+                f" · history.length {depth} -> {after}")
+            for stop_address, stop_page in stops:
+                await pg.go_back()
+                await pg.wait_for_timeout(520)
+                stopped = (await pg.evaluate(WHERE)
+                           if pg.url.startswith(PROTOTYPE) else None)
+                armed = (await pg.evaluate("()=>window.armedExit")
+                         if stopped else None)
+                journal.check(
+                    f"and one Back off {wanted}'s destination reaches the entry page,"
+                    " never the page it was opened from",
+                    stopped is not None and path(pg.url) == stop_address
+                    and stopped["page"] == stop_page and not armed,
+                    f"{pg.url} · {stopped if stopped else 'the document was left'}"
+                    f" · armedExit={armed}")
+            await pg.go_back()
+            await pg.wait_for_timeout(520)
+            armed = (await pg.evaluate("()=>window.armedExit")
+                     if pg.url.startswith(PROTOTYPE) else None)
+            journal.check(
+                f"and the guard is the next entry down, so {len(stops) + 1} Back(s) leave from {wanted}",
+                bool(armed), f"armedExit={armed} at {pg.url}")
+            journal.check(
+                f"no navigation write failed switching page from {wanted}",
+                pg.url.startswith(PROTOTYPE)
+                and await pg.evaluate("()=>window.__navEchec") is False,
+                f"at {pg.url}")
+            journal.check(f"no JS error switching page from {wanted}",
+                          not errors, str(errors))
+            await ctx.close()
+
         # ── (d) the exit guard arms at the TOP, and nowhere else ───────────
         # The address says nothing here: a guard armed one page too early
         # answers exactly the same address as one that is not armed at all, so

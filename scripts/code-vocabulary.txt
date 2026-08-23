@@ -613,6 +613,7 @@ services
 set
 setting
 settings
+settle
 settled
 shadow
 sheet

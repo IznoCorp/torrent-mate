@@ -10828,6 +10828,17 @@ import { screens, panel, bridge } from "./seams.js";
     if (entryCount > 0) unwindInProgress += 1;
   };
 
+  /* WHAT RUNS ONCE THE TRAVERSAL HAS LANDED, and there is at most one of it.
+     A caller that rewinds to an entry in order to write ON it cannot write in
+     the same task: the traversal is asynchronous, so the write would land
+     first and the pop would undo it. So the write is left here and the latch's
+     own consumption fires it — the one moment at which the destination entry
+     is certainly the current one.
+
+     Armed AFTER the traversal is issued, never before, so a traversal that
+     threw leaves no continuation waiting to fire on somebody else's unwind. */
+  let afterUnwind = null;
+
   /* Kept as a VERB the driver can still say: `touch.py`, `drag.py` and
      `machine.py` call `closeSheet()` from inside the page, and moving a layer
      to the shell must not take away the vocabulary that drives it. The layer
@@ -11068,12 +11079,10 @@ import { screens, panel, bridge } from "./seams.js";
      · between two other pages, the top of the stack is REPLACED.
      Tapping the page one is already on replaces too — it is not an arrival.
 
-     A LAYER'S ENTRY ON TOP is the one shape this cannot step back over. The
-     tab bar sits above the layers, so a tap closes the panel WITHOUT popping
-     and the layer's entry is still the current one; stepping back would land
-     on the page one is leaving, with the destination drawn over it. The
-     destination takes that entry instead, which is the contract the `data-go`
-     and `data-navgo` sites already have for a layer entry.
+     A LAYER'S ENTRY ON TOP is a shape this does not settle: `switchPageFromLayer`
+     does, and the two `data-*` sites that can be tapped over a layer route
+     there. What is left here is the arm for a layer entry reached WITHOUT one
+     of those sites — see the `onLayer` branch below.
 
      Args:
          leaving: The page id the interface was on before the write above. It
@@ -11105,6 +11114,55 @@ import { screens, panel, bridge } from "./seams.js";
     replacePath();
   }
 
+  /* Settles history for a page switch made FROM A LAYER — the drawer's entries
+     and the account menu's « Profil et préférences », which are the page
+     switches a finger can reach while something is open over the page.
+
+     § 16 RULE 2 IS THE SAME RULE HERE, and it used to be read as « the
+     destination takes the layer's entry ». That leaves the ABANDONED page's
+     entry sandwiched underneath: from the médiathèque, the drawer's
+     Acquisition gave [guard, acq, médiathèque, acq] — a back from the entry
+     page landing on the page one had just left, two entries for the same page,
+     and three backs to leave. The rule allows exactly two shapes, and the
+     switch has to reach one of them: [guard, acq] arriving home, [guard, acq,
+     page] anywhere else.
+
+     Only a TRAVERSAL can, because no write reaches an entry below the current
+     one. So the walk goes down to the floor and the destination is settled on
+     it — and the settling waits for the pop, because a write issued in this
+     task would be overtaken by the traversal and undone. The interface is
+     already on the destination when the traversal runs (the caller renders
+     first, as every page switch does) and the pop is swallowed by the latch,
+     so nothing of the floor is ever drawn.
+
+     Args:
+         leaving: The page id the interface was on before the caller rendered
+             the destination — read at the call site for the same reason
+             `switchPage` reads it there. */
+  function switchPageFromLayer(leaving) {
+    if (pilotage) return;
+    const homePage = window.__address.homePage;
+    /* No floor to walk down to: the entry under the layer is an arrival nobody
+       serves, and the one below THAT is the exit guard. The layer's entry takes
+       the destination, which keeps the address as typed one back away. */
+    if (!homeFloorExists) return replacePath();
+    /* WHAT THE LAYER STANDS ON, counted rather than guessed. Rule 2 leaves at
+       most one page entry above the floor, so the walk is the layer's own entry
+       plus the abandoned page's when the page one is leaving is not the floor
+       itself. A layer opened over a SCREEN would stand deeper — and no finger
+       can open one there: a screen covers the top bar's drawer control and the
+       whole tab bar, measured control by control, exactly as B-024 measured the
+       `data-go` producers. */
+    const entries = leaving === homePage ? 1 : 2;
+    __bridge.rewind(entries);
+    /* Armed after the traversal is issued: a pop cannot land before this task
+       ends, so this is in time, and a rewind that threw arms nothing. Arriving
+       home the floor IS the destination, so its address is settled in place;
+       anywhere else the destination is an arrival and stacks on the floor. */
+    afterUnwind =
+      currentState().page === homePage ? replacePath : recordPath;
+  }
+
   /* The bridge announces a back the way `popstate` did — for a back, a
      forward and a jump alike — and hands over the state of the entry now
      CURRENT, which is the entry the gesture landed on. That is what
@@ -11120,12 +11178,17 @@ import { screens, panel, bridge } from "./seams.js";
      nothing here forces that anymore — there is no pre-bridge queueing calls
      made before the module evaluates. */
   function onEngineBack(etatCourant, direction) {
-    // Our own unwind, announced by the layer that closed itself. It is not a
-    // back gesture and carries no destination: consuming it is the whole
-    // handling. Read before the layer guards, because the layer's class is
+    // Our own unwind, announced by the caller that issued it. It is not a back
+    // gesture, so it is never INTERPRETED — but consuming it is no longer the
+    // whole handling: a caller that rewound in order to write on the entry it
+    // lands on leaves that write here, and this is the moment it becomes safe
+    // to make. Read before the layer guards, because the layer's class is
     // already gone by the time its pop lands.
     if (unwindInProgress) {
       unwindInProgress -= 1;
+      const settle = afterUnwind;
+      afterUnwind = null;
+      if (settle) settle();
       return;
     }
 
@@ -11860,26 +11923,24 @@ import { screens, panel, bridge } from "./seams.js";
          page-body `#view` content, which sits under every layer and is
          therefore covered — untappable — the instant one is open (walked
          control by control, BUGS.md B-024). Landing must LEAVE the layer:
-         every layer closes without touching history, and the destination
-         takes the layer's entry, exactly as a drawer navigation settles
-         itself (see data-navgo): letting the close unwind and the arrival
-         push would race, the asynchronous pop landing after the push and
+         every layer closes without touching history, and history is settled
+         HERE, by `switchPageFromLayer`, exactly as a drawer navigation settles
+         itself (see data-navgo). Letting the close unwind and the arrival push
+         would race, the asynchronous pop landing after the push and
          overwriting it. */
       const onLayer = history.state && history.state.layer;
       const leaving = currentState().page;
       closeDrawer(true);
       panel.close(true);
       // This empties the covered-screen STACK too, so the DOM ends up clean
-      // however many screens were stacked — but that is DOM bookkeeping
-      // only, not history: `__bridge.remplacer` below settles exactly ONE
-      // entry, on the assumption that at most one layer (drawer, sheet or a
-      // covered-screen stack — never several at once) precedes a `data-go`
-      // tap. B-024 found that assumption unenforced in code, then walked
-      // every producer and found it latent — non atteignable — because the
+      // however many screens were stacked — but that is DOM bookkeeping only,
+      // not history: the settling below walks the layer's entry plus at most
+      // one page entry, on the assumption that at most one layer (drawer,
+      // sheet or a covered-screen stack — never several at once) precedes a
+      // `data-go` tap. B-024 found that assumption unenforced in code, then
+      // walked every producer and found it latent — unreachable — because the
       // one producer that can sit over a layer allows at most the sheet
-      // itself. Held there, not fixed here; settling by entry count is
-      // owed if the ownership law lets more producers reach a buried layer
-      // (data-go's own migration, SP4d).
+      // itself.
       screenStack.length = 0;
       closeScreen(true);
       store.write({ page: closest.dataset.go });
@@ -11888,7 +11949,7 @@ import { screens, panel, bridge } from "./seams.js";
       port.scrollTop = 0;
       render();
       try {
-        if (onLayer) __bridge.replace(navigationState(), window.__address.compose(currentState()));
+        if (onLayer) switchPageFromLayer(leaving);
         else switchPage(leaving);
       } catch (error) {
         console.error("data-go : écriture de navigation échouée", error);
@@ -12194,9 +12255,12 @@ import { screens, panel, bridge } from "./seams.js";
     if (closest.dataset.navgo) {
       const id = closest.dataset.navgo;
       /* The drawer is NOT a route, so its entry does not survive the
-         destination: the page one lands on TAKES ITS PLACE. A back from
-         there then reaches where one was before opening the drawer, which
-         is the only thing a drawer can honestly promise.
+         destination — and neither does the entry of the page one is leaving.
+         A drawer entry is a top-level destination like any other, so § 16
+         rule 2 applies to it whole: `switchPageFromLayer` walks down to the
+         floor and settles the destination there, which is what makes one back
+         from the destination reach the entry page and not the médiathèque one
+         happened to open the drawer from.
 
          This is also why history is settled here rather than by letting the
          close unwind and the arrival push: a back is asynchronous, so its
@@ -12209,7 +12273,7 @@ import { screens, panel, bridge } from "./seams.js";
       port.scrollTop = 0;
       render();
       try {
-        if (onDrawer) __bridge.replace(navigationState(), window.__address.compose(currentState()));
+        if (onDrawer) switchPageFromLayer(leaving);
         else switchPage(leaving);
       } catch (error) {
         console.error("data-navgo : écriture de navigation échouée", error);
