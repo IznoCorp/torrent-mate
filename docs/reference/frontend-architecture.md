@@ -106,13 +106,18 @@ implementation owes. Four rules, and the order is the substance.
 
 1. **Back pops, and the stack holds only deliberate arrivals.** Opening a surface — a sheet, a
    resolution, a panel — pushes. Adjusting one — a filter, an inner tab, a sort, a lens —
-   replaces. The engine already works this way: `recordPath()` is the only general push site and
-   its own comment says it records where the operator has ARRIVED. **This decision makes that
-   discipline a rule instead of a habit**, because it is the whole of what separates a native
-   feel from a web one: a stack of settings makes Back undo a sort where the reader meant to
-   leave the screen.
-2. **Switching a top-level page REPLACES.** Back from any page returns to `/acquisition`, the
-   entry page; Back from there arms the exit guard. No platform stacks visited tabs — iOS gives
+   replaces. **The engine does NOT work this way today, and the gap is the work**: `recordPath()`
+   has eight call sites and seven of them push a SETTING — the maintenance topic, the acquisition
+   tab, the library lens, and the page itself from three places. Only the exit guard's deliberate
+   re-push belongs. This is the whole of what separates a native feel from a web one: a stack of
+   settings makes Back undo a sort where the reader meant to leave the screen.
+   <sub>`grep -n "recordPath()" frontend/maquette/design/src/engine/legacy.js`</sub>
+2. **Switching a top-level page REPLACES.** Concretely — and this is more than calling
+   `replace`, which on its own would leave a single entry and send the first Back straight into
+   the exit guard: **the entry page stays beneath.** The stack under any top-level page is
+   `[/acquisition]`, switching pages replaces the top of it, so Back from any page lands on
+   `/acquisition` and Back from `/acquisition` arms the guard. That is Android's
+   `popUpTo(startDestination)` said in this codebase's terms. No platform stacks visited tabs — iOS gives
    each tab its own stack and forbids crossing, Android returns to the start destination and then
    exits. The Android reading is taken because a system Back drives a PWA. The exit guard
    (`armedExit`, the five-second window, the toast) already exists and only has a role under this
