@@ -69,8 +69,9 @@ repository.
 53 flat `.py` files (recorded and deliberately unscheduled), and B-036 / B-040, which belong to
 their own waves.
 
-**Next action**: phases 8–11 are complete on `fix/maquette-l05` — `/implement:feature-pr`
-re-runs the gate, pushes, re-polls CI on #484, then `/implement:pr-review` runs cycle 3.
+**Next action**: phase 12 — cycle 3's findings, walked with real taps: the 404 escape button
+spends the exit guard (regression of this range), page switches from the drawer/account menu
+escape rule 2, and the « tab bar above the layers » premise is false. Then cycle 4.
 
 ### Review cycles — PR #484
 
@@ -94,6 +95,16 @@ titles reaching the synthesised fallback from an address (the in-app door's own 
 `armedExit` on the reopen branch (pre-existing shape), four TypeScript shapes refused as « cannot
 read » (deliberate).
 
+### Cycle 3
+
+Two reviewers over phases 10–11, REAL taps at 390×844, 2026-08-24. Cycle-2 findings verified
+closed; § 16's forbidden path (Back climbing to the parent over a real stack) hunted and not
+found. Retained: 1 critical (the 404's « Aller à Acquisition » blind-steps onto the guard — one
+Back then quits the PWA), 1 major (drawer/account-menu page switches leave the abandoned page
+sandwiched — rule 2 fails exactly on the finger-reachable walks), 1 major-premise (« the tab bar
+sits above the layers » is false; two branches lean on the sentence), comment rot from the fourth
+boot seam, and reader/hold minors → `plan/phase-12-pr-fixes-cycle-3.md`.
+
 **Phases of L05** — the plan is `docs/features/maquette-l05/plan/INDEX.md`, which owns the
 reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
 
@@ -110,6 +121,7 @@ reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
 | 9   | PR #484 fixes, review cycle 1 — what four reviewers found | `plan/phase-09-pr-fixes-cycle-1.md` | [x]    |
 | 10  | PR #484 fixes, review cycle 2 — what phase 9 opened | `plan/phase-10-pr-fixes-cycle-2.md` | [x]    |
 | 11  | The navigation path — § 16 rules 1–3, D1b (operator, 2026-08-24) | `plan/phase-11-navigation-path.md` | [x]    |
+| 12  | PR #484 fixes, review cycle 3 — the layer walks | `plan/phase-12-pr-fixes-cycle-3.md` | [ ]    |
 
 **What L05 is, in one line**: the eight pages leave `?page=` for a real path, the address model
 leaves the engine for `lib/addresses.ts` — the first subtraction of D5 — and the harness host
