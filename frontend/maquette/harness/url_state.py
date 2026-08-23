@@ -60,6 +60,11 @@ What this holds to:
    interface disagreeing, and a disagreement nothing records is one nobody can
    find — so the flag is read with a write broken on purpose, and again at the
    end of an ordinary walk, where it must still be false.
+11. A back puts EVERY dial back. The history entry carries the state one
+   arrived in, so a dial the entry does not carry is a dial no back can
+   restore — the address drops it while the interface goes on showing it, a
+   disagreement no cold load can reveal because a cold load has no interface
+   to keep anything from.
 """
 import asyncio
 import json
@@ -384,6 +389,44 @@ async def main():
         journal.check("no navigation write failed during the walk",
                       await pg.evaluate("()=>window.__navEchec") is False,
                       f"__navEchec={await pg.evaluate('()=>window.__navEchec')}")
+        await ctx.close()
+
+        # ── 11. a back puts EVERY dial back, not most of them ──────────────
+        # The history entry carries the state one arrived in, and a dial left
+        # off it is a dial the back cannot restore: the address drops it and
+        # the interface goes on showing it, which is invariant 1 broken in the
+        # one direction a cold load can never reveal. The maintenance topic is
+        # the dial this holds on, and its value is READ off the page rather
+        # than written down here — a topic list is the engine's, not this
+        # rule's.
+        ctx, pg, errors = await open_page(b, PROTOTYPE + "maintenance")
+        topics = await pg.evaluate(
+            """()=>[...document.querySelectorAll('[data-maintopic]')]
+                 .map((node) => node.dataset.maintopic).filter(Boolean)""")
+        journal.check("the maintenance page offers a topic to select",
+                      bool(topics), f"{topics}")
+        topic = topics[0]
+        await pg.tap(f'[data-maintopic="{topic}"]')
+        await pg.wait_for_timeout(400)
+        journal.check("selecting a maintenance topic writes it into the query",
+                      query(pg.url) == f"topic={topic}", pg.url)
+        await pg.tap('#nav button[data-page="sys"]')
+        await pg.wait_for_timeout(400)
+        await pg.go_back()
+        await pg.wait_for_timeout(500)
+        back_topic = await pg.evaluate("()=>state.maintTopic")
+        journal.check("a back onto a topic address restores the topic the address names",
+                      path(pg.url) == "/maintenance"
+                      and query(pg.url) == f"topic={topic}"
+                      and back_topic == topic,
+                      f"{pg.url} · maintTopic={back_topic!r}")
+        await pg.go_back()
+        await pg.wait_for_timeout(500)
+        cleared = await pg.evaluate("()=>state.maintTopic")
+        journal.check("and a second back drops the topic from the interface as well as the address",
+                      path(pg.url) == "/maintenance" and query(pg.url) == "" and not cleared,
+                      f"{pg.url} · maintTopic={cleared!r}")
+        journal.check("no JS error walking the topic back", not errors, str(errors))
         await ctx.close()
 
         await b.close()

@@ -10979,6 +10979,10 @@ import { screens, panel, bridge } from "./seams.js";
      what state to carry on the entry, and how a back unwinds the layers. The
      engine says where it is; `window.__address` says what that is called. */
 
+  /* EVERY dial the address model declares travels on the entry, and that is
+     the whole of the list: a dial left off is one a back cannot put back, so
+     the address loses it while the interface keeps showing it — measured on
+     `maintTopic`, which was the one missing. */
   function navigationState() {
     return {
       tm: "nav",
@@ -10987,6 +10991,7 @@ import { screens, panel, bridge } from "./seams.js";
       libLens: currentState().libLens,
       libMode: currentState().libMode,
       libCat: currentState().libCat,
+      maintTopic: currentState().maintTopic,
     };
   }
 
@@ -11052,6 +11057,7 @@ import { screens, panel, bridge } from "./seams.js";
         libLens: state.libLens,
         libMode: state.libMode,
         libCat: state.libCat,
+        maintTopic: state.maintTopic,
       });
       pilotage = false;
       return;
