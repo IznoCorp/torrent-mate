@@ -109,7 +109,7 @@ reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
 | 7   | The records, and the gate              | `plan/phase-07-the-records.md`              | [x]    |
 | 8   | PR fixes, review cycle 1 — the four blocking defects | `plan/phase-08-pr-fixes-cycle-1.md` | [x]    |
 | 9   | PR #484 fixes, review cycle 1 — what four reviewers found | `plan/phase-09-pr-fixes-cycle-1.md` | [x]    |
-| 10  | PR #484 fixes, review cycle 2 — what phase 9 opened | `plan/phase-10-pr-fixes-cycle-2.md` | [ ]    |
+| 10  | PR #484 fixes, review cycle 2 — what phase 9 opened | `plan/phase-10-pr-fixes-cycle-2.md` | [x]    |
 
 **What L05 is, in one line**: the eight pages leave `?page=` for a real path, the address model
 leaves the engine for `lib/addresses.ts` — the first subtraction of D5 — and the harness host
