@@ -35,7 +35,9 @@ What this holds to:
 4. A wrong address is left ALONE. An unknown path renders the not-found
    surface, and deriving the address from it would rewrite a mistyped link into
    a different one — the interface correcting the operator's address behind
-   their back. A browser answering 404 leaves it as typed.
+   their back. A browser answering 404 leaves it as typed. This covers the
+   BACK as well as the cold load: the guard puts back where one is, and that
+   write is where the not-found state used to compose the home page's path.
 5. Back walks the addresses in reverse, not only the screens.
 6. No page identity survives in a query, and no dial in a path. This is
    invariant 1 read in both directions, and it is the hold the renegotiation
@@ -278,6 +280,26 @@ async def main():
         journal.check("and the address stays exactly as typed",
                       path(pg.url) == "/nimportequoi" and query(pg.url) == "", pg.url)
         journal.check("no JS error on an unknown address", not errors, str(errors))
+
+        # The cold load is not where the rewrite happened. One Back reaches the
+        # guard entry, the guard puts back where one IS, and THAT write is what
+        # composed the home page's path over the address the operator typed —
+        # a state composing to another state's address, invisible until the
+        # gesture. So the walk is held, not only the arrival.
+        await pg.go_back()
+        await pg.wait_for_timeout(500)
+        after_back = await pg.evaluate(WHERE)
+        armed = await pg.evaluate("()=>window.armedExit")
+        failed = await pg.evaluate("()=>window.__navEchec")
+        journal.check("a Back from an unknown address re-pushes the address as typed, never the root",
+                      path(pg.url) == "/nimportequoi" and query(pg.url) == "", pg.url)
+        journal.check("and the surface it names is still the not-found one",
+                      after_back["page"] == "404" and after_back["notFound"] == "/nimportequoi",
+                      f"page={after_back['page']} notFound={after_back['notFound']!r}")
+        journal.check("the Back reached the exit guard, which is what wrote that address back",
+                      bool(armed), f"armedExit={armed}")
+        journal.check("and composing the not-found address was answered, not refused",
+                      failed is False, f"__navEchec={failed}")
         await ctx.close()
 
         # ── 5. back walks the addresses in reverse ─────────────────────────

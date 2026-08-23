@@ -144,16 +144,40 @@ export type Destination = {
  *
  * Returns:
  *     The path, plus the query for whatever differs from the opening state.
- *     A page the table does not carry keeps the root: an id nobody serves is
- *     rendered as the not-found surface, and giving it an address of its own
- *     would rewrite a mistyped link into a different one.
+ *     The not-found page composes the address EXACTLY as it was asked for —
+ *     `values.notFound`, nothing appended — because a mistyped link that
+ *     composes back to some other page's path is the interface rewriting the
+ *     operator's address behind their back.
+ *
+ * Raises:
+ *     Error: When the page is one the table does not carry. An id nobody
+ *         serves has no address of its own, so composing one is a refusal
+ *         rather than a default — a caller that reaches this has a state no
+ *         address describes, and inventing one hides that. The not-found page
+ *         raises the same way when it is handed no `notFound` to give back.
  */
 export function addressOf(
   page: string,
   values: Record<string, unknown>,
   panel?: string,
 ): string {
-  const path = PAGE_PATHS[page] ?? "/";
+  // A not-found address is reproduced verbatim: no dials, and no panel either
+  // — a panel over an address that leads nowhere is not a state anyone links
+  // to, so a `panel` passed with this page is ignored rather than appended.
+  if (page === NOT_FOUND_PAGE) {
+    const asked = values.notFound;
+    if (typeof asked !== "string" || asked === "") {
+      throw new Error(
+        `addressOf: page "${NOT_FOUND_PAGE}" needs the address it was asked for, ` +
+          "and no notFound was given",
+      );
+    }
+    return asked;
+  }
+  const path = PAGE_PATHS[page];
+  if (path === undefined) {
+    throw new Error(`addressOf: no address is declared for page "${page}"`);
+  }
   const query = new URLSearchParams();
   if (panel) query.set(PANEL_PARAMETER, panel);
   for (const dial of DIALS) {
