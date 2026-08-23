@@ -82,7 +82,7 @@ MODES:
 Like `run.sh`, both modes build the prototype and copy it where the harness
 reads it first — a stale copy at /tmp/tm-refonte/wrapped.html measures the
 previous build in silence. Unlike `run.sh`, this tool does not start the
-harness host: if http://127.0.0.1:8899/wrapped.html does not answer 200, run
+harness host: if http://127.0.0.1:8899/ does not answer 200, run
 `frontend/maquette/harness/run.sh --contracts` once (it builds, copies and
 starts the host), then retry.
 
@@ -109,7 +109,7 @@ ROOT = Path(__file__).resolve().parent.parent
 HARNESS = ROOT / "frontend" / "maquette" / "harness"
 DESIGN = ROOT / "frontend" / "maquette" / "design"
 SERVED = Path("/tmp/tm-refonte")
-PROTOTYPE_URL = "http://127.0.0.1:8899/wrapped.html"
+PROTOTYPE_URL = "http://127.0.0.1:8899/"
 RULE_TIMEOUT_SECONDS = 600
 
 
