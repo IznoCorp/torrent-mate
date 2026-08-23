@@ -70,6 +70,11 @@ SHEET_TITLE = "Silo (2023)"
 # two surfaces onto one thing, and they do not spell it the same way.
 FOLLOW_TITLE = "Silo"
 
+# The page a panel is opened over in the buried-entry walk, and the one the
+# Back must land back on. It is a tab, so the walk can leave it by tapping
+# another one — which is the only door that closes a layer without popping.
+BURIED_FROM = "acq"
+
 _journal = None
 
 
@@ -433,6 +438,60 @@ async def main():
               bool(await pg5.evaluate("()=>window.armedExit")),
               f"{pg5.url} · armedExit={await pg5.evaluate('()=>window.armedExit')}")
         await ctx5.close()
+
+        # AND A LAYER ENTRY CAN BE BURIED, which is the case the two walks above
+        # cannot show: both stand on the panel's entry with the panel's own page
+        # underneath. The tab bar sits ABOVE the layers, so it is tappable while
+        # a panel is up — and a tab tap closes the panel WITHOUT popping, then
+        # records the new page ON TOP of the panel's entry. Backing over that
+        # page lands on a layer entry whose panel closed long ago, on a page it
+        # was never opened over: reopening it there raises the panel over the
+        # wrong frame and settles an address naming the page underneath. It is
+        # stepped over instead, and the arrival beneath is what one lands on.
+        ctx10 = await b.new_context(**PHONE)
+        pg10 = await ctx10.new_page()
+        buried_errors = []
+        pg10.on("pageerror", lambda e: buried_errors.append(str(e)))
+        await pg10.goto(PROTOTYPE + "acquisition", wait_until="load")
+        await pg10.evaluate("()=>window.__loadingDone?.()")
+        await pg10.wait_for_timeout(600)
+        await pg10.evaluate(f"()=>window.openFollowSheet({FOLLOW_TITLE!r})")
+        await pg10.wait_for_timeout(500)
+        # The tab the tap goes to is read off the BAR, never written down: which
+        # pages are tabs is the bar's own decision, and a constant here would
+        # hold a walk nobody can take the day one of them leaves it.
+        buried_tab = await pg10.evaluate(
+            f"()=>{{const b=Array.from(document.querySelectorAll('#nav button[data-page]'))"
+            f".map(e=>e.dataset.page).filter(p=>p!=={BURIED_FROM!r});return b[0]||''}}")
+        check("the bar offers a second tab to leave the panel's page by",
+              bool(buried_tab), f"tab={buried_tab!r}")
+        await pg10.evaluate(
+            "(tab)=>document.querySelector(`#nav button[data-page=\"${tab}\"]`).click()",
+            buried_tab)
+        await pg10.wait_for_timeout(600)
+        check("a tab tap over an open panel leaves the panel's entry buried",
+              await pg10.evaluate("()=>window.__store.read().state.page") == buried_tab
+              and not await pg10.evaluate("()=>window.__panel.isOpen()"),
+              f"{pg10.url} · page="
+              f"{await pg10.evaluate('()=>window.__store.read().state.page')}")
+        await pg10.go_back()
+        await pg10.wait_for_timeout(700)
+        check("one Back steps over the buried entry onto the arrival beneath",
+              await pg10.evaluate("()=>window.__store.read().state.page") == BURIED_FROM
+              and not await pg10.evaluate("()=>window.__panel.isOpen()")
+              and "panel=" not in pg10.url
+              and pg10.url.endswith("/acquisition"),
+              f"{pg10.url} · page="
+              f"{await pg10.evaluate('()=>window.__store.read().state.page')}"
+              f" · panel={await pg10.evaluate('()=>window.__panel.isOpen()')}")
+        check("no JS error stepping over a buried layer entry",
+              not buried_errors, str(buried_errors))
+        await pg10.go_back()
+        await pg10.wait_for_timeout(700)
+        check("and the Back after that reaches the guard",
+              bool(await pg10.evaluate("()=>window.armedExit")),
+              f"{pg10.url} · armedExit={await pg10.evaluate('()=>window.armedExit')}")
+        await ctx10.close()
 
         # AND THE PARAMETER IS RECOGNISED BY ITS NAME, not by the letters it
         # happens to be spelled with. A query name may be percent-encoded —

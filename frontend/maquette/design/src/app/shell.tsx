@@ -87,7 +87,13 @@ type Bridge = {
   // saying `back()` twice in the same task. `n` counts ENTRIES, and the
   // traversal is announced to the engine before it is issued.
   rewind: (n: number) => void;
-  onBack: (callback: (state: unknown) => void) => () => void;
+  // The callback is handed the entry's state AND the direction the
+  // traversal came from: the same entry means opposite things stepped onto
+  // forwards and stepped back onto, and only the caller of `subscribe` can
+  // tell them apart.
+  onBack: (
+    callback: (state: unknown, direction: "BACK" | "FORWARD" | "GO") => void,
+  ) => () => void;
 };
 
 // One entry per migrated screen: what a legacy call site invokes instead of
@@ -325,14 +331,16 @@ window.__bridge = {
     window.__announcePops?.(n);
     history.go(-n);
   },
-  onBack: (callback: (state: unknown) => void) =>
+  onBack: (
+    callback: (state: unknown, direction: "BACK" | "FORWARD" | "GO") => void,
+  ) =>
     history.subscribe(({ action, location }) => {
       if (
         action.type === "BACK" ||
         action.type === "FORWARD" ||
         action.type === "GO"
       )
-        callback(location.state);
+        callback(location.state, action.type);
     }),
 };
 window.__routeur = router;

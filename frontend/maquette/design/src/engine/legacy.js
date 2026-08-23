@@ -11023,11 +11023,16 @@ import { screens, panel, bridge } from "./seams.js";
      CURRENT, which is the entry the gesture landed on. That is what
      `popstate` reported too, so the reading below is unchanged.
 
+     It also hands over the DIRECTION (`BACK`, `FORWARD` or `GO`), which
+     `popstate` never carried and which one branch below cannot do without:
+     one entry shape means opposite things stepped onto forwards and stepped
+     back onto.
+
      The registration itself moved into window.__startEngine, below: like
      every other `__bridge` verb, it needs the REAL bridge to exist first, and
      nothing here forces that anymore — there is no pre-bridge queueing calls
      made before the module evaluates. */
-  function onEngineBack(etatCourant) {
+  function onEngineBack(etatCourant, direction) {
     // Our own unwind, announced by the layer that closed itself. It is not a
     // back gesture and carries no destination: consuming it is the whole
     // handling. Read before the layer guards, because the layer's class is
@@ -11047,16 +11052,40 @@ import { screens, panel, bridge } from "./seams.js";
       return;
     }
 
-    /* A FORWARD onto a layer entry, which is the one direction nothing walked.
-       Going back off a panel leaves its entry AHEAD in the history; stepping
-       forward onto it fell through every branch below — no layer is open, and
-       the entry carries no `tm` — so the address read `?panel=…` with nothing
-       open, and a reload at it brought back what the gesture had not. The
-       entry names the panel in its own address, so it is asked for again;
-       nothing is pushed, because this entry IS the panel's. A value that no
-       longer resolves leaves the entry alone and says so. */
+    /* A layer entry stood on with nothing open, and the DIRECTION decides
+       which of two opposite things it is.
+
+       FORWARD: going back off a panel leaves its entry AHEAD in the history,
+       and stepping forward onto it fell through every branch below — no layer
+       is open, and the entry carries no `tm` — so the address read `?panel=…`
+       with nothing open, and a reload at it brought back what the gesture had
+       not. The entry names the panel in its own address, so it is asked for
+       again; nothing is pushed, because this entry IS the panel's. A value
+       that no longer resolves leaves the entry alone and says so.
+
+       BACK, or a jump: the entry is a closed panel's LEFTOVER, and reopening
+       it there would raise the panel over a page it was never opened on. The
+       tab bar sits ABOVE the layers, so a tap on it closes the panel WITHOUT
+       popping and then records the new page on top of the panel's entry,
+       burying it. Backing over that page lands on a `{ layer: "sheet" }` entry
+       whose panel has long been closed — a place the operator was never in and
+       cannot be shown. So it is stepped OVER, and one more back lands on the
+       arrival entry beneath.
+
+       That second pop is NOT announced to the unwind latch, and the absence is
+       the decision: the latch exists to make a pop a NO-OP, because a layer
+       closing itself is already where it wants to be. Here the interface is on
+       the page the tab-bar tap moved it to, and only the entry beneath can put
+       it back — so the pop must be READ, through the `tm: "nav"` branch below,
+       exactly as the operator's own second back would be. Announcing it was
+       measured: the latch swallowed it, and the address settled on the arrival
+       while the interface stayed on the page above it. */
     if (etatCourant && etatCourant.layer === "sheet" && !panel.isOpen()) {
-      reopenAddressedPanel(location.search, true);
+      if (direction === "FORWARD") {
+        reopenAddressedPanel(location.search, true);
+        return;
+      }
+      __bridge.back();
       return;
     }
 

@@ -32,7 +32,13 @@ export type Bridge = {
   pushLayer: (layer: string) => void;
   back: () => void;
   rewind: (n: number) => void;
-  onBack: (callback: (state: unknown) => void) => () => void;
+  // The callback is handed the entry's state AND the direction the
+  // traversal came from: the same entry means opposite things stepped onto
+  // forwards and stepped back onto, and only the caller of `subscribe` can
+  // tell them apart.
+  onBack: (
+    callback: (state: unknown, direction: "BACK" | "FORWARD" | "GO") => void,
+  ) => () => void;
 };
 
 // One entry per migrated screen: what a legacy call site invokes instead of
