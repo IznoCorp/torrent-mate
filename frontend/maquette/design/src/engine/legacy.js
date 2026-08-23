@@ -336,7 +336,7 @@ import { screens, panel, bridge } from "./seams.js";
       t: "President Curtis",
       serie: "Continuing",
       since: "29 juillet",
-      searches: 18,
+      searches: 19,
       k: "show",
       y: 2026,
       st: "up_to_date",
@@ -11558,8 +11558,8 @@ import { screens, panel, bridge } from "./seams.js";
       </div>
       <div class="ver">
         <p class="vt">Version déployée</p>
-        <p class="vv">0.97.34</p>
-        <p class="vc">build 71e50163 · à jour</p>
+        <p class="vv">0.98.23</p>
+        <p class="vc">build 58d0d4fd · à jour</p>
       </div>`;
     setOpen(element, true);
     setOpen(select("#scrim"), true);
