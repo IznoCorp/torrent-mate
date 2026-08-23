@@ -62,6 +62,14 @@ BOOT_FILE = "app/shell.tsx"
 # text appearing at all is a subject that got through without being held.
 REOPEN_CRASH = "reopening the addressed panel failed"
 
+# The medium whose SCREEN a panel is opened over. The screen's own address is
+# derived from the running application rather than written here — it is keyed
+# on a provider id — but the title is the one the fixture holds.
+SHEET_TITLE = "Silo (2023)"
+# The same medium as the follow catalogue names it: a screen and a follow are
+# two surfaces onto one thing, and they do not spell it the same way.
+FOLLOW_TITLE = "Silo"
+
 _journal = None
 
 
@@ -84,6 +92,12 @@ PANELS = [
     ("search result", "acq-add-results", '[data-part="screen"][data-open] [data-panel^="add:"]'),
     ("library sort", "lib-grid", "[data-sort]"),
 ]
+
+# Whether a screen route is mounted and open. Hosted in a triple-quoted string
+# rather than escaped inside a double-quoted one: a naming attribute written
+# with a backslash is invisible to the markup-contract arm, which reads the
+# harness as raw text — the selection would then be held by nothing.
+SCREEN_UP = """() => !!document.querySelector('[data-part="screen"][data-open]')"""
 
 READ = """() => {
   const p = document.querySelector('#sheetin');
@@ -391,6 +405,90 @@ async def main():
               bool(await pg5.evaluate("()=>window.armedExit")),
               f"{pg5.url} · armedExit={await pg5.evaluate('()=>window.armedExit')}")
         await ctx5.close()
+
+        # A PANEL OVER A SCREEN HANGS OFF THE SCREEN'S OWN PATH. The panel's
+        # address used to be composed from the page UNDERNEATH, which under a
+        # screen is the home page — so opening a panel over the media sheet
+        # pushed the home page's path, the route stopped matching, and the
+        # screen the operator had linked to unmounted behind the panel. Both
+        # doors are read: the address, and the in-app open.
+        # DERIVED from the running application, never written down: the media
+        # sheet's address is keyed on a provider id, and a constant nothing
+        # verifies against its source rots the day the fixture moves.
+        ctx_ids = await b.new_context(**PHONE)
+        pg_ids = await ctx_ids.new_page()
+        await pg_ids.goto(PROTOTYPE, wait_until="load")
+        await pg_ids.evaluate("()=>window.__loadingDone?.()")
+        await pg_ids.wait_for_timeout(300)
+        ids = await pg_ids.evaluate(f"()=>window.addressIdsFor({SHEET_TITLE!r})")
+        await ctx_ids.close()
+        check("the media sheet's own address ids are resolvable",
+              bool(ids and ids.get("provider") and ids.get("id")), str(ids))
+        screen_path = f"/media/{(ids or {}).get('provider')}/{(ids or {}).get('id')}"
+
+        ctx6 = await b.new_context(**PHONE)
+        pg6 = await ctx6.new_page()
+        screen_errors = []
+        pg6.on("pageerror", lambda e: screen_errors.append(str(e)))
+        await pg6.goto(PROTOTYPE.rstrip("/") + screen_path + f"?panel=follow:{FOLLOW_TITLE}",
+                       wait_until="load")
+        await pg6.evaluate("()=>window.__loadingDone?.()")
+        await pg6.wait_for_timeout(650)
+        check("a cold panel over a screen leaves the screen standing",
+              await pg6.evaluate("()=>window.__panel.isOpen()")
+              and await pg6.evaluate(
+                  SCREEN_UP),
+              f"{pg6.url} · panel={await pg6.evaluate('()=>window.__panel.isOpen()')}")
+        check("and its address is the screen's path, with the panel in the query",
+              screen_path in pg6.url and "panel=" in pg6.url, pg6.url)
+        await pg6.go_back()
+        await pg6.wait_for_timeout(500)
+        check("one Back closes the panel and the screen is still there",
+              not await pg6.evaluate("()=>window.__panel.isOpen()")
+              and await pg6.evaluate(
+                  SCREEN_UP)
+              and pg6.url.endswith(screen_path),
+              f"{pg6.url} · panel={await pg6.evaluate('()=>window.__panel.isOpen()')}")
+        check("no JS error opening a panel over a screen cold",
+              not screen_errors, str(screen_errors))
+        await ctx6.close()
+
+        # The same mechanism, through the door inside the application: the
+        # sheet is opened by a verb, not by an address, and the panel opened
+        # over it must leave it exactly as it found it.
+        ctx7 = await b.new_context(**PHONE)
+        pg7 = await ctx7.new_page()
+        await pg7.goto(PROTOTYPE, wait_until="load")
+        await pg7.evaluate("()=>window.__loadingDone?.()")
+        await pg7.wait_for_timeout(300)
+        await pg7.evaluate(f"()=>window.__screens.mediaSheet({SHEET_TITLE!r})")
+        await pg7.wait_for_timeout(500)
+        await pg7.evaluate(f"()=>window.openFollowSheet({FOLLOW_TITLE!r})")
+        await pg7.wait_for_timeout(500)
+        check("a panel opened in-app over a screen leaves the screen standing",
+              await pg7.evaluate("()=>window.__panel.isOpen()")
+              and await pg7.evaluate(
+                  SCREEN_UP)
+              and screen_path in pg7.url and "panel=" in pg7.url,
+              f"{pg7.url} · panel={await pg7.evaluate('()=>window.__panel.isOpen()')}")
+        await ctx7.close()
+
+        # AND NEVER OVER AN ADDRESS NOBODY SERVES. The not-found page is not a
+        # state anyone links to, so a panel asked for over it is asked for over
+        # nothing: it is declined like any other value the interface cannot
+        # honour, and the parameter comes off the address.
+        ctx8 = await b.new_context(**PHONE)
+        pg8 = await ctx8.new_page()
+        await pg8.goto(PROTOTYPE + f"nimportequoi?panel=follow:{FOLLOW_TITLE}",
+                       wait_until="load")
+        await pg8.evaluate("()=>window.__loadingDone?.()")
+        await pg8.wait_for_timeout(650)
+        check("a panel over an address nobody serves opens nothing",
+              not await pg8.evaluate("()=>window.__panel.isOpen()")
+              and "panel=" not in pg8.url
+              and pg8.url.endswith("/nimportequoi"),
+              f"{pg8.url} · panel={await pg8.evaluate('()=>window.__panel.isOpen()')}")
+        await ctx8.close()
 
         # A menu has no subject, so it is tier 3: no address, Back still shuts
         # it. Reading the OTHER side of the same rule is what stops « every

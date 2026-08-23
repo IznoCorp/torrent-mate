@@ -67,11 +67,12 @@ import { installSeams } from "../engine/seams";
 import {
   addressOf,
   destinationOf,
+  isScreenPath,
   SIGN_IN_PATH,
   withoutPanel,
+  withPanel,
 } from "../lib/addresses";
 import { go, installNavigation } from "../lib/navigate";
-
 
 // The bridge's contract, stated once. The verbs are the legacy nav cluster's
 // primitives, and their names are the fragment's own; the state objects
@@ -140,7 +141,10 @@ declare global {
       /** A query string with the panel parameter taken off, rest verbatim. */
       withoutPanel: (search: string) => string;
       compose: (state: Record<string, unknown>) => string;
-      parse: (pathname: string, search: string) => {
+      parse: (
+        pathname: string,
+        search: string,
+      ) => {
         page: string;
         dials: Record<string, string>;
         notFound?: string;
@@ -531,6 +535,26 @@ window.__screens = {
    dialog. Flushing keeps the ordering every caller already relies on, and the
    panel's own content changes in the same task as the class that reveals it,
    so the sheet never slides in showing the previous panel for a frame. */
+/* The address an addressed panel travels at — D1 read literally. The query
+   says how THIS surface is being looked at, and under a screen the surface IS
+   the screen: the panel hangs off the path one is already on, with whatever
+   else that address carries kept verbatim.
+
+   Composing it from `state.page` instead is not a cosmetic difference. A
+   screen is a ROUTE, mounted by the router, so pushing the page's own path
+   stops the route matching and the screen the operator linked to unmounts
+   behind the panel — measured on `/media/$provider/$id`, which is the wave's
+   headline surface. Off a screen, the page composes its address as it always
+   did: the page IS the surface there. */
+function panelAddress(address: string): string {
+  if (isScreenPath(window.location.pathname))
+    return (
+      window.location.pathname + withPanel(window.location.search, address)
+    );
+  const { state } = window.__store.read();
+  return addressOf(String(state.page ?? ""), state, address);
+}
+
 function openPanel(descriptor: PanelDescriptor): void {
   // Same order as the legacy `openSheet`: the layer first, the history entry
   // second. This file is SHELL code — the seam itself — so it writes the store
@@ -544,13 +568,7 @@ function openPanel(descriptor: PanelDescriptor): void {
     // address it opened over.
     window.__bridge.pushLayer(
       "sheet",
-      descriptor.address
-        ? addressOf(
-            String(window.__store.read().state.page ?? ""),
-            window.__store.read().state,
-            descriptor.address,
-          )
-        : undefined,
+      descriptor.address ? panelAddress(descriptor.address) : undefined,
     );
   } catch (error) {
     // B-026's own residual: `window.__bridge` is assigned synchronously at this

@@ -466,6 +466,7 @@ owns
 page
 pages
 paint
+pair
 panel
 parameter
 parameters
@@ -762,6 +763,7 @@ white
 wide
 width
 window
+with
 without
 wordmark
 words

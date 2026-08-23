@@ -34540,7 +34540,12 @@ import { screens, panel, bridge } from "./seams.js";
       const kind = separator > 0 ? arrival.panel.slice(0, separator) : "";
       const subject = separator > 0 ? arrival.panel.slice(separator + 1) : "";
       const entry = REOPEN[kind];
-      if (subject && entry && entry.resolves(subject)) {
+      /* AND A FOURTH REFUSAL: never over an address nobody serves. The model
+         already says the not-found page is not a state anyone links to, so a
+         panel asked for over it is asked for over nothing — closing it would
+         leave the reader on « this address leads nowhere », and the panel's own
+         entry would have to carry an address the model declines to compose. */
+      if (!arrival.notFound && subject && entry && entry.resolves(subject)) {
         reopenPanel = () => entry.open(subject);
       } else {
         /* ENGLISH, and not in the i18n resources: a console message is a tool

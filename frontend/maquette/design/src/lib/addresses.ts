@@ -139,6 +139,32 @@ export function withoutPanel(search: string): string {
   return kept.length ? "?" + kept.join("&") : "";
 }
 
+/**
+ * Sets the panel parameter in a query string, keeping the rest verbatim.
+ *
+ * The counterpart of `withoutPanel`, and it exists for the one address a page
+ * cannot compose: a panel opened over a SCREEN hangs off the screen's own
+ * path, which no page table carries. Composing that address from the page
+ * UNDERNEATH would push the page's path instead, and the screen — a route, not
+ * a layer, since it is the router that mounts it — would stop matching and
+ * unmount behind the panel.
+ *
+ * Args:
+ *     search: The query string it is set in, leading `?` included or not.
+ *     value: The panel's address, as `<kind>:<subject>`.
+ *
+ * Returns:
+ *     The query string with the panel parameter set, always leading with `?`.
+ *     Any parameter already there is kept exactly as it was written, for the
+ *     reason `withoutPanel` keeps them: re-serialising an address that is only
+ *     being passed through changes it.
+ */
+export function withPanel(search: string, value: string): string {
+  const kept = withoutPanel(search).slice(1);
+  const pair = PANEL_PARAMETER + "=" + encodeURIComponent(value);
+  return "?" + (kept ? kept + "&" + pair : pair);
+}
+
 /** The query parameters any page may carry — read by the addressing guard. */
 export const DIAL_PARAMETERS: readonly string[] = [
   ...DIALS.map((d) => d.parameter),
