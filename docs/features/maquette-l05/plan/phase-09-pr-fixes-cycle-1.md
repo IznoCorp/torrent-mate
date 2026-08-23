@@ -116,6 +116,18 @@ prints how many `validateSearch` bodies were read; (e) a page path with no route
 naming the page. Tests for each shape in `tests/scripts/test_check_frontend_boundaries.py`, each
 seen red first.
 
+Landed with two departures, recorded here rather than left to be re-derived. The source this
+section wrote for the not-first-key case ends `page: String(raw.page ?? "")`, which the reader
+ALREADY caught through `raw.page`: the case would have been green on arrival and measured
+nothing, so its key is written `page: "acq"`, which is the key reader alone. And two cases join
+the six, both on the bound: a resolved reference with an unrelated `{ page: … }` literal below it
+must read CLEAN — the false violation this finding names, and the only case that measures it —
+and a member shape the reader cannot follow must say « cannot read » instead of reading that
+literal. The second was red before the fix; the first was not, because the old key reader was too
+weak to produce even the false positive, so it is held by mutation instead. Seven mutations, one
+per branch — member anchor, bound, reference resolution, return type, all-keys, page-without-
+route, and the report of an unread body — each felling its own case and nothing else.
+
 ## 9.8 — The boot's three bare catches contradict « raised by every writer » · MEDIUM
 
 R69's new docstring says the flag is raised by every writer. The boot's `__bridge.replace(nav,

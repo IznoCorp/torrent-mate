@@ -88,7 +88,7 @@ def write_add_route(root: Path, member: str, prelude: str = "") -> None:
 
 
 class TestAddressingArm:
-    """The twelve mutation cases, then the real tree, unmodified, reading clean."""
+    """The fourteen mutation cases, then the real tree, unmodified, reading clean."""
 
     def test_a_deleted_address_model_is_a_violation(self, tmp_path, capsys) -> None:
         """Refuse a missing `lib/addresses.ts` — a tree the arm cannot read must not read clean."""
@@ -283,6 +283,32 @@ class TestAddressingArm:
         ]
         assert declaring, "the routes declare no validateSearch — the count would prove nothing"
         assert f"{len(declaring)} validateSearch" in captured.out
+
+    def test_n_a_literal_below_the_member_is_not_its_body(self, tmp_path, capsys) -> None:
+        """A resolved reference is read, and an unrelated literal below it invents no violation."""
+        root = copy_design_src(tmp_path)
+        write_add_route(
+            root,
+            "  validateSearch: readSearch,\n",
+            prelude='function readSearch(raw: Record<string, unknown>) {\n  return { q: String(raw.q ?? "") };\n}\n\n',
+        )
+        with (root / "routes" / "add.tsx").open("a", encoding="utf-8") as handle:
+            handle.write('\nconst HOME_QUERY = { page: "acq" };\nexport const home = () => HOME_QUERY;\n')
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations == 0, captured.err
+
+    def test_o_a_shape_the_reader_cannot_follow_says_so(self, tmp_path, capsys) -> None:
+        """A member the reader cannot follow is named as unread, never read out of a later block."""
+        root = copy_design_src(tmp_path)
+        write_add_route(root, "  validateSearch: (raw) => buildSearch(raw),\n")
+        with (root / "routes" / "add.tsx").open("a", encoding="utf-8") as handle:
+            handle.write('\nconst HOME_QUERY = { page: "acq" };\nexport const home = () => HOME_QUERY;\n')
+        violations = guard.arm_addressing(root)
+        captured = capsys.readouterr()
+        assert violations == 1
+        assert "cannot read" in captured.err
+        assert "« page »" not in captured.err
 
     def test_the_real_tree_reads_clean(self, capsys) -> None:
         """The unmodified repository reports zero violations — the arm still reads the tree it guards."""
