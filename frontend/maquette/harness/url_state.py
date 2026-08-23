@@ -285,6 +285,31 @@ async def main():
         journal.check("no JS error when a navigation write is refused", not errors, str(errors))
         await ctx.close()
 
+        # And the RELEASE writer, which the walk above cannot reach: it puts
+        # the bridge back BEFORE letting the gate through, so that catch is
+        # only ever exercised over a write that works. Broken the other way
+        # round — the gate raised over an intact bridge, the bridge broken
+        # next — the release is the write that is refused, and the screen has
+        # to come off all the same.
+        ctx, pg, errors = await open_page(b)
+        await pg.evaluate("()=>window.showSignIn(false)")
+        await pg.wait_for_timeout(300)
+        await pg.evaluate(
+            """()=>{ window.__savedReplace = window.__bridge.replace;
+                     window.__bridge.replace = () => { throw new Error("refused"); }; }""")
+        await pg.evaluate("()=>window.hideSignIn()")
+        await pg.wait_for_timeout(300)
+        released = await pg.evaluate(
+            """()=>({down: document.querySelector('#login').hidden,
+                     failed: window.__navEchec})""")
+        journal.check("the gate comes down even when its release cannot be written",
+                      released["down"], f"hidden={released['down']} at {path(pg.url)}")
+        journal.check("and the refused release write is on record too",
+                      released["failed"] is True, f"__navEchec={released['failed']}")
+        await pg.evaluate("()=>{ window.__bridge.replace = window.__savedReplace; }")
+        journal.check("no JS error when a release write is refused", not errors, str(errors))
+        await ctx.close()
+
         # ── 9. a screen address resolves to the page UNDERNEATH ────────────
         # Same reasoning as `/login` above, applied to every screen route: a
         # screen covers the frame, so while it is open nothing reveals which
