@@ -16,8 +16,9 @@ the final segment is deliberately NOT what decides the fold — a release folder
 name (`Backrooms.2026.MULTi.2160p.WEB-DL`) carries dots and is not a file.
 
 It is used two ways. `serve_forever` is the HOST on 8899 that `run.sh` starts
-and every rule reads. `start_server` is a scratch server a rule can raise on
-its own port, hand a root, and drop again without leaving a process behind.
+and every rule reads. `start_server` is a scratch server a rule can raise on a
+port the kernel picks, hand a root, and drop again without leaving a process
+behind.
 """
 
 from __future__ import annotations
@@ -155,7 +156,7 @@ class FallbackHandler(http.server.SimpleHTTPRequestHandler):
 
 
 @contextlib.contextmanager
-def start_server(port: int, root: pathlib.Path) -> Iterator[int]:
+def start_server(root: pathlib.Path) -> Iterator[int]:
     """Serves `root` on a scratch port for the lifetime of the `with` block.
 
     Files under `root` are served as-is; any path with no file behind it
@@ -165,27 +166,21 @@ def start_server(port: int, root: pathlib.Path) -> Iterator[int]:
     navigating there inside an already-loaded document — EXCEPT under
     `FallbackHandler.ASSET_PREFIXES`, where a missing file still 404s.
 
-    `port` 0 asks the kernel for a free port, and the port actually bound
-    is yielded so the caller composes its addresses from the truth rather
-    than from the request: a scratch server has no reason to want a fixed
-    port, and a fixed one is a list that drifts — rules that pick from the
-    same list eventually collide on one socket.
+    There is deliberately no `port` parameter: the kernel picks one, and
+    the port actually bound is yielded so the caller composes its
+    addresses from the truth rather than from the request. A scratch
+    server has no reason to want a fixed port, and a fixed one is a list
+    that drifts — rules that pick from the same list eventually collide
+    on one socket.
 
     Args:
-        port: The loopback port to bind; 0 means any free port. A non-zero
-            port must not be one of `RESERVED_PORTS`.
         root: The directory to serve. Must contain `wrapped.html`.
 
     Yields:
-        int: The loopback port actually bound — `port` when it was
-        non-zero, the kernel's choice when it was 0. The server runs on a
+        int: The loopback port the kernel chose. The server runs on a
         daemon thread for the block's duration and is reachable on that
         port as soon as the `with` statement is entered.
-
-    Raises:
-        ValueError: When `port` is one of `RESERVED_PORTS`.
     """
-    refuse_reserved(port, host_allowed=False)
     handler = functools.partial(FallbackHandler, directory=str(root))
     # ThreadingHTTPServer's constructor binds and listens before returning
     # (bind_and_activate defaults to True) — by the time this line completes,
@@ -193,7 +188,7 @@ def start_server(port: int, root: pathlib.Path) -> Iterator[int]:
     # Nothing below is timing-sensitive: the serving thread only pulls
     # requests off a queue that already exists, so no sleep is needed
     # between starting it and treating the server as ready.
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", port), handler)
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -210,8 +205,8 @@ def serve_forever(port: int, root: pathlib.Path) -> None:
     """Serves `root` on `port` in the FOREGROUND, until the process is killed.
 
     This is the prototype's own host, not a rule's scratch server, and the
-    difference is ONE port. `start_server` refuses every reservation, because
-    a rule binding 8899 would race the host for the socket; here the caller IS
+    difference is ONE port. `start_server` asks for none — the kernel picks,
+    so a rule can never race the host for the socket; here the caller IS
     that host, so 8899 is the one number it may have. The proxy's three are
     refused to it exactly as they are to a rule — `--serve 8710` would put the
     prototype on the port Caddy sends prod's traffic to, and « the caller is
@@ -268,7 +263,7 @@ if __name__ == "__main__":
         journal.summary()
     bundle = bundles[0]
 
-    with start_server(0, PROOF_ROOT) as port:
+    with start_server(PROOF_ROOT) as port:
         base = f"http://127.0.0.1:{port}"
 
         with urllib.request.urlopen(f"{base}/quality/X%20Y", timeout=5) as response:
@@ -332,7 +327,7 @@ if __name__ == "__main__":
         # first is up proves the two never collide — it must get a different
         # free port and answer the same deep address on it.
         try:
-            with start_server(0, PROOF_ROOT) as second_port:
+            with start_server(PROOF_ROOT) as second_port:
                 with urllib.request.urlopen(
                     f"http://127.0.0.1:{second_port}/quality/X%20Y", timeout=5
                 ) as response:
@@ -350,7 +345,7 @@ if __name__ == "__main__":
             second_holds = False
             second_evidence = f"first {port}, second server refused: {error}"
         journal.check(
-            "a scratch server bound on port 0 reports a real ephemeral port",
+            "a scratch server yields a real ephemeral port, and a second never races it",
             isinstance(port, int) and port != 0 and port not in RESERVED_PORTS
             and second_holds,
             second_evidence)
@@ -396,6 +391,31 @@ if __name__ == "__main__":
         and own_port == "kept" and rule_port == "refused",
         f"8710 → {proxy_port} · {HOST_PORT} as the host → {own_port} · "
         f"{HOST_PORT} as a rule → {rule_port}")
+
+    # ── every scratch server is raised without a port ────────────────────
+    # A fixed port on a scratch server is invisible to every live hold
+    # above: a non-zero, non-reserved one like 8918 answers « not 0 » and
+    # « not reserved » both, so the rule stayed green over it — and two
+    # rules set to that port would race one socket. What is read here is the call
+    # sites themselves — every `*.py` in this directory, the same glob
+    # `page_host.py` reads — and a call that still passes a port is named,
+    # file and line. Reading the sources rather than running them is what
+    # makes the hold bite on files nothing imports.
+    import re  # block-local like the urllib pair above, beside its one use
+    sources = sorted(pathlib.Path(__file__).resolve().parent.glob("*.py"))
+    offenders = []
+    for sibling in sources:
+        for number, line in enumerate(
+            sibling.read_text(encoding="utf-8").splitlines(), start=1):
+            for match in re.finditer(r"start_server\(([^)]*)\)", line):
+                arguments = match.group(1).strip()
+                if not arguments or "," in arguments:
+                    offenders.append(f"{sibling.name}:{number}")
+    journal.check(
+        "every scratch server is raised without a port",
+        not offenders,
+        ", ".join(offenders)
+        if offenders else f"{len(sources)} file(s) read, no call passes a port")
 
     # ── the HOST, not a scratch server ────────────────────────────────────
     # Everything above proves the HANDLER, on a scratch port. This proves the

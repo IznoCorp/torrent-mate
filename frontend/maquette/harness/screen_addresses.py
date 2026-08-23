@@ -217,7 +217,7 @@ async def main():
     async with async_playwright() as p:
         browser = await p.chromium.launch(channel="chrome")
 
-        with start_server(0, SERVED_ROOT) as port:
+        with start_server(SERVED_ROOT) as port:
             base = f"http://127.0.0.1:{port}"
 
             # ─── Hold 1: deep entry opens the promised screen, cold ────────
