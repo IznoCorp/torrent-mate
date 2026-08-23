@@ -441,6 +441,77 @@ def arm_one_address(root: Path) -> int:
     return len(violations)
 
 
+def arm_addressing(root: Path) -> int:
+    """Refuse a page identity in a query, or a dial in a path.
+
+    Invariant 1 says the URL and the interface never contradict each other, and
+    D1 says which half carries what: the PATH carries the identity — which thing
+    is being looked at — and the QUERY carries the state — how it is being
+    looked at. `/library/breaking-bad?sort=recent`, never `?page=lib` and never
+    `/library/sort/recent`.
+
+    R69 checks this at runtime, in a browser, over the states it drives. This
+    checks it offline, over the SOURCE, on every `make check`. The two do not
+    overlap: a rule reads what the interface DID, this reads what it is allowed
+    to declare, and the cheaper of the two to act on is this one.
+
+    It extends this guard rather than sitting beside it as a second script —
+    L02's lesson, paid for once already.
+
+    Args:
+        root: The directory to read.
+
+    Returns:
+        The number of violations.
+    """
+    violations = []
+    model = root / "lib" / "addresses.ts"
+    # The dial names come from the model itself, never from a list written
+    # here: a second list is how the two drift, and this one would drift
+    # silently because nothing renders it.
+    dials = set(re.findall(r'parameter:\s*"([^"]+)"', model.read_text(encoding="utf-8"))) if model.is_file() else set()
+    dials.update(re.findall(r'PANEL_PARAMETER = "([^"]+)"',
+                            model.read_text(encoding="utf-8")) if model.is_file() else [])
+    pages = set(re.findall(r'^\s{2}(\w+):\s*"/',
+                           model.read_text(encoding="utf-8"), re.M)) if model.is_file() else set()
+
+    routes = root / "routes"
+    files = sorted(routes.glob("*.tsx")) + sorted(routes.glob("*.ts")) if routes.is_dir() else []
+    for file in files:
+        module = file.relative_to(root).as_posix()
+        text = file.read_text(encoding="utf-8")
+        for path in re.findall(r'^\s*path:\s*"([^"]+)"', text, re.M):
+            # A dial promoted into the path — the shape D1 names and forbids.
+            for segment in [s for s in path.split("/") if s and not s.startswith("$")]:
+                if segment in dials:
+                    violations.append(
+                        f'{module}: "{path}" puts the dial « {segment} » in the PATH — '
+                        f"a dial is state, and state travels in the query")
+        # A page identity declared as a search parameter — the shape D1
+        # replaced. `page` by name, and any id the page table carries.
+        #
+        # Read out of the `SearchParams` BODY rather than line by line: these
+        # types are written on ONE line as often as on several, and a
+        # line-anchored pattern saw only the first key. It was written that way
+        # first, and the mutation that puts `page` back went straight past it —
+        # a guard that reads half of what it claims to read is the shape this
+        # whole file exists to refuse.
+        declared = set()
+        for body in re.findall(r"type\s+\w*SearchParams\w*\s*=\s*\{([^}]*)\}", text, re.S):
+            declared.update(re.findall(r"(\w+)\s*\??\s*:", body))
+        for name in re.findall(r'for \(const name of \[([^\]]*)\]', text):
+            declared.update(re.findall(r'"(\w+)"', name))
+        for name in sorted(declared & (pages | {"page"})):
+            violations.append(
+                f"{module}: declares « {name} » as a search parameter — "
+                f"a page is an identity, and identity travels in the path")
+    print(f"  addressing: {len(files)} route file(s), {len(dials)} dial(s), "
+          f"{len(pages)} page(s), {len(violations)} violation(s)")
+    for entry in violations:
+        print("    " + entry, file=sys.stderr)
+    return len(violations)
+
+
 def arm_tree(root: Path) -> int:
     """Refuse a file outside every declared bucket, and refuse `data.ts` returning.
 
@@ -474,6 +545,7 @@ ARMS = {
     "typing": arm_typing,
     "duplicate-import": arm_duplicate_import,
     "one-address": arm_one_address,
+    "addressing": arm_addressing,
     "tree": arm_tree,
 }
 

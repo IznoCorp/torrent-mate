@@ -10885,74 +10885,18 @@ import { screens, panel, bridge } from "./seams.js";
   let currentRender = null;
   let unwinding = false;
 
-  function openScreen(html, cle, renderFn) {
-    const element = select("#screen");
-    const alreadyOpen = element.classList.contains("open");
-    const sameScreen = alreadyOpen && cle != null && element.dataset.key === cle;
-    if (alreadyOpen && !sameScreen && !unwinding && currentRender) {
-      screenStack.push({
-        renderFn: currentRender,
-        scrollY: element.querySelector(".port")?.scrollTop ?? 0,
-      });
-      try {
-        __bridge.pushLayer("screen");
-      } catch (error) {}
-    }
-    let startY = 0;
-    let field = null;
-    if (sameScreen) {
-      startY = element.querySelector(".port")?.scrollTop ?? 0;
-      const activeElement = document.activeElement;
-      if (activeElement && element.contains(activeElement) && activeElement.id)
-        field = { id: activeElement.id, pos: activeElement.selectionStart };
-    }
-    element.innerHTML = html;
-    if (cle != null) element.dataset.key = cle;
-    else delete element.dataset.key;
-    if (sameScreen) {
-      const port = element.querySelector(".port");
-      if (port && startY > 0) {
-        /* Restoring ONCE is not enough: posters load after the content is
-           replaced, the page is briefly too short and the browser resets
-           scrolling to 0. Reapply the position on the next frame, then once
-           more when images have finished — otherwise the add screen scrolls
-           back up on its own. */
-        port.scrollTop = startY;
-        requestAnimationFrame(() => {
-          port.scrollTop = startY;
-        });
-        const imgs = [...element.querySelectorAll("img")].filter(
-          (element2) => !element2.complete,
-        );
-        let restant = imgs.length;
-        imgs.forEach((img) =>
-          img.addEventListener(
-            "load",
-            () => {
-              if (--restant <= 0) port.scrollTop = startY;
-            },
-            { once: true },
-          ),
-        );
-      }
-      if (field) {
-        const element2 = element.querySelector("#" + field.id);
-        if (element2) {
-          element2.focus();
-          try {
-            element2.setSelectionRange(field.pos, field.pos);
-          } catch (error) {}
-        }
-      }
-    }
-    if (!alreadyOpen) {
-      setOpen(element, true);
-      try {
-        __bridge.pushLayer("screen");
-      } catch (error) {}
-    }
-    currentRender = renderFn ?? null;
-  }
+  /* `openScreen` LIVED HERE, and it left with the navigation this lot took
+     out of the engine. Every screen it used to raise — the media sheet, the
+     quality profile, the add screen, the arbitration screen, the release
+     picker — is a real route now, so it had no callers left at all.
+
+     D5 says the engine dies by SUBTRACTION, surface by surface, and this is
+     the moment: a thing that has lost its subject is removed then, not
+     later. Machinery nobody can justify is machinery nobody dares delete.
+
+     `closeScreen`, `#screen` and the `#screen.open` branch of the back
+     handler STAY — they still serve the layer ladder, and a subtraction
+     that takes a live path with it is not a subtraction. */
   function closeScreen(pop) {
     if (!select("#screen").classList.contains("open")) return;
     const previous = screenStack.pop();
@@ -34661,7 +34605,7 @@ Object.assign(window, {
   mountDeck, mountLoaders, mountSearch, fileName, normalisedKey,
   recordPath, openAddSheet, openDeleteDialog, openDetailSheet, openDlg,
   openFollowSheet, openHarness, openJourneySheet, openPanel, openMoreSheet,
-  openScreen, openSheet, openSugSheet, openUserSheet,
+  openSheet, openSugSheet, openUserSheet,
   openActionMaintenance, openPopEp, openSetting, openSecret,
   openDrawer, paintSelBar, panelUnderFinger, passerSug, screenStack,
   plages, ownedFor, posterBox, nextSearchFR,
