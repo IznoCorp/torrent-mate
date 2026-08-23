@@ -69,6 +69,11 @@ from server import start_server
 PORT = 8917
 SERVED_ROOT = pathlib.Path("/tmp/tm-refonte")
 
+# Where a Retour from a screen opened COLD lands. The screen's own entry is
+# left behind and the page underneath writes its address, so what is measured
+# is the HOME page's own path — not the bare root, which names no page.
+HOME = "/acquisition"
+
 TITLE = "Silo"
 # Typed by hand, on purpose: the apostrophe is left unescaped, exactly the
 # way an operator would type it — the point of hold 5 is that NOTHING
@@ -411,8 +416,9 @@ async def main():
             await pg.wait_for_timeout(300)
             sheet_returned = await pg.evaluate(SCREEN_STATE)
             journal.check(
-                "(h) a Retour from the sheet lands on the default page, screen gone, address /",
-                not sheet_returned["open"] and sheet_returned["pathname"] == "/",
+                "(h) a Retour from the sheet lands on the default page, screen gone, "
+                "at the home page's own address",
+                not sheet_returned["open"] and sheet_returned["pathname"] == HOME,
                 sheet_returned["pathname"])
             journal.check("no JS error during the back from the sheet", not errors, str(errors))
             await ctx.close()
@@ -491,8 +497,8 @@ async def main():
             resolution_returned = await pg.evaluate(SCREEN_STATE)
             journal.check(
                 "(l) a Retour from the resolution lands on the default page, "
-                "screen gone, address /",
-                not resolution_returned["open"] and resolution_returned["pathname"] == "/",
+                "screen gone, at the home page's own address",
+                not resolution_returned["open"] and resolution_returned["pathname"] == HOME,
                 resolution_returned["pathname"])
             journal.check("no JS error during the back from the resolution",
                              not errors, str(errors))
@@ -521,8 +527,8 @@ async def main():
             releases_returned = await pg.evaluate(SCREEN_STATE)
             journal.check(
                 "(n) a Retour from the releases lands on the default page, "
-                "screen gone, address /",
-                not releases_returned["open"] and releases_returned["pathname"] == "/",
+                "screen gone, at the home page's own address",
+                not releases_returned["open"] and releases_returned["pathname"] == HOME,
                 releases_returned["pathname"])
             journal.check("no JS error during the back from the releases",
                              not errors, str(errors))

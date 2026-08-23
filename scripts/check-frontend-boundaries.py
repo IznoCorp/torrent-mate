@@ -442,7 +442,7 @@ def arm_one_address(root: Path) -> int:
 
 
 def arm_addressing(root: Path) -> int:
-    """Refuse a page identity in a query, or a dial in a path.
+    """Refuse a page identity in a query, a dial in a path, or an undeclared screen.
 
     Invariant 1 says the URL and the interface never contradict each other, and
     D1 says which half carries what: the PATH carries the identity — which thing
@@ -458,6 +458,13 @@ def arm_addressing(root: Path) -> int:
     It extends this guard rather than sitting beside it as a second script —
     L02's lesson, paid for once already.
 
+    It also holds the SCREEN paths, and that is a contract with three ends: the
+    `SCREEN_PATHS` table declares them, the route files serve them, and this
+    reads both and refuses a difference. A screen is a layer over the home
+    frame rather than a page of its own, so a route the table does not carry
+    resolves to the not-found page underneath the screen — invisible until the
+    screen closes, which is why an offline reader is what catches it.
+
     Args:
         root: The directory to read.
 
@@ -466,21 +473,26 @@ def arm_addressing(root: Path) -> int:
     """
     violations = []
     model = root / "lib" / "addresses.ts"
+    declaration = model.read_text(encoding="utf-8") if model.is_file() else ""
     # The dial names come from the model itself, never from a list written
     # here: a second list is how the two drift, and this one would drift
     # silently because nothing renders it.
-    dials = set(re.findall(r'parameter:\s*"([^"]+)"', model.read_text(encoding="utf-8"))) if model.is_file() else set()
-    dials.update(re.findall(r'PANEL_PARAMETER = "([^"]+)"',
-                            model.read_text(encoding="utf-8")) if model.is_file() else [])
-    pages = set(re.findall(r'^\s{2}(\w+):\s*"/',
-                           model.read_text(encoding="utf-8"), re.M)) if model.is_file() else set()
+    dials = set(re.findall(r'parameter:\s*"([^"]+)"', declaration))
+    dials.update(re.findall(r'PANEL_PARAMETER = "([^"]+)"', declaration))
+    pages = set(re.findall(r'^\s{2}(\w+):\s*"/', declaration, re.M))
+    # The same reading, one level over: the page table's VALUES are the paths a
+    # page claims, and the screen table's entries are the paths a screen does.
+    page_paths = set(re.findall(r'^\s{2}\w+:\s*"(/[^"]*)"', declaration, re.M))
+    screen_paths = set(re.findall(r'^\s{2}"(/[^"]*)"', declaration, re.M))
 
     routes = root / "routes"
     files = sorted(routes.glob("*.tsx")) + sorted(routes.glob("*.ts")) if routes.is_dir() else []
+    served = set()
     for file in files:
         module = file.relative_to(root).as_posix()
         text = file.read_text(encoding="utf-8")
         for path in re.findall(r'^\s*path:\s*"([^"]+)"', text, re.M):
+            served.add(path)
             # A dial promoted into the path — the shape D1 names and forbids.
             for segment in [s for s in path.split("/") if s and not s.startswith("$")]:
                 if segment in dials:
@@ -505,8 +517,20 @@ def arm_addressing(root: Path) -> int:
             violations.append(
                 f"{module}: declares « {name} » as a search parameter — "
                 f"a page is an identity, and identity travels in the path")
+
+    # A route that is neither a page's path nor the root is a SCREEN, and the
+    # model has to say so — the two ends are compared, never merged.
+    screen_routes = {path for path in served if path not in page_paths and path != "/"}
+    for path in sorted(screen_routes - screen_paths):
+        violations.append(
+            f'lib/addresses.ts: "{path}" is served by a route and declared by no SCREEN_PATHS '
+            f"entry — it would resolve to the not-found page underneath its screen")
+    for path in sorted(screen_paths - screen_routes):
+        violations.append(
+            f'lib/addresses.ts: SCREEN_PATHS declares "{path}", which no route serves — '
+            f"a declaration outliving its route is how the table stops describing the tree")
     print(f"  addressing: {len(files)} route file(s), {len(dials)} dial(s), "
-          f"{len(pages)} page(s), {len(violations)} violation(s)")
+          f"{len(pages)} page(s), {len(screen_paths)} screen(s), {len(violations)} violation(s)")
     for entry in violations:
         print("    " + entry, file=sys.stderr)
     return len(violations)

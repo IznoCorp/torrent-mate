@@ -28,6 +28,12 @@ Fix: a screen address resolves to the page UNDERNEATH, the way `SIGN_IN_PATH`
 already does (`addresses.ts:146`) — not to the not-found page.
 Hold: R69 gains a cold entry per screen route asserting the page underneath.
 
+R75 measured the Retour as landing on `/`, and it did — but that `/` WAS 8.2's
+defect showing through, the 404 state composing the home page's address. With
+the page underneath resolved, the Retour lands on `/acquisition`. THREE holds
+of R75 carry that assertion, not one — (h) the sheet, (l) the resolution,
+(n) the releases — and all three move together.
+
 ## 8.2 — The not-found state composes the home page's address · CONFIRMED
 
 `addressOf` (`addresses.ts:116`) falls back to `"/"` for a page the table does
@@ -144,9 +150,16 @@ commit minimum, in the order 8.1 → 8.7. The orchestrator is the guarantor of e
 
 ```
 cd frontend/maquette/design && npm run build >/dev/null \
-  && cp dist/index.html /tmp/tm-refonte/wrapped.html && cp -R dist/vite /tmp/tm-refonte/vite
+  && cp dist/index.html /tmp/tm-refonte/wrapped.html \
+  && rm -rf /tmp/tm-refonte/vite && cp -R dist/vite /tmp/tm-refonte/vite
 python3 frontend/maquette/harness/<rule>.py       # one rule, from the repository root
 ```
+
+**The `rm -rf` is not tidiness, it is the copy working at all.** `cp -R dist/vite` onto a
+directory that already exists copies INTO it — `/tmp/tm-refonte/vite/vite/` — so the served
+document keeps asking for a bundle at the old path and the engine never boots. The failure is
+mute: no 404 in the rule's output, just `window.addressIdsFor is not a function` on a page
+that looks half-loaded.
 
 A run without that rebuild measures the PREVIOUS build and says nothing about the change.
 The host on 8899 is already up (`lsof -nP -iTCP:8899 -sTCP:LISTEN`); never start a second one,
@@ -158,10 +171,19 @@ interface text only through `fr.json`; harness comments English and undated — 
 session or bug number in a comment (`B-043` may appear in a commit body, never in source).
 `python3 scripts/check-no-french.py` must stay clean.
 
-**Gates a dispatch runs before its commit:** `ruff check` + `ruff format --check` on touched
-`.py`; `cd frontend/maquette/design && npx tsc -b && npx eslint src` when a `.ts(x)` moved;
+**Gates a dispatch runs before its commit:** `ruff check` on touched `.py`;
+`cd frontend/maquette/design && npx tsc -b` when a `.ts(x)` moved;
 `python3 scripts/check-frontend-boundaries.py`; `python3 scripts/check-markup-contracts.py`;
-the rule(s) touched, green after the mutation was restored. `make lint` / `make test` /
+the rule(s) touched, green after the mutation was restored.
+
+Two gates this section named do not exist and are struck rather than left to be discovered
+again. `npx eslint src` from `design/` exits 2 — « all of the files matching the glob pattern
+"src" are ignored »: the maquette carries no eslint config, and `frontend/eslint.config.js`
+ignores the whole tree on purpose. And `ruff format --check` reports every file this phase
+touches (`scripts/check-frontend-boundaries.py`, `harness/url_state.py`,
+`harness/screen_addresses.py`) as needing reformatting AT THE BRANCH POINT — those files are
+`ruff check`-clean but were never formatter-normalised, so running it as a gate would mean
+reformatting whole files around a three-line change, which is the churn L02 was told to stop. `make lint` / `make test` /
 `make check` / the full suite / the oracle are the orchestrator's, at the phase gate.
 
 ### Decisions taken for this phase (the orchestrator's; the operator reviews them in the PR)
