@@ -441,6 +441,43 @@ def arm_one_address(root: Path) -> int:
     return len(violations)
 
 
+def validate_search_bodies(text: str) -> list[str]:
+    """Extract every `validateSearch` function body from a route file.
+
+    The reader has to cover both shapes the routes write: a block body
+    (`validateSearch: (raw) => { … }`) and a parenthesised object returned
+    directly (`validateSearch: (raw) => ({ page: … })`). The body is the text
+    between the braces after the `=>` (or the `function` keyword), matched by
+    counting braces — a line-anchored pattern would stop at the first line
+    ending in `}` and miss every nested block.
+
+    Args:
+        text: The route file's source.
+
+    Returns:
+        One body per `validateSearch` member found, without its braces.
+    """
+    bodies: list[str] = []
+    for member in re.finditer(r"validateSearch\s*:", text):
+        rest = text[member.end():]
+        positions = [p for p in (rest.find("=>"), rest.find("function")) if p != -1]
+        if not positions:
+            continue
+        open_brace = rest.find("{", min(positions))
+        if open_brace == -1:
+            continue
+        depth = 0
+        for offset, character in enumerate(rest[open_brace:], open_brace):
+            if character == "{":
+                depth += 1
+            elif character == "}":
+                depth -= 1
+                if depth == 0:
+                    bodies.append(rest[open_brace + 1:offset])
+                    break
+    return bodies
+
+
 def arm_addressing(root: Path) -> int:
     """Refuse a page identity in a query, a dial in a path, or an undeclared screen.
 
@@ -485,6 +522,22 @@ def arm_addressing(root: Path) -> int:
     page_paths = set(re.findall(r'^\s{2}\w+:\s*"(/[^"]*)"', declaration, re.M))
     screen_paths = set(re.findall(r'^\s{2}"(/[^"]*)"', declaration, re.M))
 
+    # The model is the whole of what this arm reads, so a tree without it — or
+    # a model that reads to nothing — must not read clean: a reader that stays
+    # green over a tree it cannot read is the failure `arm_cycles` names. The
+    # route scan below still runs, so the summary always describes what was
+    # actually read.
+    if not model.is_file():
+        violations.append(
+            "lib/addresses.ts: the address model is missing — the arm has nothing "
+            "to read, and a reader that stays green over a tree it cannot read is "
+            "the failure `arm_cycles` names")
+    elif not pages or not dials:
+        violations.append(
+            f"lib/addresses.ts: the address model reads {len(pages)} page(s) and "
+            f"{len(dials)} dial(s) — a gutted model is the same blindness as a "
+            f"missing one")
+
     routes = root / "routes"
     files = sorted(routes.glob("*.tsx")) + sorted(routes.glob("*.ts")) if routes.is_dir() else []
     served = set()
@@ -516,6 +569,23 @@ def arm_addressing(root: Path) -> int:
         for name in sorted(declared & (pages | {"page"})):
             violations.append(
                 f"{module}: declares « {name} » as a search parameter — "
+                f"a page is an identity, and identity travels in the path")
+
+        # The same declaration written INLINE in `validateSearch`, with no
+        # named type to read: `validateSearch: (raw) => ({ page: … })`. The
+        # named-type reader above saw only declared types, so a route that
+        # reads a page id straight out of the raw query escaped it entirely.
+        # The body is extracted by balancing braces, then the keys it reads or
+        # returns are collected.
+        inline = set()
+        for body in validate_search_bodies(text):
+            inline.update(re.findall(r'raw\["(\w+)"\]', body))
+            inline.update(re.findall(r"raw\.(\w+)", body))
+            inline.update(re.findall(r"\{\s*(\w+)\s*:", body))
+            inline.update(re.findall(r"read\.(\w+)\s*=", body))
+        for name in sorted(inline & (pages | {"page"})):
+            violations.append(
+                f"{module}: reads « {name} » inline in its validateSearch — "
                 f"a page is an identity, and identity travels in the path")
 
     # A route that is neither a page's path nor the root is a SCREEN, and the
