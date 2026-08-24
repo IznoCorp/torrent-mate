@@ -147,3 +147,19 @@ width fixed at 390: the synopsis paragraph's inline `fontSize: "12.5px"` —
 invisible to the static arm, caught by the browser rule R83 on its first run —
 folds to `var(--text-3)` (12 px), and the paragraph's 3-6 line boxes each lose
 0.675 px. Nothing wrapped, no control height moved.
+
+## Phase 4 — Radius, motion, the runtime token
+
+### 4.1 — The radii (radius 105 → 0)
+
+173 divergences, all style-tier border-radius, not one rect moved:
+
+| states | signature | reason |
+| --- | --- | --- |
+| 83 | shell/action-button border-radius 99px → 999px | the pill written once (`--radius-full`); on the 52 px fab both clamp to 26 px — declared value moves, rendering does not |
+| 83 | shell/toast border-radius 9px → 8px | 9 → `--radius-3` (8) |
+| 7 | arrivals/pilot-bar border-radius 10px → 8px | 10 → `--radius-3` (8) |
+
+The single 50% site (`.ps-dot__d`, 8×8, square by construction) and all 37
+pill sites show no computed change; no corner became a circle on a non-square
+element.
