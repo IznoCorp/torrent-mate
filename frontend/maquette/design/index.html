@@ -204,7 +204,14 @@
          the tab order. Without it the skip link jumps the browser's scroll
          position but not its focus, and the next Tab resumes from the top of
          the document, which is the bug that makes most skip links useless. -->
-    <main class="port" id="port" data-part="viewport" tabindex="-1">
+    <main
+      class="port @container/port flex-auto min-h-0 overflow-y-auto overflow-x-clip
+             overscroll-y-none [-webkit-overflow-scrolling:touch]
+             pb-[calc(var(--tm-bottom-bar-h,0px)+var(--spacing-7))]"
+      id="port"
+      data-part="viewport"
+      tabindex="-1"
+    >
       <div class="ptr" id="ptr"><div class="spin"></div></div>
       <div id="view"></div>
     </main>

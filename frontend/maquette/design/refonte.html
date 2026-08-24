@@ -277,17 +277,15 @@
     place-items: center;
   }
 
-  /* Scrollport */
-  .port {
-    container: port / inline-size;
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    overflow-x: clip;
-    overscroll-behavior-y: none;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: calc(var(--tm-bottom-bar-h, 0px) + var(--spacing-7));
-  }
+  /* Scrollport — CONVERTED (L07 phase 5). Its declarations are utilities on
+     the `<main>` in `index.html`, and the `port` class stays as an IDENTITY
+     anchor with no style of its own: the engine selects `.port`, so removing
+     the name would break a reader while the styling moved cleanly.
+
+     The container it establishes is read nine hundred lines below by the
+     gallery's three `@container port` queries. `@container/port` compiles to
+     `container-type: inline-size; container-name: port` — the longhand of what
+     was written here, verified by compilation before the rule was deleted. */
 
   /* View tabs (.seg + .more) */
   .viewtabs {

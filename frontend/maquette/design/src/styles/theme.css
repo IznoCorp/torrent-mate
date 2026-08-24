@@ -106,6 +106,26 @@
 
    `static` goes when nothing outside a component reads a token any more. */
 @theme static {
+  /* TAILWIND'S OWN SPACING MULTIPLIER IS TURNED OFF, and this is invariant
+     §3-3 — « no value outside the scale » — made true by construction rather
+     than by vigilance.
+
+     Tailwind resolves `p-4` against a NAMED key `--spacing-4` when one exists,
+     and otherwise against `calc(var(--spacing) * 4)`, its default 0.25rem
+     multiplier. Both live in the same namespace, so with the multiplier left
+     on, `p-4` is our 8px step and `p-11` is a silent 44px that belongs to no
+     scale at all — two ramps wearing one set of names, and the wrong one
+     chosen by whether somebody happened to declare that number.
+
+     Cleared, an unnamed number generates NOTHING: the class exists in the
+     markup and no rule is emitted, so the element loses the property outright.
+     That is a visible break the oracle reads, which is the failure mode this
+     repository wants — measured both ways before it was relied on.
+
+     A size that is genuinely not a spacing step — a 44px touch target — is
+     written as an arbitrary value and says so by its shape. */
+  --spacing: initial;
+
   /* login:scale:start */ /* scale:start */
   /* Space ramp: pads, gaps and margins. */
   --spacing-1: 2px;
