@@ -539,8 +539,8 @@
     background: transparent;
     color: var(--muted-foreground);
     transition:
-      background 0.18s,
-      color 0.18s;
+      background var(--duration-2),
+      color var(--duration-2);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -884,7 +884,7 @@
     background: var(--card);
     overflow: hidden;
     min-height: 126px;
-    transition: transform 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+    transition: transform var(--duration-2) var(--ease-standard);
   }
   .ccol {
     display: flex;
@@ -1387,9 +1387,9 @@
   }
   .sugwrap.gone {
     transition:
-      height 0.28s ease,
-      opacity 0.2s ease,
-      margin 0.28s ease;
+      height var(--duration-3) var(--ease-standard),
+      opacity var(--duration-2) var(--ease-standard),
+      margin var(--duration-3) var(--ease-standard);
     height: 0 !important;
     opacity: 0;
     margin-bottom: calc(var(--spacing-7) * -1);
@@ -1440,8 +1440,8 @@
        « natural » rather than mechanical. The tiny overshoot on transform is
        what makes a card look picked up rather than snapped. */
     transition:
-      transform 0.42s cubic-bezier(0.22, 1.02, 0.36, 1),
-      opacity 0.34s ease-out;
+      transform var(--duration-4) var(--ease-emphasized),
+      opacity var(--duration-3) var(--ease-standard);
     will-change: transform;
   }
 
@@ -1550,7 +1550,7 @@
     font-weight: 800;
     letter-spacing: 0.03em;
     opacity: 0;
-    transition: opacity 0.12s ease;
+    transition: opacity var(--duration-1) var(--ease-standard);
     pointer-events: none;
   }
 
@@ -1674,7 +1674,7 @@
   }
   @media (prefers-reduced-motion: no-preference) {
     .live .d {
-      animation: pulse 1.6s ease-in-out infinite;
+      animation: pulse var(--duration-loop-2) var(--ease-standard) infinite;
     }
   }
   @keyframes pulse {
@@ -1984,7 +1984,7 @@
     border-radius: var(--radius-full);
     background: var(--muted);
     display: flex;
-    transition: background 0.18s ease;
+    transition: background var(--duration-2) var(--ease-standard);
   }
   .fieldtoggle.active {
     background: var(--primary);
@@ -1995,7 +1995,7 @@
     height: 22px;
     border-radius: var(--radius-full);
     background: var(--mq-white);
-    transition: transform 0.18s ease;
+    transition: transform var(--duration-2) var(--ease-standard);
   }
   .litem {
     display: flex;
@@ -2096,7 +2096,7 @@
     place-items: center;
     overflow: hidden;
     height: 0;
-    transition: height 0.22s ease;
+    transition: height var(--duration-2) var(--ease-standard);
     color: var(--muted-foreground);
   }
   .ptr.armed {
@@ -2110,7 +2110,7 @@
     border-top-color: var(--primary);
   }
   .ptr.loading .spin {
-    animation: spin 0.7s linear infinite;
+    animation: spin var(--duration-loop-1) linear infinite;
   }
   @keyframes spin {
     to {
@@ -2185,7 +2185,7 @@
     border: 0;
     background: transparent;
     color: var(--muted-foreground);
-    transition: color 0.15s;
+    transition: color var(--duration-1);
   }
   .bottombar button[aria-current="page"] {
     color: var(--primary-text);
@@ -2239,7 +2239,7 @@
     display: flex;
     flex-direction: column;
     transform: translateX(100%);
-    transition: transform 0.26s cubic-bezier(0.22, 0.61, 0.36, 1);
+    transition: transform var(--duration-3) var(--ease-standard);
     visibility: hidden;
   }
   .screen.open {
@@ -2288,7 +2288,7 @@
     z-index: 46;
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.2s;
+    transition: opacity var(--duration-2);
   }
   .scrim.open {
     opacity: 1;
@@ -2311,7 +2311,7 @@
     display: flex;
     flex-direction: column;
     transform: translateY(100%);
-    transition: transform 0.26s cubic-bezier(0.22, 0.61, 0.36, 1);
+    transition: transform var(--duration-3) var(--ease-standard);
     visibility: hidden;
   }
   .sheet.open {
@@ -2544,7 +2544,7 @@
 
   @media (prefers-reduced-motion: no-preference) {
     .herobg {
-      animation: heroin 0.5s ease both;
+      animation: heroin var(--duration-4) var(--ease-standard) both;
     }
   }
   @keyframes heroin {
@@ -2886,7 +2886,7 @@
     font-size: var(--text-5);
     font-weight: 700;
     line-height: 1;
-    transition: transform 0.18s ease;
+    transition: transform var(--duration-2) var(--ease-standard);
   }
   .season[open] > summary::before {
     transform: rotate(90deg);
@@ -3248,8 +3248,8 @@
     border: 1px solid var(--border);
     background: var(--muted);
     transition:
-      background 0.18s,
-      border-color 0.18s;
+      background var(--duration-2),
+      border-color var(--duration-2);
   }
   .switch::after {
     content: "";
@@ -3261,8 +3261,8 @@
     border-radius: var(--radius-full);
     background: var(--muted-foreground);
     transition:
-      transform 0.18s cubic-bezier(0.22, 0.61, 0.36, 1),
-      background 0.18s;
+      transform var(--duration-2) var(--ease-standard),
+      background var(--duration-2);
   }
   .switch[aria-checked="true"] {
     background: var(--primary);
@@ -3319,8 +3319,8 @@
     border: 2px solid var(--border);
     background: transparent;
     transition:
-      border-color 0.15s,
-      background 0.15s;
+      border-color var(--duration-1),
+      background var(--duration-1);
   }
   .opt.radio .mark {
     border-radius: var(--radius-full);
@@ -3398,8 +3398,8 @@
     opacity: 0;
     visibility: hidden;
     transition:
-      opacity 0.18s,
-      transform 0.18s;
+      opacity var(--duration-2),
+      transform var(--duration-2);
   }
   .dlg.open {
     opacity: 1;
@@ -3513,8 +3513,8 @@
     opacity: 0;
     visibility: hidden;
     transition:
-      opacity 0.2s,
-      transform 0.2s;
+      opacity var(--duration-2),
+      transform var(--duration-2);
   }
   .toast.show {
     opacity: 1;
@@ -3600,7 +3600,7 @@
   }
   @media (prefers-reduced-motion: no-preference) {
     .sk {
-      animation: sh 1.3s linear infinite;
+      animation: sh var(--duration-loop-2) linear infinite;
     }
   }
   @keyframes sh {
@@ -3866,7 +3866,7 @@
     display: flex;
     flex-direction: column;
     transform: translateX(-100%);
-    transition: transform 0.26s cubic-bezier(0.22, 0.61, 0.36, 1);
+    transition: transform var(--duration-3) var(--ease-standard);
     visibility: hidden;
   }
   .drawer.open {
@@ -4308,7 +4308,7 @@
     height: 100%;
     border-radius: var(--radius-full);
     background: var(--primary);
-    animation: splashremplit 5s linear forwards;
+    animation: splashremplit var(--duration-loop-3) linear forwards;
   }
 
   @keyframes splashremplit {
