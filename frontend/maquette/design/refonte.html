@@ -315,7 +315,14 @@
        status tones taught): a FILL behind dark text, and a LABEL on a tint of
        itself. On the dark theme the mark is bright enough to do both, so the
        text variant equals the mark; the light theme darkens it, or « you are
-       here » is written in near-invisible ink on near-white. */
+       here » is written in near-invisible ink on near-white.
+       WHAT SITS ON THE FILL IS ONE DECISION FOR BOTH THEMES, and it is dark.
+       The mark is a light amber in either theme — a near-white label on it
+       reads at 2.14, a dark one at 7.5 — so there is no light override of
+       this token rather than a second value that happens to agree. The light
+       theme did declare its own near-white variant, contradicting the
+       sentence above it, for exactly as long as nothing audited the light
+       theme. */
     --primary-text: oklch(0.808 0.158 79);
     --primary-foreground: oklch(0.24 0.05 70);
     /* The count a filter chip carries is SECONDARY TEXT, and secondary was
@@ -385,7 +392,6 @@
     --border: oklch(0.91 0.004 286);
     --primary: oklch(0.76 0.155 70);
     --primary-text: oklch(0.5 0.13 70);
-    --primary-foreground: oklch(0.99 0.01 90);
     --pill-count-foreground: oklch(0.54 0.01 286);
     --pill-count-foreground-selected: oklch(0.36 0.07 70);
     --success: oklch(0.6 0.15 152);
@@ -467,7 +473,7 @@
   }
   .brand em {
     font-style: normal;
-    color: var(--primary);
+    color: var(--primary-text);
   }
   .topbar .sp {
     margin-left: auto;
@@ -752,7 +758,7 @@
     margin-left: auto;
     border: 0;
     background: transparent;
-    color: var(--primary);
+    color: var(--primary-text);
     font-size: var(--text-2);
     font-weight: 600;
     display: flex;
@@ -3809,7 +3815,7 @@
   .linkbtn {
     border: 0;
     background: transparent;
-    color: var(--primary);
+    color: var(--primary-text);
     font-size: var(--text-2);
     font-weight: 600;
     padding: 0;
@@ -4201,7 +4207,7 @@
 
   .brandbig em {
     font-style: normal;
-    color: var(--primary);
+    color: var(--primary-text);
   }
 
   .logincard {
