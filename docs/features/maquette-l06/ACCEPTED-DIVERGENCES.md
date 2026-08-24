@@ -35,3 +35,33 @@ Reviewed against the two stop-shapes: no region changed WIDTH on a full-width
 surface (the dialog's x and width are untouched; only y/height move), and no
 state's height moved by more than the sum of the steps folded inside it (the
 −25 decomposes exactly into the dialog's folded interior).
+
+### 2.2 — The pages (spacing 202 → 49)
+
+312 divergences, 61 rect signatures, no style-tier line: the folded rules are
+page interiors, not region boxes. Two facts carry the whole review, both
+verified on the diff rather than on the report: the sub-phase's diff contains
+ONLY padding/gap (and shorthand-margin) value substitutions, so every rendered
+difference below is a fold's; and NO signature moves x or width, and none
+grows — so the chip rows did not wrap at 390 px and the stop-shapes are absent.
+
+| states | signature | reason |
+| --- | --- | --- |
+| 32+16 | acquisition/tabs, library/tabs height −2 | `.seg > button` vertical padding 9 → 8 |
+| 23+16 | acquisition/filters, library/filters y −2, height −2 | the tab strip above them shortened; `.pill`/`.search` folds trim the row |
+| 16+16+13+13+14 | search-field y −2; library count-line/body/list y −4 | the cumulative climb: tabs −2, filters −2, everything below follows |
+| 8+8+3+1+1 | acquisition/body y −2/−4, height −2…−10 | card interiors: `.ccol`/`.cfoot` 9 → 8, `.chip` rows, `.strip` padding |
+| 4+2+1 | arrivals/body height −26/−28/−31 | the deck: `.kv` rows 9 → 8 each, `.dhint` −2, `.crating` +2 absorbed; a stack of ±2 folds across a card list (odd totals are line-box rounding) |
+| 6+5+1+2 | settings/body height −76/−60/−47.5/−4 | `.settingrow` −2 per row across the settings lists, `.litem`/`.opt`/`.fieldinput` −2 each; −76 is ~38 folded rows, the fraction is line-box rounding |
+| 2+1 | system/body height −62/−2 | the `.kv` 9 → 8 fold over the système page's key/value rows |
+| 1+1+1 | maintenance/body height −4/−10/−18 | `.topic`/panel row folds on the maintenance states |
+| 2+2+2+1+1 | screen-media −16/−20/−22, screen-profile −22, screen-releases −29.9 | `.mediaadd`/`.tsrc`/`.trailer`/`.eprow`/`.season` −2 each ×rows; releases ≈ 14 `.rel` rows ×−2 |
+| 6+4+4+3+1+1+1 | sheet-content y +2…+10, height −2…−10 | the sheet's interior rows tightened; bottom-anchored content rises |
+| 1+1 | screen-resolution/body height −0.2/−0.3 | sub-pixel line-box rounding after the `.byid`/`.opt` −2 folds — no layout change |
+| 20+10+8+5+2+1… | shell/page height mirrors | `#view` is the page's container; every mirror equals its body's delta |
+| 1 | arrivals/pilot-bar height −2 | its own padding fold |
+| 1 | account/body height −10 | account rows −2 each |
+
+Reviewed against the stop-shapes: no width moved anywhere (the `.btnprimary`
+inline trims stay inside the element's own box; no region narrowed), and every
+height delta decomposes into the ±2 px folds its surface contains.
