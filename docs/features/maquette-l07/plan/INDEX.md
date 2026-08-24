@@ -80,17 +80,31 @@ Every criterion is a command with a documented expected output. A prose criterio
 
 ### Gates that run at the close of EVERY phase
 
+**The cadence is the operator's, arbitrated 2026-08-24, and it is a machine-cost decision rather
+than a rigour one.** The full suite runs 55 rules with eight headless Chrome at a time and
+saturates the machine for twenty minutes; the hold-count comparison runs the same 55 rules again.
+Sixteen phases × two full runs is not a price this machine pays. **So the per-phase gate is the
+two CHEAP instruments — the oracle at ~30 s and the five contract rules — and the full suite plus
+the hold-count comparison run ONCE, before the wave merges.**
+
+What that costs, said plainly rather than smoothed over: a rule outside the contract tier can
+break at phase 7 and only be seen at phase 16, and it will then be attributable to a range of
+phases rather than to one. The mitigation is not a hope — it is that the ORACLE, which is the
+instrument this lot actually leans on, still runs at every phase and still names the state and the
+region that moved.
+
 | id | command | expected |
 | --- | --- | --- |
 | ACC-01 | `frontend/maquette/harness/run.sh --contracts` | exit 0, 5 rules |
 | ACC-02 | `make maquette-oracle` | `0 divergence`, or divergences that appear in `ACCEPTED-DIVERGENCES.md` with a named fold |
-| ACC-03 | `python3 scripts/harness-hold-counts.py --compare` | `unchanged` for every rule, unless the phase names the movement |
+| ACC-03 | `python3 scripts/check-compositor-css.py` and `python3 scripts/check-css-tokens.py` | exit 0 — both cheap, both read what this lot moves |
 
 ### Gates that run at the close of the WAVE
 
 | id | command | expected |
 | --- | --- | --- |
 | ACC-04 | `frontend/maquette/harness/run.sh` | exit 0, 55+ rules, 0 failed |
+| ACC-04b | `python3 scripts/harness-hold-counts.py --compare frontend/maquette/hold-counts-baseline.json` | `unchanged` for every rule, unless a phase named the movement |
 | ACC-05 | `make lint` | 0 errors |
 | ACC-06 | `make test` | `NNNN passed`, 0 failed **and 0 error** |
 | ACC-07 | `make check` | exit 0 |
