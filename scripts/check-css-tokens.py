@@ -1073,6 +1073,84 @@ def login_arm() -> int:
     return 0
 
 
+# THE FOUR TOUCH-RESPONSE STEPS, AS TAILWIND SPELLS THEM. `--duration-*` is
+# not a Tailwind namespace, and `duration-2` is ALREADY a utility meaning two
+# milliseconds — so the one family of L06's scale that does not lift is also
+# the only one that compiles to a WRONG VALUE instead of an error. Redefining
+# the utility does not take the name back: the core one wins, measured. The
+# operator arbitrated bare milliseconds (D-L07-3), and this arm is the half
+# that makes the scale still a scale.
+#
+# NOTHING ELSE MEASURES THIS. `transition-duration` is not among the oracle's
+# nineteen properties, and the scale arm above reads CSS DECLARATIONS — a value
+# living inside a class name is invisible to it. `duration-137` would compile
+# happily and no gate would say a word.
+MOTION_STEPS = {"150": "--duration-1", "200": "--duration-2", "300": "--duration-3", "450": "--duration-4"}
+
+# Where a class name may be written. The engine is excluded because it keeps
+# hand-written CSS until L13 and receives no utility (D-L07-5) — and it is
+# 34 000 lines whose prose would yield false candidates.
+CLASS_SOURCES = (
+    ROOT / "frontend" / "maquette" / "design" / "index.html",
+    ROOT / "frontend" / "maquette" / "design" / "src" / "app",
+    ROOT / "frontend" / "maquette" / "design" / "src" / "features",
+    ROOT / "frontend" / "maquette" / "design" / "src" / "lib",
+    ROOT / "frontend" / "maquette" / "design" / "src" / "routes",
+    ROOT / "frontend" / "maquette" / "design" / "src" / "ui",
+)
+
+# A Tailwind duration utility as it is written in markup: an optional variant
+# prefix (`hover:`, `motion-safe:`), the utility, a bare number, and a boundary.
+# The arbitrary and custom-property forms — `duration-[…]`, `duration-(…)` —
+# are NOT matched: they name a value explicitly and are somebody's deliberate
+# choice, where a bare number is the shape that silently means milliseconds.
+_DURATION_UTILITY = re.compile(r"(?<![\w-])duration-(\d+)(?![\w-])")
+
+
+def motion_classes_arm() -> int:
+    """Refuses a `duration-<n>` outside the four arbitrated steps.
+
+    Returns:
+        1 when anything was found, 0 otherwise.
+    """
+    files: list[Path] = []
+    for source in CLASS_SOURCES:
+        if source.is_dir():
+            for pattern in ("*.tsx", "*.ts", "*.html"):
+                files.extend(sorted(source.rglob(pattern)))
+        elif source.exists():
+            files.append(source)
+    if not files:
+        print(
+            "check-motion: no source carries a class name — either the tree moved or this arm is reading nothing",
+            file=sys.stderr,
+        )
+        return 1
+
+    findings: list[str] = []
+    seen = 0
+    for path in files:
+        text = path.read_text(encoding="utf-8")
+        for number, line in enumerate(text.splitlines(), 1):
+            for match in _DURATION_UTILITY.finditer(line):
+                seen += 1
+                value = match.group(1)
+                if value not in MOTION_STEPS:
+                    findings.append(
+                        f"  {path.relative_to(ROOT)}:{number} — `duration-{value}` "
+                        "is not a step. The motion scale is 150, 200, 300, 450 "
+                        f"({', '.join(sorted(MOTION_STEPS))}); a fifth value is a "
+                        "value outside the scale, and nothing else in this "
+                        "repository would have caught it."
+                    )
+    if findings:
+        print(f"check-motion: {len(findings)} off-scale duration(s).", file=sys.stderr)
+        print("\n".join(findings), file=sys.stderr)
+        return 1
+    print(f"motion: {seen} duration utilitie(s) in {len(files)} source(s), every one a step.")
+    return 0
+
+
 def main() -> int:
     """Runs the arm asked for, or every arm when none is.
 
@@ -1083,16 +1161,20 @@ def main() -> int:
         description="Holds the maquette's application CSS to the tokens it can resolve, "
         "the steps it declares, and the chunks the sign-in page is composed from."
     )
-    parser.add_argument("--arm", choices=("scale", "login"), help="run one arm alone; the default runs all of them")
+    parser.add_argument(
+        "--arm", choices=("scale", "login", "motion-classes"), help="run one arm alone; the default runs all of them"
+    )
     args = parser.parse_args()
 
     if args.arm == "scale":
         return scale_arm()
     if args.arm == "login":
         return login_arm()
+    if args.arm == "motion-classes":
+        return motion_classes_arm()
     # Every arm runs, even after one has failed: a reader who has to fix and
     # re-run to discover the second finding fixes one thing per round trip.
-    verdicts = [token_arm(), scale_arm(), login_arm()]
+    verdicts = [token_arm(), scale_arm(), login_arm(), motion_classes_arm()]
     return 1 if any(verdicts) else 0
 
 
