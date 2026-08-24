@@ -53,6 +53,21 @@ same commit.
 | `.search input { font-size: 13px }`           | the search field renders at 13 px, under the 16 px at which a focused field zooms iOS |
 | one heading given a literal `font-size: 17px` | a rendered size that is on no step of the type scale                                  |
 
+### The rule was born after 3.3, and the plan asked for the impossible
+
+`type_scale.py` landed once § 3.3 was in, not inside § 3.2 where it is described. Its step
+hold measures the document as it renders, so it could not be green while six sizes were still
+literals waiting to be folded — and the gate list below demands a green `type_scale.py` before
+EVERY commit of this phase. The two pages disagreed: § 3.2 asked for the rule, § 3.3 for the
+inventory the rule needs, and the gate for both at once. The rule is written where it is
+described and born where it can hold; nothing else moved.
+
+The order paid for itself on the day it ran. With the source-level inventory at zero, the
+browser still found a size on no step — a half-pixel written into a React inline style, on the
+synopsis paragraph six media-sheet states draw. The static arm counts literals in the design's
+sources and that one is in neither: it is the defect § 3.2's second hold was written for, found
+by it on its first run. It is folded onto its step in the same commit as the rule.
+
 ## 3.3 — The remaining sizes, and the display size
 
 **Files touched**: `refonte.html`.
