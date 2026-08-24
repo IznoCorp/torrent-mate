@@ -533,29 +533,47 @@ its reason recorded; the oracle is green.
 
 ### Phase 2 — The visual language
 
-#### L06 — The scale · `NOT STARTED` · *depends on L01*
+#### L06 — The scale · `LANDED` · *depended on L01*
 
 **Objective.** One declared scale — space, type, radius, duration, easing — and every declaration
-folded onto it. The 65 padding values collapse to roughly eight steps, the 21 type sizes to about
-seven, the 17 radii to about five.
+folded onto it. **What landed is 32 tokens in one `:root` block** at the top of BLOCK 2: nine
+spacing steps, eight text steps plus one display size, five radii, and, for motion, four
+touch-response durations, three loop periods and two named curves. The contract forecast the 65
+padding values onto « roughly eight » steps, the 21 type sizes onto « about seven » and the 17
+radii onto « about five »; that forecast is written down here rather than quietly replaced,
+because space and type each needed ONE step more than it allowed and the operator arbitrated both
+(space keeps 24px, type keeps the 10px step). All four families read zero off-scale declarations, and
+`check-css-tokens.py --arm scale` refuses the next one outright — no baseline file, no mode that
+can write one, and the motion family held in two dimensions at once because a curve is not a
+number.
 
-**A family of tokens is not CSS at all, and this lot has to decide their fate.** `--tm-*` names
-are *measured and published at runtime by the engine*, never declared in a stylesheet, which is
-why `scripts/check-css-tokens.py` treats them apart and demands a fallback at every use — a
-runtime token with no fallback resolves to nothing until the script has run, which is a visible
-flash. The engine dies in L13, so these need a home before then: either the shell publishes them,
-or they stop being runtime values. Deciding it here is cheap; discovering it in L13 is not.
+**A family of tokens is not CSS at all, and this lot had to decide their fate.** `--tm-*` names
+are *measured and published at runtime*, never declared in a stylesheet, which is why
+`scripts/check-css-tokens.py` treats them apart and demands a fallback at every use — a runtime
+token with no fallback resolves to nothing until the script has run, which is a visible flash.
+The engine dies in L13, so these needed a home before then. **D-L06-4 gave them one: the SHELL
+publishes `--tm-bottom-bar-h`** (`design/src/app/bar-height.ts`), the engine keeps no copy of it,
+and the eight `var()` uses keep their `, 0px` fallback — the guard still demands it. R84
+(`runtime_tokens.py`, 8 holds) holds the three ends: exactly one publisher and it lives under
+`app/`, counted over the whole source tree rather than grepped in the engine, because a rule
+reading « the engine does not publish » stays green over a second publisher added anywhere else;
+the published value equal to the bar's own rendered height; and it still equal once the bar is
+forced to a height no state draws.
 
-**L03 HANDS THIS LOT A MEASUREMENT, and it is a number rather than a worry.** Colour contrast is
+**L03 HANDED THIS LOT A MEASUREMENT, and D-L06-5 paid it: 42 findings → 0.** Colour contrast is
 an accessibility criterion that lands on the palette, so L03 measured it, recorded it and
-deliberately did not enforce it (D-L03-4): `frontend/maquette/a11y-contrast.json` holds
-**42 `color-contrast` findings over 18 of the 83 named states, on 10 distinct elements.** They are
-concentrated rather than scattered — 27 of the 42 are the count badge `.c` inside the category and
-filter chips (`button[data-cat="…"]`, `button[data-pill="…"]`), the rest the danger button's tone
-and the bold lead of the two error surfaces. **Folding the scale is the moment those are fixed**,
-because a contrast repair is a palette decision and the palette is this lot's subject.
-<sub>`python3 frontend/maquette/a11y.py --record` refreshes that file; it is a live handover, not
-a frozen record.</sub>
+deliberately did not enforce it (D-L03-4): `frontend/maquette/a11y-contrast.json` held
+**42 `color-contrast` findings over 18 of the 83 named states, on 10 distinct elements.** The
+split written here was « 27 of the 42 are the count badge »; the record is LIVE rather than
+frozen, and by the time the repair ran it read **34 of 42** on that badge — which is the whole
+reason a figure in this file carries the command that reproduces it. The badge's defect was not a
+tone at all but an **opacity blend**: secondary was written as `opacity`, so what reached the eye
+was a colour the palette never declared. The danger family gained `--danger-fill` for the ground a
+solid destructive control paints, the light theme's `--primary-foreground` override was REMOVED —
+dark text on the brand fill in both themes, one decision instead of two that happened to agree —
+and four label sites moved to `--primary-text`. `color-contrast` now sits INSIDE the enforced
+hard-zero floor rather than beside it in a record.
+<sub>`python3 frontend/maquette/a11y.py --check` runs the floor, contrast included.</sub>
 
 **A SECOND THING L03 HANDS OVER, and it is the price of a decision the operator took knowingly.**
 L03 removed `maximum-scale=1, user-scalable=no` from the viewport meta — 83 of its 744 violations,
@@ -563,12 +581,14 @@ one per state, WCAG 1.4.4. Those directives were forbidding the pinch-zoom a low
 depends on, and the hard-zero floor left no third option: excluding the rule would have been a
 tolerated list of one.
 
-What they were also buying, measured rather than assumed: **`.search input` is `font-size: 13px`**,
-below the 16px threshold at which iOS auto-zooms a focused field. So on iPhone, focusing the search
-field now zooms the page. **The clean repair is 16px on that field, and it belongs here** because it
-moves the type scale — which L03 could not do under a floor of zero oracle divergence. Until this
-lot runs, the interface trades one field's comfort for zoom returned to everyone, and the operator
-arbitrated it that way on 2026-08-22.
+What they were also buying, measured rather than assumed: **`.search input` was `font-size: 13px`**,
+below the 16px threshold at which iOS auto-zooms a focused field, so focusing the search field on
+an iPhone zoomed the page. The repair is 16px, and it belonged here because it moves the type
+scale — which L03 could not do under a floor of zero oracle divergence. **D-L06-6 was arbitrated
+on its wide reading**: not that one field but all THREE, because a field that zooms is a field
+that zooms whichever screen draws it. R83 (`type_scale.py`, 9 holds) measures the rendered size in
+the browser rather than the declaration, since only the browser says what a token resolves to
+under the cascade.
 
 **And one thing L03 measured that this lot does NOT inherit**: touch-target size (WCAG 2.5.8) was
 expected to be a debt and is not. `target-size` runs, is applicable — 49 nodes evaluated in a
@@ -878,7 +898,8 @@ met before it fires rather than after.
 **And one that has not gone off yet, named because its shape is known**: a `var()` naming a token
 nobody declared renders as nothing rather than failing. It is a landmine, not a crash, and it sat
 in this codebase undetected across 449 `var()` calls. `scripts/check-css-tokens.py` refuses it
-today; L06 must keep that true as the token source moves.
+today, and L06 kept it true as the token source moved: `--tm-bottom-bar-h` is published by the
+shell now, the fallback is still demanded at every use, and R84 holds the publisher to being one.
 
 ---
 
