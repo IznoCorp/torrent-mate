@@ -52,11 +52,51 @@ SCREENSHOTS = pathlib.Path(__file__).resolve().parent / "__screenshots__"
 #
 # Reading a missing path raises here rather than yielding "": a renamed source
 # must break the rule that depends on it, loudly, on the next run.
+# L07 WIDENS THIS AGAIN, AND FOR THE THIRD TIME FOR THE SAME REASON. That lot
+# moves styling out of the stylesheet and into the components, as utilities. A
+# tuple naming three files would then miss every declaration that had moved —
+# the identical failure the paragraph above records, one layer down and with
+# the evidence moving in the opposite direction. So the component tree is named
+# by SHAPE rather than by file: a component added tomorrow is covered on the day
+# it is written, which is the only version of this list that stops rotting.
+#
+# TWO THINGS ARE DELIBERATELY OUT, and neither is an oversight:
+#   `src/engine/states.js` — the scenario table. It is the HARNESS's fixture,
+#       not the product's source, and a rule that read it would measure the
+#       instrument rather than the thing measured.
+#   `src/i18n/` — the interface's words. They are read through their own
+#       guard (`check-i18n-placeholders.py`), and folding French copy into
+#       « the design's sources » would make every language rule ambiguous
+#       about what it just matched.
+_COMPONENT_TREE = ROOT / "design" / "src"
+_NOT_THE_DESIGN = (
+    _COMPONENT_TREE / "engine" / "states.js",
+)
+
+
+def _component_sources():
+    """Returns the component tree's files, in a stable order.
+
+    Returns:
+        Every `.tsx`, `.ts`, `.css` and `.js` under `design/src`, excluding the
+        harness's own fixture and the i18n resources, sorted so two runs
+        concatenate the same text in the same order — a rule that counted
+        occurrences would otherwise be reproducible only by luck.
+    """
+    found = []
+    for suffix in ("*.tsx", "*.ts", "*.css", "*.js"):
+        found.extend(_COMPONENT_TREE.rglob(suffix))
+    return sorted(
+        path for path in found
+        if path not in _NOT_THE_DESIGN
+        and "i18n" not in path.relative_to(_COMPONENT_TREE).parts
+    )
+
+
 DESIGN_SOURCES = (
     ROOT / "design" / "refonte.html",
     ROOT / "design" / "index.html",
-    ROOT / "design" / "src" / "engine" / "legacy.js",
-)
+) + tuple(_component_sources())
 
 
 def design_source():

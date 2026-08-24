@@ -49,10 +49,31 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, ROOT, Journal, design_source
+from common import DESIGN_SOURCES, PHONE, ROOT, Journal, design_source
 
 # The engine may hold no history primitive of its own — the bridge is the
 # only way to the single writer.
+#
+# THE PATTERN USED TO BE `history.<primitive>` AND THAT WAS ONLY EVER TRUE
+# BECAUSE THE READ WAS NARROW. `history` is a NAME, and in `app/shell.tsx` it
+# names the router's own instance (`const history = createBrowserHistory()`) —
+# which is the single writer this rule exists to protect, not a breach of it.
+# The moment L07 widened `DESIGN_SOURCES` onto the component tree, the old
+# pattern reported two violations that were the sanctioned owner doing its job.
+# A rule cannot be allowed to certify the opposite of its subject, so it is
+# split in two and each half says what it means:
+#
+#   BROWSER  — `window.history.<primitive>`, the platform object reached
+#              directly. Zero, anywhere, no exception.
+#   INSTANCE — a bare `history.<primitive>`, which is the router's instance.
+#              Legitimate, and ONLY in the file that creates it.
+BROWSER_PRIMITIVES = (
+    r"window\s*\.\s*history\s*\.\s*pushState\s*\(",
+    r"window\s*\.\s*history\s*\.\s*replaceState\s*\(",
+    r"window\s*\.\s*history\s*\.\s*back\s*\(",
+    r"window\s*\.\s*history\s*\.\s*go\s*\(",
+    r"window\s*\.\s*history\s*\.\s*forward\s*\(",
+)
 PRIMITIVES = (
     r"history\s*\.\s*pushState\s*\(",
     r"history\s*\.\s*replaceState\s*\(",
@@ -60,6 +81,11 @@ PRIMITIVES = (
     r"history\s*\.\s*go\s*\(",
     r"history\s*\.\s*forward\s*\(",
 )
+
+# The one file allowed to name a history primitive, because it is the one that
+# CREATES the instance. Named as a path fragment so a move is a failure rather
+# than a silent pass.
+HISTORY_OWNER = "app/shell.tsx"
 
 # A slash opens a regular expression rather than a division when the last
 # significant character before it cannot end an expression.
@@ -256,19 +282,70 @@ def count_history_primitives(source):
     return sum(len(re.findall(pattern, cleaned)) for pattern in PRIMITIVES)
 
 
+def count_browser_primitives(source):
+    """Counts the calls that reach the PLATFORM's history object directly.
+
+    Args:
+        source: JavaScript, or a document containing it, as text.
+
+    Returns:
+        How many `window.history.pushState|replaceState|back|go|forward(`
+        calls the code holds, comments excluded.
+    """
+    cleaned = without_comments(source)
+    return sum(len(re.findall(pattern, cleaned)) for pattern in BROWSER_PRIMITIVES)
+
+
+def stray_instance_calls():
+    """Finds files naming a history primitive that are not the owner.
+
+    Reads each source on its own rather than the concatenation, because the
+    answer is WHICH FILE — a count over the joined text can say that something
+    is wrong and never say where, which is the shape of a rule nobody can act
+    on.
+
+    Returns:
+        A mapping of repository-relative path to the number of bare
+        `history.<primitive>` calls it holds, for every file that is not
+        `HISTORY_OWNER`. Empty when the contract holds.
+    """
+    strays = {}
+    for path in DESIGN_SOURCES:
+        relative = path.relative_to(ROOT.parent.parent).as_posix()
+        if relative.endswith(HISTORY_OWNER):
+            continue
+        cleaned = without_comments(path.read_text(encoding="utf-8"))
+        count = sum(len(re.findall(pattern, cleaned)) for pattern in PRIMITIVES)
+        if count:
+            strays[relative] = count
+    return strays
+
+
 async def main():
     global _journal
     _journal = Journal("R74 — the bridge wires the nav cluster to the router")
 
-    # ─── Hold (a): the engine holds no primitive of its own ───────────
+    # ─── Hold (a): nothing reaches the platform's history object ──────
     # The engine is where the primitives would be, and it is no longer in
     # the fragment — a count taken on the fragment alone is a count of
-    # nothing.
-    calls = count_history_primitives(design_source())
+    # nothing, which is why this reads every source the design is written in.
+    browser_calls = count_browser_primitives(design_source())
     check(
-        "zero direct history.* call in the design's sources",
-        calls == 0,
-        f"{calls} call(s) found",
+        "zero window.history.* call in the design's sources",
+        browser_calls == 0,
+        f"{browser_calls} call(s) found",
+    )
+
+    # ─── Hold (a2): the router's instance is named in ONE file ────────
+    # A bare `history.<primitive>` is the router's own instance, and that is
+    # the single writer rather than a breach of it — but only where the
+    # instance is created. Anywhere else is a file taking the history into its
+    # own hands through a name that looks innocent.
+    strays = stray_instance_calls()
+    check(
+        f"the router's history instance is named only in {HISTORY_OWNER}",
+        not strays,
+        ", ".join(f"{path} ×{count}" for path, count in sorted(strays.items())),
     )
 
     async with async_playwright() as p:
