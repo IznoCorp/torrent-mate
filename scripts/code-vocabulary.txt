@@ -211,6 +211,7 @@ dx
 ease
 edited
 element
+emphasized
 empty
 end
 engine
@@ -388,6 +389,7 @@ loginerr
 loginform
 long
 lookup
+loop
 main
 maintact
 maintenance
@@ -581,6 +583,7 @@ safari
 same
 save
 savebar
+scale
 scen
 schedulers
 screen
@@ -644,12 +647,14 @@ solid
 sort
 sorted
 space
+spacing
 splash
 src
 st
 stack
 stale
 stamped
+standard
 start
 startup
 state

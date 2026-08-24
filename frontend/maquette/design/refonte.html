@@ -252,6 +252,55 @@
      The `login:palette` markers travel with it: the login gate is built by
      text search over these markers (`serve.py`), not by block, and
      `login:style` already lived down here. */
+  /* login:scale:start */ /* scale:start */
+  /* The scale. Every design constant the stylesheet uses is a step declared
+     here, and nowhere else. The space ramp also serves gap and margin. Loop
+     periods are rhythms, not responses to a touch: they are named apart so
+     nobody folds a spinner onto a transition step. The block carries both
+     marker names on one line because it has two readers: the scale guard,
+     and the sign-in page composer, which must emit it first so the composed
+     page can resolve every step it inherits. */
+  :root {
+    /* Space ramp: pads, gaps and margins. */
+    --spacing-1: 2px;
+    --spacing-2: 4px;
+    --spacing-3: 6px;
+    --spacing-4: 8px;
+    --spacing-5: 10px;
+    --spacing-6: 12px;
+    --spacing-7: 14px;
+    --spacing-8: 18px;
+    --spacing-9: 24px;
+    /* Type ramp: eight content steps, one display size cut against the tile
+       it fills rather than the reading ladder. */
+    --text-1: 10px;
+    --text-2: 11px;
+    --text-3: 12px;
+    --text-4: 13px;
+    --text-5: 14px;
+    --text-6: 16px;
+    --text-7: 19px;
+    --text-8: 27px;
+    --text-display: 54px;
+    /* Radius ramp. */
+    --radius-1: 3px;
+    --radius-2: 6px;
+    --radius-3: 8px;
+    --radius-4: 12px;
+    --radius-full: 999px;
+    /* Motion: touch-response durations, loop periods, easings. */
+    --duration-1: 0.15s;
+    --duration-2: 0.2s;
+    --duration-3: 0.3s;
+    --duration-4: 0.45s;
+    --duration-loop-1: 0.7s;
+    --duration-loop-2: 1.4s;
+    --duration-loop-3: 5s;
+    --ease-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
+    --ease-emphasized: cubic-bezier(0.22, 1.02, 0.36, 1);
+  }
+  /* scale:end */ /* login:scale:end */
+
   /* login:palette:start */
   :root {
     --background: oklch(0.165 0.004 286);
