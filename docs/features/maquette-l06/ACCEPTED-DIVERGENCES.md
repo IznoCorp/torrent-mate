@@ -163,3 +163,19 @@ folds to `var(--text-3)` (12 px), and the paragraph's 3-6 line boxes each lose
 The single 50% site (`.ps-dot__d`, 8×8, square by construction) and all 37
 pill sites show no computed change; no corner became a circle on a non-square
 element.
+
+### 4.2 — The motion (motion 24 → 0) — reviewed on the report, since the oracle cannot see motion
+
+No geometric divergence: motion changes no box. The review is the fold list
+itself, read change by change. Durations: the four sliding surfaces (screen,
+sheet, drawer) slow 0.26 → 0.3 s; the dialog and switch family 0.18 → 0.2 s;
+the deck card's entrance 0.42 → 0.45 s and its fade 0.34 → 0.3 s; the live
+dot's pulse quickens 1.6 → 1.4 s and the skeleton shimmer slows 1.3 → 1.4 s.
+Curves: every keyword easing and both written-out cubic-beziers now read the
+two named curves; the eight transitions that carried NO easing (rendering the
+browser's own `ease`, a curve nobody chose) are dressed with the standard
+curve — one easing language, held by the widened arm, which now refuses
+keyword easings, literal beziers, discrete steps() and a duration with no
+curve, each proved by a fallen mutation. The one rhythm whose feel changes:
+`.live .d`'s pulse loses its ease-in-out symmetry to the standard curve, as
+§1.1's table prescribes — named here because no instrument will ever show it.
