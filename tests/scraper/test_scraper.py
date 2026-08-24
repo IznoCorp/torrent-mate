@@ -375,7 +375,7 @@ class TestScrapeMovie:
         tmp_path: Path,
     ) -> None:
         """Should skip movie if valid .nfo already exists."""
-        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir = tmp_path / "The Matrix (1999) {tmdb-603}"
         movie_dir.mkdir()
         # Valid NFO must have <uniqueid> to pass _is_nfo_complete
         (movie_dir / "The Matrix.nfo").write_text('<movie><uniqueid type="tmdb">603</uniqueid></movie>')
@@ -403,7 +403,7 @@ class TestScrapeMovie:
         tmp_path: Path,
     ) -> None:
         """Should complete full scrape: match → details → NFO → artwork."""
-        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir = tmp_path / "The Matrix (1999) {tmdb-603}"
         movie_dir.mkdir()
         (movie_dir / "The Matrix.mkv").write_text("video")
 
@@ -2026,7 +2026,7 @@ class TestClassifierIntegration:
         # Ensure no keyword rules are configured (test_config has none)
         assert scraper._needs_keywords is False
 
-        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir = tmp_path / "The Matrix (1999) {tmdb-603}"
         movie_dir.mkdir()
         (movie_dir / "video.mkv").write_text("v")
 
@@ -2217,7 +2217,7 @@ class TestClassifierIntegration:
         assert scraper.config is None
         assert scraper._needs_keywords is False
 
-        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir = tmp_path / "The Matrix (1999) {tmdb-603}"
         movie_dir.mkdir()
         (movie_dir / "video.mkv").write_text("v")
 
@@ -2378,7 +2378,7 @@ class TestMovieArtworkFailedNarrowedExceptions:
             tmp_path: Pytest temporary directory fixture.
             caplog: Pytest log capture fixture.
         """
-        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir = tmp_path / "The Matrix (1999) {tmdb-603}"
         movie_dir.mkdir()
         (movie_dir / "The Matrix.mkv").write_bytes(b"\x00" * 100)
 
@@ -2447,7 +2447,7 @@ class TestMovieArtworkFailedNarrowedExceptions:
             tmp_path: Pytest temporary directory fixture.
             caplog: Pytest log capture fixture.
         """
-        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir = tmp_path / "The Matrix (1999) {tmdb-603}"
         movie_dir.mkdir()
         (movie_dir / "The Matrix.mkv").write_bytes(b"\x00" * 100)
 

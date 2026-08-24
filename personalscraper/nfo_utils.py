@@ -28,6 +28,28 @@ _INVALID_UNIQUEID_VALUES = frozenset({"0", "none"})
 # Title (Year) pattern — same as _parse_folder_name in scraper
 _TITLE_YEAR_RE = re.compile(r"^(.+?)\s*\((\d{4})\)\s*$")
 
+# Plex match-hint suffix: the scraper appends ``{tmdb-<id>}`` to movie folder
+# names (support.plex.tv movie naming — the Plex Movie agent reads the ID from
+# the folder name). The indexer and release linker parse folder names and must
+# see through the hint: "The Gentlemen (2020) {tmdb-522627}" is still
+# "The Gentlemen" year 2020. Kept general (``{source-id}``) so a hand-hinted
+# folder carrying ``{imdb-tt...}`` or ``{tvdb-...}`` parses the same way.
+_PLEX_ID_HINT_RE = re.compile(r"\s*\{[a-z0-9]+-[A-Za-z0-9]+\}\s*$")
+
+
+def strip_plex_id_hint(name: str) -> str:
+    """Remove a trailing Plex match-hint (``{tmdb-522627}``) from a folder name.
+
+    Args:
+        name: Folder name as stored on disk (with or without the hint).
+
+    Returns:
+        The name without the trailing ``{source-id}`` hint. Names without a
+        hint are returned unchanged.
+    """
+    return _PLEX_ID_HINT_RE.sub("", name)
+
+
 # Inverse map of ``scraper.nfo_generator._NFO_RATING_SOURCE_NAMES`` — the
 # NFO writer translates internal source names to Plex/Kodi-compatible
 # display names ; the indexer reverses the mapping so ``ratings_json``
@@ -103,13 +125,16 @@ def is_nfo_complete(nfo_path: Path) -> bool:
 def parse_title_year(dirname: str) -> tuple[str, int | None]:
     """Parse 'Title (Year)' from a directory name.
 
+    A trailing Plex match-hint (``{tmdb-522627}``) is stripped first so the
+    hinted folder names the scraper produces parse exactly like the bare ones.
+
     Args:
         dirname: Directory name (not full path).
 
     Returns:
         Tuple of (title, year). Year is None if not found.
     """
-    m = _TITLE_YEAR_RE.match(dirname)
+    m = _TITLE_YEAR_RE.match(strip_plex_id_hint(dirname))
     if m:
         return m.group(1).strip(), int(m.group(2))
     return dirname, None

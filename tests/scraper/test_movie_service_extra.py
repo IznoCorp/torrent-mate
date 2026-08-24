@@ -107,7 +107,7 @@ class TestValidNfoFastPath:
 
     def test_artwork_recovered_when_missing_and_recovery_succeeds(self, scraper: Scraper, tmp_path: Path) -> None:
         """Missing poster triggers ``recover_artwork`` and sets the action."""
-        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir = tmp_path / "The Matrix (1999) {tmdb-603}"
         movie_dir.mkdir()
         (movie_dir / "The Matrix.nfo").write_text('<movie><uniqueid type="tmdb">603</uniqueid></movie>')
 
@@ -127,7 +127,7 @@ class TestValidNfoFastPath:
 
     def test_repaired_when_repair_returns_true(self, scraper: Scraper, tmp_path: Path) -> None:
         """``_repair_movie_dir`` returning True wins over ``skipped_already_done``."""
-        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir = tmp_path / "The Matrix (1999) {tmdb-603}"
         movie_dir.mkdir()
         (movie_dir / "The Matrix.nfo").write_text('<movie><uniqueid type="tmdb">603</uniqueid></movie>')
         with (
@@ -139,7 +139,7 @@ class TestValidNfoFastPath:
 
     def test_repaired_does_not_override_artwork_recovered(self, scraper: Scraper, tmp_path: Path) -> None:
         """When recovery already set ``artwork_recovered`` it stays even if repair=True."""
-        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir = tmp_path / "The Matrix (1999) {tmdb-603}"
         movie_dir.mkdir()
         (movie_dir / "The Matrix.nfo").write_text('<movie><uniqueid type="tmdb">603</uniqueid></movie>')
 
@@ -216,7 +216,7 @@ class TestGetMovieException:
 
     def test_get_movie_exception_short_circuits(self, scraper: Scraper, tmp_path: Path) -> None:
         """An exception raised by ``get_movie`` populates ``result.error`` and returns."""
-        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir = tmp_path / "The Matrix (1999) {tmdb-603}"
         movie_dir.mkdir()
 
         with (
@@ -254,18 +254,37 @@ class TestFolderRenameBranches:
             result = scraper.scrape_movie(movie_dir)
 
         assert result.action == "scraped"
-        # New canonical folder must exist.
-        assert (tmp_path / "The Matrix (1999)").is_dir()
+        # New canonical folder must exist (TMDB match → Plex hint appended).
+        assert (tmp_path / "The Matrix (1999) {tmdb-603}").is_dir()
         # Old folder is gone.
         assert not movie_dir.exists()
+
+    def test_folder_name_carries_plex_tmdb_hint(self, scraper: Scraper, tmp_path: Path, movie_data: dict) -> None:
+        """A TMDB-backed match appends the {tmdb-<id>} Plex match-hint."""
+        movie_dir = tmp_path / "The Matrix"
+        movie_dir.mkdir()
+        (movie_dir / "video.mkv").write_text("payload")
+
+        with (
+            patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(_match(), [])),
+            patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
+            patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
+            patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
+        ):
+            result = scraper.scrape_movie(movie_dir)
+
+        assert result.action == "scraped"
+        # The Plex Movie agent reads {tmdb-603} from the folder name — the hint
+        # that prevents the wrong-match class (2026-08-24 Gentlemen incident).
+        assert (tmp_path / "The Matrix (1999) {tmdb-603}").is_dir()
 
     def test_folder_merge_into_existing_target(self, scraper: Scraper, tmp_path: Path, movie_data: dict) -> None:
         """When the canonical target already exists, files are merged into it."""
         movie_dir = tmp_path / "The Matrix"
         movie_dir.mkdir()
         (movie_dir / "video.mkv").write_text("payload")
-        # Pre-existing target dir to force the merge branch.
-        target = tmp_path / "The Matrix (1999)"
+        # Pre-existing target dir to force the merge branch (hinted canonical).
+        target = tmp_path / "The Matrix (1999) {tmdb-603}"
         target.mkdir()
 
         with (
@@ -290,7 +309,7 @@ class TestFolderRenameBranches:
         movie_dir = tmp_path / "The Matrix"
         movie_dir.mkdir()
         (movie_dir / "video.mkv").write_text("payload")
-        (tmp_path / "The Matrix (1999)").mkdir()
+        (tmp_path / "The Matrix (1999) {tmdb-603}").mkdir()
 
         with (
             patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(_match(), [])),
@@ -322,7 +341,7 @@ class TestFolderRenameBranches:
 
         # Original folder remains; canonical version was not created.
         assert movie_dir.exists()
-        assert not (tmp_path / "The Matrix (1999)").exists()
+        assert not (tmp_path / "The Matrix (1999) {tmdb-603}").exists()
 
     def test_folder_dry_run_logs_merge_when_target_exists(
         self, scraper: Scraper, tmp_path: Path, movie_data: dict
@@ -331,7 +350,7 @@ class TestFolderRenameBranches:
         scraper.dry_run = True
         movie_dir = tmp_path / "The Matrix"
         movie_dir.mkdir()
-        (tmp_path / "The Matrix (1999)").mkdir()
+        (tmp_path / "The Matrix (1999) {tmdb-603}").mkdir()
 
         with (
             patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(_match(), [])),
@@ -388,7 +407,7 @@ class TestVideoRenameBranches:
 
     def test_video_rename_oserror_logged_as_warning(self, scraper: Scraper, tmp_path: Path, movie_data: dict) -> None:
         """OSError on video rename is non-fatal — appended to ``result.warnings``."""
-        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir = tmp_path / "The Matrix (1999) {tmdb-603}"
         movie_dir.mkdir()
         (movie_dir / "raw_video.mkv").write_text("payload")
 
@@ -407,7 +426,7 @@ class TestVideoRenameBranches:
     def test_video_dry_run_does_not_rename(self, scraper: Scraper, tmp_path: Path, movie_data: dict) -> None:
         """Dry-run keeps the raw video filename in place."""
         scraper.dry_run = True
-        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir = tmp_path / "The Matrix (1999) {tmdb-603}"
         movie_dir.mkdir()
         raw = movie_dir / "raw_video.mkv"
         raw.write_text("payload")
@@ -450,7 +469,7 @@ class TestVideoOrphanCleanup:
         Returns:
             Tuple of (movie_dir, canonical_path, orphan_path).
         """
-        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir = tmp_path / "The Matrix (1999) {tmdb-603}"
         movie_dir.mkdir()
         canonical = movie_dir / "The Matrix.mkv"
         canonical.write_text("newest-canonical-payload")
@@ -548,7 +567,7 @@ class TestFlatTrailerNotUnlinked:
         self, scraper: Scraper, tmp_path: Path, movie_data: dict, caplog: pytest.LogCaptureFixture
     ) -> None:
         """A flat trailer at root is kept while a true orphan video is removed."""
-        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir = tmp_path / "The Matrix (1999) {tmdb-603}"
         movie_dir.mkdir()
         # Canonical feature: clean name (rename no-op) + newest mtime so it is
         # selected by `_find_video_file`.
@@ -609,7 +628,7 @@ class TestOrphanLoopRobustness:
         """
         import os
 
-        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir = tmp_path / "The Matrix (1999) {tmdb-603}"
         movie_dir.mkdir()
         canonical = movie_dir / "The Matrix.mkv"
         canonical.write_text("newest-canonical-payload")
@@ -710,7 +729,7 @@ class TestOrphanLoopRobustness:
         """
         import os
 
-        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir = tmp_path / "The Matrix (1999) {tmdb-603}"
         movie_dir.mkdir()
         # Root feature video, OLDER mtime — must survive (cleanup is skipped).
         root_feature = movie_dir / "feature.mkv"
@@ -750,7 +769,7 @@ class TestNfoGenerationException:
 
     def test_nfo_generation_exception_short_circuits(self, scraper: Scraper, tmp_path: Path, movie_data: dict) -> None:
         """An exception in ``generate_movie_nfo`` populates ``result.error``."""
-        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir = tmp_path / "The Matrix (1999) {tmdb-603}"
         movie_dir.mkdir()
         (movie_dir / "The Matrix.mkv").write_text("payload")
 

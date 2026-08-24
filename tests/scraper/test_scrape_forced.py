@@ -75,7 +75,7 @@ class TestScrapeMovieForced:
             result = scraper.scrape_movie_forced(movie_dir, 603)
 
         assert result.action == "scraped", result.error
-        canonical = tmp_path / "The Matrix (1999)"
+        canonical = tmp_path / "The Matrix (1999) {tmdb-603}"
         assert canonical.is_dir(), "folder was NOT renamed to the canonical 'Title (Year)'"
         assert (canonical / "The Matrix.mkv").exists(), "video was NOT renamed to the canonical 'Title.ext'"
         assert (canonical / "The Matrix.nfo").exists(), "canonical NFO missing"
@@ -104,7 +104,7 @@ class TestScrapeMovieForced:
             result = scraper.scrape_movie_forced(movie_dir, 603)
 
         assert result.action == "scraped", result.error
-        canonical = tmp_path / "The Matrix (1999)"
+        canonical = tmp_path / "The Matrix (1999) {tmdb-603}"
         assert canonical.is_dir()
         assert (canonical / "The Matrix.mkv").exists(), "video LOST during a case-only folder rename"
         assert (canonical / "The Matrix.nfo").exists(), "canonical NFO missing"
@@ -115,7 +115,7 @@ class TestScrapeMovieForced:
         The folder does not move, but the video MUST still be renamed to the
         canonical ``Title.ext`` — otherwise ``verify`` blocks dispatch.
         """
-        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir = tmp_path / "The Matrix (1999) {tmdb-603}"
         movie_dir.mkdir()
         (movie_dir / "The.Matrix.1999.FRENCH.1080p.WEBrip.x265-TyHD.mkv").write_text("video")
 
