@@ -5,6 +5,10 @@
 import { readFileSync, rmSync, symlinkSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
+// Tailwind v4 as a Vite plugin. It scans only what `src/styles/theme.css`
+// names in its `@source` rules — never the project root, which is how 936
+// bytes of the maquette once leaked into the production bundle.
+import tailwindcss from "@tailwindcss/vite";
 
 const ROOT = resolve(import.meta.dirname);
 
@@ -41,5 +45,7 @@ export default defineConfig({
     assetsDir: "vite",
     emptyOutDir: true,
   },
-  plugins: [injectPrototype()],
+  // Tailwind FIRST: it must have generated its sheet before the prototype
+  // fragment is injected, and the injection deliberately runs `post`.
+  plugins: [tailwindcss(), injectPrototype()],
 });

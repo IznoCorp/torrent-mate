@@ -118,6 +118,11 @@ MARKUP = ROOT / "frontend" / "maquette" / "design" / "index.html"
 # of the composition and not merely another stylesheet.
 BASE_LAYER = ROOT / "frontend" / "maquette" / "design" / "src" / "styles" / "base.css"
 
+# The token layer (D3), where L07 moved the scale. It is a Tailwind `@theme`
+# block now rather than a `:root` one — the declarations between the markers
+# are unchanged, which is what lets this arm read it the same way it always did.
+THEME_LAYER = ROOT / "frontend" / "maquette" / "design" / "src" / "styles" / "theme.css"
+
 # The scale block's own markers. Its declarations ARE the steps, so the ratchet
 # excludes the span before it counts anything: a scale that had to answer for
 # itself would report nine violations the moment it was written.
@@ -260,6 +265,7 @@ SOURCE_FILES = {
     "PROTOTYPE": FRAGMENT,
     "SHELL_DOCUMENT": MARKUP,
     "BASE_STYLESHEET": BASE_LAYER,
+    "THEME_STYLESHEET": THEME_LAYER,
 }
 
 # THE exemption list: the selectors the scale arm skips entirely, each with the
@@ -572,14 +578,25 @@ def declarations_by_scope(css: str) -> tuple[set[str], set[str]]:
     unconditional: set[str] = set()
     conditional: set[str] = set()
     for prelude, body in RULE.findall(css):
-        selector = prelude.strip().rsplit("}", 1)[-1].strip()
+        # A prelude carries everything since the previous rule closed, which
+        # includes any statement at-rule in between — `@import …;`, `@source
+        # …;`. Splitting on `}` alone left those glued to the selector, so the
+        # `@theme` block read as a long unrecognised string and its whole scale
+        # was reported « conditional ». Cut on both terminators, in the order a
+        # parser would.
+        selector = prelude.strip().rsplit("}", 1)[-1].rsplit(";", 1)[-1].strip()
         names = {m for m in DECLARATION.findall("{" + body)}
         if not names:
             continue
         # Base scope: the scope class itself, or a bare document root. Anything
         # else — an attribute, a class, a media condition — is conditional, and
         # a token that only ever lands there is not available unconditionally.
-        base = selector in {SCOPE, ":root", "html", "body"}
+        # `@theme` joined this set with L07. It is not a selector at all — it
+        # is where Tailwind is told the scale, and it emits those declarations
+        # into `:root`. Reading it as conditional would report the whole scale
+        # as « declared only under a qualified scope », which is the opposite
+        # of what it is.
+        base = selector in {SCOPE, ":root", "html", "body", "@theme"}
         (unconditional if base else conditional).update(names)
     # Declared in BOTH places is simply declared: the conditional block is then
     # an override, which is exactly what a theme is.
@@ -642,13 +659,43 @@ def block_two() -> str | None:
     return whole[whole.rfind("/*", start, marker):end]
 
 
+def application_stylesheet() -> str | None:
+    """Returns every stylesheet the APPLICATION ships, concatenated.
+
+    THE SUBJECT IS UNCHANGED AND THE FILES ARE NOT. This arm has always asked
+    one question: does the application's own CSS resolve every `var()` it uses
+    ON ITS OWN, once the prototype's harness stops shipping? That used to be
+    `refonte.html`'s BLOCK 2 and nothing else. Since L07 the application's CSS
+    is three files — the tokens, the base layer and what is left of BLOCK 2 —
+    and reading only the last of them reported the entire scale as dangling the
+    moment it moved into `@theme`.
+
+    Widening the read is therefore the opposite of relaxing the arm: a token
+    declared in a file that does NOT ship would still be counted missing,
+    because these three are named one by one rather than globbed.
+
+    Returns:
+        The concatenation, joined by a newline so no pattern matches across the
+        seam between two files, or `None` when BLOCK 2 cannot be located — the
+        failure that must stay loud.
+    """
+    fragment = block_two()
+    if fragment is None:
+        return None
+    parts = [fragment]
+    for path in (THEME_LAYER, BASE_LAYER):
+        if path.exists():
+            parts.append(path.read_text(encoding="utf-8"))
+    return "\n".join(parts)
+
+
 def token_arm() -> int:
     """Reads the generated sheet and reports every `var()` it cannot resolve.
 
     Returns:
         1 when anything was found, 0 otherwise.
     """
-    css = block_two()
+    css = application_stylesheet()
     if css is None:
         return 1
     stripped = COMMENT.sub(" ", css)
@@ -679,11 +726,18 @@ def token_arm() -> int:
     if undefined or only_conditional or bare_runtime:
         print(f"\ncheck-css-tokens: "
               f"{len(undefined) + len(only_conditional) + len(bare_runtime)} "
-              f"unresolved token(s) in {FRAGMENT.name} BLOCK 2.", file=sys.stderr)
+              "unresolved token(s) in the application's stylesheet.",
+              file=sys.stderr)
         return 1
 
-    print(f"check-css-tokens: {FRAGMENT.name} BLOCK 2 — {len(used)} token(s) used, "
-          f"{len(declared)} declared, no unresolved `var()`.")
+    shipped = ", ".join(
+        name for name, path in (("theme.css", THEME_LAYER), ("base.css", BASE_LAYER))
+        if path.exists()
+    )
+    print(f"check-css-tokens: the application's stylesheet "
+          f"({FRAGMENT.name} BLOCK 2{', ' + shipped if shipped else ''}) — "
+          f"{len(used)} token(s) used, {len(declared)} declared, "
+          "no unresolved `var()`.")
     return 0
 
 
@@ -738,19 +792,32 @@ def scale_measurement(
     css = block_two()
     if css is None:
         return None
-    head, marker, rest = css.partition(SCALE_START)
+    # THE STEPS AND WHAT SPENDS THEM NOW LIVE IN DIFFERENT FILES. L07 moved the
+    # scale into `src/styles/theme.css`, where it is a Tailwind `@theme` block
+    # rather than a `:root` one, and the fragment kept the declarations that
+    # READ those steps. This arm therefore reads two places instead of
+    # partitioning one — and it still refuses to run when the block is absent,
+    # because an arm that cannot find the scale would otherwise measure every
+    # declaration against an empty set of steps and call the result « no
+    # violation ».
+    if not THEME_LAYER.exists():
+        print(f"check-scale: {THEME_LAYER} not found — the scale has no home, "
+              "so this arm has nothing to measure against", file=sys.stderr)
+        return None
+    theme = THEME_LAYER.read_text(encoding="utf-8")
+    _, marker, rest = theme.partition(SCALE_START)
     if not marker:
-        print(f"check-scale: no {SCALE_START} in {FRAGMENT.name} BLOCK 2 — the "
+        print(f"check-scale: no {SCALE_START} in {THEME_LAYER.name} — the "
               "scale has no home, so this arm has nothing to measure against",
               file=sys.stderr)
         return None
-    block, closing, tail = rest.partition(SCALE_END)
+    block, closing, _ = rest.partition(SCALE_END)
     if not closing:
         print(f"check-scale: {SCALE_START} is never closed by {SCALE_END} — the "
               "arm cannot tell the steps apart from what spends them",
               file=sys.stderr)
         return None
-    outside = COMMENT.sub(" ", head + tail)
+    outside = COMMENT.sub(" ", css)
 
     inventory: dict[str, list[tuple[str, str, str]]] = {family: [] for family in FAMILIES}
     for prelude, body in RULE.findall(outside):

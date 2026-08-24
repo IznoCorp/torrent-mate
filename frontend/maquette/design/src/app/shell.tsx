@@ -15,6 +15,10 @@
 // body is base before components, which is the order D3 asks for. A CSS import
 // placed after another would reorder the emitted sheet, and the reset would
 // then win against a component that had every right to override it.
+// The tokens come before the base layer, and both before anything else: the
+// base layer spends the scale, so the sheet that DECLARES it has to be earlier
+// in the emitted stylesheet.
+import "../styles/theme.css";
 import "../styles/base.css";
 // The i18n bootstrap is the first import that RUNS, for its side effect
 // (initialising `i18next`) — every migrated screen calls `useTranslation()`,
