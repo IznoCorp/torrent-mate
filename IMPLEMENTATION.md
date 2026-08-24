@@ -69,8 +69,8 @@ repository.
 53 flat `.py` files (recorded and deliberately unscheduled), and B-036 / B-040, which belong to
 their own waves.
 
-**Next action**: phase 13 — cycle 4's one blocking finding (the stale floor flag). Cycle 5 is
-the loop's ceiling; after it, merge or escalate.
+**Next action**: cycle 5 — the loop's ceiling — reviews the phase-13 delta; if clean, squash
+merge, then the three post-merge steps and the two archive moves.
 
 ### Review cycles — PR #484
 
@@ -129,7 +129,7 @@ reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
 | 10  | PR #484 fixes, review cycle 2 — what phase 9 opened | `plan/phase-10-pr-fixes-cycle-2.md` | [x]    |
 | 11  | The navigation path — § 16 rules 1–3, D1b (operator, 2026-08-24) | `plan/phase-11-navigation-path.md` | [x]    |
 | 12  | PR #484 fixes, review cycle 3 — the layer walks | `plan/phase-12-pr-fixes-cycle-3.md` | [x]    |
-| 13  | PR #484 fixes, review cycle 4 — the stale floor flag | `plan/phase-13-pr-fixes-cycle-4.md` | [ ]    |
+| 13  | PR #484 fixes, review cycle 4 — the stale floor flag | `plan/phase-13-pr-fixes-cycle-4.md` | [x]    |
 
 **What L05 is, in one line**: the eight pages leave `?page=` for a real path, the address model
 leaves the engine for `lib/addresses.ts` — the first subtraction of D5 — and the harness host
