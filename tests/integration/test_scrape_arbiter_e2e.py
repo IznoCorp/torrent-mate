@@ -339,9 +339,12 @@ class TestScrapeArbiterE2E:
         # recognise it and never re-un-identify the item. Regression (operator loop): it
         # used to be written as "Fight Club (1999).nfo", which enforce deletes as an
         # "extra NFO" and verify never finds (it looks for "Fight Club.nfo").
-        nfo_path = staging / "Fight Club.nfo"
+        # The TMDB-backed resolve renames the folder to the hinted canonical
+        # ("Fight Club (1999) {tmdb-550}") — the Plex match-hint.
+        canonical_dir = staging.parent / "Fight Club (1999) {tmdb-550}"
+        nfo_path = canonical_dir / "Fight Club.nfo"
         assert nfo_path.exists(), f"NFO file not found at {nfo_path}"
-        assert not (staging / "Fight Club (1999).nfo").exists()
+        assert not (canonical_dir / "Fight Club (1999).nfo").exists()
 
         # Decision row must be resolved.
         row = _select_decision(test_config.indexer.db_path, decision_id)
