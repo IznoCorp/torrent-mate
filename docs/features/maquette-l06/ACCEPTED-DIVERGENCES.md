@@ -88,3 +88,28 @@ calc(var(--spacing-N) * -1)), and `.hero`'s −62px is exempted, untouched.
 
 Stop-shapes: no width or x anywhere; the single height growth decomposes into
 the six +1 px folds the profile screen contains.
+
+## Phase 3 — Type folds
+
+### 3.1 — The half-pixel collapse (text 149 → 88)
+
+556 divergences: 6 style signatures (the three measured regions whose own
+font-size was fractional — toast 12.5→12, count-line and library-count
+11.5→11 — each with its 1.35-ratio line-height following), and 82 rect
+signatures. The review's two forbidden shapes are absent by arithmetic:
+
+- **No new wrap**: not one region grew. The two growing folds (8.5→10 on
+  `.dlabel`, 9.5→10 on `.tilebadge`/`.st .l`) were absorbed by their
+  containers — a wrap would read as +13 px or more somewhere, and the largest
+  positive delta in the whole run is zero.
+- **No line-count change hiding in the negatives**: every multi-line delta
+  decomposes as (lines × −0.675 px), the line-height shrink of a 0.5 px fold
+  at ratio 1.35 — arrivals −29.3 ≈ 43 lines, acquisition −17.1 ≈ 25 lines,
+  the −39.1 outlier ≈ 58 lines on the longest deck state. A de-wrap would
+  leave a −16.2 residue the decomposition doesn't show.
+- **The one width move**: shell/library-count −4.9 px — `#libcount` is an
+  intrinsic-width inline span; its box follows its glyphs at 11 px. Not a
+  layout region and not a full-width surface.
+- The button family (`.sact`/`.dlgbtn`/`.btnprimary`, −0.5 px) moved its
+  controls by at most −2 px (dialog rows), never more than the size change
+  times its line count — line-heights are set by the ratio, not inherited.
