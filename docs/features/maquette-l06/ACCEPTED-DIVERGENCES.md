@@ -139,3 +139,11 @@ move no rect at all.
 | 1 | shell/save-bar y +1, height −1 | `.savebar button` 13.5 → `--text-4` (13), the other hidden half-pixel |
 
 No width, no x, no wrap.
+
+### 3.2b — The rule's first catch (a 12.5px inline style in media-screen.tsx)
+
+6 divergences, all screen-media/body, all height-only (−2.3 to −4.7 px),
+width fixed at 390: the synopsis paragraph's inline `fontSize: "12.5px"` —
+invisible to the static arm, caught by the browser rule R83 on its first run —
+folds to `var(--text-3)` (12 px), and the paragraph's 3-6 line boxes each lose
+0.675 px. Nothing wrapped, no control height moved.
