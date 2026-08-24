@@ -141,6 +141,11 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y aspell aspell-en aspell-fr
       - run: python scripts/check-no-french.py
       - run: python3 scripts/check-css-tokens.py
+      # Load-bearing CSS: the declarations the compositor reads. It runs beside the
+      # token guard because it answers the same question from the other side — the
+      # token guard asks whether a value is on the scale, this one asks whether a
+      # declaration is still there at all.
+      - run: python3 scripts/check-compositor-css.py
       - run: python3 scripts/check-markup-contracts.py
       - run: python3 scripts/check-frontend-boundaries.py
       - run: python3 frontend/maquette/oracle.py --contracts

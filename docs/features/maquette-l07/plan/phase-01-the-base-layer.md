@@ -10,29 +10,43 @@ a rule, **before a single surface converts** ».
    and BLOCK 2 in this phase only. It carries, each rule with the reason it is there:
    - the `@font-face` for Geist, the `login:socle` reset, the `a`/`button` resets,
      `:focus-visible`, `.visually-hidden`, `.skip-link` (D-L07-1's six app regions of BLOCK 1);
-   - the **17 compositor-facing declarations**, listed below;
+   - the **18 compositor-facing declarations**, listed below;
    - the five `@keyframes`, and the four `:has()` selectors Tailwind cannot express.
 2. **`scripts/check-compositor-css.py`** — the rule that refuses their removal.
 3. **`harness/common.py`'s `DESIGN_SOURCES`** gains the component tree and the new stylesheets.
 
-## The 17 declarations, and where they are today
+## The 18 declarations, and where they are today
 
-| property | sites | today |
-| --- | --- | --- |
-| `touch-action` | 6 | `pan-x pan-y` ×2, `pan-y` ×3, `none` ×1 |
-| `user-select` / `-webkit-user-select` | 4 | on the pressable surfaces |
-| `user-drag` / `-webkit-user-drag` | 3 | the block whose accidental deletion swallowed the pointer stream |
-| `overscroll-behavior-y` | 2 | one of them in BLOCK 1's `login:socle` |
-| `-webkit-touch-callout` | 2 | refusing the browser's own long press where ours lives |
-| `will-change` | 1 | `transform` |
+| line | property | value | selector |
+| --- | --- | --- | --- |
+| 33 | `overscroll-behavior-y` | `none` | `html, body` (BLOCK 1) |
+| 538 | `overscroll-behavior-y` | `none` | `.port` |
+| 679 | `touch-action` | `pan-x pan-y` | `.pillscroll` |
+| 838–839 | `user-select` / `-webkit-user-select` | `none` | `.deck` |
+| 849–850 | `-webkit-user-drag` / `user-drag` | `none` | `.tile img` |
+| 863 | `touch-action` | `pan-y` | `.swipe` |
+| 1421 | `touch-action` | `pan-y` | `.sugwrap` |
+| 1459 | `touch-action` | `pan-y` | `.deck` |
+| 1480 | `will-change` | `transform` | `.dcard` |
+| 1866–1868 | `-webkit-touch-callout`, `user-select` ×2 | `none` | the pressable-surfaces group |
+| 1874–1875 | `-webkit-user-drag`, `-webkit-touch-callout` | `none` | the same group's images |
+| 2364 | `touch-action` | `none` | `.sheetgrab` |
+| 2636 | `touch-action` | `pan-x pan-y` | `.cast` |
 
-<sub>`grep -nE '(^\|[;{[:space:]])(-webkit-)?(touch-action\|user-drag\|user-select\|overscroll-behavior[a-z-]*\|touch-callout\|will-change)\s*:' frontend/maquette/design/refonte.html` → 17 lines.</sub>
+Six properties, 18 sites. **The figure was written 17 in this plan's first draft** — the
+per-property counts were right and their sum was not. It is corrected here rather than quietly,
+because a plan is read as a specification and the whole point of a figure carrying its command is
+that someone re-runs it.
 
-**They do not all move.** A declaration whose selector belongs to a surface stays with that
-surface's rule until that surface converts — what phase 1 guarantees is that the *set* is known and
-that nothing may leave it unnoticed. `check-compositor-css.py` reads the whole design source (the
-stylesheets AND the component tree, so a `touch-action` written as a utility still counts) and
-compares against a committed inventory of 17 entries, each keyed by property and selector.
+**They do not all move in this phase.** A declaration whose selector belongs to a surface stays
+with that surface's rule until that surface converts — what phase 1 guarantees is that the SET is
+known and that nothing may leave it unnoticed. Only line 33's is BLOCK 1's, and it moves with the
+`login:socle` reset.
+
+**The two entries at 849–850 and 1874 are the incident.** Deleting one selector from that group
+took `user-drag: none` with it; native image drag came back, swallowed the pointer stream — one
+down, two moves, never an up — and three gesture tests failed for a reason that looked nothing
+like a CSS deletion.
 
 ## Why the rule reads more than one file
 

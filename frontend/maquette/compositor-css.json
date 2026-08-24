@@ -1,0 +1,50 @@
+{
+  "what": "The declarations the COMPOSITOR reads, and which are therefore load-bearing rather than cosmetic. `scripts/check-compositor-css.py` holds them. This is a RECORD, not a ratchet: the floors only come down through a diff line somebody justifies in review, and every required entry carries the reason it exists.",
+  "why": "Deleting one selector from a group once took the whole `user-drag: none` block with it. Native image drag came back and swallowed the pointer stream — one pointerdown, two pointermove, never a pointerup — and three gesture holds failed for a reason that looked nothing like a CSS deletion. L07 converts 530 hand-written rules into utilities, which is precisely the operation that does this again.",
+  "taken_at": "2026-08-24, at the opening of L07, against refonte.html before a single surface converted",
+  "floors": {
+    "touch-action": 6,
+    "user-select": 4,
+    "user-drag": 3,
+    "overscroll-behavior": 2,
+    "touch-callout": 2,
+    "will-change": 1
+  },
+  "required": [
+    {
+      "property": "user-drag",
+      "value": "none",
+      "why": "THE INCIDENT. A picture inside a draggable surface starts a native drag that swallows the pointer stream outright, so every gesture built on pointer events stops arriving. Declared on `.tile img` and on the pressable group's images."
+    },
+    {
+      "property": "user-select",
+      "value": "none",
+      "why": "A mouse drag would otherwise select the text it passes over, which turns a swipe into a text selection. Declared on the pressable surfaces only, NEVER on the scrollport: it must stay possible to select the text of a synopsis or a release name."
+    },
+    {
+      "property": "touch-callout",
+      "value": "none",
+      "why": "The browser's own long press REPLACES ours rather than competing with it — no listener outruns the platform's menu. Without this the operator got « Copier l'image » where the panel should have opened."
+    },
+    {
+      "property": "overscroll-behavior",
+      "value": "none",
+      "why": "Stops the scroll chaining out of the scrollport into the page, which on a phone reads as the whole app rubber-banding under the finger."
+    },
+    {
+      "property": "touch-action",
+      "value": "pan-y",
+      "why": "Reserves the horizontal axis for the swipe while leaving vertical scrolling to the compositor — the arbitration between a swipe and a scroll, made declaratively so the compositor honours it without a main-thread round trip."
+    },
+    {
+      "property": "touch-action",
+      "value": "none",
+      "why": "The sheet's grab handle takes both axes: a drag on it is never a scroll."
+    },
+    {
+      "property": "will-change",
+      "value": "transform",
+      "why": "Promotes the moving deck card to its own layer, so the drag follows the finger on the compositor rather than at the mercy of the main thread."
+    }
+  ]
+}

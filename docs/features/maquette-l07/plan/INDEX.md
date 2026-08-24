@@ -46,7 +46,7 @@ may close on a divergence it has not read.
 **Compositor CSS is load-bearing.** Deleting one selector from a group once took `user-drag: none`
 with it; native image drag came back and swallowed the pointer stream — one down, two moves, never
 an up — and three gesture tests failed for a reason that looked nothing like a CSS deletion. The
-17 declarations are in the base layer and refused by a rule **before phase 5**, which is why
+18 declarations are in the base layer and refused by a rule **before phase 5**, which is why
 phase 1 exists at all.
 
 ---
@@ -103,7 +103,7 @@ Every criterion is a command with a documented expected output. A prose criterio
 
 | id | command | expected |
 | --- | --- | --- |
-| ACC-12 | `python3 scripts/check-compositor-css.py` | exit 0; the 17 declarations present. **Mutation**: delete one, the check exits 1 and names the property and its selector |
+| ACC-12 | `python3 scripts/check-compositor-css.py` | exit 0; the 18 declarations present. **Mutation**: delete one, the check exits 1 and names the property and its selector |
 | ACC-13 | `python3 scripts/check-css-tokens.py --arm motion-classes` | exit 0. **Mutation**: write `duration-137` in a component, the arm exits 1 and names the file and the value |
 | ACC-14 | `test ! -f frontend/maquette/design/refonte.html` | true at the close of phase 16 |
 | ACC-15 | `ls frontend/maquette/design/src/styles/` | exactly `theme.css`, `base.css`, `legacy.css` — no fourth stylesheet |
