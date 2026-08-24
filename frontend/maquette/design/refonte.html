@@ -2338,24 +2338,24 @@
   }
   .sheetin {
     overflow-y: auto;
-    padding: 2px 14px calc(var(--tm-bottom-bar-h, 0px) + 18px);
+    padding: var(--spacing-1) var(--spacing-7) calc(var(--tm-bottom-bar-h, 0px) + var(--spacing-8));
   }
   .sheettitle {
     font-size: 16px;
     font-weight: 700;
     letter-spacing: -0.01em;
-    margin: 0 0 2px;
+    margin: 0 0 var(--spacing-1);
   }
   .sheetmeta {
     font-size: 12px;
     color: var(--muted-foreground);
-    margin-bottom: 14px;
+    margin-bottom: var(--spacing-7);
   }
   .sheethead {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding-bottom: 4px;
+    gap: var(--spacing-6);
+    padding-bottom: var(--spacing-2);
   }
 
   /* A head carrying a POSTER aligns to the top: an 84px picture next to two
@@ -2365,7 +2365,7 @@
   .sheethead.withposter {
     align-items: flex-start;
     padding-bottom: 0;
-    margin-bottom: 12px;
+    margin-bottom: var(--spacing-6);
   }
 
   .sheetid {
@@ -2374,12 +2374,12 @@
   }
 
   .sheethead .sheetmeta {
-    margin-bottom: 6px;
+    margin-bottom: var(--spacing-3);
   }
 
   .sheethead .sheetsub {
     display: block;
-    margin-top: 2px;
+    margin-top: var(--spacing-1);
     font-size: 12px;
     color: var(--muted-foreground);
   }
@@ -2406,25 +2406,25 @@
   .sheetacts {
     display: flex;
     flex-direction: column;
-    gap: 7px;
-    margin: 4px 0 14px;
+    gap: var(--spacing-3);
+    margin: var(--spacing-2) 0 var(--spacing-7);
   }
   .sheetacts.secondary {
-    margin-top: 18px;
-    padding-top: 14px;
+    margin-top: var(--spacing-8);
+    padding-top: var(--spacing-7);
     border-top: 1px solid var(--border);
   }
   .sact {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--spacing-5);
     width: 100%;
     border: 1px solid var(--border);
     background: transparent;
     color: var(--foreground);
     font-size: 13.5px;
     font-weight: 500;
-    padding: 11px 12px;
+    padding: var(--spacing-5) var(--spacing-6);
     border-radius: 8px;
     text-align: left;
   }
@@ -3392,7 +3392,7 @@
     background: var(--popover);
     border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 16px;
+    padding: var(--spacing-7);
     box-shadow: var(--mq-shadow-dlg);
     transform: translateY(-50%) scale(0.96);
     opacity: 0;
@@ -3407,12 +3407,12 @@
     transform: translateY(-50%) scale(1);
   }
   .dlg h2 {
-    margin: 0 0 8px;
+    margin: 0 0 var(--spacing-4);
     font-size: 15px;
     font-weight: 700;
   }
   .dlg p {
-    margin: 0 0 10px;
+    margin: 0 0 var(--spacing-5);
     font-size: 12.5px;
     line-height: 1.45;
     color: var(--muted-foreground);
@@ -3420,14 +3420,14 @@
   .dryrun {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: var(--spacing-3);
     font-size: 11.5px;
     font-weight: 600;
     color: var(--info);
     border: 1px solid color-mix(in oklab, var(--info) 40%, transparent);
     border-radius: 7px;
-    padding: 8px 10px;
-    margin-bottom: 11px;
+    padding: var(--spacing-4) var(--spacing-5);
+    margin-bottom: var(--spacing-5);
   }
   .dryrun svg {
     width: 14px;
@@ -3436,14 +3436,14 @@
   }
   .manifest {
     list-style: none;
-    margin: 0 0 11px;
+    margin: 0 0 var(--spacing-5);
     padding: 0;
     font-size: 12px;
   }
   .manifest li {
     display: flex;
-    gap: 8px;
-    padding: 5px 0;
+    gap: var(--spacing-4);
+    padding: var(--spacing-2) 0;
     border-bottom: 1px solid var(--border);
     color: var(--muted-foreground);
   }
@@ -3460,10 +3460,10 @@
     border: 1px solid color-mix(in oklab, var(--warning) 45%, transparent);
     background: color-mix(in oklab, var(--warning) 8%, transparent);
     border-radius: 7px;
-    padding: 9px 10px;
+    padding: var(--spacing-4) var(--spacing-5);
     font-size: 12px;
     line-height: 1.45;
-    margin-bottom: 11px;
+    margin-bottom: var(--spacing-5);
   }
   .warnbox b {
     color: var(--warning);
@@ -3471,7 +3471,7 @@
   .dlgacts {
     display: flex;
     flex-direction: column;
-    gap: 7px;
+    gap: var(--spacing-3);
   }
   .dlgbtn {
     width: 100%;
@@ -3480,7 +3480,7 @@
     color: var(--foreground);
     font-size: 13.5px;
     font-weight: 600;
-    padding: 10px;
+    padding: var(--spacing-5);
     border-radius: 8px;
   }
   .dlgbtn.danger {
@@ -3876,8 +3876,8 @@
   .drawer .dh {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: calc(env(safe-area-inset-top) + 14px) 14px 14px;
+    gap: var(--spacing-4);
+    padding: calc(env(safe-area-inset-top) + var(--spacing-7)) var(--spacing-7) var(--spacing-7);
     border-bottom: 1px solid var(--border);
     font-size: 14px;
     font-weight: 600;
@@ -3889,11 +3889,11 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 8px;
+    gap: var(--spacing-2);
+    padding: var(--spacing-4);
   }
   .drawer .sect {
-    padding: 10px 12px 4px;
+    padding: var(--spacing-5) var(--spacing-6) var(--spacing-2);
     font-size: 10.5px;
     font-weight: 500;
     text-transform: uppercase;
@@ -3903,15 +3903,15 @@
   .drawer .sect + .sect,
   .drawer .grp + .grp {
     border-top: 1px solid var(--border);
-    margin-top: 6px;
-    padding-top: 10px;
+    margin-top: var(--spacing-3);
+    padding-top: var(--spacing-5);
   }
   .drawer a {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--spacing-6);
     min-height: 44px;
-    padding: 8px 12px;
+    padding: var(--spacing-4) var(--spacing-6);
     border-radius: 8px;
     font-size: 13.5px;
     color: var(--foreground);
@@ -3950,7 +3950,7 @@
   }
   .drawer .ver {
     border-top: 1px solid var(--border);
-    padding: 12px 14px calc(env(safe-area-inset-bottom) + 12px);
+    padding: var(--spacing-6) var(--spacing-7) calc(env(safe-area-inset-bottom) + var(--spacing-6));
   }
   .drawer .ver .vt {
     font-size: 11px;
@@ -3962,13 +3962,13 @@
   .drawer .ver .vv {
     font-size: 18px;
     font-weight: 700;
-    margin-top: 3px;
+    margin-top: var(--spacing-1);
   }
   .drawer .ver .vc {
     font-family: ui-monospace, Menlo, monospace;
     font-size: 11px;
     color: var(--muted-foreground);
-    margin-top: 2px;
+    margin-top: var(--spacing-1);
   }
 
   /* Design notes overlay */

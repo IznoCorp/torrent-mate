@@ -1,5 +1,5 @@
 {
-  "commit": "9491f0f308ff7aadf30d12f7b416ef088b0852ec",
+  "commit": "f9cf0bb0152c1236d5b625deaf48365acbe5f38d",
   "exemptions": {
     ".dcard .cap": "reserved footprint: the caption clears the floating add button; a measured clearance, not a space step"
   },
@@ -556,79 +556,9 @@
         "4px 2px"
       ],
       [
-        ".sheetin",
-        "padding",
-        "2px 14px calc(var(--tm-bottom-bar-h, 0px) + 18px)"
-      ],
-      [
-        ".sheettitle",
-        "margin",
-        "0 0 2px"
-      ],
-      [
-        ".sheetmeta",
-        "margin-bottom",
-        "14px"
-      ],
-      [
-        ".sheethead",
-        "gap",
-        "12px"
-      ],
-      [
-        ".sheethead",
-        "padding-bottom",
-        "4px"
-      ],
-      [
-        ".sheethead.withposter",
-        "margin-bottom",
-        "12px"
-      ],
-      [
-        ".sheethead .sheetmeta",
-        "margin-bottom",
-        "6px"
-      ],
-      [
-        ".sheethead .sheetsub",
-        "margin-top",
-        "2px"
-      ],
-      [
         ".soon",
         "padding",
         "2px 7px"
-      ],
-      [
-        ".sheetacts",
-        "gap",
-        "7px"
-      ],
-      [
-        ".sheetacts",
-        "margin",
-        "4px 0 14px"
-      ],
-      [
-        ".sheetacts.secondary",
-        "margin-top",
-        "18px"
-      ],
-      [
-        ".sheetacts.secondary",
-        "padding-top",
-        "14px"
-      ],
-      [
-        ".sact",
-        "gap",
-        "10px"
-      ],
-      [
-        ".sact",
-        "padding",
-        "11px 12px"
       ],
       [
         ".noinfo",
@@ -961,71 +891,6 @@
         "0 0 6px"
       ],
       [
-        ".dlg",
-        "padding",
-        "16px"
-      ],
-      [
-        ".dlg h2",
-        "margin",
-        "0 0 8px"
-      ],
-      [
-        ".dlg p",
-        "margin",
-        "0 0 10px"
-      ],
-      [
-        ".dryrun",
-        "gap",
-        "7px"
-      ],
-      [
-        ".dryrun",
-        "padding",
-        "8px 10px"
-      ],
-      [
-        ".dryrun",
-        "margin-bottom",
-        "11px"
-      ],
-      [
-        ".manifest",
-        "margin",
-        "0 0 11px"
-      ],
-      [
-        ".manifest li",
-        "gap",
-        "8px"
-      ],
-      [
-        ".manifest li",
-        "padding",
-        "5px 0"
-      ],
-      [
-        ".warnbox",
-        "padding",
-        "9px 10px"
-      ],
-      [
-        ".warnbox",
-        "margin-bottom",
-        "11px"
-      ],
-      [
-        ".dlgacts",
-        "gap",
-        "7px"
-      ],
-      [
-        ".dlgbtn",
-        "padding",
-        "10px"
-      ],
-      [
         ".empty",
         "padding",
         "18px 14px"
@@ -1149,66 +1014,6 @@
         ".hpanel .states button",
         "gap",
         "10px"
-      ],
-      [
-        ".drawer .dh",
-        "gap",
-        "8px"
-      ],
-      [
-        ".drawer .dh",
-        "padding",
-        "calc(env(safe-area-inset-top) + 14px) 14px 14px"
-      ],
-      [
-        ".drawer nav",
-        "gap",
-        "4px"
-      ],
-      [
-        ".drawer nav",
-        "padding",
-        "8px"
-      ],
-      [
-        ".drawer .sect",
-        "padding",
-        "10px 12px 4px"
-      ],
-      [
-        ".drawer .sect + .sect, .drawer .grp + .grp",
-        "margin-top",
-        "6px"
-      ],
-      [
-        ".drawer .sect + .sect, .drawer .grp + .grp",
-        "padding-top",
-        "10px"
-      ],
-      [
-        ".drawer a",
-        "gap",
-        "12px"
-      ],
-      [
-        ".drawer a",
-        "padding",
-        "8px 12px"
-      ],
-      [
-        ".drawer .ver",
-        "padding",
-        "12px 14px calc(env(safe-area-inset-bottom) + 12px)"
-      ],
-      [
-        ".drawer .ver .vv",
-        "margin-top",
-        "3px"
-      ],
-      [
-        ".drawer .ver .vc",
-        "margin-top",
-        "2px"
       ],
       [
         ".note",
