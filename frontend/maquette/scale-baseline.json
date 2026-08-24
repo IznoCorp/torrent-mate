@@ -1,5 +1,5 @@
 {
-  "commit": "f9cf0bb0152c1236d5b625deaf48365acbe5f38d",
+  "commit": "5997881ef81621fbad318c23e1312a8f34847df1",
   "exemptions": {
     ".dcard .cap": "reserved footprint: the caption clears the floating add button; a measured clearance, not a space step"
   },
@@ -84,21 +84,6 @@
         ".filters",
         "padding",
         "0 14px 8px"
-      ],
-      [
-        ".search",
-        "gap",
-        "8px"
-      ],
-      [
-        ".search",
-        "padding",
-        "0 10px"
-      ],
-      [
-        ".search input",
-        "padding",
-        "9px 0"
       ],
       [
         ".search .searchclear",
@@ -1026,119 +1011,9 @@
         "1px 4px"
       ],
       [
-        ".installbar",
-        "padding",
-        "0 14px"
-      ],
-      [
-        ".installcard",
-        "gap",
-        "12px"
-      ],
-      [
-        ".installcard",
-        "padding",
-        "14px"
-      ],
-      [
-        ".installtext",
-        "gap",
-        "4px"
-      ],
-      [
-        ".installsteps",
-        "margin",
-        "2px 0 0"
-      ],
-      [
-        ".installsteps",
-        "padding-left",
-        "18px"
-      ],
-      [
-        ".installsteps",
-        "gap",
-        "3px"
-      ],
-      [
-        ".installkey",
-        "gap",
-        "3px"
-      ],
-      [
-        ".installgo",
-        "margin-top",
-        "8px"
-      ],
-      [
-        ".installgo",
-        "gap",
-        "6px"
-      ],
-      [
-        ".installgo",
-        "padding",
-        "8px 12px"
-      ],
-      [
-        ".loginscreen",
-        "gap",
-        "22px"
-      ],
-      [
-        ".loginscreen",
-        "padding",
-        "24px 20px"
-      ],
-      [
-        ".brandbig",
-        "gap",
-        "10px"
-      ],
-      [
-        ".logincard",
-        "gap",
-        "12px"
-      ],
-      [
-        ".logincard",
-        "padding",
-        "20px 18px"
-      ],
-      [
         ".loginsub",
         "margin",
         "-6px 0 4px"
-      ],
-      [
-        ".loginfield",
-        "gap",
-        "5px"
-      ],
-      [
-        ".loginfield input",
-        "padding",
-        "9px 10px"
-      ],
-      [
-        ".loginsubmit",
-        "margin-top",
-        "4px"
-      ],
-      [
-        ".loginsubmit",
-        "padding",
-        "11px 14px"
-      ],
-      [
-        ".splash",
-        "gap",
-        "18px"
-      ],
-      [
-        ".splash",
-        "padding",
-        "24px 20px"
       ]
     ],
     "text": [

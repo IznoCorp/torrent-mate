@@ -584,10 +584,10 @@
   .search {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--spacing-4);
     background: var(--muted);
     border-radius: 8px;
-    padding: 0 10px;
+    padding: 0 var(--spacing-5);
   }
   .search svg {
     width: 15px;
@@ -603,7 +603,7 @@
     color: var(--foreground);
     font: inherit;
     font-size: 13px;
-    padding: 9px 0;
+    padding: var(--spacing-4) 0;
     outline: none;
   }
   .search input::placeholder {
@@ -4007,7 +4007,7 @@
     z-index: 55;
     display: flex;
     justify-content: center;
-    padding: 0 14px;
+    padding: 0 var(--spacing-7);
   }
 
   .installbar[hidden] {
@@ -4019,8 +4019,8 @@
     max-width: 420px;
     display: flex;
     align-items: flex-start;
-    gap: 12px;
-    padding: 14px;
+    gap: var(--spacing-6);
+    padding: var(--spacing-7);
     border: 1px solid var(--border);
     border-radius: 12px;
     background: var(--card);
@@ -4032,7 +4032,7 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
   }
 
   .installtitle {
@@ -4057,11 +4057,11 @@
   /* iOS fires no install event at all, so the banner IS the guide: it walks
      the steps rather than offering a button that cannot exist. */
   .installsteps {
-    margin: 2px 0 0;
-    padding-left: 18px;
+    margin: var(--spacing-1) 0 0;
+    padding-left: var(--spacing-8);
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: var(--spacing-1);
     font-size: 11.5px;
     line-height: 1.4;
     color: var(--muted-foreground);
@@ -4070,7 +4070,7 @@
   .installkey {
     display: inline-flex;
     align-items: center;
-    gap: 3px;
+    gap: var(--spacing-1);
     font-weight: 600;
     color: var(--foreground);
   }
@@ -4083,11 +4083,11 @@
 
   .installgo {
     align-self: flex-start;
-    margin-top: 8px;
+    margin-top: var(--spacing-4);
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4) var(--spacing-6);
     border: 0;
     border-radius: 8px;
     font:
@@ -4136,8 +4136,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 22px;
-    padding: 24px 20px;
+    gap: var(--spacing-8);
+    padding: var(--spacing-9) var(--spacing-8);
     overflow-y: auto;
     background: var(--background);
   }
@@ -4154,7 +4154,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 10px;
+    gap: var(--spacing-5);
     color: var(--foreground);
   }
 
@@ -4180,8 +4180,8 @@
     max-width: 340px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 20px 18px;
+    gap: var(--spacing-6);
+    padding: var(--spacing-8) var(--spacing-8);
     border: 1px solid var(--border);
     border-radius: 12px;
     background: var(--card);
@@ -4204,7 +4204,7 @@
   .loginfield {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: var(--spacing-2);
     font-size: 12px;
     color: var(--muted-foreground);
   }
@@ -4220,7 +4220,7 @@
     background: var(--background);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 9px 10px;
+    padding: var(--spacing-4) var(--spacing-5);
   }
 
   .loginfield input:focus-visible {
@@ -4239,8 +4239,8 @@
   }
 
   .loginsubmit {
-    margin-top: 4px;
-    padding: 11px 14px;
+    margin-top: var(--spacing-2);
+    padding: var(--spacing-5) var(--spacing-7);
     border: 0;
     border-radius: 8px;
     font:
@@ -4273,8 +4273,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 18px;
-    padding: 24px 20px;
+    gap: var(--spacing-8);
+    padding: var(--spacing-9) var(--spacing-8);
     background: var(--background);
   }
 
