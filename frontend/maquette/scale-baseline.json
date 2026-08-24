@@ -1,5 +1,5 @@
 {
-  "commit": "f7ddd0dd5d7a9ce63e0d303e634ef122d40beb9b",
+  "commit": "a4ab53fbb5618d88caa3ac399c441a85f8ba4c60",
   "exemptions": {
     ".dcard .cap": "reserved footprint: the caption clears the floating add button; a measured clearance, not a space step",
     ".hero": "hero overlap: the title is pulled up over the poster's melt — a composition measurement, not a space step (the rule's own comment says so)"

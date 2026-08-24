@@ -29,6 +29,14 @@ outside the scale today, the arm refuses that count going UP, and the folding
 phases lower it. The baseline is deleted when the last fold lands, and the arm
 then refuses the first off-scale declaration outright.
 
+The motion family is held in TWO dimensions, because a curve is not a number
+and a length pattern can never see one: the duration reads a step of the ramp,
+AND the easing is one of the two the scale names. A keyword easing, a
+`cubic-bezier(…)` written out beside the named one, and a transition that names
+a duration and NO easing — which renders the browser's initial `ease`, a curve
+nobody chose — are each refused, and a declaration wrong in both dimensions is
+named in one message.
+
 THE LOGIN ARM. `--arm login` holds the composition of the standalone sign-in
 page, which `serve.py` builds by text search over `login:*` marked chunks rather
 than by block. A chunk that uses a token no OTHER extracted chunk declares
@@ -163,6 +171,50 @@ LENGTH_LITERAL = re.compile(r"(?<![\w.])-?\d*\.?\d+px(?![\w-])")
 # numbers inside a bezier carry no unit and are a curve's shape, not a step.
 TIME_LITERAL = re.compile(r"(?<![\w.])-?\d*\.?\d+m?s(?![\w-])")
 
+# ── The motion family's second dimension: the curve ──────────────────────────
+# A duration is a number and the ratchet above counts it. A CURVE is not: the
+# scale holds two of them by name, and nothing below is a literal a length
+# pattern could ever see. Left unheld, the family reports zero while a keyword
+# easing, a copied bezier, or no easing at all sits in the sheet — which is
+# exactly the state eight rules were found in, each rendering the browser's
+# initial `ease` because nobody had written one.
+
+# The two shorthands that let an easing be OMITTED. Their longhand siblings
+# (`transition-duration`, `animation-delay`, `animation-name`) carry no timing
+# function at all, so a missing curve there is the grammar, not an oversight.
+TIMING_SHORTHAND = {"transition", "animation"}
+
+# A duration term, however it is written. Its presence is what makes a segment
+# a motion segment at all: `transition: none` and `animation: fadein` name no
+# time and have no curve to answer for.
+DURATION_TERM = re.compile(
+    r"var\(\s*--duration-[\w-]+\s*[,)]|(?<![\w.])-?\d*\.?\d+m?s(?![\w-])")
+
+# A curve read from the scale — the one shape that is ON it.
+SCALE_EASING = re.compile(r"var\(\s*--ease-[\w-]+\s*[,)]")
+
+# `linear`, and it is the ONE keyword the motion scale keeps. It is the loops'
+# timing function: a spinner that eases stutters. It is exempt by name here for
+# that reason and no other.
+LINEAR_EASING = re.compile(r"(?<![\w-])linear(?![\w-])")
+
+# The easing keywords CSS ships. Each is refused by name: they are four curves
+# nobody chose, sitting beside two the scale declares.
+KEYWORD_EASING = re.compile(r"(?<![\w-])(ease-in-out|ease-in|ease-out|ease)(?![\w-])")
+
+# A curve written out rather than named. The two curves have names since the
+# scale block landed, so a literal is a copy that stays behind the day the
+# named one moves.
+LITERAL_CURVE = re.compile(r"(?<![\w-])cubic-bezier\s*\([^)]*\)")
+
+# A discrete timing function. There is not one in the stylesheet today, and
+# that is precisely why it is REFUSED rather than exempted: an exemption for a
+# shape with zero occurrences tolerates nothing and reads as foresight. The
+# first `steps()` in this interface should be a decision someone signs, not a
+# shape that matched a list written before there was anything to match.
+DISCRETE_TIMING = re.compile(
+    r"(?<![\w-])(steps\s*\([^)]*\)|step-start(?![\w-])|step-end(?![\w-]))")
+
 # The `<font-size>` term of a `font` shorthand, with the `/ <line-height>` the
 # grammar lets ride behind it. The terms that may precede it — style, variant,
 # weight, stretch — are keywords or a bare number (`600`), so a value carrying a
@@ -293,6 +345,100 @@ def raw_literals(value: str, family: str) -> list[str]:
         if float(number) != 0:
             found.append(literal)
     return found
+
+
+def comma_segments(value: str) -> list[str]:
+    """Splits a value on its TOP-LEVEL commas.
+
+    `cubic-bezier(0.22, 0.61, 0.36, 1)` holds three commas of its own, so a
+    plain `split(",")` would tear one transition into four and report a curve
+    that has no duration beside it.
+
+    Args:
+        value: A declaration's value text.
+
+    Returns:
+        The comma-separated terms, each as written.
+    """
+    segments: list[str] = []
+    current: list[str] = []
+    depth = 0
+    for character in value:
+        if character == "(":
+            depth += 1
+        elif character == ")":
+            depth -= 1
+        if character == "," and depth == 0:
+            segments.append("".join(current))
+            current = []
+            continue
+        current.append(character)
+    segments.append("".join(current))
+    return segments
+
+
+def off_curve(prop: str, value: str) -> list[str]:
+    """Lists the ways a motion declaration's EASING sits outside the scale.
+
+    Args:
+        prop: The property name, lowercased by the caller.
+        value: The declaration's value text, whitespace already collapsed.
+
+    Returns:
+        One phrase per finding, in the order they appear, ready to be joined
+        into the same message the duration findings are named in. Empty when
+        every term reads a named curve or `linear`.
+    """
+    findings: list[str] = []
+    for segment in comma_segments(value):
+        if not DURATION_TERM.search(segment):
+            # No time named, so no curve is owed: `transition: none`, and the
+            # `animation` shorthands that name only a keyframes rule.
+            continue
+        for found in KEYWORD_EASING.finditer(segment):
+            findings.append(f"`{found.group(1)}` is not one of the two named curves")
+        for found in LITERAL_CURVE.finditer(segment):
+            findings.append(f"`{found.group(0)}` is a curve written out rather than "
+                            "named, and a copy nobody updates")
+        for found in DISCRETE_TIMING.finditer(segment):
+            findings.append(f"`{found.group(0)}` is a discrete timing function, and "
+                            "the motion scale holds none")
+        if (prop in TIMING_SHORTHAND
+                and not SCALE_EASING.search(segment)
+                and not LINEAR_EASING.search(segment)
+                and not KEYWORD_EASING.search(segment)
+                and not LITERAL_CURVE.search(segment)
+                and not DISCRETE_TIMING.search(segment)):
+            findings.append(f"`{' '.join(segment.split())}` names a duration and no "
+                            "easing at all, so it renders the browser's initial "
+                            "`ease` — a curve nobody chose")
+    # Two segments can be wrong the same way; naming it twice adds a line and
+    # no information.
+    return list(dict.fromkeys(findings))
+
+
+def off_scale_findings(prop: str, value: str, family: str) -> list[str]:
+    """Names everything a declaration spends outside its family's scale.
+
+    Args:
+        prop: The property name as written, in any case.
+        value: The declaration's value text, whitespace already collapsed.
+        family: The scale family the declaration belongs to.
+
+    Returns:
+        The phrases for this declaration — the raw constants first, then the
+        curve findings the motion family alone can have. Empty when the
+        declaration reads the scale.
+    """
+    findings: list[str] = []
+    literals = raw_literals(measurable_value(prop, value), family)
+    if literals:
+        quoted = ", ".join(f"`{literal}`" for literal in literals)
+        verb = "is" if len(literals) == 1 else "are"
+        findings.append(f"{quoted} {verb} on no step of the {family} scale")
+    if family == "motion":
+        findings.extend(off_curve(prop.strip().lower(), value))
+    return findings
 
 
 def font_shorthand_size(value: str) -> str:
@@ -522,7 +668,7 @@ def scale_measurement(
             if family is None:
                 continue
             text = " ".join(value.split())
-            if raw_literals(measurable_value(prop, text), family):
+            if off_scale_findings(prop, text, family):
                 inventory[family].append((selector, prop.strip().lower(), text))
 
     duplicated = sorted({name for name in DECLARATION.findall(outside) if SCALE_TOKEN.match(name)})
@@ -564,11 +710,11 @@ def scale_arm() -> int:
             if current[triple] <= known[triple]:
                 continue
             selector, prop, value = triple
-            literals = raw_literals(measurable_value(prop, value), family)
-            quoted = ", ".join(f"`{literal}`" for literal in literals)
-            verb = "is" if len(literals) == 1 else "are"
-            print(f"  `{selector}` `{prop}: {value}` — {quoted} {verb} on no step of "
-                  f"the {family} scale", file=sys.stderr)
+            # ONE message per declaration, however many ways it is wrong: a
+            # motion declaration off the ramp AND off the curve is one edit,
+            # and two messages would have the reader fix half of it.
+            findings = ", and ".join(off_scale_findings(prop, value, family))
+            print(f"  `{selector}` `{prop}: {value}` — {findings}", file=sys.stderr)
             failed = True
 
     if baseline is None:
