@@ -32,6 +32,27 @@ the shape of every guard this repository has found green over its own subject.
   file. Restore, green.
 - Point the maquette's `@source` at the repository root → the rule exits 1. Restore, green.
 
+## What this phase found that the plan did not forecast
+
+Three things, each measured, and two of them invisible to every instrument that existed:
+
+1. **Preflight cannot be imported here.** `@import "tailwindcss"` pulls an opinionated reset that
+   would change the rendering on the first commit of a wave whose whole claim is that it does not.
+   The two halves that carry no opinion are imported instead; `base.css` stays the one reset.
+2. **`@source` confines nothing.** Tailwind v4 scans the project root automatically and `@source`
+   ADDS to that scan. Measured: narrowing the list to five directories changed the output by
+   nothing, down to the file hash. `source(none)` took it from 32 utilities to 20.
+3. **A plain `@theme` is tree-shaken**, so the scale left the served document entirely — 2 236 of
+   2 739 measurements collapsed. And the run before it was GREEN, because the leak of trap 2 was
+   dragging the tokens into the output as a side effect. `@theme static` is the fix, held by a
+   fifth hold of the new guard.
+
+**The collision nobody would have looked for**: Tailwind generates a utility for any candidate
+word it finds, and this prototype's vocabulary overlaps it — `grid`, `block`, `table`, `hidden`,
+`fixed` are all names somebody might choose. One real collision today (`grid`), declared with its
+reason. The prototype wins it only because its rules are unlayered while Tailwind's sit in a
+layer, which is a property of the cascade rather than a decision anyone took.
+
 ## Gates
 
 ACC-01, ACC-02 (zero divergence: no utility is used yet, so the generated sheet is empty of
