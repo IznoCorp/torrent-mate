@@ -69,8 +69,8 @@ repository.
 53 flat `.py` files (recorded and deliberately unscheduled), and B-036 / B-040, which belong to
 their own waves.
 
-**Next action**: cycle 5 — the loop's ceiling — reviews the phase-13 delta; if clean, squash
-merge, then the three post-merge steps and the two archive moves.
+**Next action**: squash merge #484, then the three post-merge steps from `main`'s tip and the
+two archive moves, then L06.
 
 ### Review cycles — PR #484
 
@@ -111,6 +111,18 @@ conserving (96 checks, multiset-compared); the continuation's lifecycle attacked
 broken; the 12.3 premise re-verified true. Retained: 1 critical — `homeFloorExists` written
 once at boot, stale after the 404's escape lays the floor (12 Backs to leave; re-opens 12.2
 via the drawer) — and two overstating sentences → `plan/phase-13-pr-fixes-cycle-4.md`.
+
+### Cycle 5 — the ceiling, and one bounded excursion past it
+
+One reviewer over the phase-13 delta, real taps, 2026-08-24. Cycle 4's defect verified fixed
+(tab AND drawer walks flat, the drawer's replace-in-place gone); every wrong-raise and
+wrong-lower attack rejected but ONE: the lowering line fired on a FORWARD too (the handler holds
+the direction and did not read it there) — depth 4 → 12 off a 404 arrival, eleven Backs to
+leave. The fix is the reviewer's own one condition (`direction === "BACK"`), landed with four
+R82 holds and mutation-tested (`812543fa`), then re-verified by the orchestrator. **This is one
+fix past MAX_CYCLES = 5**, taken rather than merging over a known critical or stalling the wave:
+bounded to a single condition, specified by the reviewer, verified on the reviewer's own walk.
+The excess is recorded here for the operator rather than smoothed over.
 
 **Phases of L05** — the plan is `docs/features/maquette-l05/plan/INDEX.md`, which owns the
 reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
