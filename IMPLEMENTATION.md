@@ -69,7 +69,51 @@ repository.
 53 flat `.py` files (recorded and deliberately unscheduled), and B-036 / B-040, which belong to
 their own waves.
 
-**Next action**: L06 is merged and closed (PR #490, post-merge re-records done). L07 opens with its own design and plan.
+**Next action**: L07 is open. Its design is `docs/features/maquette-l07/DESIGN.md`, its plan
+`docs/features/maquette-l07/plan/INDEX.md`, and the wave is on `feat/maquette-l07`. Phase 1 is the
+work in hand.
+
+**Phases of L07** — the plan is `docs/features/maquette-l07/plan/INDEX.md`, which owns the
+reasoning and the 20 ACCEPTANCE criteria. This table owns only the status.
+
+| #   | Phase                                                | File                                        | Status |
+| --- | ---------------------------------------------------- | ------------------------------------------- | ------ |
+| 1   | The base layer, and what the compositor reads        | `plan/phase-01-the-base-layer.md`           | [ ]    |
+| 2   | Tailwind arrives, confined                           | `plan/phase-02-tailwind-confined.md`        | [ ]    |
+| 3   | The palette takes Tailwind's name                    | `plan/phase-03-the-palette-rename.md`       | [ ]    |
+| 4   | Motion, and the guard that reads class names         | `plan/phase-04-motion.md`                   | [ ]    |
+| 5   | The shell                                            | `plan/phase-05-the-shell.md`                | [ ]    |
+| 6   | The shared primitives, and the first typed variants  | `plan/phase-06-the-primitives.md`           | [ ]    |
+| 7   | Arrivées, and its resolution screen                  | `plan/phase-07-arrivals.md`                 | [ ]    |
+| 8   | Médiathèque — the card                               | `plan/phase-08-the-card.md`                 | [ ]    |
+| 9   | Médiathèque — tiles, selection, filters              | `plan/phase-09-library.md`                  | [ ]    |
+| 10  | Acquisition — the deck and the follows               | `plan/phase-10-acquisition.md`              | [ ]    |
+| 11  | Acquisition — the add screen, releases, quality      | `plan/phase-11-add-and-releases.md`         | [ ]    |
+| 12  | Média — the sheet, the matrix, the popover           | `plan/phase-12-the-media-sheet.md`          | [ ]    |
+| 13  | Système, and Maintenance                             | `plan/phase-13-system-and-maintenance.md`   | [ ]    |
+| 14  | Configuration — the panel and its eight field kinds  | `plan/phase-14-settings.md`                 | [ ]    |
+| 15  | Compte, and the install proposal                     | `plan/phase-15-account-and-install.md`      | [ ]    |
+| 16  | BLOCK 1 dies, `refonte.html` dies, §15 is amended    | `plan/phase-16-the-scaffolding-dies.md`     | [ ]    |
+
+**What L07 is, in one line**: the 4 136-line hand-written stylesheet becomes Tailwind utilities
+behind typed CVA variants, one surface at a time with the oracle green at every step; the
+scaffolding that was never meant to ship is deleted rather than carried forward; and what the
+dying engine still needs becomes a residue with a name, a count and a date of death.
+
+**Four decisions were arbitrated by the operator on 2026-08-24** and are recorded in its DESIGN
+§ 2: BLOCK 1 is **cut before it is deleted** (six of its regions are the application's, including
+the typeface and three of L03's); the palette is **renamed** to Tailwind's `--color-*` namespace
+**in its own phase**, before any surface converts, rather than aliased through `@theme inline`;
+the four motion durations become **bare milliseconds** with a new guard reading class names; and
+the CSS the dying engine still consumes becomes a **bounded residue** that dies with L13.
+
+**One measured trap the wave opened on, and it produces no signal from any existing instrument**:
+`--duration-*` is not a Tailwind namespace, and `duration-2` is already a Tailwind utility meaning
+**2 ms**. So the one family of L06's scale that does not lift is the only one that compiles to a
+WRONG VALUE instead of an error — and `transition-duration` is not among the oracle's 19 measured
+properties, so nothing that exists today would have caught it. Verified by compiling Tailwind
+4.3.2; redefining the utility does not recover the name either.
+
 
 **Phases of L06** — the plan is `docs/archive/features/maquette-l06/plan/INDEX.md`, which owns the
 reasoning and the 24 ACCEPTANCE criteria. This table owns only the status.

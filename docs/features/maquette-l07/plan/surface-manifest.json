@@ -1,0 +1,731 @@
+{
+  "what": "The surface partition of BLOCK 2 as L07 opened it. Class names are the key; line numbers are provenance and go stale as the wave empties the stylesheet.",
+  "source": "frontend/maquette/design/refonte.html",
+  "block2FirstLine": 229,
+  "rules": 530,
+  "surfaces": {
+    "tokens": {
+      "phase": "P02",
+      "lines": [
+        229,
+        414
+      ],
+      "rules": 3,
+      "classes": []
+    },
+    "shell-chrome": {
+      "phase": "P05",
+      "lines": [
+        415,
+        531
+      ],
+      "rules": 17,
+      "classes": [
+        "topbar",
+        "burger",
+        "brand",
+        "mk",
+        "wm",
+        "sp",
+        "ps-dot",
+        "ps-dot__d",
+        "ps-dot__label",
+        "avatar"
+      ]
+    },
+    "scrollport": {
+      "phase": "P05",
+      "lines": [
+        532,
+        542
+      ],
+      "rules": 1,
+      "classes": [
+        "port"
+      ]
+    },
+    "view-tabs": {
+      "phase": "P09",
+      "lines": [
+        543,
+        609
+      ],
+      "rules": 7,
+      "classes": [
+        "viewtabs",
+        "seg",
+        "n",
+        "more"
+      ]
+    },
+    "filter-zone": {
+      "phase": "P09",
+      "lines": [
+        610,
+        773
+      ],
+      "rules": 23,
+      "classes": [
+        "filters",
+        "search",
+        "searchclear",
+        "pillbar",
+        "pillscroll",
+        "pill",
+        "c",
+        "vswwrap",
+        "vsw",
+        "countline"
+      ]
+    },
+    "body-sections": {
+      "phase": "P06",
+      "lines": [
+        774,
+        831
+      ],
+      "rules": 12,
+      "classes": [
+        "body",
+        "sec",
+        "sechead",
+        "pip",
+        "warning",
+        "danger",
+        "info",
+        "waiting",
+        "success",
+        "neutral",
+        "t",
+        "k"
+      ]
+    },
+    "card": {
+      "phase": "P08",
+      "lines": [
+        832,
+        1303
+      ],
+      "rules": 57,
+      "classes": [
+        "deck",
+        "tile",
+        "swipe",
+        "actions",
+        "side",
+        "right",
+        "act",
+        "resume",
+        "pause",
+        "remove",
+        "card",
+        "ccol",
+        "dragging",
+        "ctop",
+        "folder",
+        "dlabel",
+        "poster",
+        "pfall",
+        "cbody",
+        "ctitle",
+        "csub",
+        "creason",
+        "cov",
+        "cmeta",
+        "cannotations",
+        "frac",
+        "chip",
+        "warning",
+        "success",
+        "danger",
+        "info",
+        "waiting",
+        "caption",
+        "freshtag",
+        "cadence",
+        "tilebadge",
+        "strip",
+        "st",
+        "d",
+        "done",
+        "now",
+        "blocked",
+        "l",
+        "cfoot",
+        "solid",
+        "owned"
+      ]
+    },
+    "crossref": {
+      "phase": "P08",
+      "lines": [
+        1304,
+        1331
+      ],
+      "rules": 3,
+      "classes": [
+        "crossref"
+      ]
+    },
+    "grid-tiles": {
+      "phase": "P09",
+      "lines": [
+        1332,
+        1405
+      ],
+      "rules": 13,
+      "classes": [
+        "grid",
+        "tile",
+        "p",
+        "nm",
+        "fr",
+        "off"
+      ]
+    },
+    "discover-deck": {
+      "phase": "P10",
+      "lines": [
+        1406,
+        1637
+      ],
+      "rules": 24,
+      "classes": [
+        "dcard",
+        "why",
+        "sugwrap",
+        "gone",
+        "body",
+        "deckbody",
+        "deck",
+        "dragging",
+        "out",
+        "p",
+        "cap",
+        "t",
+        "m",
+        "dhint",
+        "l",
+        "r",
+        "sugback",
+        "crating"
+      ]
+    },
+    "key-value-rows": {
+      "phase": "P13",
+      "lines": [
+        1638,
+        1690
+      ],
+      "rules": 9,
+      "classes": [
+        "panel",
+        "kv",
+        "withpip",
+        "upcoming",
+        "sheetfacts",
+        "h2"
+      ]
+    },
+    "live-strip": {
+      "phase": "P07",
+      "lines": [
+        1691,
+        1861
+      ],
+      "rules": 24,
+      "classes": [
+        "live",
+        "d",
+        "pipeline",
+        "ph",
+        "pt",
+        "pq",
+        "gauge",
+        "pacts",
+        "flux",
+        "fw",
+        "fx",
+        "fclick",
+        "fn",
+        "fr",
+        "fempty",
+        "fblocked",
+        "fs",
+        "fk"
+      ]
+    },
+    "pressable-surfaces": {
+      "phase": "P01",
+      "lines": [
+        1862,
+        1877
+      ],
+      "rules": 2,
+      "classes": [
+        "sheetposter"
+      ]
+    },
+    "settings": {
+      "phase": "P14",
+      "lines": [
+        1878,
+        2128
+      ],
+      "rules": 34,
+      "classes": [
+        "topic",
+        "rt",
+        "rs",
+        "rn",
+        "settingrow",
+        "rl",
+        "rf",
+        "rv",
+        "modified",
+        "field",
+        "list",
+        "fieldinput",
+        "mono",
+        "fieldunit",
+        "fieldlabel",
+        "fieldtoggle",
+        "active",
+        "fieldknob",
+        "litem",
+        "lremove",
+        "ladd",
+        "readonly",
+        "rulenote",
+        "savebar",
+        "sn"
+      ]
+    },
+    "pull-to-refresh": {
+      "phase": "P05",
+      "lines": [
+        2129,
+        2155
+      ],
+      "rules": 6,
+      "classes": [
+        "ptr",
+        "armed",
+        "spin",
+        "loading"
+      ]
+    },
+    "fab": {
+      "phase": "P05",
+      "lines": [
+        2156,
+        2188
+      ],
+      "rules": 3,
+      "classes": [
+        "fab",
+        "chip"
+      ]
+    },
+    "bottom-bar": {
+      "phase": "P05",
+      "lines": [
+        2189,
+        2267
+      ],
+      "rules": 10,
+      "classes": [
+        "selecting",
+        "bottombar",
+        "lb",
+        "ic",
+        "navbadge"
+      ]
+    },
+    "screens": {
+      "phase": "P06",
+      "lines": [
+        2268,
+        2317
+      ],
+      "rules": 6,
+      "classes": [
+        "screen",
+        "open",
+        "screenbar",
+        "fback",
+        "port"
+      ]
+    },
+    "bottom-sheet": {
+      "phase": "P06",
+      "lines": [
+        2318,
+        2504
+      ],
+      "rules": 26,
+      "classes": [
+        "scrim",
+        "open",
+        "sheet",
+        "dragging",
+        "sheetgrab",
+        "sheetin",
+        "sheettitle",
+        "sheetmeta",
+        "sheethead",
+        "withposter",
+        "sheetid",
+        "sheetsub",
+        "avatar",
+        "big",
+        "soon",
+        "sheetacts",
+        "secondary",
+        "sact",
+        "primary",
+        "danger",
+        "noinfo",
+        "rulenote"
+      ]
+    },
+    "media-sheet": {
+      "phase": "P12",
+      "lines": [
+        2505,
+        2842
+      ],
+      "rules": 48,
+      "classes": [
+        "herowrap",
+        "herobg",
+        "noposter",
+        "hero",
+        "ht",
+        "hm",
+        "hn",
+        "cast",
+        "ca",
+        "mediaadd",
+        "done",
+        "tsrc",
+        "trailer",
+        "pl",
+        "eprow",
+        "en",
+        "et",
+        "ed",
+        "epdot",
+        "in_library",
+        "to_grab",
+        "acquiring",
+        "pending",
+        "announced",
+        "unverified"
+      ]
+    },
+    "season-matrix": {
+      "phase": "P12",
+      "lines": [
+        2843,
+        3000
+      ],
+      "rules": 26,
+      "classes": [
+        "legend",
+        "sw-success",
+        "sw-warning",
+        "sw-info",
+        "sw-waiting",
+        "sw-upcoming",
+        "sw-muted",
+        "season",
+        "sfr",
+        "miss",
+        "missing",
+        "eps",
+        "ep",
+        "in_library",
+        "to_grab",
+        "acquiring",
+        "pending",
+        "announced",
+        "unverified"
+      ]
+    },
+    "airdate-popover": {
+      "phase": "P12",
+      "lines": [
+        3001,
+        3049
+      ],
+      "rules": 5,
+      "classes": [
+        "eppop",
+        "ep",
+        "sheetposter"
+      ]
+    },
+    "add-screen": {
+      "phase": "P11",
+      "lines": [
+        3050,
+        3171
+      ],
+      "rules": 20,
+      "classes": [
+        "addform",
+        "addrow",
+        "btnprimary",
+        "segmini",
+        "rescount",
+        "reslist",
+        "sugg",
+        "byid",
+        "byidin",
+        "whyoff",
+        "addfoot"
+      ]
+    },
+    "action-buttons": {
+      "phase": "P06",
+      "lines": [
+        3172,
+        3226
+      ],
+      "rules": 4,
+      "classes": [
+        "btnprimary",
+        "mediaadd",
+        "addrow"
+      ]
+    },
+    "release-screen": {
+      "phase": "P11",
+      "lines": [
+        3227,
+        3321
+      ],
+      "rules": 13,
+      "classes": [
+        "rel",
+        "best",
+        "rn",
+        "rt",
+        "sc",
+        "qgroup",
+        "switch",
+        "kv",
+        "setting"
+      ]
+    },
+    "form-controls": {
+      "phase": "P06",
+      "lines": [
+        3322,
+        3419
+      ],
+      "rules": 13,
+      "classes": [
+        "optlist",
+        "opt",
+        "mark",
+        "radio",
+        "check",
+        "lb",
+        "optkind",
+        "qhint"
+      ]
+    },
+    "dialog": {
+      "phase": "P06",
+      "lines": [
+        3420,
+        3530
+      ],
+      "rules": 16,
+      "classes": [
+        "dlg",
+        "open",
+        "dryrun",
+        "manifest",
+        "warnbox",
+        "dlgacts",
+        "dlgbtn",
+        "danger",
+        "ghost"
+      ]
+    },
+    "toast": {
+      "phase": "P05",
+      "lines": [
+        3531,
+        3574
+      ],
+      "rules": 4,
+      "classes": [
+        "toast",
+        "show"
+      ]
+    },
+    "empty-note": {
+      "phase": "P06",
+      "lines": [
+        3575,
+        3591
+      ],
+      "rules": 2,
+      "classes": [
+        "empty"
+      ]
+    },
+    "surface-states": {
+      "phase": "P06",
+      "lines": [
+        3592,
+        3624
+      ],
+      "rules": 4,
+      "classes": [
+        "skcard",
+        "surferr"
+      ]
+    },
+    "skeletons": {
+      "phase": "P06",
+      "lines": [
+        3625,
+        3718
+      ],
+      "rules": 16,
+      "classes": [
+        "sk",
+        "tile",
+        "row",
+        "grid",
+        "loadfoot",
+        "endmark",
+        "loaderr",
+        "quota"
+      ]
+    },
+    "grid-selection": {
+      "phase": "P09",
+      "lines": [
+        3719,
+        3823
+      ],
+      "rules": 16,
+      "classes": [
+        "tile",
+        "sel",
+        "p",
+        "selrow",
+        "poster",
+        "rowtxt",
+        "csub",
+        "selbar",
+        "n",
+        "danger",
+        "linkbtn"
+      ]
+    },
+    "harness-state-panel": {
+      "phase": "P16-delete",
+      "lines": [
+        3824,
+        3882
+      ],
+      "rules": 8,
+      "classes": [
+        "hpanel",
+        "row",
+        "states"
+      ]
+    },
+    "drawer": {
+      "phase": "P05",
+      "lines": [
+        3883,
+        4008
+      ],
+      "rules": 14,
+      "classes": [
+        "drawer",
+        "open",
+        "dh",
+        "sect",
+        "grp",
+        "count",
+        "ver",
+        "vt",
+        "vv",
+        "vc"
+      ]
+    },
+    "harness-design-notes": {
+      "phase": "P16-delete",
+      "lines": [
+        4009,
+        4035
+      ],
+      "rules": 4,
+      "classes": [
+        "note",
+        "notes"
+      ]
+    },
+    "install-proposal": {
+      "phase": "P15",
+      "lines": [
+        4036,
+        4158
+      ],
+      "rules": 14,
+      "classes": [
+        "installbar",
+        "installcard",
+        "installtext",
+        "installtitle",
+        "installsub",
+        "installgo",
+        "installsteps",
+        "installkey",
+        "installclose"
+      ]
+    },
+    "login": {
+      "phase": "P16-residue",
+      "lines": [
+        4159,
+        4289
+      ],
+      "rules": 15,
+      "classes": [
+        "loginscreen",
+        "brandbig",
+        "mk",
+        "wm",
+        "logincard",
+        "logintitle",
+        "loginsub",
+        "loginfield",
+        "loginerr",
+        "loginsubmit"
+      ]
+    },
+    "splash": {
+      "phase": "P16-residue",
+      "lines": [
+        4290,
+        4364
+      ],
+      "rules": 8,
+      "classes": [
+        "splash",
+        "splashbar",
+        "splashmsg"
+      ]
+    }
+  }
+}
