@@ -187,3 +187,17 @@ shell: no bottom-anchored content moved, so the value's first landing kept its
 timing (the §4.4 distrust shape is absent). The shell now calls the publisher
 after the engine's boot, so the first measurement reads a drawn bar rather
 than an empty nav corrected a frame later.
+
+## Phase 5 — The palette pays its debt
+
+### 5.1 + 5.2 — zero oracle divergence, and that is the verdict the plan wanted
+
+The oracle reads `no divergence` across both repair sub-phases: no rectangle
+moved (a geometric divergence would have been a defect here), and the 33
+regions' probed computed subset does not carry the repaired elements' colour
+properties, so the colour work is reviewed where it is measurable — the a11y
+counts (42 → 8 → 0, dark) and the hand-driven light-theme axe runs recorded
+in the sub-phase reports. The remaining light-theme debt, measured at 154
+occurrences, is an open point recorded in
+drafts/a11y-floor-measures-one-theme.md — a campaign for its own wave, not a
+divergence of this one.
