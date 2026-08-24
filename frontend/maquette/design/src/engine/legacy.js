@@ -10958,17 +10958,37 @@ import { screens, panel, bridge } from "./seams.js";
   const BACK_WINDOW = 5000;
   let pilotage = false;
   let armedExit = 0;
-  /* WHETHER THE HOME PAGE HAS AN ENTRY AT OR BENEATH THE ARRIVAL. The boot's
-     synthesis answers it, and the page-switch verbs read it: stepping BACK
-     onto a floor that was never laid lands on the exit guard instead, which
-     arms the exit on an arrival the reader never made as a back — and one
-     gesture later the document is gone. Only an address nobody serves has no
-     floor; it is kept exactly as typed, so nothing is put under it.
+  /* WHETHER A HOME PAGE ENTRY LIES AT OR BENEATH THE CURRENT ONE, and it
+     FOLLOWS THE WRITES: every verb that lays a home entry down raises it, and
+     a write that was refused raises nothing. The page-switch verbs read it:
+     stepping BACK onto a floor that was never laid lands on the exit guard
+     instead, which arms the exit on an arrival the reader never made as a back
+     — and one gesture later the document is gone. Only an address nobody
+     serves has no floor; it is kept exactly as typed, so nothing is put under
+     it.
 
-     False until the synthesis writes it, which is safe rather than
-     conservative: nothing in the interface can switch page before the boot
-     has run. */
+     DERIVED FROM THE ARRIVAL it answered for the stack the boot had planned
+     rather than the one the document ended up with, and it went stale the
+     moment a later gesture laid a floor the boot had not: off an unserved
+     address, five tab round trips read a history depth of fourteen and twelve
+     Backs before the exit armed, where an ordinary arrival reads four and one.
+
+     It goes back DOWN in one place only — a Back that lands under the floor,
+     which no served arrival can reach — and the asymmetry is deliberate: a
+     stale true spends the exit guard, a stale false merely writes an entry
+     that could have been stepped onto.
+
+     False until a write raises it, which is safe rather than conservative:
+     nothing in the interface can switch page before the boot has run. */
   let homeFloorExists = false;
+  /* WHETHER THE BOOT PUT NOTHING UNDER THE ARRIVAL, which is what an address
+     nobody serves is owed: it is kept exactly as typed. In such a session the
+     floor is not the boot's — it is wherever a later switch laid one — so it
+     can be BACKED OFF, and the flag above has to come down when it is. False
+     in every session that arrived at an address the model serves, where the
+     floor is the entry directly above the exit guard and nothing reaches
+     beneath it. */
+  let arrivalWithoutFloor = false;
 
   /* ── L'URL PORTE L'ÉTAT (DOIT-10) ─────────────────────────────────────
      « Chaque détail a son URL » is a rule of the constitution, and the
@@ -11029,14 +11049,23 @@ import { screens, panel, bridge } from "./seams.js";
      one is now in, so it is the CURRENT entry and popping it lands on the
      previous arrival. Pushing the state being left instead puts the history
      one step ahead of the interface, and every back then overshoots by one —
-     measured, and it is the mistake this ordering exists to avoid. */
+     measured, and it is the mistake this ordering exists to avoid.
+
+     Returns:
+         Whether the entry was really written. The floor flag follows the
+         WRITES, so a caller that lays a home entry down has to be able to tell
+         a write that went through from one that was refused — a flag raised
+         over an entry nobody wrote is the stale true that spends the guard.
+         Driving the interface writes nothing, and answers so. */
   function recordPath() {
-    if (pilotage) return;
+    if (pilotage) return false;
     try {
       __bridge.record(navigationState(), window.__address.compose(currentState()));
+      return true;
     } catch (error) {
       console.error("noterLeChemin : écriture de navigation échouée", error);
       window.__navEchec = true;
+      return false;
     }
   }
 
@@ -11051,14 +11080,21 @@ import { screens, panel, bridge } from "./seams.js";
      belongs in the URL (« chaque détail a son URL »), it simply does not
      belong in the path one walked. Same catch as every other writer: a write
      that fails leaves the address and the interface disagreeing, and a
-     disagreement nothing records is one nobody can find. */
+     disagreement nothing records is one nobody can find.
+
+     Returns:
+         Whether the entry was really rewritten, for the same reason
+         `recordPath` answers: a replace can hand the reader a home entry too,
+         and the floor flag may only follow a write that happened. */
   function replacePath() {
-    if (pilotage) return;
+    if (pilotage) return false;
     try {
       __bridge.replace(navigationState(), window.__address.compose(currentState()));
+      return true;
     } catch (error) {
       console.error("replacePath: writing the navigation failed", error);
       window.__navEchec = true;
+      return false;
     }
   }
 
@@ -11102,15 +11138,30 @@ import { screens, panel, bridge } from "./seams.js";
        step over. */
     const onLayer = Boolean(history.state && history.state.layer);
     if (arriving === leaving) return replacePath();
-    if (leaving === window.__address.homePage) return recordPath();
+    if (leaving === window.__address.homePage) {
+      /* PUSHED FROM HOME, so the entry this one is laid on IS the floor,
+         whatever the boot did or did not lay. The reader stands over a home
+         entry from here on, and the flag says so the moment the push does. */
+      if (recordPath()) homeFloorExists = true;
+      return;
+    }
     if (arriving === window.__address.homePage && !onLayer) {
       /* NO FLOOR, NO STEP BACK. The entry one down is then the exit guard,
          and stepping onto it arms the exit from an arrival nobody made as a
          back: the next back leaves the document, from a page whose whole
          purpose is to offer a way out. The switch RECORDS instead — the
          address as typed stays one back away, which is what a wrong address
-         is owed, and the guard sits one further down where it belongs. */
-      if (!homeFloorExists) return recordPath();
+         is owed, and the guard sits one further down where it belongs.
+
+         AND THE ENTRY IT WRITES IS A HOME ENTRY. The reader is standing on it,
+         which is what « at or beneath » means, so the next switch away from
+         home stacks on a floor and the one after it steps back onto it. Left
+         false here, every later switch took this branch again and the depth
+         grew with every tab tapped. */
+      if (!homeFloorExists) {
+        if (recordPath()) homeFloorExists = true;
+        return;
+      }
       try {
         __bridge.back();
       } catch (error) {
@@ -11119,7 +11170,12 @@ import { screens, panel, bridge } from "./seams.js";
       }
       return;
     }
-    replacePath();
+    /* Arriving home over a LAYER is the one way this last write hands the
+       reader a home entry — the layer's own entry takes the destination.
+       Between two other pages it swaps one page for another and leaves what is
+       beneath exactly as it was. */
+    if (replacePath() && arriving === window.__address.homePage)
+      homeFloorExists = true;
   }
 
   /* Settles history for a page switch made FROM A LAYER — the drawer's entries
@@ -11152,8 +11208,19 @@ import { screens, panel, bridge } from "./seams.js";
     const homePage = window.__address.homePage;
     /* No floor to walk down to: the entry under the layer is an arrival nobody
        serves, and the one below THAT is the exit guard. The layer's entry takes
-       the destination, which keeps the address as typed one back away. */
-    if (!homeFloorExists) return replacePath();
+       the destination, which keeps the address as typed one back away.
+
+       AND THAT WRITE CAN LAY THE FLOOR ITSELF. The entry under the layer is the
+       page being left, so a switch made FROM home leaves a home entry beneath
+       the destination; a switch arriving home puts the reader on one. Either
+       way the floor exists from here on, and the walk down to it is what the
+       next switch owes the reader. */
+    if (!homeFloorExists) {
+      const written = replacePath();
+      if (written && (leaving === homePage || currentState().page === homePage))
+        homeFloorExists = true;
+      return;
+    }
     /* WHAT THE LAYER STANDS ON, counted rather than guessed. Rule 2 leaves at
        most one page entry above the floor, so the walk is the layer's own entry
        plus the abandoned page's when the page one is leaving is not the floor
@@ -11260,6 +11327,18 @@ import { screens, panel, bridge } from "./seams.js";
     const state = etatCourant;
     if (state && state.tm === "nav") {
       armedExit = 0;
+      /* BACK UNDER THE FLOOR, the one gesture that lowers the flag, and only
+         in a session that arrived without one. There the floor was laid by a
+         switch rather than by the boot, so a Back can land beneath it: on the
+         address as typed, or on a page that was reached before any home entry
+         existed. Neither has a home entry at or beneath it, and left raised
+         the way out those surfaces offer steps back onto the exit guard and
+         arms it on a tap — the very defect the flag exists to prevent.
+         Anything but a home entry lowers it, and the next switch lays the
+         floor again: a Back too many costs one entry, a flag left raised
+         costs the document. */
+      if (arrivalWithoutFloor && state.page !== window.__address.homePage)
+        homeFloorExists = false;
       pilotage = true;
       applyState({
         page: state.page,
@@ -34899,23 +34978,26 @@ import { screens, panel, bridge } from "./seams.js";
       beneath.push(homePage);
       if (arrival.screen && arrival.page !== homePage) beneath.push(arrival.page);
     }
+    /* AND AN ARRIVAL WITH NO FLOOR UNDER IT IS RECORDED AS SUCH, because a
+       Back can then go under the one a later switch lays — which is not true
+       of any session the boot laid a floor for. */
+    if (arrival.notFound) arrivalWithoutFloor = true;
     for (const under of beneath) {
       try {
         __bridge.record(
           Object.assign(navigationState(), { page: under }),
           window.__address.compose(Object.assign({}, currentState(), { page: under })),
         );
+        /* AND THE FLOOR FLAG FOLLOWS THE WRITE, not the plan the list above
+           holds: a push that was refused lays nothing, and a flag raised over
+           an entry nobody wrote sends the first tab tap stepping back onto the
+           exit guard. */
+        if (under === homePage) homeFloorExists = true;
       } catch (error) {
         console.error("boot: recording the entry beneath the arrival failed", error);
         window.__navEchec = true;
       }
     }
-    /* AND WHAT THE SYNTHESIS LAID IS RECORDED, because a verb one gesture
-       away depends on it. Read off what the loop above actually did rather
-       than re-derived from the arrival: the home page is either under the
-       arrival or IS the arrival, and only an address nobody serves has
-       neither. */
-    homeFloorExists = beneath[0] === homePage || arrival.page === homePage;
     /* Pushed with the address one ARRIVED at rather than with the one the
        state now implies. Rendering an unknown id moves the state onto the
        not-found surface, and deriving the address from it here rewrote a
@@ -34924,6 +35006,12 @@ import { screens, panel, bridge } from "./seams.js";
        the address alone. */
     try {
       __bridge.record(navigationState(), arrivalAddress);
+      /* ARRIVING ON THE HOME PAGE, the entry just written IS the floor: there
+         is nothing to lay under it, and the flag reads « at or beneath ». It
+         follows this write like every other — refused, the reader is left
+         standing on the guard's own entry, and the first switch away from home
+         lays a floor and raises the flag then. */
+      if (arrival.page === homePage) homeFloorExists = true;
     } catch (error) {
       console.error("boot: recording the arrival entry failed", error);
       window.__navEchec = true;

@@ -18,11 +18,18 @@ What this holds to:
    guard still one entry further down. Without that entry the same Back spends
    the guard, and whoever opened a link to the library is one gesture from
    leaving the application.
-2. The not-found surface's own way out RECORDS rather than steps back. A 404
-   arrival has no floor — the entry one down IS the exit guard — so the page
-   switch that surface offers must write a new entry. Arming the guard on an
-   arrival nobody made as a back would leave the document on the very next
-   gesture, from the one surface whose whole purpose is to offer a way out.
+2. The not-found surface's own way out RECORDS rather than steps back, AND
+   THE ENTRY IT WRITES IS THE FLOOR. A 404 arrival has no floor — the entry one
+   down IS the exit guard — so the page switch that surface offers must write a
+   new entry. Arming the guard on an arrival nobody made as a back would leave
+   the document on the very next gesture, from the one surface whose whole
+   purpose is to offer a way out. What that switch lays is a home entry, and
+   every later switch has to reuse it: read off the arrival instead of off the
+   writes, the floor was laid and the interface never knew, so five tab round
+   trips read a depth of fourteen and twelve Backs to the exit. And that floor
+   can be BACKED OFF, which the boot's own never can: the reader who steps
+   below it is under a not-found arrival again, and the way out has to record
+   there a second time rather than step onto the guard.
 3. (c) Switching a top-level page STACKS NOTHING. Three pages walked leave
    exactly one entry behind, the entry page's own, so a Back from any of them
    lands there rendered with the guard still beneath — and tapping the entry
@@ -50,11 +57,20 @@ What this holds to:
    feels it, and it is the hold rule 3 would break if it were applied without
    it — sending the reader who came from a search to the library.
 
-The six are SEPARATE on purpose, and every one of them reads `history.length`
-and `armedExit` rather than the address alone. A rule that exercised only the
-cold load let two defects through under green holds: the destination's address
-is right whichever stack was built under it, so the depth and the flag are the
-only things that say which one was.
+The six are SEPARATE on purpose, and WHAT EACH READS beyond the address is not
+the same — « every hold reads `history.length` and `armedExit` » is what this
+paragraph used to claim, and it was neither true nor needed. Groups 2 and 3
+read both, and they are the ones that hold a STACK SHAPE. Groups 1 and 4 read
+`armedExit` alone: what they hold is where the guard is, and a depth says
+nothing about that. Group 5 reads `history.length` alone: a setting is held by
+the entry it did not leave behind. Group 6 reads both over the sheet and
+NEITHER over the search, where the hold is what the Back gave back — the screen
+still standing, the query still typed.
+
+What none of them reads is the address ALONE, and that is the part that
+mattered: a rule exercising only the cold load let two defects through under
+green holds, because the destination's address is right whichever stack was
+built under it.
 """
 import asyncio
 import json
@@ -110,6 +126,29 @@ WHERE = """() => ({
   empty: (document.querySelector('#view [data-part="empty-state"] b') || {}).textContent || '',
   notFound: state.notFound || '',
 })"""
+
+
+async def switch_to(pg, page, through_drawer):
+    """Switches the top-level page, by the tab bar or through the drawer.
+
+    The two are the same rule and different writes — the tab bar settles the
+    page's own entry, the drawer settles the layer's — so a hold about the
+    stack has to be able to ask for either.
+
+    Args:
+        pg: The page being driven.
+        page: The page id to switch to.
+        through_drawer: Whether to go through the drawer rather than the tab
+            bar, opening it first as a finger has to.
+    """
+    if through_drawer:
+        await pg.tap("[data-drawer]")
+        await pg.wait_for_timeout(420)
+        await pg.tap(f'#drawer [data-navgo="{page}"]')
+        await pg.wait_for_timeout(620)
+        return
+    await pg.tap(f'#nav button[data-page="{page}"]')
+    await pg.wait_for_timeout(400)
 
 
 async def open_page(b, url=PROTOTYPE):
@@ -203,6 +242,111 @@ async def main():
         journal.check("and only the NEXT Back arms the exit guard",
                       bool(armed), f"armedExit={armed} at {pg.url}")
         journal.check("no JS error leaving the not-found page by its own control",
+                      not errors, str(errors))
+        await ctx.close()
+
+        # AND THE FLOOR THAT ESCAPE LAID IS KEPT. The entry it writes IS a home
+        # entry — the reader is standing on it — so the switches that follow
+        # step back onto it instead of laying another one down every time. What
+        # says so is the DEPTH ACROSS TWO ROUND TRIPS and the way back, never
+        # the address: the destination answers the same whether the stack under
+        # it grew or not, which is how a floor laid by a gesture the interface
+        # did not record cost fourteen entries and twelve Backs to the exit.
+        # Both doors are walked, because they settle different entries: the tab
+        # bar the page's own, the drawer the layer's.
+        for wanted, through_drawer in (("the tab bar", False), ("the drawer", True)):
+            ctx, pg, errors = await open_page(b, wrong)
+            if through_drawer:
+                await switch_to(pg, HOME_PAGE, True)
+            else:
+                await pg.tap(f'[data-go="{HOME_PAGE}"]')
+                await pg.wait_for_timeout(420)
+            await switch_to(pg, "lib", through_drawer)
+            await switch_to(pg, HOME_PAGE, through_drawer)
+            first = await pg.evaluate("()=>history.length")
+            await switch_to(pg, "lib", through_drawer)
+            await switch_to(pg, HOME_PAGE, through_drawer)
+            second = await pg.evaluate("()=>history.length")
+            journal.check(
+                f"a second round trip through {wanted} after the escape lays nothing"
+                " the first did not",
+                second == first and path(pg.url) == HOME,
+                f"history.length {first} -> {second} · {pg.url}")
+            await pg.go_back()
+            await pg.wait_for_timeout(520)
+            typed = (await pg.evaluate(WHERE) if pg.url.startswith(PROTOTYPE) else None)
+            journal.check(
+                f"and one Back off {wanted}'s round trips is still the address as typed",
+                typed is not None and path(pg.url) == "/nimportequoi"
+                and typed["page"] == "404",
+                f"{pg.url} · {typed if typed else 'the document was left'}")
+            if typed is not None:
+                await pg.go_back()
+                await pg.wait_for_timeout(520)
+            armed = (await pg.evaluate("()=>window.armedExit")
+                     if pg.url.startswith(PROTOTYPE) else None)
+            journal.check(
+                f"and the exit guard is still the entry below it, two Backs from {wanted}",
+                bool(armed), f"armedExit={armed} at {pg.url}")
+            journal.check(f"no JS error round-tripping through {wanted} after the escape",
+                          not errors, str(errors))
+            await ctx.close()
+
+        # AND A BACK GOES UNDER THAT FLOOR, which the round trips above cannot
+        # see: they never step below the entry the escape wrote. The floor of a
+        # not-found arrival is not the boot's — it is wherever a switch laid
+        # one — so backing past it puts the reader under a not-found arrival
+        # again, and the way out has to record there a second time. Left
+        # standing, it steps onto the exit guard and arms it on a tap, which is
+        # this surface's own defect reached by a Back instead of by a boot.
+        ctx, pg, errors = await open_page(b, wrong)
+        await pg.tap(f'[data-go="{HOME_PAGE}"]')
+        await pg.wait_for_timeout(420)
+        await switch_to(pg, "lib", False)
+        for _ in range(2):
+            await pg.go_back()
+            await pg.wait_for_timeout(520)
+        under = await pg.evaluate(WHERE) if pg.url.startswith(PROTOTYPE) else None
+        journal.check(
+            "two Backs off the escape return UNDER the floor it laid",
+            under is not None and path(pg.url) == "/nimportequoi"
+            and under["page"] == "404",
+            f"{pg.url} · {under if under else 'the document was left'}")
+        await pg.tap(f'[data-go="{HOME_PAGE}"]')
+        await pg.wait_for_timeout(520)
+        armed = (await pg.evaluate("()=>window.armedExit")
+                 if pg.url.startswith(PROTOTYPE) else None)
+        journal.check(
+            "and the way out RECORDS there a second time, guard untouched",
+            path(pg.url) == HOME and not armed, f"{pg.url} · armedExit={armed}")
+        journal.check("no JS error taking the not-found page's way out twice",
+                      not errors, str(errors))
+        await ctx.close()
+
+        # And the same Back onto a page that was reached BEFORE any floor
+        # existed — the drawer's own switch off the not-found surface, which
+        # lays no home entry at all. It looks exactly like a page standing on a
+        # floor, and the tab bar must still reach the entry page from it rather
+        # than step back onto the address as typed.
+        ctx, pg, errors = await open_page(b, wrong)
+        await switch_to(pg, "lib", True)
+        await switch_to(pg, HOME_PAGE, False)
+        await switch_to(pg, "lib", False)
+        for _ in range(2):
+            await pg.go_back()
+            await pg.wait_for_timeout(520)
+        early = await pg.evaluate(WHERE) if pg.url.startswith(PROTOTYPE) else None
+        journal.check(
+            "two Backs reach the page the drawer opened before any floor was laid",
+            early is not None and path(pg.url) == LIBRARY and early["page"] == "lib",
+            f"{pg.url} · {early if early else 'the document was left'}")
+        await switch_to(pg, HOME_PAGE, False)
+        armed = (await pg.evaluate("()=>window.armedExit")
+                 if pg.url.startswith(PROTOTYPE) else None)
+        journal.check(
+            "and the tab bar reaches the entry page from it, not the address as typed",
+            path(pg.url) == HOME and not armed, f"{pg.url} · armedExit={armed}")
+        journal.check("no JS error switching page off a floorless one",
                       not errors, str(errors))
         await ctx.close()
 
