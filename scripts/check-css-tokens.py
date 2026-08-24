@@ -195,8 +195,7 @@ TIMING_SHORTHAND = {"transition", "animation"}
 # A duration term, however it is written. Its presence is what makes a segment
 # a motion segment at all: `transition: none` and `animation: fadein` name no
 # time and have no curve to answer for.
-DURATION_TERM = re.compile(
-    r"var\(\s*--duration-[\w-]+\s*[,)]|(?<![\w.])-?\d*\.?\d+m?s(?![\w-])")
+DURATION_TERM = re.compile(r"var\(\s*--duration-[\w-]+\s*[,)]|(?<![\w.])-?\d*\.?\d+m?s(?![\w-])")
 
 # A curve read from the scale — the one shape that is ON it.
 SCALE_EASING = re.compile(r"var\(\s*--ease-[\w-]+\s*[,)]")
@@ -220,8 +219,7 @@ LITERAL_CURVE = re.compile(r"(?<![\w-])cubic-bezier\s*\([^)]*\)")
 # shape with zero occurrences tolerates nothing and reads as foresight. The
 # first `steps()` in this interface should be a decision someone signs, not a
 # shape that matched a list written before there was anything to match.
-DISCRETE_TIMING = re.compile(
-    r"(?<![\w-])(steps\s*\([^)]*\)|step-start(?![\w-])|step-end(?![\w-]))")
+DISCRETE_TIMING = re.compile(r"(?<![\w-])(steps\s*\([^)]*\)|step-start(?![\w-])|step-end(?![\w-]))")
 
 # The `<font-size>` term of a `font` shorthand, with the `/ <line-height>` the
 # grammar lets ride behind it. The terms that may precede it — style, variant,
@@ -275,8 +273,7 @@ SOURCE_FILES = {
 # class names.
 EXEMPTIONS = {
     ".dcard .cap": (
-        "reserved footprint: the caption clears the floating add button; "
-        "a measured clearance, not a space step"
+        "reserved footprint: the caption clears the floating add button; a measured clearance, not a space step"
     ),
     ".hero": (
         "hero overlap: the title is pulled up over the poster's melt — a "
@@ -432,20 +429,22 @@ def off_curve(prop: str, value: str) -> list[str]:
         for found in KEYWORD_EASING.finditer(segment):
             findings.append(f"`{found.group(1)}` is not one of the two named curves")
         for found in LITERAL_CURVE.finditer(segment):
-            findings.append(f"`{found.group(0)}` is a curve written out rather than "
-                            "named, and a copy nobody updates")
+            findings.append(f"`{found.group(0)}` is a curve written out rather than named, and a copy nobody updates")
         for found in DISCRETE_TIMING.finditer(segment):
-            findings.append(f"`{found.group(0)}` is a discrete timing function, and "
-                            "the motion scale holds none")
-        if (prop in TIMING_SHORTHAND
-                and not SCALE_EASING.search(segment)
-                and not LINEAR_EASING.search(segment)
-                and not KEYWORD_EASING.search(segment)
-                and not LITERAL_CURVE.search(segment)
-                and not DISCRETE_TIMING.search(segment)):
-            findings.append(f"`{' '.join(segment.split())}` names a duration and no "
-                            "easing at all, so it renders the browser's initial "
-                            "`ease` — a curve nobody chose")
+            findings.append(f"`{found.group(0)}` is a discrete timing function, and the motion scale holds none")
+        if (
+            prop in TIMING_SHORTHAND
+            and not SCALE_EASING.search(segment)
+            and not LINEAR_EASING.search(segment)
+            and not KEYWORD_EASING.search(segment)
+            and not LITERAL_CURVE.search(segment)
+            and not DISCRETE_TIMING.search(segment)
+        ):
+            findings.append(
+                f"`{' '.join(segment.split())}` names a duration and no "
+                "easing at all, so it renders the browser's initial "
+                "`ease` — a curve nobody chose"
+            )
     # Two segments can be wrong the same way; naming it twice adds a line and
     # no information.
     return list(dict.fromkeys(findings))
@@ -516,8 +515,9 @@ def off_scale_findings(
     """
     findings: list[str] = []
     for literal in raw_literals(measurable_value(prop, value), family):
-        findings.append(f"`{literal}` is on no step of the {family} scale"
-                        + nearest_step(literal, (steps or {}).get(family, [])))
+        findings.append(
+            f"`{literal}` is on no step of the {family} scale" + nearest_step(literal, (steps or {}).get(family, []))
+        )
     if family == "motion":
         findings.extend(off_curve(prop.strip().lower(), value))
     # The same literal twice in one value — `padding: 13px 13px` — is one
@@ -596,7 +596,12 @@ def declarations_by_scope(css: str) -> tuple[set[str], set[str]]:
         # into `:root`. Reading it as conditional would report the whole scale
         # as « declared only under a qualified scope », which is the opposite
         # of what it is.
-        base = selector in {SCOPE, ":root", "html", "body", "@theme"}
+        # `@theme` matched by its AT-RULE NAME, never by the whole prelude:
+        # the block carries modifiers (`@theme static`, and `inline` exists
+        # too), and an exact-string test silently reclassified the entire scale
+        # as conditional the moment `static` was added.
+        head = selector.split()[0] if selector else ""
+        base = selector in {SCOPE, ":root", "html", "body"} or head == "@theme"
         (unconditional if base else conditional).update(names)
     # Declared in BOTH places is simply declared: the conditional block is then
     # an override, which is exactly what a theme is.
@@ -643,8 +648,11 @@ def block_two() -> str | None:
         in which case the caller has already been told why.
     """
     if not FRAGMENT.exists():
-        print(f"check-css-tokens: {FRAGMENT} not found — the scope is empty, so "
-              "a « no violation » here would mean nothing", file=sys.stderr)
+        print(
+            f"check-css-tokens: {FRAGMENT} not found — the scope is empty, so "
+            "a « no violation » here would mean nothing",
+            file=sys.stderr,
+        )
         return None
 
     whole = FRAGMENT.read_text(encoding="utf-8")
@@ -652,11 +660,14 @@ def block_two() -> str | None:
     end = whole.find("</style>", start)
     marker = whole.find(BLOCK_2, start) if start >= 0 else -1
     if start < 0 or end < 0 or marker < 0 or marker > end:
-        print("check-css-tokens: no <style> carrying BLOCK 2 in the maquette — "
-              "the harness/application split is gone and this rule cannot tell "
-              "them apart", file=sys.stderr)
+        print(
+            "check-css-tokens: no <style> carrying BLOCK 2 in the maquette — "
+            "the harness/application split is gone and this rule cannot tell "
+            "them apart",
+            file=sys.stderr,
+        )
         return None
-    return whole[whole.rfind("/*", start, marker):end]
+    return whole[whole.rfind("/*", start, marker) : end]
 
 
 def application_stylesheet() -> str | None:
@@ -704,40 +715,52 @@ def token_arm() -> int:
     undefined, only_conditional, bare_runtime = unresolved(css)
 
     if not used:
-        print("check-css-tokens: the sheet uses no `var()` at all — either the "
-              "extraction broke or this rule is reading the wrong file",
-              file=sys.stderr)
+        print(
+            "check-css-tokens: the sheet uses no `var()` at all — either the "
+            "extraction broke or this rule is reading the wrong file",
+            file=sys.stderr,
+        )
         return 1
 
     for name in undefined:
-        print(f"  {name} is used and declared nowhere in {FRAGMENT.name} BLOCK 2 — it "
-              "resolves to nothing the day BLOCK 1 stops shipping. Declare it "
-              "in BLOCK 2, beside the rules that use it, or drop the use.", file=sys.stderr)
+        print(
+            f"  {name} is used and declared nowhere in {FRAGMENT.name} BLOCK 2 — it "
+            "resolves to nothing the day BLOCK 1 stops shipping. Declare it "
+            "in BLOCK 2, beside the rules that use it, or drop the use.",
+            file=sys.stderr,
+        )
     for name in only_conditional:
-        print(f"  {name} is declared ONLY under a conditional scope (a theme "
-              "attribute, a media condition) and used unconditionally — on "
-              "every other condition it resolves to nothing. Declare it in the "
-              "base scope too.", file=sys.stderr)
+        print(
+            f"  {name} is declared ONLY under a conditional scope (a theme "
+            "attribute, a media condition) and used unconditionally — on "
+            "every other condition it resolves to nothing. Declare it in the "
+            "base scope too.",
+            file=sys.stderr,
+        )
     for name in bare_runtime:
-        print(f"  {name} is a runtime token used with NO fallback — it resolves "
-              "to nothing until the script that publishes it has run. Write "
-              f"`var({name}, <default>)`.", file=sys.stderr)
+        print(
+            f"  {name} is a runtime token used with NO fallback — it resolves "
+            "to nothing until the script that publishes it has run. Write "
+            f"`var({name}, <default>)`.",
+            file=sys.stderr,
+        )
 
     if undefined or only_conditional or bare_runtime:
-        print(f"\ncheck-css-tokens: "
-              f"{len(undefined) + len(only_conditional) + len(bare_runtime)} "
-              "unresolved token(s) in the application's stylesheet.",
-              file=sys.stderr)
+        print(
+            f"\ncheck-css-tokens: "
+            f"{len(undefined) + len(only_conditional) + len(bare_runtime)} "
+            "unresolved token(s) in the application's stylesheet.",
+            file=sys.stderr,
+        )
         return 1
 
-    shipped = ", ".join(
-        name for name, path in (("theme.css", THEME_LAYER), ("base.css", BASE_LAYER))
-        if path.exists()
+    shipped = ", ".join(name for name, path in (("theme.css", THEME_LAYER), ("base.css", BASE_LAYER)) if path.exists())
+    print(
+        f"check-css-tokens: the application's stylesheet "
+        f"({FRAGMENT.name} BLOCK 2{', ' + shipped if shipped else ''}) — "
+        f"{len(used)} token(s) used, {len(declared)} declared, "
+        "no unresolved `var()`."
     )
-    print(f"check-css-tokens: the application's stylesheet "
-          f"({FRAGMENT.name} BLOCK 2{', ' + shipped if shipped else ''}) — "
-          f"{len(used)} token(s) used, {len(declared)} declared, "
-          "no unresolved `var()`.")
     return 0
 
 
@@ -769,11 +792,14 @@ def scale_steps(block: str) -> dict[str, list[tuple[str, str, float]]]:
 
 def scale_measurement(
     exemptions: dict[str, str],
-) -> tuple[
-    dict[str, list[tuple[str, str, str]]],
-    list[str],
-    dict[str, list[tuple[str, str, float]]],
-] | None:
+) -> (
+    tuple[
+        dict[str, list[tuple[str, str, str]]],
+        list[str],
+        dict[str, list[tuple[str, str, float]]],
+    ]
+    | None
+):
     """Counts what BLOCK 2 still spends outside the scale, and where.
 
     The scale block is cut out BEFORE comments are stripped, in that order and
@@ -801,21 +827,27 @@ def scale_measurement(
     # declaration against an empty set of steps and call the result « no
     # violation ».
     if not THEME_LAYER.exists():
-        print(f"check-scale: {THEME_LAYER} not found — the scale has no home, "
-              "so this arm has nothing to measure against", file=sys.stderr)
+        print(
+            f"check-scale: {THEME_LAYER} not found — the scale has no home, so this arm has nothing to measure against",
+            file=sys.stderr,
+        )
         return None
     theme = THEME_LAYER.read_text(encoding="utf-8")
     _, marker, rest = theme.partition(SCALE_START)
     if not marker:
-        print(f"check-scale: no {SCALE_START} in {THEME_LAYER.name} — the "
-              "scale has no home, so this arm has nothing to measure against",
-              file=sys.stderr)
+        print(
+            f"check-scale: no {SCALE_START} in {THEME_LAYER.name} — the "
+            "scale has no home, so this arm has nothing to measure against",
+            file=sys.stderr,
+        )
         return None
     block, closing, _ = rest.partition(SCALE_END)
     if not closing:
-        print(f"check-scale: {SCALE_START} is never closed by {SCALE_END} — the "
-              "arm cannot tell the steps apart from what spends them",
-              file=sys.stderr)
+        print(
+            f"check-scale: {SCALE_START} is never closed by {SCALE_END} — the "
+            "arm cannot tell the steps apart from what spends them",
+            file=sys.stderr,
+        )
         return None
     outside = COMMENT.sub(" ", css)
 
@@ -852,8 +884,10 @@ def scale_arm() -> int:
 
     failed = False
     for name in duplicated:
-        print(f"  scale: {name} is declared in two places; one block, or the next "
-              "reader edits the copy nobody reads.", file=sys.stderr)
+        print(
+            f"  scale: {name} is declared in two places; one block, or the next reader edits the copy nobody reads.",
+            file=sys.stderr,
+        )
         failed = True
 
     off_scale = 0
@@ -868,14 +902,16 @@ def scale_arm() -> int:
             off_scale += 1
 
     if off_scale:
-        print(f"\nscale: {off_scale} declaration(s) outside the scale — every design "
-              "constant BLOCK 2 spends is a step declared in the scale block, and "
-              "there is no floor above zero.", file=sys.stderr)
+        print(
+            f"\nscale: {off_scale} declaration(s) outside the scale — every design "
+            "constant BLOCK 2 spends is a step declared in the scale block, and "
+            "there is no floor above zero.",
+            file=sys.stderr,
+        )
     if failed or off_scale:
         return 1
 
-    print("scale: " + ", ".join(f"{family} 0" for family in FAMILIES)
-          + " — every declaration reads a step.")
+    print("scale: " + ", ".join(f"{family} 0" for family in FAMILIES) + " — every declaration reads a step.")
     return 0
 
 
@@ -937,8 +973,11 @@ def composed_chunks() -> dict[str, str] | None:
         markers are missing — the same failure `extract()` itself raises on.
     """
     if not COMPOSER.exists():
-        print(f"check-login: {COMPOSER} not found — the composition cannot be "
-              "read, so a « no violation » here would mean nothing", file=sys.stderr)
+        print(
+            f"check-login: {COMPOSER} not found — the composition cannot be "
+            "read, so a « no violation » here would mean nothing",
+            file=sys.stderr,
+        )
         return None
     composer = without_python_comments(COMPOSER.read_text(encoding="utf-8"))
 
@@ -947,9 +986,11 @@ def composed_chunks() -> dict[str, str] | None:
     bound = {local: constant for local, constant in SOURCE_BINDING.findall(composer)}
     calls = EXTRACT_CALL.findall(composer)
     if not calls:
-        print(f"check-login: no `extract(<source>, \"<chunk>\")` call in "
-              f"{COMPOSER.name} — an arm that reads zero chunks holds nothing",
-              file=sys.stderr)
+        print(
+            f'check-login: no `extract(<source>, "<chunk>")` call in '
+            f"{COMPOSER.name} — an arm that reads zero chunks holds nothing",
+            file=sys.stderr,
+        )
         return None
 
     texts: dict[Path, str] = {}
@@ -957,13 +998,19 @@ def composed_chunks() -> dict[str, str] | None:
     for local, name in calls:
         path = SOURCE_FILES.get(bound.get(local, ""))
         if path is None:
-            print(f"  login: {COMPOSER.name} extracts login:{name} from `{local}`, "
-                  "which this arm cannot resolve to a file — the composition it "
-                  "measures would not be the one served.", file=sys.stderr)
+            print(
+                f"  login: {COMPOSER.name} extracts login:{name} from `{local}`, "
+                "which this arm cannot resolve to a file — the composition it "
+                "measures would not be the one served.",
+                file=sys.stderr,
+            )
             return None
         if not path.exists():
-            print(f"check-login: {path} not found — the composed page cannot be "
-                  "read, so a « no violation » here would mean nothing", file=sys.stderr)
+            print(
+                f"check-login: {path} not found — the composed page cannot be "
+                "read, so a « no violation » here would mean nothing",
+                file=sys.stderr,
+            )
             return None
         if name in chunks:
             continue
@@ -971,14 +1018,17 @@ def composed_chunks() -> dict[str, str] | None:
         start = text.find(f"login:{name}:start")
         end = text.find(f"login:{name}:end")
         if start < 0 or end < 0 or end < start:
-            print(f"  login: {COMPOSER.name} extracts login:{name} from "
-                  f"{path.name}, which carries no such marker pair — `extract()` "
-                  "raises on this and serves no sign-in page at all.", file=sys.stderr)
+            print(
+                f"  login: {COMPOSER.name} extracts login:{name} from "
+                f"{path.name}, which carries no such marker pair — `extract()` "
+                "raises on this and serves no sign-in page at all.",
+                file=sys.stderr,
+            )
             return None
         # The same slicing serve.extract() uses, deliberately: an arm that read
         # one character more than the composer would hold a chunk the page
         # never receives.
-        chunks[name] = text[text.index("\n", start) + 1: text.rindex("\n", start, end) + 1]
+        chunks[name] = text[text.index("\n", start) + 1 : text.rindex("\n", start, end) + 1]
     return chunks
 
 
@@ -1010,9 +1060,12 @@ def login_arm() -> int:
             missing.add(name)
 
     for name in sorted(missing):
-        print(f"  login: {name} is used by the composed sign-in page but declared "
-              "in no chunk serve.py composes — the page is not given it, and "
-              "resolves it to nothing.", file=sys.stderr)
+        print(
+            f"  login: {name} is used by the composed sign-in page but declared "
+            "in no chunk serve.py composes — the page is not given it, and "
+            "resolves it to nothing.",
+            file=sys.stderr,
+        )
     if missing:
         return 1
 
@@ -1028,9 +1081,9 @@ def main() -> int:
     """
     parser = argparse.ArgumentParser(
         description="Holds the maquette's application CSS to the tokens it can resolve, "
-                    "the steps it declares, and the chunks the sign-in page is composed from.")
-    parser.add_argument("--arm", choices=("scale", "login"),
-                        help="run one arm alone; the default runs all of them")
+        "the steps it declares, and the chunks the sign-in page is composed from."
+    )
+    parser.add_argument("--arm", choices=("scale", "login"), help="run one arm alone; the default runs all of them")
     args = parser.parse_args()
 
     if args.arm == "scale":

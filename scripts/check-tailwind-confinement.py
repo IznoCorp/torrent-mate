@@ -137,10 +137,18 @@ def main() -> int:
         print(f"tailwind confinement: {THEME} not found — nothing to confine, and a pass here would mean nothing")
         return 1
     theme = THEME.read_text(encoding="utf-8")
+    # EVERY HOLD BELOW READS THE CODE, NOT THE PROSE. The two holds that search
+    # a stylesheet for a literal were written against raw text first, and both
+    # were vacuous: these files explain the confinement in comments and quote
+    # the very strings the holds look for. Hold 2 failed loudly on it — it
+    # reported the maquette scanning itself. Hold 1 failed SILENTLY, and only a
+    # mutation found it: removing `source(none)` from the code left the guard
+    # green, because the sentence explaining `source(none)` was still there.
+    declarations = _CSS_COMMENT.sub(" ", theme)
 
     # Hold 1 — the automatic scan is OFF. This is the confinement itself.
     holds += 1
-    if "source(none)" not in theme:
+    if "source(none)" not in declarations:
         failures.append(
             "  the maquette's entry does not carry `source(none)`, so Tailwind "
             "scans the project root automatically — which is how 936 bytes of "
@@ -155,7 +163,7 @@ def main() -> int:
     # so a scan of the raw text reported the maquette scanning itself. A guard
     # that reads its own documentation as code is a guard that fails on being
     # explained.
-    named = set(re.findall(r'@source\s+(?:not\s+)?"([^"]+)"', _CSS_COMMENT.sub(" ", theme)))
+    named = set(re.findall(r'@source\s+(?:not\s+)?"([^"]+)"', declarations))
     stray = named - ALLOWED_SOURCES
     if stray:
         failures.append(
@@ -170,7 +178,7 @@ def main() -> int:
     # Hold 3 — production still refuses to scan the maquette. The other end.
     holds += 1
     if PRODUCTION_ENTRY.exists():
-        production = PRODUCTION_ENTRY.read_text(encoding="utf-8")
+        production = _CSS_COMMENT.sub(" ", PRODUCTION_ENTRY.read_text(encoding="utf-8"))
         if '@source not "../../maquette"' not in production:
             failures.append(
                 f"  {PRODUCTION_ENTRY.relative_to(ROOT)} no longer excludes the "
@@ -200,6 +208,30 @@ def main() -> int:
             "DECLARED_COLLISIONS with its reason, or rename it."
         )
 
+    # Hold 5 — every declared token actually reaches the built stylesheet.
+    #
+    # A plain `@theme` block is TREE-SHAKEN: Tailwind emits only the tokens its
+    # own utilities reference, and hand-written CSS spending them through
+    # `var()` is invisible to it. That is not a theoretical hole — it deleted
+    # the entire scale from the served document during phase 2, and 2 236 of
+    # the oracle's 2 739 measurements collapsed to zero padding and `normal`
+    # gaps. `@theme static` is the answer, and this hold is what keeps it true:
+    # the oracle DOES catch it, at 25 seconds and 2 236 divergences, which is a
+    # terrible way to learn that a keyword went missing.
+    holds += 1
+    declared_tokens = set(re.findall(r"^\s*(--[a-z0-9-]+)\s*:", declarations, re.M))
+    built = sorted((DESIGN / "dist" / "vite").glob("*.css"))
+    if declared_tokens and built:
+        emitted = built[0].read_text(encoding="utf-8")
+        absent = sorted(name for name in declared_tokens if f"{name}:" not in emitted)
+        if absent:
+            failures.append(
+                "  " + ", ".join(absent) + " — declared in the theme block and ABSENT from the built "
+                "stylesheet. A plain `@theme` is tree-shaken; every `var()` in "
+                "hand-written CSS then resolves to nothing. Use `@theme static` "
+                "for as long as anything outside a component reads a token."
+            )
+
     if failures:
         print(f"tailwind confinement: {len(failures)} violation(s) over {holds} hold(s).")
         print("\n".join(failures))
@@ -207,7 +239,8 @@ def main() -> int:
     print(
         f"tailwind confinement: {holds} hold(s), no violation — "
         f"{len(utilities)} utilitie(s) generated, "
-        f"{len(DECLARED_COLLISIONS)} declared collision(s), scan confined."
+        f"{len(DECLARED_COLLISIONS)} declared collision(s), "
+        f"{len(declared_tokens)} token(s) declared and all emitted, scan confined."
     )
     return 0
 

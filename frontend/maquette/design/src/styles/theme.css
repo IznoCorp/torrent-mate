@@ -89,7 +89,23 @@
    browser understands: it would drop the whole block and the gate would lose
    its scale silently. Marked from inside, `extract()` returns declarations,
    and the composer wraps them in the `:root` a browser does understand. */
-@theme {
+/* `static`, AND IT IS NOT AN OPTION WHILE HAND-WRITTEN CSS STILL SPENDS THE
+   SCALE. A plain `@theme` block is TREE-SHAKEN: Tailwind emits only the tokens
+   its own generated utilities reference, and the 462 `var()` calls in BLOCK 2
+   are invisible to it. Moving the scale here without `static` therefore
+   deleted the entire scale from the served document — every `var(--spacing-*)`
+   resolved to nothing, and 2 236 of the oracle's 2 739 measurements collapsed
+   to zero padding and `normal` gaps.
+
+   WORSE, AND THIS IS THE PART WORTH REMEMBERING: the run before that one was
+   GREEN. The scan was still leaking into the project root then, and the stray
+   candidates it found generated enough utilities to drag the tokens into the
+   output as a side effect. The oracle was passing on the leak. Confining the
+   scan is what exposed the defect — a green gate resting on a bug elsewhere,
+   which is the shape of every proof this repository has had to re-take.
+
+   `static` goes when nothing outside a component reads a token any more. */
+@theme static {
   /* login:scale:start */ /* scale:start */
   /* Space ramp: pads, gaps and margins. */
   --spacing-1: 2px;
