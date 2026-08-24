@@ -507,10 +507,12 @@ def login_page(refused: bool) -> bytes:
     # reference was broken: the brand colour had been renamed to `--primary` and
     # the wordmark's line height was `normal` instead of 1.35. A retyped value
     # does not merely risk drifting; it CONCEALS a defect in the reference,
-    # because the copy is the only place anyone ever looks.
-    styles = (extract(styles_source, "font") + extract(styles_source, "palette")
-              + extract(styles_source, "socle") + extract(styles_source, "style")
-              + extract(styles_source, "splashstyle"))
+    # because the copy is the only place anyone ever looks. The scale block is
+    # emitted first so every step a folded declaration reads resolves on the
+    # composed page.
+    styles = (extract(styles_source, "scale") + extract(styles_source, "font")
+              + extract(styles_source, "palette") + extract(styles_source, "socle")
+              + extract(styles_source, "style") + extract(styles_source, "splashstyle"))
     # After the extract, so they win: inside the prototype the screen covers a
     # phone frame; here it IS the page.
     adjustments = """

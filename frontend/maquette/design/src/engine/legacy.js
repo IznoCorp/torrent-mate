@@ -314,7 +314,7 @@ import { screens, panel, bridge } from "./seams.js";
       t: "Furious",
       serie: "Continuing",
       since: "27 juillet",
-      searches: 13,
+      searches: 15,
       k: "show",
       y: 2026,
       st: "up_to_date",
@@ -336,7 +336,7 @@ import { screens, panel, bridge } from "./seams.js";
       t: "President Curtis",
       serie: "Continuing",
       since: "29 juillet",
-      searches: 21,
+      searches: 23,
       k: "show",
       y: 2026,
       st: "up_to_date",
@@ -11757,29 +11757,6 @@ import { screens, panel, bridge } from "./seams.js";
   /* Clears ALL harness chrome before a capture or a pixel comparison:
      harness buttons float above the shell, which is a measured region and
      must carry nothing that does not exist in the app. */
-  /* The app's contract, reproduced: the bar publishes its REAL height into
-     a `:root` variable, and everything that must sit above it reads that.
-     Magic numbers used to sit here — exactly the defect the app already
-     fixed (« nothing positions itself by a distance to an edge »). */
-  function publishBarHeight() {
-    const bar = document.querySelector(".bottombar");
-    if (!bar) return;
-    const publish = () => {
-      const ceil = Math.ceil(bar.getBoundingClientRect().height);
-      const cur =
-        document.documentElement.style.getPropertyValue("--tm-bottom-bar-h");
-      if (cur !== ceil + "px")
-        document.documentElement.style.setProperty(
-          "--tm-bottom-bar-h",
-          ceil + "px",
-        );
-    };
-    publish();
-    if (typeof ResizeObserver !== "undefined")
-      new ResizeObserver(publish).observe(bar);
-  }
-  publishBarHeight();
-
   window.__measure = (enabled) => {
     document.documentElement.classList.toggle("measuring", enabled !== false);
     return enabled !== false;
@@ -35171,7 +35148,7 @@ Object.assign(window, {
   openActionMaintenance, openPopEp, openSetting, openSecret,
   openDrawer, paintSelBar, panelUnderFinger, passerSug, screenStack,
   plages, ownedFor, posterBox, nextSearchFR,
-  proposerInstallation, ptr, publishBarHeight, refPanel, collapseCard,
+  proposerInstallation, ptr, refPanel, collapseCard,
   refreshDeck, settingId, resetSettings, render, renderNav,
   richText, seasonsOf, sheetSeasonsHTML, secHTML, secInner, seedWorld,
   select, sheetFor, titleForProviderId, addressIdsFor, skelCards, skelCardsInner, skelTiles, sortLabel,

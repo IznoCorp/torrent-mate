@@ -528,7 +528,7 @@ export function MediaScreen() {
             <p
               style={{
                 margin: 0,
-                fontSize: "12.5px",
+                fontSize: "var(--text-3)",
                 lineHeight: 1.55,
                 color: "var(--muted-foreground)",
               }}
