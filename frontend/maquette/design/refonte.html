@@ -539,8 +539,8 @@
     background: transparent;
     color: var(--muted-foreground);
     transition:
-      background var(--duration-2),
-      color var(--duration-2);
+      background var(--duration-2) var(--ease-standard),
+      color var(--duration-2) var(--ease-standard);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2185,7 +2185,7 @@
     border: 0;
     background: transparent;
     color: var(--muted-foreground);
-    transition: color var(--duration-1);
+    transition: color var(--duration-1) var(--ease-standard);
   }
   .bottombar button[aria-current="page"] {
     color: var(--primary-text);
@@ -2288,7 +2288,7 @@
     z-index: 46;
     opacity: 0;
     visibility: hidden;
-    transition: opacity var(--duration-2);
+    transition: opacity var(--duration-2) var(--ease-standard);
   }
   .scrim.open {
     opacity: 1;
@@ -3248,8 +3248,8 @@
     border: 1px solid var(--border);
     background: var(--muted);
     transition:
-      background var(--duration-2),
-      border-color var(--duration-2);
+      background var(--duration-2) var(--ease-standard),
+      border-color var(--duration-2) var(--ease-standard);
   }
   .switch::after {
     content: "";
@@ -3262,7 +3262,7 @@
     background: var(--muted-foreground);
     transition:
       transform var(--duration-2) var(--ease-standard),
-      background var(--duration-2);
+      background var(--duration-2) var(--ease-standard);
   }
   .switch[aria-checked="true"] {
     background: var(--primary);
@@ -3319,8 +3319,8 @@
     border: 2px solid var(--border);
     background: transparent;
     transition:
-      border-color var(--duration-1),
-      background var(--duration-1);
+      border-color var(--duration-1) var(--ease-standard),
+      background var(--duration-1) var(--ease-standard);
   }
   .opt.radio .mark {
     border-radius: var(--radius-full);
@@ -3398,8 +3398,8 @@
     opacity: 0;
     visibility: hidden;
     transition:
-      opacity var(--duration-2),
-      transform var(--duration-2);
+      opacity var(--duration-2) var(--ease-standard),
+      transform var(--duration-2) var(--ease-standard);
   }
   .dlg.open {
     opacity: 1;
@@ -3513,8 +3513,8 @@
     opacity: 0;
     visibility: hidden;
     transition:
-      opacity var(--duration-2),
-      transform var(--duration-2);
+      opacity var(--duration-2) var(--ease-standard),
+      transform var(--duration-2) var(--ease-standard);
   }
   .toast.show {
     opacity: 1;

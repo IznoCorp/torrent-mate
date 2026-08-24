@@ -24,7 +24,11 @@ value and stops being published by the engine.
 
 **Files touched**: `refonte.html`.
 
-1. The transitions read `--duration-1` … `--duration-4` and one of the two easings.
+1. The transitions read `--duration-1` … `--duration-4` and one of the two easings. **A
+   transition written as a bare duration reads one too**: eight rules named no easing at all, so
+   they were running the browser's initial `ease` — a curve nobody chose, and one no arm can name,
+   because there is no literal in the file to count. The fold writes `--ease-standard` in, so the
+   interface speaks one easing language rather than two.
 2. **The three loop periods keep their own tokens** and stay `linear`. A spinner that eases
    stutters; the keyword is exempt by name, and the tokens are named `loop` so a later pass does
    not fold them into the transition ramp.
