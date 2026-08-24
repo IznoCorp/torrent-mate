@@ -1,5 +1,5 @@
 {
-  "commit": "39c4fbff94408f7d1f2863f9875096dc89bd19a4",
+  "commit": "e09658761193eadd46df47151290afcba09b9636",
   "exemptions": {
     ".dcard .cap": "reserved footprint: the caption clears the floating add button; a measured clearance, not a space step",
     ".hero": "hero overlap: the title is pulled up over the poster's melt — a composition measurement, not a space step (the rule's own comment says so)"
@@ -31,11 +31,6 @@
         ".seg .n",
         "font-size",
         "11px"
-      ],
-      [
-        ".search input",
-        "font-size",
-        "13px"
       ],
       [
         ".pill",
@@ -156,16 +151,6 @@
         ".settingrow .rf",
         "font-size",
         "11px"
-      ],
-      [
-        ".fieldinput",
-        "font-size",
-        "14px"
-      ],
-      [
-        ".fieldinput.mono",
-        "font-size",
-        "12px"
       ],
       [
         ".fieldunit",
