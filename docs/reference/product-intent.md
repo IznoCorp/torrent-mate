@@ -391,6 +391,85 @@ cité dans un commentaire reste en français, puisque c'est ce que l'écran affi
 
 ---
 
+## §16 — Le chemin de navigation (règle gravée)
+
+**La navigation doit être fluide, et revenir en arrière doit refaire le chemin emprunté.**
+Dictée par l'opérateur les 2026-08-23 et 2026-08-24, en prolongement de DOIT-10. Quatre règles,
+et l'ordre compte. Les règles 1 à 3 sont **livrées** (L05, phase 11, PR #484) ; la règle 4 ne
+l'est pas.
+
+### 1. Retour dépile, et la pile ne contient que des arrivées délibérées
+
+Retour ramène à l'arrivée précédente — l'endroit d'où le lecteur vient réellement. Celui qui a
+ouvert une fiche depuis une recherche revient **à sa recherche**, pas à la médiathèque.
+
+Ce qui rend cela possible est une discipline, et c'est elle la vraie règle : **ouvrir une
+surface empile ; régler une surface remplace.** Ouvrir une fiche, une résolution, un panneau
+est une arrivée. Changer un filtre, un onglet interne, un tri, un objectif est un réglage : la
+même surface regardée autrement. Un réglage n'entre jamais dans la pile — sans quoi Retour
+défait un tri là où le lecteur voulait sortir de l'écran, et c'est exactement la sensation
+qu'une application web donne quand elle est mal faite.
+
+### 2. Changer de page principale REMPLACE
+
+Les pages principales sont des destinations de premier niveau, pas des étapes d'un parcours.
+Passer d'Acquisition à la Médiathèque **n'empile rien**. Retour depuis n'importe quelle page
+ramène à **Acquisition**, la page d'entrée ; Retour depuis Acquisition arme la garde de sortie.
+
+**Aucune plateforme n'empile l'historique des onglets visités**, et c'est le geste qui trahit
+le plus vite une application web : le lecteur tape Retour pour sortir et se retrouve à
+rembobiner ses pages une à une. iOS donne à chaque onglet sa pile et ne permet aucun retour
+entre onglets ; Android ramène à la destination de départ puis quitte. La règle ci-dessus est
+la lecture Android, retenue parce que c'est un Retour système qui pilote une PWA.
+
+**Ce que cette règle ne donne PAS, et c'est un choix, pas un oubli** : il n'y a pas de pile par
+page. Quitter la Médiathèque alors qu'une fiche y est ouverte, puis y revenir, ramène à la
+racine de la Médiathèque et non dans la fiche. Un natif iOS restaurerait la fiche. On commence
+sans ; on ne l'ajoutera que si l'usage réel le réclame, parce qu'un écran qui se rouvre
+ailleurs qu'à sa racine surprend autant qu'il rend service.
+
+### 3. Sans pile, elle se synthétise depuis la hiérarchie
+
+Un lien ouvert depuis l'extérieur — un message, un signet, un onglet restauré — n'a pas de pile
+à dépiler. Ce qui se trouve alors sous l'écran est **la page dont il relève** : la médiathèque
+sous une fiche média, les Arrivées sous une résolution. **Jamais l'accueil par défaut.**
+
+**Et ce parent est rendu, pas seulement enregistré.** Fermer l'écran révèle une page déjà en
+place ; c'est ce qui fait la fluidité. Un écran qui se ferme sur du vide a rompu le chemin même
+s'il a répondu à la bonne adresse.
+
+**Composer une adresse de panneau par-dessus ce parent ne suffit pas à tout réparer** : le
+routeur cesse de reconnaître l'adresse propre de l'écran et la fiche se démonte derrière le
+panneau, quel que soit le parent placé dessous. C'est un défaut distinct (§ méthode), mesuré et
+corrigé séparément — nommer le bon parent retire une cause, pas toutes.
+
+### 4. Remonter est un geste distinct, et il est dessiné
+
+Retour dépile ; **Remonter va au parent**, un niveau, quel que soit le chemin parcouru. Ce sont
+deux gestes différents et on ne détourne jamais l'un pour faire l'autre. Chaque écran porte donc
+dans son en-tête **le nom de la page dont il relève**, et un tap y remonte directement — sans
+quoi une fiche ouverte depuis une fiche ouverte depuis une fiche demande trois Retours pour
+rejoindre la médiathèque, ce qu'aucune application ne fait subir.
+
+Sur un téléphone, une PWA installée n'a pas de barre de navigateur : le seul Retour est le
+geste système. **Remonter n'existe donc que si l'interface le dessine.** C'est un élément de la
+maquette, pas un comportement du moteur — **non livré**, aucun lot ne le porte à ce jour.
+
+### Ce que tout cela interdit, nommément
+
+Faire remonter **Retour** au parent déclaré alors qu'une pile existe. Ce serait expédier à la
+médiathèque le lecteur venu de sa recherche. C'est l'erreur que produit la règle 3 appliquée
+sans la règle 1, et c'est pour l'interdire que les quatre règles sont écrites dans cet ordre.
+
+### Ce que cela impose à la preuve
+
+Les cas se vérifient **séparément** : un parcours fait dans l'application dont le Retour revient
+à l'origine réelle, un lien froid dont le dessous est le parent, un changement de page qui
+n'empile rien, et une garde de sortie qui ne s'arme qu'en haut. Une tenue qui ne mesure que le
+chargement à froid a déjà laissé passer deux défauts sur la vague L05 — c'est précisément ainsi
+qu'ils sont passés sous des règles vertes.
+
+
 ## Ce que l'interface DOIT faire (DOIT-1 … DOIT-11)
 
 1. **DOIT-1 — Tout montrer, en français clair.** Chaque média a un état compréhensible sans être
@@ -414,7 +493,7 @@ cité dans un commentaire reste en français, puisque c'est ce que l'écran affi
    horizontal — le mobile est le poste principal, pas une adaptation. Une information
    essentielle ne partage pas sa ligne ni ne se fait tronquer ; le desktop reste
    pleinement fonctionnel mais n'est pas le point de départ du dessin.
-10. **DOIT-10 — Retrouvable.** Chaque détail a son URL ; Retour ferme ce qu'il doit fermer.
+10. **DOIT-10 — Retrouvable.** Chaque détail a son URL ; Retour ferme ce qu'il doit fermer, et il **refait le chemin emprunté** (§16).
 11. **DOIT-11 — Être consultable.** Tout média affiché ouvre sa fiche détail ; la fiche dit ce qu'est le média (titre, année, synopsis, réalisateur, bande-annonce ; pour une série : saisons, épisodes, statut) **et** où il en est chez nous (possédé ou non, complétude par saison). La fiche est atteignable par un lien stable (`/media/:provider/:id`).
 
 ## Ce que l'interface NE DOIT PAS faire (NE-DOIT-PAS-1 … NE-DOIT-PAS-9)
