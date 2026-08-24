@@ -1,5 +1,5 @@
 {
-  "commit": "01e7ec5822a8d975057e8618822bd8dc85b2f5e3",
+  "commit": "39c4fbff94408f7d1f2863f9875096dc89bd19a4",
   "exemptions": {
     ".dcard .cap": "reserved footprint: the caption clears the floating add button; a measured clearance, not a space step",
     ".hero": "hero overlap: the title is pulled up over the poster's melt — a composition measurement, not a space step (the rule's own comment says so)"
@@ -43,21 +43,6 @@
         "12px"
       ],
       [
-        ".countline",
-        "font-size",
-        "11.5px"
-      ],
-      [
-        ".countline button",
-        "font-size",
-        "11.5px"
-      ],
-      [
-        ".sechead .t",
-        "font-size",
-        "12.5px"
-      ],
-      [
         ".sechead .k",
         "font-size",
         "11px"
@@ -68,49 +53,14 @@
         "11px"
       ],
       [
-        ".dlabel",
-        "font-size",
-        "8.5px"
-      ],
-      [
         ".poster",
         "font-size",
         "14px"
       ],
       [
-        ".ctitle",
-        "font-size",
-        "13.5px"
-      ],
-      [
-        ".csub",
-        "font-size",
-        "11.5px"
-      ],
-      [
-        ".creason",
-        "font-size",
-        "11.5px"
-      ],
-      [
-        ".cov",
-        "font-size",
-        "11.5px"
-      ],
-      [
-        ".frac",
-        "font-size",
-        "11.5px"
-      ],
-      [
         ".chip",
         "font-size",
         "11px"
-      ],
-      [
-        ".caption",
-        "font-size",
-        "11.5px"
       ],
       [
         ".freshtag",
@@ -121,21 +71,6 @@
         ".cadence",
         "font-size",
         "11px"
-      ],
-      [
-        ".tilebadge",
-        "font-size",
-        "9.5px"
-      ],
-      [
-        ".st .l",
-        "font-size",
-        "9.5px"
-      ],
-      [
-        ".cfoot",
-        "font-size",
-        "12.5px"
       ],
       [
         ".crossref",
@@ -173,11 +108,6 @@
         "12px"
       ],
       [
-        ".dcard .why",
-        "font-size",
-        "11.5px"
-      ],
-      [
         ".dhint",
         "font-size",
         "12px"
@@ -188,39 +118,9 @@
         "12px"
       ],
       [
-        ".crating",
-        "font-size",
-        "10.5px"
-      ],
-      [
-        ".kv",
-        "font-size",
-        "12.5px"
-      ],
-      [
-        ".h2",
-        "font-size",
-        "12.5px"
-      ],
-      [
-        ".live",
-        "font-size",
-        "11.5px"
-      ],
-      [
         ".pipeline .pt",
         "font-size",
         "13px"
-      ],
-      [
-        ".pipeline .pq",
-        "font-size",
-        "11.5px"
-      ],
-      [
-        ".flux .fn",
-        "font-size",
-        "12.5px"
       ],
       [
         ".flux .fr",
@@ -231,11 +131,6 @@
         ".flux .fs",
         "font-size",
         "11px"
-      ],
-      [
-        ".flux .fk",
-        "font-size",
-        "10.5px"
       ],
       [
         ".topic .rt",
@@ -263,11 +158,6 @@
         "11px"
       ],
       [
-        ".settingrow .rv",
-        "font-size",
-        "12.5px"
-      ],
-      [
         ".fieldinput",
         "font-size",
         "14px"
@@ -291,11 +181,6 @@
         ".litem",
         "font-size",
         "13px"
-      ],
-      [
-        ".ladd",
-        "font-size",
-        "12.5px"
       ],
       [
         ".savebar .sn",
@@ -343,34 +228,14 @@
         "16px"
       ],
       [
-        ".soon",
-        "font-size",
-        "10.5px"
-      ],
-      [
-        ".sact",
-        "font-size",
-        "13.5px"
-      ],
-      [
         ".noinfo",
         "font-size",
         "12px"
       ],
       [
-        ".rulenote",
-        "font-size",
-        "12.5px"
-      ],
-      [
         ".hero .ht",
         "font-size",
         "27px"
-      ],
-      [
-        ".hero .hm",
-        "font-size",
-        "12.5px"
       ],
       [
         ".hero .hn",
@@ -393,11 +258,6 @@
         "14px"
       ],
       [
-        ".tsrc",
-        "font-size",
-        "10.5px"
-      ],
-      [
         ".trailer",
         "font-size",
         "13px"
@@ -406,11 +266,6 @@
         ".trailer small",
         "font-size",
         "11px"
-      ],
-      [
-        ".eprow",
-        "font-size",
-        "12.5px"
       ],
       [
         ".eprow .en",
@@ -441,11 +296,6 @@
         ".season .sfr",
         "font-size",
         "12px"
-      ],
-      [
-        ".season .miss",
-        "font-size",
-        "10.5px"
       ],
       [
         ".missing",
@@ -483,19 +333,9 @@
         "12px"
       ],
       [
-        ".rescount",
-        "font-size",
-        "11.5px"
-      ],
-      [
         ".sugg button",
         "font-size",
         "12px"
-      ],
-      [
-        ".byid > summary",
-        "font-size",
-        "12.5px"
       ],
       [
         ".byid > summary::before",
@@ -503,44 +343,9 @@
         "10px"
       ],
       [
-        ".whyoff",
-        "font-size",
-        "11.5px"
-      ],
-      [
-        ".addfoot",
-        "font-size",
-        "12.5px"
-      ],
-      [
-        ".addfoot button",
-        "font-size",
-        "12.5px"
-      ],
-      [
-        ".sact, .cfoot, .mediaadd, .dlgbtn, .btnprimary",
-        "font-size",
-        "13.5px"
-      ],
-      [
-        ".rel .rn",
-        "font-size",
-        "11.5px"
-      ],
-      [
         ".rel .sc",
         "font-size",
         "11px"
-      ],
-      [
-        ".opt .lb",
-        "font-size",
-        "13.5px"
-      ],
-      [
-        ".opt .lb small",
-        "font-size",
-        "11.5px"
       ],
       [
         ".optkind",
@@ -548,24 +353,9 @@
         "11px"
       ],
       [
-        ".qhint",
-        "font-size",
-        "11.5px"
-      ],
-      [
         ".dlg h2",
         "font-size",
         "15px"
-      ],
-      [
-        ".dlg p",
-        "font-size",
-        "12.5px"
-      ],
-      [
-        ".dryrun",
-        "font-size",
-        "11.5px"
       ],
       [
         ".manifest",
@@ -578,39 +368,9 @@
         "12px"
       ],
       [
-        ".dlgbtn",
-        "font-size",
-        "13.5px"
-      ],
-      [
-        ".toast",
-        "font-size",
-        "12.5px"
-      ],
-      [
-        ".empty",
-        "font-size",
-        "12.5px"
-      ],
-      [
         ".empty b",
         "font-size",
         "13px"
-      ],
-      [
-        ".surferr",
-        "font-size",
-        "12.5px"
-      ],
-      [
-        ".surferr button",
-        "font-size",
-        "12.5px"
-      ],
-      [
-        ".endmark",
-        "font-size",
-        "11.5px"
       ],
       [
         ".loaderr",
@@ -618,29 +378,9 @@
         "12px"
       ],
       [
-        ".loaderr button",
-        "font-size",
-        "12.5px"
-      ],
-      [
         ".quota",
         "font-size",
         "11px"
-      ],
-      [
-        ".selbar .n",
-        "font-size",
-        "12.5px"
-      ],
-      [
-        ".selbar button",
-        "font-size",
-        "12.5px"
-      ],
-      [
-        ".linkbtn",
-        "font-size",
-        "11.5px"
       ],
       [
         ".hpanel h4",
@@ -653,29 +393,9 @@
         "12px"
       ],
       [
-        ".hpanel .states code",
-        "font-size",
-        "10.5px"
-      ],
-      [
-        ".hpanel p",
-        "font-size",
-        "11.5px"
-      ],
-      [
         ".drawer .dh",
         "font-size",
         "14px"
-      ],
-      [
-        ".drawer .sect",
-        "font-size",
-        "10.5px"
-      ],
-      [
-        ".drawer a",
-        "font-size",
-        "13.5px"
       ],
       [
         ".drawer a .count",
@@ -696,31 +416,6 @@
         ".drawer .ver .vc",
         "font-size",
         "11px"
-      ],
-      [
-        ".note",
-        "font-size",
-        "11.5px"
-      ],
-      [
-        ".note code",
-        "font-size",
-        "10.5px"
-      ],
-      [
-        ".installtitle",
-        "font-size",
-        "13.5px"
-      ],
-      [
-        ".installsub",
-        "font-size",
-        "11.5px"
-      ],
-      [
-        ".installsteps",
-        "font-size",
-        "11.5px"
       ],
       [
         ".brandbig .wm",
