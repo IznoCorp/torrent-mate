@@ -2254,20 +2254,20 @@
     flex: 0 0 auto;
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 10px 12px;
+    gap: var(--spacing-3);
+    padding: var(--spacing-5) var(--spacing-6);
     background: var(--background);
   }
   .fback {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: var(--spacing-2);
     border: 0;
     background: transparent;
     color: var(--primary);
     font-size: 13px;
     font-weight: 600;
-    padding: 4px 2px;
+    padding: var(--spacing-2) var(--spacing-1);
   }
   .fback svg {
     width: 16px;
@@ -2397,7 +2397,7 @@
     font-size: 10.5px;
     font-weight: 700;
     letter-spacing: 0.03em;
-    padding: 2px 7px;
+    padding: var(--spacing-1) var(--spacing-3);
     border-radius: 99px;
     background: var(--muted);
     color: var(--muted-foreground);
@@ -2456,7 +2456,7 @@
     color: var(--muted-foreground);
     border: 1px dashed var(--border);
     border-radius: 8px;
-    padding: 10px 11px;
+    padding: var(--spacing-5) var(--spacing-5);
   }
   .rulenote {
     margin: 0 0 14px;
@@ -2464,7 +2464,7 @@
     line-height: 1.45;
     color: var(--muted-foreground);
     border-left: 2px solid var(--border);
-    padding: 2px 0 2px 11px;
+    padding: var(--spacing-1) 0 var(--spacing-1) var(--spacing-5);
   }
 
   /* Media sheet — ONE template for every medium
@@ -2528,7 +2528,7 @@
      is missing. A muted field holds the place. */
   .herowrap.noposter {
     /* No image: the title must not be glued to the bar. */
-    padding-top: 18px;
+    padding-top: var(--spacing-8);
   }
 
   .herowrap.noposter .herobg {
@@ -2558,7 +2558,7 @@
     /* The title overlaps the end of the melt: it belongs to the image as
        much as to the body, and that is what stitches the two together. */
     margin-top: -62px;
-    padding: 0 14px;
+    padding: 0 var(--spacing-7);
   }
   .hero .ht {
     margin: 0;
@@ -2579,7 +2579,7 @@
   .hero .hn {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--spacing-2);
     margin-top: 7px;
     font-size: 12px;
     font-weight: 700;
@@ -2591,7 +2591,7 @@
   }
   .cast {
     display: flex;
-    gap: 8px;
+    gap: var(--spacing-4);
     overflow-x: auto;
     scrollbar-width: none;
     /* `pan-x` ALONE forbids vertical panning: a finger resting on the
@@ -2599,7 +2599,7 @@
        Allow both axes and let the browser decide from the gesture
        direction. Same fix on the pill train. */
     touch-action: pan-x pan-y;
-    padding-bottom: 2px;
+    padding-bottom: var(--spacing-1);
   }
   .cast::-webkit-scrollbar {
     display: none;
@@ -2656,14 +2656,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 9px;
+    gap: var(--spacing-4);
     width: 100%;
     border: 1px solid var(--primary);
     background: var(--primary);
     color: var(--primary-foreground);
     font-size: 14px;
     font-weight: 600;
-    padding: 12px;
+    padding: var(--spacing-6);
     border-radius: 8px;
   }
   .mediaadd svg {
@@ -2685,12 +2685,12 @@
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--spacing-2);
     margin-left: auto;
     font-size: 10.5px;
     font-weight: 700;
     letter-spacing: 0.02em;
-    padding: 3px 7px;
+    padding: var(--spacing-1) var(--spacing-3);
     border-radius: 99px;
     background: var(--muted);
     color: var(--muted-foreground);
@@ -2699,12 +2699,12 @@
   .trailer {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--spacing-5);
     width: 100%;
     border: 1px solid var(--border);
     background: var(--card);
     border-radius: 8px;
-    padding: 11px 12px;
+    padding: var(--spacing-5) var(--spacing-6);
     font-size: 13px;
     font-weight: 600;
     text-align: left;
@@ -2733,8 +2733,8 @@
   .eprow {
     display: flex;
     align-items: baseline;
-    gap: 9px;
-    padding: 8px 0;
+    gap: var(--spacing-4);
+    padding: var(--spacing-4) 0;
     border-bottom: 1px solid var(--border);
     font-size: 12.5px;
   }
@@ -2812,7 +2812,7 @@
   .legend {
     display: flex;
     flex-wrap: wrap;
-    gap: 5px 12px;
+    gap: var(--spacing-2) var(--spacing-6);
     margin-bottom: 12px;
     font-size: 11px;
     color: var(--muted-foreground);
@@ -2820,7 +2820,7 @@
   .legend span {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: var(--spacing-2);
     white-space: nowrap;
   }
   .legend i {
@@ -2850,7 +2850,7 @@
   }
   .season {
     border-top: 1px solid var(--border);
-    padding: 8px 0;
+    padding: var(--spacing-4) 0;
   }
   .season:first-of-type {
     border-top: 0;
@@ -2858,8 +2858,8 @@
   .season > summary {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 4px 0;
+    gap: var(--spacing-4);
+    padding: var(--spacing-2) 0;
     cursor: pointer;
     font-size: 11px;
     font-weight: 700;
@@ -2904,7 +2904,7 @@
   .season .miss {
     font-size: 10.5px;
     font-weight: 600;
-    padding: 1px 6px;
+    padding: var(--spacing-1) var(--spacing-3);
     border-radius: 99px;
     text-transform: none;
     letter-spacing: normal;
@@ -2924,7 +2924,7 @@
   .eps {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: var(--spacing-2);
     margin-top: 8px;
   }
   .ep {

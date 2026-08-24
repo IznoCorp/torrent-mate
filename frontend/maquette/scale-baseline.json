@@ -1,5 +1,5 @@
 {
-  "commit": "95d6b48b5ff36ce946a49d18face798c9c25164d",
+  "commit": "17a1eef6b4b9344692239123678451aa17c685e2",
   "exemptions": {
     ".dcard .cap": "reserved footprint: the caption clears the floating add button; a measured clearance, not a space step"
   },
@@ -131,39 +131,9 @@
         "10px"
       ],
       [
-        ".screenbar",
-        "gap",
-        "6px"
-      ],
-      [
-        ".screenbar",
-        "padding",
-        "10px 12px"
-      ],
-      [
-        ".fback",
-        "gap",
-        "5px"
-      ],
-      [
-        ".fback",
-        "padding",
-        "4px 2px"
-      ],
-      [
-        ".soon",
-        "padding",
-        "2px 7px"
-      ],
-      [
         ".noinfo",
         "margin",
         "0 0 4px"
-      ],
-      [
-        ".noinfo",
-        "padding",
-        "10px 11px"
       ],
       [
         ".rulenote",
@@ -171,29 +141,14 @@
         "0 0 14px"
       ],
       [
-        ".rulenote",
-        "padding",
-        "2px 0 2px 11px"
-      ],
-      [
         ".herowrap",
         "margin",
         "-10px -14px 0"
       ],
       [
-        ".herowrap.noposter",
-        "padding-top",
-        "18px"
-      ],
-      [
         ".hero",
         "margin-top",
         "-62px"
-      ],
-      [
-        ".hero",
-        "padding",
-        "0 14px"
       ],
       [
         ".hero .hm",
@@ -202,23 +157,8 @@
       ],
       [
         ".hero .hn",
-        "gap",
-        "4px"
-      ],
-      [
-        ".hero .hn",
         "margin-top",
         "7px"
-      ],
-      [
-        ".cast",
-        "gap",
-        "8px"
-      ],
-      [
-        ".cast",
-        "padding-bottom",
-        "2px"
       ],
       [
         ".cast figcaption",
@@ -226,54 +166,9 @@
         "6px"
       ],
       [
-        ".mediaadd",
-        "gap",
-        "9px"
-      ],
-      [
-        ".mediaadd",
-        "padding",
-        "12px"
-      ],
-      [
-        ".tsrc",
-        "gap",
-        "4px"
-      ],
-      [
-        ".tsrc",
-        "padding",
-        "3px 7px"
-      ],
-      [
-        ".trailer",
-        "gap",
-        "10px"
-      ],
-      [
-        ".trailer",
-        "padding",
-        "11px 12px"
-      ],
-      [
         ".trailer small",
         "margin-top",
         "1px"
-      ],
-      [
-        ".eprow",
-        "gap",
-        "9px"
-      ],
-      [
-        ".eprow",
-        "padding",
-        "8px 0"
-      ],
-      [
-        ".legend",
-        "gap",
-        "5px 12px"
       ],
       [
         ".legend",
@@ -281,39 +176,9 @@
         "12px"
       ],
       [
-        ".legend span",
-        "gap",
-        "5px"
-      ],
-      [
-        ".season",
-        "padding",
-        "8px 0"
-      ],
-      [
-        ".season > summary",
-        "gap",
-        "8px"
-      ],
-      [
-        ".season > summary",
-        "padding",
-        "4px 0"
-      ],
-      [
-        ".season .miss",
-        "padding",
-        "1px 6px"
-      ],
-      [
         ".missing",
         "margin",
         "8px 0 0"
-      ],
-      [
-        ".eps",
-        "gap",
-        "4px"
       ],
       [
         ".eps",
