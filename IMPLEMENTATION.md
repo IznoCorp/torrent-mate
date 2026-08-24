@@ -45,7 +45,7 @@ stale table read as current for three days.
 |                            |                                                                                                                                                                                                                                                                                                                                             |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Last landed**            | **Phase 8–13 of L05 — the repair wave**, PR **#484**, merged 2026-08-24, version 0.98.27, squash `a49ff84f`. B-043…B-048 closed; the operator's § 16 rules 1–3 (D1b) landed as phase 11; R82 `journey.py` carved out of R69; five review cycles (the fifth's one bounded excursion is recorded in § Review cycles). Both references re-recorded from `main`'s tip at `a49ff84f` and verified ancestors of `HEAD`; hold counts 1 034 → 1 210, movements: `url_state.py` 26→99, `journey.py` new 66, `panel.py` 18→50, `server.py` 7→12 — all up, all named |
-| **In flight**              | **L06 — The scale**, Phase 2. Branch `feat/maquette-l06`, version 0.98.29, PR **#TBD-486+**. Design at `docs/features/maquette-l06/DESIGN.md` — six decisions proposed (D-L06-1…6), one of which WIDENS the lot's letter (all three field sizes to 16 px, not only the search) and is flagged for the operator. Plan pending |
+| **In flight**              | **L06 — The scale**, Phase 2. Branch `feat/maquette-l06`, version 0.98.29, PR not yet opened. Design (six decisions D-L06-1…6) and plan (6 phases, 21 sub-phases, 24 executable ACCEPTANCE criteria, two plan-level decisions P-1/P-2) are committed; **implementation waits on the operator's arbitrage** of the named decisions (§ 15) — D-L06-6 widens the lot's letter, P-1 touches the sign-in composition, and two step counts run above the contract's estimate, argued from the histograms |
 | **Next**                   | **L06 — The scale**, Phase 2, with `/implement:feature` (codename `maquette-l06`): no wave opens without its design and its plan. It inherits the 42 contrast findings and the 16 px search field (architecture file § L06). The lots run strictly in sequence |
 | **Before it**              | L03 — PR **#475**, version 0.98.18 · L02 — PR **#470**, version 0.98.13 · L01 — PR **#467**, version 0.98.10. All three archived under `docs/archive/features/`; L04 and L05 are archived beside them (L04 by #482, L05 by this pull request) |
 | **What decides the order** | `docs/reference/frontend-architecture.md`, never this table. This table says only where the work STANDS                                                                                                                                                                                                                                     |
@@ -69,10 +69,21 @@ repository.
 53 flat `.py` files (recorded and deliberately unscheduled), and B-036 / B-040, which belong to
 their own waves.
 
-**Next action**: generate the plan (`/implement:plan`, dispatched), then `/implement:phase`.
-The design's six decisions are the operator's to overturn before implementation (§ 15: a wave's
-choices are the operator's arbitrage); D-L06-6 widens the lot's letter and is the one most
-worth their eye.
+**Next action**: the operator arbitrates D-L06-1…6, P-1, P-2 and the two step counts (all in
+`docs/features/maquette-l06/DESIGN.md` § 2 and `plan/INDEX.md`); then `/implement:phase` runs the
+six phases.
+
+**Phases of L06** — the plan is `docs/features/maquette-l06/plan/INDEX.md`, which owns the
+reasoning and the 24 ACCEPTANCE criteria. This table owns only the status.
+
+| #   | Phase                              | File                                        | Status |
+| --- | ---------------------------------- | ------------------------------------------- | ------ |
+| 1   | The scale, and the ratchet         | `plan/phase-01-the-scale-and-the-ratchet.md` | [ ]   |
+| 2   | Space folds                        | `plan/phase-02-space-folds.md`              | [ ]    |
+| 3   | Type folds                         | `plan/phase-03-type-folds.md`               | [ ]    |
+| 4   | Radius, motion, the runtime token  | `plan/phase-04-radius-motion-runtime-token.md` | [ ] |
+| 5   | The palette pays its debt          | `plan/phase-05-the-palette-pays-its-debt.md` | [ ]   |
+| 6   | The ratchet dies                   | `plan/phase-06-the-ratchet-dies.md`         | [ ]    |
 
 ### Review cycles — PR #484
 
