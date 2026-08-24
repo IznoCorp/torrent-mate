@@ -199,7 +199,16 @@ class SearchPassMixin(PassGatesMixin):
             expected_count: int | None = None
             if current.followed_id is not None:
                 expected_count = len(self._aired_episodes_for_season(current.followed_id, current.season)) or None
-            season_packs = filter_to_season(list(verdict.raw_results), current.season, expected_count=expected_count)
+            # Series-identity guard: the raw results of an episode search can
+            # carry a WRONG show's season pack, and the season row this
+            # conversion mints would re-run the search — guard the conversion
+            # itself so a wrong-show pack never spawns a season wanted.
+            season_packs = filter_to_season(
+                list(verdict.raw_results),
+                current.season,
+                expected_count=expected_count,
+                titles=self._follow_titles(current.followed_id),
+            )
             if season_packs:
                 # Record the triggering verdict BEFORE the conversion absorbs
                 # the row (verdict-before-status, the #320 order): an absorbed
@@ -528,6 +537,25 @@ class SearchPassMixin(PassGatesMixin):
         """
         aired_rows = self._store.aired.list_for_followed(followed_id)
         return [int(r.episode) for r in aired_rows if r.season == season]
+
+    def _follow_titles(self, followed_id: int | None) -> "list[str | None]":
+        """Resolve a follow's known titles (display + original) for the season identity guard.
+
+        Args:
+            followed_id: FK to the ``followed_series`` row, or ``None``
+                (standalone item).
+
+        Returns:
+            ``[title, original_title]`` of the follow row, or ``[None, None]``
+            when the row is absent — an all-empty sequence leaves the guard
+            inactive (an unknown wanted identity must not drop every pack).
+        """
+        if followed_id is None:
+            return [None, None]
+        row = self._store.follow.get(followed_id)
+        if row is None:
+            return [None, None]
+        return [row.title, row.original_title]
 
     def _season_fully_aired(self, followed_id: int, season: int, today: date) -> bool:
         """Return True when every catalogued episode of the season has aired.

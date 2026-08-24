@@ -568,11 +568,11 @@ class GrabOrchestrator:
                     )
                 )
         elif item.kind == "season" and item.season is not None:
-            # F4 — verify a pack's coverage against the aired-episode count;
-            # None (no resolver / empty cache) → the filter rejects any
-            # episode-marker release conservatively.
+            # F4 — coverage against the aired-episode count; None rejects any episode-marker release.
             expected_count = self._episode_count_resolver(item) if self._episode_count_resolver is not None else None
-            results = filter_to_season(results, item.season, expected_count=expected_count)
+            results = filter_to_season(
+                results, item.season, expected_count=expected_count, titles=[title, original_title]
+            )
             if not results:
                 # A SEASON row's fruitless search states its own outcome —
                 # 'no_matching_episode' on a season row would surface a lie in
