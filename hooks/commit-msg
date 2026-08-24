@@ -46,8 +46,11 @@ if printf '%s' "$subject" | grep -qE '^v?[0-9]+\.[0-9]+\.[0-9]+ *[:—-]'; then
 fi
 
 # AI attribution, in the whole message rather than the subject: it is a trailer.
-if printf '%s' "$message" | grep -qiE '^[[:space:]]*co-authored-by:.*(claude|anthropic)|generated with .*claude|🤖'; then
-    fail "AI attribution trailer. CLAUDE.md forbids Co-Authored-By / Claude / Anthropic."
+# `claude-session:` joined this pattern on 2026-08-24 — the sub-agent harness had been
+# writing it unmatched, 17 times across one wave's intermediate commits, because it names
+# neither Claude nor Anthropic in a shape the three earlier alternatives read.
+if printf '%s' "$message" | grep -qiE '^[[:space:]]*co-authored-by:.*(claude|anthropic)|generated with .*claude|🤖|^[[:space:]]*claude-session:'; then
+    fail "AI attribution trailer. CLAUDE.md forbids Co-Authored-By / Claude / Anthropic / Claude-Session."
 fi
 
 exit 0

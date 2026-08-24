@@ -71,7 +71,7 @@ their own waves.
 
 **Next action**: L06 is merged and closed (PR #490, post-merge re-records done). L07 opens with its own design and plan.
 
-**Phases of L06** — the plan is `docs/features/maquette-l06/plan/INDEX.md`, which owns the
+**Phases of L06** — the plan is `docs/archive/features/maquette-l06/plan/INDEX.md`, which owns the
 reasoning and the 24 ACCEPTANCE criteria. This table owns only the status.
 
 | #   | Phase                             | File                                           | Status |
