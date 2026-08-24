@@ -1,89 +1,19 @@
 {
-  "commit": "5997881ef81621fbad318c23e1312a8f34847df1",
+  "commit": "5fae7eb2fb99a8f137c0a5a8adbd6bbc64eadbb6",
   "exemptions": {
     ".dcard .cap": "reserved footprint: the caption clears the floating add button; a measured clearance, not a space step"
   },
   "families": {
     "spacing": [
       [
-        ".topbar",
-        "gap",
-        "16px"
-      ],
-      [
-        ".topbar",
-        "padding",
-        "calc(env(safe-area-inset-top) + 12px) 16px 12px"
-      ],
-      [
-        ".topbar",
-        "padding-left",
-        "24px"
-      ],
-      [
-        ".topbar",
-        "padding-right",
-        "24px"
-      ],
-      [
         ".topbar .burger",
         "margin-left",
         "-4px"
       ],
       [
-        ".brand",
-        "gap",
-        "8px"
-      ],
-      [
-        ".topbar .sp",
-        "gap",
-        "12px"
-      ],
-      [
-        ".ps-dot",
-        "gap",
-        "7px"
-      ],
-      [
-        ".viewtabs",
-        "gap",
-        "8px"
-      ],
-      [
-        ".viewtabs",
-        "padding",
-        "10px 14px 8px"
-      ],
-      [
-        ".seg",
-        "gap",
-        "4px"
-      ],
-      [
-        ".seg",
-        "padding",
-        "4px"
-      ],
-      [
-        ".seg > button",
-        "padding",
-        "9px 0"
-      ],
-      [
         ".seg .n",
         "margin-left",
         "5px"
-      ],
-      [
-        ".seg .n",
-        "padding",
-        "1px 5px"
-      ],
-      [
-        ".filters",
-        "padding",
-        "0 14px 8px"
       ],
       [
         ".search .searchclear",
@@ -96,114 +26,14 @@
         "8px"
       ],
       [
-        ".pillscroll",
-        "gap",
-        "6px"
-      ],
-      [
-        ".pillscroll",
-        "padding-right",
-        "8px"
-      ],
-      [
-        ".pill",
-        "padding",
-        "5px 11px"
-      ],
-      [
         ".pill .c",
         "margin-left",
         "4px"
       ],
       [
-        ".vswwrap",
-        "gap",
-        "8px"
-      ],
-      [
-        ".vswwrap",
-        "padding-left",
-        "8px"
-      ],
-      [
-        ".vsw",
-        "gap",
-        "2px"
-      ],
-      [
-        ".vsw",
-        "padding",
-        "3px"
-      ],
-      [
-        ".countline",
-        "gap",
-        "6px"
-      ],
-      [
-        ".countline",
-        "padding",
-        "8px 14px 0"
-      ],
-      [
-        ".countline button",
-        "gap",
-        "4px"
-      ],
-      [
-        ".body",
-        "padding",
-        "10px 14px 18px"
-      ],
-      [
-        ".body",
-        "gap",
-        "14px"
-      ],
-      [
-        ".sec",
-        "gap",
-        "8px"
-      ],
-      [
-        ".sechead",
-        "gap",
-        "8px"
-      ],
-      [
-        ".sechead",
-        "padding",
-        "2px 0"
-      ],
-      [
-        ".act",
-        "gap",
-        "4px"
-      ],
-      [
-        ".act",
-        "padding",
-        "0 5px"
-      ],
-      [
-        ".ccol",
-        "padding",
-        "9px"
-      ],
-      [
-        ".ctop",
-        "gap",
-        "10px"
-      ],
-      [
         ".folder",
         "margin",
         "9px 0 9px 9px"
-      ],
-      [
-        ".folder",
-        "gap",
-        "4px"
       ],
       [
         ".csub",
@@ -226,44 +56,9 @@
         "6px"
       ],
       [
-        ".cmeta",
-        "gap",
-        "5px"
-      ],
-      [
         ".cannotations",
         "margin-top",
         "4px"
-      ],
-      [
-        ".cannotations",
-        "gap",
-        "5px"
-      ],
-      [
-        ".chip",
-        "gap",
-        "5px"
-      ],
-      [
-        ".chip",
-        "padding",
-        "2px 7px"
-      ],
-      [
-        ".freshtag",
-        "padding",
-        "2px 8px"
-      ],
-      [
-        ".cadence",
-        "padding",
-        "8px 14px 0"
-      ],
-      [
-        ".tilebadge",
-        "padding",
-        "0 4px"
       ],
       [
         ".strip",
@@ -271,39 +66,14 @@
         "9px"
       ],
       [
-        ".strip",
-        "padding-top",
-        "9px"
-      ],
-      [
-        ".st",
-        "gap",
-        "4px"
-      ],
-      [
         ".cfoot",
         "margin-top",
         "9px"
-      ],
-      [
-        ".cfoot",
-        "padding",
-        "9px"
-      ],
-      [
-        ".crossref",
-        "padding",
-        "10px 11px"
       ],
       [
         ".crossref span",
         "margin-top",
         "6px"
-      ],
-      [
-        ".grid",
-        "gap",
-        "10px"
       ],
       [
         ".tile .nm",
