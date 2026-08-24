@@ -1,7 +1,7 @@
 # L07 — Tailwind and CVA, surface by surface
 
 **Lot** `L07` of `docs/reference/frontend-architecture.md` § 4, Phase 2. **Depends on** L02, L04,
-L06 — all `LANDED`. **Branch** `feat/maquette-l07`. **Version** 0.98.35.
+L06 — all `LANDED`. **Branch** `feat/maquette-l07`. **Version** 0.98.36.
 
 D2 in force: styling goes through Tailwind utilities, and the design vocabulary is expressed as
 typed component variants (`class-variance-authority`) rather than hand-written class names. Each
