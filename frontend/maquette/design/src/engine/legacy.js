@@ -11327,17 +11327,38 @@ import { screens, panel, bridge } from "./seams.js";
     const state = etatCourant;
     if (state && state.tm === "nav") {
       armedExit = 0;
-      /* BACK UNDER THE FLOOR, the one gesture that lowers the flag, and only
-         in a session that arrived without one. There the floor was laid by a
-         switch rather than by the boot, so a Back can land beneath it: on the
-         address as typed, or on a page that was reached before any home entry
-         existed. Neither has a home entry at or beneath it, and left raised
-         the way out those surfaces offer steps back onto the exit guard and
-         arms it on a tap — the very defect the flag exists to prevent.
-         Anything but a home entry lowers it, and the next switch lays the
-         floor again: a Back too many costs one entry, a flag left raised
-         costs the document. */
-      if (arrivalWithoutFloor && state.page !== window.__address.homePage)
+      /* BACK UNDER THE FLOOR, and it is a BACK that lowers the flag — never a
+         FORWARD — and only in a session that arrived without one. There the
+         floor was laid by a switch rather than by the boot, so a Back can land
+         beneath it: on the address as typed, or on a page that was reached
+         before any home entry existed. Neither has a home entry at or beneath
+         it, and left raised the way out those surfaces offer steps back onto
+         the exit guard and arms it on a tap — the very defect the flag exists
+         to prevent. Anything but a home entry lowers it, and the next switch
+         lays the floor again: a Back too many costs one entry, a flag left
+         raised costs the document.
+
+         WHY THE DIRECTION IS PART OF THE CONDITION. A FORWARD RETRACES, IT
+         DOES NOT DESCEND: stepping forward onto a nav entry lands on a page
+         that was already reached with the floor beneath it, so the floor is
+         still there and lowering the flag makes the next switch lay a SECOND
+         one. Measured on the flag lowered by any pop, a cold not-found arrival
+         escaped and then walked in Back+Forward cycles grew its stack by two
+         entries per cycle instead of none, and leaving took a Back per cycle
+         walked — the unbounded stack § 16 forbids, reached by a gesture the
+         platform offers on every device.
+
+         A GO is left alone on purpose. Its delta is not reported, so a jump
+         BACKWARDS past the floor cannot be told from a jump forwards, and the
+         flag is better left raised than lowered on a guess: raised, one page
+         switch too many lays a spare entry; lowered wrongly, the stack grows
+         without bound. Our own unwind is not a GO the way this reads it — it
+         is announced to the latch above and returns long before this line. */
+      if (
+        arrivalWithoutFloor &&
+        direction === "BACK" &&
+        state.page !== window.__address.homePage
+      )
         homeFloorExists = false;
       pilotage = true;
       applyState({

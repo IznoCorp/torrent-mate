@@ -292,6 +292,52 @@ async def main():
                           not errors, str(errors))
             await ctx.close()
 
+        # AND A FORWARD OVER THAT FLOOR IS NOT A DESCENT. Back+Forward is the
+        # pair every platform offers, and it RETRACES: the page a Forward lands
+        # on was already reached with the floor beneath it, so the floor is
+        # still there. Read on a flag lowered by any pop, that Forward looks
+        # exactly like the Back under the floor above it — and the next switch
+        # then lays a SECOND floor, two entries per cycle, one extra Back per
+        # cycle walked to leave. Only the DEPTH ACROSS CYCLES says so: every
+        # address along the walk is right whichever stack was built under it.
+        ctx, pg, errors = await open_page(b, wrong)
+        await pg.tap(f'[data-go="{HOME_PAGE}"]')
+        await pg.wait_for_timeout(460)
+        first = None
+        for turn in range(4):
+            await switch_to(pg, "lib", False)
+            await pg.go_back()
+            await pg.wait_for_timeout(520)
+            await pg.go_forward()
+            await pg.wait_for_timeout(520)
+            await switch_to(pg, HOME_PAGE, False)
+            if not turn:
+                first = await pg.evaluate("()=>history.length")
+        cycled = await pg.evaluate("()=>history.length")
+        journal.check(
+            "three more Back+Forward cycles after the escape lay nothing the first did not",
+            cycled == first and path(pg.url) == HOME,
+            f"history.length {first} -> {cycled} · {pg.url}")
+        await pg.go_back()
+        await pg.wait_for_timeout(520)
+        retraced = await pg.evaluate(WHERE) if pg.url.startswith(PROTOTYPE) else None
+        journal.check(
+            "and one Back off the cycles is still the address as typed",
+            retraced is not None and path(pg.url) == "/nimportequoi"
+            and retraced["page"] == "404",
+            f"{pg.url} · {retraced if retraced else 'the document was left'}")
+        if retraced is not None:
+            await pg.go_back()
+            await pg.wait_for_timeout(520)
+        armed = (await pg.evaluate("()=>window.armedExit")
+                 if pg.url.startswith(PROTOTYPE) else None)
+        journal.check(
+            "and the exit guard is still the entry below it, two Backs from the cycles",
+            bool(armed), f"armedExit={armed} at {pg.url}")
+        journal.check("no JS error stepping forward over the floor the escape laid",
+                      not errors, str(errors))
+        await ctx.close()
+
         # AND A BACK GOES UNDER THAT FLOOR, which the round trips above cannot
         # see: they never step below the entry the escape wrote. The floor of a
         # not-found arrival is not the boot's — it is wherever a switch laid
