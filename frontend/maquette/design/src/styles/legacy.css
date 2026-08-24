@@ -1,0 +1,208 @@
+/* THE RESIDUE — CSS THE DYING ENGINE STILL NEEDS, AND ITS DATE OF DEATH.
+   D-L07-5, arbitrated by the operator on 2026-08-24.
+
+   Two kinds of rule live here, and neither is a leftover:
+
+     ENGINE-DRAWN — `legacy.js` writes the markup, so there is no component to
+       carry a variant and no element to carry a utility. The bottom bar and
+       the navigation drawer are empty containers in `index.html`; everything
+       inside them is written by the engine.
+
+     ENGINE-TOGGLED — a component or the shell draws the element, but the
+       ENGINE adds and removes the class that selects this rule
+       (`classList.add("open")`). Converting it means moving a `data-*`
+       contract's three ends at once — the markup, the engine's write, and the
+       rules that tap it — which is L13's work, not a styling change.
+
+   IT DIES WITH L13, and it may not GROW: `scripts/check-legacy-css-residue.py`
+   counts what is here and refuses an increase. The lot's « no hand-written
+   component stylesheet remains » reads as « for every surface this lot
+   converts » — and the exception is named, counted and dated rather than left
+   unremarked. */
+
+/* ── Pull to refresh ─────────────────────────────────────────────── */
+.ptr.armed {
+  color: var(--color-primary);
+}
+.ptr.loading .spin {
+  animation: spin var(--duration-loop-1) linear infinite;
+}
+
+/* ── Bottom bar ──────────────────────────────────────────────────── */
+/* The bar is an empty `<nav>` in the document; the engine writes its tabs. */
+html.selecting .bottombar {
+  display: none;
+}
+.bottombar a,
+.bottombar button {
+  display: flex;
+  min-height: 44px;
+  min-width: 0;
+  flex: 1 1 0%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  padding-block: var(--spacing-4);
+  font-size: var(--text-3);
+  border: 0;
+  background: transparent;
+  color: var(--color-muted-foreground);
+  transition: color var(--duration-1) var(--ease-standard);
+}
+.bottombar button[aria-current="page"] {
+  color: var(--color-primary-text);
+}
+.bottombar svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.bottombar .lb {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+/* The badge is a CORNER SUPERSCRIPT on the icon — never a third flow child,
+   which would make the tab taller. */
+.bottombar .ic {
+  position: relative;
+  display: inline-flex;
+}
+.navbadge {
+  position: absolute;
+  right: -10px;
+  top: -6px;
+  display: inline-flex;
+  height: 18px;
+  min-width: 18px;
+  align-items: center;
+  justify-content: center;
+  padding-inline: var(--spacing-2);
+  border-radius: var(--radius-full);
+  /* PRIMARY, not danger: that is NavCountBadge's value. Red is reserved for
+     the « ? » of an unavailable counter. */
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  font-size: var(--text-2);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  box-shadow: var(--mq-shadow-badge);
+  outline: 2px solid var(--color-sidebar);
+}
+
+/* ── Toast ───────────────────────────────────────────────────────── */
+.toast.show {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+
+/* ── Navigation drawer ───────────────────────────────────────────── */
+/* The drawer is an empty `<aside>` in the document; the engine writes its
+   header, its three titled sections and the version card. Mirrors
+   `NavSections`, and the mobile drawer is the ONLY place the version
+   reaches the phone. `.drawer.open` is engine-toggled. */
+.drawer.open {
+  transform: none;
+  visibility: visible;
+}
+.drawer .dh {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: calc(env(safe-area-inset-top) + var(--spacing-7)) var(--spacing-7) var(--spacing-7);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--text-5);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.drawer nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  padding: var(--spacing-4);
+}
+.drawer .sect {
+  padding: var(--spacing-5) var(--spacing-6) var(--spacing-2);
+  font-size: var(--text-1);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-muted-foreground);
+}
+.drawer .sect + .sect,
+.drawer .grp + .grp {
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--spacing-3);
+  padding-top: var(--spacing-5);
+}
+.drawer a {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-6);
+  min-height: 44px;
+  padding: var(--spacing-4) var(--spacing-6);
+  border-radius: var(--radius-3);
+  font-size: var(--text-4);
+  color: var(--color-foreground);
+}
+.drawer a[aria-current="page"] {
+  /* « You are here » is the brand colour on the label — the same mark the
+     bottom bar uses, so one interface has one way of saying it. The row also
+     carries a surface, because a list is scanned and its current row has to
+     be found without reading five labels; that surface is a TINT of the
+     mark, never the mark itself. Painting the mark as the background left
+     the label exactly the colour of what it sat on: contrast 1.00, a label
+     written in invisible ink. */
+  background: color-mix(in oklab, var(--color-primary) 14%, transparent);
+  color: var(--color-primary-text);
+  font-weight: 600;
+}
+.drawer a svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+.drawer a .count {
+  margin-left: auto;
+  display: inline-flex;
+  height: 18px;
+  min-width: 18px;
+  align-items: center;
+  justify-content: center;
+  padding-inline: var(--spacing-2);
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  font-size: var(--text-2);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.drawer .ver {
+  border-top: 1px solid var(--color-border);
+  padding: var(--spacing-6) var(--spacing-7) calc(env(safe-area-inset-bottom) + var(--spacing-6));
+}
+.drawer .ver .vt {
+  font-size: var(--text-2);
+  color: var(--color-muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+.drawer .ver .vv {
+  font-size: var(--text-7);
+  font-weight: 700;
+  margin-top: var(--spacing-1);
+}
+.drawer .ver .vc {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: var(--text-2);
+  color: var(--color-muted-foreground);
+  margin-top: var(--spacing-1);
+}

@@ -7497,7 +7497,7 @@ import { screens, panel, bridge } from "./seams.js";
     return '<div class="sk skcard" data-skeleton=""></div>'.repeat(count);
   }
   function skelTiles(count) {
-    return `<div class="grid" data-part="grid">${'<div class="sk tile" data-part="tile" data-skeleton=""></div>'.repeat(count)}</div>`;
+    return `<div class="gallery" data-part="grid">${'<div class="sk tile" data-part="tile" data-skeleton=""></div>'.repeat(count)}</div>`;
   }
   function surfErr(what) {
     return `<div class="surferr" data-part="surface-error">${surfErrInner(what)}</div>`;
@@ -10477,7 +10477,7 @@ import { screens, panel, bridge } from "./seams.js";
       return;
     }
     const cardTemplate = currentState().sugMode === "poster" ? sugTileHTML : sugCardHTML;
-    box.className = currentState().sugMode === "poster" ? "grid" : "";
+    box.className = currentState().sugMode === "poster" ? "gallery" : "";
     box.innerHTML = SUGGESTIONS.slice(0, currentState().sugCount)
       .map((slice, index) =>
         currentState().sugGone.has(index) ? "" : cardTemplate(slice, index),

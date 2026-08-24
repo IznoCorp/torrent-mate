@@ -378,7 +378,7 @@ function FollowsTab(): ReactElement {
     );
 
   // EACH BRANCH DRAWS ITS OWN CONTAINER and fills it. The legacy interpolated a
-  // complete element here — a `.sec`, a `.grid`, an `.empty`, a skeleton or an
+  // complete element here — a `.sec`, a `.gallery`, an `.empty`, a skeleton or an
   // error surface — and React cannot inject markup without a host, so the host
   // IS that element rather than a wrapper around it.
   let content: ReactElement;
@@ -424,7 +424,7 @@ function FollowsTab(): ReactElement {
   } else if (state.followMode === "grid") {
     content = (
       <div
-        className="grid" data-part="grid"
+        className="gallery" data-part="grid"
         dangerouslySetInnerHTML={{ __html: visible.map(tileOf).join("") }}
       />
     );

@@ -43,6 +43,18 @@
    THE MARKERS TRAVEL WITH THE CSS. `serve.py` composes the sign-in gate by
    text search over `login:*` regions, and it must emit the scale FIRST so
    every folded declaration on the composed page resolves its step. */
+/* THE CASCADE ORDER, DECLARED ONCE AND FIRST. Without this line the base
+   layer is UNLAYERED, and unlayered CSS beats every layer — so
+   `button { color: inherit }` in the reset silently defeated
+   `text-primary-foreground` on the floating action button, and would have
+   defeated every colour utility on every button in the wave. The base layer
+   winning against components is the exact inverse of D3.
+
+   Found by the oracle at 250 divergences, on the first surface whose element
+   was a `<button>`. The residue is deliberately NOT in this list: it is
+   hand-written CSS for markup the engine draws, and it must win the way a
+   component's own rule would. */
+@layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
 /* `source(none)` IS THE CONFINEMENT, and the `@source` rules below are not.
    Tailwind v4 scans the project root AUTOMATICALLY unless told otherwise, and
@@ -125,6 +137,13 @@
      A size that is genuinely not a spacing step — a 44px touch target — is
      written as an arbitrary value and says so by its shape. */
   --spacing: initial;
+  /* ZERO IS A STEP, and clearing the multiplier had taken it away with the
+     rest. Without it `p-0`, `m-0`, `gap-0`, `top-0` and every other
+     zero-valued utility simply stop existing — which is not the scale being
+     enforced, it is the absence of a value having no name. It is the identity
+     element rather than a new magnitude, so the scale L06 declared is
+     unchanged in what it MEASURES; it now also says « none ». */
+  --spacing-0: 0px;
 
   /* login:scale:start */ /* scale:start */
   /* Space ramp: pads, gaps and margins. */

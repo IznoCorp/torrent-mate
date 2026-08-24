@@ -987,26 +987,26 @@
      six columns it does not have. A container query asks the right question,
      and the app gets the same answer because there its scrollport IS the
      window. */
-  .grid {
+  .gallery {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--spacing-5);
   }
 
   @container port (min-width: 460px) {
-    .grid {
+    .gallery {
       grid-template-columns: repeat(4, minmax(0, 1fr));
     }
   }
 
   @container port (min-width: 620px) {
-    .grid {
+    .gallery {
       grid-template-columns: repeat(5, minmax(0, 1fr));
     }
   }
 
   @container port (min-width: 820px) {
-    .grid {
+    .gallery {
       grid-template-columns: repeat(6, minmax(0, 1fr));
     }
   }
@@ -1776,145 +1776,21 @@
     opacity: 0.5;
   }
 
-  /* Pull to refresh */
-  .ptr {
-    display: grid;
-    place-items: center;
-    overflow: hidden;
-    height: 0;
-    transition: height var(--duration-2) var(--ease-standard);
-    color: var(--color-muted-foreground);
-  }
-  .ptr.armed {
-    color: var(--color-primary);
-  }
-  .ptr .spin {
-    width: 16px;
-    height: 16px;
-    border-radius: var(--radius-full);
-    border: 2px solid var(--color-border);
-    border-top-color: var(--color-primary);
-  }
-  .ptr.loading .spin {
-    animation: spin var(--duration-loop-1) linear infinite;
-  }
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
+  /* Pull to refresh — CONVERTED (L07 phase 5). `.ptr` and its spinner are
+     utilities in `index.html`; the two ENGINE-TOGGLED states (`armed`,
+     `loading`) are in `src/styles/legacy.css`, and `@keyframes spin` is in the
+     base layer, where a name the document defines once belongs. */
 
-  /* FAB */
-  .fab {
-    position: absolute;
-    right: 16px;
-    bottom: calc(var(--tm-bottom-bar-h, 0px) + 16px);
-    width: 52px;
-    height: 52px;
-    border-radius: var(--radius-full);
-    border: 0;
-    background: var(--color-primary);
-    color: var(--color-primary-foreground);
-    display: grid;
-    place-items: center;
-    box-shadow: var(--mq-shadow-fab);
-    z-index: 30;
-  }
-  .fab svg {
-    width: 23px;
-    height: 23px;
-  }
+  /* FAB — CONVERTED (L07 phase 5), utilities in `index.html`. The R8 group it
+     used to carry — an author `display` rule BEATS the `[hidden]` attribute —
+     is in `base.css` and deliberately UNLAYERED: inside `@layer base` it lost
+     to Tailwind's `grid` utility and the button reappeared on every page that
+     hides it. An override that must win against a utility cannot live below
+     one. */
 
-  /* R8 — an author `display` rule BEATS the `[hidden]` attribute. Any class
-     that declares a display must therefore declare its own hidden case,
-     otherwise `el.hidden = true` hides nothing. Observed here: the FAB
-     stayed visible on Arrivées and Médiathèque. */
-  .fab[hidden],
-  .selbar[hidden],
-  .live[hidden],
-  .crossref[hidden],
-  .chip[hidden] {
-    display: none;
-  }
-
-  /* Bottom bar — transplanted from BottomTabBar.tsx */
-  html.selecting .bottombar {
-    display: none;
-  }
-  .bottombar {
-    position: fixed;
-    inset-inline: 0;
-    bottom: 0;
-    z-index: 50;
-    display: flex;
-    border-top: 1px solid var(--color-border);
-    background: var(--color-sidebar);
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-  @media (min-width: 768px) {
-    .bottombar {
-      display: none;
-    }
-  }
-  .bottombar a,
-  .bottombar button {
-    display: flex;
-    min-height: 44px;
-    min-width: 0;
-    flex: 1 1 0%;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-2);
-    padding-block: var(--spacing-4);
-    font-size: var(--text-3);
-    border: 0;
-    background: transparent;
-    color: var(--color-muted-foreground);
-    transition: color var(--duration-1) var(--ease-standard);
-  }
-  .bottombar button[aria-current="page"] {
-    color: var(--color-primary-text);
-  }
-  .bottombar svg {
-    width: 20px;
-    height: 20px;
-    flex-shrink: 0;
-  }
-  .bottombar .lb {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 100%;
-  }
-  /* The badge is a CORNER SUPERSCRIPT on the icon — never a third flow
-     child, which would make the tab taller. */
-  .bottombar .ic {
-    position: relative;
-    display: inline-flex;
-  }
-  .navbadge {
-    position: absolute;
-    right: -10px;
-    top: -6px;
-    display: inline-flex;
-    height: 18px;
-    min-width: 18px;
-    align-items: center;
-    justify-content: center;
-    padding-inline: var(--spacing-2);
-    border-radius: var(--radius-full);
-    /* PRIMARY, not danger: that is NavCountBadge's value. Red is reserved
-       for the « ? » of an unavailable counter. */
-    background: var(--color-primary);
-    color: var(--color-primary-foreground);
-    font-size: var(--text-2);
-    font-weight: 600;
-    line-height: 1;
-    font-variant-numeric: tabular-nums;
-    box-shadow: var(--mq-shadow-badge);
-    outline: 2px solid var(--color-sidebar);
-  }
+  /* Bottom bar — CONVERTED (L07 phase 5). The `<nav>`'s own rule is utilities
+     in `index.html`, including the desktop `md:hidden`; its tabs are written by
+     the ENGINE, so those rules are in `src/styles/legacy.css`. */
 
   /* Screens (resolution, media sheet) */
   .screen {
@@ -3179,49 +3055,8 @@
     border-color: transparent;
   }
 
-  /* Toast */
-  .toast {
-    position: absolute;
-    left: 14px;
-    right: 14px;
-    bottom: calc(var(--tm-bottom-bar-h, 0px) + 16px);
-    z-index: 49;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-5);
-    background: var(--color-popover);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-3);
-    padding: var(--spacing-5) var(--spacing-6);
-    font-size: var(--text-3);
-    box-shadow: var(--mq-shadow-toast);
-    transform: translateY(14px);
-    opacity: 0;
-    visibility: hidden;
-    transition:
-      opacity var(--duration-2) var(--ease-standard),
-      transform var(--duration-2) var(--ease-standard);
-  }
-  .toast.show {
-    opacity: 1;
-    visibility: visible;
-    transform: none;
-  }
-  .toast button {
-    margin-left: auto;
-    border: 0;
-    background: transparent;
-    color: var(--color-muted-foreground);
-    width: 24px;
-    height: 24px;
-    display: grid;
-    place-items: center;
-    flex: 0 0 auto;
-  }
-  .toast svg {
-    width: 14px;
-    height: 14px;
-  }
+  /* Toast — CONVERTED (L07 phase 5), utilities in `index.html`. `.toast.show`
+     is engine-toggled and is in `src/styles/legacy.css`. */
 
   /* Empty / note */
   .empty {
@@ -3308,7 +3143,7 @@
      which is a CLASS. An id rule would win over it by specificity alone — one
      of the two would then have to be written twice, and the one written twice
      is the one that drifts. */
-  #sugitems:not(.grid) {
+  #sugitems:not(.gallery) {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-7);
@@ -3531,131 +3366,9 @@
     color: var(--color-muted-foreground);
   }
 
-  /* Navigation drawer — the app's full template
-     The hamburger did nothing and nothing said so. Mirrors `NavSections`:
-     three titled sections, the same badges as the bottom bar, and the
-     `VersionCard` in the footer — it lives in the desktop rail, and the
-     mobile drawer is the ONLY place where the version reaches the phone. */
-  .drawer {
-    position: absolute;
-    inset: 0 auto 0 0;
-    width: 288px;
-    max-width: 86%;
-    z-index: 55;
-    background: var(--color-sidebar);
-    /* Named for what the document actually defines. A fallback onto a token
-       nobody declares reads as a considered choice and is a landmine: the day
-       someone reorders it, or drops the fallback, the property silently takes
-       whatever the first name happens to resolve to. That is how the current
-       entry came to be painted in its own colour. */
-    border-right: 1px solid var(--color-border);
-    display: flex;
-    flex-direction: column;
-    transform: translateX(-100%);
-    transition: transform var(--duration-3) var(--ease-standard);
-    visibility: hidden;
-  }
-  .drawer.open {
-    transform: none;
-    visibility: visible;
-  }
-  .drawer .dh {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-    padding: calc(env(safe-area-inset-top) + var(--spacing-7)) var(--spacing-7) var(--spacing-7);
-    border-bottom: 1px solid var(--color-border);
-    font-size: var(--text-5);
-    font-weight: 600;
-    letter-spacing: -0.01em;
-  }
-  .drawer nav {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-2);
-    padding: var(--spacing-4);
-  }
-  .drawer .sect {
-    padding: var(--spacing-5) var(--spacing-6) var(--spacing-2);
-    font-size: var(--text-1);
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--color-muted-foreground);
-  }
-  .drawer .sect + .sect,
-  .drawer .grp + .grp {
-    border-top: 1px solid var(--color-border);
-    margin-top: var(--spacing-3);
-    padding-top: var(--spacing-5);
-  }
-  .drawer a {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-6);
-    min-height: 44px;
-    padding: var(--spacing-4) var(--spacing-6);
-    border-radius: var(--radius-3);
-    font-size: var(--text-4);
-    color: var(--color-foreground);
-  }
-  .drawer a[aria-current="page"] {
-    /* « You are here » is the brand colour on the label — the same mark the
-       bottom bar uses, so one interface has one way of saying it. The row also
-       carries a surface, because a list is scanned and its current row has to
-       be found without reading five labels; that surface is a TINT of the
-       mark, never the mark itself. Painting the mark as the background left
-       the label exactly the colour of what it sat on: contrast 1.00, a label
-       written in invisible ink. */
-    background: color-mix(in oklab, var(--color-primary) 14%, transparent);
-    color: var(--color-primary-text);
-    font-weight: 600;
-  }
-  .drawer a svg {
-    width: 20px;
-    height: 20px;
-    flex: 0 0 auto;
-  }
-  .drawer a .count {
-    margin-left: auto;
-    display: inline-flex;
-    height: 18px;
-    min-width: 18px;
-    align-items: center;
-    justify-content: center;
-    padding-inline: var(--spacing-2);
-    border-radius: var(--radius-full);
-    background: var(--color-primary);
-    color: var(--color-primary-foreground);
-    font-size: var(--text-2);
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-  }
-  .drawer .ver {
-    border-top: 1px solid var(--color-border);
-    padding: var(--spacing-6) var(--spacing-7) calc(env(safe-area-inset-bottom) + var(--spacing-6));
-  }
-  .drawer .ver .vt {
-    font-size: var(--text-2);
-    color: var(--color-muted-foreground);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-weight: 600;
-  }
-  .drawer .ver .vv {
-    font-size: var(--text-7);
-    font-weight: 700;
-    margin-top: var(--spacing-1);
-  }
-  .drawer .ver .vc {
-    font-family: ui-monospace, Menlo, monospace;
-    font-size: var(--text-2);
-    color: var(--color-muted-foreground);
-    margin-top: var(--spacing-1);
-  }
+  /* Navigation drawer — CONVERTED (L07 phase 5). The `<aside>`'s own rule is
+     utilities in `index.html`; everything it contains is written by the ENGINE,
+     so those rules are in `src/styles/legacy.css` with their date of death. */
 
   /* Design notes overlay */
   .note {

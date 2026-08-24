@@ -50,12 +50,19 @@ ALLOWED_SOURCES = {
 # Class names that ARE Tailwind utilities and are worn by the prototype anyway,
 # each with the reason it is tolerated. A name reaches this table by being
 # written here, in review — never by being discovered.
-DECLARED_COLLISIONS = {
-    "grid": (
-        "The gallery grid. The prototype declares `display: grid` on it itself, "
-        "unlayered, so it wins over `@layer utilities` — and the value Tailwind "
-        "would set is the same one. It disappears when the gallery converts."
-    ),
+DECLARED_COLLISIONS: dict[str, str] = {
+    # EMPTY, AND IT IS A VERDICT RATHER THAN A DEFAULT. `grid` was here for one
+    # phase, tolerated on the reasoning that the prototype declares
+    # `display: grid` on it itself and wins unlayered. That reasoning was
+    # incomplete and the omission was expensive: a colliding name does not
+    # merely override one property, it brings its WHOLE RULE. The gallery's
+    # `gap: var(--spacing-5)` landed on a floating action button that had
+    # asked for nothing but `display: grid`, and the oracle read it as 250
+    # divergences across nineteen states.
+    #
+    # The repair was to remove the collision — the gallery is `.gallery` now —
+    # not to describe it better. A name that is both a utility and a class is
+    # a hazard whatever the cascade happens to do about it today.
 }
 
 _CLASS_ATTRIBUTE = re.compile(r"class(?:Name)?\s*=\s*(?:\"([^\"]*)\"|'([^']*)'|\{`([^`]*)`\}|\{\"([^\"]*)\"\})")
@@ -64,32 +71,36 @@ _CSS_COMMENT = re.compile(r"/\*.*?\*/", re.S)
 _INTERPOLATION = re.compile(r"\$\{[^}]*\}")
 
 
-def worn_class_names() -> set[str]:
-    """Returns every class name the maquette's markup actually wears.
+def prototype_rule_classes() -> set[str]:
+    """Returns the class names the prototype DECLARES A RULE for.
 
-    Reads the component tree, the shell document and the legacy engine — the
-    engine included, because it still draws markup and a collision on what it
-    draws breaks just as loudly. Template interpolations are blanked rather
-    than guessed at: a name assembled at runtime is not a name this can read,
-    and pretending otherwise would put junk in the comparison.
+    THE PREMISE MOVED, AND IT HAD TO. This hold used to read the classes the
+    markup WORE, which was right for exactly as long as the markup wore no
+    utilities. From the first converted surface the markup wears them
+    deliberately, and every utility then read as a collision with itself.
+
+    The hazard was never wearing a name — it is a name meaning two things. A
+    class the prototype writes a RULE for, whose name is also a utility,
+    carries its whole rule onto every element that asked only for the utility:
+    the gallery's `gap` landed on a floating action button that had asked for
+    `display: grid` alone, and the oracle read 250 divergences.
 
     Returns:
-        The class names, as written.
+        Every class name with a rule of its own in the prototype's stylesheets.
     """
     names: set[str] = set()
-    files = list((DESIGN / "src").rglob("*.tsx"))
-    files += [DESIGN / "index.html", DESIGN / "src" / "engine" / "legacy.js"]
-    for path in files:
+    sources = [DESIGN / "refonte.html"]
+    styles = DESIGN / "src" / "styles"
+    if styles.is_dir():
+        sources.extend(sorted(styles.glob("*.css")))
+    for path in sources:
         if not path.exists():
             continue
-        text = path.read_text(encoding="utf-8")
-        for match in _CLASS_ATTRIBUTE.finditer(text):
-            written = " ".join(group for group in match.groups() if group)
-            for name in _INTERPOLATION.sub(" ", written).split():
-                if re.fullmatch(r"[a-zA-Z][\w-]*", name):
-                    names.add(name)
-        for match in _CLASS_LIST_CALL.finditer(text):
-            names.update(re.findall(r"[\"']([\w-]+)[\"']", match.group(1)))
+        text = _CSS_COMMENT.sub(" ", path.read_text(encoding="utf-8"))
+        for prelude in re.findall(r"([^{}]*)\{", text):
+            # A utility written INSIDE an arbitrary value is not a selector.
+            for name in re.findall(r"\.(-?[_a-zA-Z][\w-]*)", prelude):
+                names.add(name)
     return names
 
 
@@ -198,7 +209,7 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
-    collisions = (utilities & worn_class_names()) - set(DECLARED_COLLISIONS)
+    collisions = (utilities & prototype_rule_classes()) - set(DECLARED_COLLISIONS)
     if collisions:
         failures.append(
             "  " + ", ".join(sorted(collisions)) + " — worn by the prototype's markup AND generated as a Tailwind "
@@ -219,7 +230,14 @@ def main() -> int:
     # the oracle DOES catch it, at 25 seconds and 2 236 divergences, which is a
     # terrible way to learn that a keyword went missing.
     holds += 1
-    declared_tokens = set(re.findall(r"^\s*(--[a-z0-9-]+)\s*:", declarations, re.M))
+    # A token declared `initial` is a REMOVAL — `--spacing: initial` turns
+    # Tailwind's multiplier off — so its absence from the build is what it asks
+    # for, not a tree-shaken token.
+    declared_tokens = {
+        name for name, value in re.findall(
+            r"^\s*(--[a-z0-9-]+)\s*:\s*([^;]+);", declarations, re.M)
+        if value.strip() != "initial"
+    }
     built = sorted((DESIGN / "dist" / "vite").glob("*.css"))
     if declared_tokens and built:
         emitted = built[0].read_text(encoding="utf-8")

@@ -352,7 +352,7 @@ function LibraryList(): ReactElement {
   let items: ReactElement;
   if (state.phase === "loading") {
     items = (
-      <div id="libitems" className={grid ? "grid" : "sec"} data-part={grid ? "grid" : "section"}>
+      <div id="libitems" className={grid ? "gallery" : "sec"} data-part={grid ? "grid" : "section"}>
         {Array.from({ length: grid ? 9 : 5 }, (_, index) => (
           <div key={index} className={grid ? "sk tile" : "sk skcard"} data-skeleton="" data-part={grid ? "tile" : undefined} />
         ))}
@@ -362,7 +362,7 @@ function LibraryList(): ReactElement {
     items = (
       <div
         id="libitems"
-        className={grid ? "grid" : "sec"} data-part={grid ? "grid" : "section"}
+        className={grid ? "gallery" : "sec"} data-part={grid ? "grid" : "section"}
         dangerouslySetInnerHTML={{
           __html: `<div class="surferr" data-part="surface-error" role="alert">${surfErrInner(t("screens.library.errorSubject"))}</div>`,
         }}
@@ -370,7 +370,7 @@ function LibraryList(): ReactElement {
     );
   } else if (rows.length === 0) {
     items = (
-      <div id="libitems" className={grid ? "grid" : "sec"} data-part={grid ? "grid" : "section"}>
+      <div id="libitems" className={grid ? "gallery" : "sec"} data-part={grid ? "grid" : "section"}>
         <EmptyLibrary />
       </div>
     );
@@ -385,7 +385,7 @@ function LibraryList(): ReactElement {
       <div
         key={version}
         id="libitems"
-        className={grid ? "grid" : "sec"} data-part={grid ? "grid" : "section"}
+        className={grid ? "gallery" : "sec"} data-part={grid ? "grid" : "section"}
         dangerouslySetInnerHTML={{
           __html: rows
             .slice(0, count)
@@ -440,7 +440,7 @@ function LibraryList(): ReactElement {
       );
     } else {
       foot = grid ? (
-        <div className="grid" data-part="grid">
+        <div className="gallery" data-part="grid">
           {Array.from({ length: 3 }, (_, index) => (
             <div key={index} className="sk tile" data-part="tile" data-skeleton="" />
           ))}
@@ -494,7 +494,7 @@ export function LibraryPage(): ReactElement | null {
           </div>
           {state.libMode === "grid" ? (
             <div
-              className="grid" data-part="grid"
+              className="gallery" data-part="grid"
               dangerouslySetInnerHTML={{
                 __html: INCOMPLETE.map((show: IncompleteShow) =>
                   tileHTML(
