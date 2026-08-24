@@ -125,6 +125,12 @@ FAMILY_EXACT = {
     "row-gap": "spacing",
     "column-gap": "spacing",
     "font-size": "text",
+    # The `font` shorthand carries a size too, and reading `font-size` alone is
+    # a hole the size of however many shorthands the stylesheet happens to hold:
+    # four literals — two of them fractional — sat inside one while the text
+    # family reported zero. Only its size term is measured; see
+    # `font_shorthand_size`.
+    "font": "text",
     "border-radius": "radius",
     "transition": "motion",
     "animation": "motion",
@@ -156,6 +162,19 @@ LENGTH_LITERAL = re.compile(r"(?<![\w.])-?\d*\.?\d+px(?![\w-])")
 # A raw duration. Easing keywords and `cubic-bezier(…)` do not match — the
 # numbers inside a bezier carry no unit and are a curve's shape, not a step.
 TIME_LITERAL = re.compile(r"(?<![\w.])-?\d*\.?\d+m?s(?![\w-])")
+
+# The `<font-size>` term of a `font` shorthand, with the `/ <line-height>` the
+# grammar lets ride behind it. The terms that may precede it — style, variant,
+# weight, stretch — are keywords or a bare number (`600`), so a value carrying a
+# unit is the size and nothing else can be mistaken for it. The family list that
+# follows carries no length at all. `font: inherit` matches nothing, which is
+# the answer: a keyword is not a step.
+FONT_SHORTHAND_SIZE = re.compile(
+    r"(?<![\w.%/-])"
+    r"(?:-?\d*\.?\d+(?:px|pt|em|rem|ex|ch|vh|vw|vmin|vmax|%)"
+    r"|xx-small|x-small|small|medium|large|x-large|xx-large|smaller|larger)"
+    r"(?:\s*/\s*[^\s,;]+)?"
+)
 
 # A step of the scale, by name. Tailwind v4's theme namespaces, so the block
 # lifts into `@theme` without a rename when L07 lands.
@@ -274,6 +293,41 @@ def raw_literals(value: str, family: str) -> list[str]:
         if float(number) != 0:
             found.append(literal)
     return found
+
+
+def font_shorthand_size(value: str) -> str:
+    """Isolates the size a `font` shorthand sets, if it sets one.
+
+    Args:
+        value: The shorthand's value text, whitespace already collapsed.
+
+    Returns:
+        The `<font-size>` term with the `/ <line-height>` that may follow it, or
+        an empty string when the shorthand names no size — `font: inherit`, or a
+        size already read through `var()`, which the caller removes before the
+        literals are counted anyway.
+    """
+    found = FONT_SHORTHAND_SIZE.search(value)
+    return found.group(0) if found else ""
+
+
+def measurable_value(prop: str, value: str) -> str:
+    """Narrows a declaration's value to the part the scale answers for.
+
+    Every property in the table spends its whole value on one family; `font` is
+    the exception, because most of what it holds — the weight, the family list —
+    is not a design constant and never was.
+
+    Args:
+        prop: The property name as written, in any case.
+        value: The declaration's value text.
+
+    Returns:
+        The text whose literals the scale holds this declaration to.
+    """
+    if prop.strip().lower() == "font":
+        return font_shorthand_size(value)
+    return value
 
 
 def declarations_by_scope(css: str) -> tuple[set[str], set[str]]:
@@ -468,7 +522,7 @@ def scale_measurement(
             if family is None:
                 continue
             text = " ".join(value.split())
-            if raw_literals(text, family):
+            if raw_literals(measurable_value(prop, text), family):
                 inventory[family].append((selector, prop.strip().lower(), text))
 
     duplicated = sorted({name for name in DECLARATION.findall(outside) if SCALE_TOKEN.match(name)})
@@ -510,7 +564,7 @@ def scale_arm() -> int:
             if current[triple] <= known[triple]:
                 continue
             selector, prop, value = triple
-            literals = raw_literals(value, family)
+            literals = raw_literals(measurable_value(prop, value), family)
             quoted = ", ".join(f"`{literal}`" for literal in literals)
             verb = "is" if len(literals) == 1 else "are"
             print(f"  `{selector}` `{prop}: {value}` — {quoted} {verb} on no step of "

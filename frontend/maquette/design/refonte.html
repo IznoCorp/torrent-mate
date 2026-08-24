@@ -2080,7 +2080,7 @@
     border-radius: 8px;
     padding: var(--spacing-5) var(--spacing-7);
     font:
-      600 13.5px "Geist",
+      600 var(--text-4) "Geist",
       system-ui,
       sans-serif;
     background: var(--primary);
@@ -4091,7 +4091,7 @@
     border: 0;
     border-radius: 8px;
     font:
-      600 12.5px "Geist",
+      600 var(--text-3) "Geist",
       system-ui,
       sans-serif;
     color: var(--primary-foreground);
@@ -4210,10 +4210,10 @@
   }
 
   .loginfield input {
-    /* 16px is not a style choice: below it, iOS Safari zooms the page on
-       focus and the frame never comes back. */
+    /* --text-6 is 16px, and that is not a style choice: below it, iOS Safari
+       zooms the page on focus and the frame never comes back. */
     font:
-      400 16px "Geist",
+      400 var(--text-6) "Geist",
       system-ui,
       sans-serif;
     color: var(--foreground);
@@ -4244,7 +4244,7 @@
     border: 0;
     border-radius: 8px;
     font:
-      600 14px "Geist",
+      600 var(--text-5) "Geist",
       system-ui,
       sans-serif;
     color: var(--primary-foreground);

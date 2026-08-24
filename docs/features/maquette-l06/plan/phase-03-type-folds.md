@@ -64,6 +64,19 @@ same commit.
 **The mutation**: add `font-size: 17px` in BLOCK 2; with the baseline at zero the arm refuses it as
 the count going up.
 
+### The arm read `font-size` and not `font`
+
+`text 0` was reached once while four sizes were still literals, because the extractor matched the
+`font-size` property and the `font` shorthand carries a size too — `.savebar button` at 13.5 px,
+`.installgo` at 12.5 px, `.loginfield input` at 16 px, `.loginsubmit` at 14 px. Two of them were
+half-pixels the collapse above reports as gone, and one is a form field, so the shorthand was
+hiding a member of every group this phase names. The arm now reads the shorthand's `<font-size>`
+term — the value carrying a unit, since the terms that may precede it are keywords or a bare
+weight — and the four read a step like the rest. **The lesson is not about `font`**: a family's
+extractor is a claim about which properties spend that constant, and a shorthand is the shape that
+claim forgets. `background`, `border` and `inset` each hold a member of another family the same
+way; each is a hole until an arm is shown to fall on it.
+
 ## The divergences are reviewed, and the reference re-recorded
 
 The protocol of the plan's index, § « The oracle protocol for this lot », run at the end of this
