@@ -237,17 +237,23 @@ which is the whole of D-L06-3's « never a second script beside it ».
    - the named exemptions listed in the baseline file, each with its reason — today, `.dcard .cap`
      and nothing else.
 2. **The baseline**, `frontend/maquette/scale-baseline.json`, written by
-   `--record-scale-baseline`: the per-family counts as this phase finds them, the commit they were
-   taken at, and the named exemptions. **Indicative figures, measured at `ac04c8ca`** — the arm's
-   own accounting is the authority, and where the two disagree it is the arm that is read and the
-   difference that is explained:
+   `--record-scale-baseline`: the per-family triples as this phase finds them, the commit they were
+   taken at, and the named exemptions. **The figures the arm itself recorded at `7808f7a0`**, which
+   is the authority — the indicative table drafted at `ac04c8ca` read 316/268 · 150/150 · 108/105 ·
+   27/24, and the two rows that moved are explained under the table:
 
-   | family  | declarations | carrying a raw literal |
-   | ------- | ------------ | ---------------------- |
-   | spacing | 316          | 268                    |
-   | text    | 150          | 150                    |
-   | radius  | 108          | 105                    |
-   | motion  | 27           | 24                     |
+   | family  | declarations | carrying a raw literal | in the baseline |
+   | ------- | ------------ | ---------------------- | --------------- |
+   | spacing | 320          | 278                    | 277             |
+   | text    | 150          | 149                    | 149             |
+   | radius  | 108          | 105                    | 105             |
+   | motion  | 27           | 24                     | 24              |
+
+   **Spacing reads 320 rather than 316** because the arm's family includes the logical longhands —
+   one `padding-block` and three `padding-inline` — which a shorthand-oriented grep does not see;
+   the 277 recorded is 278 less the one declaration `.dcard .cap` is exempted for. **Type reads 149
+   rather than 150** because `1em` on `.pfall b` is a relative unit and therefore on no scale, which
+   § 1.1 already says and the draft table did not carry through. Radius and motion agree exactly.
 
 3. **The arm refuses the count going UP**, per family, and says which family and by how much. It
    does not refuse a count going down — that is the folding phases doing their work, and each of

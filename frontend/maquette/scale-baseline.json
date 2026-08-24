@@ -1,0 +1,2791 @@
+{
+  "commit": "7808f7a0bb1060359833542e286fc47ea6917f87",
+  "exemptions": {
+    ".dcard .cap": "reserved footprint: the caption clears the floating add button; a measured clearance, not a space step"
+  },
+  "families": {
+    "spacing": [
+      [
+        ".topbar",
+        "gap",
+        "16px"
+      ],
+      [
+        ".topbar",
+        "padding",
+        "calc(env(safe-area-inset-top) + 12px) 16px 12px"
+      ],
+      [
+        ".topbar",
+        "padding-left",
+        "24px"
+      ],
+      [
+        ".topbar",
+        "padding-right",
+        "24px"
+      ],
+      [
+        ".topbar .burger",
+        "margin-left",
+        "-4px"
+      ],
+      [
+        ".brand",
+        "gap",
+        "8px"
+      ],
+      [
+        ".topbar .sp",
+        "gap",
+        "12px"
+      ],
+      [
+        ".ps-dot",
+        "gap",
+        "7px"
+      ],
+      [
+        ".port",
+        "padding-bottom",
+        "calc(var(--tm-bottom-bar-h, 0px) + 16px)"
+      ],
+      [
+        ".viewtabs",
+        "gap",
+        "8px"
+      ],
+      [
+        ".viewtabs",
+        "padding",
+        "10px 14px 8px"
+      ],
+      [
+        ".seg",
+        "gap",
+        "4px"
+      ],
+      [
+        ".seg",
+        "padding",
+        "4px"
+      ],
+      [
+        ".seg > button",
+        "padding",
+        "9px 0"
+      ],
+      [
+        ".seg .n",
+        "margin-left",
+        "5px"
+      ],
+      [
+        ".seg .n",
+        "padding",
+        "1px 5px"
+      ],
+      [
+        ".filters",
+        "padding",
+        "0 14px 8px"
+      ],
+      [
+        ".search",
+        "gap",
+        "8px"
+      ],
+      [
+        ".search",
+        "padding",
+        "0 10px"
+      ],
+      [
+        ".search input",
+        "padding",
+        "9px 0"
+      ],
+      [
+        ".search .searchclear",
+        "margin-right",
+        "-8px"
+      ],
+      [
+        ".pillbar",
+        "margin-top",
+        "8px"
+      ],
+      [
+        ".pillscroll",
+        "gap",
+        "6px"
+      ],
+      [
+        ".pillscroll",
+        "padding-right",
+        "8px"
+      ],
+      [
+        ".pill",
+        "padding",
+        "5px 11px"
+      ],
+      [
+        ".pill .c",
+        "margin-left",
+        "4px"
+      ],
+      [
+        ".vswwrap",
+        "gap",
+        "8px"
+      ],
+      [
+        ".vswwrap",
+        "padding-left",
+        "8px"
+      ],
+      [
+        ".vsw",
+        "gap",
+        "2px"
+      ],
+      [
+        ".vsw",
+        "padding",
+        "3px"
+      ],
+      [
+        ".countline",
+        "gap",
+        "6px"
+      ],
+      [
+        ".countline",
+        "padding",
+        "8px 14px 0"
+      ],
+      [
+        ".countline button",
+        "gap",
+        "4px"
+      ],
+      [
+        ".body",
+        "padding",
+        "10px 14px 18px"
+      ],
+      [
+        ".body",
+        "gap",
+        "14px"
+      ],
+      [
+        ".sec",
+        "gap",
+        "8px"
+      ],
+      [
+        ".sechead",
+        "gap",
+        "8px"
+      ],
+      [
+        ".sechead",
+        "padding",
+        "2px 0"
+      ],
+      [
+        ".act",
+        "gap",
+        "4px"
+      ],
+      [
+        ".act",
+        "padding",
+        "0 5px"
+      ],
+      [
+        ".ccol",
+        "padding",
+        "9px"
+      ],
+      [
+        ".ctop",
+        "gap",
+        "10px"
+      ],
+      [
+        ".folder",
+        "margin",
+        "9px 0 9px 9px"
+      ],
+      [
+        ".folder",
+        "gap",
+        "4px"
+      ],
+      [
+        ".csub",
+        "margin-top",
+        "2px"
+      ],
+      [
+        ".creason",
+        "margin-top",
+        "3px"
+      ],
+      [
+        ".cov",
+        "margin-top",
+        "5px"
+      ],
+      [
+        ".cmeta",
+        "margin-top",
+        "6px"
+      ],
+      [
+        ".cmeta",
+        "gap",
+        "5px"
+      ],
+      [
+        ".cannotations",
+        "margin-top",
+        "4px"
+      ],
+      [
+        ".cannotations",
+        "gap",
+        "5px"
+      ],
+      [
+        ".chip",
+        "gap",
+        "5px"
+      ],
+      [
+        ".chip",
+        "padding",
+        "2px 7px"
+      ],
+      [
+        ".freshtag",
+        "padding",
+        "2px 8px"
+      ],
+      [
+        ".cadence",
+        "padding",
+        "8px 14px 0"
+      ],
+      [
+        ".tilebadge",
+        "padding",
+        "0 4px"
+      ],
+      [
+        ".strip",
+        "margin-top",
+        "9px"
+      ],
+      [
+        ".strip",
+        "padding-top",
+        "9px"
+      ],
+      [
+        ".st",
+        "gap",
+        "4px"
+      ],
+      [
+        ".cfoot",
+        "margin-top",
+        "9px"
+      ],
+      [
+        ".cfoot",
+        "padding",
+        "9px"
+      ],
+      [
+        ".crossref",
+        "padding",
+        "10px 11px"
+      ],
+      [
+        ".crossref span",
+        "margin-top",
+        "6px"
+      ],
+      [
+        ".grid",
+        "gap",
+        "10px"
+      ],
+      [
+        ".tile .nm",
+        "margin-top",
+        "5px"
+      ],
+      [
+        ".sugwrap.gone",
+        "margin-bottom",
+        "-14px"
+      ],
+      [
+        ".body.deckbody",
+        "padding-bottom",
+        "10px"
+      ],
+      [
+        ".dcard .m",
+        "margin-top",
+        "3px"
+      ],
+      [
+        ".dcard .why",
+        "margin-top",
+        "6px"
+      ],
+      [
+        ".dcard .why",
+        "padding-left",
+        "8px"
+      ],
+      [
+        ".dhint",
+        "padding",
+        "5px 10px"
+      ],
+      [
+        ".sugback",
+        "padding",
+        "0 18px"
+      ],
+      [
+        ".sugback span",
+        "gap",
+        "7px"
+      ],
+      [
+        ".crating",
+        "padding",
+        "1px 6px"
+      ],
+      [
+        ".crating",
+        "margin-left",
+        "6px"
+      ],
+      [
+        ".panel",
+        "padding",
+        "2px 11px"
+      ],
+      [
+        ".kv",
+        "gap",
+        "12px"
+      ],
+      [
+        ".kv",
+        "padding",
+        "9px 0"
+      ],
+      [
+        ".kv span:last-child",
+        "gap",
+        "6px"
+      ],
+      [
+        ".kv.withpip > span:first-child",
+        "gap",
+        "8px"
+      ],
+      [
+        ".sheetfacts",
+        "margin-bottom",
+        "14px"
+      ],
+      [
+        ".live",
+        "gap",
+        "8px"
+      ],
+      [
+        ".live",
+        "padding",
+        "9px 11px"
+      ],
+      [
+        ".pipeline",
+        "padding",
+        "12px"
+      ],
+      [
+        ".pipeline",
+        "gap",
+        "10px"
+      ],
+      [
+        ".pipeline .ph",
+        "gap",
+        "8px"
+      ],
+      [
+        ".pipeline .pacts",
+        "gap",
+        "8px"
+      ],
+      [
+        ".flux .fw",
+        "gap",
+        "2px 10px"
+      ],
+      [
+        ".flux .fw",
+        "padding",
+        "9px 11px"
+      ],
+      [
+        ".topic",
+        "gap",
+        "12px"
+      ],
+      [
+        ".topic",
+        "padding",
+        "12px"
+      ],
+      [
+        ".topic",
+        "margin-bottom",
+        "8px"
+      ],
+      [
+        ".topic .rs",
+        "margin-top",
+        "2px"
+      ],
+      [
+        ".settingrow",
+        "gap",
+        "10px"
+      ],
+      [
+        ".settingrow",
+        "padding",
+        "11px 2px"
+      ],
+      [
+        ".settingrow .rf",
+        "margin-top",
+        "2px"
+      ],
+      [
+        ".settingrow.modified::before",
+        "margin-right",
+        "-4px"
+      ],
+      [
+        ".field",
+        "gap",
+        "10px"
+      ],
+      [
+        ".field",
+        "margin-top",
+        "10px"
+      ],
+      [
+        ".field.list",
+        "gap",
+        "6px"
+      ],
+      [
+        ".fieldinput",
+        "padding",
+        "11px 12px"
+      ],
+      [
+        ".fieldtoggle",
+        "padding",
+        "3px"
+      ],
+      [
+        ".litem",
+        "gap",
+        "8px"
+      ],
+      [
+        ".litem",
+        "padding",
+        "9px 12px"
+      ],
+      [
+        ".lremove",
+        "padding",
+        "2px"
+      ],
+      [
+        ".ladd",
+        "gap",
+        "6px"
+      ],
+      [
+        ".ladd",
+        "padding",
+        "10px"
+      ],
+      [
+        ".savebar",
+        "gap",
+        "10px"
+      ],
+      [
+        ".savebar",
+        "padding",
+        "10px 14px"
+      ],
+      [
+        ".savebar button",
+        "padding",
+        "10px 14px"
+      ],
+      [
+        ".bottombar a, .bottombar button",
+        "gap",
+        "4px"
+      ],
+      [
+        ".bottombar a, .bottombar button",
+        "padding-block",
+        "8px"
+      ],
+      [
+        ".navbadge",
+        "padding-inline",
+        "4px"
+      ],
+      [
+        ".screenbar",
+        "gap",
+        "6px"
+      ],
+      [
+        ".screenbar",
+        "padding",
+        "10px 12px"
+      ],
+      [
+        ".fback",
+        "gap",
+        "5px"
+      ],
+      [
+        ".fback",
+        "padding",
+        "4px 2px"
+      ],
+      [
+        ".screen .port",
+        "padding-bottom",
+        "calc(var(--tm-bottom-bar-h, 0px) + 18px)"
+      ],
+      [
+        ".sheetin",
+        "padding",
+        "2px 14px calc(var(--tm-bottom-bar-h, 0px) + 18px)"
+      ],
+      [
+        ".sheettitle",
+        "margin",
+        "0 0 2px"
+      ],
+      [
+        ".sheetmeta",
+        "margin-bottom",
+        "14px"
+      ],
+      [
+        ".sheethead",
+        "gap",
+        "12px"
+      ],
+      [
+        ".sheethead",
+        "padding-bottom",
+        "4px"
+      ],
+      [
+        ".sheethead.withposter",
+        "margin-bottom",
+        "12px"
+      ],
+      [
+        ".sheethead .sheetmeta",
+        "margin-bottom",
+        "6px"
+      ],
+      [
+        ".sheethead .sheetsub",
+        "margin-top",
+        "2px"
+      ],
+      [
+        ".soon",
+        "padding",
+        "2px 7px"
+      ],
+      [
+        ".sheetacts",
+        "gap",
+        "7px"
+      ],
+      [
+        ".sheetacts",
+        "margin",
+        "4px 0 14px"
+      ],
+      [
+        ".sheetacts.secondary",
+        "margin-top",
+        "18px"
+      ],
+      [
+        ".sheetacts.secondary",
+        "padding-top",
+        "14px"
+      ],
+      [
+        ".sact",
+        "gap",
+        "10px"
+      ],
+      [
+        ".sact",
+        "padding",
+        "11px 12px"
+      ],
+      [
+        ".noinfo",
+        "margin",
+        "0 0 4px"
+      ],
+      [
+        ".noinfo",
+        "padding",
+        "10px 11px"
+      ],
+      [
+        ".rulenote",
+        "margin",
+        "0 0 14px"
+      ],
+      [
+        ".rulenote",
+        "padding",
+        "2px 0 2px 11px"
+      ],
+      [
+        ".herowrap",
+        "margin",
+        "-10px -14px 0"
+      ],
+      [
+        ".herowrap.noposter",
+        "padding-top",
+        "18px"
+      ],
+      [
+        ".hero",
+        "margin-top",
+        "-62px"
+      ],
+      [
+        ".hero",
+        "padding",
+        "0 14px"
+      ],
+      [
+        ".hero .hm",
+        "margin",
+        "7px 0 0"
+      ],
+      [
+        ".hero .hn",
+        "gap",
+        "4px"
+      ],
+      [
+        ".hero .hn",
+        "margin-top",
+        "7px"
+      ],
+      [
+        ".cast",
+        "gap",
+        "8px"
+      ],
+      [
+        ".cast",
+        "padding-bottom",
+        "2px"
+      ],
+      [
+        ".cast figcaption",
+        "margin-top",
+        "6px"
+      ],
+      [
+        ".mediaadd",
+        "gap",
+        "9px"
+      ],
+      [
+        ".mediaadd",
+        "padding",
+        "12px"
+      ],
+      [
+        ".tsrc",
+        "gap",
+        "4px"
+      ],
+      [
+        ".tsrc",
+        "padding",
+        "3px 7px"
+      ],
+      [
+        ".trailer",
+        "gap",
+        "10px"
+      ],
+      [
+        ".trailer",
+        "padding",
+        "11px 12px"
+      ],
+      [
+        ".trailer small",
+        "margin-top",
+        "1px"
+      ],
+      [
+        ".eprow",
+        "gap",
+        "9px"
+      ],
+      [
+        ".eprow",
+        "padding",
+        "8px 0"
+      ],
+      [
+        ".legend",
+        "gap",
+        "5px 12px"
+      ],
+      [
+        ".legend",
+        "margin-bottom",
+        "12px"
+      ],
+      [
+        ".legend span",
+        "gap",
+        "5px"
+      ],
+      [
+        ".season",
+        "padding",
+        "8px 0"
+      ],
+      [
+        ".season > summary",
+        "gap",
+        "8px"
+      ],
+      [
+        ".season > summary",
+        "padding",
+        "4px 0"
+      ],
+      [
+        ".season .miss",
+        "padding",
+        "1px 6px"
+      ],
+      [
+        ".missing",
+        "margin",
+        "8px 0 0"
+      ],
+      [
+        ".eps",
+        "gap",
+        "4px"
+      ],
+      [
+        ".eps",
+        "margin-top",
+        "8px"
+      ],
+      [
+        ".eppop",
+        "padding",
+        "8px 12px"
+      ],
+      [
+        ".eppop b",
+        "margin-bottom",
+        "2px"
+      ],
+      [
+        ".addform",
+        "padding",
+        "12px 14px 0"
+      ],
+      [
+        ".addrow",
+        "gap",
+        "8px"
+      ],
+      [
+        ".addrow",
+        "margin-top",
+        "8px"
+      ],
+      [
+        ".btnprimary",
+        "padding",
+        "0 16px"
+      ],
+      [
+        ".segmini",
+        "gap",
+        "3px"
+      ],
+      [
+        ".segmini",
+        "padding",
+        "3px"
+      ],
+      [
+        ".segmini button",
+        "padding",
+        "6px 12px"
+      ],
+      [
+        ".rescount",
+        "padding",
+        "12px 14px 0"
+      ],
+      [
+        ".reslist",
+        "padding",
+        "10px 14px 18px"
+      ],
+      [
+        ".sugg",
+        "gap",
+        "6px"
+      ],
+      [
+        ".sugg",
+        "padding",
+        "12px 14px 0"
+      ],
+      [
+        ".sugg button",
+        "padding",
+        "5px 11px"
+      ],
+      [
+        ".byid",
+        "margin",
+        "14px 14px 0"
+      ],
+      [
+        ".byid",
+        "padding",
+        "10px 12px"
+      ],
+      [
+        ".byidin",
+        "margin-top",
+        "10px"
+      ],
+      [
+        ".byidin",
+        "gap",
+        "8px"
+      ],
+      [
+        ".addfoot",
+        "gap",
+        "10px"
+      ],
+      [
+        ".addfoot",
+        "padding",
+        "11px 14px calc(env(safe-area-inset-bottom) + 11px)"
+      ],
+      [
+        ".sact, .cfoot, .mediaadd, .dlgbtn, .btnprimary",
+        "gap",
+        "9px"
+      ],
+      [
+        ".sact, .cfoot, .mediaadd, .dlgbtn, .btnprimary",
+        "padding",
+        "11px 12px"
+      ],
+      [
+        ".addrow .btnprimary",
+        "padding-inline",
+        "16px"
+      ],
+      [
+        ".rel",
+        "gap",
+        "7px"
+      ],
+      [
+        ".rel",
+        "padding",
+        "10px"
+      ],
+      [
+        ".rel .rt",
+        "gap",
+        "5px"
+      ],
+      [
+        ".qgroup",
+        "gap",
+        "8px"
+      ],
+      [
+        ".kv.setting > span:first-child",
+        "padding-right",
+        "4px"
+      ],
+      [
+        ".optlist",
+        "gap",
+        "6px"
+      ],
+      [
+        ".opt",
+        "gap",
+        "11px"
+      ],
+      [
+        ".opt",
+        "padding",
+        "9px 12px"
+      ],
+      [
+        ".opt .lb small",
+        "margin-top",
+        "1px"
+      ],
+      [
+        ".optkind",
+        "margin",
+        "0 0 6px"
+      ],
+      [
+        ".dlg",
+        "padding",
+        "16px"
+      ],
+      [
+        ".dlg h2",
+        "margin",
+        "0 0 8px"
+      ],
+      [
+        ".dlg p",
+        "margin",
+        "0 0 10px"
+      ],
+      [
+        ".dryrun",
+        "gap",
+        "7px"
+      ],
+      [
+        ".dryrun",
+        "padding",
+        "8px 10px"
+      ],
+      [
+        ".dryrun",
+        "margin-bottom",
+        "11px"
+      ],
+      [
+        ".manifest",
+        "margin",
+        "0 0 11px"
+      ],
+      [
+        ".manifest li",
+        "gap",
+        "8px"
+      ],
+      [
+        ".manifest li",
+        "padding",
+        "5px 0"
+      ],
+      [
+        ".warnbox",
+        "padding",
+        "9px 10px"
+      ],
+      [
+        ".warnbox",
+        "margin-bottom",
+        "11px"
+      ],
+      [
+        ".dlgacts",
+        "gap",
+        "7px"
+      ],
+      [
+        ".dlgbtn",
+        "padding",
+        "10px"
+      ],
+      [
+        ".toast",
+        "gap",
+        "10px"
+      ],
+      [
+        ".toast",
+        "padding",
+        "11px 12px"
+      ],
+      [
+        ".empty",
+        "padding",
+        "18px 14px"
+      ],
+      [
+        ".empty b",
+        "margin-bottom",
+        "4px"
+      ],
+      [
+        ".surferr",
+        "padding",
+        "14px"
+      ],
+      [
+        ".surferr b",
+        "margin-bottom",
+        "4px"
+      ],
+      [
+        ".surferr button",
+        "margin-top",
+        "11px"
+      ],
+      [
+        ".surferr button",
+        "padding",
+        "9px"
+      ],
+      [
+        "#sugitems:not(.grid)",
+        "gap",
+        "14px"
+      ],
+      [
+        ".loadfoot",
+        "gap",
+        "10px"
+      ],
+      [
+        ".loadfoot",
+        "padding",
+        "4px 0 2px"
+      ],
+      [
+        ".endmark",
+        "padding",
+        "14px 0 4px"
+      ],
+      [
+        ".endmark::before",
+        "margin",
+        "0 auto 9px"
+      ],
+      [
+        ".loaderr",
+        "padding",
+        "11px"
+      ],
+      [
+        ".loaderr button",
+        "margin-top",
+        "9px"
+      ],
+      [
+        ".loaderr button",
+        "padding",
+        "9px"
+      ],
+      [
+        ".quota",
+        "margin-top",
+        "7px"
+      ],
+      [
+        ".selrow",
+        "gap",
+        "10px"
+      ],
+      [
+        ".selrow",
+        "padding",
+        "9px"
+      ],
+      [
+        ".selbar",
+        "gap",
+        "10px"
+      ],
+      [
+        ".selbar",
+        "padding",
+        "11px 14px calc(env(safe-area-inset-bottom) + 11px)"
+      ],
+      [
+        ".selbar button",
+        "padding",
+        "9px 13px"
+      ],
+      [
+        ".hpanel",
+        "padding",
+        "14px"
+      ],
+      [
+        ".hpanel",
+        "gap",
+        "12px"
+      ],
+      [
+        ".hpanel .row",
+        "gap",
+        "6px"
+      ],
+      [
+        ".hpanel .row button",
+        "padding",
+        "7px 11px"
+      ],
+      [
+        ".hpanel .states button",
+        "gap",
+        "10px"
+      ],
+      [
+        ".drawer .dh",
+        "gap",
+        "8px"
+      ],
+      [
+        ".drawer .dh",
+        "padding",
+        "calc(env(safe-area-inset-top) + 14px) 14px 14px"
+      ],
+      [
+        ".drawer nav",
+        "gap",
+        "4px"
+      ],
+      [
+        ".drawer nav",
+        "padding",
+        "8px"
+      ],
+      [
+        ".drawer .sect",
+        "padding",
+        "10px 12px 4px"
+      ],
+      [
+        ".drawer .sect + .sect, .drawer .grp + .grp",
+        "margin-top",
+        "6px"
+      ],
+      [
+        ".drawer .sect + .sect, .drawer .grp + .grp",
+        "padding-top",
+        "10px"
+      ],
+      [
+        ".drawer a",
+        "gap",
+        "12px"
+      ],
+      [
+        ".drawer a",
+        "padding",
+        "8px 12px"
+      ],
+      [
+        ".drawer a .count",
+        "padding-inline",
+        "4px"
+      ],
+      [
+        ".drawer .ver",
+        "padding",
+        "12px 14px calc(env(safe-area-inset-bottom) + 12px)"
+      ],
+      [
+        ".drawer .ver .vv",
+        "margin-top",
+        "3px"
+      ],
+      [
+        ".drawer .ver .vc",
+        "margin-top",
+        "2px"
+      ],
+      [
+        ".note",
+        "padding",
+        "9px 11px"
+      ],
+      [
+        ".note code",
+        "padding",
+        "1px 4px"
+      ],
+      [
+        ".installbar",
+        "padding",
+        "0 14px"
+      ],
+      [
+        ".installcard",
+        "gap",
+        "12px"
+      ],
+      [
+        ".installcard",
+        "padding",
+        "14px"
+      ],
+      [
+        ".installtext",
+        "gap",
+        "4px"
+      ],
+      [
+        ".installsteps",
+        "margin",
+        "2px 0 0"
+      ],
+      [
+        ".installsteps",
+        "padding-left",
+        "18px"
+      ],
+      [
+        ".installsteps",
+        "gap",
+        "3px"
+      ],
+      [
+        ".installkey",
+        "gap",
+        "3px"
+      ],
+      [
+        ".installgo",
+        "margin-top",
+        "8px"
+      ],
+      [
+        ".installgo",
+        "gap",
+        "6px"
+      ],
+      [
+        ".installgo",
+        "padding",
+        "8px 12px"
+      ],
+      [
+        ".loginscreen",
+        "gap",
+        "22px"
+      ],
+      [
+        ".loginscreen",
+        "padding",
+        "24px 20px"
+      ],
+      [
+        ".brandbig",
+        "gap",
+        "10px"
+      ],
+      [
+        ".logincard",
+        "gap",
+        "12px"
+      ],
+      [
+        ".logincard",
+        "padding",
+        "20px 18px"
+      ],
+      [
+        ".loginsub",
+        "margin",
+        "-6px 0 4px"
+      ],
+      [
+        ".loginfield",
+        "gap",
+        "5px"
+      ],
+      [
+        ".loginfield input",
+        "padding",
+        "9px 10px"
+      ],
+      [
+        ".loginsubmit",
+        "margin-top",
+        "4px"
+      ],
+      [
+        ".loginsubmit",
+        "padding",
+        "11px 14px"
+      ],
+      [
+        ".splash",
+        "gap",
+        "18px"
+      ],
+      [
+        ".splash",
+        "padding",
+        "24px 20px"
+      ]
+    ],
+    "text": [
+      [
+        ".brand .wm",
+        "font-size",
+        "14px"
+      ],
+      [
+        ".ps-dot",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".avatar",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".seg > button",
+        "font-size",
+        "13px"
+      ],
+      [
+        ".seg .n",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".search input",
+        "font-size",
+        "13px"
+      ],
+      [
+        ".pill",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".countline",
+        "font-size",
+        "11.5px"
+      ],
+      [
+        ".countline button",
+        "font-size",
+        "11.5px"
+      ],
+      [
+        ".sechead .t",
+        "font-size",
+        "12.5px"
+      ],
+      [
+        ".sechead .k",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".act",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".dlabel",
+        "font-size",
+        "8.5px"
+      ],
+      [
+        ".poster",
+        "font-size",
+        "14px"
+      ],
+      [
+        ".ctitle",
+        "font-size",
+        "13.5px"
+      ],
+      [
+        ".csub",
+        "font-size",
+        "11.5px"
+      ],
+      [
+        ".creason",
+        "font-size",
+        "11.5px"
+      ],
+      [
+        ".cov",
+        "font-size",
+        "11.5px"
+      ],
+      [
+        ".frac",
+        "font-size",
+        "11.5px"
+      ],
+      [
+        ".chip",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".caption",
+        "font-size",
+        "11.5px"
+      ],
+      [
+        ".freshtag",
+        "font-size",
+        "10px"
+      ],
+      [
+        ".cadence",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".tilebadge",
+        "font-size",
+        "9.5px"
+      ],
+      [
+        ".st .l",
+        "font-size",
+        "9.5px"
+      ],
+      [
+        ".cfoot",
+        "font-size",
+        "12.5px"
+      ],
+      [
+        ".crossref",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".tile .p",
+        "font-size",
+        "30px"
+      ],
+      [
+        ".tile .nm",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".tile .fr",
+        "font-size",
+        "10px"
+      ],
+      [
+        ".dcard .p",
+        "font-size",
+        "54px"
+      ],
+      [
+        ".dcard .t",
+        "font-size",
+        "19px"
+      ],
+      [
+        ".dcard .m",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".dcard .why",
+        "font-size",
+        "11.5px"
+      ],
+      [
+        ".dhint",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".sugback",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".crating",
+        "font-size",
+        "10.5px"
+      ],
+      [
+        ".kv",
+        "font-size",
+        "12.5px"
+      ],
+      [
+        ".h2",
+        "font-size",
+        "12.5px"
+      ],
+      [
+        ".live",
+        "font-size",
+        "11.5px"
+      ],
+      [
+        ".pipeline .pt",
+        "font-size",
+        "13px"
+      ],
+      [
+        ".pipeline .pq",
+        "font-size",
+        "11.5px"
+      ],
+      [
+        ".flux .fn",
+        "font-size",
+        "12.5px"
+      ],
+      [
+        ".flux .fr",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".flux .fs",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".flux .fk",
+        "font-size",
+        "10.5px"
+      ],
+      [
+        ".topic .rt",
+        "font-size",
+        "14px"
+      ],
+      [
+        ".topic .rs",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".topic .rn",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".settingrow .rl",
+        "font-size",
+        "13px"
+      ],
+      [
+        ".settingrow .rf",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".settingrow .rv",
+        "font-size",
+        "12.5px"
+      ],
+      [
+        ".fieldinput",
+        "font-size",
+        "14px"
+      ],
+      [
+        ".fieldinput.mono",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".fieldunit",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".fieldlabel",
+        "font-size",
+        "13px"
+      ],
+      [
+        ".litem",
+        "font-size",
+        "13px"
+      ],
+      [
+        ".ladd",
+        "font-size",
+        "12.5px"
+      ],
+      [
+        ".savebar .sn",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".savebar .sn b",
+        "font-size",
+        "13px"
+      ],
+      [
+        ".bottombar a, .bottombar button",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".navbadge",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".fback",
+        "font-size",
+        "13px"
+      ],
+      [
+        ".sheettitle",
+        "font-size",
+        "16px"
+      ],
+      [
+        ".sheetmeta",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".sheethead .sheetsub",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".avatar.big",
+        "font-size",
+        "16px"
+      ],
+      [
+        ".soon",
+        "font-size",
+        "10.5px"
+      ],
+      [
+        ".sact",
+        "font-size",
+        "13.5px"
+      ],
+      [
+        ".noinfo",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".rulenote",
+        "font-size",
+        "12.5px"
+      ],
+      [
+        ".hero .ht",
+        "font-size",
+        "27px"
+      ],
+      [
+        ".hero .hm",
+        "font-size",
+        "12.5px"
+      ],
+      [
+        ".hero .hn",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".cast .ca",
+        "font-size",
+        "19px"
+      ],
+      [
+        ".cast figcaption",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".mediaadd",
+        "font-size",
+        "14px"
+      ],
+      [
+        ".tsrc",
+        "font-size",
+        "10.5px"
+      ],
+      [
+        ".trailer",
+        "font-size",
+        "13px"
+      ],
+      [
+        ".trailer small",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".eprow",
+        "font-size",
+        "12.5px"
+      ],
+      [
+        ".eprow .en",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".eprow .ed",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".legend",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".season > summary",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".season > summary::before",
+        "font-size",
+        "15px"
+      ],
+      [
+        ".season .sfr",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".season .miss",
+        "font-size",
+        "10.5px"
+      ],
+      [
+        ".missing",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".ep",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".eppop",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".eppop b",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".sheetposter",
+        "font-size",
+        "26px"
+      ],
+      [
+        ".btnprimary",
+        "font-size",
+        "13px"
+      ],
+      [
+        ".segmini button",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".rescount",
+        "font-size",
+        "11.5px"
+      ],
+      [
+        ".sugg button",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".byid > summary",
+        "font-size",
+        "12.5px"
+      ],
+      [
+        ".byid > summary::before",
+        "font-size",
+        "10px"
+      ],
+      [
+        ".whyoff",
+        "font-size",
+        "11.5px"
+      ],
+      [
+        ".addfoot",
+        "font-size",
+        "12.5px"
+      ],
+      [
+        ".addfoot button",
+        "font-size",
+        "12.5px"
+      ],
+      [
+        ".sact, .cfoot, .mediaadd, .dlgbtn, .btnprimary",
+        "font-size",
+        "13.5px"
+      ],
+      [
+        ".rel .rn",
+        "font-size",
+        "11.5px"
+      ],
+      [
+        ".rel .sc",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".opt .lb",
+        "font-size",
+        "13.5px"
+      ],
+      [
+        ".opt .lb small",
+        "font-size",
+        "11.5px"
+      ],
+      [
+        ".optkind",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".qhint",
+        "font-size",
+        "11.5px"
+      ],
+      [
+        ".dlg h2",
+        "font-size",
+        "15px"
+      ],
+      [
+        ".dlg p",
+        "font-size",
+        "12.5px"
+      ],
+      [
+        ".dryrun",
+        "font-size",
+        "11.5px"
+      ],
+      [
+        ".manifest",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".warnbox",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".dlgbtn",
+        "font-size",
+        "13.5px"
+      ],
+      [
+        ".toast",
+        "font-size",
+        "12.5px"
+      ],
+      [
+        ".empty",
+        "font-size",
+        "12.5px"
+      ],
+      [
+        ".empty b",
+        "font-size",
+        "13px"
+      ],
+      [
+        ".surferr",
+        "font-size",
+        "12.5px"
+      ],
+      [
+        ".surferr button",
+        "font-size",
+        "12.5px"
+      ],
+      [
+        ".endmark",
+        "font-size",
+        "11.5px"
+      ],
+      [
+        ".loaderr",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".loaderr button",
+        "font-size",
+        "12.5px"
+      ],
+      [
+        ".quota",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".selbar .n",
+        "font-size",
+        "12.5px"
+      ],
+      [
+        ".selbar button",
+        "font-size",
+        "12.5px"
+      ],
+      [
+        ".linkbtn",
+        "font-size",
+        "11.5px"
+      ],
+      [
+        ".hpanel h4",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".hpanel .row button",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".hpanel .states code",
+        "font-size",
+        "10.5px"
+      ],
+      [
+        ".hpanel p",
+        "font-size",
+        "11.5px"
+      ],
+      [
+        ".drawer .dh",
+        "font-size",
+        "14px"
+      ],
+      [
+        ".drawer .sect",
+        "font-size",
+        "10.5px"
+      ],
+      [
+        ".drawer a",
+        "font-size",
+        "13.5px"
+      ],
+      [
+        ".drawer a .count",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".drawer .ver .vt",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".drawer .ver .vv",
+        "font-size",
+        "18px"
+      ],
+      [
+        ".drawer .ver .vc",
+        "font-size",
+        "11px"
+      ],
+      [
+        ".note",
+        "font-size",
+        "11.5px"
+      ],
+      [
+        ".note code",
+        "font-size",
+        "10.5px"
+      ],
+      [
+        ".installtitle",
+        "font-size",
+        "13.5px"
+      ],
+      [
+        ".installsub",
+        "font-size",
+        "11.5px"
+      ],
+      [
+        ".installsteps",
+        "font-size",
+        "11.5px"
+      ],
+      [
+        ".brandbig .wm",
+        "font-size",
+        "21px"
+      ],
+      [
+        ".logintitle",
+        "font-size",
+        "16px"
+      ],
+      [
+        ".loginsub",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".loginfield",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".loginerr",
+        "font-size",
+        "12px"
+      ],
+      [
+        ".splashmsg",
+        "font-size",
+        "12px"
+      ]
+    ],
+    "radius": [
+      [
+        ".topbar .burger",
+        "border-radius",
+        "6px"
+      ],
+      [
+        ".avatar",
+        "border-radius",
+        "9999px"
+      ],
+      [
+        ".seg",
+        "border-radius",
+        "10px"
+      ],
+      [
+        ".seg > button",
+        "border-radius",
+        "7px"
+      ],
+      [
+        ".seg .n",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".more",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".search",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".search .searchclear",
+        "border-radius",
+        "9999px"
+      ],
+      [
+        ".pill",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".vsw",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".vsw button",
+        "border-radius",
+        "6px"
+      ],
+      [
+        ".pip",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".swipe",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".card",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".folder",
+        "border-radius",
+        "6px"
+      ],
+      [
+        ".folder",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".chip",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".chip::before",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".freshtag",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".tilebadge",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".st .d",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".cfoot",
+        "border-radius",
+        "7px"
+      ],
+      [
+        ".crossref",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".tile .p",
+        "border-radius",
+        "6px"
+      ],
+      [
+        ".sugwrap",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".dcard",
+        "border-radius",
+        "14px"
+      ],
+      [
+        ".dhint",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".sugback",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".crating",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".panel",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".live",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".live .d",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".pipeline",
+        "border-radius",
+        "10px"
+      ],
+      [
+        ".pipeline .gauge",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".flux",
+        "border-radius",
+        "10px"
+      ],
+      [
+        ".topic",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".settingrow.modified::before",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".fieldinput",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".fieldtoggle",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".fieldknob",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".litem",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".ladd",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".savebar button",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".ptr .spin",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".fab",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".navbadge",
+        "border-radius",
+        "9999px"
+      ],
+      [
+        ".sheet",
+        "border-radius",
+        "14px 14px 0 0"
+      ],
+      [
+        ".sheetgrab::before",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".soon",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".sact",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".noinfo",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".cast .ca",
+        "border-radius",
+        "9999px"
+      ],
+      [
+        ".mediaadd",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".tsrc",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".trailer",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".trailer .pl",
+        "border-radius",
+        "9999px"
+      ],
+      [
+        ".epdot",
+        "border-radius",
+        "9999px"
+      ],
+      [
+        ".legend i",
+        "border-radius",
+        "2px"
+      ],
+      [
+        ".season > summary::before",
+        "border-radius",
+        "6px"
+      ],
+      [
+        ".season .miss",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".ep",
+        "border-radius",
+        "5px"
+      ],
+      [
+        ".eppop",
+        "border-radius",
+        "6px"
+      ],
+      [
+        ".sheetposter",
+        "border-radius",
+        "6px"
+      ],
+      [
+        ".btnprimary",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".segmini",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".segmini button",
+        "border-radius",
+        "6px"
+      ],
+      [
+        ".sugg button",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".byid",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".sact, .cfoot, .mediaadd, .dlgbtn, .btnprimary",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".rel",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".switch",
+        "border-radius",
+        "9999px"
+      ],
+      [
+        ".switch::after",
+        "border-radius",
+        "9999px"
+      ],
+      [
+        ".opt",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".opt.radio .mark",
+        "border-radius",
+        "9999px"
+      ],
+      [
+        ".opt.check .mark",
+        "border-radius",
+        "5px"
+      ],
+      [
+        ".opt.radio[aria-checked=\"true\"] .mark::after",
+        "border-radius",
+        "9999px"
+      ],
+      [
+        ".dlg",
+        "border-radius",
+        "12px"
+      ],
+      [
+        ".dryrun",
+        "border-radius",
+        "7px"
+      ],
+      [
+        ".warnbox",
+        "border-radius",
+        "7px"
+      ],
+      [
+        ".dlgbtn",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".toast",
+        "border-radius",
+        "9px"
+      ],
+      [
+        ".empty",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".skcard",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".surferr",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".surferr button",
+        "border-radius",
+        "7px"
+      ],
+      [
+        ".sk",
+        "border-radius",
+        "6px"
+      ],
+      [
+        ".sk.row",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".loaderr",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".loaderr button",
+        "border-radius",
+        "7px"
+      ],
+      [
+        ".tile .sel",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".selrow",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".selbar button",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".hpanel .row button",
+        "border-radius",
+        "7px"
+      ],
+      [
+        ".drawer a",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".drawer a .count",
+        "border-radius",
+        "9999px"
+      ],
+      [
+        ".note",
+        "border-radius",
+        "0 7px 7px 0"
+      ],
+      [
+        ".note code",
+        "border-radius",
+        "3px"
+      ],
+      [
+        ".installcard",
+        "border-radius",
+        "12px"
+      ],
+      [
+        ".installgo",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".installclose",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".logincard",
+        "border-radius",
+        "12px"
+      ],
+      [
+        ".loginfield input",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".loginsubmit",
+        "border-radius",
+        "8px"
+      ],
+      [
+        ".splashbar",
+        "border-radius",
+        "99px"
+      ],
+      [
+        ".splashbar i",
+        "border-radius",
+        "99px"
+      ]
+    ],
+    "motion": [
+      [
+        ".seg > button",
+        "transition",
+        "background 0.18s, color 0.18s"
+      ],
+      [
+        ".card",
+        "transition",
+        "transform 0.22s cubic-bezier(0.22, 0.61, 0.36, 1)"
+      ],
+      [
+        ".sugwrap.gone",
+        "transition",
+        "height 0.28s ease, opacity 0.2s ease, margin 0.28s ease"
+      ],
+      [
+        ".dcard",
+        "transition",
+        "transform 0.42s cubic-bezier(0.22, 1.02, 0.36, 1), opacity 0.34s ease-out"
+      ],
+      [
+        ".dhint",
+        "transition",
+        "opacity 0.12s ease"
+      ],
+      [
+        ".live .d",
+        "animation",
+        "pulse 1.6s ease-in-out infinite"
+      ],
+      [
+        ".fieldtoggle",
+        "transition",
+        "background 0.18s ease"
+      ],
+      [
+        ".fieldknob",
+        "transition",
+        "transform 0.18s ease"
+      ],
+      [
+        ".ptr",
+        "transition",
+        "height 0.22s ease"
+      ],
+      [
+        ".ptr.loading .spin",
+        "animation",
+        "spin 0.7s linear infinite"
+      ],
+      [
+        ".bottombar a, .bottombar button",
+        "transition",
+        "color 0.15s"
+      ],
+      [
+        ".screen",
+        "transition",
+        "transform 0.26s cubic-bezier(0.22, 0.61, 0.36, 1)"
+      ],
+      [
+        ".scrim",
+        "transition",
+        "opacity 0.2s"
+      ],
+      [
+        ".sheet",
+        "transition",
+        "transform 0.26s cubic-bezier(0.22, 0.61, 0.36, 1)"
+      ],
+      [
+        ".herobg",
+        "animation",
+        "heroin 0.5s ease both"
+      ],
+      [
+        ".season > summary::before",
+        "transition",
+        "transform 0.18s ease"
+      ],
+      [
+        ".switch",
+        "transition",
+        "background 0.18s, border-color 0.18s"
+      ],
+      [
+        ".switch::after",
+        "transition",
+        "transform 0.18s cubic-bezier(0.22, 0.61, 0.36, 1), background 0.18s"
+      ],
+      [
+        ".opt .mark",
+        "transition",
+        "border-color 0.15s, background 0.15s"
+      ],
+      [
+        ".dlg",
+        "transition",
+        "opacity 0.18s, transform 0.18s"
+      ],
+      [
+        ".toast",
+        "transition",
+        "opacity 0.2s, transform 0.2s"
+      ],
+      [
+        ".sk",
+        "animation",
+        "sh 1.3s linear infinite"
+      ],
+      [
+        ".drawer",
+        "transition",
+        "transform 0.26s cubic-bezier(0.22, 0.61, 0.36, 1)"
+      ],
+      [
+        ".splashbar i",
+        "animation",
+        "splashremplit 5s linear forwards"
+      ]
+    ]
+  }
+}

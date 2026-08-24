@@ -22,14 +22,34 @@ A token declared ONLY under a conditional scope (a theme attribute, a media
 condition) and used unconditionally is refused too: it renders correctly in the
 one state someone happened to look at, and to nothing everywhere else.
 
+THE SCALE ARM. `--arm scale` holds a second thing: every design constant BLOCK 2
+spends is a STEP declared in the scale block, and nowhere else. It is a ratchet
+rather than a wall — `frontend/maquette/scale-baseline.json` records what sits
+outside the scale today, the arm refuses that count going UP, and the folding
+phases lower it. The baseline is deleted when the last fold lands, and the arm
+then refuses the first off-scale declaration outright.
+
+THE LOGIN ARM. `--arm login` holds the composition of the standalone sign-in
+page, which `serve.py` builds by text search over `login:*` marked chunks rather
+than by block. A chunk that uses a token another chunk does not carry resolves
+to nothing on the design host — a landmine, not a crash, because CSS answers an
+unresolvable `var()` with silence.
+
 Usage:
-    python3 scripts/check-css-tokens.py          # exit 1 on any unresolved var()
+    python3 scripts/check-css-tokens.py          # every arm; exit 1 on any find
+    python3 scripts/check-css-tokens.py --arm scale
+    python3 scripts/check-css-tokens.py --arm login
+    python3 scripts/check-css-tokens.py --record-scale-baseline
 """
 
 from __future__ import annotations
 
+import argparse
+import json
 import re
+import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -56,6 +76,10 @@ RUNTIME_PREFIX = "--tm-"
 # as text rather than as CSS.
 COMMENT = re.compile(r"/\*.*?\*/", re.S)
 
+# The document's own comment syntax. The sign-in page is composed from CSS AND
+# markup chunks, so the arm that reads the composition meets both.
+HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
+
 # A declaration may open a line, or follow `{` or `;` on one. Anchoring to the
 # start of a line alone refused `.tm{--x:red}`, which is valid CSS.
 DECLARATION = re.compile(r"(?:^|[{;])\s*(--[\w-]+)\s*:", re.M)
@@ -70,6 +94,163 @@ RULE = re.compile(r"([^{}]+)\{([^{}]*)\}", re.S)
 
 # The scope the extraction puts every selector under.
 SCOPE = ".tm"
+
+# The markup half of the prototype. The sign-in page's chunks are split across
+# both files — the CSS chunks live in the stylesheet, the markup chunks here —
+# and the composer reads both, so the arm that holds the composition must too.
+MARKUP = ROOT / "frontend" / "maquette" / "design" / "index.html"
+
+# The scale block's own markers. Its declarations ARE the steps, so the ratchet
+# excludes the span before it counts anything: a scale that had to answer for
+# itself would report nine violations the moment it was written.
+SCALE_START = "/* scale:start */"
+SCALE_END = "/* scale:end */"
+
+# The ratchet's memory: what sits outside the scale today, per family, and the
+# commit it was taken at. A tolerance, not a target — phase 6 deletes it.
+SCALE_BASELINE = ROOT / "frontend" / "maquette" / "scale-baseline.json"
+
+# The families the scale answers for, keyed by the property names that spend a
+# design constant. Longhands are matched by prefix (`padding-left`) and by the
+# radius corners' suffix (`border-top-left-radius`); `scroll-padding` and plain
+# `border` are NOT in the set, which is why the exact names are listed rather
+# than a substring test used.
+FAMILY_EXACT = {
+    "padding": "spacing",
+    "margin": "spacing",
+    "gap": "spacing",
+    "row-gap": "spacing",
+    "column-gap": "spacing",
+    "font-size": "text",
+    "border-radius": "radius",
+    "transition": "motion",
+    "animation": "motion",
+}
+FAMILY_PREFIX = {
+    "padding-": "spacing",
+    "margin-": "spacing",
+    "transition-": "motion",
+    "animation-": "motion",
+}
+FAMILIES = ("spacing", "text", "radius", "motion")
+
+# A declaration inside a rule body: its property and its value. Anchored the
+# same way DECLARATION is, and for the same reason — `.tm{padding:0}` is valid
+# CSS and anchoring to the start of a line alone would not see it.
+BODY_DECLARATION = re.compile(r"(?:^|[{;])\s*([a-zA-Z-][\w-]*)\s*:\s*([^;}]*)", re.M)
+
+# `var(` / `env(` as a function head. Their whole call is removed before a value
+# is read for raw literals: a step read through `var()` is ON the scale, a
+# runtime `var(--tm-…, 0px)` is a measurement rather than a design constant, and
+# `env()` is a device inset. None of the three is something a scale can hold.
+RESOLVED_CALL = re.compile(r"(?<![\w-])(?:var|env)\(")
+
+# A raw length. `0` and `0px` are the absence of a step and are filtered by
+# value, not by pattern. Percentages, `em`, bare numbers (line-height style) and
+# the keywords `inherit` / `auto` never match: a relative unit is not a step.
+LENGTH_LITERAL = re.compile(r"(?<![\w.])-?\d*\.?\d+px(?![\w-])")
+
+# A raw duration. Easing keywords and `cubic-bezier(…)` do not match — the
+# numbers inside a bezier carry no unit and are a curve's shape, not a step.
+TIME_LITERAL = re.compile(r"(?<![\w.])-?\d*\.?\d+m?s(?![\w-])")
+
+# A step of the scale, by name. Tailwind v4's theme namespaces, so the block
+# lifts into `@theme` without a rename when L07 lands.
+SCALE_TOKEN = re.compile(r"^--(?:spacing|text|radius|duration|ease)-[\w-]+$")
+
+# A `login:<name>` chunk's opening marker, wherever it lives.
+LOGIN_MARKER = re.compile(r"login:([\w-]+):start")
+
+# Selectors the ratchet skips entirely, each with the reason it is not a step.
+# Seeded into the baseline at record time; the baseline is the authority
+# afterwards, so an exemption can only be added by editing a reviewed file.
+DEFAULT_EXEMPTIONS = {
+    ".dcard .cap": (
+        "reserved footprint: the caption clears the floating add button; "
+        "a measured clearance, not a space step"
+    ),
+}
+
+
+def family_of(prop: str) -> str | None:
+    """Names the scale family a CSS property spends a constant from.
+
+    Args:
+        prop: The property name as written, in any case.
+
+    Returns:
+        `spacing`, `text`, `radius`, `motion`, or `None` when the property
+        spends no design constant the scale answers for.
+    """
+    name = prop.strip().lower()
+    if name in FAMILY_EXACT:
+        return FAMILY_EXACT[name]
+    for prefix, family in FAMILY_PREFIX.items():
+        if name.startswith(prefix):
+            return family
+    # `border-top-left-radius` and its three siblings: a corner is still a
+    # radius, and folding three corners while leaving the fourth raw is exactly
+    # the half-done state the ratchet exists to make visible.
+    if name.startswith("border-") and name.endswith("-radius"):
+        return "radius"
+    return None
+
+
+def without_resolved_functions(value: str) -> str:
+    """Removes every `var()` and `env()` call, fallbacks included.
+
+    A balanced-paren scan rather than a regex: `var(--x, calc(1px + 2px))`
+    nests, and a non-nesting pattern would leave the fallback's literals behind
+    and report a declaration that already reads a step.
+
+    Args:
+        value: A declaration's value text.
+
+    Returns:
+        The value with every resolved call replaced by a space.
+    """
+    kept: list[str] = []
+    index = 0
+    while index < len(value):
+        head = RESOLVED_CALL.match(value, index)
+        if head is None:
+            kept.append(value[index])
+            index += 1
+            continue
+        depth = 1
+        cursor = head.end()
+        while cursor < len(value) and depth:
+            if value[cursor] == "(":
+                depth += 1
+            elif value[cursor] == ")":
+                depth -= 1
+            cursor += 1
+        kept.append(" ")
+        index = cursor
+    return "".join(kept)
+
+
+def raw_literals(value: str, family: str) -> list[str]:
+    """Lists the raw design constants a value still carries.
+
+    Args:
+        value: A declaration's value text, as written.
+        family: The scale family the declaration belongs to.
+
+    Returns:
+        Every literal that is on no step — empty when the declaration already
+        reads the scale, is zero, or is a keyword or a relative unit.
+    """
+    remainder = without_resolved_functions(value)
+    pattern = TIME_LITERAL if family == "motion" else LENGTH_LITERAL
+    found: list[str] = []
+    for literal in pattern.findall(remainder):
+        number = literal.rstrip("pxms")
+        # Zero is the absence of a step, not a step: `--spacing-0` would be a
+        # token that means nothing and costs a lookup at every use.
+        if float(number) != 0:
+            found.append(literal)
+    return found
 
 
 def declarations_by_scope(css: str) -> tuple[set[str], set[str]]:
@@ -133,16 +314,20 @@ def unresolved(css: str) -> tuple[list[str], list[str], list[str]]:
     return sorted(undefined), sorted(only_conditional), sorted(bare_runtime)
 
 
-def main() -> int:
-    """Reads the generated sheet and reports every `var()` it cannot resolve.
+def block_two() -> str | None:
+    """Slices BLOCK 2 out of the prototype, comments and all.
+
+    One slicing for every arm: an arm that disagreed with the file about where
+    the application CSS begins would be measuring a third thing.
 
     Returns:
-        1 when anything was found, 0 otherwise.
+        BLOCK 2's text, or `None` when the harness/application split is gone —
+        in which case the caller has already been told why.
     """
     if not FRAGMENT.exists():
         print(f"check-css-tokens: {FRAGMENT} not found — the scope is empty, so "
               "a « no violation » here would mean nothing", file=sys.stderr)
-        return 1
+        return None
 
     whole = FRAGMENT.read_text(encoding="utf-8")
     start = whole.find("<style")
@@ -152,8 +337,19 @@ def main() -> int:
         print("check-css-tokens: no <style> carrying BLOCK 2 in the maquette — "
               "the harness/application split is gone and this rule cannot tell "
               "them apart", file=sys.stderr)
+        return None
+    return whole[whole.rfind("/*", start, marker):end]
+
+
+def token_arm() -> int:
+    """Reads the generated sheet and reports every `var()` it cannot resolve.
+
+    Returns:
+        1 when anything was found, 0 otherwise.
+    """
+    css = block_two()
+    if css is None:
         return 1
-    css = whole[whole.rfind("/*", start, marker):end]
     stripped = COMMENT.sub(" ", css)
     used = {name for name, _ in USE.findall(stripped)}
     declared = set(DECLARATION.findall(stripped))
@@ -188,6 +384,284 @@ def main() -> int:
     print(f"check-css-tokens: {FRAGMENT.name} BLOCK 2 — {len(used)} token(s) used, "
           f"{len(declared)} declared, no unresolved `var()`.")
     return 0
+
+
+def load_scale_baseline() -> dict[str, object] | None:
+    """Reads the ratchet's baseline, when there still is one.
+
+    Returns:
+        The recorded inventory, or `None` once phase 6 has deleted the file —
+        which is not an error but the end state: no tolerance left to grant.
+    """
+    if not SCALE_BASELINE.exists():
+        return None
+    return json.loads(SCALE_BASELINE.read_text(encoding="utf-8"))
+
+
+def scale_measurement(
+    exemptions: dict[str, str],
+) -> tuple[dict[str, list[tuple[str, str, str]]], list[str]] | None:
+    """Counts what BLOCK 2 still spends outside the scale, and where.
+
+    The scale block is cut out BEFORE comments are stripped, in that order and
+    not the other: its markers are comments, and a strip-first reading would
+    lose the boundary and then hold the scale to answer for itself.
+
+    Args:
+        exemptions: Selectors to skip entirely, keyed by selector.
+
+    Returns:
+        `(inventory, duplicated)` — the off-scale declarations per family, and
+        the scale tokens declared outside the scale block. `None` when BLOCK 2
+        or the scale block could not be located.
+    """
+    css = block_two()
+    if css is None:
+        return None
+    head, marker, rest = css.partition(SCALE_START)
+    if not marker:
+        print(f"check-scale: no {SCALE_START} in {FRAGMENT.name} BLOCK 2 — the "
+              "scale has no home, so this arm has nothing to measure against",
+              file=sys.stderr)
+        return None
+    _, closing, tail = rest.partition(SCALE_END)
+    if not closing:
+        print(f"check-scale: {SCALE_START} is never closed by {SCALE_END} — the "
+              "arm cannot tell the steps apart from what spends them",
+              file=sys.stderr)
+        return None
+    outside = COMMENT.sub(" ", head + tail)
+
+    inventory: dict[str, list[tuple[str, str, str]]] = {family: [] for family in FAMILIES}
+    for prelude, body in RULE.findall(outside):
+        # Stripped the way declarations_by_scope strips it — the closing brace
+        # of an enclosing at-rule rides the next prelude, and one selector text
+        # keeps the two readings comparable.
+        selector = " ".join(prelude.strip().rsplit("}", 1)[-1].split())
+        if selector in exemptions:
+            continue
+        for prop, value in BODY_DECLARATION.findall("{" + body):
+            family = family_of(prop)
+            if family is None:
+                continue
+            text = " ".join(value.split())
+            if raw_literals(text, family):
+                inventory[family].append((selector, prop.strip().lower(), text))
+
+    duplicated = sorted({name for name in DECLARATION.findall(outside) if SCALE_TOKEN.match(name)})
+    return inventory, duplicated
+
+
+def scale_arm() -> int:
+    """Refuses a design constant that is on no step, and a scale declared twice.
+
+    Returns:
+        1 when anything was found, 0 otherwise.
+    """
+    baseline = load_scale_baseline()
+    exemptions: dict[str, str] = {}
+    if baseline is not None:
+        exemptions = dict(baseline.get("exemptions", {}))  # type: ignore[arg-type]
+    measured = scale_measurement(exemptions)
+    if measured is None:
+        return 1
+    inventory, duplicated = measured
+
+    failed = False
+    for name in duplicated:
+        print(f"  scale: {name} is declared in two places; one block, or the next "
+              "reader edits the copy nobody reads.", file=sys.stderr)
+        failed = True
+
+    recorded: dict[str, Counter[tuple[str, str, str]]] = {}
+    if baseline is not None:
+        families = baseline.get("families", {})
+        for family in FAMILIES:
+            rows = families.get(family, []) if isinstance(families, dict) else []
+            recorded[family] = Counter(tuple(row) for row in rows)
+
+    for family in FAMILIES:
+        current = Counter(inventory[family])
+        known = recorded.get(family, Counter())
+        for triple in sorted(current):
+            if current[triple] <= known[triple]:
+                continue
+            selector, prop, value = triple
+            literals = raw_literals(value, family)
+            quoted = ", ".join(f"`{literal}`" for literal in literals)
+            verb = "is" if len(literals) == 1 else "are"
+            print(f"  `{selector}` `{prop}: {value}` — {quoted} {verb} on no step of "
+                  f"the {family} scale", file=sys.stderr)
+            failed = True
+
+    if baseline is None:
+        if failed or any(inventory[family] for family in FAMILIES):
+            print("\nscale: no baseline tolerates an off-scale declaration any more "
+                  "— every declaration reads a step.", file=sys.stderr)
+            return 1
+        print("scale: " + ", ".join(f"{family} 0" for family in FAMILIES)
+              + " — every declaration reads a step.")
+        return 0
+
+    for family in FAMILIES:
+        current = len(inventory[family])
+        known = sum(recorded[family].values())
+        if current > known:
+            print(f"\nscale: the {family} count went UP against its baseline "
+                  f"({current} > {known})", file=sys.stderr)
+            failed = True
+    if failed:
+        return 1
+
+    print("scale: " + ", ".join(
+        f"{family} {len(inventory[family])}/{sum(recorded[family].values())}"
+        for family in FAMILIES) + " — nothing new outside the scale.")
+    return 0
+
+
+def record_scale_baseline() -> int:
+    """Writes the ratchet's baseline from the stylesheet as it stands.
+
+    Returns:
+        1 when the measurement or the commit could not be taken, 0 otherwise.
+    """
+    previous = load_scale_baseline()
+    exemptions = DEFAULT_EXEMPTIONS
+    if previous is not None:
+        exemptions = dict(previous.get("exemptions", {}))  # type: ignore[arg-type]
+    measured = scale_measurement(exemptions)
+    if measured is None:
+        return 1
+    inventory, _ = measured
+
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT,
+                          capture_output=True, text=True, check=False)
+    if head.returncode != 0:
+        # A baseline nobody can date is a baseline nobody can audit: the whole
+        # point of the commit field is that a reader can replay the measurement.
+        print("check-scale: `git rev-parse HEAD` failed, so the baseline would "
+              "carry no provenance — refusing to write it", file=sys.stderr)
+        return 1
+
+    payload = {
+        "commit": head.stdout.strip(),
+        "exemptions": exemptions,
+        "families": {family: [list(triple) for triple in inventory[family]]
+                     for family in FAMILIES},
+    }
+    SCALE_BASELINE.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+                              encoding="utf-8")
+    print(f"check-scale: recorded {SCALE_BASELINE.relative_to(ROOT)} at "
+          f"{payload['commit'][:8]} — " + ", ".join(
+              f"{family} {len(inventory[family])}" for family in FAMILIES)
+          + f", {len(exemptions)} named exemption(s).")
+    return 0
+
+
+def login_chunks() -> dict[str, str] | None:
+    """Collects every `login:*` marked chunk the sign-in page is composed from.
+
+    The chunks are DISCOVERED rather than listed: `serve.py` composes the page
+    by text search, so a chunk added tomorrow is part of the page tomorrow, and
+    an arm holding a hardcoded list would stop reading it without saying so.
+
+    Returns:
+        Chunk text keyed by chunk name, or `None` when a marker is unpaired or
+        a source file is missing.
+    """
+    chunks: dict[str, str] = {}
+    for path in (FRAGMENT, MARKUP):
+        if not path.exists():
+            print(f"check-login: {path} not found — the composed page cannot be "
+                  "read, so a « no violation » here would mean nothing", file=sys.stderr)
+            return None
+        text = path.read_text(encoding="utf-8")
+        for name in LOGIN_MARKER.findall(text):
+            if name in chunks:
+                print(f"  login: login:{name} is marked twice — the composer takes "
+                      "the first, so the other is edited by someone and read by "
+                      "nobody.", file=sys.stderr)
+                return None
+            start = text.find(f"login:{name}:start")
+            end = text.find(f"login:{name}:end")
+            if end < 0 or end < start:
+                print(f"  login: login:{name}:start has no matching :end — "
+                      f"`serve.py` raises on this and serves no sign-in page at all.",
+                      file=sys.stderr)
+                return None
+            # The same slicing serve.extract() uses, deliberately: an arm that
+            # read one character more than the composer would hold a chunk the
+            # page never receives.
+            chunks[name] = text[text.index("\n", start) + 1: text.rindex("\n", start, end) + 1]
+    return chunks
+
+
+def login_arm() -> int:
+    """Refuses a token the composed sign-in page uses but is never given.
+
+    Returns:
+        1 when anything was found, 0 otherwise.
+    """
+    chunks = login_chunks()
+    if chunks is None:
+        return 1
+    if not chunks:
+        print("check-login: no login:* chunk found at all — either the markers "
+              "were dropped or this arm is reading the wrong files", file=sys.stderr)
+        return 1
+
+    # Both comment syntaxes: the CSS chunks live in a <style>, the markup chunks
+    # in the document. A declaration commented out in either satisfied nothing.
+    composed = COMMENT.sub(" ", "\n".join(chunks.values()))
+    composed = HTML_COMMENT.sub(" ", composed)
+    declared = set(DECLARATION.findall(composed))
+    used: set[str] = set()
+    missing: set[str] = set()
+    for name, fallback in USE.findall(composed):
+        used.add(name)
+        # A runtime token carrying a usable fallback is not owed a declaration:
+        # nothing declares `--tm-*` in CSS, the shell publishes it, and the
+        # fallback is what the page renders with until it has.
+        if name.startswith(RUNTIME_PREFIX) and fallback.strip():
+            continue
+        if name not in declared:
+            missing.add(name)
+
+    for name in sorted(missing):
+        print(f"  login: {name} is used by the composed sign-in page but declared "
+              "in no login:* chunk — the page resolves it to nothing.", file=sys.stderr)
+    if missing:
+        return 1
+
+    print(f"login: {len(used)} var() use(s) in the composed chunks, all declared there.")
+    return 0
+
+
+def main() -> int:
+    """Runs the arm asked for, or every arm when none is.
+
+    Returns:
+        1 when any arm found something, 0 otherwise.
+    """
+    parser = argparse.ArgumentParser(
+        description="Holds the maquette's application CSS to the tokens it can resolve, "
+                    "the steps it declares, and the chunks the sign-in page is composed from.")
+    parser.add_argument("--arm", choices=("scale", "login"),
+                        help="run one arm alone; the default runs all of them")
+    parser.add_argument("--record-scale-baseline", action="store_true",
+                        help="rewrite the ratchet's baseline from the stylesheet as it stands")
+    args = parser.parse_args()
+
+    if args.record_scale_baseline:
+        return record_scale_baseline()
+    if args.arm == "scale":
+        return scale_arm()
+    if args.arm == "login":
+        return login_arm()
+    # Every arm runs, even after one has failed: a reader who has to fix and
+    # re-run to discover the second finding fixes one thing per round trip.
+    verdicts = [token_arm(), scale_arm(), login_arm()]
+    return 1 if any(verdicts) else 0
 
 
 if __name__ == "__main__":
