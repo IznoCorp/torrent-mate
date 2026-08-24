@@ -65,3 +65,26 @@ grows — so the chip rows did not wrap at 390 px and the stop-shapes are absent
 Reviewed against the stop-shapes: no width moved anywhere (the `.btnprimary`
 inline trims stay inside the element's own box; no region narrowed), and every
 height delta decomposes into the ±2 px folds its surface contains.
+
+### 2.3 — The margins (spacing 49 → 0)
+
+83 divergences, all rect heights, no style-tier line, nothing horizontal. 16 of
+the 48 folds changed a value, every one by exactly 1 px; the negatives are all
+value-preserving (−4/−6/−8/−10/−14 are exact steps written as
+calc(var(--spacing-N) * -1)), and `.hero`'s −62px is exempted, untouched.
+
+| states | signature | reason |
+| --- | --- | --- |
+| 9+1+1 | acquisition/body height −5/−4/−1 | `.creason`/`.cov`/`.strip`/`.cfoot` margin-top 1 px folds, ×cards |
+| 8 | shell/page height −1 | a single 1 px fold on the state's one affected row |
+| 7 | arrivals/pilot-bar height −1 | its own 1 px margin fold |
+| 5+2 | arrivals/body height −7/−10 | deck card interiors: four 1 px folds per card, ×cards |
+| 4+3+1+1 | library/body, shell/library-list height −8/−1/−4 | `.folder` margin 9 → 8 top and bottom: −2 per folder row, 4 folders = −8 |
+| 5+1 | screen-media/body height −1/−2 | `.hero .hm`/`.hero .hn` −1 px each |
+| 1 | screen-profile/body height +6 | the one growth: `.opt .lb small` margin-top 1 → 2 (+1 per option, six options) — §1.1 folds 1 onto the 2 px step |
+| 1 | screen-releases/body height −4 | release row margin folds |
+| 1+1+1+1+1 | settings/system/account/not-found/screen-resolution −1 | one 1 px margin fold each (`.endmark`, `.quota`, error buttons) |
+| mirrors | shell/page −4…−10 | `#view` mirrors its page's delta |
+
+Stop-shapes: no width or x anywhere; the single height growth decomposes into
+the six +1 px folds the profile screen contains.
