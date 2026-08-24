@@ -1,9 +1,9 @@
 {
-  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 40 of 52 rule(s) report a hold count; the other 12 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
-  "taken_at_commit": "c4e52ca54e952b4b0d562011013e9cce4f8b26af",
-  "taken_on": "2026-08-23",
-  "suite": "52 of 52 rule(s)",
-  "host": "http://127.0.0.1:8899/wrapped.html",
+  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 41 of 53 rule(s) report a hold count; the other 12 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
+  "taken_at_commit": "a49ff84f33e12814955def5adc856e58a600d031",
+  "taken_on": "2026-08-24",
+  "suite": "53 of 53 rule(s)",
+  "host": "http://127.0.0.1:8899/",
   "rules": {
     "actions.py": {
       "exit": 0,
@@ -135,6 +135,11 @@
       "count": null,
       "reason": "no recognized executed-count line in its output"
     },
+    "journey.py": {
+      "exit": 0,
+      "count": 66,
+      "source": "common.Journal summary"
+    },
     "library_load.py": {
       "exit": 0,
       "count": 8,
@@ -177,7 +182,7 @@
     },
     "panel.py": {
       "exit": 0,
-      "count": 18,
+      "count": 50,
       "source": "common.Journal summary"
     },
     "pop.py": {
@@ -217,7 +222,7 @@
     },
     "server.py": {
       "exit": 0,
-      "count": 7,
+      "count": 12,
       "source": "common.Journal summary"
     },
     "settings.py": {
@@ -262,15 +267,15 @@
     },
     "url_state.py": {
       "exit": 0,
-      "count": 26,
+      "count": 99,
       "source": "common.Journal summary"
     }
   },
   "totals": {
-    "rules": 52,
-    "parseable": 40,
+    "rules": 53,
+    "parseable": 41,
     "unparseable": 12,
-    "holds": 1034,
+    "holds": 1210,
     "failed": 0
   }
 }

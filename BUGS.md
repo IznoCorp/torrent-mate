@@ -114,7 +114,7 @@ it deliberately, and that one is not this.
 **B-043 to B-048 — what L05 left on `main`, and why they are here rather than only in a phase file.**
 All six were found by an adversarial review that did not write the code, and reproduced by the L05
 wave itself before it stopped. Each is written up in full — with the command that establishes it and
-what its repair must hold — in `docs/features/maquette-l05/plan/phase-08-pr-fixes-cycle-1.md`, which
+what its repair must hold — in `docs/archive/features/maquette-l05/plan/phase-08-pr-fixes-cycle-1.md`, which
 is on `main`. **That file is the source of truth and these entries are the index into it**; a phase
 plan is archived with its wave, and a defect that outlives the wave has to be findable after that.
 The four blocking ones (B-043 to B-046) were known before the merge and merged anyway, so they are

@@ -44,10 +44,10 @@ stale table read as current for three days.
 
 |                            |                                                                                                                                                                                                                                                                                                                                             |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Last landed**            | **L05 — Routing**, Phase 1. PR **#482**, merged 2026-08-23, version 0.98.24, squash `c4e52ca5`. Both references re-recorded from main's tip and verified ancestors of `HEAD`. ⚠ **It merged with four CONFIRMED defects on the operator's decision** — they are `docs/features/maquette-l05/plan/phase-08-pr-fixes-cycle-1.md`, and phase 8 comes BEFORE L06 |
-| **In flight**              | **Phases 8–11 of L05 — the repair of its four blocking defects** (B-043 to B-046, plus B-047 and B-048 as 8.5 and 8.6), two review cycles (phases 9, 10), and **the navigation path** (§ 16, D1b — phase 11). Branch `fix/maquette-l05`, version 0.98.27, PR **#484**. Each defect reproduced before its fix, each fix landing with a hold that bites, mutation-tested. CHANGES BEHAVIOUR: the three post-merge steps are owed after it — re-record both references from `main`'s tip, then move this row to « Last landed » and name L06 |
-| **Next**                   | **L06 — The scale**, Phase 2, once phase 8 has merged AND its post-merge steps have run. The lots run strictly in sequence (operator, 2026-08-22). `docs/reference/frontend-architecture.md` decides which lot, never this table |
-| **Before it**              | L03 — PR **#475**, version 0.98.18 · L02 — PR **#470**, version 0.98.13 · L01 — PR **#467**, version 0.98.10. All three archived under `docs/archive/features/`; `docs/features/maquette-l04/` is still live and belongs beside them |
+| **Last landed**            | **Phase 8–13 of L05 — the repair wave**, PR **#484**, merged 2026-08-24, version 0.98.27, squash `a49ff84f`. B-043…B-048 closed; the operator's § 16 rules 1–3 (D1b) landed as phase 11; R82 `journey.py` carved out of R69; five review cycles (the fifth's one bounded excursion is recorded in § Review cycles). Both references re-recorded from `main`'s tip at `a49ff84f` and verified ancestors of `HEAD`; hold counts 1 034 → 1 210, movements: `url_state.py` 26→99, `journey.py` new 66, `panel.py` 18→50, `server.py` 7→12 — all up, all named |
+| **In flight**              | **none.** A wave writes its own row here when its pull request opens, and the post-merge steps move it to « Last landed » (§ 5 of the architecture file) |
+| **Next**                   | **L06 — The scale**, Phase 2, with `/implement:feature` (codename `maquette-l06`): no wave opens without its design and its plan. It inherits the 42 contrast findings and the 16 px search field (architecture file § L06). The lots run strictly in sequence |
+| **Before it**              | L03 — PR **#475**, version 0.98.18 · L02 — PR **#470**, version 0.98.13 · L01 — PR **#467**, version 0.98.10. All three archived under `docs/archive/features/`; L04 and L05 are archived beside them (L04 by #482, L05 by this pull request) |
 | **What decides the order** | `docs/reference/frontend-architecture.md`, never this table. This table says only where the work STANDS                                                                                                                                                                                                                                     |
 
 **What L04 is, in one line**: the maquette's 26 files stop being grouped by KIND and get grouped
@@ -69,8 +69,12 @@ repository.
 53 flat `.py` files (recorded and deliberately unscheduled), and B-036 / B-040, which belong to
 their own waves.
 
-**Next action**: squash merge #484, then the three post-merge steps from `main`'s tip and the
-two archive moves, then L06.
+**Next action**: **L06 — The scale** with `/implement:feature`. The three post-merge steps of
+#484 are DONE (this pull request carries them): both references re-recorded from `main`'s tip
+`a49ff84f`, every hold-count movement named above, the row moved, `docs/archive/features/maquette-l05/` (moved here)
+archived. One recurrence handled on the way: the watcher cron (03:10) moved `acquire.db` again
+(Furious 12→13, President Curtis 20→21) and the follow fixture was regenerated with
+`scripts/refresh-maquette-fixture.py --apply` — the live-DB rule class stays an open point.
 
 ### Review cycles — PR #484
 
@@ -124,7 +128,7 @@ fix past MAX_CYCLES = 5**, taken rather than merging over a known critical or st
 bounded to a single condition, specified by the reviewer, verified on the reviewer's own walk.
 The excess is recorded here for the operator rather than smoothed over.
 
-**Phases of L05** — the plan is `docs/features/maquette-l05/plan/INDEX.md`, which owns the
+**Phases of L05** — the plan is `docs/archive/features/maquette-l05/plan/INDEX.md`, which owns the
 reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
 
 | #   | Phase                                  | File                                        | Status |
@@ -169,7 +173,7 @@ tag substitutions neutralised in CSS rather than accepted; and colour contrast i
 recorded and handed to L06 rather than enforced here. Touch-target size and B-036 are named as
 out of scope in § 6.
 
-**Phases of L03** — the plan is `docs/features/maquette-l03/plan/INDEX.md`, which owns the
+**Phases of L03** — the plan is `docs/archive/features/maquette-l03/plan/INDEX.md`, which owns the
 reasoning and the 18 ACCEPTANCE criteria. This table owns only the status.
 
 | #   | Phase                                 | File                                       | Status |
