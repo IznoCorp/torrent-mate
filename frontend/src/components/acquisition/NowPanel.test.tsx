@@ -13,12 +13,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
+  fireEvent,
   render,
   screen,
   within,
 } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "@/api/client";
 
 import type {
   AcquisitionDownload,
@@ -1234,6 +1236,38 @@ describe("NowPanel", () => {
     expect(
       screen.getByText(/Impossible de charger les suivis/),
     ).toBeInTheDocument();
+  });
+
+  it("l'échec des suivis nomme la panne (statut serveur vs échec réseau) et offre « Réessayer »", () => {
+    // Server case: the detail carries the HTTP status — the operator can tell
+    // a server failure from a device-side one at a glance.
+    mockHooks(full);
+    const refetch = vi.fn();
+    vi.spyOn(hooks, "useFollowed").mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new ApiError(500, "Internal Server Error"),
+      refetch,
+    } as unknown as ReturnType<typeof hooks.useFollowed>);
+    renderPanelPreMocked();
+
+    expect(screen.getByText(/500/)).toBeInTheDocument();
+    expect(screen.getByText(/Internal Server Error/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+
+    // Network case: the browser's own failure message, no server status.
+    vi.spyOn(hooks, "useFollowed").mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new TypeError("Failed to fetch"),
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof hooks.useFollowed>);
+    renderPanelPreMocked();
+    expect(screen.getByText(/TypeError/)).toBeInTheDocument();
+    expect(screen.getByText(/Failed to fetch/)).toBeInTheDocument();
   });
 
   it("nomme un échec de lecture des parcours dans « En vol »", () => {
