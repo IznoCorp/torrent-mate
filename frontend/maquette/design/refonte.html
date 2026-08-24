@@ -318,6 +318,18 @@
        here » is written in near-invisible ink on near-white. */
     --primary-text: oklch(0.808 0.158 79);
     --primary-foreground: oklch(0.24 0.05 70);
+    /* The count a filter chip carries is SECONDARY TEXT, and secondary was
+       written as `opacity` — which is not a colour at all. An opacity blends
+       whatever tone the chip inherits into whatever happens to be behind it,
+       so the tone that finally reaches the eye is one the palette never
+       declared and no one can reason about: the muted label lost a third of
+       its separation from the page and landed under AA, and on the brand fill
+       the companion tone did the same. Secondary is a TONE, and it is named
+       here — one for the chip at rest on the page, one for the chip filled
+       with the mark, each a step short of the label beside it and each clear
+       of 4.5:1 on the surface it actually lands on. */
+    --pill-count-foreground: oklch(0.62 0.012 286);
+    --pill-count-foreground-selected: oklch(0.4 0.07 70);
     --success: oklch(0.72 0.165 152);
     --warning: oklch(0.8 0.15 75);
     --danger: oklch(0.62 0.21 24);
@@ -366,6 +378,8 @@
     --primary: oklch(0.76 0.155 70);
     --primary-text: oklch(0.5 0.13 70);
     --primary-foreground: oklch(0.99 0.01 90);
+    --pill-count-foreground: oklch(0.54 0.01 286);
+    --pill-count-foreground-selected: oklch(0.36 0.07 70);
     --success: oklch(0.6 0.15 152);
     --warning: oklch(0.74 0.15 72);
     --danger: oklch(0.58 0.215 25);
@@ -667,9 +681,12 @@
     color: var(--primary-foreground);
   }
   .pill .c {
-    opacity: 0.7;
     margin-left: var(--spacing-2);
     font-weight: 500;
+    color: var(--pill-count-foreground);
+  }
+  .pill[aria-pressed="true"] .c {
+    color: var(--pill-count-foreground-selected);
   }
   .vswwrap {
     flex: 0 0 auto;
