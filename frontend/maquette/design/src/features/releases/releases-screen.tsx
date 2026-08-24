@@ -65,7 +65,7 @@ export function ReleasesScreen() {
           style={{
             marginLeft: "auto",
             fontSize: "11px",
-            color: "var(--muted-foreground)",
+            color: "var(--color-muted-foreground)",
           }}
         >
           {baseTitle(title)}

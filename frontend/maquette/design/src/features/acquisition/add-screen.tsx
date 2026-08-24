@@ -171,7 +171,7 @@ export function AddScreen() {
             style={{
               marginLeft: "auto",
               fontSize: "11px",
-              color: "var(--muted-foreground)",
+              color: "var(--color-muted-foreground)",
             }}
           >
             {t("screens.add.identifyFolder")}
@@ -184,11 +184,11 @@ export function AddScreen() {
             <div
               className="surferr" data-part="surface-error" role="alert"
               style={{
-                borderColor: "color-mix(in oklab,var(--info) 45%,transparent)",
-                background: "color-mix(in oklab,var(--info) 8%,transparent)",
+                borderColor: "color-mix(in oklab,var(--color-info) 45%,transparent)",
+                background: "color-mix(in oklab,var(--color-info) 8%,transparent)",
               }}
             >
-              <b style={{ color: "var(--info)" }}>
+              <b style={{ color: "var(--color-info)" }}>
                 {t("screens.add.identifyTitle", {
                   // french-ok: the INTERPOLATION placeholder, named by
                   // `identifyTitle` in fr.json — renaming this half alone

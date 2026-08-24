@@ -149,7 +149,7 @@ function LastRun(): ReactElement {
       <div className="live" data-part="live-activity">
         <span
           className="d"
-          style={{ animation: "none", background: "var(--success)" }}
+          style={{ animation: "none", background: "var(--color-success)" }}
         ></span>
         <span>
           {t("screens.arrivals.triggeredBy")}

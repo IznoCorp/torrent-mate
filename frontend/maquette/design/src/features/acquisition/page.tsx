@@ -689,11 +689,11 @@ function DiscoverTab(): ReactElement {
             className="surferr" data-part="surface-error" role="alert"
             style={{
               borderColor:
-                "color-mix(in oklab,var(--warning) 45%,transparent)",
-              background: "color-mix(in oklab,var(--warning) 8%,transparent)",
+                "color-mix(in oklab,var(--color-warning) 45%,transparent)",
+              background: "color-mix(in oklab,var(--color-warning) 8%,transparent)",
             }}
           >
-            <b style={{ color: "var(--warning)" }}>
+            <b style={{ color: "var(--color-warning)" }}>
               {t("screens.acquisition.tmdbDisconnected")}
             </b>
             {t("screens.acquisition.tmdbBefore")}

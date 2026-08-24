@@ -10730,7 +10730,7 @@ import { screens, panel, bridge } from "./seams.js";
   function toastUndo(msg, undo) {
     const host = select("#toast");
     select("#toastmsg").innerHTML =
-      `${escapeHtml(msg)} <button id="toastundo" style="border:0;background:transparent;color:var(--primary);font-weight:700;padding:0 0 0 10px">Annuler</button>`;
+      `${escapeHtml(msg)} <button id="toastundo" style="border:0;background:transparent;color:var(--color-primary);font-weight:700;padding:0 0 0 10px">Annuler</button>`;
     host.classList.add("show");
     host.toggleAttribute("data-shown", true);
     clearTimeout(toast._t);
@@ -11794,8 +11794,8 @@ import { screens, panel, bridge } from "./seams.js";
     const element = select("#drawer");
     element.innerHTML = `
       <div class="dh">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;color:var(--primary)"><path d="M3 4h18l-7 8v7l-4 2v-9z"/></svg>
-        <span>Torrent<em style="font-style:normal;color:var(--primary)">Mate</em></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;color:var(--color-primary)"><path d="M3 4h18l-7 8v7l-4 2v-9z"/></svg>
+        <span>Torrent<em style="font-style:normal;color:var(--color-primary)">Mate</em></span>
       </div>
       <nav>
         ${NAVIGATION.map(
@@ -33735,7 +33735,7 @@ import { screens, panel, bridge } from "./seams.js";
                   : `${ligne.aired ?? "?"} ép.`
             }</span>
             ${possede && manque > 0 ? `<span class="miss" data-part="season/missing">${manque} manquant${manque > 1 ? "s" : ""}</span>` : ""}
-            ${!possede && ligne.air ? `<span class="miss" data-part="season/missing" style="background:transparent;color:var(--muted-foreground);font-weight:400">${dateFR(ligne.air)}</span>` : ""}
+            ${!possede && ligne.air ? `<span class="miss" data-part="season/missing" style="background:transparent;color:var(--color-muted-foreground);font-weight:400">${dateFR(ligne.air)}</span>` : ""}
           </summary>
           ${
             missingNums.length
@@ -33836,7 +33836,7 @@ import { screens, panel, bridge } from "./seams.js";
     const createElement = document.createElement("div");
     createElement.className = "eppop";
     createElement.dataset.part = "episode/popover";
-    createElement.innerHTML = `<b>S${String(season).padStart(2, "0")}E${String(episodeNumber).padStart(2, "0")}${episode?.t ? " · " + escapeHtml(episode.t) : ""}</b>${escapeHtml(phrase)}<br><span style="color:var(--muted-foreground)">${escapeHtml(EP_LABEL[state] ?? "")}</span>`;
+    createElement.innerHTML = `<b>S${String(season).padStart(2, "0")}E${String(episodeNumber).padStart(2, "0")}${episode?.t ? " · " + escapeHtml(episode.t) : ""}</b>${escapeHtml(phrase)}<br><span style="color:var(--color-muted-foreground)">${escapeHtml(EP_LABEL[state] ?? "")}</span>`;
     document.querySelector("#device").appendChild(createElement);
     const rect = btn.getBoundingClientRect();
     const dev = document.querySelector("#device").getBoundingClientRect();

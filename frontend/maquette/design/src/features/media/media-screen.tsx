@@ -284,7 +284,7 @@ function SeasonList({
                   className="miss" data-part="season/missing"
                   style={{
                     background: "transparent",
-                    color: "var(--muted-foreground)",
+                    color: "var(--color-muted-foreground)",
                     fontWeight: 400,
                   }}
                 >
@@ -424,7 +424,7 @@ export function MediaScreen() {
           style={{
             marginLeft: "auto",
             fontSize: "11px",
-            color: "var(--muted-foreground)",
+            color: "var(--color-muted-foreground)",
           }}
         >
           {url ?? t("screens.media.unidentified")}
@@ -482,7 +482,7 @@ export function MediaScreen() {
                   {String(sheet.note).replace(".", ",")}
                   <span
                     style={{
-                      color: "var(--muted-foreground)",
+                      color: "var(--color-muted-foreground)",
                       fontWeight: 400,
                     }}
                   >
@@ -530,7 +530,7 @@ export function MediaScreen() {
                 margin: 0,
                 fontSize: "var(--text-3)",
                 lineHeight: 1.55,
-                color: "var(--muted-foreground)",
+                color: "var(--color-muted-foreground)",
               }}
             >
               {sheet?.ov ? sheet.ov : t("screens.media.synopsisUnknown")}

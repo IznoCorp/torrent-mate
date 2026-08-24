@@ -99,7 +99,7 @@ export function QualityScreen() {
           style={{
             marginLeft: "auto",
             fontSize: "11px",
-            color: "var(--muted-foreground)",
+            color: "var(--color-muted-foreground)",
           }}
         >
           {title ? baseTitle(title) : t("screens.profile.defaultProfile")}

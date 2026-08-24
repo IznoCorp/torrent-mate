@@ -237,8 +237,8 @@ function ScreenError({ error }: { error: unknown }) {
         justifyContent: "center",
         padding: "24px",
         textAlign: "center",
-        background: "var(--background)",
-        color: "var(--danger)",
+        background: "var(--color-background)",
+        color: "var(--color-danger)",
       }}
     >
       {t("screens.error.message")}
