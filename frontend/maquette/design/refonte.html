@@ -162,120 +162,24 @@
      is built by text search over markers, never by block. What is still down
      here is `login:style` and `login:splashstyle`, because the sign-in screen
      and the splash keep hand-written CSS until L13 (D5). */
-  /* Shell — TRANSPLANTED FROM THE APP, not drawn here
-     Direction of truth is INVERTED for this region: for pages the prototype
-     is authoritative; for the shell, `layout/TopBar.tsx` and
-     `layout/BottomTabBar.tsx` are. They were rebuilt, measured and proven
-     (app frame, measured heights, no iOS sticky shimmer) — redrawing them
-     would reopen solved problems. The values below are theirs, converted
-     from Tailwind. Any DELIBERATE change to the shell must be a named
-     exception. */
+  /* Shell — CONVERTED (L07 phase 5), and the direction of truth for it is
+     INVERTED: for pages the prototype is authoritative; for the shell,
+     `layout/TopBar.tsx` and `layout/BottomTabBar.tsx` are. They were rebuilt,
+     measured and proven — app frame, measured heights, no iOS sticky shimmer
+     — and redrawing them would reopen solved problems. Any DELIBERATE change
+     to the shell is still a named exception.
 
-  .topbar {
-    position: relative;
-    z-index: 40;
-    display: flex;
-    flex-shrink: 0;
-    align-items: center;
-    gap: var(--spacing-7);
-    border-bottom: 1px solid var(--color-border);
-    background: var(--color-background);
-    padding: calc(env(safe-area-inset-top) + var(--spacing-6)) var(--spacing-7) var(--spacing-6);
-  }
-  @media (min-width: 768px) {
-    .topbar {
-      padding-left: var(--spacing-9);
-      padding-right: var(--spacing-9);
-    }
-  }
-  .topbar .burger {
-    margin-left: calc(var(--spacing-2) * -1);
-    display: inline-flex;
-    width: 44px;
-    height: 44px;
-    flex-shrink: 0;
-    align-items: center;
-    justify-content: center;
-    border: 0;
-    border-radius: var(--radius-2);
-    background: transparent;
-    color: var(--color-muted-foreground);
-  }
-  .topbar .burger svg {
-    width: 20px;
-    height: 20px;
-  }
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-  }
-  .brand .mk {
-    width: 28px;
-    height: 28px;
-    color: var(--color-primary);
-  }
-  .brand .wm {
-    font-size: var(--text-5);
-    font-weight: 600;
-    letter-spacing: -0.025em;
-  }
-  .brand em {
-    font-style: normal;
-    color: var(--color-primary-text);
-  }
-  .topbar .sp {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-6);
-  }
-  /* StatusDot, verbatim from components/ds/StatusDot.css */
-  .ps-dot {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--spacing-3);
-    font-size: var(--text-3);
-    color: var(--color-muted-foreground);
-  }
-  .ps-dot__d {
-    position: relative;
-    width: 8px;
-    height: 8px;
-    border-radius: var(--radius-full);
-    flex: none;
-    background: var(--color-success);
-  }
-  /* The label is hidden below 640px, so at 390px it does NOT show — «
-     Reconnexion… » would overflow the header. */
-  .ps-dot__label {
-    display: none;
-  }
-  @media (min-width: 640px) {
-    .ps-dot__label {
-      display: inline;
-    }
-  }
-  .avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: inherit;
-    display: block;
-  }
+     Its seventeen rules are utilities on the elements themselves, in
+     `index.html`. THEY ARE NOT TYPED VARIANTS, and that is a fact about the
+     markup rather than a shortcut: the shell is not a component. It lives in
+     the document because the engine captures its containers at module
+     evaluation, before React has rendered anything — so a variant has nothing
+     to attach to until the engine dies at L13. The utilities move with the
+     markup on that day; nothing here is thrown away.
 
-  .avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: var(--radius-full);
-    border: 0;
-    background: var(--color-muted);
-    color: var(--color-muted-foreground);
-    font-size: var(--text-3);
-    font-weight: 500;
-    display: grid;
-    place-items: center;
-  }
+     The class names stay, emptied of style: the engine selects
+     `.topbar .avatar img` and its siblings by CSS class, so a name removed
+     here would break a reader while the styling moved cleanly. */
 
   /* Scrollport — CONVERTED (L07 phase 5). Its declarations are utilities on
      the `<main>` in `index.html`, and the `port` class stays as an IDENTITY

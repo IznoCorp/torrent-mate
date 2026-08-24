@@ -105,7 +105,7 @@
     <div class="splash" id="splash" role="region" aria-label="Démarrage">
       <div class="brandbig" data-part="brand/large">
         <svg
-          class="mk"
+          class="mk w-[28px] h-[28px] text-primary"
           data-part="brand/mark"
           viewBox="0 0 24 24"
           fill="none"
@@ -117,7 +117,11 @@
         >
           <path d="M3 4h18l-7 8v7l-4 2v-9z" />
         </svg>
-        <span class="wm" data-part="brand/wordmark">Torrent<em>Mate</em></span>
+        <span
+          class="wm text-5 font-semibold tracking-[-0.025em]"
+          data-part="brand/wordmark"
+          >Torrent<em class="not-italic text-primary-text">Mate</em></span
+        >
       </div>
       <div
         class="splashbar"
@@ -140,9 +144,14 @@
       >Aller au contenu</a
     >
 
-    <header class="topbar" data-part="shell/header">
+    <header
+      class="topbar relative z-40 flex shrink-0 items-center gap-7 border-b border-border
+             bg-background pt-[calc(env(safe-area-inset-top)+var(--spacing-6))] px-7 pb-6 md:px-9"
+      data-part="shell/header"
+    >
       <button
-        class="burger"
+        class="burger -ml-2 inline-flex w-[44px] h-[44px] shrink-0 items-center justify-center
+               border-0 rounded-2 bg-transparent text-muted-foreground"
         aria-label="Ouvrir le menu de navigation"
         data-drawer="1"
       >
@@ -157,7 +166,7 @@
           <path d="M4 6h16M4 12h16M4 18h16" />
         </svg>
       </button>
-      <a class="brand" href="#" onclick="return false;">
+      <a class="brand flex items-center gap-4" href="#" onclick="return false;">
         <svg
           class="mk"
           data-part="brand/mark"
@@ -173,18 +182,22 @@
         </svg>
         <span class="wm" data-part="brand/wordmark">Torrent<em>Mate</em></span>
       </a>
-      <div class="sp">
-        <span class="ps-dot ps-dot--done" title="Temps réel connecté">
-          <span class="ps-dot__d"></span
-          ><span class="ps-dot__label">Connecté</span>
+      <div class="sp ml-auto flex items-center gap-6">
+        <span
+          class="ps-dot ps-dot--done inline-flex items-center gap-3 text-3 text-muted-foreground"
+          title="Temps réel connecté"
+        >
+          <span class="ps-dot__d relative w-[8px] h-[8px] rounded-full flex-none bg-success"></span
+          ><span class="ps-dot__label hidden sm:inline">Connecté</span>
         </span>
         <button
-          class="avatar"
+          class="avatar w-[32px] h-[32px] rounded-full border-0 bg-muted text-muted-foreground
+                 text-3 font-medium grid place-items-center"
           data-part="avatar"
           data-sheet="utilisateur"
           aria-label="Menu utilisateur"
         >
-          <img alt="" />
+          <img class="w-full h-full object-cover rounded-[inherit] block" alt="" />
         </button>
       </div>
     </header>
