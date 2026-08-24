@@ -32,13 +32,25 @@ from common import ROOT, Journal, open_page
 from playwright.async_api import async_playwright
 
 # The form fields, each with the sentence a refusal has to be able to speak.
-# `.fieldinput.mono` is listed apart from `.fieldinput`: a monospace face is
+#
+# NOT ANCHORED ON THE CLASSES THAT STYLE THEM. A class is a style decision and
+# the utility conversion takes it away, so a rule holding `.search input` dies
+# with the stylesheet and cannot then say whether the anchor or the size was at
+# fault. The first entry is a TYPE of element rather than a name at all: iOS
+# magnifies any focused text field, so what the floor is about is every field
+# that accepts text — which is also why it is written as a net and not as a list
+# of ids. It covers seven fields where the class covered five, the two extra
+# being the sign-in screen's.
+#
+# The settings field is anchored on the `data-part` the markup gives it, and its
+# path variant on the boolean state attribute beside it — a monospace face is
 # the one that would be taken back down first when a path overflows, so it is
-# held by name rather than by the family it belongs to.
+# held apart from the family it belongs to.
 FIELDS = (
-    (".search input", "the search field"),
-    (".fieldinput", "a settings field"),
-    (".fieldinput.mono", "a settings field carrying a path"),
+    ('input:not([type="checkbox"]):not([type="radio"]), textarea',
+     "a text field"),
+    ('[data-part="field/input"]', "a settings field"),
+    ('[data-part="field/input"][data-mono]', "a settings field carrying a path"),
 )
 
 # Below this, a focused field is magnified by Safari and the page stays
@@ -103,15 +115,19 @@ READ_STEPS = """() => {
   return steps;
 }"""
 
-# The field's rendered size, in the state currently on screen. The FIRST
-# painted instance answers: a state drawing several draws them from one rule.
+# The field's rendered size, in the state currently on screen. The SMALLEST
+# painted instance answers, never the first: the anchor is a net, and a net
+# whose first member clears the floor says nothing about the rest of it.
 READ_FIELD = """(selector) => {
+  let smallest = null;
   for (const element of document.querySelectorAll(selector)) {
     const box = element.getBoundingClientRect();
     if (box.width < 1 || box.height < 1) continue;
-    return Math.round(parseFloat(getComputedStyle(element).fontSize) * 10) / 10;
+    const size = Math.round(
+      parseFloat(getComputedStyle(element).fontSize) * 10) / 10;
+    if (smallest === null || size < smallest) smallest = size;
   }
-  return null;
+  return smallest;
 }"""
 
 # Every painted element inside the measured regions whose OWN rendered size is
@@ -138,20 +154,25 @@ SWEEP = """([selectors, steps]) => {
         // judged on its own line. Only a size the element itself introduces is
         // a defect here.
         if (parent && Math.abs(rounded(parent) - size) < 0.05) continue;
+        // The locator names the element the way the markup does — its part,
+        // its id — and never by the classes it is styled with: a refusal
+        // pointing at a class would send the reader to a stylesheet that is on
+        // its way out, and this rule must outlive it.
         const part = element.getAttribute('data-part');
-        const className = typeof element.className === 'string'
-          ? element.className : '';
-        // An element carrying neither a class nor a part — a bare `p` given a
-        // size in an inline style — is unfindable by its own name, so the
-        // nearest named ancestor is reported with it.
+        const id = element.id;
+        // An element carrying neither — a bare `p` given a size in an inline
+        // style — is unfindable by its own name, so the nearest named ancestor
+        // is reported with it, and a few words of what it says.
         const named = element.parentElement
           && element.parentElement.closest('[data-part]');
+        const words = (element.textContent || '').replace(/\\s+/g, ' ').trim();
         off.push({
           at: element.tagName.toLowerCase()
+              + (id ? `#${id}` : '')
               + (part ? `[data-part="${part}"]` : '')
-              + (className ? '.' + className.trim().split(/\\s+/).join('.') : '')
-              + (!part && !className && named
-                 ? ` under [data-part="${named.getAttribute('data-part')}"]` : ''),
+              + (!part && !id && named
+                 ? ` under [data-part="${named.getAttribute('data-part')}"]` : '')
+              + (!part && !id && words ? ` («\u00a0${words.slice(0, 28)}\u00a0»)` : ''),
           size: size,
         });
       }

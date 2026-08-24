@@ -33,6 +33,12 @@ from playwright.async_api import async_playwright
 # contract carry the name, which is what makes this rule possible at all.
 TOKEN = "--tm-bottom-bar-h"
 
+# THE BAR ITSELF, anchored on its `data-part` and never on the class that
+# happens to style it. The class is a style decision and the utility conversion
+# takes it away; `shell/tab-bar` is the name the markup gives the element, and a
+# rule that dies with a stylesheet was measuring the stylesheet.
+BAR = '[data-part="shell/tab-bar"]'
+
 # The source tree the publisher must live in, and the directory it must live
 # under. `app/` is where application-level DOM concerns go — `app/focus.ts` is
 # the neighbour — and the engine is where none of them may stay.
@@ -53,14 +59,14 @@ FORCED_PX = 140
 # the SAME evaluation: read one call apart, a layout landing between them would
 # be scored as a publisher that failed to follow.
 READ = """() => {
-  const bar = document.querySelector('.bottombar');
+  const bar = document.querySelector('BAR_SELECTOR');
   const published = getComputedStyle(document.documentElement)
     .getPropertyValue('--tm-bottom-bar-h').trim();
   return {
     measured: bar ? bar.getBoundingClientRect().height : null,
     published: published,
   };
-}"""
+}""".replace("BAR_SELECTOR", BAR)
 
 # Forcing the bar taller, through the cascade rather than through an inline
 # style on the bar itself: an inline style is what the publisher would be
@@ -69,9 +75,9 @@ READ = """() => {
 FORCE = """(px) => {
   const style = document.createElement('style');
   style.id = 'bar-height-probe';
-  style.textContent = '.bottombar { min-height: ' + px + 'px !important; }';
+  style.textContent = 'BAR_SELECTOR { min-height: ' + px + 'px !important; }';
   document.head.appendChild(style);
-}"""
+}""".replace("BAR_SELECTOR", BAR)
 
 RELEASE = """() => {
   const style = document.getElementById('bar-height-probe');
@@ -184,8 +190,8 @@ async def main():
         # passed.
         check("the bottom bar is drawn on a cold load",
               cold["measured"] is not None and cold["measured"] > 1,
-              f"`.bottombar` renders {cold['measured']}px"
-              if cold["measured"] is not None else "`.bottombar` is absent")
+              f"`{BAR}` renders {cold['measured']}px"
+              if cold["measured"] is not None else f"`{BAR}` is absent")
 
         published = pixels(cold["published"])
         check(f"`{TOKEN}` is published on a cold load",
