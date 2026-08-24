@@ -88,6 +88,9 @@ when the defect comes back.
 | B-052 | A synthesised follow panel labels a film « Série »                  | by review   | `open`       |
 | B-053 | A panel's layer entry is taken by a tab tap on the same layer (revisit) | by review | `open`     |
 | B-054 | `data-go="acq"` no longer forces the « now » tab (revisit)           | by review   | `open`       |
+| B-055 | The a11y floor measures only the dark theme — light carries 154 findings | by review | `open` |
+| B-056 | A `@keyframes` name is French (`splashremplit`), invisible to no-french  | by review | `open` |
+| B-057 | `audit2.py`'s R12 silently measures four of five contexts, not five | by review   | `open`       |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -154,7 +157,9 @@ moves that database independently of any wave (twice inside 24 h during the L05 
 rule reads the mismatch as a defect and regenerating the fixture only holds until the next cron
 run. Not a code defect — a class question: whether a rule that reads live data belongs in a gate
 at all, and if so, on what cadence it re-syncs. Raised by the L05 repair wave (PR #484's open
-points), not decided there.
+points), not decided there. **Recurred during L06** (`content.py` reddened by the
+operator's search cron; fixture regenerated from `acquire.db` again, same class, same
+non-fix) — the second occurrence inside two waves, and the question is still not decided.
 
 **B-050 — the guard that watches module size has itself grown past comfortable.**
 `scripts/check-frontend-boundaries.py` reached 883 lines during the L05 repair (nine arms). The
@@ -181,6 +186,38 @@ independent; (B-054) `data-go="acq"` no longer forces the acquisition page onto 
 on arrival, which some journeys relied on implicitly. Neither broke a hold — both are readings
 the repair wave settled on to close its own defects, not product decisions taken with the
 operator. Either may be the right call; neither has been asked.
+
+**B-055 — the a11y floor certifies one of two themes.** `a11y.py` drives the 83 named
+states in the default (dark) theme only; no `data-theme` handling exists anywhere in the
+harness. Found during L06 phase 5 by a sub-agent who drove `data-theme="light"` by hand and
+re-ran axe — not by the gate, which has no arm that would. After phase 5's own repairs (the
+light `--primary-foreground` at 2.14:1 across 19 consumers, `--primary` as a label at 2.16:1
+on three sites), a full light-theme sweep still reads **154 occurrences over 115 rows in 34
+states** — dominated by `--primary` used as a label colour on a light surface (~40 sites),
+the `warning`/`success`/`info` tones repeating the same fill-versus-label confusion, and one
+`.tsx` inline re-skin (`add-screen.tsx:185-191`). A remediation campaign, not a call-site fix;
+needs its own design and plan (`docs/archive/features/maquette-l06/drafts/a11y-floor-measures-one-theme.md`
+carries the full inventory). Not decided here: whether the audit runs both themes (doubling
+its runtime) or a lighter arm audits palette pairs alone in light.
+
+**B-056 — a French name sits where no arm reads it.** `refonte.html` names a keyframe
+`splashremplit` (used by `.splashbar i`). A keyframe name is a name someone chose — code,
+under the English-names rule — and none of `check-no-french.py`'s fourteen arms reads
+`@keyframes` names, so the gate is green over it. Found during L06 sub-phase 1.3, not fixed:
+outside the lot's letter, which folds values onto a scale and refuses any naming change
+beyond D-L06-4's publisher move. Fixing it needs both ends moved in one step (the
+`@keyframes` declaration and every `animation`/`animation-name` reading it) through the
+rename discipline, plus a fifteenth arm so the next one does not sit the same way.
+
+**B-057 — a hold that measures nothing reads as a hold that passed.** `audit2.py:65`'s
+`measure()` returns silently when its selector finds nothing. `.resbtn` is one of five
+contexts R12 names, and it is absent from the state the rule visits (`acq-add-results`), so
+only four primaries are ever measured while the rule believes it holds five. The exact family
+of hole `type_scale.py` was written to refuse — a gate proves what it READS. Found while
+repairing R12's pinned size during L06; not fixed there, a rule-shape change outside the
+lot's letter. Fix: either the rule visits a state that paints `.resbtn`, or `measure()`
+refuses an empty selection the way `type_scale.py` does; mutation-tested either way (hide the
+element, watch the rule fall).
 
 **B-036 — the English campaign missed two state ids, and no arm reads them.**
 `window.__states()` returns **`system-panne`** and **`acq-follows-groupe`**. Both are NAMED STATE
