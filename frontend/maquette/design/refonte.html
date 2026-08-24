@@ -435,7 +435,7 @@
     color: var(--primary);
   }
   .brand .wm {
-    font-size: 14px;
+    font-size: var(--text-5);
     font-weight: 600;
     letter-spacing: -0.025em;
   }
@@ -454,7 +454,7 @@
     display: inline-flex;
     align-items: center;
     gap: var(--spacing-3);
-    font-size: 12px;
+    font-size: var(--text-3);
     color: var(--muted-foreground);
   }
   .ps-dot__d {
@@ -490,7 +490,7 @@
     border: 0;
     background: var(--muted);
     color: var(--muted-foreground);
-    font-size: 12px;
+    font-size: var(--text-3);
     font-weight: 500;
     display: grid;
     place-items: center;
@@ -534,7 +534,7 @@
     border: 0;
     padding: var(--spacing-4) 0;
     border-radius: 7px;
-    font-size: 13px;
+    font-size: var(--text-4);
     font-weight: 600;
     background: transparent;
     color: var(--muted-foreground);
@@ -551,7 +551,7 @@
     box-shadow: var(--mq-shadow-seg);
   }
   .seg .n {
-    font-size: 11px;
+    font-size: var(--text-2);
     font-weight: 700;
     margin-left: var(--spacing-2);
     padding: var(--spacing-1) var(--spacing-2);
@@ -652,7 +652,7 @@
   }
   .pill {
     flex: 0 0 auto;
-    font-size: 12px;
+    font-size: var(--text-3);
     font-weight: 600;
     padding: var(--spacing-2) var(--spacing-5);
     border-radius: 99px;
@@ -789,7 +789,7 @@
   }
   .sechead .k {
     margin-left: auto;
-    font-size: 11px;
+    font-size: var(--text-2);
     font-weight: 700;
     color: var(--muted-foreground);
   }
@@ -843,7 +843,7 @@
   }
   .act {
     border: 0;
-    font-size: 11px;
+    font-size: var(--text-2);
     font-weight: 700;
     line-height: 1.2;
     color: var(--mq-white);
@@ -975,7 +975,7 @@
     width: 84px;
     background: var(--muted);
     overflow: hidden;
-    font-size: 14px;
+    font-size: var(--text-5);
     padding: 0;
     border: 0;
   }
@@ -1104,7 +1104,7 @@
     white-space: nowrap;
     border-radius: 99px;
     padding: var(--spacing-1) var(--spacing-3);
-    font-size: 11px;
+    font-size: var(--text-2);
     font-weight: 600;
     line-height: 15px;
     background: var(--muted);
@@ -1144,7 +1144,7 @@
   }
   .freshtag {
     flex: 0 0 auto;
-    font-size: 10px;
+    font-size: var(--text-1);
     font-weight: 700;
     padding: var(--spacing-1) var(--spacing-4);
     border-radius: 99px;
@@ -1153,7 +1153,7 @@
     white-space: nowrap;
   }
   .cadence {
-    font-size: 11px;
+    font-size: var(--text-2);
     color: var(--muted-foreground);
     padding: var(--spacing-4) var(--spacing-7) 0;
   }
@@ -1277,7 +1277,7 @@
     border: 1px dashed var(--border);
     background: transparent;
     color: var(--muted-foreground);
-    font-size: 12px;
+    font-size: var(--text-3);
     text-align: left;
     padding: var(--spacing-5) var(--spacing-5);
     border-radius: 8px;
@@ -1339,14 +1339,14 @@
     width: 100%;
     aspect-ratio: 2/3;
     border-radius: 6px;
-    font-size: 30px;
+    font-size: var(--text-8);
     line-height: 1;
     overflow: hidden;
     background: var(--muted);
   }
   .tile .nm {
     display: block;
-    font-size: 11px;
+    font-size: var(--text-2);
     margin-top: var(--spacing-2);
     white-space: nowrap;
     overflow: hidden;
@@ -1354,7 +1354,7 @@
   }
   .tile .fr {
     display: block;
-    font-size: 10px;
+    font-size: var(--text-1);
     color: var(--muted-foreground);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
@@ -1481,7 +1481,7 @@
     padding: 0;
     background: var(--muted);
     position: relative;
-    font-size: 54px;
+    font-size: var(--text-display);
     line-height: 1;
   }
 
@@ -1511,7 +1511,7 @@
 
   .dcard .t {
     display: block;
-    font-size: 19px;
+    font-size: var(--text-7);
     font-weight: 700;
     letter-spacing: -0.015em;
     line-height: 1.15;
@@ -1520,7 +1520,7 @@
   .dcard .m {
     display: block;
     margin-top: var(--spacing-1);
-    font-size: 12px;
+    font-size: var(--text-3);
     color: var(--muted-foreground);
   }
 
@@ -1546,7 +1546,7 @@
     border: 2px solid var(--danger);
     color: var(--danger);
     background: color-mix(in oklab, var(--danger) 14%, var(--card));
-    font-size: 12px;
+    font-size: var(--text-3);
     font-weight: 800;
     letter-spacing: 0.03em;
     opacity: 0;
@@ -1578,7 +1578,7 @@
     border-radius: 8px;
     background: var(--muted);
     color: var(--muted-foreground);
-    font-size: 12px;
+    font-size: var(--text-3);
     font-weight: 700;
   }
   .sugback span {
@@ -1708,7 +1708,7 @@
     min-width: 0;
   }
   .pipeline .pt {
-    font-size: 13px;
+    font-size: var(--text-4);
     font-weight: 600;
   }
   .pipeline .pq {
@@ -1788,7 +1788,7 @@
     font-weight: 600;
   }
   .flux .fr {
-    font-size: 12px;
+    font-size: var(--text-3);
     text-align: right;
     color: var(--muted-foreground);
   }
@@ -1802,7 +1802,7 @@
   }
   .flux .fs {
     grid-column: 1 / -1;
-    font-size: 11px;
+    font-size: var(--text-2);
     color: var(--muted-foreground);
     /* A reason never truncates (§12, R48): it wraps and the row grows. */
     overflow-wrap: anywhere;
@@ -1860,19 +1860,19 @@
   }
   .topic .rt {
     display: block;
-    font-size: 14px;
+    font-size: var(--text-5);
     font-weight: 600;
   }
   .topic .rs {
     display: block;
     margin-top: var(--spacing-1);
-    font-size: 12px;
+    font-size: var(--text-3);
     line-height: 1.4;
     color: var(--muted-foreground);
   }
   .topic .rn {
     flex: 0 0 auto;
-    font-size: 12px;
+    font-size: var(--text-3);
     font-weight: 600;
     color: var(--muted-foreground);
     font-variant-numeric: tabular-nums;
@@ -1897,12 +1897,12 @@
     display: block;
     min-width: 0;
     flex: 1;
-    font-size: 13px;
+    font-size: var(--text-4);
   }
   .settingrow .rf {
     display: block;
     margin-top: var(--spacing-1);
-    font-size: 11px;
+    font-size: var(--text-2);
     color: var(--muted-foreground);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
@@ -1967,11 +1967,11 @@
   }
   .fieldunit {
     flex: 0 0 auto;
-    font-size: 12px;
+    font-size: var(--text-3);
     color: var(--muted-foreground);
   }
   .fieldlabel {
-    font-size: 13px;
+    font-size: var(--text-4);
     color: var(--muted-foreground);
   }
   /* The switch is the whole field: nothing to type, nothing to validate. */
@@ -2005,7 +2005,7 @@
     border-radius: 8px;
     border: 1px solid var(--border);
     background: var(--background);
-    font-size: 13px;
+    font-size: var(--text-4);
   }
   .litem span {
     flex: 1;
@@ -2065,14 +2065,14 @@
   .savebar .sn {
     flex: 1;
     min-width: 0;
-    font-size: 12px;
+    font-size: var(--text-3);
     line-height: 1.35;
     color: var(--muted-foreground);
   }
   .savebar .sn b {
     display: block;
     color: var(--foreground);
-    font-size: 13px;
+    font-size: var(--text-4);
   }
   .savebar button {
     flex: 0 0 auto;
@@ -2181,7 +2181,7 @@
     justify-content: center;
     gap: var(--spacing-2);
     padding-block: var(--spacing-4);
-    font-size: 12px;
+    font-size: var(--text-3);
     border: 0;
     background: transparent;
     color: var(--muted-foreground);
@@ -2222,7 +2222,7 @@
        for the « ? » of an unavailable counter. */
     background: var(--primary);
     color: var(--primary-foreground);
-    font-size: 11px;
+    font-size: var(--text-2);
     font-weight: 600;
     line-height: 1;
     font-variant-numeric: tabular-nums;
@@ -2265,7 +2265,7 @@
     border: 0;
     background: transparent;
     color: var(--primary);
-    font-size: 13px;
+    font-size: var(--text-4);
     font-weight: 600;
     padding: var(--spacing-2) var(--spacing-1);
   }
@@ -2341,13 +2341,13 @@
     padding: var(--spacing-1) var(--spacing-7) calc(var(--tm-bottom-bar-h, 0px) + var(--spacing-8));
   }
   .sheettitle {
-    font-size: 16px;
+    font-size: var(--text-6);
     font-weight: 700;
     letter-spacing: -0.01em;
     margin: 0 0 var(--spacing-1);
   }
   .sheetmeta {
-    font-size: 12px;
+    font-size: var(--text-3);
     color: var(--muted-foreground);
     margin-bottom: var(--spacing-7);
   }
@@ -2380,14 +2380,14 @@
   .sheethead .sheetsub {
     display: block;
     margin-top: var(--spacing-1);
-    font-size: 12px;
+    font-size: var(--text-3);
     color: var(--muted-foreground);
   }
 
   .avatar.big {
     width: 42px;
     height: 42px;
-    font-size: 16px;
+    font-size: var(--text-6);
   }
 
   /* An entry that is coming says so instead of being absent: a menu that grows
@@ -2452,7 +2452,7 @@
      rendered at 14px without its dashed frame. */
   .noinfo {
     margin: 0 0 var(--spacing-2);
-    font-size: 12px;
+    font-size: var(--text-3);
     color: var(--muted-foreground);
     border: 1px dashed var(--border);
     border-radius: 8px;
@@ -2562,7 +2562,7 @@
   }
   .hero .ht {
     margin: 0;
-    font-size: 27px;
+    font-size: var(--text-8);
     font-weight: 600;
     line-height: 1.12;
     letter-spacing: -0.025em;
@@ -2581,7 +2581,7 @@
     align-items: center;
     gap: var(--spacing-2);
     margin-top: var(--spacing-3);
-    font-size: 12px;
+    font-size: var(--text-3);
     font-weight: 700;
     color: var(--primary);
   }
@@ -2623,14 +2623,14 @@
     display: grid;
     place-items: center;
     font-family: ui-monospace, Menlo, monospace;
-    font-size: 19px;
+    font-size: var(--text-7);
     font-weight: 600;
     color: var(--muted-foreground);
     overflow: hidden;
   }
   .cast figcaption {
     margin-top: var(--spacing-3);
-    font-size: 11px;
+    font-size: var(--text-2);
     line-height: 1.35;
   }
   .cast figcaption b {
@@ -2661,7 +2661,7 @@
     border: 1px solid var(--primary);
     background: var(--primary);
     color: var(--primary-foreground);
-    font-size: 14px;
+    font-size: var(--text-5);
     font-weight: 600;
     padding: var(--spacing-6);
     border-radius: 8px;
@@ -2705,7 +2705,7 @@
     background: var(--card);
     border-radius: 8px;
     padding: var(--spacing-5) var(--spacing-6);
-    font-size: 13px;
+    font-size: var(--text-4);
     font-weight: 600;
     text-align: left;
   }
@@ -2725,7 +2725,7 @@
   }
   .trailer small {
     display: block;
-    font-size: 11px;
+    font-size: var(--text-2);
     font-weight: 400;
     color: var(--muted-foreground);
     margin-top: var(--spacing-1);
@@ -2744,7 +2744,7 @@
   .eprow .en {
     flex: 0 0 auto;
     font-family: ui-monospace, Menlo, monospace;
-    font-size: 11px;
+    font-size: var(--text-2);
     font-weight: 600;
     color: var(--muted-foreground);
     min-width: 34px;
@@ -2758,7 +2758,7 @@
   }
   .eprow .ed {
     flex: 0 0 auto;
-    font-size: 11px;
+    font-size: var(--text-2);
     color: var(--muted-foreground);
     font-variant-numeric: tabular-nums;
   }
@@ -2814,7 +2814,7 @@
     flex-wrap: wrap;
     gap: var(--spacing-2) var(--spacing-6);
     margin-bottom: var(--spacing-6);
-    font-size: 11px;
+    font-size: var(--text-2);
     color: var(--muted-foreground);
   }
   .legend span {
@@ -2861,7 +2861,7 @@
     gap: var(--spacing-4);
     padding: var(--spacing-2) 0;
     cursor: pointer;
-    font-size: 11px;
+    font-size: var(--text-2);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -2883,7 +2883,7 @@
     border-radius: 6px;
     background: var(--muted);
     color: var(--foreground);
-    font-size: 15px;
+    font-size: var(--text-5);
     font-weight: 700;
     line-height: 1;
     transition: transform 0.18s ease;
@@ -2894,7 +2894,7 @@
   .season .sfr {
     margin-left: auto;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 12px;
+    font-size: var(--text-3);
     font-weight: 600;
     color: var(--foreground);
     font-variant-numeric: tabular-nums;
@@ -2915,7 +2915,7 @@
      not « how many ». Answer it in words, before the list. */
   .missing {
     margin: var(--spacing-4) 0 0;
-    font-size: 12px;
+    font-size: var(--text-3);
     font-weight: 600;
     color: var(--warning);
     font-variant-numeric: tabular-nums;
@@ -2934,7 +2934,7 @@
     height: 27px;
     border-radius: 5px;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 11px;
+    font-size: var(--text-2);
     font-weight: 600;
     border: 0;
   }
@@ -2980,14 +2980,14 @@
     border: 1px solid var(--primary);
     background: var(--popover);
     padding: var(--spacing-4) var(--spacing-6);
-    font-size: 12px;
+    font-size: var(--text-3);
     line-height: 1.45;
     color: var(--foreground);
     box-shadow: var(--mq-shadow-toast);
   }
   .eppop b {
     display: block;
-    font-size: 11px;
+    font-size: var(--text-2);
     color: var(--muted-foreground);
     font-weight: 600;
     margin-bottom: var(--spacing-1);
@@ -3002,7 +3002,7 @@
     aspect-ratio: 2/3;
     border-radius: 6px;
     overflow: hidden;
-    font-size: 26px;
+    font-size: var(--text-8);
     background: var(--muted);
   }
   .sheetposter img {
@@ -3027,7 +3027,7 @@
     border-radius: 8px;
     background: var(--primary);
     color: var(--primary-foreground);
-    font-size: 13px;
+    font-size: var(--text-4);
     font-weight: 600;
     padding: 0 var(--spacing-7);
   }
@@ -3046,7 +3046,7 @@
     border-radius: 6px;
     background: transparent;
     color: var(--muted-foreground);
-    font-size: 12px;
+    font-size: var(--text-3);
     font-weight: 600;
     padding: var(--spacing-3) var(--spacing-6);
   }
@@ -3076,7 +3076,7 @@
     border: 1px solid var(--border);
     background: transparent;
     color: var(--muted-foreground);
-    font-size: 12px;
+    font-size: var(--text-3);
     padding: var(--spacing-2) var(--spacing-5);
     border-radius: 99px;
   }
@@ -3097,7 +3097,7 @@
   }
   .byid > summary::before {
     content: "▸ ";
-    font-size: 10px;
+    font-size: var(--text-1);
   }
   .byid[open] > summary::before {
     content: "▾ ";
@@ -3219,7 +3219,7 @@
   }
   .rel .sc {
     margin-left: auto;
-    font-size: 11px;
+    font-size: var(--text-2);
     font-weight: 700;
     color: var(--primary);
     white-space: nowrap;
@@ -3371,7 +3371,7 @@
     margin-top: var(--spacing-1);
   }
   .optkind {
-    font-size: 11px;
+    font-size: var(--text-2);
     color: var(--muted-foreground);
     margin: 0 0 var(--spacing-3);
   }
@@ -3408,7 +3408,7 @@
   }
   .dlg h2 {
     margin: 0 0 var(--spacing-4);
-    font-size: 15px;
+    font-size: var(--text-5);
     font-weight: 700;
   }
   .dlg p {
@@ -3438,7 +3438,7 @@
     list-style: none;
     margin: 0 0 var(--spacing-5);
     padding: 0;
-    font-size: 12px;
+    font-size: var(--text-3);
   }
   .manifest li {
     display: flex;
@@ -3461,7 +3461,7 @@
     background: color-mix(in oklab, var(--warning) 8%, transparent);
     border-radius: 7px;
     padding: var(--spacing-4) var(--spacing-5);
-    font-size: 12px;
+    font-size: var(--text-3);
     line-height: 1.45;
     margin-bottom: var(--spacing-5);
   }
@@ -3550,7 +3550,7 @@
   .empty b {
     display: block;
     color: var(--foreground);
-    font-size: 13px;
+    font-size: var(--text-4);
     margin-bottom: var(--spacing-2);
   }
 
@@ -3657,7 +3657,7 @@
     background: color-mix(in oklab, var(--danger) 8%, transparent);
     border-radius: 8px;
     padding: var(--spacing-5);
-    font-size: 12px;
+    font-size: var(--text-3);
     line-height: 1.45;
   }
   .loaderr b {
@@ -3676,7 +3676,7 @@
   }
   .quota {
     text-align: center;
-    font-size: 11px;
+    font-size: var(--text-2);
     color: var(--muted-foreground);
     margin-top: var(--spacing-3);
   }
@@ -3801,7 +3801,7 @@
   }
   .hpanel h4 {
     margin: 0;
-    font-size: 11px;
+    font-size: var(--text-2);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -3816,7 +3816,7 @@
     border: 1px solid var(--border);
     background: transparent;
     color: var(--foreground);
-    font-size: 12px;
+    font-size: var(--text-3);
     padding: var(--spacing-3) var(--spacing-5);
     border-radius: 7px;
     text-align: left;
@@ -3879,7 +3879,7 @@
     gap: var(--spacing-4);
     padding: calc(env(safe-area-inset-top) + var(--spacing-7)) var(--spacing-7) var(--spacing-7);
     border-bottom: 1px solid var(--border);
-    font-size: 14px;
+    font-size: var(--text-5);
     font-weight: 600;
     letter-spacing: -0.01em;
   }
@@ -3944,7 +3944,7 @@
     border-radius: 9999px;
     background: var(--primary);
     color: var(--primary-foreground);
-    font-size: 11px;
+    font-size: var(--text-2);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
   }
@@ -3953,20 +3953,20 @@
     padding: var(--spacing-6) var(--spacing-7) calc(env(safe-area-inset-bottom) + var(--spacing-6));
   }
   .drawer .ver .vt {
-    font-size: 11px;
+    font-size: var(--text-2);
     color: var(--muted-foreground);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     font-weight: 600;
   }
   .drawer .ver .vv {
-    font-size: 18px;
+    font-size: var(--text-7);
     font-weight: 700;
     margin-top: var(--spacing-1);
   }
   .drawer .ver .vc {
     font-family: ui-monospace, Menlo, monospace;
-    font-size: 11px;
+    font-size: var(--text-2);
     color: var(--muted-foreground);
     margin-top: var(--spacing-1);
   }
@@ -4165,7 +4165,7 @@
   }
 
   .brandbig .wm {
-    font-size: 21px;
+    font-size: var(--text-7);
     font-weight: 600;
     letter-spacing: -0.02em;
   }
@@ -4190,14 +4190,14 @@
   .logintitle {
     margin: 0;
     text-align: center;
-    font-size: 16px;
+    font-size: var(--text-6);
     font-weight: 600;
   }
 
   .loginsub {
     margin: calc(var(--spacing-3) * -1) 0 var(--spacing-2);
     text-align: center;
-    font-size: 12px;
+    font-size: var(--text-3);
     color: var(--muted-foreground);
   }
 
@@ -4205,7 +4205,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-2);
-    font-size: 12px;
+    font-size: var(--text-3);
     color: var(--muted-foreground);
   }
 
@@ -4230,7 +4230,7 @@
 
   .loginerr {
     margin: 0;
-    font-size: 12px;
+    font-size: var(--text-3);
     color: var(--danger);
   }
 
@@ -4322,7 +4322,7 @@
 
   .splashmsg {
     margin: 0;
-    font-size: 12px;
+    font-size: var(--text-3);
     color: var(--muted-foreground);
   }
   /* login:splashstyle:end */
