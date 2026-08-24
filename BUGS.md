@@ -82,6 +82,12 @@ when the defect comes back.
 | B-046 | The fallback port moved onto `switchover.py`'s, whose bind error is swallowed | by review | `fixed #484` |
 | B-047 | The navigation-failure flag is raised by no guard and read by no rule | by review   | `fixed #484` |
 | B-048 | The ninth boundary arm stays green with `addresses.ts` deleted      | by review   | `fixed #484` |
+| B-049 | A rule reads the operator's live `acquire.db` and turns red on every cron | by review | `open` |
+| B-050 | `check-frontend-boundaries.py` reached 883 lines during the L05 repair | by review | `open` |
+| B-051 | `toFollows()` carries the page in its query, invisible to the boundaries arm | by review | `open` |
+| B-052 | A synthesised follow panel labels a film « Série »                  | by review   | `open`       |
+| B-053 | A panel's layer entry is taken by a tab tap on the same layer (revisit) | by review | `open`     |
+| B-054 | `data-go="acq"` no longer forces the « now » tab (revisit)           | by review   | `open`       |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -141,6 +147,40 @@ on `main` now.
 
 All six are repaired on `fix/maquette-l05` and land with **#484**, each with the hold that falls
 when it comes back.
+
+**B-049 — a rule class reads live operator data, and a cron makes it red on schedule.**
+The follow fixture mirrors the operator's `acquire.db`; the watcher cron that resolves searches
+moves that database independently of any wave (twice inside 24 h during the L05 repair). The
+rule reads the mismatch as a defect and regenerating the fixture only holds until the next cron
+run. Not a code defect — a class question: whether a rule that reads live data belongs in a gate
+at all, and if so, on what cadence it re-syncs. Raised by the L05 repair wave (PR #484's open
+points), not decided there.
+
+**B-050 — the guard that watches module size has itself grown past comfortable.**
+`scripts/check-frontend-boundaries.py` reached 883 lines during the L05 repair (nine arms). The
+module-size ratchet (invariant 6) does not exempt guard scripts. Split before the next arm lands,
+not as an emergency — the file is not yet over the hard ceiling, only past the point where one
+more addition should pause and ask.
+
+**B-051 — a feature-owned reader escapes the boundaries arm.**
+`toFollows()` carries its page identity in a query parameter, inside a feature file the ninth
+arm's inline-`validateSearch` reader does not reach (it reads route files, not every function
+that shapes a query). D1's rule — path carries identity, query carries state — is not enforced
+here by any guard; only readable by a human diff.
+
+**B-052 — a synthesised follow panel can label a film « Série ».**
+Found during the same review that produced B-045: an entry fabricated by `knownMedium`'s now-
+narrowed match can still carry the show-shaped label on a film-shaped title, when the synthesis
+path is reached at all. Cosmetic on the surface, but it is the same fabrication class as B-045 —
+recorded so it is not rediscovered as a new defect.
+
+**B-053 and B-054 — two behaviours changed inside the L05 repair wave, not separately arbitrated.**
+Recorded so they are revisitable rather than silently permanent: (B-053) a panel's layer entry
+is now taken by a tab tap that lands on the same layer, where before the tap and the panel were
+independent; (B-054) `data-go="acq"` no longer forces the acquisition page onto its « now » tab
+on arrival, which some journeys relied on implicitly. Neither broke a hold — both are readings
+the repair wave settled on to close its own defects, not product decisions taken with the
+operator. Either may be the right call; neither has been asked.
 
 **B-036 — the English campaign missed two state ids, and no arm reads them.**
 `window.__states()` returns **`system-panne`** and **`acq-follows-groupe`**. Both are NAMED STATE
