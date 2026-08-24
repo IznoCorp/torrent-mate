@@ -31,6 +31,7 @@ import { useFollowed } from "@/hooks/useAcquisition";
 
 import { MediaPoster } from "@/components/ds/MediaPoster";
 import { ErrorState } from "@/components/ds/ErrorState";
+import { followLoadErrorDetail } from "./followError";
 
 import type { MediaFact } from "@/components/ds/MediaRow";
 import { MediaRow } from "@/components/ds/MediaRow";
@@ -317,7 +318,7 @@ export function FollowsPanel(): ReactElement {
 
   // ── Derived data ───────────────────────────────────────────────────────────
 
-  const { data, isLoading, isError } = followed;
+  const { data, isLoading, isError, error, refetch } = followed;
 
   const items = useMemo(() => data?.items ?? [], [data]);
   const filterTerm = normalise(nameFilter.trim());
@@ -624,7 +625,13 @@ export function FollowsPanel(): ReactElement {
 
         {/* ── Error ──────────────────────────────────────────────────── */}
         {isError && (
-          <ErrorState title="Impossible de charger les suivis." />
+          <ErrorState
+            title="Impossible de charger les suivis."
+            message={followLoadErrorDetail(error)}
+            onRetry={() => {
+              void refetch();
+            }}
+          />
         )}
 
         {/* ── Empty ──────────────────────────────────────────────────── */}

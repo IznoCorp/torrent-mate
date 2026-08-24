@@ -42,6 +42,7 @@ import {
 } from "@/hooks/useAcquisition";
 
 import { ErrorState } from "@/components/ds/ErrorState";
+import { followLoadErrorDetail } from "./followError";
 
 import type { AcquisitionDownload } from "@/api/acquisition";
 import type { MediaFact } from "@/components/ds/MediaRow";
@@ -810,7 +811,13 @@ export function NowPanel(): ReactElement {
                 s.slug === "cherche-rien-trouve" ||
                 s.slug === "range-aujourdhui") &&
                 followed.isError && (
-                  <ErrorState title="Impossible de charger les suivis." />
+                  <ErrorState
+                    title="Impossible de charger les suivis."
+                    message={followLoadErrorDetail(followed.error)}
+                    onRetry={() => {
+                      void followed.refetch();
+                    }}
+                  />
                 )}
 
               {/* « À récupérer » */}

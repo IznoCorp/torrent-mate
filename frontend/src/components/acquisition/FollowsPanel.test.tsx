@@ -20,6 +20,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { FollowedSeriesItem } from "@/api/acquisition";
+import { ApiError } from "@/api/client";
 
 import * as hooks from "@/hooks/useAcquisition";
 
@@ -273,6 +274,10 @@ const FULL_ITEMS: readonly FollowedSeriesItem[] = [
 interface MockOpts {
   isLoading?: boolean;
   isError?: boolean;
+  /** The query's error value (server ApiError or device-side failure). */
+  error?: unknown;
+  /** Spy invoked by the « Réessayer » button. */
+  refetch?: ReturnType<typeof vi.fn>;
   /** Set to true to return undefined data (loading with no cache). */
   noData?: boolean;
 }
@@ -285,6 +290,8 @@ function mockFollowed(
     data: opts?.noData === true ? undefined : { items: [...items] },
     isLoading: opts?.isLoading ?? false,
     isError: opts?.isError ?? false,
+    error: opts?.error ?? null,
+    refetch: opts?.refetch ?? vi.fn(),
   } as unknown as ReturnType<typeof hooks.useFollowed>);
 }
 
@@ -672,6 +679,25 @@ describe("FollowsPanel", () => {
     expect(
       screen.getByText(/Impossible de charger les suivis/),
     ).toBeInTheDocument();
+  });
+
+  it("nomme la panne côté serveur : le statut et le détail de l'ApiError", () => {
+    renderPanel([], { isError: true, error: new ApiError(500, "Internal Server Error") });
+    expect(screen.getByText(/500/)).toBeInTheDocument();
+    expect(screen.getByText(/Internal Server Error/)).toBeInTheDocument();
+  });
+
+  it("nomme l'échec réseau : le message du navigateur, pas un statut serveur", () => {
+    renderPanel([], { isError: true, error: new TypeError("Failed to fetch") });
+    expect(screen.getByText(/TypeError/)).toBeInTheDocument();
+    expect(screen.getByText(/Failed to fetch/)).toBeInTheDocument();
+  });
+
+  it("le bouton « Réessayer » relance la requête", () => {
+    const refetch = vi.fn();
+    renderPanel([], { isError: true, refetch });
+    fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
+    expect(refetch).toHaveBeenCalledTimes(1);
   });
 
   it("affiche « Aucun suivi » seulement quand le chargement est terminé sans erreur", () => {
