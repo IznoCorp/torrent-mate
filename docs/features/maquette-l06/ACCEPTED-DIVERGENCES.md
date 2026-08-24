@@ -113,3 +113,13 @@ signatures. The review's two forbidden shapes are absent by arithmetic:
 - The button family (`.sact`/`.dlgbtn`/`.btnprimary`, −0.5 px) moved its
   controls by at most −2 px (dialog rows), never more than the size change
   times its line count — line-heights are set by the ratio, not inherited.
+
+### 3.2a — The three fields reach 16 px (text 88 → 85)
+
+193 divergences, every one the GROWTH this fold exists to buy (D-L06-6, the
+operator's wider reading): the search field goes 13 → 16 px (line-height
+17.55 → 21.6, so its box and the filters row grow 4.1 px and every row below
+slides down by the same), the Configuration panel's fields go 14 → 16 px
+(+2.7 px per field, +5.4 where two stack), and the settings page follows its
+own search field. Nothing horizontal, no label wrapped — the growth is the
+field boxes' own line-height, nowhere a text reflow.
