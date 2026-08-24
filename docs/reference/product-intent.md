@@ -394,9 +394,8 @@ cité dans un commentaire reste en français, puisque c'est ce que l'écran affi
 ## §16 — Le chemin de navigation (règle gravée)
 
 **La navigation doit être fluide, et revenir en arrière doit refaire le chemin emprunté.**
-Dictée par l'opérateur les 2026-08-23 et 2026-08-24, en prolongement de DOIT-10. Quatre règles,
-et l'ordre compte. Les règles 1 à 3 sont **livrées** (L05, phase 11, PR #484) ; la règle 4 ne
-l'est pas.
+Dictée par l'opérateur les 2026-08-23 et 2026-08-24, en prolongement de DOIT-10. Trois règles,
+et l'ordre compte. Toutes trois sont **livrées** (L05, phase 11, PR #484).
 
 ### 1. Retour dépile, et la pile ne contient que des arrivées délibérées
 
@@ -443,17 +442,19 @@ routeur cesse de reconnaître l'adresse propre de l'écran et la fiche se démon
 panneau, quel que soit le parent placé dessous. C'est un défaut distinct (§ méthode), mesuré et
 corrigé séparément — nommer le bon parent retire une cause, pas toutes.
 
-### 4. Remonter est un geste distinct, et il est dessiné
+### 4. Remonter — examinée, non retenue
 
-Retour dépile ; **Remonter va au parent**, un niveau, quel que soit le chemin parcouru. Ce sont
-deux gestes différents et on ne détourne jamais l'un pour faire l'autre. Chaque écran porte donc
-dans son en-tête **le nom de la page dont il relève**, et un tap y remonte directement — sans
-quoi une fiche ouverte depuis une fiche ouverte depuis une fiche demande trois Retours pour
-rejoindre la médiathèque, ce qu'aucune application ne fait subir.
+Un quatrième geste avait été envisagé : un contrôle dessiné qui remonterait directement au
+parent, sans dépiler pas à pas. **L'opérateur l'a examiné et écarté le 2026-08-24** : la barre
+du bas (`.bottombar`, `z-index: 50`) reste visible au-dessus de tout écran ouvert
+(`.screen`, `z-45` ; `.sheet`, `z-47` — vérifié dans `refonte.html`, dont le propre commentaire
+dit « the tab bar sits above a screen »). La médiathèque est donc déjà à un tap, à toute
+profondeur, sans qu'un geste de plus soit nécessaire. Et la règle 2 ci-dessus (pas de pile par
+page) fait qu'un tel bouton atterrirait exactement là où la barre atterrit déjà : Remonter et
+taper l'onglet seraient la même destination sous un nom différent.
 
-Sur un téléphone, une PWA installée n'a pas de barre de navigateur : le seul Retour est le
-geste système. **Remonter n'existe donc que si l'interface le dessine.** C'est un élément de la
-maquette, pas un comportement du moteur — **non livré**, aucun lot ne le porte à ce jour.
+Chaque écran garde son bouton Retour dessiné (`.fback`), qui dépile une entrée — c'est la
+règle 1, pas un geste séparé.
 
 ### Ce que tout cela interdit, nommément
 

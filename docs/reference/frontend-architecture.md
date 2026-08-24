@@ -103,8 +103,8 @@ that lands D1, with the reason written down — never left to contradict this.
 **Decision, dictated by the operator on 2026-08-23 and completed on 2026-08-24. DELIVERED** by
 the L05 repair wave's phase 11 (`docs/archive/features/maquette-l05/plan/phase-11-navigation-path.md`),
 merged in PR #484. The constitution's `product-intent.md` § 16 is the authority; this entry says
-what the implementation owes and records what was built. Four rules, and the order is the
-substance.
+what the implementation owes and records what was built. Three rules stand; a fourth was
+considered and rejected — see rule 4 below.
 
 1. **Back pops, and the stack holds only deliberate arrivals.** Opening a surface — a sheet, a
    resolution, a panel — pushes. Adjusting one — a filter, an inner tab, a sort, a lens —
