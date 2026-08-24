@@ -410,6 +410,7 @@ def filter_to_season(
     season: int,
     *,
     expected_count: int | None = None,
+    titles: "Sequence[str | None] | None" = None,
 ) -> list[TrackerResult]:
     """Keep only WHOLE-season packs targeting the given *season*.
 
@@ -432,6 +433,16 @@ def filter_to_season(
       (a pack whose coverage cannot be verified is not « the season »),
       multi-season packs (``S01-S03``, ``Saisons 1-4``), and releases whose
       parsed season differs from the requested *season*.
+    * **Series-identity guard** (when *titles* is provided): the season
+      markers alone never establish WHICH series a release belongs to, and a
+      title query returns fuzzy matches — « Les Groos S02 » on c411 yields
+      the ``Je.S.Appelle.Groot.S02`` releases (2026-08-23). So the release's
+      parsed title must be similar to any known title of the wanted series
+      (rapidfuzz token-set, :data:`_TITLE_SIMILARITY_THRESHOLD` — the same
+      guard ``filter_to_movie`` applies). *titles* ``None`` leaves the guard
+      inactive (legacy callers), and so does a sequence with no known title:
+      an unknown wanted identity must not drop every pack — the guard only
+      bites when the wanted series is known and the release contradicts it.
 
     Args:
         results: Raw tracker results from the season search query.
@@ -439,12 +450,26 @@ def filter_to_season(
         expected_count: Number of aired episodes in the target season, when
             known (from the aired catalog cache). ``None`` = unknown →
             episode-marker releases are rejected conservatively.
+        titles: Every known title of the wanted series (display title,
+            original title), or ``None`` to leave the identity guard inactive.
+            ``None``/empty entries and duplicates are ignored.
 
     Returns:
         The subset identified as whole-season packs for the given season
         (possibly empty).
+
+    Raises:
+        TypeError: If *titles* is a bare ``str`` — a string IS a sequence of
+            single characters, and matching against characters would silently
+            drop every release.
     """
     from guessit import guessit  # noqa: PLC0415
+    from rapidfuzz import fuzz  # noqa: PLC0415 — local import keeps module load light
+
+    if isinstance(titles, str):
+        raise TypeError("filter_to_season takes a sequence of titles, not a bare str")
+    known_titles = list(dict.fromkeys(t for t in titles if t)) if titles is not None else []
+    guard_active = bool(known_titles)
 
     kept: list[TrackerResult] = []
     for r in results:
@@ -477,7 +502,21 @@ def filter_to_season(
         if parsed_season != season:
             continue
 
-        # --- Gate 3: classify the pack ---
+        # --- Gate 3: series-identity guard (only when a wanted title is known) ---
+        if guard_active:
+            parsed_title, _ = _parse_release_identity(title)
+            if parsed_title and all(
+                fuzz.token_set_ratio(parsed_title, t) < _TITLE_SIMILARITY_THRESHOLD for t in known_titles
+            ):
+                log.debug(
+                    "acquire.filter.season_title_mismatch",
+                    title=title,
+                    parsed_title=parsed_title,
+                    wanted_titles=known_titles,
+                )
+                continue
+
+        # --- Gate 4: classify the pack ---
         episode_raw = info.get("episode")
         episode_count = info.get("episode_count")
         episode_range = info.get("episode_range")
@@ -525,11 +564,13 @@ def filter_to_season(
     return kept
 
 
-#: Minimum rapidfuzz token-set score between a release's parsed title and the
-#: wanted movie title to survive the identity filter. Deliberately LOOSE — a
-#: subset like "Wicker" vs "The Wicker Man" scores high either way, so the YEAR
-#: is the real discriminator; this threshold only drops the wholly-unrelated.
-_MOVIE_TITLE_THRESHOLD = 60
+#: Minimum rapidfuzz token-set score between a release's parsed title and a
+#: wanted title to survive the series/movie identity guard. Deliberately LOOSE —
+#: a subset like "Wicker" vs "The Wicker Man" scores high either way, so the
+#: YEAR (movie) is the real discriminator; this threshold only drops the
+#: wholly-unrelated — like "Je s'appelle Groot" vs "Les Groos" (44/100, the
+#: 2026-08-23 wrong-show grab).
+_TITLE_SIMILARITY_THRESHOLD = 60
 
 
 def filter_to_movie(
@@ -590,7 +631,9 @@ def filter_to_movie(
         parsed_title, parsed_year = _parse_release_identity(r.title)
         # NB: with no known title the ``all(...)`` is vacuously True and every
         # parseable release drops — the documented fail-closed contract.
-        if parsed_title and all(fuzz.token_set_ratio(parsed_title, t) < _MOVIE_TITLE_THRESHOLD for t in known_titles):
+        if parsed_title and all(
+            fuzz.token_set_ratio(parsed_title, t) < _TITLE_SIMILARITY_THRESHOLD for t in known_titles
+        ):
             continue
         if year is not None and parsed_year is not None and abs(parsed_year - year) > 1:
             continue

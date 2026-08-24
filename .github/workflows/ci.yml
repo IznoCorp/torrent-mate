@@ -3,11 +3,16 @@ name: CI
 on:
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
     # No paths-ignore: doc-only PRs (archive, README updates, plan files) would
     # otherwise skip the workflow entirely. Required-status-check rules on main
     # then leave the PR stuck in "expected" state forever (no run = no result).
     # Running CI on every PR (~3-5 min) is cheaper than diagnosing stuck PRs.
+    # `labeled`/`unlabeled`: `version-bump`'s `no-version-bump` exemption reads
+    # the PR's label set from the EVENT PAYLOAD, frozen at whichever event
+    # dispatched the run — adding the label after `opened` changed nothing until
+    # a new event re-dispatched with it. #488 was refused by its own version-bump
+    # job while correctly carrying the label, because nothing re-triggered.
 
 permissions:
   contents: read

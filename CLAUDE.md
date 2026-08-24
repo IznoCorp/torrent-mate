@@ -187,6 +187,21 @@ Examples: `feat(scraper): create TvShow nfo file` · `refactor(dispatch): extrac
 
 Milestone-commit format and the codename-as-scope rule: `docs/reference/feature-lifecycle.md` §7.
 
+**Version bump per PR (§10-3), and its one exemption.** Every PR bumps the version, patch by
+default — the `version-bump` CI job enforces it. **A pull request that touches no code — pure
+documentation, a directive correction, a bug-register entry** — carries the label
+`no-version-bump` instead: the job reads it and skips. Add it any time, before or after opening
+the PR — CI's `pull_request` trigger includes `labeled`/`unlabeled`, so adding or removing it
+re-runs the check against the current label set. This exempts prose, never a PR that changes any
+file `personalscraper/`, `frontend/maquette/design/src/`, `frontend/maquette/harness/`,
+`scripts/`, or `.github/workflows/` touches in its logic — a docs-only PR that also fixes one
+line of a script bumps like any other. Documented here on 2026-08-24 after every steward PR of
+the L05 wave bumped version regardless: the label existed in `.github/workflows/ci.yml` since
+before then and was never once used, because nothing pointed an agent at it. **Its first real use
+failed for a second, adjacent reason**: the trigger did not yet include `labeled`, so a label
+added after the PR opened changed nothing until this file's own PR (#488) added it — read the
+failing run before trusting the label alone.
+
 ### Pipeline Monitoring Rules
 
 When running `personalscraper run` or any long-running command with user observation:

@@ -98,6 +98,57 @@ that lands D1, with the reason written down — never left to contradict this.
 | Screen state | an actions panel, a filter drawer | a **query parameter** |
 | Transient | a sort menu, a confirmation | **no URL**, but Back still closes it |
 
+### D1b — Back pops a stack of deliberate arrivals; the parent is only the floor
+
+**Decision, dictated by the operator on 2026-08-23 and completed on 2026-08-24. DELIVERED** by
+the L05 repair wave's phase 11 (`docs/archive/features/maquette-l05/plan/phase-11-navigation-path.md`),
+merged in PR #484. The constitution's `product-intent.md` § 16 is the authority; this entry says
+what the implementation owes and records what was built. Three rules stand; a fourth was
+considered and rejected — see rule 4 below.
+
+1. **Back pops, and the stack holds only deliberate arrivals.** Opening a surface — a sheet, a
+   resolution, a panel — pushes. Adjusting one — a filter, an inner tab, a sort, a lens —
+   replaces. The engine did NOT work this way before phase 11: `recordPath()` had eight call
+   sites and seven pushed a SETTING. Phase 11 split it into `recordPath()` (arrivals) and
+   `replacePath()` (settings), and gave each page switch its own verb (rule 2).
+2. **Switching a top-level page REPLACES, with the entry page kept beneath.** The stack under any
+   top-level page is `[guard, /acquisition]`; under a non-home page
+   `[guard, /acquisition, /page]`. Switching between two non-home pages replaces the top; going
+   TO `/acquisition` from elsewhere pops back onto the floor already there (pushing or replacing
+   would leave two acquisition entries, and a silent Back). Back from any page lands on
+   `/acquisition`; Back from there arms the exit guard. That is Android's
+   `popUpTo(startDestination)` said in this codebase's terms — taken because a system Back drives
+   a PWA, where no platform stacks visited tabs.
+3. **Where no stack exists, synthesise it from the hierarchy.** A cold link poses the real parent
+   under the screen — the library under a media sheet, the arrivals under a resolution, read off
+   the emitter of the screen's own opener rather than guessed — and that parent is **rendered**,
+   not merely recorded (`SCREEN_PARENTS` in `lib/addresses.ts`). **What this does NOT simplify,
+   measured before phase 11 opened**: a panel's entry composed over the parent still stops the
+   router matching the screen's own path and unmounts the sheet (finding 9.3) — the panel hangs
+   off the screen's own address whatever page sits beneath, so 9.3's fix stands independently.
+4. **Up is a separate gesture, and it is drawn.** Back pops; Up climbs one level whatever the
+   path. **NOT delivered** — no lot carries it yet; it is a surface to be drawn in the maquette
+   first, like every surface.
+
+**Replaces** the reading under which every screen resolved to the home page (D-8.1, struck by
+phase 11 naming this decision). That was not only a UX default: it is the mechanism behind a
+reviewed defect — a cold screen address carrying a panel composed the panel's entry over the home
+page and the sheet unmounted behind it. Naming the real parent removes the cause.
+
+**The trap this decision exists to forbid**: sending **Back** to the declared parent while a
+stack entry exists. History first; the parent is a floor, never a destination.
+
+**Deliberately not done, so it is a choice and not an omission**: per-page stacks. Leaving the
+library with a sheet open and returning lands on the library's root, not back in the sheet. It is
+added only if real use asks.
+
+**What it cost in proof, and this part had already been paid once before phase 11.** The cases
+are held SEPARATELY, in R69's own rule: an in-app walk whose Back returns to the real origin, a
+cold link whose floor is the parent, a page switch that stacks nothing (asserted on
+`history.length`, never on the address alone), and an exit guard that arms only at
+`/acquisition`. A hold that exercises only the cold load is how two of L05's defects passed under
+green rules.
+
 ### D2 — Tailwind v4 provides the implementation; CVA components provide the API
 
 **Decision.** Styling goes through Tailwind utilities. The design vocabulary is expressed as
@@ -262,7 +313,10 @@ reasoning is kept so the alternatives are not proposed again as if new.
 ## 3. Invariants — true at the end of every wave
 
 1. **The URL and the interface never contradict each other.** D1's rule holds in both
-   directions: no page identity in the query, no sort or filter in the path.
+   directions: no page identity in the query, no sort or filter in the path. And D1b's: opening a
+   surface pushes, adjusting one replaces, switching a top-level page replaces, and the parent is
+   the floor only where no stack entry exists. The cases are held separately — a hold that walks
+   only the cold load leaves the others unmeasured.
 2. **No rule selects on a style class.** (After L02.)
 3. **No value outside the scale.** A raw `padding: 13px` or `font-size: 15px` is refused, the way
    an undeclared `var()` already is.

@@ -932,6 +932,45 @@ def test_search_no_matching_season_concludes_zero() -> None:
     _assert_no_side_effects(spy, torrent_client)
 
 
+def test_search_no_matching_season_wrong_series_regression() -> None:
+    """2026-08-23 REGRESSION: a wrong SERIES' pack must not satisfy a season row.
+
+    The wanted series is « Les Groos » (S02, 12 aired episodes); the tracker's
+    fuzzy answer to ``Les Groos S02`` is the ``Je.S.Appelle.Groot.S02`` pack
+    (the I Am Groot French title) — season number 2, bare season marker, so
+    coverage alone kept it and the grab installed I Am Groot content as
+    « Les Groos Saison 02 ». With the title guard wired, the verdict must be
+    ('not_found', 'no_matching_season', 0).
+    """
+    wrong_show_pack = SearchOutcome(
+        results=[
+            _make_result(title="Je.S.Appelle.Groot.S02.VOSTFR.1080p.WEB.EAC3.5.1.H264-FW", info_hash="cbf75355"),
+        ],
+        trackers_queried=1,
+        trackers_errored=0,
+    )
+    orchestrator, spy, _registry, torrent_client, _seed = _make_orchestrator(search_outcome=wrong_show_pack)
+
+    def _wanted_series_title(item: WantedItem) -> str | None:
+        return "Les Groos"
+
+    orchestrator._title_resolver = _wanted_series_title  # noqa: SLF001 — test wiring of the D3 seam
+
+    season_item = WantedItem(
+        media_ref=MediaRef(tvdb_id=478476),
+        kind="season",
+        status="searching",
+        enqueued_at=1_700_000_000,
+        attempts=1,
+        season=2,
+        episode=None,
+    )
+    verdict = orchestrator.search(season_item, QualityProfile())
+
+    assert (verdict.disposition, verdict.outcome, verdict.found) == ("not_found", "no_matching_season", 0)
+    _assert_no_side_effects(spy, torrent_client)
+
+
 def test_search_all_filtered_concludes_zero() -> None:
     """Only hard-filtered releases came back → ('not_found', 'all_filtered', 0).
 
@@ -1630,6 +1669,47 @@ def test_filter_to_season_keeps_verified_full_range() -> None:
     """F4: S02E01-E12 with expected_count=12 → coverage proven, kept."""
     results = [_make_season_result("Show.S02E01-E12.1080p")]
     kept = filter_to_season(results, 2, expected_count=12)
+    assert len(kept) == 1
+
+
+def test_filter_to_season_rejects_wrong_series_title() -> None:
+    """2026-08-23 incident: a wrong SERIES' season pack must be dropped.
+
+    The c411 query ``Les Groos S02`` returns only the ``Je.S.Appelle.Groot.S02``
+    releases (the tracker matched the S02 token, not the show). A season pack
+    carries no provider ID, so the series identity must be verified from the
+    parsed release title — without the guard the wrong show's pack is grabbed
+    and the scrape then labels it with the follow's identity, installing
+    I Am Groot content as « Les Groos Saison 02 » in the library.
+    """
+    results = [_make_season_result("Je.S.Appelle.Groot.S02.VOSTFR.1080p.WEB.EAC3.5.1.H264-FW")]
+    kept = filter_to_season(results, 2, expected_count=12, titles=["Les Groos"])
+    assert kept == []
+
+
+def test_filter_to_season_keeps_matching_series_title() -> None:
+    """The same release passes when the wanted series IS the release's show.
+
+    The VOSTFR name is the series' own French title, and the
+    accent/punctuation differences must not drop a legitimate pack.
+    """
+    results = [_make_season_result("Je.S.Appelle.Groot.S02.VOSTFR.1080p.WEB.EAC3.5.1.H264-FW")]
+    kept = filter_to_season(results, 2, expected_count=5, titles=["Je s'appelle Groot"])
+    assert len(kept) == 1
+
+
+def test_filter_to_season_title_guard_keeps_legit_packs() -> None:
+    """The guard must not reject releases that merely differ in punctuation.
+
+    Quality/group tags after the series title are also tolerated.
+    """
+    results = [
+        _make_season_result("Les.Groos.S02.1080p.WEB-DL.x265"),
+        _make_season_result("American.Dad.S15.1080p.WEB-DL"),
+    ]
+    kept = filter_to_season(results, 2, titles=["Les Groos"])
+    assert len(kept) == 1
+    kept = filter_to_season(results, 15, titles=["American Dad!"])
     assert len(kept) == 1
 
 
