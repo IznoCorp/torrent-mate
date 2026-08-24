@@ -23,11 +23,17 @@ condition) and used unconditionally is refused too: it renders correctly in the
 one state someone happened to look at, and to nothing everywhere else.
 
 THE SCALE ARM. `--arm scale` holds a second thing: every design constant BLOCK 2
-spends is a STEP declared in the scale block, and nowhere else. It is a ratchet
-rather than a wall — `frontend/maquette/scale-baseline.json` records what sits
-outside the scale today, the arm refuses that count going UP, and the folding
-phases lower it. The baseline is deleted when the last fold lands, and the arm
-then refuses the first off-scale declaration outright.
+spends is a STEP declared in the scale block, and nowhere else. It is a wall:
+the first off-scale declaration is refused, by selector, property and literal,
+with the step it sits nearest to so the reader can fold it in one edit.
+
+It was a ratchet while the stylesheet was being folded onto the scale — a
+recorded per-family count the arm refused to see rise, lowered fold by fold.
+The last fold brought every family to zero, and a tolerance that tolerates
+nothing is a tolerance waiting to be spent: the record and the mode that wrote
+it are gone, and the floor is zero with no branch that can lift it. What
+survived it is the pair of named exemptions below, which are measurements
+rather than steps.
 
 The motion family is held in TWO dimensions, because a curve is not a number
 and a length pattern can never see one: the duration reads a step of the ramp,
@@ -50,17 +56,13 @@ Usage:
     python3 scripts/check-css-tokens.py          # every arm; exit 1 on any find
     python3 scripts/check-css-tokens.py --arm scale
     python3 scripts/check-css-tokens.py --arm login
-    python3 scripts/check-css-tokens.py --record-scale-baseline
 """
 
 from __future__ import annotations
 
 import argparse
-import json
 import re
-import subprocess
 import sys
-from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -116,10 +118,6 @@ MARKUP = ROOT / "frontend" / "maquette" / "design" / "index.html"
 # itself would report nine violations the moment it was written.
 SCALE_START = "/* scale:start */"
 SCALE_END = "/* scale:end */"
-
-# The ratchet's memory: what sits outside the scale today, per family, and the
-# commit it was taken at. A tolerance, not a target — phase 6 deletes it.
-SCALE_BASELINE = ROOT / "frontend" / "maquette" / "scale-baseline.json"
 
 # The families the scale answers for, keyed by the property names that spend a
 # design constant. Longhands are matched by prefix (`padding-left`) and by the
@@ -250,10 +248,12 @@ EXTRACT_CALL = re.compile(r"\bextract\(\s*(\w+)\s*,\s*\"([\w-]+)\"\s*\)")
 # rather than skipped: the composition measured would not be the one served.
 SOURCE_FILES = {"PROTOTYPE": FRAGMENT, "SHELL_DOCUMENT": MARKUP}
 
-# Selectors the ratchet skips entirely, each with the reason it is not a step.
-# Seeded into the baseline at record time; the baseline is the authority
-# afterwards, so an exemption can only be added by editing a reviewed file.
-DEFAULT_EXEMPTIONS = {
+# THE exemption list: the selectors the scale arm skips entirely, each with the
+# reason it is not a step. There is no file to default from any more — these two
+# were arbitrated, and an exemption can only join them by being written here, in
+# a reviewed file, exactly as `regions.json`'s `$vocabulary` holds its frozen
+# class names.
+EXEMPTIONS = {
     ".dcard .cap": (
         "reserved footprint: the caption clears the floating add button; "
         "a measured clearance, not a space step"
@@ -263,6 +263,20 @@ DEFAULT_EXEMPTIONS = {
         "composition measurement, not a space step (the rule's own comment "
         "says so)"
     ),
+}
+
+# A step declaration inside the scale block: its name and its value. The scale
+# is the only place these are read from, so the arm can name what a refused
+# literal sits nearest to without a table of its own going stale beside it.
+STEP_DECLARATION = re.compile(r"(?:^|[{;])\s*(--[\w-]+)\s*:\s*([^;}]*)", re.M)
+
+# The scale's own namespaces, mapped to the family each answers for. `--ease-*`
+# is deliberately absent: a curve is not a number and has no nearest anything.
+STEP_FAMILY = {
+    "--spacing-": "spacing",
+    "--text-": "text",
+    "--radius-": "radius",
+    "--duration-": "motion",
 }
 
 
@@ -417,28 +431,78 @@ def off_curve(prop: str, value: str) -> list[str]:
     return list(dict.fromkeys(findings))
 
 
-def off_scale_findings(prop: str, value: str, family: str) -> list[str]:
+def step_size(literal: str) -> float | None:
+    """Reads a step's or a literal's magnitude, in pixels or in milliseconds.
+
+    Args:
+        literal: A raw length or duration, as written.
+
+    Returns:
+        The number, comparable within its family, or `None` for a unit this
+        function does not measure — a step written in a relative unit has no
+        pixel value and must not be offered as the nearest anything.
+    """
+    for suffix, factor in (("ms", 1.0), ("px", 1.0), ("s", 1000.0)):
+        if literal.endswith(suffix):
+            try:
+                return float(literal[: -len(suffix)]) * factor
+            except ValueError:
+                return None
+    return None
+
+
+def nearest_step(literal: str, steps: list[tuple[str, str, float]]) -> str:
+    """Names the step a refused literal sits nearest to.
+
+    The next reader has to be able to fold the declaration without opening a
+    plan or the scale block, so the refusal carries the step to fold it onto.
+    A tie goes to the SMALLER step, deterministically: two names in one message
+    would be an arbitration the message cannot make.
+
+    Args:
+        literal: The refused literal, as written.
+        steps: The family's steps — name, value as declared, magnitude.
+
+    Returns:
+        The clause to append to the refusal, or an empty string when nothing
+        comparable was found.
+    """
+    target = step_size(literal)
+    if target is None or not steps:
+        return ""
+    name, written, _ = min(steps, key=lambda step: (abs(step[2] - target), step[2]))
+    return f"; the nearest step is `{name}` ({written})"
+
+
+def off_scale_findings(
+    prop: str,
+    value: str,
+    family: str,
+    steps: dict[str, list[tuple[str, str, float]]] | None = None,
+) -> list[str]:
     """Names everything a declaration spends outside its family's scale.
 
     Args:
         prop: The property name as written, in any case.
         value: The declaration's value text, whitespace already collapsed.
         family: The scale family the declaration belongs to.
+        steps: The scale's steps per family, when the caller has them. Omitted
+            by the caller that only asks WHETHER a declaration is off-scale.
 
     Returns:
-        The phrases for this declaration — the raw constants first, then the
-        curve findings the motion family alone can have. Empty when the
-        declaration reads the scale.
+        One phrase per finding — the raw constants first, each with the step it
+        is nearest to, then the curve findings the motion family alone can
+        have. Empty when the declaration reads the scale.
     """
     findings: list[str] = []
-    literals = raw_literals(measurable_value(prop, value), family)
-    if literals:
-        quoted = ", ".join(f"`{literal}`" for literal in literals)
-        verb = "is" if len(literals) == 1 else "are"
-        findings.append(f"{quoted} {verb} on no step of the {family} scale")
+    for literal in raw_literals(measurable_value(prop, value), family):
+        findings.append(f"`{literal}` is on no step of the {family} scale"
+                        + nearest_step(literal, (steps or {}).get(family, [])))
     if family == "motion":
         findings.extend(off_curve(prop.strip().lower(), value))
-    return findings
+    # The same literal twice in one value — `padding: 13px 13px` — is one
+    # finding: naming it twice adds a line and no information.
+    return list(dict.fromkeys(findings))
 
 
 def font_shorthand_size(value: str) -> str:
@@ -609,21 +673,39 @@ def token_arm() -> int:
     return 0
 
 
-def load_scale_baseline() -> dict[str, object] | None:
-    """Reads the ratchet's baseline, when there still is one.
+def scale_steps(block: str) -> dict[str, list[tuple[str, str, float]]]:
+    """Reads the steps the scale block declares, per family.
+
+    Args:
+        block: The scale block's text, comments included.
 
     Returns:
-        The recorded inventory, or `None` once phase 6 has deleted the file —
-        which is not an error but the end state: no tolerance left to grant.
+        Name, value as declared and comparable magnitude, keyed by family. A
+        family the block declares nothing for is present and empty, so a
+        refusal simply carries no nearest step rather than crashing.
     """
-    if not SCALE_BASELINE.exists():
-        return None
-    return json.loads(SCALE_BASELINE.read_text(encoding="utf-8"))
+    steps: dict[str, list[tuple[str, str, float]]] = {family: [] for family in FAMILIES}
+    for name, value in STEP_DECLARATION.findall(COMMENT.sub(" ", block)):
+        family = next((f for prefix, f in STEP_FAMILY.items() if name.startswith(prefix)), None)
+        if family is None:
+            continue
+        pattern = TIME_LITERAL if family == "motion" else LENGTH_LITERAL
+        found = pattern.search(value)
+        if found is None:
+            continue
+        size = step_size(found.group(0))
+        if size is not None:
+            steps[family].append((name, found.group(0), size))
+    return steps
 
 
 def scale_measurement(
     exemptions: dict[str, str],
-) -> tuple[dict[str, list[tuple[str, str, str]]], list[str]] | None:
+) -> tuple[
+    dict[str, list[tuple[str, str, str]]],
+    list[str],
+    dict[str, list[tuple[str, str, float]]],
+] | None:
     """Counts what BLOCK 2 still spends outside the scale, and where.
 
     The scale block is cut out BEFORE comments are stripped, in that order and
@@ -634,9 +716,10 @@ def scale_measurement(
         exemptions: Selectors to skip entirely, keyed by selector.
 
     Returns:
-        `(inventory, duplicated)` — the off-scale declarations per family, and
-        the scale tokens declared outside the scale block. `None` when BLOCK 2
-        or the scale block could not be located.
+        `(inventory, duplicated, steps)` — the off-scale declarations per
+        family, the scale tokens declared outside the scale block, and the
+        steps the block declares. `None` when BLOCK 2 or the scale block could
+        not be located.
     """
     css = block_two()
     if css is None:
@@ -647,7 +730,7 @@ def scale_measurement(
               "scale has no home, so this arm has nothing to measure against",
               file=sys.stderr)
         return None
-    _, closing, tail = rest.partition(SCALE_END)
+    block, closing, tail = rest.partition(SCALE_END)
     if not closing:
         print(f"check-scale: {SCALE_START} is never closed by {SCALE_END} — the "
               "arm cannot tell the steps apart from what spends them",
@@ -672,7 +755,7 @@ def scale_measurement(
                 inventory[family].append((selector, prop.strip().lower(), text))
 
     duplicated = sorted({name for name in DECLARATION.findall(outside) if SCALE_TOKEN.match(name)})
-    return inventory, duplicated
+    return inventory, duplicated, scale_steps(block)
 
 
 def scale_arm() -> int:
@@ -681,14 +764,10 @@ def scale_arm() -> int:
     Returns:
         1 when anything was found, 0 otherwise.
     """
-    baseline = load_scale_baseline()
-    exemptions: dict[str, str] = {}
-    if baseline is not None:
-        exemptions = dict(baseline.get("exemptions", {}))  # type: ignore[arg-type]
-    measured = scale_measurement(exemptions)
+    measured = scale_measurement(EXEMPTIONS)
     if measured is None:
         return 1
-    inventory, duplicated = measured
+    inventory, duplicated, steps = measured
 
     failed = False
     for name in duplicated:
@@ -696,88 +775,26 @@ def scale_arm() -> int:
               "reader edits the copy nobody reads.", file=sys.stderr)
         failed = True
 
-    recorded: dict[str, Counter[tuple[str, str, str]]] = {}
-    if baseline is not None:
-        families = baseline.get("families", {})
-        for family in FAMILIES:
-            rows = families.get(family, []) if isinstance(families, dict) else []
-            recorded[family] = Counter(tuple(row) for row in rows)
-
+    off_scale = 0
     for family in FAMILIES:
-        current = Counter(inventory[family])
-        known = recorded.get(family, Counter())
-        for triple in sorted(current):
-            if current[triple] <= known[triple]:
-                continue
+        for triple in sorted(dict.fromkeys(inventory[family])):
             selector, prop, value = triple
             # ONE message per declaration, however many ways it is wrong: a
             # motion declaration off the ramp AND off the curve is one edit,
             # and two messages would have the reader fix half of it.
-            findings = ", and ".join(off_scale_findings(prop, value, family))
+            findings = ", and ".join(off_scale_findings(prop, value, family, steps))
             print(f"  `{selector}` `{prop}: {value}` — {findings}", file=sys.stderr)
-            failed = True
+            off_scale += 1
 
-    if baseline is None:
-        if failed or any(inventory[family] for family in FAMILIES):
-            print("\nscale: no baseline tolerates an off-scale declaration any more "
-                  "— every declaration reads a step.", file=sys.stderr)
-            return 1
-        print("scale: " + ", ".join(f"{family} 0" for family in FAMILIES)
-              + " — every declaration reads a step.")
-        return 0
-
-    for family in FAMILIES:
-        current = len(inventory[family])
-        known = sum(recorded[family].values())
-        if current > known:
-            print(f"\nscale: the {family} count went UP against its baseline "
-                  f"({current} > {known})", file=sys.stderr)
-            failed = True
-    if failed:
+    if off_scale:
+        print(f"\nscale: {off_scale} declaration(s) outside the scale — every design "
+              "constant BLOCK 2 spends is a step declared in the scale block, and "
+              "there is no floor above zero.", file=sys.stderr)
+    if failed or off_scale:
         return 1
 
-    print("scale: " + ", ".join(
-        f"{family} {len(inventory[family])}/{sum(recorded[family].values())}"
-        for family in FAMILIES) + " — nothing new outside the scale.")
-    return 0
-
-
-def record_scale_baseline() -> int:
-    """Writes the ratchet's baseline from the stylesheet as it stands.
-
-    Returns:
-        1 when the measurement or the commit could not be taken, 0 otherwise.
-    """
-    previous = load_scale_baseline()
-    exemptions = DEFAULT_EXEMPTIONS
-    if previous is not None:
-        exemptions = dict(previous.get("exemptions", {}))  # type: ignore[arg-type]
-    measured = scale_measurement(exemptions)
-    if measured is None:
-        return 1
-    inventory, _ = measured
-
-    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT,
-                          capture_output=True, text=True, check=False)
-    if head.returncode != 0:
-        # A baseline nobody can date is a baseline nobody can audit: the whole
-        # point of the commit field is that a reader can replay the measurement.
-        print("check-scale: `git rev-parse HEAD` failed, so the baseline would "
-              "carry no provenance — refusing to write it", file=sys.stderr)
-        return 1
-
-    payload = {
-        "commit": head.stdout.strip(),
-        "exemptions": exemptions,
-        "families": {family: [list(triple) for triple in inventory[family]]
-                     for family in FAMILIES},
-    }
-    SCALE_BASELINE.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
-                              encoding="utf-8")
-    print(f"check-scale: recorded {SCALE_BASELINE.relative_to(ROOT)} at "
-          f"{payload['commit'][:8]} — " + ", ".join(
-              f"{family} {len(inventory[family])}" for family in FAMILIES)
-          + f", {len(exemptions)} named exemption(s).")
+    print("scale: " + ", ".join(f"{family} 0" for family in FAMILIES)
+          + " — every declaration reads a step.")
     return 0
 
 
@@ -933,12 +950,8 @@ def main() -> int:
                     "the steps it declares, and the chunks the sign-in page is composed from.")
     parser.add_argument("--arm", choices=("scale", "login"),
                         help="run one arm alone; the default runs all of them")
-    parser.add_argument("--record-scale-baseline", action="store_true",
-                        help="rewrite the ratchet's baseline from the stylesheet as it stands")
     args = parser.parse_args()
 
-    if args.record_scale_baseline:
-        return record_scale_baseline()
     if args.arm == "scale":
         return scale_arm()
     if args.arm == "login":
