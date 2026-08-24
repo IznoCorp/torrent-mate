@@ -9,9 +9,17 @@
 // itself and stays as the fragment spells it; only what lives entirely
 // inside this file is named freely.
 //
-// The i18n bootstrap is imported FIRST, for its side effect (initialising
-// `i18next`) — every migrated screen calls `useTranslation()`, and the
-// first of them can render before any other import here settles.
+// The base layer, FIRST of all, and it is a cascade decision rather than a
+// stylistic one. Vite emits an imported stylesheet as a <link> in <head>,
+// while the prototype fragment carries its own <style> in <body>: head before
+// body is base before components, which is the order D3 asks for. A CSS import
+// placed after another would reorder the emitted sheet, and the reset would
+// then win against a component that had every right to override it.
+import "../styles/base.css";
+// The i18n bootstrap is the first import that RUNS, for its side effect
+// (initialising `i18next`) — every migrated screen calls `useTranslation()`,
+// and the first of them can render before any other import here settles. The
+// stylesheet above it is emitted, not executed, so it takes no turn.
 import "../i18n";
 // The legacy engine, for its side effect too, and the order matters more
 // here than anywhere else in this file. It used to be a classic script

@@ -113,6 +113,11 @@ SCOPE = ".tm"
 # and the composer reads both, so the arm that holds the composition must too.
 MARKUP = ROOT / "frontend" / "maquette" / "design" / "index.html"
 
+# The base layer (D3), which L07 moved out of the fragment's BLOCK 1. It holds
+# the typeface and the reset the sign-in gate inherits, so it is a third source
+# of the composition and not merely another stylesheet.
+BASE_LAYER = ROOT / "frontend" / "maquette" / "design" / "src" / "styles" / "base.css"
+
 # The scale block's own markers. Its declarations ARE the steps, so the ratchet
 # excludes the span before it counts anything: a scale that had to answer for
 # itself would report nine violations the moment it was written.
@@ -243,10 +248,19 @@ SOURCE_BINDING = re.compile(r"(\w+)\s*=\s*(\w+)\.read_text\(")
 # `def extract(source: str, marker: str)` line is not a call and does not match.
 EXTRACT_CALL = re.compile(r"\bextract\(\s*(\w+)\s*,\s*\"([\w-]+)\"\s*\)")
 
-# The constants `serve.py` reads its two sources from, resolved to the files
-# this arm already knows. A source it names and this table does not is refused
+# The constants `serve.py` reads its sources from, resolved to the files this
+# arm already knows. A source it names and this table does not is refused
 # rather than skipped: the composition measured would not be the one served.
-SOURCE_FILES = {"PROTOTYPE": FRAGMENT, "SHELL_DOCUMENT": MARKUP}
+#
+# `BASE_STYLESHEET` joined when L07 moved the base layer out of the fragment,
+# taking `login:font` and `login:socle` with it. The arm caught that move on
+# the first run after it — which is what it is for — and the repair is a new
+# binding on both sides rather than a looser match here.
+SOURCE_FILES = {
+    "PROTOTYPE": FRAGMENT,
+    "SHELL_DOCUMENT": MARKUP,
+    "BASE_STYLESHEET": BASE_LAYER,
+}
 
 # THE exemption list: the selectors the scale arm skips entirely, each with the
 # reason it is not a step. There is no file to default from any more — these two

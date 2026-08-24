@@ -87,6 +87,9 @@ DESIGN_ROOT = Path(
     or Path(__file__).resolve().parent / "design"
 ).resolve()
 PROTOTYPE = DESIGN_ROOT / "refonte.html"
+# The base layer (D3). It carries the `login:font` and `login:socle` regions
+# the sign-in gate inherits, which lived in the fragment's BLOCK 1 until L07.
+BASE_STYLESHEET = DESIGN_ROOT / "src" / "styles" / "base.css"
 # The document Vite owns, and where the application shell's markup lives — the
 # phone frame, the sign-in card, the startup screen. The login gate clones
 # those from here and inherits its style from the fragment above.
@@ -476,7 +479,16 @@ def login_page(refused: bool) -> bytes:
     # actually holds its block, and `extract` itself raises when a marker is
     # missing — so pointing one of them at the wrong file fails the gate
     # loudly instead of serving a screen stripped of its design.
+    # THREE SOURCES SINCE L07, and each `extract` below still names exactly
+    # one of them. The base layer left the fragment for `src/styles/base.css`,
+    # taking `login:font` and `login:socle` with it — so the honest shape is a
+    # second BINDING, not a concatenation. `scripts/check-css-tokens.py`'s
+    # login arm follows these bindings to know which file holds which chunk;
+    # a concatenated source would leave it resolving every chunk to the first
+    # file and reporting the rest missing, which is exactly what it did for as
+    # long as this line was `PROTOTYPE.read_text() + BASE_STYLESHEET.read_text()`.
     styles_source = PROTOTYPE.read_text()
+    base_source = BASE_STYLESHEET.read_text()
     markup_source = SHELL_DOCUMENT.read_text()
     markup = extract(markup_source, "markup")
     # The screen is drawn hidden inside the shell and centred against it. Here
@@ -510,8 +522,8 @@ def login_page(refused: bool) -> bytes:
     # because the copy is the only place anyone ever looks. The scale block is
     # emitted first so every step a folded declaration reads resolves on the
     # composed page.
-    styles = (extract(styles_source, "scale") + extract(styles_source, "font")
-              + extract(styles_source, "palette") + extract(styles_source, "socle")
+    styles = (extract(styles_source, "scale") + extract(base_source, "font")
+              + extract(styles_source, "palette") + extract(base_source, "socle")
               + extract(styles_source, "style") + extract(styles_source, "splashstyle"))
     # After the extract, so they win: inside the prototype the screen covers a
     # phone frame; here it IS the page.
