@@ -1,6 +1,6 @@
 # L07 — Tailwind and CVA, surface by surface · plan
 
-**Design** `../DESIGN.md`. **Branch** `feat/maquette-l07`. **Version** 0.98.36.
+**Design** `../DESIGN.md`. **Branch** `feat/maquette-l07`. **Version** 0.98.37.
 This file owns the reasoning and the ACCEPTANCE criteria; `IMPLEMENTATION.md` owns the status and
 nothing else.
 
