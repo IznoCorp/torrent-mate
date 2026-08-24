@@ -533,9 +533,17 @@ def login_page(refused: bool) -> bytes:
     # it, silently, leaving a gate that renders in fallback sizes and says
     # nothing. Extracting the DECLARATIONS and wrapping them here means the
     # composed page carries the same steps under a selector it understands.
+    # The scale and the DARK palette are both declarations inside the same
+    # `@theme` block, so both are wrapped the same way and for the same reason:
+    # a browser drops an at-rule it does not know, and would take every token
+    # with it. The LIGHT half is already a complete `:root[data-theme]` rule
+    # and is emitted as it stands — it must come after the dark one, exactly as
+    # it does in the stylesheet, or the override would lose to what it overrides.
     scale = ":root {\n" + extract(theme_source, "scale") + "}\n"
+    palette = (":root {\n" + extract(theme_source, "palette") + "}\n"
+               + extract(theme_source, "palette-light"))
     styles = (scale + extract(base_source, "font")
-              + extract(styles_source, "palette") + extract(base_source, "socle")
+              + palette + extract(base_source, "socle")
               + extract(styles_source, "style") + extract(styles_source, "splashstyle"))
     # After the extract, so they win: inside the prototype the screen covers a
     # phone frame; here it IS the page.
