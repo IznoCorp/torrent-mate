@@ -1,12 +1,10 @@
 {
   "$comment": "The `color-contrast` findings, measured and deliberately NOT enforced by L03's gate: they target the palette, which is L06's subject. Recorded rather than skipped, because « not measured » reads as « no problem ».",
-  "takenAtCommit": "310c5770617b71c005830ca67e37d75b8f6ffa17",
+  "takenAtCommit": "3720598697747dbd6470c6ec15563efaeb78db97",
   "platform": "Darwin/arm64",
   "counts": {
     "states": 83,
-    "byRule": {
-      "color-contrast": 8
-    }
+    "byRule": {}
   },
   "states": {
     "acq-add-empty": [],
@@ -17,16 +15,7 @@
     "acq-discover-exhausted": [],
     "acq-discover-loading": [],
     "acq-discover-posters": [],
-    "acq-follows-error": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          "b"
-        ]
-      }
-    ],
+    "acq-follows-error": [],
     "acq-follows-filter-empty": [],
     "acq-follows-grid": [],
     "acq-follows-groupe": [],
@@ -48,36 +37,9 @@
     "drawer-navigation": [],
     "followsheet-complete": [],
     "followsheet-gaps": [],
-    "lib-delete": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".danger.dlgbtn[data-tone=\"danger\"]"
-        ]
-      }
-    ],
-    "lib-delete-multiple": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".danger.dlgbtn[data-tone=\"danger\"]"
-        ]
-      }
-    ],
-    "lib-error": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".surferr > b"
-        ]
-      }
-    ],
+    "lib-delete": [],
+    "lib-delete-multiple": [],
+    "lib-error": [],
     "lib-error-more": [],
     "lib-grid": [],
     "lib-incomplete": [],
@@ -85,16 +47,7 @@
     "lib-loading": [],
     "lib-recent": [],
     "lib-search-empty": [],
-    "lib-selection": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          "button[data-delsel=\"1\"]"
-        ]
-      }
-    ],
+    "lib-selection": [],
     "maintenance": [],
     "maintenance-delete": [],
     "maintenance-loading": [],
@@ -122,26 +75,8 @@
     "settings-field-structure": [],
     "settings-field-text": [],
     "settings-one": [],
-    "settings-read-only": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".loaderr > b"
-        ]
-      }
-    ],
-    "settings-restart": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".loaderr > b"
-        ]
-      }
-    ],
+    "settings-read-only": [],
+    "settings-restart": [],
     "settings-search": [],
     "settings-secrets": [],
     "settings-topic": [],
@@ -152,16 +87,7 @@
     "signin-error": [],
     "startup": [],
     "system": [],
-    "system-error": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".surferr > b"
-        ]
-      }
-    ],
+    "system-error": [],
     "system-loading": [],
     "system-panne": []
   }

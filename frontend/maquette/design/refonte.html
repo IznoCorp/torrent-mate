@@ -333,13 +333,21 @@
     --success: oklch(0.72 0.165 152);
     --warning: oklch(0.8 0.15 75);
     --danger: oklch(0.62 0.21 24);
-    /* A tone has TWO jobs, and one colour cannot do both. `--danger` is a
-       FILL — a button paints it behind white text — and reusing it as a label
-       colour on a 20 % tint of itself put a badge at 3.69, under AA, while
-       every green badge sat at 5.5. The text variant is the same hue at the
-       lightness a label needs on the surface it lands on: lighter on the dark
-       card, darker on the light one. */
+    /* A tone has THREE jobs, and no one colour does two of them well.
+       `--danger` is the SIGNAL — the pip, the tint, the border, the label on
+       a card — and reusing it as a label colour on a 20 % tint of itself put a
+       badge at 3.69, under AA, while every green badge sat at 5.5. The text
+       variant is the same hue at the lightness a label needs on the surface it
+       lands on: lighter on the dark card, darker on the light one.
+       The third job is the GROUND a solid destructive control paints behind
+       its own white label, and the signal tone is not dark enough for it:
+       white over it measures 4.03, under AA on a control that is not large
+       text. That ground is decided once, here, rather than darkened at one
+       button and forgotten at the next. Darkening `--danger` itself was never
+       the repair available — it is a LABEL in five other places, and each of
+       them would have lost separation from the surface it sits on. */
     --danger-text: oklch(0.78 0.17 24);
+    --danger-fill: oklch(0.57 0.21 24);
     --info-text: oklch(0.78 0.11 225);
     --success-text: var(--success);
     --warning-text: var(--warning);
@@ -384,6 +392,10 @@
     --warning: oklch(0.74 0.15 72);
     --danger: oklch(0.58 0.215 25);
     --danger-text: oklch(0.46 0.19 25);
+    /* The light mark is already dark enough to carry white — 4.78 — so the
+       control's ground points back at the signal rather than declaring a
+       second tone that could only ever drift from it. */
+    --danger-fill: var(--danger);
     --info-text: oklch(0.44 0.11 225);
     --success-text: oklch(0.44 0.12 152);
     --warning-text: oklch(0.44 0.1 75);
@@ -887,7 +899,7 @@
     color: var(--foreground);
   }
   .act.remove {
-    background: var(--danger);
+    background: var(--danger-fill);
     color: var(--mq-white);
   }
   .card {
@@ -3501,8 +3513,8 @@
     border-radius: var(--radius-3);
   }
   .dlgbtn.danger {
-    background: var(--danger);
-    border-color: var(--danger);
+    background: var(--danger-fill);
+    border-color: var(--danger-fill);
     color: var(--mq-white);
   }
   .dlgbtn.ghost {
@@ -3589,7 +3601,7 @@
   }
   .surferr b {
     display: block;
-    color: var(--danger);
+    color: var(--danger-text);
     margin-bottom: var(--spacing-2);
   }
   .surferr button {
@@ -3678,7 +3690,7 @@
     line-height: 1.45;
   }
   .loaderr b {
-    color: var(--danger);
+    color: var(--danger-text);
   }
   .loaderr button {
     margin-top: var(--spacing-4);
@@ -3786,8 +3798,8 @@
     border-radius: var(--radius-3);
   }
   .selbar button.danger {
-    background: var(--danger);
-    border-color: var(--danger);
+    background: var(--danger-fill);
+    border-color: var(--danger-fill);
     color: var(--mq-white);
     margin-left: auto;
   }
