@@ -2979,7 +2979,7 @@
     border-radius: 6px;
     border: 1px solid var(--primary);
     background: var(--popover);
-    padding: 8px 12px;
+    padding: var(--spacing-4) var(--spacing-6);
     font-size: 12px;
     line-height: 1.45;
     color: var(--foreground);
@@ -3014,11 +3014,11 @@
 
   /* Add screen (« + ») */
   .addform {
-    padding: 12px 14px 0;
+    padding: var(--spacing-6) var(--spacing-7) 0;
   }
   .addrow {
     display: flex;
-    gap: 8px;
+    gap: var(--spacing-4);
     margin-top: 8px;
   }
   .btnprimary {
@@ -3029,15 +3029,15 @@
     color: var(--primary-foreground);
     font-size: 13px;
     font-weight: 600;
-    padding: 0 16px;
+    padding: 0 var(--spacing-7);
   }
   .btnprimary:disabled {
     opacity: 0.5;
   }
   .segmini {
     display: flex;
-    gap: 3px;
-    padding: 3px;
+    gap: var(--spacing-1);
+    padding: var(--spacing-1);
     background: var(--muted);
     border-radius: 8px;
   }
@@ -3048,7 +3048,7 @@
     color: var(--muted-foreground);
     font-size: 12px;
     font-weight: 600;
-    padding: 6px 12px;
+    padding: var(--spacing-3) var(--spacing-6);
   }
   .segmini button[aria-pressed="true"] {
     background: var(--background);
@@ -3056,7 +3056,7 @@
     box-shadow: var(--mq-shadow-vsw);
   }
   .rescount {
-    padding: 12px 14px 0;
+    padding: var(--spacing-6) var(--spacing-7) 0;
     font-size: 11.5px;
     color: var(--muted-foreground);
   }
@@ -3064,27 +3064,27 @@
      so the list cannot drift from the others by editing one number here. This
      rule carries the screen's padding and nothing else. */
   .reslist {
-    padding: 10px 14px 18px;
+    padding: var(--spacing-5) var(--spacing-7) var(--spacing-8);
   }
   .sugg {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    padding: 12px 14px 0;
+    gap: var(--spacing-3);
+    padding: var(--spacing-6) var(--spacing-7) 0;
   }
   .sugg button {
     border: 1px solid var(--border);
     background: transparent;
     color: var(--muted-foreground);
     font-size: 12px;
-    padding: 5px 11px;
+    padding: var(--spacing-2) var(--spacing-5);
     border-radius: 99px;
   }
   .byid {
     margin: 14px 14px 0;
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 10px 12px;
+    padding: var(--spacing-5) var(--spacing-6);
   }
   .byid > summary {
     font-size: 12.5px;
@@ -3106,7 +3106,7 @@
     margin-top: 10px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--spacing-4);
   }
   .whyoff {
     font-size: 11.5px;
@@ -3119,8 +3119,8 @@
     bottom: var(--tm-bottom-bar-h, 0px);
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 11px 14px calc(env(safe-area-inset-bottom) + 11px);
+    gap: var(--spacing-5);
+    padding: var(--spacing-5) var(--spacing-7) calc(env(safe-area-inset-bottom) + var(--spacing-5));
     background: var(--popover);
     border-top: 1px solid var(--border);
     font-size: 12.5px;
@@ -3157,10 +3157,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 9px;
+    gap: var(--spacing-4);
     width: 100%;
     min-height: 44px;
-    padding: 11px 12px;
+    padding: var(--spacing-5) var(--spacing-6);
     border-radius: 8px;
     font-size: 13.5px;
     font-weight: 600;
@@ -3186,7 +3186,7 @@
      the type segment, so it cannot be full width. */
   .addrow .btnprimary {
     width: auto;
-    padding-inline: 16px;
+    padding-inline: var(--spacing-7);
   }
 
   /* « Choose another release » screen
@@ -3196,11 +3196,11 @@
   .rel {
     display: flex;
     flex-direction: column;
-    gap: 7px;
+    gap: var(--spacing-3);
     border: 1px solid var(--border);
     background: var(--card);
     border-radius: 8px;
-    padding: 10px;
+    padding: var(--spacing-5);
   }
   .rel.best {
     border-color: var(--primary);
@@ -3214,7 +3214,7 @@
   .rel .rt {
     display: flex;
     flex-wrap: wrap;
-    gap: 5px;
+    gap: var(--spacing-2);
     align-items: center;
   }
   .rel .sc {
@@ -3229,7 +3229,7 @@
   .qgroup {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--spacing-4);
   }
   /* Switch — FIXED dimensions, always the same. A « Oui/Non » chip inside a
      flex row took the label's height (align-items: stretch) and changed
@@ -3281,7 +3281,7 @@
     align-items: flex-start;
   }
   .kv.setting > span:first-child {
-    padding-right: 4px;
+    padding-right: var(--spacing-2);
   }
 
   /* Form controls
@@ -3293,15 +3293,15 @@
   .optlist {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--spacing-3);
   }
   .opt {
     display: flex;
     align-items: center;
-    gap: 11px;
+    gap: var(--spacing-5);
     width: 100%;
     min-height: 48px;
-    padding: 9px 12px;
+    padding: var(--spacing-4) var(--spacing-6);
     border: 1px solid var(--border);
     border-radius: 8px;
     background: transparent;
@@ -3541,7 +3541,7 @@
   .empty {
     border: 1px dashed var(--border);
     border-radius: 8px;
-    padding: 18px 14px;
+    padding: var(--spacing-8) var(--spacing-7);
     text-align: center;
     font-size: 12.5px;
     color: var(--muted-foreground);
@@ -3566,7 +3566,7 @@
     border: 1px solid color-mix(in oklab, var(--danger) 45%, transparent);
     background: color-mix(in oklab, var(--danger) 8%, transparent);
     border-radius: 8px;
-    padding: 14px;
+    padding: var(--spacing-7);
     font-size: 12.5px;
     line-height: 1.5;
   }
@@ -3583,7 +3583,7 @@
     color: var(--foreground);
     font-size: 12.5px;
     font-weight: 600;
-    padding: 9px;
+    padding: var(--spacing-4);
     border-radius: 7px;
   }
 
@@ -3625,7 +3625,7 @@
   #sugitems:not(.grid) {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: var(--spacing-7);
   }
   #sugitems[hidden],
   #sugload[hidden],
@@ -3635,14 +3635,14 @@
   .loadfoot {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 4px 0 2px;
+    gap: var(--spacing-5);
+    padding: var(--spacing-2) 0 var(--spacing-1);
   }
   .endmark {
     text-align: center;
     font-size: 11.5px;
     color: var(--muted-foreground);
-    padding: 14px 0 4px;
+    padding: var(--spacing-7) 0 var(--spacing-2);
   }
   .endmark::before {
     content: "";
@@ -3656,7 +3656,7 @@
     border: 1px solid color-mix(in oklab, var(--danger) 45%, transparent);
     background: color-mix(in oklab, var(--danger) 8%, transparent);
     border-radius: 8px;
-    padding: 11px;
+    padding: var(--spacing-5);
     font-size: 12px;
     line-height: 1.45;
   }
@@ -3671,7 +3671,7 @@
     color: var(--foreground);
     font-size: 12.5px;
     font-weight: 600;
-    padding: 9px;
+    padding: var(--spacing-4);
     border-radius: 7px;
   }
   .quota {
@@ -3715,12 +3715,12 @@
   .selrow {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--spacing-5);
     width: 100%;
     border: 1px solid var(--border);
     background: var(--card);
     border-radius: 8px;
-    padding: 9px;
+    padding: var(--spacing-4);
     text-align: left;
   }
   .selrow[aria-pressed="true"] {
@@ -3750,8 +3750,8 @@
     z-index: 51;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 11px 14px calc(env(safe-area-inset-bottom) + 11px);
+    gap: var(--spacing-5);
+    padding: var(--spacing-5) var(--spacing-7) calc(env(safe-area-inset-bottom) + var(--spacing-5));
     background: var(--popover);
     border-top: 1px solid var(--border);
   }
@@ -3765,7 +3765,7 @@
     color: var(--foreground);
     font-size: 12.5px;
     font-weight: 600;
-    padding: 9px 13px;
+    padding: var(--spacing-4) var(--spacing-6);
     border-radius: 8px;
   }
   .selbar button.danger {
@@ -3796,8 +3796,8 @@
     display: flex;
     flex-direction: column;
     overflow-y: auto;
-    padding: 14px;
-    gap: 12px;
+    padding: var(--spacing-7);
+    gap: var(--spacing-6);
   }
   .hpanel h4 {
     margin: 0;
@@ -3810,14 +3810,14 @@
   .hpanel .row {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: var(--spacing-3);
   }
   .hpanel .row button {
     border: 1px solid var(--border);
     background: transparent;
     color: var(--foreground);
     font-size: 12px;
-    padding: 7px 11px;
+    padding: var(--spacing-3) var(--spacing-5);
     border-radius: 7px;
     text-align: left;
   }
@@ -3830,7 +3830,7 @@
   .hpanel .states button {
     width: 100%;
     display: flex;
-    gap: 10px;
+    gap: var(--spacing-5);
     align-items: baseline;
   }
   .hpanel .states code {
@@ -3977,7 +3977,7 @@
     border-left: 3px solid var(--primary);
     background: color-mix(in oklab, var(--primary) 9%, transparent);
     border-radius: 0 7px 7px 0;
-    padding: 9px 11px;
+    padding: var(--spacing-4) var(--spacing-5);
     font-size: 11.5px;
     line-height: 1.5;
     color: var(--foreground);
@@ -3989,7 +3989,7 @@
   .note code {
     font-size: 10.5px;
     background: var(--muted);
-    padding: 1px 4px;
+    padding: var(--spacing-1) var(--spacing-2);
     border-radius: 3px;
   }
   :root.notes .note {

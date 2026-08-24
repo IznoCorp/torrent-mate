@@ -1,5 +1,5 @@
 {
-  "commit": "17a1eef6b4b9344692239123678451aa17c685e2",
+  "commit": "d98d388cec73caa0f7c8aaec38a895486ae9a4ad",
   "exemptions": {
     ".dcard .cap": "reserved footprint: the caption clears the floating add button; a measured clearance, not a space step"
   },
@@ -186,74 +186,14 @@
         "8px"
       ],
       [
-        ".eppop",
-        "padding",
-        "8px 12px"
-      ],
-      [
         ".eppop b",
         "margin-bottom",
         "2px"
       ],
       [
-        ".addform",
-        "padding",
-        "12px 14px 0"
-      ],
-      [
-        ".addrow",
-        "gap",
-        "8px"
-      ],
-      [
         ".addrow",
         "margin-top",
         "8px"
-      ],
-      [
-        ".btnprimary",
-        "padding",
-        "0 16px"
-      ],
-      [
-        ".segmini",
-        "gap",
-        "3px"
-      ],
-      [
-        ".segmini",
-        "padding",
-        "3px"
-      ],
-      [
-        ".segmini button",
-        "padding",
-        "6px 12px"
-      ],
-      [
-        ".rescount",
-        "padding",
-        "12px 14px 0"
-      ],
-      [
-        ".reslist",
-        "padding",
-        "10px 14px 18px"
-      ],
-      [
-        ".sugg",
-        "gap",
-        "6px"
-      ],
-      [
-        ".sugg",
-        "padding",
-        "12px 14px 0"
-      ],
-      [
-        ".sugg button",
-        "padding",
-        "5px 11px"
       ],
       [
         ".byid",
@@ -261,84 +201,9 @@
         "14px 14px 0"
       ],
       [
-        ".byid",
-        "padding",
-        "10px 12px"
-      ],
-      [
         ".byidin",
         "margin-top",
         "10px"
-      ],
-      [
-        ".byidin",
-        "gap",
-        "8px"
-      ],
-      [
-        ".addfoot",
-        "gap",
-        "10px"
-      ],
-      [
-        ".addfoot",
-        "padding",
-        "11px 14px calc(env(safe-area-inset-bottom) + 11px)"
-      ],
-      [
-        ".sact, .cfoot, .mediaadd, .dlgbtn, .btnprimary",
-        "gap",
-        "9px"
-      ],
-      [
-        ".sact, .cfoot, .mediaadd, .dlgbtn, .btnprimary",
-        "padding",
-        "11px 12px"
-      ],
-      [
-        ".addrow .btnprimary",
-        "padding-inline",
-        "16px"
-      ],
-      [
-        ".rel",
-        "gap",
-        "7px"
-      ],
-      [
-        ".rel",
-        "padding",
-        "10px"
-      ],
-      [
-        ".rel .rt",
-        "gap",
-        "5px"
-      ],
-      [
-        ".qgroup",
-        "gap",
-        "8px"
-      ],
-      [
-        ".kv.setting > span:first-child",
-        "padding-right",
-        "4px"
-      ],
-      [
-        ".optlist",
-        "gap",
-        "6px"
-      ],
-      [
-        ".opt",
-        "gap",
-        "11px"
-      ],
-      [
-        ".opt",
-        "padding",
-        "9px 12px"
       ],
       [
         ".opt .lb small",
@@ -351,19 +216,9 @@
         "0 0 6px"
       ],
       [
-        ".empty",
-        "padding",
-        "18px 14px"
-      ],
-      [
         ".empty b",
         "margin-bottom",
         "4px"
-      ],
-      [
-        ".surferr",
-        "padding",
-        "14px"
       ],
       [
         ".surferr b",
@@ -376,114 +231,19 @@
         "11px"
       ],
       [
-        ".surferr button",
-        "padding",
-        "9px"
-      ],
-      [
-        "#sugitems:not(.grid)",
-        "gap",
-        "14px"
-      ],
-      [
-        ".loadfoot",
-        "gap",
-        "10px"
-      ],
-      [
-        ".loadfoot",
-        "padding",
-        "4px 0 2px"
-      ],
-      [
-        ".endmark",
-        "padding",
-        "14px 0 4px"
-      ],
-      [
         ".endmark::before",
         "margin",
         "0 auto 9px"
       ],
       [
-        ".loaderr",
-        "padding",
-        "11px"
-      ],
-      [
         ".loaderr button",
         "margin-top",
-        "9px"
-      ],
-      [
-        ".loaderr button",
-        "padding",
         "9px"
       ],
       [
         ".quota",
         "margin-top",
         "7px"
-      ],
-      [
-        ".selrow",
-        "gap",
-        "10px"
-      ],
-      [
-        ".selrow",
-        "padding",
-        "9px"
-      ],
-      [
-        ".selbar",
-        "gap",
-        "10px"
-      ],
-      [
-        ".selbar",
-        "padding",
-        "11px 14px calc(env(safe-area-inset-bottom) + 11px)"
-      ],
-      [
-        ".selbar button",
-        "padding",
-        "9px 13px"
-      ],
-      [
-        ".hpanel",
-        "padding",
-        "14px"
-      ],
-      [
-        ".hpanel",
-        "gap",
-        "12px"
-      ],
-      [
-        ".hpanel .row",
-        "gap",
-        "6px"
-      ],
-      [
-        ".hpanel .row button",
-        "padding",
-        "7px 11px"
-      ],
-      [
-        ".hpanel .states button",
-        "gap",
-        "10px"
-      ],
-      [
-        ".note",
-        "padding",
-        "9px 11px"
-      ],
-      [
-        ".note code",
-        "padding",
-        "1px 4px"
       ],
       [
         ".loginsub",
