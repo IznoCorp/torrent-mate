@@ -48,6 +48,7 @@ import { refuseBlock, type PanelDescriptor } from "../ui/panel/contract";
 import "../features/media/panel-seasons";
 import "../features/settings/panel-field";
 import { createStore, type Store } from "./store";
+import { publishBarHeight } from "./bar-height";
 import { installFocusManager } from "./focus";
 import { rootRoute } from "./root-route";
 import { accountRoute } from "../routes/account";
@@ -738,6 +739,19 @@ if (device && legacyScreen) device.insertBefore(mountNode, legacyScreen);
 // very first drawer an operator opens is already covered. It asks nothing of
 // the engine: it watches the `data-open` attribute both worlds already emit.
 installFocusManager();
+
+// The bottom bar's real height, published for everything that must sit above
+// it. Here rather than in the engine, which no longer carries a copy: the
+// measurement has to outlive the engine, and the day it goes is the wrong day
+// to move it.
+//
+// AFTER the engine has started, and that ordering is the whole of the placement.
+// The bar's node is static markup, so it exists long before this line — but it
+// is EMPTY until `renderNav` fills it, and a measurement taken then publishes
+// the height of an empty bar. The `ResizeObserver` would correct it on the next
+// layout; publishing the right value the first time saves the frame in which
+// everything above the bar sits on `0px`.
+publishBarHeight();
 
 ReactDOM.createRoot(mountNode).render(
   <React.StrictMode>
