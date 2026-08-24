@@ -89,7 +89,12 @@ async def main():
         if v["justify"] != expected:
             note("R12 non-conformant alignment", f"{k}: {v['justify']} instead of {expected} (icon: {v.get('icon')})")
         if v["radius"] != "8px": note("R12 inconsistent radius", f"{k} : {v['radius']}")
-        if v["size"] != "13.5px": note("R12 inconsistent text size", f"{k} : {v['size']}")
+        # The pinned size is 13px and not the 13.5px it was: the type scale
+        # folded the half-pixel sizes onto their integer steps, and a hold
+        # pinning the value from before that fold is an end of the change
+        # that did not move with it. The SHAPE is untouched — one size, and
+        # any primary drifting from it is still named.
+        if v["size"] != "13px": note("R12 inconsistent text size", f"{k} : {v['size']}")
 
     ran('R13')
     # R13 — sheet uniformity: the SAME BASE for all of them.

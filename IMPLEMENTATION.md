@@ -42,13 +42,13 @@ code until the operator's judgement (step 2 above). Non-negotiable.
 section is the only place that says where the work STANDS.** Duplicating state is what produced a
 stale table read as current for three days.
 
-|                            |                                                                                                                                                                                                                                                                                                                                             |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Last landed**            | **Phase 8–13 of L05 — the repair wave**, PR **#484**, merged 2026-08-24, version 0.98.27, squash `a49ff84f`. B-043…B-048 closed; the operator's § 16 rules 1–3 (D1b) landed as phase 11; R82 `journey.py` carved out of R69; five review cycles (the fifth's one bounded excursion is recorded in § Review cycles). Both references re-recorded from `main`'s tip at `a49ff84f` and verified ancestors of `HEAD`; hold counts 1 034 → 1 210, movements: `url_state.py` 26→99, `journey.py` new 66, `panel.py` 18→50, `server.py` 7→12 — all up, all named |
+|                            |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Last landed**            | **L06 — The scale**, PR **#490**, merged 2026-08-24, version 0.98.32, squash `a4418e6a`. The scale: 32 tokens in one `:root` block, four families at zero (276 spacing, 150 type, 106 radius, 24 motion folds), the three fields at 16 px (D-L06-6 wide), the 42 contrast findings paid and `color-contrast` in the enforced hard-zero floor (D-L06-5), `--tm-bottom-bar-h` published by the shell (D-L06-4), the ratchet dismantled. Two rules joined the suite (R83 type_scale 9 holds, R84 runtime_tokens 8 holds → 55 rules, 1 227 holds); 47 oracle divergence signatures accepted, each with its fold named. Both references re-recorded from `main`'s tip at `a4418e6a` and verified ancestors of `HEAD` |
 | **In flight**              | **none.** A wave writes its own row here when its pull request opens, and the post-merge steps move it to « Last landed » (§ 5 of the architecture file) |
-| **Next**                   | **L06 — The scale**, Phase 2. Branch `feat/maquette-l06` already carries its design and its six-phase plan (24 executable criteria), pushed but not yet a pull request. **The operator arbitrated its open decisions on 2026-08-24**, recorded here so the resuming agent does not re-ask: D-L06-2 spacing is **9 steps**, keep 24px (the sign-in screen's own value, nothing else uses it); D-L06-2 type is **8 steps**, keep the 10px tier (14 declarations behind it); D-L06-6 widens the lot's letter deliberately — **all three fields** reach 16px, not only `.search input`; D-L06-5's 42 contrast findings are repaired **in this lot**, not deferred, because the palette is already open. P-1 and P-2 stand as the plan wrote them. **A fourth navigation rule (Up) was proposed after L05 and REJECTED the same day** — struck from § 16 and D1b with the reason (the bottom bar already reaches the library at any depth; see `docs/reference/product-intent.md` § 16). The lots run strictly in sequence |
-| **Before it**              | L03 — PR **#475**, version 0.98.18 · L02 — PR **#470**, version 0.98.13 · L01 — PR **#467**, version 0.98.10. All three archived under `docs/archive/features/`; L04 and L05 are archived beside them (L04 by #482, L05 by this pull request) |
-| **What decides the order** | `docs/reference/frontend-architecture.md`, never this table. This table says only where the work STANDS                                                                                                                                                                                                                                     |
+| **Next**                   | **L07 — Tailwind and CVA, surface by surface** (depends on L02, L04, L06 — all `LANDED`): no wave opens without its design and its plan. The lots run strictly in sequence |
+| **Before it**              | L03 — PR **#475**, version 0.98.18 · L02 — PR **#470**, version 0.98.13 · L01 — PR **#467**, version 0.98.10. All three archived under `docs/archive/features/`; L04 and L05 are archived beside them (L04 by #482, L05 by this pull request)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **What decides the order** | `docs/reference/frontend-architecture.md`, never this table. This table says only where the work STANDS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
 **What L04 is, in one line**: the maquette's 26 files stop being grouped by KIND and get grouped
 by SUBJECT, the two import cycles are broken, the hub `data.ts` stops existing, and seven guards
@@ -69,12 +69,19 @@ repository.
 53 flat `.py` files (recorded and deliberately unscheduled), and B-036 / B-040, which belong to
 their own waves.
 
-**Next action**: **L06 — The scale** with `/implement:feature`. The three post-merge steps of
-#484 are DONE (this pull request carries them): both references re-recorded from `main`'s tip
-`a49ff84f`, every hold-count movement named above, the row moved, `docs/archive/features/maquette-l05/` (moved here)
-archived. One recurrence handled on the way: the watcher cron (03:10) moved `acquire.db` again
-(Furious 12→13, President Curtis 20→21) and the follow fixture was regenerated with
-`scripts/refresh-maquette-fixture.py --apply` — the live-DB rule class stays an open point.
+**Next action**: L06 is merged and closed (PR #490, post-merge re-records done). L07 opens with its own design and plan.
+
+**Phases of L06** — the plan is `docs/features/maquette-l06/plan/INDEX.md`, which owns the
+reasoning and the 24 ACCEPTANCE criteria. This table owns only the status.
+
+| #   | Phase                             | File                                           | Status |
+| --- | --------------------------------- | ---------------------------------------------- | ------ |
+| 1   | The scale, and the ratchet        | `plan/phase-01-the-scale-and-the-ratchet.md`   | [x]    |
+| 2   | Space folds                       | `plan/phase-02-space-folds.md`                 | [x]    |
+| 3   | Type folds                        | `plan/phase-03-type-folds.md`                  | [x]    |
+| 4   | Radius, motion, the runtime token | `plan/phase-04-radius-motion-runtime-token.md` | [x]    |
+| 5   | The palette pays its debt         | `plan/phase-05-the-palette-pays-its-debt.md`   | [x]    |
+| 6   | The ratchet dies                  | `plan/phase-06-the-ratchet-dies.md`            | [x]    |
 
 ### Review cycles — PR #484
 
@@ -131,21 +138,21 @@ The excess is recorded here for the operator rather than smoothed over.
 **Phases of L05** — the plan is `docs/archive/features/maquette-l05/plan/INDEX.md`, which owns the
 reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
 
-| #   | Phase                                  | File                                        | Status |
-| --- | -------------------------------------- | ------------------------------------------- | ------ |
-| 1   | The harness's ground                   | `plan/phase-01-the-harness-ground.md`       | [x]    |
-| 2   | The pages take their paths             | `plan/phase-02-pages-take-paths.md`         | [x]    |
-| 3   | The screens are renamed                | `plan/phase-03-the-screen-renames.md`       | [x]    |
-| 4   | The sign-in screen gets its address    | `plan/phase-04-login.md`                    | [x]    |
-| 5   | The panel tier                         | `plan/phase-05-the-panel-tier.md`           | [x]    |
-| 6   | The offline guard, and one subtraction | `plan/phase-06-the-guard-and-the-subtraction.md` | [x] |
-| 7   | The records, and the gate              | `plan/phase-07-the-records.md`              | [x]    |
-| 8   | PR fixes, review cycle 1 — the four blocking defects | `plan/phase-08-pr-fixes-cycle-1.md` | [x]    |
-| 9   | PR #484 fixes, review cycle 1 — what four reviewers found | `plan/phase-09-pr-fixes-cycle-1.md` | [x]    |
-| 10  | PR #484 fixes, review cycle 2 — what phase 9 opened | `plan/phase-10-pr-fixes-cycle-2.md` | [x]    |
-| 11  | The navigation path — § 16 rules 1–3, D1b (operator, 2026-08-24) | `plan/phase-11-navigation-path.md` | [x]    |
-| 12  | PR #484 fixes, review cycle 3 — the layer walks | `plan/phase-12-pr-fixes-cycle-3.md` | [x]    |
-| 13  | PR #484 fixes, review cycle 4 — the stale floor flag | `plan/phase-13-pr-fixes-cycle-4.md` | [x]    |
+| #   | Phase                                                            | File                                             | Status |
+| --- | ---------------------------------------------------------------- | ------------------------------------------------ | ------ |
+| 1   | The harness's ground                                             | `plan/phase-01-the-harness-ground.md`            | [x]    |
+| 2   | The pages take their paths                                       | `plan/phase-02-pages-take-paths.md`              | [x]    |
+| 3   | The screens are renamed                                          | `plan/phase-03-the-screen-renames.md`            | [x]    |
+| 4   | The sign-in screen gets its address                              | `plan/phase-04-login.md`                         | [x]    |
+| 5   | The panel tier                                                   | `plan/phase-05-the-panel-tier.md`                | [x]    |
+| 6   | The offline guard, and one subtraction                           | `plan/phase-06-the-guard-and-the-subtraction.md` | [x]    |
+| 7   | The records, and the gate                                        | `plan/phase-07-the-records.md`                   | [x]    |
+| 8   | PR fixes, review cycle 1 — the four blocking defects             | `plan/phase-08-pr-fixes-cycle-1.md`              | [x]    |
+| 9   | PR #484 fixes, review cycle 1 — what four reviewers found        | `plan/phase-09-pr-fixes-cycle-1.md`              | [x]    |
+| 10  | PR #484 fixes, review cycle 2 — what phase 9 opened              | `plan/phase-10-pr-fixes-cycle-2.md`              | [x]    |
+| 11  | The navigation path — § 16 rules 1–3, D1b (operator, 2026-08-24) | `plan/phase-11-navigation-path.md`               | [x]    |
+| 12  | PR #484 fixes, review cycle 3 — the layer walks                  | `plan/phase-12-pr-fixes-cycle-3.md`              | [x]    |
+| 13  | PR #484 fixes, review cycle 4 — the stale floor flag             | `plan/phase-13-pr-fixes-cycle-4.md`              | [x]    |
 
 **What L05 is, in one line**: the eight pages leave `?page=` for a real path, the address model
 leaves the engine for `lib/addresses.ts` — the first subtraction of D5 — and the harness host
@@ -486,10 +493,10 @@ Read, in this order:
 **Serve the prototype locally.** There are TWO hosts and the harness measures only one of
 them — running the wrong one is a green run over nothing.
 
-|                  | Port     | What                                                                                                    | Started by                  |
-| ---------------- | -------- | ------------------------------------------------------------------------------------------------------- | --------------------------- |
-| **Harness host** | **8899** | `harness/server.py --serve`, rooted in `/private/tmp/tm-refonte`, serving a COPY of the build at `/` and folding every router-owned address onto it | `run.sh`, or by hand |
-| **Design host**  | **8712** | `serve.py`, scrypt password-protected (`tm-design.iznogoudatall.xyz`)                                   | PM2 (`torrentmate-design`)  |
+|                  | Port     | What                                                                                                                                                | Started by                 |
+| ---------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| **Harness host** | **8899** | `harness/server.py --serve`, rooted in `/private/tmp/tm-refonte`, serving a COPY of the build at `/` and folding every router-owned address onto it | `run.sh`, or by hand       |
+| **Design host**  | **8712** | `serve.py`, scrypt password-protected (`tm-design.iznogoudatall.xyz`)                                                                               | PM2 (`torrentmate-design`) |
 
 `harness/common.py` pins the first one: `PROTOTYPE = "http://127.0.0.1:8899/"`.
 Never 8710/8711/8712/8899 for a server of your own — `harness/server.py`'s `RESERVED_PORTS`

@@ -1,12 +1,10 @@
 {
-  "$comment": "The `color-contrast` findings, measured and deliberately NOT enforced by L03's gate: they target the palette, which is L06's subject. Recorded rather than skipped, because « not measured » reads as « no problem ».",
-  "takenAtCommit": "cf4f882bb8a1866c66ee56327084d97992917e78",
+  "$comment": "The `color-contrast` findings, kept in a record of their own. D-L03-4 measured them and left them out of the floor, because the repair was a palette decision; D-L06-5 made the repair and armed the rule, so `--check` now counts contrast in the same hard zero as everything else. THIS IS NOT A TOLERANCE — it is the proof that the debt is empty, which « no file » could never be.",
+  "takenAtCommit": "4d2834a8891014aeaa6a26b13340cd9b3e384c9e",
   "platform": "Darwin/arm64",
   "counts": {
     "states": 83,
-    "byRule": {
-      "color-contrast": 42
-    }
+    "byRule": {}
   },
   "states": {
     "acq-add-empty": [],
@@ -17,67 +15,12 @@
     "acq-discover-exhausted": [],
     "acq-discover-loading": [],
     "acq-discover-posters": [],
-    "acq-follows-error": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          "b",
-          "button[data-pill=\"tout\"] > .c"
-        ]
-      }
-    ],
-    "acq-follows-filter-empty": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          "button[data-pill=\"tout\"] > .c"
-        ]
-      }
-    ],
-    "acq-follows-grid": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          "button[data-pill=\"tout\"] > .c"
-        ]
-      }
-    ],
-    "acq-follows-groupe": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          "button[data-pill=\"tout\"] > .c"
-        ]
-      }
-    ],
-    "acq-follows-list": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          "button[data-pill=\"tout\"] > .c"
-        ]
-      }
-    ],
-    "acq-follows-pause-empty": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          "button[data-pill=\"tout\"] > .c"
-        ]
-      }
-    ],
+    "acq-follows-error": [],
+    "acq-follows-filter-empty": [],
+    "acq-follows-grid": [],
+    "acq-follows-groupe": [],
+    "acq-follows-list": [],
+    "acq-follows-pause-empty": [],
     "acq-identify": [],
     "acq-now-error": [],
     "acq-now-idle": [],
@@ -94,121 +37,17 @@
     "drawer-navigation": [],
     "followsheet-complete": [],
     "followsheet-gaps": [],
-    "lib-delete": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".danger.dlgbtn[data-tone=\"danger\"]"
-        ]
-      }
-    ],
-    "lib-delete-multiple": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".danger.dlgbtn[data-tone=\"danger\"]"
-        ]
-      }
-    ],
-    "lib-error": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".surferr > b",
-          "button[data-cat=\"all\"] > .c",
-          "button[data-cat=\"anim\"] > .c",
-          "button[data-cat=\"movies\"] > .c",
-          "button[data-cat=\"tv\"] > .c"
-        ]
-      }
-    ],
-    "lib-error-more": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          "button[data-cat=\"all\"] > .c",
-          "button[data-cat=\"anim\"] > .c",
-          "button[data-cat=\"movies\"] > .c",
-          "button[data-cat=\"tv\"] > .c"
-        ]
-      }
-    ],
-    "lib-grid": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          "button[data-cat=\"all\"] > .c",
-          "button[data-cat=\"anim\"] > .c",
-          "button[data-cat=\"movies\"] > .c",
-          "button[data-cat=\"tv\"] > .c"
-        ]
-      }
-    ],
+    "lib-delete": [],
+    "lib-delete-multiple": [],
+    "lib-error": [],
+    "lib-error-more": [],
+    "lib-grid": [],
     "lib-incomplete": [],
-    "lib-list": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          "button[data-cat=\"all\"] > .c",
-          "button[data-cat=\"anim\"] > .c",
-          "button[data-cat=\"movies\"] > .c",
-          "button[data-cat=\"tv\"] > .c"
-        ]
-      }
-    ],
-    "lib-loading": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          "button[data-cat=\"all\"] > .c",
-          "button[data-cat=\"anim\"] > .c",
-          "button[data-cat=\"movies\"] > .c",
-          "button[data-cat=\"tv\"] > .c"
-        ]
-      }
-    ],
+    "lib-list": [],
+    "lib-loading": [],
     "lib-recent": [],
-    "lib-search-empty": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          "button[data-cat=\"all\"] > .c",
-          "button[data-cat=\"anim\"] > .c",
-          "button[data-cat=\"movies\"] > .c",
-          "button[data-cat=\"tv\"] > .c"
-        ]
-      }
-    ],
-    "lib-selection": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          "button[data-cat=\"all\"] > .c",
-          "button[data-cat=\"anim\"] > .c",
-          "button[data-cat=\"movies\"] > .c",
-          "button[data-cat=\"tv\"] > .c",
-          "button[data-delsel=\"1\"]"
-        ]
-      }
-    ],
+    "lib-search-empty": [],
+    "lib-selection": [],
     "maintenance": [],
     "maintenance-delete": [],
     "maintenance-loading": [],
@@ -236,26 +75,8 @@
     "settings-field-structure": [],
     "settings-field-text": [],
     "settings-one": [],
-    "settings-read-only": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".loaderr > b"
-        ]
-      }
-    ],
-    "settings-restart": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".loaderr > b"
-        ]
-      }
-    ],
+    "settings-read-only": [],
+    "settings-restart": [],
     "settings-search": [],
     "settings-secrets": [],
     "settings-topic": [],
@@ -266,16 +87,7 @@
     "signin-error": [],
     "startup": [],
     "system": [],
-    "system-error": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".surferr > b"
-        ]
-      }
-    ],
+    "system-error": [],
     "system-loading": [],
     "system-panne": []
   }
