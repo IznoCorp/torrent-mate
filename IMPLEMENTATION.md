@@ -45,8 +45,8 @@ stale table read as current for three days.
 |                            |                                                                                                                                                                                                                                                                                                                                             |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Last landed**            | **L05 — Routing**, Phase 1. PR **#482**, merged 2026-08-23, version 0.98.24, squash `c4e52ca5`. Both references re-recorded from main's tip and verified ancestors of `HEAD`. ⚠ **It merged with four CONFIRMED defects on the operator's decision** — they are `docs/features/maquette-l05/plan/phase-08-pr-fixes-cycle-1.md`, and phase 8 comes BEFORE L06 |
-| **In flight**              | **none.** A wave writes its own row here when its pull request opens, and the post-merge steps move it to « Last landed » (§ 5 of the architecture file) |
-| **Next**                   | **Phase 8 of L05 first** — four confirmed defects landed with #482, one of them a REGRESSION against `main`: a cold screen address puts the not-found page underneath, so the DOIT-11 link to a media sheet answers « Adresse introuvable » on Retour. Then **L06 — The scale**, Phase 2 |
+| **In flight**              | **Phases 8–11 of L05 — the repair of its four blocking defects** (B-043 to B-046, plus B-047 and B-048 as 8.5 and 8.6), two review cycles (phases 9, 10), and **the navigation path** (§ 16, D1b — phase 11). Branch `fix/maquette-l05`, version 0.98.27, PR **#484**. Each defect reproduced before its fix, each fix landing with a hold that bites, mutation-tested. CHANGES BEHAVIOUR: the three post-merge steps are owed after it — re-record both references from `main`'s tip, then move this row to « Last landed » and name L06 |
+| **Next**                   | **L06 — The scale**, Phase 2, once phase 8 has merged AND its post-merge steps have run. The lots run strictly in sequence (operator, 2026-08-22). `docs/reference/frontend-architecture.md` decides which lot, never this table |
 | **Before it**              | L03 — PR **#475**, version 0.98.18 · L02 — PR **#470**, version 0.98.13 · L01 — PR **#467**, version 0.98.10. All three archived under `docs/archive/features/`; `docs/features/maquette-l04/` is still live and belongs beside them |
 | **What decides the order** | `docs/reference/frontend-architecture.md`, never this table. This table says only where the work STANDS                                                                                                                                                                                                                                     |
 
@@ -69,16 +69,60 @@ repository.
 53 flat `.py` files (recorded and deliberately unscheduled), and B-036 / B-040, which belong to
 their own waves.
 
-**Next action**, and the first two are owed before any lot opens:
+**Next action**: squash merge #484, then the three post-merge steps from `main`'s tip and the
+two archive moves, then L06.
 
-1. **Re-record both references from the tip of `main`.** The oracle's is DANGLING — it names
-   `6a4f8391`, a commit of the deleted `refactor/maquette-l05` branch that the squash replaced, so
-   `oracle.py --check` refuses to run at all and the wave gate cannot close. The hold-count
-   baseline is not dangling but is four rules behind, all four movements declared upward by L05.
-2. **Repair L05's four blocking defects** — `docs/features/maquette-l05/plan/phase-08-pr-fixes-cycle-1.md`
-   is on `main`, written, with the command that establishes each finding. They are on `main` now.
-3. **Then L06 — The scale**, with `/implement:feature`: no wave opens without its design and its
-   plan.
+### Review cycles — PR #484
+
+### Cycle 1
+
+Four reviewers (code, tests, comments, silent failures), 2026-08-23. Retained: 2 major
+(`knownMedium` leans on the fuzzy `sheetFor`; the B-046 hold tolerates a fixed scratch port),
+6 medium, a batch of minors → `plan/phase-09-pr-fixes-cycle-1.md`. Ignored with reason: the
+pre-existing bug numbers in old comments, the README's `/profile` row, the French `recordPath`
+message, `switchover.py`'s pipe (rejected twice). Open for the operator: a second Back after a
+cold screen reaches the exit guard — the documented design, questioned.
+
+### Cycle 2
+
+Two reviewers (code+silent failures, tests+comments) over phase 9's diff, 2026-08-23. Cycle-1
+findings verified closed. Retained: 3 major — the reopen fires on a Back onto a buried sheet entry
+(a wrong interface, introduced by 9.4); R69's seam wraps `pushState` only (two boot catches held
+by nothing); the reader takes an inline return type's `{` as the body and counts a call as a read
+— plus 2 medium and minors → `plan/phase-10-pr-fixes-cycle-2.md`. Ignored with reason: library
+titles reaching the synthesised fallback from an address (the in-app door's own behaviour, D-8.3),
+`armedExit` on the reopen branch (pre-existing shape), four TypeScript shapes refused as « cannot
+read » (deliberate).
+
+### Cycle 3
+
+Two reviewers over phases 10–11, REAL taps at 390×844, 2026-08-24. Cycle-2 findings verified
+closed; § 16's forbidden path (Back climbing to the parent over a real stack) hunted and not
+found. Retained: 1 critical (the 404's « Aller à Acquisition » blind-steps onto the guard — one
+Back then quits the PWA), 1 major (drawer/account-menu page switches leave the abandoned page
+sandwiched — rule 2 fails exactly on the finger-reachable walks), 1 major-premise (« the tab bar
+sits above the layers » is false; two branches lean on the sentence), comment rot from the fourth
+boot seam, and reader/hold minors → `plan/phase-12-pr-fixes-cycle-3.md`.
+
+### Cycle 4
+
+One reviewer over phase 12 + the R82 split, real taps, 2026-08-24. The split verified hold-
+conserving (96 checks, multiset-compared); the continuation's lifecycle attacked and not
+broken; the 12.3 premise re-verified true. Retained: 1 critical — `homeFloorExists` written
+once at boot, stale after the 404's escape lays the floor (12 Backs to leave; re-opens 12.2
+via the drawer) — and two overstating sentences → `plan/phase-13-pr-fixes-cycle-4.md`.
+
+### Cycle 5 — the ceiling, and one bounded excursion past it
+
+One reviewer over the phase-13 delta, real taps, 2026-08-24. Cycle 4's defect verified fixed
+(tab AND drawer walks flat, the drawer's replace-in-place gone); every wrong-raise and
+wrong-lower attack rejected but ONE: the lowering line fired on a FORWARD too (the handler holds
+the direction and did not read it there) — depth 4 → 12 off a 404 arrival, eleven Backs to
+leave. The fix is the reviewer's own one condition (`direction === "BACK"`), landed with four
+R82 holds and mutation-tested (`812543fa`), then re-verified by the orchestrator. **This is one
+fix past MAX_CYCLES = 5**, taken rather than merging over a known critical or stalling the wave:
+bounded to a single condition, specified by the reviewer, verified on the reviewer's own walk.
+The excess is recorded here for the operator rather than smoothed over.
 
 **Phases of L05** — the plan is `docs/features/maquette-l05/plan/INDEX.md`, which owns the
 reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
@@ -92,6 +136,12 @@ reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
 | 5   | The panel tier                         | `plan/phase-05-the-panel-tier.md`           | [x]    |
 | 6   | The offline guard, and one subtraction | `plan/phase-06-the-guard-and-the-subtraction.md` | [x] |
 | 7   | The records, and the gate              | `plan/phase-07-the-records.md`              | [x]    |
+| 8   | PR fixes, review cycle 1 — the four blocking defects | `plan/phase-08-pr-fixes-cycle-1.md` | [x]    |
+| 9   | PR #484 fixes, review cycle 1 — what four reviewers found | `plan/phase-09-pr-fixes-cycle-1.md` | [x]    |
+| 10  | PR #484 fixes, review cycle 2 — what phase 9 opened | `plan/phase-10-pr-fixes-cycle-2.md` | [x]    |
+| 11  | The navigation path — § 16 rules 1–3, D1b (operator, 2026-08-24) | `plan/phase-11-navigation-path.md` | [x]    |
+| 12  | PR #484 fixes, review cycle 3 — the layer walks | `plan/phase-12-pr-fixes-cycle-3.md` | [x]    |
+| 13  | PR #484 fixes, review cycle 4 — the stale floor flag | `plan/phase-13-pr-fixes-cycle-4.md` | [x]    |
 
 **What L05 is, in one line**: the eight pages leave `?page=` for a real path, the address model
 leaves the engine for `lib/addresses.ts` — the first subtraction of D5 — and the harness host

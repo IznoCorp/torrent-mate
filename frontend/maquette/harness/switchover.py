@@ -77,15 +77,33 @@ def main():
             [sys.executable, str(ROOT / "serve.py"), str(PORT)],
             env={**os.environ, "TM_DESIGN_ROOT": str(SCRATCH),
                  "TM_DESIGN_PASSWORD_HASH": fingerprint()},
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
-        # Boot wait: poll until the port answers (up to 50 × 0.1 s).
+        # Boot wait: poll until the port answers (up to 50 × 0.1 s). When it
+        # never answers, the child's stderr is the only trace of why — a bind
+        # error must read as a bind error, not as a failed session open after
+        # a wait that says nothing about it.
         for attempt in range(50):
             try:
                 request_("/")
                 break
             except (OSError, http.client.HTTPException):
                 if attempt == 49:
+                    # communicate() returns as soon as the child exits (a
+                    # failed bind crashes it with a traceback) and waits a
+                    # few seconds for a child that is still alive; either
+                    # way, whatever was written is printed before re-raising.
+                    try:
+                        _, stderr_bytes = server.communicate(timeout=5)
+                    except subprocess.TimeoutExpired as expired:
+                        stderr_bytes = expired.stderr
+                    if stderr_bytes:
+                        print(f"serve.py stderr:\n"
+                              f"{stderr_bytes.decode('utf-8', 'replace')}",
+                              file=sys.stderr)
+                    else:
+                        print("serve.py wrote nothing to stderr before it "
+                              "stopped answering", file=sys.stderr)
                     raise
                 time.sleep(0.1)
 

@@ -57,6 +57,27 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 # suite before the merge said so.
 BOOT_FILE = "app/shell.tsx"
 
+# What the boot logs when an addressed panel was accepted and then failed to
+# open. A value the address model REFUSES never reaches the opener, so this
+# text appearing at all is a subject that got through without being held —
+# which is why it is worth quoting in a fallen hold's message. It is EVIDENCE
+# and not the measure: the same catch raises the engine's navigation-failure
+# flag, and a flag survives the day someone rewords the line.
+REOPEN_CRASH = "reopening the addressed panel failed"
+
+# The medium whose SCREEN a panel is opened over. The screen's own address is
+# derived from the running application rather than written here — it is keyed
+# on a provider id — but the title is the one the fixture holds.
+SHEET_TITLE = "Silo (2023)"
+# The same medium as the follow catalogue names it: a screen and a follow are
+# two surfaces onto one thing, and they do not spell it the same way.
+FOLLOW_TITLE = "Silo"
+
+# The page a panel is opened over in the buried-entry walk, and the one the
+# Back must land back on. It is a tab, so the walk can leave it by tapping
+# another one — which is the only door that closes a layer without popping.
+BURIED_FROM = "acq"
+
 _journal = None
 
 
@@ -79,6 +100,12 @@ PANELS = [
     ("search result", "acq-add-results", '[data-part="screen"][data-open] [data-panel^="add:"]'),
     ("library sort", "lib-grid", "[data-sort]"),
 ]
+
+# Whether a screen route is mounted and open. Hosted in a triple-quoted string
+# rather than escaped inside a double-quoted one: a naming attribute written
+# with a backslash is invisible to the markup-contract arm, which reads the
+# harness as raw text — the selection would then be held by nothing.
+SCREEN_UP = """() => !!document.querySelector('[data-part="screen"][data-open]')"""
 
 READ = """() => {
   const p = document.querySelector('#sheetin');
@@ -271,6 +298,396 @@ async def main():
               await pg3.evaluate("()=>window.__panel.isOpen()"), pg3.url)
         check("no JS error reopening it cold", not cold_errors, str(cold_errors))
         await ctx3.close()
+
+        # AN ADDRESS IS TYPED, PASTED AND KEPT FOR MONTHS, so the panel
+        # parameter is the one part of an address the interface must be able to
+        # DECLINE. Three shapes of refusal, and the same answer to all three:
+        # the page underneath, with the parameter taken off — never a panel
+        # built out of the value itself. The engine's producers answer for
+        # anything they are handed (a medium nobody holds still gets a panel,
+        # which is the right answer for the door inside the application), so
+        # what is read here is that the URL door asks a question first.
+        async def cold(query):
+            """Opens the acquisition page cold at one panel query.
+
+            A refused value is refused BEFORE the opener runs, so a load that
+            reaches the opener at all is a subject that was never held — and
+            the opener CRASHING is one of the ways that shows. What records
+            that crash is the engine's own navigation-failure flag, raised by
+            the catch around the reopen: the console line beside it says the
+            same thing in words, and words get reworded, so the flag is what
+            the holds read and the line is what they quote.
+
+            Returns:
+                `(url, open, title, errors, failed, notes)` — the address
+                settled on, whether a panel is up, the title the panel
+                descriptor names, any JS error the load raised, whether the
+                engine recorded a navigation failure, and the reopen-crash
+                lines the console carried. The flag is read after the boot has
+                settled, so it answers for the whole load.
+            """
+            context = await b.new_context(**PHONE)
+            page = await context.new_page()
+            raised = []
+            notes = []
+            page.on("pageerror", lambda e: raised.append(str(e)))
+
+            def note_reopen_crash(message):
+                """Keeps the boot's reopen crash as evidence beside the flag."""
+                if REOPEN_CRASH in message.text:
+                    notes.append(message.text)
+
+            page.on("console", note_reopen_crash)
+            await page.goto(PROTOTYPE + "acquisition" + query, wait_until="load")
+            await page.evaluate("()=>window.__loadingDone?.()")
+            await page.wait_for_timeout(600)
+            seen = (
+                page.url,
+                await page.evaluate("()=>window.__panel.isOpen()"),
+                await page.evaluate(
+                    "()=>(window.__store.read().state.panelDescriptor||{}).title||''"),
+                raised,
+                await page.evaluate("()=>window.__navEchec === true"),
+                notes,
+            )
+            await context.close()
+            return seen
+
+        url, is_open, title, raised, failed, notes = await cold("?panel=follows")
+        check("a panel value that is not kind:subject opens nothing",
+              not is_open and "panel=" not in url and not raised and not failed,
+              f"{url} · title={title!r} · {raised} · __navEchec={failed} · {notes}")
+
+        url, is_open, title, raised, failed, notes = await cold("?panel=nobody:Silo")
+        check("a panel kind the table does not carry opens nothing",
+              not is_open and "panel=" not in url and not raised and not failed,
+              f"{url} · title={title!r} · {raised} · __navEchec={failed} · {notes}")
+
+        # The one that fabricated a medium: the producer's synthesised fallback
+        # was reachable FROM AN ADDRESS, so any title at all opened a panel
+        # describing a series this library has never heard of.
+        unknown = "Ceci N'Existe Pas"  # french-ok: a title no source holds
+        url, is_open, title, raised, failed, notes = await cold(
+            "?panel=follow:" + unknown.replace(" ", "%20").replace("'", "%27"))
+        check("a subject no source holds opens nothing, and names nothing",
+              not is_open and "panel=" not in url and title != unknown
+              and not raised and not failed,
+              f"{url} · title={title!r} · {raised} · __navEchec={failed} · {notes}")
+
+        # AND « HELD » IS EXACT MEMBERSHIP, which the value above cannot show:
+        # it misses both of the ways a title used to be accepted without being
+        # in any of the sources the opener matches. The media-sheet lookup was
+        # once consulted here, and it is deliberately forgiving — it answers on
+        # a prefix of more than six characters, and, reading a plain object by
+        # bracket, it answers for every name `Object.prototype` carries. Each
+        # of the four below is refused by exact membership and by nothing else.
+        #
+        # AND WHAT A SUBJECT THAT GOT THROUGH LOOKS LIKE IS NOT ALWAYS AN OPEN
+        # PANEL. `constructor` reaches an opener that chokes on it before it
+        # can draw anything, so the panel stays closed and the parameter comes
+        # off the address exactly as a refusal would leave them — every visible
+        # conjunct green over the defect the hold is named for. The engine's
+        # navigation-failure flag is what separates the two, so it is read here
+        # for all of them; the console line the same catch writes is quoted as
+        # evidence and held by nothing, because a reworded line would otherwise
+        # take the hold with it.
+        for subject, wanted in (
+            ("American", "a subject resolved only by a sheet's prefix opens nothing"),
+            ("constructor",
+             "a subject resolved only through Object.prototype opens nothing"),
+            ("Silo (2023)",
+             "a sheet key whose medium is followed under another title opens nothing"),
+            ("silo", "a subject that differs from a followed title by case opens nothing"),
+        ):
+            url, is_open, title, raised, failed, notes = await cold(
+                "?panel=follow:" + subject.replace(" ", "%20"))
+            check(wanted,
+                  not is_open and "panel=" not in url and title != subject
+                  and not raised and not failed,
+                  f"{url} · title={title!r} · {raised} · __navEchec={failed} · {notes}")
+
+        # THE GUARD IS NOT THE PANEL'S TO SPEND. Reopened cold, the panel used
+        # to push its layer entry BEFORE the boot wrote the exit guard, so the
+        # guard's marker landed on the panel's own entry: closing the panel
+        # spent it, `panel=` never left the address, and the « one more back to
+        # leave » warning could not arm at all. One Back closes the panel and
+        # nothing else; the SECOND reaches the guard.
+        ctx5 = await b.new_context(**PHONE)
+        pg5 = await ctx5.new_page()
+        walk_errors = []
+        pg5.on("pageerror", lambda e: walk_errors.append(str(e)))
+        await pg5.goto(PROTOTYPE + f"acquisition?panel=follow:{FOLLOW_TITLE}",
+                       wait_until="load")
+        await pg5.evaluate("()=>window.__loadingDone?.()")
+        await pg5.wait_for_timeout(600)
+        check("a valid subject reopens the panel it names",
+              await pg5.evaluate("()=>window.__panel.isOpen()")
+              and await pg5.evaluate(
+                  "()=>(window.__store.read().state.panelDescriptor||{}).title") == "Silo",
+              pg5.url)
+        await pg5.go_back()
+        await pg5.wait_for_timeout(450)
+        check("the first Back closes it and spends no guard",
+              not await pg5.evaluate("()=>window.__panel.isOpen()")
+              and "panel=" not in pg5.url
+              and pg5.url.endswith("/acquisition")
+              and not await pg5.evaluate("()=>window.armedExit"),
+              f"{pg5.url} · armedExit={await pg5.evaluate('()=>window.armedExit')}")
+
+        # AND HISTORY GOES BOTH WAYS. The Back leaves the panel's entry AHEAD,
+        # and stepping forward onto it used to land on an address naming a
+        # panel with nothing open — invariant 1 broken in the one direction
+        # nothing walked, and a reload at that address brought back what the
+        # gesture had not. The entry names the panel, so the panel comes back.
+        await pg5.go_forward()
+        await pg5.wait_for_timeout(500)
+        check("a Forward onto the panel's own entry opens it again",
+              await pg5.evaluate("()=>window.__panel.isOpen()")
+              and await pg5.evaluate(
+                  "()=>(window.__store.read().state.panelDescriptor||{}).title")
+              == FOLLOW_TITLE
+              and "panel=" in pg5.url,
+              f"{pg5.url} · panel={await pg5.evaluate('()=>window.__panel.isOpen()')}")
+        await pg5.go_back()
+        await pg5.wait_for_timeout(500)
+        check("and the Back after it closes the panel and takes its address off",
+              not await pg5.evaluate("()=>window.__panel.isOpen()")
+              and "panel=" not in pg5.url
+              and pg5.url.endswith("/acquisition"),
+              f"{pg5.url} · panel={await pg5.evaluate('()=>window.__panel.isOpen()')}")
+        check("no JS error walking the panel's entry forward and back",
+              not walk_errors, str(walk_errors))
+
+        await pg5.go_back()
+        await pg5.wait_for_timeout(450)
+        check("and the second Back is the one that reaches the guard",
+              bool(await pg5.evaluate("()=>window.armedExit")),
+              f"{pg5.url} · armedExit={await pg5.evaluate('()=>window.armedExit')}")
+        await ctx5.close()
+
+        # AND A LAYER ENTRY CAN BE BURIED, which is the case the two walks above
+        # cannot show: both stand on the panel's entry with the panel's own page
+        # underneath. A tab tap made while a panel is up closes the panel
+        # WITHOUT popping, then records the new page ON TOP of the panel's
+        # entry. The tap is DRIVEN, not touched, and that is the honest reading
+        # of what this walk proves: hit-tested at the design's own viewport,
+        # every layer kind covers the centre of every tab button, so no finger
+        # reaches a tab over a layer. `node.click()` does, and so will any
+        # future surface that offers a page switch over one — which is the
+        # shape the engine's step-over branch exists for. Backing over that
+        # page lands on a layer entry whose panel closed long ago, on a page it
+        # was never opened over: reopening it there raises the panel over the
+        # wrong frame and settles an address naming the page underneath. It is
+        # stepped over instead, and the arrival beneath is what one lands on.
+        ctx10 = await b.new_context(**PHONE)
+        pg10 = await ctx10.new_page()
+        buried_errors = []
+        pg10.on("pageerror", lambda e: buried_errors.append(str(e)))
+        await pg10.goto(PROTOTYPE + "acquisition", wait_until="load")
+        await pg10.evaluate("()=>window.__loadingDone?.()")
+        await pg10.wait_for_timeout(600)
+        await pg10.evaluate(f"()=>window.openFollowSheet({FOLLOW_TITLE!r})")
+        await pg10.wait_for_timeout(500)
+        # The tab the tap goes to is read off the BAR, never written down: which
+        # pages are tabs is the bar's own decision, and a constant here would
+        # hold a walk nobody can take the day one of them leaves it.
+        buried_tab = await pg10.evaluate(
+            f"()=>{{const b=Array.from(document.querySelectorAll('#nav button[data-page]'))"
+            f".map(e=>e.dataset.page).filter(p=>p!=={BURIED_FROM!r});return b[0]||''}}")
+        check("the bar offers a second tab to leave the panel's page by",
+              bool(buried_tab), f"tab={buried_tab!r}")
+        await pg10.evaluate(
+            "(tab)=>document.querySelector(`#nav button[data-page=\"${tab}\"]`).click()",
+            buried_tab)
+        await pg10.wait_for_timeout(600)
+        check("a tab tap over an open panel leaves the panel's entry buried",
+              await pg10.evaluate("()=>window.__store.read().state.page") == buried_tab
+              and not await pg10.evaluate("()=>window.__panel.isOpen()"),
+              f"{pg10.url} · page="
+              f"{await pg10.evaluate('()=>window.__store.read().state.page')}")
+        await pg10.go_back()
+        await pg10.wait_for_timeout(700)
+        check("one Back steps over the buried entry onto the arrival beneath",
+              await pg10.evaluate("()=>window.__store.read().state.page") == BURIED_FROM
+              and not await pg10.evaluate("()=>window.__panel.isOpen()")
+              and "panel=" not in pg10.url
+              and pg10.url.endswith("/acquisition"),
+              f"{pg10.url} · page="
+              f"{await pg10.evaluate('()=>window.__store.read().state.page')}"
+              f" · panel={await pg10.evaluate('()=>window.__panel.isOpen()')}")
+        check("no JS error stepping over a buried layer entry",
+              not buried_errors, str(buried_errors))
+        await pg10.go_back()
+        await pg10.wait_for_timeout(700)
+        check("and the Back after that reaches the guard",
+              bool(await pg10.evaluate("()=>window.armedExit")),
+              f"{pg10.url} · armedExit={await pg10.evaluate('()=>window.armedExit')}")
+        await ctx10.close()
+
+        # AND THE SAME TAP TOWARDS THE ENTRY PAGE, which is the direction the
+        # walk above cannot take: it leaves the entry page, and coming BACK to
+        # it is the one page switch that steps onto the floor instead of
+        # writing. A layer's entry is on top at that moment — the driven tap
+        # closes the panel without popping — so stepping back would land on the
+        # page being left, with the destination drawn over it. The destination
+        # takes the layer's entry instead, and what is held is the outcome: the
+        # entry page, its own address, no panel, and a Back that still has the
+        # floor to find rather than the document to leave.
+        ctx11 = await b.new_context(**PHONE)
+        pg11 = await ctx11.new_page()
+        towards_errors = []
+        pg11.on("pageerror", lambda e: towards_errors.append(str(e)))
+        await pg11.goto(PROTOTYPE + "maintenance", wait_until="load")
+        await pg11.evaluate("()=>window.__loadingDone?.()")
+        await pg11.wait_for_timeout(600)
+        # A topic first: the actions are drawn inside one, so a page opened at
+        # its root offers none and the walk would measure an empty selector.
+        await pg11.evaluate(
+            "()=>{const node = document.querySelector('[data-maintopic]');"
+            " if (node) node.click();}")
+        await pg11.wait_for_timeout(500)
+        action = await pg11.evaluate(
+            "()=>{const node = document.querySelector('[data-maintact]');"
+            " if (!node) return ''; node.click(); return node.dataset.maintact;}")
+        await pg11.wait_for_timeout(500)
+        check("a maintenance action opens its panel over a page that is not the entry one",
+              bool(action) and await pg11.evaluate("()=>window.__panel.isOpen()"),
+              f"action={action!r} · {pg11.url}")
+        await pg11.evaluate(
+            f"()=>document.querySelector('#nav button[data-page=\"{BURIED_FROM}\"]').click()")
+        await pg11.wait_for_timeout(700)
+        check("a tab tap towards the entry page over an open panel lands on the entry page",
+              await pg11.evaluate("()=>window.__store.read().state.page") == BURIED_FROM
+              and not await pg11.evaluate("()=>window.__panel.isOpen()")
+              and pg11.url.endswith("/acquisition"),
+              f"{pg11.url} · page="
+              f"{await pg11.evaluate('()=>window.__store.read().state.page')}"
+              f" · panel={await pg11.evaluate('()=>window.__panel.isOpen()')}")
+        await pg11.go_back()
+        await pg11.wait_for_timeout(700)
+        check("and the Back after it is still inside the application",
+              pg11.url.startswith(PROTOTYPE), pg11.url)
+        check("no JS error tapping the entry page's tab over a panel",
+              not towards_errors, str(towards_errors))
+        await ctx11.close()
+
+        # AND THE PARAMETER IS RECOGNISED BY ITS NAME, not by the letters it
+        # happens to be spelled with. A query name may be percent-encoded —
+        # `%70anel` IS `panel` — and `URLSearchParams` decodes, so the reader
+        # that opens the panel has always seen it. The reader that takes it
+        # back off the arrival address compared raw text, so the panel reopened
+        # AND its parameter survived the strip: the entry the first Back lands
+        # on still named a panel, and a reload there brought back what the
+        # gesture had just closed.
+        ctx9 = await b.new_context(**PHONE)
+        pg9 = await ctx9.new_page()
+        encoded_errors = []
+        pg9.on("pageerror", lambda e: encoded_errors.append(str(e)))
+        await pg9.goto(PROTOTYPE + f"acquisition?%70anel=follow:{FOLLOW_TITLE}",
+                       wait_until="load")
+        await pg9.evaluate("()=>window.__loadingDone?.()")
+        await pg9.wait_for_timeout(600)
+        check("a percent-encoded panel parameter reopens the panel it names",
+              await pg9.evaluate("()=>window.__panel.isOpen()")
+              and await pg9.evaluate(
+                  "()=>(window.__store.read().state.panelDescriptor||{}).title")
+              == FOLLOW_TITLE,
+              f"{pg9.url} · panel={await pg9.evaluate('()=>window.__panel.isOpen()')}")
+        await pg9.go_back()
+        await pg9.wait_for_timeout(500)
+        check("and one Back takes it off the address, however it was spelled",
+              not await pg9.evaluate("()=>window.__panel.isOpen()")
+              and "panel=" not in pg9.url.lower()
+              and "%70anel=" not in pg9.url.lower()
+              and pg9.url.endswith("/acquisition"),
+              pg9.url)
+        check("no JS error on a percent-encoded panel parameter",
+              not encoded_errors, str(encoded_errors))
+        await ctx9.close()
+
+        # A PANEL OVER A SCREEN HANGS OFF THE SCREEN'S OWN PATH. The panel's
+        # address used to be composed from the page UNDERNEATH, which under a
+        # screen is the home page — so opening a panel over the media sheet
+        # pushed the home page's path, the route stopped matching, and the
+        # screen the operator had linked to unmounted behind the panel. Both
+        # doors are read: the address, and the in-app open.
+        # DERIVED from the running application, never written down: the media
+        # sheet's address is keyed on a provider id, and a constant nothing
+        # verifies against its source rots the day the fixture moves.
+        ctx_ids = await b.new_context(**PHONE)
+        pg_ids = await ctx_ids.new_page()
+        await pg_ids.goto(PROTOTYPE, wait_until="load")
+        await pg_ids.evaluate("()=>window.__loadingDone?.()")
+        await pg_ids.wait_for_timeout(300)
+        ids = await pg_ids.evaluate(f"()=>window.addressIdsFor({SHEET_TITLE!r})")
+        await ctx_ids.close()
+        check("the media sheet's own address ids are resolvable",
+              bool(ids and ids.get("provider") and ids.get("id")), str(ids))
+        screen_path = f"/media/{(ids or {}).get('provider')}/{(ids or {}).get('id')}"
+
+        ctx6 = await b.new_context(**PHONE)
+        pg6 = await ctx6.new_page()
+        screen_errors = []
+        pg6.on("pageerror", lambda e: screen_errors.append(str(e)))
+        await pg6.goto(PROTOTYPE.rstrip("/") + screen_path + f"?panel=follow:{FOLLOW_TITLE}",
+                       wait_until="load")
+        await pg6.evaluate("()=>window.__loadingDone?.()")
+        await pg6.wait_for_timeout(650)
+        check("a cold panel over a screen leaves the screen standing",
+              await pg6.evaluate("()=>window.__panel.isOpen()")
+              and await pg6.evaluate(
+                  SCREEN_UP),
+              f"{pg6.url} · panel={await pg6.evaluate('()=>window.__panel.isOpen()')}")
+        check("and its address is the screen's path, with the panel in the query",
+              screen_path in pg6.url and "panel=" in pg6.url, pg6.url)
+        await pg6.go_back()
+        await pg6.wait_for_timeout(500)
+        check("one Back closes the panel and the screen is still there",
+              not await pg6.evaluate("()=>window.__panel.isOpen()")
+              and await pg6.evaluate(
+                  SCREEN_UP)
+              and pg6.url.endswith(screen_path),
+              f"{pg6.url} · panel={await pg6.evaluate('()=>window.__panel.isOpen()')}")
+        check("no JS error opening a panel over a screen cold",
+              not screen_errors, str(screen_errors))
+        await ctx6.close()
+
+        # The same mechanism, through the door inside the application: the
+        # sheet is opened by a verb, not by an address, and the panel opened
+        # over it must leave it exactly as it found it.
+        ctx7 = await b.new_context(**PHONE)
+        pg7 = await ctx7.new_page()
+        await pg7.goto(PROTOTYPE, wait_until="load")
+        await pg7.evaluate("()=>window.__loadingDone?.()")
+        await pg7.wait_for_timeout(300)
+        await pg7.evaluate(f"()=>window.__screens.mediaSheet({SHEET_TITLE!r})")
+        await pg7.wait_for_timeout(500)
+        await pg7.evaluate(f"()=>window.openFollowSheet({FOLLOW_TITLE!r})")
+        await pg7.wait_for_timeout(500)
+        check("a panel opened in-app over a screen leaves the screen standing",
+              await pg7.evaluate("()=>window.__panel.isOpen()")
+              and await pg7.evaluate(
+                  SCREEN_UP)
+              and screen_path in pg7.url and "panel=" in pg7.url,
+              f"{pg7.url} · panel={await pg7.evaluate('()=>window.__panel.isOpen()')}")
+        await ctx7.close()
+
+        # AND NEVER OVER AN ADDRESS NOBODY SERVES. The not-found page is not a
+        # state anyone links to, so a panel asked for over it is asked for over
+        # nothing: it is declined like any other value the interface cannot
+        # honour, and the parameter comes off the address.
+        ctx8 = await b.new_context(**PHONE)
+        pg8 = await ctx8.new_page()
+        await pg8.goto(PROTOTYPE + f"nimportequoi?panel=follow:{FOLLOW_TITLE}",
+                       wait_until="load")
+        await pg8.evaluate("()=>window.__loadingDone?.()")
+        await pg8.wait_for_timeout(650)
+        check("a panel over an address nobody serves opens nothing",
+              not await pg8.evaluate("()=>window.__panel.isOpen()")
+              and "panel=" not in pg8.url
+              and pg8.url.endswith("/nimportequoi"),
+              f"{pg8.url} · panel={await pg8.evaluate('()=>window.__panel.isOpen()')}")
+        await ctx8.close()
 
         # A menu has no subject, so it is tier 3: no address, Back still shuts
         # it. Reading the OTHER side of the same rule is what stops « every

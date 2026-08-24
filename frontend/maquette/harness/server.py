@@ -16,8 +16,9 @@ the final segment is deliberately NOT what decides the fold — a release folder
 name (`Backrooms.2026.MULTi.2160p.WEB-DL`) carries dots and is not a file.
 
 It is used two ways. `serve_forever` is the HOST on 8899 that `run.sh` starts
-and every rule reads. `start_server` is a scratch server a rule can raise on
-its own port, hand a root, and drop again without leaving a process behind.
+and every rule reads. `start_server` is a scratch server a rule can raise on a
+port the kernel picks, hand a root, and drop again without leaving a process
+behind.
 """
 
 from __future__ import annotations
@@ -27,15 +28,46 @@ import functools
 import http.server
 import os
 import pathlib
+import re
+import tempfile
 import threading
 from collections.abc import Iterator
 
-# Never one of these, for a SCRATCH server: 8710/8711/8712 are the reverse
-# proxy's routes to prod, staging and the design host, and 8899 is the
-# prototype's own host — every rule reads it, and a second server there would
-# just race it for the socket. `serve_forever` is exempt because it IS that
-# host; the guard exists to stop a RULE, not the thing being guarded.
+# Never one of these: 8710/8711/8712 are the reverse proxy's routes to prod,
+# staging and the design host, and 8899 is the prototype's own host — every
+# rule reads it, and a second server there would just race it for the socket.
+# The HOST is exempt from 8899 alone, because it IS that host; nothing is ever
+# exempt from the proxy's three, and « nothing » includes the host: `--serve
+# 8710` would put the prototype on the port Caddy sends prod's traffic to.
 RESERVED_PORTS = (8710, 8711, 8712, 8899)
+
+# The prototype's own host, and the only reservation anything may claim.
+HOST_PORT = 8899
+
+
+def refuse_reserved(port: int, *, host_allowed: bool) -> None:
+    """Refuses a port that belongs to something else, before any socket is asked for.
+
+    Args:
+        port: The loopback port about to be bound. 0 asks the kernel for a
+            free one and is never reserved.
+        host_allowed: True for the prototype's own host, which may bind
+            `HOST_PORT` because it IS that host; False for a scratch server,
+            which may bind none of the reserved ports at all.
+
+    Raises:
+        ValueError: When `port` is reserved and this caller may not have it.
+            Named rather than described: the message carries the port, so a
+            misconfigured launcher says which number it asked for.
+    """
+    if port not in RESERVED_PORTS:
+        return
+    if host_allowed and port == HOST_PORT:
+        return
+    raise ValueError(
+        f"refusing to bind port {port}: it is reserved "
+        f"({RESERVED_PORTS[0]}/{RESERVED_PORTS[1]}/{RESERVED_PORTS[2]} are the reverse "
+        f"proxy's routes, {HOST_PORT} is the prototype's host)")
 
 
 class FallbackHandler(http.server.SimpleHTTPRequestHandler):
@@ -126,8 +158,8 @@ class FallbackHandler(http.server.SimpleHTTPRequestHandler):
 
 
 @contextlib.contextmanager
-def start_server(port: int, root: pathlib.Path) -> Iterator[None]:
-    """Serves `root` on `port` for the lifetime of the `with` block.
+def start_server(root: pathlib.Path) -> Iterator[int]:
+    """Serves `root` on a scratch port for the lifetime of the `with` block.
 
     Files under `root` are served as-is; any path with no file behind it
     instead answers `root/wrapped.html` — the fallback that lets a deep
@@ -136,21 +168,21 @@ def start_server(port: int, root: pathlib.Path) -> Iterator[None]:
     navigating there inside an already-loaded document — EXCEPT under
     `FallbackHandler.ASSET_PREFIXES`, where a missing file still 404s.
 
+    There is deliberately no `port` parameter: the kernel picks one, and
+    the port actually bound is yielded so the caller composes its
+    addresses from the truth rather than from the request. A scratch
+    server has no reason to want a fixed port, and a fixed one is a list
+    that drifts — rules that pick from the same list eventually collide
+    on one socket.
+
     Args:
-        port: The loopback port to bind. Must not be one of
-            `RESERVED_PORTS`.
         root: The directory to serve. Must contain `wrapped.html`.
 
     Yields:
-        Nothing — the server runs on a daemon thread for the block's
-        duration and is reachable at `http://127.0.0.1:{port}/` as soon as
-        the `with` statement is entered.
-
-    Raises:
-        ValueError: When `port` is one of `RESERVED_PORTS`.
+        int: The loopback port the kernel chose. The server runs on a
+        daemon thread for the block's duration and is reachable on that
+        port as soon as the `with` statement is entered.
     """
-    if port in RESERVED_PORTS:
-        raise ValueError(f"reserved port: {port}")
     handler = functools.partial(FallbackHandler, directory=str(root))
     # ThreadingHTTPServer's constructor binds and listens before returning
     # (bind_and_activate defaults to True) — by the time this line completes,
@@ -158,11 +190,13 @@ def start_server(port: int, root: pathlib.Path) -> Iterator[None]:
     # Nothing below is timing-sensitive: the serving thread only pulls
     # requests off a queue that already exists, so no sleep is needed
     # between starting it and treating the server as ready.
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", port), handler)
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
-        yield
+        # The truth about where the server listens — the request said 0, the
+        # kernel decided, and the caller composes addresses from this.
+        yield server.server_address[1]
     finally:
         server.shutdown()
         server.server_close()
@@ -173,10 +207,12 @@ def serve_forever(port: int, root: pathlib.Path) -> None:
     """Serves `root` on `port` in the FOREGROUND, until the process is killed.
 
     This is the prototype's own host, not a rule's scratch server, and the
-    difference is the port guard. `start_server` refuses `RESERVED_PORTS`
-    because a RULE binding 8899 would race the host for the socket; here the
-    caller IS that host, so the guard has no subject and is not applied. The
-    reservation keeps its meaning for every other caller.
+    difference is ONE port. `start_server` asks for none — the kernel picks,
+    so a rule can never race the host for the socket; here the caller IS
+    that host, so 8899 is the one number it may have. The proxy's three are
+    refused to it exactly as they are to a rule — `--serve 8710` would put the
+    prototype on the port Caddy sends prod's traffic to, and « the caller is
+    the host » is no reason to hand it a port that is somebody else's.
 
     The host must fold unknown addresses onto the document: a page sits at a
     real path (`/media`), and a plain `http.server` answers 404 for every path
@@ -185,11 +221,97 @@ def serve_forever(port: int, root: pathlib.Path) -> None:
     for a reason unrelated to whatever was being measured.
 
     Args:
-        port: The loopback port to bind.
+        port: The loopback port to bind. `HOST_PORT` is the one reservation
+            this caller may claim.
         root: The directory to serve. Must contain `wrapped.html`.
+
+    Raises:
+        ValueError: When `port` is a reservation that is not this host's.
     """
+    refuse_reserved(port, host_allowed=True)
     handler = functools.partial(FallbackHandler, directory=str(root))
     http.server.ThreadingHTTPServer(("127.0.0.1", port), handler).serve_forever()
+
+
+# A Python comment and a Python string, the three quoting styles included. The
+# reader below blanks them IN PLACE — spaces for everything but the newlines —
+# so a line number counted afterwards is still the source's own.
+_PROSE = re.compile(
+    r'''#[^\n]*|"""(?:\\.|[^\\])*?"""|\'\'\'(?:\\.|[^\\])*?\'\'\''''
+    r'''|"(?:\\.|[^"\\\n])*"|\'(?:\\.|[^\'\\\n])*\'''',
+    re.S)
+
+
+def without_prose(text: str) -> str:
+    """Blanks every Python comment and string literal, leaving offsets where they were.
+
+    Args:
+        text: A Python source.
+
+    Returns:
+        The same text, its comments and string literals replaced by spaces.
+    """
+    return _PROSE.sub(lambda prose: re.sub(r"[^\n]", " ", prose.group(0)), text)
+
+
+def scratch_call_offenders(directory: pathlib.Path) -> list[str]:
+    """Names the `start_server` call sites under `directory` that pass a port.
+
+    Reads each `*.py` file's WHOLE text and finds every `start_server(` in
+    it, then reads the argument list with a balanced-parentheses walk,
+    tolerant of newlines and of nested calls: a call the formatter wrapped
+    over two lines is still seen, and a call whose argument is itself a call is
+    not flagged for its inner comma. A call is an offender when its TOP-LEVEL
+    argument list carries a comma — a second argument, the port — or is empty.
+    A `def start_server(...)` line is the definition, not a call, and is
+    skipped. An alias import (`from server import start_server as X`) never
+    reaches this reader, because the aliased name is what its call sites
+    would use — a reach this hold does not claim.
+
+    AND PROSE IS NOT CODE. An example written in a docstring or behind a `#`
+    used to be read as a call site, so the sentence explaining the rule could
+    fail it — and the only fix available to whoever hit that would be to delete
+    the explanation. Comments and string literals are blanked before the scan,
+    in place, so the line numbers below are still the source's own.
+
+    Args:
+        directory: The harness directory; every `*.py` in it is read.
+
+    Returns:
+        list[str]: One `file:line` per offending call site, in read order.
+    """
+    offenders: list[str] = []
+    for sibling in sorted(directory.glob("*.py")):
+        text = without_prose(sibling.read_text(encoding="utf-8"))
+        for match in re.finditer(r"\bstart_server\(", text):
+            line = text.count("\n", 0, match.start()) + 1
+            line_start = text.rfind("\n", 0, match.start()) + 1
+            if text[line_start:match.start()].lstrip().startswith("def "):
+                continue  # the definition, not a call site
+            depth = 1
+            cursor = match.end()
+            while depth and cursor < len(text):
+                if text[cursor] == "(":
+                    depth += 1
+                elif text[cursor] == ")":
+                    depth -= 1
+                cursor += 1
+            if depth:
+                continue  # unbalanced — not a call this reader can judge
+            arguments = text[match.end():cursor - 1]
+            nested = 0
+            passes_a_port = False
+            for character in arguments:
+                if character == "(":
+                    nested += 1
+                elif character == ")":
+                    nested -= 1
+                elif character == "," and nested == 0:
+                    passes_a_port = True
+                    break
+            if passes_a_port or not arguments.strip():
+                offenders.append(f"{sibling.name}:{line}")
+    return offenders
 
 
 if __name__ == "__main__":
@@ -210,12 +332,9 @@ if __name__ == "__main__":
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
     from common import Journal
 
-    # NOT 8917: `screen_addresses.py` declares that port in its own docstring
-    # (« this rule runs entirely against 8917 ») and binds it. Both are rules,
-    # they sit next to each other alphabetically, and since the suite began
-    # running several at a time they can hold the socket at the same moment —
-    # « Address already in use », attributed to whichever lost the race.
-    PROOF_PORT = 8918
+    # The scratch port is ephemeral: 0 asks the kernel for a free one and the
+    # port actually bound comes back from the context manager. A fixed port is
+    # a list that drifts, and rules picking from the same list collide on it.
     PROOF_ROOT = pathlib.Path("/tmp/tm-refonte")
 
     journal = Journal("server.py — the fallback answers deep addresses")
@@ -227,8 +346,8 @@ if __name__ == "__main__":
         journal.summary()
     bundle = bundles[0]
 
-    with start_server(PROOF_PORT, PROOF_ROOT):
-        base = f"http://127.0.0.1:{PROOF_PORT}"
+    with start_server(PROOF_ROOT) as port:
+        base = f"http://127.0.0.1:{port}"
 
         with urllib.request.urlopen(f"{base}/quality/X%20Y", timeout=5) as response:
             profile_status, profile_body = response.status, response.read()
@@ -284,6 +403,130 @@ if __name__ == "__main__":
             "still answers the document",
             folder_status == 200 and folder_body == expected,
             f"status {folder_status}, {len(folder_body)} bytes")
+
+        # A scratch server wanting a FIXED port is what this rule once
+        # carried, and it is how two rules race one socket. Port 0 hands the
+        # choice to the kernel; raising a SECOND scratch server while the
+        # first is up proves the two never collide — it must get a different
+        # free port and answer the same deep address on it.
+        try:
+            with start_server(PROOF_ROOT) as second_port:
+                with urllib.request.urlopen(
+                    f"http://127.0.0.1:{second_port}/quality/X%20Y", timeout=5
+                ) as response:
+                    second_status, second_body = response.status, response.read()
+            second_holds = (
+                isinstance(second_port, int)
+                and second_port != 0
+                and second_port != port
+                and second_port not in RESERVED_PORTS
+                and second_status == 200
+                and second_body == expected)
+            second_evidence = (
+                f"first {port}, second {second_port}, status {second_status}")
+        except urllib.error.HTTPError as answered:
+            # An HTTP status is not a bind failure, and « refused » said it
+            # was: the second server ANSWERED, and reading its answer as a
+            # collision sends the next reader to the wrong half of this rule.
+            second_holds = False
+            second_evidence = f"first {port}, second server answered {answered.code}"
+        except urllib.error.URLError as unreachable:
+            second_holds = False
+            second_evidence = (
+                f"first {port}, second server unreachable: {unreachable.reason}")
+        except OSError as error:
+            # A socket error reaching HERE is not the request's: urlopen
+            # wraps connection failures in URLError, caught above, and a
+            # port-0 bind has no fixed address to collide on — so there is
+            # nothing left to name but the raise itself.
+            second_holds = False
+            second_evidence = f"first {port}, second server failed to start: {error}"
+        journal.check(
+            "a scratch server yields a real ephemeral port, and a second never races it",
+            isinstance(port, int) and port != 0 and port not in RESERVED_PORTS
+            and second_holds,
+            second_evidence)
+
+    # ── the ports nothing here may bind ───────────────────────────────────
+    # `--serve 8710` used to be accepted: the host had no guard at all, and
+    # the only thing keeping the prototype off the port Caddy routes prod's
+    # traffic to was that prod happened to be holding the socket. Read
+    # through `serve_forever` itself rather than through the helper alone, so
+    # the CALL is held and not merely the check — with the socket constructor
+    # swapped for one that refuses, a broken guard is a caught assertion here
+    # instead of a server left listening on a port that is not ours.
+    def never_bind(*arguments: object, **keywords: object) -> None:
+        """Stands in for the socket, so a guard that failed is caught, not bound."""
+        raise AssertionError("reached the socket")
+
+    real_server = http.server.ThreadingHTTPServer
+    http.server.ThreadingHTTPServer = never_bind  # type: ignore[assignment,misc]
+    try:
+        serve_forever(8710, PROOF_ROOT)
+        proxy_port = "bound it"
+    except ValueError as refused:
+        proxy_port = f"refused: {refused}"
+    except AssertionError as reached:
+        proxy_port = f"NOT refused, {reached}"
+    finally:
+        http.server.ThreadingHTTPServer = real_server  # type: ignore[misc]
+
+    try:
+        refuse_reserved(HOST_PORT, host_allowed=True)
+        own_port = "kept"
+    except ValueError as refused:
+        own_port = f"refused: {refused}"
+    try:
+        refuse_reserved(HOST_PORT, host_allowed=False)
+        rule_port = "accepted"
+    except ValueError:
+        rule_port = "refused"
+    journal.check(
+        "the host refuses a reverse-proxy port before it reaches the socket, "
+        "and keeps only its own",
+        proxy_port.startswith("refused:") and "8710" in proxy_port
+        and own_port == "kept" and rule_port == "refused",
+        f"8710 → {proxy_port} · {HOST_PORT} as the host → {own_port} · "
+        f"{HOST_PORT} as a rule → {rule_port}")
+
+    # ── every scratch server is raised without a port ────────────────────
+    # A fixed port on a scratch server is invisible to every live hold
+    # above: a non-zero, non-reserved one like 8918 answers « not 0 » and
+    # « not reserved » both, so the rule stayed green over it — and two
+    # rules set to that port would race one socket. What is read here is the
+    # call sites themselves — every `*.py` in this directory, the same glob
+    # `page_host.py` reads — and a call that still passes a port is named,
+    # file and line. Reading the sources rather than running them is what
+    # makes the hold bite on files nothing imports. The reader lives in
+    # `scratch_call_offenders`, beside the host code it guards.
+    harness_directory = pathlib.Path(__file__).resolve().parent
+    offenders = scratch_call_offenders(harness_directory)
+    journal.check(
+        "every scratch server is raised without a port",
+        not offenders,
+        ", ".join(offenders)
+        if offenders else
+        f"{len(list(harness_directory.glob('*.py')))} file(s) read, no call passes a port")
+
+    # AND THE READER READS CODE, NOT PROSE. An example written in a docstring
+    # or behind a `#` is an example: a reader that flags one reports a defect
+    # whose only fix is deleting the sentence that explains the rule. Both
+    # directions are held over a scratch tree, because a reader that saw
+    # nothing at all would pass the first half on its own.
+    with tempfile.TemporaryDirectory() as scratch:
+        room = pathlib.Path(scratch)
+        (room / "prose.py").write_text(
+            '"""An example, and it is prose: start_server(8918, ROOT)."""\n'
+            "# start_server(8899, ROOT) behind a hash is prose too\n"
+            "start_server(ROOT)\n",
+            encoding="utf-8")
+        written_as_prose = scratch_call_offenders(room)
+        journal.check("a call site written in prose is not a call site",
+                      written_as_prose == [], f"{written_as_prose}")
+        (room / "real.py").write_text("start_server(8918, ROOT)\n", encoding="utf-8")
+        really_called = scratch_call_offenders(room)
+        journal.check("and a real call passing a port still is one",
+                      really_called == ["real.py:1"], f"{really_called}")
 
     # ── the HOST, not a scratch server ────────────────────────────────────
     # Everything above proves the HANDLER, on a scratch port. This proves the

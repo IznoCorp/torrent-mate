@@ -49,6 +49,7 @@ added
 addfield
 addq
 address
+addressed
 advance
 after
 again
@@ -64,6 +65,7 @@ arm
 armed
 arrival
 arrivals
+arriving
 artwork
 asked
 at
@@ -81,6 +83,7 @@ bar
 base
 batch
 before
+beneath
 best
 block
 blocked
@@ -158,6 +161,8 @@ date
 decision
 decisions
 deck
+declared
+decoded
 deep
 defaults
 del
@@ -221,6 +226,7 @@ escape
 event
 exec
 executions
+exists
 exit
 fab
 fact
@@ -241,6 +247,7 @@ find
 finger
 first
 fkind
+floor
 flux
 fmode
 focus
@@ -340,6 +347,7 @@ jsx
 kept
 key
 kind
+known
 lab
 label
 labels
@@ -349,6 +357,7 @@ layer
 layers
 leading
 leave
+leaving
 left
 legacy
 legend
@@ -465,10 +474,13 @@ owns
 page
 pages
 paint
+pair
 panel
 parameter
 parameters
 params
+parent
+parents
 part
 passer
 password
@@ -595,11 +607,13 @@ selection
 selector
 selmode
 semibold
+separator
 series
 services
 set
 setting
 settings
+settle
 settled
 shadow
 sheet
@@ -760,6 +774,8 @@ white
 wide
 width
 window
+with
+without
 wordmark
 words
 world

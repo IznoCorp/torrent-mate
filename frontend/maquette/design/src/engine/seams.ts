@@ -32,7 +32,13 @@ export type Bridge = {
   pushLayer: (layer: string) => void;
   back: () => void;
   rewind: (n: number) => void;
-  onBack: (callback: (state: unknown) => void) => () => void;
+  // The callback is handed the entry's state AND the direction the
+  // traversal came from: the same entry means opposite things stepped onto
+  // forwards and stepped back onto, and only the caller of `subscribe` can
+  // tell them apart.
+  onBack: (
+    callback: (state: unknown, direction: "BACK" | "FORWARD" | "GO") => void,
+  ) => () => void;
 };
 
 // One entry per migrated screen: what a legacy call site invokes instead of
@@ -55,6 +61,11 @@ export type Panel = {
   open: (descriptor: PanelDescriptor) => void;
   close: (pop?: boolean) => void;
   isOpen: () => boolean;
+  // Opening onto the entry that already records the panel — a Forward back
+  // onto a layer entry. The producer is run through this door, with the
+  // history write suppressed, because the entry it would push is the one
+  // being stood on.
+  openOnCurrentEntry: (open: () => void) => void;
 };
 
 // The published half of the same seam. It is declared HERE, beside the type it

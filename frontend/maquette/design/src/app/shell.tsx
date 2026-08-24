@@ -64,9 +64,17 @@ import { qualityRoute } from "../routes/quality";
 import { releasesRoute } from "../routes/releases";
 import { resolutionRoute } from "../routes/resolution";
 import { installSeams } from "../engine/seams";
-import { addressOf, destinationOf, SIGN_IN_PATH } from "../lib/addresses";
+import {
+  addressOf,
+  destinationOf,
+  HOME_PAGE,
+  isScreenPath,
+  PANEL_PARAMETER,
+  SIGN_IN_PATH,
+  withoutPanel,
+  withPanel,
+} from "../lib/addresses";
 import { go, installNavigation } from "../lib/navigate";
-
 
 // The bridge's contract, stated once. The verbs are the legacy nav cluster's
 // primitives, and their names are the fragment's own; the state objects
@@ -80,7 +88,13 @@ type Bridge = {
   // saying `back()` twice in the same task. `n` counts ENTRIES, and the
   // traversal is announced to the engine before it is issued.
   rewind: (n: number) => void;
-  onBack: (callback: (state: unknown) => void) => () => void;
+  // The callback is handed the entry's state AND the direction the
+  // traversal came from: the same entry means opposite things stepped onto
+  // forwards and stepped back onto, and only the caller of `subscribe` can
+  // tell them apart.
+  onBack: (
+    callback: (state: unknown, direction: "BACK" | "FORWARD" | "GO") => void,
+  ) => () => void;
 };
 
 // One entry per migrated screen: what a legacy call site invokes instead of
@@ -132,12 +146,26 @@ declare global {
     __address: {
       /** The sign-in screen's own path, so the engine writes it by name. */
       signInPath: string;
+      /** The page every other page sits on — the root of the hierarchy. The
+       * engine synthesises a stack from it on a cold link and steps back onto
+       * it when a tab is tapped, and neither is the engine's to name. */
+      homePage: string;
+      /** The name the addressed panel travels under, so the engine can ask
+       * whether an address carried one at all without spelling it itself. */
+      panelParameter: string;
+      /** A query string with the panel parameter taken off, rest verbatim. */
+      withoutPanel: (search: string) => string;
       compose: (state: Record<string, unknown>) => string;
-      parse: (pathname: string, search: string) => {
+      parse: (
+        pathname: string,
+        search: string,
+      ) => {
         page: string;
         dials: Record<string, string>;
         notFound?: string;
         signIn?: boolean;
+        panel?: string;
+        screen?: boolean;
       };
     };
     // The domain hooks and the probes read the engine's state through this.
@@ -309,14 +337,16 @@ window.__bridge = {
     window.__announcePops?.(n);
     history.go(-n);
   },
-  onBack: (callback: (state: unknown) => void) =>
+  onBack: (
+    callback: (state: unknown, direction: "BACK" | "FORWARD" | "GO") => void,
+  ) =>
     history.subscribe(({ action, location }) => {
       if (
         action.type === "BACK" ||
         action.type === "FORWARD" ||
         action.type === "GO"
       )
-        callback(location.state);
+        callback(location.state, action.type);
     }),
 };
 window.__routeur = router;
@@ -524,6 +554,54 @@ window.__screens = {
    dialog. Flushing keeps the ordering every caller already relies on, and the
    panel's own content changes in the same task as the class that reveals it,
    so the sheet never slides in showing the previous panel for a frame. */
+/* The address an addressed panel travels at — D1 read literally. The query
+   says how THIS surface is being looked at, and under a screen the surface IS
+   the screen: the panel hangs off the path one is already on, with whatever
+   else that address carries kept verbatim.
+
+   Composing it from `state.page` instead is not a cosmetic difference. A
+   screen is a ROUTE, mounted by the router, so pushing the page's own path
+   stops the route matching and the screen the operator linked to unmounts
+   behind the panel — measured on `/media/$provider/$id`. Off a screen, the
+   page composes its address as it always did: the page IS the surface
+   there. */
+function panelAddress(address: string): string {
+  if (isScreenPath(window.location.pathname))
+    return (
+      window.location.pathname + withPanel(window.location.search, address)
+    );
+  const { state } = window.__store.read();
+  return addressOf(String(state.page ?? ""), state, address);
+}
+
+/* Raised while a panel is being put back onto the entry that ALREADY records
+   it. It is the one case where a panel opens and history must not move: a
+   Forward lands on the layer entry the first open pushed, and that entry is
+   already there, already `{ layer: "sheet" }`, already carrying the panel's own
+   address. Pushing a second one would leave a duplicate the next Back spends
+   without taking the panel's address off. */
+let onCurrentEntry = false;
+
+/**
+ * Runs a producer's open with the history write suppressed.
+ *
+ * The producer is called through this door rather than handed an argument,
+ * because the argument would have to travel through every producer that opens
+ * a panel — and they open it by describing FACTS, which is the whole of what
+ * they are meant to know.
+ *
+ * Args:
+ *     open: The producer call that opens the panel.
+ */
+function openPanelOnCurrentEntry(open: () => void): void {
+  onCurrentEntry = true;
+  try {
+    open();
+  } finally {
+    onCurrentEntry = false;
+  }
+}
+
 function openPanel(descriptor: PanelDescriptor): void {
   // Same order as the legacy `openSheet`: the layer first, the history entry
   // second. This file is SHELL code — the seam itself — so it writes the store
@@ -531,19 +609,14 @@ function openPanel(descriptor: PanelDescriptor): void {
   flushSync(() =>
     store.write({ panelDescriptor: descriptor, panelOpen: true }),
   );
+  if (onCurrentEntry) return;
   try {
     // D1's second tier: a panel whose subject is stable travels in the query,
     // so a reload reopens it. One with no `address` is transient and keeps the
     // address it opened over.
     window.__bridge.pushLayer(
       "sheet",
-      descriptor.address
-        ? addressOf(
-            String(window.__store.read().state.page ?? ""),
-            window.__store.read().state,
-            descriptor.address,
-          )
-        : undefined,
+      descriptor.address ? panelAddress(descriptor.address) : undefined,
     );
   } catch (error) {
     // B-026's own residual: `window.__bridge` is assigned synchronously at this
@@ -583,6 +656,7 @@ window.__panel = {
   open: openPanel,
   close: closePanel,
   isOpen: isPanelOpen,
+  openOnCurrentEntry: openPanelOnCurrentEntry,
 };
 
 // The engine reads these three by import rather than off `window` — same
@@ -615,6 +689,9 @@ window.__store = store;
 // vocabulary, so nothing translates on the way across.
 window.__address = {
   signInPath: SIGN_IN_PATH,
+  homePage: HOME_PAGE,
+  panelParameter: PANEL_PARAMETER,
+  withoutPanel: withoutPanel,
   compose: (state) => addressOf(String(state.page ?? ""), state),
   parse: destinationOf,
 };

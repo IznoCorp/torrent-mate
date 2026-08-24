@@ -5,6 +5,16 @@ nothing left to close, left the application — losing every page the operator
 had walked through. A tab is a place one navigates to; it belongs in the
 history exactly as a screen does.
 
+RENEGOTIATED, and this paragraph is the record rather than a rewrite of
+history. « It belongs in the history exactly as a screen does » was read as
+« every tap is a step », and this rule held four backs undoing four taps in
+reverse. The constitution's § 16 says which taps are steps: opening a surface
+is an arrival and stacks, adjusting one — an inner tab, a lens, a sort — is a
+setting and replaces, and switching a top-level page stacks nothing at all
+because a destination is not a step of a journey. A tab is still IN the
+history: it is on the entry, which is what lets a back put it back. What it is
+no longer is an entry of its own.
+
 At the bottom of the stack a guard entry sits, so a back at the root has
 something to pop and the application is never left by surprise. Popping it says
 so and puts it back; a second back within five seconds does not, and lets the
@@ -82,23 +92,25 @@ async def main():
         check("the path can be walked", arrival is not None and arrival["page"] == "arr",
               str(arrival and arrival["page"]))
 
-        # ── and walked back, step by step, in reverse ──────────────────────
-        expected = [("lib", "inc"), ("lib", "cat"), ("acq", None), ("acq", None)]
-        got = []
-        for _ in expected:
-            await pg.go_back()
-            await pg.wait_for_timeout(300)
-            step = await where(pg)
-            got.append((step["page"], step["lens"]) if step else (None, None))
-        check("every back undoes one step",
-              [r[0] for r in got] == [a[0] for a in expected],
-              f"{[r[0] for r in got]} instead of {[a[0] for a in expected]}")
-        check("the change of lens included",
-              got[0][1] == "inc" and got[1][1] == "cat", str(got[:2]))
-        start = await where(pg)
-        check("and the first tab is found again",
-              start is not None and start["tab"] == "now",
-              str(start and start["tab"]))
+        # ── and walked back: the ARRIVALS, which is not every tap ──────────
+        # § 16 renegotiates what the walk above leaves behind, and the four
+        # taps are one of each kind. An inner tab and a lens are SETTINGS — the
+        # same surface looked at another way — and they replace the entry they
+        # are on; a top-level page is a destination rather than a step of a
+        # journey, so the stack under the walk is the entry page plus one. ONE
+        # back therefore leaves all three pages behind at once, which is the
+        # whole of rule 2: no platform makes a reader rewind the tabs they
+        # visited, and a Retour that undoes a lens is a Retour that refuses to
+        # let go of the screen.
+        await pg.go_back()
+        await pg.wait_for_timeout(320)
+        step = await where(pg)
+        check("one back leaves every page visited behind and lands on the entry page",
+              step is not None and step["page"] == "acq", str(step and step["page"]))
+        check("carrying the inner tab the walk had set — a setting travels ON the entry",
+              step is not None and step["tab"] == "follows", str(step and step["tab"]))
+        check("and the lens THAT entry carries, not the one set on the page since left",
+              step is not None and step["lens"] == "cat", str(step and step["lens"]))
 
         # ── a layer is what a back closes first ────────────────────────────
         await pg.evaluate("()=>openFollowSheet('Silo')")

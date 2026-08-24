@@ -255,7 +255,7 @@ import { screens, panel, bridge } from "./seams.js";
       t: "Kyma, l'onde mystérieuse",
       serie: null,
       since: "9 août",
-      searches: 12,
+      searches: 13,
       k: "movie",
       y: 2026,
       st: "pending",
@@ -336,7 +336,7 @@ import { screens, panel, bridge } from "./seams.js";
       t: "President Curtis",
       serie: "Continuing",
       since: "29 juillet",
-      searches: 19,
+      searches: 20,
       k: "show",
       y: 2026,
       st: "up_to_date",
@@ -10828,6 +10828,17 @@ import { screens, panel, bridge } from "./seams.js";
     if (entryCount > 0) unwindInProgress += 1;
   };
 
+  /* WHAT RUNS ONCE THE TRAVERSAL HAS LANDED, and there is at most one of it.
+     A caller that rewinds to an entry in order to write ON it cannot write in
+     the same task: the traversal is asynchronous, so the write would land
+     first and the pop would undo it. So the write is left here and the latch's
+     own consumption fires it — the one moment at which the destination entry
+     is certainly the current one.
+
+     Armed AFTER the traversal is issued, never before, so a traversal that
+     threw leaves no continuation waiting to fire on somebody else's unwind. */
+  let afterUnwind = null;
+
   /* Kept as a VERB the driver can still say: `touch.py`, `drag.py` and
      `machine.py` call `closeSheet()` from inside the page, and moving a layer
      to the shell must not take away the vocabulary that drives it. The layer
@@ -10947,6 +10958,37 @@ import { screens, panel, bridge } from "./seams.js";
   const BACK_WINDOW = 5000;
   let pilotage = false;
   let armedExit = 0;
+  /* WHETHER A HOME PAGE ENTRY LIES AT OR BENEATH THE CURRENT ONE, and it
+     FOLLOWS THE WRITES: every verb that lays a home entry down raises it, and
+     a write that was refused raises nothing. The page-switch verbs read it:
+     stepping BACK onto a floor that was never laid lands on the exit guard
+     instead, which arms the exit on an arrival the reader never made as a back
+     — and one gesture later the document is gone. Only an address nobody
+     serves has no floor; it is kept exactly as typed, so nothing is put under
+     it.
+
+     DERIVED FROM THE ARRIVAL it answered for the stack the boot had planned
+     rather than the one the document ended up with, and it went stale the
+     moment a later gesture laid a floor the boot had not: off an unserved
+     address, five tab round trips read a history depth of fourteen and twelve
+     Backs before the exit armed, where an ordinary arrival reads four and one.
+
+     It goes back DOWN in one place only — a Back that lands under the floor,
+     which no served arrival can reach — and the asymmetry is deliberate: a
+     stale true spends the exit guard, a stale false merely writes an entry
+     that could have been stepped onto.
+
+     False until a write raises it, which is safe rather than conservative:
+     nothing in the interface can switch page before the boot has run. */
+  let homeFloorExists = false;
+  /* WHETHER THE BOOT PUT NOTHING UNDER THE ARRIVAL, which is what an address
+     nobody serves is owed: it is kept exactly as typed. In such a session the
+     floor is not the boot's — it is wherever a later switch laid one — so it
+     can be BACKED OFF, and the flag above has to come down when it is. False
+     in every session that arrived at an address the model serves, where the
+     floor is the entry directly above the exit guard and nothing reaches
+     beneath it. */
+  let arrivalWithoutFloor = false;
 
   /* ── L'URL PORTE L'ÉTAT (DOIT-10) ─────────────────────────────────────
      « Chaque détail a son URL » is a rule of the constitution, and the
@@ -10979,6 +11021,10 @@ import { screens, panel, bridge } from "./seams.js";
      what state to carry on the entry, and how a back unwinds the layers. The
      engine says where it is; `window.__address` says what that is called. */
 
+  /* EVERY dial the address model declares travels on the entry, and that is
+     the whole of the list: a dial left off is one a back cannot put back, so
+     the address loses it while the interface keeps showing it — measured on
+     `maintTopic`, which was the one missing. */
   function navigationState() {
     return {
       tm: "nav",
@@ -10987,6 +11033,7 @@ import { screens, panel, bridge } from "./seams.js";
       libLens: currentState().libLens,
       libMode: currentState().libMode,
       libCat: currentState().libCat,
+      maintTopic: currentState().maintTopic,
     };
   }
 
@@ -11002,15 +11049,193 @@ import { screens, panel, bridge } from "./seams.js";
      one is now in, so it is the CURRENT entry and popping it lands on the
      previous arrival. Pushing the state being left instead puts the history
      one step ahead of the interface, and every back then overshoots by one —
-     measured, and it is the mistake this ordering exists to avoid. */
+     measured, and it is the mistake this ordering exists to avoid.
+
+     Returns:
+         Whether the entry was really written. The floor flag follows the
+         WRITES, so a caller that lays a home entry down has to be able to tell
+         a write that went through from one that was refused — a flag raised
+         over an entry nobody wrote is the stale true that spends the guard.
+         Driving the interface writes nothing, and answers so. */
   function recordPath() {
-    if (pilotage) return;
+    if (pilotage) return false;
     try {
       __bridge.record(navigationState(), window.__address.compose(currentState()));
+      return true;
     } catch (error) {
       console.error("noterLeChemin : écriture de navigation échouée", error);
       window.__navEchec = true;
+      return false;
     }
+  }
+
+  /* Records that the surface is being looked at ANOTHER WAY. § 16 rule 1
+     splits every navigation in two: opening a surface is an arrival and
+     stacks, adjusting one is a setting and replaces the entry it is on. A
+     filter, an inner tab, a sort or a lens recorded as an arrival is what
+     makes Retour undo a sort where the reader meant to leave the screen —
+     the single gesture that tells a web application from a native one.
+
+     The address is still WRITTEN, exactly as an arrival writes it: a setting
+     belongs in the URL (« chaque détail a son URL »), it simply does not
+     belong in the path one walked. Same catch as every other writer: a write
+     that fails leaves the address and the interface disagreeing, and a
+     disagreement nothing records is one nobody can find.
+
+     Returns:
+         Whether the entry was really rewritten, for the same reason
+         `recordPath` answers: a replace can hand the reader a home entry too,
+         and the floor flag may only follow a write that happened. */
+  function replacePath() {
+    if (pilotage) return false;
+    try {
+      __bridge.replace(navigationState(), window.__address.compose(currentState()));
+      return true;
+    } catch (error) {
+      console.error("replacePath: writing the navigation failed", error);
+      window.__navEchec = true;
+      return false;
+    }
+  }
+
+  /* Settles history for a top-level page switch the interface has ALREADY
+     applied. § 16 rule 2: the main pages are destinations, not steps of a
+     journey, so visiting them stacks nothing. Under any of them the stack is
+     the entry page plus at most one, which is what makes Retour from anywhere
+     land on the entry page and Retour from the entry page arm the exit guard.
+     No platform stacks the tabs one has visited, and a reader tapping Retour
+     to leave should not rewind their pages one by one.
+
+     Three verbs, and which applies is decided by the page one came FROM:
+     · from the entry page, the destination is PUSHED — the floor has to stay
+       beneath it, and replacing would send the first Retour into the guard;
+     · to the entry page, the floor is already one entry down, so it is stepped
+       BACK onto: pushing or replacing would leave two of it, and a Retour
+       that changes nothing;
+     · between two other pages, the top of the stack is REPLACED.
+     Tapping the page one is already on replaces too — it is not an arrival.
+
+     A LAYER'S ENTRY ON TOP is a shape this does not settle: `switchPageFromLayer`
+     does, and the two `data-*` sites that can be tapped over a layer route
+     there. What is left here is the arm for a layer entry reached WITHOUT one
+     of those sites — see the `onLayer` branch below.
+
+     Args:
+         leaving: The page id the interface was on before the write above. It
+             is read at the call site because the store already holds the
+             destination by the time history is settled — rendering first is
+             what keeps the switch instant. */
+  function switchPage(leaving) {
+    if (pilotage) return;
+    const arriving = currentState().page;
+    /* A LAYER'S ENTRY ON TOP, reached from a site that does not route to
+       `switchPageFromLayer` — which today means the tab bar, and only through
+       `node.click()`: hit-tested at the design's own viewport, every layer
+       kind covers the centre of every tab button, so no finger arrives here
+       with a layer up. The arm stays: it keeps the stack honest for the next
+       surface that offers a page switch over a layer, and the shape it guards
+       against is the one the BACK branch of the direction-aware reopen has to
+       step over. */
+    const onLayer = Boolean(history.state && history.state.layer);
+    if (arriving === leaving) return replacePath();
+    if (leaving === window.__address.homePage) {
+      /* PUSHED FROM HOME, so the entry this one is laid on IS the floor,
+         whatever the boot did or did not lay. The reader stands over a home
+         entry from here on, and the flag says so the moment the push does. */
+      if (recordPath()) homeFloorExists = true;
+      return;
+    }
+    if (arriving === window.__address.homePage && !onLayer) {
+      /* NO FLOOR, NO STEP BACK. The entry one down is then the exit guard,
+         and stepping onto it arms the exit from an arrival nobody made as a
+         back: the next back leaves the document, from a page whose whole
+         purpose is to offer a way out. The switch RECORDS instead — the
+         address as typed stays one back away, which is what a wrong address
+         is owed, and the guard sits one further down where it belongs.
+
+         AND THE ENTRY IT WRITES IS A HOME ENTRY. The reader is standing on it,
+         which is what « at or beneath » means, so the next switch away from
+         home stacks on a floor and the one after it steps back onto it. Left
+         false here, every later switch took this branch again and the depth
+         grew with every tab tapped. */
+      if (!homeFloorExists) {
+        if (recordPath()) homeFloorExists = true;
+        return;
+      }
+      try {
+        __bridge.back();
+      } catch (error) {
+        console.error("switchPage: stepping back onto the entry page failed", error);
+        window.__navEchec = true;
+      }
+      return;
+    }
+    /* Arriving home over a LAYER is the one way this last write hands the
+       reader a home entry — the layer's own entry takes the destination.
+       Between two other pages it swaps one page for another and leaves what is
+       beneath exactly as it was. */
+    if (replacePath() && arriving === window.__address.homePage)
+      homeFloorExists = true;
+  }
+
+  /* Settles history for a page switch made FROM A LAYER — the drawer's entries
+     and the account menu's « Profil et préférences », which are the page
+     switches a finger can reach while something is open over the page.
+
+     § 16 RULE 2 IS THE SAME RULE HERE, and it used to be read as « the
+     destination takes the layer's entry ». That leaves the ABANDONED page's
+     entry sandwiched underneath: from the médiathèque, the drawer's
+     Acquisition gave [guard, acq, médiathèque, acq] — a back from the entry
+     page landing on the page one had just left, two entries for the same page,
+     and three backs to leave. The rule allows exactly two shapes, and the
+     switch has to reach one of them: [guard, acq] arriving home, [guard, acq,
+     page] anywhere else.
+
+     Only a TRAVERSAL can, because no write reaches an entry below the current
+     one. So the walk goes down to the floor and the destination is settled on
+     it — and the settling waits for the pop, because a write issued in this
+     task would be overtaken by the traversal and undone. The interface is
+     already on the destination when the traversal runs (the caller renders
+     first, as every page switch does) and the pop is swallowed by the latch,
+     so nothing of the floor is ever drawn.
+
+     Args:
+         leaving: The page id the interface was on before the caller rendered
+             the destination — read at the call site for the same reason
+             `switchPage` reads it there. */
+  function switchPageFromLayer(leaving) {
+    if (pilotage) return;
+    const homePage = window.__address.homePage;
+    /* No floor to walk down to: the entry under the layer is an arrival nobody
+       serves, and the one below THAT is the exit guard. The layer's entry takes
+       the destination, which keeps the address as typed one back away.
+
+       AND THAT WRITE CAN LAY THE FLOOR ITSELF. The entry under the layer is the
+       page being left, so a switch made FROM home leaves a home entry beneath
+       the destination; a switch arriving home puts the reader on one. Either
+       way the floor exists from here on, and the walk down to it is what the
+       next switch owes the reader. */
+    if (!homeFloorExists) {
+      const written = replacePath();
+      if (written && (leaving === homePage || currentState().page === homePage))
+        homeFloorExists = true;
+      return;
+    }
+    /* WHAT THE LAYER STANDS ON, counted rather than guessed. Rule 2 leaves at
+       most one page entry above the floor, so the walk is the layer's own entry
+       plus the abandoned page's when the page one is leaving is not the floor
+       itself. A layer opened over a SCREEN would stand deeper — and no finger
+       can open one there: a screen covers the top bar's drawer control and the
+       whole tab bar, measured control by control, exactly as B-024 measured the
+       `data-go` producers. */
+    const entries = leaving === homePage ? 1 : 2;
+    __bridge.rewind(entries);
+    /* Armed after the traversal is issued: a pop cannot land before this task
+       ends, so this is in time, and a rewind that threw arms nothing. Arriving
+       home the floor IS the destination, so its address is settled in place;
+       anywhere else the destination is an arrival and stacks on the floor. */
+    afterUnwind =
+      currentState().page === homePage ? replacePath : recordPath;
   }
 
   /* The bridge announces a back the way `popstate` did — for a back, a
@@ -11018,17 +11243,27 @@ import { screens, panel, bridge } from "./seams.js";
      CURRENT, which is the entry the gesture landed on. That is what
      `popstate` reported too, so the reading below is unchanged.
 
+     It also hands over the DIRECTION (`BACK`, `FORWARD` or `GO`), which
+     `popstate` never carried and which one branch below cannot do without:
+     one entry shape means opposite things stepped onto forwards and stepped
+     back onto.
+
      The registration itself moved into window.__startEngine, below: like
      every other `__bridge` verb, it needs the REAL bridge to exist first, and
      nothing here forces that anymore — there is no pre-bridge queueing calls
      made before the module evaluates. */
-  function onEngineBack(etatCourant) {
-    // Our own unwind, announced by the layer that closed itself. It is not a
-    // back gesture and carries no destination: consuming it is the whole
-    // handling. Read before the layer guards, because the layer's class is
+  function onEngineBack(etatCourant, direction) {
+    // Our own unwind, announced by the caller that issued it. It is not a back
+    // gesture, so it is never INTERPRETED — but consuming it is no longer the
+    // whole handling: a caller that rewound in order to write on the entry it
+    // lands on leaves that write here, and this is the moment it becomes safe
+    // to make. Read before the layer guards, because the layer's class is
     // already gone by the time its pop lands.
     if (unwindInProgress) {
       unwindInProgress -= 1;
+      const settle = afterUnwind;
+      afterUnwind = null;
+      if (settle) settle();
       return;
     }
 
@@ -11042,9 +11277,89 @@ import { screens, panel, bridge } from "./seams.js";
       return;
     }
 
+    /* A layer entry stood on with nothing open, and the DIRECTION decides
+       which of two opposite things it is.
+
+       FORWARD: going back off a panel leaves its entry AHEAD in the history,
+       and stepping forward onto it fell through every branch below — no layer
+       is open, and the entry carries no `tm` — so the address read `?panel=…`
+       with nothing open, and a reload at it brought back what the gesture had
+       not. The entry names the panel in its own address, so it is asked for
+       again; nothing is pushed, because this entry IS the panel's. A value
+       that no longer resolves leaves the entry alone and says so.
+
+       BACK, or a jump: the entry is a closed panel's LEFTOVER, and reopening
+       it there would raise the panel over a page it was never opened on. The
+       shape comes from a tab-bar tap made while a panel is up: the tap closes
+       the panel WITHOUT popping and then records the new page on top of the
+       panel's entry, burying it. Backing over that page lands on a
+       `{ layer: "sheet" }` entry whose panel has long been closed — a place
+       the operator was never in and cannot be shown. So it is stepped OVER,
+       and one more back lands on the arrival entry beneath.
+
+       WHO CAN MAKE THAT SHAPE, measured rather than assumed. « The tab bar
+       sits above the layers » is what this paragraph used to say, and it is
+       false: hit-tested at the design's own viewport, the drawer, the account
+       menu, a follow panel and a covered screen each cover the centre of every
+       `#nav button[data-page]`. No finger reaches a tab over a layer. What
+       does reach it is `node.click()`, which is how the shape is produced and
+       held — and any future surface that puts a page switch over a layer will
+       reach it too. The branch guards the stack against that surface; it is
+       not dead, it is unreachable by touch on TODAY's layout.
+
+       That second pop is NOT announced to the unwind latch, and the absence is
+       the decision: the latch exists to make a pop a NO-OP, because a layer
+       closing itself is already where it wants to be. Here the interface is on
+       the page the tab-bar tap moved it to, and only the entry beneath can put
+       it back — so the pop must be READ, through the `tm: "nav"` branch below,
+       exactly as the operator's own second back would be. Announcing it was
+       measured: the latch swallowed it, and the address settled on the arrival
+       while the interface stayed on the page above it. */
+    if (etatCourant && etatCourant.layer === "sheet" && !panel.isOpen()) {
+      if (direction === "FORWARD") {
+        reopenAddressedPanel(location.search, true);
+        return;
+      }
+      __bridge.back();
+      return;
+    }
+
     const state = etatCourant;
     if (state && state.tm === "nav") {
       armedExit = 0;
+      /* BACK UNDER THE FLOOR, and it is a BACK that lowers the flag — never a
+         FORWARD — and only in a session that arrived without one. There the
+         floor was laid by a switch rather than by the boot, so a Back can land
+         beneath it: on the address as typed, or on a page that was reached
+         before any home entry existed. Neither has a home entry at or beneath
+         it, and left raised the way out those surfaces offer steps back onto
+         the exit guard and arms it on a tap — the very defect the flag exists
+         to prevent. Anything but a home entry lowers it, and the next switch
+         lays the floor again: a Back too many costs one entry, a flag left
+         raised costs the document.
+
+         WHY THE DIRECTION IS PART OF THE CONDITION. A FORWARD RETRACES, IT
+         DOES NOT DESCEND: stepping forward onto a nav entry lands on a page
+         that was already reached with the floor beneath it, so the floor is
+         still there and lowering the flag makes the next switch lay a SECOND
+         one. Measured on the flag lowered by any pop, a cold not-found arrival
+         escaped and then walked in Back+Forward cycles grew its stack by two
+         entries per cycle instead of none, and leaving took a Back per cycle
+         walked — the unbounded stack § 16 forbids, reached by a gesture the
+         platform offers on every device.
+
+         A GO is left alone on purpose. Its delta is not reported, so a jump
+         BACKWARDS past the floor cannot be told from a jump forwards, and the
+         flag is better left raised than lowered on a guess: raised, one page
+         switch too many lays a spare entry; lowered wrongly, the stack grows
+         without bound. Our own unwind is not a GO the way this reads it — it
+         is announced to the latch above and returns long before this line. */
+      if (
+        arrivalWithoutFloor &&
+        direction === "BACK" &&
+        state.page !== window.__address.homePage
+      )
+        homeFloorExists = false;
       pilotage = true;
       applyState({
         page: state.page,
@@ -11052,6 +11367,7 @@ import { screens, panel, bridge } from "./seams.js";
         libLens: state.libLens,
         libMode: state.libMode,
         libCat: state.libCat,
+        maintTopic: state.maintTopic,
       });
       pilotage = false;
       return;
@@ -11161,7 +11477,10 @@ import { screens, panel, bridge } from "./seams.js";
     if (!pilotage)
       try {
         __bridge.replace(navigationState(), window.__address.signInPath);
-      } catch (error) {}
+      } catch (error) {
+        console.error("sign-in gate: navigation write failed", error);
+        window.__navEchec = true;
+      }
   }
 
   function hideSignIn() {
@@ -11173,7 +11492,10 @@ import { screens, panel, bridge } from "./seams.js";
     if (wasShown && !pilotage)
       try {
         __bridge.replace(navigationState(), window.__address.compose(currentState()));
-      } catch (error) {}
+      } catch (error) {
+        console.error("sign-in release: navigation write failed", error);
+        window.__navEchec = true;
+      }
   }
 
   /* Signing out ends the session and lands on the entry screen.
@@ -11627,7 +11949,7 @@ import { screens, panel, bridge } from "./seams.js";
       SETTINGS_STATE.q = "";
       port.scrollTop = 0;
       render();
-      recordPath();
+      replacePath();
       return;
     }
     if (closest.dataset.setting) {
@@ -11705,11 +12027,12 @@ import { screens, panel, bridge } from "./seams.js";
     if (closest.dataset.page) {
       // Navigating CLOSES whatever is open above: without this, one changed
       // page while staying stuck on the media sheet.
+      const leaving = currentState().page;
       hideLayers();
       store.write({ page: closest.dataset.page });
       port.scrollTop = 0;
       render();
-      recordPath();
+      switchPage(leaving);
       return;
     }
     if (closest.dataset.go) {
@@ -11718,25 +12041,24 @@ import { screens, panel, bridge } from "./seams.js";
          page-body `#view` content, which sits under every layer and is
          therefore covered — untappable — the instant one is open (walked
          control by control, BUGS.md B-024). Landing must LEAVE the layer:
-         every layer closes without touching history, and the destination
-         takes the layer's entry, exactly as a drawer navigation settles
-         itself (see data-navgo): letting the close unwind and the arrival
-         push would race, the asynchronous pop landing after the push and
+         every layer closes without touching history, and history is settled
+         HERE, by `switchPageFromLayer`, exactly as a drawer navigation settles
+         itself (see data-navgo). Letting the close unwind and the arrival push
+         would race, the asynchronous pop landing after the push and
          overwriting it. */
       const onLayer = history.state && history.state.layer;
+      const leaving = currentState().page;
       closeDrawer(true);
       panel.close(true);
       // This empties the covered-screen STACK too, so the DOM ends up clean
-      // however many screens were stacked — but that is DOM bookkeeping
-      // only, not history: `__bridge.remplacer` below settles exactly ONE
-      // entry, on the assumption that at most one layer (drawer, sheet or a
-      // covered-screen stack — never several at once) precedes a `data-go`
-      // tap. B-024 found that assumption unenforced in code, then walked
-      // every producer and found it latent — non atteignable — because the
+      // however many screens were stacked — but that is DOM bookkeeping only,
+      // not history: the settling below walks the layer's entry plus at most
+      // one page entry, on the assumption that at most one layer (drawer,
+      // sheet or a covered-screen stack — never several at once) precedes a
+      // `data-go` tap. B-024 found that assumption unenforced in code, then
+      // walked every producer and found it latent — unreachable — because the
       // one producer that can sit over a layer allows at most the sheet
-      // itself. Held there, not fixed here; settling by entry count is
-      // owed if the ownership law lets more producers reach a buried layer
-      // (data-go's own migration, SP4d).
+      // itself.
       screenStack.length = 0;
       closeScreen(true);
       store.write({ page: closest.dataset.go });
@@ -11745,8 +12067,8 @@ import { screens, panel, bridge } from "./seams.js";
       port.scrollTop = 0;
       render();
       try {
-        if (onLayer) __bridge.replace(navigationState(), window.__address.compose(currentState()));
-        else recordPath();
+        if (onLayer) switchPageFromLayer(leaving);
+        else switchPage(leaving);
       } catch (error) {
         console.error("data-go : écriture de navigation échouée", error);
         window.__navEchec = true;
@@ -11757,7 +12079,7 @@ import { screens, panel, bridge } from "./seams.js";
       store.write({ acqTab: closest.dataset.acqtab });
       port.scrollTop = 0;
       render();
-      recordPath();
+      replacePath();
       return;
     }
     if (closest.dataset.lens) {
@@ -11769,7 +12091,7 @@ import { screens, panel, bridge } from "./seams.js";
       });
       port.scrollTop = 0;
       render();
-      recordPath();
+      replacePath();
       return;
     }
     if (closest.dataset.cat) {
@@ -12019,7 +12341,7 @@ import { screens, panel, bridge } from "./seams.js";
       store.write({ maintTopic: closest.dataset.maintopic || null });
       port.scrollTop = 0;
       render();
-      recordPath();
+      replacePath();
       return;
     }
     if (closest.dataset.maintact) {
@@ -12051,22 +12373,26 @@ import { screens, panel, bridge } from "./seams.js";
     if (closest.dataset.navgo) {
       const id = closest.dataset.navgo;
       /* The drawer is NOT a route, so its entry does not survive the
-         destination: the page one lands on TAKES ITS PLACE. A back from
-         there then reaches where one was before opening the drawer, which
-         is the only thing a drawer can honestly promise.
+         destination — and neither does the entry of the page one is leaving.
+         A drawer entry is a top-level destination like any other, so § 16
+         rule 2 applies to it whole: `switchPageFromLayer` walks down to the
+         floor and settles the destination there, which is what makes one back
+         from the destination reach the entry page and not the médiathèque one
+         happened to open the drawer from.
 
          This is also why history is settled here rather than by letting the
          close unwind and the arrival push: a back is asynchronous, so its
          pop would land after the push and overwrite it. The close is
          therefore told not to touch history at all. */
       const onDrawer = history.state && history.state.layer === "drawer";
+      const leaving = currentState().page;
       closeDrawer(true);
       store.write({ page: id });
       port.scrollTop = 0;
       render();
       try {
-        if (onDrawer) __bridge.replace(navigationState(), window.__address.compose(currentState()));
-        else recordPath();
+        if (onDrawer) switchPageFromLayer(leaving);
+        else switchPage(leaving);
       } catch (error) {
         console.error("data-navgo : écriture de navigation échouée", error);
         window.__navEchec = true;
@@ -33552,6 +33878,32 @@ import { screens, panel, bridge } from "./seams.js";
     );
   }
 
+  /* Does this interface HOLD a medium by that title?
+     `openFollowSheet` below answers for ANYTHING: a title it recognises in
+     none of its sources still gets a panel, synthesised from the title alone.
+     That is right for the in-app door — every medium opens the same panel, and
+     « rien n'est connu de celui-ci » is one of the truths a library title can
+     carry — and wrong for a door anyone can type, where the same fallback
+     turns a stale link into a medium that does not exist. So the question is
+     asked apart from the opening, and only an ADDRESS asks it.
+
+     THE MEMBERSHIP IS EXACT, and it reads the three sources the opener itself
+     matches exactly. A sheet is not a fourth one, deliberately: `sheetFor` is
+     built to be FORGIVING, because the lists it serves truncate their titles.
+     It answers on any prefix of more than six characters, and — being a
+     bracket read on a plain object — it answers for `constructor` and every
+     other name `Object.prototype` carries. Both hand back a title the opener
+     then finds in none of its own sources, so it synthesises exactly the
+     medium the address was meant to be refused for. A title that only has a
+     sheet is not a follow. */
+  function knownMedium(title) {
+    return (
+      world.follows.some((follow) => follow.t === title) ||
+      INCOMPLETE.some((entry) => entry.t === title) ||
+      LIBRARY.some((entry) => entry.t === title)
+    );
+  }
+
   function openFollowSheet(title) {
     const follow = world.follows.find((follow2) => follow2.t === title) ||
       INCOMPLETE.map((INCOMPLETE2) => ({
@@ -34380,6 +34732,105 @@ import { screens, panel, bridge } from "./seams.js";
      and the dismissal threshold. Nothing binds here anymore: `#sheetgrab` does
      not exist when this script runs. */
 
+  /* An ADDRESSED panel reopens on a cold load — otherwise its address would
+     be decoration, written but never read. The table is here, beside the
+     producers it names, and every entry answers TWO questions: how to open
+     the panel, and whether the subject is one this interface HOLDS.
+
+     THREE WAYS A VALUE IS REFUSED, and all three land the reader on the page
+     with a clean address rather than on a panel nobody serves: a value that
+     is not `<kind>:<subject>`, a kind the table does not carry, and a
+     subject nobody holds. The last is why `resolves` exists at all — the
+     producers answer for anything, which is right for the door inside the
+     application (see `knownMedium`) and wrong for a door anyone can type.
+
+     Split on the FIRST colon only, because a subject carries its own: a
+     setting is addressed `<file>:<key>`, and a title like « Dexter:
+     Resurrection » would otherwise name a medium that does not exist. */
+  const REOPEN = {
+    follow: { open: openFollowSheet, resolves: knownMedium },
+    journey: {
+      open: openJourneySheet,
+      /* A journey is reached from the follow panel's own action, which
+         carries the medium's title, and from nowhere else. So it answers for
+         a medium this interface holds, plus the acquisitions in flight —
+         which are what a journey describes. */
+      resolves: (subject) =>
+        knownMedium(subject) || INFLIGHT.some((entry) => entry.t === subject),
+    },
+    setting: {
+      open: openSetting,
+      resolves: (subject) =>
+        allSettings().some((setting) => settingId(setting) === subject),
+    },
+    action: {
+      open: openActionMaintenance,
+      resolves: (subject) =>
+        MAINT_ACTIONS.some((action) => action.id === subject),
+    },
+  };
+
+  /**
+   * Opens the panel an address names, when the interface holds its subject.
+   *
+   * ONE reader for `panel=`, and it is one because it is asked from two
+   * places: the boot, on a cold load, and a FORWARD back onto a layer entry.
+   * Two readers of one parameter are two answers waiting to differ, and the
+   * second of them was missing entirely — a Forward re-entered the panel's own
+   * entry with nothing open, so the address named a panel the interface was
+   * not showing and a reload at it brought back what the gesture had not.
+   *
+   * Args:
+   *     search: The query string the value is read from.
+   *     onCurrentEntry: True when the entry recording this panel already
+   *         exists and is the one being stood on, so nothing is pushed.
+   *
+   * Returns:
+   *     True when a panel was opened, false when the value was refused — a
+   *     refusal leaves the caller's entry alone and says why.
+   */
+  function reopenAddressedPanel(search, onCurrentEntry) {
+    const asked = window.__address.parse(location.pathname, search);
+    if (!asked.panel) return false;
+    const separator = asked.panel.indexOf(":");
+    const kind = separator > 0 ? asked.panel.slice(0, separator) : "";
+    const subject = separator > 0 ? asked.panel.slice(separator + 1) : "";
+    const entry = REOPEN[kind];
+    if (asked.notFound || !subject || !entry || !entry.resolves(subject)) {
+      /* ENGLISH, and not in the i18n resources: a console message is a tool
+         message, read by a developer, never by a reader of the interface.
+
+         AND IT SAYS WHICH REFUSAL IT IS. A panel asked for over an address
+         nothing serves is refused for the ADDRESS, not for the panel: the
+         subject may well be one this interface holds, and reporting it as
+         unheld sends the reader looking for a missing medium instead of a
+         mistyped path. */
+      console.warn(
+        asked.notFound
+          ? "the addressed panel is declined because the address itself is not served:"
+          : "the addressed panel names nothing this interface holds, and is ignored:",
+        asked.panel,
+      );
+      return false;
+    }
+    /* Under `pilotage` because nothing here records a path of its own. The
+       layer entry the panel pushes is not a path, and on a cold load it is
+       pushed regardless — that entry is the point. */
+    const pilotageBefore = pilotage;
+    pilotage = true;
+    try {
+      if (onCurrentEntry) panel.openOnCurrentEntry(() => entry.open(subject));
+      else entry.open(subject);
+    } catch (error) {
+      console.error("reopening the addressed panel failed", error);
+      window.__navEchec = true;
+      return false;
+    } finally {
+      pilotage = pilotageBefore;
+    }
+    return true;
+  }
+
   /* The engine no longer boots itself. The shell — store created, bridge
      real — starts it, so no write ever needs recording and replaying, and a
      module that never evaluates leaves the startup screen on screen: a
@@ -34403,9 +34854,28 @@ import { screens, panel, bridge } from "./seams.js";
        defect DOIT-10 names, and it is fixed here rather than corrected after
        a frame the operator would see. The page now travels in the PATH, so
        this reads both halves. */
-    const arrival = window.__address.parse(location.pathname, location.search);
+    /* Read ONCE, and kept: the writes below settle the address, so by the
+       time the panel is asked for at the end of this boot `location.search`
+       no longer carries what was typed. */
+    const arrivalSearch = location.search;
+    const arrival = window.__address.parse(location.pathname, arrivalSearch);
     Object.assign(state, { page: arrival.page }, arrival.dials);
-    if (arrival.notFound) state.notFound = arrival.notFound;
+    /* The address as asked, PANEL PARAMETER EXCEPTED — and it is taken off for
+       exactly the reason the arrival address below takes it off: a panel the
+       interface declined is not part of the address one is left on. This field
+       is not decoration, it is what every later write of this state COMPOSES,
+       so a parameter left in it comes back into the bar on the first Back.
+       Everything else the operator typed is kept, query included. Read off
+       what the model parsed rather than off `location` a second time: two
+       readings of one address are two answers waiting to differ. */
+    if (arrival.notFound) {
+      const queryAt = arrival.notFound.indexOf("?");
+      state.notFound =
+        queryAt < 0
+          ? arrival.notFound
+          : arrival.notFound.slice(0, queryAt) +
+            window.__address.withoutPanel(arrival.notFound.slice(queryAt));
+    }
     /* Kept from BEFORE the first render, because rendering an unknown id
        moves the state onto the not-found surface — and rewriting the
        address to match would make a mistyped link quietly become a
@@ -34418,11 +34888,41 @@ import { screens, panel, bridge } from "./seams.js";
        page's own address. A REPLACE, never a push — nothing is inserted, so
        the first Back still reaches the guard entry underneath rather than
        bouncing off a redirect. Any OTHER address is kept exactly as it was
-       asked for, which is the whole of the paragraph above. */
+       asked for, which is the whole of the paragraph above.
+
+       THE PANEL PARAMETER IS THE ONE THING TAKEN OFF, and it is taken off in
+       both branches, whether the panel reopens or not. A panel that reopens
+       pushes its OWN entry carrying its own address on top of this one, so
+       leaving it here too would put it on both and a Back off the panel would
+       land on an address still naming it. A panel that does NOT reopen was
+       declined, and an address naming a panel nothing opened is a parameter
+       the interface never honoured. Either way this entry is the page. */
     const arrivalAddress =
       location.pathname === "/"
         ? window.__address.compose(currentState())
-        : location.pathname + location.search;
+        : location.pathname + window.__address.withoutPanel(arrivalSearch);
+    /* TWO WAYS AN ADDRESSED PANEL IS DROPPED BEFORE ANYTHING CAN DECLINE IT,
+       and both used to be silent. An EMPTY value names no panel at all, and a
+       panel asked for over the SIGN-IN screen is never even read — the gate
+       covers everything, so there is nothing for a panel to open over. Either
+       way the parameter has just come off the arrival address above, and a
+       parameter that disappears without a word is one nobody can account for
+       from the outside. The value the interface DECLINES already says so; these
+       two are the values it never got as far as declining.
+
+       ENGLISH, and not in the i18n resources, like every other console
+       message: a developer reads it, never a reader of the interface. */
+    if (
+      !arrival.panel &&
+      new URLSearchParams(arrivalSearch).has(window.__address.panelParameter)
+    ) {
+      console.warn(
+        arrival.signIn
+          ? "the sign-in screen covers everything, so the addressed panel is dropped:"
+          : "the addressed panel carries no value, so nothing is opened:",
+        location.pathname + arrivalSearch,
+      );
+    }
     render();
     /* A cold `/login` raises the gate over a frame that is already drawn,
        which is the whole reason its address resolves to a page underneath
@@ -34433,38 +34933,29 @@ import { screens, panel, bridge } from "./seams.js";
       showSignIn(false);
       pilotage = false;
     }
-    /* An ADDRESSED panel reopens on a cold load — otherwise its address would
-       be decoration, written but never read. The table is here, beside the
-       producers it names, and a `<kind>` it does not carry is IGNORED rather
-       than guessed at: a stale link naming a panel nobody serves must land on
-       the page, never on an invented one. */
-    if (arrival.panel) {
-      const [kind, subject] = [
-        arrival.panel.slice(0, arrival.panel.indexOf(":")),
-        arrival.panel.slice(arrival.panel.indexOf(":") + 1),
-      ];
-      const REOPEN = {
-        follow: openFollowSheet,
-        journey: openJourneySheet,
-        setting: openSetting,
-        action: openActionMaintenance,
-      };
-      if (REOPEN[kind]) {
-        pilotage = true;
-        try {
-          REOPEN[kind](subject);
-        } catch (error) {
-          console.error("reopening the addressed panel failed", error);
-        }
-        pilotage = false;
-      }
-    }
     /* The address is put back on the entry one arrives on, so a back from
        anywhere reaches the page the link named rather than a bare
-       document. */
+       document.
+
+       EVERY WRITE BELOW RAISES THE FLAG LIKE EVERY OTHER WRITER, and there
+       are four of them on an ordinary page arrival — the arrival address, the
+       exit guard, the floor beneath the arrival and the arrival entry. The
+       count is the ARRIVAL's, not a law: the home page needs no floor and a
+       screen address puts its parent down as well.
+
+       They used to swallow, on the reading that a boot-time refusal leaves the
+       startup screen up rather than a rendered interface disagreeing with its
+       address — and that reading is false here: `render()` runs above, and
+       the startup screen comes off between the first write and the second.
+       A refusal here leaves a drawn interface on an address nobody wrote,
+       and the last of them is the entry the panel's own layer is stacked
+       on: lose it and the first Back spends the guard instead. */
     try {
       __bridge.replace(navigationState(), arrivalAddress);
-    } catch (error) {}
+    } catch (error) {
+      console.error("boot: writing the arrival address failed", error);
+      window.__navEchec = true;
+    }
     /* The interface exists from here on, so the startup screen has nothing
        left to cover — but it does not come off on that line. It comes off
        when the wait it covers RESOLVES, which is the only rule that serves
@@ -34475,7 +34966,59 @@ import { screens, panel, bridge } from "./seams.js";
        document opens on, so the guard has to BE that entry. */
     try {
       __bridge.replace({ tm: "garde" });
-    } catch (error) {}
+    } catch (error) {
+      console.error("boot: writing the exit guard failed", error);
+      window.__navEchec = true;
+    }
+    /* AND THE STACK UNDER IT IS SYNTHESISED FROM THE HIERARCHY. A link opened
+       from a message, a bookmark or a restored tab has no stack to unwind, so
+       what a Back finds under the arrival is built here — and what it finds is
+       the page the arrival BELONGS TO, never the home page by default: the
+       library under a media sheet, the arrivals under a resolution. The home
+       page is the FLOOR every other page stands on, which is what makes one
+       Back from any page land there and the exit guard reachable from one
+       place only.
+
+       The entries go on in hierarchy order and the arrival's own goes on LAST,
+       because the router renders by URL: an entry written after it would draw
+       another surface. They are all written before the first paint, so none of
+       the intermediate addresses is ever seen.
+
+       An address nobody serves gets no floor. It is kept exactly as it was
+       typed, and putting a page under it would answer a mistyped link with a
+       journey the operator never made. The sign-in screen gets none either:
+       it covers everything, so it belongs to no page and its own address is
+       already the home page's entry.
+
+       The parent is RENDERED as well as recorded — `state.page` is it, from
+       the same reading, above — so closing a screen reveals a page already in
+       place instead of whatever frame it happened to cover. */
+    const homePage = window.__address.homePage;
+    const beneath = [];
+    if (!arrival.notFound && (arrival.screen || arrival.page !== homePage)) {
+      beneath.push(homePage);
+      if (arrival.screen && arrival.page !== homePage) beneath.push(arrival.page);
+    }
+    /* AND AN ARRIVAL WITH NO FLOOR UNDER IT IS RECORDED AS SUCH, because a
+       Back can then go under the one a later switch lays — which is not true
+       of any session the boot laid a floor for. */
+    if (arrival.notFound) arrivalWithoutFloor = true;
+    for (const under of beneath) {
+      try {
+        __bridge.record(
+          Object.assign(navigationState(), { page: under }),
+          window.__address.compose(Object.assign({}, currentState(), { page: under })),
+        );
+        /* AND THE FLOOR FLAG FOLLOWS THE WRITE, not the plan the list above
+           holds: a push that was refused lays nothing, and a flag raised over
+           an entry nobody wrote sends the first tab tap stepping back onto the
+           exit guard. */
+        if (under === homePage) homeFloorExists = true;
+      } catch (error) {
+        console.error("boot: recording the entry beneath the arrival failed", error);
+        window.__navEchec = true;
+      }
+    }
     /* Pushed with the address one ARRIVED at rather than with the one the
        state now implies. Rendering an unknown id moves the state onto the
        not-found surface, and deriving the address from it here rewrote a
@@ -34484,7 +35027,26 @@ import { screens, panel, bridge } from "./seams.js";
        the address alone. */
     try {
       __bridge.record(navigationState(), arrivalAddress);
-    } catch (error) {}
+      /* ARRIVING ON THE HOME PAGE, the entry just written IS the floor: there
+         is nothing to lay under it, and the flag reads « at or beneath ». It
+         follows this write like every other — refused, the reader is left
+         standing on the guard's own entry, and the first switch away from home
+         lays a floor and raises the flag then. */
+      if (arrival.page === homePage) homeFloorExists = true;
+    } catch (error) {
+      console.error("boot: recording the arrival entry failed", error);
+      window.__navEchec = true;
+    }
+    /* AND THE PANEL LAST OF ALL, so its layer entry sits on top of the arrival
+       entry exactly as one opened from inside the application does. Opened
+       before the guard was written, the panel's entry was the one the guard's
+       marker replaced: the panel then had no entry of its own, closing it
+       consumed the guard's, `panel=` stayed in the address for good and the
+       « one more back to leave » warning could never arm.
+
+       It PUSHES that entry, which is what tells the reader apart from the
+       Forward the same function serves. */
+    reopenAddressedPanel(arrivalSearch, false);
     /* The welcome hint disappears on first interaction: a bubble that
        returns over an open sheet is a nuisance, not help. */
     let hintShown = false;

@@ -441,8 +441,365 @@ def arm_one_address(root: Path) -> int:
     return len(violations)
 
 
+_MEMBER_NAME = re.compile(r"[A-Za-z_$][\w$]*")
+# A key written in quotes, read off the SOURCE — the scanned text has had
+# its strings blanked, which is exactly why this cannot be read there.
+_QUOTED_KEY = re.compile(r"""['"]([A-Za-z_$][\w$]*)['"]""")
+
+
+def _skip_blank(text: str, offset: int) -> int:
+    """Find the first index at or after `offset` carrying no whitespace.
+
+    Args:
+        text: The source being read.
+        offset: Where to start looking.
+
+    Returns:
+        The index of the first non-blank character, or the text's length.
+    """
+    while offset < len(text) and text[offset].isspace():
+        offset += 1
+    return offset
+
+
+def _balanced(text: str, start: int, opener: str, closer: str) -> int:
+    """Find the delimiter closing the one at `start`.
+
+    Args:
+        text: The source being read.
+        start: The index of the opening delimiter.
+        opener: The opening delimiter.
+        closer: The closing delimiter.
+
+    Returns:
+        The closing delimiter's index, or -1 when it is never reached.
+    """
+    depth = 0
+    for offset in range(start, len(text)):
+        if text[offset] == opener:
+            depth += 1
+        elif text[offset] == closer:
+            depth -= 1
+            if depth == 0:
+                return offset
+    return -1
+
+
+# A comment, or a string literal in any of the three quotings. Ordered so the
+# first opener encountered wins: a `//` inside a block comment is comment text,
+# and a quote inside a comment opens nothing.
+_NOISE = re.compile(r"""//[^\n]*|/\*.*?\*/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`""", re.S)
+
+
+def _strip_noise(text: str) -> str:
+    """Blank every comment and string literal, leaving each offset where it was.
+
+    The reader below walks braces and matches on names, and both are fooled by
+    text that only LOOKS like code: a `// validateSearch: …` note was read AS a
+    member and failed the build over a legitimate comment. Blanking in place
+    keeps every offset aligned with the source, so a caller can locate a body
+    here and still slice it from the text it came from.
+
+    Args:
+        text: The source being read.
+
+    Returns:
+        The same text, every comment and string blanked out with spaces.
+    """
+    return _NOISE.sub(lambda noise: re.sub(r"[^\n]", " ", noise.group(0)), text)
+
+
+def _read_body(scan: str, cursor: int) -> tuple[int, int] | None:
+    """Find the span of a function's body, from its arrow or its opening brace.
+
+    An arrow may hand back a parenthesised object literal, so parentheses are
+    stepped over after the arrow. Anything else between the head and a brace
+    means the shape is one this reader does not follow — it says so, rather
+    than scanning on to an unrelated brace further down the file.
+
+    Args:
+        scan: The route text, with its comments and strings blanked.
+        cursor: The index of the arrow, or of the body's opening brace.
+
+    Returns:
+        The body's span, its braces excluded, or None.
+    """
+    if scan.startswith("=>", cursor):
+        cursor += 2
+        while cursor < len(scan) and (scan[cursor].isspace() or scan[cursor] == "("):
+            cursor += 1
+    if cursor >= len(scan) or scan[cursor] != "{":
+        return None
+    closing = _balanced(scan, cursor, "{", "}")
+    if closing == -1:
+        return None
+    return cursor + 1, closing
+
+
+def _read_callable(scan: str, offset: int) -> tuple[tuple[int, int], str, str] | None:
+    """Read one function's body span, declared return type and parameter list.
+
+    A return type may be written INLINE — `(raw): { page?: string } => …` — and
+    its brace sits exactly where a braced body's does. It is read as the TYPE,
+    the arrow behind it opening the body; the reader that took the first brace
+    it found measured the type, reported a body, and matched none of its keys.
+
+    Args:
+        scan: The route text, with its comments and strings blanked.
+        offset: The index of the `function` keyword, or of the parameter list.
+
+    Returns:
+        The body's span, the declared return type as written, and the SPAN of
+        the parameter list — or None when the shape is not one this reader
+        follows. The parameter list is handed back as a span and not as text
+        because a key there may be QUOTED, and quotes are blanked in `scan`:
+        only the caller, which holds the source, can read one.
+    """
+    if scan.startswith("function", offset):
+        cursor = _skip_blank(scan, offset + len("function"))
+        named = _MEMBER_NAME.match(scan, cursor)
+        offset = _skip_blank(scan, named.end()) if named else cursor
+    if offset >= len(scan) or scan[offset] != "(":
+        return None
+    closing = _balanced(scan, offset, "(", ")")
+    if closing == -1:
+        return None
+    parameters = (offset + 1, closing)
+    cursor = _skip_blank(scan, closing + 1)
+    returned = ""
+    if cursor < len(scan) and scan[cursor] == ":":
+        head = _skip_blank(scan, cursor + 1)
+        if scan[head:head + 1] == "{":
+            end = _balanced(scan, head, "{", "}")
+            if end == -1:
+                return None
+            returned = scan[head + 1:end]
+            cursor = _skip_blank(scan, end + 1)
+        else:
+            ends = [p for p in (scan.find("=>", cursor), scan.find("{", cursor)) if p != -1]
+            if not ends:
+                return None
+            returned = scan[cursor + 1:min(ends)].strip()
+            cursor = min(ends)
+    body = _read_body(scan, cursor)
+    return None if body is None else (body, returned, parameters)
+
+
+def _declaration_of(scan: str, name: str) -> int | None:
+    """Find where this file declares `name`, if it declares it at all.
+
+    Args:
+        scan: The route text, with its comments and strings blanked.
+        name: The referenced name.
+
+    Returns:
+        The offset a callable reader starts from, or None when this file
+        declares no such name.
+    """
+    escaped = re.escape(name)
+    declared = re.search(rf"\bfunction\s+{escaped}\s*\(", scan)
+    if declared:
+        return declared.start()
+    bound = re.search(rf"\b(?:const|let|var)\s+{escaped}\s*(?::[^=\n]*)?=\s*", scan)
+    return _skip_blank(scan, bound.end()) if bound else None
+
+
+def literal_keys(body: str, source: str | None = None) -> set[str]:
+    """Read the keys of every object literal in a function body.
+
+    A key sits in exactly one place: straight after the `{` that opens its
+    literal, or after a `,` at that same brace depth. The reader this replaces
+    took every `identifier :` in the text, so `const cfg: string` and the `acq`
+    of `raw.x ? acq : sys` were collected as page keys — and this arm is in
+    `make check` and in CI, so an invented key fails the build over a body that
+    reads nothing at all. The body is scanned as a literal itself: an arrow
+    handing back `({ … })` gives its object over with the braces stripped.
+
+    A KEY MAY BE QUOTED — `({ "page": … })` is the same declaration as
+    `({ page: … })` — and a quote is blanked out of the scanned text, so the
+    source is read alongside it. `_strip_noise` blanks IN PLACE, which is what
+    makes the two line up offset for offset.
+
+    Args:
+        body: The function body, without its own braces, comments and strings
+            blanked.
+        source: The same body unblanked, of the same length. Omitted, a quoted
+            key simply is not read.
+
+    Returns:
+        Every key name the body's object literals declare.
+    """
+    keys: set[str] = set()
+    scan = "{" + body + "}"
+    written = "{" + source + "}" if source is not None else None
+    depth: list[str] = []
+    expecting = False
+    index = 0
+    while index < len(scan):
+        character = scan[index]
+        if character in "{[(":
+            depth.append(character)
+            expecting = character == "{"
+        elif character in "}])":
+            if depth:
+                depth.pop()
+            expecting = False
+        elif character == ",":
+            expecting = bool(depth) and depth[-1] == "{"
+        elif not character.isspace():
+            named = _MEMBER_NAME.match(scan, index)
+            if named is not None:
+                if expecting and scan[_skip_blank(scan, named.end()):][:1] == ":":
+                    keys.add(named.group(0))
+                expecting = False
+                index = named.end()
+                continue
+            expecting = False
+        elif written is not None and expecting and written[index] in "\"'":
+            quoted = _QUOTED_KEY.match(written, index)
+            if quoted is not None and scan[_skip_blank(scan, quoted.end()):][:1] == ":":
+                keys.add(quoted.group(1))
+                expecting = False
+                index = quoted.end()
+                continue
+        index += 1
+    return keys
+
+
+def _destructured_keys(parameters: str) -> set[str]:
+    """Read the query keys a destructured parameter list binds.
+
+    `({ page, ...rest }) => …` reads the query as surely as `raw.page` does, and
+    the reader that never looked at the parameter list saw neither.
+
+    A bound key may be QUOTED — `({ "page": asked }) => …` binds the query's
+    `page` under another name — so the parameter list is read from the SOURCE
+    and both spellings are collected.
+
+    Args:
+        parameters: The parameter list, without its parentheses, as written.
+
+    Returns:
+        Every name bound at a property's position.
+    """
+    keys: set[str] = set()
+    for pattern in re.findall(r"\{([^{}]*)\}", parameters):
+        for entry in pattern.split(","):
+            named = re.match(r"""\s*(?:['"]([A-Za-z_$][\w$]*)['"]|([A-Za-z_$][\w$]*))""",
+                             entry)
+            if named:
+                keys.add(named.group(1) or named.group(2))
+    return keys
+
+
+def validate_search_bodies(text: str) -> tuple[list[tuple[str, str, str]], list[str]]:
+    """Read every `validateSearch` member of a route file, bounded to the member.
+
+    The file is stripped of its comments and its string literals first — a
+    comment naming the member was read AS the member — and every offset below is
+    taken from that stripped text, while the body is sliced from the source, so
+    a `raw["page"]` still reads as the key it is.
+
+    The search is anchored on the member and follows only what may legally sit
+    there: `: (…) =>`, `: function`, the method shorthand `(…) {`, or a bare
+    NAME — a reference to a function declared in the same file. The unbounded
+    reader this replaces took the next `=>` ANYWHERE below the member, so a
+    reference read an unrelated block. A name followed by `(` is a CALL, not a
+    reference: what it hands back is decided at runtime, so the reader says it
+    cannot read that member rather than measuring the callee's own body and
+    counting it as this one's.
+
+    A member that resolves to nothing is not silence: the reader says it cannot
+    read it, because a body nobody read is a body nobody holds — and it says
+    WHICH way it failed, a name this file declares nowhere being a different
+    defect from a name declared in a shape the reader does not follow.
+
+    Args:
+        text: The route file's source.
+
+    Returns:
+        A pair — one (body, declared return type, parameter list) per member
+        read, and one sentence per member whose body could not be reached.
+    """
+    readings: list[tuple[str, str, str]] = []
+    unreadable: list[str] = []
+    scan = _strip_noise(text)
+    for member in re.finditer(r"\bvalidateSearch\s*[:(]", scan):
+        cursor = member.end() - 1
+        if scan[cursor] == "(":
+            reading = _read_callable(scan, cursor)
+        else:
+            cursor = _skip_blank(scan, cursor + 1)
+            if scan.startswith("function", cursor) or scan[cursor:cursor + 1] == "(":
+                reading = _read_callable(scan, cursor)
+            else:
+                named = _MEMBER_NAME.match(scan, cursor)
+                after = _skip_blank(scan, named.end()) if named else cursor
+                if named is None:
+                    reading = None
+                elif scan.startswith("=>", after):
+                    # A single parameter needs no parentheses: `raw => ({ … })`.
+                    span = _read_body(scan, after)
+                    reading = None if span is None else (span, "", named.span())
+                elif scan[after:after + 1] == "(":
+                    reading = None
+                else:
+                    declared = _declaration_of(scan, named.group(0))
+                    if declared is None:
+                        unreadable.append(
+                            f"its validateSearch names « {named.group(0)} », which this file "
+                            f"declares nowhere — the reader cannot read that body, and a body "
+                            f"nobody read is a body nobody holds")
+                        continue
+                    reading = _read_callable(scan, declared)
+        if reading is None:
+            unreadable.append(
+                "its validateSearch is written in a shape this reader does not follow — "
+                "it cannot read that body, and a body nobody read is a body nobody holds")
+            continue
+        (start, end), returned, (opened, closed) = reading
+        readings.append((text[start:end], returned, text[opened:closed]))
+    return readings, unreadable
+
+
+def engine_page_ids(root: Path) -> list[str]:
+    """Read the page ids the engine's own `PAGES_OF()` declares.
+
+    The array is extracted by counting brackets before its entries are read:
+    a bare `id: "…"` pattern over the whole module would collect every other
+    identifier in thirty thousand lines, and a line-anchored one would depend
+    on an indentation the formatter owns.
+
+    Args:
+        root: The directory to read.
+
+    Returns:
+        The ids, in declaration order; an empty list when the engine or the
+        declaration is absent.
+    """
+    engine = root / "engine" / "legacy.js"
+    if not engine.is_file():
+        return []
+    text = engine.read_text(encoding="utf-8")
+    declaration = text.find("const PAGES_OF")
+    if declaration == -1:
+        return []
+    opening = text.find("[", declaration)
+    if opening == -1:
+        return []
+    depth = 0
+    for offset, character in enumerate(text[opening:], opening):
+        if character == "[":
+            depth += 1
+        elif character == "]":
+            depth -= 1
+            if depth == 0:
+                return re.findall(r'id:\s*"([^"]+)"', text[opening:offset])
+    return []
+
+
 def arm_addressing(root: Path) -> int:
-    """Refuse a page identity in a query, or a dial in a path.
+    """Refuse a page identity in a query, a dial in a path, an undeclared screen, or a page table nothing serves.
 
     Invariant 1 says the URL and the interface never contradict each other, and
     D1 says which half carries what: the PATH carries the identity — which thing
@@ -458,6 +815,21 @@ def arm_addressing(root: Path) -> int:
     It extends this guard rather than sitting beside it as a second script —
     L02's lesson, paid for once already.
 
+    It also holds the SCREEN paths, and that is a contract with three ends: the
+    `SCREEN_PARENTS` table declares them, the route files serve them, and this
+    reads both and refuses a difference. A screen is a layer over a page rather
+    than a page of its own, so a route the table does not carry resolves to the
+    not-found page underneath the screen — invisible until the screen closes,
+    which is why an offline reader is what catches it. The table's VALUES are
+    held too: the page a screen belongs to has to be a page `PAGE_PATHS`
+    carries, or the screen closes onto a surface nothing can draw.
+
+    And the PAGES, against the engine that draws them: `PAGE_PATHS` says which
+    path names a page, `PAGES_OF()` says which pages exist, and a page in one
+    and not the other is either an address leading nowhere or a surface nobody
+    can link to. The not-found page is the engine's alone — it names a surface
+    rather than a place, and composes the address it was asked for.
+
     Args:
         root: The directory to read.
 
@@ -466,21 +838,52 @@ def arm_addressing(root: Path) -> int:
     """
     violations = []
     model = root / "lib" / "addresses.ts"
+    declaration = model.read_text(encoding="utf-8") if model.is_file() else ""
     # The dial names come from the model itself, never from a list written
     # here: a second list is how the two drift, and this one would drift
     # silently because nothing renders it.
-    dials = set(re.findall(r'parameter:\s*"([^"]+)"', model.read_text(encoding="utf-8"))) if model.is_file() else set()
-    dials.update(re.findall(r'PANEL_PARAMETER = "([^"]+)"',
-                            model.read_text(encoding="utf-8")) if model.is_file() else [])
-    pages = set(re.findall(r'^\s{2}(\w+):\s*"/',
-                           model.read_text(encoding="utf-8"), re.M)) if model.is_file() else set()
+    dials = set(re.findall(r'parameter:\s*"([^"]+)"', declaration))
+    dials.update(re.findall(r'PANEL_PARAMETER = "([^"]+)"', declaration))
+    pages = set(re.findall(r'^\s{2}(\w+):\s*"/', declaration, re.M))
+    # The same reading, one level over: the page table's VALUES are the paths a
+    # page claims, and the screen table's entries are the paths a screen does.
+    page_paths = set(re.findall(r'^\s{2}\w+:\s*"(/[^"]*)"', declaration, re.M))
+    # The screen table is read as PAIRS — the path a screen answers and the
+    # page it belongs to. The parent is half the declaration: a screen resolves
+    # to it, and a page nobody serves put underneath one is the not-found
+    # surface again, only spelled differently.
+    screen_parents = dict(re.findall(r'^\s{2}"(/[^"]*)":\s*"(\w+)"', declaration, re.M))
+    screen_paths = set(screen_parents)
+    # The page table read as PAIRS as well: a path the table promises and no
+    # route file answers is an address that reaches the not-found page, and
+    # only the pair can name the page it was promised for.
+    page_addresses = dict(re.findall(r'^\s{2}(\w+):\s*"(/[^"]*)"', declaration, re.M))
+
+    # The model is the whole of what this arm reads, so a tree without it — or
+    # a model that reads to nothing — must not read clean: a reader that stays
+    # green over a tree it cannot read is the failure `arm_cycles` names. The
+    # route scan below still runs, so the summary always describes what was
+    # actually read.
+    if not model.is_file():
+        violations.append(
+            "lib/addresses.ts: the address model is missing — the arm has nothing "
+            "to read, and a reader that stays green over a tree it cannot read is "
+            "the failure `arm_cycles` names")
+    elif not pages or not dials:
+        violations.append(
+            f"lib/addresses.ts: the address model reads {len(pages)} page(s) and "
+            f"{len(dials)} dial(s) — a gutted model is the same blindness as a "
+            f"missing one")
 
     routes = root / "routes"
     files = sorted(routes.glob("*.tsx")) + sorted(routes.glob("*.ts")) if routes.is_dir() else []
+    served = set()
+    bodies_read = 0
     for file in files:
         module = file.relative_to(root).as_posix()
         text = file.read_text(encoding="utf-8")
         for path in re.findall(r'^\s*path:\s*"([^"]+)"', text, re.M):
+            served.add(path)
             # A dial promoted into the path — the shape D1 names and forbids.
             for segment in [s for s in path.split("/") if s and not s.startswith("$")]:
                 if segment in dials:
@@ -505,8 +908,96 @@ def arm_addressing(root: Path) -> int:
             violations.append(
                 f"{module}: declares « {name} » as a search parameter — "
                 f"a page is an identity, and identity travels in the path")
+
+        # The same declaration written INLINE in `validateSearch`, with no
+        # named type to read: `validateSearch: (raw) => ({ page: … })`. The
+        # named-type reader above saw only declared types, so a route reading a
+        # page id straight out of the raw query escaped it entirely. The body is
+        # read BOUNDED to its own member, and then everything it reads, returns,
+        # names as its return type or binds in its parameters is collected. A
+        # member whose body cannot be reached is a violation in its own right,
+        # because a reader silent over what it could not read is the blindness
+        # this file exists to refuse.
+        inline = set()
+        readings, unreadable = validate_search_bodies(text)
+        bodies_read += len(readings)
+        for sentence in unreadable:
+            violations.append(f"{module}: {sentence}")
+        for body, returned, parameters in readings:
+            # The body is the SOURCE slice, so a quoted key still reads as one;
+            # everything that scans for CODE reads it with its noise blanked.
+            code = _strip_noise(body)
+            inline.update(re.findall(r"""raw\s*(?:\?\.)?\[\s*['"](\w+)['"]\s*\]""", body))
+            inline.update(re.findall(r"raw\s*\??\.\s*(\w+)", code))
+            inline.update(re.findall(r"read\.(\w+)\s*=", code))
+            inline.update(literal_keys(code, body))
+            inline.update(_destructured_keys(parameters))
+            # A return type written INLINE declares its keys right here rather
+            # than under a name — and a name carries no colon, so one read
+            # serves both shapes.
+            inline.update(re.findall(r"(\w+)\s*\??\s*:", returned))
+            for named in re.findall(r"\w+", returned):
+                for shape in re.findall(
+                        rf"type\s+{re.escape(named)}\s*=\s*\{{([^{{}}]*)\}}", text, re.S):
+                    inline.update(re.findall(r"(\w+)\s*\??\s*:", shape))
+        for name in sorted(inline & (pages | {"page"})):
+            violations.append(
+                f"{module}: reads « {name} » inline in its validateSearch — "
+                f"a page is an identity, and identity travels in the path")
+
+    # A route that is neither a page's path nor the root is a SCREEN, and the
+    # model has to say so — the two ends are compared, never merged.
+    screen_routes = {path for path in served if path not in page_paths and path != "/"}
+    for path in sorted(screen_routes - screen_paths):
+        violations.append(
+            f'lib/addresses.ts: "{path}" is served by a route and declared by no SCREEN_PARENTS '
+            f"entry — it would resolve to the not-found page underneath its screen")
+    for path in sorted(screen_paths - screen_routes):
+        violations.append(
+            f'lib/addresses.ts: SCREEN_PARENTS declares "{path}", which no route serves — '
+            f"a declaration outliving its route is how the table stops describing the tree")
+    for path, parent in sorted(screen_parents.items()):
+        if parent not in pages:
+            violations.append(
+                f'lib/addresses.ts: SCREEN_PARENTS puts « {parent} » under "{path}", and '
+                f"PAGE_PATHS carries no such page — the screen would close onto a page "
+                f"nothing can draw or address")
+    for page, path in sorted(page_addresses.items()):
+        if path not in served:
+            violations.append(
+                f'lib/addresses.ts: PAGE_PATHS gives the page « {page} » the address "{path}", '
+                f"which no route file serves — the address the table promises reaches the "
+                f"not-found page instead")
+
+    # And the PAGES themselves, against the engine that draws them. The table
+    # says which path names a page; `PAGES_OF()` says which pages exist. A page
+    # in one and not the other is an address leading nowhere or a surface
+    # nobody can link to — invisible either way until someone types the
+    # address, which is the case an offline reader is for. The not-found page
+    # is the one id that is the engine's alone: it names a surface rather than
+    # a place, so it has no path by design — it composes the address it was
+    # asked for.
+    declared_not_found = set(re.findall(r'NOT_FOUND_PAGE = "([^"]+)"', declaration))
+    engine_pages = set(engine_page_ids(root))
+    if engine_pages:
+        for page in sorted(engine_pages - pages - declared_not_found):
+            violations.append(
+                f'engine/legacy.js: PAGES_OF() declares the page « {page} », which '
+                f"PAGE_PATHS gives no address — a surface nobody can link to")
+        for page in sorted(pages - engine_pages):
+            violations.append(
+                f'lib/addresses.ts: PAGE_PATHS declares an address for « {page} », which '
+                f"PAGES_OF() does not draw — an address leading nowhere")
+    elif (root / "engine" / "legacy.js").is_file():
+        violations.append(
+            "engine/legacy.js: PAGES_OF() reads to nothing — the page tables cannot be "
+            "held against each other, and a reader that stays green over a declaration "
+            "it cannot read is the failure `arm_cycles` names")
+
     print(f"  addressing: {len(files)} route file(s), {len(dials)} dial(s), "
-          f"{len(pages)} page(s), {len(violations)} violation(s)")
+          f"{len(pages)} page(s) against {len(engine_pages)} the engine draws, "
+          f"{len(screen_paths)} screen(s), {bodies_read} validateSearch body(ies) read, "
+          f"{len(violations)} violation(s)")
     for entry in violations:
         print("    " + entry, file=sys.stderr)
     return len(violations)
