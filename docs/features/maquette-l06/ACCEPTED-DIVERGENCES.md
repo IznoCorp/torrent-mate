@@ -123,3 +123,19 @@ slides down by the same), the Configuration panel's fields go 14 → 16 px
 (+2.7 px per field, +5.4 where two stack), and the settings page follows its
 own search field. Nothing horizontal, no label wrapped — the growth is the
 field boxes' own line-height, nowhere a text reflow.
+
+### 3.3 + the font-shorthand repair (text 85 → 0, and the arm learns `font:`)
+
+50 divergences. The six value-changing folds of 3.3 and the two of the
+shorthand repair account for every line; the poster-fallback letters
+(26→27, 30→27) and the drawer's version figure live in fixed-ratio boxes and
+move no rect at all.
+
+| states | signature | reason |
+| --- | --- | --- |
+| 45+1 | shell/dialog y +0.7, height −1.3/−1.4 | `.dlg h2` 15 → `--text-5` (14): one heading line at ratio line-height, centered box |
+| 2 | shell/sign-in y −1.4 | `.brandbig .wm` 21 → `--text-7` (19): the wordmark above the card shrinks, the centered form rises |
+| 1 | shell/install-bar y +1, height −1 | `.installgo` 12.5 → `--text-3` (12), the shorthand literal the arm could not see |
+| 1 | shell/save-bar y +1, height −1 | `.savebar button` 13.5 → `--text-4` (13), the other hidden half-pixel |
+
+No width, no x, no wrap.

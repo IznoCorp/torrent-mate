@@ -1,6 +1,6 @@
 {
   "$comment": "The recorded oracle's reference — `frontend/maquette/oracle.py`. One entry per (named state x region): a bounding rectangle rounded to one decimal, and the computed properties of `regions.json`'s `probe.computedStyleSubset`. `null` means the region's selector matched nothing in that state, which is data rather than an omission. Regenerate with `--record`; entérine a REVIEWED change with `--accept`, never from a gate.",
-  "baseCommit": "6f8c38ba8da525ce5dfcc74c350b5dd842562d26",
+  "baseCommit": "821518c4114a173501152be4a5478bed7e29ce3f",
   "platform": "Darwin/arm64",
   "counts": {
     "states": 83,
@@ -8178,9 +8178,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -8561,9 +8561,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -8973,9 +8973,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -9385,9 +9385,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -9768,9 +9768,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -10180,9 +10180,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -10621,9 +10621,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -11033,9 +11033,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -11445,9 +11445,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -12855,9 +12855,9 @@
         "matches": 1,
         "rect": {
           "x": 16,
-          "y": 183.4,
+          "y": 184.1,
           "width": 358,
-          "height": 477.3
+          "height": 475.9
         },
         "style": {
           "position": "absolute",
@@ -13412,9 +13412,9 @@
         "matches": 1,
         "rect": {
           "x": 16,
-          "y": 141.1,
+          "y": 141.8,
           "width": 358,
-          "height": 561.8
+          "height": 560.5
         },
         "style": {
           "position": "absolute",
@@ -13969,9 +13969,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -14526,9 +14526,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -16696,9 +16696,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -18808,9 +18808,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -19191,9 +19191,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -19574,9 +19574,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -19957,9 +19957,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -20456,9 +20456,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -21042,9 +21042,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -21628,9 +21628,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -22214,9 +22214,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -22742,9 +22742,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -23183,9 +23183,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -23566,9 +23566,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -23949,9 +23949,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -24421,9 +24421,9 @@
         "matches": 1,
         "rect": {
           "x": 0,
-          "y": 646.7,
+          "y": 647.7,
           "width": 390,
-          "height": 127.3
+          "height": 126.3
         },
         "style": {
           "position": "absolute",
@@ -26096,9 +26096,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -26479,9 +26479,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -26601,9 +26601,9 @@
         "matches": 1,
         "rect": {
           "x": 0,
-          "y": 727,
+          "y": 728,
           "width": 390,
-          "height": 59
+          "height": 58
         },
         "style": {
           "position": "absolute",
@@ -26891,9 +26891,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -27274,9 +27274,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -27657,9 +27657,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -28040,9 +28040,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -28423,9 +28423,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -28806,9 +28806,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -29189,9 +29189,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -29572,9 +29572,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -29955,9 +29955,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -30338,9 +30338,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -30721,9 +30721,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -31104,9 +31104,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -31487,9 +31487,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -31870,9 +31870,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -33789,7 +33789,7 @@
         "matches": 1,
         "rect": {
           "x": 25,
-          "y": 329.1,
+          "y": 327.7,
           "width": 340,
           "height": 282.2
         },
@@ -34201,7 +34201,7 @@
         "matches": 1,
         "rect": {
           "x": 25,
-          "y": 315,
+          "y": 313.6,
           "width": 340,
           "height": 310.3
         },
@@ -34783,9 +34783,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -35166,9 +35166,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -35549,9 +35549,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
@@ -35932,9 +35932,9 @@
         "matches": 1,
         "rect": {
           "x": 23.2,
-          "y": 152.3,
+          "y": 153,
           "width": 343.7,
-          "height": 539.3
+          "height": 538
         },
         "style": {
           "position": "absolute",
