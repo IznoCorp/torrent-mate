@@ -45,7 +45,7 @@ stale table read as current for three days.
 |                            |                                                                                                                                                                                                                                                                                                                                             |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Last landed**            | **Phase 8–13 of L05 — the repair wave**, PR **#484**, merged 2026-08-24, version 0.98.27, squash `a49ff84f`. B-043…B-048 closed; the operator's § 16 rules 1–3 (D1b) landed as phase 11; R82 `journey.py` carved out of R69; five review cycles (the fifth's one bounded excursion is recorded in § Review cycles). Both references re-recorded from `main`'s tip at `a49ff84f` and verified ancestors of `HEAD`; hold counts 1 034 → 1 210, movements: `url_state.py` 26→99, `journey.py` new 66, `panel.py` 18→50, `server.py` 7→12 — all up, all named |
-| **In flight**              | **none.** A wave writes its own row here when its pull request opens, and the post-merge steps move it to « Last landed » (§ 5 of the architecture file) |
+| **In flight**              | **L06 — The scale**, Phase 2. Branch `feat/maquette-l06`, version 0.98.29, PR **#TBD-486+**. Design at `docs/features/maquette-l06/DESIGN.md` — six decisions proposed (D-L06-1…6), one of which WIDENS the lot's letter (all three field sizes to 16 px, not only the search) and is flagged for the operator. Plan pending |
 | **Next**                   | **L06 — The scale**, Phase 2, with `/implement:feature` (codename `maquette-l06`): no wave opens without its design and its plan. It inherits the 42 contrast findings and the 16 px search field (architecture file § L06). The lots run strictly in sequence |
 | **Before it**              | L03 — PR **#475**, version 0.98.18 · L02 — PR **#470**, version 0.98.13 · L01 — PR **#467**, version 0.98.10. All three archived under `docs/archive/features/`; L04 and L05 are archived beside them (L04 by #482, L05 by this pull request) |
 | **What decides the order** | `docs/reference/frontend-architecture.md`, never this table. This table says only where the work STANDS                                                                                                                                                                                                                                     |
@@ -69,12 +69,10 @@ repository.
 53 flat `.py` files (recorded and deliberately unscheduled), and B-036 / B-040, which belong to
 their own waves.
 
-**Next action**: **L06 — The scale** with `/implement:feature`. The three post-merge steps of
-#484 are DONE (this pull request carries them): both references re-recorded from `main`'s tip
-`a49ff84f`, every hold-count movement named above, the row moved, `docs/archive/features/maquette-l05/` (moved here)
-archived. One recurrence handled on the way: the watcher cron (03:10) moved `acquire.db` again
-(Furious 12→13, President Curtis 20→21) and the follow fixture was regenerated with
-`scripts/refresh-maquette-fixture.py --apply` — the live-DB rule class stays an open point.
+**Next action**: generate the plan (`/implement:plan`, dispatched), then `/implement:phase`.
+The design's six decisions are the operator's to overturn before implementation (§ 15: a wave's
+choices are the operator's arbitrage); D-L06-6 widens the lot's letter and is the one most
+worth their eye.
 
 ### Review cycles — PR #484
 
