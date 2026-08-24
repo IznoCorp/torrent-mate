@@ -1,5 +1,5 @@
 {
-  "commit": "7808f7a0bb1060359833542e286fc47ea6917f87",
+  "commit": "9491f0f308ff7aadf30d12f7b416ef088b0852ec",
   "exemptions": {
     ".dcard .cap": "reserved footprint: the caption clears the floating add button; a measured clearance, not a space step"
   },
@@ -44,11 +44,6 @@
         ".ps-dot",
         "gap",
         "7px"
-      ],
-      [
-        ".port",
-        "padding-bottom",
-        "calc(var(--tm-bottom-bar-h, 0px) + 16px)"
       ],
       [
         ".viewtabs",
@@ -541,36 +536,6 @@
         "10px"
       ],
       [
-        ".savebar",
-        "gap",
-        "10px"
-      ],
-      [
-        ".savebar",
-        "padding",
-        "10px 14px"
-      ],
-      [
-        ".savebar button",
-        "padding",
-        "10px 14px"
-      ],
-      [
-        ".bottombar a, .bottombar button",
-        "gap",
-        "4px"
-      ],
-      [
-        ".bottombar a, .bottombar button",
-        "padding-block",
-        "8px"
-      ],
-      [
-        ".navbadge",
-        "padding-inline",
-        "4px"
-      ],
-      [
         ".screenbar",
         "gap",
         "6px"
@@ -589,11 +554,6 @@
         ".fback",
         "padding",
         "4px 2px"
-      ],
-      [
-        ".screen .port",
-        "padding-bottom",
-        "calc(var(--tm-bottom-bar-h, 0px) + 18px)"
       ],
       [
         ".sheetin",
@@ -1066,16 +1026,6 @@
         "10px"
       ],
       [
-        ".toast",
-        "gap",
-        "10px"
-      ],
-      [
-        ".toast",
-        "padding",
-        "11px 12px"
-      ],
-      [
         ".empty",
         "padding",
         "18px 14px"
@@ -1244,11 +1194,6 @@
         ".drawer a",
         "padding",
         "8px 12px"
-      ],
-      [
-        ".drawer a .count",
-        "padding-inline",
-        "4px"
       ],
       [
         ".drawer .ver",

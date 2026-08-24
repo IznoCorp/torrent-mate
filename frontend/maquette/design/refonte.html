@@ -505,7 +505,7 @@
     overflow-x: clip;
     overscroll-behavior-y: none;
     -webkit-overflow-scrolling: touch;
-    padding-bottom: calc(var(--tm-bottom-bar-h, 0px) + 16px);
+    padding-bottom: calc(var(--tm-bottom-bar-h, 0px) + var(--spacing-7));
   }
 
   /* View tabs (.seg + .more) */
@@ -2054,8 +2054,8 @@
     z-index: 40;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
+    gap: var(--spacing-5);
+    padding: var(--spacing-5) var(--spacing-7);
     border-top: 1px solid var(--border);
     background: var(--background);
   }
@@ -2078,7 +2078,7 @@
     flex: 0 0 auto;
     border: 0;
     border-radius: 8px;
-    padding: 10px 14px;
+    padding: var(--spacing-5) var(--spacing-7);
     font:
       600 13.5px "Geist",
       system-ui,
@@ -2179,8 +2179,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 4px;
-    padding-block: 8px;
+    gap: var(--spacing-2);
+    padding-block: var(--spacing-4);
     font-size: 12px;
     border: 0;
     background: transparent;
@@ -2216,7 +2216,7 @@
     min-width: 18px;
     align-items: center;
     justify-content: center;
-    padding-inline: 4px;
+    padding-inline: var(--spacing-2);
     border-radius: 9999px;
     /* PRIMARY, not danger: that is NavCountBadge's value. Red is reserved
        for the « ? » of an unavailable counter. */
@@ -2277,7 +2277,7 @@
      height, otherwise its last action is stuck underneath. That is rule R4
      — anchor to what you belong to. */
   .screen .port {
-    padding-bottom: calc(var(--tm-bottom-bar-h, 0px) + 18px);
+    padding-bottom: calc(var(--tm-bottom-bar-h, 0px) + var(--spacing-8));
   }
 
   /* Bottom sheet */
@@ -3502,11 +3502,11 @@
     z-index: 49;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--spacing-5);
     background: var(--popover);
     border: 1px solid var(--border);
     border-radius: 9px;
-    padding: 11px 12px;
+    padding: var(--spacing-5) var(--spacing-6);
     font-size: 12.5px;
     box-shadow: var(--mq-shadow-toast);
     transform: translateY(14px);
@@ -3940,7 +3940,7 @@
     min-width: 18px;
     align-items: center;
     justify-content: center;
-    padding-inline: 4px;
+    padding-inline: var(--spacing-2);
     border-radius: 9999px;
     background: var(--primary);
     color: var(--primary-foreground);
