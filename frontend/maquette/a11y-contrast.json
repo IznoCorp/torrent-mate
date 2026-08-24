@@ -1,6 +1,6 @@
 {
-  "$comment": "The `color-contrast` findings, measured and deliberately NOT enforced by L03's gate: they target the palette, which is L06's subject. Recorded rather than skipped, because « not measured » reads as « no problem ».",
-  "takenAtCommit": "3192f76dac14279cffd8ebc690640809e277e514",
+  "$comment": "The `color-contrast` findings, kept in a record of their own. D-L03-4 measured them and left them out of the floor, because the repair was a palette decision; D-L06-5 made the repair and armed the rule, so `--check` now counts contrast in the same hard zero as everything else. THIS IS NOT A TOLERANCE — it is the proof that the debt is empty, which « no file » could never be.",
+  "takenAtCommit": "4d2834a8891014aeaa6a26b13340cd9b3e384c9e",
   "platform": "Darwin/arm64",
   "counts": {
     "states": 83,

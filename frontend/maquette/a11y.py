@@ -21,14 +21,25 @@ SEQUENCE — focus enters a layer, the background goes inert, focus comes back t
 the trigger — and no static audit can observe it. That is measured by a harness
 rule of its own, and the two instruments are not redundant. Neither can a
 machine judge whether an announcement is USEFUL: this file proves a live region
-is well formed, never that it says something worth hearing.
+is well formed, never that it says something worth hearing. And it measures the
+theme the prototype renders BY DEFAULT — no alternate theme is selected here, so
+a finding that exists only under the other one is outside what this floor
+claims, and that gap is a recorded open point rather than a silence.
 
-COLOUR CONTRAST IS MEASURED AND IS NOT THE FLOOR
--------------------------------------------------
-Decision D-L03-4: `color-contrast` findings target the palette, which is L06's
-subject. They are recorded in their own file and handed over; they never fail
-this gate. « Not measured » would read as « no problem », which is what this
-repository refuses — so it is measured, and separated.
+COLOUR CONTRAST IS PART OF THE FLOOR
+-------------------------------------
+It was not always. Decision D-L03-4 measured `color-contrast`, recorded it in a
+file of its own and kept it out of the enforced set, because the repair was a
+PALETTE decision and the palette belonged to a later lot. « Not measured » would
+have read as « no problem », which is what this repository refuses — so it was
+measured, and separated.
+
+Decision D-L06-5 spent that handover: the palette was repaired and the count
+reached zero, so the rule joined the floor. `--check` now counts contrast in the
+same hard zero as every other rule. The separate file is still written by
+`--record`, and it is worth more than a deletion would be: it proves the debt is
+EMPTY rather than that nobody looked. An empty debt left unenforced is how it
+comes back.
 
 WHY IT BORROWS THE ORACLE'S PLUMBING
 -------------------------------------
@@ -60,7 +71,8 @@ AXE_BUNDLE = ROOT / "design" / "node_modules" / "axe-core" / "axe.min.js"
 DEBT_FILE = ROOT / "a11y-debt.json"
 CONTRAST_FILE = ROOT / "a11y-contrast.json"
 
-# The rule whose findings are RECORDED and never enforced here (D-L03-4).
+# The rule `--record` keeps in a file of its own (D-L06-5). It is NOT carved out
+# of `--check`: the floor counts it like every other rule.
 CONTRAST_RULE = "color-contrast"
 
 # What the audit reads, and what it deliberately does not.
@@ -136,13 +148,16 @@ def axe_bundle() -> str:
 
 
 def split_contrast(findings: list) -> tuple[list, list]:
-    """Separates the enforced findings from the ones handed to L06.
+    """Separates the contrast findings from the rest, for `record()`'s files.
+
+    This is a RECORDING split and not an enforcement one: `check()` counts
+    every finding, contrast included.
 
     Args:
         findings: What one state's audit returned.
 
     Returns:
-        A `(enforced, contrast)` pair.
+        A `(rest, contrast)` pair.
     """
     enforced = [f for f in findings if f["rule"] != CONTRAST_RULE]
     contrast = [f for f in findings if f["rule"] == CONTRAST_RULE]
@@ -276,8 +291,9 @@ async def record() -> int:
     record of what the wave found — measured, by walking into it — and the
     figure a future reader needs is gone with no trace that it ever existed.
 
-    `a11y-contrast.json` is the opposite kind of file: a live handover to L06,
-    refreshed every time, because what matters there is what is owed NOW.
+    `a11y-contrast.json` is the opposite kind of file: refreshed every time,
+    because what matters there is what is owed NOW. What is owed is nothing —
+    the rule is enforced — and the file is what says so.
 
     Returns:
         A process exit code.
@@ -301,10 +317,12 @@ async def record() -> int:
             encoding="utf-8")
     CONTRAST_FILE.write_text(report(
         contrast,
-        "The `color-contrast` findings, measured and deliberately NOT enforced "
-        "by L03's gate: they target the palette, which is L06's subject. "
-        "Recorded rather than skipped, because « not measured » reads as « no "
-        "problem »."),
+        "The `color-contrast` findings, kept in a record of their own. D-L03-4 "
+        "measured them and left them out of the floor, because the repair was "
+        "a palette decision; D-L06-5 made the repair and armed the rule, so "
+        "`--check` now counts contrast in the same hard zero as everything "
+        "else. THIS IS NOT A TOLERANCE — it is the proof that the debt is "
+        "empty, which « no file » could never be."),
         encoding="utf-8")
 
     print(f"measured {len(states)} states in {seconds:.1f}s")
@@ -333,13 +351,9 @@ async def check(rules: list | None, enforce: bool) -> int:
         A process exit code.
     """
     per_state, states, seconds, modal = await audit_everything(rules)
-    enforced = {s: split_contrast(f)[0] for s, f in per_state.items()}
-    contrast_total = sum(
-        len(f["targets"]) for findings in per_state.values()
-        for f in findings if f["rule"] == CONTRAST_RULE)
 
-    for state in sorted(enforced):
-        findings = enforced[state]
+    for state in sorted(per_state):
+        findings = per_state[state]
         if not findings:
             continue
         print(f"■ {state}")
@@ -349,7 +363,7 @@ async def check(rules: list | None, enforce: bool) -> int:
             for target in finding["targets"][:4]:
                 print(f"        {target}")
 
-    counts = tally(enforced)
+    counts = tally(per_state)
     total = sum(counts.values())
     scope = f", rules: {','.join(rules)}" if rules else ""
     print(f"a11y: {len(states)} states{scope}, {total} violation(s) over "
@@ -357,9 +371,6 @@ async def check(rules: list | None, enforce: bool) -> int:
     print(f"a11y: {len(states) - len(modal)} state(s) asked "
           f"{'/'.join(DOCUMENT_RULES)}; {len(modal)} had a modal layer open, "
           "whose `inert` background is correct and makes those two unanswerable")
-    if contrast_total and not rules:
-        print(f"a11y: {contrast_total} colour-contrast finding(s) — recorded "
-              f"for L06, not part of this floor (D-L03-4)")
     if total and enforce:
         return 1
     if total:
