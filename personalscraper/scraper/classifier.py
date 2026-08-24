@@ -15,6 +15,7 @@ from personalscraper.api.metadata._base import MediaDetails
 from personalscraper.api.metadata._contracts import KeywordProvider
 from personalscraper.api.metadata.registry import ProviderMatch, RegistryProviderName
 from personalscraper.logger import get_logger
+from personalscraper.nfo_utils import strip_plex_id_hint
 
 if TYPE_CHECKING:
     from personalscraper.api.metadata.registry import ProviderRegistry
@@ -123,8 +124,10 @@ def _parse_folder_name(name: str) -> tuple[str, int | None]:
     Returns:
         Tuple of (title, year). Year is None if not found.
     """
-    # Try clean format first: "Title (Year)"
-    m = _FOLDER_PATTERN.match(name)
+    # Try clean format first: "Title (Year)" — a trailing Plex match-hint
+    # ({tmdb-522627}) is stripped before parsing so re-scraping an
+    # already-hinted folder yields the same title/year as the original.
+    m = _FOLDER_PATTERN.match(strip_plex_id_hint(name))
     if m:
         return unicodedata.normalize("NFC", m.group(1).strip()), int(m.group(2))
 
