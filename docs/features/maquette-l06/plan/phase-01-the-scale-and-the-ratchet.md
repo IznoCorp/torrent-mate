@@ -45,21 +45,26 @@ for prop in ("padding", "gap", "margin", "font-size", "border-radius"):
 PY
 ```
 
-### Space — 25 distinct atoms across `padding`, `gap` and `margin`
+### Space — 27 distinct atoms across `padding`, `gap` and `margin`
 
 The atoms, not the declaration strings: `padding: 11px 12px` is two atoms, and it is the atom the
 scale has to answer for. Counts are occurrences in BLOCK 2.
 
-| atom | uses | atom | uses | atom               | uses   |
-| ---- | ---- | ---- | ---- | ------------------ | ------ |
-| 10px | 35   | 5px  | 14   | 20px               | 3      |
-| 12px | 34   | 6px  | 14   | 24px               | 2      |
-| 14px | 33   | 7px  | 11   | 13px               | 1      |
-| 8px  | 32   | 3px  | 7    | 22px               | 1      |
-| 11px | 24   | 18px | 7    | 40px               | 1      |
-| 9px  | 23   | 16px | 4    | 76px               | 1      |
-| 4px  | 22   | 1px  | 4    | −6px, −10px, −14px | 1 each |
-| 2px  | 16   |      |      |                    |        |
+**The quick shape above reads the SHORTHANDS only**, because `margin\s*:` does not match
+`margin-top:`. The per-atom counts below are therefore lower bounds, and three negatives were
+missing from the first draft of this table for exactly that reason — they live in longhands. The
+arm is the authority on the totals; this table is the authority on which atoms exist.
+
+| atom | uses | atom | uses | atom                     | uses   |
+| ---- | ---- | ---- | ---- | ------------------------ | ------ |
+| 10px | 35   | 5px  | 14   | 20px                     | 3      |
+| 12px | 34   | 6px  | 14   | 24px                     | 2      |
+| 14px | 33   | 7px  | 11   | 13px                     | 1      |
+| 8px  | 32   | 3px  | 7    | 22px                     | 1      |
+| 11px | 24   | 18px | 7    | 40px                     | 1      |
+| 9px  | 23   | 16px | 4    | 76px                     | 1      |
+| 4px  | 22   | 1px  | 4    | −4px, −14px              | 2 each |
+| 2px  | 16   |      |      | −6px, −8px, −10px, −62px | 1 each |
 
 A further 25 declarations are exactly `0` — 12 in `margin`, 11 in `padding`, 2 in `gap`. Zero is
 the absence of a step and does not become one.
@@ -89,7 +94,7 @@ to 18 px would tighten the only screen whose subject is empty space, to save a t
 in the lot's contract was made from a distinct-value count, not from the distribution; this is the
 arbitration D-L06-2 asks for.
 
-**Three values do not become steps, and each is named rather than rounded:**
+**Four values do not become steps, and each is named rather than rounded:**
 
 - **`1px`** is a hairline — it appears in `padding: 1px 6px` and its siblings on the smallest
   chips, where it is doing the job of a border, not of a space step. It folds to `--spacing-1`
@@ -100,8 +105,16 @@ arbitration D-L06-2 asks for.
   `--tm-bottom-bar-h`, and rounding it to a step is how a button starts overlapping a caption. It
   is expressed as `calc()` over the button's own size plus a step, or recorded in the arm's named
   exemptions with that reason.
-- **The three negatives** (`-6px`, `-10px`, `-14px`) are pull-backs of a known step and stay on the
-  scale as `calc(var(--spacing-N) * -1)`.
+- **The negatives are six atoms over seven declarations, not three.** `-4px` (twice), `-6px`,
+  `-8px`, `-10px` and `-14px` (twice) are pull-backs of a known step and stay on the scale as
+  `calc(var(--spacing-N) * -1)`. The first draft of this bullet named three of them, because the
+  shorthand-only extraction saw only the atoms sitting inside a `margin:` shorthand; `-4px`,
+  `-8px` and `-62px` sit in `margin-left`, `margin-right` and `margin-top`, where it never looked.
+- **`-62px`** on `.hero` (`refonte.html:2560`) is the seventh negative declaration and it is **not**
+  a pull-back of a step: the comment above it says the title overlaps the end of the melt, so the
+  number is measured against the poster's image, the same kind of quantity as the reserved
+  footprint. It is a named exemption in the baseline, carrying that comment as its reason, and it
+  is never rounded to a step.
 
 ### Type — 21 distinct sizes
 

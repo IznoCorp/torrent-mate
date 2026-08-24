@@ -64,13 +64,35 @@ bar, the drawer and the sheet. Anything horizontal on a full-width surface is no
 
 ## 2.3 — The margins, including the negative ones
 
-**Files touched**: `refonte.html` — the 29 `margin` declarations, of which 12 are `0`.
+**Files touched**: `refonte.html` — the 49 `margin` declarations still carrying a raw literal when
+this sub-phase opens. BLOCK 2 holds 94 in all: 12 are exactly `0`, 15 read `auto` alone, and 18
+were already folded by 2.1 and 2.2 with the surfaces they belong to.
 
-1. The three negatives become `calc(var(--spacing-N) * -1)`: `-6px` → `--spacing-3`, `-10px` →
-   `--spacing-5`, `-14px` → `--spacing-7`. A negative margin is a pull-back of a known step, and
-   writing it as one is what stops it drifting away from the step it pulls back.
-2. `margin: 0 auto` and its siblings keep `auto` — a keyword, exempt by name in the arm.
-3. `0` stays `0`.
+1. **The negatives are seven declarations over six atoms, not three.** The plan's first draft named
+   `-6px`, `-10px` and `-14px`, which are the three that sit inside a `margin:` shorthand; the
+   histogram's extraction never read the longhands, and `-4px`, `-8px` and `-62px` live there.
+   Six of the seven are pull-backs of a known step and become `calc(var(--spacing-N) * -1)` —
+   writing a negative as the step it pulls back is what stops it drifting away from that step:
+   - `-4px` → `calc(var(--spacing-2) * -1)` — `.topbar .burger` `margin-left`, and
+     `.settingrow.modified::before` `margin-right`.
+   - `-6px` → `calc(var(--spacing-3) * -1)` — the first atom of `.loginsub`'s shorthand.
+   - `-8px` → `calc(var(--spacing-4) * -1)` — `.search .searchclear` `margin-right`.
+   - `-10px` and `-14px` → `calc(var(--spacing-5) * -1)` / `calc(var(--spacing-7) * -1)` —
+     `.sugwrap.gone` `margin-bottom`, and `.herowrap`'s two negative atoms.
+
+   A composite shorthand folds per atom, negatives included: `.herowrap`'s `margin: -10px -14px 0`
+   becomes `margin: calc(var(--spacing-5) * -1) calc(var(--spacing-7) * -1) 0`, and `.loginsub`'s
+   `margin: -6px 0 4px` becomes `calc(var(--spacing-3) * -1) 0 var(--spacing-2)`.
+
+2. **The seventh negative is exempted, not folded.** `.hero`'s `margin-top: -62px` is on no step of
+   anything: the comment directly above it already says what the number is — the title is pulled up
+   over the poster's melt, so it belongs to the image. It joins the baseline's named exemptions,
+   **value untouched**, with that as its reason, beside `.dcard .cap`. Rounding a composition
+   measurement to a step is how a title stops overlapping the thing it was drawn to overlap.
+3. `margin: 0 auto` and its siblings keep `auto` — a keyword, exempt by name in the arm.
+4. `0` stays `0`.
+5. **A `calc(var(--spacing-N) * -1)` reads a step**, and the arm agrees: it strips every `var()`
+   call before it looks for a raw literal, so what is left of the value carries no `px` at all.
 
 **The hold**: `spacing` reaches **0**, and the baseline records `0` for that family.
 **The mutation**: add `margin: 9px 0` anywhere in BLOCK 2. With the baseline at zero the arm must

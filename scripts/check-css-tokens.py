@@ -187,6 +187,11 @@ DEFAULT_EXEMPTIONS = {
         "reserved footprint: the caption clears the floating add button; "
         "a measured clearance, not a space step"
     ),
+    ".hero": (
+        "hero overlap: the title is pulled up over the poster's melt — a "
+        "composition measurement, not a space step (the rule's own comment "
+        "says so)"
+    ),
 }
 
 

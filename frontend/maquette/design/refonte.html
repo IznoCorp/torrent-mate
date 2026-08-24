@@ -408,7 +408,7 @@
     }
   }
   .topbar .burger {
-    margin-left: -4px;
+    margin-left: calc(var(--spacing-2) * -1);
     display: inline-flex;
     width: 44px;
     height: 44px;
@@ -553,7 +553,7 @@
   .seg .n {
     font-size: 11px;
     font-weight: 700;
-    margin-left: 5px;
+    margin-left: var(--spacing-2);
     padding: var(--spacing-1) var(--spacing-2);
     border-radius: 99px;
     background: var(--primary);
@@ -619,7 +619,7 @@
     place-items: center;
     width: 32px;
     height: 32px;
-    margin-right: -8px;
+    margin-right: calc(var(--spacing-4) * -1);
     border: 0;
     border-radius: 9999px;
     background: transparent;
@@ -634,7 +634,7 @@
     display: flex;
     align-items: center;
     gap: 0;
-    margin-top: 8px;
+    margin-top: var(--spacing-4);
   }
   .pillscroll {
     flex: 1 1 auto;
@@ -668,7 +668,7 @@
   }
   .pill .c {
     opacity: 0.7;
-    margin-left: 4px;
+    margin-left: var(--spacing-2);
     font-weight: 500;
   }
   .vswwrap {
@@ -944,7 +944,7 @@
     width: 58px;
     align-self: start;
     justify-self: start;
-    margin: 9px 0 9px 9px;
+    margin: var(--spacing-4) 0 var(--spacing-4) var(--spacing-4);
     aspect-ratio: 2 / 3;
     border-radius: 6px;
     flex: 0 0 auto;
@@ -1040,7 +1040,7 @@
   }
   .csub {
     display: block;
-    margin-top: 2px;
+    margin-top: var(--spacing-1);
     font-size: 11.5px;
     color: var(--muted-foreground);
     white-space: nowrap;
@@ -1053,7 +1053,7 @@
      chez TMDB pour… » exactly where the useful half began. */
   .creason {
     display: block;
-    margin-top: 3px;
+    margin-top: var(--spacing-1);
     font-size: 11.5px;
     line-height: 1.4;
     color: var(--muted-foreground);
@@ -1068,13 +1068,13 @@
     text-overflow: ellipsis;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    margin-top: 5px;
+    margin-top: var(--spacing-2);
     font-size: 11.5px;
     line-height: 1.4;
     color: var(--muted-foreground);
   }
   .cmeta {
-    margin-top: 6px;
+    margin-top: var(--spacing-3);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -1083,7 +1083,7 @@
 
   /* The annotations sit under the state, not beside it. */
   .cannotations {
-    margin-top: 4px;
+    margin-top: var(--spacing-2);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -1181,7 +1181,7 @@
 
   /* journey strip — its own full-width line (R2) */
   .strip {
-    margin-top: 9px;
+    margin-top: var(--spacing-4);
     padding-top: var(--spacing-4);
     border-top: 1px solid var(--border);
     display: grid;
@@ -1238,7 +1238,7 @@
     background: var(--success);
   }
   .cfoot {
-    margin-top: 9px;
+    margin-top: var(--spacing-4);
     width: 100%;
     border: 1px solid var(--primary);
     background: transparent;
@@ -1288,7 +1288,7 @@
   }
   .crossref span {
     display: block;
-    margin-top: 6px;
+    margin-top: var(--spacing-3);
     color: var(--primary);
     font-weight: 600;
     white-space: nowrap;
@@ -1347,7 +1347,7 @@
   .tile .nm {
     display: block;
     font-size: 11px;
-    margin-top: 5px;
+    margin-top: var(--spacing-2);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1392,7 +1392,7 @@
       margin 0.28s ease;
     height: 0 !important;
     opacity: 0;
-    margin-bottom: -14px;
+    margin-bottom: calc(var(--spacing-7) * -1);
   }
   /* Poster format: the poster carries the identity, the two lines under it
      carry just enough to tell two homonyms apart. Same two tap targets as the
@@ -1519,14 +1519,14 @@
 
   .dcard .m {
     display: block;
-    margin-top: 3px;
+    margin-top: var(--spacing-1);
     font-size: 12px;
     color: var(--muted-foreground);
   }
 
   .dcard .why {
     display: block;
-    margin-top: 6px;
+    margin-top: var(--spacing-3);
     font-size: 11.5px;
     color: var(--muted-foreground);
     border-left: 2px solid var(--border);
@@ -1597,7 +1597,7 @@
     border-radius: 99px;
     border: 1px solid color-mix(in oklab, var(--success) 40%, transparent);
     color: var(--success);
-    margin-left: 6px;
+    margin-left: var(--spacing-3);
   }
 
   /* Key/value rows (Système) */
@@ -1645,7 +1645,7 @@
   }
   /* A block of facts inside a panel keeps its distance from what follows. */
   .sheetfacts {
-    margin-bottom: 14px;
+    margin-bottom: var(--spacing-7);
   }
   .h2 {
     font-size: 12.5px;
@@ -1856,7 +1856,7 @@
     border-radius: 8px;
     padding: var(--spacing-6);
     color: var(--foreground);
-    margin-bottom: 8px;
+    margin-bottom: var(--spacing-4);
   }
   .topic .rt {
     display: block;
@@ -1865,7 +1865,7 @@
   }
   .topic .rs {
     display: block;
-    margin-top: 2px;
+    margin-top: var(--spacing-1);
     font-size: 12px;
     line-height: 1.4;
     color: var(--muted-foreground);
@@ -1901,7 +1901,7 @@
   }
   .settingrow .rf {
     display: block;
-    margin-top: 2px;
+    margin-top: var(--spacing-1);
     font-size: 11px;
     color: var(--muted-foreground);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -1927,7 +1927,7 @@
     align-self: stretch;
     border-radius: 99px;
     background: var(--primary);
-    margin-right: -4px;
+    margin-right: calc(var(--spacing-2) * -1);
   }
 
   /* The save bar exists only when there is something to save, and it says
@@ -1939,7 +1939,7 @@
     display: flex;
     align-items: center;
     gap: var(--spacing-5);
-    margin-top: 10px;
+    margin-top: var(--spacing-5);
   }
   .field.list {
     flex-direction: column;
@@ -2451,7 +2451,7 @@
      having been ported, therefore inert: the « no trailer » message
      rendered at 14px without its dashed frame. */
   .noinfo {
-    margin: 0 0 4px;
+    margin: 0 0 var(--spacing-2);
     font-size: 12px;
     color: var(--muted-foreground);
     border: 1px dashed var(--border);
@@ -2459,7 +2459,7 @@
     padding: var(--spacing-5) var(--spacing-5);
   }
   .rulenote {
-    margin: 0 0 14px;
+    margin: 0 0 var(--spacing-7);
     font-size: 12.5px;
     line-height: 1.45;
     color: var(--muted-foreground);
@@ -2494,7 +2494,7 @@
     /* -10px cancels .body's top padding so the image touches the bar.
        Without an image the same pull would glue the title to it, hence the
        breathing room restored in .noposter below. */
-    margin: -10px -14px 0;
+    margin: calc(var(--spacing-5) * -1) calc(var(--spacing-7) * -1) 0;
     isolation: isolate;
     /* `clip`, not `hidden`: forbid overflow without creating a scroll
        container. An animation must never be able to push the page sideways. */
@@ -2571,7 +2571,7 @@
       color-mix(in oklab, var(--background) 70%, transparent);
   }
   .hero .hm {
-    margin: 7px 0 0;
+    margin: var(--spacing-3) 0 0;
     font-size: 12.5px;
     color: var(--muted-foreground);
     line-height: 1.55;
@@ -2580,7 +2580,7 @@
     display: inline-flex;
     align-items: center;
     gap: var(--spacing-2);
-    margin-top: 7px;
+    margin-top: var(--spacing-3);
     font-size: 12px;
     font-weight: 700;
     color: var(--primary);
@@ -2629,7 +2629,7 @@
     overflow: hidden;
   }
   .cast figcaption {
-    margin-top: 6px;
+    margin-top: var(--spacing-3);
     font-size: 11px;
     line-height: 1.35;
   }
@@ -2728,7 +2728,7 @@
     font-size: 11px;
     font-weight: 400;
     color: var(--muted-foreground);
-    margin-top: 1px;
+    margin-top: var(--spacing-1);
   }
   .eprow {
     display: flex;
@@ -2813,7 +2813,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--spacing-2) var(--spacing-6);
-    margin-bottom: 12px;
+    margin-bottom: var(--spacing-6);
     font-size: 11px;
     color: var(--muted-foreground);
   }
@@ -2914,7 +2914,7 @@
   /* The question an incomplete sheet answers is « which ones are missing »,
      not « how many ». Answer it in words, before the list. */
   .missing {
-    margin: 8px 0 0;
+    margin: var(--spacing-4) 0 0;
     font-size: 12px;
     font-weight: 600;
     color: var(--warning);
@@ -2925,7 +2925,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--spacing-2);
-    margin-top: 8px;
+    margin-top: var(--spacing-4);
   }
   .ep {
     display: grid;
@@ -2990,7 +2990,7 @@
     font-size: 11px;
     color: var(--muted-foreground);
     font-weight: 600;
-    margin-bottom: 2px;
+    margin-bottom: var(--spacing-1);
   }
   .ep {
     cursor: pointer;
@@ -3019,7 +3019,7 @@
   .addrow {
     display: flex;
     gap: var(--spacing-4);
-    margin-top: 8px;
+    margin-top: var(--spacing-4);
   }
   .btnprimary {
     flex: 0 0 auto;
@@ -3081,7 +3081,7 @@
     border-radius: 99px;
   }
   .byid {
-    margin: 14px 14px 0;
+    margin: var(--spacing-7) var(--spacing-7) 0;
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: var(--spacing-5) var(--spacing-6);
@@ -3103,7 +3103,7 @@
     content: "▾ ";
   }
   .byidin {
-    margin-top: 10px;
+    margin-top: var(--spacing-5);
     display: flex;
     flex-direction: column;
     gap: var(--spacing-4);
@@ -3368,12 +3368,12 @@
     font-size: 11.5px;
     font-weight: 400;
     color: var(--muted-foreground);
-    margin-top: 1px;
+    margin-top: var(--spacing-1);
   }
   .optkind {
     font-size: 11px;
     color: var(--muted-foreground);
-    margin: 0 0 6px;
+    margin: 0 0 var(--spacing-3);
   }
 
   .qhint {
@@ -3551,7 +3551,7 @@
     display: block;
     color: var(--foreground);
     font-size: 13px;
-    margin-bottom: 4px;
+    margin-bottom: var(--spacing-2);
   }
 
   /* Surface states: loading, empty, error
@@ -3573,10 +3573,10 @@
   .surferr b {
     display: block;
     color: var(--danger);
-    margin-bottom: 4px;
+    margin-bottom: var(--spacing-2);
   }
   .surferr button {
-    margin-top: 11px;
+    margin-top: var(--spacing-5);
     width: 100%;
     border: 1px solid var(--border);
     background: transparent;
@@ -3650,7 +3650,7 @@
     width: 34px;
     height: 1px;
     background: var(--border);
-    margin: 0 auto 9px;
+    margin: 0 auto var(--spacing-4);
   }
   .loaderr {
     border: 1px solid color-mix(in oklab, var(--danger) 45%, transparent);
@@ -3664,7 +3664,7 @@
     color: var(--danger);
   }
   .loaderr button {
-    margin-top: 9px;
+    margin-top: var(--spacing-4);
     width: 100%;
     border: 1px solid var(--border);
     background: transparent;
@@ -3678,7 +3678,7 @@
     text-align: center;
     font-size: 11px;
     color: var(--muted-foreground);
-    margin-top: 7px;
+    margin-top: var(--spacing-3);
   }
 
   /* Grid selection: invisible at rest */
@@ -4195,7 +4195,7 @@
   }
 
   .loginsub {
-    margin: -6px 0 4px;
+    margin: calc(var(--spacing-3) * -1) 0 var(--spacing-2);
     text-align: center;
     font-size: 12px;
     color: var(--muted-foreground);
