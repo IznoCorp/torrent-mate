@@ -38,6 +38,17 @@ bottom-bar height. The engine dies at L13; this value needs a home before then.
 
 before this design is committed on the branch, and every one is named in the PR)
 
+**Arbitrated by the operator, 2026-08-24 — all six stand as written, and the two step counts
+that ran above the contract's estimate are confirmed**: the space scale keeps its ninth step
+(`24px` — the sign-in surface's own outer padding, used by no other value; folding it to 18px
+would tighten the one screen whose subject is empty space for nothing measured), the type scale
+keeps its 10px step (14 declarations on micro-labels already tight at 390px — the histogram, not
+an average, is the argument). D-L06-6 is confirmed as the WIDER reading: all three field sizes
+(`.search input`, `.fieldinput`, `.fieldinput.mono`) reach 16px, because leaving two fields
+under 16px would grandfather the iOS-zoom defect into the new scale. D-L06-5 is confirmed as
+repaired in THIS lot, not deferred: the palette is already open here, and deferring would cost
+reopening it a second time. P-1 and P-2 stand as the plan wrote them.
+
 - **D-L06-1 — Where the scale lives, before Tailwind.** The scale is declared as CSS custom
   properties in ONE `:root` block at the top of BLOCK 2 of `refonte.html` — the file § 15 names
   as the visual reference. D3's `tokens.css` file layout belongs to L07's conversion; moving
