@@ -91,6 +91,7 @@ when the defect comes back.
 | B-055 | The a11y floor measures only the dark theme — light carries 154 findings | by review | `open` |
 | B-056 | A `@keyframes` name is French (`splashremplit`), invisible to no-french  | by review | `open` |
 | B-057 | `audit2.py`'s R12 silently measures four of five contexts, not five | by review   | `open`       |
+| B-058 | commit-msg's AI-attribution match is unanchored, flags quoting prose | by mutation | `open`       |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -218,6 +219,17 @@ repairing R12's pinned size during L06; not fixed there, a rule-shape change out
 lot's letter. Fix: either the rule visits a state that paints `.resbtn`, or `measure()`
 refuses an empty selection the way `type_scale.py` does; mutation-tested either way (hide the
 element, watch the rule fall).
+
+**B-058 — the AI-attribution check can fire on prose that quotes what it looks for.**
+`hooks/commit-msg`'s second alternative, `generated with .*claude`, carries no `^` anchor —
+unlike the other two real-trailer alternatives — so it matches the phrase ANYWHERE in the
+message, including inside a sentence documenting the rule itself. Found writing the commit
+that fixed B-058's sibling: a French sentence quoting « generated with claude » in guillemets,
+to explain what the hook forbids, tripped the hook it was describing. Not fixed here — the two
+real alternatives are anchored to a line start on purpose (a trailer, not prose), and giving
+this one the same anchor needs its own mutation test to confirm it still catches a genuine
+footer while releasing a quoting sentence; a same-commit reflex fix on a compliance-relevant
+guard is exactly the haste this register exists to slow down.
 
 **B-036 — the English campaign missed two state ids, and no arm reads them.**
 `window.__states()` returns **`system-panne`** and **`acq-follows-groupe`**. Both are NAMED STATE
