@@ -145,6 +145,12 @@ import pathlib, re
 text = pathlib.Path("frontend/maquette/design/refonte.html").read_text(encoding="utf-8")
 start = text.find("BLOCK 2")
 block2 = re.sub(r"/\*.*?\*/", " ", text[start:text.find("</style>", start)], flags=re.S)
+# The two arbitrated non-steps are excluded by NAME, never silently: .dcard
+# .cap (reserved footprint) and .hero (poster overlap). Their reasons live in
+# the scale arm's exemption table — scale-baseline.json while it exists,
+# DEFAULT_EXEMPTIONS in check-css-tokens.py after phase 6 drops the file.
+for sel in (".dcard .cap", ".hero"):
+    block2 = re.sub(re.escape(sel) + r"\s*\{[^}]*\}", " ", block2)
 props = r"padding|margin|gap|row-gap|column-gap|border-radius|font-size"
 values = re.findall(r"(?:^|[{;\s])(?:" + props + r")[\w-]*\s*:\s*([^;}]+)[;}]", block2, re.M)
 print(sorted(set(re.findall(r"(?<![\w-])\d*\.?\d+px(?![\w-])", " ".join(values)))))
