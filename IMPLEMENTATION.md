@@ -69,7 +69,7 @@ repository.
 53 flat `.py` files (recorded and deliberately unscheduled), and B-036 / B-040, which belong to
 their own waves.
 
-**Next action**: `/implement:phase` continues with phase 3 (type folds) — the operator's
+**Next action**: `/implement:phase` continues with phase 4 (radius, motion, the runtime token) — the operator's
 arbitrage landed 2026-08-24 and is recorded in `docs/features/maquette-l06/DESIGN.md` § 2.
 
 **Phases of L06** — the plan is `docs/features/maquette-l06/plan/INDEX.md`, which owns the
@@ -79,7 +79,7 @@ reasoning and the 24 ACCEPTANCE criteria. This table owns only the status.
 | --- | --------------------------------- | ---------------------------------------------- | ------ |
 | 1   | The scale, and the ratchet        | `plan/phase-01-the-scale-and-the-ratchet.md`   | [x]    |
 | 2   | Space folds                       | `plan/phase-02-space-folds.md`                 | [x]    |
-| 3   | Type folds                        | `plan/phase-03-type-folds.md`                  | [ ]    |
+| 3   | Type folds                        | `plan/phase-03-type-folds.md`                  | [x]    |
 | 4   | Radius, motion, the runtime token | `plan/phase-04-radius-motion-runtime-token.md` | [ ]    |
 | 5   | The palette pays its debt         | `plan/phase-05-the-palette-pays-its-debt.md`   | [ ]    |
 | 6   | The ratchet dies                  | `plan/phase-06-the-ratchet-dies.md`            | [ ]    |
