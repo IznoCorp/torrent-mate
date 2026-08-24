@@ -22,7 +22,6 @@ from personalscraper.scraper._writeback import recover_artwork
 from personalscraper.scraper.classifier import _parse_folder_name
 from personalscraper.scraper.decision_triage import apply_decision_to_result, classify_decision_trigger
 from personalscraper.scraper.rename_service import _cleanup_stale_files, apply_canonical_dir_rename
-from personalscraper.text_utils import sanitize_filename
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -401,10 +400,13 @@ class MovieServiceMixin:
         # an f-string that bypassed the pattern, the TV side ran the pattern with
         # ``Year=""`` and produced ``Title ()``; both now go through ``format``
         # with a real no-year path.)
-        clean_name = (
-            self.patterns.format("movie_dir", Title=resolved_title, Year=api_year)
-            if api_year
-            else sanitize_filename(resolved_title)
+        # The Plex match-hint (``{tmdb-<id>}``) is appended when the match is
+        # TMDB-backed: the Plex Movie agent reads the ID from the folder name and
+        # matches it exactly instead of guessing (Groos/Groot-class wrong match).
+        clean_name = self.patterns.movie_folder_name(
+            title=resolved_title,
+            year=api_year,
+            tmdb_id=match.api_id if match.source == "tmdb" else None,
         )
 
         # Rename the folder to its canonical name via the shared rename block

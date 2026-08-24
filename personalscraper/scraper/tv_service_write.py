@@ -25,6 +25,7 @@ from personalscraper.scraper._drift_persistence import DriftIssueStore
 from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper._tvdb_convert import fetch_show_data
 from personalscraper.scraper.classifier import _parse_folder_name
+from personalscraper.scraper.plexmatch import write_plexmatch
 from personalscraper.scraper.rename_service import (
     _cleanup_empty_release_dirs,
     _cleanup_stale_files,
@@ -183,6 +184,26 @@ class TvServiceWriteMixin:
         except Exception as e:
             result.error = f"tvshow.nfo failed: {e}"
             return result
+
+        # Plex match-hint (PMS 1.25.9+): a .plexmatch carrying the canonical
+        # TVDB id makes the Plex TV agent match this show exactly. The id is
+        # the canonical one — match.api_id for a TVDB-backed match, else the
+        # xref from show_data's external_ids.
+        try:
+            plex_tvdb_id = (
+                match.api_id
+                if match.source == "tvdb"
+                else int(str((show_data.get("external_ids") or {}).get("tvdb_id") or "") or 0) or None
+            )
+        except ValueError:
+            plex_tvdb_id = None
+        if plex_tvdb_id is not None:
+            write_plexmatch(
+                show_dir,
+                title=resolved_title,
+                tvdb_id=plex_tvdb_id,
+                dry_run=self.dry_run,
+            )
 
         # Process episodes — rglob to find files nested in release-group subdirs,
         # but skip files already organized in Saison XX/ directories.
