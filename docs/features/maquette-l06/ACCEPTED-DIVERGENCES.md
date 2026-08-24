@@ -179,3 +179,11 @@ keyword easings, literal beziers, discrete steps() and a duration with no
 curve, each proved by a fallen mutation. The one rhythm whose feel changes:
 `.live .d`'s pulse loses its ease-in-out symmetry to the standard curve, as
 §1.1's table prescribes — named here because no instrument will ever show it.
+
+### 4.3 — The publisher move: zero divergence, and that is the finding
+
+The oracle reads `no divergence` after the publisher left the engine for the
+shell: no bottom-anchored content moved, so the value's first landing kept its
+timing (the §4.4 distrust shape is absent). The shell now calls the publisher
+after the engine's boot, so the first measurement reads a drawn bar rather
+than an empty nav corrected a frame later.
