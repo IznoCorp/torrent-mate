@@ -31,9 +31,12 @@ then refuses the first off-scale declaration outright.
 
 THE LOGIN ARM. `--arm login` holds the composition of the standalone sign-in
 page, which `serve.py` builds by text search over `login:*` marked chunks rather
-than by block. A chunk that uses a token another chunk does not carry resolves
-to nothing on the design host — a landmine, not a crash, because CSS answers an
-unresolvable `var()` with silence.
+than by block. A chunk that uses a token no OTHER extracted chunk declares
+resolves to nothing on the design host — a landmine, not a crash, because CSS
+answers an unresolvable `var()` with silence. The set of chunks is read from
+`serve.py`'s own `extract()` calls: what the files offer is not what the page
+gets, and dropping a chunk from the composition is exactly how a page loses a
+declaration it still uses.
 
 Usage:
     python3 scripts/check-css-tokens.py          # every arm; exit 1 on any find
@@ -158,8 +161,23 @@ TIME_LITERAL = re.compile(r"(?<![\w.])-?\d*\.?\d+m?s(?![\w-])")
 # lifts into `@theme` without a rename when L07 lands.
 SCALE_TOKEN = re.compile(r"^--(?:spacing|text|radius|duration|ease)-[\w-]+$")
 
-# A `login:<name>` chunk's opening marker, wherever it lives.
-LOGIN_MARKER = re.compile(r"login:([\w-]+):start")
+# The composer itself. The sign-in page is whatever IT extracts — a chunk the
+# files offer and `serve.py` never asks for is not on the page, so the arm reads
+# the composition rather than the markers.
+COMPOSER = ROOT / "frontend" / "maquette" / "serve.py"
+
+# `styles_source = PROTOTYPE.read_text()`: the local name an `extract()` call
+# passes, bound to the constant that names the file it was read from.
+SOURCE_BINDING = re.compile(r"(\w+)\s*=\s*(\w+)\.read_text\(")
+
+# `extract(styles_source, "scale")`. The second argument is quoted, so the
+# `def extract(source: str, marker: str)` line is not a call and does not match.
+EXTRACT_CALL = re.compile(r"\bextract\(\s*(\w+)\s*,\s*\"([\w-]+)\"\s*\)")
+
+# The constants `serve.py` reads its two sources from, resolved to the files
+# this arm already knows. A source it names and this table does not is refused
+# rather than skipped: the composition measured would not be the one served.
+SOURCE_FILES = {"PROTOTYPE": FRAGMENT, "SHELL_DOCUMENT": MARKUP}
 
 # Selectors the ratchet skips entirely, each with the reason it is not a step.
 # Seeded into the baseline at record time; the baseline is the authority
@@ -558,41 +576,106 @@ def record_scale_baseline() -> int:
     return 0
 
 
-def login_chunks() -> dict[str, str] | None:
-    """Collects every `login:*` marked chunk the sign-in page is composed from.
+def without_python_comments(source: str) -> str:
+    """Blanks out `#` comments, quotes respected.
 
-    The chunks are DISCOVERED rather than listed: `serve.py` composes the page
-    by text search, so a chunk added tomorrow is part of the page tomorrow, and
-    an arm holding a hardcoded list would stop reading it without saying so.
+    A commented-out `extract()` call composes nothing, and an arm that counted
+    it would report a chunk the page never receives. A naive per-line split on
+    `#` would also cut a line at a `#` inside a string literal, so the scan
+    tracks the quote it is in.
+
+    Args:
+        source: Python source text.
 
     Returns:
-        Chunk text keyed by chunk name, or `None` when a marker is unpaired or
-        a source file is missing.
+        The same text with every comment replaced by spaces, line breaks kept
+        so a reader can still map a match back to a line.
     """
+    kept: list[str] = []
+    quote = ""
+    index = 0
+    while index < len(source):
+        char = source[index]
+        if quote:
+            kept.append(char)
+            if char == "\\" and index + 1 < len(source):
+                kept.append(source[index + 1])
+                index += 2
+                continue
+            if char == quote:
+                quote = ""
+        elif char in "'\"":
+            quote = char
+            kept.append(char)
+        elif char == "#":
+            end = source.find("\n", index)
+            end = len(source) if end < 0 else end
+            kept.append(" " * (end - index))
+            index = end
+            continue
+        else:
+            kept.append(char)
+        index += 1
+    return "".join(kept)
+
+
+def composed_chunks() -> dict[str, str] | None:
+    """Collects the chunks `serve.py` actually composes the sign-in page from.
+
+    The set is read from the composer rather than from the markers: a chunk the
+    files offer and `serve.py` never extracts is not on the page, and holding
+    the page to it would report a token the browser is in fact given. Which
+    file each chunk comes from is read the same way — `serve.py` binds its two
+    sources by name, and this follows the binding rather than guessing.
+
+    Returns:
+        Chunk text keyed by chunk name, or `None` when the composer cannot be
+        read, names a source this arm cannot resolve, or extracts a chunk whose
+        markers are missing — the same failure `extract()` itself raises on.
+    """
+    if not COMPOSER.exists():
+        print(f"check-login: {COMPOSER} not found — the composition cannot be "
+              "read, so a « no violation » here would mean nothing", file=sys.stderr)
+        return None
+    composer = without_python_comments(COMPOSER.read_text(encoding="utf-8"))
+
+    # `styles_source = PROTOTYPE.read_text()` and its sibling: the local name an
+    # `extract()` call passes, bound to the constant that names the file.
+    bound = {local: constant for local, constant in SOURCE_BINDING.findall(composer)}
+    calls = EXTRACT_CALL.findall(composer)
+    if not calls:
+        print(f"check-login: no `extract(<source>, \"<chunk>\")` call in "
+              f"{COMPOSER.name} — an arm that reads zero chunks holds nothing",
+              file=sys.stderr)
+        return None
+
+    texts: dict[Path, str] = {}
     chunks: dict[str, str] = {}
-    for path in (FRAGMENT, MARKUP):
+    for local, name in calls:
+        path = SOURCE_FILES.get(bound.get(local, ""))
+        if path is None:
+            print(f"  login: {COMPOSER.name} extracts login:{name} from `{local}`, "
+                  "which this arm cannot resolve to a file — the composition it "
+                  "measures would not be the one served.", file=sys.stderr)
+            return None
         if not path.exists():
             print(f"check-login: {path} not found — the composed page cannot be "
                   "read, so a « no violation » here would mean nothing", file=sys.stderr)
             return None
-        text = path.read_text(encoding="utf-8")
-        for name in LOGIN_MARKER.findall(text):
-            if name in chunks:
-                print(f"  login: login:{name} is marked twice — the composer takes "
-                      "the first, so the other is edited by someone and read by "
-                      "nobody.", file=sys.stderr)
-                return None
-            start = text.find(f"login:{name}:start")
-            end = text.find(f"login:{name}:end")
-            if end < 0 or end < start:
-                print(f"  login: login:{name}:start has no matching :end — "
-                      f"`serve.py` raises on this and serves no sign-in page at all.",
-                      file=sys.stderr)
-                return None
-            # The same slicing serve.extract() uses, deliberately: an arm that
-            # read one character more than the composer would hold a chunk the
-            # page never receives.
-            chunks[name] = text[text.index("\n", start) + 1: text.rindex("\n", start, end) + 1]
+        if name in chunks:
+            continue
+        text = texts.setdefault(path, path.read_text(encoding="utf-8"))
+        start = text.find(f"login:{name}:start")
+        end = text.find(f"login:{name}:end")
+        if start < 0 or end < 0 or end < start:
+            print(f"  login: {COMPOSER.name} extracts login:{name} from "
+                  f"{path.name}, which carries no such marker pair — `extract()` "
+                  "raises on this and serves no sign-in page at all.", file=sys.stderr)
+            return None
+        # The same slicing serve.extract() uses, deliberately: an arm that read
+        # one character more than the composer would hold a chunk the page
+        # never receives.
+        chunks[name] = text[text.index("\n", start) + 1: text.rindex("\n", start, end) + 1]
     return chunks
 
 
@@ -602,12 +685,8 @@ def login_arm() -> int:
     Returns:
         1 when anything was found, 0 otherwise.
     """
-    chunks = login_chunks()
+    chunks = composed_chunks()
     if chunks is None:
-        return 1
-    if not chunks:
-        print("check-login: no login:* chunk found at all — either the markers "
-              "were dropped or this arm is reading the wrong files", file=sys.stderr)
         return 1
 
     # Both comment syntaxes: the CSS chunks live in a <style>, the markup chunks
@@ -629,7 +708,8 @@ def login_arm() -> int:
 
     for name in sorted(missing):
         print(f"  login: {name} is used by the composed sign-in page but declared "
-              "in no login:* chunk — the page resolves it to nothing.", file=sys.stderr)
+              "in no chunk serve.py composes — the page is not given it, and "
+              "resolves it to nothing.", file=sys.stderr)
     if missing:
         return 1
 
