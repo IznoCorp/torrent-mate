@@ -1412,7 +1412,7 @@
      itself by a distance to an edge — the height comes from what was measured,
      which is the same rule the bars follow. */
   .body.deckbody {
-    padding-bottom: 10px;
+    padding-bottom: var(--spacing-5);
   }
 
   .deck {
@@ -1530,7 +1530,7 @@
     font-size: 11.5px;
     color: var(--muted-foreground);
     border-left: 2px solid var(--border);
-    padding-left: 8px;
+    padding-left: var(--spacing-4);
     line-height: 1.4;
   }
 
@@ -1541,7 +1541,7 @@
   .dhint {
     position: absolute;
     top: 14px;
-    padding: 5px 10px;
+    padding: var(--spacing-2) var(--spacing-5);
     border-radius: 99px;
     border: 2px solid var(--danger);
     color: var(--danger);
@@ -1574,7 +1574,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 18px;
+    padding: 0 var(--spacing-8);
     border-radius: 8px;
     background: var(--muted);
     color: var(--muted-foreground);
@@ -1584,7 +1584,7 @@
   .sugback span {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: var(--spacing-3);
   }
   .sugback svg {
     width: 16px;
@@ -1593,7 +1593,7 @@
   .crating {
     font-size: 10.5px;
     font-weight: 700;
-    padding: 1px 6px;
+    padding: var(--spacing-1) var(--spacing-3);
     border-radius: 99px;
     border: 1px solid color-mix(in oklab, var(--success) 40%, transparent);
     color: var(--success);
@@ -1605,13 +1605,13 @@
     border: 1px solid var(--border);
     background: var(--card);
     border-radius: 8px;
-    padding: 2px 11px;
+    padding: var(--spacing-1) var(--spacing-5);
   }
   .kv {
     display: flex;
     justify-content: space-between;
-    gap: 12px;
-    padding: 9px 0;
+    gap: var(--spacing-6);
+    padding: var(--spacing-4) 0;
     border-bottom: 1px solid var(--border);
     font-size: 12.5px;
   }
@@ -1625,7 +1625,7 @@
     font-weight: 600;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--spacing-3);
   }
   /* A row whose dot qualifies the STEP rather than the figure. The two are
      different statements and both exist, so the descriptor names which.
@@ -1635,7 +1635,7 @@
   .kv.withpip > span:first-child {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--spacing-4);
   }
   /* A value that has not happened yet is not a value: it reads as an
      announcement, not as a measurement. */
@@ -1657,10 +1657,10 @@
   .live {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--spacing-4);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 9px 11px;
+    padding: var(--spacing-4) var(--spacing-5);
     font-size: 11.5px;
     color: var(--muted-foreground);
     background: var(--card);
@@ -1696,15 +1696,15 @@
     border: 1px solid var(--border);
     border-radius: 10px;
     background: var(--card);
-    padding: 12px;
+    padding: var(--spacing-6);
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--spacing-5);
   }
   .pipeline .ph {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--spacing-4);
     min-width: 0;
   }
   .pipeline .pt {
@@ -1740,7 +1740,7 @@
     /* minmax(0, 1fr), never 1fr: an auto track's floor is its item's intrinsic
        size, so the longer label would size its column to max-content (R7). */
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 8px;
+    gap: var(--spacing-4);
   }
 
   /* The last run, told as its nine steps.
@@ -1763,8 +1763,8 @@
        its track to max-content and push the row past a 390px frame (R7). */
     grid-template-columns: minmax(0, 1fr) minmax(0, auto);
     align-items: baseline;
-    gap: 2px 10px;
-    padding: 9px 11px;
+    gap: var(--spacing-1) var(--spacing-5);
+    padding: var(--spacing-4) var(--spacing-5);
     width: 100%;
     text-align: left;
     /* A row that leads somewhere is a real button and inherits nothing from
@@ -1848,13 +1848,13 @@
   .topic {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--spacing-6);
     width: 100%;
     text-align: left;
     border: 1px solid var(--border);
     background: var(--card);
     border-radius: 8px;
-    padding: 12px;
+    padding: var(--spacing-6);
     color: var(--foreground);
     margin-bottom: 8px;
   }
@@ -1881,13 +1881,13 @@
   .settingrow {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--spacing-5);
     width: 100%;
     text-align: left;
     border: 0;
     border-bottom: 1px solid var(--border);
     background: transparent;
-    padding: 11px 2px;
+    padding: var(--spacing-5) var(--spacing-1);
     color: var(--foreground);
   }
   .settingrow:last-child {
@@ -1938,18 +1938,18 @@
   .field {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--spacing-5);
     margin-top: 10px;
   }
   .field.list {
     flex-direction: column;
     align-items: stretch;
-    gap: 6px;
+    gap: var(--spacing-3);
   }
   .fieldinput {
     flex: 1;
     min-width: 0;
-    padding: 11px 12px;
+    padding: var(--spacing-5) var(--spacing-6);
     border-radius: 8px;
     border: 1px solid var(--border);
     background: var(--background);
@@ -1979,7 +1979,7 @@
     flex: 0 0 auto;
     width: 48px;
     height: 28px;
-    padding: 3px;
+    padding: var(--spacing-1);
     border: 0;
     border-radius: 99px;
     background: var(--muted);
@@ -2000,8 +2000,8 @@
   .litem {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 9px 12px;
+    gap: var(--spacing-4);
+    padding: var(--spacing-4) var(--spacing-6);
     border-radius: 8px;
     border: 1px solid var(--border);
     background: var(--background);
@@ -2019,7 +2019,7 @@
     border: 0;
     background: transparent;
     color: var(--muted-foreground);
-    padding: 2px;
+    padding: var(--spacing-1);
     display: flex;
   }
   .lremove svg {
@@ -2030,8 +2030,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    padding: 10px;
+    gap: var(--spacing-3);
+    padding: var(--spacing-5);
     border-radius: 8px;
     border: 1px dashed var(--border);
     background: transparent;

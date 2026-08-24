@@ -1,5 +1,5 @@
 {
-  "commit": "5fae7eb2fb99a8f137c0a5a8adbd6bbc64eadbb6",
+  "commit": "95d6b48b5ff36ce946a49d18face798c9c25164d",
   "exemptions": {
     ".dcard .cap": "reserved footprint: the caption clears the floating add button; a measured clearance, not a space step"
   },
@@ -86,11 +86,6 @@
         "-14px"
       ],
       [
-        ".body.deckbody",
-        "padding-bottom",
-        "10px"
-      ],
-      [
         ".dcard .m",
         "margin-top",
         "3px"
@@ -101,114 +96,14 @@
         "6px"
       ],
       [
-        ".dcard .why",
-        "padding-left",
-        "8px"
-      ],
-      [
-        ".dhint",
-        "padding",
-        "5px 10px"
-      ],
-      [
-        ".sugback",
-        "padding",
-        "0 18px"
-      ],
-      [
-        ".sugback span",
-        "gap",
-        "7px"
-      ],
-      [
-        ".crating",
-        "padding",
-        "1px 6px"
-      ],
-      [
         ".crating",
         "margin-left",
         "6px"
       ],
       [
-        ".panel",
-        "padding",
-        "2px 11px"
-      ],
-      [
-        ".kv",
-        "gap",
-        "12px"
-      ],
-      [
-        ".kv",
-        "padding",
-        "9px 0"
-      ],
-      [
-        ".kv span:last-child",
-        "gap",
-        "6px"
-      ],
-      [
-        ".kv.withpip > span:first-child",
-        "gap",
-        "8px"
-      ],
-      [
         ".sheetfacts",
         "margin-bottom",
         "14px"
-      ],
-      [
-        ".live",
-        "gap",
-        "8px"
-      ],
-      [
-        ".live",
-        "padding",
-        "9px 11px"
-      ],
-      [
-        ".pipeline",
-        "padding",
-        "12px"
-      ],
-      [
-        ".pipeline",
-        "gap",
-        "10px"
-      ],
-      [
-        ".pipeline .ph",
-        "gap",
-        "8px"
-      ],
-      [
-        ".pipeline .pacts",
-        "gap",
-        "8px"
-      ],
-      [
-        ".flux .fw",
-        "gap",
-        "2px 10px"
-      ],
-      [
-        ".flux .fw",
-        "padding",
-        "9px 11px"
-      ],
-      [
-        ".topic",
-        "gap",
-        "12px"
-      ],
-      [
-        ".topic",
-        "padding",
-        "12px"
       ],
       [
         ".topic",
@@ -219,16 +114,6 @@
         ".topic .rs",
         "margin-top",
         "2px"
-      ],
-      [
-        ".settingrow",
-        "gap",
-        "10px"
-      ],
-      [
-        ".settingrow",
-        "padding",
-        "11px 2px"
       ],
       [
         ".settingrow .rf",
@@ -242,52 +127,7 @@
       ],
       [
         ".field",
-        "gap",
-        "10px"
-      ],
-      [
-        ".field",
         "margin-top",
-        "10px"
-      ],
-      [
-        ".field.list",
-        "gap",
-        "6px"
-      ],
-      [
-        ".fieldinput",
-        "padding",
-        "11px 12px"
-      ],
-      [
-        ".fieldtoggle",
-        "padding",
-        "3px"
-      ],
-      [
-        ".litem",
-        "gap",
-        "8px"
-      ],
-      [
-        ".litem",
-        "padding",
-        "9px 12px"
-      ],
-      [
-        ".lremove",
-        "padding",
-        "2px"
-      ],
-      [
-        ".ladd",
-        "gap",
-        "6px"
-      ],
-      [
-        ".ladd",
-        "padding",
         "10px"
       ],
       [
