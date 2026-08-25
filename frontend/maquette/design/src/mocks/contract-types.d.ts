@@ -1129,7 +1129,7 @@ export interface components {
             kind: string;
             title: string;
             reason: string;
-            state: string;
+            state: components["schemas"]["DecisionState"];
             /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             when: string;
             year?: number;
@@ -1215,6 +1215,11 @@ export interface components {
          * @enum {string}
          */
         PipelineState: "idle" | "running" | "queued" | "paused" | "stopping";
+        /**
+         * @description Where a decision has got to. The engine keys its French labels by these same tokens (`DECISION_STATE`, classified `interface` — the labels belong to the interface, the tokens to this contract).
+         * @enum {string}
+         */
+        DecisionState: "resolved" | "dismissed" | "superseded";
     };
     responses: {
         /** @description the request failed, and the reason is the real one (NE-DOIT-PAS-4, NE-DOIT-PAS-5) */
@@ -2268,7 +2273,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        state: string;
+                        state: components["schemas"]["DecisionState"];
                     };
                 };
             };
@@ -2299,7 +2304,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        state: string;
+                        state: components["schemas"]["DecisionState"];
                     };
                 };
             };

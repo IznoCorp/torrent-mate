@@ -2,12 +2,16 @@
 import { GET, POST, field, route, text } from "./shared";
 import { mockState } from "../state";
 import type { MockRoute } from "../router";
+import type { components } from "../contract-types";
 
-// The contract's own vocabulary for where a decision has got to. The engine
-// keys its French labels by these same tokens (`DECISION_STATE`, classified
-// `interface` — the labels are the interface's, the tokens are the contract's).
-const RESOLVED = "resolved";
-const DISMISSED = "dismissed";
+/** Where a decision has got to, as the contract's own enum names it. */
+type DecisionState = components["schemas"]["DecisionState"];
+
+// The engine keys its French labels by these same tokens (`DECISION_STATE`,
+// classified `interface` — the labels are the interface's, the tokens are the
+// contract's). The type above is what refuses a misspelling of one.
+const RESOLVED: DecisionState = "resolved";
+const DISMISSED: DecisionState = "dismissed";
 
 /**
  * Moves one decision from the pending list to the settled one.
@@ -16,7 +20,7 @@ const DISMISSED = "dismissed";
  * @param state The state it settles into.
  * @returns The decision's new state, or null when no decision answers.
  */
-function settle(folder: string, state: string): unknown {
+function settle(folder: string, state: DecisionState): unknown {
   const held = mockState();
   const found = held.pendingDecisions.find((decision) => decision.folder === folder);
   if (found === undefined) return null;

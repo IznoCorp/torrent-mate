@@ -2054,7 +2054,7 @@
                   "type": "object",
                   "properties": {
                     "state": {
-                      "type": "string"
+                      "$ref": "#/components/schemas/DecisionState"
                     }
                   },
                   "required": [
@@ -2135,7 +2135,7 @@
                   "type": "object",
                   "properties": {
                     "state": {
-                      "type": "string"
+                      "$ref": "#/components/schemas/DecisionState"
                     }
                   },
                   "required": [
@@ -4058,7 +4058,7 @@
             "type": "string"
           },
           "state": {
-            "type": "string"
+            "$ref": "#/components/schemas/DecisionState"
           },
           "when": {
             "type": "string",
@@ -4366,6 +4366,15 @@
           "stopping"
         ],
         "description": "What the pipeline is doing. `queued` is what a run asked for during a run answers with — visibly queued, never refused (DOIT-4, NE-DOIT-PAS-3)."
+      },
+      "DecisionState": {
+        "type": "string",
+        "enum": [
+          "resolved",
+          "dismissed",
+          "superseded"
+        ],
+        "description": "Where a decision has got to. The engine keys its French labels by these same tokens (`DECISION_STATE`, classified `interface` — the labels belong to the interface, the tokens to this contract)."
       }
     },
     "responses": {

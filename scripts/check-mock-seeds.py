@@ -43,6 +43,12 @@ reasons and only one of them is good.
                   read a value; it reads that nothing is orphaned in either
                   direction.
 
+  handlers        Refuses a data literal in a handler module — the one failure
+                  every other arm here stays green over. It does NOT follow what
+                  a handler RETURNS: with no literal to build from, a payload
+                  has nowhere to come from but a seed or the request, and that
+                  is what it holds rather than the return value itself.
+
 Exit code: 0 when every arm run is clean, 1 otherwise.
 
 Usage:
@@ -56,6 +62,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -332,8 +339,114 @@ def arm_provenance(module) -> int:
     return len(problems)
 
 
+
+# What a handler module is allowed to hold besides an imported seed. Each is a
+# CONTROL value — how the layer works — never a value the interface displays.
+#
+# The list is short on purpose. A handler carrying its own data is the one
+# failure every other arm here stays green over: the seeds could be perfect,
+# the contract perfect, the classification total, and a handler could still
+# return a hand-typed object.
+HANDLER_LITERAL_ALLOWANCES = (
+    # HTTP methods and the contract's own path templates and operationIds.
+    "operationId", "method", "template",
+)
+
+
+def arm_handlers(module) -> int:
+    """Refuse a data literal in a handler module.
+
+    WHAT IT READS. Every string and number literal in `mocks/handlers/*.ts`,
+    with comments and imports removed, and it refuses any that is not one of:
+    a path template the contract declares, an operationId it declares, an HTTP
+    method, a property name some contract schema declares, or a number that is
+    an HTTP status. Everything else is a value someone typed.
+
+    WHAT IT DOES NOT READ. It does not follow what a handler RETURNS — a
+    handler could import a seed and answer something else built from it, and
+    this arm would not know. What it forbids is the raw material: with no
+    literal to build from, a payload has nowhere to come from but a seed or the
+    request.
+
+    Args:
+        module: The seed builder, for the paths it already knows.
+
+    Returns:
+        The number of literals no allowance covers.
+    """
+    handlers = sorted((SEEDS.parent / "handlers").glob("*.ts"))
+    if not handlers:
+        print("    mocks/handlers/ holds no module, so this arm compared nothing — "
+              "which would read as a pass", file=sys.stderr)
+        return 1
+
+    document = contract()
+    allowed = set(document["paths"])
+    allowed |= {operation_id for operation_id, _ in operations(document)}
+    allowed |= {method.upper() for method in METHODS}
+    # `typeof x === "object"` is the LANGUAGE, not a value. So is the header a
+    # JSON response carries.
+    allowed |= {"object", "string", "number", "boolean", "undefined",
+                "content-type", "application/json"}
+
+    # Every property name, every parameter name and every ENUM VALUE the
+    # contract declares. An enum token is the contract's own vocabulary — it is
+    # what `PipelineState` and `DecisionState` exist to say — so a handler
+    # writing one is quoting the contract rather than inventing a datum.
+    def collect(node: object) -> None:
+        if isinstance(node, dict):
+            allowed.update(node.get("properties", {}))
+            allowed.update(node.get("enum", []))
+            if node.get("in") in ("query", "path") and isinstance(node.get("name"), str):
+                allowed.add(node["name"])
+            for value in node.values():
+                collect(value)
+        elif isinstance(node, list):
+            for value in node:
+                collect(value)
+    collect(document)
+
+    strings = re.compile(r'"([^"\\]*)"|\'([^\'\\]*)\'|`([^`\\$]*)`')
+    numbers = re.compile(r"(?<![\w.])(\d+)(?![\w.])")
+    offenders: list[str] = []
+    examined = 0
+    for path in handlers:
+        source = path.read_text(encoding="utf-8")
+        # Imports name seed FILES, and comments are prose. Neither is a payload.
+        body = "\n".join(
+            "" if line.lstrip().startswith(("import ", "//", "*", "/*")) else line
+            for line in source.splitlines())
+        for match in strings.finditer(body):
+            value = next(group for group in match.groups() if group is not None)
+            examined += 1
+            if value == "" or value in allowed:
+                continue
+            offenders.append(f"{path.name}: the literal {value!r} is not a path, an "
+                             f"operationId, a method or a contract property name")
+        # A number that is the initializer of an UPPER_SNAKE_CASE constant is a
+        # declared control value, which is what the rule asks for — the arm has
+        # to be able to SEE that, or the rule would forbid what it demands.
+        named = {int(value) for value in re.findall(r"\bconst [A-Z][A-Z_]* = (\d+)", body)}
+        for match in numbers.finditer(body):
+            examined += 1
+            number = int(match.group(1))
+            # 0 and 1 are arithmetic — an index, an increment, a first element.
+            # Neither is a value anyone reads off a screen.
+            if number in (0, 1) or number in named or 100 <= number <= 599:
+                continue
+            offenders.append(f"{path.name}: the number {number} is neither an HTTP status, "
+                             f"nor an index, nor the initializer of a named constant. "
+                             f"A displayed value comes from a seed")
+    print(f"  handlers: {len(handlers)} module(s), {examined} literal(s) read, "
+          f"{len(offenders)} that no allowance covers")
+    for entry in offenders:
+        print(f"    {entry}", file=sys.stderr)
+    return len(offenders)
+
+
 ARMS = {
     "classification": arm_classification,
+    "handlers": arm_handlers,
     "correspondence": arm_correspondence,
     "lossless": arm_lossless,
     "provenance": arm_provenance,
