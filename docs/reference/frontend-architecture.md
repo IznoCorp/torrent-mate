@@ -380,6 +380,13 @@ while the oracle runs green over the same tree, 2 739 measurements, no divergenc
 demonstrated rather than asserted, and it is why this guard is not something the oracle could have
 been widened into.
 
+**It measures under BOTH motion preferences, and that is not thoroughness for its own sake.** Part
+of the residue sits inside `@media (prefers-reduced-motion: no-preference)`; a utility carries no
+such condition unless it is written `motion-safe:`. The two sides then agree to the character
+under one preference and disagree under the other — which is how the hero's entrance was found
+animating for a reader who had asked for no motion (B-076), against invariant 14, with the oracle
+and the accessibility tier both green.
+
 **What it does not stage is counted and named on every run**, not left to be discovered: the
 selectors wearing an anchor no variant claims (the engine's own markup — the residue's whole
 purpose); the qualifiers the ENGINE writes through `classList`, which no variant emits; and the

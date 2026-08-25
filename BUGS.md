@@ -109,6 +109,7 @@ when the defect comes back.
 | B-073 | The size arm checks WHICH files are grandfathered, never the lot each names | by audit | `fixed #PRNUM` |
 | B-074 | The abbreviation rule's figures were measured against a list the document did not contain | by audit | `fixed #PRNUM` |
 | B-075 | Two guards were written green over the very defect they were written for | by mutation | `fixed #PRNUM` |
+| B-076 | The hero's entrance animates for a reader who asked for no motion | by rule | `fixed #PRNUM` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -1265,6 +1266,28 @@ Its one finding on the unmutated tree was real: `.sechead` declared the `backgro
 where `sectionHead()` sets `bg-transparent` — same rendering, and no longer term for term. The
 residue says `background-color` now, which is what it meant.
 <sub>mutation: `emptyNote()`'s `rounded-3` → `rounded-2` — R80 falls, « border-radius: residue « 8px » vs variant « 6px » », exit 1, WHILE THE ORACLE RUNS GREEN over 2 739 measurements. That is B-067 demonstrated rather than asserted</sub>
+
+**B-076 — the hero animates under `prefers-reduced-motion: reduce`, and R80 is what found it.**
+`.herobg`'s residue rule sits inside `@media (prefers-reduced-motion: no-preference)`;
+`heroImage()` emitted a bare `animate-hero-in`, which carries no such condition. Under
+`no-preference` the two sides agree to the character, which is why the pair passed and why nothing
+else ever saw it — the oracle measures one preference, and the a11y tier does not ask about
+motion. Under `reduce` the residue drops out and the utility keeps animating: the hero's entrance
+ran for a reader who had asked for no motion, against invariant 14, « reduced motion is a designed
+state, not a fallback ». `motion-safe:animate-hero-in`.
+
+**R80 measures BOTH preferences because of it.** The rule was written reading one, found this by
+being widened, and the widening is now part of it: two contexts, every pair held in each.
+<sub>mutation: the bare `animate-hero-in` back in place — « animation under reduce: residue « none » vs variant « 0.45s … heroin » », exit 1</sub>
+
+**B-075's second instance, and it is R80's own reader.** The factory extractor split a `cva()`
+call's arguments on their top-level comma and was BLIND TO COMMENTS — and this repository's
+comments are full of commas. Three factories came out with an EMPTY base, dropped silently from
+the anchor table, and took their pairs with them: the rule printed three comparisons fewer and
+nothing red. The comma that exposed it was in a comment this very wave wrote. The reader blanks
+comments now (quotes and templates tracked, so a `//` inside a class literal survives), and **a
+factory whose base cannot be read is a violation, never a skip** — 108 factories became 111.
+<sub>mutation: `cva('sec …')` in single quotes — « UNREADABLE: section() in layout.ts », exit 1 · before/after on the same file: 14 arguments and no anchor, against 3 and `herobg`</sub>
 
 **B-069 — `legacy.css`'s header cites D10** of `docs/reference/frontend-architecture.md` rather
 than an archived DESIGN, which is frozen history that could no longer be corrected if the

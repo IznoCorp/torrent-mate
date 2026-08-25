@@ -21,6 +21,15 @@ the properties the residue DECLARES. A textual comparison could not do this:
 Tailwind's mapping would be a table someone maintains by hand — which is the
 shape of guard this repository keeps finding green over what it does not read.
 
+MEASURED UNDER BOTH MOTION PREFERENCES, and that is not thoroughness for its
+own sake. Part of the residue sits inside
+`@media (prefers-reduced-motion: no-preference)`, and a utility carries no such
+condition unless it is written `motion-safe:`. Under `reduce` the residue rule
+drops out and an unconditional utility keeps applying — the two sides agree
+exactly under one preference and disagree under the other. That is how the
+hero's entrance animation was found running for a reader who had asked for no
+motion, against invariant 14, with every other instrument green.
+
 WHAT IT DOES NOT READ, said here rather than discovered later:
 
   - A residue selector with NO variant of the same anchor is not compared, and
@@ -42,6 +51,11 @@ WHAT IT DOES NOT READ, said here rather than discovered later:
   - A pair where a declared property reads EMPTY on both probes is NOT counted
     as agreement. It is reported as unmeasurable, because two empty strings
     comparing equal is exactly the pre-satisfied hold this project has paid for.
+  - A FACTORY whose base string cannot be read is a VIOLATION and never a skip.
+    A factory that drops out of the table takes its pair with it, and the run
+    reports one comparison fewer with nothing red — which is what happened
+    three times before the comment stripper landed. The base is read from
+    double-quoted literals; a factory built any other way must say so out loud.
 
 IT DIES WITH D10. When L13 removes the residue there is nothing left to shadow
 a variant, and this rule goes in the same move as the decision that makes it
@@ -157,6 +171,59 @@ def split_top_level(text):
     return parts
 
 
+def without_comments(text):
+    """Blank out a TypeScript source's comments, keeping every offset.
+
+    THIS IS NOT TIDINESS, IT IS THE READER'S CORRECTNESS. A `cva()` call's
+    first argument is separated from the rest by a TOP-LEVEL COMMA, and this
+    repository's comments are full of commas. One comment's comma ended the
+    first argument after four characters, so a factory's base came out EMPTY,
+    its anchor vanished from the table, and its pair simply stopped being
+    compared. Nothing failed — the rule printed one pair fewer.
+
+    Quotes and templates are tracked, so a `//` inside a class-name literal is
+    not mistaken for a comment. Lengths are preserved so nothing downstream has
+    to care that anything was removed.
+
+    Args:
+        text: A TypeScript source.
+
+    Returns:
+        The same text with every comment replaced by spaces of equal length.
+    """
+    out = list(text)
+    index, quote, length = 0, None, len(text)
+    while index < length:
+        character = text[index]
+        if quote:
+            if character == "\\":
+                index += 2
+                continue
+            if character == quote:
+                quote = None
+            index += 1
+            continue
+        if character in "\"'`":
+            quote = character
+            index += 1
+            continue
+        if character == "/" and index + 1 < length and text[index + 1] == "/":
+            while index < length and text[index] != "\n":
+                out[index] = " "
+                index += 1
+            continue
+        if character == "/" and index + 1 < length and text[index + 1] == "*":
+            end = text.find("*/", index + 2)
+            end = length if end == -1 else end + 2
+            for blank in range(index, end):
+                if out[blank] != "\n":
+                    out[blank] = " "
+            index = end
+            continue
+        index += 1
+    return "".join(out)
+
+
 def read_factories():
     """Reads every `cva()` factory into its anchor, its base and its branches.
 
@@ -166,13 +233,17 @@ def read_factories():
     D4 wants an anchor to be exactly that.
 
     Returns:
-        A (factories, files_read) pair. `factories` maps an anchor class to a
-        dict carrying the factory's name, its base class list, and its branches
-        keyed by the branch's own leading token.
+        A `(factories, files_read, unread)` triple. `factories` maps an anchor
+        class to a dict carrying the factory's name, its base class list, and
+        its branches keyed by the branch's own leading token. `unread` names
+        every factory whose base came out EMPTY — a factory the reader could
+        not read is a pair that silently stops being compared, so it is a
+        violation and never a skip.
     """
     factories = {}
+    unread = []
     for path in VARIANT_SOURCES:
-        text = path.read_text(encoding="utf-8")
+        text = without_comments(path.read_text(encoding="utf-8"))
         for found in FACTORY.finditer(text):
             opening = text.index("(", found.end() - 1)
             call = text[opening + 1:balanced(text, opening) - 1]
@@ -182,6 +253,7 @@ def read_factories():
                 for piece in [literal.group(1)]
             ).split()
             if not base:
+                unread.append(f"{found.group(1)}() in {path.name}")
                 continue
             branches = {}
             for argument in arguments[1:]:
@@ -195,7 +267,7 @@ def read_factories():
                 "base": base,
                 "branches": branches,
             }
-    return factories, len(VARIANT_SOURCES)
+    return factories, len(VARIANT_SOURCES), unread
 
 
 def read_residue():
@@ -324,13 +396,14 @@ async def main():
     """Stages every pair in the real document and holds the two sides equal."""
     journal = Journal("R80 — the residue and the variant it shadows agree")
 
-    factories, files_read = read_factories()
+    factories, files_read, unread = read_factories()
     rules, declared = read_residue()
     cases, unpaired, toggled, contextual = pair_up(rules, factories)
 
     journal.check("the variant sources are read",
-                  files_read > 0 and len(factories) > 0,
-                  f"{len(factories)} factory(ies) over {files_read} component source(s)")
+                  files_read > 0 and len(factories) > 0 and not unread,
+                  f"{len(factories)} factory(ies) over {files_read} component source(s)"
+                  + (f"; UNREADABLE: {', '.join(unread)}" if unread else ""))
     journal.check("the residue is read",
                   declared > 0,
                   f"{declared} selector(s) declared, {len(rules)} of a shape this rule can read")
@@ -356,25 +429,31 @@ async def main():
         "properties": case["properties"],
     } for case in cases]
 
+    readings = {}
     async with async_playwright() as play:
         browser = await play.chromium.launch(channel="chrome")
-        _, page = await open_page(browser)
-        measured = await page.evaluate(MEASURE, payload)
+        for preference in ("no-preference", "reduce"):
+            _, page = await open_page(browser, reduced_motion=preference)
+            readings[preference] = await page.evaluate(MEASURE, payload)
         await browser.close()
 
-    for case, reading in zip(cases, measured):
+    for index, case in enumerate(cases):
         divergent, blind = [], []
-        for prop in case["properties"]:
-            left, right = reading["left"].get(prop, ""), reading["right"].get(prop, "")
-            if not left and not right:
-                blind.append(prop)
-            elif left != right:
-                divergent.append(f"{prop}: residue « {left} » vs variant « {right} »")
+        for preference, measured in readings.items():
+            reading = measured[index]
+            for prop in case["properties"]:
+                left = reading["left"].get(prop, "")
+                right = reading["right"].get(prop, "")
+                if not left and not right:
+                    blind.append(f"{prop} under {preference}")
+                elif left != right:
+                    divergent.append(
+                        f"{prop} under {preference}: residue « {left} » vs variant « {right} »")
         journal.check(
             f"{case['selector']} ↔ {case['factory']}()",
             not divergent and not blind,
-            "; ".join(divergent + [f"{prop}: neither side reads a value" for prop in blind])
-            or f"{len(case['properties'])} propertie(s), identical")
+            "; ".join(divergent + [f"{entry}: neither side reads a value" for entry in blind])
+            or f"{len(case['properties'])} propertie(s), identical under both motion preferences")
 
     print(f"\n{BAR}")
     print("NOT STAGED, and named rather than hidden:")

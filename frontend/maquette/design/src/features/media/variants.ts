@@ -30,7 +30,14 @@ export const heroWrap = cva("herowrap relative -mt-5 -mx-7 mb-0 isolate overflow
  * the template does not change — only the content does.
  */
 export const heroImage = cva(
-  "herobg relative bg-cover bg-muted [background-position:center_16%] animate-hero-in " +
+  // `motion-safe:`, NOT a bare `animate-*`. The residue rule this variant
+  // shadows sits inside `@media (prefers-reduced-motion: no-preference)`, so
+  // under `reduce` the residue drops out and an unconditional utility kept
+  // animating — the hero entrance ran for a reader who asked for no motion,
+  // against invariant 14. Found by widening R80 to measure both motion
+  // preferences; under `no-preference` the two sides agreed exactly, which is
+  // why nothing else saw it.
+  "herobg relative bg-cover bg-muted [background-position:center_16%] motion-safe:animate-hero-in " +
     // THE MELT: the image gives itself fully at the top, then dissolves into
     // the body colour. No edge, no seam — that is the whole effect.
     //
