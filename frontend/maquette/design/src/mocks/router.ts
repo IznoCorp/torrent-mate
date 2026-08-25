@@ -49,7 +49,7 @@ export function match(
   for (let index = 0; index < wanted.length; index += 1) {
     const segment = wanted[index];
     if (segment.startsWith("{") && segment.endsWith("}")) {
-      parameters[segment.slice(1, -1)] = decodeURIComponent(asked[index]);
+      parameters[segment.slice(1, -1)] = decoded(asked[index]);
       continue;
     }
     if (segment !== asked[index]) return null;
@@ -58,12 +58,33 @@ export function match(
 }
 
 /**
+ * Decodes one path segment, and never throws on one it cannot.
+ *
+ * `decodeURIComponent` raises on a malformed escape, and this runs for EVERY
+ * route of matching length before it is known which one wins — so one bad
+ * segment would reject the whole request rather than answering a named failure.
+ * This layer keys follows, staging cards and decisions by TITLE, and the seeded
+ * titles already contain a per-cent sign.
+ *
+ * @param segment The raw segment.
+ * @returns The decoded segment, or the raw one when it cannot be decoded.
+ */
+function decoded(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
+/**
  * Finds the route that answers one request.
  *
- * A LITERAL SEGMENT WINS OVER A PARAMETER. `/api/decisions/` and
- * `/api/decisions/{decisionId}` are different lengths and cannot collide, but
- * the rule is stated rather than relied on by accident: a table whose answer
- * depends on its own declaration order is a table nobody can reorder safely.
+ * A LITERAL SEGMENT WINS OVER A PARAMETER, which for two routes of equal length
+ * is the same as « fewer captured parameters wins ». Where even that ties, the
+ * table is AMBIGUOUS and this throws rather than picking: two routes matching
+ * one address equally well is a defect in the table, and answering from
+ * whichever happened to be declared first is a table nobody can reorder safely.
  *
  * @param routes Every route the layer answers.
  * @param method The method asked for.
@@ -86,5 +107,16 @@ export function resolve(
     (left, right) =>
       Object.keys(left.parameters).length - Object.keys(right.parameters).length,
   );
+  if (
+    candidates.length > 1 &&
+    Object.keys(candidates[0].parameters).length ===
+      Object.keys(candidates[1].parameters).length
+  ) {
+    throw new Error(
+      `the route table is ambiguous for ${method} ${path}: ` +
+        `${candidates[0].route.template} and ${candidates[1].route.template} match it ` +
+        "equally well",
+    );
+  }
   return candidates[0];
 }

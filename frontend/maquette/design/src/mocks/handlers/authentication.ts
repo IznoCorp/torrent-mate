@@ -1,5 +1,5 @@
 // Who is signed in.
-import ACCOUNT from "../seeds/ACCOUNT.json";
+import ACCOUNT from "../seeds/account.json";
 import { GET, POST, route } from "./shared";
 import type { MockRoute } from "../router";
 

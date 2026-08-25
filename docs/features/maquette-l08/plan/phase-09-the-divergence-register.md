@@ -17,7 +17,7 @@ that differs from the computed one, so the two cannot separate.
 
 Four kinds, and each carries what the backend would have to do:
 
-- **An operation the interface requires that the backend does not have** — the Médiathèque's
+- **An operation the interface requires that the backend does not have** — the « Médiathèque »'s
   whole read surface is here.
 - **An operation whose shape the interface needs differently** — a field added, a field the
   interface cannot use.

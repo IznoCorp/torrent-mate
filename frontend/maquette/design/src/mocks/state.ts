@@ -12,16 +12,16 @@
 //
 // EVERY VALUE HERE COMES FROM A SEED. Nothing in this file invents one; the
 // only literals are the identifiers of the seeds themselves.
-import FOLLOWS from "./seeds/FOLLOWS.json";
-import PENDING_DECISIONS from "./seeds/PENDING_DECISIONS.json";
-import DECISIONS_REGLEES from "./seeds/DECISIONS_REGLEES.json";
-import PIPELINE from "./seeds/PIPELINE.json";
-import LIBRARY from "./seeds/LIBRARY.json";
-import STUCK_REAL from "./seeds/STUCK_REAL.json";
-import MOVING from "./seeds/MOVING.json";
-import SETTLED_REAL from "./seeds/SETTLED_REAL.json";
-import SETTINGS from "./seeds/SETTINGS.json";
-import SECRETS from "./seeds/SECRETS.json";
+import FOLLOWS from "./seeds/follows.json";
+import PENDING_DECISIONS from "./seeds/pending-decisions.json";
+import SETTLED_DECISIONS from "./seeds/settled-decisions.json";
+import PIPELINE from "./seeds/pipeline.json";
+import LIBRARY_ITEMS from "./seeds/library-items.json";
+import STUCK from "./seeds/stuck.json";
+import MOVING from "./seeds/moving.json";
+import SETTLED from "./seeds/settled.json";
+import SETTINGS from "./seeds/settings.json";
+import SECRETS from "./seeds/secrets.json";
 import type { components } from "./contract-types";
 
 /** The contract's own vocabulary for what the pipeline is doing. */
@@ -66,6 +66,20 @@ export type MockState = {
   pipelineState: PipelineState;
   /** Whether a configuration change is waiting for a restart. */
   restartRequired: boolean;
+  /**
+   * Which configuration files carry a pending edit. A write must change what
+   * the next read returns, or the interface contradicts itself: save a file,
+   * list the files, and nothing had changed.
+   */
+  changedFiles: string[];
+  /**
+   * Whether a file moved under an edit. NOT SEEDED and it could not be — the
+   * engine holds it in its store, and the contract's operation says so in
+   * `x-unseeded`.
+   */
+  conflict: boolean;
+  /** Whether the configuration refuses writes. Layer state, as above. */
+  readOnly: boolean;
 };
 
 /**
@@ -82,7 +96,7 @@ function copyOf<Value>(value: unknown): Value {
   return structuredClone(value) as Value;
 }
 
-// THE CAST ABOVE IS A CLAIM, AND IT IS PROVED ELSEWHERE. Each seed is asserted
+// THE CAST_PORTRAITS ABOVE IS A CLAIM, AND IT IS PROVED ELSEWHERE. Each seed is asserted
 // to answer the contract shape it is copied into — that is exactly what
 // `scripts/check-mock-seeds.py --arm schema` validates, over all 47 of them,
 // with every declared object closed to unknown properties. A cast whose proof
@@ -91,16 +105,19 @@ function copyOf<Value>(value: unknown): Value {
 const seeded = (): MockState => ({
   follows: copyOf<Schemas["Follow"][]>(FOLLOWS),
   pendingDecisions: copyOf<Schemas["PendingDecision"][]>(PENDING_DECISIONS),
-  settledDecisions: copyOf<Schemas["SettledDecision"][]>(DECISIONS_REGLEES),
+  settledDecisions: copyOf<Schemas["SettledDecision"][]>(SETTLED_DECISIONS),
   pipeline: copyOf<Schemas["Pipeline"]>(PIPELINE),
-  library: copyOf<Schemas["LibraryItem"][]>(LIBRARY),
-  stuck: copyOf<Schemas["QueueCard"][]>(STUCK_REAL),
+  library: copyOf<Schemas["LibraryItem"][]>(LIBRARY_ITEMS),
+  stuck: copyOf<Schemas["QueueCard"][]>(STUCK),
   moving: copyOf<Schemas["QueueCard"][]>(MOVING),
-  settled: copyOf<Schemas["QueueCard"][]>(SETTLED_REAL),
+  settled: copyOf<Schemas["QueueCard"][]>(SETTLED),
   settings: copyOf<Schemas["SettingsTopic"][]>(SETTINGS),
   secrets: copyOf<Schemas["Secret"][]>(SECRETS),
   pipelineState: IDLE,
   restartRequired: false,
+  changedFiles: [],
+  conflict: false,
+  readOnly: false,
 });
 
 // BUILT ON FIRST USE, never at module evaluation. A top-level `seeded()` call

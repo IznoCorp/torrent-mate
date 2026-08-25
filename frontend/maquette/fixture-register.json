@@ -7,11 +7,15 @@
     "unserved": "not served, with the reason written out"
   },
   "$counts": {
-    "served": 42,
+    "served": 41,
     "asset": 5,
-    "interface": 29,
+    "interface": 30,
     "unserved": 5,
     "total": 81
+  },
+  "$anonymous": {
+    "count": 1,
+    "why": "pure literals declared inside an ANONYMOUS function. They are not inventoried — a name built on a line number is renamed by every edit above it — and the count is held here so their exclusion is a figure somebody compares rather than a figure somebody printed."
   },
   "families": {
     "ACCOUNT": {
@@ -165,8 +169,8 @@
       "seed": null
     },
     "MAINT_TOPICS": {
-      "class": "served",
-      "why": "the maintenance rubrics",
+      "class": "interface",
+      "why": "the six maintenance rubrics, their French names and the sentence explaining each. It was classified `served` and it is the same shape as GROUPS and RISQUES, both `interface`: the backend holds the TOKEN a rubric is keyed by and never its wording. Classifying it served invented a whole demand — an operation asking a server for the interface's own rubric names.",
       "seed": null
     },
     "MOIS": {

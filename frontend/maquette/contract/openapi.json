@@ -317,7 +317,8 @@
         ],
         "x-seeded-from": [
           "LIBRARY",
-          "LIB_TOTAL"
+          "LIB_TOTAL",
+          "SYNOPSIS"
         ]
       },
       "delete": {
@@ -582,7 +583,6 @@
         ],
         "x-seeded-from": [
           "SHEETS_RAW",
-          "SYNOPSIS",
           "POSTERS",
           "POSTERS_HD",
           "HERO_IMAGES",
@@ -993,12 +993,13 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "infoHash": {
-                      "type": "string"
+                    "releaseName": {
+                      "type": "string",
+                      "description": "the release that was taken, by name. The fixture carries no info hash at all — the demand register asks for one"
                     }
                   },
                   "required": [
-                    "infoHash"
+                    "releaseName"
                   ]
                 }
               }
@@ -1050,7 +1051,7 @@
             }
           }
         },
-        "x-unseeded": "the torrent that was taken, identified by the release the request named."
+        "x-unseeded": "the release that was taken, identified by the release the request named. The fixture carries no torrent digest, so the answer names what it can."
       }
     },
     "/api/acquisition/search": {
@@ -1369,6 +1370,21 @@
           "NOTFOUND",
           "NOTFOUND_REAL",
           "DONE_TODAY"
+        ],
+        "parameters": [
+          {
+            "name": "scenario",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "real",
+                "loaded"
+              ]
+            },
+            "description": "which body of data to answer with. `real` is the operator's system as it stands — calm, and what makes a REST state judgeable at all; `loaded` is a dense one, for judging density and scrolling. The prototype has always carried both, and an interface that could only ever be busy would never show its rest states."
+          }
         ]
       }
     },
@@ -1570,6 +1586,21 @@
           "MOVING",
           "SETTLED",
           "SETTLED_REAL"
+        ],
+        "parameters": [
+          {
+            "name": "scenario",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "real",
+                "loaded"
+              ]
+            },
+            "description": "which body of data to answer with. `real` is the operator's system as it stands — calm, and what makes a REST state judgeable at all; `loaded` is a dense one, for judging density and scrolling. The prototype has always carried both, and an interface that could only ever be busy would never show its rest states."
+          }
         ]
       }
     },
@@ -1755,7 +1786,8 @@
                       "type": [
                         "string",
                         "null"
-                      ]
+                      ],
+                      "description": "the run's identifier once it has one. Null here: a run that has just been asked for has no record yet, and answering the PREVIOUS run's identifier made a maintenance action claim the pipeline's last run as its own"
                     }
                   },
                   "required": [
@@ -2517,51 +2549,6 @@
         ]
       }
     },
-    "/api/maintenance/topics": {
-      "get": {
-        "operationId": "readMaintenanceTopics",
-        "summary": "The maintenance rubrics",
-        "tags": [
-          "maintenance"
-        ],
-        "responses": {
-          "200": {
-            "description": "the rubrics",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MaintenanceTopic"
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "401": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "403": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "409": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "500": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "503": {
-            "$ref": "#/components/responses/Problem"
-          }
-        },
-        "x-seeded-from": [
-          "MAINT_TOPICS"
-        ]
-      }
-    },
     "/api/maintenance/actions": {
       "get": {
         "operationId": "readMaintenanceActions",
@@ -2629,7 +2616,8 @@
                       "type": [
                         "string",
                         "null"
-                      ]
+                      ],
+                      "description": "the run's identifier once it has one. Null here: a run that has just been asked for has no record yet, and answering the PREVIOUS run's identifier made a maintenance action claim the pipeline's last run as its own"
                     }
                   },
                   "required": [
@@ -3173,11 +3161,11 @@
         "properties": {
           "tone": {
             "type": "string",
-            "description": "the tone the chip wears"
+            "description": "INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
           },
           "text": {
             "type": "string",
-            "description": "what the chip reads"
+            "description": "INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
           }
         },
         "required": [
@@ -3236,10 +3224,11 @@
         "properties": {
           "label": {
             "type": "string",
-            "description": "what the fact is about"
+            "description": "INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
           },
           "tone": {
-            "type": "string"
+            "type": "string",
+            "description": "INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
           },
           "value": {
             "type": "string",
@@ -3286,6 +3275,13 @@
           "category": {
             "type": "string",
             "description": "the category identifier this item is filed under"
+          },
+          "overview": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the synopsis the CARD shows. It comes from a family of its own, keyed by title; the media sheet carries a different text under the same question, and the demand register asks for one answer to it"
           }
         },
         "required": [
@@ -3301,7 +3297,8 @@
             "type": "string"
           },
           "label": {
-            "type": "string"
+            "type": "string",
+            "description": "INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
           },
           "count": {
             "type": "integer"
@@ -3314,7 +3311,7 @@
             "items": {
               "type": "string"
             },
-            "description": "the category identifiers this one aggregates, or null when it is a leaf"
+            "description": "the category identifiers this one aggregates. Null on the pseudo-category that aggregates EVERYTHING — it filters nothing, which is the opposite of a leaf. Every leaf carries a one-element array naming itself."
           }
         },
         "required": [
@@ -3506,7 +3503,8 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SuggestionReason"
-            }
+            },
+            "description": "why the title is suggested, as a run of pieces: plain text, and the figures the interface emphasises. INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
           }
         },
         "required": [
@@ -3647,11 +3645,10 @@
           },
           "triggers": {
             "type": "object",
-            "properties": {},
-            "required": [],
             "additionalProperties": {
               "type": "string"
-            }
+            },
+            "description": "what each trigger token is called, in French. It is the same shape as every label map the register classifies `interface`, and it is carried here because the fixture carries it inside the pipeline. INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
           },
           "last": {
             "$ref": "#/components/schemas/PipelineRunSummary"
@@ -3737,11 +3734,12 @@
         "type": "object",
         "properties": {
           "label": {
-            "type": "string"
+            "type": "string",
+            "description": "the media the entry is about — a title, not a label"
           },
           "value": {
             "type": "string",
-            "description": "CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+            "description": "when it happened. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
           },
           "secondaryLine": {
             "type": "string",
@@ -3769,25 +3767,6 @@
         "required": [
           "rows",
           "total"
-        ]
-      },
-      "MaintenanceTopic": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          },
-          "secondaryLine": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "secondaryLine",
-          "title"
         ]
       },
       "MaintenanceAction": {
@@ -3851,21 +3830,21 @@
             "type": "string",
             "description": "its short name inside the file"
           },
-          "value": {
-            "description": "the value in force"
-          },
           "note": {
             "type": "string",
             "description": "what it is for"
+          },
+          "displayedValue": {
+            "description": "what the field SHOWS, already rendered — « 4 entrées », « aucun », « oui », « non défini ». It was called `value` until the values were read: 110 of the 159 fields differ from `raw`, and one is LOSSY — a four-element list renders « multi, vf, vostfr +1 » and the fourth element is gone. The engine's own accessor is `displayedValue`, which is the name that survives here. INTERFACE COPY the fixture carries; the demand register asks the backend for `raw` alone and leaves the rendering to the interface."
           }
         },
         "required": [
+          "displayedValue",
           "file",
           "key",
-          "type",
-          "raw",
           "name",
-          "value"
+          "raw",
+          "type"
         ]
       },
       "SettingsTopic": {
@@ -3875,10 +3854,12 @@
             "type": "string"
           },
           "title": {
-            "type": "string"
+            "type": "string",
+            "description": "INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
           },
           "secondaryLine": {
-            "type": "string"
+            "type": "string",
+            "description": "INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
           },
           "fileNames": {
             "type": "array",
@@ -3908,7 +3889,8 @@
             "type": "string"
           },
           "label": {
-            "type": "string"
+            "type": "string",
+            "description": "INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
           },
           "defined": {
             "type": "boolean",
@@ -3988,8 +3970,7 @@
             "type": "integer"
           },
           "via": {
-            "type": "string",
-            "description": "picked from the offered list, or found by a manual search"
+            "$ref": "#/components/schemas/DecisionRoute"
           }
         },
         "required": [
@@ -4013,7 +3994,8 @@
             "type": "string"
           },
           "reason": {
-            "type": "string"
+            "type": "string",
+            "description": "why the scrape could not decide alone, as a TOKEN. The engine keys its French wording by it (`REASON_LABEL`, classified `interface`) — unlike `QueueCard.reason`, which is a whole sentence."
           },
           "when": {
             "type": "string",
@@ -4055,7 +4037,8 @@
             "type": "string"
           },
           "reason": {
-            "type": "string"
+            "type": "string",
+            "description": "why the scrape could not decide alone, as a TOKEN. The engine keys its French wording by it (`REASON_LABEL`, classified `interface`) — unlike `QueueCard.reason`, which is a whole sentence."
           },
           "state": {
             "$ref": "#/components/schemas/DecisionState"
@@ -4190,13 +4173,14 @@
               "string",
               "null"
             ],
-            "description": "The trailer's TITLE, and nothing else — 182 sheets carry a string here and 144 carry null. Its YouTube key lives in a second family, `trailerIds`, keyed by the same title. The split is the fixture's and it is carried rather than repaired (D-L08-5); the demand register asks the backend for one trailer object with its key beside its name."
+            "description": "The trailer's TITLE, and nothing else. It is NOT the other half of `trailerIds`, and that was written here before the two were compared: of the 288 titles both carry, 178 name a DIFFERENT trailer — one the dubbed cut, the other the subtitled one — and 110 of the sheets carrying null have a key and a name in `trailerIds` all the same. So null does not mean « no trailer » either. The demand stands and is the same: one trailer object, its key beside its name, decided once."
           },
           "ids": {
             "$ref": "#/components/schemas/ProviderIds"
           },
           "status": {
-            "type": "string"
+            "type": "string",
+            "description": "INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
           },
           "owned": {
             "type": "boolean",
@@ -4222,6 +4206,45 @@
           "tmdbTelevisionId": {
             "type": "string",
             "description": "the TMDB television identifier, on the eleven sheets that carry one — a string, as the fixture holds it"
+          },
+          "poster": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the poster's address. A BUILD-LOCAL PATH the fixture carries — the maquette's own hashed file, which no server can produce. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
+          },
+          "posterHighDefinition": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the poster at gallery definition, same caveat"
+          },
+          "hero": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the wide visual, same caveat"
+          },
+          "trailerVideo": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Trailer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the trailer's key and name, from the family keyed by the same title. See `trailer` above for why the two disagree 178 times"
+          },
+          "castPortraits": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "this title's own cast portraits, keyed by name"
           }
         },
         "required": [
@@ -4248,13 +4271,15 @@
             "type": "integer"
           },
           "owned": {
+            "type": "integer",
+            "description": "how many of them the library holds"
+          },
+          "aired": {
             "type": [
               "integer",
               "null"
-            ]
-          },
-          "aired": {
-            "type": "integer"
+            ],
+            "description": "how many episodes the provider catalogue lists, or null when it does not say. The interface then shows a question mark rather than an invented total"
           }
         },
         "required": [
@@ -4375,6 +4400,14 @@
           "superseded"
         ],
         "description": "Where a decision has got to. The engine keys its French labels by these same tokens (`DECISION_STATE`, classified `interface` — the labels belong to the interface, the tokens to this contract)."
+      },
+      "DecisionRoute": {
+        "type": "string",
+        "enum": [
+          "pick",
+          "search_override"
+        ],
+        "description": "how a candidate was reached: picked from the list the decision offered, or found by a manual search that bypassed it. The engine keys its French wording by these tokens (`VIA_LABEL`, classified `interface`)."
       }
     },
     "responses": {

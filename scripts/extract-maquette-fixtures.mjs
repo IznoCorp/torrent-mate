@@ -45,6 +45,7 @@
  *     node scripts/extract-maquette-fixtures.mjs --measure
  *     node scripts/extract-maquette-fixtures.mjs --list
  *     node scripts/extract-maquette-fixtures.mjs --all
+ *     node scripts/extract-maquette-fixtures.mjs --anonymous
  *     node scripts/extract-maquette-fixtures.mjs --family LIBRARY
  *     node scripts/extract-maquette-fixtures.mjs --family openJourneySheet.steps
  *
@@ -59,7 +60,33 @@ import { createRequire } from "node:module";
 import { resolve } from "node:path";
 
 const require_ = createRequire(import.meta.url);
-const typescript = require_("../frontend/node_modules/typescript");
+
+// THE PARSER LIVES IN ONE OF TWO INSTALLS, and naming only one made this tool
+// unrunnable on the machine that matters. The continuous-integration job that
+// runs the guard reading this file installs `frontend/maquette/design`, never
+// `frontend` — a relative specifier does not fall back, so the tool failed
+// there for a reason foreign to every change under test. That is the shape
+// B-077 records, met from the other end.
+//
+// The maquette's own install is tried FIRST: this tool reads the maquette's
+// engine, so the maquette's TypeScript is the one that should parse it.
+const typescript = (() => {
+  const installs = [
+    "../frontend/maquette/design/node_modules/typescript",
+    "../frontend/node_modules/typescript",
+  ];
+  for (const install of installs) {
+    try {
+      return require_(install);
+    } catch {
+      continue;
+    }
+  }
+  throw new Error(
+    `no TypeScript install found. Tried: ${installs.join(", ")}. Run ` +
+      "`npm ci` in frontend/maquette/design or in frontend.",
+  );
+})();
 
 const REPOSITORY_ROOT = resolve(import.meta.dirname, "..");
 const ENGINE = resolve(
@@ -201,9 +228,12 @@ function valueOf(node) {
 // A literal in an anonymous callback has no stable name to be inventoried
 // under: the only thing distinguishing it is where it sits, and a name built
 // from a line number is renamed by every edit above it — a register keyed on
-// one would go red for a change that touched nothing it holds. There are five,
-// they are all working state of a callback, and they are COUNTED on every run
-// so their exclusion is a figure rather than a silence.
+// one would go red for a change that touched nothing it holds. They are working
+// state of a callback, and they are COUNTED on every run so their exclusion is
+// a figure rather than a silence.
+//
+// THE COUNT IS HELD, in `fixture-register.json`'s `$anonymous`: a figure printed
+// and never compared can go from one to nine with every guard green.
 const ANONYMOUS = "anonymous";
 
 /**
@@ -365,6 +395,8 @@ if (argument === "--measure") {
 } else if (argument === "--list") {
   for (const family of families) process.stdout.write(`${family.name}\n`);
   for (const entry of nested) process.stdout.write(`${entry.name}\n`);
+} else if (argument === "--anonymous") {
+  process.stdout.write(`${anonymous}\n`);
 } else if (argument === "--all") {
   // Every family in ONE object, because the alternative is one process per
   // family: the guard that reads them made a hundred and forty node starts,
@@ -373,6 +405,18 @@ if (argument === "--measure") {
   // nobody runs.
   const everything = {};
   for (const family of [...families, ...nested]) {
+    // A COLLISION IS REFUSED, never resolved by whichever came last. Two inner
+    // functions of one outer function may each declare the same name, and
+    // overwriting one with the other would hand the guard a family whose
+    // contents belong to a different declaration — silently, and with every
+    // count still right.
+    if (Object.hasOwn(everything, family.name)) {
+      process.stderr.write(
+        `extract-maquette-fixtures: two declarations answer to ${family.name}; a ` +
+          "qualified name must name one thing\n",
+      );
+      process.exit(1);
+    }
     everything[family.name] = valueOf(family.node);
   }
   process.stdout.write(canonical(everything));
@@ -391,7 +435,7 @@ if (argument === "--measure") {
 } else {
   process.stderr.write(
     "usage: extract-maquette-fixtures.mjs --measure | --list | --all | "
-      + "--family <NAME>\n",
+      + "--anonymous | --family <NAME>\n",
   );
   process.exit(2);
 }

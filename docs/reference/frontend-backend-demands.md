@@ -13,9 +13,9 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 54 |
+| operations the interface requires | 53 |
 | operations the backend has | 65 |
-| required and missing | 13 |
+| required and missing | 12 |
 | declared by both, different response shape | 41 |
 | declared by both, path parameter spelled differently | 11 |
 | fields carried pre-formatted | 25 |
@@ -35,7 +35,6 @@ than a blank page.
 | `GET /api/library/incomplete` | `readLibraryIncomplete` | The series with holes, and how big each hole is |
 | `GET /api/library/items` | `readLibraryItems` | The library listing, one page of it |
 | `GET /api/library/recent` | `readLibraryRecent` | The most recently added titles |
-| `GET /api/maintenance/topics` | `readMaintenanceTopics` | The maintenance rubrics |
 | `GET /api/media/{provider}/{providerId}/seasons` | `readMediaSeasons` | The seasons of a show, and what the library holds of each |
 | `GET /api/system/dependencies` | `readDependencies` | The external dependencies, and whether each answers |
 | `GET /api/system/errors` | `readErrors` | How many errors, out of how many runs, and the latest |
@@ -55,7 +54,7 @@ reports a difference for every optional field and drowns the real findings.
 | `GET /api/acquisition/to-handle` (`readAcquisitionQueue`) | `blocked`, `chip`, `doneToday`, `inFlight`, `notFound`, `secondaryLine`, `strip`, `takeable`, `text`, `tone`, `withoutPoster` | `candidates_count`, `created_at`, `decision_id`, `degraded`, `episode`, `followed_id`, `info_hash`, `items`, `kind`, `orphan_count`, `season`, `stage`, `year` |
 | `GET /api/auth/me` (`readAccount`) | `avatar`, `email`, `name` | — |
 | `GET /api/config/files` (`readConfigurationFiles`) | `changed` | `files`, `mtime`, `owned_keys`, `sha256`, `shadowed_keys`, `size` |
-| `GET /api/config/schema` (`readSettings`) | `file`, `fileNames`, `id`, `key`, `name`, `note`, `raw`, `secondaryLine`, `settings`, `title`, `type`, `value` | `json_schema`, `ownership`, `restart_impact` |
+| `GET /api/config/schema` (`readSettings`) | `displayedValue`, `file`, `fileNames`, `id`, `key`, `name`, `note`, `raw`, `secondaryLine`, `settings`, `title`, `type` | `json_schema`, `ownership`, `restart_impact` |
 | `GET /api/config/secrets` (`readSecrets`) | `defined`, `label` | `description`, `is_set`, `secrets` |
 | `GET /api/config/status` (`readConfigurationStatus`) | `readOnly`, `restartRequired` | `read_only`, `restart_configured`, `restart_required`, `role`, `stale_files` |
 | `GET /api/decisions/` (`readDecisions`) | `candidates`, `choice`, `folder`, `kind`, `overview`, `pending`, `provider`, `reason`, `score`, `settled`, `state`, `title`, `via`, `when`, `withoutPoster`, `year` | `candidates_count`, `created_at`, `extracted_title`, `extracted_year`, `items`, `media_kind`, `page`, `page_size`, `pending_count`, `staging_path`, `status`, `total`, `trigger` |
@@ -64,7 +63,7 @@ reports a difference for every optional field and drowns the real findings.
 | `GET /api/maintenance/disks` (`readDisks`) | `secondaryLine`, `tone`, `value` | `disks`, `free_gb`, `id`, `mounted`, `total_gb`, `used_pct` |
 | `GET /api/maintenance/index-health` (`readIndexHealth`) | `label`, `secondaryLine`, `tone`, `value` | `canonical_null`, `degraded`, `error`, `files`, `invalid`, `items`, `last_scan_finished_at`, `last_scan_id`, `last_scan_mode`, `last_scan_started_at`, `last_scan_status`, `last_scan_stuck`, `missing`, `movies`, `nfo`, `outbox_oldest_age_s`, `outbox_pending`, `repair_queue_oldest_age_s`, `repair_queue_pending`, `shows`, `size_gb`, `soft_deleted`, `valid` |
 | `GET /api/maintenance/schedulers` (`readSchedulers`) | `label`, `secondaryLine`, `tone`, `value` | `display_name`, `enabled`, `kind`, `last_outcome`, `last_run_at`, `name`, `schedule`, `schedulers` |
-| `GET /api/media/{provider}/{providerId}` (`readMediaSheet`) | `airDate`, `cast`, `duration`, `episodes`, `ids`, `name`, `number`, `rating`, `role`, `runtime`, `status`, `tmdbTelevisionId`, `trailer` | `aired_count`, `degraded_reason`, `episode_count`, `owned_count`, `ownership`, `poster_url`, `provider`, `provider_id`, `season_number`, `series_status`, `trailer_url` |
+| `GET /api/media/{provider}/{providerId}` (`readMediaSheet`) | `airDate`, `cast`, `castPortraits`, `duration`, `episodes`, `hero`, `ids`, `key`, `language`, `name`, `number`, `poster`, `posterHighDefinition`, `rating`, `role`, `runtime`, `status`, `tmdbTelevisionId`, `trailer`, `trailerVideo` | `aired_count`, `degraded_reason`, `episode_count`, `owned_count`, `ownership`, `poster_url`, `provider`, `provider_id`, `season_number`, `series_status`, `trailer_url` |
 | `GET /api/pipeline/history` (`readPipelineHistory`) | `cause`, `result`, `succeeded`, `when` | `command`, `degraded`, `dry_run`, `duration_s`, `ended_at`, `kind`, `outcome`, `run_uid`, `runs`, `started_at`, `total`, `trigger` |
 | `GET /api/pipeline/status` (`readPipeline`) | `blockedCount`, `description`, `duration`, `facts`, `label`, `last`, `name`, `outcome`, `result`, `secondaryLine`, `steps`, `trigger`, `triggers`, `uid`, `when` | `paused`, `pid`, `run_uid`, `state`, `step`, `watcher_enabled` |
 | `GET /api/staging/media` (`readStaging`) | `chip`, `moving`, `secondaryLine`, `settled`, `strip`, `stuck`, `text`, `tone`, `withoutPoster` | `absent`, `ambiguous`, `awaiting_action`, `blocked_reason`, `category`, `category_id`, `continuation_requested_at`, `counts`, `decision_id`, `decision_trigger`, `disk`, `dispatch_target`, `episode_count`, `folder`, `has_nfo`, `has_poster`, `has_trailer`, `id`, `items`, `key`, `label`, `match`, `matched`, `media_kind`, `mode`, `modified_at`, `overview`, `page`, `page_size`, `position_stage`, `position_state`, `poster_url`, `provider_ids`, `relative_path`, `scraped`, `season`, `seasons`, `size_bytes`, `stages`, `state`, `total`, `video_count`, `with_trailer`, `year` |
@@ -72,7 +71,7 @@ reports a difference for every optional field and drowns the real findings.
 | `PATCH /api/acquisition/followed/{followedId}` (`updateFollow`) | `aired`, `fresh`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `id`, `imdb_id`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
 | `POST /api/acquisition/detect` (`runDetection`) | `available`, `detected`, `grabbed` | — |
 | `POST /api/acquisition/followed` (`createFollow`) | `aired`, `fresh`, `kind`, `owned`, `searches`, `showStatus`, `since`, `status`, `title`, `year` | — |
-| `POST /api/acquisition/followed/{followedId}/grab` (`grabForFollow`) | `infoHash` | — |
+| `POST /api/acquisition/followed/{followedId}/grab` (`grabForFollow`) | `releaseName` | — |
 | `POST /api/acquisition/followed/{followedId}/search` (`searchForFollow`) | `found` | — |
 | `POST /api/auth/login` (`signIn`) | `avatar`, `email`, `name` | — |
 | `POST /api/auth/logout` (`signOut`) | `ok` | — |

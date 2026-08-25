@@ -14,7 +14,7 @@ path, method and schema are taken as they are unless the interface genuinely nee
 
 **Where it must diverge, it diverges deliberately and the divergence is a demand** — phase 9
 computes them. The largest is already known: there is no library endpoint of any kind in the
-backend contract, so the whole Médiathèque is new surface.
+backend contract, so the whole « Médiathèque » is new surface.
 
 ## What the contract does NOT do
 

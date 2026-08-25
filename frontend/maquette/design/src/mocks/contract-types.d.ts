@@ -670,23 +670,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/maintenance/topics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** The maintenance rubrics */
-        get: operations["readMaintenanceTopics"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/maintenance/actions": {
         parameters: {
             query?: never;
@@ -863,9 +846,9 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         Chip: {
-            /** @description the tone the chip wears */
+            /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
             tone: string;
-            /** @description what the chip reads */
+            /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
             text: string;
         };
         /** @description The five pipeline positions a card has reached: 0 not yet, 1 done, or a string naming the state it is stopped in. */
@@ -882,8 +865,9 @@ export interface components {
             withoutPoster?: boolean;
         };
         Fact: {
-            /** @description what the fact is about */
+            /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
             label: string;
+            /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
             tone: string;
             /** @description the fact itself. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             value: string;
@@ -902,12 +886,15 @@ export interface components {
             secondaryLine: string;
             /** @description the category identifier this item is filed under */
             category: string;
+            /** @description the synopsis the CARD shows. It comes from a family of its own, keyed by title; the media sheet carries a different text under the same question, and the demand register asks for one answer to it */
+            overview?: string | null;
         };
         LibraryCategory: {
             id: string;
+            /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
             label: string;
             count: number;
-            /** @description the category identifiers this one aggregates, or null when it is a leaf */
+            /** @description the category identifiers this one aggregates. Null on the pseudo-category that aggregates EVERYTHING — it filters nothing, which is the opposite of a leaf. Every leaf carries a one-element array naming itself. */
             includes: string[] | null;
         };
         IncompleteShow: {
@@ -964,6 +951,7 @@ export interface components {
             /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             kind: string;
             rating: number;
+            /** @description why the title is suggested, as a run of pieces: plain text, and the figures the interface emphasises. INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
             why: components["schemas"]["SuggestionReason"][];
         };
         Release: {
@@ -1007,6 +995,7 @@ export interface components {
         };
         Pipeline: {
             steps: components["schemas"]["PipelineStep"][];
+            /** @description what each trigger token is called, in French. It is the same shape as every label map the register classifies `interface`, and it is carried here because the fixture carries it inside the pipeline. INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
             triggers: {
                 [key: string]: string;
             };
@@ -1032,8 +1021,9 @@ export interface components {
             where: string;
         };
         JournalRow: {
+            /** @description the media the entry is about — a title, not a label */
             label: string;
-            /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
+            /** @description when it happened. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             value: string;
             /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             secondaryLine?: string;
@@ -1041,11 +1031,6 @@ export interface components {
         DeletionJournal: {
             total: number;
             rows: components["schemas"]["JournalRow"][];
-        };
-        MaintenanceTopic: {
-            id: string;
-            title: string;
-            secondaryLine: string;
         };
         MaintenanceAction: {
             id: string;
@@ -1071,20 +1056,23 @@ export interface components {
             raw: unknown;
             /** @description its short name inside the file */
             name: string;
-            /** @description the value in force */
-            value: unknown;
             /** @description what it is for */
             note?: string;
+            /** @description what the field SHOWS, already rendered — « 4 entrées », « aucun », « oui », « non défini ». It was called `value` until the values were read: 110 of the 159 fields differ from `raw`, and one is LOSSY — a four-element list renders « multi, vf, vostfr +1 » and the fourth element is gone. The engine's own accessor is `displayedValue`, which is the name that survives here. INTERFACE COPY the fixture carries; the demand register asks the backend for `raw` alone and leaves the rendering to the interface. */
+            displayedValue: unknown;
         };
         SettingsTopic: {
             id: string;
+            /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
             title: string;
+            /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
             secondaryLine: string;
             fileNames: string[];
             settings: components["schemas"]["Setting"][];
         };
         Secret: {
             key: string;
+            /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
             label: string;
             /** @description whether a value exists. NEVER the value itself */
             defined: boolean;
@@ -1109,14 +1097,14 @@ export interface components {
             title: string;
             provider: string;
             id: number;
-            /** @description picked from the offered list, or found by a manual search */
-            via: string;
+            via: components["schemas"]["DecisionRoute"];
         };
         PendingDecision: {
             /** @description the staging folder awaiting arbitration */
             folder: string;
             kind: string;
             title: string;
+            /** @description why the scrape could not decide alone, as a TOKEN. The engine keys its French wording by it (`REASON_LABEL`, classified `interface`) — unlike `QueueCard.reason`, which is a whole sentence. */
             reason: string;
             /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             when: string;
@@ -1128,6 +1116,7 @@ export interface components {
             folder: string;
             kind: string;
             title: string;
+            /** @description why the scrape could not decide alone, as a TOKEN. The engine keys its French wording by it (`REASON_LABEL`, classified `interface`) — unlike `QueueCard.reason`, which is a whole sentence. */
             reason: string;
             state: components["schemas"]["DecisionState"];
             /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
@@ -1163,9 +1152,10 @@ export interface components {
             director: string | null;
             creator: string | null;
             cast: components["schemas"]["CastMember"][];
-            /** @description The trailer's TITLE, and nothing else — 182 sheets carry a string here and 144 carry null. Its YouTube key lives in a second family, `trailerIds`, keyed by the same title. The split is the fixture's and it is carried rather than repaired (D-L08-5); the demand register asks the backend for one trailer object with its key beside its name. */
+            /** @description The trailer's TITLE, and nothing else. It is NOT the other half of `trailerIds`, and that was written here before the two were compared: of the 288 titles both carry, 178 name a DIFFERENT trailer — one the dubbed cut, the other the subtitled one — and 110 of the sheets carrying null have a key and a name in `trailerIds` all the same. So null does not mean « no trailer » either. The demand stands and is the same: one trailer object, its key beside its name, decided once. */
             trailer: string | null;
             ids: components["schemas"]["ProviderIds"];
+            /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
             status: string;
             /** @description whether the library holds it */
             owned: boolean;
@@ -1177,11 +1167,25 @@ export interface components {
             seasons?: components["schemas"]["SeasonSummary"][];
             /** @description the TMDB television identifier, on the eleven sheets that carry one — a string, as the fixture holds it */
             tmdbTelevisionId?: string;
+            /** @description the poster's address. A BUILD-LOCAL PATH the fixture carries — the maquette's own hashed file, which no server can produce. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
+            poster?: string | null;
+            /** @description the poster at gallery definition, same caveat */
+            posterHighDefinition?: string | null;
+            /** @description the wide visual, same caveat */
+            hero?: string | null;
+            /** @description the trailer's key and name, from the family keyed by the same title. See `trailer` above for why the two disagree 178 times */
+            trailerVideo?: components["schemas"]["Trailer"] | null;
+            /** @description this title's own cast portraits, keyed by name */
+            castPortraits?: {
+                [key: string]: string;
+            };
         };
         Season: {
             season: number;
-            owned: number | null;
-            aired: number;
+            /** @description how many of them the library holds */
+            owned: number;
+            /** @description how many episodes the provider catalogue lists, or null when it does not say. The interface then shows a question mark rather than an invented total */
+            aired: number | null;
         };
         JourneyStage: {
             label: string;
@@ -1220,6 +1224,11 @@ export interface components {
          * @enum {string}
          */
         DecisionState: "resolved" | "dismissed" | "superseded";
+        /**
+         * @description how a candidate was reached: picked from the list the decision offered, or found by a manual search that bypassed it. The engine keys its French wording by these tokens (`VIA_LABEL`, classified `interface`).
+         * @enum {string}
+         */
+        DecisionRoute: "pick" | "search_override";
     };
     responses: {
         /** @description the request failed, and the reason is the real one (NE-DOIT-PAS-4, NE-DOIT-PAS-5) */
@@ -1734,7 +1743,8 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        infoHash: string;
+                        /** @description the release that was taken, by name. The fixture carries no info hash at all — the demand register asks for one */
+                        releaseName: string;
                     };
                 };
             };
@@ -1869,7 +1879,10 @@ export interface operations {
     };
     readAcquisitionQueue: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description which body of data to answer with. `real` is the operator's system as it stands — calm, and what makes a REST state judgeable at all; `loaded` is a dense one, for judging density and scrolling. The prototype has always carried both, and an interface that could only ever be busy would never show its rest states. */
+                scenario?: "real" | "loaded";
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1963,7 +1976,10 @@ export interface operations {
     };
     readStaging: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description which body of data to answer with. `real` is the operator's system as it stands — calm, and what makes a REST state judgeable at all; `loaded` is a dense one, for judging density and scrolling. The prototype has always carried both, and an interface that could only ever be busy would never show its rest states. */
+                scenario?: "real" | "loaded";
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2096,6 +2112,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         state: components["schemas"]["PipelineState"];
+                        /** @description the run's identifier once it has one. Null here: a run that has just been asked for has no record yet, and answering the PREVIOUS run's identifier made a maintenance action claim the pipeline's last run as its own */
                         uid: string | null;
                     };
                 };
@@ -2507,32 +2524,6 @@ export interface operations {
             503: components["responses"]["Problem"];
         };
     };
-    readMaintenanceTopics: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description the rubrics */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MaintenanceTopic"][];
-                };
-            };
-            400: components["responses"]["Problem"];
-            401: components["responses"]["Problem"];
-            403: components["responses"]["Problem"];
-            409: components["responses"]["Problem"];
-            500: components["responses"]["Problem"];
-            503: components["responses"]["Problem"];
-        };
-    };
     readMaintenanceActions: {
         parameters: {
             query?: never;
@@ -2585,6 +2576,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         state: components["schemas"]["PipelineState"];
+                        /** @description the run's identifier once it has one. Null here: a run that has just been asked for has no record yet, and answering the PREVIOUS run's identifier made a maintenance action claim the pipeline's last run as its own */
                         uid: string | null;
                     };
                 };

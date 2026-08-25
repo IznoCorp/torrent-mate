@@ -3,8 +3,8 @@
 
 WHY COMPUTED AND NOT WRITTEN. D7 says every divergence between the contract the
 interface REQUIRES and the contract the backend HAS is recorded as a demand, and
-that « the recorded divergences ARE that future specification, delivered as a
-diff rather than a blank page ». A register written by hand rots the first time
+that the recorded divergences ARE that future specification, delivered as a diff
+rather than a blank page. A register written by hand rots the first time
 either contract moves, and a specification nobody recalculates is one nobody can
 act on. `--check` refuses a committed register that differs from the computed
 one, so the two cannot separate.
@@ -12,7 +12,7 @@ one, so the two cannot separate.
 WHAT IT COMPARES, and what it deliberately does not. Five kinds:
 
   missing      an operation the interface requires and the backend does not
-               have. The whole Médiathèque is here.
+               have. The whole library read surface is here.
   shape        an operation both declare, whose RESPONSE carries different
                property names. Names, not types: a type comparison across two
                documents written by different hands reports difference for
@@ -21,7 +21,7 @@ WHAT IT COMPARES, and what it deliberately does not. Five kinds:
                differently — `{followedId}` against `{followed_id}`. A real
                divergence, and a small one.
   formatted    a field the interface carries PRE-FORMATTED because the fixture
-               does (D-L08-5). The demand is « supply the underlying fact ».
+               does (D-L08-5). The demand is supply the underlying fact.
                These are found by their own description marker, which the
                contract writes deliberately.
   unused       an operation the backend has and the interface does not use.
@@ -63,7 +63,7 @@ def shape_of(key: str) -> str:
 
     THE TWO DOCUMENTS SPELL THEIR PARAMETERS DIFFERENTLY — the interface writes
     `{followedId}`, the backend writes `{followed_id}` — and comparing the
-    literal strings reports « the backend does not have this operation » about
+    literal strings reports the backend does not have this operation about
     operations it plainly has. ELEVEN were reported that way, and the count of
     truly missing operations fell from 24 to 13 when it was fixed. The spelling
     IS a divergence and it is recorded as its own kind below; it is not the same
@@ -147,6 +147,13 @@ def formatted_fields(document: dict) -> list:
                 walk(schema, f"{where}.{name}" if where else name)
             for key in ("items", "additionalProperties"):
                 walk(node.get(key), where)
+            # THE COMPOSITION KEYWORDS TOO. The property walk beside this one
+            # follows them and this one did not, so a field carried
+            # pre-formatted inside a `oneOf` would never reach the register —
+            # latent today, and latent is not held.
+            for key in ("oneOf", "anyOf", "allOf"):
+                for member in node.get(key) or []:
+                    walk(member, where)
         elif isinstance(node, list):
             for member in node:
                 walk(member, where)

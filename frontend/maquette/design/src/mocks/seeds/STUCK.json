@@ -1,25 +1,8 @@
 [
   {
-    "title": "Backrooms.2026.MULTi.2160p.WEB-DL",
-    "secondaryLine": "arrivé à 06 h 14 · qBittorrent (manuel)",
-    "reason": "Aucun média identifié : ni TMDB ni TVDB ne renvoient de correspondance pour ce nom.",
-    "chip": {
-      "tone": "danger",
-      "text": "Confiance faible"
-    },
-    "strip": [
-      1,
-      1,
-      "blocked",
-      0,
-      0
-    ],
-    "withoutPoster": true
-  },
-  {
-    "title": "S.W.A.T.",
-    "secondaryLine": "S08E12 · arrivé à 22 h 51 · qBittorrent (manuel)",
-    "reason": "Deux correspondances possibles — TVDB 328724 (2017) et TVDB 71663 (1975). Il faut choisir.",
+    "title": "Top Chef Le Concours Parallèle (2026)",
+    "secondaryLine": "002-TVSHOWS · déposé à la main",
+    "reason": "Aucune donnée d'épisode chez TVDB ni chez TMDB pour cette série : la détection ne peut pas nommer les fichiers. Blocage connu, assumé ouvert.",
     "strip": [
       1,
       1,
@@ -29,9 +12,9 @@
     ]
   },
   {
-    "title": "doc_fr_2026_final",
-    "secondaryLine": "arrivé hier à 19 h 03 · dépôt manuel",
-    "reason": "Aucun fichier vidéo dans le dossier : seulement 3 fichiers .nfo et une archive .rar non extraite. Aucun arbitrage n'y changera rien.",
+    "title": "Marvels.Spider-Man.2.v1.526.0.FRENCH-Mephisto",
+    "secondaryLine": "098-AUTRES · déposé à la main",
+    "reason": "Aucun fichier vidéo dans le dossier : c'est un jeu, pas un média. Il ne peut pas traverser le pipeline.",
     "strip": [
       1,
       "blocked",

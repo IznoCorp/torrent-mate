@@ -5,7 +5,8 @@
     "rename": "a map from PATH to {old key: new key}. Paths are scoped, and that is not fussiness: `n` means `name` inside a cast list and `number` inside an episode list, so a flat recursive rename would corrupt SHEETS_RAW in silence. `\"\"` is the entry root; `/key` descends; `[]` enters a list; `*` matches one key segment.",
     "opaque": "keys whose value is DATA and is never descended into. `SETTINGS`'s `brut` and `v` hold the operator's own configuration, whose keys are `name`, `path`, `id` — a renamer walking in would rewrite the configuration.",
     "tuples": "a positional array becomes an object with named fields. `$item` is each element of a top-level array, `$value[]` each element of each value of a top-level map, and a bare key name is any value under that key.",
-    "answers": "the contract schema this family's seed must validate against. A tiny expression: `Name` is `#/components/schemas/Name`, a lowercase name is a primitive type, `X[]` is a list of X, and `{X}` is a map whose values are X. It is declared PER FAMILY rather than read off the operation, because most operations compose several families into one envelope — the acquisition queue is five buckets and the media sheet is seven families — so validating a family against its operation's whole response schema would report a mismatch for every one of them."
+    "answers": "the contract schema this family's seed must validate against. A tiny expression: `Name` is `#/components/schemas/Name`, a lowercase name is a primitive type, `X[]` is a list of X, and `{X}` is a map whose values are X. It is declared PER FAMILY rather than read off the operation, because most operations compose several families into one envelope — the acquisition queue is five buckets and the media sheet is seven families — so validating a family against its operation's whole response schema would report a mismatch for every one of them.",
+    "file": "the seed file this family is written to, WITHOUT its extension. Declared rather than derived from the family's own name, because the family names are the ENGINE's — French in one case, abbreviated in several — while these files are new and are named in English, written out in full, on the day they are written. The `_REAL` suffix the engine uses for the calm scenario becomes the bare name here, and the dense one carries `-loaded`: the engine's suffix says which is the exception, and it is the other way round."
   },
   "families": {
     "ACCOUNT": {
@@ -14,13 +15,16 @@
           "mail": "email"
         }
       },
-      "answers": "Account"
+      "answers": "Account",
+      "file": "account"
     },
     "CADENCE_CRON": {
-      "answers": "string"
+      "answers": "string",
+      "file": "grab-cadence"
     },
     "LIB_TOTAL": {
-      "answers": "integer"
+      "answers": "integer",
+      "file": "library-total"
     },
     "LIBRARY": {
       "rename": {
@@ -30,7 +34,8 @@
           "c": "category"
         }
       },
-      "answers": "LibraryItem[]"
+      "answers": "LibraryItem[]",
+      "file": "library-items"
     },
     "RECENT": {
       "rename": {
@@ -39,7 +44,8 @@
           "f": "secondaryLine"
         }
       },
-      "answers": "LibraryRow[]"
+      "answers": "LibraryRow[]",
+      "file": "recent"
     },
     "CATS": {
       "rename": {
@@ -49,7 +55,8 @@
           "of": "includes"
         }
       },
-      "answers": "LibraryCategory[]"
+      "answers": "LibraryCategory[]",
+      "file": "library-categories"
     },
     "INCOMPLETE": {
       "rename": {
@@ -60,7 +67,8 @@
           "y": "year"
         }
       },
-      "answers": "IncompleteShow[]"
+      "answers": "IncompleteShow[]",
+      "file": "incomplete-shows"
     },
     "FOLLOWS": {
       "rename": {
@@ -73,7 +81,8 @@
           "own": "owned"
         }
       },
-      "answers": "Follow[]"
+      "answers": "Follow[]",
+      "file": "follows"
     },
     "SEARCH": {
       "rename": {
@@ -84,7 +93,8 @@
           "ov": "overview"
         }
       },
-      "answers": "SearchResults"
+      "answers": "SearchResults",
+      "file": "search-results"
     },
     "SUGGESTIONS": {
       "rename": {
@@ -98,7 +108,8 @@
           "e": "emphasis"
         }
       },
-      "answers": "Suggestion[]"
+      "answers": "Suggestion[]",
+      "file": "suggestions"
     },
     "RELEASES": {
       "rename": {
@@ -112,7 +123,8 @@
           "sc": "score"
         }
       },
-      "answers": "Release[]"
+      "answers": "Release[]",
+      "file": "releases"
     },
     "PIPELINE": {
       "rename": {
@@ -138,7 +150,8 @@
       "opaque": [
         "declencheurs"
       ],
-      "answers": "Pipeline"
+      "answers": "Pipeline",
+      "file": "pipeline"
     },
     "EXECUTIONS": {
       "rename": {
@@ -149,10 +162,12 @@
           "r": "result"
         }
       },
-      "answers": "PipelineExecution[]"
+      "answers": "PipelineExecution[]",
+      "file": "pipeline-executions"
     },
     "ERRORS": {
-      "answers": "CodeErrors"
+      "answers": "CodeErrors",
+      "file": "errors"
     },
     "JOURNAL": {
       "rename": {
@@ -165,7 +180,8 @@
           "s": "secondaryLine"
         }
       },
-      "answers": "DeletionJournal"
+      "answers": "DeletionJournal",
+      "file": "deletion-journal"
     },
     "MAINT_TOPICS": {
       "rename": {
@@ -186,7 +202,8 @@
           "blanc": "dryRun"
         }
       },
-      "answers": "MaintenanceAction[]"
+      "answers": "MaintenanceAction[]",
+      "file": "maintenance-actions"
     },
     "SETTINGS": {
       "rename": {
@@ -200,14 +217,15 @@
           "c": "key",
           "brut": "raw",
           "n": "name",
-          "v": "value"
+          "v": "displayedValue"
         }
       },
       "opaque": [
         "brut",
         "v"
       ],
-      "answers": "SettingsTopic[]"
+      "answers": "SettingsTopic[]",
+      "file": "settings"
     },
     "SECRETS": {
       "rename": {
@@ -217,7 +235,8 @@
           "def": "defined"
         }
       },
-      "answers": "Secret[]"
+      "answers": "Secret[]",
+      "file": "secrets"
     },
     "PENDING_DECISIONS": {
       "rename": {
@@ -237,7 +256,8 @@
           "resume": "overview"
         }
       },
-      "answers": "PendingDecision[]"
+      "answers": "PendingDecision[]",
+      "file": "pending-decisions"
     },
     "DECISIONS_REGLEES": {
       "rename": {
@@ -252,7 +272,8 @@
           "p": "provider"
         }
       },
-      "answers": "SettledDecision[]"
+      "answers": "SettledDecision[]",
+      "file": "settled-decisions"
     },
     "SHEETS_RAW": {
       "keyedByData": true,
@@ -286,46 +307,55 @@
           "air": "airDate"
         }
       },
-      "answers": "{MediaSheet}"
+      "answers": "{MediaSheet}",
+      "file": "media-sheets"
     },
     "SEASONS": {
       "keyedByData": true,
       "tuples": {
         "$value[]": [
           "season",
-          "owned",
-          "aired"
+          "aired",
+          "owned"
         ]
       },
-      "answers": "{Season[]}"
+      "answers": "{Season[]}",
+      "file": "seasons"
     },
     "OWNED": {
       "keyedByData": true,
-      "answers": "{{integer[]}}"
+      "answers": "{{integer[]}}",
+      "file": "owned-episodes"
     },
     "SYNOPSIS": {
       "keyedByData": true,
-      "answers": "{string}"
+      "answers": "{string}",
+      "file": "synopses"
     },
     "POSTERS": {
       "keyedByData": true,
-      "answers": "{string}"
+      "answers": "{string}",
+      "file": "posters"
     },
     "POSTERS_HD": {
       "keyedByData": true,
-      "answers": "{string}"
+      "answers": "{string}",
+      "file": "posters-high-definition"
     },
     "HERO_IMAGES": {
       "keyedByData": true,
-      "answers": "{string}"
+      "answers": "{string}",
+      "file": "hero-images"
     },
     "CAST": {
       "keyedByData": true,
-      "answers": "{string}"
+      "answers": "{string}",
+      "file": "cast-portraits"
     },
     "trailerIds": {
       "keyedByData": true,
-      "answers": "{Trailer}"
+      "answers": "{Trailer}",
+      "file": "trailers"
     },
     "openJourneySheet.steps": {
       "tuples": {
@@ -335,71 +365,88 @@
           "state"
         ]
       },
-      "answers": "JourneyStage[]"
+      "answers": "JourneyStage[]",
+      "file": "journey-stages"
     },
     "TAKEABLE": {
       "$card": true,
-      "answers": "QueueCard[]"
+      "answers": "QueueCard[]",
+      "file": "takeable"
     },
     "BLOCKED": {
       "$card": true,
-      "answers": "QueueCard[]"
+      "answers": "QueueCard[]",
+      "file": "blocked"
     },
     "INFLIGHT": {
       "$card": true,
-      "answers": "QueueCard[]"
+      "answers": "QueueCard[]",
+      "file": "in-flight"
     },
     "NOTFOUND": {
       "$card": true,
-      "answers": "QueueCard[]"
+      "answers": "QueueCard[]",
+      "file": "not-found-loaded"
     },
     "NOTFOUND_REAL": {
       "$card": true,
-      "answers": "QueueCard[]"
+      "answers": "QueueCard[]",
+      "file": "not-found"
     },
     "DONE_TODAY": {
       "$card": true,
-      "answers": "QueueCard[]"
+      "answers": "QueueCard[]",
+      "file": "done-today"
     },
     "STUCK": {
       "$card": true,
-      "answers": "QueueCard[]"
+      "answers": "QueueCard[]",
+      "file": "stuck-loaded"
     },
     "STUCK_REAL": {
       "$card": true,
-      "answers": "QueueCard[]"
+      "answers": "QueueCard[]",
+      "file": "stuck"
     },
     "MOVING": {
       "$card": true,
-      "answers": "QueueCard[]"
+      "answers": "QueueCard[]",
+      "file": "moving"
     },
     "SETTLED": {
       "$card": true,
-      "answers": "QueueCard[]"
+      "answers": "QueueCard[]",
+      "file": "settled-loaded"
     },
     "SETTLED_REAL": {
       "$card": true,
-      "answers": "QueueCard[]"
+      "answers": "QueueCard[]",
+      "file": "settled"
     },
     "SERVICES": {
       "$fact": true,
-      "answers": "Fact[]"
+      "answers": "Fact[]",
+      "file": "services"
     },
     "SCHEDULERS": {
       "$fact": true,
-      "answers": "Fact[]"
+      "answers": "Fact[]",
+      "file": "schedulers"
     },
     "DISKS": {
       "$fact": true,
-      "answers": "Fact[]"
+      "answers": "Fact[]",
+      "file": "disks"
     },
     "INDEX": {
       "$fact": true,
-      "answers": "Fact[]"
+      "answers": "Fact[]",
+      "file": "index-health"
     },
     "DEPENDENCIES": {
       "$fact": true,
-      "answers": "Fact[]"
+      "answers": "Fact[]",
+      "file": "dependencies"
     }
   },
   "$shorthands": {

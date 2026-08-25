@@ -14,9 +14,11 @@ export function configurationRoutes(): MockRoute[] {
       const held = mockState();
       const asked = request.body;
       if (typeof asked === "object" && asked !== null) {
-        for (const key of Object.keys(asked as Record<string, unknown>)) {
+        for (const [key, value] of Object.entries(asked as Record<string, unknown>)) {
           const known = held.secrets.find((secret) => secret.key === key);
-          if (known !== undefined) known.defined = true;
+          // An EMPTY value clears a secret. Marking a key defined because it
+          // was mentioned would make clearing one look like setting it.
+          if (known !== undefined) known.defined = value !== "";
         }
       }
       held.restartRequired = true;
@@ -24,24 +26,34 @@ export function configurationRoutes(): MockRoute[] {
     }),
     // Derived from the seeded settings, whose topics name their own files.
     route("readConfigurationFiles", GET, "/api/config/files", () => {
+      const held = mockState();
       const names = new Set<string>();
-      for (const topic of mockState().settings) {
+      for (const topic of held.settings) {
         for (const name of topic.fileNames) names.add(name);
       }
-      return [...names].map((name) => ({ name, changed: false }));
+      return [...names].map((name) => ({
+        name,
+        changed: held.changedFiles.includes(name),
+      }));
     }),
-    route("updateConfigurationFile", PUT, "/api/config/files/{name}", () => {
+    // A write is RECORDED, or the next read contradicts it: save a file, list
+    // the files, and nothing had changed.
+    route("updateConfigurationFile", PUT, "/api/config/files/{name}", (request) => {
       const held = mockState();
+      const name = request.parameters.name;
+      if (!held.changedFiles.includes(name)) held.changedFiles = [...held.changedFiles, name];
       held.restartRequired = true;
-      return { restartRequired: held.restartRequired, conflict: false };
+      return { restartRequired: held.restartRequired, conflict: held.conflict };
     }),
     route("restartWeb", POST, "/api/config/restart-web", () => {
-      mockState().restartRequired = false;
+      const held = mockState();
+      held.restartRequired = false;
+      held.changedFiles = [];
       return { ok: true };
     }),
-    route("readConfigurationStatus", GET, "/api/config/status", () => ({
-      readOnly: false,
-      restartRequired: mockState().restartRequired,
-    })),
+    route("readConfigurationStatus", GET, "/api/config/status", () => {
+      const held = mockState();
+      return { readOnly: held.readOnly, restartRequired: held.restartRequired };
+    }),
   ];
 }

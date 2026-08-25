@@ -786,12 +786,14 @@ amended to name the new visual reference; the oracle is green on every state at 
 
 ### Phase 3 — The application
 
-This phase is the bulk of the remaining work. The pages are finished; the application is not:
-11 API modules against 0, 65 network calls against 1, 24 WebSocket files against 0, a service
-worker against none.
+This phase is the bulk of the remaining work. The pages are finished; the application is not.
+Measured when the phase opened: 11 API modules against 0, 65 network calls against 1, 24 WebSocket
+files against 0, a service worker against none. **L08 moves the second of those** — the maquette
+declares 53 operations of its own and answers every one of them from a mock layer — and moves
+none of the others: no surface is wired to any of it, which is L09's.
 <sub>commands in `IMPLEMENTATION.md` § THE OBJECTIVE</sub>
 
-#### L08 — The data contract and the mocks · `NOT STARTED` · *depends on L04*
+#### L08 — The data contract and the mocks · `IN PROGRESS` · *depends on L04*
 
 **Objective.** D7 in force. The contract the interface requires, plus a mock layer serving it, so
 the maquette codes against a real shape with no backend touched.
@@ -808,15 +810,47 @@ seeded from the fixture it replaces, and a check holds that correspondence; the 
 failure and latency; divergences from the existing backend contract are recorded as demands;
 determinism is sufficient for the oracle to depend on it.
 
+**In progress** — branch `feat/maquette-l08`, design and plan in `docs/features/maquette-l08/`.
+Moving this to `LANDED` is a POST-MERGE step (§ 5), and writing it early is not the same trade as
+writing the « In flight » row early: that row is self-correcting and this word is not. The
+contract is `frontend/maquette/contract/openapi.json`: 49 paths, 53 operations, 43 schemas, its
+TypeScript types generated and held against drift two ways. 46 seeds, built from `legacy.js` by a declared
+projection and held by `scripts/check-mock-seeds.py` — seven arms, each of which says what it
+does NOT read before it says what it does. The demands are COMPUTED, not written
+(`docs/reference/frontend-backend-demands.md`, `scripts/compare-contracts.py --check`).
+
+**The oracle reads 0 divergence over 2 739 measurements with the layer live**, which is this
+lot's own proof: it displays nothing. The oracle is a LOCAL gate (§ 5), so that reading is the
+operator's machine's and is not reproducible on a runner.
+
+**Two limits are recorded rather than glossed.** The seam replaces the network call in process, so
+what a real one does with caching, redirects and abort signals is not proved here (D-L08-2's
+stated cost). And the layer LIFTS OUT, measured on demand: 2 807 428 bytes with it built in,
+1 571 705 with the flag off.
+
+**What it cost to get right, and it is the reason the arms are what they are.** Two families
+shipped UNPROJECTED while the builder reported success and « lossless » — a leaf-value check
+cannot see a projection that never ran. The contract was wrong about its own data in five places,
+each found by validating the seeds against it. `serie` is a show's RUN STATUS and was renamed
+`series`, which no automatic check could have caught. And the extractor's own reader judged
+`const settle = afterUnwind` a literal, because it walked an initializer's children and never the
+initializer.
+
 #### L09 — The data layer, surface by surface · `NOT STARTED` · *depends on L01, L05, L08*
 
 **Objective.** Server state in its query cache, mutations with their optimistic paths and their
 rollbacks, the two state-ownership invariants (4 and 5) in force. Each surface takes its data and **its share of the
 fixture dies with it** (D5). Surfaces are walked in the order L07 fixed.
 
-**Its proof comes from L08.** Because the mocks are seeded from the fixtures they replace, a
-wired surface renders what it rendered before, and the oracle holds the wiring at zero
-divergence. If a surface cannot be wired at zero divergence, the difference is understood and
+**Its proof comes from L08.** The mocks are seeded from the fixtures they
+replace — 46 of them, held byte for byte against `legacy.js` by
+`scripts/check-mock-seeds.py --arm correspondence` — so a wired surface renders what it rendered
+before, and the oracle holds the wiring at zero divergence. Three things L08 built are this lot's
+to use: `window.__mocks.reset()`, so a named state is reached from a known store; the scenario
+surface, so a surface's loading and error states are driven by the same failure the interface will
+really meet; and `window.__mocks.quiet()`, which `oracle.py`'s settle already reads — it resolves
+immediately today because nothing fetches, and it is what stops a wired surface being measured
+mid-flight. If a surface cannot be wired at zero divergence, the difference is understood and
 accepted explicitly — never waved through as "the data changed".
 
 **The largest single lever on how native this feels sits in this lot, and it is not a library.**

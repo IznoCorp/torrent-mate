@@ -219,6 +219,10 @@ BUCKETS = {
 # hooks and the navigation door were put there rather than carved out here.
 FAN_IN_CEILING = 4
 
+# What `mocks/` may not reach. It may read `lib/` — domain-free helpers — and
+# its own seeds, and nothing else.
+MOCKS_MAY_NOT_IMPORT = ("features", "routes", "engine", "ui", "app", "styles", "i18n")
+
 # Invariant 6. A file at or above the block ceiling must be listed below with
 # the lot that converts it; the soft ceiling only warns.
 BLOCK_LINES = 400
@@ -249,16 +253,15 @@ WARN_LINES = 250
 #
 # WHAT MAKES THIS EXEMPTION SAFE RATHER THAN A HOLE, and it is the whole
 # difference: it is not a path someone may add themselves to. The value names
-# the command that produces the file, and `make check-contract-types`
-# REGENERATES it and refuses any difference — so a file claiming to be
-# generated while carrying a line a human typed fails that check. The exemption
-# is earned by a proof living outside this guard, exactly as production's own
-# `schema.d.ts` is held by the `openapi-drift` step rather than by being
-# trusted.
+# the command that produces the file and the two checks that hold it — one
+# regenerating it byte for byte where the generator is installed, one holding it
+# against the contract by structure wherever this guard runs. Naming only the
+# first left the exemption unproven on every machine that reads it, which is the
+# same distance between a proof and a claim the whole lot is about.
 GENERATED = {
-    "mocks/contract-types.d.ts":
-        "npm run generate-contract-types — from frontend/maquette/contract/openapi.json, "
-        "held byte for byte by `make check-contract-types`",
+    "mocks/contract-types.d.ts": (
+        "npm run generate-contract-types — from frontend/maquette/contract/openapi.json. Held two ways: `make check-contract-types` regenerates it and refuses any difference, which needs the generator and runs only where it is installed; and `scripts/check-mock-seeds.py --arm generated` holds it against the contract by structure, needs neither node nor the generator, and runs wherever the guards do — which is where THIS exemption is read."
+    ),
 }
 
 GRANDFATHERED = {
@@ -684,6 +687,14 @@ def arm_tree(root: Path) -> int:
 def arm_mocks(root: Path) -> int:
     """Refuse anything but `app/` importing `mocks/`, and `mocks/` importing a feature.
 
+    AND THE OTHER DIRECTION IS THE ENGINE. The layer keeps its own copy of the
+    frozen clock precisely because the engine dies and a layer importing it
+    would die with it — and a harness rule compares the two. Let `mocks/` import
+    `engine/` and that rule compares a value against its own source, which is
+    vacuously true forever. `ui/` is refused for the layering reason: a mock
+    layer that knew a component would be a second place where a surface's shape
+    is decided.
+
     THE DEFECT CLASS, and it is L09's whole proof at stake. A feature importing
     a mock seed directly is how a fixture survives its own removal: the surface
     renders identically, the seed is never wired through the network seam, and
@@ -713,9 +724,19 @@ def arm_mocks(root: Path) -> int:
                     f"then nothing measures the wiring")
             if bucket_of(target) == "mocks" and source_bucket == "app":
                 importers += 1
-            if source_bucket == "mocks" and bucket_of(target) in ("features", "routes"):
+            if source_bucket == "mocks" and bucket_of(target) in MOCKS_MAY_NOT_IMPORT:
                 violations.append(
-                    f"{source} → {target}: `mocks/` must know no feature")
+                    f"{source} → {target}: `mocks/` may read `lib/` and its own seeds, and "
+                    f"nothing else. Importing `{bucket_of(target)}/` from here is what the "
+                    f"decision behind the layer's own copies forbids — a clock read from the "
+                    f"dying engine would make the rule that compares the two vacuously true")
+    # A COUNT PRINTED AND NEVER COMPARED is the shape the ratchet doctrine
+    # names. Zero importers means the layer is wired to nothing, which is the
+    # state a deleted boot line or a botched build produces — and it passed.
+    if importers < 1:
+        violations.append(
+            "no module under `app/` imports `mocks/` — the layer is built and wired to "
+            "nothing, and a guard that only counts cannot tell that from a healthy tree")
     print(f"  mocks: {importers} import(s) from app/, {len(violations)} forbidden edge(s)")
     for entry in violations:
         print("    " + entry, file=sys.stderr)

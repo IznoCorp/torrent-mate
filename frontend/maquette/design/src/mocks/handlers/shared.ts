@@ -40,12 +40,12 @@ export const DELETE = "DELETE";
  * Reads one field of a request body without asserting the body's whole shape.
  *
  * @param body The parsed body.
- * @param field The field wanted.
+ * @param name The field wanted.
  * @returns Its value, or undefined.
  */
-export function field(body: unknown, field: string): unknown {
+export function field(body: unknown, name: string): unknown {
   if (typeof body !== "object" || body === null) return undefined;
-  return (body as Record<string, unknown>)[field];
+  return (body as Record<string, unknown>)[name];
 }
 
 /**

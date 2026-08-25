@@ -32,8 +32,15 @@ WHAT THIS RULE HOLDS, and each hold answers one line of the lot's « Done when �
   mutation      a mutation changes what the next read returns, and a reset puts
                 the seeded state back byte for byte. L09's optimistic paths are
                 written against a layer where both are true.
-  the network   no handler reaches the real network. The seam answers from the
-                table or fails naming the route; it never falls through.
+  the settle    `oracle.py`'s own rest signal WAITS for a request still in
+                flight. Until this hold existed, that line could be deleted and
+                every gate stayed green — including the oracle, which is the
+                instrument the line changes.
+  the network   the seam answers from the table rather than leaving the page.
+                It reads ONE route and the `fetch` seam alone: a handler
+                reaching the network through another means — a script tag, an
+                image, an event source — is outside what this reads, and the
+                seam replaces `fetch` only.
 
 WHAT IT DOES NOT READ. Nothing about how a SURFACE renders any of this — there
 is no wired surface to read. It also does not prove the browser's own network
@@ -45,6 +52,7 @@ import asyncio
 import json
 import pathlib
 import re
+import time
 
 from common import Journal, open_page
 
@@ -61,6 +69,22 @@ LATENCY_MILLISECONDS = 250
 # The status a failure hold asks for. Any 5xx would do; this one is what a
 # server answers when a dependency will not.
 FAILURE_STATUS = 503
+
+# How far past the declared wait a measurement may land and still be that wait.
+# It covers the scheduler and one frame, and nothing more: the hold's subject is
+# whether the layer waits the number it was TOLD, and a tolerance as wide as the
+# latency cannot answer that.
+JITTER_TOLERANCE_MILLISECONDS = 120
+
+# The wait the oracle's own settle is measured against. Long enough that the
+# settle's other steps — animations, image decoding, two frames — cannot account
+# for it on any machine.
+ORACLE_WAIT_MILLISECONDS = 700
+
+# A configuration file the SEEDED settings really own. The listing is derived
+# from the topics' own `fileNames`, so a name they do not carry never appears in
+# it and the hold would be measuring its own typo.
+CONFIGURATION_FILE = "paths"
 
 
 def declared_operations():
@@ -171,9 +195,80 @@ async def main():
             f"{len(restored['body'])} bytes",
         )
 
+        # FOUR MORE MUTATIONS, on four different subjects. The hold above reads
+        # `deleteFollow` alone, and reading one of sixteen is how three routes
+        # that changed nothing at all went unnoticed.
+        for operation, mutate, read, changed in (
+            (
+                "runPipeline",
+                ("/api/pipeline/run", "POST", None),
+                ("/api/pipeline/run", "POST", None),
+                lambda first, second: first["state"] != second["state"],
+            ),
+            (
+                "updateConfigurationFile",
+                (f"/api/config/files/{CONFIGURATION_FILE}", "PUT", {}),
+                ("/api/config/files", "GET", None),
+                lambda _first, second: any(entry["changed"] for entry in second),
+            ),
+            (
+                "resolveDecision",
+                (None, None, None),
+                ("/api/decisions/", "GET", None),
+                lambda _first, second: any(
+                    "choice" in entry for entry in second["settled"]),
+            ),
+            (
+                "discardStagedMedia",
+                (None, None, None),
+                ("/api/staging/media", "GET", None),
+                lambda first, second: len(second["stuck"]) == len(first["stuck"]) - 1,
+            ),
+        ):
+            await page.evaluate("() => window.__mocks.reset()")
+            if operation == "resolveDecision":
+                pending = json.loads((await body_of(page, "/api/decisions/"))["body"])
+                one = pending["pending"][0]
+                candidate = one["candidates"][0]
+                first = pending["settled"]
+                await body_of(
+                    page,
+                    f"/api/decisions/{one['folder']}/resolve",
+                    json.dumps({
+                        "method": "POST",
+                        "body": json.dumps({
+                            "provider": candidate["provider"],
+                            "providerId": candidate["id"],
+                        }),
+                    }),
+                )
+            elif operation == "discardStagedMedia":
+                staging = json.loads((await body_of(page, "/api/staging/media"))["body"])
+                first = staging
+                await body_of(
+                    page,
+                    f"/api/staging/media/{staging['stuck'][0]['title']}/discard",
+                    json.dumps({"method": "POST"}),
+                )
+            else:
+                path, method, payload = mutate
+                options = {"method": method}
+                if payload is not None:
+                    options["body"] = json.dumps(payload)
+                first = json.loads((await body_of(page, path, json.dumps(options)))["body"])
+            path, method, _ = read
+            options = json.dumps({"method": method} if method != "GET" else {})
+            second = json.loads((await body_of(page, path, options))["body"])
+            journal.check(
+                f"{operation} changes what the next read returns",
+                changed(first, second),
+                f"read back after {operation}",
+            )
+        await page.evaluate("() => window.__mocks.reset()")
+
         # ── failure ─────────────────────────────────────────────────────────
         await page.evaluate(
-            "(status) => window.__mocks.scenario().operations.readFollows = { status }",
+            "(status) => window.__mocks.setOperationOutcome('readFollows', { status })",
             FAILURE_STATUS,
         )
         failed = await body_of(page, probe)
@@ -201,8 +296,8 @@ async def main():
 
         # ── latency, and the quiet signal ───────────────────────────────────
         await page.evaluate(
-            "(milliseconds) => window.__mocks.scenario().operations.readFollows = "
-            "{ latencyMilliseconds: milliseconds }",
+            "(milliseconds) => window.__mocks.setOperationOutcome('readFollows', "
+            "{ latencyMilliseconds: milliseconds })",
             LATENCY_MILLISECONDS,
         )
         measured = []
@@ -223,10 +318,16 @@ async def main():
             f"asked {LATENCY_MILLISECONDS} ms, measured "
             f"{', '.join(f'{elapsed:.0f}' for elapsed in measured)} ms",
         )
+        # AGAINST THE DECLARED VALUE, not against each other. The tolerance was
+        # the latency itself — 250 ms of slack on a 250 ms measurement — so a
+        # layer holding `250 + random()*249` passed both halves while being
+        # exactly the number drawn at random the layer says it never draws.
+        overshoot = [elapsed - LATENCY_MILLISECONDS for elapsed in measured]
         journal.check(
-            "and it is the same on two runs, never a jitter",
-            abs(measured[0] - measured[1]) < LATENCY_MILLISECONDS,
-            f"{abs(measured[0] - measured[1]):.0f} ms apart",
+            "and it is the DECLARED wait, never a jitter around it",
+            all(0 <= extra <= JITTER_TOLERANCE_MILLISECONDS for extra in overshoot),
+            f"overshoot {', '.join(f'{extra:.0f}' for extra in overshoot)} ms, "
+            f"tolerance {JITTER_TOLERANCE_MILLISECONDS} ms",
         )
 
         signal = await page.evaluate(
@@ -250,6 +351,41 @@ async def main():
             "and it settles once nothing is in flight",
             signal["after"] == 0,
             f"after {signal['after']}",
+        )
+        await page.evaluate("() => window.__mocks.reset()")
+
+        # ── the oracle's own settle waits for the layer ─────────────────────
+        #
+        # THE HOLD THAT MAKES THE ORACLE'S CHANGE BITE. `oracle.py`'s settle
+        # asks the layer whether anything is in flight, and until this hold
+        # existed that line could be deleted and every gate stayed green —
+        # including the oracle, which is the instrument being modified. Nothing
+        # fetches yet, so the signal resolves on the spot in normal use; here a
+        # request is deliberately left in flight, and the settle must wait for
+        # it. Delete the call and this falls.
+        import importlib.util
+
+        specification = importlib.util.spec_from_file_location(
+            "recorded_oracle", ROOT / "oracle.py")
+        recorded_oracle = importlib.util.module_from_spec(specification)
+        specification.loader.exec_module(recorded_oracle)
+
+        await page.evaluate("() => window.__mocks.reset()")
+        await page.evaluate(
+            "(milliseconds) => window.__mocks.setOperationOutcome('readFollows', "
+            "{ latencyMilliseconds: milliseconds })",
+            ORACLE_WAIT_MILLISECONDS,
+        )
+        # Started and NOT awaited: the point is that it is still in flight when
+        # the settle is asked.
+        await page.evaluate("(path) => { fetch(path); }", probe)
+        started = time.monotonic()
+        await recorded_oracle.settle(page)
+        waited = (time.monotonic() - started) * 1000
+        journal.check(
+            "the oracle's settle waits for a request still in flight",
+            waited >= ORACLE_WAIT_MILLISECONDS,
+            f"asked {ORACLE_WAIT_MILLISECONDS} ms, the settle took {waited:.0f} ms",
         )
         await page.evaluate("() => window.__mocks.reset()")
 

@@ -43,6 +43,12 @@ reasons and only one of them is good.
                   read a value; it reads that nothing is orphaned in either
                   direction.
 
+  generated       Holds the generated contract types against the contract, by
+                  structure. It does NOT prove byte-identity — that is
+                  `make check-contract-types`, which needs the generator and
+                  runs only where it is installed. This half runs everywhere,
+                  which is where the two exemptions that rest on it are read.
+
   handlers        Refuses a data literal in a handler module — the one failure
                   every other arm here stays green over. It does NOT follow what
                   a handler RETURNS: with no literal to build from, a payload
@@ -74,6 +80,11 @@ SEEDS = MAQUETTE / "design" / "src" / "mocks" / "seeds"
 BUILDER = ROOT / "scripts" / "build-mock-seeds.py"
 
 METHODS = ("get", "post", "put", "patch", "delete")
+
+# The floor under the module count the handlers arm reads. A reader that finds
+# nothing and reports clean is the shape this whole guard is written against, so
+# the arm refuses a tree it cannot recognise rather than passing over it.
+MINIMUM_PAYLOAD_MODULES = 8
 
 
 def builder():
@@ -170,16 +181,43 @@ def arm_classification(module) -> int:
     found = set(module.fixtures())
     unclassified = sorted(found - declared)
     vanished = sorted(declared - found)
+    # THE CLASS IS HELD, and only the NAMES were. The counts live in the
+    # register beside the classification, so a family moved from `served` to
+    # `interface` has to be moved in two places by a hand that meant it —
+    # visible in a diff instead of silent.
+    counts: dict[str, int] = {}
+    for entry in register().values():
+        counts[entry["class"]] = counts.get(entry["class"], 0) + 1
+    counts["total"] = len(declared)
+    document = json.loads(REGISTER.read_text(encoding="utf-8"))
+    recorded = document["$counts"]
+    miscounted = recorded != counts
+    # The literals inside ANONYMOUS functions are excluded from the inventory on
+    # purpose, and the exclusion is a figure somebody compares rather than one
+    # somebody printed: it could go from one to nine with every guard green.
+    anonymous = int(module.subprocess.run(
+        ["node", str(module.EXTRACTOR), "--anonymous"],
+        capture_output=True, text=True, cwd=ROOT, check=True).stdout.strip())
+    held = document.get("$anonymous", {}).get("count")
+    if held != anonymous:
+        miscounted = True
+        print(f"    the register holds {held} anonymous literal(s) and the engine declares "
+              f"{anonymous} — a family excluded from the inventory has appeared or gone",
+              file=sys.stderr)
     print(f"  classification: {len(found)} fixture(s) in the engine, "
           f"{len(declared)} in the register, "
-          f"{len(unclassified) + len(vanished)} out of step")
+          f"{len(unclassified) + len(vanished) + int(miscounted)} out of step")
+    if miscounted:
+        print(f"    the register's $counts says {recorded} and its families are {counts} — "
+              f"a class was changed and the tally beside it was not",
+              file=sys.stderr)
     for name in unclassified:
         print(f"    {name}: the engine declares it and the register does not "
               f"classify it", file=sys.stderr)
     for name in vanished:
         print(f"    {name}: the register classifies it and the engine no longer "
               f"declares it", file=sys.stderr)
-    return len(unclassified) + len(vanished)
+    return len(unclassified) + len(vanished) + int(miscounted)
 
 
 def arm_correspondence(module) -> int:
@@ -213,8 +251,12 @@ def arm_correspondence(module) -> int:
 def arm_lossless(module) -> int:
     """Refuse a projection that loses or invents a value.
 
-    Read independently of the builder's own refusal: a check that only ever runs
-    inside the thing it checks is a check nobody can point at.
+    IT IS NOT INDEPENDENT OF THE BUILDER, and it said it was. It calls the same
+    projection, in the same module — a derivation compared against the thing it
+    was derived from. What it adds is that the comparison is REPORTED with its
+    figures rather than only raising, and that it runs BEFORE the arm whose
+    builder call would exit first. The independent reader of a projection is
+    `schema`, which compares the result against a shape declared elsewhere.
 
     Returns:
         The number of families whose leaf values do not match.
@@ -374,10 +416,25 @@ def arm_handlers(module) -> int:
     Returns:
         The number of literals no allowance covers.
     """
-    handlers = sorted((SEEDS.parent / "handlers").glob("*.ts"))
-    if not handlers:
-        print("    mocks/handlers/ holds no module, so this arm compared nothing — "
-              "which would read as a pass", file=sys.stderr)
+    # THE MODULES THAT BUILD A PAYLOAD, and it is a scope rather than a
+    # convenience. `handlers/` answers the operations; `state.ts` assembles what
+    # every read returns and was UNREAD — a hand-typed row added there passed
+    # all six arms, which is the exact failure this arm exists for.
+    #
+    # WHAT IT DOES NOT READ, named rather than left silent: `index.ts` and
+    # `router.ts` build responses and failure messages, never payloads, and
+    # their prose is a tool's own English; `scenario.ts` holds the frozen clock
+    # and the latencies, which R85 holds against the engine instead; `seeds/`
+    # is data by definition; `contract-types.d.ts` is generated.
+    layer = SEEDS.parent
+    handlers = sorted(layer.glob("handlers/*.ts")) + sorted(layer.glob("handlers/*.tsx"))
+    if (layer / "state.ts").is_file():
+        handlers.append(layer / "state.ts")
+    if len(handlers) < MINIMUM_PAYLOAD_MODULES:
+        print(f"    mocks/ holds {len(handlers)} payload module(s), fewer than the "
+              f"{MINIMUM_PAYLOAD_MODULES} this arm exists to read — a reader that finds "
+              f"nothing and reports clean is the shape this whole guard is written "
+              f"against", file=sys.stderr)
         return 1
 
     document = contract()
@@ -412,8 +469,18 @@ def arm_handlers(module) -> int:
                 collect(value)
     collect(document)
 
-    strings = re.compile(r'"([^"\\]*)"|\'([^\'\\]*)\'|`([^`\\$]*)`')
+    # A LITERAL HOLDING A BACKSLASH IS STILL A LITERAL. The first pattern
+    # excluded the escape character from the body, so `"a\\b"` matched nothing
+    # and was never examined at all — invisible rather than allowed.
+    strings = re.compile(
+        r'"((?:[^"\\]|\\.)*)"' r"|'((?:[^'\\]|\\.)*)'" r"|`((?:[^`\\]|\\.)*)`")
     numbers = re.compile(r"(?<![\w.])(\d+)(?![\w.])")
+    # THE STATUSES THE CONTRACT DECLARES, and not every number between 100 and
+    # 599. That window let `{ ownedEpisodes: 247 }` through — a hand-typed count
+    # inside the range, under the arm written to refuse displayed values.
+    statuses = {int(code) for _, operation in operations(document)
+                for code in operation.get("responses", {}) if code.isdigit()}
+
     offenders: list[str] = []
     examined = 0
     for path in handlers:
@@ -422,42 +489,116 @@ def arm_handlers(module) -> int:
         body = "\n".join(
             "" if line.lstrip().startswith(("import ", "//", "*", "/*")) else line
             for line in source.splitlines())
+        # A value that is the initializer of an UPPER_SNAKE_CASE constant is a
+        # DECLARED control value, which is what the rule asks for — the arm has
+        # to be able to SEE that, or the rule would forbid what it demands. A
+        # string qualifies as much as a number: the rule asks for a named
+        # constant, not for a particular type of one.
+        named = {int(value) for value in re.findall(r"\bconst [A-Z][A-Z_]* = (\d+)", body)}
+        named_text = set(re.findall(r'\bconst [A-Z][A-Z_]*(?:: \w+)? = "([^"]*)"', body))
         for match in strings.finditer(body):
             value = next(group for group in match.groups() if group is not None)
             examined += 1
-            if value == "" or value in allowed:
+            # THE EMPTY STRING IS AN ABSENCE, not a value: it is what a default
+            # and a comparison are written with. Where a payload ANSWERS one —
+            # `readVersion` does, because the maquette is not a server and has
+            # no version — the operation's `x-unseeded` is what has to justify
+            # it, and the provenance arm holds that every operation carries one.
+            if value == "" or value in allowed or value in named_text:
                 continue
             offenders.append(f"{path.name}: the literal {value!r} is not a path, an "
-                             f"operationId, a method or a contract property name")
-        # A number that is the initializer of an UPPER_SNAKE_CASE constant is a
-        # declared control value, which is what the rule asks for — the arm has
-        # to be able to SEE that, or the rule would forbid what it demands.
-        named = {int(value) for value in re.findall(r"\bconst [A-Z][A-Z_]* = (\d+)", body)}
-        for match in numbers.finditer(body):
+                             f"operationId, a method, a contract property name, a token of a "
+                             f"contract enum, or the initializer of a named constant")
+        # A NUMBER INSIDE A STRING IS NOT A NUMBER. `"2026-08-10"` is one
+        # declared value, and scanning the raw text read three magic numbers
+        # out of it — the arm reporting its own blindness as a finding.
+        outside_strings = strings.sub('""', body)
+        for match in numbers.finditer(outside_strings):
             examined += 1
             number = int(match.group(1))
             # 0 and 1 are arithmetic — an index, an increment, a first element.
             # Neither is a value anyone reads off a screen.
-            if number in (0, 1) or number in named or 100 <= number <= 599:
+            if number in (0, 1) or number in named or number in statuses:
                 continue
-            offenders.append(f"{path.name}: the number {number} is neither an HTTP status, "
-                             f"nor an index, nor the initializer of a named constant. "
-                             f"A displayed value comes from a seed")
-    print(f"  handlers: {len(handlers)} module(s), {examined} literal(s) read, "
+            offenders.append(f"{path.name}: the number {number} is neither a status the "
+                             f"contract declares, nor an index, nor the initializer of a "
+                             f"named constant. A displayed value comes from a seed")
+    print(f"  handlers: {len(handlers)} payload module(s), {examined} literal(s) read, "
           f"{len(offenders)} that no allowance covers")
     for entry in offenders:
         print(f"    {entry}", file=sys.stderr)
     return len(offenders)
 
 
+
+def arm_generated(module) -> int:
+    """Hold the generated contract types against the contract itself.
+
+    WHY THIS EXISTS BESIDE `make check-contract-types`. That target regenerates
+    the file and refuses any difference — the strongest proof there is, and it
+    needs `node` and the generator, so it runs in `make check` on a machine that
+    has both and in NO continuous-integration job. Meanwhile TWO guards grant
+    that file an exemption ON THE GROUNDS THAT NOBODY WRITES IT, and both of
+    them run on the runner where the proof does not.
+
+    So the structural half runs everywhere: the file carries the generator's own
+    banner, and it declares an entry for every operation the contract does and
+    none the contract does not. It is weaker than byte-identity and it is not a
+    substitute for it — a hand edit inside an operation's body would pass here
+    and fail there. Both are named where the exemptions are granted.
+
+    Args:
+        module: The seed builder, for the paths it already knows.
+
+    Returns:
+        The number of ways the file and the contract disagree.
+    """
+    generated = SEEDS.parent / "contract-types.d.ts"
+    if not generated.is_file():
+        print(f"    {generated.name} is missing, and two guards exempt it from their "
+              f"ceilings on the grounds that a generator writes it", file=sys.stderr)
+        return 1
+    text = generated.read_text(encoding="utf-8")
+    problems: list[str] = []
+    if "auto-generated by openapi-typescript" not in text:
+        problems.append(f"{generated.name} does not carry the generator's banner, so nothing "
+                        f"here says a generator wrote it")
+    declared = {operation_id for operation_id, _ in operations(contract())}
+    # The generator emits one member per operation inside `export interface
+    # operations`, which is the last block of the file.
+    block = text.split("export interface operations", 1)
+    present = set()
+    if len(block) == 2:
+        present = set(re.findall(r"^    (\w+): \{", block[1], re.M))
+    for missing in sorted(declared - present):
+        problems.append(f"{missing} is an operation the contract declares and the generated "
+                        f"types do not carry — the file is behind the contract")
+    for extra in sorted(present - declared):
+        problems.append(f"{extra} is in the generated types and the contract does not declare "
+                        f"it — the file is ahead of the contract, or somebody wrote in it")
+    print(f"  generated: {len(present)} operation(s) in the types against {len(declared)} in "
+          f"the contract, {len(problems)} disagreement(s). Byte-identity is "
+          f"`make check-contract-types`, which needs the generator and runs where it is")
+    for entry in problems:
+        print(f"    {entry}", file=sys.stderr)
+    return len(problems)
+
+
 ARMS = {
     "classification": arm_classification,
+    "generated": arm_generated,
     "handlers": arm_handlers,
     "correspondence": arm_correspondence,
     "lossless": arm_lossless,
     "provenance": arm_provenance,
     "schema": arm_schema,
 }
+
+
+# The order the arms run in when all of them do. Cheapest and most fundamental
+# first, so a failure names the smallest thing that is wrong.
+ARM_ORDER = ("classification", "lossless", "correspondence", "schema", "provenance",
+             "generated", "handlers")
 
 
 def main() -> int:
@@ -478,7 +619,11 @@ def main() -> int:
         return 0
 
     print(f"check-mock-seeds: {SEEDS.relative_to(ROOT)}")
-    selected = [arguments.arm] if arguments.arm else sorted(ARMS)
+    # A DELIBERATE ORDER, not the alphabet. `correspondence` builds every seed,
+    # and the builder REFUSES a lossy projection by exiting — so run
+    # alphabetically, a lossy projection killed the process before `lossless`
+    # could say a word, and that arm could only ever report under `--arm`.
+    selected = [arguments.arm] if arguments.arm else ARM_ORDER
     violations = sum(ARMS[name](module) for name in selected)
     if violations:
         print(f"check-mock-seeds: {violations} violation(s)")

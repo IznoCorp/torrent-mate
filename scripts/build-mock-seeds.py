@@ -293,11 +293,30 @@ def seeded_families() -> list[str]:
 def file_for(name: str) -> Path:
     """The seed file one family is written to.
 
-    A qualified name carries a dot, which is a path separator's neighbour in
-    every reader's head; it becomes a dash so the file name says the same thing
-    and cannot be read as an extension.
+    DECLARED, NEVER DERIVED FROM THE FAMILY NAME. The families are the ENGINE's
+    and carry its spelling — one is French, several are abbreviated — while
+    these files are new, and a new file is named in English and written out in
+    full on the day it is written. Deriving the name would have carried the
+    engine's spelling into a tree that has to outlive it.
+
+    Args:
+        name: The family.
+
+    Returns:
+        The seed file.
+
+    Raises:
+        SystemExit: When the family declares no file name — a seed named by
+            nobody is a name nobody chose.
     """
-    return SEEDS / (name.replace(".", "-") + ".json")
+    declared = json.loads(PROJECTIONS.read_text(encoding="utf-8"))["families"]
+    chosen = declared.get(name, {}).get("file")
+    if not chosen:
+        raise SystemExit(
+            f"build-mock-seeds: {name} is served and {PROJECTIONS.name} declares no `file` "
+            f"for it. A seed file is named deliberately, in English, and never derived from "
+            f"the engine's own spelling")
+    return SEEDS / (chosen + ".json")
 
 
 def build() -> dict[str, str]:

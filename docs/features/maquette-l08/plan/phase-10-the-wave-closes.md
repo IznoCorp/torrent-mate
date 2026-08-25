@@ -9,7 +9,7 @@
   amendment).
 - `frontend/maquette/README.md` — what the mock layer is and how to drive it.
 - `BUGS.md` — whatever the adversarial review confirms.
-- `personalscraper/__init__.py` — 0.98.40 → 0.98.41.
+- `personalscraper/__init__.py` — 0.98.41 → 0.98.42. **`main` moved mid-wave** (a Plex guard merged), so the branch was rebased and the bump re-taken: after a rebase the version the branch carries may be the version `main` now has, and the check compares against `main`.
 
 ## What must be refreshed rather than left standing
 

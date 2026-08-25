@@ -192,13 +192,14 @@ FROZEN_PATH_SEGMENTS = {
 # own descriptions would still be caught.
 #
 # AND IT IS NOT A HOLE SOMEONE MAY WIDEN BY HAND: the value names the command
-# that produces the file, and `make check-contract-types` regenerates it and
-# refuses any difference. A file claiming to be generated while carrying a line
-# a human typed fails that check.
+# that produces the file and the two checks that hold it. One regenerates it and
+# refuses any difference — the strongest proof, and it needs the generator, so
+# it runs where the generator is. The other holds it against the contract by
+# structure, needs nothing, and runs wherever this guard does. Naming only the
+# first left the exemption unproven on every machine that reads it.
 GENERATED_SOURCES = {
     "mocks/contract-types.d.ts": (
-        "npm run generate-contract-types — from frontend/maquette/contract/openapi.json, "
-        "held byte for byte by `make check-contract-types`"
+        "npm run generate-contract-types — from frontend/maquette/contract/openapi.json. Held two ways: `make check-contract-types` regenerates it and refuses any difference, which needs the generator and runs only where it is installed; and `scripts/check-mock-seeds.py --arm generated` holds it against the contract by structure, needs neither node nor the generator, and runs wherever the guards do — which is where THIS exemption is read."
     ),
 }
 

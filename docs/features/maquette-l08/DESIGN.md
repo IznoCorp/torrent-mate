@@ -9,7 +9,7 @@ what the instruments this wave builds **do not read**.
 - **Lot**: L08 — The data contract and the mocks · _depends on L04 (`LANDED`)_
 - **Selected by** § 0's rule: the first lot not `LANDED` whose dependencies are all `LANDED`.
   No lot was skipped; none above it carries a blocking note.
-- **Branch**: `feat/maquette-l08` · **Version**: 0.98.40 → 0.98.41 (patch)
+- **Branch**: `feat/maquette-l08` · **Version**: 0.98.41 → 0.98.42 (patch)
 - **Constitution §§ served**: §13 (the interface reflects the real state of the data — the whole
   reason the mocks are seeded and not invented), §15 (the maquette IS the product, and its
   « not connected to the backend while it is a maquette » ruling of 2026-08-20 is what this lot
@@ -77,7 +77,7 @@ The ten largest, which are most of the mass:
 | `HERO_IMAGES`   | object |    328 |     318 |
 | `MAINT_ACTIONS` | array  |    236 |      26 |
 
-**40 of the 64 are published through `window.__referentiel`; 24 are not.** The unpublished ones
+**44 of the 77 are published through `window.__referentiel`; 33 are not.** The unpublished ones
 are not lesser — they are `LIBRARY`, `FOLLOWS`, `SHEETS_RAW`, `OWNED`, `SUGGESTIONS` and the
 seven arrivals arrays, reached by components only through the engine's own emitters and
 `derived*()` arrows. This is the fact that decides where the extractor reads: **`legacy.js`, and
@@ -106,7 +106,7 @@ python3 -c "import json;d=json.load(open('frontend/openapi.json'));print(len(d['
 
 **The largest divergence is visible before any work begins, and it is a whole page.** There is no
 library endpoint of any kind: no listing of the 1 861 owned titles, no categories, no recents, no
-incompletes, no season-by-season completeness. The Médiathèque — the second-largest surface in
+incompletes, no season-by-season completeness. The « Médiathèque » — the second-largest surface in
 the application — has no backend counterpart at all. That is a demand on the backend, recorded as
 one; it is not a defect and it is not this wave's to build (D7: no backend work).
 
@@ -205,14 +205,14 @@ contract that nobody can wire at zero divergence.
 
 ### D-L08-6 — Every fixture family is classified, and the classification is TOTAL
 
-The 64 module-level families plus the 2 function-local ones are each classified into exactly one
-of four classes, in a committed register:
+The 77 module-level families plus the 4 declared inside a named function are each classified
+into exactly one of four classes, in a committed register:
 
 | Class | Meaning | Count |
 | --- | --- | ---: |
-| `served` | server state — a seed derives from it and a handler serves it | 42 |
+| `served` | server state — a seed derives from it and a handler serves it | 41 |
 | `asset` | artwork, poster and trailer maps — served as part of a media payload, never as its own resource | 5 |
-| `interface` | what the INTERFACE owns and a server must never send: copy, labels, tones, orderings, icon paths, page sizes, timings | 29 |
+| `interface` | what the INTERFACE owns and a server must never send: copy, labels, tones, orderings, icon paths, page sizes, timings | 30 |
 | `unserved` | not served, with the reason written out | 5 |
 
 **The third class is defined by OWNERSHIP, not by being words**, and it was called `vocabulary` until a page size and a long-press delay had to go somewhere. Both belong to the interface exactly as a label does; a class named for words would have pushed them into `unserved`, where « not served » would have been true and uninformative.
@@ -343,7 +343,7 @@ from the two contracts once both are final.
 
 | #   | Phase                                                    |
 | --- | -------------------------------------------------------- |
-| 1   | The extractor, and the classification of all 66          |
+| 1   | The extractor, and the classification of all 81 |
 | 2   | The contract — the artefact and its generated types      |
 | 3   | The seeds, extracted and committed                       |
 | 4   | The seam — one `fetch`, no service worker                |

@@ -15,7 +15,7 @@
         "type": "path",
         "raw": "/Volumes/IznoServer SSD/torrents/complete",
         "name": "torrent_complete_dir",
-        "value": "/Volumes/IznoServer SSD/torrents/complete",
+        "displayedValue": "/Volumes/IznoServer SSD/torrents/complete",
         "note": "Folder where qBittorrent deposits completed torrents."
       },
       {
@@ -24,7 +24,7 @@
         "type": "path",
         "raw": "/Volumes/IznoServer SSD/A TRIER",
         "name": "staging_dir",
-        "value": "/Volumes/IznoServer SSD/A TRIER",
+        "displayedValue": "/Volumes/IznoServer SSD/A TRIER",
         "note": "Intermediate staging folder before dispatch."
       },
       {
@@ -33,7 +33,7 @@
         "type": "path",
         "raw": "/Users/izno/dev/PersonalScraper/.data",
         "name": "data_dir",
-        "value": "/Users/izno/dev/PersonalScraper/.data",
+        "displayedValue": "/Users/izno/dev/PersonalScraper/.data",
         "note": "Pipeline state directory (index, locks, analysis). Default: .data/ at repo root."
       },
       {
@@ -94,7 +94,7 @@
           }
         ],
         "name": "disks",
-        "value": "4 entrées",
+        "displayedValue": "4 entrées",
         "note": "Storage disks (variable count). id: free-form identifier used in CLI --disk and logs. path: absolute mounted path. categories: IDs accepted on this disk (builtin + custom_categories)."
       },
       {
@@ -103,7 +103,7 @@
         "type": "list",
         "raw": [],
         "name": "custom_categories",
-        "value": "aucun",
+        "displayedValue": "aucun",
         "note": "Category definitions, classification rules, and genre mappings. Custom category IDs beyond the 11 builtins (optional). Each custom ID must also appear in 'categories' and be referenced by disks/rules. Example: custom_categories: [\"concerts\", \"short_films\"]"
       },
       {
@@ -112,7 +112,7 @@
         "type": "text",
         "raw": "movies",
         "name": "folder_name",
-        "value": "movies"
+        "displayedValue": "movies"
       },
       {
         "file": "categories",
@@ -120,7 +120,7 @@
         "type": "text",
         "raw": "films animations",
         "name": "folder_name",
-        "value": "films animations"
+        "displayedValue": "films animations"
       },
       {
         "file": "categories",
@@ -130,7 +130,7 @@
           "Movies Animation"
         ],
         "name": "aliases",
-        "value": "Movies Animation"
+        "displayedValue": "Movies Animation"
       },
       {
         "file": "categories",
@@ -138,7 +138,7 @@
         "type": "text",
         "raw": "films documentaires",
         "name": "folder_name",
-        "value": "films documentaires"
+        "displayedValue": "films documentaires"
       },
       {
         "file": "categories",
@@ -146,7 +146,7 @@
         "type": "text",
         "raw": "series",
         "name": "folder_name",
-        "value": "series"
+        "displayedValue": "series"
       },
       {
         "file": "categories",
@@ -154,7 +154,7 @@
         "type": "text",
         "raw": "series animations",
         "name": "folder_name",
-        "value": "series animations"
+        "displayedValue": "series animations"
       },
       {
         "file": "categories",
@@ -162,7 +162,7 @@
         "type": "text",
         "raw": "series documentaires",
         "name": "folder_name",
-        "value": "series documentaires"
+        "displayedValue": "series documentaires"
       },
       {
         "file": "categories",
@@ -170,7 +170,7 @@
         "type": "text",
         "raw": "series animes",
         "name": "folder_name",
-        "value": "series animes"
+        "displayedValue": "series animes"
       },
       {
         "file": "categories",
@@ -178,7 +178,7 @@
         "type": "text",
         "raw": "livres audios",
         "name": "folder_name",
-        "value": "livres audios"
+        "displayedValue": "livres audios"
       },
       {
         "file": "categories",
@@ -186,7 +186,7 @@
         "type": "text",
         "raw": "spectacles",
         "name": "folder_name",
-        "value": "spectacles"
+        "displayedValue": "spectacles"
       },
       {
         "file": "categories",
@@ -194,7 +194,7 @@
         "type": "text",
         "raw": "theatres",
         "name": "folder_name",
-        "value": "theatres"
+        "displayedValue": "theatres"
       },
       {
         "file": "categories",
@@ -202,7 +202,7 @@
         "type": "text",
         "raw": "emissions",
         "name": "folder_name",
-        "value": "emissions"
+        "displayedValue": "emissions"
       },
       {
         "file": "categories",
@@ -210,7 +210,7 @@
         "type": "list",
         "raw": [],
         "name": "category_rules",
-        "value": "aucun",
+        "displayedValue": "aucun",
         "note": "Pattern-based classification rules (evaluated in order, first match wins, BEFORE genre_mapping). Supports: path_contains, path_regex, title_regex, tmdb_genre_contains, tmdb_keyword. Exactly one match_* field per rule."
       },
       {
@@ -219,7 +219,7 @@
         "type": "boolean",
         "raw": true,
         "name": "enabled",
-        "value": "oui"
+        "displayedValue": "oui"
       },
       {
         "file": "categories",
@@ -227,7 +227,7 @@
         "type": "number",
         "raw": 16,
         "name": "requires_genre_id",
-        "value": "16",
+        "displayedValue": "16",
         "note": "TMDB Animation genre_id"
       },
       {
@@ -238,7 +238,7 @@
           "JP"
         ],
         "name": "requires_origin_country",
-        "value": "JP",
+        "displayedValue": "JP",
         "note": "ISO origin_country codes that trigger the rule"
       },
       {
@@ -247,7 +247,7 @@
         "type": "text",
         "raw": "anime",
         "name": "maps_to",
-        "value": "anime",
+        "displayedValue": "anime",
         "note": "Result category_id"
       },
       {
@@ -256,7 +256,7 @@
         "type": "text",
         "raw": "tv",
         "name": "applies_to",
-        "value": "tv",
+        "displayedValue": "tv",
         "note": "Media types to apply the rule to: \"movies\", \"tv\", \"both\""
       },
       {
@@ -265,7 +265,7 @@
         "type": "text",
         "raw": "movies_animation",
         "name": "16",
-        "value": "movies_animation"
+        "displayedValue": "movies_animation"
       },
       {
         "file": "categories",
@@ -273,7 +273,7 @@
         "type": "text",
         "raw": "movies_documentary",
         "name": "99",
-        "value": "movies_documentary"
+        "displayedValue": "movies_documentary"
       },
       {
         "file": "categories",
@@ -281,7 +281,7 @@
         "type": "text",
         "raw": "tv_shows_animation",
         "name": "16",
-        "value": "tv_shows_animation"
+        "displayedValue": "tv_shows_animation"
       },
       {
         "file": "categories",
@@ -289,7 +289,7 @@
         "type": "text",
         "raw": "tv_shows_documentary",
         "name": "99",
-        "value": "tv_shows_documentary"
+        "displayedValue": "tv_shows_documentary"
       },
       {
         "file": "categories",
@@ -297,7 +297,7 @@
         "type": "text",
         "raw": "tv_programs",
         "name": "10764",
-        "value": "tv_programs"
+        "displayedValue": "tv_programs"
       },
       {
         "file": "categories",
@@ -305,7 +305,7 @@
         "type": "text",
         "raw": "tv_programs",
         "name": "10767",
-        "value": "tv_programs"
+        "displayedValue": "tv_programs"
       },
       {
         "file": "categories",
@@ -313,7 +313,7 @@
         "type": "text",
         "raw": "tv_programs",
         "name": "10763",
-        "value": "tv_programs"
+        "displayedValue": "tv_programs"
       },
       {
         "file": "categories",
@@ -321,7 +321,7 @@
         "type": "text",
         "raw": "anime",
         "name": "27",
-        "value": "anime"
+        "displayedValue": "anime"
       },
       {
         "file": "categories",
@@ -329,7 +329,7 @@
         "type": "text",
         "raw": "tv_shows_animation",
         "name": "17",
-        "value": "tv_shows_animation"
+        "displayedValue": "tv_shows_animation"
       },
       {
         "file": "categories",
@@ -337,7 +337,7 @@
         "type": "text",
         "raw": "tv_shows_documentary",
         "name": "3",
-        "value": "tv_shows_documentary"
+        "displayedValue": "tv_shows_documentary"
       },
       {
         "file": "categories",
@@ -345,7 +345,7 @@
         "type": "text",
         "raw": "tv_programs",
         "name": "8",
-        "value": "tv_programs"
+        "displayedValue": "tv_programs"
       },
       {
         "file": "categories",
@@ -353,7 +353,7 @@
         "type": "text",
         "raw": "tv_programs",
         "name": "10",
-        "value": "tv_programs"
+        "displayedValue": "tv_programs"
       },
       {
         "file": "categories",
@@ -361,7 +361,7 @@
         "type": "text",
         "raw": "tv_programs",
         "name": "11",
-        "value": "tv_programs"
+        "displayedValue": "tv_programs"
       },
       {
         "file": "categories",
@@ -369,7 +369,7 @@
         "type": "text",
         "raw": "movies",
         "name": "default_films_category",
-        "value": "movies",
+        "displayedValue": "movies",
         "note": "Fallback when no genre matches"
       },
       {
@@ -378,7 +378,7 @@
         "type": "text",
         "raw": "tv_shows",
         "name": "default_tv_category",
-        "value": "tv_shows"
+        "displayedValue": "tv_shows"
       }
     ]
   },
@@ -439,7 +439,7 @@
           }
         ],
         "name": "staging_dirs",
-        "value": "8 entrées",
+        "displayedValue": "8 entrées",
         "note": "Staging subdirectory layout — folder patterns inside staging_dir. id: numeric prefix [0-999], name: kebab-case label, file_type: FileType value (null = no fixed type). Exactly one entry must declare role: \"ingest\" (the entry point for new downloads)."
       },
       {
@@ -448,7 +448,7 @@
         "type": "text",
         "raw": "hevc",
         "name": "preferred_codec",
-        "value": "hevc",
+        "displayedValue": "hevc",
         "note": "Target codec for encoding recommendations"
       },
       {
@@ -459,7 +459,7 @@
           "av1"
         ],
         "name": "fallback_codecs",
-        "value": "av1",
+        "displayedValue": "av1",
         "note": "Acceptable codecs (not flagged)"
       },
       {
@@ -471,7 +471,7 @@
           "mpeg4"
         ],
         "name": "rejected_codecs",
-        "value": "mpeg2, mpeg4",
+        "displayedValue": "mpeg2, mpeg4",
         "note": "Always-flagged codecs"
       },
       {
@@ -480,7 +480,7 @@
         "type": "text",
         "raw": "1080p",
         "name": "preferred_resolution",
-        "value": "1080p",
+        "displayedValue": "1080p",
         "note": "Target resolution"
       },
       {
@@ -489,7 +489,7 @@
         "type": "number",
         "raw": 4,
         "name": "max_size_movie_gb",
-        "value": "4.0",
+        "displayedValue": "4.0",
         "note": "Maximum movie file size in GB"
       },
       {
@@ -498,7 +498,7 @@
         "type": "number",
         "raw": 2,
         "name": "max_size_episode_gb",
-        "value": "2.0",
+        "displayedValue": "2.0",
         "note": "Maximum episode file size in GB"
       },
       {
@@ -512,7 +512,7 @@
           "vo"
         ],
         "name": "profile_priority",
-        "value": "multi, vf, vostfr +1",
+        "displayedValue": "multi, vf, vostfr +1",
         "note": "Ordered preference for audio profiles (multi=multilingual, vf=French dub, vostfr, vo)"
       },
       {
@@ -523,7 +523,7 @@
           "fra"
         ],
         "name": "required_languages",
-        "value": "fra",
+        "displayedValue": "fra",
         "note": "Required languages (error if absent) — ISO 639-2/T codes"
       },
       {
@@ -532,7 +532,7 @@
         "type": "list",
         "raw": [],
         "name": "encoding_rules",
-        "value": "aucun",
+        "displayedValue": "aucun",
         "note": "Encoding override rules for specific media encoding_rules: [ { criteria: { genre: \"Animation\" }, codec: \"hevc\", max_size_gb: 6.0, }, ],"
       }
     ]
@@ -555,7 +555,7 @@
         "type": "empty",
         "raw": null,
         "name": "db_path",
-        "value": "non défini"
+        "displayedValue": "non défini"
       },
       {
         "file": "acquire",
@@ -576,7 +576,7 @@
           }
         ],
         "name": "tiers",
-        "value": "3 entrées",
+        "displayedValue": "3 entrées",
         "note": "Hot/Warm/Cold backoff — DESIGN §3 frozen policy (D2)."
       },
       {
@@ -585,7 +585,7 @@
         "type": "number",
         "raw": 30,
         "name": "cutoff_days",
-        "value": "30"
+        "displayedValue": "30"
       },
       {
         "file": "tracker",
@@ -593,7 +593,7 @@
         "type": "boolean",
         "raw": false,
         "name": "enabled",
-        "value": "non",
+        "displayedValue": "non",
         "note": "ACTIVE. Gated on TR4KER_API_KEY (profile API key, Mon compte → Paramètres), which is present in .env and was live-verified against `GET /api/torznab?t=caps` on 2026-07-28. TR4KER_PASSKEY holds the announce passkey — a different secret, embedded in the .torrent files, which never authenticates the search API.  This file is shared with prod/staging via PERSONALSCRAPER_CONFIG, so an enabled tracker whose gating credential is missing is a BOOT ERROR (build_tracker_registry raises TrackerConfigError) that takes down every command and cron: removing TR4KER_API_KEY from .env requires flipping this back to false in the same change."
       },
       {
@@ -602,7 +602,7 @@
         "type": "boolean",
         "raw": false,
         "name": "cross_seed",
-        "value": "non"
+        "displayedValue": "non"
       },
       {
         "file": "tracker",
@@ -610,7 +610,7 @@
         "type": "boolean",
         "raw": true,
         "name": "enabled",
-        "value": "oui",
+        "displayedValue": "oui",
         "note": "ACTIVE. Gated on TR4KER_API_KEY (profile API key, Mon compte → Paramètres), which is present in .env and was live-verified against `GET /api/torznab?t=caps` on 2026-07-28. TR4KER_PASSKEY holds the announce passkey — a different secret, embedded in the .torrent files, which never authenticates the search API.  This file is shared with prod/staging via PERSONALSCRAPER_CONFIG, so an enabled tracker whose gating credential is missing is a BOOT ERROR (build_tracker_registry raises TrackerConfigError) that takes down every command and cron: removing TR4KER_API_KEY from .env requires flipping this back to false in the same change."
       },
       {
@@ -619,7 +619,7 @@
         "type": "boolean",
         "raw": false,
         "name": "cross_seed",
-        "value": "non"
+        "displayedValue": "non"
       },
       {
         "file": "tracker",
@@ -627,7 +627,7 @@
         "type": "number",
         "raw": 2,
         "name": "target_ratio",
-        "value": "2.0"
+        "displayedValue": "2.0"
       },
       {
         "file": "tracker",
@@ -635,7 +635,7 @@
         "type": "number",
         "raw": 1,
         "name": "min_ratio",
-        "value": "1.0"
+        "displayedValue": "1.0"
       },
       {
         "file": "tracker",
@@ -643,7 +643,7 @@
         "type": "duration",
         "raw": "72h",
         "name": "min_seed_time",
-        "value": "72h"
+        "displayedValue": "72h"
       },
       {
         "file": "tracker",
@@ -651,7 +651,7 @@
         "type": "duration",
         "raw": "0h",
         "name": "hit_and_run_grace",
-        "value": "0h"
+        "displayedValue": "0h"
       },
       {
         "file": "tracker",
@@ -659,7 +659,7 @@
         "type": "boolean",
         "raw": true,
         "name": "enabled",
-        "value": "oui",
+        "displayedValue": "oui",
         "note": "ACTIVE. Gated on TR4KER_API_KEY (profile API key, Mon compte → Paramètres), which is present in .env and was live-verified against `GET /api/torznab?t=caps` on 2026-07-28. TR4KER_PASSKEY holds the announce passkey — a different secret, embedded in the .torrent files, which never authenticates the search API.  This file is shared with prod/staging via PERSONALSCRAPER_CONFIG, so an enabled tracker whose gating credential is missing is a BOOT ERROR (build_tracker_registry raises TrackerConfigError) that takes down every command and cron: removing TR4KER_API_KEY from .env requires flipping this back to false in the same change."
       },
       {
@@ -668,7 +668,7 @@
         "type": "boolean",
         "raw": false,
         "name": "cross_seed",
-        "value": "non"
+        "displayedValue": "non"
       },
       {
         "file": "tracker",
@@ -679,7 +679,7 @@
           "tr4ker"
         ],
         "name": "priority",
-        "value": "c411, tr4ker",
+        "displayedValue": "c411, tr4ker",
         "note": "economy: TR4KER publishes no explicit seeding obligation (no documented min seed time / H&R grace), so no values are invented here. Until the operator fills this block in, dispatch records an honest tracker-unresolved MISS for tr4ker torrents instead of a wrong rule. economy: { target_ratio: 2.0, min_ratio: 1.0, min_seed_time: \"72h\", hit_and_run_grace: \"0h\", },"
       },
       {
@@ -688,7 +688,7 @@
         "type": "number",
         "raw": 50,
         "name": "max_total_results",
-        "value": "50"
+        "displayedValue": "50"
       },
       {
         "file": "tracker",
@@ -696,7 +696,7 @@
         "type": "number",
         "raw": 30,
         "name": "max_per_tracker",
-        "value": "30"
+        "displayedValue": "30"
       },
       {
         "file": "tracker",
@@ -704,7 +704,7 @@
         "type": "number",
         "raw": 15,
         "name": "timeout_per_tracker",
-        "value": "15"
+        "displayedValue": "15"
       },
       {
         "file": "thresholds",
@@ -712,7 +712,7 @@
         "type": "number",
         "raw": 20,
         "name": "min_free_space_staging_gb",
-        "value": "20",
+        "displayedValue": "20",
         "note": "Minimum free space on the staging drive before ingest (GB)."
       },
       {
@@ -721,7 +721,7 @@
         "type": "number",
         "raw": 100,
         "name": "min_free_space_disk_gb",
-        "value": "100",
+        "displayedValue": "100",
         "note": "Minimum free space on storage disks before dispatch (GB)."
       },
       {
@@ -730,7 +730,7 @@
         "type": "number",
         "raw": 5,
         "name": "circuit_breaker_threshold",
-        "value": "5",
+        "displayedValue": "5",
         "note": "Consecutive API errors before the circuit breaker opens."
       },
       {
@@ -739,7 +739,7 @@
         "type": "number",
         "raw": 300,
         "name": "circuit_breaker_cooldown",
-        "value": "300",
+        "displayedValue": "300",
         "note": "Seconds to wait before retrying after the circuit breaker opens."
       },
       {
@@ -748,7 +748,7 @@
         "type": "text",
         "raw": "qbittorrent",
         "name": "active",
-        "value": "qbittorrent"
+        "displayedValue": "qbittorrent"
       },
       {
         "file": "torrent",
@@ -756,7 +756,7 @@
         "type": "boolean",
         "raw": true,
         "name": "enabled",
-        "value": "oui"
+        "displayedValue": "oui"
       },
       {
         "file": "torrent",
@@ -764,7 +764,7 @@
         "type": "text",
         "raw": "localhost",
         "name": "host",
-        "value": "localhost"
+        "displayedValue": "localhost"
       },
       {
         "file": "torrent",
@@ -772,7 +772,7 @@
         "type": "number",
         "raw": 8081,
         "name": "port",
-        "value": "8081"
+        "displayedValue": "8081"
       },
       {
         "file": "torrent",
@@ -780,7 +780,7 @@
         "type": "boolean",
         "raw": false,
         "name": "enabled",
-        "value": "non"
+        "displayedValue": "non"
       },
       {
         "file": "torrent",
@@ -788,7 +788,7 @@
         "type": "text",
         "raw": "localhost",
         "name": "host",
-        "value": "localhost"
+        "displayedValue": "localhost"
       },
       {
         "file": "torrent",
@@ -796,7 +796,7 @@
         "type": "number",
         "raw": 9091,
         "name": "port",
-        "value": "9091"
+        "displayedValue": "9091"
       },
       {
         "file": "watch_seed",
@@ -804,7 +804,7 @@
         "type": "boolean",
         "raw": false,
         "name": "enabled",
-        "value": "non"
+        "displayedValue": "non"
       },
       {
         "file": "watch_seed",
@@ -812,7 +812,7 @@
         "type": "boolean",
         "raw": true,
         "name": "enabled",
-        "value": "oui"
+        "displayedValue": "oui"
       }
     ]
   },
@@ -833,7 +833,7 @@
         "type": "boolean",
         "raw": true,
         "name": "enabled",
-        "value": "oui"
+        "displayedValue": "oui"
       },
       {
         "file": "metadata",
@@ -841,7 +841,7 @@
         "type": "boolean",
         "raw": true,
         "name": "enabled",
-        "value": "oui"
+        "displayedValue": "oui"
       },
       {
         "file": "metadata",
@@ -849,7 +849,7 @@
         "type": "boolean",
         "raw": true,
         "name": "enabled",
-        "value": "oui"
+        "displayedValue": "oui"
       },
       {
         "file": "metadata",
@@ -857,7 +857,7 @@
         "type": "boolean",
         "raw": true,
         "name": "enabled",
-        "value": "oui"
+        "displayedValue": "oui"
       },
       {
         "file": "metadata",
@@ -865,7 +865,7 @@
         "type": "number",
         "raw": 1,
         "name": "tmdb",
-        "value": "1"
+        "displayedValue": "1"
       },
       {
         "file": "metadata",
@@ -873,7 +873,7 @@
         "type": "number",
         "raw": 2,
         "name": "tvdb",
-        "value": "2"
+        "displayedValue": "2"
       },
       {
         "file": "metadata",
@@ -881,7 +881,7 @@
         "type": "number",
         "raw": 1,
         "name": "tvdb",
-        "value": "1"
+        "displayedValue": "1"
       },
       {
         "file": "metadata",
@@ -889,7 +889,7 @@
         "type": "number",
         "raw": 2,
         "name": "tmdb",
-        "value": "2"
+        "displayedValue": "2"
       },
       {
         "file": "metadata",
@@ -897,7 +897,7 @@
         "type": "number",
         "raw": 1,
         "name": "tvdb",
-        "value": "1"
+        "displayedValue": "1"
       },
       {
         "file": "metadata",
@@ -905,7 +905,7 @@
         "type": "number",
         "raw": 2,
         "name": "tmdb",
-        "value": "2"
+        "displayedValue": "2"
       },
       {
         "file": "metadata",
@@ -913,7 +913,7 @@
         "type": "number",
         "raw": 1,
         "name": "trakt",
-        "value": "1"
+        "displayedValue": "1"
       },
       {
         "file": "metadata",
@@ -921,7 +921,7 @@
         "type": "number",
         "raw": 2,
         "name": "omdb",
-        "value": "2"
+        "displayedValue": "2"
       },
       {
         "file": "metadata",
@@ -929,7 +929,7 @@
         "type": "number",
         "raw": 1,
         "name": "omdb",
-        "value": "1"
+        "displayedValue": "1"
       },
       {
         "file": "metadata",
@@ -937,7 +937,7 @@
         "type": "number",
         "raw": 2,
         "name": "trakt",
-        "value": "2"
+        "displayedValue": "2"
       },
       {
         "file": "metadata",
@@ -945,7 +945,7 @@
         "type": "text",
         "raw": "fr-FR",
         "name": "language",
-        "value": "fr-FR"
+        "displayedValue": "fr-FR"
       },
       {
         "file": "metadata",
@@ -953,7 +953,7 @@
         "type": "text",
         "raw": "en-US",
         "name": "fallback_language",
-        "value": "en-US"
+        "displayedValue": "en-US"
       },
       {
         "file": "metadata",
@@ -961,7 +961,7 @@
         "type": "boolean",
         "raw": true,
         "name": "prefer_local_title",
-        "value": "oui"
+        "displayedValue": "oui"
       },
       {
         "file": "metadata",
@@ -969,7 +969,7 @@
         "type": "boolean",
         "raw": true,
         "name": "lock_to_series_provider",
-        "value": "oui"
+        "displayedValue": "oui"
       },
       {
         "file": "metadata",
@@ -977,7 +977,7 @@
         "type": "boolean",
         "raw": false,
         "name": "allow_synthetic_rename_on_unmatched",
-        "value": "non"
+        "displayedValue": "non"
       },
       {
         "file": "metadata",
@@ -985,7 +985,7 @@
         "type": "boolean",
         "raw": true,
         "name": "enabled",
-        "value": "oui"
+        "displayedValue": "oui"
       },
       {
         "file": "providers",
@@ -993,7 +993,7 @@
         "type": "number",
         "raw": 1,
         "name": "tvdb",
-        "value": "1"
+        "displayedValue": "1"
       },
       {
         "file": "providers",
@@ -1001,7 +1001,7 @@
         "type": "number",
         "raw": 2,
         "name": "tmdb",
-        "value": "2"
+        "displayedValue": "2"
       },
       {
         "file": "providers",
@@ -1009,7 +1009,7 @@
         "type": "number",
         "raw": 1,
         "name": "tmdb",
-        "value": "1"
+        "displayedValue": "1"
       },
       {
         "file": "providers",
@@ -1017,7 +1017,7 @@
         "type": "number",
         "raw": 2,
         "name": "tvdb",
-        "value": "2"
+        "displayedValue": "2"
       },
       {
         "file": "providers",
@@ -1025,7 +1025,7 @@
         "type": "number",
         "raw": 1,
         "name": "tvdb",
-        "value": "1"
+        "displayedValue": "1"
       },
       {
         "file": "providers",
@@ -1033,7 +1033,7 @@
         "type": "number",
         "raw": 2,
         "name": "tmdb",
-        "value": "2"
+        "displayedValue": "2"
       },
       {
         "file": "providers",
@@ -1041,7 +1041,7 @@
         "type": "number",
         "raw": 1,
         "name": "tvdb",
-        "value": "1"
+        "displayedValue": "1"
       },
       {
         "file": "providers",
@@ -1049,7 +1049,7 @@
         "type": "number",
         "raw": 2,
         "name": "tmdb",
-        "value": "2"
+        "displayedValue": "2"
       },
       {
         "file": "providers",
@@ -1057,7 +1057,7 @@
         "type": "number",
         "raw": 1,
         "name": "tmdb",
-        "value": "1"
+        "displayedValue": "1"
       },
       {
         "file": "providers",
@@ -1065,7 +1065,7 @@
         "type": "number",
         "raw": 2,
         "name": "tvdb",
-        "value": "2"
+        "displayedValue": "2"
       },
       {
         "file": "providers",
@@ -1073,7 +1073,7 @@
         "type": "number",
         "raw": 1,
         "name": "tmdb",
-        "value": "1"
+        "displayedValue": "1"
       },
       {
         "file": "providers",
@@ -1081,7 +1081,7 @@
         "type": "number",
         "raw": 2,
         "name": "tvdb",
-        "value": "2"
+        "displayedValue": "2"
       },
       {
         "file": "scraper",
@@ -1089,7 +1089,7 @@
         "type": "text",
         "raw": "fr-FR",
         "name": "language",
-        "value": "fr-FR"
+        "displayedValue": "fr-FR"
       },
       {
         "file": "scraper",
@@ -1097,7 +1097,7 @@
         "type": "text",
         "raw": "en-US",
         "name": "fallback_language",
-        "value": "en-US"
+        "displayedValue": "en-US"
       },
       {
         "file": "scraper",
@@ -1105,7 +1105,7 @@
         "type": "boolean",
         "raw": true,
         "name": "prefer_local_title",
-        "value": "oui"
+        "displayedValue": "oui"
       },
       {
         "file": "scraper",
@@ -1113,7 +1113,7 @@
         "type": "text",
         "raw": "Episode",
         "name": "episode_default_name",
-        "value": "Episode"
+        "displayedValue": "Episode"
       },
       {
         "file": "scraper",
@@ -1121,7 +1121,7 @@
         "type": "text",
         "raw": "en",
         "name": "artwork_language",
-        "value": "en"
+        "displayedValue": "en"
       },
       {
         "file": "scraper",
@@ -1129,7 +1129,7 @@
         "type": "number",
         "raw": 0,
         "name": "min_ratio",
-        "value": "0.0"
+        "displayedValue": "0.0"
       },
       {
         "file": "scraper",
@@ -1137,7 +1137,7 @@
         "type": "boolean",
         "raw": false,
         "name": "verify_seed_pure",
-        "value": "non"
+        "displayedValue": "non"
       },
       {
         "file": "scraper",
@@ -1145,7 +1145,7 @@
         "type": "number",
         "raw": 0.67,
         "name": "min_length_ratio",
-        "value": "0.67"
+        "displayedValue": "0.67"
       },
       {
         "file": "scraper",
@@ -1153,7 +1153,7 @@
         "type": "number",
         "raw": 10,
         "name": "short_title_length",
-        "value": "10"
+        "displayedValue": "10"
       },
       {
         "file": "scraper",
@@ -1161,7 +1161,7 @@
         "type": "number",
         "raw": 95,
         "name": "short_title_threshold",
-        "value": "95.0"
+        "displayedValue": "95.0"
       },
       {
         "file": "scraper",
@@ -1169,7 +1169,7 @@
         "type": "number",
         "raw": 90,
         "name": "long_title_threshold",
-        "value": "90.0"
+        "displayedValue": "90.0"
       },
       {
         "file": "trailers",
@@ -1177,7 +1177,7 @@
         "type": "boolean",
         "raw": true,
         "name": "enabled",
-        "value": "oui"
+        "displayedValue": "oui"
       },
       {
         "file": "trailers",
@@ -1188,7 +1188,7 @@
           "en-US"
         ],
         "name": "languages",
-        "value": "fr-FR, en-US",
+        "displayedValue": "fr-FR, en-US",
         "note": "Ordered language codes for TMDB video lookups. First match wins."
       },
       {
@@ -1197,7 +1197,7 @@
         "type": "text",
         "raw": "{title} {year} bande annonce",
         "name": "search_query_format",
-        "value": "{title} {year} bande annonce",
+        "displayedValue": "{title} {year} bande annonce",
         "note": "YouTube search query template when TMDB yields nothing. Placeholders: {title}, {year}"
       },
       {
@@ -1206,7 +1206,7 @@
         "type": "boolean",
         "raw": false,
         "name": "enabled",
-        "value": "non"
+        "displayedValue": "non"
       },
       {
         "file": "trailers",
@@ -1214,7 +1214,7 @@
         "type": "boolean",
         "raw": false,
         "name": "movies",
-        "value": "non"
+        "displayedValue": "non"
       },
       {
         "file": "trailers",
@@ -1222,7 +1222,7 @@
         "type": "boolean",
         "raw": true,
         "name": "tv_shows",
-        "value": "oui"
+        "displayedValue": "oui"
       },
       {
         "file": "trailers",
@@ -1230,7 +1230,7 @@
         "type": "boolean",
         "raw": true,
         "name": "fallback_youtube_search",
-        "value": "oui",
+        "displayedValue": "oui",
         "note": "When a TMDB-found trailer URL fails to download (any failure except BOT_DETECTED — e.g. YTDLP_ERROR / HTTP_ERROR), attempt a YouTube search for an alternative upload and re-download once. Set to false to keep the pre-0.35.0 behavior (hard failure on first miss)."
       }
     ]
@@ -1252,7 +1252,7 @@
         "type": "empty",
         "raw": null,
         "name": "db_path",
-        "value": "non défini"
+        "displayedValue": "non défini"
       },
       {
         "file": "indexer",
@@ -1260,7 +1260,7 @@
         "type": "number",
         "raw": 1800,
         "name": "budget_seconds",
-        "value": "1800"
+        "displayedValue": "1800"
       },
       {
         "file": "indexer",
@@ -1268,7 +1268,7 @@
         "type": "number",
         "raw": 100,
         "name": "checkpoint_every_n_files",
-        "value": "100"
+        "displayedValue": "100"
       },
       {
         "file": "indexer",
@@ -1276,7 +1276,7 @@
         "type": "number",
         "raw": 2,
         "name": "max_workers_total",
-        "value": "2"
+        "displayedValue": "2"
       },
       {
         "file": "indexer",
@@ -1284,7 +1284,7 @@
         "type": "number",
         "raw": 3,
         "name": "n_strikes_for_softdelete",
-        "value": "3"
+        "displayedValue": "3"
       },
       {
         "file": "indexer",
@@ -1292,7 +1292,7 @@
         "type": "number",
         "raw": 80,
         "name": "read_rate_mb_per_sec",
-        "value": "80"
+        "displayedValue": "80"
       },
       {
         "file": "indexer",
@@ -1300,7 +1300,7 @@
         "type": "boolean",
         "raw": true,
         "name": "drop_indexes_during_full_scan",
-        "value": "oui"
+        "displayedValue": "oui"
       },
       {
         "file": "indexer",
@@ -1308,7 +1308,7 @@
         "type": "number",
         "raw": 86400,
         "name": "paranoia_window_seconds",
-        "value": "86400"
+        "displayedValue": "86400"
       },
       {
         "file": "indexer",
@@ -1316,7 +1316,7 @@
         "type": "number",
         "raw": 0.5,
         "name": "merkle_delta_freeze_threshold",
-        "value": "0.5"
+        "displayedValue": "0.5"
       },
       {
         "file": "indexer",
@@ -1324,7 +1324,7 @@
         "type": "boolean",
         "raw": true,
         "name": "use_when_available",
-        "value": "oui"
+        "displayedValue": "oui"
       },
       {
         "file": "indexer",
@@ -1332,7 +1332,7 @@
         "type": "number",
         "raw": 365,
         "name": "deleted_item_retention_days",
-        "value": "365"
+        "displayedValue": "365"
       },
       {
         "file": "notify",
@@ -1340,7 +1340,7 @@
         "type": "boolean",
         "raw": true,
         "name": "enabled",
-        "value": "oui"
+        "displayedValue": "oui"
       },
       {
         "file": "notify",
@@ -1348,7 +1348,7 @@
         "type": "boolean",
         "raw": true,
         "name": "enabled",
-        "value": "oui"
+        "displayedValue": "oui"
       },
       {
         "file": "web",
@@ -1356,7 +1356,7 @@
         "type": "boolean",
         "raw": true,
         "name": "enabled",
-        "value": "oui"
+        "displayedValue": "oui"
       },
       {
         "file": "web",
@@ -1364,7 +1364,7 @@
         "type": "text",
         "raw": "127.0.0.1",
         "name": "host",
-        "value": "127.0.0.1"
+        "displayedValue": "127.0.0.1"
       },
       {
         "file": "web",
@@ -1372,7 +1372,7 @@
         "type": "number",
         "raw": 8710,
         "name": "port",
-        "value": "8710"
+        "displayedValue": "8710"
       },
       {
         "file": "web",
@@ -1380,7 +1380,7 @@
         "type": "text",
         "raw": "izno",
         "name": "username",
-        "value": "izno"
+        "displayedValue": "izno"
       },
       {
         "file": "web",
@@ -1388,7 +1388,7 @@
         "type": "text",
         "raw": "redis://127.0.0.1:6379/0",
         "name": "redis_url",
-        "value": "redis://127.0.0.1:6379/0"
+        "displayedValue": "redis://127.0.0.1:6379/0"
       },
       {
         "file": "web",
@@ -1396,7 +1396,7 @@
         "type": "text",
         "raw": "personalscraper:events",
         "name": "stream_key",
-        "value": "personalscraper:events"
+        "displayedValue": "personalscraper:events"
       },
       {
         "file": "web",
@@ -1404,7 +1404,7 @@
         "type": "number",
         "raw": 10000,
         "name": "stream_maxlen",
-        "value": "10000"
+        "displayedValue": "10000"
       },
       {
         "file": "web",
@@ -1412,7 +1412,7 @@
         "type": "number",
         "raw": 720,
         "name": "session_ttl_hours",
-        "value": "720"
+        "displayedValue": "720"
       },
       {
         "file": "web",
@@ -1420,7 +1420,7 @@
         "type": "boolean",
         "raw": true,
         "name": "cookie_secure",
-        "value": "oui"
+        "displayedValue": "oui"
       },
       {
         "file": "web",
@@ -1428,7 +1428,7 @@
         "type": "boolean",
         "raw": false,
         "name": "dev_mode",
-        "value": "non"
+        "displayedValue": "non"
       },
       {
         "file": "config",
@@ -1436,7 +1436,7 @@
         "type": "number",
         "raw": 1,
         "name": "config_version",
-        "value": "1",
+        "displayedValue": "1",
         "note": "Master config file (v2 split layout). Copy this directory to ./config/ and fill in your values, or run `personalscraper init-config` to be guided through the setup.  The overlays list names the per-concern files merged in order. Each file must own distinct top-level keys (no key may appear in two overlays). Add a local.json5 (gitignored) for machine-specific overrides."
       },
       {
@@ -1464,7 +1464,7 @@
           "web.json5"
         ],
         "name": "overlays",
-        "value": "paths.json5, disks.json5, categories.json5 +15"
+        "displayedValue": "paths.json5, disks.json5, categories.json5 +15"
       }
     ]
   },
@@ -1482,7 +1482,7 @@
         "type": "text",
         "raw": "15 * * * *",
         "name": "cron_restart",
-        "value": "toutes les heures, à la 15ᵉ minute",
+        "displayedValue": "toutes les heures, à la 15ᵉ minute",
         "note": "Hourly at :15 — the health check reports to the monitor."
       },
       {
@@ -1491,7 +1491,7 @@
         "type": "text",
         "raw": "10 3,15 * * *",
         "name": "cron_restart",
-        "value": "à 03 h 10 et 15 h 10",
+        "displayedValue": "à 03 h 10 et 15 h 10",
         "note": "Searches trackers for the episodes and films being followed."
       },
       {
@@ -1500,7 +1500,7 @@
         "type": "text",
         "raw": "20 3,15 * * *",
         "name": "cron_restart",
-        "value": "à 03 h 20 et 15 h 20",
+        "displayedValue": "à 03 h 20 et 15 h 20",
         "note": "Ten minutes after the search, so it grabs what was just found."
       },
       {
@@ -1509,7 +1509,7 @@
         "type": "text",
         "raw": "0 3 * * *",
         "name": "cron_restart",
-        "value": "chaque jour à 03 h 00",
+        "displayedValue": "chaque jour à 03 h 00",
         "note": "03:00 daily — enqueue newly-aired episodes."
       },
       {
@@ -1518,7 +1518,7 @@
         "type": "text",
         "raw": "30 4 * * 0",
         "name": "cron_restart",
-        "value": "le dimanche à 04 h 30",
+        "displayedValue": "le dimanche à 04 h 30",
         "note": "Sundays 04:30 local — off-peak."
       },
       {
@@ -1527,7 +1527,7 @@
         "type": "text",
         "raw": "0 5 * * 0",
         "name": "cron_restart",
-        "value": "le dimanche à 05 h 00",
+        "displayedValue": "le dimanche à 05 h 00",
         "note": "Sundays 05:00 local (after enrich)."
       }
     ]
