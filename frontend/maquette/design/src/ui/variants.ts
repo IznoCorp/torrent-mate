@@ -493,8 +493,12 @@ export const option = cva(
   // specificity and beats the plain `border-border` beside it whatever order
   // the generator picks. That is why this one needs no `false` branch, where
   // the toggle and the release row did.
+  // `bg-transparent` IS NOT DECORATION: dropped, the browser paints its own
+  // button grey — rgb(239,239,239) under near-white text, and the
+  // accessibility audit read ten contrast failures. The oracle could not:
+  // these buttons sit in none of its 33 measured regions.
   "opt group flex items-center gap-5 w-full min-h-[48px] py-4 px-6 border border-border " +
-    "rounded-3 text-left aria-checked:border-primary " +
+    "rounded-3 bg-transparent text-left aria-checked:border-primary " +
     "aria-checked:[background:color-mix(in_oklab,var(--color-primary)_8%,transparent)]",
 );
 
@@ -558,4 +562,23 @@ export const loadError = cva(
 /** Its retry. */
 export const loadErrorAction = cva(
   "mt-4 w-full border border-border bg-transparent text-foreground text-3 font-semibold p-4 rounded-2",
+);
+
+/**
+ * A scrollport — the element a surface scrolls inside.
+ *
+ * FIVE SCREENS WEAR THIS BESIDE THE SHELL, and that is what made converting it
+ * as « the shell's `<main>` » wrong: the class was a shared primitive all
+ * along. Its utilities went onto one element in phase 5, and the five screens
+ * silently stopped scrolling — the oracle could not see it, because a screen's
+ * viewport is not one of the 33 measured regions, and it surfaced as a lost
+ * scroll POSITION two rules away.
+ *
+ * It ESTABLISHES the container the gallery's three `@container port` queries
+ * ask. A component asks the width it HAS, never the window's (invariant 12).
+ */
+export const scrollport = cva(
+  "port @container/port flex-auto min-h-0 overflow-y-auto overflow-x-clip " +
+    "overscroll-y-none [-webkit-overflow-scrolling:touch] " +
+    "pb-[calc(var(--tm-bottom-bar-h,0px)+var(--spacing-7))]",
 );

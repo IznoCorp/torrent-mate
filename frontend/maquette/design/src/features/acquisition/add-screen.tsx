@@ -42,7 +42,7 @@ import { Icon } from "../../ui/icon";
 import { go } from "../../lib/navigate";
 import { useAcquisitionReference } from "../../features/acquisition/reference";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
-import { actionButton, backAction, emptyNote, screen, screenBar, searchField, searchInput, surfaceError } from "../../ui/variants";
+import { actionButton, backAction, emptyNote, screen, screenBar, scrollport, searchField, searchInput, surfaceError } from "../../ui/variants";
 import { addFooter, addForm, addRow, byIdentifier, byIdentifierBody, refusalReason, resultCount, suggestions } from "../../features/acquisition/variants";
 
 type Mode = "follow" | "identify";
@@ -180,7 +180,7 @@ export function AddScreen() {
           </span>
         ) : null}
       </div>
-      <div className="port" data-part="viewport">
+      <div className={scrollport()} data-part="viewport">
         {identify ? (
           <div style={{ padding: "12px 14px 0" }}>
             <div

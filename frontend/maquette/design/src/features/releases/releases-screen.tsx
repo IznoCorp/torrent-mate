@@ -17,7 +17,7 @@
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useReleasesReference } from "../../features/releases/reference";
-import { actionButton, backAction, body, emptyNote, qualityHint, screen, screenBar } from "../../ui/variants";
+import { actionButton, backAction, body, emptyNote, qualityHint, screen, screenBar, scrollport } from "../../ui/variants";
 import { resultCount } from "../../features/acquisition/variants";
 import { releaseName, releaseRow, releaseScore, releaseTags } from "../../features/releases/variants";
 
@@ -74,7 +74,7 @@ export function ReleasesScreen() {
           {baseTitle(title)}
         </span>
       </div>
-      <div className="port" data-part="viewport">
+      <div className={scrollport()} data-part="viewport">
         <div className={body()} data-part="surface/body" data-region="screen-releases/body">
           <div className="note" data-part="note">
             <b>{t("screens.releases.noteTitle")}</b>{" "}

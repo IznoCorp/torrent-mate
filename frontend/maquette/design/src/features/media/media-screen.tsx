@@ -32,12 +32,13 @@ import { useStoreContent, useWorld } from "../../lib/store-access";
 import {
   actionButton,
   backAction,
-  // `body` is already a local binding here.
+  // `body` is already a local binding in this file.
   body as bodyClass,
   factsPanel,
   keyValueRow,
   screen,
   screenBar,
+  scrollport,
   sectionHeading,
   sheetActions,
   statusDot,
@@ -458,7 +459,7 @@ export function MediaScreen() {
           {url ?? t("screens.media.unidentified")}
         </span>
       </div>
-      <div className="port" data-part="viewport">
+      <div className={scrollport()} data-part="viewport">
         <div className={bodyClass()} data-part="surface/body" data-region="screen-media/body">
           <div
             className={heroWrap({ poster: Boolean(artwork) })}

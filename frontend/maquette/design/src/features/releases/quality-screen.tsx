@@ -12,7 +12,7 @@ import { useTranslation } from "react-i18next";
 import { Icon } from "../../ui/icon";
 import { useReleasesReference, type Release, type Resolution } from "../../features/releases/reference";
 import { useUiState, writeUiState } from "../../lib/store-access";
-import { actionButton, backAction, body, factsPanel, keyValueRow, option, optionKind, optionLabel, optionList, optionMark, qualityHint, ruleNote, screen, screenBar, sectionHeading, settingRow, sheetActions, toggleSwitch } from "../../ui/variants";
+import { actionButton, backAction, body, factsPanel, keyValueRow, option, optionKind, optionLabel, optionList, optionMark, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, settingRow, sheetActions, toggleSwitch } from "../../ui/variants";
 import { qualityGroup } from "../../features/releases/variants";
 
 // The field names are the legacy state's own — `state.profil` is written and
@@ -107,7 +107,7 @@ export function QualityScreen() {
           {title ? baseTitle(title) : t("screens.profile.defaultProfile")}
         </span>
       </div>
-      <div className="port" data-part="viewport">
+      <div className={scrollport()} data-part="viewport">
         <div className={body()} data-part="surface/body" data-region="screen-profile/body">
           <div className="note" data-part="note">
             <b>{t("screens.profile.noteTitle")}</b>{" "}
