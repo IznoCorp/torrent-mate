@@ -21,7 +21,9 @@ from personalscraper.scraper._shared import ScrapeResult, _find_video_file
 from personalscraper.scraper._writeback import recover_artwork
 from personalscraper.scraper.classifier import _parse_folder_name
 from personalscraper.scraper.decision_triage import apply_decision_to_result, classify_decision_trigger
+from personalscraper.scraper.plexmatch import write_plexmatch
 from personalscraper.scraper.rename_service import _cleanup_stale_files, apply_canonical_dir_rename
+from personalscraper.text_utils import sanitize_filename
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -400,13 +402,12 @@ class MovieServiceMixin:
         # an f-string that bypassed the pattern, the TV side ran the pattern with
         # ``Year=""`` and produced ``Title ()``; both now go through ``format``
         # with a real no-year path.)
-        # The Plex match-hint (``{tmdb-<id>}``) is appended when the match is
-        # TMDB-backed: the Plex Movie agent reads the ID from the folder name and
-        # matches it exactly instead of guessing (Groos/Groot-class wrong match).
-        clean_name = self.patterns.movie_folder_name(
-            title=resolved_title,
-            year=api_year,
-            tmdb_id=match.api_id if match.source == "tmdb" else None,
+        # The folder name is the settled Kodi contract and NEVER carries a match
+        # hint — the Plex hint lives in the .plexmatch sidecar written below.
+        clean_name = (
+            self.patterns.format("movie_dir", Title=resolved_title, Year=api_year)
+            if api_year
+            else sanitize_filename(resolved_title)
         )
 
         # Rename the folder to its canonical name via the shared rename block
@@ -552,6 +553,18 @@ class MovieServiceMixin:
             result.error = f"NFO generation failed: {e}"
             log.error("nfo_generation_failed", title=title, error=str(e), exc_info=True)
             return result
+
+        # Plex match-hint: a .plexmatch sidecar carrying the canonical TMDB id
+        # makes the Plex agent match this movie exactly. NAME-NEUTRAL — the
+        # folder and file names are the settled Kodi contract and stay exactly
+        # as they are; the hint lives only in this file.
+        if match.source == "tmdb":
+            write_plexmatch(
+                movie_dir,
+                title=resolved_title,
+                tmdb_id=match.api_id,
+                dry_run=self.dry_run,
+            )
 
         # Download artwork
         try:
