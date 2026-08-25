@@ -92,7 +92,7 @@ when the defect comes back.
 | B-056 | A `@keyframes` name is French (`splashremplit`), invisible to no-french  | by review | `open` |
 | B-057 | `audit2.py`'s R12 silently measures four of five contexts, not five | by review   | `open`       |
 | B-058 | commit-msg's AI-attribution match is unanchored, flags quoting prose | by mutation | `open`       |
-| B-059 | `check-css-tokens.py` is at 942 lines after 2 of L07's 16 phases            | by audit    | `open`       |
+| B-059 | `check-css-tokens.py` crossed the 1 000-line hard ceiling during L07        | by audit    | `fixed #494` |
 | B-060 | The rename tool could not rename a CSS custom property, and reported it as success | by mutation | `fixed #494` |
 | B-061 | The oracle cannot see a pseudo-element, so a class that generates nothing reads green | by rule | `open` |
 | B-062 | Three markup readers were blind to `cva()` factories, which emit a class name with no `class=` | by gate | `fixed #494` |
@@ -205,6 +205,22 @@ wave is on course to redden a gate through a channel its own plan never forecast
 that trips it will look like the phase at fault rather than the accumulation. Not this steward's
 to repair: reported so the split is planned rather than discovered at a red CI. The measurement
 belongs to the wave; what belongs here is that it was never measured.
+
+**IT HAPPENED, AND EXACTLY WHERE THIS ENTRY SAID IT WOULD** — at phase 4, the phase that adds
+`--arm motion-classes` to this same file. The wave carried **1 016** non-blank lines at
+`3e1f1ce5` and **1 022** at `2634de86`, two commits over a ceiling that exits 1, and the guard
+that caught it was the repository's own — `check-module-size.py --root scripts`, in `make check`
+and in the `guards` job — not anything the wave had planned. `777ec798` repaired it: the sign-in
+gate's arm left for `scripts/csstokens_login.py` on a SUBJECT split, the four shared patterns
+kept in one module so the first copy to drift cannot do so in silence, and the file is **851**
+lines on the wave's tip.
+
+Closed as `fixed #494` rather than `closed`: it is repaired on the branch, not on `main`. Rule 3
+is met by the gate that already exists and already bit — the mutation was not staged, it was
+lived. **What this entry did NOT get right** is its own forecast of the deadline: it read « phase
+3 » from a two-phase slope, and the crossing came at phase 4. The mechanism was right, the
+extrapolation was decoration — a rate measured over two points is a rate that has not been
+measured.
 
 <sub>`for c in $(git log --format=%h --reverse origin/main..origin/feat/maquette-l07); do printf '%s %s\n' "$c" "$(git show $c:scripts/check-css-tokens.py | grep -c '[^[:space:]]')"; done`</sub>
 
