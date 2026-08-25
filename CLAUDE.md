@@ -37,8 +37,17 @@ coding** any web surface; every web PR **cites the §§ it serves**.
 
 ### Design Reference — the maquette is authoritative (web-UI — BINDING)
 
-**`frontend/maquette/design/refonte.html` is the visual reference of the web UI** (§15 of the
+**`frontend/maquette/design/` is the visual reference of the web UI** (§15 of the
 constitution). Every design evolution **starts from the maquette, never from the code**.
+
+**Where inside it, since L07 (2026-08-25) — this line used to name one file.** It named
+`design/refonte.html`, which held a 4 136-line hand-written stylesheet and now holds not one
+style rule. The reference is the **tokens and the component catalogue**: `design/src/styles/theme.css`
+(the scale and the palette, a `@theme static` block), `design/src/styles/base.css` (the base layer),
+and the `variants.ts` of `design/src/ui/` and of each surface, where every drawing decision is
+written beside the class that applies it. `design/src/styles/legacy.css` is the dated residue the
+dying engine still consumes — it dies with it at L13 — and `design/src/styles/harness.css` is the
+measuring apparatus, which ships nowhere.
 
 **READ THIS BEFORE ANYTHING ELSE — the maquette is the NEXT version of the app, and it will
 REPLACE it.** On switchover day `frontend/src` is ARCHIVED and the maquette takes its place. It

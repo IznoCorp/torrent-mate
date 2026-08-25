@@ -127,6 +127,26 @@ region that moved.
 | ACC-19 | `grep -rln 'refonte\.html' --include='*.py' --include='*.mjs' --include='*.js' frontend scripts \| grep -v node_modules` | no match at the close of phase 16 (14 files on the day the wave opened) |
 | ACC-20 | `python3 -c "import personalscraper"` | no output, exit 0 |
 
+**Three of these criteria did not close as written, and the table above is left standing.**
+Added 2026-08-25, at the close of the wave; the full reasoning is the amendment at the foot of
+`plan/phase-16-the-scaffolding-dies.md`, and § 7.1 of `docs/reference/frontend-architecture.md` is
+why the rows are annotated here rather than rewritten.
+
+- **ACC-15 — void as written, and met on its own subject.** BLOCK 1's harness rules could not be
+  deleted: the oracle, the rule suite and `html.measuring` are built out of them, and the commit
+  that claims « the rendering did not move » cannot also destroy the instrument that says so. They
+  are `src/styles/harness.css`, a **fourth** stylesheet imported once and by nothing that ships.
+  The criterion's subject — « no hand-written component stylesheet survives » — holds, and
+  **ACC-17 is what proves the fourth file ships nowhere**. This is the lot's one deviation.
+- **ACC-14 and ACC-19 — deferred, not met.** `refonte.html` still exists. It carries zero style
+  rules, and it carries the wave's conversion ledger; and R72's hold (a) is the verbatim injection
+  of it, so removing the file retires a hold — a rule renegotiation in `regions.json`, not a
+  tail-of-session edit. Twelve live readers name the path (14 on the day the wave opened).
+  **Recorded against L13**, where the residue, the ledger and the fragment resolve in one move.
+- **ACC-18 — met.** §15 of the constitution no longer names the file (`9c7e7379`), so the file
+  survives its own constitutional mention rather than the reverse. That is the right order: the
+  document that binds moved first.
+
 **ACC-02 is the one that decides this wave.** It runs at the close of every phase, not at the end.
 A wave that runs it once at the end has proved that the sum of sixteen changes renders correctly,
 which is exactly the unattributable result "surface by surface" exists to avoid.

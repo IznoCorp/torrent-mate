@@ -92,6 +92,12 @@ when the defect comes back.
 | B-056 | A `@keyframes` name is French (`splashremplit`), invisible to no-french  | by review | `open` |
 | B-057 | `audit2.py`'s R12 silently measures four of five contexts, not five | by review   | `open`       |
 | B-058 | commit-msg's AI-attribution match is unanchored, flags quoting prose | by mutation | `open`       |
+| B-060 | The rename tool could not rename a CSS custom property, and reported it as success | by mutation | `fixed #494` |
+| B-061 | The oracle cannot see a pseudo-element, so a class that generates nothing reads green | by rule | `open` |
+| B-062 | Three markup readers were blind to `cva()` factories, which emit a class name with no `class=` | by gate | `fixed #494` |
+| B-063 | The wave's per-phase gate tier runs none of the repository's own guards | by gate | `open` |
+| B-064 | R72's mutation recipe names an environment variable no code reads | by review | `open` |
+| B-065 | A duplicated `design/frontend/maquette/design/src/` tree is tracked, dead and drifting | by review | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -230,6 +236,92 @@ real alternatives are anchored to a line start on purpose (a trailer, not prose)
 this one the same anchor needs its own mutation test to confirm it still catches a genuine
 footer while releasing a quoting sentence; a same-commit reflex fix on a compliance-relevant
 guard is exactly the haste this register exists to slow down.
+
+**B-060 — the tool `CLAUDE.md` mandates for renames could not perform one, and said so as success.**
+`scripts/rename-identifiers.py` is the only sanctioned way to rename an identifier in this
+repository. Asked to move the CSS custom property `--card` to `--color-card` it touched **zero
+files** and printed « 0 file(s) touched » — its normal success line. The cause is one character
+class: every mode anchored its pattern on `\b`, and a word boundary cannot precede `--`, so the
+name was unmatchable by construction. A tool that cannot fail loudly is a tool whose report means
+nothing; this one was believed twice before the diff was read, which is why `CLAUDE.md` already
+says the tool is not the proof. **Repaired in #494** (L07 phase 3): a custom-property mode anchored
+on the FORM (`--name`) rather than on the word, with five tests under
+`tests/scripts/test_rename_identifiers.py`.
+<sub>`python3 scripts/rename-identifiers.py --help` names the mode · the five tests are `pytest tests/scripts/test_rename_identifiers.py -k propert`</sub>
+
+**B-061 — the oracle measures an element, so a pseudo-element that stopped existing is invisible to it.**
+The recorded oracle reads a bounding rectangle plus 19 computed properties **of the element
+itself**. A `::after` that stops being painted changes neither, so the oracle stays green — and
+correctly, by its own contract. L07 phase 15 produced the measured example: the media sheet's
+legibility gradient was written across four concatenated string literals, Tailwind reads
+candidates out of RAW TEXT, no single literal carried the whole class name, and the utility was
+never generated — leaving the hero's text resting on the bare image, the one thing that rule
+exists to forbid. **R26 caught it**, because R26 reads `getComputedStyle(bg, "::after")`.
+
+**What #494 repaired is the concatenation, not the blindness.** A sixth hold on R26 refuses a
+class name split across literals (a literal ending in a space is a clean break; anything else
+continues a name), mutation-tested by cutting `bg-muted` in half. The oracle's own blind spot
+stands: **no pseudo-element is among its 2 739 measurements**, and the next one to disappear will
+disappear silently unless a rule happens to read it. Not fixed, and not fixable by a call-site
+change — it is a question about the oracle's contract (whether a named region may declare a
+pseudo-element to measure), and it belongs with whoever owns that contract.
+
+**B-062 — a class name emitted by a `cva()` base string wears no `class=`, and three readers looked for `class=`.**
+The markup-contract readers learn what a class NAME is from the sites that emit one, and they
+knew three such sites: `class="…"` in a document, `className="…"` in a component, and the engine's
+string writes. A fourth arrived with L07: `cva("fback flex items-center …")` emits `fback` as
+surely as `className="fback"` ever did, and carries no attribute for the readers to find. So the
+vocabulary the guards police silently stopped covering every surface this wave converted.
+**Repaired in #494** (`777ec798`): both readers take the first token of a `cva` base string — the
+identity class, by this wave's convention — and both match `*variants.ts` as a FAMILY rather than
+one exact name, because the vocabulary split into a directory the same day and a reader pinned to
+one filename would have gone quiet again.
+
+**B-063 — the maquette's gate tiers do not include the repository's own guards, and three invariant breaches lived across phases.**
+`frontend/maquette/harness/run.sh` has a cheap tier and a full tier, and the wave's cadence runs
+the cheap one per phase and the full one once before the merge. **Neither tier runs `make check`**,
+which is where `scripts/check-frontend-boundaries.py`, the module-size ceiling and the French guard
+live. So invariant 7 of `docs/reference/frontend-architecture.md` (« `ui/` never imports a feature.
+Two features never import each other ») was broken **three times** across L07 and stayed broken
+until the pre-merge `make check`: Maintenance and Système reached into Configuration for the topic
+row, and the release screen reached into Acquisition for the result count. Two files passed a hard
+line ceiling in the same interval.
+
+**The three breaches are repaired in #494** (`777ec798` — both shared pieces are in `ui/` now).
+**The cadence is not**, and it is the durable half: a wave can convert eleven surfaces without any
+repository guard reading the tree once. The question is a cadence one, like B-049's — whether the
+per-phase tier gains a `make check`, or the boundaries guard joins the contracts tier — and it is
+not this wave's to settle alone.
+
+**B-064 — R72's mutation recipe names an environment variable that nothing reads, so following it proves nothing.**
+`frontend/maquette/regions.json`'s R72 text says « `R72_SANS_BUILD=1` skips the build gate ALONE ».
+`frontend/maquette/harness/shell.py` reads **`R72_SKIP_BUILD`**. The rename landed with #446 and
+the rule's prose was not moved with it. The consequence is not cosmetic: `shell.py` rebuilds
+before it reads, so an operator following the recorded recipe — apply a mutation to
+`dist/index.html`, re-run with the documented variable — has the mutation **erased by the rebuild**
+and reads a green run as « the mutation was survived ». A recipe that cannot fail certifies the
+rule it was written to test. Pre-existing on `main` since #446; found while reading R72 to decide
+whether it could be renegotiated. Fix: move the name, and re-run the recorded mutation with the
+real variable so the recipe is seen to bite once.
+<sub>`grep -rn 'R72_SANS_BUILD\|R72_SKIP_BUILD' --include='*.py' --include='*.json' frontend | grep -v node_modules`</sub>
+
+**B-065 — a duplicated source tree is tracked, read by nothing, and has begun to drift.**
+`frontend/maquette/design/frontend/maquette/design/src/` holds **11 tracked files** — nine
+`features/*/reference.ts`, `lib/engine-drawing.ts`, `lib/engine-queue.ts` — a copy of the real
+tree nested under its own path. It landed with **#478** (L04, « les frontières et l'arbre »), the
+wave that moved every file, and has been on `main` since. Nothing reads it: `tsconfig.json`'s
+`include` is `["src"]`, and every harness and script reader roots at `design/src`. So it does not
+lie to a gate — it is dead weight.
+
+**It has started to diverge, which is what makes it worth an entry rather than a `git rm`.** Three
+of the eleven now differ from their live counterparts: `features/media/reference.ts` is missing
+the six lines §11's address contract added (`titleForProviderId`, `addressIdsFor`), and
+`features/maintenance/reference.ts` and `features/system/reference.ts` carry an import shape their
+originals no longer have. A stale copy of a contract file, sitting at a plausible path, is
+something a future search will find and read. Fix is a deletion — outside L07's letter, and it
+should carry the one thing that would refuse the next one: a guard that no path under
+`design/` repeats `design/` .
+<sub>`git ls-files 'frontend/maquette/design/frontend' | wc -l` → 11 · `git log --oneline --diff-filter=A -- 'frontend/maquette/design/frontend/**'` → the commit that added them</sub>
 
 **B-036 — the English campaign missed two state ids, and no arm reads them.**
 `window.__states()` returns **`system-panne`** and **`acq-follows-groupe`**. Both are NAMED STATE
@@ -877,3 +969,12 @@ three words alone close neither.
 
 Scope measured before reporting: three occurrences, one word, one file — `fidelity.py` is clean.
 <sub>`grep -n "entérine" frontend/maquette/*.py` · `grep -n 'MAQUETTE / "' scripts/check-no-french.py`</sub>
+
+**Precision added 2026-08-25, because the command above cannot see one of the three.** Line 637 is
+inside the `$comment` this tool SERIALISES into `frontend/maquette/oracle-reference.json`, so the
+word is written into a `.json` the register's own command — which globs `*.py` — will never open.
+Two consequences worth the line: the scope is three occurrences in one `.py` **plus one in a
+committed reference file**, and **every future `--record` rewrites the French word** into that
+file, so the copy regenerates for as long as line 637 stands. Fix the source line first; the
+`.json` copy then corrects itself on the next recording.
+<sub>`grep -c "entérine" frontend/maquette/oracle-reference.json` → 1</sub>
