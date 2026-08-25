@@ -43,7 +43,8 @@ WHAT IT DOES NOT READ, said here rather than discovered later:
     a component actually draw this variant inside that ancestor — and the
     answer varies with which state happens to be on screen. A rule whose corpus
     depends on that is a rule that reports different things on different days.
-    Four such pairs stand today and they are printed by name every run.
+    They are printed by NAME on every run, with their count — a figure typed
+    into this docstring would be one more number nobody recounts.
   - A QUALIFIER the variant does not emit is not a divergence. `.screen.open`,
     `.sheet.dragging` and their kind are written by the ENGINE through
     `classList`, so there is no branch to compare and the residue says so in
@@ -76,7 +77,7 @@ RESIDUE = ROOT / "design" / "src" / "styles" / "legacy.css"
 # sources — a tuple of paths misses the factory written tomorrow. A first
 # version of this read `ui/variants*.ts` and `features/*/variants.ts` and found
 # 44 factories while missing the three files that hold the shared vocabulary,
-# so it paired ONE anchor out of the eight it was written for and reported no
+# so it paired ONE anchor of the seven B-067 named and reported no
 # divergence. The engine is excluded: it draws its markup by hand and owns no
 # variant.
 _COMPONENTS = ROOT / "design" / "src"
@@ -85,6 +86,12 @@ VARIANT_SOURCES = sorted(
     for path in _COMPONENTS.rglob(extension)
     if "engine" not in path.relative_to(_COMPONENTS).parts
 )
+
+# THE NUMBER OF PAIRS THAT MUST STILL BE COMPARED. A ratchet, measured — it
+# went up from B-067's seven the moment this rule read the tree properly, and
+# it goes down only when someone has read what stopped being compared and says
+# why. L13 takes it to nothing by removing the residue and this rule with it.
+PAIRS_FLOOR = 16
 
 # A rule head, once comments are stripped: everything up to `{`, then the body.
 RULE = re.compile(r"([^{}]+)\{([^{}]*)\}", re.S)
@@ -106,6 +113,15 @@ PROPERTY = re.compile(r"(?:^|[;{])\s*([a-zA-Z-][\w-]*)\s*:", re.M)
 # `export const NAME = cva(` — the factory, wherever it is declared.
 FACTORY = re.compile(r"export const ([A-Za-z_$][\w$]*)\s*=\s*cva\s*\(")
 
+# ANY call to the factory helper, however it is written. This is the counter
+# that makes `FACTORY` honest: the pattern above wants `export const NAME =`
+# and nothing else, so `cva<Props>(…)`, `const x: F = cva(…)`, a factory
+# exported on a later line, or one wrapped in `memo(…)` matches NOTHING and
+# vanishes with no complaint — and losing `statusDot()` alone would have taken
+# six of sixteen pairs out of the comparison while the run stayed green. Every
+# call must be accounted for: read, or named as unread.
+CVA_CALL = re.compile(r"(?<![\w$])cva\s*\(")
+
 # A double-quoted class-list literal. The sources write every one of them with
 # double quotes; a single-quoted one would be missed, so the count of factories
 # read is printed and held above zero.
@@ -113,26 +129,55 @@ LITERAL = re.compile(r'"((?:\\.|[^"\\])*)"')
 
 
 def strip_comments(text):
-    """Returns the stylesheet with its comments removed."""
+    """Blank a stylesheet's comments before anything is read.
+
+    This file's residue explains every block it keeps, and that prose names
+    class selectors while doing so — read as CSS, a comment declares rules.
+
+    Args:
+        text: A stylesheet.
+
+    Returns:
+        The same text with each comment replaced by a single space.
+    """
     return COMMENT.sub(" ", text)
 
 
 def balanced(text, start):
     """Returns the index just past the `(` opened at `start`.
 
+    QUOTES ARE TRACKED, and they were not. `split_top_level()` three functions
+    below has always tracked them and this one did not, inside the same file —
+    so a class literal carrying an unbalanced parenthesis, which is ordinary
+    Tailwind (`before:content-['(']`, and `endMark()` already ships
+    `before:content-['']`), ran the scan to the end of the file. The factory
+    then read every literal after it as one of its own branches, and no hold
+    said a word: the anchor was still right, so nothing looked wrong.
+
     Args:
         text: The source.
         start: The index OF the opening parenthesis.
 
     Returns:
-        The index one past the matching `)`.
+        The index one past the matching `)`, or the end of the text when the
+        call never closes.
     """
     depth = 0
     index = start
+    quote = None
     while index < len(text):
-        if text[index] == "(":
+        character = text[index]
+        if quote:
+            if character == "\\":
+                index += 2
+                continue
+            if character == quote:
+                quote = None
+        elif character in "\"'`":
+            quote = character
+        elif character == "(":
             depth += 1
-        elif text[index] == ")":
+        elif character == ")":
             depth -= 1
             if depth == 0:
                 return index + 1
@@ -185,6 +230,14 @@ def without_comments(text):
     not mistaken for a comment. Lengths are preserved so nothing downstream has
     to care that anything was removed.
 
+    WHAT IT DOES NOT TRACK, and both are ordinary TypeScript: an APOSTROPHE in
+    JSX text (`<p>don't</p>`) and a QUOTE inside a regex literal
+    (`/["']/g`). Either opens a quote run that swallows text to the next quote
+    character in the file, and a comment inside that run survives. The loud
+    outcome — a base blanked to nothing — is refused by the `unread` hold; the
+    quiet one is a truncated branch table. Written down rather than discovered,
+    and the reason there is a test for each.
+
     Args:
         text: A TypeScript source.
 
@@ -233,17 +286,23 @@ def read_factories():
     D4 wants an anchor to be exactly that.
 
     Returns:
-        A `(factories, files_read, unread)` triple. `factories` maps an anchor
-        class to a dict carrying the factory's name, its base class list, and
-        its branches keyed by the branch's own leading token. `unread` names
-        every factory whose base came out EMPTY — a factory the reader could
-        not read is a pair that silently stops being compared, so it is a
-        violation and never a skip.
+        A `(factories, files_read, unread, duplicates, calls)` tuple.
+        `factories` maps an anchor class to a dict carrying the factory's name,
+        its base class list, and its branches keyed by the branch's own leading
+        token. `unread` names every factory whose base came out EMPTY — a
+        factory the reader could not read is a pair that silently stops being
+        compared, so it is a violation and never a skip. `duplicates` names two
+        factories claiming one anchor, which used to be a silent overwrite.
+        `calls` is how many `cva(` calls the sources hold at all, so the reader
+        can be held against the corpus instead of against itself.
     """
     factories = {}
     unread = []
+    duplicates = []
+    calls = 0
     for path in VARIANT_SOURCES:
         text = without_comments(path.read_text(encoding="utf-8"))
+        calls += len(CVA_CALL.findall(text))
         for found in FACTORY.finditer(text):
             opening = text.index("(", found.end() - 1)
             call = text[opening + 1:balanced(text, opening) - 1]
@@ -261,13 +320,23 @@ def read_factories():
                     tokens = literal.group(1).split()
                     if tokens:
                         branches.setdefault(tokens[0], tokens)
+            if base[0] in factories:
+                # TWO FACTORIES CLAIMING ONE ANCHOR. The convention this reader
+                # leans on — « the original class name is kept at the front » —
+                # is not universal: three factories lead with a UTILITY
+                # (`ml-auto`, `flex-none`, `text-foreground`) rather than an
+                # identity anchor. The last one read used to win in silence.
+                duplicates.append(
+                    f"« {base[0]} » claimed by {factories[base[0]]['name']}() and "
+                    f"{found.group(1)}()")
+                continue
             factories[base[0]] = {
                 "name": found.group(1),
                 "file": path.name,
                 "base": base,
                 "branches": branches,
             }
-    return factories, len(VARIANT_SOURCES), unread
+    return factories, len(VARIANT_SOURCES), unread, duplicates, calls
 
 
 def read_residue():
@@ -331,6 +400,16 @@ def pair_up(rules, factories):
             contextual.append(f"{rule['selector']} ↔ {factory['name']}()")
             continue
         worn = list(rule["classes"])
+        if len(worn) == 2 and factory["branches"].get(worn[1]) is None:
+            # THE OTHER CLASS MAY BE THE ANCHOR. `.a.b` is written in whichever
+            # order reads best, so a selector whose FIRST class names a factory
+            # emitting no matching branch may simply be anchored on its second.
+            # Without this retry, `.body.deckbody` would still resolve to
+            # `body()` on the day a `deckBody()` variant is written, be filed as
+            # engine-written, and never be compared again.
+            other = factories.get(worn[1])
+            if other is not None and other["branches"].get(worn[0]) is not None:
+                factory, worn = other, [worn[1], worn[0]]
         utilities = list(factory["base"])
         if len(worn) == 2:
             branch = factory["branches"].get(worn[1])
@@ -396,7 +475,7 @@ async def main():
     """Stages every pair in the real document and holds the two sides equal."""
     journal = Journal("R80 — the residue and the variant it shadows agree")
 
-    factories, files_read, unread = read_factories()
+    factories, files_read, unread, duplicates, calls = read_factories()
     rules, declared = read_residue()
     cases, unpaired, toggled, contextual = pair_up(rules, factories)
 
@@ -404,6 +483,16 @@ async def main():
                   files_read > 0 and len(factories) > 0 and not unread,
                   f"{len(factories)} factory(ies) over {files_read} component source(s)"
                   + (f"; UNREADABLE: {', '.join(unread)}" if unread else ""))
+    # EVERY `cva(` IS ACCOUNTED FOR: read, unreadable, or a duplicate anchor.
+    # The `FACTORY` pattern wants `export const NAME =` exactly, so four
+    # ordinary spellings match nothing at all and take their pairs with them in
+    # silence. Held against the corpus rather than against the reader's own
+    # opinion of it.
+    journal.check("every cva() call is accounted for",
+                  len(factories) + len(unread) + len(duplicates) == calls,
+                  f"{calls} call(s): {len(factories)} read, {len(unread)} unreadable, "
+                  f"{len(duplicates)} duplicate anchor(s)"
+                  + (f" — {'; '.join(duplicates)}" if duplicates else ""))
     journal.check("the residue is read",
                   declared > 0,
                   f"{declared} selector(s) declared, {len(rules)} of a shape this rule can read")
@@ -411,11 +500,15 @@ async def main():
     # nothing would print « no divergence » and mean « I compared nothing » —
     # the reading this rule exists to refuse, and the reading a first version of
     # it actually produced: scanning `variants*.ts` alone it missed the three
-    # files holding the shared vocabulary and paired ONE anchor out of eight.
-    # Seven is B-067's own count of shared anchors, so the floor cannot drift
-    # below the finding that put this rule here.
+    # files holding the shared vocabulary and paired ONE anchor of the seven.
+    # THE FLOOR IS THE MEASURED COUNT, not the finding's. Seven was B-067's
+    # tally and it was the wrong floor the moment this rule found sixteen: nine
+    # pairs could have stopped being compared and the hold would have stayed
+    # green — the pre-satisfied counter, one wave after the wave that named it.
+    # It is lowered only by someone who has read what stopped being compared,
+    # and L13 lowers it to nothing by removing this rule.
     journal.check("the shared anchors are found",
-                  len(cases) >= 7,
+                  len(cases) >= PAIRS_FLOOR,
                   f"{len(cases)} residue selector(s) shadow a typed variant; "
                   f"{len(unpaired)} wear an anchor no variant claims, "
                   f"{len(toggled)} carry an engine-written qualifier, "
@@ -441,14 +534,15 @@ async def main():
         divergent, blind = [], []
         for preference, measured in readings.items():
             reading = measured[index]
-            for prop in case["properties"]:
-                left = reading["left"].get(prop, "")
-                right = reading["right"].get(prop, "")
+            for declared in case["properties"]:
+                left = reading["left"].get(declared, "")
+                right = reading["right"].get(declared, "")
                 if not left and not right:
-                    blind.append(f"{prop} under {preference}")
+                    blind.append(f"{declared} under {preference}")
                 elif left != right:
                     divergent.append(
-                        f"{prop} under {preference}: residue « {left} » vs variant « {right} »")
+                        f"{declared} under {preference}: residue « {left} » "
+                        f"vs variant « {right} »")
         journal.check(
             f"{case['selector']} ↔ {case['factory']}()",
             not divergent and not blind,

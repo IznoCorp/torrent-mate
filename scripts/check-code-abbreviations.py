@@ -35,16 +35,30 @@ WHAT IS NOT READ, and each is a decision:
       fewer, which is why the line is drawn at mutilation and not at length.
   A NAME IMPORTED FROM A LIBRARY — this reads DECLARATIONS. A third-party
       spelling is that library's, and the guard has nothing to say about it.
+      Only the `as` of an import is read, because that half is a name someone
+      chose here. Reading the other half refused `from typing import ParamSpec`
+      for carrying « param », which is this rule contradicting itself.
+  A `match` CASE CAPTURE and a PEP 695 TYPE PARAMETER. Both measured at zero
+      occurrences today, so they are named here rather than left to be
+      discovered as a hole on the day the first one is written.
 
-ARM `baseline` — the ratchet, PER FILE and never a global count.
+THE RATCHET, PER FILE and never a global count. It is not a third `--arm`:
+it is the second half of `names`, because a count and the record it is held
+against are one reading. The CLI exposes `lists` and `names`, and this file
+says so rather than advertising an arm nobody can select.
 
 `scripts/code-abbreviations-baseline.json` records the count each file carries
 today. It may go down. It may not go up. A file that reaches zero must leave
 the list, so the record cannot quietly describe a tree that has moved.
 
-PER FILE, and the reason is a hole the global form leaves open: a pull request
-that removes one `tmp` and adds another leaves a global total unchanged and
-passes. The per-file form costs a few hundred entries and closes it.
+PER FILE, and the reason is a hole the global form leaves open: a change that
+removes one `tmp` in one file and adds another in a second leaves a global
+total unchanged and passes. The per-file form costs a few hundred entries and
+closes THAT. It does not close the swap WITHIN one file — remove a `msg` and
+add a `tmp` in the same module and the count is unmoved — and the count is of
+assignment SITES rather than of distinct names, so splitting `number = 0` into
+two statements raises it without introducing a name. Both are named here rather
+than implied away.
 
 REFUSED, NOT PRINTED. `check_app_interface_text` drifted by 7 inside the very
 pull request that introduced it as a control, because a number nobody compares
@@ -67,7 +81,6 @@ import ast
 import json
 import re
 import sys
-from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -160,13 +173,30 @@ def declared_names(tree: ast.AST):
             yield node.id, node.lineno
         elif isinstance(node, ast.ExceptHandler) and node.name:
             yield node.name, node.lineno
-        elif isinstance(node, ast.alias):
-            # `import x.y as z` declares `z`; `import x.y` declares `x`.
-            yield node.asname or node.name.split(".")[0], getattr(node, "lineno", 0)
+        elif isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Store):
+            # `self._conn = …` DECLARES a name, and it took an adversarial
+            # review to notice that this reader never saw one. Twenty-five
+            # occurrences were invisible, and TWELVE of them were `conn` — the
+            # first word of the three the blacklist promotes to a campaign. The
+            # same name as a local was refused and as an attribute was not,
+            # which is the shape that makes a guard worth less than no guard.
+            yield node.attr, node.lineno
+        elif isinstance(node, ast.alias) and node.asname:
+            # ONLY THE ALIAS. `import x.y as z` is a name someone chose here;
+            # `from typing import ParamSpec` is the library's spelling, and
+            # reading it refused `ParamSpec` for carrying « param » — against
+            # this file's own rule that a third-party spelling is not ours.
+            yield node.asname, node.lineno
 
 
 def sources() -> list[Path]:
-    """Collect the corpus, sorted for a stable report."""
+    """Collect the corpus, sorted for a stable report.
+
+    Returns:
+        Every `.py` file under the three roots, in path order. A root that
+        does not exist contributes nothing — and the caller holds the total
+        above zero, so an empty corpus is a violation rather than a pass.
+    """
     found: list[Path] = []
     for entry in CORPUS:
         base = ROOT / entry
@@ -239,7 +269,9 @@ def arm_names(refused: dict[str, str], listing: bool) -> int:
             refuse nothing — the record is derived, never typed out.
 
     Returns:
-        The number of files whose count is above the baseline.
+        The number of files whose count is above the baseline, PLUS the number
+        recorded as carrying occurrences that carry none any more. A record
+        describing a tree that has moved is a violation in its own right.
     """
     findings, files_read, names_read = scan(refused)
     counts = {path: len(entries) for path, entries in findings.items()}
@@ -293,7 +325,11 @@ def arm_names(refused: dict[str, str], listing: bool) -> int:
 
 
 def main() -> int:
-    """Run the arms over the three roots."""
+    """Run the arms over the three roots.
+
+    Returns:
+        0 when every arm run is clean, 1 otherwise.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--arm", choices=("lists", "names"),
                         help="run one arm instead of both")

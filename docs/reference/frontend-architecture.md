@@ -346,6 +346,7 @@ reasoning is kept so the alternatives are not proposed again as if new.
 | **Haptics** | **refuse the capability, build the seam** | the target platform exposes no public API; the workarounds ride an implementation detail that has already been tightened once. One `feedback()` call site all gestures pass through, visual today — so adopting it later changes one file |
 | **`onTouchStart` for pressed states** | **refuse** | it lights the pressed state when the finger is starting a SCROLL, so a list flickers as it is scrolled. `:active` is cancelled by the browser when the gesture becomes a scroll, which is the wanted behaviour, for free |
 | **`@media (hover: hover)`** to keep hover off touch | **adopt** | the sticky-hover problem is real; this is its declarative remedy |
+
 ### D10 — The dying engine's CSS is a bounded residue with a date of death
 
 **Decision.** The CSS the legacy engine still needs does not convert and does not disperse: it is
@@ -360,9 +361,11 @@ never revised, so the sole justification for keeping a 2 470-line stylesheet ali
 longer be corrected if its terms changed. `legacy.css`'s header cites **this** address.
 
 **What it costs, and it is recorded rather than discovered.** Unlayered normal declarations beat
-every cascade layer whatever the specificity — including on markup that COMPONENTS draw. Seven
-shared identity anchors carry both a residue rule and a typed variant, so on those elements a
-variant can be edited and change nothing on screen (B-067). The declarations are identical term
+every cascade layer whatever the specificity — including on markup that COMPONENTS draw. B-067
+found **seven** shared identity anchors carrying both a residue rule and a typed variant, so on
+those elements a variant can be edited and change nothing on screen. **The guard that answers it
+found sixteen** — the seven is the finding's tally, kept because it is what the register records,
+and the measured count is below. The declarations are identical term
 for term today and the oracle says so; what is not held is the day one drifts. **The guard that
 cross-checks each variant against the rule shadowing it is arbitrated (operator, 2026-08-25)**,
 and it dies with this decision.

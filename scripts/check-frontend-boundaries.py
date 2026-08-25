@@ -244,7 +244,15 @@ GRANDFATHERED = {
 
 # The plan is the authority on a lot's status, and it says it in one word.
 # `#### L07 — Tailwind and CVA, surface by surface · `LANDED` · *depended on …*`
-PLAN = Path("docs/reference/frontend-architecture.md")
+#
+# ANCHORED ON THIS FILE, not on the working directory. `--root` exists so the
+# arms can be pointed at a copy of the tree, and the tests do exactly that from
+# a scratch directory — but the PLAN is one document wherever the corpus is. A
+# relative path here made the arm exit 1 from any directory but the repository
+# root, blaming the plan for being unreadable: « unreadable is a violation »
+# turns a wrong path into a hard failure with a message that names the wrong
+# culprit.
+PLAN = Path(__file__).resolve().parent.parent / "docs" / "reference" / "frontend-architecture.md"
 LOT_HEADING = re.compile(r"^####\s+(L\d\d)\b[^\n]*?·\s*`(NOT STARTED|IN PROGRESS|LANDED)`", re.M)
 
 # THE LABEL'S GRAMMAR: the lot that OWES the reduction, then a dash, then why.
@@ -260,19 +268,25 @@ LOT_HEADING = re.compile(r"^####\s+(L\d\d)\b[^\n]*?·\s*`(NOT STARTED|IN PROGRES
 OWED_LOT = re.compile(r"^(L\d\d)\b")
 
 
-def landed_lots() -> set[str]:
-    """Read the lots the plan marks `LANDED`.
+def plan_lots() -> tuple[set[str], set[str]]:
+    """Read the lots the plan declares, and which of them have landed.
+
+    BOTH SETS, and the first one is not decoration. Holding a label only
+    against the LANDED set leaves « L19 — the data layer takes it » green for
+    ever: the plan declares L01 to L13 and nothing else, so a lot that will
+    never run is a promise nobody can call in — B-073's own defect wearing a
+    different disguise.
 
     Returns:
-        The lot codes with that status. EMPTY when the plan cannot be read —
-        and the caller treats that as its own violation rather than as « no
-        lot has landed », which is the reading that would make this hold pass
-        for the one reason it must never pass for.
+        A `(declared, landed)` pair of lot codes. BOTH EMPTY when the plan
+        cannot be read — and the caller treats that as its own violation
+        rather than as « no lot has landed », which is the reading that would
+        make this hold pass for the one reason it must never pass for.
     """
     if not PLAN.is_file():
-        return set()
-    text = PLAN.read_text(encoding="utf-8")
-    return {lot for lot, status in LOT_HEADING.findall(text) if status == "LANDED"}
+        return set(), set()
+    found = LOT_HEADING.findall(PLAN.read_text(encoding="utf-8"))
+    return {lot for lot, _ in found}, {lot for lot, status in found if status == "LANDED"}
 
 
 def feature_of(module: str) -> str | None:
@@ -378,9 +392,10 @@ def arm_size(root: Path, listing: bool = False) -> int:
 
     # THE LABEL IS READ (B-073). Membership was held from both ends and the
     # VALUE from neither, so four entries promised a lot that had landed.
-    landed = landed_lots()
+    declared_lots, landed = plan_lots()
     spent: list[str] = []
     unnamed: list[str] = []
+    invented: list[str] = []
     for module in sorted(GRANDFATHERED):
         if module not in over:
             continue                      # already reported as stale, above
@@ -388,13 +403,16 @@ def arm_size(root: Path, listing: bool = False) -> int:
         if owed is None:
             unnamed.append(module)
             continue
-        if owed.group(1) in landed:
+        if owed.group(1) not in declared_lots and declared_lots:
+            invented.append(f"{module} — its label leads with {owed.group(1)}, "
+                            f"which the plan does not declare")
+        elif owed.group(1) in landed:
             spent.append(f"{module} — its label leads with {owed.group(1)}, already `LANDED`")
     unreadable = not landed
 
     print(f"  size: ceiling {BLOCK_LINES}, {len(over)} at or over it "
-          f"({len(GRANDFATHERED)} recorded, {len(landed)} lot(s) landed), "
-          f"{len(warn)} above the {WARN_LINES} warning")
+          f"({len(GRANDFATHERED)} recorded; the plan declares {len(declared_lots)} lot(s), "
+          f"{len(landed)} of them LANDED), {len(warn)} above the {WARN_LINES} warning")
     for module in sorted(warn):
         print(f"    [WARN] {module}: {warn[module]} non-blank lines", file=sys.stderr)
     for module in unrecorded:
@@ -407,6 +425,9 @@ def arm_size(root: Path, listing: bool = False) -> int:
         print(f"    {entry}: the lot that would have reduced it has been and gone, so "
               f"the entry promises nothing. Re-label it with the lot that OWES the "
               f"reduction, or let the ceiling refuse the file", file=sys.stderr)
+    for entry in invented:
+        print(f"    {entry}: a lot that will never run is a promise nobody can call in",
+              file=sys.stderr)
     for entry in unnamed:
         print(f"    {entry}: its label leads with no lot, and a label nobody can act on "
               f"is the state B-073 found this list in", file=sys.stderr)
@@ -414,10 +435,11 @@ def arm_size(root: Path, listing: bool = False) -> int:
         # NOT « no lot has landed ». A reader that finds nothing and reports
         # clean is the exact shape this arm was written to end: the hold would
         # pass for the one reason it must never pass for.
-        print(f"    {PLAN.as_posix()}: no lot status could be read, so « the label leads "
-              f"with a lot that has not landed » is a sentence this arm cannot check",
+        print("    docs/reference/frontend-architecture.md: no lot status could be read, so « the label leads "
+              "with a lot that has not landed » is a sentence this arm cannot check",
               file=sys.stderr)
-    return len(unrecorded) + len(stale) + len(spent) + len(unnamed) + int(unreadable)
+    return (len(unrecorded) + len(stale) + len(spent) + len(unnamed)
+            + len(invented) + int(unreadable))
 
 
 # `any` in a type position, an assertion to it, and the two suppressions. Not

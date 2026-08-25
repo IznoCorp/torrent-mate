@@ -35,9 +35,10 @@ changing a string is precisely what it is for. Its own proof is the boundary
 rule above, exercised on every shape in `tests/scripts/`.
 
 WHO DECIDES WHICH IS WHICH. For everything TypeScript can parse — `.ts`, `.tsx`,
-`.js`, `.jsx`, `.mjs` — the compiler does, through `source-spans.mjs`. The
-hand-written scanner below stays for Python, where the identifiers live inside
-`page.evaluate` strings and no parser can help. That split is not a preference:
+`.js`, `.jsx`, `.mjs` — the compiler does, through `source-spans.mjs`. Python
+goes to `python_spans()`, the tokeniser, in `rename_readers.py` beside this
+file — never to the hand-written JavaScript scanner that lives there too. That
+split is not a preference:
 a hand-written scanner is a list of the forms someone thought of, and the two it
 had not thought of each rewrote INTERFACE COPY in silence. A regex literal
 holding an APOSTROPHE — this interface is written in French, so its patterns

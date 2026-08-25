@@ -394,8 +394,10 @@ def arm_addressing(root: Path) -> int:
     overlap: a rule reads what the interface DID, this reads what it is allowed
     to declare, and the cheaper of the two to act on is this one.
 
-    It extends this guard rather than sitting beside it as a second script —
-    L02's lesson, paid for once already.
+    It is an ARM of `check-frontend-boundaries.py`, not a second script, and
+    that is L02's lesson paid for once already — a guard nobody runs proves
+    nothing. It lives in its own FILE because of a ceiling, and the distinction
+    matters: one entry point, one exit code, one thing to remember to run.
 
     It also holds the SCREEN paths, and that is a contract with three ends: the
     `SCREEN_PARENTS` table declares them, the route files serve them, and this
@@ -443,14 +445,14 @@ def arm_addressing(root: Path) -> int:
 
     # The model is the whole of what this arm reads, so a tree without it — or
     # a model that reads to nothing — must not read clean: a reader that stays
-    # green over a tree it cannot read is the failure `arm_cycles` names. The
+    # green over a tree it cannot read is the failure `check-frontend-boundaries.py`'s `arm_cycles` names. The
     # route scan below still runs, so the summary always describes what was
     # actually read.
     if not model.is_file():
         violations.append(
             "lib/addresses.ts: the address model is missing — the arm has nothing "
             "to read, and a reader that stays green over a tree it cannot read is "
-            "the failure `arm_cycles` names")
+            "the failure `check-frontend-boundaries.py`'s `arm_cycles` names")
     elif not pages or not dials:
         violations.append(
             f"lib/addresses.ts: the address model reads {len(pages)} page(s) and "
@@ -574,7 +576,7 @@ def arm_addressing(root: Path) -> int:
         violations.append(
             "engine/legacy.js: PAGES_OF() reads to nothing — the page tables cannot be "
             "held against each other, and a reader that stays green over a declaration "
-            "it cannot read is the failure `arm_cycles` names")
+            "it cannot read is the failure `check-frontend-boundaries.py`'s `arm_cycles` names")
 
     print(f"  addressing: {len(files)} route file(s), {len(dials)} dial(s), "
           f"{len(pages)} page(s) against {len(engine_pages)} the engine draws, "

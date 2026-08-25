@@ -87,10 +87,41 @@ DISCRETE_TIMING = re.compile(r"(?<![\w-])(steps\s*\([^)]*\)|step-start(?![\w-])|
 # that makes the scale still a scale.
 #
 # NOTHING ELSE MEASURES THIS. `transition-duration` is not among the oracle's
-# nineteen properties, and the scale arm above reads CSS DECLARATIONS — a value
+# nineteen properties, and the scale arm in `check-css-tokens.py` reads CSS
+# DECLARATIONS — a value
 # living inside a class name is invisible to it. `duration-137` would compile
 # happily and no gate would say a word.
 MOTION_STEPS = {"150": "--duration-1", "200": "--duration-2", "300": "--duration-3", "450": "--duration-4"}
+
+# The scale block, and the one declaration this file has to agree with.
+THEME = ROOT / "frontend" / "maquette" / "design" / "src" / "styles" / "theme.css"
+_DURATION_STEP = re.compile(r"(--duration-\d+)\s*:\s*([\d.]+)(m?s)\b")
+
+
+def declared_milliseconds() -> dict[str, str]:
+    """Read the motion ramp the scale actually declares.
+
+    THE TABLE ABOVE IS A COPY, and this is what stops it drifting. The scale
+    arm DERIVES its steps from `theme.css`; the table above is typed out,
+    because a class name carries a number and not a token. Change
+    `--duration-2` to `0.22s` and the declaration half follows automatically
+    while this half keeps blessing `duration-200` and refusing `duration-220` —
+    two halves of one rule, disagreeing, both reporting « no violation ». The
+    file's own header says a second copy is a second thing to keep in step;
+    this function is how it is kept.
+
+    Returns:
+        Each `--duration-*` token mapped to its value in whole milliseconds,
+        as a string. Empty when the scale cannot be read, which the caller
+        treats as its own violation.
+    """
+    if not THEME.is_file():
+        return {}
+    found = {}
+    for token, amount, unit in _DURATION_STEP.findall(THEME.read_text(encoding="utf-8")):
+        value = float(amount) * (1 if unit == "ms" else 1000)
+        found[token] = str(int(value))
+    return found
 
 # Where a class name may be written. The engine is excluded because it keeps
 # hand-written CSS until L13 and receives no utility (D-L07-5) — and it is
@@ -112,11 +143,11 @@ CLASS_SOURCES = (
 _DURATION_UTILITY = re.compile(r"(?<![\w-])duration-(\d+)(?![\w-])")
 
 
-def off_curve(prop: str, value: str) -> list[str]:
+def off_curve(property_name: str, value: str) -> list[str]:
     """Lists the ways a motion declaration's EASING sits outside the scale.
 
     Args:
-        prop: The property name, lowercased by the caller.
+        property_name: The property name, lowercased by the caller.
         value: The declaration's value text, whitespace already collapsed.
 
     Returns:
@@ -137,7 +168,7 @@ def off_curve(prop: str, value: str) -> list[str]:
         for found in DISCRETE_TIMING.finditer(segment):
             findings.append(f"`{found.group(0)}` is a discrete timing function, and the motion scale holds none")
         if (
-            prop in TIMING_SHORTHAND
+            property_name in TIMING_SHORTHAND
             and not SCALE_EASING.search(segment)
             and not LINEAR_EASING.search(segment)
             and not KEYWORD_EASING.search(segment)
@@ -161,6 +192,26 @@ def motion_classes_arm() -> int:
     Returns:
         1 when anything was found, 0 otherwise.
     """
+    # THE TWO TABLES FIRST. A ramp read from the scale and a ramp typed out here
+    # must say the same thing, or this arm blesses a number the scale no longer
+    # declares. An unreadable scale is a violation, never « nothing to check ».
+    declared = declared_milliseconds()
+    if not declared:
+        print(f"check-motion: {THEME.relative_to(ROOT)} declares no `--duration-*` step — the "
+              f"ramp this arm blesses cannot be held against anything", file=sys.stderr)
+        return 1
+    drifted = {token: value for token, value in declared.items()
+               if MOTION_STEPS.get(value) != token}
+    missing = {token for token in MOTION_STEPS.values()} - set(declared)
+    if drifted or missing:
+        for token, value in sorted(drifted.items()):
+            print(f"check-motion: the scale declares `{token}` at {value}ms and this arm's table "
+                  f"does not — the two halves of the motion rule disagree", file=sys.stderr)
+        for token in sorted(missing):
+            print(f"check-motion: this arm's table names `{token}` and the scale declares no such "
+                  f"step", file=sys.stderr)
+        return 1
+
     files: list[Path] = []
     for source in CLASS_SOURCES:
         if source.is_dir():

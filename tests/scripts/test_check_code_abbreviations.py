@@ -132,14 +132,28 @@ class TestNamesArm:
         assert "the corpus is empty" in captured.err
 
     def test_a_file_over_its_recorded_count_is_a_violation(self, monkeypatch, tmp_path, capsys) -> None:
-        """The ratchet only turns one way."""
+        """The ratchet only turns one way, and it is read PER FILE.
+
+        Pinned to one path and one count on purpose. An empty record makes every
+        file « over », so a case built on one could not tell a per-file ratchet
+        from a ratchet of any shape at all — which is the whole distinction the
+        record exists for.
+        """
+        live = json.loads(guard.BASELINE_FILE.read_text(encoding="utf-8"))["files"]
+        target, standing = next(iter(sorted(live.items())))
+        assert standing >= 1, "pick a file the record actually carries"
         record = tmp_path / "baseline.json"
-        record.write_text(json.dumps({"what": "", "total": 0, "files": {}}), encoding="utf-8")
+        record.write_text(
+            json.dumps({"what": "", "total": 0, "files": {**live, target: standing - 1}}),
+            encoding="utf-8",
+        )
         monkeypatch.setattr(guard, "BASELINE_FILE", record)
-        violations = guard.arm_names({"cfg": "configuration"}, listing=False)
+        refused, _ = guard.read_word_file(guard.REFUSED_FILE)
+        violations = guard.arm_names(refused, listing=False)
         captured = capsys.readouterr()
-        assert violations >= 1
-        assert "recorded" in captured.err
+        # EXACTLY one: every other file is at its standing count.
+        assert violations == 1, captured.err
+        assert f"{target}: {standing} occurrence(s), {standing - 1} recorded" in captured.err
 
     def test_a_file_that_reached_zero_must_leave_the_record(self, monkeypatch, tmp_path, capsys) -> None:
         """A record describing a tree that has moved is a record nobody can trust."""
@@ -156,6 +170,36 @@ class TestNamesArm:
         captured = capsys.readouterr()
         assert violations == 1, captured.err
         assert "leaves the record" in captured.err
+
+    def test_a_one_letter_word_is_never_read(self, monkeypatch, capsys) -> None:
+        """`i`, `j`, `n`, `x` are SHORT names, not mutilated ones.
+
+        UNREACHABLE THROUGH THE SHIPPED LIST — none of its 51 words is one
+        letter long — so `len(word) < 2` could be deleted and every other test
+        would stay green. The carve-out is the file's headline exemption; it is
+        exercised here with a synthetic list rather than left as a branch
+        nothing runs.
+        """
+        findings, files_read, _ = guard.scan({"i": "index", "n": "number"})
+        assert files_read > 0
+        assert findings == {}, "a one-letter word must never be read, even when it is listed"
+        # And the same list with a two-letter word DOES bite, so the case above
+        # is not passing because `scan()` found nothing at all.
+        findings, _, _ = guard.scan({"pg": "page"})
+        assert findings, "the corpus really does carry `pg` — the case above measures the length rule"
+
+    def test_the_allowed_list_exempts_nothing_by_itself(self) -> None:
+        """It records a DECISION; `scan()` never consults it.
+
+        A future reader may assume a word listed there is skipped. It is not:
+        the guard is a blacklist, so a kept word is simply absent from the
+        refused list, and the allowed file's only enforcement is `arm_lists`
+        refusing a word claimed by both.
+        """
+        allowed, _ = guard.read_word_file(guard.ALLOWED_FILE)
+        assert "exc" in allowed
+        findings, _, _ = guard.scan({"exc": "exception"})
+        assert findings, "listing a word as allowed does not stop `scan()` refusing it"
 
     def test_the_repository_reads_clean_against_its_own_record(self, capsys) -> None:
         """The armed guard is green on the tree it lands with."""

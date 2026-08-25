@@ -21,6 +21,17 @@
 #
 # A word that is NOT here is not thereby endorsed. What was considered and kept
 # is `scripts/code-abbreviations-allowed.txt`, each with the reason it stays.
+#
+# AND AN ADJACENT SPELLING IS AN ESCAPE ROUTE. `tmp` was refused while `temp`
+# was free, `fn` while `func` was free, `param` while `prop` was free — so a
+# rename from the refused word to its neighbour would have LOWERED a file's
+# count while the name got no better. Four such pairs were closed by an
+# adversarial review; when a word joins this list, its neighbours join with it.
+#
+# A WORD WITH TWO EXPANSIONS names both. `res` is `result` in most codebases
+# and `resolution` in this one; `desc` is `description` or `descending`; `cur`
+# is `cursor` or `current`. A refusal whose stated remedy is the wrong word is
+# a refusal that gets argued with instead of acted on.
 
 # ── The three campaigns, which have their own lot ────────────────────────────
 conn = connection
@@ -34,9 +45,9 @@ char = character
 cfg = configuration
 cmd = command
 cmds = commands
-cur = cursor
+cur = cursor, or current — write the one you mean
 curr = current
-desc = description
+desc = description, or descending — write the one you mean
 dest = destination
 dests = destinations
 dst = destination
@@ -47,6 +58,8 @@ ext = extension
 exts = extensions
 fmt = format
 fn = function
+func = function
+funcs = functions
 idx = index
 impl = implementation
 lang = language
@@ -62,15 +75,18 @@ pct = percent
 pkg = package
 pos = position
 prev = previous
+prop = property
+props = properties
 proc = process
 ref = reference
 refs = references
 rel = relative
 req = request
-res = result
+res = result, or resolution — write the one you mean, and in this domain it is usually resolution
 resp = response
 sep = separator
 src = source
+temp = temporary
 tmp = temporary
 val = value
 vals = values

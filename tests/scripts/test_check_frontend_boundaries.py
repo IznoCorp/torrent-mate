@@ -610,6 +610,19 @@ class TestSizeArmReadsTheLabel:
         assert violations == 1, captured.err
         assert "no lot status could be read" in captured.err
 
+    def test_a_label_naming_a_lot_the_plan_never_declares_is_a_violation(self, monkeypatch, capsys) -> None:
+        """A lot that will never run is a promise nobody can call in.
+
+        Holding the label only against the LANDED set left this green for ever:
+        `L19` is not landed, so the spent check passed it, and the plan declares
+        L01 to L13 and nothing else. B-073's own defect wearing another face.
+        """
+        monkeypatch.setitem(guard.GRANDFATHERED, "engine/legacy.js", "L19 — some lot that does not exist")
+        violations = guard.arm_size(DESIGN_SRC)
+        captured = capsys.readouterr()
+        assert violations == 1, captured.err
+        assert "which the plan does not declare" in captured.err
+
     def test_the_real_list_reads_clean(self, capsys) -> None:
         """Every entry leads with a lot that still owes the reduction."""
         violations = guard.arm_size(DESIGN_SRC)

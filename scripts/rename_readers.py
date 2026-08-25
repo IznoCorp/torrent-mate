@@ -11,11 +11,18 @@ this one hands it.
 That question has its own history, and it is the tool's most expensive one. A
 hand-written scanner is a list of the forms someone thought of, and the two it
 had not thought of each rewrote INTERFACE COPY in silence — a regex literal
-holding an apostrophe, and JSX text, which wears no quote at all. So for
-everything TypeScript can parse the COMPILER answers, through
-`source-spans.mjs`; `regions()` stays for Python, where the identifiers live
-inside `page.evaluate` strings and no parser can help; and `quoted_spans()` is
-the last resort for JSON, CSS and HTML, which have no parser here at all.
+holding an apostrophe, and JSX text, which wears no quote at all.
+
+WHO ANSWERS FOR WHICH FILE, and the mapping matters more than it looks:
+
+  `.ts` `.tsx` `.js` `.jsx` `.mjs`  the COMPILER, through `source-spans.mjs`.
+  `.py`                            `python_spans()`, the tokeniser. NEVER
+      `regions()` — that one is a JAVASCRIPT scanner, it knows `//` and
+      `/* */` and nothing about `#`, and pointing it at Python is how a
+      comment holding an apostrophe opened a string that never closed.
+  everything else                  `regions()` in the identifier mode, and
+      `quoted_spans()` in `--values` mode, for JSON, CSS and HTML, which have
+      no parser here at all.
 
 Imported by `rename-identifiers.py` and by nothing else.
 """
@@ -24,7 +31,6 @@ import io
 import pathlib
 import re
 import subprocess
-import sys
 import tokenize
 
 SPAN_TOOL = pathlib.Path(__file__).with_name("source-spans.mjs")

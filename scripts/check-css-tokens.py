@@ -69,7 +69,7 @@ from pathlib import Path
 # live in one module because the two must agree about what a comment is and
 # what a `var()` use looks like — the first copy to drift would do so in
 # silence, both halves still reporting « no violation ».
-from csstokens_patterns import COMMENT, DECLARATION, HTML_COMMENT, RUNTIME_PREFIX, USE, comma_segments
+from csstokens_patterns import COMMENT, DECLARATION, RUNTIME_PREFIX, USE
 
 ROOT = Path(__file__).resolve().parent.parent
 
