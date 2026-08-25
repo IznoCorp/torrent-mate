@@ -70,6 +70,7 @@ import "../features/settings/panel-field";
 import { createStore, type Store } from "./store";
 import { publishBarHeight } from "./bar-height";
 import { installFocusManager } from "./focus";
+import { installMockNetwork } from "../mocks";
 import { rootRoute } from "./root-route";
 import { accountRoute } from "../routes/account";
 import { acquisitionRoute } from "../routes/acquisition";
@@ -722,6 +723,19 @@ window.__address = {
 // because the engine composed them at all. It does not: a page has a real
 // path, `lib/addresses.ts` holds which, and the harness's own host serves
 // every one of them off `/` like any single-page host.
+// THE MOCK LAYER, INSTALLED BEFORE ANYTHING FETCHES (L08).
+//
+// Synchronously, and before the engine starts: the seam replaces `fetch`, and a
+// replacement that arrived after the first request would be a race no rule
+// could reproduce. This is also why the layer is not a service worker — a
+// worker's registration is asynchronous, and the oracle measures at first
+// paint.
+//
+// Behind a build-time constant, so the switchover removes it by editing one
+// value. `__MOCKS_BUILT_IN__` is replaced at build time, so the branch below is dead
+// code when it is false and the bundler drops the import with it.
+if (__MOCKS_BUILT_IN__) installMockNetwork();
+
 const start = window.__startEngine;
 if (typeof start === "function") start({ store: store });
 

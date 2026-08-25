@@ -57,7 +57,15 @@ from pathlib import Path
 DESIGN_SRC = Path("frontend/maquette/design/src")
 
 # The extensions a specifier may resolve to, in the order the bundler tries.
-SOURCE_EXTENSIONS = (".ts", ".tsx", ".js", ".jsx", ".json")
+#
+# `.d.ts` IS ON THE LIST, and it was not. A declaration file is a legitimate
+# import target — the maquette's generated contract types are one — and a
+# resolver blind to it reports « unresolved import », which this arm counts as
+# a violation. That is the right posture for an import resolving to nothing;
+# it is the wrong answer for an import resolving to a file the reader cannot
+# see. It is tried LAST, so a `contract-types.ts` would still win over a
+# `contract-types.d.ts` the way the bundler resolves it.
+SOURCE_EXTENSIONS = (".ts", ".tsx", ".js", ".jsx", ".json", ".d.ts")
 
 # Every local import shape. Group 1 is the specifier in each case:
 #   `import x from "./a"` · `export { y } from "../b"` · `import "./c"`
@@ -672,8 +680,51 @@ def arm_tree(root: Path) -> int:
     return len(strays)
 
 
+
+def arm_mocks(root: Path) -> int:
+    """Refuse anything but `app/` importing `mocks/`, and `mocks/` importing a feature.
+
+    THE DEFECT CLASS, and it is L09's whole proof at stake. A feature importing
+    a mock seed directly is how a fixture survives its own removal: the surface
+    renders identically, the seed is never wired through the network seam, and
+    « the oracle proves the wiring at zero divergence » becomes a sentence about
+    nothing. It has to be refused before it can happen, because afterwards it is
+    invisible — the rendering is the same either way.
+
+    The other direction is the layering rule read once more: a mock layer that
+    knew a feature would be a second place where a surface's shape is decided.
+
+    Args:
+        root: The directory to read.
+
+    Returns:
+        The number of forbidden edges.
+    """
+    edges, _ = build_graph(root)
+    violations = []
+    importers = 0
+    for source, targets in sorted(edges.items()):
+        source_bucket = bucket_of(source)
+        for target in sorted(set(targets)):
+            if bucket_of(target) == "mocks" and source_bucket not in ("mocks", "app"):
+                violations.append(
+                    f"{source} → {target}: only `app/` may import `mocks/` — a feature "
+                    f"reading a seed directly never goes through the network seam, and "
+                    f"then nothing measures the wiring")
+            if bucket_of(target) == "mocks" and source_bucket == "app":
+                importers += 1
+            if source_bucket == "mocks" and bucket_of(target) in ("features", "routes"):
+                violations.append(
+                    f"{source} → {target}: `mocks/` must know no feature")
+    print(f"  mocks: {importers} import(s) from app/, {len(violations)} forbidden edge(s)")
+    for entry in violations:
+        print("    " + entry, file=sys.stderr)
+    return len(violations)
+
+
 ARMS = {
     "cycles": arm_cycles,
+    "mocks": arm_mocks,
     "layering": arm_layering,
     "fan-in": arm_fan_in,
     "size": arm_size,

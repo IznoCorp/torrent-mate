@@ -3,7 +3,7 @@
   "info": {
     "title": "TorrentMate — the contract the maquette's interface requires",
     "version": "0.1.0",
-    "description": "WHAT THE NEXT VERSION OF THE FRONTEND NEEDS A SERVER TO ANSWER, declared by the interface rather than read off the backend that exists (D7 of docs/reference/frontend-architecture.md).\n\nIT IS NOT frontend/openapi.json, which is generated FROM the running backend. The two differ on purpose and every difference is a DEMAND, computed by scripts/compare-contracts.py into docs/reference/frontend-backend-demands.md. No backend work happens until the interface is frozen; the register IS the future specification, delivered as a diff rather than a blank page.\n\nSOME FIELDS ARE UGLY ON PURPOSE. Where a maquette fixture holds a pre-formatted string, this contract carries it verbatim rather than decomposing it into facts. That is D-L08-5, and it is what makes L09 provable: a mock returning exactly what the fixture returns renders the same thing, so the oracle proves the wiring at zero divergence. Every such field says so, and the demand register asks for the underlying fact.\n\nx-seeded-from NAMES THE FIXTURE FAMILIES an operation's mock is seeded from. It is read by scripts/check-mock-seeds.py, so it is a contract and not a note."
+    "description": "WHAT THE NEXT VERSION OF THE FRONTEND NEEDS A SERVER TO ANSWER, declared by the interface rather than read off the backend that exists (D7 of docs/reference/frontend-architecture.md).\n\nIT IS NOT frontend/openapi.json, which is generated FROM the running backend. The two differ on purpose and every difference is a DEMAND, computed by scripts/compare-contracts.py into docs/reference/frontend-backend-demands.md. No backend work happens until the interface is frozen; the register IS the future specification, delivered as a diff rather than a blank page.\n\nSOME FIELDS ARE UGLY ON PURPOSE. Where a maquette fixture holds a pre-formatted string, this contract carries it verbatim rather than decomposing it into facts. That is D-L08-5, and it is what makes L09 provable: a mock returning exactly what the fixture returns renders the same thing, so the oracle proves the wiring at zero divergence. Every such field says so, and the demand register asks for the underlying fact.\n\nx-seeded-from NAMES THE FIXTURE FAMILIES an operation's mock is seeded from. It is read by scripts/check-mock-seeds.py, so it is a contract and not a note.\n\nx-unseeded IS THE OTHER HALF OF x-seeded-from, and every operation carries exactly one of the two. An operation whose response no fixture covers — an acknowledgement, a count derived from the request, a state token from this contract's own enum — says so in as many words. Without it, « nothing was invented here » and « nobody looked » are the same silence, and scripts/check-mock-seeds.py --arm provenance refuses an operation carrying neither."
   },
   "servers": [
     {
@@ -154,7 +154,8 @@
               }
             }
           }
-        }
+        },
+        "x-unseeded": "an acknowledgement. The prototype holds no credentials — a password written into a page is readable by everyone the page reaches — so there is nothing to seed and nothing to invent."
       }
     },
     "/api/auth/logout": {
@@ -201,7 +202,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-unseeded": "an acknowledgement. The engine's one real network call is this logout, and it answers a redirect rather than a payload."
       }
     },
     "/api/library/items": {
@@ -382,7 +384,8 @@
               }
             }
           }
-        }
+        },
+        "x-unseeded": "a count of what went. It is derived from the request and from the seeded library, never from a fixture of its own."
       }
     },
     "/api/library/categories": {
@@ -785,7 +788,8 @@
               }
             }
           }
-        }
+        },
+        "x-unseeded": "the follow as it now stands, built from the request over the seeded follows."
       }
     },
     "/api/acquisition/followed/{followedId}": {
@@ -853,7 +857,8 @@
               }
             }
           }
-        }
+        },
+        "x-unseeded": "the follow as it now stands, read back from the seeded follows after the change."
       },
       "delete": {
         "operationId": "deleteFollow",
@@ -909,7 +914,8 @@
             },
             "description": "the follow"
           }
-        ]
+        ],
+        "x-unseeded": "an acknowledgement."
       }
     },
     "/api/acquisition/followed/{followedId}/search": {
@@ -968,7 +974,8 @@
             },
             "description": "the follow"
           }
-        ]
+        ],
+        "x-unseeded": "how many conforming releases were found. The engine has no fixture for a search RESULT COUNT; the figure is derived from the seeded releases."
       }
     },
     "/api/acquisition/followed/{followedId}/grab": {
@@ -1042,7 +1049,8 @@
               }
             }
           }
-        }
+        },
+        "x-unseeded": "the torrent that was taken, identified by the release the request named."
       }
     },
     "/api/acquisition/search": {
@@ -1274,7 +1282,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-unseeded": "the three figures DOIT-6 requires. Derived from the seeded acquisition queue, never from a fixture of its own."
       }
     },
     "/api/acquisition/to-handle": {
@@ -1619,7 +1628,8 @@
             },
             "description": "the staged item"
           }
-        ]
+        ],
+        "x-unseeded": "an acknowledgement."
       }
     },
     "/api/staging/media/{mediaId}/discard": {
@@ -1677,7 +1687,8 @@
             },
             "description": "the staged item"
           }
-        ]
+        ],
+        "x-unseeded": "an acknowledgement."
       }
     },
     "/api/pipeline/status": {
@@ -1738,8 +1749,7 @@
                   "type": "object",
                   "properties": {
                     "state": {
-                      "type": "string",
-                      "description": "running, or queued — never a refusal (DOIT-4, NE-DOIT-PAS-3)"
+                      "$ref": "#/components/schemas/PipelineState"
                     },
                     "uid": {
                       "type": [
@@ -1774,7 +1784,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-unseeded": "the state the request left the pipeline in. The token comes from this contract's own enum — the engine's `pipe` field is STORE state and is not a fixture family at all — so there is nothing to seed from."
       }
     },
     "/api/pipeline/pause": {
@@ -1793,7 +1804,7 @@
                   "type": "object",
                   "properties": {
                     "state": {
-                      "type": "string"
+                      "$ref": "#/components/schemas/PipelineState"
                     }
                   },
                   "required": [
@@ -1821,7 +1832,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-unseeded": "the state the request left the pipeline in, from this contract's own enum."
       }
     },
     "/api/pipeline/resume": {
@@ -1840,7 +1852,7 @@
                   "type": "object",
                   "properties": {
                     "state": {
-                      "type": "string"
+                      "$ref": "#/components/schemas/PipelineState"
                     }
                   },
                   "required": [
@@ -1868,7 +1880,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-unseeded": "the state the request left the pipeline in, from this contract's own enum."
       }
     },
     "/api/pipeline/kill": {
@@ -1887,7 +1900,7 @@
                   "type": "object",
                   "properties": {
                     "state": {
-                      "type": "string"
+                      "$ref": "#/components/schemas/PipelineState"
                     }
                   },
                   "required": [
@@ -1915,7 +1928,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-unseeded": "the state the request left the pipeline in, from this contract's own enum."
       }
     },
     "/api/pipeline/history": {
@@ -2101,7 +2115,8 @@
               }
             }
           }
-        }
+        },
+        "x-unseeded": "the decision's new state, from the seeded decision moved between the two lists."
       }
     },
     "/api/decisions/{decisionId}/dismiss": {
@@ -2159,7 +2174,8 @@
             },
             "description": "the decision"
           }
-        ]
+        ],
+        "x-unseeded": "the decision's new state, from the seeded decision moved between the two lists."
       }
     },
     "/api/decisions/{decisionId}/search": {
@@ -2230,7 +2246,8 @@
               }
             }
           }
-        }
+        },
+        "x-unseeded": "candidates, taken from the seeded decisions' own candidate lists — a manual search over data that already exists rather than a fixture of its own."
       }
     },
     "/api/system/services": {
@@ -2606,8 +2623,7 @@
                   "type": "object",
                   "properties": {
                     "state": {
-                      "type": "string",
-                      "description": "running, or queued — never a refusal (DOIT-4)"
+                      "$ref": "#/components/schemas/PipelineState"
                     },
                     "uid": {
                       "type": [
@@ -2669,7 +2685,8 @@
               }
             }
           }
-        }
+        },
+        "x-unseeded": "the state the request left the action in, from this contract's own enum."
       }
     },
     "/api/maintenance/destructive-log": {
@@ -2861,7 +2878,8 @@
               }
             }
           }
-        }
+        },
+        "x-unseeded": "whether a restart is owed. Derived from the request; a secret's VALUE is never read back, by design."
       }
     },
     "/api/config/files": {
@@ -2915,7 +2933,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-unseeded": "the files and which carry a pending edit. Derived from the seeded settings, whose topics name their own files."
       }
     },
     "/api/config/files/{name}": {
@@ -2990,7 +3009,8 @@
               }
             }
           }
-        }
+        },
+        "x-unseeded": "whether a restart is owed and whether the file moved under the edit. Derived from the request."
       }
     },
     "/api/config/restart-web": {
@@ -3037,7 +3057,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-unseeded": "an acknowledgement."
       }
     },
     "/api/config/status": {
@@ -3088,7 +3109,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-unseeded": "whether the configuration is read-only and whether a restart is owed. Both are layer state the engine holds in its STORE, not in a fixture."
       }
     },
     "/api/version": {
@@ -3139,7 +3161,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-unseeded": "the running version. It is the server's own identity and no maquette fixture carries one."
       }
     }
   },
@@ -4332,6 +4355,17 @@
         "required": [
           "number"
         ]
+      },
+      "PipelineState": {
+        "type": "string",
+        "enum": [
+          "idle",
+          "running",
+          "queued",
+          "paused",
+          "stopping"
+        ],
+        "description": "What the pipeline is doing. `queued` is what a run asked for during a run answers with — visibly queued, never refused (DOIT-4, NE-DOIT-PAS-3)."
       }
     },
     "responses": {

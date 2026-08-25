@@ -1210,6 +1210,11 @@ export interface components {
             episodes?: number | null;
             airDate?: string | null;
         };
+        /**
+         * @description What the pipeline is doing. `queued` is what a run asked for during a run answers with — visibly queued, never refused (DOIT-4, NE-DOIT-PAS-3).
+         * @enum {string}
+         */
+        PipelineState: "idle" | "running" | "queued" | "paused" | "stopping";
     };
     responses: {
         /** @description the request failed, and the reason is the real one (NE-DOIT-PAS-4, NE-DOIT-PAS-5) */
@@ -2085,8 +2090,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @description running, or queued — never a refusal (DOIT-4, NE-DOIT-PAS-3) */
-                        state: string;
+                        state: components["schemas"]["PipelineState"];
                         uid: string | null;
                     };
                 };
@@ -2115,7 +2119,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        state: string;
+                        state: components["schemas"]["PipelineState"];
                     };
                 };
             };
@@ -2143,7 +2147,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        state: string;
+                        state: components["schemas"]["PipelineState"];
                     };
                 };
             };
@@ -2171,7 +2175,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        state: string;
+                        state: components["schemas"]["PipelineState"];
                     };
                 };
             };
@@ -2575,8 +2579,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @description running, or queued — never a refusal (DOIT-4) */
-                        state: string;
+                        state: components["schemas"]["PipelineState"];
                         uid: string | null;
                     };
                 };

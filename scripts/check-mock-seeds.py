@@ -295,6 +295,24 @@ def arm_provenance(module) -> int:
              for family in operation.get("x-seeded-from", [])}
 
     problems: list[str] = []
+    # EVERY OPERATION CARRIES EXACTLY ONE OF THE TWO, and that is what keeps
+    # « nothing was invented here » apart from « nobody looked ». An
+    # acknowledgement, a count derived from the request, a state token from the
+    # contract's own enum: each says so in `x-unseeded`, in as many words.
+    both, neither = [], []
+    for operation_id, operation in operations(contract()):
+        seeded = bool(operation.get("x-seeded-from"))
+        unseeded = bool(operation.get("x-unseeded"))
+        if seeded and unseeded:
+            both.append(operation_id)
+        elif not seeded and not unseeded:
+            neither.append(operation_id)
+    for operation_id in sorted(neither):
+        problems.append(f"{operation_id}: carries neither x-seeded-from nor x-unseeded — "
+                        f"nothing says whether its response is seeded or why it cannot be")
+    for operation_id in sorted(both):
+        problems.append(f"{operation_id}: carries both x-seeded-from and x-unseeded, which "
+                        f"cannot both be true")
     for stem in sorted(on_disk - expected):
         problems.append(f"{stem}.json: a seed no served family claims")
     for stem in sorted(expected - on_disk):
@@ -305,8 +323,10 @@ def arm_provenance(module) -> int:
     for name in sorted(named - served):
         problems.append(f"{name}: named by an operation's x-seeded-from and not "
                         f"classified as served or asset")
+    declared_operations = sum(1 for _ in operations(contract()))
     print(f"  provenance: {len(served)} served family(ies), {len(on_disk)} seed file(s), "
-          f"{len(named)} named by an operation, {len(problems)} orphan(s)")
+          f"{len(named)} named by an operation, {declared_operations} operation(s) each "
+          f"declaring whether its response is seeded, {len(problems)} orphan(s)")
     for entry in problems:
         print(f"    {entry}", file=sys.stderr)
     return len(problems)

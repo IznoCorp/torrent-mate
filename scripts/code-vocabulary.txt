@@ -59,6 +59,7 @@ all
 already
 annotations
 announced
+answer
 appearance
 apply
 arm
@@ -74,6 +75,7 @@ attribute
 attributes
 audio
 audios
+authentication
 avatar
 back
 background
@@ -82,6 +84,7 @@ badges
 bar
 base
 batch
+became
 before
 beneath
 best
@@ -98,6 +101,7 @@ brand
 bridge
 btn
 bugs
+built
 button
 by
 byidv
@@ -129,6 +133,7 @@ clear
 clearq
 clef
 click
+clock
 close
 closed
 closest
@@ -142,6 +147,7 @@ commit
 common
 complete
 config
+configuration
 confirmadd
 containers
 contains
@@ -166,6 +172,7 @@ deck
 declared
 decoded
 deep
+default
 defaults
 del
 delete
@@ -195,6 +202,7 @@ discover
 disks
 dismiss
 dismissable
+dismissed
 display
 displayed
 distance
@@ -237,6 +245,7 @@ fact
 facts
 fallback
 fast
+fetch
 fetching
 field
 fields
@@ -252,6 +261,7 @@ find
 finger
 first
 fkind
+flight
 floor
 flux
 fmode
@@ -275,12 +285,14 @@ frames
 freq
 fresh
 from
+frozen
 full
 future
 gaps
 gauche
 gauge
 gesture
+get
 go
 grab
 grid
@@ -313,8 +325,10 @@ icon
 icons
 id
 identifier
+identifiers
 identify
 identity
+idle
 ids
 idx
 illusion
@@ -323,6 +337,7 @@ images
 imgs
 in
 inc
+included
 incoming
 incomplete
 index
@@ -351,6 +366,7 @@ item
 items
 journal
 journey
+json
 jsx
 kept
 key
@@ -362,6 +378,7 @@ label
 labels
 large
 last
+latency
 layer
 layers
 leading
@@ -381,11 +398,13 @@ libq
 library
 libretry
 light
+like
 line
 link
 list
 listener
 listeners
+listing
 live
 lmode
 load
@@ -409,6 +428,7 @@ manual
 map
 maquette
 mark
+match
 matches
 matrix
 md
@@ -416,10 +436,13 @@ media
 mediasheet
 medium
 meta
+method
 migrated
 min
 missing
 mobile
+mock
+mocks
 modal
 mode
 modes
@@ -441,6 +464,7 @@ nav
 navgo
 navigation
 nb
+network
 neutral
 new
 next
@@ -465,15 +489,19 @@ numeric
 nums
 observer
 of
+offered
 offset
 old
 on
 only
 open
+operation
 option
 order
 origin
+original
 out
+outcome
 outgoing
 overflow
 overlay
@@ -494,9 +522,12 @@ parents
 part
 passer
 password
+patch
 path
 paths
 pause
+paused
+payload
 pct
 pending
 phase
@@ -516,12 +547,14 @@ port
 portrait
 pos
 positions
+post
 poster
 posters
 present
 press
 previous
 primary
+problem
 profile
 progress
 proposer
@@ -529,6 +562,7 @@ prov
 provider
 ptr
 publish
+put
 px
 qaud
 qflag
@@ -538,6 +572,8 @@ qualifier
 quality
 query
 queue
+queued
+quiet
 radius
 rank
 raw
@@ -570,11 +606,13 @@ renderer
 renderers
 reopen
 replace
+request
 required
 reset
 resolution
 resolutions
 resolve
+resolved
 rest
 restart
 restore
@@ -588,17 +626,21 @@ risk
 root
 route
 router
+routes
 row
 rows
 rule
 run
+running
 safari
 same
 save
 savebar
 scale
 scen
+scenario
 schedulers
+schemas
 score
 screen
 screens
@@ -616,6 +658,7 @@ secret
 secrets
 section
 seed
+seeded
 seg
 segment
 segments
@@ -669,6 +712,7 @@ splash
 src
 st
 stack
+staging
 stale
 stamped
 standard
@@ -711,6 +755,7 @@ sweep
 swipe
 swipeact
 switch
+synopses
 synopsis
 system
 tab
@@ -721,6 +766,7 @@ tag
 tags
 take
 takeable
+taken
 target
 temp
 template
@@ -787,6 +833,7 @@ viewport
 visible
 vsw
 waiting
+wanted
 warm
 warning
 was
@@ -812,6 +859,7 @@ year
 yt
 z
 zone
+
 # ── THE ENGINE'S LAST FRENCH WORDS ─────────────────────────────────────
 #
 # Everything above is English. Everything below is NOT, and saying so is
