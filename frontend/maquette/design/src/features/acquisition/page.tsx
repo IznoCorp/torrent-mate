@@ -26,6 +26,7 @@ import { Icon } from "../../ui/icon";
 import { useAcquisitionReference, type Follow } from "../../features/acquisition/reference";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
+import { body, emptyNote, section as sectionClass, surfaceError } from "../../ui/variants";
 
 // The swipe action a follow that can be searched again reveals. It is a
 // data-ATTRIBUTE VALUE the document-level delegation dispatches on — a contract
@@ -99,17 +100,17 @@ function NowTab(): ReactElement {
 
   if (state.phase !== "ready") {
     return (
-      <div className="body" data-part="surface/body" data-region="acquisition/body">
+      <div className={body()} data-part="surface/body" data-region="acquisition/body">
         {state.phase === "error" ? (
           <div
-            className="surferr" data-part="surface-error" role="alert"
+            className={surfaceError()} data-part="surface-error" role="alert"
             dangerouslySetInnerHTML={{
               __html: surfErrInner(t("screens.acquisition.errorNow")),
             }}
           />
         ) : (
           <div
-            className="sec" data-part="section"
+            className={sectionClass()} data-part="section"
             dangerouslySetInnerHTML={{ __html: skelCardsInner(4) }}
           />
         )}
@@ -140,7 +141,7 @@ function NowTab(): ReactElement {
   ) =>
     cards.length === 0 || inner === "" ? null : (
       <section
-        className="sec" data-part="section"
+        className={sectionClass()} data-part="section"
         dangerouslySetInnerHTML={{
           __html: secInner(pip, title, String(cards.length), inner, note),
         }}
@@ -148,14 +149,14 @@ function NowTab(): ReactElement {
     );
 
   return (
-    <div className="body" data-part="surface/body" data-region="acquisition/body">
+    <div className={body()} data-part="surface/body" data-region="acquisition/body">
       <div className="note" data-part="note">
         <b>{t("screens.acquisition.nowNoteLead")}</b>
         {t("screens.acquisition.nowNoteRest")}
       </div>
       {nothing ? (
         <div
-          className="empty" data-part="empty-state"
+          className={emptyNote()} data-part="empty-state"
           dangerouslySetInnerHTML={{
             __html: emptyInner(
               t("screens.acquisition.nowEmptyTitle"),
@@ -385,14 +386,14 @@ function FollowsTab(): ReactElement {
   if (state.phase === "loading") {
     content = (
       <div
-        className="sec" data-part="section"
+        className={sectionClass()} data-part="section"
         dangerouslySetInnerHTML={{ __html: skelCardsInner(5) }}
       />
     );
   } else if (state.phase === "error") {
     content = (
       <div
-        className="surferr" data-part="surface-error" role="alert"
+        className={surfaceError()} data-part="surface-error" role="alert"
         dangerouslySetInnerHTML={{
           __html: surfErrInner(t("screens.acquisition.errorFollows")),
         }}
@@ -401,7 +402,7 @@ function FollowsTab(): ReactElement {
   } else if (visible.length === 0) {
     content = (
       <div
-        className="empty" data-part="empty-state"
+        className={emptyNote()} data-part="empty-state"
         dangerouslySetInnerHTML={{ __html: emptyInner(
       term !== ""
         ? t("screens.acquisition.emptyFilter", {
@@ -442,7 +443,7 @@ function FollowsTab(): ReactElement {
           return (
             <section
               key={group.l}
-              className="sec" data-part="section"
+              className={sectionClass()} data-part="section"
               dangerouslySetInnerHTML={{
                 __html: `
             <div class="sechead" data-part="section/head"><span class="pip ${group.pip}" data-part="status-dot"></span><span class="t" data-part="section/title">${group.l}</span><span class="k" data-part="section/count">${items.length}</span></div>
@@ -457,7 +458,7 @@ function FollowsTab(): ReactElement {
   } else {
     content = (
       <div
-        className="sec" data-part="section"
+        className={sectionClass()} data-part="section"
         dangerouslySetInnerHTML={{
           __html: visible.map((follow) => rowOf(follow, true)).join(""),
         }}
@@ -552,7 +553,7 @@ function FollowsTab(): ReactElement {
         </div>
       </div>
       <p className="cadence" data-part="cadence">{cadenceFR(CADENCE_CRON)}</p>
-      <div className="body" data-part="surface/body" data-region="acquisition/body">
+      <div className={body()} data-part="surface/body" data-region="acquisition/body">
         <div className="note" data-part="note">
           <b>{t("screens.acquisition.followsNoteLead")}</b>
           {t("screens.acquisition.followsNoteRest")}
@@ -657,7 +658,7 @@ function DiscoverTab(): ReactElement {
     return (
       <>
         {selector}
-        <div className="body deckbody" data-part="surface/body"></div>
+        <div className={`${body()} deckbody`} data-part="surface/body"></div>
       </>
     );
   }
@@ -666,7 +667,7 @@ function DiscoverTab(): ReactElement {
     <>
       {selector}
       <div
-        className={`body${state.sugMode === "deck" ? " deckbody" : ""}`}
+        className={`${body()}${state.sugMode === "deck" ? " deckbody" : ""}`}
         data-part="surface/body"
       >
         <div className="note" data-part="note">
@@ -686,7 +687,7 @@ function DiscoverTab(): ReactElement {
           </div>
         ) : (
           <div
-            className="surferr" data-part="surface-error" role="alert"
+            className={surfaceError()} data-part="surface-error" role="alert"
             style={{
               borderColor:
                 "color-mix(in oklab,var(--color-warning) 45%,transparent)",
@@ -723,12 +724,12 @@ function DiscoverTab(): ReactElement {
         </div>
         {state.phase === "loading" ? (
           <div
-            className="sec" data-part="section"
+            className={sectionClass()} data-part="section"
             dangerouslySetInnerHTML={{ __html: skelCardsInner(4) }}
           />
         ) : state.phase === "error" ? (
           <div
-            className="surferr" data-part="surface-error" role="alert"
+            className={surfaceError()} data-part="surface-error" role="alert"
             dangerouslySetInnerHTML={{
               __html: surfErrInner(t("screens.acquisition.errorSuggestions")),
             }}

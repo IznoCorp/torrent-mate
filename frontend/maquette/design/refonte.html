@@ -1,6 +1,10 @@
 <title>TorrentMate — refonte mobile (proposition)</title>
 
 <style>
+  /* THE DYING STYLESHEET, AS A NAMED LAYER. See `src/styles/theme.css`
+     for the order and why it stopped being an accident. */
+  @layer block2 {
+
   /* BLOCK 1 — PROTOTYPE HARNESS. NEVER EXTRACTED INTO THE APP.
      Phone frame, demo bars, design-note callouts, scenario switch.
      `scripts/extract-maquette-css.py` exports ONLY the selectors declared
@@ -422,63 +426,10 @@
     height: 13px;
   }
 
-  /* Body / sections */
-  .body {
-    padding: var(--spacing-5) var(--spacing-7) var(--spacing-8);
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-7);
-  }
-  .sec {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-4);
-  }
-  .sechead {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-    width: 100%;
-    border: 0;
-    background: transparent;
-    padding: var(--spacing-1) 0;
-    text-align: left;
-  }
-  .pip {
-    width: 8px;
-    height: 8px;
-    border-radius: var(--radius-full);
-    flex: 0 0 auto;
-  }
-  .pip.warning {
-    background: var(--color-warning);
-  }
-  .pip.danger {
-    background: var(--color-danger);
-  }
-  .pip.info {
-    background: var(--color-info);
-  }
-  .pip.waiting {
-    background: var(--color-waiting);
-  }
-  .pip.success {
-    background: var(--color-success);
-  }
-  .pip.neutral {
-    background: var(--color-neutral-signal);
-  }
-  .sechead .t {
-    font-size: var(--text-3);
-    font-weight: 700;
-    letter-spacing: 0.01em;
-  }
-  .sechead .k {
-    margin-left: auto;
-    font-size: var(--text-2);
-    font-weight: 700;
-    color: var(--color-muted-foreground);
-  }
+  /* Body, sections and pips — CONVERTED (L07 phase 6) into typed variants in
+     `src/ui/variants.ts`. A class FACTORY rather than a component: wrapping
+     these in React would change the DOM, and this wave's claim is that the
+     rendering did not move. */
 
   /* Card */
   /* A mouse drag would otherwise select the text it passes over, and the
@@ -1792,55 +1743,10 @@
      in `index.html`, including the desktop `md:hidden`; its tabs are written by
      the ENGINE, so those rules are in `src/styles/legacy.css`. */
 
-  /* Screens (resolution, media sheet) */
-  .screen {
-    position: absolute;
-    inset: 0;
-    background: var(--color-background);
-    z-index: 45;
-    display: flex;
-    flex-direction: column;
-    transform: translateX(100%);
-    transition: transform var(--duration-3) var(--ease-standard);
-    visibility: hidden;
-  }
-  .screen.open {
-    transform: none;
-    visibility: visible;
-  }
-  /* ONE back control for every page. A floating variant over the image
-     created a second design (white) which, on screens without an image,
-     OVERLAPPED the title instead of pushing it. A bar in the flow can cover
-     nothing — and it reads the same everywhere. */
-  .screenbar {
-    flex: 0 0 auto;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-3);
-    padding: var(--spacing-5) var(--spacing-6);
-    background: var(--color-background);
-  }
-  .fback {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-2);
-    border: 0;
-    background: transparent;
-    color: var(--color-primary);
-    font-size: var(--text-4);
-    font-weight: 600;
-    padding: var(--spacing-2) var(--spacing-1);
-  }
-  .fback svg {
-    width: 16px;
-    height: 16px;
-  }
-  /* The tab bar sits above a screen (z-50), so a screen must reserve its
-     height, otherwise its last action is stuck underneath. That is rule R4
-     — anchor to what you belong to. */
-  .screen .port {
-    padding-bottom: calc(var(--tm-bottom-bar-h, 0px) + var(--spacing-8));
-  }
+  /* Screens — CONVERTED (L07 phase 6), `screen()`, `screenBar()` and
+     `backControl()` in `src/ui/variants.ts`. `.screen.open` is engine-toggled
+     and lives in the residue; `.screen .port` is a CONTEXTUAL override — the
+     scrollport cannot know it is inside a screen — and is in the base layer. */
 
   /* Bottom sheet */
   .scrim {
@@ -2696,60 +2602,10 @@
     font-size: var(--text-3);
   }
 
-  /* ONE ACTION-BUTTON SYSTEM
-     Every full-width action has its content CENTRED. The shipped component
-     left-aligned sheet rows like a menu; the product decision is the
-     opposite, and a product decision outranks the original component.
-
-     One scale, everywhere: height 44 (the touch target), radius 8, weight
-     600, 13.5px, 16px icon. Before this rule heights ranged from 35 to 45px
-     depending on the surface and the same gesture did not look the same in
-     two places — which is exactly what « uniform » means. */
-  /* Refinement after trying centring everywhere: a button that carries an
-     ICON is left-aligned — the icon anchors the start of the row and the
-     label follows it; centred, the pair floated. A button WITHOUT an icon
-     stays centred: nothing anchors its left edge, and text pushed left
-     looks unbalanced. The rest stays single and checkable: height 44,
-     radius 8, weight 600, 13.5px. */
-  .sact,
-  .cfoot,
-  .mediaadd,
-  .dlgbtn,
-  .btnprimary {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-4);
-    width: 100%;
-    min-height: 44px;
-    padding: var(--spacing-5) var(--spacing-6);
-    border-radius: var(--radius-3);
-    font-size: var(--text-4);
-    font-weight: 600;
-    text-align: center;
-  }
-  .sact svg,
-  .cfoot svg,
-  .mediaadd svg {
-    width: 16px;
-    height: 16px;
-    flex: 0 0 auto;
-  }
-  /* A button with a direct icon child is left-aligned. `:has()` avoids one
-     class per case — the rule follows STRUCTURE, not a label someone must
-     remember to add. */
-  .sact:has(> svg),
-  .cfoot:has(> svg),
-  .mediaadd:has(> svg) {
-    justify-content: flex-start;
-    text-align: left;
-  }
-  /* The « Chercher » button keeps its own width: it shares its line with
-     the type segment, so it cannot be full width. */
-  .addrow .btnprimary {
-    width: auto;
-    padding-inline: var(--spacing-7);
-  }
+  /* THE ONE ACTION-BUTTON SYSTEM — CONVERTED (L07 phase 6), `actionButton()`
+     in `src/ui/variants.ts`, where its reasoning is kept in full. Its `:has()`
+     rule stays in the base layer: it follows STRUCTURE rather than a modifier
+     someone must remember, which is exactly what a variant cannot do. */
 
   /* « Choose another release » screen
      What the engine found, with WHAT DRIVES THE RANKING visible: without
@@ -2944,169 +2800,20 @@
     line-height: 1.45;
   }
 
-  /* Dialog */
-  .dlg {
-    position: absolute;
-    left: 16px;
-    right: 16px;
-    top: 50%;
-    z-index: 48;
-    background: var(--color-popover);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-4);
-    padding: var(--spacing-7);
-    box-shadow: var(--mq-shadow-dlg);
-    transform: translateY(-50%) scale(0.96);
-    opacity: 0;
-    visibility: hidden;
-    transition:
-      opacity var(--duration-2) var(--ease-standard),
-      transform var(--duration-2) var(--ease-standard);
-  }
-  .dlg.open {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(-50%) scale(1);
-  }
-  .dlg h2 {
-    margin: 0 0 var(--spacing-4);
-    font-size: var(--text-5);
-    font-weight: 700;
-  }
-  .dlg p {
-    margin: 0 0 var(--spacing-5);
-    font-size: var(--text-3);
-    line-height: 1.45;
-    color: var(--color-muted-foreground);
-  }
-  .dryrun {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-3);
-    font-size: var(--text-2);
-    font-weight: 600;
-    color: var(--color-info);
-    border: 1px solid color-mix(in oklab, var(--color-info) 40%, transparent);
-    border-radius: var(--radius-2);
-    padding: var(--spacing-4) var(--spacing-5);
-    margin-bottom: var(--spacing-5);
-  }
-  .dryrun svg {
-    width: 14px;
-    height: 14px;
-    flex: 0 0 auto;
-  }
-  .manifest {
-    list-style: none;
-    margin: 0 0 var(--spacing-5);
-    padding: 0;
-    font-size: var(--text-3);
-  }
-  .manifest li {
-    display: flex;
-    gap: var(--spacing-4);
-    padding: var(--spacing-2) 0;
-    border-bottom: 1px solid var(--color-border);
-    color: var(--color-muted-foreground);
-  }
-  .manifest li:last-child {
-    border-bottom: 0;
-  }
-  .manifest b {
-    color: var(--color-foreground);
-    font-weight: 600;
-    margin-left: auto;
-    white-space: nowrap;
-  }
-  .warnbox {
-    border: 1px solid color-mix(in oklab, var(--color-warning) 45%, transparent);
-    background: color-mix(in oklab, var(--color-warning) 8%, transparent);
-    border-radius: var(--radius-2);
-    padding: var(--spacing-4) var(--spacing-5);
-    font-size: var(--text-3);
-    line-height: 1.45;
-    margin-bottom: var(--spacing-5);
-  }
-  .warnbox b {
-    color: var(--color-warning);
-  }
-  .dlgacts {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-3);
-  }
-  .dlgbtn {
-    width: 100%;
-    border: 1px solid var(--color-border);
-    background: transparent;
-    color: var(--color-foreground);
-    font-size: var(--text-4);
-    font-weight: 600;
-    padding: var(--spacing-5);
-    border-radius: var(--radius-3);
-  }
-  .dlgbtn.danger {
-    background: var(--color-danger-fill);
-    border-color: var(--color-danger-fill);
-    color: var(--color-white);
-  }
-  .dlgbtn.ghost {
-    color: var(--color-muted-foreground);
-    border-color: transparent;
-  }
+  /* Dialog — NOT CONVERTED (L07 phase 6), and named rather than skipped. The
+     confirmation dialog is written by the ENGINE: six of its eight classes
+     appear in no component at all. Its rules are in `src/styles/legacy.css`
+     with their date of death (D-L07-5). */
 
   /* Toast — CONVERTED (L07 phase 5), utilities in `index.html`. `.toast.show`
      is engine-toggled and is in `src/styles/legacy.css`. */
 
-  /* Empty / note */
-  .empty {
-    border: 1px dashed var(--color-border);
-    border-radius: var(--radius-3);
-    padding: var(--spacing-8) var(--spacing-7);
-    text-align: center;
-    font-size: var(--text-3);
-    color: var(--color-muted-foreground);
-    line-height: 1.5;
-  }
-  .empty b {
-    display: block;
-    color: var(--color-foreground);
-    font-size: var(--text-4);
-    margin-bottom: var(--spacing-2);
-  }
+  /* Empty note — CONVERTED (L07 phase 6), `emptyNote()`. */
 
-  /* Surface states: loading, empty, error
-     A loading surface SAYS SO (skeletons of the right shape, never a bare «
-     Chargement… »); an empty surface says WHY and offers a way out; a
-     surface in error names the cause and offers a retry. */
-  .skcard {
-    height: 62px;
-    border-radius: var(--radius-3);
-  }
-  .surferr {
-    border: 1px solid color-mix(in oklab, var(--color-danger) 45%, transparent);
-    background: color-mix(in oklab, var(--color-danger) 8%, transparent);
-    border-radius: var(--radius-3);
-    padding: var(--spacing-7);
-    font-size: var(--text-3);
-    line-height: 1.5;
-  }
-  .surferr b {
-    display: block;
-    color: var(--color-danger-text);
-    margin-bottom: var(--spacing-2);
-  }
-  .surferr button {
-    margin-top: var(--spacing-5);
-    width: 100%;
-    border: 1px solid var(--color-border);
-    background: transparent;
-    color: var(--color-foreground);
-    font-size: var(--text-3);
-    font-weight: 600;
-    padding: var(--spacing-4);
-    border-radius: var(--radius-2);
-  }
+  /* Surface states — CONVERTED (L07 phase 6), `surfaceError()`. A loading
+     surface SAYS SO with skeletons of the right shape, an empty one says why,
+     one in error names the cause and offers a retry. `skcard` is drawn by the
+     engine and is in the residue. */
 
   /* Loading: skeletons, sentinel, end of list */
   .sk {
@@ -3725,4 +3432,6 @@
     color: var(--color-muted-foreground);
   }
   /* login:splashstyle:end */
+
+  }
 </style>

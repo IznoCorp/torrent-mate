@@ -17,6 +17,7 @@
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useReleasesReference } from "../../features/releases/reference";
+import { actionButton, backAction, body, emptyNote, screen, screenBar } from "../../ui/variants";
 
 // Same helper as `media.tsx`'s, `profile.tsx`'s and `add.tsx`'s, still not
 // shared: the extraction those files' comments call for is a follow-up of
@@ -50,14 +51,14 @@ export function ReleasesScreen() {
 
   return (
     <section
-      className="screen open"
+      className={`${screen()} open`}
       data-part="screen"
       data-open=""
       data-key={`releases:${title}`}
       aria-label={title}
     >
-      <div className="screenbar" data-part="screen/bar">
-        <button className="fback" data-part="screen/back" onClick={() => window.__bridge.back()}>
+      <div className={screenBar()} data-part="screen/bar">
+        <button className={backAction()} data-part="screen/back" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.releases.back")}
         </button>{" "}
@@ -72,7 +73,7 @@ export function ReleasesScreen() {
         </span>
       </div>
       <div className="port" data-part="viewport">
-        <div className="body" data-part="surface/body" data-region="screen-releases/body">
+        <div className={body()} data-part="surface/body" data-region="screen-releases/body">
           <div className="note" data-part="note">
             <b>{t("screens.releases.noteTitle")}</b>{" "}
             {t("screens.releases.noteBeforePourquoi")}{" "}
@@ -131,11 +132,11 @@ export function ReleasesScreen() {
               </button>
             </article>
           ))}
-          <div className="empty" data-part="empty-state">
+          <div className={emptyNote()} data-part="empty-state">
             <b>{t("screens.releases.emptyTitle")}</b>
             {t("screens.releases.emptyBody")}
             <button
-              className="cfoot"
+              className={`cfoot ${actionButton()}`}
               data-part="card/foot"
               style={{ marginTop: "10px" }}
               data-profile={title}

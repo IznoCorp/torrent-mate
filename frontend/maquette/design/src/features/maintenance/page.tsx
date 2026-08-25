@@ -21,6 +21,7 @@ import type { ReactElement } from "react";
 import { useMaintenanceReference } from "../../features/maintenance/reference";
 import { type Fact } from "../../lib/engine-drawing";
 import { useUiState } from "../../lib/store-access";
+import { section, surfaceError } from "../../ui/variants";
 
 export function MaintenancePage(): ReactElement | null {
   const state = useUiState();
@@ -38,14 +39,14 @@ export function MaintenancePage(): ReactElement | null {
   if (state.phase !== "ready") {
     return state.phase === "error" ? (
       <div
-        className="surferr" data-part="surface-error" role="alert"
+        className={surfaceError()} data-part="surface-error" role="alert"
         dangerouslySetInnerHTML={{
           __html: surfErrInner(t("screens.maintenance.errorSubject")),
         }}
       />
     ) : (
       <div
-        className="sec" data-part="section"
+        className={section()} data-part="section"
         dangerouslySetInnerHTML={{ __html: skelCardsInner(3) }}
       />
     );

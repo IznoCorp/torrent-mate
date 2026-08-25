@@ -50,6 +50,7 @@ import { MaintenancePage } from "../features/maintenance/page";
 import { NotFoundPage } from "../app/not-found";
 import { SettingsPage } from "../features/settings/page";
 import { SystemPage } from "../features/system/page";
+import { body } from "../ui/variants";
 
 type MigratedPage = {
   Body: () => ReactElement | null;
@@ -185,7 +186,15 @@ export function PageHost(): ReactElement | null {
     <>
       <PageHeading page={page as string} />
       {root ? (
-        <div className={root} data-region={region}>
+        <div
+          // THE ROOT IS A NAME, AND THE VARIANT IS ITS STYLE. Six pages declare
+          // `root: "body"` in the table above, so this one element carries the
+          // page column for most of the application — and it was the site the
+          // first pass of phase 6 missed, because the class arrives as a VALUE
+          // from a table rather than as a literal in the markup.
+          className={root === "body" ? body() : root}
+          data-region={region}
+        >
           <Body />
         </div>
       ) : (

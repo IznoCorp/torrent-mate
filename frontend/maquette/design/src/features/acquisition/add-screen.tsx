@@ -42,6 +42,7 @@ import { Icon } from "../../ui/icon";
 import { go } from "../../lib/navigate";
 import { useAcquisitionReference } from "../../features/acquisition/reference";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
+import { actionButton, backAction, emptyNote, screen, screenBar, surfaceError } from "../../ui/variants";
 
 type Mode = "follow" | "identify";
 
@@ -155,14 +156,14 @@ export function AddScreen() {
 
   return (
     <section
-      className="screen open"
+      className={`${screen()} open`}
       data-part="screen"
       data-open=""
       data-key={`add:${mode}`}
       aria-label={t("screens.add.landmark")}
     >
-      <div className="screenbar" data-part="screen/bar">
-        <button className="fback" data-part="screen/back" onClick={() => window.__bridge.back()}>
+      <div className={screenBar()} data-part="screen/bar">
+        <button className={backAction()} data-part="screen/back" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.add.back")}
         </button>
@@ -182,7 +183,7 @@ export function AddScreen() {
         {identify ? (
           <div style={{ padding: "12px 14px 0" }}>
             <div
-              className="surferr" data-part="surface-error" role="alert"
+              className={surfaceError()} data-part="surface-error" role="alert"
               style={{
                 borderColor: "color-mix(in oklab,var(--color-info) 45%,transparent)",
                 background: "color-mix(in oklab,var(--color-info) 8%,transparent)",
@@ -251,7 +252,7 @@ export function AddScreen() {
                 </button>
               ))}
             </div>
-            <button className="btnprimary" onClick={() => search(query)}>
+            <button className={`btnprimary ${actionButton()}`} onClick={() => search(query)}>
               {t("screens.add.search")}
             </button>
           </div>
@@ -292,7 +293,7 @@ export function AddScreen() {
               ))}
             </div>
             <div style={{ padding: "14px" }}>
-              <div className="empty" data-part="empty-state">
+              <div className={emptyNote()} data-part="empty-state">
                 <b>{t("screens.add.emptyTitle")}</b>
                 {t("screens.add.emptyBody")}
               </div>
@@ -340,7 +341,7 @@ export function AddScreen() {
               )}
             </p>
             <button
-              className="btnprimary"
+              className={`btnprimary ${actionButton()}`}
               disabled
               style={{ alignSelf: "flex-start", padding: "9px 16px" }}
             >

@@ -57,6 +57,25 @@ READ = """()=>{
   };}"""
 
 
+# A CLASS ATTRIBUTE IS NO LONGER AN IDENTITY. Since L07 a converted element
+# carries its identity class AND the utilities that style it, so a hold
+# comparing `className` by EQUALITY reads the styling as though it were the
+# name — and four of them fell the day the page body became
+# `body flex flex-col gap-7 …`. What these holds mean is « the host drew the
+# page's root », and that is membership, not equality.
+def identities(names):
+    """Returns the identity class of each element's class attribute.
+
+    Args:
+        names: The `className` strings, as the page reported them.
+
+    Returns:
+        The FIRST token of each, which is where the identity is kept when a
+        variant prepends it to the utilities it emits.
+    """
+    return [value.split()[0] if value.split() else "" for value in names]
+
+
 async def main():
     journal = Journal("R77 — one owner per page, and no residue")
     async with async_playwright() as playwright:
@@ -425,7 +444,7 @@ async def main():
         })""")
         journal.check(
             "a real tap on the view switch really switches the view",
-            not refused and mode["mode"] == "grid" and mode["drawn"] == "grid",
+            not refused and mode["mode"] == "grid" and mode["drawn"] == "gallery",
             str(mode) if not refused else f"data-lmode {refused}")
         await page.evaluate("()=>window.__store.write({libMode: 'list', libCat: 'all'})")
         await page.evaluate("()=>window.__referentiel.render()")
@@ -521,7 +540,7 @@ async def main():
         journal.check(
             "leaving a migrated page with an unsaved change, and coming back, "
             "leaves the shell alive",
-            raised and returned["roots"] == ["body"] and returned["rows"] > 0
+            raised and identities(returned["roots"]) == ["body"] and returned["rows"] > 0
             and not console_errors,
             f"bar raised: {raised}; back: {returned}; console errors: "
             + (str(console_errors[:1])[:160] if console_errors else "none"))
@@ -585,7 +604,7 @@ async def main():
         journal.check(
             "a real tap on a suggestion mode redraws the suggestions",
             not refused and suggestions["mode"] == "poster"
-            and suggestions["grid"] == "grid" and suggestions["tiles"] > 0,
+            and suggestions["grid"] == "gallery" and suggestions["tiles"] > 0,
             str(suggestions) if not refused else f"data-sugmode {refused}")
 
         # THE CONTAINERS ARE THE FRAGMENT'S TO FILL, and that seam is what this
@@ -805,7 +824,7 @@ async def main():
         })""")
         journal.check(
             "a cold deep address lands on the page it names, drawn by the shell",
-            landed["page"] == "arr" and landed["roots"] == ["body"]
+            landed["page"] == "arr" and identities(landed["roots"]) == ["body"]
             and landed["bar"],
             str(landed))
         await cold.close()

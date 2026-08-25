@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { Icon } from "../../ui/icon";
 import { useReleasesReference, type Release, type Resolution } from "../../features/releases/reference";
 import { useUiState, writeUiState } from "../../lib/store-access";
+import { actionButton, backAction, body, screen, screenBar } from "../../ui/variants";
 
 // The field names are the legacy state's own — `state.profil` is written and
 // read by the engine under these exact keys.
@@ -84,14 +85,14 @@ export function QualityScreen() {
 
   return (
     <section
-      className="screen open"
+      className={`${screen()} open`}
       data-part="screen"
       data-open=""
       data-key={`profile:${title}`}
       aria-label={title}
     >
-      <div className="screenbar" data-part="screen/bar">
-        <button className="fback" data-part="screen/back" onClick={() => window.__bridge.back()}>
+      <div className={screenBar()} data-part="screen/bar">
+        <button className={backAction()} data-part="screen/back" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.profile.back")}
         </button>
@@ -106,7 +107,7 @@ export function QualityScreen() {
         </span>
       </div>
       <div className="port" data-part="viewport">
-        <div className="body" data-part="surface/body" data-region="screen-profile/body">
+        <div className={body()} data-part="surface/body" data-region="screen-profile/body">
           <div className="note" data-part="note">
             <b>{t("screens.profile.noteTitle")}</b>{" "}
             {t("screens.profile.noteBefore")}{" "}
@@ -266,7 +267,7 @@ export function QualityScreen() {
           </div>
 
           <button
-            className="cfoot"
+            className={`cfoot ${actionButton()}`}
             data-part="card/foot"
             data-toast={t("screens.profile.rankingToast")}
           >
@@ -278,7 +279,7 @@ export function QualityScreen() {
 
           <div className="sheetacts" data-part="sheet/actions">
             <button
-              className="sact primary"
+              className={`sact primary ${actionButton()}`}
               data-part="sheet/action"
               data-tone="primary"
               data-toast={t("screens.profile.saveToast")}

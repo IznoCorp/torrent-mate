@@ -21,6 +21,7 @@ import type { ReactElement } from "react";
 import { useSystemReference } from "../../features/system/reference";
 import { type Fact } from "../../lib/engine-drawing";
 import { useUiState } from "../../lib/store-access";
+import { section, surfaceError } from "../../ui/variants";
 
 export function SystemPage(): ReactElement | null {
   const state = useUiState();
@@ -48,14 +49,14 @@ export function SystemPage(): ReactElement | null {
     // wrapper appears where the legacy had none.
     return state.phase === "error" ? (
       <div
-        className="surferr" data-part="surface-error" role="alert"
+        className={surfaceError()} data-part="surface-error" role="alert"
         dangerouslySetInnerHTML={{
           __html: surfErrInner(t("screens.system.errorSubject")),
         }}
       />
     ) : (
       <div
-        className="sec" data-part="section"
+        className={section()} data-part="section"
         dangerouslySetInnerHTML={{ __html: skelCardsInner(3) }}
       />
     );

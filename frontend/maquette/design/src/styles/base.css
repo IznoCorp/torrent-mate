@@ -152,3 +152,48 @@
 .chip[hidden] {
   display: none;
 }
+
+/* ── SELECTORS TAILWIND CANNOT EXPRESS FROM THE ELEMENT'S SIDE ─────────
+   D3 names these as base-layer residents. Each says why it cannot be a
+   utility, because « it was easier » is not a reason that survives. */
+
+/* The action buttons' icon, at one size everywhere. A DESCENDANT selector:
+   the button cannot size a child it does not know it has, and the icons come
+   from a shared component that must not learn about every button that hosts
+   it. Deleting this rule without replacing it cost 47 oracle divergences —
+   the sheet's content grew by 8.9px because an SVG fell back to its natural
+   size. */
+.sact svg,
+.cfoot svg,
+.mediaadd svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+/* A button carrying a direct icon child is left-aligned — the icon anchors
+   the start of the row and the label follows it; centred, the pair floated.
+   `:has()` makes the rule follow STRUCTURE, so nobody has to remember to add
+   a modifier class, and that is exactly what a variant cannot do. */
+.sact:has(> svg),
+.cfoot:has(> svg),
+.mediaadd:has(> svg) {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+/* The « Chercher » button keeps its own width: it shares its line with the
+   type segment, so it cannot be full width. A CONTEXTUAL override — the
+   element cannot know what contains it. */
+.addrow .btnprimary {
+  width: auto;
+  padding-inline: var(--spacing-7);
+}
+
+/* The tab bar sits above a screen (z-50), so a screen must reserve its
+   height, or its last action is stuck underneath. R4 — anchor to what you
+   belong to. Contextual for the same reason: the scrollport cannot know it is
+   inside a screen. */
+.screen .port {
+  padding-bottom: calc(var(--tm-bottom-bar-h, 0px) + var(--spacing-8));
+}

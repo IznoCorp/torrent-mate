@@ -206,3 +206,259 @@ html.selecting .bottombar {
   color: var(--color-muted-foreground);
   margin-top: var(--spacing-1);
 }
+
+/* ── Confirmation dialog ─────────────────────────────────────────── */
+/* The dialog is written by the ENGINE — `dlgbtn`, `dlgacts`, `warnbox`,
+   `manifest` and `dryrun` appear in no component. */
+.dlg {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 50%;
+  z-index: 48;
+  background: var(--color-popover);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-4);
+  padding: var(--spacing-7);
+  box-shadow: var(--mq-shadow-dlg);
+  transform: translateY(-50%) scale(0.96);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--duration-2) var(--ease-standard),
+    transform var(--duration-2) var(--ease-standard);
+}
+.dlg.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) scale(1);
+}
+.dlg h2 {
+  margin: 0 0 var(--spacing-4);
+  font-size: var(--text-5);
+  font-weight: 700;
+}
+.dlg p {
+  margin: 0 0 var(--spacing-5);
+  font-size: var(--text-3);
+  line-height: 1.45;
+  color: var(--color-muted-foreground);
+}
+.dryrun {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  font-size: var(--text-2);
+  font-weight: 600;
+  color: var(--color-info);
+  border: 1px solid color-mix(in oklab, var(--color-info) 40%, transparent);
+  border-radius: var(--radius-2);
+  padding: var(--spacing-4) var(--spacing-5);
+  margin-bottom: var(--spacing-5);
+}
+.dryrun svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+.manifest {
+  list-style: none;
+  margin: 0 0 var(--spacing-5);
+  padding: 0;
+  font-size: var(--text-3);
+}
+.manifest li {
+  display: flex;
+  gap: var(--spacing-4);
+  padding: var(--spacing-2) 0;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-muted-foreground);
+}
+.manifest li:last-child {
+  border-bottom: 0;
+}
+.manifest b {
+  color: var(--color-foreground);
+  font-weight: 600;
+  margin-left: auto;
+  white-space: nowrap;
+}
+.warnbox {
+  border: 1px solid color-mix(in oklab, var(--color-warning) 45%, transparent);
+  background: color-mix(in oklab, var(--color-warning) 8%, transparent);
+  border-radius: var(--radius-2);
+  padding: var(--spacing-4) var(--spacing-5);
+  font-size: var(--text-3);
+  line-height: 1.45;
+  margin-bottom: var(--spacing-5);
+}
+.warnbox b {
+  color: var(--color-warning);
+}
+.dlgacts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+.dlgbtn {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-foreground);
+  font-size: var(--text-4);
+  font-weight: 600;
+  padding: var(--spacing-5);
+  border-radius: var(--radius-3);
+}
+.dlgbtn.danger {
+  background: var(--color-danger-fill);
+  border-color: var(--color-danger-fill);
+  color: var(--color-white);
+}
+.dlgbtn.ghost {
+  color: var(--color-muted-foreground);
+  border-color: transparent;
+}
+
+/* ── Screen layer ────────────────────────────────────────────────── */
+/* `.screen.open` is engine-toggled. */
+.screen.open {
+transform: none;
+visibility: visible;
+}
+
+/* ── Skeleton card ───────────────────────────────────────────────── */
+/* `skcard` appears in no component: the engine draws it. */
+.skcard {
+height: 62px;
+border-radius: var(--radius-3);
+}
+
+/* ── Shared primitives the ENGINE also draws ─────────────────────────
+   Ten class names are emitted by BOTH a component and `legacy.js`: `sec`,
+   `sechead`, `pip` (with `danger`), `t`, `k`, `cfoot`, `btnprimary`, `empty`
+   and `surferr`. Their rules could not simply be deleted when the components
+   moved to `src/ui/variants.ts` — the engine's own markup still wears the
+   names, and the dialog and the bottom sheet lost their layout the moment the
+   rules went.
+
+   SO THE RULES ARE HERE, AND THE VARIANTS ARE INERT ON THESE ELEMENTS TODAY.
+   The residue is unlayered and therefore wins over `@layer utilities`, so a
+   component carrying both gets the rule rather than the utility — identical
+   declarations, so nothing renders differently, and the oracle says so. What
+   the conversion buys is not immediate: the day the engine dies at L13, this
+   block dies with it and the variants are already in place. Recorded plainly
+   rather than counted as a surface converted. */
+.sec {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+.sechead {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: var(--spacing-1) 0;
+  text-align: left;
+}
+.sechead .t {
+  font-size: var(--text-3);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.sechead .k {
+  margin-left: auto;
+  font-size: var(--text-2);
+  font-weight: 700;
+  color: var(--color-muted-foreground);
+}
+.pip {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex: 0 0 auto;
+}
+.pip.warning {
+  background: var(--color-warning);
+}
+.pip.danger {
+  background: var(--color-danger);
+}
+.pip.info {
+  background: var(--color-info);
+}
+.pip.waiting {
+  background: var(--color-waiting);
+}
+.pip.success {
+  background: var(--color-success);
+}
+.pip.neutral {
+  background: var(--color-neutral-signal);
+}
+.empty {
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-3);
+  padding: var(--spacing-8) var(--spacing-7);
+  text-align: center;
+  font-size: var(--text-3);
+  color: var(--color-muted-foreground);
+  line-height: 1.5;
+}
+.empty b {
+  display: block;
+  color: var(--color-foreground);
+  font-size: var(--text-4);
+  margin-bottom: var(--spacing-2);
+}
+.surferr {
+  border: 1px solid color-mix(in oklab, var(--color-danger) 45%, transparent);
+  background: color-mix(in oklab, var(--color-danger) 8%, transparent);
+  border-radius: var(--radius-3);
+  padding: var(--spacing-7);
+  font-size: var(--text-3);
+  line-height: 1.5;
+}
+.surferr b {
+  display: block;
+  color: var(--color-danger-text);
+  margin-bottom: var(--spacing-2);
+}
+.surferr button {
+  margin-top: var(--spacing-5);
+  width: 100%;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-foreground);
+  font-size: var(--text-3);
+  font-weight: 600;
+  padding: var(--spacing-4);
+  border-radius: var(--radius-2);
+}
+/* The action-button system, for the three the engine emits. Its reasoning is
+   kept in full at `actionButton()` in `src/ui/variants.ts`. */
+/* All five names, not the three a first pass thought the engine emitted: the
+   sheet's own actions are written by the engine through a template, so
+   `sact` never appeared in a scan for literal `class="…"` strings. The oracle
+   found it as 8.9px — exactly what a button loses when its `min-height: 44px`
+   goes. */
+.sact,
+.cfoot,
+.mediaadd,
+.btnprimary,
+.dlgbtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-4);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--spacing-5) var(--spacing-6);
+  border-radius: var(--radius-3);
+  font-size: var(--text-4);
+  font-weight: 600;
+  text-align: center;
+}

@@ -32,6 +32,7 @@ import { Icon } from "../../ui/icon";
 import { useSettingsReference, type Setting, type SettingsTopic } from "../../features/settings/reference";
 import { useStoreContent } from "../../lib/store-access";
 import { settingLabel } from "../../features/settings/labels";
+import { emptyNote } from "../../ui/variants";
 
 // The pending-edit marker and the row's own identity live on the same element:
 // the row IS the control the delegation reads.
@@ -228,7 +229,7 @@ export function SettingsPage(): ReactElement | null {
       return (
         <>
           <div
-            className="empty" data-part="empty-state"
+            className={emptyNote()} data-part="empty-state"
             dangerouslySetInnerHTML={{
               __html: emptyInner(t("screens.settings.unknownTopic"), ""),
             }}
@@ -258,7 +259,7 @@ export function SettingsPage(): ReactElement | null {
         <SearchField />
         {found.length === 0 ? (
           <div
-            className="empty" data-part="empty-state"
+            className={emptyNote()} data-part="empty-state"
             dangerouslySetInnerHTML={{
               __html: emptyInner(
                 t("screens.settings.noMatchTitle"),

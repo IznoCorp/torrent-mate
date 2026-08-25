@@ -24,6 +24,7 @@ import type { ReactElement } from "react";
 import { Icon } from "../../ui/icon";
 import { useLibraryReference, type IncompleteShow, type LibraryRow } from "../../features/library/reference";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
+import { body, emptyNote, section, statusDot } from "../../ui/variants";
 
 // The three lenses, in the order the tab bar draws them. The count on
 // « Incomplets » is the drawing's own, exactly as the legacy hard-coded it.
@@ -213,7 +214,7 @@ function EmptyLibrary(): ReactElement {
   const filter = category && category.of ? category.l.toLowerCase() : null;
   if ((state.q as string).trim() !== "") {
     return (
-      <div className="empty" data-part="empty-state">
+      <div className={emptyNote()} data-part="empty-state">
         <b>
           {t("screens.library.emptySearchLead", { query: state.q as string })}
           {filter
@@ -237,7 +238,7 @@ function EmptyLibrary(): ReactElement {
     );
   }
   return (
-    <div className="empty" data-part="empty-state">
+    <div className={emptyNote()} data-part="empty-state">
       <b>
         {t("screens.library.emptyCategoryLead", {
           category: filter ?? t("screens.library.emptyCategoryFallback"),
@@ -446,7 +447,7 @@ function LibraryList(): ReactElement {
           ))}
         </div>
       ) : (
-        <div className="sec" data-part="section">
+        <div className={section()} data-part="section">
           {Array.from({ length: 2 }, (_, index) => (
             <div key={index} className="sk row" data-skeleton="" />
           ))}
@@ -479,11 +480,11 @@ export function LibraryPage(): ReactElement | null {
       <>
         <LibraryHead />
         <div className="countline" data-part="count-line" data-region="library/count-line">
-          <span className="pip warning" data-part="status-dot"></span>
+          <span className={statusDot({ tone: "warning" })} data-part="status-dot"></span>
           <span>{t("screens.library.incompleteTitle")}</span>
           <b style={{ marginLeft: "auto" }}>{INCOMPLETE_COUNT}</b>
         </div>
-        <div className="body" data-part="surface/body" data-region="library/body">
+        <div className={body()} data-part="surface/body" data-region="library/body">
           <div className="note" data-part="note">
             <b>{t("screens.library.incompleteNoteLead")}</b>
             {t("screens.library.incompleteNoteMiddle")}
@@ -509,7 +510,7 @@ export function LibraryPage(): ReactElement | null {
             />
           ) : (
             <div
-              className="sec" data-part="section"
+              className={section()} data-part="section"
               dangerouslySetInnerHTML={{
                 __html: INCOMPLETE.map((show: IncompleteShow) =>
                   cardHTML({
@@ -539,7 +540,7 @@ export function LibraryPage(): ReactElement | null {
         <div className="countline" data-part="count-line" data-region="library/count-line">
           <span>{t("screens.library.recentTitle")}</span>
         </div>
-        <div className="body" data-part="surface/body" data-region="library/body">
+        <div className={body()} data-part="surface/body" data-region="library/body">
           <div className="note" data-part="note">
             <b>{t("screens.library.recentNoteLead")}</b>
             {t("screens.library.recentNoteMiddle")}
@@ -564,7 +565,7 @@ export function LibraryPage(): ReactElement | null {
           <SortLabel />
         </button>
       </div>
-      <div className="body" data-part="surface/body" data-region="library/body">
+      <div className={body()} data-part="surface/body" data-region="library/body">
         <div className="note" data-part="note">
           <b>{t("screens.library.mediaNoteLead")}</b>
           {t("screens.library.mediaNoteMiddle")}

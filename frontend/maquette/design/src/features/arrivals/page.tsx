@@ -28,6 +28,7 @@ import type { ReactElement } from "react";
 import { useArrivalsReference, type PipelineFact } from "../../features/arrivals/reference";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useUiState } from "../../lib/store-access";
+import { actionButton, emptyNote, section as sectionClass, sectionHead, statusDot as statusDotClass, surfaceError } from "../../ui/variants";
 
 // The nine steps, told as the last run left them. A step with nothing recorded
 // at all reads « rien à faire »; a step that BLOCKED something says so and
@@ -72,7 +73,7 @@ function PipelineBar(): ReactElement {
     return (
       <section className="pipeline" data-part="pipeline" data-region="arrivals/pilot-bar">
         <div className="ph">
-          <span className="pip info" data-part="status-dot" data-tone="info"></span>
+          <span className={statusDotClass({ tone: "info" })} data-part="status-dot" data-tone="info"></span>
           <span className="pt" data-part="pipeline/title">{t("screens.arrivals.runningTitle")}</span>
           <span className="pq">
             {t("screens.arrivals.stepOf", {
@@ -97,16 +98,16 @@ function PipelineBar(): ReactElement {
                 {t("screens.arrivals.queuedRest")}
               </span>
             </div>
-            <button className="cfoot" data-part="card/foot" data-pipe="stop">
+            <button className={`cfoot ${actionButton()}`} data-part="card/foot" data-pipe="stop">
               {t("screens.arrivals.stopPipeline")}
             </button>
           </>
         ) : (
           <div className="pacts">
-            <button className="cfoot" data-part="card/foot" data-pipe="start">
+            <button className={`cfoot ${actionButton()}`} data-part="card/foot" data-pipe="start">
               {t("screens.arrivals.runAfterwards")}
             </button>
-            <button className="cfoot" data-part="card/foot" data-pipe="stop">
+            <button className={`cfoot ${actionButton()}`} data-part="card/foot" data-pipe="stop">
               {t("screens.arrivals.stop")}
             </button>
           </div>
@@ -118,7 +119,7 @@ function PipelineBar(): ReactElement {
   return (
     <section className="pipeline" data-part="pipeline" data-region="arrivals/pilot-bar">
       <div className="ph">
-        <span className="pip neutral" data-part="status-dot" data-tone="neutral"></span>
+        <span className={statusDotClass({ tone: "neutral" })} data-part="status-dot" data-tone="neutral"></span>
         <span className="pt" data-part="pipeline/title">{t("screens.arrivals.idleTitle")}</span>
         <span className="pq">
           {t("screens.arrivals.idleQualifier", {
@@ -126,7 +127,7 @@ function PipelineBar(): ReactElement {
           })}
         </span>
       </div>
-      <button className="cfoot solid" data-part="card/foot" data-solid="" data-pipe="start">
+      <button className={`cfoot solid ${actionButton()}`} data-part="card/foot" data-solid="" data-pipe="start">
         {t("screens.arrivals.startPipeline")}
       </button>
     </section>
@@ -140,9 +141,9 @@ function LastRun(): ReactElement {
   const { PIPELINE, factRowsHTML } = useArrivalsReference();
   const run = PIPELINE.last;
   return (
-    <section className="sec" data-part="section">
-      <div className="sechead" data-part="section/head">
-        <span className="pip success" data-part="status-dot" data-tone="success"></span>
+    <section className={sectionClass()} data-part="section">
+      <div className={sectionHead()} data-part="section/head">
+        <span className={statusDotClass({ tone: "success" })} data-part="status-dot" data-tone="success"></span>
         <span className="t" data-part="section/title">{t("screens.arrivals.lastRunTitle")}</span>
         <span className="k" data-part="section/count">{run.duree}</span>
       </div>
@@ -186,14 +187,14 @@ export function ArrivalsPage(): ReactElement | null {
     // wrapper appears where the legacy had none.
     return state.phase === "error" ? (
       <div
-        className="surferr" data-part="surface-error" role="alert"
+        className={surfaceError()} data-part="surface-error" role="alert"
         dangerouslySetInnerHTML={{
           __html: surfErrInner(t("screens.arrivals.errorSubject")),
         }}
       />
     ) : (
       <div
-        className="sec" data-part="section"
+        className={sectionClass()} data-part="section"
         dangerouslySetInnerHTML={{ __html: skelCardsInner(3) }}
       />
     );
@@ -215,7 +216,7 @@ export function ArrivalsPage(): ReactElement | null {
   ) =>
     cards.length === 0 || inner === "" ? null : (
       <section
-        className="sec" data-part="section"
+        className={sectionClass()} data-part="section"
         dangerouslySetInnerHTML={{
           __html: secInner(pip, title, String(cards.length), inner, note),
         }}
@@ -252,7 +253,7 @@ export function ArrivalsPage(): ReactElement | null {
       ) : null}
       {nothing ? (
         <div
-          className="empty" data-part="empty-state"
+          className={emptyNote()} data-part="empty-state"
           dangerouslySetInnerHTML={{
             __html: emptyInner(
               t("screens.arrivals.emptyTitle"),

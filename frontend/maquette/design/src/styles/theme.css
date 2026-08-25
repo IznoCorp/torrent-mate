@@ -54,7 +54,7 @@
    was a `<button>`. The residue is deliberately NOT in this list: it is
    hand-written CSS for markup the engine draws, and it must win the way a
    component's own rule would. */
-@layer theme, base, components, utilities;
+@layer theme, base, components, utilities, block2;
 @import "tailwindcss/theme.css" layer(theme);
 /* `source(none)` IS THE CONFINEMENT, and the `@source` rules below are not.
    Tailwind v4 scans the project root AUTOMATICALLY unless told otherwise, and

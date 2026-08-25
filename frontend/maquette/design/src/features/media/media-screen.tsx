@@ -29,6 +29,7 @@ import {
   type MediaSheet,
 } from "../../features/media/reference";
 import { useStoreContent, useWorld } from "../../lib/store-access";
+import { actionButton, backAction, body as bodyClass, screen, screenBar, statusDot } from "../../ui/variants";
 
 // The exact shape `svgIcon(paths, strokeWidth)` produced as an HTML string —
 // rebuilt as a real element so it composes with JSX. Same helper as
@@ -409,14 +410,14 @@ export function MediaScreen() {
 
   return (
     <section
-      className="screen open"
+      className={`${screen()} open`}
       data-part="screen"
       data-open=""
       data-key={`mediaSheet:${title}`}
       aria-label={title}
     >
-      <div className="screenbar" data-part="screen/bar">
-        <button className="fback" data-part="screen/back" onClick={() => window.__bridge.back()}>
+      <div className={screenBar()} data-part="screen/bar">
+        <button className={backAction()} data-part="screen/back" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.media.back")}
         </button>{" "}
@@ -431,7 +432,7 @@ export function MediaScreen() {
         </span>
       </div>
       <div className="port" data-part="viewport">
-        <div className="body" data-part="surface/body" data-region="screen-media/body">
+        <div className={bodyClass()} data-part="surface/body" data-region="screen-media/body">
           <div
             className={`herowrap${artwork ? "" : " noposter"}`}
             data-part="hero"
@@ -600,7 +601,7 @@ export function MediaScreen() {
                   <div className="kv" data-part="key-value">
                     <span>{t("screens.media.inLibrary")}</span>
                     <span>
-                      <span className="pip neutral" data-part="status-dot"></span>
+                      <span className={statusDot({ tone: "neutral" })} data-part="status-dot"></span>
                       {t("screens.media.no")}
                     </span>
                   </div>
@@ -628,7 +629,7 @@ export function MediaScreen() {
                   <div className="kv" data-part="key-value">
                     <span>{t("screens.media.owned")}</span>
                     <span>
-                      <span className="pip success" data-part="status-dot"></span>
+                      <span className={statusDot({ tone: "success" })} data-part="status-dot"></span>
                       {t("screens.media.yes")}
                     </span>
                   </div>
@@ -727,20 +728,20 @@ export function MediaScreen() {
             {owns ? (
               <>
                 <button
-                  className="sact"
+                  className={`sact ${actionButton()}`}
                   data-part="sheet/action"
                   data-toast={t("screens.media.rescrapeToast")}
                 >
                   <Icon paths={icons.refresh} />
                   {t("screens.media.rescrape")}
                 </button>{" "}
-                <button className="sact danger" data-part="sheet/action" data-tone="danger" data-del={title}>
+                <button className={`sact danger ${actionButton()}`} data-part="sheet/action" data-tone="danger" data-del={title}>
                   <Icon paths={icons.trash} />
                   {t("screens.media.delete")}
                 </button>
               </>
             ) : followed ? (
-              <button className="mediaadd done" data-part="media/add" disabled>
+              <button className={`mediaadd done ${actionButton()}`} data-part="media/add" disabled>
                 <Icon paths={icons.check} />
                 {isFilm
                   ? t("screens.media.added")
@@ -752,7 +753,7 @@ export function MediaScreen() {
               // screen re-renders from the store instead — the follow act
               // bumps it, and the button becomes `mediaadd done` in place.
               <button
-                className="mediaadd"
+                className={`mediaadd ${actionButton()}`}
                 data-part="media/add"
                 data-follow={title}
                 // french-ok: a data-* VALUE, frozen with the DOM contract
