@@ -22,6 +22,7 @@ import { useMaintenanceReference } from "../../features/maintenance/reference";
 import { type Fact } from "../../lib/engine-drawing";
 import { useUiState } from "../../lib/store-access";
 import { crossReference, section, sectionHeading, surfaceError } from "../../ui/variants";
+import { topicRow } from "../../features/settings/variants";
 
 export function MaintenancePage(): ReactElement | null {
   const state = useUiState();
@@ -102,7 +103,7 @@ export function MaintenancePage(): ReactElement | null {
           (action) => action.r === "destructive",
         ).length;
         return (
-          <button className="topic" data-part="topic" data-maintopic={entry.id} key={entry.id}>
+          <button className={topicRow()} data-part="topic" data-maintopic={entry.id} key={entry.id}>
             <span style={{ minWidth: 0, flex: 1 }}>
               <span className="rt" data-part="topic/title">{entry.t}</span>
               <span className="rs" data-part="topic/subtitle">{entry.s}</span>

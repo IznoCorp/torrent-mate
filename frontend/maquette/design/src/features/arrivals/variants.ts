@@ -11,7 +11,7 @@
 // the row, its name, its result, its reason, its key — is written by the
 // engine, so its rules are in `src/styles/legacy.css` with their date of death
 // rather than half-converted here.
-import { cva } from "class-variance-authority";
+import { cva } from "../../ui/cva";
 
 /**
  * The pilot's bar — the pipeline's state and the one control it takes.

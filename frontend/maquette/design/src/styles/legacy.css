@@ -1904,6 +1904,18 @@ border-radius: var(--radius-3);
 padding: var(--spacing-1) var(--spacing-5);
 }
 
+/* ── Configuration, what a utility cannot say ────────────────────── */
+/* `[hidden]` again: an author `display` beats the attribute, so the save
+   bar has to declare its own hidden case (R8). And a read-only field
+   flattens the note inside it — a CONTEXTUAL override the note cannot
+   know about. */
+.savebar[hidden] {
+display: none;
+}
+.field.readonly .rulenote {
+margin: 0;
+}
+
 /* ── LAST, AND THE ORDER IS THE POINT ────────────────────────────────
    THE ACTION-BUTTON SYSTEM COMES AFTER EVERYTHING IT OVERRIDES. In the
    prototype's stylesheet it sat a thousand lines below the card, so the

@@ -22,6 +22,7 @@ import { useSystemReference } from "../../features/system/reference";
 import { type Fact } from "../../lib/engine-drawing";
 import { useUiState } from "../../lib/store-access";
 import { crossReference, crossReferenceLink, section, sectionHeading, surfaceError } from "../../ui/variants";
+import { topicRow } from "../../features/settings/variants";
 
 export function SystemPage(): ReactElement | null {
   const state = useUiState();
@@ -137,7 +138,7 @@ export function SystemPage(): ReactElement | null {
       ])}
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.system.settings")}</h2>
-      <button className="topic" data-part="topic" data-page="cfg" style={{ marginTop: 0 }}>
+      <button className={topicRow()} data-part="topic" data-page="cfg" style={{ marginTop: 0 }}>
         <span style={{ minWidth: 0, flex: 1 }}>
           <span className="rt" data-part="topic/title">{t("screens.system.settings")}</span>
           <span className="rs" data-part="topic/subtitle">{t("screens.system.settingsSubtitle")}</span>

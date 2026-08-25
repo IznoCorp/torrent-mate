@@ -3,7 +3,7 @@
 // What is NOT here is the EPISODE machinery and the season matrix: the engine
 // draws those rows and toggles the state classes that colour them, so their
 // rules are in `src/styles/legacy.css` with their date of death (D-L07-5).
-import { cva } from "class-variance-authority";
+import { cva } from "../../ui/cva";
 
 /**
  * The hero's wrapper.

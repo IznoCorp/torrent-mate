@@ -33,6 +33,7 @@ import { useSettingsReference, type Setting, type SettingsTopic } from "../../fe
 import { useStoreContent } from "../../lib/store-access";
 import { settingLabel } from "../../features/settings/labels";
 import { emptyNote, factsPanel, searchClear, searchField, searchInput, sectionHeading } from "../../ui/variants";
+import { saveAction, saveBar, settingsRow, topicRow } from "./variants";
 
 // The pending-edit marker and the row's own identity live on the same element:
 // the row IS the control the delegation reads.
@@ -58,7 +59,7 @@ function SettingRow({
     : setting.c;
   return (
     <button
-      className={`settingrow${edited ? " modified" : ""}`}
+      className={settingsRow({ modified: edited })}
       data-edited={edited || undefined}
       data-part="setting/row"
       data-setting={identity}
@@ -118,7 +119,7 @@ function SaveBar(): ReactElement | null {
   const files = changedFiles().map(fileName).join(", ");
   return createPortal(
     <div
-      className="savebar"
+      className={saveBar()}
       id="savebar"
       role="region"
       aria-label={t("screens.settings.saveBarLabel")}
@@ -134,7 +135,7 @@ function SaveBar(): ReactElement | null {
         </b>{" "}
         {t("screens.settings.willWrite", { files })}
       </span>
-      <button data-save="1" disabled={SETTINGS_STATE.readOnly}>
+      <button className={saveAction()} data-save="1" disabled={SETTINGS_STATE.readOnly}>
         {t("screens.settings.save")}
       </button>
     </div>,
@@ -192,7 +193,7 @@ export function SettingsPage(): ReactElement | null {
         <div className={factsPanel()} data-part="panel">
           {SECRETS.map((secret) => (
             <button
-              className="settingrow"
+              className={settingsRow()}
               data-part="setting/row"
               data-secret={secret.k}
               key={secret.k}
@@ -315,7 +316,7 @@ export function SettingsPage(): ReactElement | null {
         </div>
       ) : null}
       {SETTINGS.map((topic) => (
-        <button className="topic" data-part="topic" data-topic={topic.id} key={topic.id}>
+        <button className={topicRow()} data-part="topic" data-topic={topic.id} key={topic.id}>
           <span style={{ minWidth: 0, flex: 1 }}>
             <span className="rt" data-part="topic/title">{topic.t}</span>
             <span className="rs" data-part="topic/subtitle">{topic.s}</span>
@@ -323,7 +324,7 @@ export function SettingsPage(): ReactElement | null {
           <span className="rn" data-part="topic/count">{topic.r.length}</span>
         </button>
       ))}
-      <button className="topic" data-part="topic" data-topic="secrets">
+      <button className={topicRow()} data-part="topic" data-topic="secrets">
         <span style={{ minWidth: 0, flex: 1 }}>
           <span className="rt" data-part="topic/title">{t("screens.settings.secretsTitle")}</span>
           <span className="rs" data-part="topic/subtitle">
@@ -332,7 +333,7 @@ export function SettingsPage(): ReactElement | null {
         </span>
         <span className="rn" data-part="topic/count">{SECRETS.length}</span>
       </button>
-      <button className="topic" data-part="topic" data-profile="global">
+      <button className={topicRow()} data-part="topic" data-profile="global">
         <span style={{ minWidth: 0, flex: 1 }}>
           <span className="rt" data-part="topic/title">{t("screens.settings.rankingTitle")}</span>
           <span className="rs" data-part="topic/subtitle">

@@ -2,7 +2,7 @@
 //
 // `.btnprimary` and `.segmini` are NOT here: the engine emits both, so their
 // rules are in `src/styles/legacy.css` with their date of death (D-L07-5).
-import { cva } from "class-variance-authority";
+import { cva } from "../../ui/cva";
 
 /** The add screen's form block. */
 export const addForm = cva("addform pt-6 px-7 pb-0");

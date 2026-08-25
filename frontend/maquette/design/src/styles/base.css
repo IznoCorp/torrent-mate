@@ -214,6 +214,14 @@
   width: 12px;
   height: 12px;
 }
+/* The list field's two controls. An `<svg>` with no size is not merely
+   unstyled — it falls back to the replaced-element default of 300x150, and the
+   « add » button came out 313px tall. */
+.ladd svg,
+.lremove svg {
+  width: 15px;
+  height: 15px;
+}
 .countline svg {
   width: 13px;
   height: 13px;

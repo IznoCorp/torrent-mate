@@ -12,7 +12,7 @@
 // style. The engine selects several of these by CSS class, and a name removed
 // here would break a reader while the styling moved cleanly. It is an identity
 // anchor now, which is what D4 wants an anchor to be.
-import { cva } from "class-variance-authority";
+import { cva } from "./cva";
 
 /** The page body: the column every surface's sections stack in. */
 export const body = cva("body flex flex-col gap-7 pt-5 px-7 pb-8");
@@ -344,8 +344,7 @@ export const factsPanel = cva("panel border border-border bg-card rounded-3 py-1
 export const keyValueRow = cva(
   "kv flex justify-between gap-6 py-4 px-0 border-b border-border text-3 last:border-b-0 " +
     "[&_span:first-child]:text-muted-foreground " +
-    "[&_span:last-child]:font-semibold [&_span:last-child]:flex " +
-    "[&_span:last-child]:items-center [&_span:last-child]:gap-3",
+    "[&_span:last-child]:flex [&_span:last-child]:items-center [&_span:last-child]:gap-3",
   {
     variants: {
       withPip: {
@@ -353,8 +352,11 @@ export const keyValueRow = cva(
         false: "",
       },
       upcoming: {
-        true: "upcoming [&>span:last-child]:font-normal [&>span:last-child]:text-muted-foreground",
-        false: "",
+        // The weight and the colour live in both branches: a value that has
+        // not happened yet reads as an announcement, and the one that has
+        // reads as a measurement. Neither may be left to the generator.
+        true: "upcoming [&_span:last-child]:font-normal [&_span:last-child]:text-muted-foreground",
+        false: "[&_span:last-child]:font-semibold",
       },
     },
     defaultVariants: { withPip: false, upcoming: false },
