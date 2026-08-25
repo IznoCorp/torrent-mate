@@ -26,7 +26,6 @@ from pathlib import Path
 
 from personalscraper.indexer.repos.item_repo import _ATTR_DISPATCH_PATH, _canonical_title
 from personalscraper.logger import get_logger
-from personalscraper.nfo_utils import strip_plex_id_hint
 
 log = get_logger("indexer.release_linker")
 
@@ -98,8 +97,6 @@ _TITLE_YEAR_RE = re.compile(r"^(?P<title>.+?)\s*\((?P<year>\d{4})\)\s*$")
 def _parse_title_year(folder_name: str) -> tuple[str, int | None]:
     """Split a ``Title (Year)`` folder name into its components.
 
-    A trailing Plex match-hint (``{tmdb-522627}``) is stripped first so the
-    hinted folder names the scraper produces link exactly like the bare ones.
     Falls back to ``(folder_name, None)`` when no year suffix is present.
 
     Args:
@@ -109,7 +106,7 @@ def _parse_title_year(folder_name: str) -> tuple[str, int | None]:
         ``(title, year)`` — year is ``None`` when the folder name does not
         end with a 4-digit year in parentheses.
     """
-    match = _TITLE_YEAR_RE.match(strip_plex_id_hint(folder_name))
+    match = _TITLE_YEAR_RE.match(folder_name)
     if match is None:
         return folder_name, None
     return match.group("title").strip(), int(match.group("year"))

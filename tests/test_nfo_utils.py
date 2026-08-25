@@ -116,11 +116,6 @@ class TestIsNfoComplete:
         ("Inception (2010)", "Inception", 2010),
         ("No Year Here", "No Year Here", None),
         ("Bad Boys for Life (2020)", "Bad Boys for Life", 2020),
-        # Plex match-hints must be invisible to the folder-name parser:
-        # "The Gentlemen (2020) {tmdb-522627}" is still the 2020 film.
-        ("The Gentlemen (2020) {tmdb-522627}", "The Gentlemen", 2020),
-        ("The Gentlemen (2020) {imdb-tt8367814}", "The Gentlemen", 2020),
-        ("Show (2015) {tvdb-265102}", "Show", 2015),
     ],
 )
 def test_parse_title_year(dirname: str, expected_title: str, expected_year: int | None) -> None:

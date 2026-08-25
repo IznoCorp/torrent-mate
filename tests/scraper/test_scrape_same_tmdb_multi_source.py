@@ -148,9 +148,9 @@ def _build_two_sources(staging: Path) -> tuple[Path, Path, Path, Path]:
     """Create the two distinct staged Gourou folders that collide on TMDB.
 
     ``Gourou (2025)/A.mkv`` is given an OLDER mtime and distinct content; the
-    canonical ``Gourou (2026) {tmdb-123456}/B.mkv`` is given a strictly NEWER
-    mtime and distinct content. mtimes are set explicitly with ``os.utime`` so B
-    is unambiguously the last-downloaded source regardless of byte size.
+    canonical ``Gourou (2026)/B.mkv`` is given a strictly NEWER mtime and distinct
+    content. mtimes are set explicitly with ``os.utime`` so B is unambiguously the
+    last-downloaded source regardless of byte size.
 
     Args:
         staging: Temporary staging directory to populate.
@@ -163,7 +163,7 @@ def _build_two_sources(staging: Path) -> tuple[Path, Path, Path, Path]:
     older_video = older_dir / "A.mkv"
     older_video.write_bytes(OLD_CONTENT)
 
-    newer_dir = staging / "Gourou (2026) {tmdb-123456}"
+    newer_dir = staging / "Gourou (2026)"
     newer_dir.mkdir(parents=True)
     newer_video = newer_dir / "B.mkv"
     newer_video.write_bytes(NEW_CONTENT)
