@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { useAccountReference } from "../../features/account/reference";
 import { useEngineDrawing } from "../../lib/engine-drawing";
+import { actionButton, emptyNote, sectionHeading } from "../../ui/variants";
 
 export function AccountPage(): ReactElement {
   const { t } = useTranslation();
@@ -28,7 +29,7 @@ export function AccountPage(): ReactElement {
         {t("screens.accountPage.noteRest")}
       </div>
 
-      <h2 className="h2" data-part="heading">{t("screens.accountPage.you")}</h2>
+      <h2 className={sectionHeading()} data-part="heading">{t("screens.accountPage.you")}</h2>
       {facts([
         {
           l: t("screens.accountPage.identifier"),
@@ -43,7 +44,7 @@ export function AccountPage(): ReactElement {
         },
       ])}
 
-      <h2 className="h2" data-part="heading">{t("screens.accountPage.session")}</h2>
+      <h2 className={sectionHeading()} data-part="heading">{t("screens.accountPage.session")}</h2>
       {facts([
         {
           l: t("screens.accountPage.duration"),
@@ -63,13 +64,13 @@ export function AccountPage(): ReactElement {
           s: t("screens.accountPage.whereSub"),
         },
       ])}
-      <button className="cfoot" data-part="card/foot" data-signout="1">
+      <button className={`cfoot ${actionButton()}`} data-part="card/foot" data-signout="1">
         {t("screens.accountPage.signOut")}
       </button>
 
-      <h2 className="h2" data-part="heading">{t("screens.accountPage.others")}</h2>
+      <h2 className={sectionHeading()} data-part="heading">{t("screens.accountPage.others")}</h2>
       <div
-        className="empty" data-part="empty-state"
+        className={emptyNote()} data-part="empty-state"
         dangerouslySetInnerHTML={{
           __html: emptyInner(
             t("screens.accountPage.othersEmptyTitle"),

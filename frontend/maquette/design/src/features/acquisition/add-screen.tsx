@@ -42,6 +42,8 @@ import { Icon } from "../../ui/icon";
 import { go } from "../../lib/navigate";
 import { useAcquisitionReference } from "../../features/acquisition/reference";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
+import { actionButton, backAction, emptyNote, resultCount, screen, screenBar, scrollport, searchField, searchInput, surfaceError } from "../../ui/variants";
+import { addFooter, addForm, addRow, byIdentifier, byIdentifierBody, refusalReason, suggestions } from "../../features/acquisition/variants";
 
 type Mode = "follow" | "identify";
 
@@ -155,14 +157,14 @@ export function AddScreen() {
 
   return (
     <section
-      className="screen open"
+      className={`${screen()} open`}
       data-part="screen"
       data-open=""
       data-key={`add:${mode}`}
       aria-label={t("screens.add.landmark")}
     >
-      <div className="screenbar" data-part="screen/bar">
-        <button className="fback" data-part="screen/back" onClick={() => window.__bridge.back()}>
+      <div className={screenBar()} data-part="screen/bar">
+        <button className={backAction()} data-part="screen/back" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.add.back")}
         </button>
@@ -171,24 +173,24 @@ export function AddScreen() {
             style={{
               marginLeft: "auto",
               fontSize: "11px",
-              color: "var(--muted-foreground)",
+              color: "var(--color-muted-foreground)",
             }}
           >
             {t("screens.add.identifyFolder")}
           </span>
         ) : null}
       </div>
-      <div className="port" data-part="viewport">
+      <div className={scrollport()} data-part="viewport">
         {identify ? (
           <div style={{ padding: "12px 14px 0" }}>
             <div
-              className="surferr" data-part="surface-error" role="alert"
+              className={surfaceError()} data-part="surface-error" role="alert"
               style={{
-                borderColor: "color-mix(in oklab,var(--info) 45%,transparent)",
-                background: "color-mix(in oklab,var(--info) 8%,transparent)",
+                borderColor: "color-mix(in oklab,var(--color-info) 45%,transparent)",
+                background: "color-mix(in oklab,var(--color-info) 8%,transparent)",
               }}
             >
-              <b style={{ color: "var(--info)" }}>
+              <b style={{ color: "var(--color-info)" }}>
                 {t("screens.add.identifyTitle", {
                   // french-ok: the INTERPOLATION placeholder, named by
                   // `identifyTitle` in fr.json — renaming this half alone
@@ -200,10 +202,11 @@ export function AddScreen() {
             </div>
           </div>
         ) : null}
-        <div className="addform">
-          <div className="search">
+        <div className={addForm()}>
+          <div className={searchField()}>
             <Icon paths={icons.search} />
             <input
+              className={searchInput()}
               type="search"
               id="addq"
               value={query}
@@ -221,7 +224,7 @@ export function AddScreen() {
               }
             />
           </div>
-          <div className="addrow">
+          <div className={addRow()}>
             <div className="segmini" data-part="segment-small">
               {/* NOT interface copy: these three are the VALUES of
                   `state.addKind`, written to the legacy store, compared
@@ -251,14 +254,14 @@ export function AddScreen() {
                 </button>
               ))}
             </div>
-            <button className="btnprimary" onClick={() => search(query)}>
+            <button className={`btnprimary ${actionButton()}`} onClick={() => search(query)}>
               {t("screens.add.search")}
             </button>
           </div>
         </div>
         {hasQuery ? (
           <>
-            <p className="rescount" data-part="result/count">
+            <p className={resultCount()} data-part="result/count">
               <b>{filtered.length}</b>{" "}
               {filtered.length > 1
                 ? t("screens.add.resultPlural")
@@ -284,7 +287,7 @@ export function AddScreen() {
           </>
         ) : (
           <>
-            <div className="sugg">
+            <div className={suggestions()}>
               {recents.map((recent) => (
                 <button key={recent} onClick={() => search(recent)}>
                   {recent}
@@ -292,20 +295,20 @@ export function AddScreen() {
               ))}
             </div>
             <div style={{ padding: "14px" }}>
-              <div className="empty" data-part="empty-state">
+              <div className={emptyNote()} data-part="empty-state">
                 <b>{t("screens.add.emptyTitle")}</b>
                 {t("screens.add.emptyBody")}
               </div>
             </div>
           </>
         )}
-        <details className="byid" data-part="add/by-id">
+        <details className={byIdentifier()} data-part="add/by-id">
           <summary>
             {identify
               ? t("screens.add.byIdIdentify")
               : t("screens.add.byIdAdd")}
           </summary>
-          <div className="byidin">
+          <div className={byIdentifierBody()}>
             <div className="segmini" data-part="segment-small" style={{ alignSelf: "flex-start" }}>
               {["TMDB", "TVDB", "IMDB"].map((element) => (
                 <button
@@ -317,14 +320,15 @@ export function AddScreen() {
                 </button>
               ))}
             </div>
-            <div className="search">
+            <div className={searchField()}>
               <input
+                className={searchInput()}
                 id="byidv"
                 placeholder={idProv === "IMDB" ? "tt1234567" : "12e34"}
                 aria-label={t("screens.add.idAria", { prov: idProv })}
               />
             </div>
-            <p className="whyoff">
+            <p className={refusalReason()}>
               {idProv === "IMDB" ? (
                 <>
                   {t("screens.add.imdbBefore")} <code>tt</code>{" "}
@@ -340,7 +344,7 @@ export function AddScreen() {
               )}
             </p>
             <button
-              className="btnprimary"
+              className={`btnprimary ${actionButton()}`}
               disabled
               style={{ alignSelf: "flex-start", padding: "9px 16px" }}
             >
@@ -349,7 +353,7 @@ export function AddScreen() {
           </div>
         </details>
         {added.size > 0 ? (
-          <div className="addfoot" data-part="add/foot">
+          <div className={addFooter()} data-part="add/foot">
             <span>
               <b>{added.size}</b>{" "}
               {added.size > 1

@@ -49,10 +49,32 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, ROOT, Journal, design_source
+from common import (DESIGN_SOURCES, PHONE, ROOT, Journal, design_source,
+                    without_comments)
 
 # The engine may hold no history primitive of its own — the bridge is the
 # only way to the single writer.
+#
+# THE PATTERN USED TO BE `history.<primitive>` AND THAT WAS ONLY EVER TRUE
+# BECAUSE THE READ WAS NARROW. `history` is a NAME, and in `app/shell.tsx` it
+# names the router's own instance (`const history = createBrowserHistory()`) —
+# which is the single writer this rule exists to protect, not a breach of it.
+# The moment L07 widened `DESIGN_SOURCES` onto the component tree, the old
+# pattern reported two violations that were the sanctioned owner doing its job.
+# A rule cannot be allowed to certify the opposite of its subject, so it is
+# split in two and each half says what it means:
+#
+#   BROWSER  — `window.history.<primitive>`, the platform object reached
+#              directly. Zero, anywhere, no exception.
+#   INSTANCE — a bare `history.<primitive>`, which is the router's instance.
+#              Legitimate, and ONLY in the file that creates it.
+BROWSER_PRIMITIVES = (
+    r"window\s*\.\s*history\s*\.\s*pushState\s*\(",
+    r"window\s*\.\s*history\s*\.\s*replaceState\s*\(",
+    r"window\s*\.\s*history\s*\.\s*back\s*\(",
+    r"window\s*\.\s*history\s*\.\s*go\s*\(",
+    r"window\s*\.\s*history\s*\.\s*forward\s*\(",
+)
 PRIMITIVES = (
     r"history\s*\.\s*pushState\s*\(",
     r"history\s*\.\s*replaceState\s*\(",
@@ -61,185 +83,17 @@ PRIMITIVES = (
     r"history\s*\.\s*forward\s*\(",
 )
 
-# A slash opens a regular expression rather than a division when the last
-# significant character before it cannot end an expression.
-BEFORE_REGEX = set("(,=:[!&|?{};+-*%^~<>")
-WORDS_BEFORE_REGEX = ("return", "typeof", "case", "in", "of", "new", "delete",
-                    "do", "else", "void", "instanceof", "yield", "await")
+# The one file allowed to name a history primitive, because it is the one that
+# CREATES the instance. Named as a path fragment so a move is a failure rather
+# than a silent pass.
+HISTORY_OWNER = "app/shell.tsx"
+
 
 _journal = None
 
 
 def check(name, condition, detail=""):
     return _journal.check(name, condition, detail)
-
-
-def without_comments(source):
-    """Blanks out the JavaScript comments of a document, and only those.
-
-    A stripper that knows about `//` and `/* */` alone is fail-open on this
-    document, and measurably so: the engine carries URLs inside string
-    literals (`"https://…"`, whose `//` would blank the rest of the line) and
-    quotes inside regular-expression literals (`/[&<>"]/g`, whose `"` would
-    open a string state that runs on until the file's next quote). Either
-    mistake swallows the real calls that follow, so a rule counting them
-    would pass by having lost its evidence rather than by finding none.
-
-    The source is therefore walked as JavaScript: code, line comment, block
-    comment, the three string kinds with their escapes, template
-    substitutions (`${…}`, whose contents are code again) and regular
-    expressions, told apart from division by the last significant character.
-
-    Args:
-        source: JavaScript, or a document containing it, as text.
-
-    Returns:
-        The same text with every comment character replaced by a space,
-        newlines preserved so lines still line up with the original.
-    """
-    out = []
-    i, n = 0, len(source)
-    # `previous` is the last significant character of the CODE regions; it is
-    # what tells a regular expression from a division.
-    previous = ""
-    # Brace depth inside the current code region, and the stack of depths
-    # suspended by the enclosing `${` substitutions.
-    depth, templates = 0, []
-
-    def word_before(position):
-        """True when a keyword ends right before `position` (regex context)."""
-        prefix = source[:position].rstrip()
-        return any(prefix.endswith(word)
-                   and (len(prefix) == len(word)
-                        or not (prefix[-len(word) - 1].isalnum()
-                                or prefix[-len(word) - 1] in "_$"))
-                   for word in WORDS_BEFORE_REGEX)
-
-    while i < n:
-        c = source[i]
-        pair = source[i:i + 2]
-
-        if pair == "//":
-            while i < n and source[i] != "\n":
-                out.append(" ")
-                i += 1
-            continue
-
-        if pair == "/*":
-            while i < n and source[i:i + 2] != "*/":
-                out.append("\n" if source[i] == "\n" else " ")
-                i += 1
-            if i < n:
-                out.append("  ")
-                i += 2
-            continue
-
-        if c in "\"'":
-            # A single- or double-quoted string: escapes only, no nesting.
-            out.append(c)
-            i += 1
-            while i < n and source[i] != c:
-                if source[i] == "\\" and i + 1 < n:
-                    out.append(source[i:i + 2])
-                    i += 2
-                    continue
-                if source[i] == "\n":  # unterminated: do not eat the file
-                    break
-                out.append(source[i])
-                i += 1
-            if i < n and source[i] == c:
-                out.append(c)
-                i += 1
-            previous = c
-            continue
-
-        if c == "`":
-            # A template literal: runs to its closing backtick, except that
-            # every `${…}` inside it is code, and is lexed as such.
-            out.append(c)
-            i += 1
-            while i < n:
-                if source[i] == "\\" and i + 1 < n:
-                    out.append(source[i:i + 2])
-                    i += 2
-                    continue
-                if source[i] == "`":
-                    out.append("`")
-                    i += 1
-                    previous = "`"
-                    break
-                if source[i:i + 2] == "${":
-                    out.append("${")
-                    i += 2
-                    templates.append(depth)
-                    depth = 0
-                    previous = "{"
-                    break
-                out.append(source[i])
-                i += 1
-            continue
-
-        if c == "}" and depth == 0 and templates:
-            # Closes a `${…}`: back inside the template literal that opened it.
-            out.append("}")
-            i += 1
-            depth = templates.pop()
-            while i < n:
-                if source[i] == "\\" and i + 1 < n:
-                    out.append(source[i:i + 2])
-                    i += 2
-                    continue
-                if source[i] == "`":
-                    out.append("`")
-                    i += 1
-                    previous = "`"
-                    break
-                if source[i:i + 2] == "${":
-                    out.append("${")
-                    i += 2
-                    templates.append(depth)
-                    depth = 0
-                    previous = "{"
-                    break
-                out.append(source[i])
-                i += 1
-            continue
-
-        if c == "/" and (previous == "" or previous in BEFORE_REGEX
-                         or word_before(i)):
-            # A regular expression literal: its `/` delimiters, its character
-            # classes (where a `/` is literal) and its escapes.
-            out.append(c)
-            i += 1
-            in_class = False
-            while i < n and source[i] != "\n":
-                if source[i] == "\\" and i + 1 < n:
-                    out.append(source[i:i + 2])
-                    i += 2
-                    continue
-                if source[i] == "[":
-                    in_class = True
-                elif source[i] == "]":
-                    in_class = False
-                elif source[i] == "/" and not in_class:
-                    out.append("/")
-                    i += 1
-                    break
-                out.append(source[i])
-                i += 1
-            previous = "/"
-            continue
-
-        if c == "{":
-            depth += 1
-        elif c == "}":
-            depth = max(0, depth - 1)
-        out.append(c)
-        if not c.isspace():
-            previous = c
-        i += 1
-
-    return "".join(out)
 
 
 def count_history_primitives(source):
@@ -256,19 +110,70 @@ def count_history_primitives(source):
     return sum(len(re.findall(pattern, cleaned)) for pattern in PRIMITIVES)
 
 
+def count_browser_primitives(source):
+    """Counts the calls that reach the PLATFORM's history object directly.
+
+    Args:
+        source: JavaScript, or a document containing it, as text.
+
+    Returns:
+        How many `window.history.pushState|replaceState|back|go|forward(`
+        calls the code holds, comments excluded.
+    """
+    cleaned = without_comments(source)
+    return sum(len(re.findall(pattern, cleaned)) for pattern in BROWSER_PRIMITIVES)
+
+
+def stray_instance_calls():
+    """Finds files naming a history primitive that are not the owner.
+
+    Reads each source on its own rather than the concatenation, because the
+    answer is WHICH FILE — a count over the joined text can say that something
+    is wrong and never say where, which is the shape of a rule nobody can act
+    on.
+
+    Returns:
+        A mapping of repository-relative path to the number of bare
+        `history.<primitive>` calls it holds, for every file that is not
+        `HISTORY_OWNER`. Empty when the contract holds.
+    """
+    strays = {}
+    for path in DESIGN_SOURCES:
+        relative = path.relative_to(ROOT.parent.parent).as_posix()
+        if relative.endswith(HISTORY_OWNER):
+            continue
+        cleaned = without_comments(path.read_text(encoding="utf-8"))
+        count = sum(len(re.findall(pattern, cleaned)) for pattern in PRIMITIVES)
+        if count:
+            strays[relative] = count
+    return strays
+
+
 async def main():
     global _journal
     _journal = Journal("R74 — the bridge wires the nav cluster to the router")
 
-    # ─── Hold (a): the engine holds no primitive of its own ───────────
+    # ─── Hold (a): nothing reaches the platform's history object ──────
     # The engine is where the primitives would be, and it is no longer in
     # the fragment — a count taken on the fragment alone is a count of
-    # nothing.
-    calls = count_history_primitives(design_source())
+    # nothing, which is why this reads every source the design is written in.
+    browser_calls = count_browser_primitives(design_source())
     check(
-        "zero direct history.* call in the design's sources",
-        calls == 0,
-        f"{calls} call(s) found",
+        "zero window.history.* call in the design's sources",
+        browser_calls == 0,
+        f"{browser_calls} call(s) found",
+    )
+
+    # ─── Hold (a2): the router's instance is named in ONE file ────────
+    # A bare `history.<primitive>` is the router's own instance, and that is
+    # the single writer rather than a breach of it — but only where the
+    # instance is created. Anywhere else is a file taking the history into its
+    # own hands through a name that looks innocent.
+    strays = stray_instance_calls()
+    check(
+        f"the router's history instance is named only in {HISTORY_OWNER}",
+        not strays,
+        ", ".join(f"{path} ×{count}" for path, count in sorted(strays.items())),
     )
 
     async with async_playwright() as p:

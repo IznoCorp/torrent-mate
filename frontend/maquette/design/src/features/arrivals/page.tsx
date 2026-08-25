@@ -28,6 +28,29 @@ import type { ReactElement } from "react";
 import { useArrivalsReference, type PipelineFact } from "../../features/arrivals/reference";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useUiState } from "../../lib/store-access";
+import {
+  actionButton,
+  crossReference,
+  crossReferenceLink,
+  emptyNote,
+  liveDot,
+  liveEmphasis,
+  liveStrip,
+  // `section` and `pip` are already local bindings in this file; the variants
+  // are imported under their own names rather than shadowing them.
+  section as sectionClass,
+  sectionHead,
+  statusDot as statusDotClass,
+  surfaceError,
+} from "../../ui/variants";
+import {
+  pilotActions,
+  pilotBar,
+  pilotGauge,
+  pilotHead,
+  pilotQualifier,
+  pilotTitle,
+} from "./variants";
 
 // The nine steps, told as the last run left them. A step with nothing recorded
 // at all reads « rien à faire »; a step that BLOCKED something says so and
@@ -70,43 +93,43 @@ function PipelineBar(): ReactElement {
   if (state.pipe === "running" || state.pipe === "queued") {
     const step = PIPELINE.steps[3];
     return (
-      <section className="pipeline" data-part="pipeline" data-region="arrivals/pilot-bar">
-        <div className="ph">
-          <span className="pip info" data-part="status-dot" data-tone="info"></span>
-          <span className="pt" data-part="pipeline/title">{t("screens.arrivals.runningTitle")}</span>
-          <span className="pq">
+      <section className={pilotBar()} data-part="pipeline" data-region="arrivals/pilot-bar">
+        <div className={pilotHead()}>
+          <span className={statusDotClass({ tone: "info" })} data-part="status-dot" data-tone="info"></span>
+          <span className={pilotTitle()} data-part="pipeline/title">{t("screens.arrivals.runningTitle")}</span>
+          <span className={pilotQualifier()}>
             {t("screens.arrivals.stepOf", {
               count: PIPELINE.steps.length,
               label: step.l,
             })}
           </span>
         </div>
-        <div className="gauge">
-          <i style={{ width: "44%" }}></i>
+        <div className={pilotGauge()}>
+          <i className="block h-full bg-info rounded-[inherit]" style={{ width: "44%" }}></i>
         </div>
         {/* « Relancer ensuite » stays offered WHILE a run is going, and that is
             the point rather than an oversight: new downloads land during a
             pass, and asking for another one is a legitimate thing to want. */}
         {state.pipe === "queued" ? (
           <>
-            <div className="live" data-part="live-activity">
-              <span className="d"></span>
+            <div className={liveStrip()} data-part="live-activity">
+              <span className={liveDot()}></span>
               <span>
                 {t("screens.arrivals.queuedLead")}
-                <b>{t("screens.arrivals.queuedBold")}</b>
+                <b className={liveEmphasis()}>{t("screens.arrivals.queuedBold")}</b>
                 {t("screens.arrivals.queuedRest")}
               </span>
             </div>
-            <button className="cfoot" data-part="card/foot" data-pipe="stop">
+            <button className={`cfoot ${actionButton()}`} data-part="card/foot" data-pipe="stop">
               {t("screens.arrivals.stopPipeline")}
             </button>
           </>
         ) : (
-          <div className="pacts">
-            <button className="cfoot" data-part="card/foot" data-pipe="start">
+          <div className={pilotActions()}>
+            <button className={`cfoot ${actionButton()}`} data-part="card/foot" data-pipe="start">
               {t("screens.arrivals.runAfterwards")}
             </button>
-            <button className="cfoot" data-part="card/foot" data-pipe="stop">
+            <button className={`cfoot ${actionButton()}`} data-part="card/foot" data-pipe="stop">
               {t("screens.arrivals.stop")}
             </button>
           </div>
@@ -116,17 +139,17 @@ function PipelineBar(): ReactElement {
   }
 
   return (
-    <section className="pipeline" data-part="pipeline" data-region="arrivals/pilot-bar">
-      <div className="ph">
-        <span className="pip neutral" data-part="status-dot" data-tone="neutral"></span>
-        <span className="pt" data-part="pipeline/title">{t("screens.arrivals.idleTitle")}</span>
-        <span className="pq">
+    <section className={pilotBar()} data-part="pipeline" data-region="arrivals/pilot-bar">
+      <div className={pilotHead()}>
+        <span className={statusDotClass({ tone: "neutral" })} data-part="status-dot" data-tone="neutral"></span>
+        <span className={pilotTitle()} data-part="pipeline/title">{t("screens.arrivals.idleTitle")}</span>
+        <span className={pilotQualifier()}>
           {t("screens.arrivals.idleQualifier", {
             when: PIPELINE.last.when,
           })}
         </span>
       </div>
-      <button className="cfoot solid" data-part="card/foot" data-solid="" data-pipe="start">
+      <button className={`cfoot solid ${actionButton()}`} data-part="card/foot" data-solid="" data-pipe="start">
         {t("screens.arrivals.startPipeline")}
       </button>
     </section>
@@ -140,20 +163,20 @@ function LastRun(): ReactElement {
   const { PIPELINE, factRowsHTML } = useArrivalsReference();
   const run = PIPELINE.last;
   return (
-    <section className="sec" data-part="section">
-      <div className="sechead" data-part="section/head">
-        <span className="pip success" data-part="status-dot" data-tone="success"></span>
+    <section className={sectionClass()} data-part="section">
+      <div className={sectionHead()} data-part="section/head">
+        <span className={statusDotClass({ tone: "success" })} data-part="status-dot" data-tone="success"></span>
         <span className="t" data-part="section/title">{t("screens.arrivals.lastRunTitle")}</span>
         <span className="k" data-part="section/count">{run.duree}</span>
       </div>
-      <div className="live" data-part="live-activity">
+      <div className={liveStrip()} data-part="live-activity">
         <span
-          className="d"
-          style={{ animation: "none", background: "var(--success)" }}
+          className={liveDot()}
+          style={{ animation: "none", background: "var(--color-success)" }}
         ></span>
         <span>
           {t("screens.arrivals.triggeredBy")}
-          <b>{PIPELINE.declencheurs[run.declencheur]}</b>
+          <b className={liveEmphasis()}>{PIPELINE.declencheurs[run.declencheur]}</b>
           {t("screens.arrivals.triggeredWhen", { when: run.when })}
         </span>
       </div>
@@ -186,14 +209,14 @@ export function ArrivalsPage(): ReactElement | null {
     // wrapper appears where the legacy had none.
     return state.phase === "error" ? (
       <div
-        className="surferr" data-part="surface-error" role="alert"
+        className={surfaceError()} data-part="surface-error" role="alert"
         dangerouslySetInnerHTML={{
           __html: surfErrInner(t("screens.arrivals.errorSubject")),
         }}
       />
     ) : (
       <div
-        className="sec" data-part="section"
+        className={sectionClass()} data-part="section"
         dangerouslySetInnerHTML={{ __html: skelCardsInner(3) }}
       />
     );
@@ -215,7 +238,7 @@ export function ArrivalsPage(): ReactElement | null {
   ) =>
     cards.length === 0 || inner === "" ? null : (
       <section
-        className="sec" data-part="section"
+        className={sectionClass()} data-part="section"
         dangerouslySetInnerHTML={{
           __html: secInner(pip, title, String(cards.length), inner, note),
         }}
@@ -239,20 +262,20 @@ export function ArrivalsPage(): ReactElement | null {
         </div>
       ) : null}
       {moving.length > 0 ? (
-        <div className="live" data-part="live-activity">
-          <span className="d"></span>
+        <div className={liveStrip()} data-part="live-activity">
+          <span className={liveDot()}></span>
           <span>
             {t("screens.arrivals.scrapingLead")}
             {/* french-ok: a media TITLE, which is data — the same one the
                 legacy named here. */}
-            <b>Furious</b>
+            <b className={liveEmphasis()}>Furious</b>
             {t("screens.arrivals.scrapingRest")}
           </span>
         </div>
       ) : null}
       {nothing ? (
         <div
-          className="empty" data-part="empty-state"
+          className={emptyNote()} data-part="empty-state"
           dangerouslySetInnerHTML={{
             __html: emptyInner(
               t("screens.arrivals.emptyTitle"),
@@ -276,9 +299,9 @@ export function ArrivalsPage(): ReactElement | null {
         `<b>${t("screens.arrivals.stuckNoteLead")}</b>${t("screens.arrivals.stuckNoteRest")}`,
       )}
       {state.scen !== "real" ? (
-        <button className="crossref" data-part="cross-reference" data-go="acq">
+        <button className={crossReference()} data-part="cross-reference" data-go="acq">
           {t("screens.arrivals.toAcquisition")}
-          <span>{t("screens.arrivals.toAcquisitionLink")}</span>
+          <span className={crossReferenceLink()}>{t("screens.arrivals.toAcquisitionLink")}</span>
         </button>
       ) : null}
       {section(

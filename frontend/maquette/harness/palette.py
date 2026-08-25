@@ -24,7 +24,7 @@ import asyncio
 import pathlib
 import re
 
-from common import Journal, design_source, open_page
+from common import Journal, design_source, open_page, without_comments
 from playwright.async_api import async_playwright
 
 PROTOTYPE = pathlib.Path(__file__).resolve().parent.parent / "design" / "refonte.html"
@@ -46,6 +46,13 @@ def dangling(source):
     Returns:
         A dict property name → number of references lacking a fallback.
     """
+    # THE PROSE IS NOT EVIDENCE. This reads `design_source()`, which since L07
+    # spans the component tree as well as the stylesheet — and the tree
+    # explains itself in comments. One of them described what a
+    # `var(--spacing-*)` resolves to, and this rule read the sentence as a
+    # bare reference to a property named `--spacing-` and failed on it. A rule
+    # that falls on being explained is measuring the documentation.
+    source = without_comments(source)
     defined = set(re.findall(r"(--[\w-]+)\s*:", source))
     missing = {}
     for m in re.finditer(r"var\(\s*(--[\w-]+)\s*(,)?", source):
@@ -88,7 +95,7 @@ async def main():
         await pg.evaluate("()=>window.__measure(true)")
 
         brand = await pg.evaluate(
-            "()=>getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()")
+            "()=>getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim()")
         check("the brand colour is defined", bool(brand), brand)
 
         # The comparison is against the RESOLVED brand colour rather than a

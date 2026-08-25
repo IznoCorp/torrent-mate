@@ -1,0 +1,329 @@
+/* THE TOKENS — D3's first layer, and the whole scale in one place.
+
+   TAILWIND ARRIVES HERE, AND WITHOUT ITS PREFLIGHT. `@import "tailwindcss"`
+   pulls three things: the theme, the utility engine, and PREFLIGHT — an
+   opinionated reset that zeroes margins, unstyles headings and lists, and
+   changes how a dozen elements paint. This wave's entire claim is that the
+   rendering did not move, so a second reset landing on top of the one the
+   prototype already has is not a detail to sort out later: it is the claim,
+   broken on the first commit. The two halves that carry no opinion are
+   imported instead, and `src/styles/base.css` stays the one reset this
+   application has. Adopting preflight is a real question and it belongs to
+   the lot that can prove what it changes — not to this one.
+
+   THE SCALE BLOCK BELOW IS L06's, MOVED RATHER THAN RETYPED. It was a `:root`
+   block in the fragment; it is the `@theme` block now, which is what makes
+   Tailwind read it. L06's P-2 named these families for exactly this — verified
+   by compiling Tailwind 4.3.2 against them before relying on it:
+
+       .p-4         → padding: var(--spacing-4)
+       .text-6      → font-size: var(--text-6)
+       .rounded-3   → border-radius: var(--radius-3)
+       .ease-standard → transition-timing-function: var(--ease-standard)
+
+   THE MOTION DURATIONS ARE THE ONE FAMILY THAT DOES NOT LIFT, and they fail
+   in the worst available way. `--duration-*` is not a Tailwind namespace, and
+   `duration-2` is ALREADY a utility — it means two milliseconds. So the name
+   compiles to a wrong VALUE rather than to an error, and nothing measures it:
+   `transition-duration` is not among the oracle's nineteen properties.
+   Redefining the utility does not take the name back either; the core one
+   wins, measured. The four touch-response steps therefore become bare
+   milliseconds at their call sites, and an arm of `check-css-tokens.py`
+   refuses any value outside them. The three LOOP periods stay declared here:
+   they live in `animation:` shorthands, which become `--animate-*` entries
+   carrying the whole shorthand, and never become `duration-*` at all.
+
+   THE SCAN IS CONFINED, and it is held from both ends. Tailwind has already
+   leaked 936 bytes into the production bundle once, by scanning from the
+   project root; production answers with `@source not "../../maquette"` in its
+   own entry. This is the mirror, and a rule holds the pair — a confinement
+   written in one file and read by nobody is the shape of every guard this
+   repository has found green over its own subject.
+
+   THE MARKERS TRAVEL WITH THE CSS. `serve.py` composes the sign-in gate by
+   text search over `login:*` regions, and it must emit the scale FIRST so
+   every folded declaration on the composed page resolves its step. */
+/* THE CASCADE ORDER, DECLARED ONCE AND FIRST. Without this line the base
+   layer is UNLAYERED, and unlayered CSS beats every layer — so
+   `button { color: inherit }` in the reset silently defeated
+   `text-primary-foreground` on the floating action button, and would have
+   defeated every colour utility on every button in the wave. The base layer
+   winning against components is the exact inverse of D3.
+
+   Found by the oracle at 250 divergences, on the first surface whose element
+   was a `<button>`. The residue is deliberately NOT in this list: it is
+   hand-written CSS for markup the engine draws, and it must win the way a
+   component's own rule would. */
+@layer theme, base, components, utilities, block2;
+@import "tailwindcss/theme.css" layer(theme);
+/* `source(none)` IS THE CONFINEMENT, and the `@source` rules below are not.
+   Tailwind v4 scans the project root AUTOMATICALLY unless told otherwise, and
+   an `@source` rule ADDS to that scan rather than replacing it — which is the
+   exact mechanism that once leaked 936 bytes of this prototype into the
+   production bundle. Measured here rather than trusted: with the `@source`
+   list narrowed to five directories and nothing else changed, the generated
+   utilities were byte-identical, down to the file hash. Naming your sources
+   confines nothing; turning the automatic scan off does. */
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+
+/* THE SCAN IS NAMED DIRECTORY BY DIRECTORY, and the omissions are the point.
+   Nothing above `design/` is ever reached: `../..` from this file is
+   `design/`, and no `@source` climbs past it.
+
+   `src/engine/` IS DELIBERATELY ABSENT. The legacy engine keeps hand-written
+   CSS until L13 (D-L07-5), so it has no utility to receive — and scanning its
+   34 000 lines of code and prose fed the generator words that are not class
+   names at all: it produced `transition`, `filter`, `blur`, `outline` and a
+   `z-47` from a `z-index: 47` written in a comment. Utilities generated from
+   text nobody wears are not merely waste; each one is a NAME that could
+   collide with a class the prototype already uses.
+
+   `src/i18n/` and `src/styles/` are absent for the same reason read the other
+   way round: interface copy and stylesheets carry no class attributes, so
+   every candidate they yield is a false one. */
+@source "../../index.html";
+@source "../app";
+@source "../features";
+@source "../lib";
+@source "../routes";
+@source "../ui";
+
+/* The scale. Every design constant the stylesheet uses is a step declared
+   here, and nowhere else. The space ramp also serves gap and margin. Loop
+   periods are rhythms, not responses to a touch: they are named apart so
+   nobody folds a spinner onto a transition step. The block carries both
+   marker names on one line because it has two readers: the scale guard,
+   and the sign-in page composer, which must emit it first so the composed
+   page can resolve every step it inherits. */
+/* THE MARKERS SIT INSIDE THE BRACES, and that is not cosmetic. `serve.py`
+   composes the sign-in gate by extracting this region as RAW TEXT into a plain
+   <style> on a page Tailwind never processes — and `@theme` is not CSS a
+   browser understands: it would drop the whole block and the gate would lose
+   its scale silently. Marked from inside, `extract()` returns declarations,
+   and the composer wraps them in the `:root` a browser does understand. */
+/* `static`, AND IT IS NOT AN OPTION WHILE HAND-WRITTEN CSS STILL SPENDS THE
+   SCALE. A plain `@theme` block is TREE-SHAKEN: Tailwind emits only the tokens
+   its own generated utilities reference, and the 462 `var()` calls in BLOCK 2
+   are invisible to it. Moving the scale here without `static` therefore
+   deleted the entire scale from the served document — every `var(--spacing-*)`
+   resolved to nothing, and 2 236 of the oracle's 2 739 measurements collapsed
+   to zero padding and `normal` gaps.
+
+   WORSE, AND THIS IS THE PART WORTH REMEMBERING: the run before that one was
+   GREEN. The scan was still leaking into the project root then, and the stray
+   candidates it found generated enough utilities to drag the tokens into the
+   output as a side effect. The oracle was passing on the leak. Confining the
+   scan is what exposed the defect — a green gate resting on a bug elsewhere,
+   which is the shape of every proof this repository has had to re-take.
+
+   `static` goes when nothing outside a component reads a token any more. */
+@theme static {
+  /* TAILWIND'S OWN SPACING MULTIPLIER IS TURNED OFF, and this is invariant
+     §3-3 — « no value outside the scale » — made true by construction rather
+     than by vigilance.
+
+     Tailwind resolves `p-4` against a NAMED key `--spacing-4` when one exists,
+     and otherwise against `calc(var(--spacing) * 4)`, its default 0.25rem
+     multiplier. Both live in the same namespace, so with the multiplier left
+     on, `p-4` is our 8px step and `p-11` is a silent 44px that belongs to no
+     scale at all — two ramps wearing one set of names, and the wrong one
+     chosen by whether somebody happened to declare that number.
+
+     Cleared, an unnamed number generates NOTHING: the class exists in the
+     markup and no rule is emitted, so the element loses the property outright.
+     That is a visible break the oracle reads, which is the failure mode this
+     repository wants — measured both ways before it was relied on.
+
+     A size that is genuinely not a spacing step — a 44px touch target — is
+     written as an arbitrary value and says so by its shape. */
+  --spacing: initial;
+  /* login:scale:start */ /* scale:start */
+  /* ZERO IS A STEP, and clearing the multiplier had taken it away with the
+     rest. Without it `p-0`, `m-0`, `gap-0`, `top-0` and every other
+     zero-valued utility simply stop existing — which is not the scale being
+     enforced, it is the absence of a value having no name. It is the identity
+     element rather than a new magnitude, so the scale is unchanged in what it
+     MEASURES; it now also says « none ».
+
+     IT IS DECLARED INSIDE THE SCALE MARKERS, and that is not cosmetic: the
+     guard reads a step as something the marked block declares, so zero sitting
+     just above the marker read as a scale token declared OUTSIDE the scale —
+     the duplicate that guard exists to refuse. A step is a step where the
+     guard can see it. */
+  --spacing-0: 0px;
+
+  /* Space ramp: pads, gaps and margins. */
+  --spacing-1: 2px;
+  --spacing-2: 4px;
+  --spacing-3: 6px;
+  --spacing-4: 8px;
+  --spacing-5: 10px;
+  --spacing-6: 12px;
+  --spacing-7: 14px;
+  --spacing-8: 18px;
+  --spacing-9: 24px;
+  /* Type ramp: eight content steps, one display size cut against the tile
+     it fills rather than the reading ladder. */
+  --text-1: 10px;
+  --text-2: 11px;
+  --text-3: 12px;
+  --text-4: 13px;
+  --text-5: 14px;
+  --text-6: 16px;
+  --text-7: 19px;
+  --text-8: 27px;
+  --text-display: 54px;
+  /* Radius ramp. */
+  --radius-1: 3px;
+  --radius-2: 6px;
+  --radius-3: 8px;
+  --radius-4: 12px;
+  --radius-full: 999px;
+  /* Motion: touch-response durations, loop periods, easings. */
+  --duration-1: 0.15s;
+  --duration-2: 0.2s;
+  --duration-3: 0.3s;
+  --duration-4: 0.45s;
+  --duration-loop-1: 0.7s;
+  --duration-loop-2: 1.4s;
+  --duration-loop-3: 5s;
+  --ease-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-emphasized: cubic-bezier(0.22, 1.02, 0.36, 1);
+  /* The media sheet's hero, arriving. Declared as an animation rather than
+     spelled at the call site: `animation` is one of the nineteen properties
+     the oracle reads, so the shorthand has to be identical, and a name is
+     easier to keep identical than a four-part value. */
+  --animate-hero-in: heroin var(--duration-4) var(--ease-standard) both;
+  /* scale:end */ /* login:scale:end */
+
+  /* THE PALETTE, AND WHY IT IS HERE. Tailwind reads only what `@theme`
+     declares, so `bg-card` exists because `--color-card` is a step of this
+     block — that is the whole point of the rename this phase carried out. The
+     LIGHT theme cannot live in here: `@theme` is unconditional by
+     construction, and a theme is a condition. It sits just below, unlayered,
+     which is precisely what makes it win — Tailwind emits its own tokens
+     inside `@layer theme`, and unlayered beats layered in the cascade.
+     Verified by compilation before it was relied on.
+
+     THE EIGHT SHADOWS KEEP `--mq-shadow-*` DELIBERATELY. Named `--shadow-*`
+     they would become `shadow-*` utilities, and Tailwind rewrites every
+     shadow into a five-part composite — a different computed `box-shadow`,
+     which is one of the nineteen properties the oracle reads. Outside the
+     namespace, no utility can ever be made of them. */
+
+  /* login:palette:start */
+    --color-background: oklch(0.165 0.004 286);
+    --color-foreground: oklch(0.96 0.003 286);
+    --color-card: oklch(0.196 0.005 286);
+    --color-popover: oklch(0.186 0.005 286);
+    --color-muted: oklch(0.246 0.006 286);
+    --color-muted-foreground: oklch(0.682 0.012 286);
+    --color-border: oklch(0.279 0.008 286);
+    --color-primary: oklch(0.808 0.158 79);
+    /* The brand tone has two jobs one colour cannot do (the same lesson the
+       status tones taught): a FILL behind dark text, and a LABEL on a tint of
+       itself. On the dark theme the mark is bright enough to do both, so the
+       text variant equals the mark; the light theme darkens it, or « you are
+       here » is written in near-invisible ink on near-white.
+       WHAT SITS ON THE FILL IS ONE DECISION FOR BOTH THEMES, and it is dark.
+       The mark is a light amber in either theme — a near-white label on it
+       reads at 2.14, a dark one at 7.5 — so there is no light override of
+       this token rather than a second value that happens to agree. The light
+       theme did declare its own near-white variant, contradicting the
+       sentence above it, for exactly as long as nothing audited the light
+       theme. */
+    --color-primary-text: oklch(0.808 0.158 79);
+    --color-primary-foreground: oklch(0.24 0.05 70);
+    /* The count a filter chip carries is SECONDARY TEXT, and secondary was
+       written as `opacity` — which is not a colour at all. An opacity blends
+       whatever tone the chip inherits into whatever happens to be behind it,
+       so the tone that finally reaches the eye is one the palette never
+       declared and no one can reason about: the muted label lost a third of
+       its separation from the page and landed under AA, and on the brand fill
+       the companion tone did the same. Secondary is a TONE, and it is named
+       here — one for the chip at rest on the page, one for the chip filled
+       with the mark, each a step short of the label beside it and each clear
+       of 4.5:1 on the surface it actually lands on. */
+    --color-pill-count-foreground: oklch(0.62 0.012 286);
+    --color-pill-count-foreground-selected: oklch(0.4 0.07 70);
+    --color-success: oklch(0.72 0.165 152);
+    --color-warning: oklch(0.8 0.15 75);
+    --color-danger: oklch(0.62 0.21 24);
+    /* A tone has THREE jobs, and no one colour does two of them well.
+       `--danger` is the SIGNAL — the pip, the tint, the border, the label on
+       a card — and reusing it as a label colour on a 20 % tint of itself put a
+       badge at 3.69, under AA, while every green badge sat at 5.5. The text
+       variant is the same hue at the lightness a label needs on the surface it
+       lands on: lighter on the dark card, darker on the light one.
+       The third job is the GROUND a solid destructive control paints behind
+       its own white label, and the signal tone is not dark enough for it:
+       white over it measures 4.03, under AA on a control that is not large
+       text. That ground is decided once, here, rather than darkened at one
+       button and forgotten at the next. Darkening `--danger` itself was never
+       the repair available — it is a LABEL in five other places, and each of
+       them would have lost separation from the surface it sits on. */
+    --color-danger-text: oklch(0.78 0.17 24);
+    --color-danger-fill: oklch(0.57 0.21 24);
+    --color-info-text: oklch(0.78 0.11 225);
+    --color-success-text: var(--color-success);
+    --color-warning-text: var(--color-warning);
+    --color-info: oklch(0.68 0.125 225);
+    --color-waiting: oklch(0.74 0.16 345);
+    --color-upcoming: oklch(0.72 0.145 285);
+    --color-neutral-signal: oklch(0.62 0.01 286);
+    --color-sidebar: oklch(0.186 0.005 286);
+    --color-white: #fff;
+    --color-white-70: rgb(255 255 255/0.7);
+    --mq-shadow-seg: 0 1px 3px rgb(0 0 0/0.45);
+    --mq-shadow-vsw: 0 1px 3px rgb(0 0 0/0.5);
+    --mq-shadow-fab: 0 6px 20px rgb(0 0 0/0.55);
+    --mq-shadow-dlg: 0 20px 60px rgb(0 0 0/0.7);
+    --mq-shadow-toast: 0 8px 26px rgb(0 0 0/0.5);
+    --mq-shadow-pop: 0 12px 32px rgb(0 0 0/0.32);
+    --mq-shadow-card: 0 10px 30px rgb(0 0 0/0.45);
+    --mq-shadow-badge: 0 1px 2px rgb(0 0 0/0.3);
+    --color-scrim: rgb(0 0 0/0.6);
+    /* A softer scrim, for a control sitting ON artwork rather than over the
+       whole frame: at 0.6 the picture underneath stops being readable. */
+    --color-scrim-soft: rgb(0 0 0/0.35);
+    --color-tile-overlay: rgb(0 0 0/0.62);
+  /* login:palette:end */
+}
+
+
+/* login:palette-light:start */
+/* The light tokens are part of what the login gate borrows, and they have
+   their own marker because they cannot share the dark block's: `@theme` is
+   unconditional and a theme is a condition. The gate applies the saved
+   appearance before first paint, and an attribute without its tokens paints
+   the wrong theme with a clear conscience. */
+:root[data-theme="light"] {
+  --color-background: oklch(0.995 0 0);
+  --color-foreground: oklch(0.205 0.004 286);
+  --color-card: oklch(1 0 0);
+  --color-popover: oklch(1 0 0);
+  --color-muted: oklch(0.967 0.002 286);
+  --color-muted-foreground: oklch(0.52 0.01 286);
+  --color-border: oklch(0.91 0.004 286);
+  --color-primary: oklch(0.76 0.155 70);
+  --color-primary-text: oklch(0.5 0.13 70);
+  --color-pill-count-foreground: oklch(0.54 0.01 286);
+  --color-pill-count-foreground-selected: oklch(0.36 0.07 70);
+  --color-success: oklch(0.6 0.15 152);
+  --color-warning: oklch(0.74 0.15 72);
+  --color-danger: oklch(0.58 0.215 25);
+  --color-danger-text: oklch(0.46 0.19 25);
+  /* The light mark is already dark enough to carry white — 4.78 — so the
+     control's ground points back at the signal rather than declaring a
+     second tone that could only ever drift from it. */
+  --color-danger-fill: var(--color-danger);
+  --color-info-text: oklch(0.44 0.11 225);
+  --color-success-text: oklch(0.44 0.12 152);
+  --color-warning-text: oklch(0.44 0.1 75);
+  --color-info: oklch(0.62 0.115 225);
+  --color-waiting: oklch(0.65 0.14 345);
+  --color-upcoming: oklch(0.55 0.16 290);
+  --color-sidebar: oklch(0.985 0.002 286);
+  --color-scrim: rgb(0 0 0/0.35);
+}
+/* login:palette-light:end */

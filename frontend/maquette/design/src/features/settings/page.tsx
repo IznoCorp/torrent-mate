@@ -32,6 +32,8 @@ import { Icon } from "../../ui/icon";
 import { useSettingsReference, type Setting, type SettingsTopic } from "../../features/settings/reference";
 import { useStoreContent } from "../../lib/store-access";
 import { settingLabel } from "../../features/settings/labels";
+import { emptyNote, factsPanel, loadError, loadErrorAction, qualityHint, searchClear, searchField, searchInput, sectionHeading, topicRow } from "../../ui/variants";
+import { saveAction, saveBar, settingsRow } from "./variants";
 
 // The pending-edit marker and the row's own identity live on the same element:
 // the row IS the control the delegation reads.
@@ -57,7 +59,7 @@ function SettingRow({
     : setting.c;
   return (
     <button
-      className={`settingrow${edited ? " modified" : ""}`}
+      className={settingsRow({ modified: edited })}
       data-edited={edited || undefined}
       data-part="setting/row"
       data-setting={identity}
@@ -75,9 +77,10 @@ function SearchField(): ReactElement {
   const { SETTINGS_STATE, icons } = useSettingsReference();
   const { t } = useTranslation();
   return (
-    <div className="search" style={{ marginBottom: 12 }}>
+    <div className={searchField()} style={{ marginBottom: 12 }}>
       <Icon paths={icons.search} />
       <input
+        className={searchInput()}
         id="qsettings"
         key={SETTINGS_STATE.q}
         type="search"
@@ -87,7 +90,7 @@ function SearchField(): ReactElement {
       />
       {SETTINGS_STATE.q ? (
         <button
-          className="searchclear"
+          className={searchClear()}
           data-qsettings=""
           aria-label={t("screens.settings.clearLabel")}
         >
@@ -116,7 +119,7 @@ function SaveBar(): ReactElement | null {
   const files = changedFiles().map(fileName).join(", ");
   return createPortal(
     <div
-      className="savebar"
+      className={saveBar()}
       id="savebar"
       role="region"
       aria-label={t("screens.settings.saveBarLabel")}
@@ -132,7 +135,7 @@ function SaveBar(): ReactElement | null {
         </b>{" "}
         {t("screens.settings.willWrite", { files })}
       </span>
-      <button data-save="1" disabled={SETTINGS_STATE.readOnly}>
+      <button className={saveAction()} data-save="1" disabled={SETTINGS_STATE.readOnly}>
         {t("screens.settings.save")}
       </button>
     </div>,
@@ -148,14 +151,14 @@ function TopicView({ topic }: { topic: SettingsTopic }): ReactElement {
   }
   return (
     <>
-      <h2 className="h2" data-part="heading">{topic.t}</h2>
-      <p className="qhint">{topic.s}</p>
+      <h2 className={sectionHeading()} data-part="heading">{topic.t}</h2>
+      <p className={qualityHint()}>{topic.s}</p>
       {[...byFile.entries()].map(([file, settings]) => (
         <Fragment key={file}>
-          <h2 className="h2" data-part="heading" style={{ marginTop: 16 }}>
+          <h2 className={sectionHeading()} data-part="heading" style={{ marginTop: 16 }}>
             <code>{file}.json5</code>
           </h2>
-          <div className="panel" data-part="panel">
+          <div className={factsPanel()} data-part="panel">
             {settings.map((setting) => (
               <SettingRow key={setting.c} setting={setting} />
             ))}
@@ -185,12 +188,12 @@ export function SettingsPage(): ReactElement | null {
   if (SETTINGS_STATE.topic === "secrets") {
     return (
       <>
-        <h2 className="h2" data-part="heading">{t("screens.settings.secretsTitle")}</h2>
-        <p className="qhint">{t("screens.settings.secretsHint")}</p>
-        <div className="panel" data-part="panel">
+        <h2 className={sectionHeading()} data-part="heading">{t("screens.settings.secretsTitle")}</h2>
+        <p className={qualityHint()}>{t("screens.settings.secretsHint")}</p>
+        <div className={factsPanel()} data-part="panel">
           {SECRETS.map((secret) => (
             <button
-              className="settingrow"
+              className={settingsRow()}
               data-part="setting/row"
               data-secret={secret.k}
               key={secret.k}
@@ -228,7 +231,7 @@ export function SettingsPage(): ReactElement | null {
       return (
         <>
           <div
-            className="empty" data-part="empty-state"
+            className={emptyNote()} data-part="empty-state"
             dangerouslySetInnerHTML={{
               __html: emptyInner(t("screens.settings.unknownTopic"), ""),
             }}
@@ -258,7 +261,7 @@ export function SettingsPage(): ReactElement | null {
         <SearchField />
         {found.length === 0 ? (
           <div
-            className="empty" data-part="empty-state"
+            className={emptyNote()} data-part="empty-state"
             dangerouslySetInnerHTML={{
               __html: emptyInner(
                 t("screens.settings.noMatchTitle"),
@@ -268,7 +271,7 @@ export function SettingsPage(): ReactElement | null {
           />
         ) : (
           <>
-            <p className="qhint">
+            <p className={qualityHint()}>
               {t(
                 found.length > 1
                   ? "screens.settings.countMany"
@@ -276,7 +279,7 @@ export function SettingsPage(): ReactElement | null {
                 { found: found.length, total: all.length },
               )}
             </p>
-            <div className="panel" data-part="panel">
+            <div className={factsPanel()} data-part="panel">
               {found.slice(0, 40).map((setting) => (
                 <SettingRow
                   key={`${setting.f}:${setting.c}`}
@@ -296,24 +299,24 @@ export function SettingsPage(): ReactElement | null {
     <>
       <SearchField />
       {SETTINGS_STATE.readOnly ? (
-        <div className="loaderr" data-part="load-error">
+        <div className={loadError()} data-part="load-error">
           <b>{t("screens.settings.readOnlyLead")}</b>
           {t("screens.settings.readOnlyRest")}
         </div>
       ) : null}
       {SETTINGS_STATE.redemarrage ? (
-        <div className="loaderr" data-part="load-error">
+        <div className={loadError()} data-part="load-error">
           <b>{t("screens.settings.restartLead")}</b>{" "}
           {changedFiles().join(", ") ||
             t("screens.settings.restartSomeSettings")}
           {t("screens.settings.restartRest")}{" "}
-          <button data-restart="1">
+          <button className={loadErrorAction()} data-restart="1">
             {t("screens.settings.restartNow")}
           </button>
         </div>
       ) : null}
       {SETTINGS.map((topic) => (
-        <button className="topic" data-part="topic" data-topic={topic.id} key={topic.id}>
+        <button className={topicRow()} data-part="topic" data-topic={topic.id} key={topic.id}>
           <span style={{ minWidth: 0, flex: 1 }}>
             <span className="rt" data-part="topic/title">{topic.t}</span>
             <span className="rs" data-part="topic/subtitle">{topic.s}</span>
@@ -321,7 +324,7 @@ export function SettingsPage(): ReactElement | null {
           <span className="rn" data-part="topic/count">{topic.r.length}</span>
         </button>
       ))}
-      <button className="topic" data-part="topic" data-topic="secrets">
+      <button className={topicRow()} data-part="topic" data-topic="secrets">
         <span style={{ minWidth: 0, flex: 1 }}>
           <span className="rt" data-part="topic/title">{t("screens.settings.secretsTitle")}</span>
           <span className="rs" data-part="topic/subtitle">
@@ -330,7 +333,7 @@ export function SettingsPage(): ReactElement | null {
         </span>
         <span className="rn" data-part="topic/count">{SECRETS.length}</span>
       </button>
-      <button className="topic" data-part="topic" data-profile="global">
+      <button className={topicRow()} data-part="topic" data-profile="global">
         <span style={{ minWidth: 0, flex: 1 }}>
           <span className="rt" data-part="topic/title">{t("screens.settings.rankingTitle")}</span>
           <span className="rs" data-part="topic/subtitle">

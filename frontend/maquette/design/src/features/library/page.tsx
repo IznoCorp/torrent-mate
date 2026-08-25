@@ -24,6 +24,7 @@ import type { ReactElement } from "react";
 import { Icon } from "../../ui/icon";
 import { useLibraryReference, type IncompleteShow, type LibraryRow } from "../../features/library/reference";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
+import { body, countLine, countLineAction, emptyNote, endMark, filterPill, filterPillCount, filterZone, loadError, loadErrorAction, loadFooter, pillBar, pillScroll, searchClear, searchField, searchInput, section, segment, segmentCount, segmentTab, statusDot, viewSwitch, viewSwitchButton, viewSwitchWrap, viewTabs } from "../../ui/variants";
 
 // The three lenses, in the order the tab bar draws them. The count on
 // « Incomplets » is the drawing's own, exactly as the legacy hard-coded it.
@@ -45,25 +46,27 @@ function LibraryHead(): ReactElement {
   ];
   return (
     <>
-      <div className="viewtabs" data-region="library/tabs">
-        <div className="seg" data-part="segment" role="tablist">
+      <div className={viewTabs()} data-region="library/tabs">
+        <div className={segment()} data-part="segment" role="tablist">
           {lenses.map((lens) => (
             <button
               key={lens.id}
-              role="tab"
+              className={segmentTab()}
+            role="tab"
               aria-selected={state.libLens === lens.id}
               data-lens={lens.id}
             >
               {lens.label}
-              {lens.count ? <span className="n" data-part="segment/count">{lens.count}</span> : null}
+              {lens.count ? <span className={segmentCount()} data-part="segment/count">{lens.count}</span> : null}
             </button>
           ))}
         </div>
       </div>
-      <div className="filters" data-region="library/filters">
-        <div className="search">
+      <div className={filterZone()} data-region="library/filters">
+        <div className={searchField()}>
           <Icon paths={icons.search} />
           <input
+            className={searchInput()}
             // UNCONTROLLED, and NOT keyed by the query. The legacy rebuilt this
             // node on every draw and then put the caret back by hand; React
             // keeps the node, so the dance is unnecessary — and keying it by
@@ -112,7 +115,7 @@ function LibraryHead(): ReactElement {
           />
           {state.q ? (
             <button
-              className="searchclear"
+              className={searchClear()}
               data-clearq="lib"
               aria-label={t("screens.library.clearLabel")}
             >
@@ -120,26 +123,27 @@ function LibraryHead(): ReactElement {
             </button>
           ) : null}
         </div>
-        <div className="pillbar">
-          <div className="pillscroll" data-part="pill/list">
+        <div className={pillBar()}>
+          <div className={pillScroll()} data-part="pill/list">
             {state.libLens === "cat"
               ? CATS.map((category) => (
                   <button
                     key={category.id}
-                    className="pill"
+                    className={filterPill()}
                     data-part="pill"
                     aria-pressed={state.libCat === category.id}
                     data-cat={category.id}
                   >
                     {category.l}
-                    <span className="c">{category.c}</span>
+                    <span className={filterPillCount()}>{category.c}</span>
                   </button>
                 ))
               : null}
           </div>
-          <div className="vswwrap">
-            <div className="vsw" data-part="view/switch">
+          <div className={viewSwitchWrap()}>
+            <div className={viewSwitch()} data-part="view/switch">
               <button
+                className={viewSwitchButton()}
                 aria-pressed={state.libMode === "list"}
                 data-lmode="list"
                 aria-label={t("screens.library.listLabel")}
@@ -147,6 +151,7 @@ function LibraryHead(): ReactElement {
                 <Icon paths={icons.list} />
               </button>
               <button
+                className={viewSwitchButton()}
                 aria-pressed={state.libMode === "grid"}
                 data-lmode="grid"
                 aria-label={t("screens.library.gridLabel")}
@@ -213,7 +218,7 @@ function EmptyLibrary(): ReactElement {
   const filter = category && category.of ? category.l.toLowerCase() : null;
   if ((state.q as string).trim() !== "") {
     return (
-      <div className="empty" data-part="empty-state">
+      <div className={emptyNote()} data-part="empty-state">
         <b>
           {t("screens.library.emptySearchLead", { query: state.q as string })}
           {filter
@@ -237,7 +242,7 @@ function EmptyLibrary(): ReactElement {
     );
   }
   return (
-    <div className="empty" data-part="empty-state">
+    <div className={emptyNote()} data-part="empty-state">
       <b>
         {t("screens.library.emptyCategoryLead", {
           category: filter ?? t("screens.library.emptyCategoryFallback"),
@@ -352,7 +357,7 @@ function LibraryList(): ReactElement {
   let items: ReactElement;
   if (state.phase === "loading") {
     items = (
-      <div id="libitems" className={grid ? "grid" : "sec"} data-part={grid ? "grid" : "section"}>
+      <div id="libitems" className={grid ? "gallery" : "sec"} data-part={grid ? "grid" : "section"}>
         {Array.from({ length: grid ? 9 : 5 }, (_, index) => (
           <div key={index} className={grid ? "sk tile" : "sk skcard"} data-skeleton="" data-part={grid ? "tile" : undefined} />
         ))}
@@ -362,7 +367,7 @@ function LibraryList(): ReactElement {
     items = (
       <div
         id="libitems"
-        className={grid ? "grid" : "sec"} data-part={grid ? "grid" : "section"}
+        className={grid ? "gallery" : "sec"} data-part={grid ? "grid" : "section"}
         dangerouslySetInnerHTML={{
           __html: `<div class="surferr" data-part="surface-error" role="alert">${surfErrInner(t("screens.library.errorSubject"))}</div>`,
         }}
@@ -370,7 +375,7 @@ function LibraryList(): ReactElement {
     );
   } else if (rows.length === 0) {
     items = (
-      <div id="libitems" className={grid ? "grid" : "sec"} data-part={grid ? "grid" : "section"}>
+      <div id="libitems" className={grid ? "gallery" : "sec"} data-part={grid ? "grid" : "section"}>
         <EmptyLibrary />
       </div>
     );
@@ -385,7 +390,7 @@ function LibraryList(): ReactElement {
       <div
         key={version}
         id="libitems"
-        className={grid ? "grid" : "sec"} data-part={grid ? "grid" : "section"}
+        className={grid ? "gallery" : "sec"} data-part={grid ? "grid" : "section"}
         dangerouslySetInnerHTML={{
           __html: rows
             .slice(0, count)
@@ -410,13 +415,13 @@ function LibraryList(): ReactElement {
   {
     if (complete) {
       foot = (
-        <p className="endmark">
+        <p className={endMark()}>
           {t("screens.library.endMark", { count: libraryLoaded() })}
         </p>
       );
     } else if (state.libErr) {
       foot = (
-        <div className="loaderr" data-part="load-error">
+        <div className={loadError()} data-part="load-error">
           <b>{t("screens.library.loadErrorLead")}</b>
           {t("screens.library.loadErrorRest", { count })}
           {/* THE ONLY CONTROL ON A MIGRATED PAGE THAT IS NOT DELEGATED. Every
@@ -428,6 +433,7 @@ function LibraryList(): ReactElement {
               read this render's snapshot, where the error it had just cleared
               was still set. */}
           <button
+            className={loadErrorAction()}
             id="libretry"
             onClick={() => {
               writeUiState({ libErr: false });
@@ -440,13 +446,13 @@ function LibraryList(): ReactElement {
       );
     } else {
       foot = grid ? (
-        <div className="grid" data-part="grid">
+        <div className="gallery" data-part="grid">
           {Array.from({ length: 3 }, (_, index) => (
             <div key={index} className="sk tile" data-part="tile" data-skeleton="" />
           ))}
         </div>
       ) : (
-        <div className="sec" data-part="section">
+        <div className={section()} data-part="section">
           {Array.from({ length: 2 }, (_, index) => (
             <div key={index} className="sk row" data-skeleton="" />
           ))}
@@ -458,7 +464,7 @@ function LibraryList(): ReactElement {
   return (
     <>
       {items}
-      <div id="libload" className="loadfoot" ref={footRef}>
+      <div id="libload" className={loadFooter()} ref={footRef}>
         {foot}
       </div>
     </>
@@ -478,12 +484,12 @@ export function LibraryPage(): ReactElement | null {
     return (
       <>
         <LibraryHead />
-        <div className="countline" data-part="count-line" data-region="library/count-line">
-          <span className="pip warning" data-part="status-dot"></span>
+        <div className={countLine()} data-part="count-line" data-region="library/count-line">
+          <span className={statusDot({ tone: "warning" })} data-part="status-dot"></span>
           <span>{t("screens.library.incompleteTitle")}</span>
           <b style={{ marginLeft: "auto" }}>{INCOMPLETE_COUNT}</b>
         </div>
-        <div className="body" data-part="surface/body" data-region="library/body">
+        <div className={body()} data-part="surface/body" data-region="library/body">
           <div className="note" data-part="note">
             <b>{t("screens.library.incompleteNoteLead")}</b>
             {t("screens.library.incompleteNoteMiddle")}
@@ -494,7 +500,7 @@ export function LibraryPage(): ReactElement | null {
           </div>
           {state.libMode === "grid" ? (
             <div
-              className="grid" data-part="grid"
+              className="gallery" data-part="grid"
               dangerouslySetInnerHTML={{
                 __html: INCOMPLETE.map((show: IncompleteShow) =>
                   tileHTML(
@@ -509,7 +515,7 @@ export function LibraryPage(): ReactElement | null {
             />
           ) : (
             <div
-              className="sec" data-part="section"
+              className={section()} data-part="section"
               dangerouslySetInnerHTML={{
                 __html: INCOMPLETE.map((show: IncompleteShow) =>
                   cardHTML({
@@ -536,10 +542,10 @@ export function LibraryPage(): ReactElement | null {
     return (
       <>
         <LibraryHead />
-        <div className="countline" data-part="count-line" data-region="library/count-line">
+        <div className={countLine()} data-part="count-line" data-region="library/count-line">
           <span>{t("screens.library.recentTitle")}</span>
         </div>
-        <div className="body" data-part="surface/body" data-region="library/body">
+        <div className={body()} data-part="surface/body" data-region="library/body">
           <div className="note" data-part="note">
             <b>{t("screens.library.recentNoteLead")}</b>
             {t("screens.library.recentNoteMiddle")}
@@ -555,16 +561,16 @@ export function LibraryPage(): ReactElement | null {
   return (
     <>
       <LibraryHead />
-      <div className="countline" data-part="count-line" data-region="library/count-line">
+      <div className={countLine()} data-part="count-line" data-region="library/count-line">
         <CountLine />
-        <button className="linkbtn" data-selmode="1">
+        <button className={`${countLineAction()} linkbtn`} data-selmode="1">
           {t("screens.library.select")}
         </button>
-        <button style={{ marginLeft: 12 }} data-sort="1">
+        <button className={countLineAction()} style={{ marginLeft: 12 }} data-sort="1">
           <SortLabel />
         </button>
       </div>
-      <div className="body" data-part="surface/body" data-region="library/body">
+      <div className={body()} data-part="surface/body" data-region="library/body">
         <div className="note" data-part="note">
           <b>{t("screens.library.mediaNoteLead")}</b>
           {t("screens.library.mediaNoteMiddle")}

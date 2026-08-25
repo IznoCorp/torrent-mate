@@ -17,6 +17,8 @@
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useReleasesReference } from "../../features/releases/reference";
+import { actionButton, backAction, body, emptyNote, qualityHint, resultCount, screen, screenBar, scrollport } from "../../ui/variants";
+import { releaseName, releaseRow, releaseScore, releaseTags } from "../../features/releases/variants";
 
 // Same helper as `media.tsx`'s, `profile.tsx`'s and `add.tsx`'s, still not
 // shared: the extraction those files' comments call for is a follow-up of
@@ -50,14 +52,14 @@ export function ReleasesScreen() {
 
   return (
     <section
-      className="screen open"
+      className={`${screen()} open`}
       data-part="screen"
       data-open=""
       data-key={`releases:${title}`}
       aria-label={title}
     >
-      <div className="screenbar" data-part="screen/bar">
-        <button className="fback" data-part="screen/back" onClick={() => window.__bridge.back()}>
+      <div className={screenBar()} data-part="screen/bar">
+        <button className={backAction()} data-part="screen/back" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.releases.back")}
         </button>{" "}
@@ -65,31 +67,31 @@ export function ReleasesScreen() {
           style={{
             marginLeft: "auto",
             fontSize: "11px",
-            color: "var(--muted-foreground)",
+            color: "var(--color-muted-foreground)",
           }}
         >
           {baseTitle(title)}
         </span>
       </div>
-      <div className="port" data-part="viewport">
-        <div className="body" data-part="surface/body" data-region="screen-releases/body">
+      <div className={scrollport()} data-part="viewport">
+        <div className={body()} data-part="surface/body" data-region="screen-releases/body">
           <div className="note" data-part="note">
             <b>{t("screens.releases.noteTitle")}</b>{" "}
             {t("screens.releases.noteBeforePourquoi")}{" "}
             <em>{t("screens.releases.notePourquoi")}</em>{" "}
             {t("screens.releases.noteAfterPourquoi")}
           </div>
-          <p className="rescount" data-part="result/count" style={{ padding: 0 }}>
+          <p className={resultCount()} data-part="result/count" style={{ padding: 0 }}>
             <b>{RELEASES.length}</b> {t("screens.releases.rescount")}
           </p>
           {RELEASES.map((release, index) => (
             <article
-              className={`rel${index === 0 ? " best" : ""}`}
+              className={releaseRow({ best: index === 0 })}
               data-part="release"
               key={release.n}
             >
-              <span className="rn">{release.n}</span>{" "}
-              <span className="rt">
+              <span className={releaseName()}>{release.n}</span>{" "}
+              <span className={releaseTags()}>
                 <span
                   className={`chip ${
                     release.res === "2160p"
@@ -110,12 +112,12 @@ export function ReleasesScreen() {
                   {String(release.go).replace(".", ",")}{" "}
                   {t("screens.releases.goUnit")}
                 </span>{" "}
-                <span className="sc">
+                <span className={releaseScore()}>
                   {t("screens.releases.scoreLabel")} {release.sc}
                 </span>
               </span>{" "}
               {index === 0 ? (
-                <p className="qhint">{t("screens.releases.qhint")}</p>
+                <p className={qualityHint()}>{t("screens.releases.qhint")}</p>
               ) : (
                 ""
               )}
@@ -131,11 +133,11 @@ export function ReleasesScreen() {
               </button>
             </article>
           ))}
-          <div className="empty" data-part="empty-state">
+          <div className={emptyNote()} data-part="empty-state">
             <b>{t("screens.releases.emptyTitle")}</b>
             {t("screens.releases.emptyBody")}
             <button
-              className="cfoot"
+              className={`cfoot ${actionButton()}`}
               data-part="card/foot"
               style={{ marginTop: "10px" }}
               data-profile={title}

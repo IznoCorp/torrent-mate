@@ -21,6 +21,7 @@ import type { ReactElement } from "react";
 import { useSystemReference } from "../../features/system/reference";
 import { type Fact } from "../../lib/engine-drawing";
 import { useUiState } from "../../lib/store-access";
+import { crossReference, crossReferenceLink, section, sectionHeading, surfaceError, topicRow } from "../../ui/variants";
 
 export function SystemPage(): ReactElement | null {
   const state = useUiState();
@@ -48,14 +49,14 @@ export function SystemPage(): ReactElement | null {
     // wrapper appears where the legacy had none.
     return state.phase === "error" ? (
       <div
-        className="surferr" data-part="surface-error" role="alert"
+        className={surfaceError()} data-part="surface-error" role="alert"
         dangerouslySetInnerHTML={{
           __html: surfErrInner(t("screens.system.errorSubject")),
         }}
       />
     ) : (
       <div
-        className="sec" data-part="section"
+        className={section()} data-part="section"
         dangerouslySetInnerHTML={{ __html: skelCardsInner(3) }}
       />
     );
@@ -80,17 +81,17 @@ export function SystemPage(): ReactElement | null {
           {t("screens.system.faultRest")}
         </div>
       ) : null}
-      <h2 className="h2" data-part="heading">{t("screens.system.services")}</h2>
+      <h2 className={sectionHeading()} data-part="heading">{t("screens.system.services")}</h2>
       {facts(state.fault ? SERVICES_PANNE : SERVICES)}
 
-      <h2 className="h2" data-part="heading">{t("screens.system.schedulers")}</h2>
+      <h2 className={sectionHeading()} data-part="heading">{t("screens.system.schedulers")}</h2>
       <div className="note" data-part="note">
         <b>{t("screens.system.schedulerLead")}</b>
         {t("screens.system.schedulerRest")}
       </div>
       {facts(state.fault ? SCHEDULERS_DOWN : SCHEDULERS)}
 
-      <h2 className="h2" data-part="heading">{t("screens.system.runs")}</h2>
+      <h2 className={sectionHeading()} data-part="heading">{t("screens.system.runs")}</h2>
       {facts(
         EXECUTIONS.map((execution) => ({
           l: execution.q,
@@ -101,25 +102,25 @@ export function SystemPage(): ReactElement | null {
           s: execution.d + " · " + execution.r,
         })),
       )}
-      <button className="crossref" data-part="cross-reference" data-go="arr">
+      <button className={crossReference()} data-part="cross-reference" data-go="arr">
         {t("screens.system.toArrivals")}
-        <span>{t("screens.system.toArrivalsLink")}</span>
+        <span className={crossReferenceLink()}>{t("screens.system.toArrivalsLink")}</span>
       </button>
 
-      <h2 className="h2" data-part="heading">{t("screens.system.disks")}</h2>
+      <h2 className={sectionHeading()} data-part="heading">{t("screens.system.disks")}</h2>
       {facts(DISKS)}
 
-      <h2 className="h2" data-part="heading">{t("screens.system.index")}</h2>
+      <h2 className={sectionHeading()} data-part="heading">{t("screens.system.index")}</h2>
       {facts(INDEX)}
-      <button className="crossref" data-part="cross-reference" data-page="maint">
+      <button className={crossReference()} data-part="cross-reference" data-page="maint">
         {t("screens.system.toMaintenance")}
-        <span>{t("screens.system.toMaintenanceLink")}</span>
+        <span className={crossReferenceLink()}>{t("screens.system.toMaintenanceLink")}</span>
       </button>
 
-      <h2 className="h2" data-part="heading">{t("screens.system.dependencies")}</h2>
+      <h2 className={sectionHeading()} data-part="heading">{t("screens.system.dependencies")}</h2>
       {facts(DEPENDENCIES)}
 
-      <h2 className="h2" data-part="heading">{t("screens.system.codeErrors")}</h2>
+      <h2 className={sectionHeading()} data-part="heading">{t("screens.system.codeErrors")}</h2>
       {facts([
         {
           l: t("screens.system.errorsRaised"),
@@ -135,8 +136,8 @@ export function SystemPage(): ReactElement | null {
         { l: t("screens.system.errorsWhere"), v: "", s: ERRORS.where },
       ])}
 
-      <h2 className="h2" data-part="heading">{t("screens.system.settings")}</h2>
-      <button className="topic" data-part="topic" data-page="cfg" style={{ marginTop: 0 }}>
+      <h2 className={sectionHeading()} data-part="heading">{t("screens.system.settings")}</h2>
+      <button className={topicRow()} data-part="topic" data-page="cfg" style={{ marginTop: 0 }}>
         <span style={{ minWidth: 0, flex: 1 }}>
           <span className="rt" data-part="topic/title">{t("screens.system.settings")}</span>
           <span className="rs" data-part="topic/subtitle">{t("screens.system.settingsSubtitle")}</span>

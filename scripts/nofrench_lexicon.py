@@ -351,7 +351,13 @@ examined: dict[str, int] = {
     "path segments / repository": 0,
     "class names / python": 0,
     "class names / typescript": 0,
-    "declared CSS classes / fragment": 0,
+    # The prototype's classes were declared in one fragment and are declared in
+    # `src/styles/` now. ONE SCOPE COVERS BOTH, and it seeds at zero like every
+    # other counter: this entry stood at 1 for a while, which meant the vacuity
+    # check — the entire purpose of this table — could never fire on it. A
+    # counter that cannot reach zero is a counter that says nothing, and it
+    # printed 241 for 240 while it said so.
+    "declared CSS classes / maquette": 0,
     "declared CSS classes / app": 0,
     "unread javascript / shell": 0,
     "name words / shell": 0,

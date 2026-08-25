@@ -50,6 +50,7 @@ import fr from "../../i18n/fr.json";
 import { useArrivalsReference, type PendingDecision, type SettledDecision } from "../../features/arrivals/reference";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useStoreContent } from "../../lib/store-access";
+import { actionButton, backAction, body, emptyNote, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, sheetActions } from "../../ui/variants";
 
 // Same helper as `media.tsx`'s, `profile.tsx`'s, `add.tsx`'s and
 // `releases.tsx`'s, still not shared: the extraction those files' comments
@@ -136,7 +137,7 @@ function ReleaseCard({
           )}
         </span>
       </div>
-      <button className="cfoot solid" data-part="card/foot" data-solid="" data-resolve={title || undefined}>
+      <button className={`cfoot solid ${actionButton()}`} data-part="card/foot" data-solid="" data-resolve={title || undefined}>
         {t("screens.resolution.pickThis")}
       </button>
     </div>
@@ -234,7 +235,7 @@ function Candidates({ decision }: { decision: PendingDecision }) {
   return (
     <>
       {tied > 1 ? (
-        <p className="rulenote">
+        <p className={ruleNote()}>
           {words[tied] ?? String(tied)} {t("screens.resolution.tieNote")}
         </p>
       ) : (
@@ -313,20 +314,20 @@ export function ResolutionScreen() {
   // screen as the legacy's own last resort, « élément inconnu ».
   return (
     <section
-      className="screen open"
+      className={`${screen()} open`}
       data-part="screen"
       data-open=""
       data-key={`resolution:${folder}`}
       aria-label={folder}
     >
-      <div className="screenbar" data-part="screen/bar">
-        <button className="fback" data-part="screen/back" onClick={() => window.__bridge.back()}>
+      <div className={screenBar()} data-part="screen/bar">
+        <button className={backAction()} data-part="screen/back" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.resolution.back")}
         </button>
       </div>
-      <div className="port" data-part="viewport">
-        <div className="body" data-part="surface/body" data-region="screen-resolution/body">
+      <div className={scrollport()} data-part="viewport">
+        <div className={body()} data-part="surface/body" data-region="screen-resolution/body">
           <div className="note" data-part="note">
             <b>{t("screens.resolution.noteTitle")}</b>{" "}
             {t("screens.resolution.noteOn")} <code>/medias</code>{" "}
@@ -334,10 +335,10 @@ export function ResolutionScreen() {
             <em>{t("screens.resolution.noteUnder")}</em>{" "}
             {t("screens.resolution.noteRest")}
           </div>
-          <h2 className="h2" data-part="heading">
+          <h2 className={sectionHeading()} data-part="heading">
             <code>{folder}</code>
           </h2>
-          <p className="qhint">
+          <p className={qualityHint()}>
             {decision
               ? (REASON_DETAIL[decision.reason] ?? "")
               : t("screens.resolution.noMediaIdentified")}
@@ -365,13 +366,13 @@ export function ResolutionScreen() {
           {decision ? (
             <Candidates decision={decision} />
           ) : (
-            <p className="rulenote">{t("screens.resolution.noCandidates")}</p>
+            <p className={ruleNote()}>{t("screens.resolution.noCandidates")}</p>
           )}
-          <div className="empty" data-part="empty-state">
+          <div className={emptyNote()} data-part="empty-state">
             <b>{t("screens.resolution.emptyTitle")}</b>
             {t("screens.resolution.emptyBody")}
             <button
-              className="cfoot"
+              className={`cfoot ${actionButton()}`}
               data-part="card/foot"
               style={{ marginTop: "10px" }}
               data-manual={folder || undefined}
@@ -379,13 +380,13 @@ export function ResolutionScreen() {
               {t("screens.resolution.searchManually")}
             </button>
           </div>
-          <div className="sheetacts secondary" data-part="sheet/actions">
-            <button className="sact" data-part="sheet/action" data-leave={folder || undefined}>
+          <div className={sheetActions({ secondary: true })} data-part="sheet/actions">
+            <button className={`sact ${actionButton()}`} data-part="sheet/action" data-leave={folder || undefined}>
               <Icon paths={icons.check} />
               {t("screens.resolution.leaveAsIs")}
             </button>
             {pending.length > 1 ? (
-              <button className="sact" data-part="sheet/action" data-next={folder}>
+              <button className={`sact ${actionButton()}`} data-part="sheet/action" data-next={folder}>
                 <Icon paths={icons.right} />
                 {t("screens.resolution.next")}
               </button>
@@ -399,10 +400,10 @@ export function ResolutionScreen() {
           </div>
           {DECISIONS_REGLEES.length > 0 ? (
             <>
-              <h2 className="h2" data-part="heading" style={{ marginTop: "18px" }}>
+              <h2 className={sectionHeading()} data-part="heading" style={{ marginTop: "18px" }}>
                 {t("screens.resolution.settledHeading")}
               </h2>
-              <p className="qhint">{t("screens.resolution.settledHint")}</p>
+              <p className={qualityHint()}>{t("screens.resolution.settledHint")}</p>
               {DECISIONS_REGLEES.slice(0, 6).map((settled) => (
                 <DecisionCard key={settled.d} decision={settled} />
               ))}

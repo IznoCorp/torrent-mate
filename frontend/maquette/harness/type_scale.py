@@ -99,14 +99,22 @@ def region_selectors():
 # so a step added or renamed joins the rule on the day it is written.
 READ_STEPS = """() => {
   const names = new Set();
-  for (const sheet of document.styleSheets) {
-    let rules;
-    try { rules = sheet.cssRules; } catch (e) { continue; }
+  // GROUPING RULES ARE WALKED, not skipped. Since L07 the scale is declared
+  // inside `@theme`, which the browser sees as `@layer theme { :root { … } }`
+  // — a rule with no `.style` of its own and its declarations one level down.
+  // Reading only the top level found ZERO steps, and a rule that finds no
+  // scale then judges every rendered size to be off it: 8 220 elements at
+  // 13px, 12px and 11px, each of which is a step.
+  const walk = (rules) => {
     for (const rule of rules) {
+      if (rule.cssRules) walk(rule.cssRules);
       if (!rule.style) continue;
       for (const property of rule.style)
         if (property.startsWith('--text-')) names.add(property);
     }
+  };
+  for (const sheet of document.styleSheets) {
+    try { walk(sheet.cssRules); } catch (e) { continue; }
   }
   const root = getComputedStyle(document.documentElement);
   const steps = {};

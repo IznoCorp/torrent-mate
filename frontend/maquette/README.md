@@ -31,8 +31,17 @@
 > have no subject and are being retired. The measured inventory of what is done and what remains
 > lives in `IMPLEMENTATION.md` § THE OBJECTIVE.
 
-**`design/refonte.html` is the design reference for the TorrentMate web UI. Any change to the
+**`design/` is the design reference for the TorrentMate web UI. Any change to the
 design starts here, not in `frontend/src`.**
+
+**Where inside `design/`, since L07 (2026-08-25).** This line used to name `design/refonte.html`,
+and that file no longer carries a single style rule. The reference is now the TOKENS and the
+COMPONENT CATALOGUE — `src/styles/theme.css` for the scale and the palette, `src/styles/base.css`
+for the base layer, and the `variants.ts` of `src/ui/` and of each surface, where every drawing
+decision is written beside the class that applies it. `src/styles/legacy.css` is the dated residue
+the dying engine still consumes; `src/styles/harness.css` is the phone frame — it is in the maquette's OWN build, because that is
+where the oracle measures, and in no production build; it dies at switchover;
+`refonte.html` is now the conversion ledger alone, and dies with the residue at L13.
 
 `design/` is the served root — everything a browser reaches lives there (the prototype, images,
 PWA assets). The `harness/`, `serve.py`, and `regions.json` siblings are never served.
@@ -246,8 +255,10 @@ is the parity methodology and is the part that matters most.
 
 This applies to every future evolution of the interface, not only to the initial rebuild:
 
-1. **A design change starts in `design/refonte.html`.** Adjust it there, check it against the
-   harness, then derive the code.
+1. **A design change starts in the surface's own `variants.ts`, or in `src/styles/theme.css`
+   when it is the vocabulary that moves.** Adjust it there, check it against the harness, then
+   derive the code. (Until L07 this line read « in `design/refonte.html` », which held the
+   stylesheet; it holds none now.)
 2. **If a region cannot be built as drawn, amend the prototype and record why.** The code
    never diverges "temporarily" — a temporary divergence is how an interface turns into a
    patchwork.

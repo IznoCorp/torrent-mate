@@ -110,12 +110,17 @@ class TestWhatIsRefused:
 
 
 def application_css() -> str:
-    """Returns BLOCK 2 of the maquette — the application's own stylesheet."""
-    whole = guard.FRAGMENT.read_text(encoding="utf-8")
-    start = whole.find("<style")
-    end = whole.find("</style>", start)
-    marker = whole.find(guard.BLOCK_2, start)
-    return whole[whole.rfind("/*", start, marker) : end]
+    """Returns every stylesheet the application ships, as the guard reads it.
+
+    IT USED TO MEAN BLOCK 2 ALONE, and that stopped being the application's CSS
+    when L07 converted it: the fragment holds no rule at all now, and what
+    ships is the token layer, the base layer, the residue and whatever is left
+    of the fragment. Reading only the fragment made the sibling test — « a
+    scope that empties would make `no violation` mean nothing » — fire on a
+    scope that had emptied ON PURPOSE, which is the test doing its job and the
+    helper being out of date.
+    """
+    return guard.application_stylesheet() or ""
 
 
 class TestTheSheetItself:

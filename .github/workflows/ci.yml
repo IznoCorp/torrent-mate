@@ -141,6 +141,20 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y aspell aspell-en aspell-fr
       - run: python scripts/check-no-french.py
       - run: python3 scripts/check-css-tokens.py
+      # Load-bearing CSS: the declarations the compositor reads. It runs beside the
+      # token guard because it answers the same question from the other side — the
+      # token guard asks whether a value is on the scale, this one asks whether a
+      # declaration is still there at all.
+      - run: python3 scripts/check-compositor-css.py
+      # The Tailwind scan, held from BOTH ends. It needs a build, and the
+      # maquette's build is where the generated utilities can be read.
+      - run: cd frontend/maquette/design && npm ci && npm run build
+      - run: python3 scripts/check-tailwind-confinement.py
+      # The residue D-L07-5 let survive the conversion may only SHRINK.
+      # It is legitimate CSS in a file whose purpose is to hold
+      # legitimate CSS, so no other guard can tell a new hand-written
+      # rule from the ones already there — only its own ceiling can.
+      - run: python3 scripts/check-legacy-css-residue.py
       - run: python3 scripts/check-markup-contracts.py
       - run: python3 scripts/check-frontend-boundaries.py
       - run: python3 frontend/maquette/oracle.py --contracts

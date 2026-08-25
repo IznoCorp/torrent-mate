@@ -78,7 +78,7 @@ async def announced():
       const el = document.querySelector('[data-part="episode/popover"]');
       const cs = getComputedStyle(el);
       const brand = getComputedStyle(document.documentElement)
-        .getPropertyValue('--primary').trim();
+        .getPropertyValue('--color-primary').trim();
       const probe = document.createElement('span');
       probe.style.color = brand; document.body.appendChild(probe);
       const expected = getComputedStyle(probe).color;

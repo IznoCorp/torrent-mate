@@ -600,3 +600,169 @@ def test_an_apostrophe_in_html_is_text_not_a_quote(tmp_path: Path) -> None:
     body = source.read_text(encoding="utf-8")
     assert 'data-s="pending"' in body, "the attribute past an apostrophe was skipped"
     assert "L'ajout" in body and "C'est" in body, "the prose was rewritten"
+
+
+# ─── The custom-property mode ────────────────────────────────────────────
+#
+# A CSS custom property is not an identifier any parser here sees, and the
+# word-boundary rule cannot reach one: `\b` before `--card` needs a word
+# character to its left and `-` is not one. Asked to move `--card`, the tool
+# renamed ZERO files and said so as « 0 file(s) touched » — a silent no-op
+# wearing the shape of success. These hold the mode that closes it, and its
+# boundary rule is the FORM rather than the word.
+
+
+def _run_custom_properties(tmp_path, files, mapping):
+    """Runs the tool in custom-property mode over a scratch tree.
+
+    Args:
+        tmp_path: The scratch directory.
+        files: Relative path → contents.
+        mapping: Old property name → new one.
+
+    Returns:
+        The tree's contents afterwards, keyed the same way.
+    """
+    for name, body in files.items():
+        target = tmp_path / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(body, encoding="utf-8")
+    table = tmp_path / "map.json"
+    table.write_text(json.dumps(mapping), encoding="utf-8")
+    subprocess.run(
+        [sys.executable, str(SCRIPT), str(table), f"--root={tmp_path}", "--custom-properties"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return {name: (tmp_path / name).read_text(encoding="utf-8") for name in files}
+
+
+def test_custom_property_moves_its_declaration_and_its_uses(tmp_path):
+    """The two CSS forms move: the declaration, and every `var()` that reads it."""
+    after = _run_custom_properties(
+        tmp_path,
+        {"a.css": ":root { --card: red; }\n.x { background: var(--card); }\n.y { color: var( --card , #fff); }\n"},
+        {"--card": "--color-card"},
+    )
+    assert "--color-card: red" in after["a.css"]
+    assert "var(--color-card)" in after["a.css"]
+    assert "var( --color-card , #fff)" in after["a.css"]
+    assert "--card:" not in after["a.css"]
+
+
+def test_custom_property_never_matches_a_longer_name(tmp_path):
+    """`--card` must not reach inside `--card-x`, which is a different token."""
+    after = _run_custom_properties(
+        tmp_path,
+        {"a.css": ":root { --card: red; --card-x: blue; }\n.x { border-color: var(--card-x); }\n"},
+        {"--card": "--color-card"},
+    )
+    assert "--card-x: blue" in after["a.css"]
+    assert "var(--card-x)" in after["a.css"]
+    # CONTROL: the two asserts above are satisfied by a mode that moves NOTHING,
+    # which is the exact defect this mode was written to close. The rename has
+    # to have happened for the boundary to be worth measuring.
+    assert "--color-card: red" in after["a.css"], "CONTROL: nothing was renamed at all"
+
+
+def test_custom_property_leaves_prose_alone(tmp_path):
+    """A name inside a comment or a sentence is prose, and prose does not move.
+
+    This is the guarantee the identifier mode buys with a parser and this mode
+    buys with the form: a property moves only where it is BEING a property.
+    """
+    after = _run_custom_properties(
+        tmp_path,
+        {
+            "a.css": "/* the --card token is described here */\n:root { --card: red; }\n",
+            "b.ts": 'const label = "the --card is red";\n// --card in a comment\n',
+        },
+        {"--card": "--color-card"},
+    )
+    assert "/* the --card token is described here */" in after["a.css"]
+    assert "--color-card: red" in after["a.css"]
+    assert '"the --card is red"' in after["b.ts"]
+    assert "// --card in a comment" in after["b.ts"]
+
+
+def test_custom_property_moves_a_whole_quoted_name(tmp_path):
+    """`setProperty("--x")` and `getPropertyValue("--x")` are how code reaches one."""
+    after = _run_custom_properties(
+        tmp_path,
+        {"b.ts": "el.style.setProperty(\"--card\", v);\nconst read = s.getPropertyValue('--card');\n"},
+        {"--card": "--color-card"},
+    )
+    assert 'setProperty("--color-card", v)' in after["b.ts"]
+    assert "getPropertyValue('--color-card')" in after["b.ts"]
+
+
+def test_custom_property_does_not_rewrite_its_own_mapping_file(tmp_path):
+    """The table's keys are whole quoted strings equal to the names it moves.
+
+    Left unguarded, the tool rewrites the instruction it is executing — and a
+    second run of the same command is then a no-op that looks like success.
+    """
+    files = {"a.css": ":root { --card: red; }\n"}
+    _run_custom_properties(tmp_path, files, {"--card": "--color-card"})
+    assert json.loads((tmp_path / "map.json").read_text(encoding="utf-8")) == {"--card": "--color-card"}
+
+
+# --- A no-op is not a result --------------------------------------------------
+
+
+def test_a_mapping_that_matches_nothing_is_refused(tmp_path):
+    """« 0 file(s) touched » was the success line of a tool that could not match.
+
+    A word boundary cannot precede `--`, so every custom-property rename was a
+    silent no-op wearing the shape of a result — believed twice before anyone
+    read the diff. The mode that closed it did not close this: a typo in a
+    source name produces the same line. The subject being absent from the tree
+    is now a refusal.
+    """
+    tree(tmp_path, "a.css", ":root { --card: red; }\n")
+    result = run(tmp_path, {"--kard": "--color-card"}, "--custom-properties")
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    message = result.stdout + result.stderr
+    assert "--kard" in message, "the refusal must name what it looked for"
+    assert "1 file(s) read" in message, "and say how much it read before saying so"
+
+
+def test_a_rename_already_landed_is_not_refused(tmp_path):
+    """Idempotence survives the refusal above, and that is the line it walks.
+
+    Re-running a completed rename touches nothing, and the tool is held to
+    that being harmless. What separates it from the case above is the TARGET
+    name being present: the subject is in the tree, it has simply already
+    moved.
+    """
+    tree(tmp_path, "a.css", ":root { --color-card: red; }\n.x { color: var(--color-card); }\n")
+    result = run(tmp_path, {"--card": "--color-card"}, "--custom-properties")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "0 file(s) touched" in result.stdout
+
+
+def test_a_corpus_that_was_entirely_excluded_says_so(tmp_path):
+    """Reading nothing is reported as reading nothing, not as a clean rename.
+
+    A `--root` pointing at a tree the exclusions swallow whole is the other way
+    to touch no file, and it is neither a refusal nor a success — it is a
+    measurement of zero, and it says so in its own words.
+    """
+    root = tmp_path / "tree" / "i18n"
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "fr.js").write_text('export const fr = {a: "waiting"};\n', encoding="utf-8")
+    table = tmp_path / "map.json"
+    table.write_text(json.dumps({"waiting": "pending"}), encoding="utf-8")
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), str(table), f"--root={root}", "--values"],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "0 file(s) read" in result.stdout
