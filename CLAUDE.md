@@ -287,6 +287,11 @@ The claim procedure exists to keep this session and the daemon off each other's 
 a bookkeeping ritual. Work that can be carried out in the session at hand is simply carried out
 — inventing and claiming a card for it is counterproductive.
 
+**A worktree is ALWAYS removed once its PR is merged** (operator, 2026-08-24). The local branch
+is deleted, then `ExitWorktree` with `action: "remove"` (with `discard_changes: true` for the
+superseded pre-merge commits) — a merged PR leaves no workspace behind. A worktree is a PR's
+scratch space, not its memorial.
+
 ### Move Rules (dispatch)
 
 - **Movies** (category IDs: `movies`, `movies_animation`, `movies_documentary`, `standup`, `theater`): if a folder with the same name already exists on a disk, **replace it** with the new version from the staging area.
