@@ -1894,6 +1894,16 @@ border-radius: var(--radius-3);
 
 
 
+/* ── Panel of facts ──────────────────────────────────────────────── */
+/* The ENGINE emits `.panel` too. The key/value ROWS inside it are the
+   components' and are typed variants; this is the frame alone. */
+.panel {
+border: 1px solid var(--color-border);
+background: var(--color-card);
+border-radius: var(--radius-3);
+padding: var(--spacing-1) var(--spacing-5);
+}
+
 /* ── LAST, AND THE ORDER IS THE POINT ────────────────────────────────
    THE ACTION-BUTTON SYSTEM COMES AFTER EVERYTHING IT OVERRIDES. In the
    prototype's stylesheet it sat a thousand lines below the card, so the

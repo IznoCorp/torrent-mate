@@ -12,7 +12,7 @@ import { useTranslation } from "react-i18next";
 import { Icon } from "../../ui/icon";
 import { useReleasesReference, type Release, type Resolution } from "../../features/releases/reference";
 import { useUiState, writeUiState } from "../../lib/store-access";
-import { actionButton, backAction, body, screen, screenBar, settingRow, toggleSwitch } from "../../ui/variants";
+import { actionButton, backAction, body, factsPanel, keyValueRow, screen, screenBar, sectionHeading, settingRow, toggleSwitch } from "../../ui/variants";
 import { qualityGroup } from "../../features/releases/variants";
 
 // The field names are the legacy state's own — `state.profil` is written and
@@ -125,7 +125,7 @@ export function QualityScreen() {
           </p>
 
           <div className={qualityGroup()}>
-            <h2 className="h2" data-part="heading">{t("screens.profile.minResolution")}</h2>
+            <h2 className={sectionHeading()} data-part="heading">{t("screens.profile.minResolution")}</h2>
             <p className="qhint">{t("screens.profile.minResolutionHint")}</p>
             <p className="optkind">{t("screens.profile.singleChoice")}</p>
             <div
@@ -175,7 +175,7 @@ export function QualityScreen() {
           </div>
 
           <div className={qualityGroup()}>
-            <h2 className="h2" data-part="heading">{t("screens.profile.audioTracks")}</h2>
+            <h2 className={sectionHeading()} data-part="heading">{t("screens.profile.audioTracks")}</h2>
             <p className="qhint">
               {t("screens.profile.audioHintBefore")}{" "}
               <b>{t("screens.profile.audioHintEmphasis")}</b>{" "}
@@ -209,9 +209,9 @@ export function QualityScreen() {
           </div>
 
           <div className={qualityGroup()}>
-            <h2 className="h2" data-part="heading">{t("screens.profile.twoLocks")}</h2>
-            <div className="panel" data-part="panel">
-              <div className={`kv ${settingRow()}`} data-part="key-value">
+            <h2 className={sectionHeading()} data-part="heading">{t("screens.profile.twoLocks")}</h2>
+            <div className={factsPanel()} data-part="panel">
+              <div className={`${keyValueRow()} ${settingRow()}`} data-part="key-value">
                 <span>
                   {t("screens.profile.exclude3d")}
                   <br />
@@ -229,7 +229,7 @@ export function QualityScreen() {
                   onClick={() => toggleLock("exclude_3d")}
                 />
               </div>
-              <div className={`kv ${settingRow()}`} data-part="key-value">
+              <div className={`${keyValueRow()} ${settingRow()}`} data-part="key-value">
                 <span>
                   {t("screens.profile.requireKnownResolution")}
                   <br />
@@ -250,14 +250,14 @@ export function QualityScreen() {
             </div>
           </div>
 
-          <div className="panel" data-part="panel">
-            <div className="kv" data-part="key-value">
+          <div className={factsPanel()} data-part="panel">
+            <div className={keyValueRow()} data-part="key-value">
               <span>{t("screens.profile.candidatesKept")}</span>
               <span>
                 {kept} {t("screens.profile.outOf")} {RELEASES.length}
               </span>
             </div>
-            <div className="kv" data-part="key-value">
+            <div className={keyValueRow()} data-part="key-value">
               <span>{t("screens.profile.scope")}</span>
               <span>
                 {title

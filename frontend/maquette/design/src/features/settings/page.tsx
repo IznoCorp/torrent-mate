@@ -32,7 +32,7 @@ import { Icon } from "../../ui/icon";
 import { useSettingsReference, type Setting, type SettingsTopic } from "../../features/settings/reference";
 import { useStoreContent } from "../../lib/store-access";
 import { settingLabel } from "../../features/settings/labels";
-import { emptyNote, searchClear, searchField, searchInput } from "../../ui/variants";
+import { emptyNote, factsPanel, searchClear, searchField, searchInput, sectionHeading } from "../../ui/variants";
 
 // The pending-edit marker and the row's own identity live on the same element:
 // the row IS the control the delegation reads.
@@ -150,14 +150,14 @@ function TopicView({ topic }: { topic: SettingsTopic }): ReactElement {
   }
   return (
     <>
-      <h2 className="h2" data-part="heading">{topic.t}</h2>
+      <h2 className={sectionHeading()} data-part="heading">{topic.t}</h2>
       <p className="qhint">{topic.s}</p>
       {[...byFile.entries()].map(([file, settings]) => (
         <Fragment key={file}>
-          <h2 className="h2" data-part="heading" style={{ marginTop: 16 }}>
+          <h2 className={sectionHeading()} data-part="heading" style={{ marginTop: 16 }}>
             <code>{file}.json5</code>
           </h2>
-          <div className="panel" data-part="panel">
+          <div className={factsPanel()} data-part="panel">
             {settings.map((setting) => (
               <SettingRow key={setting.c} setting={setting} />
             ))}
@@ -187,9 +187,9 @@ export function SettingsPage(): ReactElement | null {
   if (SETTINGS_STATE.topic === "secrets") {
     return (
       <>
-        <h2 className="h2" data-part="heading">{t("screens.settings.secretsTitle")}</h2>
+        <h2 className={sectionHeading()} data-part="heading">{t("screens.settings.secretsTitle")}</h2>
         <p className="qhint">{t("screens.settings.secretsHint")}</p>
-        <div className="panel" data-part="panel">
+        <div className={factsPanel()} data-part="panel">
           {SECRETS.map((secret) => (
             <button
               className="settingrow"
@@ -278,7 +278,7 @@ export function SettingsPage(): ReactElement | null {
                 { found: found.length, total: all.length },
               )}
             </p>
-            <div className="panel" data-part="panel">
+            <div className={factsPanel()} data-part="panel">
               {found.slice(0, 40).map((setting) => (
                 <SettingRow
                   key={`${setting.f}:${setting.c}`}

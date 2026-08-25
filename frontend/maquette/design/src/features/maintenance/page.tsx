@@ -21,7 +21,7 @@ import type { ReactElement } from "react";
 import { useMaintenanceReference } from "../../features/maintenance/reference";
 import { type Fact } from "../../lib/engine-drawing";
 import { useUiState } from "../../lib/store-access";
-import { crossReference, section, surfaceError } from "../../ui/variants";
+import { crossReference, section, sectionHeading, surfaceError } from "../../ui/variants";
 
 export function MaintenancePage(): ReactElement | null {
   const state = useUiState();
@@ -68,7 +68,7 @@ export function MaintenancePage(): ReactElement | null {
         <button className={crossReference()} data-part="cross-reference" data-maintopic="">
           {t("screens.maintenance.allCommands")}
         </button>
-        <h2 className="h2" data-part="heading">{topic.t}</h2>
+        <h2 className={sectionHeading()} data-part="heading">{topic.t}</h2>
         <div className="note" data-part="note">{topic.s}</div>
         {facts(
           actions.map((action) => ({
@@ -123,7 +123,7 @@ export function MaintenancePage(): ReactElement | null {
         );
       })}
 
-      <h2 className="h2" data-part="heading">{t("screens.maintenance.journal")}</h2>
+      <h2 className={sectionHeading()} data-part="heading">{t("screens.maintenance.journal")}</h2>
       <div className="note" data-part="note">
         {t("screens.maintenance.journalNote", { total: JOURNAL.total })}
       </div>

@@ -29,7 +29,7 @@ import {
   type MediaSheet,
 } from "../../features/media/reference";
 import { useStoreContent, useWorld } from "../../lib/store-access";
-import { actionButton, backAction, body as bodyClass, screen, screenBar, statusDot } from "../../ui/variants";
+import { actionButton, backAction, body as bodyClass, factsPanel, keyValueRow, screen, screenBar, sectionHeading, statusDot } from "../../ui/variants";
 import {
   castCaption,
   castFigure,
@@ -166,7 +166,7 @@ function SeasonList({
               ).filter((from) => !held.has(from))
             : [];
         const body = list ? (
-          <div className="panel" data-part="panel" style={{ marginTop: "8px" }}>
+          <div className={factsPanel()} data-part="panel" style={{ marginTop: "8px" }}>
             {list.map((episode) => {
               /* SUBTLE state colour: a 6px dot and the number in the
                  tone. The title stays neutral — it is what one reads
@@ -538,7 +538,7 @@ export function MediaScreen() {
           )}
 
           <div>
-            <h2 className="h2" data-part="heading" style={{ marginBottom: "6px" }}>
+            <h2 className={sectionHeading()} data-part="heading" style={{ marginBottom: "6px" }}>
               {t("screens.media.synopsis")}
             </h2>
             <p
@@ -554,13 +554,13 @@ export function MediaScreen() {
           </div>
 
           <div>
-            <h2 className="h2" data-part="heading" style={{ marginBottom: "8px" }}>
+            <h2 className={sectionHeading()} data-part="heading" style={{ marginBottom: "8px" }}>
               {isFilm
                 ? t("screens.media.castHeadingFilm")
                 : t("screens.media.castHeadingSeries")}
             </h2>
-            <div className="panel" data-part="panel" style={{ marginBottom: "10px" }}>
-              <div className="kv" data-part="key-value">
+            <div className={factsPanel()} data-part="panel" style={{ marginBottom: "10px" }}>
+              <div className={keyValueRow()} data-part="key-value">
                 <span>
                   {isFilm
                     ? t("screens.media.director")
@@ -607,20 +607,20 @@ export function MediaScreen() {
           </div>
 
           <div>
-            <h2 className="h2" data-part="heading" style={{ marginBottom: "6px" }}>
+            <h2 className={sectionHeading()} data-part="heading" style={{ marginBottom: "6px" }}>
               {t("screens.media.library")}
             </h2>
-            <div className="panel" data-part="panel">
+            <div className={factsPanel()} data-part="panel">
               {!owns ? (
                 <>
-                  <div className="kv" data-part="key-value">
+                  <div className={keyValueRow()} data-part="key-value">
                     <span>{t("screens.media.inLibrary")}</span>
                     <span>
                       <span className={statusDot({ tone: "neutral" })} data-part="status-dot"></span>
                       {t("screens.media.no")}
                     </span>
                   </div>
-                  <div className="kv" data-part="key-value">
+                  <div className={keyValueRow()} data-part="key-value">
                     <span>{t("screens.media.follow")}</span>
                     <span>
                       {followed
@@ -629,7 +629,7 @@ export function MediaScreen() {
                     </span>
                   </div>
                   {catalog.length ? (
-                    <div className="kv" data-part="key-value">
+                    <div className={keyValueRow()} data-part="key-value">
                       <span>{`${t("screens.media.catalogue")} ${isFilm ? "" : t("screens.media.catalogueKnown")}`}</span>
                       <span>
                         {`${catalog.length} ${catalog.length > 1 ? t("screens.media.seasonLowerPlural") : t("screens.media.seasonLower")} · ${catalogEp} ${t("screens.media.episodes")}`}
@@ -641,14 +641,14 @@ export function MediaScreen() {
                 </>
               ) : isFilm ? (
                 <>
-                  <div className="kv" data-part="key-value">
+                  <div className={keyValueRow()} data-part="key-value">
                     <span>{t("screens.media.owned")}</span>
                     <span>
                       <span className={statusDot({ tone: "success" })} data-part="status-dot"></span>
                       {t("screens.media.yes")}
                     </span>
                   </div>
-                  <div className="kv" data-part="key-value">
+                  <div className={keyValueRow()} data-part="key-value">
                     <span>{t("screens.media.file")}</span>
                     <span
                       style={{
@@ -662,19 +662,19 @@ export function MediaScreen() {
                 </>
               ) : (
                 <>
-                  <div className="kv" data-part="key-value">
+                  <div className={keyValueRow()} data-part="key-value">
                     <span>{t("screens.media.seasons")}</span>
                     <span>{sorted.length || t("screens.media.unknown")}</span>
                   </div>
-                  <div className="kv" data-part="key-value">
+                  <div className={keyValueRow()} data-part="key-value">
                     <span>{t("screens.media.airedEpisodes")}</span>
                     <span>{aired || t("screens.media.unknown")}</span>
                   </div>
-                  <div className="kv" data-part="key-value">
+                  <div className={keyValueRow()} data-part="key-value">
                     <span>{t("screens.media.ownedPlural")}</span>
                     <span>{own}</span>
                   </div>
-                  <div className="kv" data-part="key-value">
+                  <div className={keyValueRow()} data-part="key-value">
                     <span>{t("screens.media.completeness")}</span>
                     <span>
                       <span
@@ -698,11 +698,11 @@ export function MediaScreen() {
           </div>
 
           <div>
-            <h2 className="h2" data-part="heading" style={{ marginBottom: "6px" }}>
+            <h2 className={sectionHeading()} data-part="heading" style={{ marginBottom: "6px" }}>
               {t("screens.media.information")}
             </h2>
-            <div className="panel" data-part="panel">
-              <div className="kv" data-part="key-value">
+            <div className={factsPanel()} data-part="panel">
+              <div className={keyValueRow()} data-part="key-value">
                 <span>{t("screens.media.follow")}</span>
                 {/* The SECOND follow test, and the strict one: an exact title
                     match, or an exact match on the title without its year
@@ -720,7 +720,7 @@ export function MediaScreen() {
                 </span>
               </div>
               {Object.entries(prov).map(([key, value]) => (
-                <div className="kv" data-part="key-value" key={key}>
+                <div className={keyValueRow()} data-part="key-value" key={key}>
                   <span>{key.toUpperCase()}</span>
                   <span
                     style={{
@@ -732,7 +732,7 @@ export function MediaScreen() {
                   </span>
                 </div>
               ))}
-              <div className="kv" data-part="key-value">
+              <div className={keyValueRow()} data-part="key-value">
                 <span>{t("screens.media.metadataRefreshed")}</span>
                 <span>{t("screens.media.metadataRefreshedValue")}</span>
               </div>

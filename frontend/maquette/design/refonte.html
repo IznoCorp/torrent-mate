@@ -237,60 +237,14 @@
      driven by a pointer stream the engine owns. In `src/styles/legacy.css`,
      with the three things that must survive it recorded beside the rules. */
 
-  /* Key/value rows (Système) */
-  .panel {
-    border: 1px solid var(--color-border);
-    background: var(--color-card);
-    border-radius: var(--radius-3);
-    padding: var(--spacing-1) var(--spacing-5);
-  }
-  .kv {
-    display: flex;
-    justify-content: space-between;
-    gap: var(--spacing-6);
-    padding: var(--spacing-4) 0;
-    border-bottom: 1px solid var(--color-border);
-    font-size: var(--text-3);
-  }
-  .kv:last-child {
-    border-bottom: 0;
-  }
-  .kv span:first-child {
-    color: var(--color-muted-foreground);
-  }
-  .kv span:last-child {
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-3);
-  }
-  /* A row whose dot qualifies the STEP rather than the figure. The two are
-     different statements and both exist, so the descriptor names which.
+  /* Key/value rows — CONVERTED (L07 phase 13), `factsPanel()`, `keyValueRow()`,
+     `sheetFacts()` and `sectionHeading()` in `src/ui/variants.ts`. Its two
+     variants keep their reasons: a row whose DOT qualifies the STEP rather than
+     the figure, and a value that has not happened yet reading as an
+     announcement rather than as a measurement. `.panel` is also emitted by the
+     ENGINE, so its frame is in `src/styles/legacy.css` as well. */
 
-     The child combinator is not decoration: `.kv span:first-child` also matches
-     the dot itself, which is the first child of the caption. */
-  .kv.withpip > span:first-child {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-  }
-  /* A value that has not happened yet is not a value: it reads as an
-     announcement, not as a measurement. */
-  .kv.upcoming > span:last-child {
-    font-weight: 400;
-    color: var(--color-muted-foreground);
-  }
-  /* A block of facts inside a panel keeps its distance from what follows. */
-  .sheetfacts {
-    margin-bottom: var(--spacing-7);
-  }
-  .h2 {
-    font-size: var(--text-3);
-    font-weight: 700;
-    margin: 0;
-  }
-
-/* Arrivées — CONVERTED (L07 phase 7). The live strip and the pilot's bar are
+  /* Arrivées — CONVERTED (L07 phase 7). The live strip and the pilot's bar are
      typed variants in `src/features/arrivals/variants.ts`, where their
      reasoning is kept in full. The run's nine steps are written by the ENGINE
      and are in `src/styles/legacy.css`; the strip's pulse and its

@@ -326,3 +326,43 @@ export const toggleSwitch = cva(
  * It does not stretch: the label can wrap without dragging the control with it.
  */
 export const settingRow = cva("setting items-start [&>span:first-child]:pr-2");
+
+/** A panel of facts. */
+export const factsPanel = cva("panel border border-border bg-card rounded-3 py-1 px-5");
+
+/**
+ * One key/value row.
+ *
+ * `withPip` — a row whose DOT qualifies the STEP rather than the figure. The
+ * two are different statements and both exist, so the descriptor names which.
+ * The child combinator inside is not decoration: `span:first-child` also
+ * matches the dot itself, which is the caption's own first child.
+ *
+ * `upcoming` — a value that has not happened yet is not a value: it reads as
+ * an announcement, not as a measurement.
+ */
+export const keyValueRow = cva(
+  "kv flex justify-between gap-6 py-4 px-0 border-b border-border text-3 last:border-b-0 " +
+    "[&_span:first-child]:text-muted-foreground " +
+    "[&_span:last-child]:font-semibold [&_span:last-child]:flex " +
+    "[&_span:last-child]:items-center [&_span:last-child]:gap-3",
+  {
+    variants: {
+      withPip: {
+        true: "withpip [&>span:first-child]:flex [&>span:first-child]:items-center [&>span:first-child]:gap-4",
+        false: "",
+      },
+      upcoming: {
+        true: "upcoming [&>span:last-child]:font-normal [&>span:last-child]:text-muted-foreground",
+        false: "",
+      },
+    },
+    defaultVariants: { withPip: false, upcoming: false },
+  },
+);
+
+/** A block of facts inside a panel keeps its distance from what follows. */
+export const sheetFacts = cva("sheetfacts mb-7");
+
+/** A section heading. */
+export const sectionHeading = cva("h2 text-3 font-bold m-0");

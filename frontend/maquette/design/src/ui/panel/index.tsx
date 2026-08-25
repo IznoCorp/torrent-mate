@@ -24,6 +24,7 @@ import { Fragment, type JSX } from "react";
 import { useTranslation } from "react-i18next";
 import { useEngineDrawing } from "../../lib/engine-drawing";
 import { Icon } from "../../ui/icon";
+import { factsPanel, keyValueRow, sheetFacts } from "../variants";
 import {
   refuseBlock,
   registerBlock,
@@ -148,11 +149,11 @@ function FactsBlock({
   block: Extract<PanelBlock, { type: "faits" }>;
 }) {
   return (
-    <div className="panel sheetfacts" data-part="panel">
+    <div className={`${factsPanel()} ${sheetFacts()}`} data-part="panel">
       {(block.lignes ?? []).map((line, index) => (
         <div
           key={index}
-          className={`kv${line.pip ? " withpip" : ""}${line.terne ? " upcoming" : ""}`}
+          className={keyValueRow({ withPip: Boolean(line.pip), upcoming: Boolean(line.terne) })}
           data-part="key-value"
         >
           <span>

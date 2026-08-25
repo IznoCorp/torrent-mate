@@ -50,7 +50,7 @@ import fr from "../../i18n/fr.json";
 import { useArrivalsReference, type PendingDecision, type SettledDecision } from "../../features/arrivals/reference";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useStoreContent } from "../../lib/store-access";
-import { actionButton, backAction, body, emptyNote, screen, screenBar } from "../../ui/variants";
+import { actionButton, backAction, body, emptyNote, screen, screenBar, sectionHeading } from "../../ui/variants";
 
 // Same helper as `media.tsx`'s, `profile.tsx`'s, `add.tsx`'s and
 // `releases.tsx`'s, still not shared: the extraction those files' comments
@@ -335,7 +335,7 @@ export function ResolutionScreen() {
             <em>{t("screens.resolution.noteUnder")}</em>{" "}
             {t("screens.resolution.noteRest")}
           </div>
-          <h2 className="h2" data-part="heading">
+          <h2 className={sectionHeading()} data-part="heading">
             <code>{folder}</code>
           </h2>
           <p className="qhint">
@@ -400,7 +400,7 @@ export function ResolutionScreen() {
           </div>
           {DECISIONS_REGLEES.length > 0 ? (
             <>
-              <h2 className="h2" data-part="heading" style={{ marginTop: "18px" }}>
+              <h2 className={sectionHeading()} data-part="heading" style={{ marginTop: "18px" }}>
                 {t("screens.resolution.settledHeading")}
               </h2>
               <p className="qhint">{t("screens.resolution.settledHint")}</p>
