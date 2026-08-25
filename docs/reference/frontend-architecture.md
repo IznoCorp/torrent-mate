@@ -367,6 +367,27 @@ for term today and the oracle says so; what is not held is the day one drifts. *
 cross-checks each variant against the rule shadowing it is arbitrated (operator, 2026-08-25)**,
 and it dies with this decision.
 
+**It is built, and it is `R80`** — `frontend/maquette/harness/residue.py`, in the per-phase
+contracts tier. It pairs each residue selector with the typed variant wearing the same identity
+anchor and compares `getComputedStyle` IN THE DOCUMENT, on two sibling probes, for exactly the
+properties the residue declares — never as text, because `flex: 0 0 auto` and `flex-none` are one
+value written twice and a guard carrying Tailwind's mapping by hand would be a table that rots.
+**Sixteen pairs stand where the finding named seven.**
+
+**Its own proof is that the oracle cannot supply one.** With `emptyNote()`'s `rounded-3` moved to
+`rounded-2`, R80 falls naming the anchor and the term — « residue « 8px » vs variant « 6px » » —
+while the oracle runs green over the same tree, 2 739 measurements, no divergence. That is B-067
+demonstrated rather than asserted, and it is why this guard is not something the oracle could have
+been widened into.
+
+**What it does not stage is counted and named on every run**, not left to be discovered: the
+selectors wearing an anchor no variant claims (the engine's own markup — the residue's whole
+purpose); the qualifiers the ENGINE writes through `classList`, which no variant emits; and the
+descendant pairs, whose one- and two-letter anchors collide across contexts — `.dcard .t` and
+`.sechead .t` would both pair with `sectionTitle()` and only one of them is that variant. It holds
+a FLOOR on the number of pairs found, because a pairing that found nothing would print « no
+divergence » and mean « I compared nothing » — which a first version of it did.
+
 ---
 
 ## 3. Invariants — true at the end of every wave

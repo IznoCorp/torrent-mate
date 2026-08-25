@@ -212,25 +212,28 @@ EXEMPTIONS = {
         "composition measurement, not a space step (the rule's own comment "
         "says so)"
     ),
-    # THE TWO BELOW ARE NOT ARBITRATIONS — they are DEBT this arm could not see
-    # until it was widened, and they are exempted so it can go green over what
-    # it CAN answer for while the two values wait for someone who may change
-    # what the screen does. Both rules came out of the prototype's harness
-    # block, which was never under the scale rule, and entered the shipped base
-    # layer when that block was cut. B-066 holds the two off-scale values and
-    # the reason the fix is not a call-site edit.
+    # ARBITRATED, NOT PARKED. This entry stood here as DEBT for one wave, with
+    # `.skip-link` beside it, both inherited when the harness block was cut into
+    # the shipped base layer (B-066). The two were settled separately because
+    # they are not the same kind of value, and « it is exempt » was becoming the
+    # answer to both:
+    #
+    #   `.skip-link` had no reason and is now ON THE SCALE. Its `16px` pad and
+    #     `10px` radius sat between steps because nobody chose them — they came
+    #     from a block the scale rule never read. 10 was already `--spacing-5`;
+    #     16 and 10 went to `--spacing-8` and `--radius-4`, both one increment
+    #     UP, because an affordance that appears only under keyboard focus
+    #     should read generously when it does. That is 2 px on one element, and
+    #     the entry is gone from this list rather than reworded.
+    #
+    #   `.visually-hidden` stays, and it is not debt. It is the only exemption
+    #     here whose value is a TECHNIQUE rather than a design constant.
     ".visually-hidden": (
         "the one-pixel clip idiom: `width: 1px`, `height: 1px`, `margin: -1px` "
         "are the technique for hiding an element from sight and not from a "
         "screen reader — a measurement of the technique, not a space step, and "
-        "no step of any ramp would do"
-    ),
-    ".skip-link": (
-        "the accessibility skip link, off screen until focused. Its `16px` pad "
-        "and `10px` radius are on no step (the ramps read 14 then 18, and 8 "
-        "then 12), so honouring the scale would change what a keyboard user "
-        "sees — a design change, not a token substitution. Recorded as B-066 "
-        "rather than decided here"
+        "no step of any ramp would do. A ramp cannot hold it: -1px is not a "
+        "space, and rounding it to one un-hides the element"
     ),
 }
 
