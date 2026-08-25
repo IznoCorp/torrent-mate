@@ -1,5 +1,5 @@
 {
-  "folder": "The Matrix (1999) {tmdb-603}",
+  "folder": "The Matrix (1999)",
   "nfo": {
     "title": "The Matrix",
     "uniqueids": {
@@ -15,6 +15,7 @@
     "year": "1999"
   },
   "tree": [
+    ".plexmatch",
     "The Matrix-landscape.jpg",
     "The Matrix-poster.jpg",
     "The Matrix.mkv",

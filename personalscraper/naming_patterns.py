@@ -115,35 +115,6 @@ class NamingPatterns:
         pattern = getattr(self, pattern_name)
         return sanitize_filename(pattern.format(**kwargs))
 
-    def movie_folder_name(
-        self,
-        *,
-        title: str,
-        year: int | None,
-        tmdb_id: int | None,
-    ) -> str:
-        """Canonical movie folder name, with the Plex match-hint when known.
-
-        The base is the ``movie_dir`` pattern (``Title (Year)``, or the bare
-        title when the year is unknown). When *tmdb_id* is present, the
-        ``{tmdb-<id>}`` hint is appended — the form the Plex Movie agent reads
-        from the folder name (support.plex.tv movie naming: ``{[source]-[id]}``)
-        so its fuzzy match becomes exact. Single authority for the scraper's
-        rename and any reader that must compute the same canonical name.
-
-        Args:
-            title: Filesystem-safe movie title.
-            year: Release year (``None`` for the no-year form).
-            tmdb_id: TMDB id to hint, or ``None`` (no hint appended).
-
-        Returns:
-            The sanitized folder name.
-        """
-        base = self.format("movie_dir", Title=title, Year=year) if year is not None else sanitize_filename(title)
-        if tmdb_id is not None:
-            return f"{base} {{tmdb-{tmdb_id}}}"
-        return base
-
     def format_base_filename(self, is_episode: bool = False, **kwargs: object) -> str:
         """Resolve the base filename for a media item.
 
