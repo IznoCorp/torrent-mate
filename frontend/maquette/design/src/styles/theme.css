@@ -183,6 +183,11 @@
   --duration-loop-3: 5s;
   --ease-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
   --ease-emphasized: cubic-bezier(0.22, 1.02, 0.36, 1);
+  /* The media sheet's hero, arriving. Declared as an animation rather than
+     spelled at the call site: `animation` is one of the nineteen properties
+     the oracle reads, so the shorthand has to be identical, and a name is
+     easier to keep identical than a four-part value. */
+  --animate-hero-in: heroin var(--duration-4) var(--ease-standard) both;
   /* scale:end */ /* login:scale:end */
 
   /* THE PALETTE, AND WHY IT IS HERE. Tailwind reads only what `@theme`

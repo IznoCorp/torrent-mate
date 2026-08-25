@@ -1525,6 +1525,157 @@ border-radius: var(--radius-3);
   box-shadow: var(--mq-shadow-vsw);
 }
 
+/* ── The media sheet, what the ENGINE still draws ────────────────── */
+/* ONE TEMPLATE FOR EVERY MEDIUM, and the half of it the engine writes:
+   the episode rows and the state that colours them. `eprow`, `en`, `et`,
+   `ed` and `epdot` are emitted from `legacy.js`, and the six states
+   (`in_library`, `to_grab`, `acquiring`, `pending`, `announced`,
+   `unverified`) are toggled there too — a `data-*` contract with three
+   ends that move together at L13, not a styling change. */
+/* Media sheet — ONE template for every medium
+   The differences between a film and a series are the ones their nature
+   imposes, and nothing else: a film has a director and a runtime, a
+   series has a creator, a status and an episode catalogue. Everything
+   else — hero, synopsis, cast, trailer, identifiers, library state — is
+   identical and in the same order. Missing data is written « inconnu »,
+   never a mute dash. */
+/* Media-sheet hero — the visual as a melting header
+   The wide visual occupies the top of the sheet at full width and dissolves
+   into the body colour. It is the only image treatment of this kind in the
+   interface; the top bar deliberately refuses blur so that nothing has to be
+   re-sampled while content moves.
+
+   Three precautions, because a decorative header must never cost legibility:
+   · an opaque gradient closes on the body colour before the text, so type is
+     always read on a solid colour and never on an image;
+   · opacity and saturation are capped, so a very colourful visual does not
+     make the title vibrate;
+   · no information lives in the image — removing it loses nothing. */
+/* The visual IS the top of the sheet: full width, sharp, melting into the
+   body. This is not an ambient tint behind a title — it is the visual
+   anchor, and the title sits under it. */
+
+/* Medium without a visual: the template does not change, only the content
+   is missing. A muted field holds the place. */
+
+
+@media (prefers-reduced-motion: no-preference) {
+  .herobg {
+    animation: heroin var(--duration-4) var(--ease-standard) both;
+  }
+}
+@keyframes heroin {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0);
+  }
+}
+/* Media-sheet add button: solid while the action is offered, then OUTLINE
+   + « Ajouté » once done — the same toggle as a search result's button,
+   so one gesture always gets the same answer. Content centred: left-
+   aligned like an action row, it read as a list item rather than the
+   primary button. */
+.mediaadd {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-4);
+  width: 100%;
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  font-size: var(--text-5);
+  font-weight: 600;
+  padding: var(--spacing-6);
+  border-radius: var(--radius-3);
+}
+.mediaadd svg {
+  width: 16px;
+  height: 16px;
+}
+.mediaadd.done {
+  background: transparent;
+  color: var(--color-muted-foreground);
+  border-color: var(--color-border);
+}
+/* The destination is information: this control LEAVES the application. */
+
+
+.eprow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-4);
+  padding: var(--spacing-4) 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--text-3);
+}
+.eprow:last-child {
+  border-bottom: 0;
+}
+.eprow .en {
+  flex: 0 0 auto;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: var(--text-2);
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+  min-width: 34px;
+}
+.eprow .et {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.eprow .ed {
+  flex: 0 0 auto;
+  font-size: var(--text-2);
+  color: var(--color-muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+.epdot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-neutral-signal);
+  align-self: center;
+}
+.eprow.in_library .epdot {
+  background: var(--color-success);
+}
+.eprow.in_library .en {
+  color: var(--color-success);
+}
+.eprow.to_grab .epdot {
+  background: var(--color-warning);
+}
+.eprow.to_grab .en {
+  color: var(--color-warning);
+}
+.eprow.acquiring .epdot {
+  background: var(--color-info);
+}
+.eprow.acquiring .en {
+  color: var(--color-info);
+}
+.eprow.pending .epdot {
+  background: var(--color-waiting);
+}
+.eprow.pending .en {
+  color: var(--color-waiting);
+}
+.eprow.announced .epdot {
+  background: var(--color-upcoming);
+}
+.eprow.announced .en {
+  color: var(--color-upcoming);
+}
+.eprow.unverified .epdot {
+  background: transparent;
+  border: 1px dashed var(--color-border);
+}
+
 /* ── LAST, AND THE ORDER IS THE POINT ────────────────────────────────
    THE ACTION-BUTTON SYSTEM COMES AFTER EVERYTHING IT OVERRIDES. In the
    prototype's stylesheet it sat a thousand lines below the card, so the

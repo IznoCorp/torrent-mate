@@ -30,6 +30,21 @@ import {
 } from "../../features/media/reference";
 import { useStoreContent, useWorld } from "../../lib/store-access";
 import { actionButton, backAction, body as bodyClass, screen, screenBar, statusDot } from "../../ui/variants";
+import {
+  castCaption,
+  castFigure,
+  castList,
+  castPortrait,
+  heroImage,
+  heroMeta,
+  heroNote,
+  heroText,
+  heroTitle,
+  heroWrap,
+  trailerPlay,
+  trailerRow,
+  trailerSource,
+} from "./variants";
 
 // The exact shape `svgIcon(paths, strokeWidth)` produced as an HTML string —
 // rebuilt as a real element so it composes with JSX. Same helper as
@@ -434,21 +449,21 @@ export function MediaScreen() {
       <div className="port" data-part="viewport">
         <div className={bodyClass()} data-part="surface/body" data-region="screen-media/body">
           <div
-            className={`herowrap${artwork ? "" : " noposter"}`}
+            className={heroWrap({ poster: Boolean(artwork) })}
             data-part="hero"
             data-no-poster={!artwork || undefined}
           >
             <div
-              className="herobg"
+              className={heroImage({ poster: Boolean(artwork) })}
               data-part="hero/background"
               aria-hidden="true"
               style={
                 artwork ? { backgroundImage: `url('${artwork}')` } : undefined
               }
             ></div>
-            <div className="hero" data-part="hero/content">
-              <h2 className="ht" data-part="hero/title">{title.split(" (")[0]}</h2>
-              <p className="hm">
+            <div className={heroText()} data-part="hero/content">
+              <h2 className={heroTitle()} data-part="hero/title">{title.split(" (")[0]}</h2>
+              <p className={heroMeta()}>
                 {sheet
                   ? `${sheet.y || t("screens.media.yearUnknown")} · ${isFilm ? t("common.film") : t("common.series")}${sheet.duree ? ` · ${sheet.duree} ${t("screens.media.minutesShort")}` : ""}`
                   : t("screens.media.metadataUnknown")}{" "}
@@ -478,7 +493,7 @@ export function MediaScreen() {
                 )}
               </p>
               {sheet?.note ? (
-                <span className="hn">
+                <span className={heroNote()}>
                   <Icon paths={icons.star} />
                   {String(sheet.note).replace(".", ",")}
                   <span
@@ -499,21 +514,21 @@ export function MediaScreen() {
 
           {trailer ? (
             <a
-              className="trailer"
+              className={trailerRow()}
               data-part="media/trailer"
               href={`https://www.youtube.com/watch?v=${trailer.key}`}
               target="_blank"
               rel="noopener"
               data-yt={trailer.key}
             >
-              <span className="pl">
+              <span className={trailerPlay()}>
                 <Icon paths={icons.play} />
               </span>{" "}
               <span>
                 {t("screens.media.trailer")}
                 <small>{trailer.name}</small>
               </span>{" "}
-              <span className="tsrc">
+              <span className={trailerSource()}>
                 <Icon paths={icons.ext} />
                 YouTube
               </span>
@@ -559,7 +574,7 @@ export function MediaScreen() {
             </div>
             {sheet?.cast?.length ? (
               <div
-                className="cast"
+                className={castList()}
                 data-part="cast"
                 data-noswipe=""
                 tabIndex={0}
@@ -571,15 +586,15 @@ export function MediaScreen() {
                 }
               >
                 {sheet.cast.map((cast) => (
-                  <figure key={cast.n}>
-                    <span className="ca" data-part="cast/avatar">
+                  <figure key={cast.n} className={castFigure()}>
+                    <span className={castPortrait()} data-part="cast/avatar">
                       {CAST[cast.n] ? (
                         <img src={CAST[cast.n]} alt="" loading="lazy" />
                       ) : (
                         initials(cast.n)
                       )}
                     </span>
-                    <figcaption>
+                    <figcaption className={castCaption()}>
                       <b>{cast.n}</b>
                       <span>{cast.r || t("screens.media.roleUnknown")}</span>
                     </figcaption>

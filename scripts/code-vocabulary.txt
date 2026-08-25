@@ -239,6 +239,7 @@ fast
 fetching
 field
 fields
+figure
 file
 files
 fill
@@ -504,10 +505,12 @@ pills
 pilot
 pipe
 pipeline
+play
 point
 pop
 popover
 port
+portrait
 pos
 positions
 poster
@@ -653,6 +656,7 @@ soft
 solid
 sort
 sorted
+source
 space
 spacing
 splash

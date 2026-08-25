@@ -137,6 +137,14 @@
   }
 }
 
+/* The hero's entrance. */
+@keyframes heroin {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
 @keyframes pulse {
   50% {
     opacity: 0.3;
@@ -193,6 +201,18 @@
 .more svg {
   width: 17px;
   height: 17px;
+}
+.hero .hn svg {
+  width: 13px;
+  height: 13px;
+}
+.trailer .pl svg {
+  width: 14px;
+  height: 14px;
+}
+.tsrc svg {
+  width: 12px;
+  height: 12px;
 }
 .countline svg {
   width: 13px;
