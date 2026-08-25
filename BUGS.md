@@ -217,7 +217,19 @@ lines on the wave's tip.
 
 Closed as `fixed #494` rather than `closed`: it is repaired on the branch, not on `main`. Rule 3
 is met by the gate that already exists and already bit — the mutation was not staged, it was
-lived. **What this entry did NOT get right** is its own forecast of the deadline: it read « phase
+lived.
+
+**#494 merged on 2026-08-25 (squash `5fdbfc9a`), so « not on `main` » stopped being true the
+moment it did.** The status column keeps `fixed #494` — that is what the entries of #484 do once
+their pull request lands, and `closed` means the operator confirmed. What this paragraph corrects
+is the SENTENCE, because a sentence that outlives its subject is read as current by the next
+session. Two further things moved with the merge, and one of them is a warning rather than a footnote.
+The command below names `origin/feat/maquette-l07`, a branch deleted at the merge — measure the
+file instead. **And the file is 905 lines on `main`, not the 851 the split left it at**: the
+adversarial review before the merge widened the scale arm, corrected two messages and added a
+served-page hold to the login arm, so **95 lines of the 149 the split bought back are already
+spent**. This entry's mechanism is therefore live, not historical: the next arm to land in this
+file crosses again. **What this entry did NOT get right** is its own forecast of the deadline: it read « phase
 3 » from a two-phase slope, and the crossing came at phase 4. The mechanism was right, the
 extrapolation was decoration — a rate measured over two points is a rate that has not been
 measured.
