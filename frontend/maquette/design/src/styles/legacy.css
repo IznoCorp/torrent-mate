@@ -438,30 +438,7 @@ border-radius: var(--radius-3);
   padding: var(--spacing-4);
   border-radius: var(--radius-2);
 }
-/* The action-button system, for the three the engine emits. Its reasoning is
-   kept in full at `actionButton()` in `src/ui/variants.ts`. */
-/* All five names, not the three a first pass thought the engine emitted: the
-   sheet's own actions are written by the engine through a template, so
-   `sact` never appeared in a scan for literal `class="…"` strings. The oracle
-   found it as 8.9px — exactly what a button loses when its `min-height: 44px`
-   goes. */
-.sact,
-.cfoot,
-.mediaadd,
-.btnprimary,
-.dlgbtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-4);
-  width: 100%;
-  min-height: 44px;
-  padding: var(--spacing-5) var(--spacing-6);
-  border-radius: var(--radius-3);
-  font-size: var(--text-4);
-  font-weight: 600;
-  text-align: center;
-}
+
 
 /* ── Arrivées — the run, told as its nine steps ──────────────────── */
 /* `.flux` and everything under it is written by the ENGINE: the row, its
@@ -1265,4 +1242,281 @@ border-radius: var(--radius-3);
   color: var(--color-muted-foreground);
 }
 
+/* ── Découvrir: the suggestion deck ──────────────────────────────── */
+/* THIRTEEN OF ITS EIGHTEEN CLASS NAMES ARE THE ENGINE'S. The deck is
+   written by `fillSug`, card by card, and driven by a pointer stream the
+   engine owns.
 
+   What must survive into whatever replaces it: the deck's height is
+   MEASURED from the scrollport rather than derived from its content; the
+   cards behind say « there is more » without being read; and the swipe
+   verb appears under the thumb, on the side the card is going. A swipe
+   either way means « not interested » — the direction is the reason, not
+   the verdict. */
+/* Suggestion card (Découvrir) */
+/* R5 — a class placed on a <span> DECLARES its display. Without it the
+   title shared its line with the year, the type and the rating: a literal
+   breach of the rule that line 1 is the title, alone. */
+.creason b,
+.dcard .why b {
+  color: var(--color-foreground);
+  font-weight: 600;
+}
+
+/* Découvrir card: a swipe either way means not interested */
+.sugwrap {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-3);
+  touch-action: pan-y;
+}
+.sugwrap.gone {
+  transition:
+    height var(--duration-3) var(--ease-standard),
+    opacity var(--duration-2) var(--ease-standard),
+    margin var(--duration-3) var(--ease-standard);
+  height: 0 !important;
+  opacity: 0;
+  margin-bottom: calc(var(--spacing-7) * -1);
+}
+/* Poster format: the poster carries the identity, the two lines under it
+   carry just enough to tell two homonyms apart. Same two tap targets as the
+   list — poster to the sheet, body to the bottom panel. */
+/* The id rule on the container beats a bare class, so the grid declares
+   itself on both — the same specificity family as R8: an author rule wins
+   over what you meant to say. */
+
+/* Deck format: one card at a time, the next ones stacked behind it. The card
+   fills the surface, so the body must take the scrollport's height rather
+   than its own content's. The scrollport becomes a column only when it holds
+   a deck — every other surface keeps its ordinary block flow. */
+
+/* The deck's height is MEASURED from the scrollport rather than derived from
+   a chain of ancestors: the scrollport holds siblings the deck knows nothing
+   about, and a universal child selector reached them. Nothing here positions
+   itself by a distance to an edge — the height comes from what was measured,
+   which is the same rule the bars follow. */
+.body.deckbody {
+  padding-bottom: var(--spacing-5);
+}
+
+.deck {
+  position: relative;
+  /* No `flex: 1` here: in a column flex container that sets a 0 basis on the
+     vertical axis, which silently overrides the measured height. */
+  flex: 0 0 auto;
+  min-height: 340px;
+  touch-action: pan-y;
+}
+
+.dcard {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-4);
+  background: var(--color-card);
+  overflow: hidden;
+  box-shadow: var(--mq-shadow-pop);
+  transform-origin: 50% 100%;
+  /* Slightly different curves on the two properties: the card settles into
+     place a touch after it has finished fading, which is what reads as
+     « natural » rather than mechanical. The tiny overshoot on transform is
+     what makes a card look picked up rather than snapped. */
+  transition:
+    transform var(--duration-4) var(--ease-emphasized),
+    opacity var(--duration-3) var(--ease-standard);
+  will-change: transform;
+}
+
+/* The cards behind are the deck: they say « there is more » without
+   costing a pixel of the card being read. */
+.dcard[data-depth="1"] {
+  transform: translateY(9px) scale(0.955);
+  opacity: 0.75;
+}
+
+.dcard[data-depth="2"] {
+  transform: translateY(18px) scale(0.91);
+  opacity: 0.45;
+}
+
+/* Entry position of a card joining the back of the pile: it rises from
+   under the deck instead of appearing. */
+.dcard[data-depth="3"] {
+  transform: translateY(30px) scale(0.86);
+  opacity: 0;
+}
+
+.dcard.dragging {
+  transition: none;
+}
+
+.dcard.out {
+  opacity: 0;
+}
+
+.dcard .p {
+  flex: 1;
+  min-height: 0;
+  display: block;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: var(--color-muted);
+  position: relative;
+  font-size: var(--text-display);
+  line-height: 1;
+}
+
+.dcard .p img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* The title sits on the poster's foot, on a gradient that closes on a
+   solid colour — same precaution as the media sheet's header. */
+.dcard .cap {
+  position: absolute;
+  inset: auto 0 0;
+  /* The floating « + » lives at the bottom-right of the surface: the caption
+     reserves its footprint rather than running underneath it. */
+  padding: 40px 76px 12px 14px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in oklab, var(--color-card) 72%, transparent) 46%,
+    var(--color-card)
+  );
+  text-align: left;
+}
+
+.dcard .t {
+  display: block;
+  font-size: var(--text-7);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+}
+
+.dcard .m {
+  display: block;
+  margin-top: var(--spacing-1);
+  font-size: var(--text-3);
+  color: var(--color-muted-foreground);
+}
+
+.dcard .why {
+  display: block;
+  margin-top: var(--spacing-3);
+  font-size: var(--text-2);
+  color: var(--color-muted-foreground);
+  border-left: 2px solid var(--color-border);
+  padding-left: var(--spacing-4);
+  line-height: 1.4;
+}
+
+/* Swipe feedback: the verb appears under the thumb, on the side the card is
+   going. The two directions do NOT mean the same thing — left « Passer »
+   decides nothing and the card comes round again, right « Pas intéressé »
+   removes it with an undo. The verbs are the ones the other formats use. */
+.dhint {
+  position: absolute;
+  top: 14px;
+  padding: var(--spacing-2) var(--spacing-5);
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-danger);
+  color: var(--color-danger);
+  background: color-mix(in oklab, var(--color-danger) 14%, var(--color-card));
+  font-size: var(--text-3);
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  opacity: 0;
+  transition: opacity var(--duration-1) var(--ease-standard);
+  pointer-events: none;
+}
+
+/* « Passer » decides nothing, so it does not wear the colour of a refusal. */
+.dhint.l {
+  left: 14px;
+  transform: rotate(-9deg);
+  border-color: var(--color-muted-foreground);
+  color: var(--color-muted-foreground);
+  background: color-mix(in oklab, var(--color-muted-foreground) 12%, var(--color-card));
+}
+
+.dhint.r {
+  right: 14px;
+  transform: rotate(9deg);
+}
+
+.sugback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--spacing-8);
+  border-radius: var(--radius-3);
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+  font-size: var(--text-3);
+  font-weight: 700;
+}
+.sugback span {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+.sugback svg {
+  width: 16px;
+  height: 16px;
+}
+.crating {
+  font-size: var(--text-1);
+  font-weight: 700;
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-full);
+  border: 1px solid color-mix(in oklab, var(--color-success) 40%, transparent);
+  color: var(--color-success);
+  margin-left: var(--spacing-3);
+}
+
+/* ── LAST, AND THE ORDER IS THE POINT ────────────────────────────────
+   THE ACTION-BUTTON SYSTEM COMES AFTER EVERYTHING IT OVERRIDES. In the
+   prototype's stylesheet it sat a thousand lines below the card, so the
+   card's own footer rules lost to it. This file is written in the order the
+   PHASES ran, which is not that order at all — the card arrived in phase 8,
+   the system in phase 6, and the card won: R12 read a card footer at 6px
+   radius and 12px text where the system says 8 and 13.
+
+   Appending to a residue is not the same as preserving a cascade. Anything
+   that must override a surface goes below every surface it overrides, and
+   this banner is where that rule is kept. */
+/* The action-button system, for the three the engine emits. Its reasoning is
+   kept in full at `actionButton()` in `src/ui/variants.ts`. */
+/* All five names, not the three a first pass thought the engine emitted: the
+   sheet's own actions are written by the engine through a template, so
+   `sact` never appeared in a scan for literal `class="…"` strings. The oracle
+   found it as 8.9px — exactly what a button loses when its `min-height: 44px`
+   goes. */
+.sact,
+.cfoot,
+.mediaadd,
+.btnprimary,
+.dlgbtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-4);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--spacing-5) var(--spacing-6);
+  border-radius: var(--radius-3);
+  font-size: var(--text-4);
+  font-weight: 600;
+  text-align: center;
+}
