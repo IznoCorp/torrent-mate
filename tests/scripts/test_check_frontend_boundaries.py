@@ -520,3 +520,111 @@ class TestAddressingArm:
         captured = capsys.readouterr()
         assert violations == 0
         assert "0 violation(s)" in captured.out
+
+
+class TestTreeArmNestedCopy:
+    """B-065 — a tree copied under its own path, read by nothing, drifting."""
+
+    def test_a_nested_copy_of_the_tree_is_a_violation(self, tmp_path, capsys) -> None:
+        """Refuse a source file under a directory bearing an ancestor's name."""
+        root = copy_design_src(tmp_path)
+        nested = tmp_path / "frontend" / "maquette" / "src" / "lib"
+        nested.mkdir(parents=True)
+        (nested / "engine-queue.ts").write_text("export const x = 1;\n", encoding="utf-8")
+        violations = guard.arm_tree(root)
+        captured = capsys.readouterr()
+        assert violations == 1, captured.err
+        assert "« src/ » again" in captured.err
+
+    def test_the_repetition_is_read_from_ABOVE_the_corpus(self) -> None:
+        """The copy's own path repeats nothing — only the enclosing tree's name does.
+
+        The first version of this hold looked for a segment repeated INSIDE the
+        relative path and reported the real defect clean:
+        `design/frontend/maquette/design/src/lib/x.ts` spells five distinct
+        segments once you are standing in `design/`. What repeats is the name of
+        the directory you are standing in.
+        """
+        relative = "frontend/maquette/design/src/lib/engine-queue.ts"
+        # Nothing repeats INSIDE the path: five distinct segments. Told neither
+        # the ancestors nor the corpus's name, the hold has nothing to see —
+        # which is verbatim what the first version of it reported.
+        assert guard.echoed_ancestor(relative, set(), "unrelated") is None
+        # Told what it is standing in, it sees the copy at once.
+        assert guard.echoed_ancestor(relative, {"design"}, "unrelated") == "design"
+        assert guard.echoed_ancestor(relative, set(), "src") == "src"
+        # And the corpus's own name, one level below where it belongs — while
+        # the level where it BELONGS reads clean.
+        assert guard.echoed_ancestor("src/src/lib/x.ts", set(), "src") == "src"
+        assert guard.echoed_ancestor("src/lib/x.ts", set(), "src") is None
+
+    def test_the_bundler_s_own_directories_are_not_read(self, tmp_path, capsys) -> None:
+        """`node_modules/` and `dist/` repeat names by the hundred and are skipped."""
+        root = copy_design_src(tmp_path)
+        buried = tmp_path / "node_modules" / "any" / "src" / "src" / "deep"
+        buried.mkdir(parents=True)
+        (buried / "index.js").write_text("module.exports = 1;\n", encoding="utf-8")
+        violations = guard.arm_tree(root)
+        captured = capsys.readouterr()
+        assert violations == 0, captured.err
+
+    def test_the_real_tree_reads_clean(self, capsys) -> None:
+        """The repository carries no nested copy — the eleven files are gone."""
+        violations = guard.arm_tree(DESIGN_SRC)
+        captured = capsys.readouterr()
+        assert violations == 0, captured.err
+        assert "0 under a repeated directory" in captured.out
+
+
+class TestSizeArmReadsTheLabel:
+    """B-073 — the grandfathered list guaranteed its membership, never its promise."""
+
+    def test_a_label_leading_with_a_landed_lot_is_a_violation(self, monkeypatch, capsys) -> None:
+        """Refuse an entry promising a lot the plan already marks `LANDED`."""
+        monkeypatch.setitem(guard.GRANDFATHERED, "engine/legacy.js", "L07 — long since been and gone")
+        violations = guard.arm_size(DESIGN_SRC)
+        captured = capsys.readouterr()
+        assert violations == 1, captured.err
+        assert "leads with L07, already `LANDED`" in captured.err
+
+    def test_a_lot_that_has_not_landed_is_accepted(self, monkeypatch, capsys) -> None:
+        """`L13` is `NOT STARTED`, so the promise still stands."""
+        monkeypatch.setitem(guard.GRANDFATHERED, "engine/legacy.js", "L13 — the engine dies by subtraction")
+        violations = guard.arm_size(DESIGN_SRC)
+        captured = capsys.readouterr()
+        assert violations == 0, captured.err
+
+    def test_a_label_naming_no_lot_is_a_violation(self, monkeypatch, capsys) -> None:
+        """A label nobody can act on is the state B-073 found the list in."""
+        monkeypatch.setitem(guard.GRANDFATHERED, "engine/legacy.js", "big, and someone will look")
+        violations = guard.arm_size(DESIGN_SRC)
+        captured = capsys.readouterr()
+        assert violations == 1, captured.err
+        assert "leads with no lot" in captured.err
+
+    def test_a_plan_that_cannot_be_read_is_a_violation_not_a_pass(self, monkeypatch, capsys) -> None:
+        """No status read means the hold cannot be checked — never that nothing landed."""
+        monkeypatch.setattr(guard, "PLAN", Path("does/not/exist.md"))
+        violations = guard.arm_size(DESIGN_SRC)
+        captured = capsys.readouterr()
+        assert violations == 1, captured.err
+        assert "no lot status could be read" in captured.err
+
+    def test_a_label_naming_a_lot_the_plan_never_declares_is_a_violation(self, monkeypatch, capsys) -> None:
+        """A lot that will never run is a promise nobody can call in.
+
+        Holding the label only against the LANDED set left this green for ever:
+        `L19` is not landed, so the spent check passed it, and the plan declares
+        L01 to L13 and nothing else. B-073's own defect wearing another face.
+        """
+        monkeypatch.setitem(guard.GRANDFATHERED, "engine/legacy.js", "L19 — some lot that does not exist")
+        violations = guard.arm_size(DESIGN_SRC)
+        captured = capsys.readouterr()
+        assert violations == 1, captured.err
+        assert "which the plan does not declare" in captured.err
+
+    def test_the_real_list_reads_clean(self, capsys) -> None:
+        """Every entry leads with a lot that still owes the reduction."""
+        violations = guard.arm_size(DESIGN_SRC)
+        captured = capsys.readouterr()
+        assert violations == 0, captured.err

@@ -1,0 +1,94 @@
+# REFUSED WORDS — a mutilated word and the word it mutilates.
+#
+# THE RULE is `docs/reference/code-naming.md`. This file is its list, and the
+# guard that reads it is `scripts/check-code-abbreviations.py`.
+#
+# Format: `abbreviation = the word it mutilates`. One per line. A line with no
+# full word is a violation, the same discipline `french-ok:` is held to: a
+# refusal that cannot say what the name SHOULD be is a refusal nobody can act
+# on.
+#
+# THIS IS A BLACKLIST AND NOT A VOCABULARY, and the choice was measured.
+# Extending `check-no-french.py`'s vocabulary arm to Python would have to admit
+# 1 665 unknown words — `self`, `client` and `source` among them — and a
+# vocabulary that must triple to go green has stopped being a control.
+#
+# The cost of a blacklist is written down rather than discovered: IT HAS HOLES
+# BY CONSTRUCTION. That is the objection this repository made to asking « is
+# this word French? », and it applies here in full. It is payable only because
+# the distribution is short — a handful of words carry most of the debt — and a
+# missing word is one line, added under review.
+#
+# A word that is NOT here is not thereby endorsed. What was considered and kept
+# is `scripts/code-abbreviations-allowed.txt`, each with the reason it stays.
+#
+# AND AN ADJACENT SPELLING IS AN ESCAPE ROUTE. `tmp` was refused while `temp`
+# was free, `fn` while `func` was free, `param` while `prop` was free — so a
+# rename from the refused word to its neighbour would have LOWERED a file's
+# count while the name got no better. Four such pairs were closed by an
+# adversarial review; when a word joins this list, its neighbours join with it.
+#
+# A WORD WITH TWO EXPANSIONS names both. `res` is `result` in most codebases
+# and `resolution` in this one; `desc` is `description` or `descending`; `cur`
+# is `cursor` or `current`. A refusal whose stated remedy is the wrong word is
+# a refusal that gets argued with instead of acted on.
+
+# ── The three campaigns, which have their own lot ────────────────────────────
+conn = connection
+ctx = context
+pg = page
+
+# ── The rest of the debt, diffuse by nature ──────────────────────────────────
+attr = attribute
+attrs = attributes
+char = character
+cfg = configuration
+cmd = command
+cmds = commands
+cur = cursor, or current — write the one you mean
+curr = current
+desc = description, or descending — write the one you mean
+dest = destination
+dests = destinations
+dst = destination
+dup = duplicate
+err = error
+errs = errors
+ext = extension
+exts = extensions
+fmt = format
+fn = function
+func = function
+funcs = functions
+idx = index
+impl = implementation
+lang = language
+len = length
+msg = message
+msgs = messages
+num = number
+nums = numbers
+obj = object
+param = parameter
+params = parameters
+pct = percent
+pkg = package
+pos = position
+prev = previous
+prop = property
+props = properties
+proc = process
+ref = reference
+refs = references
+rel = relative
+req = request
+res = result, or resolution — write the one you mean, and in this domain it is usually resolution
+resp = response
+sep = separator
+src = source
+temp = temporary
+tmp = temporary
+val = value
+vals = values
+var = variable
+vars = variables

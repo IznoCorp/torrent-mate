@@ -182,6 +182,10 @@ jobs:
       - run: python3 scripts/check-no-broad-registry-catch.py
       - run: python3 scripts/check-typed-api.py
       - run: python3 scripts/check-pragma-discipline.py
+      # The no-abbreviation rule (`docs/reference/code-naming.md`). It reads
+      # files with `ast` and needs nothing installed, which is why it sits in
+      # this job rather than beside the tests.
+      - run: python3 scripts/check-code-abbreviations.py
       - run: python3 scripts/audit-cli-coverage.py
       - run: python3 scripts/cli-coverage-report.py --check
       # Fail-soft by design when `.data/acquire.db` is absent, which it always
@@ -210,10 +214,11 @@ jobs:
         if: needs.changes.outputs.maquette == 'true'
       - run: npm ci --prefix frontend/maquette/design
         if: needs.changes.outputs.maquette == 'true'
-      # The CONTRACT subset only. The 50-rule suite is a wave gate, not a
-      # per-PR one: 50 headless-Chrome runs cost 20-25 minutes, and these five
+      # The CONTRACT subset only. The 56-rule suite is a wave gate, not a
+      # per-PR one: 56 headless-Chrome runs cost 20-25 minutes, and these SIX
       # are the ones that fall when a NAME moves without all of its ends —
-      # which is what a pull request most often does wrong.
+      # which is what a pull request most often does wrong. The step also runs
+      # the repository's cheap guards, which `run.sh` folds into this tier.
       # The rules launch `channel="chrome"`. `PARITY_BROWSER_CHANNEL` used to
       # redirect that, and its only reader went with `parity-probe.py` — setting
       # it here would be green by accident of the runner shipping Chrome, which

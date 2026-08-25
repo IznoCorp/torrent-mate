@@ -1,5 +1,12 @@
 /* THE RESIDUE — CSS THE DYING ENGINE STILL NEEDS, AND ITS DATE OF DEATH.
-   D-L07-5, arbitrated by the operator on 2026-08-24.
+   D10 of `docs/reference/frontend-architecture.md`.
+
+   Taken as D-L07-5 by the operator on 2026-08-24, inside L07, and PROMOTED to
+   a § 2 decision on 2026-08-25: the only definition of it lived in an archived
+   DESIGN, and `docs/archive/` is frozen history that is never revised — so the
+   sole justification for keeping 2 357 non-blank lines of stylesheet alive could no
+   longer be corrected if its terms changed. The address above is the one to
+   read; the archive records where the decision was taken.
 
    Two kinds of rule live here, and neither is a leftover:
 
@@ -360,7 +367,15 @@ border-radius: var(--radius-3);
   gap: var(--spacing-4);
   width: 100%;
   border: 0;
-  background: transparent;
+  /* `background-color`, not the `background` shorthand. The element is a
+     BUTTON and the user agent gives it a colour and nothing else, so the two
+     say the same thing on screen — but the shorthand also resets the image,
+     the position, the repeat, the size and the clip, and `sectionHead()`'s
+     `bg-transparent` sets the colour alone. R80 measured the difference:
+     identical rendering, and two declarations that are no longer term for
+     term. The rule and the variant it shadows must say the SAME thing, or the
+     day one of them drifts is invisible. */
+  background-color: transparent;
   padding: var(--spacing-1) 0;
   text-align: left;
 }

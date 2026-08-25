@@ -346,6 +346,7 @@ reasoning is kept so the alternatives are not proposed again as if new.
 | **Haptics** | **refuse the capability, build the seam** | the target platform exposes no public API; the workarounds ride an implementation detail that has already been tightened once. One `feedback()` call site all gestures pass through, visual today — so adopting it later changes one file |
 | **`onTouchStart` for pressed states** | **refuse** | it lights the pressed state when the finger is starting a SCROLL, so a list flickers as it is scrolled. `:active` is cancelled by the browser when the gesture becomes a scroll, which is the wanted behaviour, for free |
 | **`@media (hover: hover)`** to keep hover off touch | **adopt** | the sticky-hover problem is real; this is its declarative remedy |
+
 ### D10 — The dying engine's CSS is a bounded residue with a date of death
 
 **Decision.** The CSS the legacy engine still needs does not convert and does not disperse: it is
@@ -360,12 +361,42 @@ never revised, so the sole justification for keeping a 2 470-line stylesheet ali
 longer be corrected if its terms changed. `legacy.css`'s header cites **this** address.
 
 **What it costs, and it is recorded rather than discovered.** Unlayered normal declarations beat
-every cascade layer whatever the specificity — including on markup that COMPONENTS draw. Seven
-shared identity anchors carry both a residue rule and a typed variant, so on those elements a
-variant can be edited and change nothing on screen (B-067). The declarations are identical term
+every cascade layer whatever the specificity — including on markup that COMPONENTS draw. B-067
+found **seven** shared identity anchors carrying both a residue rule and a typed variant, so on
+those elements a variant can be edited and change nothing on screen. **The guard that answers it
+found sixteen** — the seven is the finding's tally, kept because it is what the register records,
+and the measured count is below. The declarations are identical term
 for term today and the oracle says so; what is not held is the day one drifts. **The guard that
 cross-checks each variant against the rule shadowing it is arbitrated (operator, 2026-08-25)**,
 and it dies with this decision.
+
+**It is built, and it is `R80`** — `frontend/maquette/harness/residue.py`, in the per-phase
+contracts tier. It pairs each residue selector with the typed variant wearing the same identity
+anchor and compares `getComputedStyle` IN THE DOCUMENT, on two sibling probes, for exactly the
+properties the residue declares — never as text, because `flex: 0 0 auto` and `flex-none` are one
+value written twice and a guard carrying Tailwind's mapping by hand would be a table that rots.
+**Sixteen pairs stand where the finding named seven.**
+
+**Its own proof is that the oracle cannot supply one.** With `emptyNote()`'s `rounded-3` moved to
+`rounded-2`, R80 falls naming the anchor and the term — « residue « 8px » vs variant « 6px » » —
+while the oracle runs green over the same tree, 2 739 measurements, no divergence. That is B-067
+demonstrated rather than asserted, and it is why this guard is not something the oracle could have
+been widened into.
+
+**It measures under BOTH motion preferences, and that is not thoroughness for its own sake.** Part
+of the residue sits inside `@media (prefers-reduced-motion: no-preference)`; a utility carries no
+such condition unless it is written `motion-safe:`. The two sides then agree to the character
+under one preference and disagree under the other — which is how the hero's entrance was found
+animating for a reader who had asked for no motion (B-076), against invariant 14, with the oracle
+and the accessibility tier both green.
+
+**What it does not stage is counted and named on every run**, not left to be discovered: the
+selectors wearing an anchor no variant claims (the engine's own markup — the residue's whole
+purpose); the qualifiers the ENGINE writes through `classList`, which no variant emits; and the
+descendant pairs, whose one- and two-letter anchors collide across contexts — `.dcard .t` and
+`.sechead .t` would both pair with `sectionTitle()` and only one of them is that variant. It holds
+a FLOOR on the number of pairs found, because a pairing that found nothing would print « no
+divergence » and mean « I compared nothing » — which a first version of it did.
 
 ---
 

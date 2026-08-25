@@ -20,6 +20,9 @@
 #                 tier almost nothing — `audit2.py` is one of the five and is
 #                 nearly the whole of its cost — which is the same sentence as
 #                 the floor named below, read from the other end.
+#                 It also runs the repository's CHEAP guards (see below) — the
+#                 ones that read what a maquette phase edits — so an invariant
+#                 breach is attributable to the phase that commits it.
 #   (no flag)     all of them. The gate before a wave is merged, and the only
 #                 thing that proves a surface still renders what it promised.
 #                 Its floor is the SLOWEST SINGLE RULE, not the total: run one
@@ -64,13 +67,59 @@ SERVED="/tmp/tm-refonte"
 #   scen             a state id built from a template
 #   audit2           a state id built by string concatenation in JavaScript
 #   logout           a route renamed on one side only
+#   residue          an identity anchor shared by a residue rule and a typed
+#                    variant, where the residue WINS and the oracle is blind
 #
 # `arrivals.py` guards the `data-pipe` contract too and is NOT here: it holds
 # R66, which checks every figure against the run `library.db` really recorded,
 # by run_uid. That database is the operator's and a CI runner has none, so the
 # rule would fail there for a reason that has nothing to do with the change
 # under test. It runs in the full suite, on the machine that has the data.
-CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py)
+CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.py)
+
+# THE REPOSITORY'S CHEAP GUARDS, run beside the rules (B-063, arbitrated by the
+# operator on 2026-08-25). They read the tree in seconds and they read exactly
+# what a phase touches, so a breach lands on the phase that committed it
+# instead of on a fifteen-phase interval — which is the state L07 ran in, where
+# `make check` was a wave gate and nothing between phases read an invariant.
+#
+# NOT `make check` ENTIRE. Its 10 786 tests cost fourteen minutes, and the
+# operator's cadence ruling of 2026-08-24 stands for that half. What joins is
+# what costs seconds.
+#
+# THE SELECTION IS « WHAT A MAQUETTE PHASE EDITS », and a first version of this
+# list got that wrong: it held the three guards that mostly read
+# `personalscraper/` and `tests/` and none of the cheap ones that read the CSS,
+# the markup and the resources a phase actually touches — `legacy.css`'s own
+# ceiling was absent from the tier of the very wave that edits `legacy.css`.
+# The six added below cost 6 s together — twelve invocations, 31 s in all,
+# measured. `check-tailwind-confinement.py` is the one deliberately left out:
+# it needs a build of its own and costs 102 s.
+#
+# NONE OF THEM READS A DATABASE, and that was checked rather than assumed. It
+# is the disqualifying property for this tier: `arrivals.py` holds R66 against
+# the operator's live `library.db`, a runner has none, and the rule failed
+# there for a reason foreign to every change under test — twice (B-049). These
+# read files.
+#
+# Run in the FULL suite too, and not only here. A wave gate that reads less
+# than the phase gate is the same defect this project keeps paying for from the
+# other end; the suite is a superset or it is not a gate.
+REPOSITORY_GUARDS=(
+  "scripts/check-frontend-boundaries.py"
+  "scripts/check-module-size.py"
+  "scripts/check-module-size.py --root scripts"
+  "scripts/check-module-size.py --root tests"
+  "scripts/check-module-size.py --root frontend"
+  "scripts/check-no-french.py"
+  "scripts/check-code-abbreviations.py"
+  "scripts/check-css-tokens.py"
+  "scripts/check-legacy-css-residue.py"
+  "scripts/check-compositor-css.py"
+  "scripts/check-markup-contracts.py"
+  "scripts/check-i18n-placeholders.py"
+)
+REPOSITORY_ROOT="$(cd "$HERE/../../.." && pwd)"
 
 # The oracle runs on the same freshly built copy the rules read, which is why it
 # lives behind this script rather than beside it: a stale `wrapped.html`
@@ -188,12 +237,32 @@ else
   done
 fi
 
+# The repository's guards, after the rules and before the two audits. They read
+# FILES — the module tree, the ceilings, the language rule — so they need no
+# browser and no served copy, and they are skipped on the two single-purpose
+# tiers: `--oracle` answers « did the rendering move » and `--a11y` answers « is
+# the markup usable », and a tier that answers two questions answers neither
+# clearly.
+if [ "$ORACLE_ONLY" -eq 0 ] && [ "$A11Y_ONLY" -eq 0 ]; then
+  echo
+  echo "Running the repository's cheap guards (${#REPOSITORY_GUARDS[@]})…"
+  for guard in "${REPOSITORY_GUARDS[@]}"; do
+    # Word-splitting is WANTED here: an entry carries its own flags.
+    # shellcheck disable=SC2086
+    if ! (cd "$REPOSITORY_ROOT" && python3 $guard > "$LOGS/guard.out" 2>&1); then
+      echo "  FAILED: python3 $guard"
+      sed 's/^/      /' < "$LOGS/guard.out"
+      failed=$((failed + 1))
+    fi
+  done
+fi
+
 if [ "$failed" -gt 0 ]; then
-  echo "harness: $failed of ${#scripts[@]} rule(s) FAILED — run the script alone to see which hold fell." >&2
+  echo "harness: $failed check(s) FAILED — run the script or the guard alone to see which hold fell." >&2
   exit 1
 fi
 if [ "$ORACLE_ONLY" -eq 0 ] && [ "$A11Y_ONLY" -eq 0 ]; then
-  echo "harness: ${#scripts[@]} rule(s), no violation."
+  echo "harness: ${#scripts[@]} rule(s) and ${#REPOSITORY_GUARDS[@]} repository guard(s), no violation."
 fi
 
 # The FOURTH tier. Before the oracle, because the two answer different questions

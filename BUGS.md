@@ -83,7 +83,7 @@ when the defect comes back.
 | B-047 | The navigation-failure flag is raised by no guard and read by no rule | by review   | `fixed #484` |
 | B-048 | The ninth boundary arm stays green with `addresses.ts` deleted      | by review   | `fixed #484` |
 | B-049 | A rule reads the operator's live `acquire.db` and turns red on every cron | by review | `open` |
-| B-050 | `check-frontend-boundaries.py` is at 921 lines, 79 from the hard ceiling | by review | `open` |
+| B-050 | `check-frontend-boundaries.py` is at 921 lines, 79 from the hard ceiling | by review | `fixed #500` |
 | B-051 | `toFollows()` carries the page in its query, invisible to the boundaries arm | by review | `open` |
 | B-052 | A synthesised follow panel labels a film « Série »                  | by review   | `open`       |
 | B-053 | A panel's layer entry is taken by a tab tap on the same layer (revisit) | by review | `open`     |
@@ -96,17 +96,21 @@ when the defect comes back.
 | B-060 | The rename tool could not rename a CSS custom property, and reported it as success | by mutation | `fixed #494` |
 | B-061 | The oracle cannot see a pseudo-element, so a class that generates nothing reads green | by rule | `open` |
 | B-062 | Three markup readers were blind to `cva()` factories, which emit a class name with no `class=` | by gate | `fixed #494` |
-| B-063 | The wave's per-phase gate tier runs none of the repository's own guards | by gate | `open` |
-| B-064 | R72's mutation recipe names an environment variable no code reads | by review | `open` |
-| B-065 | A duplicated `design/frontend/maquette/design/src/` tree is tracked, dead and drifting | by review | `open` |
-| B-066 | Two off-scale values sit under a named exemption rather than on the scale | by gate | `open` |
-| B-067 | A typed variant shadowed by the unlayered residue is inert, and nothing says so | by review | `open` |
+| B-063 | The wave's per-phase gate tier runs none of the repository's own guards | by gate | `fixed #500` |
+| B-064 | R72's mutation recipe names an environment variable no code reads | by review | `fixed #500` |
+| B-065 | A duplicated `design/frontend/maquette/design/src/` tree is tracked, dead and drifting | by review | `fixed #500` |
+| B-066 | Two off-scale values sit under a named exemption rather than on the scale | by gate | `fixed #500` |
+| B-067 | A typed variant shadowed by the unlayered residue is inert, and nothing says so | by review | `fixed #500` |
 | B-068 | The wave's documentation drifted in forty small places, and one figure family is wrong | by review | `open` |
-| B-069 | `legacy.css`'s licence to exist names a decision only an about-to-be-archived doc defines | by review | `open` |
-| B-070 | `rename-identifiers.py` passed the 800-line soft ceiling | by gate | `open` |
+| B-069 | `legacy.css`'s licence to exist names a decision only an about-to-be-archived doc defines | by review | `fixed #500` |
+| B-070 | `rename-identifiers.py` passed the 800-line soft ceiling | by gate | `fixed #500` |
 | B-071 | The design-notes toggle survives the overlay it toggles | by review | `open` |
-| B-072 | `build-surface-manifest.py` crashes: its own command no longer runs | by review | `open` |
-| B-073 | The size arm checks WHICH files are grandfathered, never the lot each names | by audit | `open` |
+| B-072 | `build-surface-manifest.py` crashes: its own command no longer runs | by review | `fixed #500` |
+| B-073 | The size arm checks WHICH files are grandfathered, never the lot each names | by audit | `fixed #500` |
+| B-074 | The abbreviation rule's figures were measured against a list the document did not contain | by audit | `fixed #500` |
+| B-075 | Five guards were written green over the very defect they were written for | by mutation | `fixed #500` |
+| B-076 | The hero's entrance animates for a reader who asked for no motion | by rule | `fixed #500` |
+| B-077 | A test of the browser-free half of a rule could not be collected without a browser | by CI | `fixed #500` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -478,8 +482,10 @@ there, and the stylesheet's header cites the durable address.
 
 
 **Arbitrated 2026-08-25: D-L07-5 becomes D10** of `docs/reference/frontend-architecture.md`, a
-full § 2 decision rather than a note inside a lot's description — a decision keeping 2 470 lines
-alive carries the same standing as those that structure the plan. `legacy.css`'s header cites
+full § 2 decision rather than a note inside a lot's description — a decision keeping 2 357
+non-blank lines alive carries the same standing as those that structure the plan. (« 2 470 » is
+the figure L07 recorded; re-measured at 2 511 lines, 2 357 non-blank, and corrected in `legacy.css`
+and in D10 where a reader acts on it.) `legacy.css`'s header cites
 that address, and the archived DESIGN stays what it is: the record of where the decision was
 taken.
 
@@ -1193,4 +1199,214 @@ Fix: the arm reads the value and refuses a label whose named lot is `LANDED` in
 the lot that actually owes the reduction, or its landing is what the ceiling should have caught.
 Mutation: mark a lot `LANDED` in the plan and watch the arm fall on the entries naming it.
 
-<sub>`python3 scripts/check-frontend-boundaries.py --arm size --list-grandfathered` · `for f in features/media/media-screen.tsx app/shell.tsx; do git show 5fdbfc9a^:frontend/maquette/design/src/$f | grep -c '[^[:space:]]'; done`</sub>
+<sub>`python3 scripts/check-frontend-boundaries.py --arm size --list-grandfathered` · the four before-figures: `for f in features/acquisition/page.tsx features/library/page.tsx features/media/media-screen.tsx features/arrivals/resolution-screen.tsx; do git show 5fdbfc9a^:frontend/maquette/design/src/$f | grep -c '[^[:space:]]'; done` → 762, 583, 760, 412</sub>
+
+---
+
+## L07-bis — the tidy-up, 2026-08-25
+
+The wave that executes the seven arbitrations the operator took on 2026-08-25. They were recorded
+in **#498**, whose four documentation commits this branch carries — so the arbitration and its
+execution land together, and every row below reads `fixed #500`. Every entry closes with the
+mutation that was seen to bite; **three of them are new and were found BY those mutations**, which
+is the reason this section exists rather than a row flipped to `fixed`.
+
+**Three L07 findings are deliberately still `open`**: B-061 (arbitrated — the oracle is NOT
+widened, so there is nothing to build), B-068 (the prose inventory) and B-071 (the design-notes
+toggle, which lives in `engine/legacy.js` and belongs to L13).
+
+**B-050, B-059 and B-070 — three angles on one mechanism, closed by splitting on a SUBJECT.**
+A guard file walking towards a ceiling that exits 1, in a repository whose waves keep adding arms
+to it. `check-frontend-boundaries.py` 921 → 442 (`boundaries_addressing.py`: what the SOURCE may
+declare as an address), `check-css-tokens.py` 905 → 771 (`csstokens_motion.py`: is a motion value
+on the motion scale, asked of a declaration and of a class name), `rename-identifiers.py`
+829 → 555 (`rename_readers.py`: who decides which byte is CODE).
+
+Proved behaviour-preserving by an ORACLE OUTSIDE THE CHANGE: `main`'s versions of both check
+scripts were run in place and their output diffed against the split ones — identical, line for
+line. The rename tool's 33 tests then caught what the diff could not: `subprocess` had left the
+import list with the readers while `ignored()`, which stayed, still called it.
+<sub>`python3 scripts/check-module-size.py --root scripts` → clean</sub>
+
+**B-063 — the repository's cheap guards join the per-phase tier.**
+`frontend/maquette/harness/run.sh --contracts` now runs **twelve invocations of nine guards**
+(~31 s), and the full suite runs them too: a wave gate that reads less than the phase gate is not
+a gate. NOT `make check` entire — the 2026-08-24 cadence ruling stands for its fourteen minutes of
+tests. **None of the nine reads a database**, which was checked and not assumed: that is the
+property that disqualified `arrivals.py` twice (B-049).
+
+**THE FIRST SELECTION WAS WRONG, and an adversarial review is what said so.** It held the three
+guards that mostly read `personalscraper/` and `tests/` — which CI already runs in its own job —
+and none of the cheap ones that read what a maquette phase actually edits. `legacy.css`'s own
+ceiling was absent from the tier of the very wave that edits `legacy.css`. Six more joined for
+6 s: `check-css-tokens.py`, `check-legacy-css-residue.py`, `check-compositor-css.py`,
+`check-markup-contracts.py`, `check-i18n-placeholders.py` and this wave's own
+`check-code-abbreviations.py`. `check-tailwind-confinement.py` stays out — it needs a build of its
+own and costs 102 s.
+<sub>mutation: a 1 201-line file under `scripts/` — the tier prints « FAILED: python3 scripts/check-module-size.py --root scripts », names the file, and the run exits 1 after the remaining guards have had their turn</sub>
+
+**B-064 — the recipe was wrong TWICE, and the second half was found by following the first.**
+`regions.json` said `R72_SANS_BUILD`; `shell.py` reads `R72_SKIP_BUILD`. The name is corrected —
+and replaying the recipe with the real variable, as the fix requires, showed the mutation it
+prescribes cannot be applied at all: it renames a class inside the emitted fragment, and
+`refonte.html` has carried no markup since L07. **A recipe that cannot be APPLIED certifies a rule
+exactly as surely as one that cannot FAIL.** Re-recorded against today's fragment.
+<sub>mutation: `@layer block2 {` → `@layer block2X {` in `dist/index.html`, `R72_SKIP_BUILD=1` — hold (a) alone falls, « fragment emitted 0 time(s) », exit 1; the rebuild restores it</sub>
+
+**B-065 — the eleven files are gone, and the hold that refuses the next copy was itself green
+over the defect first.** `arm_tree` gains it. **The first version looked for a segment repeated
+INSIDE the relative path and reported the real tree clean**: read from `design/`, the copy spells
+`frontend/maquette/design/src/…` — five distinct segments, nothing repeated. What repeats is the
+name of the directory you are standing in, so the hold is told its ancestors and its corpus's own
+name. `node_modules/` and `dist/` are skipped by name: a dependency tree repeats a hundred names
+and an arm reporting those would be muted within the day.
+<sub>mutation: a source file at `design/frontend/maquette/src/lib/` — « a directory under frontend/maquette/design/ is named « src/ » again », exit 1. Six of the nine new tests are red against `main`'s guard</sub>
+
+**B-066 — settled, one each way, and the exemption is no longer the answer.**
+`.skip-link` had no reason and is ON THE SCALE. Its `padding: 10px 16px` was half on it already —
+10px IS `--spacing-5` — and the two values that sat between steps were the **16px of horizontal
+padding** (the ramp reads 14 then 18) and the **10px radius** (the ramp reads 8 then 12). Nobody
+chose either: they came from the harness block the scale rule never read. 16 → `--spacing-8`,
+10 → `--radius-4`, both one increment UP, because an affordance that appears only under keyboard
+focus should read generously when it does. **THE ORACLE DOES NOT MEASURE THIS
+ELEMENT**, so it is not the proof here and does not pretend to be — the reading was taken in the
+browser instead. `.visually-hidden` stays exempt and is no longer debt: `-1px` is the clip IDIOM,
+and rounding it to a step un-hides the element.
+<sub>read in the browser on the served build — `padding: 10px 18px`, `border-radius: 0px 0px 12px 12px` · mutation: `16px` back in place — « `16px` is on no step of the spacing scale », exit 1</sub>
+
+**B-067 — R80, and its own proof is that the oracle cannot supply one.**
+`frontend/maquette/harness/residue.py` pairs each residue selector with the typed variant wearing
+its identity anchor and compares `getComputedStyle` IN THE DOCUMENT, on two sibling probes, for
+exactly the properties the residue declares. Never as text: `flex: 0 0 auto` and `flex-none` are
+one value written twice. **Sixteen pairs stand where the finding named seven.** Registered as R80
+in `regions.json`, in the contracts tier, recorded in D10, and it dies with it.
+
+Its one finding on the unmutated tree was real: `.sechead` declared the `background` SHORTHAND
+where `sectionHead()` sets `bg-transparent` — same rendering, and no longer term for term. The
+residue says `background-color` now, which is what it meant.
+<sub>mutation: `emptyNote()`'s `rounded-3` → `rounded-2` — R80 falls, « border-radius: residue « 8px » vs variant « 6px » », exit 1, WHILE THE ORACLE RUNS GREEN over 2 739 measurements. That is B-067 demonstrated rather than asserted</sub>
+
+**B-076 — the hero animates under `prefers-reduced-motion: reduce`, and R80 is what found it.**
+`.herobg`'s residue rule sits inside `@media (prefers-reduced-motion: no-preference)`;
+`heroImage()` emitted a bare `animate-hero-in`, which carries no such condition. Under
+`no-preference` the two sides agree to the character, which is why the pair passed and why nothing
+else ever saw it — the oracle measures one preference, and the a11y tier does not ask about
+motion. Under `reduce` the residue drops out and the utility keeps animating: the hero's entrance
+ran for a reader who had asked for no motion, against invariant 14, « reduced motion is a designed
+state, not a fallback ». `motion-safe:animate-hero-in`.
+
+**R80 measures BOTH preferences because of it.** The rule was written reading one, found this by
+being widened, and the widening is now part of it: two contexts, every pair held in each.
+<sub>mutation: the bare `animate-hero-in` back in place — « animation under reduce: residue « none » vs variant « 0.45s … heroin » », exit 1</sub>
+
+**B-075's second instance, and it is R80's own reader.** The factory extractor split a `cva()`
+call's arguments on their top-level comma and was BLIND TO COMMENTS — and this repository's
+comments are full of commas. Three factories came out with an EMPTY base, dropped silently from
+the anchor table, and took their pairs with them: the rule printed three comparisons fewer and
+nothing red. The comma that exposed it was in a comment this very wave wrote. The reader blanks
+comments now (quotes and templates tracked, so a `//` inside a class literal survives), and **a
+factory whose base cannot be read is a violation, never a skip** — 108 factories became 111.
+<sub>mutation: `cva('sec …')` in single quotes — « UNREADABLE: section() in layout.ts », exit 1 · before/after on the same file: 14 arguments and no anchor, against 3 and `herobg`</sub>
+
+**B-069 — `legacy.css`'s header cites D10** of `docs/reference/frontend-architecture.md` rather
+than an archived DESIGN, which is frozen history that could no longer be corrected if the
+decision's terms changed. The archive keeps its record of where the decision was taken.
+
+**B-072 — retired, not repaired, and the distinction is the finding.** ⚠ **It leaves a dangling
+citation in FROZEN history, and that is said here because the archive cannot say it.**
+`docs/archive/features/maquette-l07/DESIGN.md` § 248 and § 253 still name
+`plan/build-surface-manifest.py`, and `docs/archive/` is never revised — so this entry is the only
+place a reader can be told the file was removed on the operator's instruction and why. The
+recording it produced survives at `docs/archive/features/maquette-l07/plan/surface-manifest.json`.
+`build-surface-manifest.py` read a 4 136-line stylesheet inside `refonte.html`. That file is 120
+lines of conversion ledger. There is nothing left to re-derive from, so the proof is CLOSED and
+the recording it produced (`plan/surface-manifest.json`, correct) stays. What loses its subject is
+removed, not kept « just in case » — and a tool that crashes and nobody dares delete is the shape
+that rule exists to prevent.
+
+**B-073 — the size arm reads the label now, and the grammar is written down.**
+It refuses a label whose LEADING lot the plan marks `LANDED`; a label leading with no lot at all;
+and a plan that cannot be read — the last being a violation rather than « no lot has landed »,
+which is the reading that would make the hold pass for the one reason it must never pass for. A
+label may still MENTION a spent lot (« L09 — … (L07 converted the surface) ») because that
+sentence is worth keeping; what may never be spent is the lot the entry leads with. The five
+entries are re-labelled with the lot that OWES the reduction.
+**And the first version of that arm had B-073's own defect inside it**, found by review: it held
+the label against the LANDED set alone, so « L19 — the data layer takes it » would have stayed
+green for ever. The plan declares L01 to L13; a lot it never declares is a promise nobody can call
+in. The arm reads both sets now.
+<sub>mutation: mark L09 `LANDED` in the plan — the four entries naming it fall by name, exit 1. Second: the plan made unreadable — « no lot status could be read », exit 1. Third: a label leading with `L19` — « which the plan does not declare », exit 1</sub>
+
+**B-074 — the abbreviation rule's figures were measured against a list the document did not
+contain.** `docs/reference/code-naming.md` shipped on 2026-08-25 with a debt of **1 507**, a
+residue of **745 in 322 files** and a blacklist described in prose but never written down. The
+guard that arms it holds **56** words. Three it holds — `ref`, `dest`, `params` — were not in the
+count that produced 1 507; `temp`, `func`, `prop` and `props` joined after an adversarial review
+showed each was a one-character escape route from a word already refused (rename `tmp_path` to
+`temp_path` and the ratchet TIGHTENS while the name gets no better); and `exc` went the other way,
+544 occurrences moved to the KEPT list because `sys.exc_info` and `except … as exc` are the
+standard library's own spelling. Re-measured: **1 789** in **347** files.
+
+**The RATES hold, and they are the figures that decided the scope**: 3.7 new occurrences per day
+for the residue against a forecast of ≈ 3, and 15.1 with the campaign words refused against
+≈ 14.5. Both sets of numbers are in § 7 side by side rather than overwritten — a figure silently
+replaced teaches nothing about the figure that goes stale next.
+
+**AND THE SAME DEFECT RECURRED INSIDE THE FIX.** The first armed figures — 1 806 in 356 files —
+were themselves taken against a reader that could not see `self._connection = …`, and against a
+list missing the four escape words. **Twice now these figures have been asserted from a list that
+was not the one shipping**, which is why § 7 keeps both columns and names the commit each was
+measured at.
+<sub>`python3 scripts/check-code-abbreviations.py --list-baseline` → `"total": 1789` over 347 files</sub>
+
+**B-077 — the tests written to cover the browser-free half needed a browser to be collected.**
+`residue.py` imported `playwright` at module level, so `tests/scripts/test_residue.py` — whose
+whole subject is the four PURE functions — could not be imported in CI's `test` job, which
+installs no browser. Green locally, where playwright is installed; an **ERROR** on the runner,
+which is a COLLECTION crash and therefore not one test failing but the module and everything
+pytest had not yet reached. The import moved into `main()`, where the browser is actually used,
+and the module's own claim became true.
+
+**Found by CI and by nothing else**, which is the entry's point: the wave ran the full harness
+suite twice, `make check` twice and every guard by hand, all on a machine that has playwright.
+A gate proves what it reads, and every local gate read an environment the runner does not have.
+<sub>reproduced by shadowing the module: `PYTHONPATH=<dir with a raising playwright.py> python3 -m pytest tests/scripts/test_residue.py -q` → 13 passed, and the rule itself still refuses to run</sub>
+
+**B-075 — five guards, written for a defect, were green over that exact defect.** Three were
+found by mutation while the wave was being built; **two more by the adversarial review that
+followed**, and those two are the more interesting half — both were holes in a guard's own stated
+subject.
+
+R80's `balanced()` counted parentheses inside string literals while `split_top_level()`, three
+functions below in the SAME FILE, tracked quotes. A class list carrying `before:content-['(']` —
+ordinary Tailwind, and `endMark()` already ships `before:content-['']` — ran the reader to the end
+of the file and made every literal after it a branch of that factory. The anchor stayed right, so
+nothing looked wrong.
+
+And R80 held « a factory the reader cannot read is a violation » at ONE of the two entrances: an
+empty base was refused, a factory the `FACTORY` pattern never matched simply was not there.
+`cva<Props>(…)`, `const x: F = cva(…)`, an export on a later line, a `memo(…)` wrapper — four
+ordinary spellings, and losing `statusDot()` alone would have taken six of sixteen pairs out of the
+comparison while the floor of seven stayed green. **The remedy is not a bigger pattern: every
+`cva(` call in the sources is counted, and the reader must account for all of them.**
+
+**The floor was the pre-satisfied counter, one wave after the wave that named it.** Seven was
+B-067's tally and it was the wrong floor the moment the rule found sixteen. It is sixteen now.
+
+The three found during construction: The nested-copy hold read the relative path and found five distinct segments where the
+real tree sat (B-065). R80 scanned `variants*.ts` and `features/*/variants.ts`, missed the three
+files holding the shared vocabulary, paired ONE anchor out of eight and printed « no divergence »
+(B-067). R80's FACTORY READER then split a `cva()` call on a comma inside a COMMENT, dropping
+three factories out of the anchor table with their pairs — and the comma that exposed it sat in a
+comment this same wave had written four hours earlier. None would have been caught by anything but
+a mutation: all three had plausible output, all three exited 0, and two of them printed a count.
+
+**What closed them is a FLOOR, and it is the general remedy.** R80 refuses fewer than **sixteen**
+pairs — the measured count, not the finding's seven — and refuses a `cva(` call it cannot account
+for. `check-code-abbreviations.py` refuses a corpus of zero files or zero names. `arm_size`
+refuses a plan it cannot read rather than concluding nothing landed, and refuses a label naming a
+lot the plan never declares. The pattern is the same in all five:
+**a reader that finds nothing must say so as a violation, never as a pass.** Recorded here as its
+own entry because it is not one bug: it is the failure mode this repository keeps buying, and the
+remedy is cheap enough to be a habit.
+
