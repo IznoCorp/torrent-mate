@@ -24,6 +24,10 @@ import "../styles/base.css";
 // engine draws, and it must be able to win over the base layer the same way
 // a component's own rule would. It dies with L13.
 import "../styles/legacy.css";
+// THE HARNESS, LAST, AND THE ONE IMPORT THAT DOES NOT SHIP. Phone frame,
+// harness buttons, the measuring hides. It dies at switchover with the
+// prototype it serves, and removing this line is the whole of its removal.
+import "../styles/harness.css";
 // The i18n bootstrap is the first import that RUNS, for its side effect
 // (initialising `i18next`) — every migrated screen calls `useTranslation()`,
 // and the first of them can render before any other import here settles. The
