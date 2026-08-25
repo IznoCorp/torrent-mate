@@ -1676,6 +1676,224 @@ border-radius: var(--radius-3);
   border: 1px dashed var(--color-border);
 }
 
+/* ── Season matrix and the air-date popover ─────────────────────── */
+/* THE ENGINE DRAWS THE CELLS. `season`, `sfr`, `miss`, `eps` and `ep` are
+   emitted from `legacy.js` as well as from the components, and the popover
+   is entirely its own — so the whole block stays hand-written until L13.
+
+   Two decisions must survive it. The expand affordance is VISIBLE: a 9px
+   chevron went unnoticed and was made bigger on purpose. And the question
+   an incomplete sheet answers is « WHICH ONES are missing » — the matrix
+   exists to answer it at a glance, not to count. */
+/* Season matrix (follow detail sheet)
+   Geometry taken from the shipped component: 31 × 27 cell, radius 5, mono
+   11 semibold, tone background at 20%. « Not verified » is a dashed
+   ghost, not a colour: the absence of a verdict is not a state. */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2) var(--spacing-6);
+  margin-bottom: var(--spacing-6);
+  font-size: var(--text-2);
+  color: var(--color-muted-foreground);
+}
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  white-space: nowrap;
+}
+.legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-1);
+  display: block;
+}
+.sw-success {
+  background: color-mix(in oklab, var(--color-success) 60%, transparent);
+}
+.sw-warning {
+  background: color-mix(in oklab, var(--color-warning) 60%, transparent);
+}
+.sw-info {
+  background: color-mix(in oklab, var(--color-info) 60%, transparent);
+}
+.sw-waiting {
+  background: color-mix(in oklab, var(--color-waiting) 60%, transparent);
+}
+.sw-upcoming {
+  background: color-mix(in oklab, var(--color-upcoming) 60%, transparent);
+}
+.sw-muted {
+  border: 1px dashed var(--color-border);
+  background: transparent;
+}
+.season {
+  border-top: 1px solid var(--color-border);
+  padding: var(--spacing-4) 0;
+}
+.season:first-of-type {
+  border-top: 0;
+}
+.season > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: var(--spacing-2) 0;
+  cursor: pointer;
+  font-size: var(--text-2);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-muted-foreground);
+  list-style: none;
+}
+.season > summary::-webkit-details-marker {
+  display: none;
+}
+/* The expand affordance must be VISIBLE: a 9px chevron went unnoticed,
+   and nothing said the row opens. */
+.season > summary::before {
+  content: "›";
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-2);
+  background: var(--color-muted);
+  color: var(--color-foreground);
+  font-size: var(--text-5);
+  font-weight: 700;
+  line-height: 1;
+  transition: transform var(--duration-2) var(--ease-standard);
+}
+.season[open] > summary::before {
+  transform: rotate(90deg);
+}
+.season .sfr {
+  margin-left: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-3);
+  font-weight: 600;
+  color: var(--color-foreground);
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.season .miss {
+  font-size: var(--text-1);
+  font-weight: 600;
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-full);
+  text-transform: none;
+  letter-spacing: normal;
+  background: color-mix(in oklab, var(--color-warning) 20%, transparent);
+  color: var(--color-warning);
+}
+/* The question an incomplete sheet answers is « which ones are missing »,
+   not « how many ». Answer it in words, before the list. */
+.missing {
+  margin: var(--spacing-4) 0 0;
+  font-size: var(--text-3);
+  font-weight: 600;
+  color: var(--color-warning);
+  font-variant-numeric: tabular-nums;
+}
+
+.eps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-4);
+}
+.ep {
+  display: grid;
+  place-items: center;
+  width: 31px;
+  height: 27px;
+  border-radius: var(--radius-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-2);
+  font-weight: 600;
+  border: 0;
+}
+.ep.in_library {
+  background: color-mix(in oklab, var(--color-success) 20%, transparent);
+  color: var(--color-success);
+}
+.ep.to_grab {
+  background: color-mix(in oklab, var(--color-warning) 20%, transparent);
+  color: var(--color-warning);
+}
+.ep.acquiring {
+  background: color-mix(in oklab, var(--color-info) 20%, transparent);
+  color: var(--color-info);
+}
+.ep.pending {
+  background: color-mix(in oklab, var(--color-waiting) 20%, transparent);
+  color: var(--color-waiting);
+}
+.ep.announced {
+  background: color-mix(in oklab, var(--color-upcoming) 20%, transparent);
+  color: var(--color-upcoming);
+}
+.ep.unverified {
+  border: 1px dashed var(--color-border);
+  background: transparent;
+  color: var(--color-muted-foreground);
+}
+/* Air-date popover on an episode cell — mirrors the shipped
+   EpisodeDatePopover: « Diffusé le … » or « Sortie prévue le … », never a
+   bare ISO date. Portalled to the body so sheet scrolling cannot clip it. */
+/* The episode popover, and why its outline is the BRAND colour rather than
+   the border one. It floats over a matrix of dark cells on a dark surface,
+   and a border in `--border` put a near-black line on a near-black
+   background: its edges could not be found, so it read as text hovering in
+   mid-air rather than as a thing with limits. The accent is the only colour
+   in the palette that separates from everything the app draws behind it. */
+.eppop {
+  position: fixed;
+  z-index: 60;
+  width: 220px;
+  border-radius: var(--radius-2);
+  border: 1px solid var(--color-primary);
+  background: var(--color-popover);
+  padding: var(--spacing-4) var(--spacing-6);
+  font-size: var(--text-3);
+  line-height: 1.45;
+  color: var(--color-foreground);
+  box-shadow: var(--mq-shadow-toast);
+}
+.eppop b {
+  display: block;
+  font-size: var(--text-2);
+  color: var(--color-muted-foreground);
+  font-weight: 600;
+  margin-bottom: var(--spacing-1);
+}
+.ep {
+  cursor: pointer;
+}
+
+.sheetposter {
+  flex: 0 0 auto;
+  width: 84px;
+  aspect-ratio: 2/3;
+  border-radius: var(--radius-2);
+  overflow: hidden;
+  font-size: var(--text-8);
+  background: var(--color-muted);
+}
+.sheetposter img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+
+
 /* ── LAST, AND THE ORDER IS THE POINT ────────────────────────────────
    THE ACTION-BUTTON SYSTEM COMES AFTER EVERYTHING IT OVERRIDES. In the
    prototype's stylesheet it sat a thousand lines below the card, so the
