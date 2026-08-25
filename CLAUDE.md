@@ -246,6 +246,15 @@ Alternative: run steps individually (`personalscraper ingest`, then `personalscr
 - **A bug fix carries a regression test**, and the test is shown to FAIL against the code as it
   stands before the fix. A test written after the fix that was never seen red proves only that
   it agrees with the fix.
+- **Names are written out in full — no abbreviations.** `configuration`, not `cfg`; `message`,
+  not `msg`. A name is read far more often than it is typed, and a mutilated word costs its
+  reader a translation every time. The rule, its blacklist, what is NOT an abbreviation (language
+  conventions, acronyms, domain terms, and `dir` as a type suffix — measured at 488 occurrences,
+  never once bare) and the ratchet that freezes the existing debt without rewriting it:
+  `docs/reference/code-naming.md`. It covers `personalscraper/`, `scripts/` and
+  `frontend/maquette/`, parameters and locals included; TypeScript is already covered by
+  `check-no-french.py`'s vocabulary arm. One-letter names are never read — Clean Code licenses a
+  BRIEF name in a brief scope, never a word with its middle removed.
 - **Module size**: soft warning at 800 non-blank LOC, hard ceiling 1000 LOC (exit 1). Run `python3 scripts/check-module-size.py` (also wired into `make check`).
 
 ### Phase Gate Checklist (MANDATORY before every phase gate commit)
@@ -407,6 +416,7 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 | Disks, NTFS/macFUSE, rsync flags, disk space rules, move rules details | `docs/reference/storage.md` |
 | Directory layout, module map, shared utilities, dependencies, api/ contracts (HttpTransport, Protocols) | `docs/reference/architecture.md` |
 | Movie/TV folder naming, episode patterns, filename sanitization | `docs/reference/naming.md` |
+| Code names — the no-abbreviation rule, its blacklist, exemptions and ratchet | `docs/reference/code-naming.md` |
 | Unit tests, E2E, roundtrip, golden files, test markers, timeouts, feature map | `docs/reference/testing.md` |
 | TMDB/TVDB APIs, NFO invariants, artwork, ffprobe language codes | `docs/reference/scraping.md` |
 | rapidfuzz, tenacity, structlog, rich, guessit gotchas | `docs/reference/libraries.md` |

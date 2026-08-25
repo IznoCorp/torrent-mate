@@ -83,7 +83,7 @@ when the defect comes back.
 | B-047 | The navigation-failure flag is raised by no guard and read by no rule | by review   | `fixed #484` |
 | B-048 | The ninth boundary arm stays green with `addresses.ts` deleted      | by review   | `fixed #484` |
 | B-049 | A rule reads the operator's live `acquire.db` and turns red on every cron | by review | `open` |
-| B-050 | `check-frontend-boundaries.py` reached 883 lines during the L05 repair | by review | `open` |
+| B-050 | `check-frontend-boundaries.py` is at 921 lines, 79 from the hard ceiling | by review | `open` |
 | B-051 | `toFollows()` carries the page in its query, invisible to the boundaries arm | by review | `open` |
 | B-052 | A synthesised follow panel labels a film « Série »                  | by review   | `open`       |
 | B-053 | A panel's layer entry is taken by a tab tap on the same layer (revisit) | by review | `open`     |
@@ -92,6 +92,7 @@ when the defect comes back.
 | B-056 | A `@keyframes` name is French (`splashremplit`), invisible to no-french  | by review | `open` |
 | B-057 | `audit2.py`'s R12 silently measures four of five contexts, not five | by review   | `open`       |
 | B-058 | commit-msg's AI-attribution match is unanchored, flags quoting prose | by mutation | `open`       |
+| B-059 | `check-css-tokens.py` crossed the 1 000-line hard ceiling during L07        | by audit    | `fixed #494` |
 | B-060 | The rename tool could not rename a CSS custom property, and reported it as success | by mutation | `fixed #494` |
 | B-061 | The oracle cannot see a pseudo-element, so a class that generates nothing reads green | by rule | `open` |
 | B-062 | Three markup readers were blind to `cva()` factories, which emit a class name with no `class=` | by gate | `fixed #494` |
@@ -105,6 +106,7 @@ when the defect comes back.
 | B-070 | `rename-identifiers.py` passed the 800-line soft ceiling | by gate | `open` |
 | B-071 | The design-notes toggle survives the overlay it toggles | by review | `open` |
 | B-072 | `build-surface-manifest.py` crashes: its own command no longer runs | by review | `open` |
+| B-073 | The size arm checks WHICH files are grandfathered, never the lot each names | by audit | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -180,6 +182,60 @@ non-fix) — the second occurrence inside two waves, and the question is still n
 module-size ratchet (invariant 6) does not exempt guard scripts. Split before the next arm lands,
 not as an emergency — the file is not yet over the hard ceiling, only past the point where one
 more addition should pause and ask.
+
+**The 883 was the figure on the day it was written, and it was read as the state for two waves.**
+Re-measured on `main` at `2a3f2576`: **921** non-blank lines, 79 from the hard ceiling, not 117.
+The entry above is kept as it was written — this paragraph is the correction, because a figure
+silently overwritten teaches nothing about the figure that will go stale next. Whoever closes
+this bug re-runs the command rather than trusting either number.
+
+<sub>`python3 scripts/check-module-size.py --root scripts`</sub>
+
+**B-059 — the token guard is 58 lines from the ceiling, with 14 of L07's 16 phases to run.**
+`scripts/check-css-tokens.py` was **815** non-blank lines on `main` and is **942** on
+`feat/maquette-l07` at `dfb6ee42` — +13 in phase 1, +114 in phase 2 and its follow-up fix. The
+hard ceiling is 1 000, it is enforced over `scripts/` (`check-module-size.py --root scripts`, in
+`make check` and in CI's `guards` job), and exceeding it exits 1. Fourteen phases remain, and
+**phase 4 plans another arm inside this very file** — `--arm motion-classes`, which the phase
+document argues is not optional because nothing else in the repository would catch a
+`duration-<n>` off the scale.
+
+**The plan does not name this anywhere**: no phase document, neither `DESIGN.md` nor
+`plan/INDEX.md`, mentions module size — the file is cited only as a command to run green. So the
+wave is on course to redden a gate through a channel its own plan never forecast, and the phase
+that trips it will look like the phase at fault rather than the accumulation. Not this steward's
+to repair: reported so the split is planned rather than discovered at a red CI. The measurement
+belongs to the wave; what belongs here is that it was never measured.
+
+**IT HAPPENED, AND EXACTLY WHERE THIS ENTRY SAID IT WOULD** — at phase 4, the phase that adds
+`--arm motion-classes` to this same file. The wave carried **1 016** non-blank lines at
+`3e1f1ce5` and **1 022** at `2634de86`, two commits over a ceiling that exits 1, and the guard
+that caught it was the repository's own — `check-module-size.py --root scripts`, in `make check`
+and in the `guards` job — not anything the wave had planned. `777ec798` repaired it: the sign-in
+gate's arm left for `scripts/csstokens_login.py` on a SUBJECT split, the four shared patterns
+kept in one module so the first copy to drift cannot do so in silence, and the file is **851**
+lines on the wave's tip.
+
+Closed as `fixed #494` rather than `closed`: it is repaired on the branch, not on `main`. Rule 3
+is met by the gate that already exists and already bit — the mutation was not staged, it was
+lived.
+
+**#494 merged on 2026-08-25 (squash `5fdbfc9a`), so « not on `main` » stopped being true the
+moment it did.** The status column keeps `fixed #494` — that is what the entries of #484 do once
+their pull request lands, and `closed` means the operator confirmed. What this paragraph corrects
+is the SENTENCE, because a sentence that outlives its subject is read as current by the next
+session. Two further things moved with the merge, and one of them is a warning rather than a footnote.
+The command below names `origin/feat/maquette-l07`, a branch deleted at the merge — measure the
+file instead. **And the file is 905 lines on `main`, not the 851 the split left it at**: the
+adversarial review before the merge widened the scale arm, corrected two messages and added a
+served-page hold to the login arm, so **95 lines of the 149 the split bought back are already
+spent**. This entry's mechanism is therefore live, not historical: the next arm to land in this
+file crosses again. **What this entry did NOT get right** is its own forecast of the deadline: it read « phase
+3 » from a two-phase slope, and the crossing came at phase 4. The mechanism was right, the
+extrapolation was decoration — a rate measured over two points is a rate that has not been
+measured.
+
+<sub>`for c in $(git log --format=%h --reverse origin/main..origin/feat/maquette-l07); do printf '%s %s\n' "$c" "$(git show $c:scripts/check-css-tokens.py | grep -c '[^[:space:]]')"; done`</sub>
 
 **B-051 — a feature-owned reader escapes the boundaries arm.**
 `toFollows()` carries its page identity in a query parameter, inside a feature file the ninth
@@ -277,6 +333,13 @@ disappear silently unless a rule happens to read it. Not fixed, and not fixable 
 change — it is a question about the oracle's contract (whether a named region may declare a
 pseudo-element to measure), and it belongs with whoever owns that contract.
 
+
+**Arbitrated 2026-08-25: the oracle is NOT widened.** It keeps its contract — it measures
+elements — and the limit is written into D8 of `frontend-architecture.md`, where it is read
+before anyone relies on the instrument. A pseudo-element carrying a function is covered by a
+named rule instead, the way R26 covers this one. A surface that leans on a functional
+pseudo-element with no such rule is the defect; the oracle is not.
+
 **B-062 — a class name emitted by a `cva()` base string wears no `class=`, and three readers looked for `class=`.**
 The markup-contract readers learn what a class NAME is from the sites that emit one, and they
 knew three such sites: `class="…"` in a document, `className="…"` in a component, and the engine's
@@ -303,6 +366,14 @@ line ceiling in the same interval.
 repository guard reading the tree once. The question is a cadence one, like B-049's — whether the
 per-phase tier gains a `make check`, or the boundaries guard joins the contracts tier — and it is
 not this wave's to settle alone.
+
+
+**Arbitrated 2026-08-25: the repository's CHEAP guards join the per-phase tier.** Not `make
+check` entire — 10 763 tests cost fourteen minutes and the operator's cadence ruling of
+2026-08-24 stands for the expensive half. What joins are the guards that run in seconds and read
+what a phase touches: `check-frontend-boundaries.py`, `check-module-size.py` over its four roots,
+and `check-no-french.py`. An invariant breach is then attributable to the phase that commits it,
+instead of to a fifteen-phase interval.
 
 **B-064 — R72's mutation recipe names an environment variable that nothing reads, so following it proves nothing.**
 `frontend/maquette/regions.json`'s R72 text says « `R72_SANS_BUILD=1` skips the build gate ALONE ».
@@ -369,6 +440,13 @@ editing it changes nothing on screen and no gate speaks.** TypeScript passes, th
 each variant's identity anchor against the residue's selectors and refusing a divergence; the
 alternative is scoping the residue to the engine's instances, which is L13's work.
 
+
+**Arbitrated 2026-08-25: the guard is built now, and it dies with D10.** It reads the seven shared
+identity anchors, compares each typed variant against the residue rule that shadows it, and
+refuses a divergence. Scoping the residue to the engine's instances stays L13's work — waiting for
+it would leave the trap open across L08 through L12. The guard is recorded in D10, so it is
+removed in the same move as the decision that makes it necessary.
+
 **B-068 — the wave's prose drifted in forty small places, and the inventory is kept.**
 An adversarial doc-accuracy review over #494 re-measured every figure the wave asserts. **Most
 are right** — 2 739 measurements, 530 rules, 4 136 lines, 30 colours, 8 shadows, 55 rules, 936
@@ -397,6 +475,13 @@ That directory was archived when #494 landed, so **the only definition of the de
 prototype fragment, ACC-14/ACC-19) already has a durable home in
 `docs/reference/frontend-architecture.md` § L13. This one needs the same: the decision moves
 there, and the stylesheet's header cites the durable address.
+
+
+**Arbitrated 2026-08-25: D-L07-5 becomes D10** of `docs/reference/frontend-architecture.md`, a
+full § 2 decision rather than a note inside a lot's description — a decision keeping 2 470 lines
+alive carries the same standing as those that structure the plan. `legacy.css`'s header cites
+that address, and the archived DESIGN stays what it is: the record of where the decision was
+taken.
 
 **B-070 — the rename tool passed the soft ceiling, and it is the same family as B-050.**
 `scripts/rename-identifiers.py` reads **829 non-blank lines** against a soft warning at 800 and a
@@ -1082,3 +1167,30 @@ committed reference file**, and **every future `--record` rewrites the French wo
 file, so the copy regenerates for as long as line 637 stands. Fix the source line first; the
 `.json` copy then corrects itself on the next recording.
 <sub>`grep -c "entérine" frontend/maquette/oracle-reference.json` → 1</sub>
+
+**B-073 — the grandfathered list guarantees its membership and never its justification.**
+`scripts/check-frontend-boundaries.py`'s size arm is careful about the list's *composition*: it
+refuses a file over the 400-line ceiling that no entry records (`unrecorded`), and it refuses an
+entry for a file that has come back under it (`stale`). **It never reads the entry's VALUE.**
+`lot = GRANDFATHERED.get(module, …)` is used for one thing only — printing
+`--list-grandfathered` — so the sentence naming the lot that will convert the file is checked by
+nothing, and regenerating the list preserves it verbatim.
+
+**What that costs today.** Four of the seven entries name **L07**, which landed on 2026-08-25:
+`features/acquisition/page.tsx` (« L07 — the surface converts, then L09 takes its data »),
+`features/library/page.tsx`, `features/media/media-screen.tsx` and
+`features/arrivals/resolution-screen.tsx` (« L07, then L09 »). All four are still over the
+ceiling, and all four **grew** during the wave — 762→769, 583→589, 760→789, 412→413. The next
+session reads a list promising a lot that has already been and gone.
+
+**This is not « L07 failed its promise »**, and the distinction is the whole finding: each label
+names TWO lots, the conversion (L07, done) and the data extraction (L09, owed), and nothing
+distinguishes the half that is spent from the half that is not. A label carrying two lots and no
+state is not a label anyone can act on.
+
+Fix: the arm reads the value and refuses a label whose named lot is `LANDED` in
+`frontend-architecture.md` while the file is still listed — either the entry is re-labelled with
+the lot that actually owes the reduction, or its landing is what the ceiling should have caught.
+Mutation: mark a lot `LANDED` in the plan and watch the arm fall on the entries naming it.
+
+<sub>`python3 scripts/check-frontend-boundaries.py --arm size --list-grandfathered` · `for f in features/media/media-screen.tsx app/shell.tsx; do git show 5fdbfc9a^:frontend/maquette/design/src/$f | grep -c '[^[:space:]]'; done`</sub>
