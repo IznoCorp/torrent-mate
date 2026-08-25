@@ -96,6 +96,12 @@ CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.
 # measured. `check-tailwind-confinement.py` is the one deliberately left out:
 # it needs a build of its own and costs 102 s.
 #
+# `check-mock-seeds.py` joined at L08 and it belongs here on the same test: it
+# reads FILES — the engine, the register, the seeds, the contract — and it costs
+# 1.1 s. It cost 66 s when written, because it started one node process per
+# family over a 35 198-line file; the extractor answers `--all` in one pass now.
+# A tier nobody can afford to run is a tier nobody runs.
+#
 # NONE OF THEM READS A DATABASE, and that was checked rather than assumed. It
 # is the disqualifying property for this tier: `arrivals.py` holds R66 against
 # the operator's live `library.db`, a runner has none, and the rule failed
@@ -118,6 +124,7 @@ REPOSITORY_GUARDS=(
   "scripts/check-compositor-css.py"
   "scripts/check-markup-contracts.py"
   "scripts/check-i18n-placeholders.py"
+  "scripts/check-mock-seeds.py"
 )
 REPOSITORY_ROOT="$(cd "$HERE/../../.." && pwd)"
 

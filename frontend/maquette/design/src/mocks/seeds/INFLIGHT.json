@@ -1,0 +1,47 @@
+[
+  {
+    "title": "President Curtis",
+    "secondaryLine": "S01E02 · 1080p · VOSTFR",
+    "strip": [
+      1,
+      1,
+      "now",
+      0,
+      0
+    ],
+    "chip": {
+      "tone": "info",
+      "text": "Ingestion"
+    }
+  },
+  {
+    "title": "Furious",
+    "secondaryLine": "S01E01 · 2160p",
+    "strip": [
+      1,
+      1,
+      1,
+      "now",
+      0
+    ],
+    "chip": {
+      "tone": "info",
+      "text": "Scraping"
+    }
+  },
+  {
+    "title": "This City Is Ours",
+    "secondaryLine": "S01E06 · 1080p",
+    "strip": [
+      1,
+      "now",
+      0,
+      0,
+      0
+    ],
+    "chip": {
+      "tone": "info",
+      "text": "Téléchargement 68 %"
+    }
+  }
+]

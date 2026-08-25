@@ -1,0 +1,74 @@
+[
+  {
+    "id": "all",
+    "label": "Tout",
+    "count": 1861,
+    "includes": null
+  },
+  {
+    "id": "movies",
+    "label": "Films",
+    "count": 717,
+    "includes": [
+      "movies"
+    ]
+  },
+  {
+    "id": "tv",
+    "label": "Séries",
+    "count": 528,
+    "includes": [
+      "tv_shows"
+    ]
+  },
+  {
+    "id": "anim",
+    "label": "Animation",
+    "count": 382,
+    "includes": [
+      "movies_animation",
+      "tv_shows_animation"
+    ]
+  },
+  {
+    "id": "standup",
+    "label": "Stand-up",
+    "count": 73,
+    "includes": [
+      "standup"
+    ]
+  },
+  {
+    "id": "doc",
+    "label": "Documentaires",
+    "count": 66,
+    "includes": [
+      "movies_documentary",
+      "tv_shows_documentary"
+    ]
+  },
+  {
+    "id": "anime",
+    "label": "Anime",
+    "count": 56,
+    "includes": [
+      "anime"
+    ]
+  },
+  {
+    "id": "tvprog",
+    "label": "Programmes TV",
+    "count": 31,
+    "includes": [
+      "tv_programs"
+    ]
+  },
+  {
+    "id": "theater",
+    "label": "Théâtre",
+    "count": 8,
+    "includes": [
+      "theater"
+    ]
+  }
+]

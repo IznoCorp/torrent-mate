@@ -1,0 +1,1535 @@
+[
+  {
+    "id": "rangement",
+    "title": "Où vont les médias",
+    "secondaryLine": "Les disques, les dossiers, et la catégorie dans laquelle chaque média atterrit.",
+    "fileNames": [
+      "paths",
+      "disks",
+      "categories"
+    ],
+    "settings": [
+      {
+        "file": "paths",
+        "key": "paths.torrent_complete_dir",
+        "type": "path",
+        "raw": "/Volumes/IznoServer SSD/torrents/complete",
+        "name": "torrent_complete_dir",
+        "value": "/Volumes/IznoServer SSD/torrents/complete",
+        "note": "Folder where qBittorrent deposits completed torrents."
+      },
+      {
+        "file": "paths",
+        "key": "paths.staging_dir",
+        "type": "path",
+        "raw": "/Volumes/IznoServer SSD/A TRIER",
+        "name": "staging_dir",
+        "value": "/Volumes/IznoServer SSD/A TRIER",
+        "note": "Intermediate staging folder before dispatch."
+      },
+      {
+        "file": "paths",
+        "key": "paths.data_dir",
+        "type": "path",
+        "raw": "/Users/izno/dev/PersonalScraper/.data",
+        "name": "data_dir",
+        "value": "/Users/izno/dev/PersonalScraper/.data",
+        "note": "Pipeline state directory (index, locks, analysis). Default: .data/ at repo root."
+      },
+      {
+        "file": "disks",
+        "key": "disks",
+        "type": "structure",
+        "raw": [
+          {
+            "id": "disk_1",
+            "path": "/Volumes/Disk1/medias",
+            "categories": [
+              "movies",
+              "movies_animation",
+              "movies_documentary",
+              "tv_shows",
+              "tv_shows_animation",
+              "tv_shows_documentary",
+              "anime",
+              "audiobooks",
+              "standup",
+              "theater",
+              "tv_programs"
+            ]
+          },
+          {
+            "id": "disk_2",
+            "path": "/Volumes/Disk2/medias",
+            "categories": [
+              "tv_shows",
+              "anime"
+            ]
+          },
+          {
+            "id": "disk_3",
+            "path": "/Volumes/Disk3/medias",
+            "categories": [
+              "movies",
+              "movies_animation",
+              "movies_documentary",
+              "tv_shows",
+              "tv_shows_animation",
+              "tv_shows_documentary",
+              "standup",
+              "theater",
+              "tv_programs"
+            ]
+          },
+          {
+            "id": "disk_4",
+            "path": "/Volumes/Disk4/medias",
+            "categories": [
+              "movies",
+              "movies_animation",
+              "tv_shows",
+              "tv_shows_animation",
+              "tv_shows_documentary"
+            ]
+          }
+        ],
+        "name": "disks",
+        "value": "4 entrées",
+        "note": "Storage disks (variable count). id: free-form identifier used in CLI --disk and logs. path: absolute mounted path. categories: IDs accepted on this disk (builtin + custom_categories)."
+      },
+      {
+        "file": "categories",
+        "key": "custom_categories",
+        "type": "list",
+        "raw": [],
+        "name": "custom_categories",
+        "value": "aucun",
+        "note": "Category definitions, classification rules, and genre mappings. Custom category IDs beyond the 11 builtins (optional). Each custom ID must also appear in 'categories' and be referenced by disks/rules. Example: custom_categories: [\"concerts\", \"short_films\"]"
+      },
+      {
+        "file": "categories",
+        "key": "categories.movies.folder_name",
+        "type": "text",
+        "raw": "movies",
+        "name": "folder_name",
+        "value": "movies"
+      },
+      {
+        "file": "categories",
+        "key": "categories.movies_animation.folder_name",
+        "type": "text",
+        "raw": "films animations",
+        "name": "folder_name",
+        "value": "films animations"
+      },
+      {
+        "file": "categories",
+        "key": "categories.movies_animation.aliases",
+        "type": "list",
+        "raw": [
+          "Movies Animation"
+        ],
+        "name": "aliases",
+        "value": "Movies Animation"
+      },
+      {
+        "file": "categories",
+        "key": "categories.movies_documentary.folder_name",
+        "type": "text",
+        "raw": "films documentaires",
+        "name": "folder_name",
+        "value": "films documentaires"
+      },
+      {
+        "file": "categories",
+        "key": "categories.tv_shows.folder_name",
+        "type": "text",
+        "raw": "series",
+        "name": "folder_name",
+        "value": "series"
+      },
+      {
+        "file": "categories",
+        "key": "categories.tv_shows_animation.folder_name",
+        "type": "text",
+        "raw": "series animations",
+        "name": "folder_name",
+        "value": "series animations"
+      },
+      {
+        "file": "categories",
+        "key": "categories.tv_shows_documentary.folder_name",
+        "type": "text",
+        "raw": "series documentaires",
+        "name": "folder_name",
+        "value": "series documentaires"
+      },
+      {
+        "file": "categories",
+        "key": "categories.anime.folder_name",
+        "type": "text",
+        "raw": "series animes",
+        "name": "folder_name",
+        "value": "series animes"
+      },
+      {
+        "file": "categories",
+        "key": "categories.audiobooks.folder_name",
+        "type": "text",
+        "raw": "livres audios",
+        "name": "folder_name",
+        "value": "livres audios"
+      },
+      {
+        "file": "categories",
+        "key": "categories.standup.folder_name",
+        "type": "text",
+        "raw": "spectacles",
+        "name": "folder_name",
+        "value": "spectacles"
+      },
+      {
+        "file": "categories",
+        "key": "categories.theater.folder_name",
+        "type": "text",
+        "raw": "theatres",
+        "name": "folder_name",
+        "value": "theatres"
+      },
+      {
+        "file": "categories",
+        "key": "categories.tv_programs.folder_name",
+        "type": "text",
+        "raw": "emissions",
+        "name": "folder_name",
+        "value": "emissions"
+      },
+      {
+        "file": "categories",
+        "key": "category_rules",
+        "type": "list",
+        "raw": [],
+        "name": "category_rules",
+        "value": "aucun",
+        "note": "Pattern-based classification rules (evaluated in order, first match wins, BEFORE genre_mapping). Supports: path_contains, path_regex, title_regex, tmdb_genre_contains, tmdb_keyword. Exactly one match_* field per rule."
+      },
+      {
+        "file": "categories",
+        "key": "anime_rule.enabled",
+        "type": "boolean",
+        "raw": true,
+        "name": "enabled",
+        "value": "oui"
+      },
+      {
+        "file": "categories",
+        "key": "anime_rule.requires_genre_id",
+        "type": "number",
+        "raw": 16,
+        "name": "requires_genre_id",
+        "value": "16",
+        "note": "TMDB Animation genre_id"
+      },
+      {
+        "file": "categories",
+        "key": "anime_rule.requires_origin_country",
+        "type": "list",
+        "raw": [
+          "JP"
+        ],
+        "name": "requires_origin_country",
+        "value": "JP",
+        "note": "ISO origin_country codes that trigger the rule"
+      },
+      {
+        "file": "categories",
+        "key": "anime_rule.maps_to",
+        "type": "text",
+        "raw": "anime",
+        "name": "maps_to",
+        "value": "anime",
+        "note": "Result category_id"
+      },
+      {
+        "file": "categories",
+        "key": "anime_rule.applies_to",
+        "type": "text",
+        "raw": "tv",
+        "name": "applies_to",
+        "value": "tv",
+        "note": "Media types to apply the rule to: \"movies\", \"tv\", \"both\""
+      },
+      {
+        "file": "categories",
+        "key": "genre_mapping.tmdb_movies.16",
+        "type": "text",
+        "raw": "movies_animation",
+        "name": "16",
+        "value": "movies_animation"
+      },
+      {
+        "file": "categories",
+        "key": "genre_mapping.tmdb_movies.99",
+        "type": "text",
+        "raw": "movies_documentary",
+        "name": "99",
+        "value": "movies_documentary"
+      },
+      {
+        "file": "categories",
+        "key": "genre_mapping.tmdb_tv.16",
+        "type": "text",
+        "raw": "tv_shows_animation",
+        "name": "16",
+        "value": "tv_shows_animation"
+      },
+      {
+        "file": "categories",
+        "key": "genre_mapping.tmdb_tv.99",
+        "type": "text",
+        "raw": "tv_shows_documentary",
+        "name": "99",
+        "value": "tv_shows_documentary"
+      },
+      {
+        "file": "categories",
+        "key": "genre_mapping.tmdb_tv.10764",
+        "type": "text",
+        "raw": "tv_programs",
+        "name": "10764",
+        "value": "tv_programs"
+      },
+      {
+        "file": "categories",
+        "key": "genre_mapping.tmdb_tv.10767",
+        "type": "text",
+        "raw": "tv_programs",
+        "name": "10767",
+        "value": "tv_programs"
+      },
+      {
+        "file": "categories",
+        "key": "genre_mapping.tmdb_tv.10763",
+        "type": "text",
+        "raw": "tv_programs",
+        "name": "10763",
+        "value": "tv_programs"
+      },
+      {
+        "file": "categories",
+        "key": "genre_mapping.tvdb.27",
+        "type": "text",
+        "raw": "anime",
+        "name": "27",
+        "value": "anime"
+      },
+      {
+        "file": "categories",
+        "key": "genre_mapping.tvdb.17",
+        "type": "text",
+        "raw": "tv_shows_animation",
+        "name": "17",
+        "value": "tv_shows_animation"
+      },
+      {
+        "file": "categories",
+        "key": "genre_mapping.tvdb.3",
+        "type": "text",
+        "raw": "tv_shows_documentary",
+        "name": "3",
+        "value": "tv_shows_documentary"
+      },
+      {
+        "file": "categories",
+        "key": "genre_mapping.tvdb.8",
+        "type": "text",
+        "raw": "tv_programs",
+        "name": "8",
+        "value": "tv_programs"
+      },
+      {
+        "file": "categories",
+        "key": "genre_mapping.tvdb.10",
+        "type": "text",
+        "raw": "tv_programs",
+        "name": "10",
+        "value": "tv_programs"
+      },
+      {
+        "file": "categories",
+        "key": "genre_mapping.tvdb.11",
+        "type": "text",
+        "raw": "tv_programs",
+        "name": "11",
+        "value": "tv_programs"
+      },
+      {
+        "file": "categories",
+        "key": "genre_mapping.default_films_category",
+        "type": "text",
+        "raw": "movies",
+        "name": "default_films_category",
+        "value": "movies",
+        "note": "Fallback when no genre matches"
+      },
+      {
+        "file": "categories",
+        "key": "genre_mapping.default_tv_category",
+        "type": "text",
+        "raw": "tv_shows",
+        "name": "default_tv_category",
+        "value": "tv_shows"
+      }
+    ]
+  },
+  {
+    "id": "nommage",
+    "title": "Comment ils sont nommés",
+    "secondaryLine": "Les motifs de renommage et l'encodage des noms de fichiers.",
+    "fileNames": [
+      "patterns",
+      "encoding"
+    ],
+    "settings": [
+      {
+        "file": "patterns",
+        "key": "staging_dirs",
+        "type": "structure",
+        "raw": [
+          {
+            "id": 1,
+            "name": "movies",
+            "file_type": "movie"
+          },
+          {
+            "id": 2,
+            "name": "tvshows",
+            "file_type": "tvshow"
+          },
+          {
+            "id": 3,
+            "name": "ebooks",
+            "file_type": "ebook"
+          },
+          {
+            "id": 4,
+            "name": "audio",
+            "file_type": "audio"
+          },
+          {
+            "id": 5,
+            "name": "apps",
+            "file_type": "app"
+          },
+          {
+            "id": 6,
+            "name": "android",
+            "file_type": "app"
+          },
+          {
+            "id": 97,
+            "name": "temp",
+            "file_type": null,
+            "role": "ingest"
+          },
+          {
+            "id": 98,
+            "name": "autres",
+            "file_type": "other"
+          }
+        ],
+        "name": "staging_dirs",
+        "value": "8 entrées",
+        "note": "Staging subdirectory layout — folder patterns inside staging_dir. id: numeric prefix [0-999], name: kebab-case label, file_type: FileType value (null = no fixed type). Exactly one entry must declare role: \"ingest\" (the entry point for new downloads)."
+      },
+      {
+        "file": "encoding",
+        "key": "library.video.preferred_codec",
+        "type": "text",
+        "raw": "hevc",
+        "name": "preferred_codec",
+        "value": "hevc",
+        "note": "Target codec for encoding recommendations"
+      },
+      {
+        "file": "encoding",
+        "key": "library.video.fallback_codecs",
+        "type": "list",
+        "raw": [
+          "av1"
+        ],
+        "name": "fallback_codecs",
+        "value": "av1",
+        "note": "Acceptable codecs (not flagged)"
+      },
+      {
+        "file": "encoding",
+        "key": "library.video.rejected_codecs",
+        "type": "list",
+        "raw": [
+          "mpeg2",
+          "mpeg4"
+        ],
+        "name": "rejected_codecs",
+        "value": "mpeg2, mpeg4",
+        "note": "Always-flagged codecs"
+      },
+      {
+        "file": "encoding",
+        "key": "library.video.preferred_resolution",
+        "type": "text",
+        "raw": "1080p",
+        "name": "preferred_resolution",
+        "value": "1080p",
+        "note": "Target resolution"
+      },
+      {
+        "file": "encoding",
+        "key": "library.video.max_size_movie_gb",
+        "type": "number",
+        "raw": 4,
+        "name": "max_size_movie_gb",
+        "value": "4.0",
+        "note": "Maximum movie file size in GB"
+      },
+      {
+        "file": "encoding",
+        "key": "library.video.max_size_episode_gb",
+        "type": "number",
+        "raw": 2,
+        "name": "max_size_episode_gb",
+        "value": "2.0",
+        "note": "Maximum episode file size in GB"
+      },
+      {
+        "file": "encoding",
+        "key": "library.audio.profile_priority",
+        "type": "list",
+        "raw": [
+          "multi",
+          "vf",
+          "vostfr",
+          "vo"
+        ],
+        "name": "profile_priority",
+        "value": "multi, vf, vostfr +1",
+        "note": "Ordered preference for audio profiles (multi=multilingual, vf=French dub, vostfr, vo)"
+      },
+      {
+        "file": "encoding",
+        "key": "library.subtitles.required_languages",
+        "type": "list",
+        "raw": [
+          "fra"
+        ],
+        "name": "required_languages",
+        "value": "fra",
+        "note": "Required languages (error if absent) — ISO 639-2/T codes"
+      },
+      {
+        "file": "encoding",
+        "key": "library.encoding_rules",
+        "type": "list",
+        "raw": [],
+        "name": "encoding_rules",
+        "value": "aucun",
+        "note": "Encoding override rules for specific media encoding_rules: [ { criteria: { genre: \"Animation\" }, codec: \"hevc\", max_size_gb: 6.0, }, ],"
+      }
+    ]
+  },
+  {
+    "id": "acquisition",
+    "title": "Ce qu'on va chercher",
+    "secondaryLine": "Les trackers, le classement des releases, les seuils et les obligations de partage.",
+    "fileNames": [
+      "acquire",
+      "tracker",
+      "thresholds",
+      "torrent",
+      "watch_seed"
+    ],
+    "settings": [
+      {
+        "file": "acquire",
+        "key": "acquire.db_path",
+        "type": "empty",
+        "raw": null,
+        "name": "db_path",
+        "value": "non défini"
+      },
+      {
+        "file": "acquire",
+        "key": "acquire.cadence.tiers",
+        "type": "structure",
+        "raw": [
+          {
+            "max_age_hours": 72,
+            "interval_minutes": 120
+          },
+          {
+            "max_age_hours": 336,
+            "interval_minutes": 1440
+          },
+          {
+            "max_age_hours": 720,
+            "interval_minutes": 10080
+          }
+        ],
+        "name": "tiers",
+        "value": "3 entrées",
+        "note": "Hot/Warm/Cold backoff — DESIGN §3 frozen policy (D2)."
+      },
+      {
+        "file": "acquire",
+        "key": "acquire.cadence.cutoff_days",
+        "type": "number",
+        "raw": 30,
+        "name": "cutoff_days",
+        "value": "30"
+      },
+      {
+        "file": "tracker",
+        "key": "tracker.providers.lacale.enabled",
+        "type": "boolean",
+        "raw": false,
+        "name": "enabled",
+        "value": "non",
+        "note": "ACTIVE. Gated on TR4KER_API_KEY (profile API key, Mon compte → Paramètres), which is present in .env and was live-verified against `GET /api/torznab?t=caps` on 2026-07-28. TR4KER_PASSKEY holds the announce passkey — a different secret, embedded in the .torrent files, which never authenticates the search API.  This file is shared with prod/staging via PERSONALSCRAPER_CONFIG, so an enabled tracker whose gating credential is missing is a BOOT ERROR (build_tracker_registry raises TrackerConfigError) that takes down every command and cron: removing TR4KER_API_KEY from .env requires flipping this back to false in the same change."
+      },
+      {
+        "file": "tracker",
+        "key": "tracker.providers.lacale.cross_seed",
+        "type": "boolean",
+        "raw": false,
+        "name": "cross_seed",
+        "value": "non"
+      },
+      {
+        "file": "tracker",
+        "key": "tracker.providers.c411.enabled",
+        "type": "boolean",
+        "raw": true,
+        "name": "enabled",
+        "value": "oui",
+        "note": "ACTIVE. Gated on TR4KER_API_KEY (profile API key, Mon compte → Paramètres), which is present in .env and was live-verified against `GET /api/torznab?t=caps` on 2026-07-28. TR4KER_PASSKEY holds the announce passkey — a different secret, embedded in the .torrent files, which never authenticates the search API.  This file is shared with prod/staging via PERSONALSCRAPER_CONFIG, so an enabled tracker whose gating credential is missing is a BOOT ERROR (build_tracker_registry raises TrackerConfigError) that takes down every command and cron: removing TR4KER_API_KEY from .env requires flipping this back to false in the same change."
+      },
+      {
+        "file": "tracker",
+        "key": "tracker.providers.c411.cross_seed",
+        "type": "boolean",
+        "raw": false,
+        "name": "cross_seed",
+        "value": "non"
+      },
+      {
+        "file": "tracker",
+        "key": "tracker.providers.c411.economy.target_ratio",
+        "type": "number",
+        "raw": 2,
+        "name": "target_ratio",
+        "value": "2.0"
+      },
+      {
+        "file": "tracker",
+        "key": "tracker.providers.c411.economy.min_ratio",
+        "type": "number",
+        "raw": 1,
+        "name": "min_ratio",
+        "value": "1.0"
+      },
+      {
+        "file": "tracker",
+        "key": "tracker.providers.c411.economy.min_seed_time",
+        "type": "duration",
+        "raw": "72h",
+        "name": "min_seed_time",
+        "value": "72h"
+      },
+      {
+        "file": "tracker",
+        "key": "tracker.providers.c411.economy.hit_and_run_grace",
+        "type": "duration",
+        "raw": "0h",
+        "name": "hit_and_run_grace",
+        "value": "0h"
+      },
+      {
+        "file": "tracker",
+        "key": "tracker.providers.tr4ker.enabled",
+        "type": "boolean",
+        "raw": true,
+        "name": "enabled",
+        "value": "oui",
+        "note": "ACTIVE. Gated on TR4KER_API_KEY (profile API key, Mon compte → Paramètres), which is present in .env and was live-verified against `GET /api/torznab?t=caps` on 2026-07-28. TR4KER_PASSKEY holds the announce passkey — a different secret, embedded in the .torrent files, which never authenticates the search API.  This file is shared with prod/staging via PERSONALSCRAPER_CONFIG, so an enabled tracker whose gating credential is missing is a BOOT ERROR (build_tracker_registry raises TrackerConfigError) that takes down every command and cron: removing TR4KER_API_KEY from .env requires flipping this back to false in the same change."
+      },
+      {
+        "file": "tracker",
+        "key": "tracker.providers.tr4ker.cross_seed",
+        "type": "boolean",
+        "raw": false,
+        "name": "cross_seed",
+        "value": "non"
+      },
+      {
+        "file": "tracker",
+        "key": "tracker.priority",
+        "type": "list",
+        "raw": [
+          "c411",
+          "tr4ker"
+        ],
+        "name": "priority",
+        "value": "c411, tr4ker",
+        "note": "economy: TR4KER publishes no explicit seeding obligation (no documented min seed time / H&R grace), so no values are invented here. Until the operator fills this block in, dispatch records an honest tracker-unresolved MISS for tr4ker torrents instead of a wrong rule. economy: { target_ratio: 2.0, min_ratio: 1.0, min_seed_time: \"72h\", hit_and_run_grace: \"0h\", },"
+      },
+      {
+        "file": "tracker",
+        "key": "tracker.max_total_results",
+        "type": "number",
+        "raw": 50,
+        "name": "max_total_results",
+        "value": "50"
+      },
+      {
+        "file": "tracker",
+        "key": "tracker.max_per_tracker",
+        "type": "number",
+        "raw": 30,
+        "name": "max_per_tracker",
+        "value": "30"
+      },
+      {
+        "file": "tracker",
+        "key": "tracker.timeout_per_tracker",
+        "type": "number",
+        "raw": 15,
+        "name": "timeout_per_tracker",
+        "value": "15"
+      },
+      {
+        "file": "thresholds",
+        "key": "thresholds.min_free_space_staging_gb",
+        "type": "number",
+        "raw": 20,
+        "name": "min_free_space_staging_gb",
+        "value": "20",
+        "note": "Minimum free space on the staging drive before ingest (GB)."
+      },
+      {
+        "file": "thresholds",
+        "key": "thresholds.min_free_space_disk_gb",
+        "type": "number",
+        "raw": 100,
+        "name": "min_free_space_disk_gb",
+        "value": "100",
+        "note": "Minimum free space on storage disks before dispatch (GB)."
+      },
+      {
+        "file": "thresholds",
+        "key": "thresholds.circuit_breaker_threshold",
+        "type": "number",
+        "raw": 5,
+        "name": "circuit_breaker_threshold",
+        "value": "5",
+        "note": "Consecutive API errors before the circuit breaker opens."
+      },
+      {
+        "file": "thresholds",
+        "key": "thresholds.circuit_breaker_cooldown",
+        "type": "number",
+        "raw": 300,
+        "name": "circuit_breaker_cooldown",
+        "value": "300",
+        "note": "Seconds to wait before retrying after the circuit breaker opens."
+      },
+      {
+        "file": "torrent",
+        "key": "torrent.active",
+        "type": "text",
+        "raw": "qbittorrent",
+        "name": "active",
+        "value": "qbittorrent"
+      },
+      {
+        "file": "torrent",
+        "key": "torrent.clients.qbittorrent.enabled",
+        "type": "boolean",
+        "raw": true,
+        "name": "enabled",
+        "value": "oui"
+      },
+      {
+        "file": "torrent",
+        "key": "torrent.clients.qbittorrent.host",
+        "type": "text",
+        "raw": "localhost",
+        "name": "host",
+        "value": "localhost"
+      },
+      {
+        "file": "torrent",
+        "key": "torrent.clients.qbittorrent.port",
+        "type": "number",
+        "raw": 8081,
+        "name": "port",
+        "value": "8081"
+      },
+      {
+        "file": "torrent",
+        "key": "torrent.clients.transmission.enabled",
+        "type": "boolean",
+        "raw": false,
+        "name": "enabled",
+        "value": "non"
+      },
+      {
+        "file": "torrent",
+        "key": "torrent.clients.transmission.host",
+        "type": "text",
+        "raw": "localhost",
+        "name": "host",
+        "value": "localhost"
+      },
+      {
+        "file": "torrent",
+        "key": "torrent.clients.transmission.port",
+        "type": "number",
+        "raw": 9091,
+        "name": "port",
+        "value": "9091"
+      },
+      {
+        "file": "watch_seed",
+        "key": "cross_seed.enabled",
+        "type": "boolean",
+        "raw": false,
+        "name": "enabled",
+        "value": "non"
+      },
+      {
+        "file": "watch_seed",
+        "key": "watch.enabled",
+        "type": "boolean",
+        "raw": true,
+        "name": "enabled",
+        "value": "oui"
+      }
+    ]
+  },
+  {
+    "id": "identite",
+    "title": "Ce qu'on en sait",
+    "secondaryLine": "Les fournisseurs de métadonnées, le scrapage et les bandes-annonces.",
+    "fileNames": [
+      "metadata",
+      "providers",
+      "scraper",
+      "trailers"
+    ],
+    "settings": [
+      {
+        "file": "metadata",
+        "key": "metadata.providers.tmdb.enabled",
+        "type": "boolean",
+        "raw": true,
+        "name": "enabled",
+        "value": "oui"
+      },
+      {
+        "file": "metadata",
+        "key": "metadata.providers.tvdb.enabled",
+        "type": "boolean",
+        "raw": true,
+        "name": "enabled",
+        "value": "oui"
+      },
+      {
+        "file": "metadata",
+        "key": "metadata.providers.omdb.enabled",
+        "type": "boolean",
+        "raw": true,
+        "name": "enabled",
+        "value": "oui"
+      },
+      {
+        "file": "metadata",
+        "key": "metadata.providers.trakt.enabled",
+        "type": "boolean",
+        "raw": true,
+        "name": "enabled",
+        "value": "oui"
+      },
+      {
+        "file": "metadata",
+        "key": "metadata.priorities.movie_scraping.tmdb",
+        "type": "number",
+        "raw": 1,
+        "name": "tmdb",
+        "value": "1"
+      },
+      {
+        "file": "metadata",
+        "key": "metadata.priorities.movie_scraping.tvdb",
+        "type": "number",
+        "raw": 2,
+        "name": "tvdb",
+        "value": "2"
+      },
+      {
+        "file": "metadata",
+        "key": "metadata.priorities.series_scraping.tvdb",
+        "type": "number",
+        "raw": 1,
+        "name": "tvdb",
+        "value": "1"
+      },
+      {
+        "file": "metadata",
+        "key": "metadata.priorities.series_scraping.tmdb",
+        "type": "number",
+        "raw": 2,
+        "name": "tmdb",
+        "value": "2"
+      },
+      {
+        "file": "metadata",
+        "key": "metadata.priorities.episode_scraping.tvdb",
+        "type": "number",
+        "raw": 1,
+        "name": "tvdb",
+        "value": "1"
+      },
+      {
+        "file": "metadata",
+        "key": "metadata.priorities.episode_scraping.tmdb",
+        "type": "number",
+        "raw": 2,
+        "name": "tmdb",
+        "value": "2"
+      },
+      {
+        "file": "metadata",
+        "key": "metadata.priorities.recommendations.trakt",
+        "type": "number",
+        "raw": 1,
+        "name": "trakt",
+        "value": "1"
+      },
+      {
+        "file": "metadata",
+        "key": "metadata.priorities.recommendations.omdb",
+        "type": "number",
+        "raw": 2,
+        "name": "omdb",
+        "value": "2"
+      },
+      {
+        "file": "metadata",
+        "key": "metadata.priorities.notations.omdb",
+        "type": "number",
+        "raw": 1,
+        "name": "omdb",
+        "value": "1"
+      },
+      {
+        "file": "metadata",
+        "key": "metadata.priorities.notations.trakt",
+        "type": "number",
+        "raw": 2,
+        "name": "trakt",
+        "value": "2"
+      },
+      {
+        "file": "metadata",
+        "key": "metadata.defaults.language",
+        "type": "text",
+        "raw": "fr-FR",
+        "name": "language",
+        "value": "fr-FR"
+      },
+      {
+        "file": "metadata",
+        "key": "metadata.defaults.fallback_language",
+        "type": "text",
+        "raw": "en-US",
+        "name": "fallback_language",
+        "value": "en-US"
+      },
+      {
+        "file": "metadata",
+        "key": "metadata.defaults.prefer_local_title",
+        "type": "boolean",
+        "raw": true,
+        "name": "prefer_local_title",
+        "value": "oui"
+      },
+      {
+        "file": "metadata",
+        "key": "metadata.episode_scraping_policy.lock_to_series_provider",
+        "type": "boolean",
+        "raw": true,
+        "name": "lock_to_series_provider",
+        "value": "oui"
+      },
+      {
+        "file": "metadata",
+        "key": "metadata.episode_scraping_policy.allow_synthetic_rename_on_unmatched",
+        "type": "boolean",
+        "raw": false,
+        "name": "allow_synthetic_rename_on_unmatched",
+        "value": "non"
+      },
+      {
+        "file": "metadata",
+        "key": "metadata.season_pack_policy.enabled",
+        "type": "boolean",
+        "raw": true,
+        "name": "enabled",
+        "value": "oui"
+      },
+      {
+        "file": "providers",
+        "key": "providers.Searchable.tvdb",
+        "type": "number",
+        "raw": 1,
+        "name": "tvdb",
+        "value": "1"
+      },
+      {
+        "file": "providers",
+        "key": "providers.Searchable.tmdb",
+        "type": "number",
+        "raw": 2,
+        "name": "tmdb",
+        "value": "2"
+      },
+      {
+        "file": "providers",
+        "key": "providers.MovieDetailsProvider.tmdb",
+        "type": "number",
+        "raw": 1,
+        "name": "tmdb",
+        "value": "1"
+      },
+      {
+        "file": "providers",
+        "key": "providers.MovieDetailsProvider.tvdb",
+        "type": "number",
+        "raw": 2,
+        "name": "tvdb",
+        "value": "2"
+      },
+      {
+        "file": "providers",
+        "key": "providers.TvDetailsProvider.tvdb",
+        "type": "number",
+        "raw": 1,
+        "name": "tvdb",
+        "value": "1"
+      },
+      {
+        "file": "providers",
+        "key": "providers.TvDetailsProvider.tmdb",
+        "type": "number",
+        "raw": 2,
+        "name": "tmdb",
+        "value": "2"
+      },
+      {
+        "file": "providers",
+        "key": "providers.EpisodeFetcher.tvdb",
+        "type": "number",
+        "raw": 1,
+        "name": "tvdb",
+        "value": "1"
+      },
+      {
+        "file": "providers",
+        "key": "providers.EpisodeFetcher.tmdb",
+        "type": "number",
+        "raw": 2,
+        "name": "tmdb",
+        "value": "2"
+      },
+      {
+        "file": "providers",
+        "key": "providers.ArtworkProvider.tmdb",
+        "type": "number",
+        "raw": 1,
+        "name": "tmdb",
+        "value": "1"
+      },
+      {
+        "file": "providers",
+        "key": "providers.ArtworkProvider.tvdb",
+        "type": "number",
+        "raw": 2,
+        "name": "tvdb",
+        "value": "2"
+      },
+      {
+        "file": "providers",
+        "key": "providers.VideoProvider.tmdb",
+        "type": "number",
+        "raw": 1,
+        "name": "tmdb",
+        "value": "1"
+      },
+      {
+        "file": "providers",
+        "key": "providers.VideoProvider.tvdb",
+        "type": "number",
+        "raw": 2,
+        "name": "tvdb",
+        "value": "2"
+      },
+      {
+        "file": "scraper",
+        "key": "scraper.language",
+        "type": "text",
+        "raw": "fr-FR",
+        "name": "language",
+        "value": "fr-FR"
+      },
+      {
+        "file": "scraper",
+        "key": "scraper.fallback_language",
+        "type": "text",
+        "raw": "en-US",
+        "name": "fallback_language",
+        "value": "en-US"
+      },
+      {
+        "file": "scraper",
+        "key": "scraper.prefer_local_title",
+        "type": "boolean",
+        "raw": true,
+        "name": "prefer_local_title",
+        "value": "oui"
+      },
+      {
+        "file": "scraper",
+        "key": "scraper.episode_default_name",
+        "type": "text",
+        "raw": "Episode",
+        "name": "episode_default_name",
+        "value": "Episode"
+      },
+      {
+        "file": "scraper",
+        "key": "scraper.artwork_language",
+        "type": "text",
+        "raw": "en",
+        "name": "artwork_language",
+        "value": "en"
+      },
+      {
+        "file": "scraper",
+        "key": "ingest.min_ratio",
+        "type": "number",
+        "raw": 0,
+        "name": "min_ratio",
+        "value": "0.0"
+      },
+      {
+        "file": "scraper",
+        "key": "sort.verify_seed_pure",
+        "type": "boolean",
+        "raw": false,
+        "name": "verify_seed_pure",
+        "value": "non"
+      },
+      {
+        "file": "scraper",
+        "key": "fuzzy_match.min_length_ratio",
+        "type": "number",
+        "raw": 0.67,
+        "name": "min_length_ratio",
+        "value": "0.67"
+      },
+      {
+        "file": "scraper",
+        "key": "fuzzy_match.short_title_length",
+        "type": "number",
+        "raw": 10,
+        "name": "short_title_length",
+        "value": "10"
+      },
+      {
+        "file": "scraper",
+        "key": "fuzzy_match.short_title_threshold",
+        "type": "number",
+        "raw": 95,
+        "name": "short_title_threshold",
+        "value": "95.0"
+      },
+      {
+        "file": "scraper",
+        "key": "fuzzy_match.long_title_threshold",
+        "type": "number",
+        "raw": 90,
+        "name": "long_title_threshold",
+        "value": "90.0"
+      },
+      {
+        "file": "trailers",
+        "key": "trailers.enabled",
+        "type": "boolean",
+        "raw": true,
+        "name": "enabled",
+        "value": "oui"
+      },
+      {
+        "file": "trailers",
+        "key": "trailers.languages",
+        "type": "list",
+        "raw": [
+          "fr-FR",
+          "en-US"
+        ],
+        "name": "languages",
+        "value": "fr-FR, en-US",
+        "note": "Ordered language codes for TMDB video lookups. First match wins."
+      },
+      {
+        "file": "trailers",
+        "key": "trailers.search_query_format",
+        "type": "text",
+        "raw": "{title} {year} bande annonce",
+        "name": "search_query_format",
+        "value": "{title} {year} bande annonce",
+        "note": "YouTube search query template when TMDB yields nothing. Placeholders: {title}, {year}"
+      },
+      {
+        "file": "trailers",
+        "key": "trailers.seasons.enabled",
+        "type": "boolean",
+        "raw": false,
+        "name": "enabled",
+        "value": "non"
+      },
+      {
+        "file": "trailers",
+        "key": "trailers.library_check.movies",
+        "type": "boolean",
+        "raw": false,
+        "name": "movies",
+        "value": "non"
+      },
+      {
+        "file": "trailers",
+        "key": "trailers.library_check.tv_shows",
+        "type": "boolean",
+        "raw": true,
+        "name": "tv_shows",
+        "value": "oui"
+      },
+      {
+        "file": "trailers",
+        "key": "trailers.fallback_youtube_search",
+        "type": "boolean",
+        "raw": true,
+        "name": "fallback_youtube_search",
+        "value": "oui",
+        "note": "When a TMDB-found trailer URL fails to download (any failure except BOT_DETECTED — e.g. YTDLP_ERROR / HTTP_ERROR), attempt a YouTube search for an alternative upload and re-download once. Set to false to keep the pre-0.35.0 behavior (hard failure on first miss)."
+      }
+    ]
+  },
+  {
+    "id": "service",
+    "title": "Ce qui tourne",
+    "secondaryLine": "L'index, les notifications et le serveur web.",
+    "fileNames": [
+      "indexer",
+      "notify",
+      "web",
+      "config"
+    ],
+    "settings": [
+      {
+        "file": "indexer",
+        "key": "indexer.db_path",
+        "type": "empty",
+        "raw": null,
+        "name": "db_path",
+        "value": "non défini"
+      },
+      {
+        "file": "indexer",
+        "key": "indexer.scan.budget_seconds",
+        "type": "number",
+        "raw": 1800,
+        "name": "budget_seconds",
+        "value": "1800"
+      },
+      {
+        "file": "indexer",
+        "key": "indexer.scan.checkpoint_every_n_files",
+        "type": "number",
+        "raw": 100,
+        "name": "checkpoint_every_n_files",
+        "value": "100"
+      },
+      {
+        "file": "indexer",
+        "key": "indexer.scan.max_workers_total",
+        "type": "number",
+        "raw": 2,
+        "name": "max_workers_total",
+        "value": "2"
+      },
+      {
+        "file": "indexer",
+        "key": "indexer.scan.n_strikes_for_softdelete",
+        "type": "number",
+        "raw": 3,
+        "name": "n_strikes_for_softdelete",
+        "value": "3"
+      },
+      {
+        "file": "indexer",
+        "key": "indexer.scan.read_rate_mb_per_sec",
+        "type": "number",
+        "raw": 80,
+        "name": "read_rate_mb_per_sec",
+        "value": "80"
+      },
+      {
+        "file": "indexer",
+        "key": "indexer.scan.drop_indexes_during_full_scan",
+        "type": "boolean",
+        "raw": true,
+        "name": "drop_indexes_during_full_scan",
+        "value": "oui"
+      },
+      {
+        "file": "indexer",
+        "key": "indexer.scan.paranoia_window_seconds",
+        "type": "number",
+        "raw": 86400,
+        "name": "paranoia_window_seconds",
+        "value": "86400"
+      },
+      {
+        "file": "indexer",
+        "key": "indexer.drift.merkle_delta_freeze_threshold",
+        "type": "number",
+        "raw": 0.5,
+        "name": "merkle_delta_freeze_threshold",
+        "value": "0.5"
+      },
+      {
+        "file": "indexer",
+        "key": "indexer.spotlight.use_when_available",
+        "type": "boolean",
+        "raw": true,
+        "name": "use_when_available",
+        "value": "oui"
+      },
+      {
+        "file": "indexer",
+        "key": "indexer.log.deleted_item_retention_days",
+        "type": "number",
+        "raw": 365,
+        "name": "deleted_item_retention_days",
+        "value": "365"
+      },
+      {
+        "file": "notify",
+        "key": "notify.telegram.enabled",
+        "type": "boolean",
+        "raw": true,
+        "name": "enabled",
+        "value": "oui"
+      },
+      {
+        "file": "notify",
+        "key": "notify.healthchecks.enabled",
+        "type": "boolean",
+        "raw": true,
+        "name": "enabled",
+        "value": "oui"
+      },
+      {
+        "file": "web",
+        "key": "web.enabled",
+        "type": "boolean",
+        "raw": true,
+        "name": "enabled",
+        "value": "oui"
+      },
+      {
+        "file": "web",
+        "key": "web.host",
+        "type": "text",
+        "raw": "127.0.0.1",
+        "name": "host",
+        "value": "127.0.0.1"
+      },
+      {
+        "file": "web",
+        "key": "web.port",
+        "type": "number",
+        "raw": 8710,
+        "name": "port",
+        "value": "8710"
+      },
+      {
+        "file": "web",
+        "key": "web.username",
+        "type": "text",
+        "raw": "izno",
+        "name": "username",
+        "value": "izno"
+      },
+      {
+        "file": "web",
+        "key": "web.redis_url",
+        "type": "text",
+        "raw": "redis://127.0.0.1:6379/0",
+        "name": "redis_url",
+        "value": "redis://127.0.0.1:6379/0"
+      },
+      {
+        "file": "web",
+        "key": "web.stream_key",
+        "type": "text",
+        "raw": "personalscraper:events",
+        "name": "stream_key",
+        "value": "personalscraper:events"
+      },
+      {
+        "file": "web",
+        "key": "web.stream_maxlen",
+        "type": "number",
+        "raw": 10000,
+        "name": "stream_maxlen",
+        "value": "10000"
+      },
+      {
+        "file": "web",
+        "key": "web.session_ttl_hours",
+        "type": "number",
+        "raw": 720,
+        "name": "session_ttl_hours",
+        "value": "720"
+      },
+      {
+        "file": "web",
+        "key": "web.cookie_secure",
+        "type": "boolean",
+        "raw": true,
+        "name": "cookie_secure",
+        "value": "oui"
+      },
+      {
+        "file": "web",
+        "key": "web.dev_mode",
+        "type": "boolean",
+        "raw": false,
+        "name": "dev_mode",
+        "value": "non"
+      },
+      {
+        "file": "config",
+        "key": "config_version",
+        "type": "number",
+        "raw": 1,
+        "name": "config_version",
+        "value": "1",
+        "note": "Master config file (v2 split layout). Copy this directory to ./config/ and fill in your values, or run `personalscraper init-config` to be guided through the setup.  The overlays list names the per-concern files merged in order. Each file must own distinct top-level keys (no key may appear in two overlays). Add a local.json5 (gitignored) for machine-specific overrides."
+      },
+      {
+        "file": "config",
+        "key": "overlays",
+        "type": "list",
+        "raw": [
+          "paths.json5",
+          "disks.json5",
+          "categories.json5",
+          "patterns.json5",
+          "encoding.json5",
+          "scraper.json5",
+          "trailers.json5",
+          "indexer.json5",
+          "acquire.json5",
+          "thresholds.json5",
+          "metadata.json5",
+          "providers.json5",
+          "torrent.json5",
+          "tracker.json5",
+          "ranking.json5",
+          "notify.json5",
+          "watch_seed.json5",
+          "web.json5"
+        ],
+        "name": "overlays",
+        "value": "paths.json5, disks.json5, categories.json5 +15"
+      }
+    ]
+  },
+  {
+    "id": "passages",
+    "title": "Les passages programmés",
+    "secondaryLine": "À quelle heure le moteur cherche, récupère, et remet son index à jour.",
+    "fileNames": [
+      "ecosystem.config.js"
+    ],
+    "settings": [
+      {
+        "file": "ecosystem.config.js",
+        "key": "personalscraper-health-check",
+        "type": "text",
+        "raw": "15 * * * *",
+        "name": "cron_restart",
+        "value": "toutes les heures, à la 15ᵉ minute",
+        "note": "Hourly at :15 — the health check reports to the monitor."
+      },
+      {
+        "file": "ecosystem.config.js",
+        "key": "personalscraper-search",
+        "type": "text",
+        "raw": "10 3,15 * * *",
+        "name": "cron_restart",
+        "value": "à 03 h 10 et 15 h 10",
+        "note": "Searches trackers for the episodes and films being followed."
+      },
+      {
+        "file": "ecosystem.config.js",
+        "key": "personalscraper-grab",
+        "type": "text",
+        "raw": "20 3,15 * * *",
+        "name": "cron_restart",
+        "value": "à 03 h 20 et 15 h 20",
+        "note": "Ten minutes after the search, so it grabs what was just found."
+      },
+      {
+        "file": "ecosystem.config.js",
+        "key": "personalscraper-follow-detect",
+        "type": "text",
+        "raw": "0 3 * * *",
+        "name": "cron_restart",
+        "value": "chaque jour à 03 h 00",
+        "note": "03:00 daily — enqueue newly-aired episodes."
+      },
+      {
+        "file": "ecosystem.config.js",
+        "key": "personalscraper-index-enrich",
+        "type": "text",
+        "raw": "30 4 * * 0",
+        "name": "cron_restart",
+        "value": "le dimanche à 04 h 30",
+        "note": "Sundays 04:30 local — off-peak."
+      },
+      {
+        "file": "ecosystem.config.js",
+        "key": "personalscraper-backfill-ids",
+        "type": "text",
+        "raw": "0 5 * * 0",
+        "name": "cron_restart",
+        "value": "le dimanche à 05 h 00",
+        "note": "Sundays 05:00 local (after enrich)."
+      }
+    ]
+  }
+]

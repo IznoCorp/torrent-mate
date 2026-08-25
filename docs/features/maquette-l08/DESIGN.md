@@ -41,11 +41,11 @@ What stands in their place is **fixture literals inside the dying engine**.
 node scripts/extract-maquette-fixtures.mjs --measure
 ```
 
-**77 module-level fixture families, covering 28 789 of `legacy.js`'s 35 198 lines**, plus 11
+**77 module-level fixture families, covering 28 789 of `legacy.js`'s 35 198 lines**, plus 4
 declared inside a NAMED function and reached under a qualified name — `openJourneySheet.steps`
 is a torrent's five stages, real data drawn inline, and left out it would have had to be copied
-into a seed by hand. **Eighty-eight in all, every one extractable and every one classified.**
-Five more sit inside anonymous callbacks; they are counted on every run and deliberately not
+into a seed by hand. **Eighty-one in all, every one extractable and every one classified.**
+One more sits inside an anonymous callback; it is counted on every run and deliberately not
 inventoried, because a name built on a line number is renamed by every edit above it.
 
 **Two of those figures were wrong when this design was first written, and how they were found is
@@ -55,6 +55,12 @@ off the live scheduler, and `STRIP_LABELS`, five interface words on one line. Th
 when the contract named a family the register did not hold, and the real discriminator turned out
 to be **`const` against `let`**: thirty module-level declarations are variables the engine WRITES,
 and freezing their initial value as data would record a starting point as though it were a fact.
+
+**A second reading of the same tool found a second defect**, and only asking it for EVERY family
+at once did. `isPureLiteral` walked an initializer's CHILDREN and never the initializer itself, so
+`const settle = afterUnwind` — an identifier with no children — was judged a pure literal and then
+threw when read. Seven « families » were that shape. The two halves of one reader disagreed, and
+the half that was never exercised was the one that was wrong.
 
 The ten largest, which are most of the mass:
 
@@ -207,7 +213,7 @@ of four classes, in a committed register:
 | `served` | server state — a seed derives from it and a handler serves it | 42 |
 | `asset` | artwork, poster and trailer maps — served as part of a media payload, never as its own resource | 5 |
 | `interface` | what the INTERFACE owns and a server must never send: copy, labels, tones, orderings, icon paths, page sizes, timings | 29 |
-| `unserved` | not served, with the reason written out | 12 |
+| `unserved` | not served, with the reason written out | 5 |
 
 **The third class is defined by OWNERSHIP, not by being words**, and it was called `vocabulary` until a page size and a long-press delay had to go somewhere. Both belong to the interface exactly as a label does; a class named for words would have pushed them into `unserved`, where « not served » would have been true and uninformative.
 

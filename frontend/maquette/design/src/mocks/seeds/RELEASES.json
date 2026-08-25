@@ -1,0 +1,38 @@
+[
+  {
+    "name": "Silo.S03E07.MULTi.2160p.WEB-DL.DDP5.1.HDR.H265-FRATERNITY",
+    "resolution": "2160p",
+    "source": "WEB-DL",
+    "language": "MULTi",
+    "seeders": 142,
+    "sizeGigabytes": 8.4,
+    "score": 96
+  },
+  {
+    "name": "Silo.S03E07.MULTi.1080p.WEB-DL.DDP5.1.H264-FRATERNITY",
+    "resolution": "1080p",
+    "source": "WEB-DL",
+    "language": "MULTi",
+    "seeders": 318,
+    "sizeGigabytes": 3.1,
+    "score": 88
+  },
+  {
+    "name": "Silo.S03E07.VOSTFR.1080p.WEB-DL.H264-BRiNK",
+    "resolution": "1080p",
+    "source": "WEB-DL",
+    "language": "VOSTFR",
+    "seeders": 74,
+    "sizeGigabytes": 2.8,
+    "score": 61
+  },
+  {
+    "name": "Silo.S03E07.FRENCH.720p.WEBRip.x264-JiHEFF",
+    "resolution": "720p",
+    "source": "WEBRip",
+    "language": "FRENCH",
+    "seeders": 22,
+    "sizeGigabytes": 1.2,
+    "score": 34
+  }
+]

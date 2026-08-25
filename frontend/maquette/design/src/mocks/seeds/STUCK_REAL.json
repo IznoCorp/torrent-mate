@@ -1,0 +1,27 @@
+[
+  {
+    "title": "Top Chef Le Concours Parallèle (2026)",
+    "secondaryLine": "002-TVSHOWS · déposé à la main",
+    "reason": "Aucune donnée d'épisode chez TVDB ni chez TMDB pour cette série : la détection ne peut pas nommer les fichiers. Blocage connu, assumé ouvert.",
+    "strip": [
+      1,
+      1,
+      "blocked",
+      0,
+      0
+    ]
+  },
+  {
+    "title": "Marvels.Spider-Man.2.v1.526.0.FRENCH-Mephisto",
+    "secondaryLine": "098-AUTRES · déposé à la main",
+    "reason": "Aucun fichier vidéo dans le dossier : c'est un jeu, pas un média. Il ne peut pas traverser le pipeline.",
+    "strip": [
+      1,
+      "blocked",
+      0,
+      0,
+      0
+    ],
+    "withoutPoster": true
+  }
+]

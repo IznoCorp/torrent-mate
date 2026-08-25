@@ -878,6 +878,8 @@ export interface components {
             reason?: string;
             chip?: components["schemas"]["Chip"];
             strip?: components["schemas"]["PipelineStrip"];
+            /** @description no poster is known for it, so the placeholder is what says so — never a truncating sentence */
+            withoutPoster?: boolean;
         };
         Fact: {
             /** @description what the fact is about */
@@ -887,6 +889,12 @@ export interface components {
             value: string;
             /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             secondaryLine?: string;
+        };
+        /** @description A library row as a LISTING shows it. The recents carry no category — that is what the fixture holds — so the category lives on LibraryItem below rather than here. */
+        LibraryRow: {
+            title: string;
+            /** @description year and kind, or an episode fraction. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
+            secondaryLine: string;
         };
         LibraryItem: {
             title: string;
@@ -912,17 +920,21 @@ export interface components {
         };
         Follow: {
             title: string;
-            /** @description the series this follow belongs to, or null for a film */
-            series: string | null;
-            /** @description when the follow was added. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
-            since: string;
-            /** @description how many searches have run for it */
-            searches: number;
             /** @description movie or show */
             kind: string;
             year: number | string;
             /** @description the acquisition status token */
             status: string;
+            /** @description whether the SHOW is still running — « Continuing » — and null for a film. The fixture's key is `serie`, which reads as a series NAME and is not one: the eight shows all carry « Continuing » and the four films carry null. The rename was `series` until the data was read. */
+            showStatus: string | null;
+            /** @description when the follow was added. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
+            since: string;
+            /** @description how many searches have run for it */
+            searches: number;
+            /** @description episodes held. Shows only */
+            owned?: number;
+            /** @description episodes aired. Shows only */
+            aired?: number;
             /** @description added recently enough to be marked as such */
             fresh?: boolean;
         };
@@ -1109,6 +1121,8 @@ export interface components {
             /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             when: string;
             candidates: components["schemas"]["DecisionCandidate"][];
+            /** @description the year, where the folder names one */
+            year?: number | null;
         };
         SettledDecision: {
             folder: string;
@@ -1134,29 +1148,35 @@ export interface components {
         ProviderIds: {
             [key: string]: number | string;
         };
+        /** @description One media sheet. Every field's type below was MEASURED across the 326 sheets the fixture holds, not assumed: `runtime` is an integer count of minutes and was written as a string, `tmdbTelevisionId` is a string on the eleven sheets that carry it and was written as an integer, and `trailer` is a title rather than an object. The schema arm of `scripts/check-mock-seeds.py` found all three. */
         MediaSheet: {
             /** @description movie or show */
             kind: string;
+            /** @description the year, as the provider writes it */
             year: string;
-            rating?: number | null;
-            /** @description the genres, already joined. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
-            genres?: string | null;
-            /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
-            runtime?: string | null;
-            overview?: string | null;
-            director?: string | null;
-            creator?: string | null;
-            cast?: components["schemas"]["CastMember"][];
-            trailer?: components["schemas"]["Trailer"] | null;
-            ids?: components["schemas"]["ProviderIds"];
-            status?: string | null;
+            rating: number | null;
+            /** @description the genres, already joined into one line. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
+            genres: string | null;
+            /** @description minutes, on the 202 sheets that carry one */
+            runtime: number | null;
+            overview: string | null;
+            director: string | null;
+            creator: string | null;
+            cast: components["schemas"]["CastMember"][];
+            /** @description The trailer's TITLE, and nothing else — 182 sheets carry a string here and 144 carry null. Its YouTube key lives in a second family, `trailerIds`, keyed by the same title. The split is the fixture's and it is carried rather than repaired (D-L08-5); the demand register asks the backend for one trailer object with its key beside its name. */
+            trailer: string | null;
+            ids: components["schemas"]["ProviderIds"];
+            status: string;
             /** @description whether the library holds it */
             owned: boolean;
-            /** @description the episode catalogue, season by season */
-            episodes?: unknown;
-            /** @description the seasons the provider knows of */
-            seasons?: unknown;
-            tmdbTelevisionId?: number | null;
+            /** @description the episode catalogue, keyed by season number. Shows only */
+            episodes?: {
+                [key: string]: components["schemas"]["Episode"][];
+            };
+            /** @description the seasons the provider knows of. Shows only */
+            seasons?: components["schemas"]["SeasonSummary"][];
+            /** @description the TMDB television identifier, on the eleven sheets that carry one — a string, as the fixture holds it */
+            tmdbTelevisionId?: string;
         };
         Season: {
             season: number;
@@ -1176,6 +1196,19 @@ export interface components {
             title: string;
             /** @description the real reason, never a code alone (NE-DOIT-PAS-4, NE-DOIT-PAS-5) */
             detail?: string;
+        };
+        Episode: {
+            number: number;
+            title: string;
+            airDate?: string | null;
+            /** @description minutes, where known */
+            duration?: number | null;
+        };
+        /** @description a season as the PROVIDER knows it — how many episodes, and when it began. `Season` beside it is what the LIBRARY holds of one, which is a different question and a different endpoint. */
+        SeasonSummary: {
+            number: number;
+            episodes?: number | null;
+            airDate?: string | null;
         };
     };
     responses: {
@@ -1401,7 +1434,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LibraryItem"][];
+                    "application/json": components["schemas"]["LibraryRow"][];
                 };
             };
             400: components["responses"]["Problem"];

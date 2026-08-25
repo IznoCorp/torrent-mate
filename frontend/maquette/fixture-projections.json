@@ -1,0 +1,434 @@
+{
+  "$comment": "HOW EACH SERVED FIXTURE FAMILY BECOMES ITS CONTRACT SHAPE. The projection is a RENAME and a REGROUP, never a re-derivation (D-L08-5): no value is recomputed, reformatted, parsed or split. That is what makes L09 provable — a mock returning exactly what the fixture returns renders the same thing, so the oracle proves the wiring at zero divergence. It is DATA rather than code so that the whole correspondence can be read in one place, and so the guard can read it too.",
+  "$operations": {
+    "keyedByData": "the family's TOP-LEVEL keys are data — a title, a name — and are never renamed.",
+    "rename": "a map from PATH to {old key: new key}. Paths are scoped, and that is not fussiness: `n` means `name` inside a cast list and `number` inside an episode list, so a flat recursive rename would corrupt SHEETS_RAW in silence. `\"\"` is the entry root; `/key` descends; `[]` enters a list; `*` matches one key segment.",
+    "opaque": "keys whose value is DATA and is never descended into. `SETTINGS`'s `brut` and `v` hold the operator's own configuration, whose keys are `name`, `path`, `id` — a renamer walking in would rewrite the configuration.",
+    "tuples": "a positional array becomes an object with named fields. `$item` is each element of a top-level array, `$value[]` each element of each value of a top-level map, and a bare key name is any value under that key.",
+    "answers": "the contract schema this family's seed must validate against. A tiny expression: `Name` is `#/components/schemas/Name`, a lowercase name is a primitive type, `X[]` is a list of X, and `{X}` is a map whose values are X. It is declared PER FAMILY rather than read off the operation, because most operations compose several families into one envelope — the acquisition queue is five buckets and the media sheet is seven families — so validating a family against its operation's whole response schema would report a mismatch for every one of them."
+  },
+  "families": {
+    "ACCOUNT": {
+      "rename": {
+        "": {
+          "mail": "email"
+        }
+      },
+      "answers": "Account"
+    },
+    "CADENCE_CRON": {
+      "answers": "string"
+    },
+    "LIB_TOTAL": {
+      "answers": "integer"
+    },
+    "LIBRARY": {
+      "rename": {
+        "[]": {
+          "t": "title",
+          "f": "secondaryLine",
+          "c": "category"
+        }
+      },
+      "answers": "LibraryItem[]"
+    },
+    "RECENT": {
+      "rename": {
+        "[]": {
+          "t": "title",
+          "f": "secondaryLine"
+        }
+      },
+      "answers": "LibraryRow[]"
+    },
+    "CATS": {
+      "rename": {
+        "[]": {
+          "l": "label",
+          "c": "count",
+          "of": "includes"
+        }
+      },
+      "answers": "LibraryCategory[]"
+    },
+    "INCOMPLETE": {
+      "rename": {
+        "[]": {
+          "t": "title",
+          "o": "owned",
+          "a": "aired",
+          "y": "year"
+        }
+      },
+      "answers": "IncompleteShow[]"
+    },
+    "FOLLOWS": {
+      "rename": {
+        "[]": {
+          "t": "title",
+          "serie": "showStatus",
+          "k": "kind",
+          "st": "status",
+          "y": "year",
+          "own": "owned"
+        }
+      },
+      "answers": "Follow[]"
+    },
+    "SEARCH": {
+      "rename": {
+        "/results[]": {
+          "t": "title",
+          "y": "year",
+          "k": "kind",
+          "ov": "overview"
+        }
+      },
+      "answers": "SearchResults"
+    },
+    "SUGGESTIONS": {
+      "rename": {
+        "[]": {
+          "t": "title",
+          "y": "year",
+          "k": "kind",
+          "note": "rating"
+        },
+        "[]/why[]": {
+          "e": "emphasis"
+        }
+      },
+      "answers": "Suggestion[]"
+    },
+    "RELEASES": {
+      "rename": {
+        "[]": {
+          "n": "name",
+          "res": "resolution",
+          "src": "source",
+          "lang": "language",
+          "s": "seeders",
+          "go": "sizeGigabytes",
+          "sc": "score"
+        }
+      },
+      "answers": "Release[]"
+    },
+    "PIPELINE": {
+      "rename": {
+        "": {
+          "declencheurs": "triggers"
+        },
+        "/steps[]": {
+          "n": "name",
+          "l": "label",
+          "d": "description"
+        },
+        "/last": {
+          "duree": "duration",
+          "declencheur": "trigger",
+          "issue": "outcome"
+        },
+        "/last/facts[]": {
+          "n": "name",
+          "r": "result",
+          "s": "secondaryLine"
+        }
+      },
+      "opaque": [
+        "declencheurs"
+      ],
+      "answers": "Pipeline"
+    },
+    "EXECUTIONS": {
+      "rename": {
+        "[]": {
+          "q": "when",
+          "ok": "succeeded",
+          "d": "cause",
+          "r": "result"
+        }
+      },
+      "answers": "PipelineExecution[]"
+    },
+    "ERRORS": {
+      "answers": "CodeErrors"
+    },
+    "JOURNAL": {
+      "rename": {
+        "": {
+          "lignes": "rows"
+        },
+        "/lignes[]": {
+          "l": "label",
+          "v": "value",
+          "s": "secondaryLine"
+        }
+      },
+      "answers": "DeletionJournal"
+    },
+    "MAINT_TOPICS": {
+      "rename": {
+        "[]": {
+          "t": "title",
+          "s": "secondaryLine"
+        }
+      },
+      "answers": "MaintenanceTopic[]"
+    },
+    "MAINT_ACTIONS": {
+      "rename": {
+        "[]": {
+          "l": "label",
+          "d": "description",
+          "g": "group",
+          "r": "risk",
+          "blanc": "dryRun"
+        }
+      },
+      "answers": "MaintenanceAction[]"
+    },
+    "SETTINGS": {
+      "rename": {
+        "[]": {
+          "t": "title",
+          "s": "secondaryLine",
+          "r": "settings"
+        },
+        "[]/r[]": {
+          "f": "file",
+          "c": "key",
+          "brut": "raw",
+          "n": "name",
+          "v": "value"
+        }
+      },
+      "opaque": [
+        "brut",
+        "v"
+      ],
+      "answers": "SettingsTopic[]"
+    },
+    "SECRETS": {
+      "rename": {
+        "[]": {
+          "k": "key",
+          "l": "label",
+          "def": "defined"
+        }
+      },
+      "answers": "Secret[]"
+    },
+    "PENDING_DECISIONS": {
+      "rename": {
+        "[]": {
+          "d": "folder",
+          "k": "kind",
+          "t": "title",
+          "y": "year",
+          "c": "candidates"
+        },
+        "[]/c[]": {
+          "t": "title",
+          "y": "year",
+          "p": "provider",
+          "s": "score",
+          "sans": "withoutPoster",
+          "resume": "overview"
+        }
+      },
+      "answers": "PendingDecision[]"
+    },
+    "DECISIONS_REGLEES": {
+      "rename": {
+        "[]": {
+          "d": "folder",
+          "k": "kind",
+          "t": "title",
+          "y": "year"
+        },
+        "[]/choice": {
+          "t": "title",
+          "p": "provider"
+        }
+      },
+      "answers": "SettledDecision[]"
+    },
+    "SHEETS_RAW": {
+      "keyedByData": true,
+      "rename": {
+        "": {
+          "k": "kind",
+          "y": "year",
+          "note": "rating",
+          "g": "genres",
+          "duree": "runtime",
+          "ov": "overview",
+          "real": "director",
+          "crea": "creator",
+          "possede": "owned",
+          "tmdbTv": "tmdbTelevisionId",
+          "eps": "episodes"
+        },
+        "/cast[]": {
+          "n": "name",
+          "r": "role"
+        },
+        "/eps/*[]": {
+          "n": "number",
+          "t": "title",
+          "air": "airDate",
+          "d": "duration"
+        },
+        "/seasons[]": {
+          "n": "number",
+          "ep": "episodes",
+          "air": "airDate"
+        }
+      },
+      "answers": "{MediaSheet}"
+    },
+    "SEASONS": {
+      "keyedByData": true,
+      "tuples": {
+        "$value[]": [
+          "season",
+          "owned",
+          "aired"
+        ]
+      },
+      "answers": "{Season[]}"
+    },
+    "OWNED": {
+      "keyedByData": true,
+      "answers": "{{integer[]}}"
+    },
+    "SYNOPSIS": {
+      "keyedByData": true,
+      "answers": "{string}"
+    },
+    "POSTERS": {
+      "keyedByData": true,
+      "answers": "{string}"
+    },
+    "POSTERS_HD": {
+      "keyedByData": true,
+      "answers": "{string}"
+    },
+    "HERO_IMAGES": {
+      "keyedByData": true,
+      "answers": "{string}"
+    },
+    "CAST": {
+      "keyedByData": true,
+      "answers": "{string}"
+    },
+    "trailerIds": {
+      "keyedByData": true,
+      "answers": "{Trailer}"
+    },
+    "openJourneySheet.steps": {
+      "tuples": {
+        "$item": [
+          "label",
+          "when",
+          "state"
+        ]
+      },
+      "answers": "JourneyStage[]"
+    },
+    "TAKEABLE": {
+      "$card": true,
+      "answers": "QueueCard[]"
+    },
+    "BLOCKED": {
+      "$card": true,
+      "answers": "QueueCard[]"
+    },
+    "INFLIGHT": {
+      "$card": true,
+      "answers": "QueueCard[]"
+    },
+    "NOTFOUND": {
+      "$card": true,
+      "answers": "QueueCard[]"
+    },
+    "NOTFOUND_REAL": {
+      "$card": true,
+      "answers": "QueueCard[]"
+    },
+    "DONE_TODAY": {
+      "$card": true,
+      "answers": "QueueCard[]"
+    },
+    "STUCK": {
+      "$card": true,
+      "answers": "QueueCard[]"
+    },
+    "STUCK_REAL": {
+      "$card": true,
+      "answers": "QueueCard[]"
+    },
+    "MOVING": {
+      "$card": true,
+      "answers": "QueueCard[]"
+    },
+    "SETTLED": {
+      "$card": true,
+      "answers": "QueueCard[]"
+    },
+    "SETTLED_REAL": {
+      "$card": true,
+      "answers": "QueueCard[]"
+    },
+    "SERVICES": {
+      "$fact": true,
+      "answers": "Fact[]"
+    },
+    "SCHEDULERS": {
+      "$fact": true,
+      "answers": "Fact[]"
+    },
+    "DISKS": {
+      "$fact": true,
+      "answers": "Fact[]"
+    },
+    "INDEX": {
+      "$fact": true,
+      "answers": "Fact[]"
+    },
+    "DEPENDENCIES": {
+      "$fact": true,
+      "answers": "Fact[]"
+    }
+  },
+  "$shorthands": {
+    "$comment": "Eleven queue families and five fact families share one shape each. Writing the map out sixteen times is sixteen places for one of them to drift, and the drift would be invisible: each copy would still be internally consistent. The shorthand is expanded by the builder and by the guard, from HERE, so there is one definition.",
+    "$card": {
+      "rename": {
+        "[]": {
+          "t": "title",
+          "s": "secondaryLine",
+          "r": "reason",
+          "noposter": "withoutPoster"
+        }
+      },
+      "tuples": {
+        "chip": [
+          "tone",
+          "text"
+        ]
+      }
+    },
+    "$fact": {
+      "rename": {
+        "[]": {
+          "l": "label",
+          "ton": "tone",
+          "v": "value",
+          "s": "secondaryLine"
+        }
+      }
+    }
+  }
+}

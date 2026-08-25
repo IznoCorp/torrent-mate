@@ -67,6 +67,12 @@ dev = [
     "tomli>=2.0.0; python_version < '3.11'",
     "httpx>=0.27",
     "fakeredis>=2.23",
+    # Read by `scripts/check-mock-seeds.py --arm schema`, which validates every
+    # mock seed against the maquette contract's own schema. It was already
+    # importable here — as a transitive dependency of `mcp` and `nbformat`, on
+    # this machine only — and a guard resting on that is a guard the runner
+    # cannot run. B-077 is the same shape read from the other end.
+    "jsonschema>=4.20",
 ]
 
 [project.scripts]

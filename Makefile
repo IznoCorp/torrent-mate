@@ -100,6 +100,8 @@ check: lint test-cov
 	python3 scripts/audit_design_coverage.py --strict
 	@echo "Checking maquette fixture drift..."
 	python3 scripts/refresh-maquette-fixture.py --check
+	@echo "Checking the mock seeds against the fixtures they were taken from..."
+	python3 scripts/check-mock-seeds.py
 	@echo "Checking OpenAPI drift..."
 	@if [ -d frontend/node_modules ]; then $(MAKE) openapi && git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts; else echo "openapi-drift: skipped (frontend/node_modules absent)"; fi
 	@echo "Checking the maquette contract types for drift..."

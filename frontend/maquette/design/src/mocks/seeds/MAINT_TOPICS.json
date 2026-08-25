@@ -1,0 +1,32 @@
+[
+  {
+    "id": "query",
+    "title": "Regarder",
+    "secondaryLine": "Lire l'état de la médiathèque. Rien n'est modifié."
+  },
+  {
+    "id": "scan",
+    "title": "Indexer",
+    "secondaryLine": "Parcourir les disques et remettre l'index en accord avec eux."
+  },
+  {
+    "id": "repair",
+    "title": "Vérifier et réparer",
+    "secondaryLine": "Contrôler les fichiers, et vider la file de réparation."
+  },
+  {
+    "id": "clean",
+    "title": "Nettoyer les disques",
+    "secondaryLine": "Retirer ce qui n'a rien à y faire. Ces commandes suppriment."
+  },
+  {
+    "id": "fix",
+    "title": "Corriger",
+    "secondaryLine": "Redresser une donnée fausse : un lien, un compte, un identifiant."
+  },
+  {
+    "id": "analyze",
+    "title": "Analyser",
+    "secondaryLine": "Comprendre ce que la médiathèque contient, et ce qui lui manque."
+  }
+]

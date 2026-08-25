@@ -44,6 +44,7 @@
  * Usage:
  *     node scripts/extract-maquette-fixtures.mjs --measure
  *     node scripts/extract-maquette-fixtures.mjs --list
+ *     node scripts/extract-maquette-fixtures.mjs --all
  *     node scripts/extract-maquette-fixtures.mjs --family LIBRARY
  *     node scripts/extract-maquette-fixtures.mjs --family openJourneySheet.steps
  *
@@ -77,6 +78,7 @@ const ENGINE = resolve(
  * @returns {boolean} True when nothing in it is evaluated.
  */
 function isPureLiteral(initializer) {
+  if (!isLiteralRoot(initializer)) return false;
   let pure = true;
   const walk = (node) => {
     if (!pure) return;
@@ -108,8 +110,43 @@ function isPureLiteral(initializer) {
     }
     typescript.forEachChild(node, walk);
   };
-  typescript.forEachChild(initializer, walk);
+  // THE ROOT IS WALKED TOO, and it was not. `forEachChild` starts at the
+  // children, so a bare `const settle = afterUnwind` — an Identifier with no
+  // children — was judged pure and then threw in `valueOf`, which is the two
+  // halves of one reader disagreeing. It surfaced only when `--all` asked for
+  // every family at once; `--family` had only ever been called on the ones
+  // already known to be data.
+  walk(initializer);
   return pure;
+}
+
+/**
+ * Answers whether a node is a literal VALUE, rather than something evaluated.
+ *
+ * `isPureLiteral` asks what a value contains; this asks what it IS. Both are
+ * needed: `1 + 2` contains only literals and is an expression.
+ *
+ * @param {import("typescript").Node} node The initializer.
+ * @returns {boolean} True when `valueOf` can read it.
+ */
+function isLiteralRoot(node) {
+  if (
+    typescript.isArrayLiteralExpression(node) ||
+    typescript.isObjectLiteralExpression(node) ||
+    typescript.isStringLiteral(node) ||
+    typescript.isNoSubstitutionTemplateLiteral(node) ||
+    typescript.isNumericLiteral(node)
+  ) {
+    return true;
+  }
+  if (typescript.isPrefixUnaryExpression(node)) {
+    return typescript.isNumericLiteral(node.operand);
+  }
+  return (
+    node.kind === typescript.SyntaxKind.TrueKeyword ||
+    node.kind === typescript.SyntaxKind.FalseKeyword ||
+    node.kind === typescript.SyntaxKind.NullKeyword
+  );
 }
 
 /**
@@ -328,6 +365,17 @@ if (argument === "--measure") {
 } else if (argument === "--list") {
   for (const family of families) process.stdout.write(`${family.name}\n`);
   for (const entry of nested) process.stdout.write(`${entry.name}\n`);
+} else if (argument === "--all") {
+  // Every family in ONE object, because the alternative is one process per
+  // family: the guard that reads them made a hundred and forty node starts,
+  // each re-parsing 35 198 lines, and took 66 s — against 31 s for the twelve
+  // repository guards put together. A tier nobody can afford to run is a tier
+  // nobody runs.
+  const everything = {};
+  for (const family of [...families, ...nested]) {
+    everything[family.name] = valueOf(family.node);
+  }
+  process.stdout.write(canonical(everything));
 } else if (argument === "--family") {
   const wanted = process.argv[3];
   const family = [...families, ...nested].find(
@@ -342,7 +390,8 @@ if (argument === "--measure") {
   process.stdout.write(canonical(valueOf(family.node)));
 } else {
   process.stderr.write(
-    "usage: extract-maquette-fixtures.mjs --measure | --list | --family <NAME>\n",
+    "usage: extract-maquette-fixtures.mjs --measure | --list | --all | "
+      + "--family <NAME>\n",
   );
   process.exit(2);
 }

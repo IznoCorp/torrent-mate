@@ -1,0 +1,26 @@
+[
+  {
+    "label": "Disk1",
+    "tone": "success",
+    "value": "de la place",
+    "secondaryLine": "1,8 To libres · 15 To · rempli à 88 %"
+  },
+  {
+    "label": "Disk2",
+    "tone": "warning",
+    "value": "bientôt plein",
+    "secondaryLine": "335 Go libres · 4,1 To · rempli à 92 % — quatre jours à ce rythme"
+  },
+  {
+    "label": "Disk3",
+    "tone": "success",
+    "value": "de la place",
+    "secondaryLine": "906 Go libres · 4,1 To · rempli à 78 %"
+  },
+  {
+    "label": "Disk4",
+    "tone": "success",
+    "value": "de la place",
+    "secondaryLine": "730 Go libres · 3,1 To · rempli à 76 %"
+  }
+]

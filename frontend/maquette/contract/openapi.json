@@ -445,7 +445,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/LibraryItem"
+                    "$ref": "#/components/schemas/LibraryRow"
                   }
                 }
               }
@@ -3197,6 +3197,10 @@
           },
           "strip": {
             "$ref": "#/components/schemas/PipelineStrip"
+          },
+          "withoutPoster": {
+            "type": "boolean",
+            "description": "no poster is known for it, so the placeholder is what says so — never a truncating sentence"
           }
         },
         "required": [
@@ -3227,6 +3231,23 @@
           "label",
           "tone",
           "value"
+        ]
+      },
+      "LibraryRow": {
+        "type": "object",
+        "description": "A library row as a LISTING shows it. The recents carry no category — that is what the fixture holds — so the category lives on LibraryItem below rather than here.",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "secondaryLine": {
+            "type": "string",
+            "description": "year and kind, or an episode fraction. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          }
+        },
+        "required": [
+          "secondaryLine",
+          "title"
         ]
       },
       "LibraryItem": {
@@ -3311,21 +3332,6 @@
           "title": {
             "type": "string"
           },
-          "series": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "the series this follow belongs to, or null for a film"
-          },
-          "since": {
-            "type": "string",
-            "description": "when the follow was added. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
-          },
-          "searches": {
-            "type": "integer",
-            "description": "how many searches have run for it"
-          },
           "kind": {
             "type": "string",
             "description": "movie or show"
@@ -3344,19 +3350,42 @@
             "type": "string",
             "description": "the acquisition status token"
           },
+          "showStatus": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "whether the SHOW is still running — « Continuing » — and null for a film. The fixture's key is `serie`, which reads as a series NAME and is not one: the eight shows all carry « Continuing » and the four films carry null. The rename was `series` until the data was read."
+          },
+          "since": {
+            "type": "string",
+            "description": "when the follow was added. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "searches": {
+            "type": "integer",
+            "description": "how many searches have run for it"
+          },
+          "owned": {
+            "type": "integer",
+            "description": "episodes held. Shows only"
+          },
+          "aired": {
+            "type": "integer",
+            "description": "episodes aired. Shows only"
+          },
           "fresh": {
             "type": "boolean",
             "description": "added recently enough to be marked as such"
           }
         },
         "required": [
-          "title",
-          "series",
-          "since",
-          "searches",
           "kind",
-          "year",
-          "status"
+          "searches",
+          "showStatus",
+          "since",
+          "status",
+          "title",
+          "year"
         ]
       },
       "SearchResult": {
@@ -3972,6 +4001,13 @@
             "items": {
               "$ref": "#/components/schemas/DecisionCandidate"
             }
+          },
+          "year": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "the year, where the folder names one"
           }
         },
         "required": [
@@ -4079,7 +4115,8 @@
             "description": "movie or show"
           },
           "year": {
-            "type": "string"
+            "type": "string",
+            "description": "the year, as the provider writes it"
           },
           "rating": {
             "type": [
@@ -4092,14 +4129,14 @@
               "string",
               "null"
             ],
-            "description": "the genres, already joined. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+            "description": "the genres, already joined into one line. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
           },
           "runtime": {
             "type": [
-              "string",
+              "integer",
               "null"
             ],
-            "description": "CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+            "description": "minutes, on the 202 sheets that carry one"
           },
           "overview": {
             "type": [
@@ -4126,46 +4163,60 @@
             }
           },
           "trailer": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/Trailer"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The trailer's TITLE, and nothing else — 182 sheets carry a string here and 144 carry null. Its YouTube key lives in a second family, `trailerIds`, keyed by the same title. The split is the fixture's and it is carried rather than repaired (D-L08-5); the demand register asks the backend for one trailer object with its key beside its name."
           },
           "ids": {
             "$ref": "#/components/schemas/ProviderIds"
           },
           "status": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           },
           "owned": {
             "type": "boolean",
             "description": "whether the library holds it"
           },
           "episodes": {
-            "description": "the episode catalogue, season by season"
+            "type": "object",
+            "description": "the episode catalogue, keyed by season number. Shows only",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Episode"
+              }
+            }
           },
           "seasons": {
-            "description": "the seasons the provider knows of"
+            "type": "array",
+            "description": "the seasons the provider knows of. Shows only",
+            "items": {
+              "$ref": "#/components/schemas/SeasonSummary"
+            }
           },
           "tmdbTelevisionId": {
-            "type": [
-              "integer",
-              "null"
-            ]
+            "type": "string",
+            "description": "the TMDB television identifier, on the eleven sheets that carry one — a string, as the fixture holds it"
           }
         },
         "required": [
+          "cast",
+          "creator",
+          "director",
+          "genres",
+          "ids",
           "kind",
-          "year",
-          "owned"
-        ]
+          "overview",
+          "owned",
+          "rating",
+          "runtime",
+          "status",
+          "trailer",
+          "year"
+        ],
+        "description": "One media sheet. Every field's type below was MEASURED across the 326 sheets the fixture holds, not assumed: `runtime` is an integer count of minutes and was written as a string, `tmdbTelevisionId` is a string on the eleven sheets that carry it and was written as an integer, and `trailer` is a title rather than an object. The schema arm of `scripts/check-mock-seeds.py` found all three."
       },
       "Season": {
         "type": "object",
@@ -4228,6 +4279,58 @@
         "required": [
           "status",
           "title"
+        ]
+      },
+      "Episode": {
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "airDate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "duration": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "minutes, where known"
+          }
+        },
+        "required": [
+          "number",
+          "title"
+        ]
+      },
+      "SeasonSummary": {
+        "type": "object",
+        "description": "a season as the PROVIDER knows it — how many episodes, and when it began. `Season` beside it is what the LIBRARY holds of one, which is a different question and a different endpoint.",
+        "properties": {
+          "number": {
+            "type": "integer"
+          },
+          "episodes": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "airDate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "number"
         ]
       }
     },

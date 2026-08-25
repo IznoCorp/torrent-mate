@@ -8,10 +8,10 @@
   },
   "$counts": {
     "served": 42,
-    "interface": 29,
     "asset": 5,
-    "unserved": 12,
-    "total": 88
+    "interface": 29,
+    "unserved": 5,
+    "total": 81
   },
   "families": {
     "ACCOUNT": {
@@ -384,26 +384,6 @@
       "why": "how a decision was reached, said in French",
       "seed": null
     },
-    "endCardDrag.drag": {
-      "class": "unserved",
-      "why": "working state of the card drag, not data",
-      "seed": null
-    },
-    "endDeckDrag.drag": {
-      "class": "unserved",
-      "why": "working state of the deck drag, not data",
-      "seed": null
-    },
-    "endPageDrag.drag": {
-      "class": "unserved",
-      "why": "working state of the page drag, not data",
-      "seed": null
-    },
-    "endSugDrag.drag": {
-      "class": "unserved",
-      "why": "working state of the suggestion drag, not data",
-      "seed": null
-    },
     "factRowsHTML.TONS": {
       "class": "interface",
       "why": "the mapping from the operator's word for a tone to the stylesheet's. Declared inside factRowsHTML, so it carries a qualified name",
@@ -412,16 +392,6 @@
     "icons": {
       "class": "interface",
       "why": "the interface's own icon paths. A server never sends a drawing",
-      "seed": null
-    },
-    "onEngineBack.settle": {
-      "class": "unserved",
-      "why": "working state of onEngineBack, not data",
-      "seed": null
-    },
-    "onEngineBack.state": {
-      "class": "unserved",
-      "why": "working state of onEngineBack, not data",
       "seed": null
     },
     "openJourneySheet.steps": {
@@ -437,11 +407,6 @@
     "plages.out": {
       "class": "unserved",
       "why": "an accumulator plages() fills, empty at its declaration",
-      "seed": null
-    },
-    "reopenAddressedPanel.pilotageBefore": {
-      "class": "unserved",
-      "why": "a flag reopenAddressedPanel restores, not data",
       "seed": null
     },
     "screenStack": {

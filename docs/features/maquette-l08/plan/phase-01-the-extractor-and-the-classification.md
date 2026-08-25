@@ -1,4 +1,4 @@
-# Phase 1 — The extractor, and the classification of all 88
+# Phase 1 — The extractor, and the classification of all 81
 
 ## Scope
 
@@ -48,7 +48,7 @@ carries one line saying why.
 ## Done when
 
 - `node scripts/extract-maquette-fixtures.mjs --measure` prints 77 module-level families over
-  28 789 lines, names the 11 inside a named function, and counts the 5 inside anonymous ones.
+  28 789 lines, names the 4 inside a named function, and counts the 1 inside an anonymous one.
 - Extracting the same family twice gives byte-identical output.
-- `fixture-register.json` classifies 88 names, and every `unserved` entry carries a reason.
+- `fixture-register.json` classifies 81 names, and every `unserved` entry carries a reason.
 - ACC-01, ACC-02, ACC-03 green.

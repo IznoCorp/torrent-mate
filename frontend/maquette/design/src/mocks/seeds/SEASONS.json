@@ -1,0 +1,247 @@
+{
+  "American Dad!": [
+    {
+      "season": 1,
+      "owned": 7,
+      "aired": 7
+    },
+    {
+      "season": 2,
+      "owned": 16,
+      "aired": 16
+    },
+    {
+      "season": 3,
+      "owned": 19,
+      "aired": 19
+    },
+    {
+      "season": 4,
+      "owned": 16,
+      "aired": 16
+    },
+    {
+      "season": 5,
+      "owned": 20,
+      "aired": 20
+    },
+    {
+      "season": 6,
+      "owned": 18,
+      "aired": 18
+    },
+    {
+      "season": 7,
+      "owned": 19,
+      "aired": 19
+    },
+    {
+      "season": 8,
+      "owned": 18,
+      "aired": 18
+    },
+    {
+      "season": 9,
+      "owned": 19,
+      "aired": 19
+    },
+    {
+      "season": 10,
+      "owned": 20,
+      "aired": 20
+    },
+    {
+      "season": 11,
+      "owned": 3,
+      "aired": 3
+    },
+    {
+      "season": 12,
+      "owned": 15,
+      "aired": 15
+    },
+    {
+      "season": 13,
+      "owned": 22,
+      "aired": 22
+    },
+    {
+      "season": 14,
+      "owned": 22,
+      "aired": 22
+    },
+    {
+      "season": 15,
+      "owned": 22,
+      "aired": 22
+    },
+    {
+      "season": 16,
+      "owned": 24,
+      "aired": 24
+    },
+    {
+      "season": 17,
+      "owned": 24,
+      "aired": 24
+    },
+    {
+      "season": 18,
+      "owned": 22,
+      "aired": 22
+    },
+    {
+      "season": 19,
+      "owned": 22,
+      "aired": 22
+    },
+    {
+      "season": 20,
+      "owned": 22,
+      "aired": 22
+    },
+    {
+      "season": 21,
+      "owned": 22,
+      "aired": 22
+    },
+    {
+      "season": 22,
+      "owned": 11,
+      "aired": 11
+    }
+  ],
+  "Les aventures de Tintin": [
+    {
+      "season": 1,
+      "owned": 13,
+      "aired": 7
+    },
+    {
+      "season": 2,
+      "owned": 13,
+      "aired": 7
+    },
+    {
+      "season": 3,
+      "owned": 13,
+      "aired": 7
+    }
+  ],
+  "Dexter: Resurrection": [
+    {
+      "season": 1,
+      "owned": 10,
+      "aired": 10
+    }
+  ],
+  "Silo": [
+    {
+      "season": 1,
+      "owned": 10,
+      "aired": 10
+    },
+    {
+      "season": 2,
+      "owned": 10,
+      "aired": 10
+    },
+    {
+      "season": 3,
+      "owned": 7,
+      "aired": 6
+    }
+  ],
+  "Furious": [
+    {
+      "season": 1,
+      "owned": 5,
+      "aired": 5
+    }
+  ],
+  "President Curtis": [
+    {
+      "season": 1,
+      "owned": 3,
+      "aired": 3
+    }
+  ],
+  "House of the Dragon": [
+    {
+      "season": 1,
+      "owned": 10,
+      "aired": 10
+    },
+    {
+      "season": 2,
+      "owned": 8,
+      "aired": 8
+    },
+    {
+      "season": 3,
+      "owned": 8,
+      "aired": 8
+    }
+  ],
+  "Star Trek: Strange New Worlds": [
+    {
+      "season": 1,
+      "owned": 10,
+      "aired": 10
+    },
+    {
+      "season": 2,
+      "owned": 10,
+      "aired": 10
+    },
+    {
+      "season": 3,
+      "owned": 10,
+      "aired": 10
+    },
+    {
+      "season": 4,
+      "owned": 3,
+      "aired": 3
+    }
+  ],
+  "Ted Lasso": [
+    {
+      "season": 1,
+      "owned": 10,
+      "aired": 10
+    },
+    {
+      "season": 2,
+      "owned": 12,
+      "aired": 12
+    },
+    {
+      "season": 3,
+      "owned": 12,
+      "aired": 12
+    },
+    {
+      "season": 4,
+      "owned": 1,
+      "aired": 1
+    }
+  ],
+  "Les Animaniacs": [
+    {
+      "season": 1,
+      "owned": 134,
+      "aired": 93
+    },
+    {
+      "season": 2,
+      "owned": 15,
+      "aired": 11
+    },
+    {
+      "season": 3,
+      "owned": 26,
+      "aired": 13
+    }
+  ]
+}

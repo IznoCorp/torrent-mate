@@ -1,0 +1,496 @@
+[
+  {
+    "title": "Superman : L'Homme de demain",
+    "year": "2020",
+    "kind": "Film",
+    "rating": 7.1,
+    "why": [
+      "Recoupé par ",
+      {
+        "emphasis": "4"
+      },
+      " titres de votre médiathèque, dont Ninja Turtles et Supergirl."
+    ]
+  },
+  {
+    "title": "Alita : Battle Angel",
+    "year": "2019",
+    "kind": "Film",
+    "rating": 7.3,
+    "why": [
+      "Recoupé par ",
+      {
+        "emphasis": "3"
+      },
+      " titres de votre médiathèque, dont Ninja Turtles et Supergirl."
+    ]
+  },
+  {
+    "title": "Numéro quatre",
+    "year": "2011",
+    "kind": "Film",
+    "rating": 6.2,
+    "why": [
+      "Recoupé par ",
+      {
+        "emphasis": "3"
+      },
+      " titres de votre médiathèque, dont Supergirl et Disclosure Day."
+    ]
+  },
+  {
+    "title": "Avengers : Endgame",
+    "year": "2019",
+    "kind": "Film",
+    "rating": 8.2,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Supergirl"
+      },
+      " et The Mandalorian and Grogu."
+    ]
+  },
+  {
+    "title": "L'Incroyable Hulk",
+    "year": "2008",
+    "kind": "Film",
+    "rating": 6.2,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Ninja Turtles"
+      },
+      " et The Mandalorian and Grogu."
+    ]
+  },
+  {
+    "title": "Man of Steel",
+    "year": "2013",
+    "kind": "Film",
+    "rating": 6.7,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Supergirl"
+      },
+      " et The Mandalorian and Grogu."
+    ]
+  },
+  {
+    "title": "X-Men : Dark Phoenix",
+    "year": "2019",
+    "kind": "Film",
+    "rating": 6,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Supergirl"
+      },
+      " et The Mandalorian and Grogu."
+    ]
+  },
+  {
+    "title": "Premier Contact",
+    "year": "2016",
+    "kind": "Film",
+    "rating": 7.6,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Marjorie Prime"
+      },
+      " et Disclosure Day."
+    ]
+  },
+  {
+    "title": "Ant-Man et la Guêpe : Quantumania",
+    "year": "2023",
+    "kind": "Film",
+    "rating": 6.2,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Ninja Turtles"
+      },
+      " et Supergirl."
+    ]
+  },
+  {
+    "title": "The Venture Bros",
+    "year": "2004",
+    "kind": "Série",
+    "rating": 7.8,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Batman Caped Crusader (2024)"
+      },
+      " et President Curtis (2026)."
+    ]
+  },
+  {
+    "title": "Fast Charlie",
+    "year": "2023",
+    "kind": "Film",
+    "rating": 6.2,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "On l'appelait Robin des Bois"
+      },
+      " et Margin Call."
+    ]
+  },
+  {
+    "title": "Grimsburg",
+    "year": "2024",
+    "kind": "Série",
+    "rating": 6.1,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Batman Caped Crusader (2024)"
+      },
+      " et President Curtis (2026)."
+    ]
+  },
+  {
+    "title": "Solo: A Star Wars Story",
+    "year": "2018",
+    "kind": "Film",
+    "rating": 6.6,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Supergirl"
+      },
+      " et The Mandalorian and Grogu."
+    ]
+  },
+  {
+    "title": "L'Assassin",
+    "year": "2025",
+    "kind": "Série",
+    "rating": 6.9,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Batman Caped Crusader (2024)"
+      },
+      " et Furious (2026)."
+    ]
+  },
+  {
+    "title": "Power Rangers",
+    "year": "2017",
+    "kind": "Film",
+    "rating": 6.2,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Supergirl"
+      },
+      " et The Mandalorian and Grogu."
+    ]
+  },
+  {
+    "title": "Agent Elvis",
+    "year": "2023",
+    "kind": "Série",
+    "rating": 6.9,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Batman Caped Crusader (2024)"
+      },
+      " et President Curtis (2026)."
+    ]
+  },
+  {
+    "title": "Marvel's M.O.D.O.K.",
+    "year": "2021",
+    "kind": "Série",
+    "rating": 6.6,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Batman Caped Crusader (2024)"
+      },
+      " et President Curtis (2026)."
+    ]
+  },
+  {
+    "title": "Un Duplex pour 3",
+    "year": "2003",
+    "kind": "Film",
+    "rating": 6.1,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Alison Wheeler La Promesse d'un soir"
+      },
+      " et Alexandre Kominek Bâtard sensible."
+    ]
+  },
+  {
+    "title": "Les Trois Corniauds",
+    "year": "2012",
+    "kind": "Film",
+    "rating": 5.8,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Alison Wheeler La Promesse d'un soir"
+      },
+      " et Alexandre Kominek Bâtard sensible."
+    ]
+  },
+  {
+    "title": "L'Embrouille est dans le sac",
+    "year": "1991",
+    "kind": "Film",
+    "rating": 6.4,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Alison Wheeler La Promesse d'un soir"
+      },
+      " et Alexandre Kominek Bâtard sensible."
+    ]
+  },
+  {
+    "title": "Impostor",
+    "year": "2001",
+    "kind": "Film",
+    "rating": 6.1,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Disclosure Day"
+      },
+      " et The Mandalorian and Grogu."
+    ]
+  },
+  {
+    "title": "Green Lantern : Le Complot",
+    "year": "2009",
+    "kind": "Film",
+    "rating": 6.9,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Supergirl"
+      },
+      " et The Mandalorian and Grogu."
+    ]
+  },
+  {
+    "title": "Green Lantern : Méfiez-vous de mon pouvoir",
+    "year": "2022",
+    "kind": "Film",
+    "rating": 6.7,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Ninja Turtles"
+      },
+      " et Supergirl."
+    ]
+  },
+  {
+    "title": "Monsieur le député",
+    "year": "1992",
+    "kind": "Film",
+    "rating": 6,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Alison Wheeler La Promesse d'un soir"
+      },
+      " et Alexandre Kominek Bâtard sensible."
+    ]
+  },
+  {
+    "title": "Touche pas à mon gazon",
+    "year": "1977",
+    "kind": "Film",
+    "rating": 6.6,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Alison Wheeler La Promesse d'un soir"
+      },
+      " et Scary Movie."
+    ]
+  },
+  {
+    "title": "LOL 2.0",
+    "year": "2026",
+    "kind": "Film",
+    "rating": 6,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Alison Wheeler La Promesse d'un soir"
+      },
+      " et Alexandre Kominek Bâtard sensible."
+    ]
+  },
+  {
+    "title": "Thunderstruck",
+    "year": "2012",
+    "kind": "Film",
+    "rating": 6.2,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Alison Wheeler La Promesse d'un soir"
+      },
+      " et Alexandre Kominek Bâtard sensible."
+    ]
+  },
+  {
+    "title": "American Dreamer",
+    "year": "2022",
+    "kind": "Film",
+    "rating": 6,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Alison Wheeler La Promesse d'un soir"
+      },
+      " et Alexandre Kominek Bâtard sensible."
+    ]
+  },
+  {
+    "title": "Y-a-t'il quelqu'un pour l'ambulance ?",
+    "year": "1992",
+    "kind": "Film",
+    "rating": 6.1,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Alison Wheeler La Promesse d'un soir"
+      },
+      " et Alexandre Kominek Bâtard sensible."
+    ]
+  },
+  {
+    "title": "Jim Gaffigan: Beyond the Pale",
+    "year": "2006",
+    "kind": "Film",
+    "rating": 7,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Alison Wheeler La Promesse d'un soir"
+      },
+      " et Alexandre Kominek Bâtard sensible."
+    ]
+  },
+  {
+    "title": "Eddie Murphy: Delirious",
+    "year": "1983",
+    "kind": "Film",
+    "rating": 7.6,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Alison Wheeler La Promesse d'un soir"
+      },
+      " et Alexandre Kominek Bâtard sensible."
+    ]
+  },
+  {
+    "title": "Jim Gaffigan: Mr. Universe",
+    "year": "2012",
+    "kind": "Film",
+    "rating": 6.8,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Alison Wheeler La Promesse d'un soir"
+      },
+      " et Alexandre Kominek Bâtard sensible."
+    ]
+  },
+  {
+    "title": "Spider-Man : Brand New Day",
+    "year": "2026",
+    "kind": "Film",
+    "rating": 7.9,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Ninja Turtles"
+      },
+      "."
+    ]
+  },
+  {
+    "title": "Esprits criminels",
+    "year": "2005",
+    "kind": "Série",
+    "rating": 8.3,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Furious (2026)"
+      },
+      "."
+    ]
+  },
+  {
+    "title": "Avengers : Infinity War",
+    "year": "2018",
+    "kind": "Film",
+    "rating": 8.2,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Supergirl"
+      },
+      "."
+    ]
+  },
+  {
+    "title": "Arrow",
+    "year": "2012",
+    "kind": "Série",
+    "rating": 6.8,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "Batman Caped Crusader (2024)"
+      },
+      "."
+    ]
+  },
+  {
+    "title": "Avatar : De feu et de cendres",
+    "year": "2025",
+    "kind": "Film",
+    "rating": 7.6,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "The Mandalorian and Grogu"
+      },
+      "."
+    ]
+  },
+  {
+    "title": "Manhunt",
+    "year": "2017",
+    "kind": "Série",
+    "rating": 7.6,
+    "why": [
+      "Parce que vous avez ",
+      {
+        "emphasis": "The Bombing of Pan Am 103"
+      },
+      "."
+    ]
+  }
+]
