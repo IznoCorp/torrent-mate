@@ -373,7 +373,7 @@ alternative is scoping the residue to the engine's instances, which is L13's wor
 An adversarial doc-accuracy review over #494 re-measured every figure the wave asserts. **Most
 are right** — 2 739 measurements, 530 rules, 4 136 lines, 30 colours, 8 shadows, 55 rules, 936
 bytes leaked, and D-L07-1's six line ranges are exact. What is not right is written up, item by
-item, in `docs/features/maquette-l07/drafts/documentation-drift-inventory.md`, which travels with
+item, in `docs/archive/features/maquette-l07/drafts/documentation-drift-inventory.md`, which travels with
 the wave into `docs/archive/features/`. **That file is the source and this entry is the index**,
 the same arrangement B-043 to B-048 use.
 
@@ -391,10 +391,9 @@ current and a phase number is only noise.
 
 **B-069 — the residue's licence to exist points at a document about to be archived.**
 `src/styles/legacy.css` justifies itself with « D-L07-5, arbitrated by the operator on
-2026-08-24 », and D-L07-5 is defined in `docs/features/maquette-l07/DESIGN.md` and nowhere else.
-`/implement:create-branch` archives that directory at the next feature start, so the only
-definition of the decision keeping a 2 470-line stylesheet alive moves into frozen history the
-moment the next wave opens — and `docs/archive/` is never revised. Its sibling deferral (the
+2026-08-24 », and D-L07-5 is defined in `docs/archive/features/maquette-l07/DESIGN.md` and nowhere else.
+That directory was archived when #494 landed, so **the only definition of the decision keeping a
+2 470-line stylesheet alive is now in frozen history** — and `docs/archive/` is never revised. Its sibling deferral (the
 prototype fragment, ACC-14/ACC-19) already has a durable home in
 `docs/reference/frontend-architecture.md` § L13. This one needs the same: the decision moves
 there, and the stylesheet's header cites the durable address.
@@ -420,7 +419,7 @@ inside the dying engine, where an edit is L13's to make; it is written down so L
 rediscover it as a live feature.
 
 **B-072 — the command that proves the surface partition no longer runs.**
-`docs/features/maquette-l07/DESIGN.md:281` names `build-surface-manifest.py` as the builder that
+`docs/archive/features/maquette-l07/DESIGN.md:281` names `build-surface-manifest.py` as the builder that
 asserts the partition of BLOCK 2's 530 rules into 38 surfaces is TOTAL. Run today it raises
 `IndexError` at line 79: it reads `refonte.html`, which is 120 lines and holds no rule. The
 committed `plan/surface-manifest.json` is correct — it was built when the fragment still carried
