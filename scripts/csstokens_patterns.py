@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The three patterns both halves of the token guard read a stylesheet with.
+"""The shared readers both halves of the token guard read a stylesheet with.
 
 They live here because `check-css-tokens.py` and `csstokens_login.py` must
 agree about what a comment is, what a `var()` use looks like, and which prefix
@@ -7,6 +7,11 @@ marks a token published at RUNTIME. A second copy of any of the three would be
 a second thing to keep in step — and the first of them to drift would do so
 silently, since both halves would still report « no violation » about a
 stylesheet they were reading differently.
+
+`comma_segments()` joined them when the motion half left: the scale arm and
+the curve reader both split a value on its top-level commas, and they must
+agree about where a term ENDS or one of them reports a curve with no
+duration beside it.
 """
 from __future__ import annotations
 
@@ -35,3 +40,33 @@ HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
 # A declaration may open a line, or follow `{` or `;` on one. Anchoring to the
 # start of a line alone refused `.tm{--x:red}`, which is valid CSS.
 DECLARATION = re.compile(r"(?:^|[{;])\s*(--[\w-]+)\s*:", re.M)
+
+
+def comma_segments(value: str) -> list[str]:
+    """Splits a value on its TOP-LEVEL commas.
+
+    `cubic-bezier(0.22, 0.61, 0.36, 1)` holds three commas of its own, so a
+    plain `split(",")` would tear one transition into four and report a curve
+    that has no duration beside it.
+
+    Args:
+        value: A declaration's value text.
+
+    Returns:
+        The comma-separated terms, each as written.
+    """
+    segments: list[str] = []
+    current: list[str] = []
+    depth = 0
+    for character in value:
+        if character == "(":
+            depth += 1
+        elif character == ")":
+            depth -= 1
+        if character == "," and depth == 0:
+            segments.append("".join(current))
+            current = []
+            continue
+        current.append(character)
+    segments.append("".join(current))
+    return segments
