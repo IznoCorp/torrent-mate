@@ -2,7 +2,7 @@
 // verbatim, after Vite's own HTML processing, so no minifier and no script
 // extraction ever touches it. The real conversion happens module by module
 // in later sub-projects; this file is the chassis they will move into.
-import { readFileSync, rmSync, symlinkSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, symlinkSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
 // Tailwind v4 as a Vite plugin. WHAT CONFINES ITS SCAN IS `source(none)` on
@@ -31,8 +31,18 @@ function injectPrototype() {
       // The fragment's image URLs are relative `assets/...`; the build links
       // the real files in rather than copying 10 MB per build. `dist/` is
       // gitignored, so the symlink never reaches the repository.
-      rmSync(resolve(ROOT, "dist/assets"), { force: true, recursive: true });
-      symlinkSync("../assets", resolve(ROOT, "dist/assets"));
+      //
+      // THE DIRECTORY IS CREATED FIRST, and this hook assumed it existed. It
+      // does on a machine that has built before, and on a fresh checkout it
+      // exists only once the write has finished — so the hook was racing the
+      // output it links into. The race was invisible while the bundle was
+      // small and lost the moment it grew: three continuous-integration jobs
+      // failed at once with `ENOENT: symlink '../assets'`, on a runner, for a
+      // reason that had nothing to do with the change under test.
+      const output = resolve(ROOT, "dist");
+      mkdirSync(output, { recursive: true });
+      rmSync(resolve(output, "assets"), { force: true, recursive: true });
+      symlinkSync("../assets", resolve(output, "assets"));
     },
   };
 }
