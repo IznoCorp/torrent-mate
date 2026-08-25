@@ -110,6 +110,7 @@ when the defect comes back.
 | B-074 | The abbreviation rule's figures were measured against a list the document did not contain | by audit | `fixed #500` |
 | B-075 | Five guards were written green over the very defect they were written for | by mutation | `fixed #500` |
 | B-076 | The hero's entrance animates for a reader who asked for no motion | by rule | `fixed #500` |
+| B-077 | A test of the browser-free half of a rule could not be collected without a browser | by CI | `fixed #500` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -1357,6 +1358,19 @@ list missing the four escape words. **Twice now these figures have been asserted
 was not the one shipping**, which is why § 7 keeps both columns and names the commit each was
 measured at.
 <sub>`python3 scripts/check-code-abbreviations.py --list-baseline` → `"total": 1789` over 347 files</sub>
+
+**B-077 — the tests written to cover the browser-free half needed a browser to be collected.**
+`residue.py` imported `playwright` at module level, so `tests/scripts/test_residue.py` — whose
+whole subject is the four PURE functions — could not be imported in CI's `test` job, which
+installs no browser. Green locally, where playwright is installed; an **ERROR** on the runner,
+which is a COLLECTION crash and therefore not one test failing but the module and everything
+pytest had not yet reached. The import moved into `main()`, where the browser is actually used,
+and the module's own claim became true.
+
+**Found by CI and by nothing else**, which is the entry's point: the wave ran the full harness
+suite twice, `make check` twice and every guard by hand, all on a machine that has playwright.
+A gate proves what it reads, and every local gate read an environment the runner does not have.
+<sub>reproduced by shadowing the module: `PYTHONPATH=<dir with a raising playwright.py> python3 -m pytest tests/scripts/test_residue.py -q` → 13 passed, and the rule itself still refuses to run</sub>
 
 **B-075 — five guards, written for a defect, were green over that exact defect.** Three were
 found by mutation while the wave was being built; **two more by the adversarial review that

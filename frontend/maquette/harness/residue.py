@@ -68,7 +68,14 @@ import re
 import sys
 
 from common import BAR, Journal, open_page
-from playwright.async_api import async_playwright
+
+# PLAYWRIGHT IS IMPORTED WHERE IT IS USED, not here, and that is a contract
+# rather than a style. Everything above `main()` — the readers, the pairing,
+# the comment stripper — needs no browser, and `tests/scripts/test_residue.py`
+# exists to exercise exactly that half. A module-level import made the half
+# that needs no browser unimportable without one, and CI's `test` job (which
+# installs no browser) turned that into a COLLECTION error: pytest stopped at
+# the module and everything after it went unrun.
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 RESIDUE = ROOT / "design" / "src" / "styles" / "legacy.css"
@@ -523,6 +530,8 @@ async def main():
     } for case in cases]
 
     readings = {}
+    from playwright.async_api import async_playwright
+
     async with async_playwright() as play:
         browser = await play.chromium.launch(channel="chrome")
         for preference in ("no-preference", "reduce"):
