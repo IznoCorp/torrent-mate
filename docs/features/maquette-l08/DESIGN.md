@@ -42,10 +42,11 @@ node scripts/extract-maquette-fixtures.mjs --measure
 ```
 
 **64 module-level fixture families, covering 28 776 of `legacy.js`'s 35 198 lines.**
-Two further pure literals sit INSIDE a function (`steps`, the journey sheet's five stages, and
-`TONS`) and are named separately below, because a fixture with no module-level name is invisible
-to any extractor that walks declarations — and being invisible is exactly the property this
-wave's guard must not inherit.
+Two further pure literals sit INSIDE a function — `openJourneySheet.steps`, a torrent's five
+stages, and `factRowsHTML.TONS`, a tone mapping. They are reached under a qualified name rather
+than left out: a fixture with no module-level name is invisible to any extractor that walks
+declarations, and being invisible is exactly the property this wave's guard must not inherit.
+**Sixty-six in all, and every one of them extractable.**
 
 The ten largest, which are most of the mass:
 
@@ -283,7 +284,7 @@ answers, each with the arm that covers it or the limit that is accepted:
 | a fixture family that no seed claims — the coverage hole                                  | **arm `classification`**: the inventory is named and total, unclassified is a violation                                                                                                                                        |
 | a seed file with no source family — an invented seed                                      | **arm `provenance`**: every seed names its family, and the family must exist                                                                                                                                                   |
 | a projection that silently drops a key                                                    | **arm `lossless`**: every fixture key is either in the declared mapping or in the declared `dropped` list with its reason                                                                                                      |
-| a fixture the extractor cannot see — a literal inside a function, like `steps` and `TONS` | **not covered by extraction, and named**: both are listed in the register by hand, as `unserved` with their reason, and the arm refuses the register naming a family the extractor does not know unless it is one of those two |
+| a fixture the extractor cannot see — a literal inside a function | **covered rather than accepted**: the extractor reaches them under a QUALIFIED name, `enclosingFunction.name`. It was written as an accepted limit and closed in the same phase, because one of the two — `openJourneySheet.steps`, a torrent's five stages — is real state a contract has to serve, and leaving it out would have meant copying it into a seed by hand: the one un-re-derivable corner the guard exists to forbid |
 | values the fixture computes at run time — the `derived*()` arrows, the getters, `TODAY`   | **accepted limit**, written down: they are not literals, so they are not seeded. They become scenario responses, declared in the handler and covered by the harness rule, never by the seed guard                              |
 
 **And the guard's own floor is a named set, never a number.** `--list` prints the inventory it

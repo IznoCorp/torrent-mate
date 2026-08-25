@@ -1,0 +1,348 @@
+{
+  "$comment": "THE CLASSIFICATION OF EVERY FIXTURE FAMILY THE MAQUETTE ENGINE DECLARES, and it is TOTAL: a family the extractor finds and this file does not name is a violation, and so is a name here the extractor cannot find. That is what makes the guard reading it impossible to pre-satisfy — it holds a NAMED INVENTORY, never a count. A floor placed at today's number is satisfied by construction on the day it is written and can only ever catch a later decrease, which is the shape B-075 found five times over. Regenerate the inventory with `node scripts/extract-maquette-fixtures.mjs --list`; the CLASS is a judgement and is never generated.",
+  "$classes": {
+    "served": "server state — the operator's system holds it. A seed derives from it and a handler serves it",
+    "asset": "artwork, poster and trailer maps — served as part of a media payload, never as a resource of its own",
+    "vocabulary": "what the INTERFACE owns and a server must never send: labels, tones, orderings, icon paths. Routing one of these through a mock would have the interface asking a server for its own words. They stay where they are; L09 moves them to i18n and to the components",
+    "unserved": "not served, with the reason written out"
+  },
+  "$counts": {
+    "served": 40,
+    "asset": 5,
+    "vocabulary": 20,
+    "unserved": 1,
+    "total": 66
+  },
+  "families": {
+    "ACCOUNT": {
+      "class": "served",
+      "why": "the signed-in account",
+      "seed": null
+    },
+    "AUDIOS": {
+      "class": "vocabulary",
+      "why": "the three audio options and their French descriptions. The option KEYS are contract values the ranking profile carries; the list and its wording are the interface's",
+      "seed": null
+    },
+    "BLOCKED": {
+      "class": "served",
+      "why": "arrivals — what is blocked, with the reason",
+      "seed": null
+    },
+    "CAST": {
+      "class": "asset",
+      "why": "cast portraits",
+      "seed": null
+    },
+    "CATS": {
+      "class": "served",
+      "why": "the categories and their counts, read from library.db",
+      "seed": null
+    },
+    "DECISIONS_REGLEES": {
+      "class": "served",
+      "why": "the decisions already settled, with how each was reached",
+      "seed": null
+    },
+    "DECISION_STATE": {
+      "class": "vocabulary",
+      "why": "the tone and the French name of each decision state",
+      "seed": null
+    },
+    "DECISION_STATE_DETAIL": {
+      "class": "vocabulary",
+      "why": "the sentence that explains each decision state",
+      "seed": null
+    },
+    "DEPENDENCIES": {
+      "class": "served",
+      "why": "the external dependencies and whether they answer",
+      "seed": null
+    },
+    "DISKS": {
+      "class": "served",
+      "why": "the disks, their free space and their fill",
+      "seed": null
+    },
+    "DONE_TODAY": {
+      "class": "served",
+      "why": "arrivals — what reached the library today",
+      "seed": null
+    },
+    "EP_LABEL": {
+      "class": "vocabulary",
+      "why": "the French name of each episode state",
+      "seed": null
+    },
+    "EP_ORDER": {
+      "class": "vocabulary",
+      "why": "the order episode states sort in",
+      "seed": null
+    },
+    "EP_SWATCH": {
+      "class": "vocabulary",
+      "why": "which swatch each episode state wears",
+      "seed": null
+    },
+    "ERRORS": {
+      "class": "served",
+      "why": "the error tally and the latest one",
+      "seed": null
+    },
+    "EXECUTIONS": {
+      "class": "served",
+      "why": "the recent pipeline executions",
+      "seed": null
+    },
+    "FOLLOWS": {
+      "class": "served",
+      "why": "the twelve follows with their true states, read from acquire.db",
+      "seed": null
+    },
+    "GROUPS": {
+      "class": "vocabulary",
+      "why": "how follows are grouped, and what each group is called. The status values it lists are contract vocabulary; the grouping is the interface's",
+      "seed": null
+    },
+    "HERO_IMAGES": {
+      "class": "asset",
+      "why": "wide visuals, one per title",
+      "seed": null
+    },
+    "INCOMPLETE": {
+      "class": "served",
+      "why": "incomplete series with their owned/aired fractions",
+      "seed": null
+    },
+    "INDEX": {
+      "class": "served",
+      "why": "the indexer's own health figures",
+      "seed": null
+    },
+    "INFLIGHT": {
+      "class": "served",
+      "why": "arrivals — what is in flight",
+      "seed": null
+    },
+    "JOURNAL": {
+      "class": "served",
+      "why": "the maintenance journal",
+      "seed": null
+    },
+    "LIBRARY": {
+      "class": "served",
+      "why": "the library listing — 345 of the 1 861 titles library.db holds",
+      "seed": null
+    },
+    "MAINT_ACTIONS": {
+      "class": "served",
+      "why": "the maintenance action catalogue — the backend already serves one at /api/maintenance/actions",
+      "seed": null
+    },
+    "MAINT_TOPICS": {
+      "class": "served",
+      "why": "the maintenance rubrics",
+      "seed": null
+    },
+    "MOIS": {
+      "class": "vocabulary",
+      "why": "the twelve abbreviated month names",
+      "seed": null
+    },
+    "MOVING": {
+      "class": "served",
+      "why": "staging — what is moving through the pipeline",
+      "seed": null
+    },
+    "NOTFOUND": {
+      "class": "served",
+      "why": "arrivals — what no release satisfies, loaded scenario",
+      "seed": null
+    },
+    "NOTFOUND_REAL": {
+      "class": "served",
+      "why": "arrivals — what no release satisfies, real scenario",
+      "seed": null
+    },
+    "OWNED": {
+      "class": "served",
+      "why": "owned episode numbers, season by season, for 247 series",
+      "seed": null
+    },
+    "PENDING_DECISIONS": {
+      "class": "served",
+      "why": "the decisions still awaiting arbitration, with their candidates",
+      "seed": null
+    },
+    "PIPELINE": {
+      "class": "served",
+      "why": "the last run, told as its nine steps, with the counts pipeline_run recorded",
+      "seed": null
+    },
+    "POSTERS": {
+      "class": "asset",
+      "why": "poster paths, one per title",
+      "seed": null
+    },
+    "POSTERS_HD": {
+      "class": "asset",
+      "why": "poster paths at gallery definition",
+      "seed": null
+    },
+    "REASON_DETAIL": {
+      "class": "vocabulary",
+      "why": "the sentence that explains each reason",
+      "seed": null
+    },
+    "REASON_LABEL": {
+      "class": "vocabulary",
+      "why": "the French name of each decision reason",
+      "seed": null
+    },
+    "REASON_TONE": {
+      "class": "vocabulary",
+      "why": "which tone each reason wears",
+      "seed": null
+    },
+    "RECENT": {
+      "class": "served",
+      "why": "the twelve most recently added titles",
+      "seed": null
+    },
+    "RELEASES": {
+      "class": "served",
+      "why": "the release candidates. NOT REAL — no tracker is queried (README, What is real in here) — but a release list IS server state, so it is served and the register says where its values came from",
+      "seed": null
+    },
+    "RISQUES": {
+      "class": "vocabulary",
+      "why": "how risky a maintenance action is, and what that is called",
+      "seed": null
+    },
+    "SCHEDULERS": {
+      "class": "served",
+      "why": "the schedulers, their cadence and their last pass",
+      "seed": null
+    },
+    "SEARCH": {
+      "class": "served",
+      "why": "a search result page",
+      "seed": null
+    },
+    "SEASONS": {
+      "class": "served",
+      "why": "season and episode counts per series",
+      "seed": null
+    },
+    "SECRETS": {
+      "class": "served",
+      "why": "the secret keys and whether each is defined — never a value",
+      "seed": null
+    },
+    "SERVICES": {
+      "class": "served",
+      "why": "the services and their states",
+      "seed": null
+    },
+    "SETTINGS": {
+      "class": "served",
+      "why": "the configuration schema, section by section and field by field",
+      "seed": null
+    },
+    "SETTLED": {
+      "class": "served",
+      "why": "staging — what has settled, loaded scenario",
+      "seed": null
+    },
+    "SETTLED_REAL": {
+      "class": "served",
+      "why": "staging — what has settled, real scenario",
+      "seed": null
+    },
+    "SHEETS_OLD": {
+      "class": "unserved",
+      "why": "a superseded media-sheet shape. Nothing reads it: the only reference outside its own declaration is the Object.assign that publishes 254 names on window for the harness, and no rule and no module names it. It dies with the engine (L13)",
+      "seed": null
+    },
+    "SHEETS_RAW": {
+      "class": "served",
+      "why": "the media sheets — title, year, rating, synopsis, cast, provider ids, status",
+      "seed": null
+    },
+    "STUCK": {
+      "class": "served",
+      "why": "staging — the folders the pipeline could not name, loaded scenario",
+      "seed": null
+    },
+    "STUCK_REAL": {
+      "class": "served",
+      "why": "staging — the folders the pipeline could not name, real scenario",
+      "seed": null
+    },
+    "ST_LABEL": {
+      "class": "vocabulary",
+      "why": "the French name of each follow status",
+      "seed": null
+    },
+    "ST_LABEL_MOVIE": {
+      "class": "vocabulary",
+      "why": "the same three statuses said differently for a film",
+      "seed": null
+    },
+    "ST_TONE": {
+      "class": "vocabulary",
+      "why": "which tone each status wears",
+      "seed": null
+    },
+    "SUGGESTIONS": {
+      "class": "served",
+      "why": "the suggestion deck, produced by the engine actually executing a TMDB call",
+      "seed": null
+    },
+    "SYNOPSIS": {
+      "class": "served",
+      "why": "synopses, from TMDB",
+      "seed": null
+    },
+    "TAKEABLE": {
+      "class": "served",
+      "why": "arrivals — what is ready to be grabbed",
+      "seed": null
+    },
+    "TRIS": {
+      "class": "vocabulary",
+      "why": "the six sort names, each way round",
+      "seed": null
+    },
+    "URGENCY": {
+      "class": "vocabulary",
+      "why": "the order statuses sort in — an interface decision, not a datum",
+      "seed": null
+    },
+    "VIA_LABEL": {
+      "class": "vocabulary",
+      "why": "how a decision was reached, said in French",
+      "seed": null
+    },
+    "factRowsHTML.TONS": {
+      "class": "vocabulary",
+      "why": "the mapping from the operator's word for a tone to the stylesheet's. Declared inside factRowsHTML, so it carries a qualified name",
+      "seed": null
+    },
+    "icons": {
+      "class": "vocabulary",
+      "why": "the interface's own icon paths. A server never sends a drawing",
+      "seed": null
+    },
+    "openJourneySheet.steps": {
+      "class": "served",
+      "why": "one torrent's journey, told as its five stages. Declared inside openJourneySheet, so it carries a qualified name — it is real state a contract must serve, and leaving it out would have meant copying it into a seed by hand",
+      "seed": null
+    },
+    "trailerIds": {
+      "class": "asset",
+      "why": "YouTube trailer ids, from TMDB /videos",
+      "seed": null
+    }
+  }
+}
