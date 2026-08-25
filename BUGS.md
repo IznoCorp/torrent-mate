@@ -112,6 +112,9 @@ when the defect comes back.
 | B-076 | The hero's entrance animates for a reader who asked for no motion | by rule | `fixed #500` |
 | B-077 | A test of the browser-free half of a rule could not be collected without a browser | by CI | `fixed #500` |
 | B-078 | The state row outlived its subject, ajourned on a rule that does not exist | by audit | `fixed #501` |
+| B-079 | The design host cannot say which commit it serves, and production's host can | by audit | `open` |
+| B-080 | The drawer shows a hard-coded version and build, and calls itself up to date | by operator | `open` |
+| B-081 | Design notes can no longer be hidden, and the oracle measures without them | by operator | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -501,6 +504,13 @@ subjects behind one entry point.
 <sub>`python3 scripts/check-module-size.py --root scripts`</sub>
 
 **B-071 — a toggle for an overlay that was deleted.**
+
+> **Widened by B-081 (operator, 2026-08-25), and this entry understated it.** « Reporting success
+> for a class nothing reads » reads as though the notes were simply gone. They are not: the DEFAULT
+> flipped, so they are shown on every screen and cannot be hidden. And the oracle masks them while
+> measuring, so the instrument never sees what the operator is judging. B-081 carries the
+> mechanism and the fix for the visible half; this entry keeps the third end, inside the dying
+> engine, for L13.
 D-L07-1 deleted the design-notes overlay with BLOCK 1, correctly: `:root.notes .note` was harness
 CSS and it must not ship. `src/engine/legacy.js:11414-11419` still toggles the `notes` class,
 still flips `aria-pressed`, and still toasts « Notes de conception affichées. » — reporting
@@ -1431,3 +1441,76 @@ this entry's own pull request, at the cost it was said to be avoiding: one branc
 squash.
 
 <sub>`grep -n 'In flight' IMPLEMENTATION.md` · `sed -n '/^## 5. The method/,+4p' docs/reference/frontend-architecture.md`</sub>
+
+**B-079 — the design host serves whatever is on disk, and nothing on screen says what that is.**
+The operator judges the interface by looking at the design host. The chain from `main` to that
+screen has four links, and **only one is held**:
+
+| Link | Production | Design host |
+| --- | --- | --- |
+| the tree is on `main` | `deploy.sh` guard 3 refuses otherwise | nothing |
+| the tree is clean | `deploy.sh` guard 2: « Uncommitted code is NEVER deployed » | nothing |
+| the build matches the sources | rebuilt from source only | **held** — `serve.py` compares the newest input mtime against `dist/` and rebuilds under a lock per request |
+| the served identity is visible | `BUILD_COMMIT` stamped, baked into the bundle, read by `GET /api/version`, post-check R27 proving the RUNNING process serves it | nothing (see B-080: worse than nothing) |
+
+`serve.py` holds no notion of a commit, a branch or a dirty tree across its 784 lines. So « is what
+I am looking at what is on `main`? » is unanswerable from the screen.
+
+**Not hypothetical, and the precedent is this repository's own week.** Uncommitted edits to
+`CLAUDE.md` survived four branch changes in the clone an agent was working in, and were reported as
+preserved. The same clone runs `serve.py`. **And it happened to the steward mid-audit**: a local
+`main` carrying the right NAME and weeks-old content, then a detached checkout two commits behind —
+twice in ten minutes, on this very question, with nothing on any screen saying so.
+
+**The fix is NOT production's fix.** `deploy.sh` REFUSES a dirty or non-main tree because
+production must only serve `main`. The design host must be able to serve a branch — that is what
+it is for. So it does not refuse, **it declares**: `branch @ sha` plus a visible mark when the tree
+is dirty, computed per request (`serve.py` already rebuilds per request; a boot-cached identity is
+the drift R27 exists to catch on the other side). The harness should read it too — `wrapped.html`
+is a MANUAL copy and a stale one measures the previous build in silence.
+
+<sub>`grep -in 'commit\|branch\|sha' frontend/maquette/serve.py` · `sed -n '50,67p' scripts/deploy.sh`</sub>
+
+**B-080 — the drawer states a version and a build, and both are decoration.**
+`src/engine/legacy.js:11829-11830` emits `<p class="vv">0.98.23</p>` and
+`<p class="vc">build 58d0d4fd · à jour</p>` as **literals**. Nothing computes them, nothing checks
+them, and « à jour » asserts a freshness it does not measure. Reported by the operator on
+2026-08-25 from a live screenshot, while `main` stood at 0.98.40 and `893740d6`.
+
+**This is worse than B-079's silence, and the distinction is the point.** A screen that says
+nothing sends its reader to look; a screen that states a plausible answer stops them looking. The
+value is credible precisely because 0.98.23 was a real version of this repository once — a
+placeholder reading `0.0.0` would fool nobody. The operator asked twice in one session which commit
+was being served **while this line was on screen**, which is what a reader does when an instrument
+has lost their trust without being removed.
+
+Fix: it is the same fix as B-079 — the served identity, computed. Until then the two lines should
+say what they are, because a labelled mock is data and an unlabelled one is a lie.
+
+<sub>`grep -n '58d0d4fd\|0\.98\.23' frontend/maquette/design/src/engine/legacy.js`</sub>
+
+**B-081 — the design notes cannot be hidden any more, and the instrument does not see them.**
+Reported by the operator on 2026-08-25: the design-note paragraphs are visible on every screen, and
+the toggle's toast announces « Notes masquées. » while nothing hides.
+
+**The mechanism, measured.** Before L07, `refonte.html` carried both halves — `.note { display:
+none }` (hidden BY DEFAULT) and `:root.notes .note { display: block }` (the toggle revealed them).
+D-L07-1 deleted BLOCK 1 and both went with it. `legacy.js:11414-11419` still toggles the `notes`
+class on `<html>`, still flips `aria-pressed`, still toasts — and **no rule reads that class any
+more**. The default flipped from hidden to shown, which is the opposite of what B-071 records: that
+entry says the toggle reports success for a class nothing reads, and reads as though the visual
+state were still correct. It is not.
+
+**The second half is the one that costs, and B-071 does not mention it.** The only surviving rule
+touching `.note` is `harness.css`'s `html.measuring .note { display: none !important }`. **So the
+oracle measures a document with no notes while the operator judges one full of them.** 2 739
+measurements at zero divergence certify a page nobody looks at; the layout actually being judged —
+density, rhythm, the space between a section head and its first card — is measured by nothing. An
+instrument and an eye pointed at different documents, with nothing saying so.
+
+Fix: restore the default in the base layer (the notes belong to the prototype, not to the product,
+so `harness.css` is where the pair belongs — it ships nowhere), then mutation-test the toggle both
+ways. **Do NOT close B-071 with it**: its third end lives inside the dying engine and belongs to
+L13. This entry is the visible half and can be repaired now.
+
+<sub>`grep -rn '\.note\b' frontend/maquette/design/src/styles/*.css` · `git show 5fdbfc9a^:frontend/maquette/design/refonte.html | sed -n '4008,4034p'`</sub>
