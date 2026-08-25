@@ -120,6 +120,50 @@ properties, so nothing that exists today would have caught it. Verified by compi
 4.3.2; redefining the utility does not recover the name either.
 
 
+### Review cycle — PR #494
+
+**One cycle, four reviewers, 2026-08-25** — code, tests, comments, silent failures — over the
+whole 47-commit diff, each mutating rather than reading. Three of the four independently found the
+same three defects, which is the reason to run four lenses rather than one deeper.
+
+**One shape, six times, and it is this wave's own doctrine turned on itself: a gate green because
+of what it does not read.** The scale arm still read BLOCK 2, which the wave emptied — so
+invariant 3 held nothing for spacing and radius. The compositor guard counted its own PROSE, so
+the named pointer-stream incident could be restored by a COMMENT. The split-class hold read 35 of
+89 concatenation sites, blind to the shared vocabulary that moved into a directory in this same
+wave. Two more holds in that file passed on an empty read. The no-French vacuity ledger was
+pre-satisfied by a counter seeded at 1 — the one check that watches for an empty scope could never
+fire on the scope L07 restructured. And the login arm could not see the failure `serve.py`'s own
+comment describes, because the wrapper it warns about is invisible chunk by chunk. All six
+repaired, each with a mutation seen red and restored.
+
+**One rule was simply absent.** `scripts/check-legacy-css-residue.py` was named by `legacy.css`'s
+header, by the plan twice, by the DESIGN twice, by this file — and by **§15 of the constitution**.
+It did not exist, so nothing bounded 2 470 lines and ACC-16 could not run. Written, wired into
+`make check` and CI, mutation-tested three ways.
+
+**One rendering regression, invisible to every instrument.** `.endmark` was classified
+component-drawn and its rule deleted; the engine also emits it, and engine markup receives no
+utility. Découvrir's end-of-reserve sentence had been rendering unstyled — and the oracle could
+not see it, because that region is not among the 33 and a `::before` that stops being painted
+changes neither a rectangle nor one of the 19 properties.
+
+**Rejected with reason.** The residue beating the utilities on seven shared anchors was raised as
+critical and is a DOCUMENTED decision — the rules and the variants declare the same thing term for
+term, the oracle says so, and `legacy.css` says so in its own words. What survives of it is the
+drift nobody holds, recorded as **B-067**. The duplicated `design/frontend/…` tree, the
+`@media`-scoped token reading, `.iconbtn`, `add-screen.tsx`'s inline padding and the `R7`/`R8`
+citation collision were all verified **pre-existing on `origin/main`** and recorded rather than
+folded in. Seven findings went to the register as `open` (**B-066** to **B-072**) because each
+needs a decision, a design call or a wave of its own — the forty-item documentation-drift
+inventory travels with the wave in `drafts/`.
+
+**Re-verified after the repairs, on the tip of the branch**: full suite **55 rules, no
+violation** · a11y **83 states, 0 violations** · oracle **0 divergence over 2 739 measurements**
+· `make check` exit 0 with **10 763 passed, 0 failed, 0 error** · `--compare` against the
+baseline reports exactly **one** movement across the whole wave, `bridge.py` 9 → 10, which is
+the named R74 split.
+
 **Phases of L06** — the plan is `docs/archive/features/maquette-l06/plan/INDEX.md`, which owns the
 reasoning and the 24 ACCEPTANCE criteria. This table owns only the status.
 
