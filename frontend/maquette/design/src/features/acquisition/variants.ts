@@ -10,8 +10,6 @@ export const addForm = cva("addform pt-6 px-7 pb-0");
 /** A row of the form: the field, then the button that acts on it. */
 export const addRow = cva("addrow flex gap-4 mt-4");
 
-/** The « N results » line. */
-export const resultCount = cva("rescount pt-6 px-7 pb-0 text-2 text-muted-foreground");
 
 /**
  * The results list.

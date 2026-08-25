@@ -21,8 +21,7 @@ import type { ReactElement } from "react";
 import { useSystemReference } from "../../features/system/reference";
 import { type Fact } from "../../lib/engine-drawing";
 import { useUiState } from "../../lib/store-access";
-import { crossReference, crossReferenceLink, section, sectionHeading, surfaceError } from "../../ui/variants";
-import { topicRow } from "../../features/settings/variants";
+import { crossReference, crossReferenceLink, section, sectionHeading, surfaceError, topicRow } from "../../ui/variants";
 
 export function SystemPage(): ReactElement | null {
   const state = useUiState();

@@ -17,8 +17,7 @@
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useReleasesReference } from "../../features/releases/reference";
-import { actionButton, backAction, body, emptyNote, qualityHint, screen, screenBar, scrollport } from "../../ui/variants";
-import { resultCount } from "../../features/acquisition/variants";
+import { actionButton, backAction, body, emptyNote, qualityHint, resultCount, screen, screenBar, scrollport } from "../../ui/variants";
 import { releaseName, releaseRow, releaseScore, releaseTags } from "../../features/releases/variants";
 
 // Same helper as `media.tsx`'s, `profile.tsx`'s and `add.tsx`'s, still not

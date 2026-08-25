@@ -455,6 +455,30 @@ def emission_tokens() -> set[str]:
     """
     files = [p for p in sorted(SOURCES.rglob("*"))
              if p.is_file() and p.suffix in {".js", ".ts", ".tsx"}]
+    emitted_from_variants: set[str] = set()
+
+    # A FOURTH EMISSION SITE, and it arrived with L07: a `cva(…)` factory. Its
+    # argument IS the class attribute — `cva("fback flex items-center …")`
+    # emits `fback` exactly as `className="fback"` did — and it wears no
+    # `class=` for the readers below to find. THE TWO READERS MUST AGREE OR ONE
+    # OF THEM IS WRONG, so this mirrors `markup_anchors.emission_tokens`
+    # deliberately, the same way the rest of this file does.
+    for path in files:
+        # `*.variants.ts` as a FAMILY: the vocabulary split into three subject
+        # files behind a barrel when it passed the module ceiling, and a reader
+        # matching one exact name would have gone quietly blind that day.
+        if not (path.name.endswith("variants.ts") or path.parent.name == "variants"):
+            continue
+        text = JS_COMMENT.sub(" ", path.read_text(encoding="utf-8"))
+        # THE FIRST TOKEN OF A `cva(` BASE STRING, and only that one. This
+        # wave's own convention keeps the identity class at the FRONT of every
+        # variant — everything after it is a utility, and reading those as
+        # emitted class names would put `flex` and `items-center` into a
+        # vocabulary that decides what counts as a class anchor.
+        for match in re.finditer(r'cva\(\s*"([^"\n]*)"', text):
+            head = match.group(1).split()
+            if head and re.fullmatch(r"[a-zA-Z][\w-]*", head[0]):
+                emitted_from_variants.add(head[0])
     emitted: set[str] = set()
     for path in [SHELL, *files]:
         text = path.read_text(encoding="utf-8")
@@ -498,6 +522,8 @@ def emission_tokens() -> set[str]:
                     emitted |= set(piece.split())
                 for literal in re.findall(r"`([^`]*)`", expr):
                     emitted |= set(strip_interpolations(literal).split())
+    emitted |= emitted_from_variants
+
     return emitted
 
 

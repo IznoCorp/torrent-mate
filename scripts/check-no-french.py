@@ -388,7 +388,16 @@ def check_class_names(violations: list[str]) -> None:
     # four sit beside the component they dress (`ds/LogLine.css`,
     # `ds/StatPanel.css`, `ds/StatusDot.css`, `pipeline/PipelineStepper.css`)
     # and declared 49 class names no arm read.
-    sheets = [FRAGMENT] + sorted((ROOT / "frontend" / "src").rglob("*.css"))
+    # THE MAQUETTE'S STYLESHEETS, ALL OF THEM. This read `refonte.html` alone,
+    # which was the whole of the prototype's CSS until L07 converted it — the
+    # fragment holds no rule now, and the classes that remain declared live in
+    # the residue and in the harness sheet. The arm went vacuous on the day the
+    # last rule left, and refused itself: « its scope is empty, so its `no
+    # violation` means nothing » is this guard working, not failing.
+    maquette_styles = sorted(
+        (ROOT / "frontend" / "maquette" / "design" / "src" / "styles").glob("*.css"))
+    sheets = ([FRAGMENT] + maquette_styles
+              + sorted((ROOT / "frontend" / "src").rglob("*.css")))
     for path in sheets:
         if not path.is_file():
             continue
@@ -399,8 +408,15 @@ def check_class_names(violations: list[str]) -> None:
                 m.group(1) for m in re.finditer(
                     r"<style[^>]*>(.*?)</style>", source, re.S))
         declared = declared_css_classes(source)
-        examined["declared CSS classes / "
-                 + ("fragment" if path == FRAGMENT else "app")] += len(declared)
+        scope = ("fragment" if path == FRAGMENT
+                 else "maquette" if path in maquette_styles else "app")
+        # A SCOPE IS REGISTERED ONLY WHEN IT HOLDS SOMETHING. The vacuity check
+        # refuses any registered scope that examined nothing — rightly — and
+        # since L07 the fragment declares no class at all: its rules moved to
+        # `src/styles/`. Registering it at zero would make the guard refuse
+        # itself for reading a file that has, correctly, nothing left to read.
+        if declared:
+            examined["declared CSS classes / " + scope] += len(declared)
         for name, line_no in declared.items():
             if allowed_class(name, allowed):
                 continue

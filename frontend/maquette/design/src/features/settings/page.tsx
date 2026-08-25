@@ -32,8 +32,8 @@ import { Icon } from "../../ui/icon";
 import { useSettingsReference, type Setting, type SettingsTopic } from "../../features/settings/reference";
 import { useStoreContent } from "../../lib/store-access";
 import { settingLabel } from "../../features/settings/labels";
-import { emptyNote, factsPanel, loadError, loadErrorAction, qualityHint, searchClear, searchField, searchInput, sectionHeading } from "../../ui/variants";
-import { saveAction, saveBar, settingsRow, topicRow } from "./variants";
+import { emptyNote, factsPanel, loadError, loadErrorAction, qualityHint, searchClear, searchField, searchInput, sectionHeading, topicRow } from "../../ui/variants";
+import { saveAction, saveBar, settingsRow } from "./variants";
 
 // The pending-edit marker and the row's own identity live on the same element:
 // the row IS the control the delegation reads.

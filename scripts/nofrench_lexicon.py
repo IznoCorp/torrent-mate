@@ -351,7 +351,10 @@ examined: dict[str, int] = {
     "path segments / repository": 0,
     "class names / python": 0,
     "class names / typescript": 0,
-    "declared CSS classes / fragment": 0,
+    # The fragment held every prototype class until L07 converted them; they
+    # are declared in `src/styles/` now, and the arm registers a scope only
+    # when it holds something, so « fragment » simply stops appearing.
+    "declared CSS classes / maquette": 1,
     "declared CSS classes / app": 0,
     "unread javascript / shell": 0,
     "name words / shell": 0,

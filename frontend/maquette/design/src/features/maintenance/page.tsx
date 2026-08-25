@@ -21,8 +21,7 @@ import type { ReactElement } from "react";
 import { useMaintenanceReference } from "../../features/maintenance/reference";
 import { type Fact } from "../../lib/engine-drawing";
 import { useUiState } from "../../lib/store-access";
-import { crossReference, section, sectionHeading, surfaceError } from "../../ui/variants";
-import { topicRow } from "../../features/settings/variants";
+import { crossReference, section, sectionHeading, surfaceError, topicRow } from "../../ui/variants";
 
 export function MaintenancePage(): ReactElement | null {
   const state = useUiState();

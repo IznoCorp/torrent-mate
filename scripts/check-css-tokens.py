@@ -65,6 +65,12 @@ import re
 import sys
 from pathlib import Path
 
+# The four patterns both halves of this guard read a stylesheet with. They
+# live in one module because the two must agree about what a comment is and
+# what a `var()` use looks like — the first copy to drift would do so in
+# silence, both halves still reporting « no violation ».
+from csstokens_patterns import COMMENT, DECLARATION, HTML_COMMENT, RUNTIME_PREFIX, USE
+
 ROOT = Path(__file__).resolve().parent.parent
 
 # The maquette's own application CSS — BLOCK 2 of the prototype. It used to be
@@ -78,29 +84,6 @@ FRAGMENT = ROOT / "frontend" / "maquette" / "design" / "refonte.html"
 # about where the application CSS begins would be measuring a third thing.
 BLOCK_2 = "BLOCK 2"
 
-# Tokens published at RUNTIME by script rather than declared in CSS. The prefix
-# is the contract, and it is narrow on purpose: a name that merely happens to be
-# missing must not be able to join this set by being renamed.
-RUNTIME_PREFIX = "--tm-"
-
-# Comments are stripped before anything is read: a declaration commented OUT
-# used to satisfy a use, and `var(/*c*/--x)` used to be invisible. Both were
-# found by an adversarial review, and both are the same mistake — reading CSS
-# as text rather than as CSS.
-COMMENT = re.compile(r"/\*.*?\*/", re.S)
-
-# The document's own comment syntax. The sign-in page is composed from CSS AND
-# markup chunks, so the arm that reads the composition meets both.
-HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
-
-# A declaration may open a line, or follow `{` or `;` on one. Anchoring to the
-# start of a line alone refused `.tm{--x:red}`, which is valid CSS.
-DECLARATION = re.compile(r"(?:^|[{;])\s*(--[\w-]+)\s*:", re.M)
-
-# `var(--x)` and `var(--x, fallback)`. The fallback is captured, not merely
-# detected: `var(--tm-h,)` carries a comma and nothing after it, and resolves
-# to exactly as much as no fallback at all.
-USE = re.compile(r"var\(\s*(--[\w-]+)\s*(?:,([^)]*))?\)")
 
 # One top-level rule: its selector prelude, and its body.
 RULE = re.compile(r"([^{}]+)\{([^{}]*)\}", re.S)
@@ -244,34 +227,17 @@ FONT_SHORTHAND_SIZE = re.compile(
 # lifts into `@theme` without a rename when L07 lands.
 SCALE_TOKEN = re.compile(r"^--(?:spacing|text|radius|duration|ease)-[\w-]+$")
 
-# The composer itself. The sign-in page is whatever IT extracts — a chunk the
-# files offer and `serve.py` never asks for is not on the page, so the arm reads
-# the composition rather than the markers.
-COMPOSER = ROOT / "frontend" / "maquette" / "serve.py"
 
-# `styles_source = PROTOTYPE.read_text()`: the local name an `extract()` call
-# passes, bound to the constant that names the file it was read from.
-SOURCE_BINDING = re.compile(r"(\w+)\s*=\s*(\w+)\.read_text\(")
 
-# `extract(styles_source, "scale")`. The second argument is quoted, so the
-# `def extract(source: str, marker: str)` line is not a call and does not match.
-EXTRACT_CALL = re.compile(r"\bextract\(\s*(\w+)\s*,\s*\"([\w-]+)\"\s*\)")
+
+
+
 
 # The constants `serve.py` reads its sources from, resolved to the files this
 # arm already knows. A source it names and this table does not is refused
 # rather than skipped: the composition measured would not be the one served.
 #
-# `BASE_STYLESHEET` joined when L07 moved the base layer out of the fragment,
-# taking `login:font` and `login:socle` with it. The arm caught that move on
-# the first run after it — which is what it is for — and the repair is a new
-# binding on both sides rather than a looser match here.
-SOURCE_FILES = {
-    "PROTOTYPE": FRAGMENT,
-    "SHELL_DOCUMENT": MARKUP,
-    "BASE_STYLESHEET": BASE_LAYER,
-    "THEME_STYLESHEET": THEME_LAYER,
-    "LEGACY_STYLESHEET": LEGACY_LAYER,
-}
+
 
 # THE exemption list: the selectors the scale arm skips entirely, each with the
 # reason it is not a step. There is no file to default from any more — these two
@@ -701,7 +667,11 @@ def application_stylesheet() -> str | None:
     if fragment is None:
         return None
     parts = [fragment]
-    for path in (THEME_LAYER, BASE_LAYER):
+    # THE RESIDUE SHIPS, so its `var()` calls must resolve like any other. It
+    # joined this list when L07 emptied BLOCK 2: 462 of the uses this arm was
+    # written to check had moved into it, and a scope that empties makes « no
+    # violation » mean nothing — which is what the guard's own test says.
+    for path in (THEME_LAYER, BASE_LAYER, LEGACY_LAYER):
         if path.exists():
             parts.append(path.read_text(encoding="utf-8"))
     return "\n".join(parts)
@@ -922,162 +892,6 @@ def scale_arm() -> int:
     return 0
 
 
-def without_python_comments(source: str) -> str:
-    """Blanks out `#` comments, quotes respected.
-
-    A commented-out `extract()` call composes nothing, and an arm that counted
-    it would report a chunk the page never receives. A naive per-line split on
-    `#` would also cut a line at a `#` inside a string literal, so the scan
-    tracks the quote it is in.
-
-    Args:
-        source: Python source text.
-
-    Returns:
-        The same text with every comment replaced by spaces, line breaks kept
-        so a reader can still map a match back to a line.
-    """
-    kept: list[str] = []
-    quote = ""
-    index = 0
-    while index < len(source):
-        char = source[index]
-        if quote:
-            kept.append(char)
-            if char == "\\" and index + 1 < len(source):
-                kept.append(source[index + 1])
-                index += 2
-                continue
-            if char == quote:
-                quote = ""
-        elif char in "'\"":
-            quote = char
-            kept.append(char)
-        elif char == "#":
-            end = source.find("\n", index)
-            end = len(source) if end < 0 else end
-            kept.append(" " * (end - index))
-            index = end
-            continue
-        else:
-            kept.append(char)
-        index += 1
-    return "".join(kept)
-
-
-def composed_chunks() -> dict[str, str] | None:
-    """Collects the chunks `serve.py` actually composes the sign-in page from.
-
-    The set is read from the composer rather than from the markers: a chunk the
-    files offer and `serve.py` never extracts is not on the page, and holding
-    the page to it would report a token the browser is in fact given. Which
-    file each chunk comes from is read the same way — `serve.py` binds its two
-    sources by name, and this follows the binding rather than guessing.
-
-    Returns:
-        Chunk text keyed by chunk name, or `None` when the composer cannot be
-        read, names a source this arm cannot resolve, or extracts a chunk whose
-        markers are missing — the same failure `extract()` itself raises on.
-    """
-    if not COMPOSER.exists():
-        print(
-            f"check-login: {COMPOSER} not found — the composition cannot be "
-            "read, so a « no violation » here would mean nothing",
-            file=sys.stderr,
-        )
-        return None
-    composer = without_python_comments(COMPOSER.read_text(encoding="utf-8"))
-
-    # `styles_source = PROTOTYPE.read_text()` and its sibling: the local name an
-    # `extract()` call passes, bound to the constant that names the file.
-    bound = {local: constant for local, constant in SOURCE_BINDING.findall(composer)}
-    calls = EXTRACT_CALL.findall(composer)
-    if not calls:
-        print(
-            f'check-login: no `extract(<source>, "<chunk>")` call in '
-            f"{COMPOSER.name} — an arm that reads zero chunks holds nothing",
-            file=sys.stderr,
-        )
-        return None
-
-    texts: dict[Path, str] = {}
-    chunks: dict[str, str] = {}
-    for local, name in calls:
-        path = SOURCE_FILES.get(bound.get(local, ""))
-        if path is None:
-            print(
-                f"  login: {COMPOSER.name} extracts login:{name} from `{local}`, "
-                "which this arm cannot resolve to a file — the composition it "
-                "measures would not be the one served.",
-                file=sys.stderr,
-            )
-            return None
-        if not path.exists():
-            print(
-                f"check-login: {path} not found — the composed page cannot be "
-                "read, so a « no violation » here would mean nothing",
-                file=sys.stderr,
-            )
-            return None
-        if name in chunks:
-            continue
-        text = texts.setdefault(path, path.read_text(encoding="utf-8"))
-        start = text.find(f"login:{name}:start")
-        end = text.find(f"login:{name}:end")
-        if start < 0 or end < 0 or end < start:
-            print(
-                f"  login: {COMPOSER.name} extracts login:{name} from "
-                f"{path.name}, which carries no such marker pair — `extract()` "
-                "raises on this and serves no sign-in page at all.",
-                file=sys.stderr,
-            )
-            return None
-        # The same slicing serve.extract() uses, deliberately: an arm that read
-        # one character more than the composer would hold a chunk the page
-        # never receives.
-        chunks[name] = text[text.index("\n", start) + 1 : text.rindex("\n", start, end) + 1]
-    return chunks
-
-
-def login_arm() -> int:
-    """Refuses a token the composed sign-in page uses but is never given.
-
-    Returns:
-        1 when anything was found, 0 otherwise.
-    """
-    chunks = composed_chunks()
-    if chunks is None:
-        return 1
-
-    # Both comment syntaxes: the CSS chunks live in a <style>, the markup chunks
-    # in the document. A declaration commented out in either satisfied nothing.
-    composed = COMMENT.sub(" ", "\n".join(chunks.values()))
-    composed = HTML_COMMENT.sub(" ", composed)
-    declared = set(DECLARATION.findall(composed))
-    used: set[str] = set()
-    missing: set[str] = set()
-    for name, fallback in USE.findall(composed):
-        used.add(name)
-        # A runtime token carrying a usable fallback is not owed a declaration:
-        # nothing declares `--tm-*` in CSS, the shell publishes it, and the
-        # fallback is what the page renders with until it has.
-        if name.startswith(RUNTIME_PREFIX) and fallback.strip():
-            continue
-        if name not in declared:
-            missing.add(name)
-
-    for name in sorted(missing):
-        print(
-            f"  login: {name} is used by the composed sign-in page but declared "
-            "in no chunk serve.py composes — the page is not given it, and "
-            "resolves it to nothing.",
-            file=sys.stderr,
-        )
-    if missing:
-        return 1
-
-    print(f"login: {len(used)} var() use(s) in the composed chunks, all declared there.")
-    return 0
 
 
 # THE FOUR TOUCH-RESPONSE STEPS, AS TAILWIND SPELLS THEM. `--duration-*` is
@@ -1112,6 +926,9 @@ CLASS_SOURCES = (
 # are NOT matched: they name a value explicitly and are somebody's deliberate
 # choice, where a bare number is the shape that silently means milliseconds.
 _DURATION_UTILITY = re.compile(r"(?<![\w-])duration-(\d+)(?![\w-])")
+
+
+from csstokens_login import login_arm  # noqa: E402
 
 
 def motion_classes_arm() -> int:

@@ -6,14 +6,6 @@
 // inputs on a phone is a screen where every scroll risks changing something.
 import { cva } from "../../ui/cva";
 
-/** A topic: a rubric of settings, or of maintenance actions. */
-export const topicRow = cva(
-  "topic flex items-center gap-6 w-full text-left border border-border " +
-    "rounded-3 bg-card p-6 mb-4 text-foreground " +
-    "[&_.rt]:block [&_.rt]:text-5 [&_.rt]:font-semibold " +
-    "[&_.rs]:block [&_.rs]:mt-1 [&_.rs]:text-3 [&_.rs]:text-muted-foreground [&_.rs]:leading-[1.4] " +
-    "[&_.rn]:flex-none [&_.rn]:text-3 [&_.rn]:font-semibold [&_.rn]:text-muted-foreground",
-);
 
 /**
  * One setting, as a row.

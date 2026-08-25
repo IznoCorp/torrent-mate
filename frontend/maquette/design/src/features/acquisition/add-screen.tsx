@@ -42,8 +42,8 @@ import { Icon } from "../../ui/icon";
 import { go } from "../../lib/navigate";
 import { useAcquisitionReference } from "../../features/acquisition/reference";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
-import { actionButton, backAction, emptyNote, screen, screenBar, scrollport, searchField, searchInput, surfaceError } from "../../ui/variants";
-import { addFooter, addForm, addRow, byIdentifier, byIdentifierBody, refusalReason, resultCount, suggestions } from "../../features/acquisition/variants";
+import { actionButton, backAction, emptyNote, resultCount, screen, screenBar, scrollport, searchField, searchInput, surfaceError } from "../../ui/variants";
+import { addFooter, addForm, addRow, byIdentifier, byIdentifierBody, refusalReason, suggestions } from "../../features/acquisition/variants";
 
 type Mode = "follow" | "identify";
 
