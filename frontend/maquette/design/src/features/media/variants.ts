@@ -29,19 +29,23 @@ export const heroImage = cva(
   "herobg relative bg-cover bg-muted [background-position:center_16%] animate-hero-in " +
     // THE MELT: the image gives itself fully at the top, then dissolves into
     // the body colour. No edge, no seam — that is the whole effect.
+    //
+    // THE GRADIENT IS ONE LITERAL, however long, AND IT HAS TO BE. Split
+    // across `+` concatenation, no single string held the whole class name and
+    // TAILWIND'S SCANNER NEVER SAW IT — the `::after` came out with no
+    // background at all. The oracle stayed green through it: it measures the
+    // element's own computed style and its rectangle, and a missing
+    // pseudo-element changes neither. R26 caught it, by reading
+    // `getComputedStyle(bg, '::after')`. A gate proves what it reads.
     "after:content-[''] after:absolute after:inset-0 " +
-    "after:[background:linear-gradient(to_bottom,transparent_0%,transparent_34%," +
-    "color-mix(in_oklab,var(--color-background)_45%,transparent)_66%," +
-    "color-mix(in_oklab,var(--color-background)_88%,transparent)_87%," +
-    "var(--color-background)_100%)]",
+    "after:[background:linear-gradient(to_bottom,transparent_0%,transparent_34%,color-mix(in_oklab,var(--color-background)_45%,transparent)_66%,color-mix(in_oklab,var(--color-background)_88%,transparent)_87%,var(--color-background)_100%)]",
   {
     variants: {
       poster: {
         true: "h-[min(46vh,400px)] min-h-[268px]",
         false:
-          "h-[72px] min-h-0 [background-image:linear-gradient(160deg," +
-          "color-mix(in_oklab,var(--color-primary)_45%,var(--color-background))," +
-          "var(--color-card)_58%,var(--color-muted))]",
+          // One literal, for the reason written at the melt above.
+          "h-[72px] min-h-0 [background-image:linear-gradient(160deg,color-mix(in_oklab,var(--color-primary)_45%,var(--color-background)),var(--color-card)_58%,var(--color-muted))]",
       },
     },
   },

@@ -243,19 +243,31 @@
          guide and walks the actual steps rather than saying « installez-moi ».
          It sits ABOVE the tab bar: anchored to the bottom edge, its close button
          lands under the fixed bar and cannot be reached. -->
-    <div class="installbar" id="installbar" role="region"
+    <div
+      class="installbar absolute left-0 right-0 bottom-[calc(var(--tm-bottom-bar-h,0px)+12px)]
+             z-[55] flex justify-center py-0 px-7"
+      id="installbar"
+      role="region"
       aria-label="Installation de l'application" hidden>
-      <div class="installcard">
-        <div class="installtext">
-          <p class="installtitle">Installer l'application</p>
-          <p class="installsub" id="installsub">
+      <div
+        class="installcard w-full max-w-[420px] flex items-start gap-6 p-7 border border-border
+               rounded-4 bg-card [box-shadow:var(--mq-shadow-card)]"
+      >
+        <div class="installtext flex-auto min-w-0 flex flex-col gap-2">
+          <p class="installtitle m-0 text-4 font-semibold">Installer l'application</p>
+          <p class="installsub m-0 text-2 leading-[1.4] text-muted-foreground" id="installsub">
             Ajoutez TorrentMate à votre écran d'accueil pour un accès direct.
           </p>
-          <ol class="installsteps" id="installsteps" hidden>
+          <ol
+            class="installsteps mt-1 mx-0 mb-0 pl-8 flex flex-col gap-1 text-2 leading-[1.4]
+                   text-muted-foreground"
+            id="installsteps"
+            hidden
+          >
             <li>Ouvrez cette page dans Safari.</li>
             <li>
               Touchez
-              <span class="installkey"
+              <span class="installkey inline-flex items-center gap-1 font-semibold text-foreground"
                 ><svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -277,7 +289,13 @@
               «&nbsp;Ajouter&nbsp;».
             </li>
           </ol>
-          <button class="installgo" id="installgo" data-part="install/action">
+          <button
+            class="installgo self-start mt-4 inline-flex items-center gap-3 py-4 px-6 [border:0]
+                   rounded-3 [font:600_var(--text-3)_'Geist',system-ui,sans-serif]
+                   text-primary-foreground bg-primary"
+            id="installgo"
+            data-part="install/action"
+          >
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -291,7 +309,7 @@
             >Installer TorrentMate
           </button>
         </div>
-        <button class="installclose" id="installclose" aria-label="Masquer">
+        <button class="installclose flex-none grid place-items-center w-[28px] h-[28px] p-0 [border:0] rounded-3 bg-transparent text-muted-foreground" id="installclose" aria-label="Masquer">
           <svg
             viewBox="0 0 24 24"
             fill="none"

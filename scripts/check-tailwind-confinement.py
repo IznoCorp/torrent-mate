@@ -250,6 +250,34 @@ def main() -> int:
                 "for as long as anything outside a component reads a token."
             )
 
+    # Hold 6 — no class name is split across a string concatenation.
+    #
+    # Tailwind's scanner reads CANDIDATES out of raw text. A class broken over
+    # `"…" + "…"` exists in no single literal, so it is never generated — and
+    # NOTHING ELSE SEES IT. The media sheet's legibility gradient was split
+    # that way and its `::after` came out with no background at all, while the
+    # oracle stayed green: it measures the element's own computed style and its
+    # rectangle, and a missing pseudo-element changes neither. Only R26 caught
+    # it, by reading `getComputedStyle(bg, "::after")`.
+    #
+    # The test is the one thing that distinguishes the two cases: a literal
+    # ending in a SPACE is a clean break between class names; a literal ending
+    # in any other character continues the name into the next one.
+    holds += 1
+    split: list[str] = []
+    for path in sorted((DESIGN / "src").rglob("variants.ts")):
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            tail = re.search(r'"([^"]*)"\s*\+\s*$', line)
+            if tail and tail.group(1) and not tail.group(1).endswith(" "):
+                split.append(
+                    f"  {path.relative_to(ROOT)}:{number} — a class name is cut "
+                    f"by the concatenation after `…{tail.group(1)[-30:]}`. "
+                    "Keep it in ONE literal, however long: the scanner reads "
+                    "text, and half a name generates nothing."
+                )
+    if split:
+        failures.extend(split)
+
     if failures:
         print(f"tailwind confinement: {len(failures)} violation(s) over {holds} hold(s).")
         print("\n".join(failures))

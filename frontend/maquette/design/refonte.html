@@ -763,131 +763,14 @@
   :root.notes .note {
     display: block;
   }
-  /* Install proposal.
-     Above the tab bar, never against the bottom edge: anchored there, the
-     close button lands UNDER the fixed bar and cannot be reached — reported
-     from a real phone, on both platforms. */
-  .installbar {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: calc(var(--tm-bottom-bar-h, 0px) + 12px);
-    z-index: 55;
-    display: flex;
-    justify-content: center;
-    padding: 0 var(--spacing-7);
-  }
+  /* Install proposal — CONVERTED (L07 phase 15), utilities in `index.html`
+     like the rest of the shell. ABOVE the tab bar, never against the bottom
+     edge: anchored there the close button lands UNDER the fixed bar and cannot
+     be reached — reported from a real phone, on both platforms. iOS fires no
+     install event at all, so the banner IS the guide: it walks the steps
+     rather than offering a button that cannot exist.
 
-  .installbar[hidden] {
-    display: none;
-  }
-
-  .installcard {
-    width: 100%;
-    max-width: 420px;
-    display: flex;
-    align-items: flex-start;
-    gap: var(--spacing-6);
-    padding: var(--spacing-7);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-4);
-    background: var(--color-card);
-    box-shadow: var(--mq-shadow-card);
-  }
-
-  .installtext {
-    flex: 1 1 auto;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-2);
-  }
-
-  .installtitle {
-    margin: 0;
-    font-size: var(--text-4);
-    font-weight: 600;
-  }
-
-  .installsub {
-    margin: 0;
-    font-size: var(--text-2);
-    line-height: 1.4;
-    color: var(--color-muted-foreground);
-  }
-
-  .installsub[hidden],
-  .installsteps[hidden],
-  .installgo[hidden] {
-    display: none;
-  }
-
-  /* iOS fires no install event at all, so the banner IS the guide: it walks
-     the steps rather than offering a button that cannot exist. */
-  .installsteps {
-    margin: var(--spacing-1) 0 0;
-    padding-left: var(--spacing-8);
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-1);
-    font-size: var(--text-2);
-    line-height: 1.4;
-    color: var(--color-muted-foreground);
-  }
-
-  .installkey {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--spacing-1);
-    font-weight: 600;
-    color: var(--color-foreground);
-  }
-
-  .installkey svg {
-    width: 13px;
-    height: 13px;
-    flex: 0 0 auto;
-  }
-
-  .installgo {
-    align-self: flex-start;
-    margin-top: var(--spacing-4);
-    display: inline-flex;
-    align-items: center;
-    gap: var(--spacing-3);
-    padding: var(--spacing-4) var(--spacing-6);
-    border: 0;
-    border-radius: var(--radius-3);
-    font:
-      600 var(--text-3) "Geist",
-      system-ui,
-      sans-serif;
-    color: var(--color-primary-foreground);
-    background: var(--color-primary);
-  }
-
-  .installgo svg {
-    width: 15px;
-    height: 15px;
-  }
-
-  .installclose {
-    flex: 0 0 auto;
-    display: grid;
-    place-items: center;
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    border: 0;
-    border-radius: var(--radius-3);
-    background: transparent;
-    color: var(--color-muted-foreground);
-  }
-
-  .installclose svg {
-    width: 16px;
-    height: 16px;
-  }
+     Its three `[hidden]` cases and its icon sizes are in the base layer. */
 
   /* login:style:start */
   /* Login — the unauthenticated entry screen.

@@ -169,6 +169,15 @@
    And it stays a RULE rather than becoming a utility for a separate reason: it
    is a promise about elements the markup has not met yet, and a utility can
    only be written on an element somebody has already decided to hide. */
+/* The install banner's three hidden cases, for the same reason as the group
+   below: an author `display` beats the attribute. */
+.installbar[hidden],
+.installsub[hidden],
+.installsteps[hidden],
+.installgo[hidden] {
+  display: none;
+}
+
 .fab[hidden],
 .selbar[hidden],
 .live[hidden],
@@ -217,6 +226,19 @@
 /* The list field's two controls. An `<svg>` with no size is not merely
    unstyled — it falls back to the replaced-element default of 300x150, and the
    « add » button came out 313px tall. */
+.installkey svg {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+}
+.installgo svg {
+  width: 15px;
+  height: 15px;
+}
+.installclose svg {
+  width: 16px;
+  height: 16px;
+}
 .ladd svg,
 .lremove svg {
   width: 15px;
