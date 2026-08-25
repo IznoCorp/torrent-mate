@@ -198,6 +198,28 @@ that file as the visual reference; when the CSS leaves it, the reference becomes
 plus the component catalogue**, and §15 is amended in the same move rather than left pointing at
 a file that no longer holds its subject.
 
+**Two more sheets shipped than this decision names — recorded by the steward's audit of L07,
+2026-08-25.** « Three layers, and nowhere else » is the text; five stylesheets exist:
+
+| Sheet | What it is | Standing |
+| --- | --- | --- |
+| `styles/theme.css` | the Tokens layer | D3, as written |
+| `styles/base.css` | the Base layer | D3, as written |
+| the surfaces' `variants.ts` | « everything else, in the component » | D3, as written |
+| `styles/legacy.css` | the dying engine's residue, bounded and dated, dies with L13 | **arbitrated by the operator** in L07's `DESIGN.md` § 2, and held by `check-legacy-css-residue.py` |
+| `styles/harness.css` | the phone frame — imported once, and the only sheet that never ships | **a departure from L07's letter**, taken in the wave and carried by its merge |
+
+Neither is a fourth or fifth *layer* in D3's sense: one is a residue with a date of death, the
+other never reaches the product. But the decision's own words refuse both, and § 7.1 forbids the
+wave that implements a decision from amending it — which is why this paragraph is written here,
+after the fact, by someone who implemented neither. **What the operator still has to say** is
+whether D3's text is widened to name a residue and a harness explicitly, or whether both stay
+what they are today: exceptions recorded against a decision that does not admit them.
+
+**Why it is not cosmetic.** L13 removes `legacy.css` and the switchover removes `harness.css`.
+Whoever reads D3 on that day must be able to tell that the three layers were always the target
+and that two sheets were passing through — not that the decision was quietly ignored twice.
+
 ### D4 — Rules anchor on `data-*`, never on a style class
 
 **Decision.** A harness rule selects on `data-*` attributes and on structural ids. Never on a CSS
@@ -666,6 +688,15 @@ the phone frame, the demo bars and the design notes — scaffolding that stops e
 switchover — and BLOCK 2 is the application's own CSS. Converting BLOCK 1 into components would
 carry the scaffolding into the product. It is deleted, not converted, and its disappearance is
 part of this lot's proof rather than a later tidy-up.
+
+**What L07 actually did, recorded 2026-08-25 after the lot landed.** BLOCK 1 was **separated, not
+deleted**: it is `design/src/styles/harness.css`, imported once and by nothing that ships. The
+wave's reason, and it holds: the phone frame is the frame inside which every measurement in this
+repository is taken, so the instrument that proves the rest of the lot cannot be what the lot
+destroys on its way out. The paragraph above is kept as written — **the intent is unchanged, and
+the sheet still must not travel** — but « deleted » is now « separated and provably unshipped »,
+and the proof is the single import rather than the absence. `refonte.html` likewise survives, and
+its removal is carried into L13 with R72's renegotiation, above.
 
 **This lot fixes the surface ORDER, and L09 reuses it.** Both lots walk every surface; walking
 them in the same sequence means the second pass reuses the understanding the first one built.

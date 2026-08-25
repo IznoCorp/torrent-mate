@@ -106,6 +106,7 @@ when the defect comes back.
 | B-070 | `rename-identifiers.py` passed the 800-line soft ceiling | by gate | `open` |
 | B-071 | The design-notes toggle survives the overlay it toggles | by review | `open` |
 | B-072 | `build-surface-manifest.py` crashes: its own command no longer runs | by review | `open` |
+| B-073 | The size arm checks WHICH files are grandfathered, never the lot each names | by audit | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -1137,3 +1138,30 @@ committed reference file**, and **every future `--record` rewrites the French wo
 file, so the copy regenerates for as long as line 637 stands. Fix the source line first; the
 `.json` copy then corrects itself on the next recording.
 <sub>`grep -c "entérine" frontend/maquette/oracle-reference.json` → 1</sub>
+
+**B-073 — the grandfathered list guarantees its membership and never its justification.**
+`scripts/check-frontend-boundaries.py`'s size arm is careful about the list's *composition*: it
+refuses a file over the 400-line ceiling that no entry records (`unrecorded`), and it refuses an
+entry for a file that has come back under it (`stale`). **It never reads the entry's VALUE.**
+`lot = GRANDFATHERED.get(module, …)` is used for one thing only — printing
+`--list-grandfathered` — so the sentence naming the lot that will convert the file is checked by
+nothing, and regenerating the list preserves it verbatim.
+
+**What that costs today.** Four of the seven entries name **L07**, which landed on 2026-08-25:
+`features/acquisition/page.tsx` (« L07 — the surface converts, then L09 takes its data »),
+`features/library/page.tsx`, `features/media/media-screen.tsx` and
+`features/arrivals/resolution-screen.tsx` (« L07, then L09 »). All four are still over the
+ceiling, and all four **grew** during the wave — 762→769, 583→589, 760→789, 412→413. The next
+session reads a list promising a lot that has already been and gone.
+
+**This is not « L07 failed its promise »**, and the distinction is the whole finding: each label
+names TWO lots, the conversion (L07, done) and the data extraction (L09, owed), and nothing
+distinguishes the half that is spent from the half that is not. A label carrying two lots and no
+state is not a label anyone can act on.
+
+Fix: the arm reads the value and refuses a label whose named lot is `LANDED` in
+`frontend-architecture.md` while the file is still listed — either the entry is re-labelled with
+the lot that actually owes the reduction, or its landing is what the ceiling should have caught.
+Mutation: mark a lot `LANDED` in the plan and watch the arm fall on the entries naming it.
+
+<sub>`python3 scripts/check-frontend-boundaries.py --arm size --list-grandfathered` · `for f in features/media/media-screen.tsx app/shell.tsx; do git show 5fdbfc9a^:frontend/maquette/design/src/$f | grep -c '[^[:space:]]'; done`</sub>
