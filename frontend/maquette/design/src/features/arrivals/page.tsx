@@ -29,6 +29,15 @@ import { useArrivalsReference, type PipelineFact } from "../../features/arrivals
 import { type QueueCard } from "../../lib/engine-queue";
 import { useUiState } from "../../lib/store-access";
 import { actionButton, emptyNote, section as sectionClass, sectionHead, statusDot as statusDotClass, surfaceError } from "../../ui/variants";
+import { liveDot, liveEmphasis, liveStrip } from "../../ui/variants";
+import {
+  pilotActions,
+  pilotBar,
+  pilotGauge,
+  pilotHead,
+  pilotQualifier,
+  pilotTitle,
+} from "./variants";
 
 // The nine steps, told as the last run left them. A step with nothing recorded
 // at all reads « rien à faire »; a step that BLOCKED something says so and
@@ -71,30 +80,30 @@ function PipelineBar(): ReactElement {
   if (state.pipe === "running" || state.pipe === "queued") {
     const step = PIPELINE.steps[3];
     return (
-      <section className="pipeline" data-part="pipeline" data-region="arrivals/pilot-bar">
-        <div className="ph">
+      <section className={pilotBar()} data-part="pipeline" data-region="arrivals/pilot-bar">
+        <div className={pilotHead()}>
           <span className={statusDotClass({ tone: "info" })} data-part="status-dot" data-tone="info"></span>
-          <span className="pt" data-part="pipeline/title">{t("screens.arrivals.runningTitle")}</span>
-          <span className="pq">
+          <span className={pilotTitle()} data-part="pipeline/title">{t("screens.arrivals.runningTitle")}</span>
+          <span className={pilotQualifier()}>
             {t("screens.arrivals.stepOf", {
               count: PIPELINE.steps.length,
               label: step.l,
             })}
           </span>
         </div>
-        <div className="gauge">
-          <i style={{ width: "44%" }}></i>
+        <div className={pilotGauge()}>
+          <i className="block h-full bg-info rounded-[inherit]" style={{ width: "44%" }}></i>
         </div>
         {/* « Relancer ensuite » stays offered WHILE a run is going, and that is
             the point rather than an oversight: new downloads land during a
             pass, and asking for another one is a legitimate thing to want. */}
         {state.pipe === "queued" ? (
           <>
-            <div className="live" data-part="live-activity">
-              <span className="d"></span>
+            <div className={liveStrip()} data-part="live-activity">
+              <span className={liveDot()}></span>
               <span>
                 {t("screens.arrivals.queuedLead")}
-                <b>{t("screens.arrivals.queuedBold")}</b>
+                <b className={liveEmphasis()}>{t("screens.arrivals.queuedBold")}</b>
                 {t("screens.arrivals.queuedRest")}
               </span>
             </div>
@@ -103,7 +112,7 @@ function PipelineBar(): ReactElement {
             </button>
           </>
         ) : (
-          <div className="pacts">
+          <div className={pilotActions()}>
             <button className={`cfoot ${actionButton()}`} data-part="card/foot" data-pipe="start">
               {t("screens.arrivals.runAfterwards")}
             </button>
@@ -117,11 +126,11 @@ function PipelineBar(): ReactElement {
   }
 
   return (
-    <section className="pipeline" data-part="pipeline" data-region="arrivals/pilot-bar">
-      <div className="ph">
+    <section className={pilotBar()} data-part="pipeline" data-region="arrivals/pilot-bar">
+      <div className={pilotHead()}>
         <span className={statusDotClass({ tone: "neutral" })} data-part="status-dot" data-tone="neutral"></span>
-        <span className="pt" data-part="pipeline/title">{t("screens.arrivals.idleTitle")}</span>
-        <span className="pq">
+        <span className={pilotTitle()} data-part="pipeline/title">{t("screens.arrivals.idleTitle")}</span>
+        <span className={pilotQualifier()}>
           {t("screens.arrivals.idleQualifier", {
             when: PIPELINE.last.when,
           })}
@@ -147,14 +156,14 @@ function LastRun(): ReactElement {
         <span className="t" data-part="section/title">{t("screens.arrivals.lastRunTitle")}</span>
         <span className="k" data-part="section/count">{run.duree}</span>
       </div>
-      <div className="live" data-part="live-activity">
+      <div className={liveStrip()} data-part="live-activity">
         <span
-          className="d"
+          className={liveDot()}
           style={{ animation: "none", background: "var(--color-success)" }}
         ></span>
         <span>
           {t("screens.arrivals.triggeredBy")}
-          <b>{PIPELINE.declencheurs[run.declencheur]}</b>
+          <b className={liveEmphasis()}>{PIPELINE.declencheurs[run.declencheur]}</b>
           {t("screens.arrivals.triggeredWhen", { when: run.when })}
         </span>
       </div>
@@ -240,13 +249,13 @@ export function ArrivalsPage(): ReactElement | null {
         </div>
       ) : null}
       {moving.length > 0 ? (
-        <div className="live" data-part="live-activity">
-          <span className="d"></span>
+        <div className={liveStrip()} data-part="live-activity">
+          <span className={liveDot()}></span>
           <span>
             {t("screens.arrivals.scrapingLead")}
             {/* french-ok: a media TITLE, which is data — the same one the
                 legacy named here. */}
-            <b>Furious</b>
+            <b className={liveEmphasis()}>Furious</b>
             {t("screens.arrivals.scrapingRest")}
           </span>
         </div>

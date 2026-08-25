@@ -127,7 +127,23 @@
   /* The spinner's rotation. A keyframe is a NAME the document defines once, so
      it belongs to the base layer rather than to whichever component happens to
      spin first. */
-  @keyframes spin {
+  /* The live strip's pulse. Under a reduced-motion guard because motion is a
+   DESIGNED state here rather than a fallback (invariant 14) — and it lives in
+   the base layer for the same reason `spin` does: a keyframe is a name the
+   document defines once. */
+@media (prefers-reduced-motion: no-preference) {
+  .live .d {
+    animation: pulse var(--duration-loop-2) var(--ease-standard) infinite;
+  }
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes spin {
     to {
       transform: rotate(360deg);
     }

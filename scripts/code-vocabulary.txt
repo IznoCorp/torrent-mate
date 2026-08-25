@@ -211,6 +211,7 @@ dx
 ease
 edited
 element
+emphasis
 emphasized
 empty
 end
@@ -274,6 +275,7 @@ full
 future
 gaps
 gauche
+gauge
 gesture
 go
 grid
@@ -524,6 +526,7 @@ qaud
 qflag
 qres
 qsettings
+qualifier
 quality
 query
 queue
@@ -563,12 +566,12 @@ reset
 resolution
 resolutions
 resolve
-resume
 rest
 restart
 restore
 result
 results
+resume
 rich
 right
 ring

@@ -26,7 +26,7 @@ import { Icon } from "../../ui/icon";
 import { useAcquisitionReference, type Follow } from "../../features/acquisition/reference";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
-import { body, emptyNote, section as sectionClass, surfaceError } from "../../ui/variants";
+import { body, emptyNote, liveDot, liveEmphasis, liveStrip, section as sectionClass, surfaceError } from "../../ui/variants";
 
 // The swipe action a follow that can be searched again reveals. It is a
 // data-ATTRIBUTE VALUE the document-level delegation dispatches on — a contract
@@ -675,13 +675,13 @@ function DiscoverTab(): ReactElement {
           {t("screens.acquisition.discoverNoteRest")}
         </div>
         {state.tmdb ? (
-          <div className="live" data-part="live-activity">
-            <span className="d"></span>
+          <div className={liveStrip()} data-part="live-activity">
+            <span className={liveDot()}></span>
             <span>
               {t("screens.acquisition.liveBefore")}
-              <b>{t("screens.acquisition.liveSuggestions")}</b>
+              <b className={liveEmphasis()}>{t("screens.acquisition.liveSuggestions")}</b>
               {t("screens.acquisition.liveMiddle")}
-              <b>{t("screens.acquisition.liveOwned")}</b>
+              <b className={liveEmphasis()}>{t("screens.acquisition.liveOwned")}</b>
               {t("screens.acquisition.liveAfter")}
             </span>
           </div>

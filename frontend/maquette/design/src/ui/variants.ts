@@ -109,3 +109,22 @@ export const surfaceError = cva(
     "[background:color-mix(in_oklab,var(--color-danger)_8%,transparent)] " +
     "rounded-3 p-7 text-3 leading-[1.5]",
 );
+
+/**
+ * The live strip: a pulsing dot and a sentence about what is happening now.
+ *
+ * Shared — Arrivées and Acquisition both draw one.
+ */
+export const liveStrip = cva(
+  "live flex items-center gap-4 border border-border rounded-3 py-4 px-5 " +
+    "text-2 text-muted-foreground bg-card",
+);
+
+/**
+ * The strip's dot. Its pulse is declared in the base layer under a
+ * reduced-motion guard — motion is a designed state, not a fallback.
+ */
+export const liveDot = cva("d w-[7px] h-[7px] rounded-full bg-info flex-none");
+
+/** The emphasis inside a live strip. */
+export const liveEmphasis = cva("text-foreground font-semibold");

@@ -462,3 +462,76 @@ border-radius: var(--radius-3);
   font-weight: 600;
   text-align: center;
 }
+
+/* ── Arrivées — the run, told as its nine steps ──────────────────── */
+/* `.flux` and everything under it is written by the ENGINE: the row, its
+   name, its result, its reason and its key appear in no component. */
+/* The last run, told as its nine steps.
+
+   A step that did nothing says so with an em dash, never with « 0 ». Zero is
+   a measurement; nothing to do is a state, and nine zeroes printed for a calm
+   run turn a healthy pipeline into a wall of failures. */
+.flux {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-3);
+  background: var(--color-card);
+  overflow: hidden;
+}
+.flux .fw {
+  display: grid;
+  /* minmax(0, …) on both: an untruncated engine name would otherwise size
+     its track to max-content and push the row past a 390px frame (R7). */
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  align-items: baseline;
+  gap: var(--spacing-1) var(--spacing-5);
+  padding: var(--spacing-4) var(--spacing-5);
+  width: 100%;
+  text-align: left;
+  /* A row that leads somewhere is a real button and inherits nothing from
+     the browser's own: no border, no background, the document's type. */
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+.flux .fx.fclick .fw {
+  /* The whole row answers a thumb, so it carries the 44px floor a target
+     needs rather than leaving it to whatever the text happens to measure. */
+  min-height: 44px;
+  cursor: pointer;
+}
+.flux .fx + .fx {
+  border-top: 1px solid var(--color-border);
+}
+.flux .fn {
+  font-size: var(--text-3);
+  font-weight: 600;
+}
+.flux .fr {
+  font-size: var(--text-3);
+  text-align: right;
+  color: var(--color-muted-foreground);
+}
+.flux .fx.fempty .fn {
+  color: var(--color-muted-foreground);
+  font-weight: 500;
+}
+.flux .fx.fblocked .fr {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+.flux .fs {
+  grid-column: 1 / -1;
+  font-size: var(--text-2);
+  color: var(--color-muted-foreground);
+  /* A reason never truncates (§12, R48): it wraps and the row grows. */
+  overflow-wrap: anywhere;
+}
+.flux .fk {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-1);
+  color: var(--color-muted-foreground);
+}
