@@ -108,7 +108,7 @@ when the defect comes back.
 | B-072 | `build-surface-manifest.py` crashes: its own command no longer runs | by review | `fixed #PRNUM` |
 | B-073 | The size arm checks WHICH files are grandfathered, never the lot each names | by audit | `fixed #PRNUM` |
 | B-074 | The abbreviation rule's figures were measured against a list the document did not contain | by audit | `fixed #PRNUM` |
-| B-075 | Two guards were written green over the very defect they were written for | by mutation | `fixed #PRNUM` |
+| B-075 | Three guards were written green over the very defect they were written for | by mutation | `fixed #PRNUM` |
 | B-076 | The hero's entrance animates for a reader who asked for no motion | by rule | `fixed #PRNUM` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
@@ -1324,17 +1324,20 @@ by side rather than overwritten — a figure silently replaced teaches nothing a
 that goes stale next, which is B-050's own lesson read from the other end.
 <sub>`python3 scripts/check-code-abbreviations.py --list-baseline` → `"total": 1806` over 356 files</sub>
 
-**B-075 — two guards, written for a defect, were green over that exact defect on the first
+**B-075 — three guards, written for a defect, were green over that exact defect on the first
 run.** The nested-copy hold read the relative path and found five distinct segments where the
 real tree sat (B-065). R80 scanned `variants*.ts` and `features/*/variants.ts`, missed the three
 files holding the shared vocabulary, paired ONE anchor out of eight and printed « no divergence »
-(B-067). Neither would have been caught by anything but a mutation: both had plausible output,
-both exited 0, and one of them printed a count.
+(B-067). R80's FACTORY READER then split a `cva()` call on a comma inside a COMMENT, dropping
+three factories out of the anchor table with their pairs — and the comma that exposed it sat in a
+comment this same wave had written four hours earlier. None would have been caught by anything but
+a mutation: all three had plausible output, all three exited 0, and two of them printed a count.
 
 **What closed them is a FLOOR, and it is the general remedy.** R80 refuses fewer than seven pairs
-— B-067's own number, so the floor cannot drift below the finding that put the rule there — and
-`check-code-abbreviations.py` refuses a corpus of zero files or zero names. `arm_size` refuses a
-plan it cannot read rather than concluding nothing landed. The pattern is the same in all three:
+— B-067's own number, so the floor cannot drift below the finding that put the rule there — and it
+refuses a factory whose base it could not read. `check-code-abbreviations.py` refuses a corpus of
+zero files or zero names. `arm_size` refuses a plan it cannot read rather than concluding nothing
+landed. The pattern is the same in all four:
 **a reader that finds nothing must say so as a violation, never as a pass.** Recorded here as its
 own entry because it is not one bug: it is the failure mode this repository keeps buying, and the
 remedy is cheap enough to be a habit.
