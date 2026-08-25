@@ -654,7 +654,7 @@ findings are gone and `a11y.py`'s contrast run is empty; `.search input` reads a
 focused field no longer zooms iOS; the oracle records the intended visual changes as accepted, each
 reviewed.
 
-#### L07 — Tailwind and CVA, surface by surface · `NOT STARTED` · *depends on L02, L04, L06*
+#### L07 — Tailwind and CVA, surface by surface · `LANDED` · *depended on L02, L04, L06*
 
 **Objective.** D2 in force. Each surface converts on its own, oracle green at every step.
 
@@ -818,6 +818,17 @@ harness no longer drives through it.
 
 **Done when.** `legacy.js` no longer exists; nothing reads a `window.__` seam; the suite is green
 at unchanged hold counts; the oracle is green.
+
+**Carried here by L07, 2026-08-25 — the prototype fragment, and R72's renegotiation.** L07 emptied
+`frontend/maquette/design/refonte.html` of every style rule and did **not** delete it. Two reasons,
+both recorded in that wave's `plan/phase-16-the-scaffolding-dies.md`: the file now carries the
+wave's **conversion ledger** — one entry per region, saying where its rules went and why — and a
+third of those entries name `src/styles/legacy.css`, whose death is this lot's; and **R72's hold
+(a) is the verbatim injection of that file**, so removing it retires a hold, which is a rule
+renegotiation recorded in `regions.json` rather than a file deletion. Twelve live readers name the
+path. **Done when** the fragment is gone, R72 is renegotiated with its two surviving holds
+mutation-tested, and the ledger has a home that outlives it. **Any earlier wave may take it** —
+nothing depends on waiting — provided it carries both, and folds neither into a conversion commit.
 
 ---
 

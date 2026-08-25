@@ -16,6 +16,8 @@ import { useEngineDrawing } from "../../lib/engine-drawing";
 import { Icon } from "../../ui/icon";
 import { settingLabel, unitOf } from "../../features/settings/labels";
 import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
+import { fieldInput, fieldKnob, fieldLabel, fieldToggle, fieldUnit, listAdd, listItem, listRemove, panelField } from "./variants";
+import { ruleNote } from "../../ui/variants";
 
 // The kind this file adds to the panel's block map. Declared here, beside what
 // draws it, so the two halves of the contract cannot drift apart.
@@ -62,8 +64,8 @@ function FieldBlock({
 
   if (setting.type === "structure")
     return (
-      <div className="field readonly" data-part="field" data-read-only="">
-        <p className="rulenote">
+      <div className={`${panelField()} readonly`} data-part="field" data-read-only="">
+        <p className={ruleNote()}>
           {t("settings.field.structureBefore")}{" "}
           <b>{t("settings.field.structureWord")}</b>{" "}
           {t("settings.field.structureAfter")}{" "}
@@ -74,9 +76,9 @@ function FieldBlock({
 
   if (setting.type === "boolean")
     return (
-      <div className="field" data-part="field">
+      <div className={panelField()} data-part="field">
         <button
-          className={`fieldtoggle${v ? " active" : ""}`}
+          className={fieldToggle({ active: Boolean(v) })}
           data-part="field/toggle"
           role="switch"
           aria-label={settingLabel(setting)}
@@ -84,9 +86,9 @@ function FieldBlock({
           data-field={id}
           data-to={v ? "non" : "oui"}
         >
-          <span className="fieldknob" />
+          <span className={fieldKnob()} />
         </button>
-        <span className="fieldlabel">
+        <span className={fieldLabel()}>
           {v ? t("settings.field.enabled") : t("settings.field.disabled")}
         </span>
       </div>
@@ -95,13 +97,13 @@ function FieldBlock({
   if (setting.type === "list") {
     const items = Array.isArray(v) ? (v as unknown[]) : [];
     return (
-      <div className="field list" data-part="field">
+      <div className={panelField({ list: true })} data-part="field">
         {items.length ? (
           items.map((x, index) => (
-            <div className="litem" data-part="field/list-item" key={index}>
+            <div className={listItem()} data-part="field/list-item" key={index}>
               <span>{String(x)}</span>
               <button
-                className="lremove"
+                className={listRemove()}
                 data-part="field/list-remove"
                 data-deletefield={id}
                 data-index={index}
@@ -117,9 +119,9 @@ function FieldBlock({
             </div>
           ))
         ) : (
-          <p className="rulenote">{t("settings.field.emptyList")}</p>
+          <p className={ruleNote()}>{t("settings.field.emptyList")}</p>
         )}
-        <button className="ladd" data-part="field/list-add" data-addfield={id}>
+        <button className={listAdd()} data-part="field/list-add" data-addfield={id}>
           <Icon paths={icons.plus} />
           {t("settings.field.add")}
         </button>
@@ -133,7 +135,7 @@ function FieldBlock({
   const unit = unitOf(setting);
 
   return (
-    <div className="field" data-part="field">
+    <div className={panelField()} data-part="field">
       <input
         // KEYED BY THE SETTING, and this is a correctness fix, not a hint.
         // `#sheetin` is a persistent node now, where the legacy layer replaced
@@ -146,7 +148,7 @@ function FieldBlock({
         // the next blur then files under the NEW setting's id. Keying by the
         // setting makes a different setting a different node.
         key={id}
-        className={`fieldinput${mono ? " mono" : ""}`}
+        className={fieldInput({ mono: Boolean(mono) })}
         data-part="field/input"
         data-mono={mono || undefined}
         data-field={id}
@@ -182,9 +184,9 @@ function FieldBlock({
         }}
       />
       {unit ? (
-        <span className="fieldunit">{unit}</span>
+        <span className={fieldUnit()}>{unit}</span>
       ) : setting.type === "duration" ? (
-        <span className="fieldunit">{t("settings.field.durationFormat")}</span>
+        <span className={fieldUnit()}>{t("settings.field.durationFormat")}</span>
       ) : null}
     </div>
   );

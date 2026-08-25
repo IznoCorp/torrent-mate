@@ -24,6 +24,7 @@ import { Fragment, type JSX } from "react";
 import { useTranslation } from "react-i18next";
 import { useEngineDrawing } from "../../lib/engine-drawing";
 import { Icon } from "../../ui/icon";
+import { comingSoon, factsPanel, keyValueRow, ruleNote, sheetActions, sheetAvatar, sheetFacts, sheetHead, sheetIdentity, sheetMeta, sheetTitle } from "../variants";
 import {
   refuseBlock,
   registerBlock,
@@ -107,7 +108,7 @@ function ActionButton({ action }: { action: Action | null | undefined }) {
     >
       {action.icone ? <Icon paths={action.icone} /> : null}
       {action.text}
-      {action.mention ? <span className="soon">{action.mention}</span> : null}
+      {action.mention ? <span className={comingSoon()}>{action.mention}</span> : null}
     </button>
   );
 }
@@ -122,7 +123,7 @@ function ActionsBlock({
   );
   if (!list.length) return null;
   return (
-    <div className={`sheetacts${block.secondary ? " secondary" : ""}`} data-part="sheet/actions">
+    <div className={sheetActions({ secondary: Boolean(block.secondary) })} data-part="sheet/actions">
       {list.map((action, index) => (
         <ActionButton key={index} action={action} />
       ))}
@@ -136,7 +137,7 @@ function NoteBlock({
   block: Extract<PanelBlock, { type: "note" }>;
 }) {
   return (
-    <p className="rulenote">
+    <p className={ruleNote()}>
       <RichText value={block.text} />
     </p>
   );
@@ -148,11 +149,11 @@ function FactsBlock({
   block: Extract<PanelBlock, { type: "faits" }>;
 }) {
   return (
-    <div className="panel sheetfacts" data-part="panel">
+    <div className={`${factsPanel()} ${sheetFacts()}`} data-part="panel">
       {(block.lignes ?? []).map((line, index) => (
         <div
           key={index}
-          className={`kv${line.pip ? " withpip" : ""}${line.terne ? " upcoming" : ""}`}
+          className={keyValueRow({ withPip: Boolean(line.pip), upcoming: Boolean(line.terne) })}
           data-part="key-value"
         >
           <span>
@@ -200,12 +201,12 @@ export function PanelContent({
 }): JSX.Element {
   const identity = (
     <>
-      <h2 className="sheettitle" data-part="sheet/title">{descriptor.title}</h2>
+      <h2 className={sheetTitle()} data-part="sheet/title">{descriptor.title}</h2>
       {descriptor.subtitle ? (
         <span className="sheetsub">{descriptor.subtitle}</span>
       ) : null}
       {descriptor.meta ? (
-        <p className="sheetmeta" data-part="sheet/meta">
+        <p className={sheetMeta()} data-part="sheet/meta">
           <RichText value={descriptor.meta} />
         </p>
       ) : null}
@@ -217,7 +218,7 @@ export function PanelContent({
       <Poster poster={descriptor.poster} />
     </span>
   ) : descriptor.avatar ? (
-    <span className="avatar big" data-part="avatar" aria-hidden="true">
+    <span className={`avatar ${sheetAvatar()}`} data-part="avatar" aria-hidden="true">
       <img src={descriptor.avatar} alt="" />
     </span>
   ) : null;
@@ -226,10 +227,10 @@ export function PanelContent({
     <>
       {poster ? (
         <div
-          className={`sheethead${descriptor.poster ? " withposter" : ""}`}
+          className={sheetHead({ withPoster: Boolean(descriptor.poster) })}
         >
           {poster}
-          <div className="sheetid">{identity}</div>
+          <div className={sheetIdentity()}>{identity}</div>
         </div>
       ) : (
         identity

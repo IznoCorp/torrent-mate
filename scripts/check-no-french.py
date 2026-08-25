@@ -388,7 +388,16 @@ def check_class_names(violations: list[str]) -> None:
     # four sit beside the component they dress (`ds/LogLine.css`,
     # `ds/StatPanel.css`, `ds/StatusDot.css`, `pipeline/PipelineStepper.css`)
     # and declared 49 class names no arm read.
-    sheets = [FRAGMENT] + sorted((ROOT / "frontend" / "src").rglob("*.css"))
+    # THE MAQUETTE'S STYLESHEETS, ALL OF THEM. This read `refonte.html` alone,
+    # which was the whole of the prototype's CSS until L07 converted it — the
+    # fragment holds no rule now, and the classes that remain declared live in
+    # the residue and in the harness sheet. The arm went vacuous on the day the
+    # last rule left, and refused itself: « its scope is empty, so its `no
+    # violation` means nothing » is this guard working, not failing.
+    maquette_styles = sorted(
+        (ROOT / "frontend" / "maquette" / "design" / "src" / "styles").glob("*.css"))
+    sheets = ([FRAGMENT] + maquette_styles
+              + sorted((ROOT / "frontend" / "src").rglob("*.css")))
     for path in sheets:
         if not path.is_file():
             continue
@@ -399,8 +408,20 @@ def check_class_names(violations: list[str]) -> None:
                 m.group(1) for m in re.finditer(
                     r"<style[^>]*>(.*?)</style>", source, re.S))
         declared = declared_css_classes(source)
-        examined["declared CSS classes / "
-                 + ("fragment" if path == FRAGMENT else "app")] += len(declared)
+        # THE FRAGMENT IS PART OF THE MAQUETTE SCOPE, not a scope of its own.
+        # It held the prototype's whole stylesheet and now holds none of it,
+        # and a scope that can legitimately reach zero cannot also be the thing
+        # the vacuity check watches. Folding it in keeps ONE counter over the
+        # maquette's declared classes — which is what must never reach zero,
+        # and which the guard can therefore refuse when it does.
+        scope = "maquette" if path == FRAGMENT or path in maquette_styles else "app"
+        # REGISTERED UNCONDITIONALLY. Guarding this with `if declared:` is what
+        # a scope needs in order to disappear quietly, and a scope that
+        # disappears is exactly what the vacuity check exists to catch: move
+        # `src/styles/` one directory down and the glob stops matching, the
+        # counter stays at zero, and the arm reports « no violation » over a
+        # tree it never opened.
+        examined["declared CSS classes / " + scope] += len(declared)
         for name, line_no in declared.items():
             if allowed_class(name, allowed):
                 continue

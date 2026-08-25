@@ -30,7 +30,12 @@ prototype track (`frontend/maquette/`, its CI gates and docs), and nothing deriv
 code until the operator's judgement (step 2 above). Non-negotiable.
 
 **Spec:** `docs/superpowers/specs/2026-08-10-refonte-mobile-quatre-pages-design.md`
-**The prototype:** `frontend/maquette/design/refonte.html` — §15 of `docs/reference/product-intent.md`. It is the VISUAL reference and carries the stylesheet; since SP4-fin wave 1 it carries no program — the engine is
+**The prototype:** `frontend/maquette/design/` — §15 of `docs/reference/product-intent.md`. **Since
+L07 the visual reference is the TOKENS and the COMPONENT CATALOGUE**, not one file: `src/styles/theme.css`
+(the scale and the palette), `src/styles/base.css` (the base layer), and the `variants.ts` of `src/ui/`
+and of each surface, where every drawing decision is written beside the class that applies it.
+`src/styles/legacy.css` is the dated residue the dying engine still consumes, and `refonte.html` is now
+the CONVERSION LEDGER alone — it carries no style rule, and it dies with the residue at L13. The engine is
 `frontend/maquette/design/src/engine/legacy.js`, and every migrated surface starts in its own component.
 **Bug register:** `BUGS.md` at the repo root — every reported defect, one closed at a time.
 
@@ -45,8 +50,8 @@ stale table read as current for three days.
 |                            |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Last landed**            | **L06 — The scale**, PR **#490**, merged 2026-08-24, version 0.98.32, squash `a4418e6a`. The scale: 32 tokens in one `:root` block, four families at zero (276 spacing, 150 type, 106 radius, 24 motion folds), the three fields at 16 px (D-L06-6 wide), the 42 contrast findings paid and `color-contrast` in the enforced hard-zero floor (D-L06-5), `--tm-bottom-bar-h` published by the shell (D-L06-4), the ratchet dismantled. Two rules joined the suite (R83 type_scale 9 holds, R84 runtime_tokens 8 holds → 55 rules, 1 227 holds); 47 oracle divergence signatures accepted, each with its fold named. Both references re-recorded from `main`'s tip at `a4418e6a` and verified ancestors of `HEAD` |
-| **In flight**              | **none.** A wave writes its own row here when its pull request opens, and the post-merge steps move it to « Last landed » (§ 5 of the architecture file) |
-| **Next**                   | **L07 — Tailwind and CVA, surface by surface** (depends on L02, L04, L06 — all `LANDED`): no wave opens without its design and its plan. The lots run strictly in sequence |
+| **In flight**              | **L07 — Tailwind and CVA, surface by surface**, PR **#494**, branch `feat/maquette-l07`, version 0.98.37. Sixteen phases: four build the ground, eleven convert one surface each in the order L09 reuses, one deletes the scaffolding. **Sixteen phases landed; phase 16 landed AMENDED, and the amendment is at the foot of its plan file** — the base layer left BLOCK 1 (six of its regions were the application's, including the typeface and three of L03's), the 18 compositor-facing declarations gained a guard that reads the components as well as the stylesheets, and `DESIGN_SOURCES` reached the component tree. Tailwind v4 then arrived confined — preflight deliberately NOT imported, the scale lifted into `@theme static`, the scan held from both ends by a new guard. **Two measured traps, and neither would have been caught by anything that existed**: naming `@source` directories confines NOTHING (Tailwind scans the project root automatically and `@source` only adds to it — the same mechanism that leaked 936 bytes into production), and a plain `@theme` is tree-shaken, so the scale vanished from the served document and 2 236 of 2 739 measurements collapsed — while the run BEFORE it was green **because the leak was still dragging the tokens in**. Then the palette: 30 colours renamed to `--color-*` and moved into `@theme static`, the 8 shadows deliberately left outside the `--shadow-*` namespace so no utility can ever be made of them, the light theme given its own marker because `@theme` is unconditional and a theme is a condition — and both themes MEASURED, since the oracle reads only the dark one. **The rename tool could not do the rename**: asked to move `--card` it touched zero files and said so as « 0 file(s) touched », because a word boundary cannot precede `--`. It has a custom-property mode now, anchored on the FORM rather than the word, with five tests. **BLOCK 2 holds no rule at all** — its 530 went to typed CVA variants, to a dated residue, or to the base layer — and BLOCK 1 is `src/styles/harness.css`, imported once and by nothing that ships. §15 of the constitution names the new visual reference. **Two deviations, both named rather than smoothed over.** BLOCK 1 did not die into nothing: its harness rules ARE the instrument that proves the rest of the lot — the oracle's phone frame, the suite's buttons, `html.measuring` — so they are `src/styles/harness.css`, a FOURTH stylesheet imported once. It IS in the maquette's own build — the oracle measures inside the phone frame — and in NO production build, which is what ACC-17 proves; it dies at switchover (ACC-15 void as written, its subject met). And **`refonte.html` is not deleted**: the file carries zero style rules but a hundred lines of the wave's CONVERSION LEDGER — one entry per region, saying where its rules went — a third of whose entries name `legacy.css`, which dies at L13; and R72's hold (a) is the verbatim injection of that file, so removing it RETIRES A HOLD, which is a rule renegotiation recorded in `regions.json`, not a tail-of-session edit in a 47-commit wave. ACC-14 and ACC-19 are **deferred to L13 and written into its entry in `docs/reference/frontend-architecture.md`**, not dropped; ACC-18's subject is met — §15 no longer names the file as the product — but its COMMAND greps the whole constitution, and §7.1 forbids erasing the old text, so the amendment's own sentence matches it; the criterion is corrected in the plan rather than declared satisfied. **ACC-16 was unmeetable and is now met**: `scripts/check-legacy-css-residue.py` did not exist while `legacy.css`, the plan, `DESIGN.md`, this row and §15 of the constitution all said a guard refused the residue growing — it is written, wired into `make check` and CI, and mutation-tested three ways. Oracle at 0 divergence over 2 739 measurements at the close of every phase; full suite 55 rules; a11y 0 over 83 states; `make check` green; and across the whole wave **one** hold-count movement (R74 split, 9 → 10, because widening the read exposed that its pattern could not tell the router's history instance from the platform's) |
+| **Next**                   | **L08 — The data contract and the mocks** (depends on L04 — `LANDED`): no wave opens without its design and its plan. The lots run strictly in sequence. ⚠ This row named L07 while L07 was itself the « In flight » row, which is the exact contradiction the table exists to refuse — corrected 2026-08-25 |
 | **Before it**              | L03 — PR **#475**, version 0.98.18 · L02 — PR **#470**, version 0.98.13 · L01 — PR **#467**, version 0.98.10. All three archived under `docs/archive/features/`; L04 and L05 are archived beside them (L04 by #482, L05 by this pull request)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | **What decides the order** | `docs/reference/frontend-architecture.md`, never this table. This table says only where the work STANDS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
@@ -69,7 +74,95 @@ repository.
 53 flat `.py` files (recorded and deliberately unscheduled), and B-036 / B-040, which belong to
 their own waves.
 
-**Next action**: L06 is merged and closed (PR #490, post-merge re-records done). L07 opens with its own design and plan.
+**Next action**: L07 is open. Its design is `docs/features/maquette-l07/DESIGN.md`, its plan
+`docs/features/maquette-l07/plan/INDEX.md`, and the wave is on `feat/maquette-l07`. Phase 1 is the
+work in hand.
+
+**Phases of L07** — the plan is `docs/features/maquette-l07/plan/INDEX.md`, which owns the
+reasoning and the 20 ACCEPTANCE criteria. This table owns only the status.
+
+| #   | Phase                                                | File                                        | Status |
+| --- | ---------------------------------------------------- | ------------------------------------------- | ------ |
+| 1   | The base layer, and what the compositor reads        | `plan/phase-01-the-base-layer.md`           | [x]    |
+| 2   | Tailwind arrives, confined                           | `plan/phase-02-tailwind-confined.md`        | [x]    |
+| 3   | The palette takes Tailwind's name                    | `plan/phase-03-the-palette-rename.md`       | [x]    |
+| 4   | Motion, and the guard that reads class names         | `plan/phase-04-motion.md`                   | [x]    |
+| 5   | The shell                                            | `plan/phase-05-the-shell.md`                | [x]    |
+| 6   | The shared primitives, and the first typed variants  | `plan/phase-06-the-primitives.md`           | [x]    |
+| 7   | Arrivées, and its resolution screen                  | `plan/phase-07-arrivals.md`                 | [x]    |
+| 8   | Médiathèque — the card                               | `plan/phase-08-the-card.md`                 | [x]    |
+| 9   | Médiathèque — tiles, selection, filters              | `plan/phase-09-library.md`                  | [x]    |
+| 10  | Acquisition — the deck and the follows               | `plan/phase-10-acquisition.md`              | [x]    |
+| 11  | Acquisition — the add screen, releases, quality      | `plan/phase-11-add-and-releases.md`         | [x]    |
+| 12  | Média — the sheet, the matrix, the popover           | `plan/phase-12-the-media-sheet.md`          | [x]    |
+| 13  | Système, and Maintenance                             | `plan/phase-13-system-and-maintenance.md`   | [x]    |
+| 14  | Configuration — the panel and its eight field kinds  | `plan/phase-14-settings.md`                 | [x]    |
+| 15  | Compte, and the install proposal                     | `plan/phase-15-account-and-install.md`      | [x]    |
+| 16  | BLOCK 1 dies, `refonte.html` dies, §15 is amended    | `plan/phase-16-the-scaffolding-dies.md`     | [x]    |
+
+**What L07 is, in one line**: the 4 136-line hand-written stylesheet becomes Tailwind utilities
+behind typed CVA variants, one surface at a time with the oracle green at every step; the
+scaffolding that was never meant to ship is deleted rather than carried forward; and what the
+dying engine still needs becomes a residue with a name, a count and a date of death.
+
+**Four decisions were arbitrated by the operator on 2026-08-24** and are recorded in its DESIGN
+§ 2: BLOCK 1 is **cut before it is deleted** (six of its regions are the application's, including
+the typeface and three of L03's); the palette is **renamed** to Tailwind's `--color-*` namespace
+**in its own phase**, before any surface converts, rather than aliased through `@theme inline`;
+the four motion durations become **bare milliseconds** with a new guard reading class names; and
+the CSS the dying engine still consumes becomes a **bounded residue** that dies with L13.
+
+**One measured trap the wave opened on, and it produces no signal from any existing instrument**:
+`--duration-*` is not a Tailwind namespace, and `duration-2` is already a Tailwind utility meaning
+**2 ms**. So the one family of L06's scale that does not lift is the only one that compiles to a
+WRONG VALUE instead of an error — and `transition-duration` is not among the oracle's 19 measured
+properties, so nothing that exists today would have caught it. Verified by compiling Tailwind
+4.3.2; redefining the utility does not recover the name either.
+
+
+### Review cycle — PR #494
+
+**One cycle, four reviewers, 2026-08-25** — code, tests, comments, silent failures — over the
+whole 47-commit diff, each mutating rather than reading. Three of the four independently found the
+same three defects, which is the reason to run four lenses rather than one deeper.
+
+**One shape, six times, and it is this wave's own doctrine turned on itself: a gate green because
+of what it does not read.** The scale arm still read BLOCK 2, which the wave emptied — so
+invariant 3 held nothing for spacing and radius. The compositor guard counted its own PROSE, so
+the named pointer-stream incident could be restored by a COMMENT. The split-class hold read 35 of
+89 concatenation sites, blind to the shared vocabulary that moved into a directory in this same
+wave. Two more holds in that file passed on an empty read. The no-French vacuity ledger was
+pre-satisfied by a counter seeded at 1 — the one check that watches for an empty scope could never
+fire on the scope L07 restructured. And the login arm could not see the failure `serve.py`'s own
+comment describes, because the wrapper it warns about is invisible chunk by chunk. All six
+repaired, each with a mutation seen red and restored.
+
+**One rule was simply absent.** `scripts/check-legacy-css-residue.py` was named by `legacy.css`'s
+header, by the plan twice, by the DESIGN twice, by this file — and by **§15 of the constitution**.
+It did not exist, so nothing bounded 2 470 lines and ACC-16 could not run. Written, wired into
+`make check` and CI, mutation-tested three ways.
+
+**One rendering regression, invisible to every instrument.** `.endmark` was classified
+component-drawn and its rule deleted; the engine also emits it, and engine markup receives no
+utility. Découvrir's end-of-reserve sentence had been rendering unstyled — and the oracle could
+not see it, because that region is not among the 33 and a `::before` that stops being painted
+changes neither a rectangle nor one of the 19 properties.
+
+**Rejected with reason.** The residue beating the utilities on seven shared anchors was raised as
+critical and is a DOCUMENTED decision — the rules and the variants declare the same thing term for
+term, the oracle says so, and `legacy.css` says so in its own words. What survives of it is the
+drift nobody holds, recorded as **B-067**. The duplicated `design/frontend/…` tree, the
+`@media`-scoped token reading, `.iconbtn`, `add-screen.tsx`'s inline padding and the `R7`/`R8`
+citation collision were all verified **pre-existing on `origin/main`** and recorded rather than
+folded in. Seven findings went to the register as `open` (**B-066** to **B-072**) because each
+needs a decision, a design call or a wave of its own — the forty-item documentation-drift
+inventory travels with the wave in `drafts/`.
+
+**Re-verified after the repairs, on the tip of the branch**: full suite **55 rules, no
+violation** · a11y **83 states, 0 violations** · oracle **0 divergence over 2 739 measurements**
+· `make check` exit 0 with **10 763 passed, 0 failed, 0 error** · `--compare` against the
+baseline reports exactly **one** movement across the whole wave, `bridge.py` 9 → 10, which is
+the named R74 split.
 
 **Phases of L06** — the plan is `docs/archive/features/maquette-l06/plan/INDEX.md`, which owns the
 reasoning and the 24 ACCEPTANCE criteria. This table owns only the status.

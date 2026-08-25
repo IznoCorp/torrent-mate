@@ -87,9 +87,21 @@ DESIGN_ROOT = Path(
     or Path(__file__).resolve().parent / "design"
 ).resolve()
 PROTOTYPE = DESIGN_ROOT / "refonte.html"
+# The base layer (D3). It carries the `login:font` and `login:socle` regions
+# the sign-in gate inherits, which lived in the fragment's BLOCK 1 until L07.
+BASE_STYLESHEET = DESIGN_ROOT / "src" / "styles" / "base.css"
+# The token layer (D3). It holds the scale inside a Tailwind `@theme` block,
+# which is why the gate wraps what it extracts rather than emitting it as-is.
+THEME_STYLESHEET = DESIGN_ROOT / "src" / "styles" / "theme.css"
+# The residue (D-L07-5). It carries `login:style` and `login:splashstyle`: the
+# sign-in screen and the splash belong to L13, so their CSS is still written by
+# hand — which is also what keeps this gate composable, since a page built by
+# text extraction cannot receive utilities from a stylesheet it never loads.
+LEGACY_STYLESHEET = DESIGN_ROOT / "src" / "styles" / "legacy.css"
 # The document Vite owns, and where the application shell's markup lives — the
 # phone frame, the sign-in card, the startup screen. The login gate clones
-# those from here and inherits its style from the fragment above.
+# those from here; its style comes from the three stylesheets above, not from
+# the prototype fragment, which carries no rule.
 SHELL_DOCUMENT = DESIGN_ROOT / "index.html"
 DIST = DESIGN_ROOT / "dist" / "index.html"
 # The build inputs that always exist, at the design root.
@@ -468,15 +480,22 @@ def login_page(refused: bool) -> bytes:
     Returns:
         A complete HTML document.
     """
-    # TWO SOURCES, because the gate borrows from two. The MARKUP it clones —
-    # the sign-in card and the startup screen — is the application shell, and
-    # that lives in `index.html` since the fragment stopped carrying a
-    # program. The STYLE it inherits is still the fragment's: the CSS contract
-    # does not move before SP5. Each `extract` below reads whichever file
-    # actually holds its block, and `extract` itself raises when a marker is
-    # missing — so pointing one of them at the wrong file fails the gate
-    # loudly instead of serving a screen stripped of its design.
-    styles_source = PROTOTYPE.read_text()
+    # FOUR SOURCES, AND THE PROTOTYPE FRAGMENT IS NONE OF THEM. The MARKUP the
+    # gate clones — the sign-in card and the startup screen — is the
+    # application shell, in `index.html`. The STYLE comes from the three
+    # stylesheets: the scale and the palette from `theme.css`, the typeface
+    # and the reset from `base.css`, the sign-in screen's own style and the
+    # splash from `legacy.css`. Every `login:*` region left the fragment.
+    #
+    # Each `extract` below names exactly ONE file, which is the shape the login
+    # arm of `scripts/check-css-tokens.py` follows — a concatenated source left
+    # it resolving every chunk to the first file and reporting the rest
+    # missing. `extract` itself raises when a marker is absent, so pointing one
+    # at the wrong file fails loudly instead of serving a screen stripped of
+    # its design.
+    base_source = BASE_STYLESHEET.read_text()
+    theme_source = THEME_STYLESHEET.read_text()
+    legacy_source = LEGACY_STYLESHEET.read_text()
     markup_source = SHELL_DOCUMENT.read_text()
     markup = extract(markup_source, "markup")
     # The screen is drawn hidden inside the shell and centred against it. Here
@@ -510,9 +529,25 @@ def login_page(refused: bool) -> bytes:
     # because the copy is the only place anyone ever looks. The scale block is
     # emitted first so every step a folded declaration reads resolves on the
     # composed page.
-    styles = (extract(styles_source, "scale") + extract(styles_source, "font")
-              + extract(styles_source, "palette") + extract(styles_source, "socle")
-              + extract(styles_source, "style") + extract(styles_source, "splashstyle"))
+    # THE SCALE IS WRAPPED, and the wrapping is the whole reason its markers
+    # sit inside the braces. In the prototype the steps live in a Tailwind
+    # `@theme` block; this page is plain HTML that Tailwind never processes,
+    # and a browser drops an at-rule it does not know — taking every step with
+    # it, silently, leaving a gate that renders in fallback sizes and says
+    # nothing. Extracting the DECLARATIONS and wrapping them here means the
+    # composed page carries the same steps under a selector it understands.
+    # The scale and the DARK palette are both declarations inside the same
+    # `@theme` block, so both are wrapped the same way and for the same reason:
+    # a browser drops an at-rule it does not know, and would take every token
+    # with it. The LIGHT half is already a complete `:root[data-theme]` rule
+    # and is emitted as it stands — it must come after the dark one, exactly as
+    # it does in the stylesheet, or the override would lose to what it overrides.
+    scale = ":root {\n" + extract(theme_source, "scale") + "}\n"
+    palette = (":root {\n" + extract(theme_source, "palette") + "}\n"
+               + extract(theme_source, "palette-light"))
+    styles = (scale + extract(base_source, "font")
+              + palette + extract(base_source, "socle")
+              + extract(legacy_source, "style") + extract(legacy_source, "splashstyle"))
     # After the extract, so they win: inside the prototype the screen covers a
     # phone frame; here it IS the page.
     adjustments = """

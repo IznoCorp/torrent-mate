@@ -12,6 +12,8 @@ import { useTranslation } from "react-i18next";
 import { Icon } from "../../ui/icon";
 import { useReleasesReference, type Release, type Resolution } from "../../features/releases/reference";
 import { useUiState, writeUiState } from "../../lib/store-access";
+import { actionButton, backAction, body, factsPanel, keyValueRow, option, optionKind, optionLabel, optionList, optionMark, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, settingRow, sheetActions, toggleSwitch } from "../../ui/variants";
+import { qualityGroup } from "../../features/releases/variants";
 
 // The field names are the legacy state's own — `state.profil` is written and
 // read by the engine under these exact keys.
@@ -84,14 +86,14 @@ export function QualityScreen() {
 
   return (
     <section
-      className="screen open"
+      className={`${screen()} open`}
       data-part="screen"
       data-open=""
       data-key={`profile:${title}`}
       aria-label={title}
     >
-      <div className="screenbar" data-part="screen/bar">
-        <button className="fback" data-part="screen/back" onClick={() => window.__bridge.back()}>
+      <div className={screenBar()} data-part="screen/bar">
+        <button className={backAction()} data-part="screen/back" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.profile.back")}
         </button>
@@ -99,14 +101,14 @@ export function QualityScreen() {
           style={{
             marginLeft: "auto",
             fontSize: "11px",
-            color: "var(--muted-foreground)",
+            color: "var(--color-muted-foreground)",
           }}
         >
           {title ? baseTitle(title) : t("screens.profile.defaultProfile")}
         </span>
       </div>
-      <div className="port" data-part="viewport">
-        <div className="body" data-part="surface/body" data-region="screen-profile/body">
+      <div className={scrollport()} data-part="viewport">
+        <div className={body()} data-part="surface/body" data-region="screen-profile/body">
           <div className="note" data-part="note">
             <b>{t("screens.profile.noteTitle")}</b>{" "}
             {t("screens.profile.noteBefore")}{" "}
@@ -116,32 +118,32 @@ export function QualityScreen() {
             <code>/config ?tab=classement</code>.
           </div>
 
-          <p className="qhint">
+          <p className={qualityHint()}>
             {t("screens.profile.leadBefore")}{" "}
             <b>{t("screens.profile.leadEmphasis")}</b>{" "}
             {t("screens.profile.leadAfter")}
           </p>
 
-          <div className="qgroup">
-            <h2 className="h2" data-part="heading">{t("screens.profile.minResolution")}</h2>
-            <p className="qhint">{t("screens.profile.minResolutionHint")}</p>
-            <p className="optkind">{t("screens.profile.singleChoice")}</p>
+          <div className={qualityGroup()}>
+            <h2 className={sectionHeading()} data-part="heading">{t("screens.profile.minResolution")}</h2>
+            <p className={qualityHint()}>{t("screens.profile.minResolutionHint")}</p>
+            <p className={optionKind()}>{t("screens.profile.singleChoice")}</p>
             <div
-              className="optlist"
+              className={optionList()}
               data-part="option/list"
               role="radiogroup"
               aria-label={t("screens.profile.minResolution")}
             >
               <button
-                className="opt radio"
+                className={`${option()} radio`}
                 data-part="option"
                 role="radio"
                 aria-checked={profile.min_resolution === null}
                 data-qres=""
                 onClick={() => pickResolution(null)}
               >
-                <span className="mark" />
-                <span className="lb">
+                <span className={optionMark({ kind: "radio" })} />
+                <span className={optionLabel()}>
                   {t("screens.profile.noFloor")}
                   <small>{t("screens.profile.noFloorHint")}</small>
                 </span>
@@ -149,15 +151,15 @@ export function QualityScreen() {
               {RESOLUTIONS.map((reso) => (
                 <button
                   key={reso}
-                  className="opt radio"
+                  className={`${option()} radio`}
                   data-part="option"
                   role="radio"
                   aria-checked={profile.min_resolution === reso}
                   data-qres={reso}
                   onClick={() => pickResolution(reso)}
                 >
-                  <span className="mark" />
-                  <span className="lb">
+                  <span className={optionMark({ kind: "radio" })} />
+                  <span className={optionLabel()}>
                     {reso} {t("screens.profile.orBetter")}
                     <small>
                       {reso === "720p"
@@ -172,32 +174,32 @@ export function QualityScreen() {
             </div>
           </div>
 
-          <div className="qgroup">
-            <h2 className="h2" data-part="heading">{t("screens.profile.audioTracks")}</h2>
-            <p className="qhint">
+          <div className={qualityGroup()}>
+            <h2 className={sectionHeading()} data-part="heading">{t("screens.profile.audioTracks")}</h2>
+            <p className={qualityHint()}>
               {t("screens.profile.audioHintBefore")}{" "}
               <b>{t("screens.profile.audioHintEmphasis")}</b>{" "}
               {t("screens.profile.audioHintAfter")}
             </p>
-            <p className="optkind">
+            <p className={optionKind()}>
               {t("screens.profile.multiChoice")}
               {profile.required_audio.length === 0
                 ? ` — ${t("screens.profile.noneChecked")}`
                 : ""}
             </p>
-            <div className="optlist" data-part="option/list">
+            <div className={optionList()} data-part="option/list">
               {AUDIOS.map(([key, label]) => (
                 <button
                   key={key}
-                  className="opt check"
+                  className={`${option()} check`}
                   data-part="option"
                   role="checkbox"
                   aria-checked={profile.required_audio.includes(key)}
                   data-qaud={key}
                   onClick={() => toggleAudio(key)}
                 >
-                  <span className="mark" />
-                  <span className="lb">
+                  <span className={optionMark({ kind: "check" })} />
+                  <span className={optionLabel()}>
                     {key}
                     <small>{label}</small>
                   </span>
@@ -206,19 +208,19 @@ export function QualityScreen() {
             </div>
           </div>
 
-          <div className="qgroup">
-            <h2 className="h2" data-part="heading">{t("screens.profile.twoLocks")}</h2>
-            <div className="panel" data-part="panel">
-              <div className="kv setting" data-part="key-value">
+          <div className={qualityGroup()}>
+            <h2 className={sectionHeading()} data-part="heading">{t("screens.profile.twoLocks")}</h2>
+            <div className={factsPanel()} data-part="panel">
+              <div className={`${keyValueRow()} ${settingRow()}`} data-part="key-value">
                 <span>
                   {t("screens.profile.exclude3d")}
                   <br />
-                  <span className="qhint">
+                  <span className={qualityHint()}>
                     {t("screens.profile.exclude3dHint")}
                   </span>
                 </span>
                 <button
-                  className="switch"
+                  className={toggleSwitch()}
                   data-part="switch"
                   role="switch"
                   aria-checked={profile.exclude_3d}
@@ -227,16 +229,16 @@ export function QualityScreen() {
                   onClick={() => toggleLock("exclude_3d")}
                 />
               </div>
-              <div className="kv setting" data-part="key-value">
+              <div className={`${keyValueRow()} ${settingRow()}`} data-part="key-value">
                 <span>
                   {t("screens.profile.requireKnownResolution")}
                   <br />
-                  <span className="qhint">
+                  <span className={qualityHint()}>
                     {t("screens.profile.requireKnownResolutionHint")}
                   </span>
                 </span>
                 <button
-                  className="switch"
+                  className={toggleSwitch()}
                   data-part="switch"
                   role="switch"
                   aria-checked={profile.require_known_resolution}
@@ -248,14 +250,14 @@ export function QualityScreen() {
             </div>
           </div>
 
-          <div className="panel" data-part="panel">
-            <div className="kv" data-part="key-value">
+          <div className={factsPanel()} data-part="panel">
+            <div className={keyValueRow()} data-part="key-value">
               <span>{t("screens.profile.candidatesKept")}</span>
               <span>
                 {kept} {t("screens.profile.outOf")} {RELEASES.length}
               </span>
             </div>
-            <div className="kv" data-part="key-value">
+            <div className={keyValueRow()} data-part="key-value">
               <span>{t("screens.profile.scope")}</span>
               <span>
                 {title
@@ -266,7 +268,7 @@ export function QualityScreen() {
           </div>
 
           <button
-            className="cfoot"
+            className={`cfoot ${actionButton()}`}
             data-part="card/foot"
             data-toast={t("screens.profile.rankingToast")}
           >
@@ -274,11 +276,11 @@ export function QualityScreen() {
             {t("screens.profile.rankingWeights")}
           </button>
 
-          <p className="rulenote">{t("screens.profile.rulenote")}</p>
+          <p className={ruleNote()}>{t("screens.profile.rulenote")}</p>
 
-          <div className="sheetacts" data-part="sheet/actions">
+          <div className={sheetActions()} data-part="sheet/actions">
             <button
-              className="sact primary"
+              className={`sact primary ${actionButton()}`}
               data-part="sheet/action"
               data-tone="primary"
               data-toast={t("screens.profile.saveToast")}

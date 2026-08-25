@@ -293,10 +293,28 @@ Les deux workflows se rejoignent, et cette jonction est un **engagement**, pas u
 
 ## §15 — La maquette EST le produit (règle gravée)
 
-`frontend/maquette/design/refonte.html` **est le produit**, pas une illustration ni un souvenir de
-conception. Directive opérateur du 2026-08-13 : ce n'est plus un habillage de l'app livrée,
-c'est une refonte — une **v1 aboutie**, une version à part entière. L'app sera rebâtie dessus,
-et non amenée vers elle surface par surface.
+**La maquette est le produit**, pas une illustration ni un souvenir de conception. Directive
+opérateur du 2026-08-13 : ce n'est plus un habillage de l'app livrée, c'est une refonte — une
+**v1 aboutie**, une version à part entière. L'app sera rebâtie dessus, et non amenée vers elle
+surface par surface.
+
+### La référence visuelle a changé de forme (L07, 2026-08-25)
+
+**Ce paragraphe nommait `frontend/maquette/design/refonte.html`, et ce fichier ne porte plus une
+seule règle de style.** Le lot L07 a converti ses 530 règles en utilitaires Tailwind derrière des
+variants typés. La référence visuelle est désormais **les tokens et le catalogue de composants** :
+
+| | |
+| --- | --- |
+| L'échelle et la palette | `frontend/maquette/design/src/styles/theme.css` — un bloc `@theme static` : 34 pas d'échelle (espacement, typographie, rayons, mouvement) et 38 jetons de palette, dont **30 couleurs** et 8 ombres — les ombres sont délibérément hors du namespace `--shadow-*` pour qu'aucun utilitaire ne puisse en être fabriqué |
+| La couche de base | `frontend/maquette/design/src/styles/base.css` — reset, typographie, les surfaces d'accessibilité de L03, les `@keyframes`, et ce que le compositeur lit |
+| Le vocabulaire | `frontend/maquette/design/src/ui/variants.ts` et les `variants.ts` de chaque surface — chaque décision de dessin y est écrite à côté de la classe qui l'applique |
+| Le résidu, daté | `frontend/maquette/design/src/styles/legacy.css` — le CSS dont le moteur mourant a encore besoin ; il meurt avec lui à L13 et une garde refuse qu'il grossisse |
+| L'échafaudage | `frontend/maquette/design/src/styles/harness.css` — le cadre de téléphone, importé une seule fois, et **la seule feuille qui ne sera pas livrée** |
+
+**Ce que cela ne change pas** : la maquette reste le produit, et une évolution de dessin se décide
+toujours dans la maquette avant le code. Ce qui change est **où l'on regarde** — un variant nommé
+plutôt qu'un sélecteur à chercher dans quatre mille lignes.
 
 **Élargi par l'opérateur le 2026-08-19 — TOUS les écrans sont à redessiner. Tous.** La maquette
 est une **nouvelle version de l'app**, pas un habillage : son objet est une expérience

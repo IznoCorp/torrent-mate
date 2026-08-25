@@ -52,11 +52,234 @@ SCREENSHOTS = pathlib.Path(__file__).resolve().parent / "__screenshots__"
 #
 # Reading a missing path raises here rather than yielding "": a renamed source
 # must break the rule that depends on it, loudly, on the next run.
+# L07 WIDENS THIS AGAIN, AND FOR THE THIRD TIME FOR THE SAME REASON. That lot
+# moves styling out of the stylesheet and into the components, as utilities. A
+# tuple naming three files would then miss every declaration that had moved —
+# the identical failure the paragraph above records, one layer down and with
+# the evidence moving in the opposite direction. So the component tree is named
+# by SHAPE rather than by file: a component added tomorrow is covered on the day
+# it is written, which is the only version of this list that stops rotting.
+#
+# TWO THINGS ARE DELIBERATELY OUT, and neither is an oversight:
+#   `src/engine/states.js` — the scenario table. It is the HARNESS's fixture,
+#       not the product's source, and a rule that read it would measure the
+#       instrument rather than the thing measured.
+#   `src/i18n/` — the interface's words. They are read through their own
+#       guard (`check-i18n-placeholders.py`), and folding French copy into
+#       « the design's sources » would make every language rule ambiguous
+#       about what it just matched.
+_COMPONENT_TREE = ROOT / "design" / "src"
+_NOT_THE_DESIGN = (
+    _COMPONENT_TREE / "engine" / "states.js",
+)
+
+
+def _component_sources():
+    """Returns the component tree's files, in a stable order.
+
+    Returns:
+        Every `.tsx`, `.ts`, `.css` and `.js` under `design/src`, excluding the
+        harness's own fixture and the i18n resources, sorted so two runs
+        concatenate the same text in the same order — a rule that counted
+        occurrences would otherwise be reproducible only by luck.
+    """
+    found = []
+    for suffix in ("*.tsx", "*.ts", "*.css", "*.js"):
+        found.extend(_COMPONENT_TREE.rglob(suffix))
+    return sorted(
+        path for path in found
+        if path not in _NOT_THE_DESIGN
+        and "i18n" not in path.relative_to(_COMPONENT_TREE).parts
+    )
+
+
 DESIGN_SOURCES = (
     ROOT / "design" / "refonte.html",
     ROOT / "design" / "index.html",
-    ROOT / "design" / "src" / "engine" / "legacy.js",
-)
+) + tuple(_component_sources())
+
+
+# A slash opens a regular expression rather than a division when the last
+# significant character before it cannot end an expression.
+BEFORE_REGEX = set("(,=:[!&|?{};+-*%^~<>")
+WORDS_BEFORE_REGEX = ("return", "typeof", "case", "in", "of", "new", "delete",
+                    "do", "else", "void", "instanceof", "yield", "await")
+
+
+# THE COMMENT STRIPPER, SHARED. It lived in `bridge.py` and served one rule.
+# It is here because a SECOND rule needed it and the reason generalises: since
+# L07 widened `DESIGN_SOURCES` onto the component tree, every rule scanning
+# that text meets the tree's prose. `palette.py` fell on a comment explaining
+# what `var(--spacing-*)` resolves to, reading the sentence as a call — the
+# loud version of the same defect that made two holds of a new guard vacuous
+# in the same wave. A rule reads CODE; the prose beside it is not evidence.
+def without_comments(source):
+    """Blanks out the JavaScript comments of a document, and only those.
+
+    A stripper that knows about `//` and `/* */` alone is fail-open on this
+    document, and measurably so: the engine carries URLs inside string
+    literals (`"https://…"`, whose `//` would blank the rest of the line) and
+    quotes inside regular-expression literals (`/[&<>"]/g`, whose `"` would
+    open a string state that runs on until the file's next quote). Either
+    mistake swallows the real calls that follow, so a rule counting them
+    would pass by having lost its evidence rather than by finding none.
+
+    The source is therefore walked as JavaScript: code, line comment, block
+    comment, the three string kinds with their escapes, template
+    substitutions (`${…}`, whose contents are code again) and regular
+    expressions, told apart from division by the last significant character.
+
+    Args:
+        source: JavaScript, or a document containing it, as text.
+
+    Returns:
+        The same text with every comment character replaced by a space,
+        newlines preserved so lines still line up with the original.
+    """
+    out = []
+    i, n = 0, len(source)
+    # `previous` is the last significant character of the CODE regions; it is
+    # what tells a regular expression from a division.
+    previous = ""
+    # Brace depth inside the current code region, and the stack of depths
+    # suspended by the enclosing `${` substitutions.
+    depth, templates = 0, []
+
+    def word_before(position):
+        """True when a keyword ends right before `position` (regex context)."""
+        prefix = source[:position].rstrip()
+        return any(prefix.endswith(word)
+                   and (len(prefix) == len(word)
+                        or not (prefix[-len(word) - 1].isalnum()
+                                or prefix[-len(word) - 1] in "_$"))
+                   for word in WORDS_BEFORE_REGEX)
+
+    while i < n:
+        c = source[i]
+        pair = source[i:i + 2]
+
+        if pair == "//":
+            while i < n and source[i] != "\n":
+                out.append(" ")
+                i += 1
+            continue
+
+        if pair == "/*":
+            while i < n and source[i:i + 2] != "*/":
+                out.append("\n" if source[i] == "\n" else " ")
+                i += 1
+            if i < n:
+                out.append("  ")
+                i += 2
+            continue
+
+        if c in "\"'":
+            # A single- or double-quoted string: escapes only, no nesting.
+            out.append(c)
+            i += 1
+            while i < n and source[i] != c:
+                if source[i] == "\\" and i + 1 < n:
+                    out.append(source[i:i + 2])
+                    i += 2
+                    continue
+                if source[i] == "\n":  # unterminated: do not eat the file
+                    break
+                out.append(source[i])
+                i += 1
+            if i < n and source[i] == c:
+                out.append(c)
+                i += 1
+            previous = c
+            continue
+
+        if c == "`":
+            # A template literal: runs to its closing backtick, except that
+            # every `${…}` inside it is code, and is lexed as such.
+            out.append(c)
+            i += 1
+            while i < n:
+                if source[i] == "\\" and i + 1 < n:
+                    out.append(source[i:i + 2])
+                    i += 2
+                    continue
+                if source[i] == "`":
+                    out.append("`")
+                    i += 1
+                    previous = "`"
+                    break
+                if source[i:i + 2] == "${":
+                    out.append("${")
+                    i += 2
+                    templates.append(depth)
+                    depth = 0
+                    previous = "{"
+                    break
+                out.append(source[i])
+                i += 1
+            continue
+
+        if c == "}" and depth == 0 and templates:
+            # Closes a `${…}`: back inside the template literal that opened it.
+            out.append("}")
+            i += 1
+            depth = templates.pop()
+            while i < n:
+                if source[i] == "\\" and i + 1 < n:
+                    out.append(source[i:i + 2])
+                    i += 2
+                    continue
+                if source[i] == "`":
+                    out.append("`")
+                    i += 1
+                    previous = "`"
+                    break
+                if source[i:i + 2] == "${":
+                    out.append("${")
+                    i += 2
+                    templates.append(depth)
+                    depth = 0
+                    previous = "{"
+                    break
+                out.append(source[i])
+                i += 1
+            continue
+
+        if c == "/" and (previous == "" or previous in BEFORE_REGEX
+                         or word_before(i)):
+            # A regular expression literal: its `/` delimiters, its character
+            # classes (where a `/` is literal) and its escapes.
+            out.append(c)
+            i += 1
+            in_class = False
+            while i < n and source[i] != "\n":
+                if source[i] == "\\" and i + 1 < n:
+                    out.append(source[i:i + 2])
+                    i += 2
+                    continue
+                if source[i] == "[":
+                    in_class = True
+                elif source[i] == "]":
+                    in_class = False
+                elif source[i] == "/" and not in_class:
+                    out.append("/")
+                    i += 1
+                    break
+                out.append(source[i])
+                i += 1
+            previous = "/"
+            continue
+
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth = max(0, depth - 1)
+        out.append(c)
+        if not c.isspace():
+            previous = c
+        i += 1
+
+    return "".join(out)
+
 
 
 def design_source():

@@ -26,6 +26,7 @@ import { Icon } from "../../ui/icon";
 import { useAcquisitionReference, type Follow } from "../../features/acquisition/reference";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
+import { body, crossReference, crossReferenceLink, crossReferenceStrong, emptyNote, filterPill, filterPillCount, filterZone, liveDot, liveEmphasis, liveStrip, loadFooter, moreButton, pillBar, pillScroll, searchClear, searchField, searchInput, section, section as sectionClass, segment, segmentCount, segmentTab, surfaceError, viewSwitch, viewSwitchButton, viewSwitchWrap, viewTabs } from "../../ui/variants";
 
 // The swipe action a follow that can be searched again reveals. It is a
 // data-ATTRIBUTE VALUE the document-level delegation dispatches on — a contract
@@ -52,22 +53,23 @@ function AcquisitionTabs(): ReactElement {
     { id: "discover", label: t("screens.acquisition.tabDiscover") },
   ];
   return (
-    <div className="viewtabs" data-region="acquisition/tabs">
-      <div className="seg" data-part="segment" role="tablist">
+    <div className={viewTabs()} data-region="acquisition/tabs">
+      <div className={segment()} data-part="segment" role="tablist">
         {tabs.map((tab) => (
           <button
             key={tab.id}
+            className={segmentTab()}
             role="tab"
             aria-selected={state.acqTab === tab.id}
             data-acqtab={tab.id}
           >
             {tab.label}
-            {tab.count ? <span className="n" data-part="segment/count">{tab.count}</span> : null}
+            {tab.count ? <span className={segmentCount()} data-part="segment/count">{tab.count}</span> : null}
           </button>
         ))}
       </div>
       <button
-        className="more"
+        className={moreButton()}
         aria-label={t("screens.acquisition.moreLabel")}
         data-sheet="plus"
       >
@@ -99,17 +101,17 @@ function NowTab(): ReactElement {
 
   if (state.phase !== "ready") {
     return (
-      <div className="body" data-part="surface/body" data-region="acquisition/body">
+      <div className={body()} data-part="surface/body" data-region="acquisition/body">
         {state.phase === "error" ? (
           <div
-            className="surferr" data-part="surface-error" role="alert"
+            className={surfaceError()} data-part="surface-error" role="alert"
             dangerouslySetInnerHTML={{
               __html: surfErrInner(t("screens.acquisition.errorNow")),
             }}
           />
         ) : (
           <div
-            className="sec" data-part="section"
+            className={sectionClass()} data-part="section"
             dangerouslySetInnerHTML={{ __html: skelCardsInner(4) }}
           />
         )}
@@ -140,7 +142,7 @@ function NowTab(): ReactElement {
   ) =>
     cards.length === 0 || inner === "" ? null : (
       <section
-        className="sec" data-part="section"
+        className={sectionClass()} data-part="section"
         dangerouslySetInnerHTML={{
           __html: secInner(pip, title, String(cards.length), inner, note),
         }}
@@ -148,14 +150,14 @@ function NowTab(): ReactElement {
     );
 
   return (
-    <div className="body" data-part="surface/body" data-region="acquisition/body">
+    <div className={body()} data-part="surface/body" data-region="acquisition/body">
       <div className="note" data-part="note">
         <b>{t("screens.acquisition.nowNoteLead")}</b>
         {t("screens.acquisition.nowNoteRest")}
       </div>
       {nothing ? (
         <div
-          className="empty" data-part="empty-state"
+          className={emptyNote()} data-part="empty-state"
           dangerouslySetInnerHTML={{
             __html: emptyInner(
               t("screens.acquisition.nowEmptyTitle"),
@@ -188,11 +190,11 @@ function NowTab(): ReactElement {
           .join(""),
       )}
       {stuck.length > 0 ? (
-        <button className="crossref" data-part="cross-reference" data-go="arr">
+        <button className={crossReference()} data-part="cross-reference" data-go="arr">
           {blocked.length > 0
             ? t("screens.acquisition.crossrefFromAcquisition")
             : ""}
-          <b>{stuck.length}</b>
+          <b className={crossReferenceStrong()}>{stuck.length}</b>
           {t("screens.acquisition.crossrefMedium")}
           {stuck.length > 1 ? t("screens.acquisition.crossrefPlural") : ""}
           {t("screens.acquisition.crossrefToTreat")}
@@ -200,7 +202,7 @@ function NowTab(): ReactElement {
             ? t("screens.acquisition.crossrefEnteredMany")
             : t("screens.acquisition.crossrefEnteredOne")}
           {t("screens.acquisition.crossrefWithoutFollow")}
-          <span>{t("screens.acquisition.crossrefLink")}</span>
+          <span className={crossReferenceLink()}>{t("screens.acquisition.crossrefLink")}</span>
         </button>
       ) : null}
       {section(
@@ -378,21 +380,21 @@ function FollowsTab(): ReactElement {
     );
 
   // EACH BRANCH DRAWS ITS OWN CONTAINER and fills it. The legacy interpolated a
-  // complete element here — a `.sec`, a `.grid`, an `.empty`, a skeleton or an
+  // complete element here — a `.sec`, a `.gallery`, an `.empty`, a skeleton or an
   // error surface — and React cannot inject markup without a host, so the host
   // IS that element rather than a wrapper around it.
   let content: ReactElement;
   if (state.phase === "loading") {
     content = (
       <div
-        className="sec" data-part="section"
+        className={sectionClass()} data-part="section"
         dangerouslySetInnerHTML={{ __html: skelCardsInner(5) }}
       />
     );
   } else if (state.phase === "error") {
     content = (
       <div
-        className="surferr" data-part="surface-error" role="alert"
+        className={surfaceError()} data-part="surface-error" role="alert"
         dangerouslySetInnerHTML={{
           __html: surfErrInner(t("screens.acquisition.errorFollows")),
         }}
@@ -401,7 +403,7 @@ function FollowsTab(): ReactElement {
   } else if (visible.length === 0) {
     content = (
       <div
-        className="empty" data-part="empty-state"
+        className={emptyNote()} data-part="empty-state"
         dangerouslySetInnerHTML={{ __html: emptyInner(
       term !== ""
         ? t("screens.acquisition.emptyFilter", {
@@ -424,7 +426,7 @@ function FollowsTab(): ReactElement {
   } else if (state.followMode === "grid") {
     content = (
       <div
-        className="grid" data-part="grid"
+        className="gallery" data-part="grid"
         dangerouslySetInnerHTML={{ __html: visible.map(tileOf).join("") }}
       />
     );
@@ -442,7 +444,7 @@ function FollowsTab(): ReactElement {
           return (
             <section
               key={group.l}
-              className="sec" data-part="section"
+              className={sectionClass()} data-part="section"
               dangerouslySetInnerHTML={{
                 __html: `
             <div class="sechead" data-part="section/head"><span class="pip ${group.pip}" data-part="status-dot"></span><span class="t" data-part="section/title">${group.l}</span><span class="k" data-part="section/count">${items.length}</span></div>
@@ -457,7 +459,7 @@ function FollowsTab(): ReactElement {
   } else {
     content = (
       <div
-        className="sec" data-part="section"
+        className={sectionClass()} data-part="section"
         dangerouslySetInnerHTML={{
           __html: visible.map((follow) => rowOf(follow, true)).join(""),
         }}
@@ -467,10 +469,11 @@ function FollowsTab(): ReactElement {
 
   return (
     <>
-      <div className="filters" data-region="acquisition/filters">
-        <div className="search">
+      <div className={filterZone()} data-region="acquisition/filters">
+        <div className={searchField()}>
           <Icon paths={icons.search} />
           <input
+            className={searchInput()}
             // UNCONTROLLED, with its own native handler — the arrangement
             // `#libq` has, for the same reason: `mountSearch` bound this field
             // from outside, and it runs inside `render()`, BEFORE React has put
@@ -501,7 +504,7 @@ function FollowsTab(): ReactElement {
           />
           {state.filter ? (
             <button
-              className="searchclear"
+              className={searchClear()}
               data-clearq="foll"
               aria-label={t("screens.acquisition.clearLabel")}
             >
@@ -509,24 +512,25 @@ function FollowsTab(): ReactElement {
             </button>
           ) : null}
         </div>
-        <div className="pillbar">
-          <div className="pillscroll" data-part="pill/list">
+        <div className={pillBar()}>
+          <div className={pillScroll()} data-part="pill/list">
             {pills.map((pill) => (
               <button
                 key={pill.id}
-                className="pill"
+                className={filterPill()}
                 data-part="pill"
                 aria-pressed={state.pill === pill.id}
                 data-pill={pill.id}
               >
                 {pill.label}
-                <span className="c">{pill.count}</span>
+                <span className={filterPillCount()}>{pill.count}</span>
               </button>
             ))}
           </div>
-          <div className="vswwrap">
-            <div className="vsw" data-part="view/switch">
+          <div className={viewSwitchWrap()}>
+            <div className={viewSwitch()} data-part="view/switch">
               <button
+                className={viewSwitchButton()}
                 aria-pressed={state.followMode === "list"}
                 data-fmode="list"
                 aria-label={t("screens.acquisition.modeList")}
@@ -534,6 +538,7 @@ function FollowsTab(): ReactElement {
                 <Icon paths={icons.list} />
               </button>
               <button
+                className={viewSwitchButton()}
                 aria-pressed={state.followMode === "group"}
                 data-fmode="group"
                 aria-label={t("screens.acquisition.modeGroup")}
@@ -541,6 +546,7 @@ function FollowsTab(): ReactElement {
                 <Icon paths={icons.group} />
               </button>
               <button
+                className={viewSwitchButton()}
                 aria-pressed={state.followMode === "grid"}
                 data-fmode="grid"
                 aria-label={t("screens.acquisition.modeGrid")}
@@ -552,7 +558,7 @@ function FollowsTab(): ReactElement {
         </div>
       </div>
       <p className="cadence" data-part="cadence">{cadenceFR(CADENCE_CRON)}</p>
-      <div className="body" data-part="surface/body" data-region="acquisition/body">
+      <div className={body()} data-part="surface/body" data-region="acquisition/body">
         <div className="note" data-part="note">
           <b>{t("screens.acquisition.followsNoteLead")}</b>
           {t("screens.acquisition.followsNoteRest")}
@@ -630,13 +636,14 @@ function DiscoverTab(): ReactElement {
   ] as const;
 
   const selector = (
-    <div className="filters" data-region="acquisition/filters">
-      <div className="pillbar">
-        <div className="pillscroll" data-part="pill/list"></div>
-        <div className="vswwrap">
-          <div className="vsw" data-part="view/switch">
+    <div className={filterZone()} data-region="acquisition/filters">
+      <div className={pillBar()}>
+        <div className={pillScroll()} data-part="pill/list"></div>
+        <div className={viewSwitchWrap()}>
+          <div className={viewSwitch()} data-part="view/switch">
             {modes.map(([id, paths, label]) => (
               <button
+                className={viewSwitchButton()}
                 key={id}
                 aria-pressed={state.sugMode === id}
                 data-sugmode={id}
@@ -657,7 +664,7 @@ function DiscoverTab(): ReactElement {
     return (
       <>
         {selector}
-        <div className="body deckbody" data-part="surface/body"></div>
+        <div className={`${body()} deckbody`} data-part="surface/body"></div>
       </>
     );
   }
@@ -666,7 +673,7 @@ function DiscoverTab(): ReactElement {
     <>
       {selector}
       <div
-        className={`body${state.sugMode === "deck" ? " deckbody" : ""}`}
+        className={`${body()}${state.sugMode === "deck" ? " deckbody" : ""}`}
         data-part="surface/body"
       >
         <div className="note" data-part="note">
@@ -674,26 +681,26 @@ function DiscoverTab(): ReactElement {
           {t("screens.acquisition.discoverNoteRest")}
         </div>
         {state.tmdb ? (
-          <div className="live" data-part="live-activity">
-            <span className="d"></span>
+          <div className={liveStrip()} data-part="live-activity">
+            <span className={liveDot()}></span>
             <span>
               {t("screens.acquisition.liveBefore")}
-              <b>{t("screens.acquisition.liveSuggestions")}</b>
+              <b className={liveEmphasis()}>{t("screens.acquisition.liveSuggestions")}</b>
               {t("screens.acquisition.liveMiddle")}
-              <b>{t("screens.acquisition.liveOwned")}</b>
+              <b className={liveEmphasis()}>{t("screens.acquisition.liveOwned")}</b>
               {t("screens.acquisition.liveAfter")}
             </span>
           </div>
         ) : (
           <div
-            className="surferr" data-part="surface-error" role="alert"
+            className={surfaceError()} data-part="surface-error" role="alert"
             style={{
               borderColor:
-                "color-mix(in oklab,var(--warning) 45%,transparent)",
-              background: "color-mix(in oklab,var(--warning) 8%,transparent)",
+                "color-mix(in oklab,var(--color-warning) 45%,transparent)",
+              background: "color-mix(in oklab,var(--color-warning) 8%,transparent)",
             }}
           >
-            <b style={{ color: "var(--warning)" }}>
+            <b style={{ color: "var(--color-warning)" }}>
               {t("screens.acquisition.tmdbDisconnected")}
             </b>
             {t("screens.acquisition.tmdbBefore")}
@@ -723,12 +730,12 @@ function DiscoverTab(): ReactElement {
         </div>
         {state.phase === "loading" ? (
           <div
-            className="sec" data-part="section"
+            className={sectionClass()} data-part="section"
             dangerouslySetInnerHTML={{ __html: skelCardsInner(4) }}
           />
         ) : state.phase === "error" ? (
           <div
-            className="surferr" data-part="surface-error" role="alert"
+            className={surfaceError()} data-part="surface-error" role="alert"
             dangerouslySetInnerHTML={{
               __html: surfErrInner(t("screens.acquisition.errorSuggestions")),
             }}
@@ -738,7 +745,7 @@ function DiscoverTab(): ReactElement {
         <div id="sugitems" hidden={state.phase !== "ready"}></div>
         <div
           id="sugload"
-          className="loadfoot"
+          className={loadFooter()}
           hidden={state.phase !== "ready" || state.sugMode === "deck"}
         ></div>
         <div className="note" data-part="note">

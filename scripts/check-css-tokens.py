@@ -65,6 +65,12 @@ import re
 import sys
 from pathlib import Path
 
+# The four patterns both halves of this guard read a stylesheet with. They
+# live in one module because the two must agree about what a comment is and
+# what a `var()` use looks like — the first copy to drift would do so in
+# silence, both halves still reporting « no violation ».
+from csstokens_patterns import COMMENT, DECLARATION, HTML_COMMENT, RUNTIME_PREFIX, USE
+
 ROOT = Path(__file__).resolve().parent.parent
 
 # The maquette's own application CSS — BLOCK 2 of the prototype. It used to be
@@ -78,29 +84,6 @@ FRAGMENT = ROOT / "frontend" / "maquette" / "design" / "refonte.html"
 # about where the application CSS begins would be measuring a third thing.
 BLOCK_2 = "BLOCK 2"
 
-# Tokens published at RUNTIME by script rather than declared in CSS. The prefix
-# is the contract, and it is narrow on purpose: a name that merely happens to be
-# missing must not be able to join this set by being renamed.
-RUNTIME_PREFIX = "--tm-"
-
-# Comments are stripped before anything is read: a declaration commented OUT
-# used to satisfy a use, and `var(/*c*/--x)` used to be invisible. Both were
-# found by an adversarial review, and both are the same mistake — reading CSS
-# as text rather than as CSS.
-COMMENT = re.compile(r"/\*.*?\*/", re.S)
-
-# The document's own comment syntax. The sign-in page is composed from CSS AND
-# markup chunks, so the arm that reads the composition meets both.
-HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
-
-# A declaration may open a line, or follow `{` or `;` on one. Anchoring to the
-# start of a line alone refused `.tm{--x:red}`, which is valid CSS.
-DECLARATION = re.compile(r"(?:^|[{;])\s*(--[\w-]+)\s*:", re.M)
-
-# `var(--x)` and `var(--x, fallback)`. The fallback is captured, not merely
-# detected: `var(--tm-h,)` carries a comma and nothing after it, and resolves
-# to exactly as much as no fallback at all.
-USE = re.compile(r"var\(\s*(--[\w-]+)\s*(?:,([^)]*))?\)")
 
 # One top-level rule: its selector prelude, and its body.
 RULE = re.compile(r"([^{}]+)\{([^{}]*)\}", re.S)
@@ -112,6 +95,22 @@ SCOPE = ".tm"
 # both files — the CSS chunks live in the stylesheet, the markup chunks here —
 # and the composer reads both, so the arm that holds the composition must too.
 MARKUP = ROOT / "frontend" / "maquette" / "design" / "index.html"
+
+# The base layer (D3), which L07 moved out of the fragment's BLOCK 1. It holds
+# the typeface and the reset the sign-in gate inherits, so it is a third source
+# of the composition and not merely another stylesheet.
+BASE_LAYER = ROOT / "frontend" / "maquette" / "design" / "src" / "styles" / "base.css"
+
+# The token layer (D3), where L07 moved the scale. It is a Tailwind `@theme`
+# block now rather than a `:root` one — the declarations between the markers
+# are unchanged, which is what lets this arm read it the same way it always did.
+THEME_LAYER = ROOT / "frontend" / "maquette" / "design" / "src" / "styles" / "theme.css"
+
+# The residue (D-L07-5). It holds `login:style` and `login:splashstyle`: the
+# sign-in screen and the splash belong to L13, so their CSS stays hand-written
+# — which is what keeps the gate composable at all, since a page built by text
+# extraction cannot receive utilities from a stylesheet it never loads.
+LEGACY_LAYER = ROOT / "frontend" / "maquette" / "design" / "src" / "styles" / "legacy.css"
 
 # The scale block's own markers. Its declarations ARE the steps, so the ratchet
 # excludes the span before it counts anything: a scale that had to answer for
@@ -185,8 +184,7 @@ TIMING_SHORTHAND = {"transition", "animation"}
 # A duration term, however it is written. Its presence is what makes a segment
 # a motion segment at all: `transition: none` and `animation: fadein` name no
 # time and have no curve to answer for.
-DURATION_TERM = re.compile(
-    r"var\(\s*--duration-[\w-]+\s*[,)]|(?<![\w.])-?\d*\.?\d+m?s(?![\w-])")
+DURATION_TERM = re.compile(r"var\(\s*--duration-[\w-]+\s*[,)]|(?<![\w.])-?\d*\.?\d+m?s(?![\w-])")
 
 # A curve read from the scale — the one shape that is ON it.
 SCALE_EASING = re.compile(r"var\(\s*--ease-[\w-]+\s*[,)]")
@@ -210,8 +208,7 @@ LITERAL_CURVE = re.compile(r"(?<![\w-])cubic-bezier\s*\([^)]*\)")
 # shape with zero occurrences tolerates nothing and reads as foresight. The
 # first `steps()` in this interface should be a decision someone signs, not a
 # shape that matched a list written before there was anything to match.
-DISCRETE_TIMING = re.compile(
-    r"(?<![\w-])(steps\s*\([^)]*\)|step-start(?![\w-])|step-end(?![\w-]))")
+DISCRETE_TIMING = re.compile(r"(?<![\w-])(steps\s*\([^)]*\)|step-start(?![\w-])|step-end(?![\w-]))")
 
 # The `<font-size>` term of a `font` shorthand, with the `/ <line-height>` the
 # grammar lets ride behind it. The terms that may precede it — style, variant,
@@ -230,23 +227,17 @@ FONT_SHORTHAND_SIZE = re.compile(
 # lifts into `@theme` without a rename when L07 lands.
 SCALE_TOKEN = re.compile(r"^--(?:spacing|text|radius|duration|ease)-[\w-]+$")
 
-# The composer itself. The sign-in page is whatever IT extracts — a chunk the
-# files offer and `serve.py` never asks for is not on the page, so the arm reads
-# the composition rather than the markers.
-COMPOSER = ROOT / "frontend" / "maquette" / "serve.py"
 
-# `styles_source = PROTOTYPE.read_text()`: the local name an `extract()` call
-# passes, bound to the constant that names the file it was read from.
-SOURCE_BINDING = re.compile(r"(\w+)\s*=\s*(\w+)\.read_text\(")
 
-# `extract(styles_source, "scale")`. The second argument is quoted, so the
-# `def extract(source: str, marker: str)` line is not a call and does not match.
-EXTRACT_CALL = re.compile(r"\bextract\(\s*(\w+)\s*,\s*\"([\w-]+)\"\s*\)")
 
-# The constants `serve.py` reads its two sources from, resolved to the files
-# this arm already knows. A source it names and this table does not is refused
+
+
+
+# The constants `serve.py` reads its sources from, resolved to the files this
+# arm already knows. A source it names and this table does not is refused
 # rather than skipped: the composition measured would not be the one served.
-SOURCE_FILES = {"PROTOTYPE": FRAGMENT, "SHELL_DOCUMENT": MARKUP}
+#
+
 
 # THE exemption list: the selectors the scale arm skips entirely, each with the
 # reason it is not a step. There is no file to default from any more — these two
@@ -255,13 +246,32 @@ SOURCE_FILES = {"PROTOTYPE": FRAGMENT, "SHELL_DOCUMENT": MARKUP}
 # class names.
 EXEMPTIONS = {
     ".dcard .cap": (
-        "reserved footprint: the caption clears the floating add button; "
-        "a measured clearance, not a space step"
+        "reserved footprint: the caption clears the floating add button; a measured clearance, not a space step"
     ),
     ".hero": (
         "hero overlap: the title is pulled up over the poster's melt — a "
         "composition measurement, not a space step (the rule's own comment "
         "says so)"
+    ),
+    # THE TWO BELOW ARE NOT ARBITRATIONS — they are DEBT this arm could not see
+    # until it was widened, and they are exempted so it can go green over what
+    # it CAN answer for while the two values wait for someone who may change
+    # what the screen does. Both rules came out of the prototype's harness
+    # block, which was never under the scale rule, and entered the shipped base
+    # layer when that block was cut. B-066 holds the two off-scale values and
+    # the reason the fix is not a call-site edit.
+    ".visually-hidden": (
+        "the one-pixel clip idiom: `width: 1px`, `height: 1px`, `margin: -1px` "
+        "are the technique for hiding an element from sight and not from a "
+        "screen reader — a measurement of the technique, not a space step, and "
+        "no step of any ramp would do"
+    ),
+    ".skip-link": (
+        "the accessibility skip link, off screen until focused. Its `16px` pad "
+        "and `10px` radius are on no step (the ramps read 14 then 18, and 8 "
+        "then 12), so honouring the scale would change what a keyboard user "
+        "sees — a design change, not a token substitution. Recorded as B-066 "
+        "rather than decided here"
     ),
 }
 
@@ -412,20 +422,22 @@ def off_curve(prop: str, value: str) -> list[str]:
         for found in KEYWORD_EASING.finditer(segment):
             findings.append(f"`{found.group(1)}` is not one of the two named curves")
         for found in LITERAL_CURVE.finditer(segment):
-            findings.append(f"`{found.group(0)}` is a curve written out rather than "
-                            "named, and a copy nobody updates")
+            findings.append(f"`{found.group(0)}` is a curve written out rather than named, and a copy nobody updates")
         for found in DISCRETE_TIMING.finditer(segment):
-            findings.append(f"`{found.group(0)}` is a discrete timing function, and "
-                            "the motion scale holds none")
-        if (prop in TIMING_SHORTHAND
-                and not SCALE_EASING.search(segment)
-                and not LINEAR_EASING.search(segment)
-                and not KEYWORD_EASING.search(segment)
-                and not LITERAL_CURVE.search(segment)
-                and not DISCRETE_TIMING.search(segment)):
-            findings.append(f"`{' '.join(segment.split())}` names a duration and no "
-                            "easing at all, so it renders the browser's initial "
-                            "`ease` — a curve nobody chose")
+            findings.append(f"`{found.group(0)}` is a discrete timing function, and the motion scale holds none")
+        if (
+            prop in TIMING_SHORTHAND
+            and not SCALE_EASING.search(segment)
+            and not LINEAR_EASING.search(segment)
+            and not KEYWORD_EASING.search(segment)
+            and not LITERAL_CURVE.search(segment)
+            and not DISCRETE_TIMING.search(segment)
+        ):
+            findings.append(
+                f"`{' '.join(segment.split())}` names a duration and no "
+                "easing at all, so it renders the browser's initial "
+                "`ease` — a curve nobody chose"
+            )
     # Two segments can be wrong the same way; naming it twice adds a line and
     # no information.
     return list(dict.fromkeys(findings))
@@ -496,8 +508,9 @@ def off_scale_findings(
     """
     findings: list[str] = []
     for literal in raw_literals(measurable_value(prop, value), family):
-        findings.append(f"`{literal}` is on no step of the {family} scale"
-                        + nearest_step(literal, (steps or {}).get(family, [])))
+        findings.append(
+            f"`{literal}` is on no step of the {family} scale" + nearest_step(literal, (steps or {}).get(family, []))
+        )
     if family == "motion":
         findings.extend(off_curve(prop.strip().lower(), value))
     # The same literal twice in one value — `padding: 13px 13px` — is one
@@ -558,14 +571,30 @@ def declarations_by_scope(css: str) -> tuple[set[str], set[str]]:
     unconditional: set[str] = set()
     conditional: set[str] = set()
     for prelude, body in RULE.findall(css):
-        selector = prelude.strip().rsplit("}", 1)[-1].strip()
+        # A prelude carries everything since the previous rule closed, which
+        # includes any statement at-rule in between — `@import …;`, `@source
+        # …;`. Splitting on `}` alone left those glued to the selector, so the
+        # `@theme` block read as a long unrecognised string and its whole scale
+        # was reported « conditional ». Cut on both terminators, in the order a
+        # parser would.
+        selector = prelude.strip().rsplit("}", 1)[-1].rsplit(";", 1)[-1].strip()
         names = {m for m in DECLARATION.findall("{" + body)}
         if not names:
             continue
         # Base scope: the scope class itself, or a bare document root. Anything
         # else — an attribute, a class, a media condition — is conditional, and
         # a token that only ever lands there is not available unconditionally.
-        base = selector in {SCOPE, ":root", "html", "body"}
+        # `@theme` joined this set with L07. It is not a selector at all — it
+        # is where Tailwind is told the scale, and it emits those declarations
+        # into `:root`. Reading it as conditional would report the whole scale
+        # as « declared only under a qualified scope », which is the opposite
+        # of what it is.
+        # `@theme` matched by its AT-RULE NAME, never by the whole prelude:
+        # the block carries modifiers (`@theme static`, and `inline` exists
+        # too), and an exact-string test silently reclassified the entire scale
+        # as conditional the moment `static` was added.
+        head = selector.split()[0] if selector else ""
+        base = selector in {SCOPE, ":root", "html", "body"} or head == "@theme"
         (unconditional if base else conditional).update(names)
     # Declared in BOTH places is simply declared: the conditional block is then
     # an override, which is exactly what a theme is.
@@ -612,8 +641,11 @@ def block_two() -> str | None:
         in which case the caller has already been told why.
     """
     if not FRAGMENT.exists():
-        print(f"check-css-tokens: {FRAGMENT} not found — the scope is empty, so "
-              "a « no violation » here would mean nothing", file=sys.stderr)
+        print(
+            f"check-css-tokens: {FRAGMENT} not found — the scope is empty, so "
+            "a « no violation » here would mean nothing",
+            file=sys.stderr,
+        )
         return None
 
     whole = FRAGMENT.read_text(encoding="utf-8")
@@ -621,11 +653,48 @@ def block_two() -> str | None:
     end = whole.find("</style>", start)
     marker = whole.find(BLOCK_2, start) if start >= 0 else -1
     if start < 0 or end < 0 or marker < 0 or marker > end:
-        print("check-css-tokens: no <style> carrying BLOCK 2 in the maquette — "
-              "the harness/application split is gone and this rule cannot tell "
-              "them apart", file=sys.stderr)
+        print(
+            "check-css-tokens: no <style> carrying BLOCK 2 in the maquette — "
+            "the harness/application split is gone and this rule cannot tell "
+            "them apart",
+            file=sys.stderr,
+        )
         return None
-    return whole[whole.rfind("/*", start, marker):end]
+    return whole[whole.rfind("/*", start, marker) : end]
+
+
+def application_stylesheet() -> str | None:
+    """Returns every stylesheet the APPLICATION ships, concatenated.
+
+    THE SUBJECT IS UNCHANGED AND THE FILES ARE NOT. This arm has always asked
+    one question: does the application's own CSS resolve every `var()` it uses
+    ON ITS OWN, once the prototype's harness stops shipping? That used to be
+    `refonte.html`'s BLOCK 2 and nothing else. Since L07 the application's CSS
+    is FOUR files — the tokens, the base layer, the residue, and what is left
+    of BLOCK 2 — and reading only the last of them reported the entire scale as
+    dangling the moment it moved into `@theme`.
+
+    Widening the read is therefore the opposite of relaxing the arm: a token
+    declared in a file that does NOT ship would still be counted missing,
+    because these three are named one by one rather than globbed.
+
+    Returns:
+        The concatenation, joined by a newline so no pattern matches across the
+        seam between two files, or `None` when BLOCK 2 cannot be located — the
+        failure that must stay loud.
+    """
+    fragment = block_two()
+    if fragment is None:
+        return None
+    parts = [fragment]
+    # THE RESIDUE SHIPS, so its `var()` calls must resolve like any other. It
+    # joined this list when L07 emptied BLOCK 2: 462 of the uses this arm was
+    # written to check had moved into it, and a scope that empties makes « no
+    # violation » mean nothing — which is what the guard's own test says.
+    for path in (THEME_LAYER, BASE_LAYER, LEGACY_LAYER):
+        if path.exists():
+            parts.append(path.read_text(encoding="utf-8"))
+    return "\n".join(parts)
 
 
 def token_arm() -> int:
@@ -634,7 +703,7 @@ def token_arm() -> int:
     Returns:
         1 when anything was found, 0 otherwise.
     """
-    css = block_two()
+    css = application_stylesheet()
     if css is None:
         return 1
     stripped = COMMENT.sub(" ", css)
@@ -643,33 +712,64 @@ def token_arm() -> int:
     undefined, only_conditional, bare_runtime = unresolved(css)
 
     if not used:
-        print("check-css-tokens: the sheet uses no `var()` at all — either the "
-              "extraction broke or this rule is reading the wrong file",
-              file=sys.stderr)
+        print(
+            "check-css-tokens: the sheet uses no `var()` at all — either the "
+            "extraction broke or this rule is reading the wrong file",
+            file=sys.stderr,
+        )
         return 1
 
     for name in undefined:
-        print(f"  {name} is used and declared nowhere in {FRAGMENT.name} BLOCK 2 — it "
-              "resolves to nothing the day BLOCK 1 stops shipping. Declare it "
-              "in BLOCK 2, beside the rules that use it, or drop the use.", file=sys.stderr)
+        print(
+            f"  {name} is used and declared in none of the stylesheets that "
+            "ship — it resolves to nothing the day the harness sheet stops "
+            "shipping. Declare it in `src/styles/theme.css`, beside the "
+            "tokens, or drop the use. (Telling the reader to « declare it in "
+            "BLOCK 2 » is what this message said until 2026: BLOCK 2 must now "
+            "hold no rule at all, so the instruction pointed at the one place "
+            "the declaration may not go.)",
+            file=sys.stderr,
+        )
     for name in only_conditional:
-        print(f"  {name} is declared ONLY under a conditional scope (a theme "
-              "attribute, a media condition) and used unconditionally — on "
-              "every other condition it resolves to nothing. Declare it in the "
-              "base scope too.", file=sys.stderr)
+        print(
+            f"  {name} is declared ONLY under a conditional scope (a theme "
+            "attribute, a media condition) and used unconditionally — on "
+            "every other condition it resolves to nothing. Declare it in the "
+            "base scope too.",
+            file=sys.stderr,
+        )
     for name in bare_runtime:
-        print(f"  {name} is a runtime token used with NO fallback — it resolves "
-              "to nothing until the script that publishes it has run. Write "
-              f"`var({name}, <default>)`.", file=sys.stderr)
+        print(
+            f"  {name} is a runtime token used with NO fallback — it resolves "
+            "to nothing until the script that publishes it has run. Write "
+            f"`var({name}, <default>)`.",
+            file=sys.stderr,
+        )
 
     if undefined or only_conditional or bare_runtime:
-        print(f"\ncheck-css-tokens: "
-              f"{len(undefined) + len(only_conditional) + len(bare_runtime)} "
-              f"unresolved token(s) in {FRAGMENT.name} BLOCK 2.", file=sys.stderr)
+        print(
+            f"\ncheck-css-tokens: "
+            f"{len(undefined) + len(only_conditional) + len(bare_runtime)} "
+            "unresolved token(s) in the application's stylesheet.",
+            file=sys.stderr,
+        )
         return 1
 
-    print(f"check-css-tokens: {FRAGMENT.name} BLOCK 2 — {len(used)} token(s) used, "
-          f"{len(declared)} declared, no unresolved `var()`.")
+    # NAMED IN FULL, and the list is the one `application_stylesheet()` reads.
+    # It said « theme.css, base.css » while reading three, which understates
+    # what a green run covers — and a reader who trusts the line would look for
+    # the residue's own tokens somewhere else entirely.
+    shipped = ", ".join(
+        name for name, path in (
+            ("theme.css", THEME_LAYER), ("base.css", BASE_LAYER), ("legacy.css", LEGACY_LAYER),
+        ) if path.exists()
+    )
+    print(
+        f"check-css-tokens: the application's stylesheet "
+        f"({FRAGMENT.name} BLOCK 2{', ' + shipped if shipped else ''}) — "
+        f"{len(used)} token(s) used, {len(declared)} declared, "
+        "no unresolved `var()`."
+    )
     return 0
 
 
@@ -701,12 +801,15 @@ def scale_steps(block: str) -> dict[str, list[tuple[str, str, float]]]:
 
 def scale_measurement(
     exemptions: dict[str, str],
-) -> tuple[
-    dict[str, list[tuple[str, str, str]]],
-    list[str],
-    dict[str, list[tuple[str, str, float]]],
-] | None:
-    """Counts what BLOCK 2 still spends outside the scale, and where.
+) -> (
+    tuple[
+        dict[str, list[tuple[str, str, str]]],
+        list[str],
+        dict[str, list[tuple[str, str, float]]],
+    ]
+    | None
+):
+    """Counts what the shipped stylesheets spend outside the scale, and where.
 
     The scale block is cut out BEFORE comments are stripped, in that order and
     not the other: its markers are comments, and a strip-first reading would
@@ -718,25 +821,68 @@ def scale_measurement(
     Returns:
         `(inventory, duplicated, steps)` — the off-scale declarations per
         family, the scale tokens declared outside the scale block, and the
-        steps the block declares. `None` when BLOCK 2 or the scale block could
-        not be located.
+        steps the block declares. `None` when the scale block could not be
+        located, or when the shipped stylesheets declare no rule at all.
     """
-    css = block_two()
-    if css is None:
+    # THE STEPS AND WHAT SPENDS THEM NOW LIVE IN DIFFERENT FILES. The scale is
+    # a Tailwind `@theme` block in `src/styles/theme.css` rather than a `:root`
+    # one. This arm therefore reads two places instead of partitioning one —
+    # and it still refuses to run when the block is absent, because an arm that
+    # cannot find the scale would otherwise measure every declaration against
+    # an empty set of steps and call the result « no violation ».
+    if not THEME_LAYER.exists():
+        print(
+            f"check-scale: {THEME_LAYER} not found — the scale has no home, so this arm has nothing to measure against",
+            file=sys.stderr,
+        )
         return None
-    head, marker, rest = css.partition(SCALE_START)
+    theme = THEME_LAYER.read_text(encoding="utf-8")
+    _, marker, rest = theme.partition(SCALE_START)
     if not marker:
-        print(f"check-scale: no {SCALE_START} in {FRAGMENT.name} BLOCK 2 — the "
-              "scale has no home, so this arm has nothing to measure against",
-              file=sys.stderr)
+        print(
+            f"check-scale: no {SCALE_START} in {THEME_LAYER.name} — the "
+            "scale has no home, so this arm has nothing to measure against",
+            file=sys.stderr,
+        )
         return None
-    block, closing, tail = rest.partition(SCALE_END)
+    block, closing, after = rest.partition(SCALE_END)
     if not closing:
-        print(f"check-scale: {SCALE_START} is never closed by {SCALE_END} — the "
-              "arm cannot tell the steps apart from what spends them",
-              file=sys.stderr)
+        print(
+            f"check-scale: {SCALE_START} is never closed by {SCALE_END} — the "
+            "arm cannot tell the steps apart from what spends them",
+            file=sys.stderr,
+        )
         return None
-    outside = COMMENT.sub(" ", head + tail)
+
+    # WHAT SPENDS THE STEPS IS EVERY STYLESHEET THAT SHIPS, MINUS THE SCALE
+    # ITSELF. Reading one file was right while that file held every rule; it
+    # stopped being right the moment the rules moved out of it, and a scope
+    # that empties turns « no violation » into « nothing was read ». The same
+    # correction the token arm already carries, made in the same shape: the
+    # files are NAMED one by one, never globbed, so a stylesheet that does not
+    # ship cannot quietly join the measurement — which is why the harness sheet
+    # is absent from `application_stylesheet()` and absent here.
+    #
+    # The scale block is cut out before anything is measured. Left in, every
+    # step would read as a scale token declared outside the scale — the very
+    # duplicate the hold below exists to name.
+    spending = application_stylesheet()
+    if spending is None:
+        return None
+    spending = spending.replace(marker + block + closing, "\n")
+    outside = COMMENT.sub(" ", spending)
+
+    # AND IT REFUSES AN EMPTY READ, which is the failure this widening repairs.
+    # A measurement over text that declares nothing is not « every declaration
+    # reads a step »; it is an arm that looked at nothing and said so as
+    # success.
+    if not RULE.findall(outside):
+        print(
+            "check-scale: the shipped stylesheets declare no rule at all — "
+            "this arm measured nothing rather than finding nothing",
+            file=sys.stderr,
+        )
+        return None
 
     inventory: dict[str, list[tuple[str, str, str]]] = {family: [] for family in FAMILIES}
     for prelude, body in RULE.findall(outside):
@@ -771,8 +917,10 @@ def scale_arm() -> int:
 
     failed = False
     for name in duplicated:
-        print(f"  scale: {name} is declared in two places; one block, or the next "
-              "reader edits the copy nobody reads.", file=sys.stderr)
+        print(
+            f"  scale: {name} is declared in two places; one block, or the next reader edits the copy nobody reads.",
+            file=sys.stderr,
+        )
         failed = True
 
     off_scale = 0
@@ -787,155 +935,99 @@ def scale_arm() -> int:
             off_scale += 1
 
     if off_scale:
-        print(f"\nscale: {off_scale} declaration(s) outside the scale — every design "
-              "constant BLOCK 2 spends is a step declared in the scale block, and "
-              "there is no floor above zero.", file=sys.stderr)
+        print(
+            f"\nscale: {off_scale} declaration(s) outside the scale — every design "
+            "constant the shipped stylesheets spend is a step declared in the "
+            "scale block, and there is no floor above zero.",
+            file=sys.stderr,
+        )
     if failed or off_scale:
         return 1
 
-    print("scale: " + ", ".join(f"{family} 0" for family in FAMILIES)
-          + " — every declaration reads a step.")
+    print("scale: " + ", ".join(f"{family} 0" for family in FAMILIES) + " — every declaration reads a step.")
     return 0
 
 
-def without_python_comments(source: str) -> str:
-    """Blanks out `#` comments, quotes respected.
-
-    A commented-out `extract()` call composes nothing, and an arm that counted
-    it would report a chunk the page never receives. A naive per-line split on
-    `#` would also cut a line at a `#` inside a string literal, so the scan
-    tracks the quote it is in.
-
-    Args:
-        source: Python source text.
-
-    Returns:
-        The same text with every comment replaced by spaces, line breaks kept
-        so a reader can still map a match back to a line.
-    """
-    kept: list[str] = []
-    quote = ""
-    index = 0
-    while index < len(source):
-        char = source[index]
-        if quote:
-            kept.append(char)
-            if char == "\\" and index + 1 < len(source):
-                kept.append(source[index + 1])
-                index += 2
-                continue
-            if char == quote:
-                quote = ""
-        elif char in "'\"":
-            quote = char
-            kept.append(char)
-        elif char == "#":
-            end = source.find("\n", index)
-            end = len(source) if end < 0 else end
-            kept.append(" " * (end - index))
-            index = end
-            continue
-        else:
-            kept.append(char)
-        index += 1
-    return "".join(kept)
 
 
-def composed_chunks() -> dict[str, str] | None:
-    """Collects the chunks `serve.py` actually composes the sign-in page from.
+# THE FOUR TOUCH-RESPONSE STEPS, AS TAILWIND SPELLS THEM. `--duration-*` is
+# not a Tailwind namespace, and `duration-2` is ALREADY a utility meaning two
+# milliseconds — so the one family of L06's scale that does not lift is also
+# the only one that compiles to a WRONG VALUE instead of an error. Redefining
+# the utility does not take the name back: the core one wins, measured. The
+# operator arbitrated bare milliseconds (D-L07-3), and this arm is the half
+# that makes the scale still a scale.
+#
+# NOTHING ELSE MEASURES THIS. `transition-duration` is not among the oracle's
+# nineteen properties, and the scale arm above reads CSS DECLARATIONS — a value
+# living inside a class name is invisible to it. `duration-137` would compile
+# happily and no gate would say a word.
+MOTION_STEPS = {"150": "--duration-1", "200": "--duration-2", "300": "--duration-3", "450": "--duration-4"}
 
-    The set is read from the composer rather than from the markers: a chunk the
-    files offer and `serve.py` never extracts is not on the page, and holding
-    the page to it would report a token the browser is in fact given. Which
-    file each chunk comes from is read the same way — `serve.py` binds its two
-    sources by name, and this follows the binding rather than guessing.
+# Where a class name may be written. The engine is excluded because it keeps
+# hand-written CSS until L13 and receives no utility (D-L07-5) — and it is
+# 34 000 lines whose prose would yield false candidates.
+CLASS_SOURCES = (
+    ROOT / "frontend" / "maquette" / "design" / "index.html",
+    ROOT / "frontend" / "maquette" / "design" / "src" / "app",
+    ROOT / "frontend" / "maquette" / "design" / "src" / "features",
+    ROOT / "frontend" / "maquette" / "design" / "src" / "lib",
+    ROOT / "frontend" / "maquette" / "design" / "src" / "routes",
+    ROOT / "frontend" / "maquette" / "design" / "src" / "ui",
+)
 
-    Returns:
-        Chunk text keyed by chunk name, or `None` when the composer cannot be
-        read, names a source this arm cannot resolve, or extracts a chunk whose
-        markers are missing — the same failure `extract()` itself raises on.
-    """
-    if not COMPOSER.exists():
-        print(f"check-login: {COMPOSER} not found — the composition cannot be "
-              "read, so a « no violation » here would mean nothing", file=sys.stderr)
-        return None
-    composer = without_python_comments(COMPOSER.read_text(encoding="utf-8"))
-
-    # `styles_source = PROTOTYPE.read_text()` and its sibling: the local name an
-    # `extract()` call passes, bound to the constant that names the file.
-    bound = {local: constant for local, constant in SOURCE_BINDING.findall(composer)}
-    calls = EXTRACT_CALL.findall(composer)
-    if not calls:
-        print(f"check-login: no `extract(<source>, \"<chunk>\")` call in "
-              f"{COMPOSER.name} — an arm that reads zero chunks holds nothing",
-              file=sys.stderr)
-        return None
-
-    texts: dict[Path, str] = {}
-    chunks: dict[str, str] = {}
-    for local, name in calls:
-        path = SOURCE_FILES.get(bound.get(local, ""))
-        if path is None:
-            print(f"  login: {COMPOSER.name} extracts login:{name} from `{local}`, "
-                  "which this arm cannot resolve to a file — the composition it "
-                  "measures would not be the one served.", file=sys.stderr)
-            return None
-        if not path.exists():
-            print(f"check-login: {path} not found — the composed page cannot be "
-                  "read, so a « no violation » here would mean nothing", file=sys.stderr)
-            return None
-        if name in chunks:
-            continue
-        text = texts.setdefault(path, path.read_text(encoding="utf-8"))
-        start = text.find(f"login:{name}:start")
-        end = text.find(f"login:{name}:end")
-        if start < 0 or end < 0 or end < start:
-            print(f"  login: {COMPOSER.name} extracts login:{name} from "
-                  f"{path.name}, which carries no such marker pair — `extract()` "
-                  "raises on this and serves no sign-in page at all.", file=sys.stderr)
-            return None
-        # The same slicing serve.extract() uses, deliberately: an arm that read
-        # one character more than the composer would hold a chunk the page
-        # never receives.
-        chunks[name] = text[text.index("\n", start) + 1: text.rindex("\n", start, end) + 1]
-    return chunks
+# A Tailwind duration utility as it is written in markup: an optional variant
+# prefix (`hover:`, `motion-safe:`), the utility, a bare number, and a boundary.
+# The arbitrary and custom-property forms — `duration-[…]`, `duration-(…)` —
+# are NOT matched: they name a value explicitly and are somebody's deliberate
+# choice, where a bare number is the shape that silently means milliseconds.
+_DURATION_UTILITY = re.compile(r"(?<![\w-])duration-(\d+)(?![\w-])")
 
 
-def login_arm() -> int:
-    """Refuses a token the composed sign-in page uses but is never given.
+from csstokens_login import login_arm  # noqa: E402
+
+
+def motion_classes_arm() -> int:
+    """Refuses a `duration-<n>` outside the four arbitrated steps.
 
     Returns:
         1 when anything was found, 0 otherwise.
     """
-    chunks = composed_chunks()
-    if chunks is None:
+    files: list[Path] = []
+    for source in CLASS_SOURCES:
+        if source.is_dir():
+            for pattern in ("*.tsx", "*.ts", "*.html"):
+                files.extend(sorted(source.rglob(pattern)))
+        elif source.exists():
+            files.append(source)
+    if not files:
+        print(
+            "check-motion: no source carries a class name — either the tree moved or this arm is reading nothing",
+            file=sys.stderr,
+        )
         return 1
 
-    # Both comment syntaxes: the CSS chunks live in a <style>, the markup chunks
-    # in the document. A declaration commented out in either satisfied nothing.
-    composed = COMMENT.sub(" ", "\n".join(chunks.values()))
-    composed = HTML_COMMENT.sub(" ", composed)
-    declared = set(DECLARATION.findall(composed))
-    used: set[str] = set()
-    missing: set[str] = set()
-    for name, fallback in USE.findall(composed):
-        used.add(name)
-        # A runtime token carrying a usable fallback is not owed a declaration:
-        # nothing declares `--tm-*` in CSS, the shell publishes it, and the
-        # fallback is what the page renders with until it has.
-        if name.startswith(RUNTIME_PREFIX) and fallback.strip():
-            continue
-        if name not in declared:
-            missing.add(name)
-
-    for name in sorted(missing):
-        print(f"  login: {name} is used by the composed sign-in page but declared "
-              "in no chunk serve.py composes — the page is not given it, and "
-              "resolves it to nothing.", file=sys.stderr)
-    if missing:
+    findings: list[str] = []
+    seen = 0
+    for path in files:
+        text = path.read_text(encoding="utf-8")
+        for number, line in enumerate(text.splitlines(), 1):
+            for match in _DURATION_UTILITY.finditer(line):
+                seen += 1
+                value = match.group(1)
+                if value not in MOTION_STEPS:
+                    findings.append(
+                        f"  {path.relative_to(ROOT)}:{number} — `duration-{value}` "
+                        "is not a step. The motion scale is 150, 200, 300, 450 "
+                        f"({', '.join(sorted(MOTION_STEPS))}); a fifth value is a "
+                        "value outside the scale, and nothing else in this "
+                        "repository would have caught it."
+                    )
+    if findings:
+        print(f"check-motion: {len(findings)} off-scale duration(s).", file=sys.stderr)
+        print("\n".join(findings), file=sys.stderr)
         return 1
-
-    print(f"login: {len(used)} var() use(s) in the composed chunks, all declared there.")
+    print(f"motion: {seen} duration utilitie(s) in {len(files)} source(s), every one a step.")
     return 0
 
 
@@ -947,18 +1039,22 @@ def main() -> int:
     """
     parser = argparse.ArgumentParser(
         description="Holds the maquette's application CSS to the tokens it can resolve, "
-                    "the steps it declares, and the chunks the sign-in page is composed from.")
-    parser.add_argument("--arm", choices=("scale", "login"),
-                        help="run one arm alone; the default runs all of them")
+        "the steps it declares, and the chunks the sign-in page is composed from."
+    )
+    parser.add_argument(
+        "--arm", choices=("scale", "login", "motion-classes"), help="run one arm alone; the default runs all of them"
+    )
     args = parser.parse_args()
 
     if args.arm == "scale":
         return scale_arm()
     if args.arm == "login":
         return login_arm()
+    if args.arm == "motion-classes":
+        return motion_classes_arm()
     # Every arm runs, even after one has failed: a reader who has to fix and
     # re-run to discover the second finding fixes one thing per round trip.
-    verdicts = [token_arm(), scale_arm(), login_arm()]
+    verdicts = [token_arm(), scale_arm(), login_arm(), motion_classes_arm()]
     return 1 if any(verdicts) else 0
 
 

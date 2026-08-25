@@ -368,6 +368,68 @@ def quoted_spans(text, html=False):
     return [(kind, s, e) for kind, s, e in out if e > s]
 
 
+# A CSS custom property is not an identifier any parser here can see, and the
+# word-boundary rule cannot reach one: `\b` before `--card` needs a word
+# character to its left, and `-` is not one. So the rename tool renamed zero
+# files when asked to move `--card`, silently — the shape of failure this
+# repository has paid for twice, and the reason this mode exists rather than
+# the ad-hoc regex CLAUDE.md forbids.
+#
+# THE BOUNDARY RULE IS THE FORM, NOT THE WORD. A custom property appears in
+# exactly three shapes, and each is unmistakable:
+#
+#   --name:            a declaration
+#   var(--name)        a use, with or without a fallback
+#   "--name"           the whole of a quoted string, which is how JavaScript
+#                      and the harness reach one (`setProperty`, `getPropertyValue`)
+#
+# Anything else — the name inside prose, inside a longer name, inside a
+# sentence a reader sees — is left exactly where it is. That is a STRONGER
+# guarantee than the word-boundary rule the identifier mode uses, not a weaker
+# one: it moves a name only where the name is being used as a property.
+#
+# `(?![\w-])` on every form is what keeps `--card` out of `--card-x`.
+def custom_property_forms(name):
+    """Returns the three patterns a custom property may legitimately wear.
+
+    Args:
+        name: The property, leading dashes included.
+
+    Returns:
+        A list of compiled patterns, each with the property in group 1 and the
+        surrounding form preserved in the rest of the match.
+    """
+    quoted = re.escape(name)
+    return [
+        # A declaration: the name, then optional space, then a colon.
+        re.compile(rf"({quoted})(?![\w-])(\s*:)"),
+        # A use: `var(` then optional space then the name.
+        re.compile(rf"(var\(\s*)({quoted})(?![\w-])"),
+        # A whole quoted string, in either quote, and nothing else inside it.
+        re.compile(rf"([\"\'])({quoted})(?![\w-])(\1)"),
+    ]
+
+
+def apply_custom_properties(text, mapping):
+    """Renames CSS custom properties, and only where one is being used as one.
+
+    Args:
+        text: The source.
+        mapping: Old property name → new property name, dashes included.
+
+    Returns:
+        The source with the properties moved.
+    """
+    for source, target in mapping.items():
+        if source == target:
+            continue
+        declaration, use, quoted = custom_property_forms(source)
+        text = declaration.sub(lambda m: target + m.group(2), text)
+        text = use.sub(lambda m: m.group(1) + target, text)
+        text = quoted.sub(lambda m: m.group(1) + target + m.group(3), text)
+    return text
+
+
 def apply_values(text, mapping, spans=None, whole_only=(), inner_words=False):
     """Renames DATA values: whole quoted tokens, and identifiers built on them.
 
@@ -676,10 +738,14 @@ def validate_mapping(mapping):
 
 
 if __name__ == "__main__":
+    MAPPING_FILE = pathlib.Path(sys.argv[1]).resolve()
     mapping = json.load(open(sys.argv[1]))
     validate_mapping(mapping)
     PROPERTIES = "--properties" in sys.argv
     VALUES = "--values" in sys.argv
+    # CSS custom properties. Their own mode because no parser here sees them
+    # and the word-boundary rule cannot match one — see `apply_custom_properties`.
+    CUSTOM_PROPERTIES = "--custom-properties" in sys.argv
     # Substituting one word of a multi-word string is how prose gets rewritten,
     # so it is asked for by name and never assumed.
     INNER_WORDS = "--inner-words" in sys.argv
@@ -691,6 +757,10 @@ if __name__ == "__main__":
         for word in argument.split("=", 1)[1].split(",") if word
     )
     changed = collections.Counter()
+    # Corpus facts for the no-op refusal below.
+    read_files = 0
+    saw_source = False
+    saw_target = False
     written = []
     # The tree to walk. It defaulted to the maquette, and every surface outside
     # it — the app under `frontend/src`, the icon tool under `frontend/scripts`
@@ -701,7 +771,8 @@ if __name__ == "__main__":
     ROOT = roots[0] if roots else pathlib.Path("frontend/maquette")
     for path in sorted(ROOT.rglob("*")):
         kinds = ({".js", ".jsx", ".ts", ".tsx", ".py", ".mjs", ".css", ".json", ".html"}
-                 if VALUES else {".js", ".jsx", ".ts", ".tsx", ".py", ".mjs"})
+                 if VALUES or CUSTOM_PROPERTIES
+                 else {".js", ".jsx", ".ts", ".tsx", ".py", ".mjs"})
         if not path.is_file() or path.suffix not in kinds:
             continue
         # A symlink is someone else's file: following one rewrote a file
@@ -729,6 +800,14 @@ if __name__ == "__main__":
             continue
         if path.name in {"serve.py", "rename.py"}:
             continue
+        # THE MAPPING FILE IS NOT A TARGET. It is JSON whose keys are whole
+        # quoted strings equal to the names being moved, so a values pass or a
+        # custom-property pass rewrites the instruction it is executing — and
+        # then a second run of the same command is a no-op that looks like
+        # success. Caught the first time the custom-property mode ran on a
+        # scratch tree with the table inside it.
+        if path.resolve() == MAPPING_FILE:
+            continue
         # `newline=""` keeps CRLF as CRLF. `read_text` folds `\r\n` into `\n`
         # while `readFileSync(…, "utf8")` in the span tool does not, so Python
         # counted one character where node counted two and EVERY span past the
@@ -736,12 +815,24 @@ if __name__ == "__main__":
         # strings that had "moved" and refused a file that was perfectly fine.
         with path.open(encoding="utf-8", newline="") as handle:
             before = handle.read()
+        # SUBSTRING ONLY, DELIBERATELY: it answers « is this name anywhere in
+        # the corpus », not « would it match ». The precise question is what
+        # the modes below are for, and this one must stay true when they are
+        # wrong. It is what tells a finished rename from one that could never
+        # have started.
+        read_files += 1
+        if any(name in before for name in mapping):
+            saw_source = True
+        if any(name in before for name in mapping.values()):
+            saw_target = True
         spans = (compiler_spans(path, before) if path.suffix in COMPILED
                  else python_spans(before) if path.suffix == ".py"
                  else None)
         if VALUES and path.suffix in {".css", ".json", ".html"}:
             spans = quoted_spans(before, html=path.suffix == ".html")
-        if VALUES:
+        if CUSTOM_PROPERTIES:
+            after = apply_custom_properties(before, mapping)
+        elif VALUES:
             after = apply_values(before, mapping, spans=spans,
                                  whole_only=WHOLE_ONLY, inner_words=INNER_WORDS)
         else:
@@ -768,7 +859,8 @@ if __name__ == "__main__":
         # identifiers it drives the engine with. Its strings are SUPPOSED to
         # change, so a proof that they did not would refuse every Python rename
         # the tool exists to make.
-        if (not VALUES and spans is not None and path.suffix != ".py"
+        if (not VALUES and not CUSTOM_PROPERTIES
+                and spans is not None and path.suffix != ".py"
                 and protected_text_of(path, after) != [
                     text for kind, s, e in spans if kind == "string"
                     for text in [before[s:e]]]):
@@ -789,6 +881,36 @@ if __name__ == "__main__":
         changed[str(path.relative_to(ROOT))] = sum(
             1 for _ in re.finditer("|".join(re.escape(v) for v in mapping.values()), after))
 
+
+    # « 0 file(s) touched » WAS THIS TOOL'S SUCCESS LINE while it was
+    # structurally unable to match the name it was given — a word boundary
+    # cannot precede `--`. Adding a mode closed that one name and not the
+    # SHAPE: a typo, a wrong `--root` or a mode that does not match the KIND
+    # of name all still print it.
+    #
+    # THE REFUSAL IS NARROW BECAUSE TWO NO-OPS ARE LEGITIMATE — re-running a
+    # rename that has already landed (idempotence is held by a test), and a run
+    # whose corpus was excluded whole (everything under `i18n/`, which another
+    # hold asserts). So it refuses exactly « files were read, and neither the
+    # names being moved nor the names they move to are in any of them »: the
+    # subject is not in this tree. The tool still cannot say a rename was
+    # CORRECT — CLAUDE.md requires an oracle outside it — only that nothing
+    # happened.
+    if not changed and read_files and not saw_source and not saw_target:
+        raise SystemExit(
+            f"0 file(s) touched, and neither the {len(mapping)} name(s) being "
+            f"moved nor the names they move to appear in any of the "
+            f"{read_files} file(s) read. That is not a rename that had nothing "
+            "left to do — it is a rename whose subject is not in this tree. "
+            "Looked for: "
+            + ", ".join(sorted(mapping)[:8])
+            + (" …" if len(mapping) > 8 else "")
+            + f"; under {ROOT}. Check the source names, the --root, and the "
+            "mode (--properties, --values, --custom-properties).")
+    if not changed and not read_files:
+        print(
+            f"0 file(s) read under {ROOT} — every candidate was excluded. "
+            "Nothing was renamed because there was nothing to read.")
 
     print(f"{len(changed)} file(s) touched")
     for name, _ in changed.most_common(10):

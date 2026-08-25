@@ -1,0 +1,2496 @@
+/* THE RESIDUE — CSS THE DYING ENGINE STILL NEEDS, AND ITS DATE OF DEATH.
+   D-L07-5, arbitrated by the operator on 2026-08-24.
+
+   Two kinds of rule live here, and neither is a leftover:
+
+     ENGINE-DRAWN — `legacy.js` writes the markup, so there is no component to
+       carry a variant and no element to carry a utility. The bottom bar and
+       the navigation drawer are empty containers in `index.html`; everything
+       inside them is written by the engine.
+
+     ENGINE-TOGGLED — a component or the shell draws the element, but the
+       ENGINE adds and removes the class that selects this rule
+       (`classList.add("open")`). Converting it means moving a `data-*`
+       contract's three ends at once — the markup, the engine's write, and the
+       rules that tap it — which is L13's work, not a styling change.
+
+   IT DIES WITH L13, and it may not GROW: `scripts/check-legacy-css-residue.py`
+   counts what is here and refuses an increase. The lot's « no hand-written
+   component stylesheet remains » reads as « for every surface this lot
+   converts » — and the exception is named, counted and dated rather than left
+   unremarked. */
+
+/* ── Pull to refresh ─────────────────────────────────────────────── */
+.ptr.armed {
+  color: var(--color-primary);
+}
+.ptr.loading .spin {
+  animation: spin var(--duration-loop-1) linear infinite;
+}
+
+/* ── Bottom bar ──────────────────────────────────────────────────── */
+/* The bar is an empty `<nav>` in the document; the engine writes its tabs. */
+html.selecting .bottombar {
+  display: none;
+}
+.bottombar a,
+.bottombar button {
+  display: flex;
+  min-height: 44px;
+  min-width: 0;
+  flex: 1 1 0%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  padding-block: var(--spacing-4);
+  font-size: var(--text-3);
+  border: 0;
+  background: transparent;
+  color: var(--color-muted-foreground);
+  transition: color var(--duration-1) var(--ease-standard);
+}
+.bottombar button[aria-current="page"] {
+  color: var(--color-primary-text);
+}
+.bottombar svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.bottombar .lb {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+/* The badge is a CORNER SUPERSCRIPT on the icon — never a third flow child,
+   which would make the tab taller. */
+.bottombar .ic {
+  position: relative;
+  display: inline-flex;
+}
+.navbadge {
+  position: absolute;
+  right: -10px;
+  top: -6px;
+  display: inline-flex;
+  height: 18px;
+  min-width: 18px;
+  align-items: center;
+  justify-content: center;
+  padding-inline: var(--spacing-2);
+  border-radius: var(--radius-full);
+  /* PRIMARY, not danger: that is NavCountBadge's value. Red is reserved for
+     the « ? » of an unavailable counter. */
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  font-size: var(--text-2);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  box-shadow: var(--mq-shadow-badge);
+  outline: 2px solid var(--color-sidebar);
+}
+
+/* ── Toast ───────────────────────────────────────────────────────── */
+.toast.show {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+
+/* ── Navigation drawer ───────────────────────────────────────────── */
+/* The drawer is an empty `<aside>` in the document; the engine writes its
+   header, its three titled sections and the version card. Mirrors
+   `NavSections`, and the mobile drawer is the ONLY place the version
+   reaches the phone. `.drawer.open` is engine-toggled. */
+.drawer.open {
+  transform: none;
+  visibility: visible;
+}
+.drawer .dh {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: calc(env(safe-area-inset-top) + var(--spacing-7)) var(--spacing-7) var(--spacing-7);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--text-5);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.drawer nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  padding: var(--spacing-4);
+}
+.drawer .sect {
+  padding: var(--spacing-5) var(--spacing-6) var(--spacing-2);
+  font-size: var(--text-1);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-muted-foreground);
+}
+.drawer .sect + .sect,
+.drawer .grp + .grp {
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--spacing-3);
+  padding-top: var(--spacing-5);
+}
+.drawer a {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-6);
+  min-height: 44px;
+  padding: var(--spacing-4) var(--spacing-6);
+  border-radius: var(--radius-3);
+  font-size: var(--text-4);
+  color: var(--color-foreground);
+}
+.drawer a[aria-current="page"] {
+  /* « You are here » is the brand colour on the label — the same mark the
+     bottom bar uses, so one interface has one way of saying it. The row also
+     carries a surface, because a list is scanned and its current row has to
+     be found without reading five labels; that surface is a TINT of the
+     mark, never the mark itself. Painting the mark as the background left
+     the label exactly the colour of what it sat on: contrast 1.00, a label
+     written in invisible ink. */
+  background: color-mix(in oklab, var(--color-primary) 14%, transparent);
+  color: var(--color-primary-text);
+  font-weight: 600;
+}
+.drawer a svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+.drawer a .count {
+  margin-left: auto;
+  display: inline-flex;
+  height: 18px;
+  min-width: 18px;
+  align-items: center;
+  justify-content: center;
+  padding-inline: var(--spacing-2);
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  font-size: var(--text-2);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.drawer .ver {
+  border-top: 1px solid var(--color-border);
+  padding: var(--spacing-6) var(--spacing-7) calc(env(safe-area-inset-bottom) + var(--spacing-6));
+}
+.drawer .ver .vt {
+  font-size: var(--text-2);
+  color: var(--color-muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+.drawer .ver .vv {
+  font-size: var(--text-7);
+  font-weight: 700;
+  margin-top: var(--spacing-1);
+}
+.drawer .ver .vc {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: var(--text-2);
+  color: var(--color-muted-foreground);
+  margin-top: var(--spacing-1);
+}
+
+/* ── Confirmation dialog ─────────────────────────────────────────── */
+/* The dialog is written by the ENGINE — `dlgbtn`, `dlgacts`, `warnbox`,
+   `manifest` and `dryrun` appear in no component. */
+.dlg {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 50%;
+  z-index: 48;
+  background: var(--color-popover);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-4);
+  padding: var(--spacing-7);
+  box-shadow: var(--mq-shadow-dlg);
+  transform: translateY(-50%) scale(0.96);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--duration-2) var(--ease-standard),
+    transform var(--duration-2) var(--ease-standard);
+}
+.dlg.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) scale(1);
+}
+.dlg h2 {
+  margin: 0 0 var(--spacing-4);
+  font-size: var(--text-5);
+  font-weight: 700;
+}
+.dlg p {
+  margin: 0 0 var(--spacing-5);
+  font-size: var(--text-3);
+  line-height: 1.45;
+  color: var(--color-muted-foreground);
+}
+.dryrun {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  font-size: var(--text-2);
+  font-weight: 600;
+  color: var(--color-info);
+  border: 1px solid color-mix(in oklab, var(--color-info) 40%, transparent);
+  border-radius: var(--radius-2);
+  padding: var(--spacing-4) var(--spacing-5);
+  margin-bottom: var(--spacing-5);
+}
+.dryrun svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+.manifest {
+  list-style: none;
+  margin: 0 0 var(--spacing-5);
+  padding: 0;
+  font-size: var(--text-3);
+}
+.manifest li {
+  display: flex;
+  gap: var(--spacing-4);
+  padding: var(--spacing-2) 0;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-muted-foreground);
+}
+.manifest li:last-child {
+  border-bottom: 0;
+}
+.manifest b {
+  color: var(--color-foreground);
+  font-weight: 600;
+  margin-left: auto;
+  white-space: nowrap;
+}
+.warnbox {
+  border: 1px solid color-mix(in oklab, var(--color-warning) 45%, transparent);
+  background: color-mix(in oklab, var(--color-warning) 8%, transparent);
+  border-radius: var(--radius-2);
+  padding: var(--spacing-4) var(--spacing-5);
+  font-size: var(--text-3);
+  line-height: 1.45;
+  margin-bottom: var(--spacing-5);
+}
+.warnbox b {
+  color: var(--color-warning);
+}
+.dlgacts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+.dlgbtn {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-foreground);
+  font-size: var(--text-4);
+  font-weight: 600;
+  padding: var(--spacing-5);
+  border-radius: var(--radius-3);
+}
+.dlgbtn.danger {
+  background: var(--color-danger-fill);
+  border-color: var(--color-danger-fill);
+  color: var(--color-white);
+}
+.dlgbtn.ghost {
+  color: var(--color-muted-foreground);
+  border-color: transparent;
+}
+
+/* ── Screen layer ────────────────────────────────────────────────── */
+/* `.screen.open` is engine-toggled. */
+.screen.open {
+transform: none;
+visibility: visible;
+}
+
+/* ── Skeleton card ───────────────────────────────────────────────── */
+/* `skcard` appears in no component: the engine draws it. */
+.skcard {
+height: 62px;
+border-radius: var(--radius-3);
+}
+
+/* ── Shared primitives the ENGINE also draws ─────────────────────────
+   Ten class names are emitted by BOTH a component and `legacy.js`: `sec`,
+   `sechead`, `pip` (with `danger`), `t`, `k`, `cfoot`, `btnprimary`, `empty`
+   and `surferr`. Their rules could not simply be deleted when the components
+   moved to `src/ui/variants.ts` — the engine's own markup still wears the
+   names, and the dialog and the bottom sheet lost their layout the moment the
+   rules went.
+
+   SO THE RULES ARE HERE, AND THE VARIANTS ARE INERT ON THESE ELEMENTS TODAY.
+   The residue is unlayered and therefore wins over `@layer utilities`, so a
+   component carrying both gets the rule rather than the utility — identical
+   declarations, so nothing renders differently, and the oracle says so. What
+   the conversion buys is not immediate: the day the engine dies at L13, this
+   block dies with it and the variants are already in place. Recorded plainly
+   rather than counted as a surface converted. */
+.sec {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+.sechead {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: var(--spacing-1) 0;
+  text-align: left;
+}
+.sechead .t {
+  font-size: var(--text-3);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.sechead .k {
+  margin-left: auto;
+  font-size: var(--text-2);
+  font-weight: 700;
+  color: var(--color-muted-foreground);
+}
+.pip {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex: 0 0 auto;
+}
+.pip.warning {
+  background: var(--color-warning);
+}
+.pip.danger {
+  background: var(--color-danger);
+}
+.pip.info {
+  background: var(--color-info);
+}
+.pip.waiting {
+  background: var(--color-waiting);
+}
+.pip.success {
+  background: var(--color-success);
+}
+.pip.neutral {
+  background: var(--color-neutral-signal);
+}
+.empty {
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-3);
+  padding: var(--spacing-8) var(--spacing-7);
+  text-align: center;
+  font-size: var(--text-3);
+  color: var(--color-muted-foreground);
+  line-height: 1.5;
+}
+.empty b {
+  display: block;
+  color: var(--color-foreground);
+  font-size: var(--text-4);
+  margin-bottom: var(--spacing-2);
+}
+.surferr {
+  border: 1px solid color-mix(in oklab, var(--color-danger) 45%, transparent);
+  background: color-mix(in oklab, var(--color-danger) 8%, transparent);
+  border-radius: var(--radius-3);
+  padding: var(--spacing-7);
+  font-size: var(--text-3);
+  line-height: 1.5;
+}
+.surferr b {
+  display: block;
+  color: var(--color-danger-text);
+  margin-bottom: var(--spacing-2);
+}
+.surferr button {
+  margin-top: var(--spacing-5);
+  width: 100%;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-foreground);
+  font-size: var(--text-3);
+  font-weight: 600;
+  padding: var(--spacing-4);
+  border-radius: var(--radius-2);
+}
+
+/* The end of a list, said once and quietly. SAME CASE AS `.empty` AND
+   `.surferr` ABOVE, and it was classified as component-drawn by mistake: the
+   médiathèque draws one from a component, and Découvrir's deck draws another
+   from the ENGINE (`sugFoot`). Engine markup receives no utility, so with the
+   rule gone the deck's end-of-reserve sentence rendered at the body size, left
+   aligned, with no divider above it — and nothing said so: the oracle does not
+   measure that region, and a `::before` that stops being painted changes
+   neither a rectangle nor one of the nineteen properties.
+
+   The declarations are `endMark()`'s, term for term, so the component that
+   already carries the variant renders exactly as it did. */
+.endmark {
+  text-align: center;
+  font-size: var(--text-2);
+  color: var(--color-muted-foreground);
+  padding: var(--spacing-7) 0 var(--spacing-2);
+}
+.endmark::before {
+  content: "";
+  display: block;
+  width: 34px;
+  height: 1px;
+  background: var(--color-border);
+  margin: 0 auto var(--spacing-4);
+}
+
+
+/* ── Arrivées — the run, told as its nine steps ──────────────────── */
+/* `.flux` and everything under it is written by the ENGINE: the row, its
+   name, its result, its reason and its key appear in no component. */
+/* The last run, told as its nine steps.
+
+   A step that did nothing says so with an em dash, never with « 0 ». Zero is
+   a measurement; nothing to do is a state, and nine zeroes printed for a calm
+   run turn a healthy pipeline into a wall of failures. */
+.flux {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-3);
+  background: var(--color-card);
+  overflow: hidden;
+}
+.flux .fw {
+  display: grid;
+  /* minmax(0, …) on both: an untruncated engine name would otherwise size
+     its track to max-content and push the row past a 390px frame (R7). */
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  align-items: baseline;
+  gap: var(--spacing-1) var(--spacing-5);
+  padding: var(--spacing-4) var(--spacing-5);
+  width: 100%;
+  text-align: left;
+  /* A row that leads somewhere is a real button and inherits nothing from
+     the browser's own: no border, no background, the document's type. */
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+.flux .fx.fclick .fw {
+  /* The whole row answers a thumb, so it carries the 44px floor a target
+     needs rather than leaving it to whatever the text happens to measure. */
+  min-height: 44px;
+  cursor: pointer;
+}
+.flux .fx + .fx {
+  border-top: 1px solid var(--color-border);
+}
+.flux .fn {
+  font-size: var(--text-3);
+  font-weight: 600;
+}
+.flux .fr {
+  font-size: var(--text-3);
+  text-align: right;
+  color: var(--color-muted-foreground);
+}
+.flux .fx.fempty .fn {
+  color: var(--color-muted-foreground);
+  font-weight: 500;
+}
+.flux .fx.fblocked .fr {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+.flux .fs {
+  grid-column: 1 / -1;
+  font-size: var(--text-2);
+  color: var(--color-muted-foreground);
+  /* A reason never truncates (§12, R48): it wraps and the row grows. */
+  overflow-wrap: anywhere;
+}
+.flux .fk {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-1);
+  color: var(--color-muted-foreground);
+}
+
+/* ── The media card ──────────────────────────────────────────────── */
+/* THE CARD IS THE ENGINE'S: 33 of its 46 class names appear in
+   `legacy.js` and only two in a component. It is injected as markup
+   through `dangerouslySetInnerHTML`, so there is no element for a
+   utility and no component for a variant — converting it would be L13's
+   work pulled forward, and D-L07-5 says what happens instead.
+
+   §12's engraved composition is what this block draws, and it must
+   survive unchanged into whatever replaces it: line 1 is the title
+   ALONE across the full width, line 2 is the numeric progress then the
+   state, and there is no type label because the active tab carries it.
+   The reason NEVER truncates. */
+/* A mouse drag would otherwise select the text it passes over, and the
+   selection then swallows the gesture. */
+.swipe,
+.sugwrap,
+.deck {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* And it would drag the IMAGE: dragging a picture is a browser default, and
+   it swallows the pointer stream outright — the gesture receives a couple of
+   moves and never an up. Invisible to a touch test, fatal to a mouse one. */
+.swipe img,
+.sugwrap img,
+.deck img,
+.tile img {
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+.swipe {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-3);
+  /* The row CLAIMS the horizontal axis. Without this the browser owns both
+     axes, decides a drag is a pan, and fires `touchcancel` — the swipe then
+     only ever works under synthetic events, which never get cancelled.
+     Declared HERE and not on an ancestor: `touch-action` intersects down the
+     whole chain, so a `pan-x` scroller under a `pan-y` ancestor pans on
+     neither axis. */
+  touch-action: pan-y;
+}
+.actions {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+}
+.actions .side {
+  display: flex;
+  flex: 0 0 auto;
+}
+.actions .side.right {
+  margin-left: auto;
+}
+.act {
+  border: 0;
+  font-size: var(--text-2);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--color-white);
+  flex: none;
+  width: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  padding: 0 var(--spacing-2);
+  text-align: center;
+}
+.act.resume {
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+.act svg {
+  width: 17px;
+  height: 17px;
+}
+.act.pause {
+  background: var(--color-muted);
+  color: var(--color-foreground);
+}
+.act.remove {
+  background: var(--color-danger-fill);
+  color: var(--color-white);
+}
+.card {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  width: 100%;
+  align-items: stretch;
+  border-radius: var(--radius-3);
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  overflow: hidden;
+  min-height: 126px;
+  transition: transform var(--duration-2) var(--ease-standard);
+}
+.ccol {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  padding: var(--spacing-4);
+}
+.card.dragging {
+  transition: none;
+}
+.ctop {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--spacing-5);
+}
+/* EXACT anatomy of the shipped MediaPoster: cover image when one exists,
+   otherwise TWO initials in mono over an accent/50 → card → muted
+   gradient, with an icon watermark at 5% bottom-right. A single initial
+   on a flat fill is an approximation, not a variant. */
+/* THE POSTER FILLS THE CARD THAT ASKS YOU TO RECOGNISE A MEDIUM.
+
+   Derived, and the derivation is the anatomy of the card rather than a
+   percentile. Grouping the 135 cards the interface draws by which blocks
+   they carry gives eight shapes, and each has a content height of its own:
+
+       title + sub                        35.7  →  24px
+       title + facts                      41.5  →  28px
+       title + sub + facts                60.7  →  40px
+       title + sub + SYNOPSIS             72.9  →  49px
+       title + sub + reason               87.0  →  58px
+       title + sub + reason + facts       95.1  →  63px
+
+   The poster is 2/3 of the usable height (the 2:3 ratio never moves), and
+   usable means the card minus 9px of padding and 1px of border a side.
+
+   It used to fill the MEDIAN card — 60.7, hence 42px — and that reference had
+   run out: the poster had become what set the median, so re-running the
+   computation returned its own answer.
+
+   Then it filled the card carrying a SYNOPSIS: 49px. That was still the wrong
+   question. The derivation was pinned to the TEXT beside the poster, so the
+   poster could never grow past it — while the constraint it was respecting,
+   card height, had been explicitly lifted. A card may be taller. 49px read as
+   unchanged on a phone, and it was: seven pixels.
+
+   The reference is the card that EXPLAINS — title, sub-line, reason — which is
+   58px. It is a shape the interface really draws, it is +38% over the original
+   42, and it stops short of the fullest card's 63px, which is the +50% already
+   judged too much. Where a card's own text is shorter than that, the CARD
+   grows: `.ctop` takes the poster as its floor. Nothing in between these
+   notches is derived from anything, and a number nobody derived is a number
+   nobody can defend. */
+
+.folder {
+  width: 58px;
+  align-self: start;
+  justify-self: start;
+  margin: var(--spacing-4) 0 var(--spacing-4) var(--spacing-4);
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-2);
+  flex: 0 0 auto;
+  aspect-ratio: 2 / 3;
+  display: grid;
+  place-content: center;
+  gap: var(--spacing-2);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-3);
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+  padding: 0;
+}
+.folder svg {
+  width: 22px;
+  height: 22px;
+  margin: 0 auto;
+}
+.dlabel {
+  font-size: var(--text-1);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.poster {
+  position: relative;
+  align-self: stretch;
+  width: 84px;
+  background: var(--color-muted);
+  overflow: hidden;
+  font-size: var(--text-5);
+  padding: 0;
+  border: 0;
+}
+.poster img,
+.tile .p img,
+.pfall {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  overflow: hidden;
+  background: linear-gradient(
+    to bottom right,
+    color-mix(in oklab, var(--color-primary) 50%, transparent),
+    var(--color-card),
+    var(--color-muted)
+  );
+}
+/* Out of flow, so the artwork contributes no width: the card's height decides
+   it through the poster's ratio. In flow, a 240px-wide picture made a 240px
+   column and the card followed it. */
+.poster > img,
+.poster > .pfall {
+  position: absolute;
+  inset: 0;
+}
+.pfall svg {
+  position: absolute;
+  bottom: -14%;
+  right: -11%;
+  width: 66%;
+  height: 66%;
+  color: var(--color-foreground);
+  opacity: 0.05;
+}
+.pfall b {
+  position: relative;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1em;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: color-mix(in oklab, var(--color-muted-foreground) 90%, transparent);
+}
+.cbody {
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  display: block;
+}
+.ctitle {
+  display: block;
+  font-size: var(--text-4);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.csub {
+  display: block;
+  margin-top: var(--spacing-1);
+  font-size: var(--text-2);
+  color: var(--color-muted-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The reason NEVER truncates (§12): it is what the operator decides on, and
+   half a sentence is not a reason. It wraps instead, and the card grows.
+   A two-line clamp lived here and cut « Aucune donnée d'épisode chez TVDB ni
+   chez TMDB pour… » exactly where the useful half began. */
+.creason {
+  display: block;
+  margin-top: var(--spacing-1);
+  font-size: var(--text-2);
+  line-height: 1.4;
+  color: var(--color-muted-foreground);
+}
+/* A synopsis is not a reason: a reason must never truncate, because the card
+   is justifying itself and half a justification is worse than none (R48). A
+   synopsis is background, and clamping it keeps the list scannable — which is
+   why the two are separate facts rather than one field used both ways. */
+.cov {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: var(--spacing-2);
+  font-size: var(--text-2);
+  line-height: 1.4;
+  color: var(--color-muted-foreground);
+}
+.cmeta {
+  margin-top: var(--spacing-3);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+/* The annotations sit under the state, not beside it. */
+.cannotations {
+  margin-top: var(--spacing-2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+.frac {
+  font-size: var(--text-2);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+/* EXACT anatomy of the shipped Chip component: 11px semibold, pill
+   radius, a 6px dot in the tone colour, background tinted at 20%. A chip
+   without its dot, or at another size, is drift — not a variant. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  white-space: nowrap;
+  border-radius: var(--radius-full);
+  padding: var(--spacing-1) var(--spacing-3);
+  font-size: var(--text-2);
+  font-weight: 600;
+  line-height: 15px;
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+}
+.chip::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+}
+.chip.warning {
+  background: color-mix(in oklab, var(--color-warning) 20%, transparent);
+  color: var(--color-warning-text);
+}
+.chip.success {
+  background: color-mix(in oklab, var(--color-success) 20%, transparent);
+  color: var(--color-success-text);
+}
+.chip.danger {
+  background: color-mix(in oklab, var(--color-danger) 20%, transparent);
+  color: var(--color-danger-text);
+}
+.chip.info {
+  background: color-mix(in oklab, var(--color-info) 20%, transparent);
+  color: var(--color-info-text);
+}
+.chip.waiting {
+  background: color-mix(in oklab, var(--color-waiting) 20%, transparent);
+  color: var(--color-waiting);
+}
+.caption {
+  font-size: var(--text-2);
+  color: var(--color-muted-foreground);
+}
+.freshtag {
+  flex: 0 0 auto;
+  font-size: var(--text-1);
+  font-weight: 700;
+  padding: var(--spacing-1) var(--spacing-4);
+  border-radius: var(--radius-full);
+  color: var(--color-primary-foreground);
+  background: var(--color-primary);
+  white-space: nowrap;
+}
+.cadence {
+  font-size: var(--text-2);
+  color: var(--color-muted-foreground);
+  padding: var(--spacing-4) var(--spacing-7) 0;
+}
+/* A rating reads over the picture without claiming a place in the status
+   palette, so it gets a neutral scrim rather than a semantic colour. */
+:root {
+  --tile-overlay: var(--color-tile-overlay);
+}
+
+.tilebadge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  height: 17px;
+  min-width: 17px;
+  padding: 0 var(--spacing-2);
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-background);
+  font-size: var(--text-1);
+  font-weight: 700;
+  color: var(--color-white);
+}
+
+/* journey strip — its own full-width line (R2) */
+.strip {
+  margin-top: var(--spacing-4);
+  padding-top: var(--spacing-4);
+  border-top: 1px solid var(--color-border);
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+}
+.st {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-2);
+  position: relative;
+  min-width: 0;
+}
+.st .d {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+  z-index: 1;
+}
+.st.done .d {
+  background: var(--color-success);
+}
+.st.now .d {
+  background: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 25%, transparent);
+}
+.st.blocked .d {
+  background: var(--color-danger);
+}
+.st .l {
+  font-size: var(--text-1);
+  color: var(--color-muted-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.st::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: -50%;
+  width: 100%;
+  height: 1px;
+  background: var(--color-border);
+}
+.st:first-child::before {
+  display: none;
+}
+.st.done::before,
+.st.now::before {
+  background: var(--color-success);
+}
+.cfoot {
+  margin-top: var(--spacing-4);
+  width: 100%;
+  border: 1px solid var(--color-primary);
+  background: transparent;
+  color: var(--color-primary);
+  font-size: var(--text-3);
+  font-weight: 600;
+  padding: var(--spacing-4);
+  border-radius: var(--radius-2);
+}
+.cfoot.solid {
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+/* An action already carried out stays readable, and stays in place: it is
+   the receipt for the tap, not a button that vanished. */
+.cfoot.done {
+  border-color: var(--color-border);
+  color: var(--color-muted-foreground);
+  opacity: 0.7;
+}
+/* The action is still offered, but it will REPLACE something already owned —
+   the tone says so before the dialog does. */
+.cfoot.owned {
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+}
+
+/* ── Gallery tiles ───────────────────────────────────────────────── */
+/* The tiles are written by the ENGINE (`tileHTML`), and their column
+   count follows the width available to the SCROLLPORT through three
+   `@container port` queries — never the window's. A media query reads the
+   viewport, so a 390px frame on a 1280px desktop would be told it has
+   room for six columns it does not have (invariant 12). */
+/* ONE gallery grid, and its column count follows the width available to it
+   — the scrollport — never the window's. A media query reads the viewport,
+   so a 390px frame sitting on a 1280px desktop would be told it has room for
+   six columns it does not have. A container query asks the right question,
+   and the app gets the same answer because there its scrollport IS the
+   window. */
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--spacing-5);
+}
+
+@container port (min-width: 460px) {
+  .gallery {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@container port (min-width: 620px) {
+  .gallery {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@container port (min-width: 820px) {
+  .gallery {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+.tile {
+  position: relative;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  display: block;
+  width: 100%;
+}
+.tile .p {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2/3;
+  border-radius: var(--radius-2);
+  font-size: var(--text-8);
+  line-height: 1;
+  overflow: hidden;
+  background: var(--color-muted);
+}
+.tile .nm {
+  display: block;
+  font-size: var(--text-2);
+  margin-top: var(--spacing-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tile .fr {
+  display: block;
+  font-size: var(--text-1);
+  color: var(--color-muted-foreground);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tile.off .p {
+  opacity: 0.42;
+}
+.tile.off .nm {
+  opacity: 0.55;
+}
+
+/* ── Grid selection, invisible at rest ───────────────────────────── */
+/* Nine of its eleven class names are the ENGINE's: the selection bar, the
+   rows it lists and the marks it draws are all written there. */
+/* Grid selection: invisible at rest */
+.tile .sel {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 21px;
+  height: 21px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-white);
+  background: var(--color-scrim-soft);
+  display: grid;
+  place-items: center;
+  color: transparent;
+}
+.tile .sel svg {
+  width: 13px;
+  height: 13px;
+}
+.tile[aria-pressed="true"] .sel {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+.tile[aria-pressed="true"] .p {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+/* During a selection this bar REPLACES the tab bar: stacking them covered
+   « Supprimer » (z-index 41 under 50) and cost 57px of height on a phone
+   screen. This is a mode; « Annuler » is its exit, and it is present. */
+/* Selection-mode row: same anatomy as the card, plus the checkbox. */
+.selrow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-5);
+  width: 100%;
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  border-radius: var(--radius-3);
+  padding: var(--spacing-4);
+  text-align: left;
+}
+.selrow[aria-pressed="true"] {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+.selrow .sel {
+  position: static;
+  flex: 0 0 auto;
+}
+.selrow .poster {
+  display: block;
+}
+.selrow .rowtxt {
+  min-width: 0;
+  flex: 1;
+}
+.selrow .ctitle,
+.selrow .csub {
+  display: block;
+}
+.selbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 51;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-5);
+  padding: var(--spacing-5) var(--spacing-7) calc(env(safe-area-inset-bottom) + var(--spacing-5));
+  background: var(--color-popover);
+  border-top: 1px solid var(--color-border);
+}
+.selbar .n {
+  font-size: var(--text-3);
+  font-weight: 600;
+}
+.selbar button {
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-foreground);
+  font-size: var(--text-3);
+  font-weight: 600;
+  padding: var(--spacing-4) var(--spacing-6);
+  border-radius: var(--radius-3);
+}
+.selbar button.danger {
+  background: var(--color-danger-fill);
+  border-color: var(--color-danger-fill);
+  color: var(--color-white);
+  margin-left: auto;
+}
+.selbar button.danger:disabled {
+  opacity: 0.45;
+}
+.linkbtn {
+  border: 0;
+  background: transparent;
+  color: var(--color-primary-text);
+  font-size: var(--text-2);
+  font-weight: 600;
+  padding: 0;
+}
+
+/* Harness panel — enumerates the measurable states. HARNESS, never
+   exported. */
+.hpanel {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  background: var(--color-background);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: var(--spacing-7);
+  gap: var(--spacing-6);
+}
+.hpanel h4 {
+  margin: 0;
+  font-size: var(--text-2);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-muted-foreground);
+}
+.hpanel .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+}
+.hpanel .row button {
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-foreground);
+  font-size: var(--text-3);
+  padding: var(--spacing-3) var(--spacing-5);
+  border-radius: var(--radius-2);
+  text-align: left;
+}
+.hpanel .row button[aria-pressed="true"] {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+  font-weight: 600;
+}
+.hpanel .states button {
+  width: 100%;
+  display: flex;
+  gap: var(--spacing-5);
+  align-items: baseline;
+}
+.hpanel .states code {
+  font-size: var(--text-1);
+  color: var(--color-muted-foreground);
+  margin-left: auto;
+}
+.hpanel p {
+  margin: 0;
+  font-size: var(--text-2);
+  line-height: 1.5;
+  color: var(--color-muted-foreground);
+}
+
+/* ── Découvrir: the suggestion deck ──────────────────────────────── */
+/* THIRTEEN OF ITS EIGHTEEN CLASS NAMES ARE THE ENGINE'S. The deck is
+   written by `fillSug`, card by card, and driven by a pointer stream the
+   engine owns.
+
+   What must survive into whatever replaces it: the deck's height is
+   MEASURED from the scrollport rather than derived from its content; the
+   cards behind say « there is more » without being read; and the swipe
+   verb appears under the thumb, on the side the card is going. A swipe
+   either way means « not interested » — the direction is the reason, not
+   the verdict. */
+/* Suggestion card (Découvrir) */
+/* R5 — a class placed on a <span> DECLARES its display. Without it the
+   title shared its line with the year, the type and the rating: a literal
+   breach of the rule that line 1 is the title, alone. */
+.creason b,
+.dcard .why b {
+  color: var(--color-foreground);
+  font-weight: 600;
+}
+
+/* Découvrir card: a swipe either way means not interested */
+.sugwrap {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-3);
+  touch-action: pan-y;
+}
+.sugwrap.gone {
+  transition:
+    height var(--duration-3) var(--ease-standard),
+    opacity var(--duration-2) var(--ease-standard),
+    margin var(--duration-3) var(--ease-standard);
+  height: 0 !important;
+  opacity: 0;
+  margin-bottom: calc(var(--spacing-7) * -1);
+}
+/* Poster format: the poster carries the identity, the two lines under it
+   carry just enough to tell two homonyms apart. Same two tap targets as the
+   list — poster to the sheet, body to the bottom panel. */
+/* The id rule on the container beats a bare class, so the grid declares
+   itself on both — the same specificity family as R8: an author rule wins
+   over what you meant to say. */
+
+/* Deck format: one card at a time, the next ones stacked behind it. The card
+   fills the surface, so the body must take the scrollport's height rather
+   than its own content's. The scrollport becomes a column only when it holds
+   a deck — every other surface keeps its ordinary block flow. */
+
+/* The deck's height is MEASURED from the scrollport rather than derived from
+   a chain of ancestors: the scrollport holds siblings the deck knows nothing
+   about, and a universal child selector reached them. Nothing here positions
+   itself by a distance to an edge — the height comes from what was measured,
+   which is the same rule the bars follow. */
+.body.deckbody {
+  padding-bottom: var(--spacing-5);
+}
+
+.deck {
+  position: relative;
+  /* No `flex: 1` here: in a column flex container that sets a 0 basis on the
+     vertical axis, which silently overrides the measured height. */
+  flex: 0 0 auto;
+  min-height: 340px;
+  touch-action: pan-y;
+}
+
+.dcard {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-4);
+  background: var(--color-card);
+  overflow: hidden;
+  box-shadow: var(--mq-shadow-pop);
+  transform-origin: 50% 100%;
+  /* Slightly different curves on the two properties: the card settles into
+     place a touch after it has finished fading, which is what reads as
+     « natural » rather than mechanical. The tiny overshoot on transform is
+     what makes a card look picked up rather than snapped. */
+  transition:
+    transform var(--duration-4) var(--ease-emphasized),
+    opacity var(--duration-3) var(--ease-standard);
+  will-change: transform;
+}
+
+/* The cards behind are the deck: they say « there is more » without
+   costing a pixel of the card being read. */
+.dcard[data-depth="1"] {
+  transform: translateY(9px) scale(0.955);
+  opacity: 0.75;
+}
+
+.dcard[data-depth="2"] {
+  transform: translateY(18px) scale(0.91);
+  opacity: 0.45;
+}
+
+/* Entry position of a card joining the back of the pile: it rises from
+   under the deck instead of appearing. */
+.dcard[data-depth="3"] {
+  transform: translateY(30px) scale(0.86);
+  opacity: 0;
+}
+
+.dcard.dragging {
+  transition: none;
+}
+
+.dcard.out {
+  opacity: 0;
+}
+
+.dcard .p {
+  flex: 1;
+  min-height: 0;
+  display: block;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: var(--color-muted);
+  position: relative;
+  font-size: var(--text-display);
+  line-height: 1;
+}
+
+.dcard .p img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* The title sits on the poster's foot, on a gradient that closes on a
+   solid colour — same precaution as the media sheet's header. */
+.dcard .cap {
+  position: absolute;
+  inset: auto 0 0;
+  /* The floating « + » lives at the bottom-right of the surface: the caption
+     reserves its footprint rather than running underneath it. */
+  padding: 40px 76px 12px 14px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in oklab, var(--color-card) 72%, transparent) 46%,
+    var(--color-card)
+  );
+  text-align: left;
+}
+
+.dcard .t {
+  display: block;
+  font-size: var(--text-7);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+}
+
+.dcard .m {
+  display: block;
+  margin-top: var(--spacing-1);
+  font-size: var(--text-3);
+  color: var(--color-muted-foreground);
+}
+
+.dcard .why {
+  display: block;
+  margin-top: var(--spacing-3);
+  font-size: var(--text-2);
+  color: var(--color-muted-foreground);
+  border-left: 2px solid var(--color-border);
+  padding-left: var(--spacing-4);
+  line-height: 1.4;
+}
+
+/* Swipe feedback: the verb appears under the thumb, on the side the card is
+   going. The two directions do NOT mean the same thing — left « Passer »
+   decides nothing and the card comes round again, right « Pas intéressé »
+   removes it with an undo. The verbs are the ones the other formats use. */
+.dhint {
+  position: absolute;
+  top: 14px;
+  padding: var(--spacing-2) var(--spacing-5);
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-danger);
+  color: var(--color-danger);
+  background: color-mix(in oklab, var(--color-danger) 14%, var(--color-card));
+  font-size: var(--text-3);
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  opacity: 0;
+  transition: opacity var(--duration-1) var(--ease-standard);
+  pointer-events: none;
+}
+
+/* « Passer » decides nothing, so it does not wear the colour of a refusal. */
+.dhint.l {
+  left: 14px;
+  transform: rotate(-9deg);
+  border-color: var(--color-muted-foreground);
+  color: var(--color-muted-foreground);
+  background: color-mix(in oklab, var(--color-muted-foreground) 12%, var(--color-card));
+}
+
+.dhint.r {
+  right: 14px;
+  transform: rotate(9deg);
+}
+
+.sugback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--spacing-8);
+  border-radius: var(--radius-3);
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+  font-size: var(--text-3);
+  font-weight: 700;
+}
+.sugback span {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+.sugback svg {
+  width: 16px;
+  height: 16px;
+}
+.crating {
+  font-size: var(--text-1);
+  font-weight: 700;
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-full);
+  border: 1px solid color-mix(in oklab, var(--color-success) 40%, transparent);
+  color: var(--color-success);
+  margin-left: var(--spacing-3);
+}
+
+/* ── Add screen, the two the engine also emits ───────────────────── */
+.btnprimary {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: var(--radius-3);
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  font-size: var(--text-4);
+  font-weight: 600;
+  padding: 0 var(--spacing-7);
+}
+
+.btnprimary:disabled {
+  opacity: 0.5;
+}
+
+.segmini {
+  display: flex;
+  gap: var(--spacing-1);
+  padding: var(--spacing-1);
+  background: var(--color-muted);
+  border-radius: var(--radius-3);
+}
+
+.segmini button {
+  border: 0;
+  border-radius: var(--radius-2);
+  background: transparent;
+  color: var(--color-muted-foreground);
+  font-size: var(--text-3);
+  font-weight: 600;
+  padding: var(--spacing-3) var(--spacing-6);
+}
+
+.segmini button[aria-pressed="true"] {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  box-shadow: var(--mq-shadow-vsw);
+}
+
+/* ── The media sheet, what the ENGINE still draws ────────────────── */
+/* ONE TEMPLATE FOR EVERY MEDIUM, and the half of it the engine writes:
+   the episode rows and the state that colours them. `eprow`, `en`, `et`,
+   `ed` and `epdot` are emitted from `legacy.js`, and the six states
+   (`in_library`, `to_grab`, `acquiring`, `pending`, `announced`,
+   `unverified`) are toggled there too — a `data-*` contract with three
+   ends that move together at L13, not a styling change. */
+/* Media sheet — ONE template for every medium
+   The differences between a film and a series are the ones their nature
+   imposes, and nothing else: a film has a director and a runtime, a
+   series has a creator, a status and an episode catalogue. Everything
+   else — hero, synopsis, cast, trailer, identifiers, library state — is
+   identical and in the same order. Missing data is written « inconnu »,
+   never a mute dash. */
+/* Media-sheet hero — the visual as a melting header
+   The wide visual occupies the top of the sheet at full width and dissolves
+   into the body colour. It is the only image treatment of this kind in the
+   interface; the top bar deliberately refuses blur so that nothing has to be
+   re-sampled while content moves.
+
+   Three precautions, because a decorative header must never cost legibility:
+   · an opaque gradient closes on the body colour before the text, so type is
+     always read on a solid colour and never on an image;
+   · opacity and saturation are capped, so a very colourful visual does not
+     make the title vibrate;
+   · no information lives in the image — removing it loses nothing. */
+/* The visual IS the top of the sheet: full width, sharp, melting into the
+   body. This is not an ambient tint behind a title — it is the visual
+   anchor, and the title sits under it. */
+
+/* Medium without a visual: the template does not change, only the content
+   is missing. A muted field holds the place. */
+
+
+@media (prefers-reduced-motion: no-preference) {
+  .herobg {
+    animation: heroin var(--duration-4) var(--ease-standard) both;
+  }
+}
+@keyframes heroin {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0);
+  }
+}
+/* Media-sheet add button: solid while the action is offered, then OUTLINE
+   + « Ajouté » once done — the same toggle as a search result's button,
+   so one gesture always gets the same answer. Content centred: left-
+   aligned like an action row, it read as a list item rather than the
+   primary button. */
+.mediaadd {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-4);
+  width: 100%;
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  font-size: var(--text-5);
+  font-weight: 600;
+  padding: var(--spacing-6);
+  border-radius: var(--radius-3);
+}
+.mediaadd svg {
+  width: 16px;
+  height: 16px;
+}
+.mediaadd.done {
+  background: transparent;
+  color: var(--color-muted-foreground);
+  border-color: var(--color-border);
+}
+/* The destination is information: this control LEAVES the application. */
+
+
+.eprow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-4);
+  padding: var(--spacing-4) 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--text-3);
+}
+.eprow:last-child {
+  border-bottom: 0;
+}
+.eprow .en {
+  flex: 0 0 auto;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: var(--text-2);
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+  min-width: 34px;
+}
+.eprow .et {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.eprow .ed {
+  flex: 0 0 auto;
+  font-size: var(--text-2);
+  color: var(--color-muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+.epdot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-neutral-signal);
+  align-self: center;
+}
+.eprow.in_library .epdot {
+  background: var(--color-success);
+}
+.eprow.in_library .en {
+  color: var(--color-success);
+}
+.eprow.to_grab .epdot {
+  background: var(--color-warning);
+}
+.eprow.to_grab .en {
+  color: var(--color-warning);
+}
+.eprow.acquiring .epdot {
+  background: var(--color-info);
+}
+.eprow.acquiring .en {
+  color: var(--color-info);
+}
+.eprow.pending .epdot {
+  background: var(--color-waiting);
+}
+.eprow.pending .en {
+  color: var(--color-waiting);
+}
+.eprow.announced .epdot {
+  background: var(--color-upcoming);
+}
+.eprow.announced .en {
+  color: var(--color-upcoming);
+}
+.eprow.unverified .epdot {
+  background: transparent;
+  border: 1px dashed var(--color-border);
+}
+
+/* ── Season matrix and the air-date popover ─────────────────────── */
+/* THE ENGINE DRAWS THE CELLS. `season`, `sfr`, `miss`, `eps` and `ep` are
+   emitted from `legacy.js` as well as from the components, and the popover
+   is entirely its own — so the whole block stays hand-written until L13.
+
+   Two decisions must survive it. The expand affordance is VISIBLE: a 9px
+   chevron went unnoticed and was made bigger on purpose. And the question
+   an incomplete sheet answers is « WHICH ONES are missing » — the matrix
+   exists to answer it at a glance, not to count. */
+/* Season matrix (follow detail sheet)
+   Geometry taken from the shipped component: 31 × 27 cell, radius 5, mono
+   11 semibold, tone background at 20%. « Not verified » is a dashed
+   ghost, not a colour: the absence of a verdict is not a state. */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2) var(--spacing-6);
+  margin-bottom: var(--spacing-6);
+  font-size: var(--text-2);
+  color: var(--color-muted-foreground);
+}
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  white-space: nowrap;
+}
+.legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-1);
+  display: block;
+}
+.sw-success {
+  background: color-mix(in oklab, var(--color-success) 60%, transparent);
+}
+.sw-warning {
+  background: color-mix(in oklab, var(--color-warning) 60%, transparent);
+}
+.sw-info {
+  background: color-mix(in oklab, var(--color-info) 60%, transparent);
+}
+.sw-waiting {
+  background: color-mix(in oklab, var(--color-waiting) 60%, transparent);
+}
+.sw-upcoming {
+  background: color-mix(in oklab, var(--color-upcoming) 60%, transparent);
+}
+.sw-muted {
+  border: 1px dashed var(--color-border);
+  background: transparent;
+}
+.season {
+  border-top: 1px solid var(--color-border);
+  padding: var(--spacing-4) 0;
+}
+.season:first-of-type {
+  border-top: 0;
+}
+.season > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: var(--spacing-2) 0;
+  cursor: pointer;
+  font-size: var(--text-2);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-muted-foreground);
+  list-style: none;
+}
+.season > summary::-webkit-details-marker {
+  display: none;
+}
+/* The expand affordance must be VISIBLE: a 9px chevron went unnoticed,
+   and nothing said the row opens. */
+.season > summary::before {
+  content: "›";
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-2);
+  background: var(--color-muted);
+  color: var(--color-foreground);
+  font-size: var(--text-5);
+  font-weight: 700;
+  line-height: 1;
+  transition: transform var(--duration-2) var(--ease-standard);
+}
+.season[open] > summary::before {
+  transform: rotate(90deg);
+}
+.season .sfr {
+  margin-left: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-3);
+  font-weight: 600;
+  color: var(--color-foreground);
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.season .miss {
+  font-size: var(--text-1);
+  font-weight: 600;
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-full);
+  text-transform: none;
+  letter-spacing: normal;
+  background: color-mix(in oklab, var(--color-warning) 20%, transparent);
+  color: var(--color-warning);
+}
+/* The question an incomplete sheet answers is « which ones are missing »,
+   not « how many ». Answer it in words, before the list. */
+.missing {
+  margin: var(--spacing-4) 0 0;
+  font-size: var(--text-3);
+  font-weight: 600;
+  color: var(--color-warning);
+  font-variant-numeric: tabular-nums;
+}
+
+.eps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-4);
+}
+.ep {
+  display: grid;
+  place-items: center;
+  width: 31px;
+  height: 27px;
+  border-radius: var(--radius-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-2);
+  font-weight: 600;
+  border: 0;
+}
+.ep.in_library {
+  background: color-mix(in oklab, var(--color-success) 20%, transparent);
+  color: var(--color-success);
+}
+.ep.to_grab {
+  background: color-mix(in oklab, var(--color-warning) 20%, transparent);
+  color: var(--color-warning);
+}
+.ep.acquiring {
+  background: color-mix(in oklab, var(--color-info) 20%, transparent);
+  color: var(--color-info);
+}
+.ep.pending {
+  background: color-mix(in oklab, var(--color-waiting) 20%, transparent);
+  color: var(--color-waiting);
+}
+.ep.announced {
+  background: color-mix(in oklab, var(--color-upcoming) 20%, transparent);
+  color: var(--color-upcoming);
+}
+.ep.unverified {
+  border: 1px dashed var(--color-border);
+  background: transparent;
+  color: var(--color-muted-foreground);
+}
+/* Air-date popover on an episode cell — mirrors the shipped
+   EpisodeDatePopover: « Diffusé le … » or « Sortie prévue le … », never a
+   bare ISO date. Portalled to the body so sheet scrolling cannot clip it. */
+/* The episode popover, and why its outline is the BRAND colour rather than
+   the border one. It floats over a matrix of dark cells on a dark surface,
+   and a border in `--border` put a near-black line on a near-black
+   background: its edges could not be found, so it read as text hovering in
+   mid-air rather than as a thing with limits. The accent is the only colour
+   in the palette that separates from everything the app draws behind it. */
+.eppop {
+  position: fixed;
+  z-index: 60;
+  width: 220px;
+  border-radius: var(--radius-2);
+  border: 1px solid var(--color-primary);
+  background: var(--color-popover);
+  padding: var(--spacing-4) var(--spacing-6);
+  font-size: var(--text-3);
+  line-height: 1.45;
+  color: var(--color-foreground);
+  box-shadow: var(--mq-shadow-toast);
+}
+.eppop b {
+  display: block;
+  font-size: var(--text-2);
+  color: var(--color-muted-foreground);
+  font-weight: 600;
+  margin-bottom: var(--spacing-1);
+}
+.ep {
+  cursor: pointer;
+}
+
+.sheetposter {
+  flex: 0 0 auto;
+  width: 84px;
+  aspect-ratio: 2/3;
+  border-radius: var(--radius-2);
+  overflow: hidden;
+  font-size: var(--text-8);
+  background: var(--color-muted);
+}
+.sheetposter img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+
+
+/* ── Panel of facts ──────────────────────────────────────────────── */
+/* The ENGINE emits `.panel` too. The key/value ROWS inside it are the
+   components' and are typed variants; this is the frame alone. */
+.panel {
+border: 1px solid var(--color-border);
+background: var(--color-card);
+border-radius: var(--radius-3);
+padding: var(--spacing-1) var(--spacing-5);
+}
+
+/* ── Configuration, what a utility cannot say ────────────────────── */
+/* `[hidden]` again: an author `display` beats the attribute, so the save
+   bar has to declare its own hidden case (R8). And a read-only field
+   flattens the note inside it — a CONTEXTUAL override the note cannot
+   know about. */
+.savebar[hidden] {
+display: none;
+}
+.field.readonly .rulenote {
+margin: 0;
+}
+
+/* ── The bottom sheet, what stays hand-written ───────────────────── */
+/* `.sheet.dragging` cancels the transition, and the drag handler writes
+   that class STRAIGHT TO THE DOM through a ref — exactly as the legacy
+   one did — so no variant would ever be told. `.sact` and `.noinfo` are
+   the engine's: the sheet's own actions are written from a template
+   there, which is how `sact` escaped a scan for literal class strings. */
+/* The tab bar sits ABOVE the layers (z-50), so a sheet must reserve its
+   height, otherwise its last actions are unreachable — internal scrolling
+   stops before them. Same rule as for screens, extended to sheets and
+   dialogs: one defect family deserves one rule, not three. */
+.sheet.dragging {
+  transition: none;
+}
+
+/* A head carrying a POSTER aligns to the top: an 84px picture next to two
+   short lines centred against it leaves the title floating in the middle of
+   nothing. It also breathes below rather than inside: an 84px picture makes
+   the same 4px read as nothing at all. */
+
+
+
+
+
+/* An entry that is coming says so instead of being absent: a menu that grows
+   an item later teaches its shape twice. */
+
+.sact {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-5);
+  width: 100%;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-foreground);
+  font-size: var(--text-4);
+  font-weight: 500;
+  padding: var(--spacing-5) var(--spacing-6);
+  border-radius: var(--radius-3);
+  text-align: left;
+}
+.sact.primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+  font-weight: 600;
+}
+.sact.danger {
+  color: var(--color-danger);
+}
+.sact svg {
+  width: 16px;
+  height: 16px;
+  color: var(--color-muted-foreground);
+  flex: 0 0 auto;
+}
+.sact.primary svg {
+  color: var(--color-primary-foreground);
+}
+
+/* Transplanted from maquette-acquisition.css — used in markup without
+   having been ported, therefore inert: the « no trailer » message
+   rendered at 14px without its dashed frame. */
+.noinfo {
+  margin: 0 0 var(--spacing-2);
+  font-size: var(--text-3);
+  color: var(--color-muted-foreground);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-3);
+  padding: var(--spacing-5) var(--spacing-5);
+}
+
+
+
+/* ── The layers the ENGINE opens ─────────────────────────────────────
+   `open` on the scrim and on the sheet is a React prop AND an imperative
+   toggle: the engine opens both for its own dialogs and for selection mode,
+   through `classList`. The variants serve the component; these two rules serve
+   the engine, and they say the same thing so the two cannot disagree. They go
+   when the engine does. */
+.scrim.open {
+  opacity: 1;
+  visibility: visible;
+}
+.sheet.open {
+  transform: none;
+  visibility: visible;
+}
+
+/* ── Skeletons, and the quota line ───────────────────────────────── */
+/* `.sk` is written by the ENGINE — a loading surface SAYS SO, with
+   skeletons of the right shape rather than a bare « Chargement… ». Its
+   shimmer is under a reduced-motion guard: motion is a designed state,
+   not a fallback (invariant 14). */
+.sk {
+  border-radius: var(--radius-2);
+  background: linear-gradient(
+    90deg,
+    var(--color-card) 25%,
+    var(--color-muted) 50%,
+    var(--color-card) 75%
+  );
+  background-size: 400% 100%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sk {
+    animation: sh var(--duration-loop-2) linear infinite;
+  }
+}
+@keyframes sh {
+  to {
+    background-position: -400% 0;
+  }
+}
+.sk.tile {
+  aspect-ratio: 2/3;
+}
+.sk.row {
+  height: 62px;
+  border-radius: var(--radius-3);
+}
+/* R8 again: `#sugitems` carried its `display` as an INLINE style, which
+   beats the `[hidden]` attribute — the list stayed visible under the
+   loading skeletons. Display lives here, with its hidden case. */
+/* The list format stacks; the poster format takes the shared gallery grid,
+   which is a CLASS. An id rule would win over it by specificity alone — one
+   of the two would then have to be written twice, and the one written twice
+   is the one that drifts. */
+.quota {
+  text-align: center;
+  font-size: var(--text-2);
+  color: var(--color-muted-foreground);
+  margin-top: var(--spacing-3);
+}
+
+
+
+/* ── The pressable surfaces ─────────────────────────────────────── */
+/* THE BROWSER'S OWN LONG PRESS, refused where ours lives. Held on a
+   picture or a run of text, a phone offers to select, copy or save it —
+   and that menu REPLACES ours, because it is the platform's and no
+   listener outruns it. What the operator got instead of the panel was
+   « Copier l'image ».
+
+   Declared on the pressable surfaces ONLY, never on the scrollport: it
+   must stay possible to select the text of a synopsis or a release name.
+   `-webkit-user-drag` is separate — a picture inside a draggable surface
+   starts a native drag that swallows the pointer stream outright.
+
+   Here rather than converted: `.poster`, `.tile` and `.dcard` are all
+   drawn by the engine, and `check-compositor-css.py` holds every one of
+   these declarations wherever it lives. */
+/* THE BROWSER'S OWN LONG PRESS, refused where ours lives.
+
+   Held on a picture or on a run of text, a phone offers to select, copy or
+   save it. That menu is not a competitor to the long press — it REPLACES it,
+   because it is the platform's and no listener outruns it. What the operator
+   got instead of the panel was « Copier l'image ».
+
+   Declared on the pressable surfaces only, never on the scrollport: it must
+   stay possible to select the text of a synopsis or a release name. And
+   `-webkit-user-drag` is separate — a picture inside a draggable surface
+   starts a native drag that swallows the pointer stream outright. */
+.poster,
+.tile,
+.dcard,
+.sheetposter {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.poster img,
+.tile img,
+.dcard img,
+.sheetposter img {
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+}
+
+/* Réglages — CONVERTED (L07 phase 14) into typed variants in
+   `src/features/settings/variants.ts`. A setting row is a LIST ROW, not a
+   form field: the control lives in the panel that opens over it (R56),
+   deliberately, because a screen of live inputs on a phone is a screen where
+   every scroll risks changing something. `modified` marks a setting the
+   operator has touched but not yet written, on the ROW where it is read and
+   not only in a counter at the bottom.
+
+   Two rules stayed hand-written and are in `src/styles/legacy.css`: the save
+   bar's `[hidden]` case, and the note a read-only field flattens. */
+
+/* Pull to refresh — CONVERTED (L07 phase 5). `.ptr` and its spinner are
+   utilities in `index.html`; the two ENGINE-TOGGLED states (`armed`,
+   `loading`) are in `src/styles/legacy.css`, and `@keyframes spin` is in the
+   base layer, where a name the document defines once belongs. */
+
+/* FAB — CONVERTED (L07 phase 5), utilities in `index.html`. The R8 group it
+   used to carry — an author `display` rule BEATS the `[hidden]` attribute —
+   is in `base.css` and deliberately UNLAYERED: inside `@layer base` it lost
+   to Tailwind's `grid` utility and the button reappeared on every page that
+   hides it. An override that must win against a utility cannot live below
+   one. */
+
+/* Bottom bar — CONVERTED (L07 phase 5). The `<nav>`'s own rule is utilities
+   in `index.html`, including the desktop `md:hidden`; its tabs are written by
+   the ENGINE, so those rules are in `src/styles/legacy.css`. */
+
+/* Screens — CONVERTED (L07 phase 6), `screen()`, `screenBar()` and
+   `backControl()` in `src/ui/variants.ts`. `.screen.open` is engine-toggled
+   and lives in the residue; `.screen .port` is a CONTEXTUAL override — the
+   scrollport cannot know it is inside a screen — and is in the base layer. */
+
+/* Bottom sheet — CONVERTED (L07 phase 6, finished in 16) into typed variants
+   in `src/ui/variants.ts`. The tab bar sits ABOVE the layers (z-50), so a
+   sheet reserves its height or its last actions are unreachable — one defect
+   family, one rule, extended to screens and dialogs alike. A head carrying a
+   POSTER aligns to the top, because an 84px picture beside two short lines
+   centred against it leaves the title floating in the middle of nothing.
+
+   What stays hand-written is in `src/styles/legacy.css`: the drag's
+   transition cancel, which is written to the DOM rather than passed as a
+   prop, and the engine's own `.sact` and `.noinfo`. */
+
+/* Media sheet — CONVERTED IN HALF (L07 phase 12). The hero, the cast and the
+   trailer are typed variants in `src/features/media/variants.ts`, where ONE
+   TEMPLATE FOR EVERY MEDIUM is kept as the decision it is — a variant per
+   medium would be a redesign. The EPISODE machinery and its six states are
+   written and toggled by the engine, so they are in `src/styles/legacy.css`.
+   The hero's entrance is `--animate-hero-in` and its keyframe is in the base
+   layer: `animation` is one of the nineteen properties the oracle reads, so
+   a name is easier to keep identical than a four-part shorthand. */
+
+/* Season matrix and the air-date popover — NOT CONVERTED (L07 phase 12):
+   the engine emits their cells and owns the popover outright. In
+   `src/styles/legacy.css`, with the two decisions that must survive them. */
+
+/* Add screen — CONVERTED (L07 phase 11) into typed variants in
+   `src/features/acquisition/variants.ts`. `.btnprimary` and `.segmini` are
+   also written by the ENGINE, so their rules are in `src/styles/legacy.css`
+   — placed ABOVE the action-button group there, which is the order this
+   stylesheet had and the order that decides a card footer's radius. */
+
+/* THE ONE ACTION-BUTTON SYSTEM — CONVERTED (L07 phase 6), `actionButton()`
+   in `src/ui/variants.ts`, where its reasoning is kept in full. Its `:has()`
+   rule stays in the base layer: it follows STRUCTURE rather than a modifier
+   someone must remember, which is exactly what a variant cannot do. */
+
+/* The two release screens — CONVERTED (L07 phase 11),
+   `src/features/releases/variants.ts`, where the reason each row states its
+   resolution, source, language, seeders and size is kept: without what
+   drives the ranking visible, « take this one » is a bet. */
+
+/* Form controls — CONVERTED (L07, phase 6 finished) into typed variants in
+   `src/ui/variants.ts`. SHAPE STATES THE RULE: a circle means one choice, a
+   square means several. Identical pills for both said nothing, and their
+   width followed the word length, so two options of the same group had
+   different sizes — the row is full width now, every option identical in
+   every group. A checked radio is a solid dot and a checked box a tick: two
+   distinct shapes, including once checked.
+
+   The mark reads its row's `aria-checked` through a `group` variant rather
+   than carrying a second name for the same fact. */
+
+/* Dialog — NOT CONVERTED (L07 phase 6), and named rather than skipped. The
+   confirmation dialog is written by the ENGINE: six of its eight classes
+   appear in no component at all. Its rules are in `src/styles/legacy.css`
+   with their date of death (D-L07-5). */
+
+/* Toast — CONVERTED (L07 phase 5), utilities in `index.html`. `.toast.show`
+   is engine-toggled and is in `src/styles/legacy.css`. */
+
+/* Empty note — CONVERTED (L07 phase 6), `emptyNote()`. */
+
+/* Surface states — CONVERTED (L07 phase 6), `surfaceError()`. A loading
+   surface SAYS SO with skeletons of the right shape, an empty one says why,
+   one in error names the cause and offers a retry. `skcard` is drawn by the
+   engine and is in the residue. */
+
+/* Loading — CONVERTED IN PART (L07, phase 6 finished). The list's foot, its
+   end mark and its error surface are typed variants; the SKELETONS are the
+   engine's and are in `src/styles/legacy.css`; and the two id rules — R8's
+   `[hidden]` cases and the suggestion list's own display — are in the base
+   layer, because an id beats a class and the alternative was writing the
+   gallery grid twice. */
+
+/* Grid selection — NOT CONVERTED (L07 phase 9): nine of its eleven class
+   names are the ENGINE's. In `src/styles/legacy.css`. */
+
+/* Navigation drawer — CONVERTED (L07 phase 5). The `<aside>`'s own rule is
+   utilities in `index.html`; everything it contains is written by the ENGINE,
+   so those rules are in `src/styles/legacy.css` with their date of death. */
+
+/* Install proposal — CONVERTED (L07 phase 15), utilities in `index.html`
+   like the rest of the shell. ABOVE the tab bar, never against the bottom
+   edge: anchored there the close button lands UNDER the fixed bar and cannot
+   be reached — reported from a real phone, on both platforms. iOS fires no
+   install event at all, so the banner IS the guide: it walks the steps
+   rather than offering a button that cannot exist.
+
+   Its three `[hidden]` cases and its icon sizes are in the base layer. */
+
+/* ── The sign-in screen and the splash ──────────────────────────── */
+/* D5 GIVES BOTH TO L13, with the document-level delegation and the boot
+   handshake, so neither is converted here — and that is also what keeps
+   the gate composable: `serve.py` builds `/login` by extracting these
+   `login:*` regions as RAW TEXT into a page Tailwind never processes.
+   Utilities would arrive as class names with no stylesheet behind them.
+
+   B-056 lives in here — the `splashremplit` keyframe is French. It is
+   NOT renamed by this lot: the fix needs both ends moved in one step and
+   a fifteenth arm of the no-French guard, and copying the name forward
+   into a new file would have made it permanent. It moves as it is. */
+/* login:style:start */
+/* Login — the unauthenticated entry screen.
+   It covers the shell rather than sitting inside it: the top bar shows a
+   session that does not exist yet, and the tab bar offers pages that would
+   only answer with a redirect. Centred, one column, and it stays reachable
+   with the on-screen keyboard open — which is why it scrolls rather than
+   centring by absolute offsets. */
+.loginscreen {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-8);
+  padding: var(--spacing-9) var(--spacing-8);
+  overflow-y: auto;
+  background: var(--color-background);
+}
+
+.loginscreen[hidden] {
+  display: none;
+}
+
+/* The tall brand block. `.brand` is the topbar's — small and horizontal —
+   and this one belongs to the full-screen surfaces that carry no interface
+   yet: the entry screen and the startup screen. They share it so that
+   signing in never changes identity halfway through. */
+.brandbig {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-5);
+  color: var(--color-foreground);
+}
+
+.brandbig .mk {
+  width: 40px;
+  height: 40px;
+  color: var(--color-primary);
+}
+
+.brandbig .wm {
+  font-size: var(--text-7);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.brandbig em {
+  font-style: normal;
+  color: var(--color-primary-text);
+}
+
+.logincard {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+  padding: var(--spacing-8) var(--spacing-8);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-4);
+  background: var(--color-card);
+}
+
+.logintitle {
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-6);
+  font-weight: 600;
+}
+
+.loginsub {
+  margin: calc(var(--spacing-3) * -1) 0 var(--spacing-2);
+  text-align: center;
+  font-size: var(--text-3);
+  color: var(--color-muted-foreground);
+}
+
+.loginfield {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  font-size: var(--text-3);
+  color: var(--color-muted-foreground);
+}
+
+.loginfield input {
+  /* --text-6 is 16px, and that is not a style choice: below it, iOS Safari
+     zooms the page on focus and the frame never comes back. */
+  font:
+    400 var(--text-6) "Geist",
+    system-ui,
+    sans-serif;
+  color: var(--color-foreground);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-3);
+  padding: var(--spacing-4) var(--spacing-5);
+}
+
+.loginfield input:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.loginerr {
+  margin: 0;
+  font-size: var(--text-3);
+  color: var(--color-danger);
+}
+
+.loginerr[hidden] {
+  display: none;
+}
+
+.loginsubmit {
+  margin-top: var(--spacing-2);
+  padding: var(--spacing-5) var(--spacing-7);
+  border: 0;
+  border-radius: var(--radius-3);
+  font:
+    600 var(--text-5) "Geist",
+    system-ui,
+    sans-serif;
+  color: var(--color-primary-foreground);
+  background: var(--color-primary);
+}
+
+/* login:style:end */
+
+/* login:splashstyle:start */
+/* Startup — the wait between signing in and an interface being there.
+
+   This document is large, and a phone spends seconds fetching and parsing it
+   before a single pixel of the interface exists. A wait shown blank is read
+   as a failure, so the screen holds the brand still and says what is
+   happening. It is the FIRST thing the document paints, which is why it sits
+   at the top of the frame in source order: an element declared after
+   megabytes of embedded artwork would appear only once the wait is over.
+
+   The bar is deliberately indeterminate. Nothing here knows how far along
+   the load is, and a bar that pretends to would be lying at every frame. */
+.splash {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-8);
+  padding: var(--spacing-9) var(--spacing-8);
+  background: var(--color-background);
+}
+
+/* An author `display` rule beats `[hidden]`: without this the attribute is
+   set and nothing happens. */
+.splash[hidden] {
+  display: none;
+}
+
+.splashbar {
+  width: 132px;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+/* The bar FILLS, from nothing to full, over the five seconds a cold load is
+   budgeted. It is not a measurement of the load — nothing here knows how far
+   along that is — it is a measurement of the WAIT, which is what the person
+   watching is actually living through. A bar that fills answers « how much
+   longer », where a shuttle that slides back and forth answers nothing and
+   reads the same at one second and at ten.
+
+   It never reaches the end on its own: the interface arrives first and takes
+   the screen away. Should the load outlast the budget, the bar stops full
+   and the message below is what keeps speaking. */
+.splashbar i {
+  display: block;
+  width: 0%;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  animation: splashremplit var(--duration-loop-3) linear forwards;
+}
+
+@keyframes splashremplit {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.splashmsg {
+  margin: 0;
+  font-size: var(--text-3);
+  color: var(--color-muted-foreground);
+}
+/* login:splashstyle:end */
+
+
+/* ── LAST, AND THE ORDER IS THE POINT ────────────────────────────────
+   THE ACTION-BUTTON SYSTEM COMES AFTER EVERYTHING IT OVERRIDES. In the
+   prototype's stylesheet it sat a thousand lines below the card, so the
+   card's own footer rules lost to it. This file is written in the order the
+   PHASES ran, which is not that order at all — the card arrived in phase 8,
+   the system in phase 6, and the card won: R12 read a card footer at 6px
+   radius and 12px text where the system says 8 and 13.
+
+   Appending to a residue is not the same as preserving a cascade. Anything
+   that must override a surface goes below every surface it overrides, and
+   this banner is where that rule is kept. */
+/* The action-button system, for the three the engine emits. Its reasoning is
+   kept in full at `actionButton()` in `src/ui/variants.ts`. */
+/* All five names, not the three a first pass thought the engine emitted: the
+   sheet's own actions are written by the engine through a template, so
+   `sact` never appeared in a scan for literal `class="…"` strings. The oracle
+   found it as 8.9px — exactly what a button loses when its `min-height: 44px`
+   goes. */
+.sact,
+.cfoot,
+.mediaadd,
+.btnprimary,
+.dlgbtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-4);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--spacing-5) var(--spacing-6);
+  border-radius: var(--radius-3);
+  font-size: var(--text-4);
+  font-weight: 600;
+  text-align: center;
+}

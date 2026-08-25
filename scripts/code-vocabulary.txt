@@ -125,6 +125,7 @@ child
 chip
 choice
 clean
+clear
 clearq
 clef
 click
@@ -136,6 +137,7 @@ code
 cold
 collapse
 color
+coming
 commit
 common
 complete
@@ -211,6 +213,7 @@ dx
 ease
 edited
 element
+emphasis
 emphasized
 empty
 end
@@ -237,6 +240,7 @@ fast
 fetching
 field
 fields
+figure
 file
 files
 fill
@@ -259,6 +263,7 @@ follows
 follq
 font
 foot
+footer
 for
 foreground
 form
@@ -274,8 +279,10 @@ full
 future
 gaps
 gauche
+gauge
 gesture
 go
+grab
 grid
 group
 groups
@@ -348,6 +355,7 @@ jsx
 kept
 key
 kind
+knob
 known
 lab
 label
@@ -500,10 +508,12 @@ pills
 pilot
 pipe
 pipeline
+play
 point
 pop
 popover
 port
+portrait
 pos
 positions
 poster
@@ -524,6 +534,7 @@ qaud
 qflag
 qres
 qsettings
+qualifier
 quality
 query
 queue
@@ -541,6 +552,7 @@ rect
 ref
 reference
 refresh
+refusal
 refuse
 refused
 region
@@ -563,12 +575,12 @@ reset
 resolution
 resolutions
 resolve
-resume
 rest
 restart
 restore
 result
 results
+resume
 rich
 right
 ring
@@ -578,6 +590,7 @@ route
 router
 row
 rows
+rule
 run
 safari
 same
@@ -586,11 +599,13 @@ savebar
 scale
 scen
 schedulers
+score
 screen
 screens
 screenshots
 scrim
 scroll
+scrollport
 seams
 search
 season
@@ -644,8 +659,10 @@ small
 snug
 soft
 solid
+soon
 sort
 sorted
+source
 space
 spacing
 splash
@@ -666,6 +683,7 @@ steps
 sticky
 store
 strip
+strong
 stuck
 subject
 subjects
@@ -700,6 +718,7 @@ tabpanel
 tabs
 tabular
 tag
+tags
 take
 takeable
 target
@@ -792,6 +811,7 @@ xs
 year
 yt
 z
+zone
 # ── THE ENGINE'S LAST FRENCH WORDS ─────────────────────────────────────
 #
 # Everything above is English. Everything below is NOT, and saying so is
