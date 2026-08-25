@@ -125,6 +125,7 @@ REPOSITORY_GUARDS=(
   "scripts/check-markup-contracts.py"
   "scripts/check-i18n-placeholders.py"
   "scripts/check-mock-seeds.py"
+  "scripts/compare-contracts.py --check"
 )
 REPOSITORY_ROOT="$(cd "$HERE/../../.." && pwd)"
 

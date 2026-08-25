@@ -388,6 +388,12 @@ def arm_handlers(module) -> int:
     # JSON response carries.
     allowed |= {"object", "string", "number", "boolean", "undefined",
                 "content-type", "application/json"}
+    # A handler naming a contract SCHEMA to borrow its type — `components
+    # ["schemas"]["DecisionState"]` — is quoting the contract exactly as it does
+    # when it writes an operationId. The section names come with them, because
+    # the index expression cannot be written without them.
+    allowed |= set(document["components"])
+    allowed |= set(document["components"]["schemas"])
 
     # Every property name, every parameter name and every ENUM VALUE the
     # contract declares. An enum token is the contract's own vocabulary — it is
