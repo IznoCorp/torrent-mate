@@ -12,7 +12,8 @@ import { useTranslation } from "react-i18next";
 import { Icon } from "../../ui/icon";
 import { useReleasesReference, type Release, type Resolution } from "../../features/releases/reference";
 import { useUiState, writeUiState } from "../../lib/store-access";
-import { actionButton, backAction, body, screen, screenBar } from "../../ui/variants";
+import { actionButton, backAction, body, screen, screenBar, settingRow, toggleSwitch } from "../../ui/variants";
+import { qualityGroup } from "../../features/releases/variants";
 
 // The field names are the legacy state's own — `state.profil` is written and
 // read by the engine under these exact keys.
@@ -123,7 +124,7 @@ export function QualityScreen() {
             {t("screens.profile.leadAfter")}
           </p>
 
-          <div className="qgroup">
+          <div className={qualityGroup()}>
             <h2 className="h2" data-part="heading">{t("screens.profile.minResolution")}</h2>
             <p className="qhint">{t("screens.profile.minResolutionHint")}</p>
             <p className="optkind">{t("screens.profile.singleChoice")}</p>
@@ -173,7 +174,7 @@ export function QualityScreen() {
             </div>
           </div>
 
-          <div className="qgroup">
+          <div className={qualityGroup()}>
             <h2 className="h2" data-part="heading">{t("screens.profile.audioTracks")}</h2>
             <p className="qhint">
               {t("screens.profile.audioHintBefore")}{" "}
@@ -207,10 +208,10 @@ export function QualityScreen() {
             </div>
           </div>
 
-          <div className="qgroup">
+          <div className={qualityGroup()}>
             <h2 className="h2" data-part="heading">{t("screens.profile.twoLocks")}</h2>
             <div className="panel" data-part="panel">
-              <div className="kv setting" data-part="key-value">
+              <div className={`kv ${settingRow()}`} data-part="key-value">
                 <span>
                   {t("screens.profile.exclude3d")}
                   <br />
@@ -219,7 +220,7 @@ export function QualityScreen() {
                   </span>
                 </span>
                 <button
-                  className="switch"
+                  className={toggleSwitch()}
                   data-part="switch"
                   role="switch"
                   aria-checked={profile.exclude_3d}
@@ -228,7 +229,7 @@ export function QualityScreen() {
                   onClick={() => toggleLock("exclude_3d")}
                 />
               </div>
-              <div className="kv setting" data-part="key-value">
+              <div className={`kv ${settingRow()}`} data-part="key-value">
                 <span>
                   {t("screens.profile.requireKnownResolution")}
                   <br />
@@ -237,7 +238,7 @@ export function QualityScreen() {
                   </span>
                 </span>
                 <button
-                  className="switch"
+                  className={toggleSwitch()}
                   data-part="switch"
                   role="switch"
                   aria-checked={profile.require_known_resolution}

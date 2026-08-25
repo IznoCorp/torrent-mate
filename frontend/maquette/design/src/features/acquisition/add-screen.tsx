@@ -43,6 +43,7 @@ import { go } from "../../lib/navigate";
 import { useAcquisitionReference } from "../../features/acquisition/reference";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
 import { actionButton, backAction, emptyNote, screen, screenBar, searchField, searchInput, surfaceError } from "../../ui/variants";
+import { addFooter, addForm, addRow, byIdentifier, byIdentifierBody, refusalReason, resultCount, suggestions } from "../../features/acquisition/variants";
 
 type Mode = "follow" | "identify";
 
@@ -201,7 +202,7 @@ export function AddScreen() {
             </div>
           </div>
         ) : null}
-        <div className="addform">
+        <div className={addForm()}>
           <div className={searchField()}>
             <Icon paths={icons.search} />
             <input
@@ -223,7 +224,7 @@ export function AddScreen() {
               }
             />
           </div>
-          <div className="addrow">
+          <div className={addRow()}>
             <div className="segmini" data-part="segment-small">
               {/* NOT interface copy: these three are the VALUES of
                   `state.addKind`, written to the legacy store, compared
@@ -260,7 +261,7 @@ export function AddScreen() {
         </div>
         {hasQuery ? (
           <>
-            <p className="rescount" data-part="result/count">
+            <p className={resultCount()} data-part="result/count">
               <b>{filtered.length}</b>{" "}
               {filtered.length > 1
                 ? t("screens.add.resultPlural")
@@ -286,7 +287,7 @@ export function AddScreen() {
           </>
         ) : (
           <>
-            <div className="sugg">
+            <div className={suggestions()}>
               {recents.map((recent) => (
                 <button key={recent} onClick={() => search(recent)}>
                   {recent}
@@ -301,13 +302,13 @@ export function AddScreen() {
             </div>
           </>
         )}
-        <details className="byid" data-part="add/by-id">
+        <details className={byIdentifier()} data-part="add/by-id">
           <summary>
             {identify
               ? t("screens.add.byIdIdentify")
               : t("screens.add.byIdAdd")}
           </summary>
-          <div className="byidin">
+          <div className={byIdentifierBody()}>
             <div className="segmini" data-part="segment-small" style={{ alignSelf: "flex-start" }}>
               {["TMDB", "TVDB", "IMDB"].map((element) => (
                 <button
@@ -327,7 +328,7 @@ export function AddScreen() {
                 aria-label={t("screens.add.idAria", { prov: idProv })}
               />
             </div>
-            <p className="whyoff">
+            <p className={refusalReason()}>
               {idProv === "IMDB" ? (
                 <>
                   {t("screens.add.imdbBefore")} <code>tt</code>{" "}
@@ -352,7 +353,7 @@ export function AddScreen() {
           </div>
         </details>
         {added.size > 0 ? (
-          <div className="addfoot" data-part="add/foot">
+          <div className={addFooter()} data-part="add/foot">
             <span>
               <b>{added.size}</b>{" "}
               {added.size > 1

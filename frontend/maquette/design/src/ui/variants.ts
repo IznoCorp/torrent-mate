@@ -295,3 +295,34 @@ export const countLineAction = cva(
   "ml-auto [border:0] bg-transparent text-primary-text text-2 font-semibold " +
     "flex items-center gap-2 p-0",
 );
+
+/**
+ * The switch — FIXED dimensions, always the same.
+ *
+ * A « Oui/Non » chip inside a flex row took the label's height
+ * (`align-items: stretch`) and changed width with the word, so two identical
+ * toggles had different sizes depending on the section. A switch also states
+ * its value through its SHAPE, not only through a word — hence the knob, drawn
+ * as an `::after` and moved by a transform.
+ *
+ * The checked state reads `aria-checked`, which is already there for assistive
+ * technology.
+ */
+export const toggleSwitch = cva(
+  "switch flex-none self-center relative w-[46px] h-[28px] min-h-[28px] p-0 " +
+    "rounded-full border border-border bg-muted " +
+    "transition-[background-color,border-color] duration-200 ease-standard " +
+    "after:content-[''] after:absolute after:top-[2px] after:left-[2px] " +
+    "after:w-[22px] after:h-[22px] after:rounded-full after:bg-muted-foreground " +
+    "after:transition-[transform,background-color] after:duration-200 after:ease-standard " +
+    "aria-checked:bg-primary aria-checked:border-primary " +
+    "aria-checked:after:[transform:translateX(18px)] aria-checked:after:bg-primary-foreground " +
+    "disabled:opacity-50",
+);
+
+/**
+ * A settings row.
+ *
+ * It does not stretch: the label can wrap without dragging the control with it.
+ */
+export const settingRow = cva("setting items-start [&>span:first-child]:pr-2");

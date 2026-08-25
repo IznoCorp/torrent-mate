@@ -18,6 +18,8 @@ import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useReleasesReference } from "../../features/releases/reference";
 import { actionButton, backAction, body, emptyNote, screen, screenBar } from "../../ui/variants";
+import { resultCount } from "../../features/acquisition/variants";
+import { releaseName, releaseRow, releaseScore, releaseTags } from "../../features/releases/variants";
 
 // Same helper as `media.tsx`'s, `profile.tsx`'s and `add.tsx`'s, still not
 // shared: the extraction those files' comments call for is a follow-up of
@@ -80,17 +82,17 @@ export function ReleasesScreen() {
             <em>{t("screens.releases.notePourquoi")}</em>{" "}
             {t("screens.releases.noteAfterPourquoi")}
           </div>
-          <p className="rescount" data-part="result/count" style={{ padding: 0 }}>
+          <p className={resultCount()} data-part="result/count" style={{ padding: 0 }}>
             <b>{RELEASES.length}</b> {t("screens.releases.rescount")}
           </p>
           {RELEASES.map((release, index) => (
             <article
-              className={`rel${index === 0 ? " best" : ""}`}
+              className={releaseRow({ best: index === 0 })}
               data-part="release"
               key={release.n}
             >
-              <span className="rn">{release.n}</span>{" "}
-              <span className="rt">
+              <span className={releaseName()}>{release.n}</span>{" "}
+              <span className={releaseTags()}>
                 <span
                   className={`chip ${
                     release.res === "2160p"
@@ -111,7 +113,7 @@ export function ReleasesScreen() {
                   {String(release.go).replace(".", ",")}{" "}
                   {t("screens.releases.goUnit")}
                 </span>{" "}
-                <span className="sc">
+                <span className={releaseScore()}>
                   {t("screens.releases.scoreLabel")} {release.sc}
                 </span>
               </span>{" "}

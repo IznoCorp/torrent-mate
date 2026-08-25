@@ -1485,6 +1485,46 @@ border-radius: var(--radius-3);
   margin-left: var(--spacing-3);
 }
 
+/* ── Add screen, the two the engine also emits ───────────────────── */
+.btnprimary {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: var(--radius-3);
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  font-size: var(--text-4);
+  font-weight: 600;
+  padding: 0 var(--spacing-7);
+}
+
+.btnprimary:disabled {
+  opacity: 0.5;
+}
+
+.segmini {
+  display: flex;
+  gap: var(--spacing-1);
+  padding: var(--spacing-1);
+  background: var(--color-muted);
+  border-radius: var(--radius-3);
+}
+
+.segmini button {
+  border: 0;
+  border-radius: var(--radius-2);
+  background: transparent;
+  color: var(--color-muted-foreground);
+  font-size: var(--text-3);
+  font-weight: 600;
+  padding: var(--spacing-3) var(--spacing-6);
+}
+
+.segmini button[aria-pressed="true"] {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  box-shadow: var(--mq-shadow-vsw);
+}
+
 /* ── LAST, AND THE ORDER IS THE POINT ────────────────────────────────
    THE ACTION-BUTTON SYSTEM COMES AFTER EVERYTHING IT OVERRIDES. In the
    prototype's stylesheet it sat a thousand lines below the card, so the

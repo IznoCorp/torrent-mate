@@ -261,6 +261,7 @@ follows
 follq
 font
 foot
+footer
 for
 foreground
 form
@@ -545,6 +546,7 @@ rect
 ref
 reference
 refresh
+refusal
 refuse
 refused
 region
@@ -590,6 +592,7 @@ savebar
 scale
 scen
 schedulers
+score
 screen
 screens
 screenshots
@@ -705,6 +708,7 @@ tabpanel
 tabs
 tabular
 tag
+tags
 take
 takeable
 target
