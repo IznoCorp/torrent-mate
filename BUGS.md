@@ -83,7 +83,7 @@ when the defect comes back.
 | B-047 | The navigation-failure flag is raised by no guard and read by no rule | by review   | `fixed #484` |
 | B-048 | The ninth boundary arm stays green with `addresses.ts` deleted      | by review   | `fixed #484` |
 | B-049 | A rule reads the operator's live `acquire.db` and turns red on every cron | by review | `open` |
-| B-050 | `check-frontend-boundaries.py` reached 883 lines during the L05 repair | by review | `open` |
+| B-050 | `check-frontend-boundaries.py` is at 921 lines, 79 from the hard ceiling | by review | `open` |
 | B-051 | `toFollows()` carries the page in its query, invisible to the boundaries arm | by review | `open` |
 | B-052 | A synthesised follow panel labels a film « Série »                  | by review   | `open`       |
 | B-053 | A panel's layer entry is taken by a tab tap on the same layer (revisit) | by review | `open`     |
@@ -92,6 +92,7 @@ when the defect comes back.
 | B-056 | A `@keyframes` name is French (`splashremplit`), invisible to no-french  | by review | `open` |
 | B-057 | `audit2.py`'s R12 silently measures four of five contexts, not five | by review   | `open`       |
 | B-058 | commit-msg's AI-attribution match is unanchored, flags quoting prose | by mutation | `open`       |
+| B-059 | `check-css-tokens.py` is at 942 lines after 2 of L07's 16 phases            | by audit    | `open`       |
 | B-060 | The rename tool could not rename a CSS custom property, and reported it as success | by mutation | `fixed #494` |
 | B-061 | The oracle cannot see a pseudo-element, so a class that generates nothing reads green | by rule | `open` |
 | B-062 | Three markup readers were blind to `cva()` factories, which emit a class name with no `class=` | by gate | `fixed #494` |
@@ -180,6 +181,32 @@ non-fix) — the second occurrence inside two waves, and the question is still n
 module-size ratchet (invariant 6) does not exempt guard scripts. Split before the next arm lands,
 not as an emergency — the file is not yet over the hard ceiling, only past the point where one
 more addition should pause and ask.
+
+**The 883 was the figure on the day it was written, and it was read as the state for two waves.**
+Re-measured on `main` at `2a3f2576`: **921** non-blank lines, 79 from the hard ceiling, not 117.
+The entry above is kept as it was written — this paragraph is the correction, because a figure
+silently overwritten teaches nothing about the figure that will go stale next. Whoever closes
+this bug re-runs the command rather than trusting either number.
+
+<sub>`python3 scripts/check-module-size.py --root scripts`</sub>
+
+**B-059 — the token guard is 58 lines from the ceiling, with 14 of L07's 16 phases to run.**
+`scripts/check-css-tokens.py` was **815** non-blank lines on `main` and is **942** on
+`feat/maquette-l07` at `dfb6ee42` — +13 in phase 1, +114 in phase 2 and its follow-up fix. The
+hard ceiling is 1 000, it is enforced over `scripts/` (`check-module-size.py --root scripts`, in
+`make check` and in CI's `guards` job), and exceeding it exits 1. Fourteen phases remain, and
+**phase 4 plans another arm inside this very file** — `--arm motion-classes`, which the phase
+document argues is not optional because nothing else in the repository would catch a
+`duration-<n>` off the scale.
+
+**The plan does not name this anywhere**: no phase document, neither `DESIGN.md` nor
+`plan/INDEX.md`, mentions module size — the file is cited only as a command to run green. So the
+wave is on course to redden a gate through a channel its own plan never forecast, and the phase
+that trips it will look like the phase at fault rather than the accumulation. Not this steward's
+to repair: reported so the split is planned rather than discovered at a red CI. The measurement
+belongs to the wave; what belongs here is that it was never measured.
+
+<sub>`for c in $(git log --format=%h --reverse origin/main..origin/feat/maquette-l07); do printf '%s %s\n' "$c" "$(git show $c:scripts/check-css-tokens.py | grep -c '[^[:space:]]')"; done`</sub>
 
 **B-051 — a feature-owned reader escapes the boundaries arm.**
 `toFollows()` carries its page identity in a query parameter, inside a feature file the ninth
