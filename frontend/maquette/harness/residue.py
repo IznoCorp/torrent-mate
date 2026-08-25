@@ -377,7 +377,7 @@ async def main():
             or f"{len(case['properties'])} propertie(s), identical")
 
     print(f"\n{BAR}")
-    print(f"NOT STAGED, and named rather than hidden:")
+    print("NOT STAGED, and named rather than hidden:")
     print(f"  {len(contextual)} contextual pair(s): " + ", ".join(contextual))
     print(f"  {len(toggled)} engine-written qualifier(s): " + ", ".join(toggled))
     print(f"  {len(unpaired)} selector(s) the engine alone draws")

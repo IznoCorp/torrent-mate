@@ -4,13 +4,17 @@
 objective is reading: a name is read far more often than it is typed, and a mutilated word
 costs its reader a translation every time.
 
-> ⚠ **THIS RULE IS NOT ARMED YET, and saying so is the point.** Written 2026-08-25. The guard
-> `scripts/check-code-abbreviations.py`, its blacklist file, its exemption file and its baseline
-> **do not exist**: this document specifies them, and a wave has to build them. Until that lands,
-> this file is precisely what § Language warns against — a sentence in a file — and it is the
-> steward that wrote it, so it says so itself rather than waiting to be found out. The rule binds
-> agents from the day the guard runs in `make check` and in CI's `guards` job, not from the day
-> it was written down.
+> ✅ **ARMED on 2026-08-25**, by the wave that follows the one that wrote this file.
+> `scripts/check-code-abbreviations.py` runs in `make check` and in CI's `guards` job, with
+> three arms — `names` (a declared name built from a refused word), `baseline` (the per-file
+> ratchet) and `lists` (the two word files, well formed and not contradicting each other). The
+> blacklist is `scripts/code-abbreviations.txt`, the words considered and KEPT are
+> `scripts/code-abbreviations-allowed.txt`, and the frozen debt is
+> `scripts/code-abbreviations-baseline.json`. **The rule binds agents from today.**
+>
+> This banner used to say the opposite, and the sentence it carried is worth keeping: until a
+> guard runs, a naming rule is precisely what § Language warns against — a sentence in a file.
+> The steward wrote that about its own document rather than waiting to be found out.
 
 This file is the rule, its guard, and the debt the guard freezes. It exists because the
 repository already learned, with French, that **a naming rule without an arm is a sentence in a
@@ -24,8 +28,10 @@ A declared name is refused when one of its words — split on camelCase, snake_c
 alike — is a **mutilated word**: an English word someone shortened, with the full word obvious
 behind it.
 
-The list lives in `scripts/code-abbreviations.txt`, one word per line with the word it
-mutilates. It is deliberately a BLACKLIST and not a vocabulary, and that is a departure from
+The list lives in `scripts/code-abbreviations.txt`, one line per word — `abbreviation = the
+word it mutilates`. **A line with no full word is itself a violation**, the same discipline the
+`french-ok:` pragma is held to: a refusal that cannot say what the name SHOULD be is a refusal
+nobody can act on. It is deliberately a BLACKLIST and not a vocabulary, and that is a departure from
 `code-vocabulary.txt` that has a measured reason: extending the vocabulary arm to Python would
 have to admit 1 665 unknown words, `self`, `client` and `source` among them, and a vocabulary
 that must triple to go green is no longer a control.
@@ -39,11 +45,20 @@ under two letters, exactly as `check-no-french.py`'s vocabulary arm already does
 
 ## 2. What is NOT an abbreviation
 
-Three families, and each is listed in the file with the reason it was kept. **A line with no
-reason is itself a violation** — the same discipline the `french-ok:` pragma is held to.
+Three families, and each is listed in `scripts/code-abbreviations-allowed.txt` with the reason
+it was kept. **A line with no reason is itself a violation** — the same discipline the
+`french-ok:` pragma is held to. A word may not sit in both files: the guard refuses the
+contradiction rather than letting one of them quietly win.
 
-**Language conventions.** `self`, `cls`, `args`, `kwargs`, `__init__`. Renaming them fights the
-language, not the reader.
+**Language conventions.** `self`, `cls`, `args`, `kwargs`, `argv`, `__init__`, `str`, `dict`,
+`int`, `repr`, `enum`, `min`, `max`. Renaming them fights the language, not the reader.
+
+**And `exc` joined them when the guard was built, on evidence.** It is the STANDARD LIBRARY's own
+spelling — `sys.exc_info`, `exc_type`, `exc_value`, and `except … as exc` throughout the
+language's documentation — and it carries **544** occurrences here, more than any other word in
+either file. Refusing it would fight the language rather than the reader, which is exactly what
+this family is for. It is named with its count because it is the single largest arbitration in
+these two files.
 
 **Established acronyms.** `api`, `url`, `uri`, `http`, `html`, `css`, `svg`, `json`, `xml`,
 `sql`, `cli`, `id`, `db`, `io`, `os`. An acronym is not a mutilated word: nobody reads `url` as
@@ -105,7 +120,7 @@ Said here so it is not discovered later:
 
 ## 6. The campaigns, in the order they cost least
 
-Three words carry 762 of the 1 507 occurrences and are **bare names**, which is exactly the
+Three words carry **766 of the 1 807** occurrences and are **bare names**, which is exactly the
 opaque form the rule targets — and each is a mechanical rename through
 `scripts/rename-identifiers.py`, verified by an oracle OUTSIDE the tool as § Code Conventions
 requires.
@@ -114,34 +129,46 @@ requires.
 | - | -------- | ----------- | ----- | ---- |
 | 1 | `pg` → `page` | 135 | `frontend/maquette/` only | 123 of 135 bare. Not even Playwright's own spelling, which is `page` |
 | 2 | The shell vocabulary | 61 | `design/src/**` | No new guard: remove the words from `code-vocabulary.txt` and arm 6 bites |
-| 3 | `ctx` → `context` | 260 | package + harness | 247 of 260 bare |
+| 3 | `ctx` → `context` | 263 | package + harness | 247 of 263 bare |
 | 4 | `conn` → `connection` | 368 | package + scripts | 339 of 368 bare. The DB-API convention, and the most likely to be contested |
-| — | The residue | **745**, in 322 files | everywhere | Frozen by the ratchet, never rewritten wholesale |
+| — | The residue | **1 041**, in 357 files | everywhere | Frozen by the ratchet, never rewritten wholesale |
 
-The residue is diffuse and stays that way: `rel`×81, `cfg`×56, `msg`×48, `num`×47, `pos`×47,
-`idx`×38, `cur`×34 — some seventy words with a long tail. It is paid down when a file is touched
-for another reason, and the ratchet makes sure it never grows.
+The residue is diffuse and stays that way: `ref`×137, `rel`×81, `dest`×66, `params`×58,
+`cfg`×56, `msg`×48, `pos`×47, `num`×47, `idx`×38, `cur`×34 — some fifty words with a long tail.
+It is paid down when a file is touched for another reason, and the ratchet makes sure it never
+grows.
 
-## 7. The figures, and the commands that produce them
+## 7. The figures, and how they moved when the guard was built
 
-Every number above was measured on `main` at `2a3f2576`, and re-measured over four months of
-history to establish the RATE rather than the standing total — a debt figure says what is owed,
-a rate says what the guard will cost every day.
+**The rates below were confirmed exactly. The standing totals were not, and the difference is
+the list.** § 6's figures were first measured on `main` at `2a3f2576` against a list this
+document described but did not yet contain; the guard that arms it carries a list of **51**
+refused words, and three of the words it holds — `ref` (137), `dest` (66), `params` (58) — were
+not in the measurement that produced 1 507. `exc` went the other way: 544 occurrences, moved to
+the KEPT list on evidence (§ 2). Re-measured on the armed guard's own corpus, at `06b42fe9`:
 
-| Figure | Value |
-| ------ | ----- |
-| Debt under this rule | 1 507 |
-| Cleared by campaigns 1, 3, 4 | 762 |
-| Frozen residue | 745, in 322 files |
-| New occurrences per day, residue only (last 23 days) | ≈ 3 |
-| New occurrences per day, had `dir`/`conn`/`ctx`/`pg` been refused too | ≈ 14.5 |
-| Public names alone (the rejected narrow scope) | 93, and flat for a month |
-| Locals living in a scope of five lines or fewer | 57 % |
+| Figure | First measured | Armed guard | |
+| ------ | -------------- | ----------- | - |
+| Debt under this rule | 1 507 | **1 807** | a wider list, and `exc` kept |
+| Cleared by campaigns 1, 3, 4 | 762 | **766** | `ctx` re-counts at 263 |
+| Frozen residue | 745, in 322 files | **1 041, in 357 files** | `scripts/code-abbreviations-baseline.json` |
+| `conn` bare | 339 of 368 | **339 of 368** | identical |
+| `pg` bare | 123 of 135 | **123 of 135** | identical |
+| New per day, residue only (23 days) | ≈ 3 | **3.3** | (1 041 − 964) ÷ 23 |
+| New per day, campaigns refused too | ≈ 14.5 | **14.7** | (1 807 − 1 468) ÷ 23 |
+| Public names alone (the rejected narrow scope) | 93, flat for a month | not re-measured | the scope was rejected; the figure decides nothing |
+| Locals in a scope of five lines or fewer | 57 % | not re-measured | as above |
 
-That last figure is the one to keep in view. Clean Code licenses a **brief** name in a brief
-scope, and 57 % of the debt sits in such scopes — which is why § 1 draws the line at mutilation
-rather than at length, and why the guard never reads a one-letter word.
+**The rate is the figure that mattered and it holds to a tenth.** A debt figure says what is
+owed; a rate says what the guard costs every day, and it is the rate that decided the scope. The
+two per-day figures were measured against `1ecfe794` (2026-08-02, 23 days back), the same window
+the first measurement used.
 
-<sub>The measuring scripts are not committed: they are twenty lines of `ast.walk` over the three
-roots, and a figure is re-derived rather than trusted. The shapes are in this file's own pull
-request.</sub>
+Clean Code licenses a **brief** name in a brief scope, and most of this debt sits in such scopes
+— which is why § 1 draws the line at mutilation rather than at length, and why the guard never
+reads a one-letter word.
+
+<sub>`python3 scripts/check-code-abbreviations.py --list-baseline` re-derives the per-file record
+and the total. The two per-day figures come from running the guard's own `declared_names()` and
+`words_of()` over `git ls-tree` at the older commit — twenty lines, not committed, because a
+figure is re-derived rather than trusted.</sub>

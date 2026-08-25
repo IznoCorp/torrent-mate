@@ -1,0 +1,72 @@
+# WORDS THAT ARE NOT ABBREVIATIONS — considered, and kept, each with why.
+#
+# A word here may never join `scripts/code-abbreviations.txt`; the guard
+# refuses the contradiction rather than letting one file quietly win.
+#
+# Format: `word = the reason it stays`. A LINE WITH NO REASON IS ITSELF A
+# VIOLATION — the same discipline `french-ok:` is held to. An exemption nobody
+# had to justify is indistinguishable from an oversight, which is how 842
+# interface strings once sat under a green gate.
+
+# ── Language conventions ─────────────────────────────────────────────────────
+self = the instance parameter; renaming it fights the language, not the reader
+cls = the class parameter of a classmethod, for the same reason as `self`
+args = the positional-catchall's name, fixed by the language
+kwargs = the keyword-catchall's name, fixed by the language
+argv = the interpreter's own name for the command line
+str = a built-in type, not a shortened `string`
+dict = a built-in type, not a shortened `dictionary`
+int = a built-in type, and nobody reads it as a shortened `integer`
+repr = a dunder's name, `__repr__`, fixed by the language
+init = `__init__`, and the initialiser it names everywhere else
+enum = the standard library's own name for the module and the class
+exc = the STANDARD LIBRARY's own spelling — `sys.exc_info`, `exc_type`, `exc_value`, and `except … as exc` in the language's own documentation. 544 occurrences here, and refusing it would fight the language rather than the reader. The most-carried word in this file, so it is named with its count
+min = a built-in, and the word every reader of any language already holds
+max = a built-in, on the same ground as `min`
+
+# ── Established acronyms — an acronym IS the word ────────────────────────────
+api = nobody expands it while reading
+url = nobody reads it as a shortened `uniform resource locator`
+uri = the sibling of `url`, and as much a word
+http = the protocol, written as the world writes it
+html = a format's name
+css = a format's name
+svg = a format's name
+json = a format's name
+xml = a format's name
+sql = a language's name
+cli = the command line interface, and the entry points are named for it
+id = an identifier's universal spelling, and the database column's own name
+ids = the plural of `id`
+db = the database, and the file extension the operator sees
+io = the standard library module, and the concept
+os = the standard library module, and the concept
+uuid = the standard library module, and the format
+ttl = time to live, as every cache and every DNS record spells it
+fk = foreign key, as the schema and the audit script spell it
+pid = the process identifier, as the operating system spells it
+uid = a unique identifier, as the indexer's own columns spell it
+gb = a unit
+mb = a unit
+kb = a unit
+
+# ── Domain terms — written as the domain writes them ─────────────────────────
+nfo = the sidecar format Kodi and Plex read
+tmdb = a provider's name
+tvdb = a provider's name
+omdb = a provider's name
+imdb = a provider's name
+plex = a product's name
+torrent = the domain's own noun
+infohash = the domain's own noun, written as the protocol writes it
+ffprobe = a tool's name
+mtime = the modification time, as POSIX and `os.stat` spell it
+ntfs = a filesystem's name
+redis = a product's name
+typer = a library's name
+vite = a tool's name
+axe = a library's name
+
+# ── And one that is neither, kept on evidence ────────────────────────────────
+dir = a TYPE SUFFIX and never a bare name — measured over the whole repository, it is always the tail of a longer name (`media_dir`, `staging_dir`, `_walk_dir`), and a suffix that qualifies a noun reads without a translation. `media_directory` buys nothing for four more characters. THE MOST CONTESTABLE LINE IN THESE TWO FILES, written with its measurement so overturning it is a decision taken on evidence rather than a preference
+dirs = the plural of `dir`, and the same shape — compound in almost every occurrence

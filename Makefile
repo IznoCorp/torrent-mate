@@ -82,6 +82,7 @@ check: lint test-cov
 	python3 scripts/check-typed-api.py
 	python3 scripts/check-pragma-discipline.py
 	python3 scripts/check-no-french.py
+	python3 scripts/check-code-abbreviations.py
 	python3 scripts/check-css-tokens.py
 	python3 scripts/check-compositor-css.py
 	python3 scripts/check-tailwind-confinement.py
