@@ -169,6 +169,30 @@
    And it stays a RULE rather than becoming a utility for a separate reason: it
    is a promise about elements the markup has not met yet, and a utility can
    only be written on an element somebody has already decided to hide. */
+/* R8 AGAIN, and the reason is worth keeping: `#sugitems` carried its display
+   as an INLINE style, which beats the `[hidden]` attribute — the list stayed
+   visible UNDER the loading skeletons. Its display lives here, with its hidden
+   case beside it.
+
+   The list format stacks; the poster format takes the shared gallery grid,
+   which is a CLASS. An id rule would beat it by specificity alone, and one of
+   the two would then have to be written twice — the one written twice is the
+   one that drifts.
+
+   UNLAYERED, like every other `[hidden]` case here: inside `@layer base` these
+   would sit BELOW the utilities and below the dying stylesheet, and an
+   override that must win cannot live under what it overrides. */
+#sugitems:not(.gallery) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-7);
+}
+#sugitems[hidden],
+#sugload[hidden],
+#libitems[hidden] {
+  display: none;
+}
+
 /* The install banner's three hidden cases, for the same reason as the group
    below: an author `display` beats the attribute. */
 .installbar[hidden],

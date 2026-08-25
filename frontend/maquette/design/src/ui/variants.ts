@@ -537,3 +537,25 @@ export const optionKind = cva("optkind text-2 text-muted-foreground mt-0 mx-0 mb
 
 /** A hint under a quality setting. */
 export const qualityHint = cva("qhint text-2 text-muted-foreground leading-[1.45]");
+
+/** The foot of an infinite list: the skeletons, the sentinel, the end mark. */
+export const loadFooter = cva("loadfoot flex flex-col gap-5 pt-2 pr-0 pb-1 pl-0");
+
+/** The end of a list, said once and quietly. */
+export const endMark = cva(
+  "endmark text-center text-2 text-muted-foreground pt-7 pr-0 pb-2 pl-0 " +
+    "before:content-[''] before:block before:w-[34px] before:h-[1px] before:bg-border " +
+    "before:mt-0 before:mx-auto before:mb-4",
+);
+
+/** A list that failed to load: it names the cause and offers a retry. */
+export const loadError = cva(
+  "loaderr [border:1px_solid_color-mix(in_oklab,var(--color-danger)_45%,transparent)] " +
+    "[background:color-mix(in_oklab,var(--color-danger)_8%,transparent)] " +
+    "rounded-3 p-5 text-3 leading-[1.45] [&_b]:text-danger-text",
+);
+
+/** Its retry. */
+export const loadErrorAction = cva(
+  "mt-4 w-full border border-border bg-transparent text-foreground text-3 font-semibold p-4 rounded-2",
+);

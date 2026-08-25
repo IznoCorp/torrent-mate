@@ -24,7 +24,7 @@ import type { ReactElement } from "react";
 import { Icon } from "../../ui/icon";
 import { useLibraryReference, type IncompleteShow, type LibraryRow } from "../../features/library/reference";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
-import { body, countLine, countLineAction, emptyNote, filterPill, filterPillCount, filterZone, pillBar, pillScroll, searchClear, searchField, searchInput, section, segment, segmentCount, segmentTab, statusDot, viewSwitch, viewSwitchButton, viewSwitchWrap, viewTabs } from "../../ui/variants";
+import { body, countLine, countLineAction, emptyNote, endMark, filterPill, filterPillCount, filterZone, loadError, loadErrorAction, loadFooter, pillBar, pillScroll, searchClear, searchField, searchInput, section, segment, segmentCount, segmentTab, statusDot, viewSwitch, viewSwitchButton, viewSwitchWrap, viewTabs } from "../../ui/variants";
 
 // The three lenses, in the order the tab bar draws them. The count on
 // « Incomplets » is the drawing's own, exactly as the legacy hard-coded it.
@@ -415,13 +415,13 @@ function LibraryList(): ReactElement {
   {
     if (complete) {
       foot = (
-        <p className="endmark">
+        <p className={endMark()}>
           {t("screens.library.endMark", { count: libraryLoaded() })}
         </p>
       );
     } else if (state.libErr) {
       foot = (
-        <div className="loaderr" data-part="load-error">
+        <div className={loadError()} data-part="load-error">
           <b>{t("screens.library.loadErrorLead")}</b>
           {t("screens.library.loadErrorRest", { count })}
           {/* THE ONLY CONTROL ON A MIGRATED PAGE THAT IS NOT DELEGATED. Every
@@ -433,6 +433,7 @@ function LibraryList(): ReactElement {
               read this render's snapshot, where the error it had just cleared
               was still set. */}
           <button
+            className={loadErrorAction()}
             id="libretry"
             onClick={() => {
               writeUiState({ libErr: false });
@@ -463,7 +464,7 @@ function LibraryList(): ReactElement {
   return (
     <>
       {items}
-      <div id="libload" className="loadfoot" ref={footRef}>
+      <div id="libload" className={loadFooter()} ref={footRef}>
         {foot}
       </div>
     </>

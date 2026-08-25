@@ -32,7 +32,7 @@ import { Icon } from "../../ui/icon";
 import { useSettingsReference, type Setting, type SettingsTopic } from "../../features/settings/reference";
 import { useStoreContent } from "../../lib/store-access";
 import { settingLabel } from "../../features/settings/labels";
-import { emptyNote, factsPanel, qualityHint, searchClear, searchField, searchInput, sectionHeading } from "../../ui/variants";
+import { emptyNote, factsPanel, loadError, loadErrorAction, qualityHint, searchClear, searchField, searchInput, sectionHeading } from "../../ui/variants";
 import { saveAction, saveBar, settingsRow, topicRow } from "./variants";
 
 // The pending-edit marker and the row's own identity live on the same element:
@@ -299,18 +299,18 @@ export function SettingsPage(): ReactElement | null {
     <>
       <SearchField />
       {SETTINGS_STATE.readOnly ? (
-        <div className="loaderr" data-part="load-error">
+        <div className={loadError()} data-part="load-error">
           <b>{t("screens.settings.readOnlyLead")}</b>
           {t("screens.settings.readOnlyRest")}
         </div>
       ) : null}
       {SETTINGS_STATE.redemarrage ? (
-        <div className="loaderr" data-part="load-error">
+        <div className={loadError()} data-part="load-error">
           <b>{t("screens.settings.restartLead")}</b>{" "}
           {changedFiles().join(", ") ||
             t("screens.settings.restartSomeSettings")}
           {t("screens.settings.restartRest")}{" "}
-          <button data-restart="1">
+          <button className={loadErrorAction()} data-restart="1">
             {t("screens.settings.restartNow")}
           </button>
         </div>

@@ -2004,6 +2004,54 @@ margin: 0;
   visibility: visible;
 }
 
+/* ── Skeletons, and the quota line ───────────────────────────────── */
+/* `.sk` is written by the ENGINE — a loading surface SAYS SO, with
+   skeletons of the right shape rather than a bare « Chargement… ». Its
+   shimmer is under a reduced-motion guard: motion is a designed state,
+   not a fallback (invariant 14). */
+.sk {
+  border-radius: var(--radius-2);
+  background: linear-gradient(
+    90deg,
+    var(--color-card) 25%,
+    var(--color-muted) 50%,
+    var(--color-card) 75%
+  );
+  background-size: 400% 100%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sk {
+    animation: sh var(--duration-loop-2) linear infinite;
+  }
+}
+@keyframes sh {
+  to {
+    background-position: -400% 0;
+  }
+}
+.sk.tile {
+  aspect-ratio: 2/3;
+}
+.sk.row {
+  height: 62px;
+  border-radius: var(--radius-3);
+}
+/* R8 again: `#sugitems` carried its `display` as an INLINE style, which
+   beats the `[hidden]` attribute — the list stayed visible under the
+   loading skeletons. Display lives here, with its hidden case. */
+/* The list format stacks; the poster format takes the shared gallery grid,
+   which is a CLASS. An id rule would win over it by specificity alone — one
+   of the two would then have to be written twice, and the one written twice
+   is the one that drifts. */
+.quota {
+  text-align: center;
+  font-size: var(--text-2);
+  color: var(--color-muted-foreground);
+  margin-top: var(--spacing-3);
+}
+
+
+
 /* ── LAST, AND THE ORDER IS THE POINT ────────────────────────────────
    THE ACTION-BUTTON SYSTEM COMES AFTER EVERYTHING IT OVERRIDES. In the
    prototype's stylesheet it sat a thousand lines below the card, so the
