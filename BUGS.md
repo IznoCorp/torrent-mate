@@ -111,6 +111,7 @@ when the defect comes back.
 | B-075 | Five guards were written green over the very defect they were written for | by mutation | `fixed #500` |
 | B-076 | The hero's entrance animates for a reader who asked for no motion | by rule | `fixed #500` |
 | B-077 | A test of the browser-free half of a rule could not be collected without a browser | by CI | `fixed #500` |
+| B-078 | The state row outlived its subject, ajourned on a rule that does not exist | by audit | `fixed #501` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -1410,3 +1411,23 @@ lot the plan never declares. The pattern is the same in all five:
 own entry because it is not one bug: it is the failure mode this repository keeps buying, and the
 remedy is cheap enough to be a habit.
 
+**B-078 — the one file that is supposed to say where the work stands said something untrue, and the reason given for leaving it was a rule nobody wrote.**
+`IMPLEMENTATION.md` read « **In flight**: L07-bis — the tidy-up » after L07-bis merged
+(`ec38ff49`). That row is the section this repository declares to be **the only place that says
+where the work STANDS** — « duplicating state is what produced a stale table read as current for
+three days » is its own opening sentence. A wave that has landed cannot be in flight.
+
+**The ajournment rested on a false premise, and that is the half worth recording.** The wave
+carried the correction forward to L08's pull request because « the steward's rule forbids a small
+follow-up pull request ». **No such rule exists.** § 5 of `frontend-architecture.md` says the
+opposite in one line: « One lot, one branch, one squash merge onto `main` after green CI and a
+clean final adversarial review. **This holds for a two-line documentation fix as much as for a
+conversion.** » That sentence licenses the small pull request and prescribes its method; it
+refuses a correction pushed straight to `main`, never a correction of two lines.
+
+A rule remembered rather than re-read is how a directive acquires a clause nobody wrote — the same
+failure mode as a figure nobody recounts, and this register carries several of those. Fixed by
+this entry's own pull request, at the cost it was said to be avoiding: one branch, one review, one
+squash.
+
+<sub>`grep -n 'In flight' IMPLEMENTATION.md` · `sed -n '/^## 5. The method/,+4p' docs/reference/frontend-architecture.md`</sub>
