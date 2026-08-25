@@ -42,7 +42,7 @@ import { Icon } from "../../ui/icon";
 import { go } from "../../lib/navigate";
 import { useAcquisitionReference } from "../../features/acquisition/reference";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
-import { actionButton, backAction, emptyNote, screen, screenBar, surfaceError } from "../../ui/variants";
+import { actionButton, backAction, emptyNote, screen, screenBar, searchField, searchInput, surfaceError } from "../../ui/variants";
 
 type Mode = "follow" | "identify";
 
@@ -202,9 +202,10 @@ export function AddScreen() {
           </div>
         ) : null}
         <div className="addform">
-          <div className="search">
+          <div className={searchField()}>
             <Icon paths={icons.search} />
             <input
+              className={searchInput()}
               type="search"
               id="addq"
               value={query}
@@ -318,8 +319,9 @@ export function AddScreen() {
                 </button>
               ))}
             </div>
-            <div className="search">
+            <div className={searchField()}>
               <input
+                className={searchInput()}
                 id="byidv"
                 placeholder={idProv === "IMDB" ? "tt1234567" : "12e34"}
                 aria-label={t("screens.add.idAria", { prov: idProv })}

@@ -32,7 +32,7 @@ import { Icon } from "../../ui/icon";
 import { useSettingsReference, type Setting, type SettingsTopic } from "../../features/settings/reference";
 import { useStoreContent } from "../../lib/store-access";
 import { settingLabel } from "../../features/settings/labels";
-import { emptyNote } from "../../ui/variants";
+import { emptyNote, searchClear, searchField, searchInput } from "../../ui/variants";
 
 // The pending-edit marker and the row's own identity live on the same element:
 // the row IS the control the delegation reads.
@@ -76,9 +76,10 @@ function SearchField(): ReactElement {
   const { SETTINGS_STATE, icons } = useSettingsReference();
   const { t } = useTranslation();
   return (
-    <div className="search" style={{ marginBottom: 12 }}>
+    <div className={searchField()} style={{ marginBottom: 12 }}>
       <Icon paths={icons.search} />
       <input
+        className={searchInput()}
         id="qsettings"
         key={SETTINGS_STATE.q}
         type="search"
@@ -88,7 +89,7 @@ function SearchField(): ReactElement {
       />
       {SETTINGS_STATE.q ? (
         <button
-          className="searchclear"
+          className={searchClear()}
           data-qsettings=""
           aria-label={t("screens.settings.clearLabel")}
         >

@@ -125,6 +125,7 @@ child
 chip
 choice
 clean
+clear
 clearq
 clef
 click
@@ -796,6 +797,7 @@ xs
 year
 yt
 z
+zone
 # ── THE ENGINE'S LAST FRENCH WORDS ─────────────────────────────────────
 #
 # Everything above is English. Everything below is NOT, and saying so is

@@ -146,3 +146,152 @@ export const crossReferenceStrong = cva("text-foreground font-semibold");
 
 /** The cross-reference's link, on its own row. */
 export const crossReferenceLink = cva("block mt-3 text-primary font-semibold whitespace-nowrap");
+
+/**
+ * The view tabs' row: a segmented control and, sometimes, a « more » button.
+ *
+ * Sticky at the top of its scrollport, so the lens a page is read through
+ * stays reachable while the list under it scrolls.
+ */
+export const viewTabs = cva(
+  "viewtabs flex gap-4 items-center pt-5 px-7 pb-4 sticky top-0 z-30 bg-background",
+);
+
+/** The segmented control itself. */
+export const segment = cva(
+  "seg flex-auto flex gap-2 p-2 bg-muted rounded-3 min-w-0",
+);
+
+/**
+ * One tab of the segment.
+ *
+ * The selected state is an `aria-selected` VARIANT rather than a class: the
+ * attribute is already there for assistive technology, and a second name for
+ * the same fact is a second thing to keep in step.
+ */
+export const segmentTab = cva(
+  "flex-1 min-w-0 [border:0] py-4 px-0 rounded-2 text-4 font-semibold " +
+    "bg-transparent text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis " +
+    "transition-[background-color,color] duration-200 ease-standard " +
+    "aria-selected:bg-background aria-selected:text-foreground " +
+    "aria-selected:[box-shadow:var(--mq-shadow-seg)]",
+);
+
+/** The count a tab carries. */
+export const segmentCount = cva(
+  "n text-2 font-bold ml-2 py-1 px-2 rounded-full bg-primary text-primary-foreground",
+);
+
+/** The « more » button beside the segment. */
+export const moreButton = cva(
+  "more flex-none w-[40px] h-[40px] rounded-3 border border-border bg-transparent " +
+    "text-muted-foreground grid place-items-center",
+);
+
+/** The filter zone under the tabs: the search field, the pills, the switch. */
+export const filterZone = cva("filters pt-0 px-7 pb-4 border-b border-border bg-background");
+
+/** The search field's frame. */
+export const searchField = cva("search flex items-center gap-4 bg-muted rounded-3 py-0 px-5");
+
+/** The magnifier, and the clear button's icon. */
+export const searchIcon = cva("w-[15px] h-[15px] text-muted-foreground flex-none");
+
+/**
+ * The search input.
+ *
+ * `text-6` IS 16px AND THAT IS NOT A STYLE CHOICE: below it, iOS Safari zooms
+ * a focused field, and the viewport meta no longer forbids the zoom because
+ * forbidding it failed WCAG 1.4.4 (D-L06-6).
+ */
+export const searchInput = cva(
+  // THE FONT IS INHERITED PROPERTY BY PROPERTY, and neither shorthand works
+  // here. `font-[inherit]` sets the FAMILY alone and left line-height at the
+  // browser's input default — 0.6px. `[font:inherit]` is the real shorthand
+  // and resets the SIZE too, and utilities carry no order I control, so it
+  // raced `text-6` and won — 2.7px, the wrong way. Named one at a time, the
+  // declarations touch different properties and cannot race at all.
+  "flex-auto min-w-0 [border:0] bg-transparent text-foreground " +
+    "[font-family:inherit] [font-weight:inherit] [font-style:inherit] " +
+    "[line-height:inherit] text-6 " +
+    "py-4 px-0 outline-none placeholder:text-muted-foreground",
+);
+
+/**
+ * The clear button.
+ *
+ * Transplanted from the app's own stylesheet, where the class was used in
+ * markup without ever having been ported — so the button had no size of its
+ * own: 26px, below the touch target. It is 32px here, and the gap with the app
+ * is a declared exception.
+ */
+export const searchClear = cva(
+  "searchclear flex-none grid place-items-center w-[32px] h-[32px] -mr-4 " +
+    "[border:0] rounded-full bg-transparent text-muted-foreground",
+);
+
+/** The row holding the filter pills and the view switch. */
+export const pillBar = cva("pillbar flex items-center gap-0 mt-4");
+
+/**
+ * The pills' horizontal scroller.
+ *
+ * `touch-pan-x touch-pan-y` is COMPOSITOR-FACING and held by
+ * `scripts/check-compositor-css.py`: it reserves both axes for scrolling so
+ * the train cannot be mistaken for a swipe gesture.
+ */
+export const pillScroll = cva(
+  "pillscroll flex-auto min-w-0 flex flex-nowrap gap-3 overflow-x-auto " +
+    "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden touch-pan-x touch-pan-y pr-4",
+);
+
+/**
+ * One filter pill.
+ *
+ * `group` is here so the COUNT inside can answer the pill's pressed state:
+ * `aria-pressed` is already on the button for assistive technology, and the
+ * count reads it rather than carrying a second name for the same fact.
+ */
+export const filterPill = cva(
+  "pill group flex-none text-3 font-semibold py-2 px-5 rounded-full border border-border " +
+    "bg-transparent text-muted-foreground whitespace-nowrap " +
+    "aria-pressed:bg-primary aria-pressed:border-primary aria-pressed:text-primary-foreground",
+);
+
+/**
+ * The count a pill carries.
+ *
+ * SECONDARY IS A TONE, NOT AN OPACITY. Written as `opacity` it blended into
+ * whatever sat behind it, so the tone reaching the eye was one the palette
+ * never declared — the muted label lost a third of its separation and landed
+ * under AA (D-L06-5).
+ */
+export const filterPillCount = cva(
+  "c ml-2 font-medium text-pill-count-foreground " +
+    "group-aria-pressed:text-pill-count-foreground-selected",
+);
+
+/** The view switch's wrapper, with its own divider drawn by a pseudo-element. */
+export const viewSwitchWrap = cva(
+  "vswwrap flex-none flex items-center gap-4 pl-4 bg-background " +
+    "before:content-[''] before:w-[1px] before:h-[22px] before:bg-border",
+);
+
+/** The view switch itself. */
+export const viewSwitch = cva("vsw flex gap-1 p-1 bg-muted rounded-3");
+
+/** One button of the view switch. */
+export const viewSwitchButton = cva(
+  "w-[32px] h-[28px] [border:0] rounded-2 bg-transparent text-muted-foreground grid place-items-center",
+);
+
+/** The « N titles » line under the filters. */
+export const countLine = cva(
+  "countline flex items-center gap-3 pt-4 px-7 pb-0 text-2 text-muted-foreground",
+);
+
+/** The action at the end of the count line. */
+export const countLineAction = cva(
+  "ml-auto [border:0] bg-transparent text-primary-text text-2 font-semibold " +
+    "flex items-center gap-2 p-0",
+);

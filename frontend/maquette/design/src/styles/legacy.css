@@ -1019,4 +1019,250 @@ border-radius: var(--radius-3);
   color: var(--color-warning);
 }
 
+/* ── Gallery tiles ───────────────────────────────────────────────── */
+/* The tiles are written by the ENGINE (`tileHTML`), and their column
+   count follows the width available to the SCROLLPORT through three
+   `@container port` queries — never the window's. A media query reads the
+   viewport, so a 390px frame on a 1280px desktop would be told it has
+   room for six columns it does not have (invariant 12). */
+/* ONE gallery grid, and its column count follows the width available to it
+   — the scrollport — never the window's. A media query reads the viewport,
+   so a 390px frame sitting on a 1280px desktop would be told it has room for
+   six columns it does not have. A container query asks the right question,
+   and the app gets the same answer because there its scrollport IS the
+   window. */
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--spacing-5);
+}
+
+@container port (min-width: 460px) {
+  .gallery {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@container port (min-width: 620px) {
+  .gallery {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@container port (min-width: 820px) {
+  .gallery {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+.tile {
+  position: relative;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  display: block;
+  width: 100%;
+}
+.tile .p {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2/3;
+  border-radius: var(--radius-2);
+  font-size: var(--text-8);
+  line-height: 1;
+  overflow: hidden;
+  background: var(--color-muted);
+}
+.tile .nm {
+  display: block;
+  font-size: var(--text-2);
+  margin-top: var(--spacing-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tile .fr {
+  display: block;
+  font-size: var(--text-1);
+  color: var(--color-muted-foreground);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tile.off .p {
+  opacity: 0.42;
+}
+.tile.off .nm {
+  opacity: 0.55;
+}
+
+/* ── Grid selection, invisible at rest ───────────────────────────── */
+/* Nine of its eleven class names are the ENGINE's: the selection bar, the
+   rows it lists and the marks it draws are all written there. */
+/* Grid selection: invisible at rest */
+.tile .sel {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 21px;
+  height: 21px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-white);
+  background: var(--color-scrim-soft);
+  display: grid;
+  place-items: center;
+  color: transparent;
+}
+.tile .sel svg {
+  width: 13px;
+  height: 13px;
+}
+.tile[aria-pressed="true"] .sel {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+.tile[aria-pressed="true"] .p {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+/* During a selection this bar REPLACES the tab bar: stacking them covered
+   « Supprimer » (z-index 41 under 50) and cost 57px of height on a phone
+   screen. This is a mode; « Annuler » is its exit, and it is present. */
+/* Selection-mode row: same anatomy as the card, plus the checkbox. */
+.selrow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-5);
+  width: 100%;
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  border-radius: var(--radius-3);
+  padding: var(--spacing-4);
+  text-align: left;
+}
+.selrow[aria-pressed="true"] {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+.selrow .sel {
+  position: static;
+  flex: 0 0 auto;
+}
+.selrow .poster {
+  display: block;
+}
+.selrow .rowtxt {
+  min-width: 0;
+  flex: 1;
+}
+.selrow .ctitle,
+.selrow .csub {
+  display: block;
+}
+.selbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 51;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-5);
+  padding: var(--spacing-5) var(--spacing-7) calc(env(safe-area-inset-bottom) + var(--spacing-5));
+  background: var(--color-popover);
+  border-top: 1px solid var(--color-border);
+}
+.selbar .n {
+  font-size: var(--text-3);
+  font-weight: 600;
+}
+.selbar button {
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-foreground);
+  font-size: var(--text-3);
+  font-weight: 600;
+  padding: var(--spacing-4) var(--spacing-6);
+  border-radius: var(--radius-3);
+}
+.selbar button.danger {
+  background: var(--color-danger-fill);
+  border-color: var(--color-danger-fill);
+  color: var(--color-white);
+  margin-left: auto;
+}
+.selbar button.danger:disabled {
+  opacity: 0.45;
+}
+.linkbtn {
+  border: 0;
+  background: transparent;
+  color: var(--color-primary-text);
+  font-size: var(--text-2);
+  font-weight: 600;
+  padding: 0;
+}
+
+/* Harness panel — enumerates the measurable states. HARNESS, never
+   exported. */
+.hpanel {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  background: var(--color-background);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: var(--spacing-7);
+  gap: var(--spacing-6);
+}
+.hpanel h4 {
+  margin: 0;
+  font-size: var(--text-2);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-muted-foreground);
+}
+.hpanel .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+}
+.hpanel .row button {
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-foreground);
+  font-size: var(--text-3);
+  padding: var(--spacing-3) var(--spacing-5);
+  border-radius: var(--radius-2);
+  text-align: left;
+}
+.hpanel .row button[aria-pressed="true"] {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+  font-weight: 600;
+}
+.hpanel .states button {
+  width: 100%;
+  display: flex;
+  gap: var(--spacing-5);
+  align-items: baseline;
+}
+.hpanel .states code {
+  font-size: var(--text-1);
+  color: var(--color-muted-foreground);
+  margin-left: auto;
+}
+.hpanel p {
+  margin: 0;
+  font-size: var(--text-2);
+  line-height: 1.5;
+  color: var(--color-muted-foreground);
+}
+
 

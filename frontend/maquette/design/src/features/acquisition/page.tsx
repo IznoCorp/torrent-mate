@@ -26,7 +26,7 @@ import { Icon } from "../../ui/icon";
 import { useAcquisitionReference, type Follow } from "../../features/acquisition/reference";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
-import { body, crossReference, crossReferenceLink, crossReferenceStrong, emptyNote, liveDot, liveEmphasis, liveStrip, section as sectionClass, surfaceError } from "../../ui/variants";
+import { body, crossReference, crossReferenceLink, crossReferenceStrong, emptyNote, filterPill, filterPillCount, filterZone, liveDot, liveEmphasis, liveStrip, moreButton, pillBar, pillScroll, searchClear, searchField, searchInput, section as sectionClass, segment, segmentCount, segmentTab, surfaceError, viewSwitch, viewSwitchButton, viewSwitchWrap, viewTabs } from "../../ui/variants";
 
 // The swipe action a follow that can be searched again reveals. It is a
 // data-ATTRIBUTE VALUE the document-level delegation dispatches on — a contract
@@ -53,22 +53,23 @@ function AcquisitionTabs(): ReactElement {
     { id: "discover", label: t("screens.acquisition.tabDiscover") },
   ];
   return (
-    <div className="viewtabs" data-region="acquisition/tabs">
-      <div className="seg" data-part="segment" role="tablist">
+    <div className={viewTabs()} data-region="acquisition/tabs">
+      <div className={segment()} data-part="segment" role="tablist">
         {tabs.map((tab) => (
           <button
             key={tab.id}
+            className={segmentTab()}
             role="tab"
             aria-selected={state.acqTab === tab.id}
             data-acqtab={tab.id}
           >
             {tab.label}
-            {tab.count ? <span className="n" data-part="segment/count">{tab.count}</span> : null}
+            {tab.count ? <span className={segmentCount()} data-part="segment/count">{tab.count}</span> : null}
           </button>
         ))}
       </div>
       <button
-        className="more"
+        className={moreButton()}
         aria-label={t("screens.acquisition.moreLabel")}
         data-sheet="plus"
       >
@@ -468,10 +469,11 @@ function FollowsTab(): ReactElement {
 
   return (
     <>
-      <div className="filters" data-region="acquisition/filters">
-        <div className="search">
+      <div className={filterZone()} data-region="acquisition/filters">
+        <div className={searchField()}>
           <Icon paths={icons.search} />
           <input
+            className={searchInput()}
             // UNCONTROLLED, with its own native handler — the arrangement
             // `#libq` has, for the same reason: `mountSearch` bound this field
             // from outside, and it runs inside `render()`, BEFORE React has put
@@ -502,7 +504,7 @@ function FollowsTab(): ReactElement {
           />
           {state.filter ? (
             <button
-              className="searchclear"
+              className={searchClear()}
               data-clearq="foll"
               aria-label={t("screens.acquisition.clearLabel")}
             >
@@ -510,24 +512,25 @@ function FollowsTab(): ReactElement {
             </button>
           ) : null}
         </div>
-        <div className="pillbar">
-          <div className="pillscroll" data-part="pill/list">
+        <div className={pillBar()}>
+          <div className={pillScroll()} data-part="pill/list">
             {pills.map((pill) => (
               <button
                 key={pill.id}
-                className="pill"
+                className={filterPill()}
                 data-part="pill"
                 aria-pressed={state.pill === pill.id}
                 data-pill={pill.id}
               >
                 {pill.label}
-                <span className="c">{pill.count}</span>
+                <span className={filterPillCount()}>{pill.count}</span>
               </button>
             ))}
           </div>
-          <div className="vswwrap">
-            <div className="vsw" data-part="view/switch">
+          <div className={viewSwitchWrap()}>
+            <div className={viewSwitch()} data-part="view/switch">
               <button
+                className={viewSwitchButton()}
                 aria-pressed={state.followMode === "list"}
                 data-fmode="list"
                 aria-label={t("screens.acquisition.modeList")}
@@ -535,6 +538,7 @@ function FollowsTab(): ReactElement {
                 <Icon paths={icons.list} />
               </button>
               <button
+                className={viewSwitchButton()}
                 aria-pressed={state.followMode === "group"}
                 data-fmode="group"
                 aria-label={t("screens.acquisition.modeGroup")}
@@ -542,6 +546,7 @@ function FollowsTab(): ReactElement {
                 <Icon paths={icons.group} />
               </button>
               <button
+                className={viewSwitchButton()}
                 aria-pressed={state.followMode === "grid"}
                 data-fmode="grid"
                 aria-label={t("screens.acquisition.modeGrid")}
@@ -631,13 +636,14 @@ function DiscoverTab(): ReactElement {
   ] as const;
 
   const selector = (
-    <div className="filters" data-region="acquisition/filters">
-      <div className="pillbar">
-        <div className="pillscroll" data-part="pill/list"></div>
-        <div className="vswwrap">
-          <div className="vsw" data-part="view/switch">
+    <div className={filterZone()} data-region="acquisition/filters">
+      <div className={pillBar()}>
+        <div className={pillScroll()} data-part="pill/list"></div>
+        <div className={viewSwitchWrap()}>
+          <div className={viewSwitch()} data-part="view/switch">
             {modes.map(([id, paths, label]) => (
               <button
+                className={viewSwitchButton()}
                 key={id}
                 aria-pressed={state.sugMode === id}
                 data-sugmode={id}

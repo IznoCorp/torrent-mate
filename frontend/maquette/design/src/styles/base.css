@@ -173,6 +173,36 @@
    D3 names these as base-layer residents. Each says why it cannot be a
    utility, because « it was easier » is not a reason that survives. */
 
+/* THE ICONS' SIZES, AND WHY THEY ARE RULES. `<Icon>` renders an `<svg>` and
+   takes no class of its own, so the surface that HOSTS an icon is the only
+   thing that can size it — a descendant selector by necessity rather than by
+   habit. Extending the component to accept a class was the alternative and it
+   is a change to every one of its call sites; that belongs to the wave that
+   has a reason to open them.
+
+   `.more svg` and `.fback svg` are here because phase 9 deleted them with
+   their regions and the oracle did not see it: neither element sits in one of
+   the 33 measured regions. A gate proves what it reads. */
+.search svg,
+.search .searchclear svg,
+.vsw svg,
+.more svg {
+  width: 15px;
+  height: 15px;
+}
+.more svg {
+  width: 17px;
+  height: 17px;
+}
+.countline svg {
+  width: 13px;
+  height: 13px;
+}
+.fback svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* The action buttons' icon, at one size everywhere. A DESCENDANT selector:
    the button cannot size a child it does not know it has, and the icons come
    from a shared component that must not learn about every button that hosts
