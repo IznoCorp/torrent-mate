@@ -1442,6 +1442,16 @@ squash.
 
 <sub>`grep -n 'In flight' IMPLEMENTATION.md` · `sed -n '/^## 5. The method/,+4p' docs/reference/frontend-architecture.md`</sub>
 
+> **Scheduled by the operator, 2026-08-25: B-079, B-080 and B-081 travel together in a correction
+> wave between L08 and L09, opened once the steward's audit of L08 is done.** Not sooner, and not
+> one at a time: they share a subject — what the screen asserts against what the repository holds —
+> and two of them share a fix. **The cost of waiting is named rather than left implicit**: until
+> that wave lands, every screen the operator judges carries design-note paragraphs the oracle does
+> not measure, so the layout under judgement is not the layout under proof. The interim is a
+> one-line workaround, not a repair: `document.documentElement.classList.add("measuring")` in the
+> console hides the notes exactly as the oracle does — and hides the frame's own buttons with them,
+> which is why it is a workaround.
+
 **B-079 — the design host serves whatever is on disk, and nothing on screen says what that is.**
 The operator judges the interface by looking at the design host. The chain from `main` to that
 screen has four links, and **only one is held**:
