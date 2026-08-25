@@ -112,6 +112,7 @@ when the defect comes back.
 | B-076 | The hero's entrance animates for a reader who asked for no motion | by rule | `fixed #500` |
 | B-077 | A test of the browser-free half of a rule could not be collected without a browser | by CI | `fixed #500` |
 | B-078 | The state row outlived its subject, ajourned on a rule that does not exist | by audit | `fixed #501` |
+| B-079 | The design host cannot say which commit it serves, and production's host can | by audit | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -1431,3 +1432,39 @@ this entry's own pull request, at the cost it was said to be avoiding: one branc
 squash.
 
 <sub>`grep -n 'In flight' IMPLEMENTATION.md` · `sed -n '/^## 5. The method/,+4p' docs/reference/frontend-architecture.md`</sub>
+
+**B-079 — the design host serves whatever is on disk, and nothing on screen says what that is.**
+The operator judges the interface by looking at the design host. The chain from `main` to that
+screen has four links, and **only one of them is held**:
+
+| Link | Production | Design host |
+| --- | --- | --- |
+| the tree is on `main` | `deploy.sh` guard 3 refuses otherwise | nothing |
+| the tree is clean | `deploy.sh` guard 2: « Uncommitted code is NEVER deployed » | nothing |
+| the build matches the sources | `deploy.sh` rebuilds from source only | **held** — `serve.py` compares input mtimes against `dist/index.html` and rebuilds under a lock before serving |
+| the served identity is visible | `BUILD_COMMIT` stamped, baked into the bundle, read by `GET /api/version`, and post-check R27 proves the RUNNING process serves it | nothing |
+
+`serve.py` holds no notion of a commit, a branch, or a dirty tree — `grep -in 'commit\|branch\|sha'`
+over its 784 lines returns nothing about the repository. So the answer to « is what I am looking at
+what is on `main`? » is today: **unknowable from the screen.**
+
+**This is not hypothetical, and the precedent is inside this repository's own week.** Uncommitted
+edits to `CLAUDE.md` survived four branch changes in the clone an agent was working in, and were
+reported as preserved. The same clone is where `serve.py` runs. A file under `design/src/` in that
+state renders perfectly and exists nowhere — and a design judged in that state is a decision taken
+about something no commit contains.
+
+**The fix is NOT production's fix, and the difference is the whole design of it.** `deploy.sh`
+REFUSES a dirty or non-main tree, correctly, because production must only ever serve `main`. The
+design host must be able to serve a branch — that is its purpose, looking at a wave in flight. So
+it does not refuse; **it declares.** The identity `branch @ sha`, plus a visible mark when the tree
+is dirty, computed at request time rather than at boot: `serve.py` already rebuilds per request, so
+a cached identity would drift from the document the way `/api/version`'s boot cache does, which is
+exactly what post-check R27 exists to catch on the other side.
+
+Where it shows is a design decision and the operator's: a corner badge in the harness frame — which
+ships nowhere, so it cannot leak into the product — or an endpoint the harness reads. **The harness
+should read it too**: `wrapped.html` is a MANUAL copy, and a stale one measures the previous build
+in silence — that trap is named in `CLAUDE.md` and has been paid for.
+
+<sub>`grep -in 'commit\|branch\|sha' frontend/maquette/serve.py` · `sed -n '50,67p' scripts/deploy.sh` · `grep -n BUILD_COMMIT personalscraper/web/routes/version.py`</sub>
