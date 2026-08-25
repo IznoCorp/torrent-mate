@@ -1,4 +1,4 @@
-.PHONY: help clean test test-unit test-integration test-cov test-impacte lint lint-logging check check-frontend format install-dev version update-ytdlp perf-rebaseline openapi fixture harness harness-contracts maquette-oracle maquette-a11y
+.PHONY: check-contract-types help clean test test-unit test-integration test-cov test-impacte lint lint-logging check check-frontend format install-dev version update-ytdlp perf-rebaseline openapi fixture harness harness-contracts maquette-oracle maquette-a11y
 
 THRESHOLD := $(shell python3 scripts/get_coverage_threshold.py)
 
@@ -102,6 +102,8 @@ check: lint test-cov
 	python3 scripts/refresh-maquette-fixture.py --check
 	@echo "Checking OpenAPI drift..."
 	@if [ -d frontend/node_modules ]; then $(MAKE) openapi && git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts; else echo "openapi-drift: skipped (frontend/node_modules absent)"; fi
+	@echo "Checking the maquette contract types for drift..."
+	@if [ -d frontend/node_modules ]; then $(MAKE) check-contract-types; else echo "contract-types: skipped (frontend/node_modules absent)"; fi
 	@echo "Checking version bump..."
 	@if git rev-parse --verify origin/main >/dev/null 2>&1; then python3 scripts/check_version_bump.py --base origin/main; else echo "version-bump: skipped (origin/main unavailable)"; fi
 	@if [ -d frontend/node_modules ]; then $(MAKE) check-frontend; else echo "check-frontend: skipped (frontend/node_modules absent)"; fi
@@ -145,6 +147,17 @@ openapi:
 	@echo "Regenerating frontend TypeScript types..."
 	cd frontend && npm run gen-api
 	@echo "OpenAPI schema and TS types are up to date."
+
+check-contract-types:
+	@echo "Regenerating the maquette contract types and refusing any difference..."
+	@# THE EXEMPTION THIS TARGET EARNS. `mocks/contract-types.d.ts` is stepped
+	@# over by the module-size ceiling and by the vocabulary arm, on the grounds
+	@# that nobody writes it. That claim is only worth what this check is: the
+	@# file is regenerated from the contract and any difference is refused, so a
+	@# file carrying a line a human typed fails here. Both guards name this
+	@# target as the proof behind their exemption.
+	cd frontend/maquette/design && npm run generate-contract-types
+	git diff --exit-code frontend/maquette/design/src/mocks/contract-types.d.ts
 
 check-frontend:
 	@echo "Running frontend typecheck..."

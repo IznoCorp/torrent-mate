@@ -175,6 +175,33 @@ FROZEN_PATH_SEGMENTS = {
     ),
 }
 
+# Files NOBODY WRITES. The vocabulary arm asks « is this word one we use? »,
+# and that question is about a name someone CHOSE. A generated file's names are
+# the generator's — `paths`, `webhooks`, `components`, `operations`, `$defs` are
+# the OpenAPI and JSON Schema specifications' own words, arriving through
+# `openapi-typescript`.
+#
+# THE ALTERNATIVE WAS WORSE, and it is why this is a file exemption rather than
+# five new words. Adding them to `code-vocabulary.txt` would license them as
+# names EVERYWHERE — including `defs`, which is an abbreviation the naming rule
+# refuses outright. A vocabulary widened to accommodate a generator is a
+# vocabulary that has stopped describing what this codebase writes.
+#
+# NARROW ON PURPOSE: only this arm skips these files. The arms that ask « is
+# this French? » keep reading them, so French arriving through the contract's
+# own descriptions would still be caught.
+#
+# AND IT IS NOT A HOLE SOMEONE MAY WIDEN BY HAND: the value names the command
+# that produces the file, and `make check-contract-types` regenerates it and
+# refuses any difference. A file claiming to be generated while carrying a line
+# a human typed fails that check.
+GENERATED_SOURCES = {
+    "mocks/contract-types.d.ts": (
+        "npm run generate-contract-types — from frontend/maquette/contract/openapi.json, "
+        "held byte for byte by `make check-contract-types`"
+    ),
+}
+
 # Declared NAMES that stay French. Kept apart from the path allowlist above on
 # purpose: « this directory is an address » is a reason about paths, and letting
 # it excuse a variable would make five French words legal as names everywhere on

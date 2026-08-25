@@ -12,22 +12,34 @@
  * wrong nesting. That is not a hypothetical — it is B-075's second instance,
  * found inside the reader of the rule that wave was writing at that moment.
  *
- * WHAT A FIXTURE FAMILY IS, and the definition is narrow on purpose:
+ * WHAT A FIXTURE FAMILY IS, and each clause is load-bearing:
  *
- *   1. a `const NAME = [...]` or `const NAME = {...}` at MODULE level, and
- *   2. whose initializer is PURE — no call, no reference to another binding,
- *      only literal values and property keys.
+ *   1. declared `const`. A `let` is a variable the engine WRITES — `world`,
+ *      `press`, `openCardDx` — and freezing its initial value as data would
+ *      record a starting point as though it were a fact. Thirty of the
+ *      engine's module-level declarations are exactly that.
+ *   2. at MODULE level, or qualified by the function that encloses it (below).
+ *   3. whose initializer is PURE — no call, no reference to another binding,
+ *      only literal values and property keys. `SERVICES_PANNE = SERVICES.map(…)`
+ *      is code that happens to produce data, and extracting it would freeze a
+ *      derivation.
  *
- * Both halves are load-bearing. `SERVICES_PANNE = SERVICES.map(...)` is code
- * that happens to produce data, and extracting it would freeze a derivation.
+ * THERE IS NO SIZE FLOOR, and there was one. A first version took literals of
+ * three lines or more, which reads as a sensible filter and is not: it hid
+ * `CADENCE_CRON` — the grab cadence, read off the live scheduler — and
+ * `STRIP_LABELS`, a one-line array of five interface words. Both are fixtures;
+ * neither is three lines. The hole was found by the contract naming a family
+ * the register did not hold, which is the only reason it was found at all.
  *
- * A LITERAL DECLARED INSIDE A FUNCTION IS STILL REACHABLE, and that is not a
- * generalisation for its own sake. Two of them exist — the journey sheet's five
- * stages and one tone mapping — and the first is real state a contract has to
- * serve. Left out, it would have to be copied into a seed by hand, which is
- * precisely the un-re-derivable corner the guard reading this tool exists to
+ * A LITERAL DECLARED INSIDE A NAMED FUNCTION IS STILL REACHABLE, and it is not
+ * a generalisation for its own sake. Most of them are a function's working
+ * state; ONE is not — `openJourneySheet.steps`, a torrent's five stages, real
+ * data drawn inline — and left out it would have to be copied into a seed by
+ * hand: the one un-re-derivable corner the guard reading this tool exists to
  * forbid. They carry a QUALIFIED name, `enclosingFunction.name`, so the two
- * kinds can never be confused and so the register can hold every one of them.
+ * kinds can never be confused, and the register classifies each of them like
+ * any other. Inside an ANONYMOUS function they are counted and not inventoried
+ * — see `ANONYMOUS` below for why.
  *
  * Usage:
  *     node scripts/extract-maquette-fixtures.mjs --measure
@@ -53,11 +65,6 @@ const ENGINE = resolve(
   REPOSITORY_ROOT,
   "frontend/maquette/design/src/engine/legacy.js",
 );
-
-// A literal shorter than this is a one-line detail, not a data family. The
-// threshold is the one the measurement in the design was taken with; it is
-// stated here so the two cannot drift apart silently.
-const MINIMUM_LINES = 3;
 
 /**
  * Answers whether an initializer holds literal values and nothing else.
@@ -151,6 +158,32 @@ function valueOf(node) {
   );
 }
 
+// What a literal inside an UNNAMED function is qualified by, and why those are
+// then dropped from the inventory rather than named.
+//
+// A literal in an anonymous callback has no stable name to be inventoried
+// under: the only thing distinguishing it is where it sits, and a name built
+// from a line number is renamed by every edit above it — a register keyed on
+// one would go red for a change that touched nothing it holds. There are five,
+// they are all working state of a callback, and they are COUNTED on every run
+// so their exclusion is a figure rather than a silence.
+const ANONYMOUS = "anonymous";
+
+/**
+ * Answers whether a declaration was written `const`.
+ *
+ * The flag lives on the declaration LIST, not on the declaration — `const a = 1,
+ * b = 2` is one list of two — so the parent is what carries the answer.
+ *
+ * @param {import("typescript").VariableDeclaration} declaration The declaration.
+ * @returns {boolean} True when its list is `const`.
+ */
+function isConstant(declaration) {
+  const list = declaration.parent;
+  if (!list || !typescript.isVariableDeclarationList(list)) return false;
+  return (list.flags & typescript.NodeFlags.Const) !== 0;
+}
+
 /**
  * Reads a property key, whatever of the three forms it wears.
  *
@@ -214,31 +247,34 @@ function collect(path) {
     // the module-level namespace, which is the confusion the qualification is
     // there to prevent.
     const enclosure = opensAFunction
-      ? (node.name && typescript.isIdentifier(node.name)
-          ? node.name.text
-          : `anonymous@${lineOf(node.getStart(source))}`)
+      ? (node.name && typescript.isIdentifier(node.name) ? node.name.text : ANONYMOUS)
       : null;
     if (
       typescript.isVariableDeclaration(node) &&
       node.initializer &&
       typescript.isIdentifier(node.name) &&
-      (typescript.isArrayLiteralExpression(node.initializer) ||
-        typescript.isObjectLiteralExpression(node.initializer))
+      isConstant(node)
     ) {
       const start = lineOf(node.getStart(source));
       const end = lineOf(node.getEnd());
       const entry = {
         name: enclosing ? `${enclosing}.${node.name.text}` : node.name.text,
-        kind: typescript.isArrayLiteralExpression(node.initializer) ? "array" : "object",
+        kind: typescript.isArrayLiteralExpression(node.initializer)
+          ? "array"
+          : typescript.isObjectLiteralExpression(node.initializer)
+            ? "object"
+            : "scalar",
         lines: end - start + 1,
         start,
         end,
         entries: typescript.isArrayLiteralExpression(node.initializer)
           ? node.initializer.elements.length
-          : node.initializer.properties.length,
+          : typescript.isObjectLiteralExpression(node.initializer)
+            ? node.initializer.properties.length
+            : 1,
         node: node.initializer,
       };
-      if (entry.lines >= MINIMUM_LINES && isPureLiteral(node.initializer)) {
+      if (isPureLiteral(node.initializer)) {
         (enclosing ? nested : families).push(entry);
       }
     }
@@ -247,7 +283,11 @@ function collect(path) {
     );
   };
   visit(source, null);
-  return { families, nested };
+  return {
+    families,
+    nested: nested.filter((entry) => !entry.name.startsWith(`${ANONYMOUS}.`)),
+    anonymous: nested.filter((entry) => entry.name.startsWith(`${ANONYMOUS}.`)).length,
+  };
 }
 
 /**
@@ -261,7 +301,7 @@ function canonical(value) {
 }
 
 const argument = process.argv[2];
-const { families, nested } = collect(ENGINE);
+const { families, nested, anonymous } = collect(ENGINE);
 
 if (argument === "--measure") {
   const totalLines = readFileSync(ENGINE, "utf8").split("\n").length;
@@ -271,8 +311,12 @@ if (argument === "--measure") {
       `of ${totalLines}\n`,
   );
   process.stdout.write(
-    `${nested.length} pure literal(s) declared inside a function, qualified: ` +
+    `${nested.length} pure literal(s) inside a NAMED function, qualified: ` +
       `${nested.map((entry) => `${entry.name} (line ${entry.start})`).join(", ")}\n`,
+  );
+  process.stdout.write(
+    `${anonymous} more inside an anonymous one, not inventoried — a name built on a ` +
+      `line number is renamed by every edit above it\n`,
   );
   for (const family of [...families].sort((a, b) => b.lines - a.lines)) {
     process.stdout.write(

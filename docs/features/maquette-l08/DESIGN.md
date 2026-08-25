@@ -41,12 +41,20 @@ What stands in their place is **fixture literals inside the dying engine**.
 node scripts/extract-maquette-fixtures.mjs --measure
 ```
 
-**64 module-level fixture families, covering 28 776 of `legacy.js`'s 35 198 lines.**
-Two further pure literals sit INSIDE a function — `openJourneySheet.steps`, a torrent's five
-stages, and `factRowsHTML.TONS`, a tone mapping. They are reached under a qualified name rather
-than left out: a fixture with no module-level name is invisible to any extractor that walks
-declarations, and being invisible is exactly the property this wave's guard must not inherit.
-**Sixty-six in all, and every one of them extractable.**
+**77 module-level fixture families, covering 28 789 of `legacy.js`'s 35 198 lines**, plus 11
+declared inside a NAMED function and reached under a qualified name — `openJourneySheet.steps`
+is a torrent's five stages, real data drawn inline, and left out it would have had to be copied
+into a seed by hand. **Eighty-eight in all, every one extractable and every one classified.**
+Five more sit inside anonymous callbacks; they are counted on every run and deliberately not
+inventoried, because a name built on a line number is renamed by every edit above it.
+
+**Two of those figures were wrong when this design was first written, and how they were found is
+the point.** It said 64 and 66, taken with an extractor that required a literal of three or more
+lines — a filter that reads as sensible and is not. It hid `CADENCE_CRON`, the grab cadence read
+off the live scheduler, and `STRIP_LABELS`, five interface words on one line. The hole surfaced
+when the contract named a family the register did not hold, and the real discriminator turned out
+to be **`const` against `let`**: thirty module-level declarations are variables the engine WRITES,
+and freezing their initial value as data would record a starting point as though it were a fact.
 
 The ten largest, which are most of the mass:
 
@@ -194,12 +202,14 @@ contract that nobody can wire at zero divergence.
 The 64 module-level families plus the 2 function-local ones are each classified into exactly one
 of four classes, in a committed register:
 
-| Class        | Meaning                                                                                                              |
-| ------------ | -------------------------------------------------------------------------------------------------------------------- |
-| `served`     | server state — a seed derives from it and a handler serves it                                                        |
-| `vocabulary` | interface copy, labels, tones, orderings — it belongs to i18n and to the components, and a server must never send it |
-| `asset`      | artwork, poster and trailer maps — served as part of a media payload, never as its own resource                      |
-| `unserved`   | not served, with the reason written out                                                                              |
+| Class | Meaning | Count |
+| --- | --- | ---: |
+| `served` | server state — a seed derives from it and a handler serves it | 42 |
+| `asset` | artwork, poster and trailer maps — served as part of a media payload, never as its own resource | 5 |
+| `interface` | what the INTERFACE owns and a server must never send: copy, labels, tones, orderings, icon paths, page sizes, timings | 29 |
+| `unserved` | not served, with the reason written out | 12 |
+
+**The third class is defined by OWNERSHIP, not by being words**, and it was called `vocabulary` until a page size and a long-press delay had to go somewhere. Both belong to the interface exactly as a label does; a class named for words would have pushed them into `unserved`, where « not served » would have been true and uninformative.
 
 **An unclassified family is a violation.** This is what makes the guard impossible to pre-satisfy:
 it holds a NAMED INVENTORY, not a count. A family added to `legacy.js` tomorrow fails the guard
@@ -207,11 +217,17 @@ the day it is written, and a family that disappears fails it too. A floor placed
 number would be satisfied by construction on the day it is written and could only ever catch a
 later decrease — which is the exact shape B-075 found five times.
 
-**The vocabulary class is not a convenience.** `ST_LABEL`, `REASON_LABEL`, `TRIS`, `EP_LABEL`,
+**The `interface` class is not a convenience.** `ST_LABEL`, `REASON_LABEL`, `TRIS`, `EP_LABEL`,
 `VIA_LABEL`, `MOIS` and the tone maps are French the reader sees. Routing them through a mock
 would put interface copy on the network, which the constitution forbids in both directions: the
 interface would be asking a server for its own words, and `check-no-french.py` would be reading
 a JSON that is not i18n. They stay where they are, classified, and L09 moves them to `i18n/`.
+
+**And one `unserved` entry carries an obligation rather than an absence.** `TODAY` is the
+prototype's frozen clock — the determinism device, not data. A server does not send today's date,
+so it is not seeded; but every date-derived state moves the instant the mock layer's clock and the
+engine's disagree, so **R85 holds that the two AGREE**. An entry reading only « not served » would
+have been true and would have hidden that.
 
 ### D-L08-7 — Seeds are committed JSON, re-derivable; the mocks never import `legacy.js`
 

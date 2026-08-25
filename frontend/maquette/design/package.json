@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "generate-contract-types": "node ../../node_modules/.bin/openapi-typescript ../contract/openapi.json -o src/mocks/contract-types.d.ts"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.2",

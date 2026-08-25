@@ -232,6 +232,27 @@ WARN_LINES = 250
 # So the value names the lot that STILL owes it, and only that lot. « L07, then
 # L09 » was the shape that hid the defect: a label carrying two lots, one spent
 # and one owed, with nothing to say which was which.
+# A file NOBODY WRITES is not a module of this tree, and the size ceiling does
+# not apply to it. Invariant 6's reason is « an agent modifying a component
+# opens one file »; a generated artefact is opened by no one and edited by no
+# one, so a ceiling on it would say nothing about the tree's health and would
+# only ever be answered by a grandfather entry promising a reduction nobody
+# owes.
+#
+# WHAT MAKES THIS EXEMPTION SAFE RATHER THAN A HOLE, and it is the whole
+# difference: it is not a path someone may add themselves to. The value names
+# the command that produces the file, and `make check-contract-types`
+# REGENERATES it and refuses any difference — so a file claiming to be
+# generated while carrying a line a human typed fails that check. The exemption
+# is earned by a proof living outside this guard, exactly as production's own
+# `schema.d.ts` is held by the `openapi-drift` step rather than by being
+# trusted.
+GENERATED = {
+    "mocks/contract-types.d.ts":
+        "npm run generate-contract-types — from frontend/maquette/contract/openapi.json, "
+        "held byte for byte by `make check-contract-types`",
+}
+
 GRANDFATHERED = {
     "engine/legacy.js": "L13 — the engine dies by subtraction, surface by surface",
     "engine/states.js": "L13 — the scenario table goes with the engine it drives",
@@ -376,6 +397,8 @@ def arm_size(root: Path, listing: bool = False) -> int:
     sizes = {}
     for file in source_files(root):
         module = file.relative_to(root).as_posix()
+        if module in GENERATED:
+            continue
         sizes[module] = sum(1 for line in file.read_text(encoding="utf-8").splitlines()
                             if line.strip())
     over = {m: n for m, n in sizes.items() if n >= BLOCK_LINES}
@@ -410,9 +433,18 @@ def arm_size(root: Path, listing: bool = False) -> int:
             spent.append(f"{module} — its label leads with {owed.group(1)}, already `LANDED`")
     unreadable = not landed
 
+    # An exemption nobody counts is indistinguishable from an oversight, so the
+    # generated files are PRINTED on every run rather than merely skipped — and
+    # an entry naming a file that is not there is a violation, because a stale
+    # exemption is one that has stopped describing the tree.
+    absent = sorted(name for name in GENERATED if not (root / name).is_file())
     print(f"  size: ceiling {BLOCK_LINES}, {len(over)} at or over it "
           f"({len(GRANDFATHERED)} recorded; the plan declares {len(declared_lots)} lot(s), "
-          f"{len(landed)} of them LANDED), {len(warn)} above the {WARN_LINES} warning")
+          f"{len(landed)} of them LANDED), {len(warn)} above the {WARN_LINES} warning, "
+          f"{len(GENERATED)} generated file(s) exempt")
+    for name in absent:
+        print(f"    {name}: recorded as generated and is not in the tree — the "
+              f"exemption has stopped describing anything", file=sys.stderr)
     for module in sorted(warn):
         print(f"    [WARN] {module}: {warn[module]} non-blank lines", file=sys.stderr)
     for module in unrecorded:
@@ -439,7 +471,7 @@ def arm_size(root: Path, listing: bool = False) -> int:
               "with a lot that has not landed » is a sentence this arm cannot check",
               file=sys.stderr)
     return (len(unrecorded) + len(stale) + len(spent) + len(unnamed)
-            + len(invented) + int(unreadable))
+            + len(invented) + len(absent) + int(unreadable))
 
 
 # `any` in a type position, an assertion to it, and the two suppressions. Not
