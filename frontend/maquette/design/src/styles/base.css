@@ -58,7 +58,10 @@
     background: oklch(0.12 0.004 286);
     color: var(--color-foreground);
     font-family: "Geist", ui-sans-serif, system-ui, sans-serif;
-    font-size: 14px;
+    /* The step, not the literal it happens to equal. `--text-5` IS 14px, so
+       the computed value does not move; what moves is that the next edit to
+       the ramp reaches here too. */
+    font-size: var(--text-5);
     line-height: 1.35;
     -webkit-font-smoothing: antialiased;
     font-variant-numeric: tabular-nums;

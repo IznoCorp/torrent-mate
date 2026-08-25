@@ -1,14 +1,15 @@
 {
   "what": "The declarations the COMPOSITOR reads, and which are therefore load-bearing rather than cosmetic. `scripts/check-compositor-css.py` holds them. This is a RECORD, not a ratchet: the floors only come down through a diff line somebody justifies in review, and every required entry carries the reason it exists.",
   "why": "Deleting one selector from a group once took the whole `user-drag: none` block with it. Native image drag came back and swallowed the pointer stream — one pointerdown, two pointermove, never a pointerup — and three gesture holds failed for a reason that looked nothing like a CSS deletion. L07 converts 530 hand-written rules into utilities, which is precisely the operation that does this again.",
-  "taken_at": "2026-08-24, at the opening of L07, against refonte.html before a single surface converted",
+  "taken_at": "2026-08-24, at the opening of L07, against the stylesheet before a single surface converted. RE-TAKEN 2026-08-25, at the close of L07, for two reasons and both raise the floors rather than lower them: the guard was counting its own PROSE (five of thirteen `touch-action` sites were sentences explaining the guard, so the floor could be met by documentation alone), and it was reading `styles/harness.css` — the instrument, not the product. Comments are stripped and the harness sheet is out; the figures below are the real sites, so a deletion has no slack to hide in.",
   "floors": {
-    "touch-action": 6,
+    "touch-action": 8,
     "user-select": 4,
     "user-drag": 3,
-    "overscroll-behavior": 2,
+    "overscroll-behavior": 3,
     "touch-callout": 2,
-    "will-change": 1
+    "will-change": 1,
+    "tap-highlight-color": 0
   },
   "required": [
     {
@@ -46,5 +47,6 @@
       "value": "transform",
       "why": "Promotes the moving deck card to its own layer, so the drag follows the finger on the compositor rather than at the mercy of the main thread."
     }
-  ]
+  ],
+  "floors_note": "`tap-highlight-color` is floored at ZERO on purpose, and it is the one entry that holds nothing: the prototype has never declared it. It stays in the watch list because it is compositor-facing and would be load-bearing the day one appears — a property with no floor and no site reads as an oversight, and a property absent from the list cannot be noticed at all."
 }

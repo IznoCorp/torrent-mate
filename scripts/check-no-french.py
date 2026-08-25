@@ -408,15 +408,20 @@ def check_class_names(violations: list[str]) -> None:
                 m.group(1) for m in re.finditer(
                     r"<style[^>]*>(.*?)</style>", source, re.S))
         declared = declared_css_classes(source)
-        scope = ("fragment" if path == FRAGMENT
-                 else "maquette" if path in maquette_styles else "app")
-        # A SCOPE IS REGISTERED ONLY WHEN IT HOLDS SOMETHING. The vacuity check
-        # refuses any registered scope that examined nothing — rightly — and
-        # since L07 the fragment declares no class at all: its rules moved to
-        # `src/styles/`. Registering it at zero would make the guard refuse
-        # itself for reading a file that has, correctly, nothing left to read.
-        if declared:
-            examined["declared CSS classes / " + scope] += len(declared)
+        # THE FRAGMENT IS PART OF THE MAQUETTE SCOPE, not a scope of its own.
+        # It held the prototype's whole stylesheet and now holds none of it,
+        # and a scope that can legitimately reach zero cannot also be the thing
+        # the vacuity check watches. Folding it in keeps ONE counter over the
+        # maquette's declared classes — which is what must never reach zero,
+        # and which the guard can therefore refuse when it does.
+        scope = "maquette" if path == FRAGMENT or path in maquette_styles else "app"
+        # REGISTERED UNCONDITIONALLY. Guarding this with `if declared:` is what
+        # a scope needs in order to disappear quietly, and a scope that
+        # disappears is exactly what the vacuity check exists to catch: move
+        # `src/styles/` one directory down and the glob stops matching, the
+        # counter stays at zero, and the arm reports « no violation » over a
+        # tree it never opened.
+        examined["declared CSS classes / " + scope] += len(declared)
         for name, line_no in declared.items():
             if allowed_class(name, allowed):
                 continue

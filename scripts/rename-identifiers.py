@@ -757,6 +757,10 @@ if __name__ == "__main__":
         for word in argument.split("=", 1)[1].split(",") if word
     )
     changed = collections.Counter()
+    # Corpus facts for the no-op refusal below.
+    read_files = 0
+    saw_source = False
+    saw_target = False
     written = []
     # The tree to walk. It defaulted to the maquette, and every surface outside
     # it — the app under `frontend/src`, the icon tool under `frontend/scripts`
@@ -811,6 +815,16 @@ if __name__ == "__main__":
         # strings that had "moved" and refused a file that was perfectly fine.
         with path.open(encoding="utf-8", newline="") as handle:
             before = handle.read()
+        # SUBSTRING ONLY, DELIBERATELY: it answers « is this name anywhere in
+        # the corpus », not « would it match ». The precise question is what
+        # the modes below are for, and this one must stay true when they are
+        # wrong. It is what tells a finished rename from one that could never
+        # have started.
+        read_files += 1
+        if any(name in before for name in mapping):
+            saw_source = True
+        if any(name in before for name in mapping.values()):
+            saw_target = True
         spans = (compiler_spans(path, before) if path.suffix in COMPILED
                  else python_spans(before) if path.suffix == ".py"
                  else None)
@@ -867,6 +881,36 @@ if __name__ == "__main__":
         changed[str(path.relative_to(ROOT))] = sum(
             1 for _ in re.finditer("|".join(re.escape(v) for v in mapping.values()), after))
 
+
+    # « 0 file(s) touched » WAS THIS TOOL'S SUCCESS LINE while it was
+    # structurally unable to match the name it was given — a word boundary
+    # cannot precede `--`. Adding a mode closed that one name and not the
+    # SHAPE: a typo, a wrong `--root` or a mode that does not match the KIND
+    # of name all still print it.
+    #
+    # THE REFUSAL IS NARROW BECAUSE TWO NO-OPS ARE LEGITIMATE — re-running a
+    # rename that has already landed (idempotence is held by a test), and a run
+    # whose corpus was excluded whole (everything under `i18n/`, which another
+    # hold asserts). So it refuses exactly « files were read, and neither the
+    # names being moved nor the names they move to are in any of them »: the
+    # subject is not in this tree. The tool still cannot say a rename was
+    # CORRECT — CLAUDE.md requires an oracle outside it — only that nothing
+    # happened.
+    if not changed and read_files and not saw_source and not saw_target:
+        raise SystemExit(
+            f"0 file(s) touched, and neither the {len(mapping)} name(s) being "
+            f"moved nor the names they move to appear in any of the "
+            f"{read_files} file(s) read. That is not a rename that had nothing "
+            "left to do — it is a rename whose subject is not in this tree. "
+            "Looked for: "
+            + ", ".join(sorted(mapping)[:8])
+            + (" …" if len(mapping) > 8 else "")
+            + f"; under {ROOT}. Check the source names, the --root, and the "
+            "mode (--properties, --values, --custom-properties).")
+    if not changed and not read_files:
+        print(
+            f"0 file(s) read under {ROOT} — every candidate was excluded. "
+            "Nothing was renamed because there was nothing to read.")
 
     print(f"{len(changed)} file(s) touched")
     for name, _ in changed.most_common(10):

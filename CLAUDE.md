@@ -47,7 +47,9 @@ style rule. The reference is the **tokens and the component catalogue**: `design
 and the `variants.ts` of `design/src/ui/` and of each surface, where every drawing decision is
 written beside the class that applies it. `design/src/styles/legacy.css` is the dated residue the
 dying engine still consumes — it dies with it at L13 — and `design/src/styles/harness.css` is the
-measuring apparatus, which ships nowhere.
+measuring apparatus: the phone frame the oracle measures inside, so it IS in the maquette's own
+build and is in no production build. It dies at switchover, and « it ships nowhere » would be
+the easy sentence and the false one.
 
 **READ THIS BEFORE ANYTHING ELSE — the maquette is the NEXT version of the app, and it will
 REPLACE it.** On switchover day `frontend/src` is ARCHIVED and the maquette takes its place. It

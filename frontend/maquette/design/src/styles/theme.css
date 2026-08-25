@@ -137,15 +137,21 @@
      A size that is genuinely not a spacing step — a 44px touch target — is
      written as an arbitrary value and says so by its shape. */
   --spacing: initial;
+  /* login:scale:start */ /* scale:start */
   /* ZERO IS A STEP, and clearing the multiplier had taken it away with the
      rest. Without it `p-0`, `m-0`, `gap-0`, `top-0` and every other
      zero-valued utility simply stop existing — which is not the scale being
      enforced, it is the absence of a value having no name. It is the identity
-     element rather than a new magnitude, so the scale L06 declared is
-     unchanged in what it MEASURES; it now also says « none ». */
+     element rather than a new magnitude, so the scale is unchanged in what it
+     MEASURES; it now also says « none ».
+
+     IT IS DECLARED INSIDE THE SCALE MARKERS, and that is not cosmetic: the
+     guard reads a step as something the marked block declares, so zero sitting
+     just above the marker read as a scale token declared OUTSIDE the scale —
+     the duplicate that guard exists to refuse. A step is a step where the
+     guard can see it. */
   --spacing-0: 0px;
 
-  /* login:scale:start */ /* scale:start */
   /* Space ramp: pads, gaps and margins. */
   --spacing-1: 2px;
   --spacing-2: 4px;

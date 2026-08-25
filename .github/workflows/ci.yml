@@ -150,6 +150,11 @@ jobs:
       # maquette's build is where the generated utilities can be read.
       - run: cd frontend/maquette/design && npm ci && npm run build
       - run: python3 scripts/check-tailwind-confinement.py
+      # The residue D-L07-5 let survive the conversion may only SHRINK.
+      # It is legitimate CSS in a file whose purpose is to hold
+      # legitimate CSS, so no other guard can tell a new hand-written
+      # rule from the ones already there — only its own ceiling can.
+      - run: python3 scripts/check-legacy-css-residue.py
       - run: python3 scripts/check-markup-contracts.py
       - run: python3 scripts/check-frontend-boundaries.py
       - run: python3 frontend/maquette/oracle.py --contracts

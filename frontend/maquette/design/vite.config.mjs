@@ -5,16 +5,19 @@
 import { readFileSync, rmSync, symlinkSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
-// Tailwind v4 as a Vite plugin. It scans only what `src/styles/theme.css`
-// names in its `@source` rules — never the project root, which is how 936
-// bytes of the maquette once leaked into the production bundle.
+// Tailwind v4 as a Vite plugin. WHAT CONFINES ITS SCAN IS `source(none)` on
+// the import in `src/styles/theme.css`, and NOT the `@source` rules beside it:
+// v4 scans the project root automatically, and an `@source` rule ADDS to that
+// scan rather than replacing it. Naming your sources confines nothing, and
+// believing otherwise is how 936 bytes of the maquette once leaked into the
+// production bundle. `scripts/check-tailwind-confinement.py` holds both ends.
 import tailwindcss from "@tailwindcss/vite";
 
 const ROOT = resolve(import.meta.dirname);
 
 function injectPrototype() {
   return {
-    name: "injecte-maquette",
+    name: "inject-prototype",
     transformIndexHtml: {
       // "post" runs after Vite's internal transforms: the fragment below is
       // emitted untransformed — byte-for-byte the source file.

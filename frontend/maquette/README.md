@@ -39,7 +39,8 @@ and that file no longer carries a single style rule. The reference is now the TO
 COMPONENT CATALOGUE — `src/styles/theme.css` for the scale and the palette, `src/styles/base.css`
 for the base layer, and the `variants.ts` of `src/ui/` and of each surface, where every drawing
 decision is written beside the class that applies it. `src/styles/legacy.css` is the dated residue
-the dying engine still consumes; `src/styles/harness.css` is the phone frame and ships nowhere;
+the dying engine still consumes; `src/styles/harness.css` is the phone frame — it is in the maquette's OWN build, because that is
+where the oracle measures, and in no production build; it dies at switchover;
 `refonte.html` is now the conversion ledger alone, and dies with the residue at L13.
 
 `design/` is the served root — everything a browser reaches lives there (the prototype, images,

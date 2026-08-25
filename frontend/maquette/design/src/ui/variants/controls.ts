@@ -108,6 +108,11 @@ export const optionMark = cva(
           "rounded-2 group-aria-checked:after:content-[''] group-aria-checked:after:absolute group-aria-checked:after:left-[5px] group-aria-checked:after:top-[1px] group-aria-checked:after:w-[5px] group-aria-checked:after:h-[10px] group-aria-checked:after:border-solid group-aria-checked:after:border-primary-foreground group-aria-checked:after:[border-width:0_2px_2px_0] group-aria-checked:after:[transform:rotate(45deg)]",
       },
     },
+    // A DEFAULT, BECAUSE `VariantProps` MAKES THE PROP OPTIONAL. Without one,
+    // `optionMark()` type-checks and emits no shape — a square mark with no
+    // radius and no tick, which is neither control. A radio is the shape the
+    // group defaults to elsewhere.
+    defaultVariants: { kind: "radio" },
   },
 );
 

@@ -439,6 +439,32 @@ border-radius: var(--radius-3);
   border-radius: var(--radius-2);
 }
 
+/* The end of a list, said once and quietly. SAME CASE AS `.empty` AND
+   `.surferr` ABOVE, and it was classified as component-drawn by mistake: the
+   médiathèque draws one from a component, and Découvrir's deck draws another
+   from the ENGINE (`sugFoot`). Engine markup receives no utility, so with the
+   rule gone the deck's end-of-reserve sentence rendered at the body size, left
+   aligned, with no divider above it — and nothing said so: the oracle does not
+   measure that region, and a `::before` that stops being painted changes
+   neither a rectangle nor one of the nineteen properties.
+
+   The declarations are `endMark()`'s, term for term, so the component that
+   already carries the variant renders exactly as it did. */
+.endmark {
+  text-align: center;
+  font-size: var(--text-2);
+  color: var(--color-muted-foreground);
+  padding: var(--spacing-7) 0 var(--spacing-2);
+}
+.endmark::before {
+  content: "";
+  display: block;
+  width: 34px;
+  height: 1px;
+  background: var(--color-border);
+  margin: 0 auto var(--spacing-4);
+}
+
 
 /* ── Arrivées — the run, told as its nine steps ──────────────────── */
 /* `.flux` and everything under it is written by the ENGINE: the row, its

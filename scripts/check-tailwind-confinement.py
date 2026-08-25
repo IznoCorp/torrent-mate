@@ -114,8 +114,9 @@ def generated_utilities() -> set[str] | None:
     call the rest absent.
 
     Returns:
-        The utility names, or `None` when no build is present — reported as a
-        skip rather than as a pass.
+        The utility names, or `None` when no build is present OR when its
+        `@layer utilities` header cannot be found — both reported as a failure
+        rather than as a pass.
     """
     built = sorted((DESIGN / "dist" / "vite").glob("*.css")) if (DESIGN / "dist" / "vite").exists() else []
     if not built:
@@ -123,7 +124,12 @@ def generated_utilities() -> set[str] | None:
     css = built[0].read_text(encoding="utf-8")
     opening = css.find("@layer utilities{")
     if opening < 0:
-        return set()
+        # NOT AN EMPTY SET. The header is matched as a literal, so one space
+        # from a different minifier or a Tailwind that reformats it would make
+        # every collision test compare against nothing and pass — printing
+        # « 0 utilitie(s) generated » as its only tell, which is a number
+        # nobody compares. An unreadable build is a failure, like an absent one.
+        return None
     index = opening + len("@layer utilities{")
     depth = 1
     while depth and index < len(css):
@@ -133,6 +139,12 @@ def generated_utilities() -> set[str] | None:
             depth -= 1
         index += 1
     return set(re.findall(r"\.([a-zA-Z][\w-]*)(?=[,{:.\s])", css[opening:index]))
+
+
+# The floor under hold 4's read of the build. The current build yields 209
+# utilities; the figure exists to catch a build or a read that collapsed, not
+# to track the number, so it sits far below and moves only when it bites.
+UTILITY_FLOOR = 100
 
 
 def main() -> int:
@@ -175,6 +187,15 @@ def main() -> int:
     # that reads its own documentation as code is a guard that fails on being
     # explained.
     named = set(re.findall(r'@source\s+(?:not\s+)?"([^"]+)"', declarations))
+    # A HOLD THAT ONLY SUBTRACTS PASSES ON AN EMPTY SET. Deleting every
+    # `@source` line leaves no stray and read as clean, while the scan it
+    # describes had stopped existing. What is allowed must also be THERE.
+    if not named:
+        failures.append(
+            "  the theme entry names no `@source` at all. `source(none)` alone "
+            "confines the scan to nothing; the allowed directories are what "
+            "make it scan the design. A missing set is not an empty violation."
+        )
     stray = named - ALLOWED_SOURCES
     if stray:
         failures.append(
@@ -204,11 +225,23 @@ def main() -> int:
     utilities = generated_utilities()
     if utilities is None:
         print(
-            "tailwind confinement: no build under design/dist/vite — run "
-            "`npm run build` first. Skipped rather than passed.",
+            "tailwind confinement: no readable build under design/dist/vite — "
+            "run `npm run build` first, and if one is there, its "
+            "`@layer utilities` header could not be found. Refused rather "
+            "than passed.",
             file=sys.stderr,
         )
         return 1
+    # AND A FLOOR UNDER THE COUNT. A build that yields a handful of utilities
+    # is a build this hold did not really read; the collision test would then
+    # compare against almost nothing and report clean.
+    if len(utilities) < UTILITY_FLOOR:
+        failures.append(
+            f"  the build yielded {len(utilities)} utilitie(s), under the floor "
+            f"of {UTILITY_FLOOR}. Either the build is a fraction of itself or "
+            "this hold read a fraction of the build — both are measurements "
+            "nobody should trust, and neither is « no collision »."
+        )
     collisions = (utilities & prototype_rule_classes()) - set(DECLARED_COLLISIONS)
     if collisions:
         failures.append(
@@ -263,9 +296,34 @@ def main() -> int:
     # The test is the one thing that distinguishes the two cases: a literal
     # ending in a SPACE is a clean break between class names; a literal ending
     # in any other character continues the name into the next one.
+    #
+    # THE VOCABULARY IS A FAMILY, NOT A FILENAME, and a glob on `variants.ts`
+    # alone is blind to most of it: `ui/variants.ts` is a BARREL, and the
+    # shared primitives live in `ui/variants/{controls,layout,surfaces}.ts` —
+    # measured, 54 of 89 concatenation sites, every shared primitive among
+    # them. Read that way the hold stays green over a class cut in half in
+    # that directory, which is the exact defect it exists to refuse. The
+    # predicate is the one the two markup readers already carry: a file NAMED
+    # for the vocabulary, or any file inside a directory named for it.
+    #
+    # WHAT IT DOES NOT SEE, said here so the next reader does not over-trust
+    # it: the cut must fall at END OF LINE. `"a" + "b"` on one line, a template
+    # literal, and `.concat()` are all invisible to this hold.
+    #
+    # AND IT REFUSES AN EMPTY READ. A hold that finds no source to read is a
+    # hold that passes because it looked nowhere, and this one has already had
+    # its corpus move out from under it once.
     holds += 1
     split: list[str] = []
-    for path in sorted((DESIGN / "src").rglob("variants.ts")):
+    sources = [path for path in sorted((DESIGN / "src").rglob("*.ts"))
+               if path.name.endswith("variants.ts") or path.parent.name == "variants"]
+    if not sources:
+        failures.append(
+            "  the split-class hold read NO source file. The vocabulary is "
+            "named by `*variants.ts` or by a `variants/` directory under "
+            f"{(DESIGN / 'src').relative_to(ROOT)}; neither matched, so this "
+            "hold measured nothing rather than finding nothing.")
+    for path in sources:
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             tail = re.search(r'"([^"]*)"\s*\+\s*$', line)
             if tail and tail.group(1) and not tail.group(1).endswith(" "):
@@ -286,7 +344,8 @@ def main() -> int:
         f"tailwind confinement: {holds} hold(s), no violation — "
         f"{len(utilities)} utilitie(s) generated, "
         f"{len(DECLARED_COLLISIONS)} declared collision(s), "
-        f"{len(declared_tokens)} token(s) declared and all emitted, scan confined."
+        f"{len(declared_tokens)} token(s) declared and all emitted, scan confined, "
+        f"{len(sources)} vocabulary file(s) read for split class names."
     )
     return 0
 

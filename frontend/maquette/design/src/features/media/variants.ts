@@ -17,6 +17,10 @@ import { cva } from "../../ui/cva";
  */
 export const heroWrap = cva("herowrap relative -mt-5 -mx-7 mb-0 isolate overflow-x-clip", {
   variants: { poster: { true: "", false: "noposter pt-8" } },
+  // A DEFAULT, BECAUSE `VariantProps` MAKES THE PROP OPTIONAL. A call that
+  // forgets it type-checks; `true` is the shape a sheet has when it has an
+  // image, which is the case the layout was drawn for.
+  defaultVariants: { poster: true },
 });
 
 /**
@@ -48,6 +52,11 @@ export const heroImage = cva(
           "h-[72px] min-h-0 [background-image:linear-gradient(160deg,color-mix(in_oklab,var(--color-primary)_45%,var(--color-background)),var(--color-card)_58%,var(--color-muted))]",
       },
     },
+    // A DEFAULT, AND HERE IT IS THE ONE THAT MATTERS. Height lives ONLY in the
+    // variant, so a call that omits the prop type-checks and emits no height
+    // at all — the hero collapses to nothing and the melt has no image to melt
+    // from. `VariantProps` cannot ask for it; this can.
+    defaultVariants: { poster: true },
   },
 );
 

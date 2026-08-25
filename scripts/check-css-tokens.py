@@ -253,6 +253,26 @@ EXEMPTIONS = {
         "composition measurement, not a space step (the rule's own comment "
         "says so)"
     ),
+    # THE TWO BELOW ARE NOT ARBITRATIONS — they are DEBT this arm could not see
+    # until it was widened, and they are exempted so it can go green over what
+    # it CAN answer for while the two values wait for someone who may change
+    # what the screen does. Both rules came out of the prototype's harness
+    # block, which was never under the scale rule, and entered the shipped base
+    # layer when that block was cut. B-066 holds the two off-scale values and
+    # the reason the fix is not a call-site edit.
+    ".visually-hidden": (
+        "the one-pixel clip idiom: `width: 1px`, `height: 1px`, `margin: -1px` "
+        "are the technique for hiding an element from sight and not from a "
+        "screen reader — a measurement of the technique, not a space step, and "
+        "no step of any ramp would do"
+    ),
+    ".skip-link": (
+        "the accessibility skip link, off screen until focused. Its `16px` pad "
+        "and `10px` radius are on no step (the ramps read 14 then 18, and 8 "
+        "then 12), so honouring the scale would change what a keyboard user "
+        "sees — a design change, not a token substitution. Recorded as B-066 "
+        "rather than decided here"
+    ),
 }
 
 # A step declaration inside the scale block: its name and its value. The scale
@@ -650,9 +670,9 @@ def application_stylesheet() -> str | None:
     one question: does the application's own CSS resolve every `var()` it uses
     ON ITS OWN, once the prototype's harness stops shipping? That used to be
     `refonte.html`'s BLOCK 2 and nothing else. Since L07 the application's CSS
-    is three files — the tokens, the base layer and what is left of BLOCK 2 —
-    and reading only the last of them reported the entire scale as dangling the
-    moment it moved into `@theme`.
+    is FOUR files — the tokens, the base layer, the residue, and what is left
+    of BLOCK 2 — and reading only the last of them reported the entire scale as
+    dangling the moment it moved into `@theme`.
 
     Widening the read is therefore the opposite of relaxing the arm: a token
     declared in a file that does NOT ship would still be counted missing,
@@ -701,9 +721,13 @@ def token_arm() -> int:
 
     for name in undefined:
         print(
-            f"  {name} is used and declared nowhere in {FRAGMENT.name} BLOCK 2 — it "
-            "resolves to nothing the day BLOCK 1 stops shipping. Declare it "
-            "in BLOCK 2, beside the rules that use it, or drop the use.",
+            f"  {name} is used and declared in none of the stylesheets that "
+            "ship — it resolves to nothing the day the harness sheet stops "
+            "shipping. Declare it in `src/styles/theme.css`, beside the "
+            "tokens, or drop the use. (Telling the reader to « declare it in "
+            "BLOCK 2 » is what this message said until 2026: BLOCK 2 must now "
+            "hold no rule at all, so the instruction pointed at the one place "
+            "the declaration may not go.)",
             file=sys.stderr,
         )
     for name in only_conditional:
@@ -731,7 +755,15 @@ def token_arm() -> int:
         )
         return 1
 
-    shipped = ", ".join(name for name, path in (("theme.css", THEME_LAYER), ("base.css", BASE_LAYER)) if path.exists())
+    # NAMED IN FULL, and the list is the one `application_stylesheet()` reads.
+    # It said « theme.css, base.css » while reading three, which understates
+    # what a green run covers — and a reader who trusts the line would look for
+    # the residue's own tokens somewhere else entirely.
+    shipped = ", ".join(
+        name for name, path in (
+            ("theme.css", THEME_LAYER), ("base.css", BASE_LAYER), ("legacy.css", LEGACY_LAYER),
+        ) if path.exists()
+    )
     print(
         f"check-css-tokens: the application's stylesheet "
         f"({FRAGMENT.name} BLOCK 2{', ' + shipped if shipped else ''}) — "
@@ -777,7 +809,7 @@ def scale_measurement(
     ]
     | None
 ):
-    """Counts what BLOCK 2 still spends outside the scale, and where.
+    """Counts what the shipped stylesheets spend outside the scale, and where.
 
     The scale block is cut out BEFORE comments are stripped, in that order and
     not the other: its markers are comments, and a strip-first reading would
@@ -789,20 +821,15 @@ def scale_measurement(
     Returns:
         `(inventory, duplicated, steps)` — the off-scale declarations per
         family, the scale tokens declared outside the scale block, and the
-        steps the block declares. `None` when BLOCK 2 or the scale block could
-        not be located.
+        steps the block declares. `None` when the scale block could not be
+        located, or when the shipped stylesheets declare no rule at all.
     """
-    css = block_two()
-    if css is None:
-        return None
-    # THE STEPS AND WHAT SPENDS THEM NOW LIVE IN DIFFERENT FILES. L07 moved the
-    # scale into `src/styles/theme.css`, where it is a Tailwind `@theme` block
-    # rather than a `:root` one, and the fragment kept the declarations that
-    # READ those steps. This arm therefore reads two places instead of
-    # partitioning one — and it still refuses to run when the block is absent,
-    # because an arm that cannot find the scale would otherwise measure every
-    # declaration against an empty set of steps and call the result « no
-    # violation ».
+    # THE STEPS AND WHAT SPENDS THEM NOW LIVE IN DIFFERENT FILES. The scale is
+    # a Tailwind `@theme` block in `src/styles/theme.css` rather than a `:root`
+    # one. This arm therefore reads two places instead of partitioning one —
+    # and it still refuses to run when the block is absent, because an arm that
+    # cannot find the scale would otherwise measure every declaration against
+    # an empty set of steps and call the result « no violation ».
     if not THEME_LAYER.exists():
         print(
             f"check-scale: {THEME_LAYER} not found — the scale has no home, so this arm has nothing to measure against",
@@ -818,7 +845,7 @@ def scale_measurement(
             file=sys.stderr,
         )
         return None
-    block, closing, _ = rest.partition(SCALE_END)
+    block, closing, after = rest.partition(SCALE_END)
     if not closing:
         print(
             f"check-scale: {SCALE_START} is never closed by {SCALE_END} — the "
@@ -826,7 +853,36 @@ def scale_measurement(
             file=sys.stderr,
         )
         return None
-    outside = COMMENT.sub(" ", css)
+
+    # WHAT SPENDS THE STEPS IS EVERY STYLESHEET THAT SHIPS, MINUS THE SCALE
+    # ITSELF. Reading one file was right while that file held every rule; it
+    # stopped being right the moment the rules moved out of it, and a scope
+    # that empties turns « no violation » into « nothing was read ». The same
+    # correction the token arm already carries, made in the same shape: the
+    # files are NAMED one by one, never globbed, so a stylesheet that does not
+    # ship cannot quietly join the measurement — which is why the harness sheet
+    # is absent from `application_stylesheet()` and absent here.
+    #
+    # The scale block is cut out before anything is measured. Left in, every
+    # step would read as a scale token declared outside the scale — the very
+    # duplicate the hold below exists to name.
+    spending = application_stylesheet()
+    if spending is None:
+        return None
+    spending = spending.replace(marker + block + closing, "\n")
+    outside = COMMENT.sub(" ", spending)
+
+    # AND IT REFUSES AN EMPTY READ, which is the failure this widening repairs.
+    # A measurement over text that declares nothing is not « every declaration
+    # reads a step »; it is an arm that looked at nothing and said so as
+    # success.
+    if not RULE.findall(outside):
+        print(
+            "check-scale: the shipped stylesheets declare no rule at all — "
+            "this arm measured nothing rather than finding nothing",
+            file=sys.stderr,
+        )
+        return None
 
     inventory: dict[str, list[tuple[str, str, str]]] = {family: [] for family in FAMILIES}
     for prelude, body in RULE.findall(outside):
@@ -881,8 +937,8 @@ def scale_arm() -> int:
     if off_scale:
         print(
             f"\nscale: {off_scale} declaration(s) outside the scale — every design "
-            "constant BLOCK 2 spends is a step declared in the scale block, and "
-            "there is no floor above zero.",
+            "constant the shipped stylesheets spend is a step declared in the "
+            "scale block, and there is no floor above zero.",
             file=sys.stderr,
         )
     if failed or off_scale:

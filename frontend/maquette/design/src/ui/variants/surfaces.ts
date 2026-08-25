@@ -28,6 +28,11 @@ export const statusDot = cva("pip w-[8px] h-[8px] rounded-full flex-none", {
       neutral: "neutral bg-neutral-signal",
     },
   },
+  // A DEFAULT, BECAUSE `VariantProps` MAKES THE PROP OPTIONAL. Without one,
+  // `statusDot()` type-checks and emits no `bg-*` at all — a dot with a size
+  // and no colour, which renders as nothing and compiles as correct. Neutral
+  // is the honest default: a state nobody named is not a warning.
+  defaultVariants: { tone: "neutral" },
 });
 
 /** An empty surface: it says WHY, and offers a way out. */

@@ -25,9 +25,19 @@ WHAT IT HOLDS. Three things, and none of them is a rewritable baseline:
     2. THE NAMED BLOCK. The `user-drag` / `-webkit-touch-callout` group on the
        draggable images is required to exist by property AND value, wherever it
        lives. That is the incident above, written as a rule.
-    3. EVERY ENTRY CARRIES ITS REASON. A manifest entry with an empty `why` is
-       itself a violation, the same shape as a `french-ok` pragma with no
-       reason: an inventory nobody has to justify is an inventory nobody reads.
+    3. EVERY `required` ENTRY CARRIES ITS REASON. A manifest entry with an
+       empty `why` is itself a violation, the same shape as a `french-ok`
+       pragma with no reason: an inventory nobody has to justify is an
+       inventory nobody reads. The FLOORS carry theirs in the manifest's
+       `taken_at` and `floors_note` rather than one per line — hold 3 reads
+       `required`, and saying « every entry » of the whole file overstated it.
+
+    AND NOTHING IS READ THROUGH A COMMENT. Every site below is found by
+    searching text, so a sentence explaining a compositor declaration counted
+    as one until 2026 — five of thirteen `touch-action` sites were prose, two
+    of them the sentence naming this guard. Comments are blanked first, and
+    `styles/harness.css` is out of the corpus: the instrument may not satisfy
+    a floor the product no longer meets.
 
 Exit code is the verdict: 0 when every hold passes, 1 naming what went missing.
 """
@@ -43,8 +53,11 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "frontend" / "maquette" / "compositor-css.json"
 DESIGN = ROOT / "frontend" / "maquette" / "design"
 
-# The six properties the compositor reads. `overscroll-behavior` is matched
-# with its axis suffixes because `-y` is the spelling actually used.
+# The seven properties the compositor reads. `overscroll-behavior` is matched
+# with its axis suffixes because `-y` is the spelling actually used, and
+# `tap-highlight-color` is watched at a floor of ZERO: the prototype declares
+# none, and a property absent from this tuple cannot be noticed the day one
+# appears.
 PROPERTIES = (
     "touch-action",
     "user-select",
@@ -92,9 +105,11 @@ def sources() -> list[pathlib.Path]:
 
     Returns:
         The prototype fragment while it still exists, the shell document, the
-        three stylesheets of D3 once they do, and the whole component tree.
-        A path that does not exist is skipped rather than raising: this list
-        spans the wave, and half of it does not exist when the wave opens.
+        stylesheets of D3 once they do, and the whole component tree — minus
+        the harness's own sheet, which is the instrument rather than the
+        product. A path that does not exist is skipped rather than raising:
+        this list spans the wave, and half of it does not exist when the wave
+        opens.
     """
     found: list[pathlib.Path] = []
     for name in ("refonte.html", "index.html"):
@@ -106,7 +121,59 @@ def sources() -> list[pathlib.Path]:
             continue
         for pattern in patterns:
             found.extend(sorted(directory.rglob(pattern)))
-    return found
+    # THE INSTRUMENT IS NOT THE PRODUCT. `styles/harness.css` is the phone
+    # frame and the measuring hides; a `touch-action` written there could
+    # satisfy a floor the product no longer meets, which is the harness
+    # certifying the thing it exists to measure. `common.py` draws the same
+    # line around `engine/states.js` for the same reason.
+    return [path for path in found if path.name not in _NOT_THE_PRODUCT]
+
+
+# The instrument's own sources, excluded from the product's floors.
+_NOT_THE_PRODUCT = {"harness.css"}
+
+# A block comment, in CSS and in JS/TS alike.
+_BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.S)
+
+# A line comment, JS/TS only — `//` is not a comment in CSS, and a bare
+# `https://` must not be mistaken for one, which is what the lookbehind on `:`
+# refuses.
+_LINE_COMMENT = re.compile(r"(?<!:)//[^\n]*")
+
+_SCRIPT_SUFFIXES = {".ts", ".tsx", ".js", ".mjs"}
+
+
+def _without_comments(text: str, suffix: str) -> str:
+    """Blanks every comment while keeping the text's line numbering.
+
+    THIS IS THE HOLD, NOT HOUSEKEEPING. Every site below is found by searching
+    raw lines, so a sentence EXPLAINING a compositor declaration counts as one
+    — and this file's subject is declarations whose absence is invisible, so a
+    prose site is a floor met by its own documentation. Measured before the
+    strip: five of thirteen `touch-action` sites were comments, two of them
+    the sentence « `touch-none` is COMPOSITOR-FACING and held by this guard ».
+    Deleting the one real `touch-action: none` in the tree then left the guard
+    green, with the grab handle taking no compositor axis claim.
+
+    The sibling Tailwind guard learned the same thing by mutation and says so
+    in its own words: a guard that reads its own documentation as code is a
+    guard that fails on being explained.
+
+    Args:
+        text: The file's contents.
+        suffix: The file's extension, which decides whether `//` is a comment.
+
+    Returns:
+        The text with comment bodies replaced by spaces, newlines preserved so
+        every reported line number still points where it did.
+    """
+    def blank(match: re.Match[str]) -> str:
+        return re.sub(r"[^\n]", " ", match.group(0))
+
+    text = _BLOCK_COMMENT.sub(blank, text)
+    if suffix in _SCRIPT_SUFFIXES:
+        text = _LINE_COMMENT.sub(blank, text)
+    return text
 
 
 def observed() -> dict[str, list[tuple[str, str, int]]]:
@@ -120,7 +187,7 @@ def observed() -> dict[str, list[tuple[str, str, int]]]:
     sites: dict[str, list[tuple[str, str, int]]] = {name: [] for name in PROPERTIES}
     for path in sources():
         relative = str(path.relative_to(ROOT))
-        text = path.read_text(encoding="utf-8")
+        text = _without_comments(path.read_text(encoding="utf-8"), path.suffix)
         for number, line in enumerate(text.splitlines(), 1):
             for match in _DECLARATION.finditer(line):
                 prop = match.group(1)

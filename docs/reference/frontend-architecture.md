@@ -654,7 +654,7 @@ findings are gone and `a11y.py`'s contrast run is empty; `.search input` reads a
 focused field no longer zooms iOS; the oracle records the intended visual changes as accepted, each
 reviewed.
 
-#### L07 — Tailwind and CVA, surface by surface · `NOT STARTED` · *depends on L02, L04, L06*
+#### L07 — Tailwind and CVA, surface by surface · `LANDED` · *depended on L02, L04, L06*
 
 **Objective.** D2 in force. Each surface converts on its own, oracle green at every step.
 

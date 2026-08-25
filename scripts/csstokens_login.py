@@ -14,6 +14,7 @@ the sign-in screen's own style each left the prototype fragment.
 """
 from __future__ import annotations
 
+import importlib.util
 import re
 import sys
 from pathlib import Path
@@ -179,14 +180,119 @@ def composed_chunks() -> dict[str, str] | None:
     return chunks
 
 
+# A custom-property declaration, anchored to the start of a statement so a
+# `var(--x)` inside a value is not read as one.
+_DECLARES_TOKEN = re.compile(r"(?:^|[{;])\s*(--[\w-]+)\s*:")
+
+
+def served_style() -> str | None:
+    """Returns the CSS the sign-in page actually serves.
+
+    THE CHUNKS ARE NOT THE PAGE, and the difference is a documented landmine.
+    `serve.py` wraps two of them in `:root { … }` ITSELF, outside `extract()`,
+    because the steps live in a Tailwind `@theme` block and this page is plain
+    HTML that Tailwind never processes — a browser drops an at-rule it does not
+    know and takes every token with it, silently. Read chunk by chunk, that
+    wrapper is invisible: the declarations are present either way and the
+    resolution hold below is satisfied either way. Read as the page, a token
+    left at top level is a token nothing declares.
+
+    Returns:
+        The text between the composed page's `<style>` tags, or `None` when the
+        composer cannot be imported or serves no style at all.
+    """
+    location = importlib.util.spec_from_file_location("_login_composer", COMPOSER)
+    if location is None or location.loader is None:
+        print(f"check-login: {COMPOSER} cannot be loaded as a module", file=sys.stderr)
+        return None
+    module = importlib.util.module_from_spec(location)
+    try:
+        location.loader.exec_module(module)
+        page = module.login_page(False)
+    except Exception as failure:  # the composer's own errors, reported as its own
+        print(
+            f"check-login: composing the sign-in page raised {failure!r} — "
+            "the page this arm measures is the page nobody would be served",
+            file=sys.stderr,
+        )
+        return None
+    # `login_page` returns the bytes it will write on the wire, which is the
+    # right shape for a server and the wrong one for a pattern — decoded here
+    # rather than changed there, because what this arm must read is exactly
+    # what is sent.
+    if isinstance(page, bytes):
+        page = page.decode("utf-8")
+    blocks = re.findall(r"<style[^>]*>(.*?)</style>", page, re.S)
+    if not blocks:
+        print(
+            "check-login: the composed sign-in page carries no <style> at all — "
+            "an arm that reads no CSS holds nothing",
+            file=sys.stderr,
+        )
+        return None
+    return "\n".join(blocks)
+
+
+def top_level_tokens(css: str) -> list[str]:
+    """Returns every custom property declared outside any rule block.
+
+    Args:
+        css: The composed stylesheet.
+
+    Returns:
+        The names, in the order met. A name here is a token the browser never
+        receives: a declaration at `<style>` top level is not in a rule, so it
+        belongs to no selector and applies to nothing.
+    """
+    stray: list[str] = []
+    depth = 0
+    statement_start = 0
+    for index, char in enumerate(css):
+        if char == "{":
+            if depth == 0:
+                statement_start = index + 1
+            depth += 1
+        elif char == "}":
+            depth = max(0, depth - 1)
+            statement_start = index + 1
+        elif char == ";" and depth == 0:
+            found = _DECLARES_TOKEN.search(css[statement_start - 1 : index + 1]
+                                           if statement_start else css[: index + 1])
+            if found:
+                stray.append(found.group(1))
+            statement_start = index + 1
+    return stray
+
+
 def login_arm() -> int:
     """Refuses a token the composed sign-in page uses but is never given.
+
+    Two holds, and they fail differently: the first reads the chunks and asks
+    whether every `var()` resolves among them; the second reads the PAGE and
+    asks whether the declarations reach the browser at all.
 
     Returns:
         1 when anything was found, 0 otherwise.
     """
     chunks = composed_chunks()
     if chunks is None:
+        return 1
+
+    served = served_style()
+    if served is None:
+        return 1
+    stray = top_level_tokens(COMMENT.sub(" ", served))
+    if stray:
+        for name in sorted(set(stray)):
+            print(
+                f"  login: {name} is declared at the top level of the composed "
+                "page's <style>, outside any rule. It belongs to no selector, "
+                "so the browser applies it to nothing and every use of it "
+                "resolves to silence. The scale and the dark palette are "
+                "extracted OUT of a Tailwind `@theme` block and must be "
+                "wrapped in a selector serve.py writes itself.",
+                file=sys.stderr,
+            )
         return 1
 
     # Both comment syntaxes: the CSS chunks live in a <style>, the markup chunks
@@ -216,5 +322,8 @@ def login_arm() -> int:
     if missing:
         return 1
 
-    print(f"login: {len(used)} var() use(s) in the composed chunks, all declared there.")
+    print(
+        f"login: {len(used)} var() use(s) in the composed chunks, all declared "
+        "there; and no token declared outside a rule on the page as served."
+    )
     return 0

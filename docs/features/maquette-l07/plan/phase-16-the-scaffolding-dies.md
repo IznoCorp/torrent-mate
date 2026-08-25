@@ -89,7 +89,9 @@ and by nothing that ships.
 **What this makes void.** **ACC-15 as written** — « no fourth stylesheet » — is void. Its subject
 was « no hand-written component stylesheet survives the conversion », and that claim holds: the
 fourth file carries no surface, only the measuring apparatus. Read it as **exactly four, and the
-fourth ships nowhere**, held by ACC-17 (`grep -c` over `frontend/`'s built CSS → 0).
+fourth is in no PRODUCTION build**, held by ACC-17 (`grep -c` over `frontend/`'s built CSS → 0).
+It IS in the maquette's own build, and must be — the oracle measures the prototype inside the
+phone frame. « Ships nowhere » is the easy sentence and the false one; it dies at switchover.
 
 **This is the lot's one deviation, and it is deliberate.** Recorded here, in the PR body, and in
 `IMPLEMENTATION.md`'s state row — three places, because a deviation named in one is a deviation
@@ -135,7 +137,8 @@ component tree that cite it as provenance.
 | criterion | status |
 | --- | --- |
 | **ACC-14** — `test ! -f frontend/maquette/design/refonte.html` | **deferred**, not met, not silently dropped |
-| **ACC-18** — §15 no longer names the file | **met** — the constitution was amended (`9c7e7379`); the file survives its own constitutional mention, which is the right order |
+| **ACC-18** — §15 no longer names the file | **subject met, COMMAND corrected.** §15 no longer names the file as the product (`9c7e7379`). The criterion greps the whole document, and § 7.1 forbids erasing the old text — so the amendment's own sentence matches, as does §16's unrelated z-index note. Read as: no line of §15 names it as the reference. <sub>`awk '/^## §15/,/^## §16/' docs/reference/product-intent.md \| grep -c 'refonte.html'` → 1, the amendment's own account</sub> |
+| **ACC-16** — `check-legacy-css-residue.py` exits 0 | **was unmeetable, and is met now.** The script did not exist: `legacy.css`'s own header, this plan, `DESIGN.md` twice, `IMPLEMENTATION.md` and **§15 of the constitution** all said a guard refused the residue growing, and none did. It is written, wired into `make check` and CI, and mutation-tested three ways — a class added, the ceiling absent, the residue absent |
 | **ACC-19** — no `.py`/`.mjs`/`.js` under `frontend`/`scripts` names the path | **deferred** with ACC-14; the count is 12 live readers, not the 14 the wave opened on |
 
 **Where the deferred work goes: L13 — « The engine's residue ».** Not arbitrarily. A third of the

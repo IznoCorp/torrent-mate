@@ -100,7 +100,8 @@ THEME_STYLESHEET = DESIGN_ROOT / "src" / "styles" / "theme.css"
 LEGACY_STYLESHEET = DESIGN_ROOT / "src" / "styles" / "legacy.css"
 # The document Vite owns, and where the application shell's markup lives — the
 # phone frame, the sign-in card, the startup screen. The login gate clones
-# those from here and inherits its style from the fragment above.
+# those from here; its style comes from the three stylesheets above, not from
+# the prototype fragment, which carries no rule.
 SHELL_DOCUMENT = DESIGN_ROOT / "index.html"
 DIST = DESIGN_ROOT / "dist" / "index.html"
 # The build inputs that always exist, at the design root.
@@ -479,21 +480,19 @@ def login_page(refused: bool) -> bytes:
     Returns:
         A complete HTML document.
     """
-    # TWO SOURCES, because the gate borrows from two. The MARKUP it clones —
-    # the sign-in card and the startup screen — is the application shell, and
-    # that lives in `index.html` since the fragment stopped carrying a
-    # program. The STYLE it inherits is still the fragment's: the CSS contract
-    # does not move before SP5. Each `extract` below reads whichever file
-    # actually holds its block, and `extract` itself raises when a marker is
-    # missing — so pointing one of them at the wrong file fails the gate
-    # loudly instead of serving a screen stripped of its design.
-    # THREE SOURCES SINCE L07, AND THE FRAGMENT IS NONE OF THEM ANY MORE.
-    # Every `login:*` region left it: the scale and the palette for
-    # `theme.css`, the typeface and the reset for `base.css`, the sign-in
-    # screen's own style and the splash for `legacy.css`. Each `extract` below
-    # names exactly one file, which is the shape the login arm of
-    # `scripts/check-css-tokens.py` follows — a concatenated source left it
-    # resolving every chunk to the first file and reporting the rest missing.
+    # FOUR SOURCES, AND THE PROTOTYPE FRAGMENT IS NONE OF THEM. The MARKUP the
+    # gate clones — the sign-in card and the startup screen — is the
+    # application shell, in `index.html`. The STYLE comes from the three
+    # stylesheets: the scale and the palette from `theme.css`, the typeface
+    # and the reset from `base.css`, the sign-in screen's own style and the
+    # splash from `legacy.css`. Every `login:*` region left the fragment.
+    #
+    # Each `extract` below names exactly ONE file, which is the shape the login
+    # arm of `scripts/check-css-tokens.py` follows — a concatenated source left
+    # it resolving every chunk to the first file and reporting the rest
+    # missing. `extract` itself raises when a marker is absent, so pointing one
+    # at the wrong file fails loudly instead of serving a screen stripped of
+    # its design.
     base_source = BASE_STYLESHEET.read_text()
     theme_source = THEME_STYLESHEET.read_text()
     legacy_source = LEGACY_STYLESHEET.read_text()

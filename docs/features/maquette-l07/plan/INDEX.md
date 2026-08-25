@@ -127,6 +127,15 @@ region that moved.
 | ACC-19 | `grep -rln 'refonte\.html' --include='*.py' --include='*.mjs' --include='*.js' frontend scripts \| grep -v node_modules` | no match at the close of phase 16 (14 files on the day the wave opened) |
 | ACC-20 | `python3 -c "import personalscraper"` | no output, exit 0 |
 
+**Two of the commands above name something that does not exist, and both are correct.**
+`ACCEPTED-DIVERGENCES.md` has no file under `maquette-l07/` because the wave ran at **0
+divergence at the close of every phase** — the file is the alternative branch of ACC-02, and
+there was nothing to write in it. L06 has one; this lot does not need one. And ACC-04b's
+`--compare` reports **one** movement — R74, 9 → 10 — because `hold-counts-baseline.json` is still
+the one recorded at L06's squash (`a4418e6a`, verified an ancestor of `HEAD`). That movement is
+named in `IMPLEMENTATION.md`, which is what ACC-04b asks; the baseline is re-recorded from
+`main`'s tip in the post-merge steps, beside the oracle reference.
+
 **Three of these criteria did not close as written, and the table above is left standing.**
 Added 2026-08-25, at the close of the wave; the full reasoning is the amendment at the foot of
 `plan/phase-16-the-scaffolding-dies.md`, and § 7.1 of `docs/reference/frontend-architecture.md` is
@@ -135,17 +144,25 @@ why the rows are annotated here rather than rewritten.
 - **ACC-15 — void as written, and met on its own subject.** BLOCK 1's harness rules could not be
   deleted: the oracle, the rule suite and `html.measuring` are built out of them, and the commit
   that claims « the rendering did not move » cannot also destroy the instrument that says so. They
-  are `src/styles/harness.css`, a **fourth** stylesheet imported once and by nothing that ships.
-  The criterion's subject — « no hand-written component stylesheet survives » — holds, and
-  **ACC-17 is what proves the fourth file ships nowhere**. This is the lot's one deviation.
+  are `src/styles/harness.css`, a **fourth** stylesheet, imported once. It IS in the maquette's own
+  build — the oracle measures inside the phone frame, so it must be — and it is in **no production
+  build**, which is what ACC-17 proves (`grep -c` over `frontend/`'s built CSS → 0). It dies at
+  switchover. The criterion's subject — « no hand-written component stylesheet survives » — holds.
+  This is the lot's one deviation.
 - **ACC-14 and ACC-19 — deferred, not met.** `refonte.html` still exists. It carries zero style
   rules, and it carries the wave's conversion ledger; and R72's hold (a) is the verbatim injection
   of it, so removing the file retires a hold — a rule renegotiation in `regions.json`, not a
   tail-of-session edit. Twelve live readers name the path (14 on the day the wave opened).
   **Recorded against L13**, where the residue, the ledger and the fragment resolve in one move.
-- **ACC-18 — met.** §15 of the constitution no longer names the file (`9c7e7379`), so the file
-  survives its own constitutional mention rather than the reverse. That is the right order: the
-  document that binds moved first.
+- **ACC-18 — its subject is met; its COMMAND was wrong, and is corrected here rather than
+  declared satisfied.** §15 no longer names the file as the product (`9c7e7379`). But the
+  criterion greps the WHOLE of `product-intent.md` for the string, and § 7.1 forbids erasing the
+  old text — so the amendment's own sentence (« ce paragraphe nommait … ») is a match, and so is
+  §16's unrelated z-index note. A criterion whose command contradicts the method it serves is a
+  criterion nobody can pass honestly. **Read as**: no line of §15 names the file as the visual
+  reference; the only mention inside §15 is the dated amendment saying what it replaced.
+  <sub>`awk '/^## §15/,/^## §16/' docs/reference/product-intent.md | grep -c 'refonte.html'` → 1,
+  and that one line is the amendment's own account.</sub>
 
 **ACC-02 is the one that decides this wave.** It runs at the close of every phase, not at the end.
 A wave that runs it once at the end has proved that the sum of sixteen changes renders correctly,

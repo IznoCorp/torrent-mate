@@ -306,7 +306,7 @@ variants typés. La référence visuelle est désormais **les tokens et le catal
 
 | | |
 | --- | --- |
-| L'échelle et la palette | `frontend/maquette/design/src/styles/theme.css` — un bloc `@theme static`, 32 pas et 38 couleurs |
+| L'échelle et la palette | `frontend/maquette/design/src/styles/theme.css` — un bloc `@theme static` : 34 pas d'échelle (espacement, typographie, rayons, mouvement) et 38 jetons de palette, dont **30 couleurs** et 8 ombres — les ombres sont délibérément hors du namespace `--shadow-*` pour qu'aucun utilitaire ne puisse en être fabriqué |
 | La couche de base | `frontend/maquette/design/src/styles/base.css` — reset, typographie, les surfaces d'accessibilité de L03, les `@keyframes`, et ce que le compositeur lit |
 | Le vocabulaire | `frontend/maquette/design/src/ui/variants.ts` et les `variants.ts` de chaque surface — chaque décision de dessin y est écrite à côté de la classe qui l'applique |
 | Le résidu, daté | `frontend/maquette/design/src/styles/legacy.css` — le CSS dont le moteur mourant a encore besoin ; il meurt avec lui à L13 et une garde refuse qu'il grossisse |
