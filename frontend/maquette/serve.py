@@ -93,6 +93,11 @@ BASE_STYLESHEET = DESIGN_ROOT / "src" / "styles" / "base.css"
 # The token layer (D3). It holds the scale inside a Tailwind `@theme` block,
 # which is why the gate wraps what it extracts rather than emitting it as-is.
 THEME_STYLESHEET = DESIGN_ROOT / "src" / "styles" / "theme.css"
+# The residue (D-L07-5). It carries `login:style` and `login:splashstyle`: the
+# sign-in screen and the splash belong to L13, so their CSS is still written by
+# hand — which is also what keeps this gate composable, since a page built by
+# text extraction cannot receive utilities from a stylesheet it never loads.
+LEGACY_STYLESHEET = DESIGN_ROOT / "src" / "styles" / "legacy.css"
 # The document Vite owns, and where the application shell's markup lives — the
 # phone frame, the sign-in card, the startup screen. The login gate clones
 # those from here and inherits its style from the fragment above.
@@ -493,6 +498,7 @@ def login_page(refused: bool) -> bytes:
     styles_source = PROTOTYPE.read_text()
     base_source = BASE_STYLESHEET.read_text()
     theme_source = THEME_STYLESHEET.read_text()
+    legacy_source = LEGACY_STYLESHEET.read_text()
     markup_source = SHELL_DOCUMENT.read_text()
     markup = extract(markup_source, "markup")
     # The screen is drawn hidden inside the shell and centred against it. Here
@@ -544,7 +550,7 @@ def login_page(refused: bool) -> bytes:
                + extract(theme_source, "palette-light"))
     styles = (scale + extract(base_source, "font")
               + palette + extract(base_source, "socle")
-              + extract(styles_source, "style") + extract(styles_source, "splashstyle"))
+              + extract(legacy_source, "style") + extract(legacy_source, "splashstyle"))
     # After the extract, so they win: inside the prototype the screen covers a
     # phone frame; here it IS the page.
     adjustments = """

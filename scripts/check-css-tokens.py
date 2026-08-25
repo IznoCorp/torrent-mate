@@ -123,6 +123,12 @@ BASE_LAYER = ROOT / "frontend" / "maquette" / "design" / "src" / "styles" / "bas
 # are unchanged, which is what lets this arm read it the same way it always did.
 THEME_LAYER = ROOT / "frontend" / "maquette" / "design" / "src" / "styles" / "theme.css"
 
+# The residue (D-L07-5). It holds `login:style` and `login:splashstyle`: the
+# sign-in screen and the splash belong to L13, so their CSS stays hand-written
+# — which is what keeps the gate composable at all, since a page built by text
+# extraction cannot receive utilities from a stylesheet it never loads.
+LEGACY_LAYER = ROOT / "frontend" / "maquette" / "design" / "src" / "styles" / "legacy.css"
+
 # The scale block's own markers. Its declarations ARE the steps, so the ratchet
 # excludes the span before it counts anything: a scale that had to answer for
 # itself would report nine violations the moment it was written.
@@ -264,6 +270,7 @@ SOURCE_FILES = {
     "SHELL_DOCUMENT": MARKUP,
     "BASE_STYLESHEET": BASE_LAYER,
     "THEME_STYLESHEET": THEME_LAYER,
+    "LEGACY_STYLESHEET": LEGACY_LAYER,
 }
 
 # THE exemption list: the selectors the scale arm skips entirely, each with the

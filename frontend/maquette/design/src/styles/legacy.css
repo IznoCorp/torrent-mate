@@ -2052,6 +2052,387 @@ margin: 0;
 
 
 
+/* ── The pressable surfaces ─────────────────────────────────────── */
+/* THE BROWSER'S OWN LONG PRESS, refused where ours lives. Held on a
+   picture or a run of text, a phone offers to select, copy or save it —
+   and that menu REPLACES ours, because it is the platform's and no
+   listener outruns it. What the operator got instead of the panel was
+   « Copier l'image ».
+
+   Declared on the pressable surfaces ONLY, never on the scrollport: it
+   must stay possible to select the text of a synopsis or a release name.
+   `-webkit-user-drag` is separate — a picture inside a draggable surface
+   starts a native drag that swallows the pointer stream outright.
+
+   Here rather than converted: `.poster`, `.tile` and `.dcard` are all
+   drawn by the engine, and `check-compositor-css.py` holds every one of
+   these declarations wherever it lives. */
+/* THE BROWSER'S OWN LONG PRESS, refused where ours lives.
+
+   Held on a picture or on a run of text, a phone offers to select, copy or
+   save it. That menu is not a competitor to the long press — it REPLACES it,
+   because it is the platform's and no listener outruns it. What the operator
+   got instead of the panel was « Copier l'image ».
+
+   Declared on the pressable surfaces only, never on the scrollport: it must
+   stay possible to select the text of a synopsis or a release name. And
+   `-webkit-user-drag` is separate — a picture inside a draggable surface
+   starts a native drag that swallows the pointer stream outright. */
+.poster,
+.tile,
+.dcard,
+.sheetposter {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.poster img,
+.tile img,
+.dcard img,
+.sheetposter img {
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+}
+
+/* Réglages — CONVERTED (L07 phase 14) into typed variants in
+   `src/features/settings/variants.ts`. A setting row is a LIST ROW, not a
+   form field: the control lives in the panel that opens over it (R56),
+   deliberately, because a screen of live inputs on a phone is a screen where
+   every scroll risks changing something. `modified` marks a setting the
+   operator has touched but not yet written, on the ROW where it is read and
+   not only in a counter at the bottom.
+
+   Two rules stayed hand-written and are in `src/styles/legacy.css`: the save
+   bar's `[hidden]` case, and the note a read-only field flattens. */
+
+/* Pull to refresh — CONVERTED (L07 phase 5). `.ptr` and its spinner are
+   utilities in `index.html`; the two ENGINE-TOGGLED states (`armed`,
+   `loading`) are in `src/styles/legacy.css`, and `@keyframes spin` is in the
+   base layer, where a name the document defines once belongs. */
+
+/* FAB — CONVERTED (L07 phase 5), utilities in `index.html`. The R8 group it
+   used to carry — an author `display` rule BEATS the `[hidden]` attribute —
+   is in `base.css` and deliberately UNLAYERED: inside `@layer base` it lost
+   to Tailwind's `grid` utility and the button reappeared on every page that
+   hides it. An override that must win against a utility cannot live below
+   one. */
+
+/* Bottom bar — CONVERTED (L07 phase 5). The `<nav>`'s own rule is utilities
+   in `index.html`, including the desktop `md:hidden`; its tabs are written by
+   the ENGINE, so those rules are in `src/styles/legacy.css`. */
+
+/* Screens — CONVERTED (L07 phase 6), `screen()`, `screenBar()` and
+   `backControl()` in `src/ui/variants.ts`. `.screen.open` is engine-toggled
+   and lives in the residue; `.screen .port` is a CONTEXTUAL override — the
+   scrollport cannot know it is inside a screen — and is in the base layer. */
+
+/* Bottom sheet — CONVERTED (L07 phase 6, finished in 16) into typed variants
+   in `src/ui/variants.ts`. The tab bar sits ABOVE the layers (z-50), so a
+   sheet reserves its height or its last actions are unreachable — one defect
+   family, one rule, extended to screens and dialogs alike. A head carrying a
+   POSTER aligns to the top, because an 84px picture beside two short lines
+   centred against it leaves the title floating in the middle of nothing.
+
+   What stays hand-written is in `src/styles/legacy.css`: the drag's
+   transition cancel, which is written to the DOM rather than passed as a
+   prop, and the engine's own `.sact` and `.noinfo`. */
+
+/* Media sheet — CONVERTED IN HALF (L07 phase 12). The hero, the cast and the
+   trailer are typed variants in `src/features/media/variants.ts`, where ONE
+   TEMPLATE FOR EVERY MEDIUM is kept as the decision it is — a variant per
+   medium would be a redesign. The EPISODE machinery and its six states are
+   written and toggled by the engine, so they are in `src/styles/legacy.css`.
+   The hero's entrance is `--animate-hero-in` and its keyframe is in the base
+   layer: `animation` is one of the nineteen properties the oracle reads, so
+   a name is easier to keep identical than a four-part shorthand. */
+
+/* Season matrix and the air-date popover — NOT CONVERTED (L07 phase 12):
+   the engine emits their cells and owns the popover outright. In
+   `src/styles/legacy.css`, with the two decisions that must survive them. */
+
+/* Add screen — CONVERTED (L07 phase 11) into typed variants in
+   `src/features/acquisition/variants.ts`. `.btnprimary` and `.segmini` are
+   also written by the ENGINE, so their rules are in `src/styles/legacy.css`
+   — placed ABOVE the action-button group there, which is the order this
+   stylesheet had and the order that decides a card footer's radius. */
+
+/* THE ONE ACTION-BUTTON SYSTEM — CONVERTED (L07 phase 6), `actionButton()`
+   in `src/ui/variants.ts`, where its reasoning is kept in full. Its `:has()`
+   rule stays in the base layer: it follows STRUCTURE rather than a modifier
+   someone must remember, which is exactly what a variant cannot do. */
+
+/* The two release screens — CONVERTED (L07 phase 11),
+   `src/features/releases/variants.ts`, where the reason each row states its
+   resolution, source, language, seeders and size is kept: without what
+   drives the ranking visible, « take this one » is a bet. */
+
+/* Form controls — CONVERTED (L07, phase 6 finished) into typed variants in
+   `src/ui/variants.ts`. SHAPE STATES THE RULE: a circle means one choice, a
+   square means several. Identical pills for both said nothing, and their
+   width followed the word length, so two options of the same group had
+   different sizes — the row is full width now, every option identical in
+   every group. A checked radio is a solid dot and a checked box a tick: two
+   distinct shapes, including once checked.
+
+   The mark reads its row's `aria-checked` through a `group` variant rather
+   than carrying a second name for the same fact. */
+
+/* Dialog — NOT CONVERTED (L07 phase 6), and named rather than skipped. The
+   confirmation dialog is written by the ENGINE: six of its eight classes
+   appear in no component at all. Its rules are in `src/styles/legacy.css`
+   with their date of death (D-L07-5). */
+
+/* Toast — CONVERTED (L07 phase 5), utilities in `index.html`. `.toast.show`
+   is engine-toggled and is in `src/styles/legacy.css`. */
+
+/* Empty note — CONVERTED (L07 phase 6), `emptyNote()`. */
+
+/* Surface states — CONVERTED (L07 phase 6), `surfaceError()`. A loading
+   surface SAYS SO with skeletons of the right shape, an empty one says why,
+   one in error names the cause and offers a retry. `skcard` is drawn by the
+   engine and is in the residue. */
+
+/* Loading — CONVERTED IN PART (L07, phase 6 finished). The list's foot, its
+   end mark and its error surface are typed variants; the SKELETONS are the
+   engine's and are in `src/styles/legacy.css`; and the two id rules — R8's
+   `[hidden]` cases and the suggestion list's own display — are in the base
+   layer, because an id beats a class and the alternative was writing the
+   gallery grid twice. */
+
+/* Grid selection — NOT CONVERTED (L07 phase 9): nine of its eleven class
+   names are the ENGINE's. In `src/styles/legacy.css`. */
+
+/* Navigation drawer — CONVERTED (L07 phase 5). The `<aside>`'s own rule is
+   utilities in `index.html`; everything it contains is written by the ENGINE,
+   so those rules are in `src/styles/legacy.css` with their date of death. */
+
+/* Install proposal — CONVERTED (L07 phase 15), utilities in `index.html`
+   like the rest of the shell. ABOVE the tab bar, never against the bottom
+   edge: anchored there the close button lands UNDER the fixed bar and cannot
+   be reached — reported from a real phone, on both platforms. iOS fires no
+   install event at all, so the banner IS the guide: it walks the steps
+   rather than offering a button that cannot exist.
+
+   Its three `[hidden]` cases and its icon sizes are in the base layer. */
+
+/* ── The sign-in screen and the splash ──────────────────────────── */
+/* D5 GIVES BOTH TO L13, with the document-level delegation and the boot
+   handshake, so neither is converted here — and that is also what keeps
+   the gate composable: `serve.py` builds `/login` by extracting these
+   `login:*` regions as RAW TEXT into a page Tailwind never processes.
+   Utilities would arrive as class names with no stylesheet behind them.
+
+   B-056 lives in here — the `splashremplit` keyframe is French. It is
+   NOT renamed by this lot: the fix needs both ends moved in one step and
+   a fifteenth arm of the no-French guard, and copying the name forward
+   into a new file would have made it permanent. It moves as it is. */
+/* login:style:start */
+/* Login — the unauthenticated entry screen.
+   It covers the shell rather than sitting inside it: the top bar shows a
+   session that does not exist yet, and the tab bar offers pages that would
+   only answer with a redirect. Centred, one column, and it stays reachable
+   with the on-screen keyboard open — which is why it scrolls rather than
+   centring by absolute offsets. */
+.loginscreen {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-8);
+  padding: var(--spacing-9) var(--spacing-8);
+  overflow-y: auto;
+  background: var(--color-background);
+}
+
+.loginscreen[hidden] {
+  display: none;
+}
+
+/* The tall brand block. `.brand` is the topbar's — small and horizontal —
+   and this one belongs to the full-screen surfaces that carry no interface
+   yet: the entry screen and the startup screen. They share it so that
+   signing in never changes identity halfway through. */
+.brandbig {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-5);
+  color: var(--color-foreground);
+}
+
+.brandbig .mk {
+  width: 40px;
+  height: 40px;
+  color: var(--color-primary);
+}
+
+.brandbig .wm {
+  font-size: var(--text-7);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.brandbig em {
+  font-style: normal;
+  color: var(--color-primary-text);
+}
+
+.logincard {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+  padding: var(--spacing-8) var(--spacing-8);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-4);
+  background: var(--color-card);
+}
+
+.logintitle {
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-6);
+  font-weight: 600;
+}
+
+.loginsub {
+  margin: calc(var(--spacing-3) * -1) 0 var(--spacing-2);
+  text-align: center;
+  font-size: var(--text-3);
+  color: var(--color-muted-foreground);
+}
+
+.loginfield {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  font-size: var(--text-3);
+  color: var(--color-muted-foreground);
+}
+
+.loginfield input {
+  /* --text-6 is 16px, and that is not a style choice: below it, iOS Safari
+     zooms the page on focus and the frame never comes back. */
+  font:
+    400 var(--text-6) "Geist",
+    system-ui,
+    sans-serif;
+  color: var(--color-foreground);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-3);
+  padding: var(--spacing-4) var(--spacing-5);
+}
+
+.loginfield input:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.loginerr {
+  margin: 0;
+  font-size: var(--text-3);
+  color: var(--color-danger);
+}
+
+.loginerr[hidden] {
+  display: none;
+}
+
+.loginsubmit {
+  margin-top: var(--spacing-2);
+  padding: var(--spacing-5) var(--spacing-7);
+  border: 0;
+  border-radius: var(--radius-3);
+  font:
+    600 var(--text-5) "Geist",
+    system-ui,
+    sans-serif;
+  color: var(--color-primary-foreground);
+  background: var(--color-primary);
+}
+
+/* login:style:end */
+
+/* login:splashstyle:start */
+/* Startup — the wait between signing in and an interface being there.
+
+   This document is large, and a phone spends seconds fetching and parsing it
+   before a single pixel of the interface exists. A wait shown blank is read
+   as a failure, so the screen holds the brand still and says what is
+   happening. It is the FIRST thing the document paints, which is why it sits
+   at the top of the frame in source order: an element declared after
+   megabytes of embedded artwork would appear only once the wait is over.
+
+   The bar is deliberately indeterminate. Nothing here knows how far along
+   the load is, and a bar that pretends to would be lying at every frame. */
+.splash {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-8);
+  padding: var(--spacing-9) var(--spacing-8);
+  background: var(--color-background);
+}
+
+/* An author `display` rule beats `[hidden]`: without this the attribute is
+   set and nothing happens. */
+.splash[hidden] {
+  display: none;
+}
+
+.splashbar {
+  width: 132px;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+/* The bar FILLS, from nothing to full, over the five seconds a cold load is
+   budgeted. It is not a measurement of the load — nothing here knows how far
+   along that is — it is a measurement of the WAIT, which is what the person
+   watching is actually living through. A bar that fills answers « how much
+   longer », where a shuttle that slides back and forth answers nothing and
+   reads the same at one second and at ten.
+
+   It never reaches the end on its own: the interface arrives first and takes
+   the screen away. Should the load outlast the budget, the bar stops full
+   and the message below is what keeps speaking. */
+.splashbar i {
+  display: block;
+  width: 0%;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  animation: splashremplit var(--duration-loop-3) linear forwards;
+}
+
+@keyframes splashremplit {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.splashmsg {
+  margin: 0;
+  font-size: var(--text-3);
+  color: var(--color-muted-foreground);
+}
+/* login:splashstyle:end */
+
+
 /* ── LAST, AND THE ORDER IS THE POINT ────────────────────────────────
    THE ACTION-BUTTON SYSTEM COMES AFTER EVERYTHING IT OVERRIDES. In the
    prototype's stylesheet it sat a thousand lines below the card, so the
