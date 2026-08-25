@@ -98,6 +98,13 @@ when the defect comes back.
 | B-063 | The wave's per-phase gate tier runs none of the repository's own guards | by gate | `open` |
 | B-064 | R72's mutation recipe names an environment variable no code reads | by review | `open` |
 | B-065 | A duplicated `design/frontend/maquette/design/src/` tree is tracked, dead and drifting | by review | `open` |
+| B-066 | Two off-scale values sit under a named exemption rather than on the scale | by gate | `open` |
+| B-067 | A typed variant shadowed by the unlayered residue is inert, and nothing says so | by review | `open` |
+| B-068 | The wave's documentation drifted in forty small places, and one figure family is wrong | by review | `open` |
+| B-069 | `legacy.css`'s licence to exist names a decision only an about-to-be-archived doc defines | by review | `open` |
+| B-070 | `rename-identifiers.py` passed the 800-line soft ceiling | by gate | `open` |
+| B-071 | The design-notes toggle survives the overlay it toggles | by review | `open` |
+| B-072 | `build-surface-manifest.py` crashes: its own command no longer runs | by review | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -258,9 +265,13 @@ candidates out of RAW TEXT, no single literal carried the whole class name, and 
 never generated — leaving the hero's text resting on the bare image, the one thing that rule
 exists to forbid. **R26 caught it**, because R26 reads `getComputedStyle(bg, "::after")`.
 
-**What #494 repaired is the concatenation, not the blindness.** A sixth hold on R26 refuses a
-class name split across literals (a literal ending in a space is a clean break; anything else
-continues a name), mutation-tested by cutting `bg-muted` in half. The oracle's own blind spot
+**What #494 repaired is the concatenation, not the blindness.** The hold that refuses a split
+class name is the sixth of `scripts/check-tailwind-confinement.py` — **not** of R26, which is the
+rule that CAUGHT the defect and is unchanged. A literal ending in a space is a clean break between
+class names; a literal ending in anything else continues a name into the next. Mutation-tested by
+cutting `bg-muted` in half. ⚠ That hold then read six files and was blind to the three holding the
+shared vocabulary, which is its own entry in this wave's story and is repaired in the same pull
+request. The oracle's own blind spot
 stands: **no pseudo-element is among its 2 739 measurements**, and the next one to disappear will
 disappear silently unless a rule happens to read it. Not fixed, and not fixable by a call-site
 change — it is a question about the oracle's contract (whether a named region may declare a
@@ -322,6 +333,100 @@ something a future search will find and read. Fix is a deletion — outside L07'
 should carry the one thing that would refuse the next one: a guard that no path under
 `design/` repeats `design/` .
 <sub>`git ls-files 'frontend/maquette/design/frontend' | wc -l` → 11 · `git log --oneline --diff-filter=A -- 'frontend/maquette/design/frontend/**'` → the commit that added them</sub>
+
+**B-066 — the scale arm can now see two declarations, and neither is its to fix.**
+Widening the arm to the shipped stylesheets (#494) exposed what it had never read: `.skip-link`
+declares `padding: 10px 16px` and `border-radius: 0 0 10px 10px`, and `.visually-hidden` declares
+`margin: -1px`. All three came out of the prototype's HARNESS block — never under the scale rule —
+and entered the shipped base layer when that block was cut, so they are debt this wave inherited
+rather than debt it wrote. Two of the four found were repaired in the same commit because the fix
+was free: `body`'s `font-size: 14px` IS `--text-5`, and `--spacing-0` was a step declared one line
+outside the markers.
+
+**These two are not free.** The spacing ramp reads 14 then 18 — there is no 16 — and the radius
+ramp reads 8 then 12, so honouring the scale means CHANGING what a keyboard user sees when the
+skip link takes focus. That is a design call. `margin: -1px` is not a design constant at all: it
+is the one-pixel clip idiom, and no step of any ramp would do. Both are named exemptions in
+`scripts/check-css-tokens.py`'s `EXEMPTIONS`, each with its reason, which is what lets the arm go
+green over what it CAN answer for — and this entry exists so the exemption does not become the
+answer.
+<sub>`python3 scripts/check-css-tokens.py --arm scale` → 0, with the two selectors skipped by name</sub>
+
+**B-067 — a variant that can be edited and changes nothing.**
+`src/styles/legacy.css` is deliberately UNLAYERED so it wins over `@layer utilities` — the right
+call for markup the engine draws, and the wave says so in the file. It also lands on markup
+COMPONENTS draw: seven shared identity anchors carry both a residue rule and a typed variant —
+`.empty`/`emptyNote`, `.surferr`/`surfaceError`, `.panel`/`factsPanel`, `.pip`/`statusDot`,
+`.sec`/`section`, `.sechead`/`sectionHead`, and the sheet's `open` branches. Unlayered normal
+declarations beat every cascade layer whatever the specificity, so on those elements the utility
+loses.
+
+**Nothing renders wrong today**, and the wave recorded that plainly rather than counting the
+surfaces as converted: the declarations are identical term for term, and the oracle says so. The
+defect is the one nobody is holding — **the day a variant DRIFTS from the rule it shadows,
+editing it changes nothing on screen and no gate speaks.** TypeScript passes, the build passes,
+`make check` passes, the rendering does not move. The shape of the fix is a guard cross-checking
+each variant's identity anchor against the residue's selectors and refusing a divergence; the
+alternative is scoping the residue to the engine's instances, which is L13's work.
+
+**B-068 — the wave's prose drifted in forty small places, and the inventory is kept.**
+An adversarial doc-accuracy review over #494 re-measured every figure the wave asserts. **Most
+are right** — 2 739 measurements, 530 rules, 4 136 lines, 30 colours, 8 shadows, 55 rules, 936
+bytes leaked, and D-L07-1's six line ranges are exact. What is not right is written up, item by
+item, in `docs/features/maquette-l07/drafts/documentation-drift-inventory.md`, which travels with
+the wave into `docs/archive/features/`. **That file is the source and this entry is the index**,
+the same arrangement B-043 to B-048 use.
+
+Three families, and they fail differently. **Counts** that no longer measure what they say (nine,
+plus two pre-existing). **Comments detached from their subject** — an orphaned table comment, a
+docblock about a factory sitting atop a barrel, five orphaned comments in the residue, and
+`harness.css` citing two tools deleted in 2026-08-20 and **re-committed into a living source file
+by this wave**. And **§ Language**: `CLAUDE.md` says maquette and harness comments carry no
+reference to a session, a phase or a dated decision, and this wave added eighteen « CONVERTED
+(L07 phase N) » banners plus a dozen more. The durable half of each is already written; the phase
+number is what has to go, and a rename campaign over comments is its own wave's work, not a
+tail-of-session sweep. **What #494 repaired instead** is every sentence that was actually FALSE
+rather than merely dated — those are in its own commit, because a wrong sentence is read as
+current and a phase number is only noise.
+
+**B-069 — the residue's licence to exist points at a document about to be archived.**
+`src/styles/legacy.css` justifies itself with « D-L07-5, arbitrated by the operator on
+2026-08-24 », and D-L07-5 is defined in `docs/features/maquette-l07/DESIGN.md` and nowhere else.
+`/implement:create-branch` archives that directory at the next feature start, so the only
+definition of the decision keeping a 2 470-line stylesheet alive moves into frozen history the
+moment the next wave opens — and `docs/archive/` is never revised. Its sibling deferral (the
+prototype fragment, ACC-14/ACC-19) already has a durable home in
+`docs/reference/frontend-architecture.md` § L13. This one needs the same: the decision moves
+there, and the stylesheet's header cites the durable address.
+
+**B-070 — the rename tool passed the soft ceiling, and it is the same family as B-050.**
+`scripts/rename-identifiers.py` reads **829 non-blank lines** against a soft warning at 800 and a
+hard ceiling at 1 000. It stood at 716 before L07, 786 after the custom-property mode landed, and
+crossed on the no-op refusal (#494). `check-module-size.py` warns and exits 0, so nothing is
+blocked — which is exactly what B-050 says about its own file: split before the next addition,
+not as an emergency, and the moment to pause is the crossing rather than the ceiling. The subject
+line is visible: the mapping validation, the span readers and the three apply modes are three
+subjects behind one entry point.
+<sub>`python3 scripts/check-module-size.py --root scripts`</sub>
+
+**B-071 — a toggle for an overlay that was deleted.**
+D-L07-1 deleted the design-notes overlay with BLOCK 1, correctly: `:root.notes .note` was harness
+CSS and it must not ship. `src/engine/legacy.js:11414-11419` still toggles the `notes` class,
+still flips `aria-pressed`, and still toasts « Notes de conception affichées. » — reporting
+success for a class nothing reads. A contract with three ends and two of them gone, which is the
+shape `CLAUDE.md` names about `data-*` names: the markup that emits it, the code that reads it,
+and the rules that tap it move in ONE step. Left here rather than fixed because the third end is
+inside the dying engine, where an edit is L13's to make; it is written down so L13 does not
+rediscover it as a live feature.
+
+**B-072 — the command that proves the surface partition no longer runs.**
+`docs/features/maquette-l07/DESIGN.md:281` names `build-surface-manifest.py` as the builder that
+asserts the partition of BLOCK 2's 530 rules into 38 surfaces is TOTAL. Run today it raises
+`IndexError` at line 79: it reads `refonte.html`, which is 120 lines and holds no rule. The
+committed `plan/surface-manifest.json` is correct — it was built when the fragment still carried
+the stylesheet — so nothing downstream is wrong. What is gone is the ability to re-derive it: a
+proof that ran once and cannot run again is a sentence in a merged pull request, which is
+precisely what B-041 says from the other end.
 
 **B-036 — the English campaign missed two state ids, and no arm reads them.**
 `window.__states()` returns **`system-panne`** and **`acq-follows-groupe`**. Both are NAMED STATE
