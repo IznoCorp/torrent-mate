@@ -29,7 +29,19 @@ import {
   type MediaSheet,
 } from "../../features/media/reference";
 import { useStoreContent, useWorld } from "../../lib/store-access";
-import { actionButton, backAction, body as bodyClass, factsPanel, keyValueRow, screen, screenBar, sectionHeading, statusDot } from "../../ui/variants";
+import {
+  actionButton,
+  backAction,
+  // `body` is already a local binding here.
+  body as bodyClass,
+  factsPanel,
+  keyValueRow,
+  screen,
+  screenBar,
+  sectionHeading,
+  sheetActions,
+  statusDot,
+} from "../../ui/variants";
 import {
   castCaption,
   castFigure,
@@ -739,7 +751,7 @@ export function MediaScreen() {
             </div>
           </div>
 
-          <div className="sheetacts secondary" data-part="sheet/actions">
+          <div className={sheetActions({ secondary: true })} data-part="sheet/actions">
             {owns ? (
               <>
                 <button

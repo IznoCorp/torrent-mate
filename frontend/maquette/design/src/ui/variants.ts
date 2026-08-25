@@ -368,3 +368,104 @@ export const sheetFacts = cva("sheetfacts mb-7");
 
 /** A section heading. */
 export const sectionHeading = cva("h2 text-3 font-bold m-0");
+
+/** The scrim behind a sheet. */
+export const sheetScrim = cva(
+  "scrim absolute inset-0 bg-scrim z-[46] transition-[opacity] duration-200 ease-standard",
+  { variants: { open: { true: "open opacity-100 visible", false: "opacity-0 invisible" } },
+    defaultVariants: { open: false } },
+);
+
+/**
+ * The bottom sheet.
+ *
+ * THE TAB BAR SITS ABOVE THE LAYERS (z-50), so a sheet must reserve its height
+ * or its last actions are unreachable — internal scrolling stops before them.
+ * Same rule as for screens, extended to sheets and dialogs: one defect family
+ * deserves one rule, not three.
+ */
+export const bottomSheet = cva(
+  "sheet absolute left-0 right-0 bottom-0 z-[47] bg-popover border-t border-border " +
+    "rounded-t-4 rounded-b-none max-h-[78%] flex flex-col " +
+    // The transition lives in the base because the state that CANCELS it is
+    // not a prop: the drag handler writes `dragging` straight to the DOM
+    // through a ref, exactly as the legacy one did, so `.sheet.dragging`
+    // stays a rule in the residue. A variant here would never be told.
+    "transition-[transform] duration-300 ease-standard",
+  {
+    variants: {
+      open: { true: "open [transform:none] visible", false: "[transform:translateY(100%)] invisible" },
+    },
+    defaultVariants: { open: false },
+  },
+);
+
+/**
+ * The grab handle.
+ *
+ * `touch-none` is COMPOSITOR-FACING and held by `check-compositor-css.py`: a
+ * drag on the handle is never a scroll.
+ */
+export const sheetGrab = cva(
+  "sheetgrab h-[22px] grid place-items-center flex-none touch-none cursor-grab " +
+    "before:content-[''] before:w-[36px] before:h-[4px] before:rounded-full before:bg-border",
+);
+
+/** The sheet's scrolling viewport. */
+export const sheetViewport = cva(
+  "sheetin overflow-y-auto pt-1 px-7 pb-[calc(var(--tm-bottom-bar-h,0px)+var(--spacing-8))]",
+);
+
+/** The sheet's title. */
+export const sheetTitle = cva("sheettitle text-6 font-bold tracking-[-0.01em] mt-0 mx-0 mb-1");
+
+/** The line under it. */
+export const sheetMeta = cva("sheetmeta text-3 text-muted-foreground mb-7");
+
+/**
+ * The sheet's head.
+ *
+ * A head carrying a POSTER aligns to the TOP: an 84px picture next to two short
+ * lines centred against it leaves the title floating in the middle of nothing.
+ * It also breathes below rather than inside — against an 84px picture the same
+ * 4px reads as nothing at all.
+ */
+export const sheetHead = cva(
+  "sheethead flex gap-6 [&_.sheetmeta]:mb-3 " +
+    "[&_.sheetsub]:block [&_.sheetsub]:mt-1 [&_.sheetsub]:text-3 [&_.sheetsub]:text-muted-foreground",
+  {
+    variants: {
+      withPoster: {
+        true: "withposter items-start pb-0 mb-6",
+        false: "items-center pb-2",
+      },
+    },
+    defaultVariants: { withPoster: false },
+  },
+);
+
+/** The identity block inside the head. */
+export const sheetIdentity = cva("sheetid min-w-0 flex-1");
+
+/** The avatar, at the size a sheet gives it. */
+export const sheetAvatar = cva("big w-[42px] h-[42px] text-6");
+
+/**
+ * An entry that is COMING says so instead of being absent: a menu that grows an
+ * item later teaches its shape twice.
+ */
+export const comingSoon = cva(
+  "soon ml-auto text-1 font-bold tracking-[0.03em] py-1 px-3 rounded-full bg-muted text-muted-foreground",
+);
+
+/** The sheet's actions. `secondary` separates what is not the main path. */
+export const sheetActions = cva("sheetacts flex flex-col gap-3 mt-2 mx-0 mb-7", {
+  variants: { secondary: { true: "secondary mt-8 pt-7 border-t border-border", false: "" } },
+  defaultVariants: { secondary: false },
+});
+
+/** A note stating a rule, set off by a rule of its own. */
+export const ruleNote = cva(
+  "rulenote mt-0 mx-0 mb-7 text-3 leading-[1.45] text-muted-foreground " +
+    "border-l-2 border-border pt-1 pr-0 pb-1 pl-5",
+);

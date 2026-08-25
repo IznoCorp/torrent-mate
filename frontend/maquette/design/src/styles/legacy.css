@@ -1916,6 +1916,94 @@ display: none;
 margin: 0;
 }
 
+/* ── The bottom sheet, what stays hand-written ───────────────────── */
+/* `.sheet.dragging` cancels the transition, and the drag handler writes
+   that class STRAIGHT TO THE DOM through a ref — exactly as the legacy
+   one did — so no variant would ever be told. `.sact` and `.noinfo` are
+   the engine's: the sheet's own actions are written from a template
+   there, which is how `sact` escaped a scan for literal class strings. */
+/* The tab bar sits ABOVE the layers (z-50), so a sheet must reserve its
+   height, otherwise its last actions are unreachable — internal scrolling
+   stops before them. Same rule as for screens, extended to sheets and
+   dialogs: one defect family deserves one rule, not three. */
+.sheet.dragging {
+  transition: none;
+}
+
+/* A head carrying a POSTER aligns to the top: an 84px picture next to two
+   short lines centred against it leaves the title floating in the middle of
+   nothing. It also breathes below rather than inside: an 84px picture makes
+   the same 4px read as nothing at all. */
+
+
+
+
+
+/* An entry that is coming says so instead of being absent: a menu that grows
+   an item later teaches its shape twice. */
+
+.sact {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-5);
+  width: 100%;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-foreground);
+  font-size: var(--text-4);
+  font-weight: 500;
+  padding: var(--spacing-5) var(--spacing-6);
+  border-radius: var(--radius-3);
+  text-align: left;
+}
+.sact.primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+  font-weight: 600;
+}
+.sact.danger {
+  color: var(--color-danger);
+}
+.sact svg {
+  width: 16px;
+  height: 16px;
+  color: var(--color-muted-foreground);
+  flex: 0 0 auto;
+}
+.sact.primary svg {
+  color: var(--color-primary-foreground);
+}
+
+/* Transplanted from maquette-acquisition.css — used in markup without
+   having been ported, therefore inert: the « no trailer » message
+   rendered at 14px without its dashed frame. */
+.noinfo {
+  margin: 0 0 var(--spacing-2);
+  font-size: var(--text-3);
+  color: var(--color-muted-foreground);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-3);
+  padding: var(--spacing-5) var(--spacing-5);
+}
+
+
+
+/* ── The layers the ENGINE opens ─────────────────────────────────────
+   `open` on the scrim and on the sheet is a React prop AND an imperative
+   toggle: the engine opens both for its own dialogs and for selection mode,
+   through `classList`. The variants serve the component; these two rules serve
+   the engine, and they say the same thing so the two cannot disagree. They go
+   when the engine does. */
+.scrim.open {
+  opacity: 1;
+  visibility: visible;
+}
+.sheet.open {
+  transform: none;
+  visibility: visible;
+}
+
 /* ── LAST, AND THE ORDER IS THE POINT ────────────────────────────────
    THE ACTION-BUTTON SYSTEM COMES AFTER EVERYTHING IT OVERRIDES. In the
    prototype's stylesheet it sat a thousand lines below the card, so the

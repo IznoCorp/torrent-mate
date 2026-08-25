@@ -26,7 +26,7 @@ import { Icon } from "../../ui/icon";
 import { useAcquisitionReference, type Follow } from "../../features/acquisition/reference";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
-import { body, crossReference, crossReferenceLink, crossReferenceStrong, emptyNote, filterPill, filterPillCount, filterZone, liveDot, liveEmphasis, liveStrip, moreButton, pillBar, pillScroll, searchClear, searchField, searchInput, section as sectionClass, segment, segmentCount, segmentTab, surfaceError, viewSwitch, viewSwitchButton, viewSwitchWrap, viewTabs } from "../../ui/variants";
+import { body, crossReference, crossReferenceLink, crossReferenceStrong, emptyNote, filterPill, filterPillCount, filterZone, liveDot, liveEmphasis, liveStrip, moreButton, pillBar, pillScroll, searchClear, searchField, searchInput, section, section as sectionClass, segment, segmentCount, segmentTab, surfaceError, viewSwitch, viewSwitchButton, viewSwitchWrap, viewTabs } from "../../ui/variants";
 
 // The swipe action a follow that can be searched again reveals. It is a
 // data-ATTRIBUTE VALUE the document-level delegation dispatches on — a contract

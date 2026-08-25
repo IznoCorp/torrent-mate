@@ -17,6 +17,7 @@ import { Icon } from "../../ui/icon";
 import { settingLabel, unitOf } from "../../features/settings/labels";
 import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
 import { fieldInput, fieldKnob, fieldLabel, fieldToggle, fieldUnit, listAdd, listItem, listRemove, panelField } from "./variants";
+import { ruleNote } from "../../ui/variants";
 
 // The kind this file adds to the panel's block map. Declared here, beside what
 // draws it, so the two halves of the contract cannot drift apart.
@@ -64,7 +65,7 @@ function FieldBlock({
   if (setting.type === "structure")
     return (
       <div className={`${panelField()} readonly`} data-part="field" data-read-only="">
-        <p className="rulenote">
+        <p className={ruleNote()}>
           {t("settings.field.structureBefore")}{" "}
           <b>{t("settings.field.structureWord")}</b>{" "}
           {t("settings.field.structureAfter")}{" "}
@@ -118,7 +119,7 @@ function FieldBlock({
             </div>
           ))
         ) : (
-          <p className="rulenote">{t("settings.field.emptyList")}</p>
+          <p className={ruleNote()}>{t("settings.field.emptyList")}</p>
         )}
         <button className={listAdd()} data-part="field/list-add" data-addfield={id}>
           <Icon paths={icons.plus} />

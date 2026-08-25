@@ -20,6 +20,7 @@ import { useLayoutEffect, useRef } from "react";
 import { useUiState } from "../lib/store-access";
 import { PanelContent } from "../ui/panel";
 import type { PanelDescriptor } from "../ui/panel/contract";
+import { bottomSheet, sheetGrab, sheetScrim, sheetViewport } from "./variants";
 
 // How far the sheet must travel before the lift closes it — the legacy
 // `SEUIL_FERMETURE`, unchanged.
@@ -85,7 +86,7 @@ export function Sheet({
         data-part="scrim"
         aria-hidden="true"
         data-open={open || undefined}
-        className={"scrim" + (open ? " open" : "")}
+        className={sheetScrim({ open })}
         // The scrim is shared ground: the drawer and the dialog raise it
         // themselves and a tap on it closes whichever of the three is up. The
         // engine still owns that decision — reproduced here by calling the
@@ -106,7 +107,7 @@ export function Sheet({
         role={open ? "dialog" : undefined}
         aria-modal={open ? true : undefined}
         aria-label={open ? descriptor?.title : undefined}
-        className={"sheet" + (open ? " open" : "")}
+        className={bottomSheet({ open })}
       >
         {/* The handle CAPTURES the pointer and claims its axis (`touch-action`
             comes from the stylesheet). Without the capture a real finger
@@ -118,7 +119,7 @@ export function Sheet({
             within the first centimetre of a gesture that has to travel 70px. */}
         <div
           id="sheetgrab"
-          className="sheetgrab"
+          className={sheetGrab()}
           onPointerDown={(event) => {
             dragRef.current = { y: event.clientY, dy: 0 };
             sheetRef.current?.classList.add("dragging");
@@ -136,7 +137,7 @@ export function Sheet({
           // rather than close it on a gesture the browser took away.
           onPointerCancel={() => endDrag(true)}
         />
-        <div ref={innerRef} id="sheetin" className="sheetin" data-part="sheet/viewport">
+        <div ref={innerRef} id="sheetin" className={sheetViewport()} data-part="sheet/viewport">
           {descriptor ? <PanelContent descriptor={descriptor} /> : null}
         </div>
       </div>

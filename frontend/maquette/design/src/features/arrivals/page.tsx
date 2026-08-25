@@ -28,8 +28,21 @@ import type { ReactElement } from "react";
 import { useArrivalsReference, type PipelineFact } from "../../features/arrivals/reference";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useUiState } from "../../lib/store-access";
-import { actionButton, crossReference, crossReferenceLink, emptyNote, section as sectionClass, sectionHead, statusDot as statusDotClass, surfaceError } from "../../ui/variants";
-import { liveDot, liveEmphasis, liveStrip } from "../../ui/variants";
+import {
+  actionButton,
+  crossReference,
+  crossReferenceLink,
+  emptyNote,
+  liveDot,
+  liveEmphasis,
+  liveStrip,
+  // `section` and `pip` are already local bindings in this file; the variants
+  // are imported under their own names rather than shadowing them.
+  section as sectionClass,
+  sectionHead,
+  statusDot as statusDotClass,
+  surfaceError,
+} from "../../ui/variants";
 import {
   pilotActions,
   pilotBar,

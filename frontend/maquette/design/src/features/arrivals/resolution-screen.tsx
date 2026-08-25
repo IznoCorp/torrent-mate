@@ -50,7 +50,7 @@ import fr from "../../i18n/fr.json";
 import { useArrivalsReference, type PendingDecision, type SettledDecision } from "../../features/arrivals/reference";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useStoreContent } from "../../lib/store-access";
-import { actionButton, backAction, body, emptyNote, screen, screenBar, sectionHeading } from "../../ui/variants";
+import { actionButton, backAction, body, emptyNote, ruleNote, screen, screenBar, sectionHeading, sheetActions } from "../../ui/variants";
 
 // Same helper as `media.tsx`'s, `profile.tsx`'s, `add.tsx`'s and
 // `releases.tsx`'s, still not shared: the extraction those files' comments
@@ -235,7 +235,7 @@ function Candidates({ decision }: { decision: PendingDecision }) {
   return (
     <>
       {tied > 1 ? (
-        <p className="rulenote">
+        <p className={ruleNote()}>
           {words[tied] ?? String(tied)} {t("screens.resolution.tieNote")}
         </p>
       ) : (
@@ -366,7 +366,7 @@ export function ResolutionScreen() {
           {decision ? (
             <Candidates decision={decision} />
           ) : (
-            <p className="rulenote">{t("screens.resolution.noCandidates")}</p>
+            <p className={ruleNote()}>{t("screens.resolution.noCandidates")}</p>
           )}
           <div className={emptyNote()} data-part="empty-state">
             <b>{t("screens.resolution.emptyTitle")}</b>
@@ -380,7 +380,7 @@ export function ResolutionScreen() {
               {t("screens.resolution.searchManually")}
             </button>
           </div>
-          <div className="sheetacts secondary" data-part="sheet/actions">
+          <div className={sheetActions({ secondary: true })} data-part="sheet/actions">
             <button className={`sact ${actionButton()}`} data-part="sheet/action" data-leave={folder || undefined}>
               <Icon paths={icons.check} />
               {t("screens.resolution.leaveAsIs")}

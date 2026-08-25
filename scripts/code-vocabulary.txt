@@ -137,6 +137,7 @@ code
 cold
 collapse
 color
+coming
 commit
 common
 complete
@@ -281,6 +282,7 @@ gauche
 gauge
 gesture
 go
+grab
 grid
 group
 groups
@@ -588,6 +590,7 @@ route
 router
 row
 rows
+rule
 run
 safari
 same
@@ -655,6 +658,7 @@ small
 snug
 soft
 solid
+soon
 sort
 sorted
 source
