@@ -349,103 +349,16 @@
      resolution, source, language, seeders and size is kept: without what
      drives the ranking visible, « take this one » is a bet. */
 
-  /* Form controls
-     SHAPE states the rule: a circle means one choice, a square means
-     several. Identical pills for both said nothing, and their width
-     followed the word length, so two options of the same group had
-     different sizes. Here the row is full width: every option is identical,
-     in every group. */
-  .optlist {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-3);
-  }
-  .opt {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-5);
-    width: 100%;
-    min-height: 48px;
-    padding: var(--spacing-4) var(--spacing-6);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-3);
-    background: transparent;
-    text-align: left;
-  }
-  .opt[aria-checked="true"] {
-    border-color: var(--color-primary);
-    background: color-mix(in oklab, var(--color-primary) 8%, transparent);
-  }
-  .opt .mark {
-    position: relative;
-    flex: 0 0 auto;
-    width: 20px;
-    height: 20px;
-    border: 2px solid var(--color-border);
-    background: transparent;
-    transition:
-      border-color var(--duration-1) var(--ease-standard),
-      background var(--duration-1) var(--ease-standard);
-  }
-  .opt.radio .mark {
-    border-radius: var(--radius-full);
-  }
-  .opt.check .mark {
-    border-radius: var(--radius-2);
-  }
-  .opt[aria-checked="true"] .mark {
-    border-color: var(--color-primary);
-    background: var(--color-primary);
-  }
-  /* Checked radio: a solid dot. Checked box: a tick. Two distinct shapes,
-     including once checked. */
-  .opt.radio[aria-checked="true"] .mark::after {
-    content: "";
-    position: absolute;
-    inset: 4px;
-    border-radius: var(--radius-full);
-    background: var(--color-primary-foreground);
-  }
-  .opt.check[aria-checked="true"] .mark::after {
-    content: "";
-    position: absolute;
-    left: 5px;
-    top: 1px;
-    width: 5px;
-    height: 10px;
-    border: solid var(--color-primary-foreground);
-    border-width: 0 2px 2px 0;
-    transform: rotate(45deg);
-  }
-  .opt .lb {
-    flex: 1;
-    min-width: 0;
-    font-size: var(--text-4);
-    font-weight: 500;
-  }
-  .opt .lb small {
-    display: block;
-    /* A hint that wraps makes its row taller than its neighbours: the group
-       loses its single size. One line only. */
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: var(--text-2);
-    font-weight: 400;
-    color: var(--color-muted-foreground);
-    margin-top: var(--spacing-1);
-  }
-  .optkind {
-    font-size: var(--text-2);
-    color: var(--color-muted-foreground);
-    margin: 0 0 var(--spacing-3);
-  }
+  /* Form controls — CONVERTED (L07, phase 6 finished) into typed variants in
+     `src/ui/variants.ts`. SHAPE STATES THE RULE: a circle means one choice, a
+     square means several. Identical pills for both said nothing, and their
+     width followed the word length, so two options of the same group had
+     different sizes — the row is full width now, every option identical in
+     every group. A checked radio is a solid dot and a checked box a tick: two
+     distinct shapes, including once checked.
 
-  .qhint {
-    font-size: var(--text-2);
-    color: var(--color-muted-foreground);
-    line-height: 1.45;
-  }
+     The mark reads its row's `aria-checked` through a `group` variant rather
+     than carrying a second name for the same fact. */
 
   /* Dialog — NOT CONVERTED (L07 phase 6), and named rather than skipped. The
      confirmation dialog is written by the ENGINE: six of its eight classes

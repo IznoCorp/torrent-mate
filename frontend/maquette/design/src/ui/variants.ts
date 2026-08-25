@@ -469,3 +469,71 @@ export const ruleNote = cva(
   "rulenote mt-0 mx-0 mb-7 text-3 leading-[1.45] text-muted-foreground " +
     "border-l-2 border-border pt-1 pr-0 pb-1 pl-5",
 );
+
+/** A group of options. */
+export const optionList = cva("optlist flex flex-col gap-3");
+
+/**
+ * One option.
+ *
+ * SHAPE STATES THE RULE: a circle means one choice, a square means several.
+ * Identical pills for both said nothing, and their width followed the word
+ * length, so two options of the same group had different sizes. The row is
+ * full width here: every option is identical, in every group.
+ *
+ * Checked is read from `aria-checked`, which is already there for assistive
+ * technology.
+ */
+export const option = cva(
+  // `group` so the MARK inside can read this row's `aria-checked` — the
+  // attribute is already there for assistive technology, and a second name for
+  // the same fact is a second thing to keep in step.
+  //
+  // The checked border is a VARIANT SELECTOR, so it carries an attribute's
+  // specificity and beats the plain `border-border` beside it whatever order
+  // the generator picks. That is why this one needs no `false` branch, where
+  // the toggle and the release row did.
+  "opt group flex items-center gap-5 w-full min-h-[48px] py-4 px-6 border border-border " +
+    "rounded-3 text-left aria-checked:border-primary " +
+    "aria-checked:[background:color-mix(in_oklab,var(--color-primary)_8%,transparent)]",
+);
+
+/**
+ * The option's mark.
+ *
+ * A checked radio is a solid dot; a checked box is a tick. Two distinct shapes,
+ * including once checked — which is the whole point of the rule above.
+ */
+export const optionMark = cva(
+  "mark relative flex-none w-[20px] h-[20px] border-2 " +
+    "transition-[border-color,background-color] duration-150 ease-standard " +
+    "group-aria-checked:border-primary group-aria-checked:bg-primary",
+  {
+    variants: {
+      kind: {
+        radio:
+          "rounded-full group-aria-checked:after:content-[''] group-aria-checked:after:absolute group-aria-checked:after:inset-[4px] group-aria-checked:after:rounded-full group-aria-checked:after:bg-primary-foreground",
+        check:
+          "rounded-2 group-aria-checked:after:content-[''] group-aria-checked:after:absolute group-aria-checked:after:left-[5px] group-aria-checked:after:top-[1px] group-aria-checked:after:w-[5px] group-aria-checked:after:h-[10px] group-aria-checked:after:border-solid group-aria-checked:after:border-primary-foreground group-aria-checked:after:[border-width:0_2px_2px_0] group-aria-checked:after:[transform:rotate(45deg)]",
+      },
+    },
+  },
+);
+
+/**
+ * The option's label.
+ *
+ * A HINT THAT WRAPS makes its row taller than its neighbours and the group
+ * loses its single size. One line only.
+ */
+export const optionLabel = cva(
+  "lb flex-1 min-w-0 text-4 font-medium " +
+    "[&_small]:block [&_small]:overflow-hidden [&_small]:text-ellipsis [&_small]:whitespace-nowrap " +
+    "[&_small]:text-2 [&_small]:font-normal [&_small]:text-muted-foreground [&_small]:mt-1",
+);
+
+/** What kind of choice a group is. */
+export const optionKind = cva("optkind text-2 text-muted-foreground mt-0 mx-0 mb-3");
+
+/** A hint under a quality setting. */
+export const qualityHint = cva("qhint text-2 text-muted-foreground leading-[1.45]");

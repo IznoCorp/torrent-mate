@@ -12,7 +12,7 @@ import { useTranslation } from "react-i18next";
 import { Icon } from "../../ui/icon";
 import { useReleasesReference, type Release, type Resolution } from "../../features/releases/reference";
 import { useUiState, writeUiState } from "../../lib/store-access";
-import { actionButton, backAction, body, factsPanel, keyValueRow, ruleNote, screen, screenBar, sectionHeading, settingRow, sheetActions, toggleSwitch } from "../../ui/variants";
+import { actionButton, backAction, body, factsPanel, keyValueRow, option, optionKind, optionLabel, optionList, optionMark, qualityHint, ruleNote, screen, screenBar, sectionHeading, settingRow, sheetActions, toggleSwitch } from "../../ui/variants";
 import { qualityGroup } from "../../features/releases/variants";
 
 // The field names are the legacy state's own — `state.profil` is written and
@@ -118,7 +118,7 @@ export function QualityScreen() {
             <code>/config ?tab=classement</code>.
           </div>
 
-          <p className="qhint">
+          <p className={qualityHint()}>
             {t("screens.profile.leadBefore")}{" "}
             <b>{t("screens.profile.leadEmphasis")}</b>{" "}
             {t("screens.profile.leadAfter")}
@@ -126,24 +126,24 @@ export function QualityScreen() {
 
           <div className={qualityGroup()}>
             <h2 className={sectionHeading()} data-part="heading">{t("screens.profile.minResolution")}</h2>
-            <p className="qhint">{t("screens.profile.minResolutionHint")}</p>
-            <p className="optkind">{t("screens.profile.singleChoice")}</p>
+            <p className={qualityHint()}>{t("screens.profile.minResolutionHint")}</p>
+            <p className={optionKind()}>{t("screens.profile.singleChoice")}</p>
             <div
-              className="optlist"
+              className={optionList()}
               data-part="option/list"
               role="radiogroup"
               aria-label={t("screens.profile.minResolution")}
             >
               <button
-                className="opt radio"
+                className={`${option()} radio`}
                 data-part="option"
                 role="radio"
                 aria-checked={profile.min_resolution === null}
                 data-qres=""
                 onClick={() => pickResolution(null)}
               >
-                <span className="mark" />
-                <span className="lb">
+                <span className={optionMark({ kind: "radio" })} />
+                <span className={optionLabel()}>
                   {t("screens.profile.noFloor")}
                   <small>{t("screens.profile.noFloorHint")}</small>
                 </span>
@@ -151,15 +151,15 @@ export function QualityScreen() {
               {RESOLUTIONS.map((reso) => (
                 <button
                   key={reso}
-                  className="opt radio"
+                  className={`${option()} radio`}
                   data-part="option"
                   role="radio"
                   aria-checked={profile.min_resolution === reso}
                   data-qres={reso}
                   onClick={() => pickResolution(reso)}
                 >
-                  <span className="mark" />
-                  <span className="lb">
+                  <span className={optionMark({ kind: "radio" })} />
+                  <span className={optionLabel()}>
                     {reso} {t("screens.profile.orBetter")}
                     <small>
                       {reso === "720p"
@@ -176,30 +176,30 @@ export function QualityScreen() {
 
           <div className={qualityGroup()}>
             <h2 className={sectionHeading()} data-part="heading">{t("screens.profile.audioTracks")}</h2>
-            <p className="qhint">
+            <p className={qualityHint()}>
               {t("screens.profile.audioHintBefore")}{" "}
               <b>{t("screens.profile.audioHintEmphasis")}</b>{" "}
               {t("screens.profile.audioHintAfter")}
             </p>
-            <p className="optkind">
+            <p className={optionKind()}>
               {t("screens.profile.multiChoice")}
               {profile.required_audio.length === 0
                 ? ` — ${t("screens.profile.noneChecked")}`
                 : ""}
             </p>
-            <div className="optlist" data-part="option/list">
+            <div className={optionList()} data-part="option/list">
               {AUDIOS.map(([key, label]) => (
                 <button
                   key={key}
-                  className="opt check"
+                  className={`${option()} check`}
                   data-part="option"
                   role="checkbox"
                   aria-checked={profile.required_audio.includes(key)}
                   data-qaud={key}
                   onClick={() => toggleAudio(key)}
                 >
-                  <span className="mark" />
-                  <span className="lb">
+                  <span className={optionMark({ kind: "check" })} />
+                  <span className={optionLabel()}>
                     {key}
                     <small>{label}</small>
                   </span>
@@ -215,7 +215,7 @@ export function QualityScreen() {
                 <span>
                   {t("screens.profile.exclude3d")}
                   <br />
-                  <span className="qhint">
+                  <span className={qualityHint()}>
                     {t("screens.profile.exclude3dHint")}
                   </span>
                 </span>
@@ -233,7 +233,7 @@ export function QualityScreen() {
                 <span>
                   {t("screens.profile.requireKnownResolution")}
                   <br />
-                  <span className="qhint">
+                  <span className={qualityHint()}>
                     {t("screens.profile.requireKnownResolutionHint")}
                   </span>
                 </span>

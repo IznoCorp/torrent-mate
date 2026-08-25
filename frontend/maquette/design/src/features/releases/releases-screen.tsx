@@ -17,7 +17,7 @@
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useReleasesReference } from "../../features/releases/reference";
-import { actionButton, backAction, body, emptyNote, screen, screenBar } from "../../ui/variants";
+import { actionButton, backAction, body, emptyNote, qualityHint, screen, screenBar } from "../../ui/variants";
 import { resultCount } from "../../features/acquisition/variants";
 import { releaseName, releaseRow, releaseScore, releaseTags } from "../../features/releases/variants";
 
@@ -118,7 +118,7 @@ export function ReleasesScreen() {
                 </span>
               </span>{" "}
               {index === 0 ? (
-                <p className="qhint">{t("screens.releases.qhint")}</p>
+                <p className={qualityHint()}>{t("screens.releases.qhint")}</p>
               ) : (
                 ""
               )}

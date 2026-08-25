@@ -32,7 +32,7 @@ import { Icon } from "../../ui/icon";
 import { useSettingsReference, type Setting, type SettingsTopic } from "../../features/settings/reference";
 import { useStoreContent } from "../../lib/store-access";
 import { settingLabel } from "../../features/settings/labels";
-import { emptyNote, factsPanel, searchClear, searchField, searchInput, sectionHeading } from "../../ui/variants";
+import { emptyNote, factsPanel, qualityHint, searchClear, searchField, searchInput, sectionHeading } from "../../ui/variants";
 import { saveAction, saveBar, settingsRow, topicRow } from "./variants";
 
 // The pending-edit marker and the row's own identity live on the same element:
@@ -152,7 +152,7 @@ function TopicView({ topic }: { topic: SettingsTopic }): ReactElement {
   return (
     <>
       <h2 className={sectionHeading()} data-part="heading">{topic.t}</h2>
-      <p className="qhint">{topic.s}</p>
+      <p className={qualityHint()}>{topic.s}</p>
       {[...byFile.entries()].map(([file, settings]) => (
         <Fragment key={file}>
           <h2 className={sectionHeading()} data-part="heading" style={{ marginTop: 16 }}>
@@ -189,7 +189,7 @@ export function SettingsPage(): ReactElement | null {
     return (
       <>
         <h2 className={sectionHeading()} data-part="heading">{t("screens.settings.secretsTitle")}</h2>
-        <p className="qhint">{t("screens.settings.secretsHint")}</p>
+        <p className={qualityHint()}>{t("screens.settings.secretsHint")}</p>
         <div className={factsPanel()} data-part="panel">
           {SECRETS.map((secret) => (
             <button
@@ -271,7 +271,7 @@ export function SettingsPage(): ReactElement | null {
           />
         ) : (
           <>
-            <p className="qhint">
+            <p className={qualityHint()}>
               {t(
                 found.length > 1
                   ? "screens.settings.countMany"

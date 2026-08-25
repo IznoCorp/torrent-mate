@@ -50,7 +50,7 @@ import fr from "../../i18n/fr.json";
 import { useArrivalsReference, type PendingDecision, type SettledDecision } from "../../features/arrivals/reference";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useStoreContent } from "../../lib/store-access";
-import { actionButton, backAction, body, emptyNote, ruleNote, screen, screenBar, sectionHeading, sheetActions } from "../../ui/variants";
+import { actionButton, backAction, body, emptyNote, qualityHint, ruleNote, screen, screenBar, sectionHeading, sheetActions } from "../../ui/variants";
 
 // Same helper as `media.tsx`'s, `profile.tsx`'s, `add.tsx`'s and
 // `releases.tsx`'s, still not shared: the extraction those files' comments
@@ -338,7 +338,7 @@ export function ResolutionScreen() {
           <h2 className={sectionHeading()} data-part="heading">
             <code>{folder}</code>
           </h2>
-          <p className="qhint">
+          <p className={qualityHint()}>
             {decision
               ? (REASON_DETAIL[decision.reason] ?? "")
               : t("screens.resolution.noMediaIdentified")}
@@ -403,7 +403,7 @@ export function ResolutionScreen() {
               <h2 className={sectionHeading()} data-part="heading" style={{ marginTop: "18px" }}>
                 {t("screens.resolution.settledHeading")}
               </h2>
-              <p className="qhint">{t("screens.resolution.settledHint")}</p>
+              <p className={qualityHint()}>{t("screens.resolution.settledHint")}</p>
               {DECISIONS_REGLEES.slice(0, 6).map((settled) => (
                 <DecisionCard key={settled.d} decision={settled} />
               ))}
