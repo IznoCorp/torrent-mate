@@ -487,15 +487,13 @@ def login_page(refused: bool) -> bytes:
     # actually holds its block, and `extract` itself raises when a marker is
     # missing — so pointing one of them at the wrong file fails the gate
     # loudly instead of serving a screen stripped of its design.
-    # THREE SOURCES SINCE L07, and each `extract` below still names exactly
-    # one of them. The base layer left the fragment for `src/styles/base.css`,
-    # taking `login:font` and `login:socle` with it — so the honest shape is a
-    # second BINDING, not a concatenation. `scripts/check-css-tokens.py`'s
-    # login arm follows these bindings to know which file holds which chunk;
-    # a concatenated source would leave it resolving every chunk to the first
-    # file and reporting the rest missing, which is exactly what it did for as
-    # long as this line was `PROTOTYPE.read_text() + BASE_STYLESHEET.read_text()`.
-    styles_source = PROTOTYPE.read_text()
+    # THREE SOURCES SINCE L07, AND THE FRAGMENT IS NONE OF THEM ANY MORE.
+    # Every `login:*` region left it: the scale and the palette for
+    # `theme.css`, the typeface and the reset for `base.css`, the sign-in
+    # screen's own style and the splash for `legacy.css`. Each `extract` below
+    # names exactly one file, which is the shape the login arm of
+    # `scripts/check-css-tokens.py` follows — a concatenated source left it
+    # resolving every chunk to the first file and reporting the rest missing.
     base_source = BASE_STYLESHEET.read_text()
     theme_source = THEME_STYLESHEET.read_text()
     legacy_source = LEGACY_STYLESHEET.read_text()
