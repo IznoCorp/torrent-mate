@@ -21,7 +21,7 @@ import type { ReactElement } from "react";
 import { useMaintenanceReference } from "../../features/maintenance/reference";
 import { type Fact } from "../../lib/engine-drawing";
 import { useUiState } from "../../lib/store-access";
-import { section, surfaceError } from "../../ui/variants";
+import { crossReference, section, surfaceError } from "../../ui/variants";
 
 export function MaintenancePage(): ReactElement | null {
   const state = useUiState();
@@ -65,7 +65,7 @@ export function MaintenancePage(): ReactElement | null {
     const actions = MAINT_ACTIONS.filter((action) => action.g === topic.id);
     return (
       <>
-        <button className="crossref" data-part="cross-reference" data-maintopic="">
+        <button className={crossReference()} data-part="cross-reference" data-maintopic="">
           {t("screens.maintenance.allCommands")}
         </button>
         <h2 className="h2" data-part="heading">{topic.t}</h2>

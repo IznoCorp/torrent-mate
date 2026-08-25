@@ -26,7 +26,7 @@ import { Icon } from "../../ui/icon";
 import { useAcquisitionReference, type Follow } from "../../features/acquisition/reference";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
-import { body, emptyNote, liveDot, liveEmphasis, liveStrip, section as sectionClass, surfaceError } from "../../ui/variants";
+import { body, crossReference, crossReferenceLink, crossReferenceStrong, emptyNote, liveDot, liveEmphasis, liveStrip, section as sectionClass, surfaceError } from "../../ui/variants";
 
 // The swipe action a follow that can be searched again reveals. It is a
 // data-ATTRIBUTE VALUE the document-level delegation dispatches on — a contract
@@ -189,11 +189,11 @@ function NowTab(): ReactElement {
           .join(""),
       )}
       {stuck.length > 0 ? (
-        <button className="crossref" data-part="cross-reference" data-go="arr">
+        <button className={crossReference()} data-part="cross-reference" data-go="arr">
           {blocked.length > 0
             ? t("screens.acquisition.crossrefFromAcquisition")
             : ""}
-          <b>{stuck.length}</b>
+          <b className={crossReferenceStrong()}>{stuck.length}</b>
           {t("screens.acquisition.crossrefMedium")}
           {stuck.length > 1 ? t("screens.acquisition.crossrefPlural") : ""}
           {t("screens.acquisition.crossrefToTreat")}
@@ -201,7 +201,7 @@ function NowTab(): ReactElement {
             ? t("screens.acquisition.crossrefEnteredMany")
             : t("screens.acquisition.crossrefEnteredOne")}
           {t("screens.acquisition.crossrefWithoutFollow")}
-          <span>{t("screens.acquisition.crossrefLink")}</span>
+          <span className={crossReferenceLink()}>{t("screens.acquisition.crossrefLink")}</span>
         </button>
       ) : null}
       {section(

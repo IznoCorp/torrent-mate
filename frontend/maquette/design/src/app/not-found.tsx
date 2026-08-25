@@ -9,7 +9,7 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { useEngineDrawing } from "../lib/engine-drawing";
 import { useUiState } from "../lib/store-access";
-import { actionButton, emptyNote } from "../ui/variants";
+import { actionButton, crossReference, crossReferenceLink, emptyNote } from "../ui/variants";
 
 export function NotFoundPage(): ReactElement {
   const state = useUiState();
@@ -30,9 +30,9 @@ export function NotFoundPage(): ReactElement {
       <button className={`cfoot solid ${actionButton()}`} data-part="card/foot" data-solid="" data-go="acq">
         {t("screens.notFound.toAcquisition")}
       </button>
-      <button className="crossref" data-part="cross-reference" data-drawer="1">
+      <button className={crossReference()} data-part="cross-reference" data-drawer="1">
         {t("screens.notFound.allPages")}
-        <span>{t("screens.notFound.menuLink")}</span>
+        <span className={crossReferenceLink()}>{t("screens.notFound.menuLink")}</span>
       </button>
     </>
   );

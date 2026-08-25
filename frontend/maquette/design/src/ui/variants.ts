@@ -128,3 +128,21 @@ export const liveDot = cva("d w-[7px] h-[7px] rounded-full bg-info flex-none");
 
 /** The emphasis inside a live strip. */
 export const liveEmphasis = cva("text-foreground font-semibold");
+
+/**
+ * The cross-reference note: « this medium is also … », with a link.
+ *
+ * A WRAPPING SENTENCE MUST NOT BE LAID OUT AS FLEX SIBLINGS. Each fragment
+ * became its own column and the line read as three broken stacks. It is one
+ * paragraph, `display: block`, with the link on its own row.
+ */
+export const crossReference = cva(
+  "crossref block w-full leading-[1.45] border border-dashed border-border " +
+    "bg-transparent text-muted-foreground text-3 text-left p-5 rounded-3",
+);
+
+/** The emphasis inside a cross-reference. */
+export const crossReferenceStrong = cva("text-foreground font-semibold");
+
+/** The cross-reference's link, on its own row. */
+export const crossReferenceLink = cva("block mt-3 text-primary font-semibold whitespace-nowrap");

@@ -28,7 +28,7 @@ import type { ReactElement } from "react";
 import { useArrivalsReference, type PipelineFact } from "../../features/arrivals/reference";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useUiState } from "../../lib/store-access";
-import { actionButton, emptyNote, section as sectionClass, sectionHead, statusDot as statusDotClass, surfaceError } from "../../ui/variants";
+import { actionButton, crossReference, crossReferenceLink, emptyNote, section as sectionClass, sectionHead, statusDot as statusDotClass, surfaceError } from "../../ui/variants";
 import { liveDot, liveEmphasis, liveStrip } from "../../ui/variants";
 import {
   pilotActions,
@@ -286,9 +286,9 @@ export function ArrivalsPage(): ReactElement | null {
         `<b>${t("screens.arrivals.stuckNoteLead")}</b>${t("screens.arrivals.stuckNoteRest")}`,
       )}
       {state.scen !== "real" ? (
-        <button className="crossref" data-part="cross-reference" data-go="acq">
+        <button className={crossReference()} data-part="cross-reference" data-go="acq">
           {t("screens.arrivals.toAcquisition")}
-          <span>{t("screens.arrivals.toAcquisitionLink")}</span>
+          <span className={crossReferenceLink()}>{t("screens.arrivals.toAcquisitionLink")}</span>
         </button>
       ) : null}
       {section(

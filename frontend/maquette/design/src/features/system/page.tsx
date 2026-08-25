@@ -21,7 +21,7 @@ import type { ReactElement } from "react";
 import { useSystemReference } from "../../features/system/reference";
 import { type Fact } from "../../lib/engine-drawing";
 import { useUiState } from "../../lib/store-access";
-import { section, surfaceError } from "../../ui/variants";
+import { crossReference, crossReferenceLink, section, surfaceError } from "../../ui/variants";
 
 export function SystemPage(): ReactElement | null {
   const state = useUiState();
@@ -102,9 +102,9 @@ export function SystemPage(): ReactElement | null {
           s: execution.d + " · " + execution.r,
         })),
       )}
-      <button className="crossref" data-part="cross-reference" data-go="arr">
+      <button className={crossReference()} data-part="cross-reference" data-go="arr">
         {t("screens.system.toArrivals")}
-        <span>{t("screens.system.toArrivalsLink")}</span>
+        <span className={crossReferenceLink()}>{t("screens.system.toArrivalsLink")}</span>
       </button>
 
       <h2 className="h2" data-part="heading">{t("screens.system.disks")}</h2>
@@ -112,9 +112,9 @@ export function SystemPage(): ReactElement | null {
 
       <h2 className="h2" data-part="heading">{t("screens.system.index")}</h2>
       {facts(INDEX)}
-      <button className="crossref" data-part="cross-reference" data-page="maint">
+      <button className={crossReference()} data-part="cross-reference" data-page="maint">
         {t("screens.system.toMaintenance")}
-        <span>{t("screens.system.toMaintenanceLink")}</span>
+        <span className={crossReferenceLink()}>{t("screens.system.toMaintenanceLink")}</span>
       </button>
 
       <h2 className="h2" data-part="heading">{t("screens.system.dependencies")}</h2>
