@@ -209,12 +209,16 @@ a file that no longer holds its subject.
 | `styles/legacy.css` | the dying engine's residue, bounded and dated, dies with L13 | **arbitrated by the operator** in L07's `DESIGN.md` § 2, and held by `check-legacy-css-residue.py` |
 | `styles/harness.css` | the phone frame — imported once, and the only sheet that never ships | **a departure from L07's letter**, taken in the wave and carried by its merge |
 
-Neither is a fourth or fifth *layer* in D3's sense: one is a residue with a date of death, the
-other never reaches the product. But the decision's own words refuse both, and § 7.1 forbids the
-wave that implements a decision from amending it — which is why this paragraph is written here,
-after the fact, by someone who implemented neither. **What the operator still has to say** is
-whether D3's text is widened to name a residue and a harness explicitly, or whether both stay
-what they are today: exceptions recorded against a decision that does not admit them.
+**Arbitrated by the operator, 2026-08-25: D3 is WIDENED, and the two are named as transitory.**
+Three layers remain the target and the destination. Beside them, and only them, live two sheets
+that exist to disappear, each carrying the date it dies. « Nowhere else » now means: no SIXTH
+sheet, and no transitory sheet without its end named here.
+
+The distinction that makes this a widening and not a dilution: a layer is where CSS is meant to
+live; a transitory sheet is CSS that has not finished leaving. `legacy.css` is what the dying
+engine still needs and it dies with **L13**; `harness.css` is the phone frame and it dies at
+**switchover**. Neither may grow, both are held by a guard, and when their date arrives the
+absence is checked against this paragraph.
 
 **Why it is not cosmetic.** L13 removes `legacy.css` and the switchover removes `harness.css`.
 Whoever reads D3 on that day must be able to tell that the three layers were always the target
@@ -306,6 +310,18 @@ style properties, recorded and replayed. Screenshots are not an oracle here.
 one run of that oracle "proved" twenty states had changed after a deletion that was correct all
 along.
 
+**What it does NOT see, and the operator arbitrated keeping it that way (2026-08-25).** The probe
+reads the rectangle and the computed properties **of the element itself**. A `::before` or
+`::after` that stops being painted changes neither, so the oracle stays green — correctly, by its
+own contract. L07 phase 15 produced the lived example: a legibility gradient written across four
+concatenated string literals was never generated, leaving hero text on the bare image, and
+**R26 caught it** because R26 reads `getComputedStyle(element, "::after")`.
+
+The oracle is not widened: the measurement count and the two machine-bound references stay as
+they are. **A pseudo-element that carries a function is covered by a named rule instead** — that
+is the contract, and a surface that relies on one without such a rule is the defect, not the
+oracle.
+
 ### D9 — What a library is adopted for, and where motion lives
 
 **Two rules, and between them they settle every "should we use library X" question without
@@ -330,6 +346,27 @@ reasoning is kept so the alternatives are not proposed again as if new.
 | **Haptics** | **refuse the capability, build the seam** | the target platform exposes no public API; the workarounds ride an implementation detail that has already been tightened once. One `feedback()` call site all gestures pass through, visual today — so adopting it later changes one file |
 | **`onTouchStart` for pressed states** | **refuse** | it lights the pressed state when the finger is starting a SCROLL, so a list flickers as it is scrolled. `:active` is cancelled by the browser when the gesture becomes a scroll, which is the wanted behaviour, for free |
 | **`@media (hover: hover)`** to keep hover off touch | **adopt** | the sticky-hover problem is real; this is its declarative remedy |
+### D10 — The dying engine's CSS is a bounded residue with a date of death
+
+**Decision.** The CSS the legacy engine still needs does not convert and does not disperse: it is
+one file, `design/src/styles/legacy.css`, deliberately **unlayered** so it wins over
+`@layer utilities` on the markup the engine draws. It may not grow, a guard
+(`check-legacy-css-residue.py`) refuses any addition, and it dies with **L13**.
+
+**Arbitrated by the operator on 2026-08-24**, during L07, under the name **D-L07-5**. Promoted
+here on 2026-08-25 by the steward's audit, because the only definition of it lived in
+`docs/archive/features/maquette-l07/DESIGN.md` — and `docs/archive/` is frozen history that is
+never revised, so the sole justification for keeping a 2 470-line stylesheet alive could no
+longer be corrected if its terms changed. `legacy.css`'s header cites **this** address.
+
+**What it costs, and it is recorded rather than discovered.** Unlayered normal declarations beat
+every cascade layer whatever the specificity — including on markup that COMPONENTS draw. Seven
+shared identity anchors carry both a residue rule and a typed variant, so on those elements a
+variant can be edited and change nothing on screen (B-067). The declarations are identical term
+for term today and the oracle says so; what is not held is the day one drifts. **The guard that
+cross-checks each variant against the rule shadowing it is arbitrated (operator, 2026-08-25)**,
+and it dies with this decision.
+
 ---
 
 ## 3. Invariants — true at the end of every wave

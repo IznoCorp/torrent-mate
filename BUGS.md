@@ -333,6 +333,13 @@ disappear silently unless a rule happens to read it. Not fixed, and not fixable 
 change — it is a question about the oracle's contract (whether a named region may declare a
 pseudo-element to measure), and it belongs with whoever owns that contract.
 
+
+**Arbitrated 2026-08-25: the oracle is NOT widened.** It keeps its contract — it measures
+elements — and the limit is written into D8 of `frontend-architecture.md`, where it is read
+before anyone relies on the instrument. A pseudo-element carrying a function is covered by a
+named rule instead, the way R26 covers this one. A surface that leans on a functional
+pseudo-element with no such rule is the defect; the oracle is not.
+
 **B-062 — a class name emitted by a `cva()` base string wears no `class=`, and three readers looked for `class=`.**
 The markup-contract readers learn what a class NAME is from the sites that emit one, and they
 knew three such sites: `class="…"` in a document, `className="…"` in a component, and the engine's
@@ -359,6 +366,14 @@ line ceiling in the same interval.
 repository guard reading the tree once. The question is a cadence one, like B-049's — whether the
 per-phase tier gains a `make check`, or the boundaries guard joins the contracts tier — and it is
 not this wave's to settle alone.
+
+
+**Arbitrated 2026-08-25: the repository's CHEAP guards join the per-phase tier.** Not `make
+check` entire — 10 763 tests cost fourteen minutes and the operator's cadence ruling of
+2026-08-24 stands for the expensive half. What joins are the guards that run in seconds and read
+what a phase touches: `check-frontend-boundaries.py`, `check-module-size.py` over its four roots,
+and `check-no-french.py`. An invariant breach is then attributable to the phase that commits it,
+instead of to a fifteen-phase interval.
 
 **B-064 — R72's mutation recipe names an environment variable that nothing reads, so following it proves nothing.**
 `frontend/maquette/regions.json`'s R72 text says « `R72_SANS_BUILD=1` skips the build gate ALONE ».
@@ -425,6 +440,13 @@ editing it changes nothing on screen and no gate speaks.** TypeScript passes, th
 each variant's identity anchor against the residue's selectors and refusing a divergence; the
 alternative is scoping the residue to the engine's instances, which is L13's work.
 
+
+**Arbitrated 2026-08-25: the guard is built now, and it dies with D10.** It reads the seven shared
+identity anchors, compares each typed variant against the residue rule that shadows it, and
+refuses a divergence. Scoping the residue to the engine's instances stays L13's work — waiting for
+it would leave the trap open across L08 through L12. The guard is recorded in D10, so it is
+removed in the same move as the decision that makes it necessary.
+
 **B-068 — the wave's prose drifted in forty small places, and the inventory is kept.**
 An adversarial doc-accuracy review over #494 re-measured every figure the wave asserts. **Most
 are right** — 2 739 measurements, 530 rules, 4 136 lines, 30 colours, 8 shadows, 55 rules, 936
@@ -453,6 +475,13 @@ That directory was archived when #494 landed, so **the only definition of the de
 prototype fragment, ACC-14/ACC-19) already has a durable home in
 `docs/reference/frontend-architecture.md` § L13. This one needs the same: the decision moves
 there, and the stylesheet's header cites the durable address.
+
+
+**Arbitrated 2026-08-25: D-L07-5 becomes D10** of `docs/reference/frontend-architecture.md`, a
+full § 2 decision rather than a note inside a lot's description — a decision keeping 2 470 lines
+alive carries the same standing as those that structure the plan. `legacy.css`'s header cites
+that address, and the archived DESIGN stays what it is: the record of where the decision was
+taken.
 
 **B-070 — the rename tool passed the soft ceiling, and it is the same family as B-050.**
 `scripts/rename-identifiers.py` reads **829 non-blank lines** against a soft warning at 800 and a
