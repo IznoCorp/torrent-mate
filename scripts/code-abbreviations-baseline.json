@@ -1,6 +1,6 @@
 {
   "what": "Occurrences of a refused word in a DECLARED name, per file. The rule is `docs/reference/code-naming.md`; the guard is `scripts/check-code-abbreviations.py`. A count may go DOWN and never up, and a file that reaches zero leaves this record. Per file and never a global total: a change that removes one `tmp` and adds another leaves a total unchanged and passes.",
-  "total": 1807,
+  "total": 1806,
   "files": {
     "frontend/maquette/harness/actions.py": 2,
     "frontend/maquette/harness/address.py": 2,
@@ -357,7 +357,6 @@
     "scripts/nofrench_lexicon.py": 1,
     "scripts/nofrench_scan.py": 3,
     "scripts/refresh-maquette-fixture.py": 1,
-    "scripts/rename_readers.py": 1,
     "scripts/update_feature_map.py": 2
   }
 }

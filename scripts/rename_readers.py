@@ -49,7 +49,7 @@ def utf16_offsets(text):
     Returns:
         A callable mapping a UTF-16 offset to a Python index.
     """
-    wide = [index for index, char in enumerate(text) if ord(char) > 0xFFFF]
+    wide = [index for index, character in enumerate(text) if ord(character) > 0xFFFF]
     if not wide:
         return lambda offset: offset
     # Where each wide character sits once the earlier ones have each taken an

@@ -120,7 +120,7 @@ Said here so it is not discovered later:
 
 ## 6. The campaigns, in the order they cost least
 
-Three words carry **766 of the 1 807** occurrences and are **bare names**, which is exactly the
+Three words carry **766 of the 1 806** occurrences and are **bare names**, which is exactly the
 opaque form the rule targets — and each is a mechanical rename through
 `scripts/rename-identifiers.py`, verified by an oracle OUTSIDE the tool as § Code Conventions
 requires.
@@ -131,7 +131,7 @@ requires.
 | 2 | The shell vocabulary | 61 | `design/src/**` | No new guard: remove the words from `code-vocabulary.txt` and arm 6 bites |
 | 3 | `ctx` → `context` | 263 | package + harness | 247 of 263 bare |
 | 4 | `conn` → `connection` | 368 | package + scripts | 339 of 368 bare. The DB-API convention, and the most likely to be contested |
-| — | The residue | **1 041**, in 357 files | everywhere | Frozen by the ratchet, never rewritten wholesale |
+| — | The residue | **1 040**, in 356 files | everywhere | Frozen by the ratchet, never rewritten wholesale |
 
 The residue is diffuse and stays that way: `ref`×137, `rel`×81, `dest`×66, `params`×58,
 `cfg`×56, `msg`×48, `pos`×47, `num`×47, `idx`×38, `cur`×34 — some fifty words with a long tail.
@@ -149,13 +149,13 @@ the KEPT list on evidence (§ 2). Re-measured on the armed guard's own corpus, a
 
 | Figure | First measured | Armed guard | |
 | ------ | -------------- | ----------- | - |
-| Debt under this rule | 1 507 | **1 807** | a wider list, and `exc` kept |
+| Debt under this rule | 1 507 | **1 806** | a wider list, and `exc` kept |
 | Cleared by campaigns 1, 3, 4 | 762 | **766** | `ctx` re-counts at 263 |
-| Frozen residue | 745, in 322 files | **1 041, in 357 files** | `scripts/code-abbreviations-baseline.json` |
+| Frozen residue | 745, in 322 files | **1 040, in 356 files** | `scripts/code-abbreviations-baseline.json` |
 | `conn` bare | 339 of 368 | **339 of 368** | identical |
 | `pg` bare | 123 of 135 | **123 of 135** | identical |
-| New per day, residue only (23 days) | ≈ 3 | **3.3** | (1 041 − 964) ÷ 23 |
-| New per day, campaigns refused too | ≈ 14.5 | **14.7** | (1 807 − 1 468) ÷ 23 |
+| New per day, residue only (23 days) | ≈ 3 | **3.3** | (1 040 − 964) ÷ 23 |
+| New per day, campaigns refused too | ≈ 14.5 | **14.7** | (1 806 − 1 468) ÷ 23 |
 | Public names alone (the rejected narrow scope) | 93, flat for a month | not re-measured | the scope was rejected; the figure decides nothing |
 | Locals in a scope of five lines or fewer | 57 % | not re-measured | as above |
 
