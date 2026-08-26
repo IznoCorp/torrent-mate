@@ -144,6 +144,8 @@ when the defect comes back.
 | B-101 | The steward's brief predicted an oracle movement that could not happen | by audit | `open` |
 | B-102 | The profile panel's avatar is unconstrained, inside a region whose probe reads only the container | by operator | `open` |
 | B-103 | Three typed variants were written and never wired; one leaves a bare button unreadable | by operator | `open` |
+| B-104 | Back returns to the top of a page: the scroll memory only knows overlay screens | by operator | `open` |
+| B-105 | Ten elements carry no class at all, in a prototype that imports no preflight | by audit | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -2216,3 +2218,61 @@ content and nothing reserves the space beneath it, so it covers a card. It is no
 dismissal by design — whether it should have one is a layout decision, not a repair.
 
 <sub>`grep -rn 'addFooterAction\|resultList\|suggestionChip' frontend/maquette/design/src/` · `grep -n 'acq-add' frontend/maquette/design/src/engine/states.js`</sub>
+
+**B-104 — the scroll memory was built for screens and never learned about pages.**
+Reported by the operator on 2026-08-26: scroll a page, open an item, come back — the page is at the
+top. The application feel is to return where one left.
+
+**The mechanism exists and is careful.** `app/shell.tsx` § « SCROLL FOLLOWS THE HISTORY ENTRY »
+keys positions by the history entry, saves the outgoing position inside the history subscription —
+« the only instant it is still in the DOM » — and restores over a bounded retry across five frames,
+because the router commits its re-render on its own schedule. It also restores on a RETURN only,
+correctly: arriving forward on an address one has seen before is a new visit.
+
+**It reads one port out of two.** `activePort()` is
+`document.querySelector(".screen.open .port")` — the port of an OVERLAY SCREEN. The main pages
+scroll inside `#port`, declared in `index.html:221` with both `id="port"` and `class="port …"`, and
+that element is never `.screen.open .port`. So on a main page the save either stores nothing
+(no screen open, the query returns null) or stores the just-opened screen's position under the
+departing page's key. Either way the return finds nothing to restore.
+
+Nothing else covers it: `page-host.tsx:175` reaches `#port` by id, for `aria-busy` only.
+
+**A second, latent defect in the same block**: `if (remembered)` treats a stored **0** as absent.
+It is invisible today because 0 is the top, and it is the shape that hides a real regression the
+day a position of zero must be honoured over a default.
+
+<sub>`grep -n 'activePort\|scrollPositions' frontend/maquette/design/src/app/shell.tsx` · `grep -n 'id="port"' frontend/maquette/design/index.html`</sub>
+
+**B-105 — ten elements carry no class, in a prototype whose reset does not cover bare tags.**
+Measured after B-102 and B-103, because both were one element that had been left bare: a
+`<button>`, `<img>`, `<input>`, `<select>`, `<textarea>` or `<a>` rendered with neither `className`
+nor `class` in `design/src/**/*.tsx`.
+
+| File | Line | Tag |
+| --- | --- | --- |
+| `ui/panel/index.tsx` | 222 | `<img>` — **B-102, confirmed defect** |
+| `features/acquisition/add-screen.tsx` | 366 | `<button>` — **B-103, confirmed defect** |
+| `features/acquisition/add-screen.tsx` | 248, 292, 314 | `<button>` ×3 |
+| `features/acquisition/page.tsx` | 714 | `<button>` |
+| `features/settings/panel-field.tsx` | 139 | `<input>` |
+| `features/media/media-screen.tsx` | 22, 605 | `<a>`, `<img>` |
+| `ui/panel/index.tsx` | 74 | `<img>` |
+
+**This is a list of CANDIDATES, not of ten defects, and the distinction is deliberate.** A bare
+element is only wrong where the user agent's own painting is wrong for it — an `<img>` whose parent
+constrains it fully is fine. Two of the ten are confirmed because the operator saw them. **The
+other eight are unread**, and saying so is the point: this entry exists to be checked, not believed.
+
+**Two of them carry more risk than the rest, on grounds worth naming.** `panel-field.tsx:139` is an
+`<input>`, and a classless input keeps the platform's own field — light ground, system border — on
+a dark surface. And `add-screen.tsx` holds **four** of the ten, the same file as B-103's three
+orphan variants: one surface converted incompletely, twice over, by two different measurements.
+
+**Why nothing reads this.** Preflight is deliberately not imported (`theme.css`, L07), so bare tags
+keep the user agent's painting by design — the decision was right and it makes bare tags a category
+worth counting. `check-markup-contracts.py` reads the classes that ARE emitted; a tag with no class
+emits nothing to read. Ten lines of AST would return this list, and it is the sibling of B-103's
+check: one asks which variants are never called, the other which elements never call one.
+
+<sub>a scan of `design/src/**/*.tsx` for the six tags rendered without `className` or `class`</sub>
