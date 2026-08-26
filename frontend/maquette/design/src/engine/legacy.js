@@ -33,6 +33,7 @@
 */
 
 import { screens, panel, bridge } from "./seams.js";
+import { servedIdentityLines } from "../lib/served-identity";
 
   /* TorrentMate — mobile-first redesign prototype
      Data: real library titles (1,861 items). */
@@ -11863,17 +11864,31 @@ import { screens, panel, bridge } from "./seams.js";
           ).join("")}
         </div>
       </div>
-      <div class="ver">
-        <p class="vt">Version déployée</p>
-        <p class="vv">0.98.23</p>
-        <p class="vc">build 58d0d4fd · à jour</p>
-      </div>`;
+      ${servedIdentityBlock()}`;
     setOpen(element, true);
     setOpen(select("#scrim"), true);
     try {
       __bridge.pushLayer("drawer");
     } catch (error) {}
   }
+  /* WHAT THIS HOST IS SERVING — the drawer's footer, and it used to be a lie.
+     Three literals sat here: a version, a build sha and « à jour », none of
+     them computed and none of them checked, while the repository stood twenty
+     patch versions further on. The identity is the HOST's now, published per
+     request on the document it sends, and worded by `lib/served-identity.ts`,
+     which also owns the case where nothing published one. `known` is
+     forwarded as a `data-*` so a rule can tell the two apart without reading
+     the words — by PRESENCE, like every other boolean state attribute here:
+     `data-known="false"` would read as a state that is set. */
+  function servedIdentityBlock() {
+    const lines = servedIdentityLines();
+    return `<div class="ver" data-part="shell/served-identity"${lines.known ? " data-known" : ""}>
+        <p class="vt">${escapeHtml(lines.label)}</p>
+        <p class="vv">${escapeHtml(lines.primary)}</p>
+        <p class="vc">${escapeHtml(lines.secondary)}</p>
+      </div>`;
+  }
+
   function closeDrawer(pop) {
     if (!select("#drawer").classList.contains("open")) return;
     setOpen(select("#drawer"), false);

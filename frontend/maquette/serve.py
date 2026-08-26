@@ -53,6 +53,9 @@ import urllib.parse
 from collections.abc import Callable
 from pathlib import Path
 
+# The identity of the tree this host serves — its own subject, its own file.
+from host_identity import with_served_identity
+
 
 def renamed_env(current: str, former: str) -> str | None:
     """Returns an environment value, answering to the name it used to have.
@@ -827,7 +830,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except RuntimeError as error:
             self._send(503, build_failure(str(error)))
             return
-        self._send(200, body)
+        # AFTER the cache, never inside it. `_document()` caches the built bytes
+        # by mtime; the identity is not a property of the build and must not
+        # ride that cache — the branch can change, and the tree can go dirty,
+        # without a single input's mtime moving.
+        self._send(200, with_served_identity(body, DESIGN_ROOT))
 
     do_HEAD = do_GET
 

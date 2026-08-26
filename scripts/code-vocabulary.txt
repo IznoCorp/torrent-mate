@@ -404,6 +404,7 @@ libretry
 light
 like
 line
+lines
 link
 list
 listener
@@ -682,6 +683,7 @@ selmode
 semibold
 separator
 series
+served
 services
 set
 setting
@@ -833,6 +835,7 @@ unwinding
 upcoming
 urgency
 url
+usable
 use
 user
 username

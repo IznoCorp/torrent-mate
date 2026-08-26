@@ -69,6 +69,7 @@ import argparse
 import importlib.util
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -601,6 +602,29 @@ ARM_ORDER = ("classification", "lossless", "correspondence", "schema", "provenan
              "generated", "handlers")
 
 
+EXTRACTOR = ROOT / "scripts" / "extract-maquette-fixtures.mjs"
+
+
+def typescript_install() -> str | None:
+    """Returns the TypeScript install the extractor would parse through.
+
+    ASKED OF THE EXTRACTOR, never re-derived here. The two candidate paths are
+    the extractor's own, and a second copy of them in this file would be a table
+    that rots — the extractor is where they belong, so it is the extractor that
+    is asked. Its `--typescript-install` exits 3 when there is none, which is
+    how « cannot run here » stays distinguishable from « found a violation ».
+
+    Returns:
+        The install path, or None when node is absent or no install is there.
+    """
+    try:
+        run = subprocess.run(["node", str(EXTRACTOR), "--typescript-install"],
+                             cwd=ROOT, capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return run.stdout.strip() or None if run.returncode == 0 else None
+
+
 def main() -> int:
     """Run the requested arms."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -608,6 +632,28 @@ def main() -> int:
     parser.add_argument("--list", action="store_true",
                         help="print the inventory this guard holds, and refuse nothing")
     arguments = parser.parse_args()
+
+    # A CLONE WITH NO npm INSTALL CANNOT RUN THIS GUARD, and it must say so
+    # rather than fall over. Every arm below reads `legacy.js` through the
+    # TypeScript parser, so with no install the guard used to answer a ten-line
+    # node traceback and a non-zero exit — inside `make check`, two lines above
+    # `openapi-drift: skipped (frontend/node_modules absent)` and
+    # `contract-types: skipped (…)`, which handle exactly the same absence.
+    #
+    # THE SKIP IS LOUD, and that is the whole care taken here. It names what was
+    # NOT checked and how to make it run, because a skip that reads like a pass
+    # is the failure this repository has now counted seventeen times. It cannot
+    # make the gate vacuous where the gate matters: both continuous-integration
+    # jobs that reach this guard install TypeScript first, so the branch below
+    # is unreachable there.
+    if typescript_install() is None:
+        print(f"check-mock-seeds: SKIPPED — no TypeScript install, so the "
+              f"{len(ARMS)} arms that read the engine through its parser "
+              f"(classification, lossless, correspondence, schema, provenance, "
+              f"generated, handlers) checked NOTHING. "
+              f"Run `npm ci` in frontend/maquette/design or in frontend.")
+        return 0
+
     module = builder()
 
     if arguments.list:

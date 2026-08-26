@@ -70,22 +70,44 @@ const require_ = createRequire(import.meta.url);
 //
 // The maquette's own install is tried FIRST: this tool reads the maquette's
 // engine, so the maquette's TypeScript is the one that should parse it.
-const typescript = (() => {
-  const installs = [
-    "../frontend/maquette/design/node_modules/typescript",
-    "../frontend/node_modules/typescript",
-  ];
-  for (const install of installs) {
-    try {
-      return require_(install);
-    } catch {
-      continue;
-    }
+const TYPESCRIPT_INSTALLS = [
+  "../frontend/maquette/design/node_modules/typescript",
+  "../frontend/node_modules/typescript",
+];
+
+const typescriptInstall = TYPESCRIPT_INSTALLS.find((install) => {
+  try {
+    require_.resolve(install);
+    return true;
+  } catch {
+    return false;
   }
-  throw new Error(
-    `no TypeScript install found. Tried: ${installs.join(", ")}. Run ` +
-      "`npm ci` in frontend/maquette/design or in frontend.",
-  );
+});
+
+const NO_TYPESCRIPT =
+  `no TypeScript install found. Tried: ${TYPESCRIPT_INSTALLS.join(", ")}. Run ` +
+  "`npm ci` in frontend/maquette/design or in frontend.";
+
+// ASKED BEFORE THE PARSER IS LOADED, because the parser is what is missing.
+// `--typescript-install` answers « can this tool run here? » with the path it
+// would use, or exit code 3 and the sentence above. It exists so that the ONE
+// list of installs stays in this file: `scripts/check-mock-seeds.py` has to
+// decide whether to run or to say it is skipping, and a second copy of these
+// two paths over there is a table that rots — this repository has paid for
+// that shape more than once. Exit 3 rather than 1: « cannot run here » is not
+// « found a violation », and a caller must be able to tell them apart.
+if (process.argv[2] === "--typescript-install") {
+  if (typescriptInstall === undefined) {
+    process.stderr.write(`${NO_TYPESCRIPT}\n`);
+    process.exit(3);
+  }
+  process.stdout.write(`${typescriptInstall}\n`);
+  process.exit(0);
+}
+
+const typescript = (() => {
+  if (typescriptInstall === undefined) throw new Error(NO_TYPESCRIPT);
+  return require_(typescriptInstall);
 })();
 
 const REPOSITORY_ROOT = resolve(import.meta.dirname, "..");
@@ -435,7 +457,7 @@ if (argument === "--measure") {
 } else {
   process.stderr.write(
     "usage: extract-maquette-fixtures.mjs --measure | --list | --all | "
-      + "--anonymous | --family <NAME>\n",
+      + "--anonymous | --family <NAME> | --typescript-install\n",
   );
   process.exit(2);
 }

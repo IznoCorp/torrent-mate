@@ -28,7 +28,13 @@
     "missing": "manquant",
     "missingPlural": "manquants",
     "film": "Film",
-    "series": "Série"
+    "series": "Série",
+    "servedIdentity": {
+      "label": "Version déployée",
+      "dirty": "modifié",
+      "unavailable": "identité indisponible",
+      "unavailableReason": "cette copie n'est pas servie par l'hôte de design"
+    }
   },
   "settings": {
     "labels": {

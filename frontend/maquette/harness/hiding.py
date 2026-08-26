@@ -61,7 +61,7 @@ def check(name, condition, detail=""):
 
 
 READ_NOTES = """()=>{
-  const notes=[...document.querySelectorAll('.note')];
+  const notes=[...document.querySelectorAll('[data-part="note"]')];
   const button=document.querySelector('#notesBtn');
   return {count: notes.length,
           displays: [...new Set(notes.map(n=>getComputedStyle(n).display))],
