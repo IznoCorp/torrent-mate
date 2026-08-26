@@ -141,6 +141,7 @@ when the defect comes back.
 | B-084 | A wave that found twenty defects wrote none of them in this register | by audit | `open` |
 | B-085 | Guards green over what they do not read: 17 in three consecutive waves, counted by nobody | by audit | `open` |
 | B-100 | Invariant 10 is written and unarmed: no arm counts the frame's domain words | by audit | `open` |
+| B-101 | The steward's brief predicted an oracle movement that could not happen | by audit | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -2085,3 +2086,35 @@ where the count already sits is pre-satisfied and can never fall, which is B-075
 twice in two waves.
 
 <sub>the measurement: domain-word count per directory of `design/src`, outside comment lines</sub>
+
+**B-101 — a brief that told a wave what it would measure, and was wrong about it.**
+The steward's hand-off for L08-bis stated, in bold: « **Cette vague VA faire bouger l'oracle** —
+B-081 change ce qui est peint par défaut », and instructed the wave to expect a re-record and to
+name every accepted divergence. **It could not move, and the reason was available before the brief
+was written.**
+
+The oracle captures with `html.measuring` on, and `harness.css`'s
+`html.measuring .note { display: none !important }` was the ONE surviving rule touching `.note` —
+a fact the steward had itself measured and written into B-081 the day before. The notes were
+therefore absent from all 2 739 measurements and had always been. Restoring the hidden-by-default
+pair aligns the judged document with the measured one **without changing the measured one**: the
+oracle staying at zero IS the proof of the repair, not a surprise. Had it diverged, eye and
+instrument would still be aimed at two documents.
+
+**The failure is not the prediction; it is deducing where a measurement was one command away.**
+The steward held both halves — the probe runs under `measuring`, and `measuring` hides `.note` —
+and joined them into a forecast instead of into a check. That is the shape this register counts
+under « guards green over what they do not read », applied to a person rather than a guard, and it
+is the second time in two waves: B-082's five elements were read from the markup without opening
+`base.css`.
+
+**Why it belongs in the register rather than in a session's apologies.** A brief steers a wave: it
+says what to expect, and an agent that expects a divergence looks for a reason to accept one. This
+one did not — it measured and contradicted the brief, which is the outcome to want. The next brief
+may be read by an agent that does not. **A figure in a brief carries the same duty as a figure in
+the plan: the command that produces it, or it is not stated.**
+
+Fix: no forecast of an instrument's behaviour in a hand-off without the command that establishes
+it, the same rule § 0 of the architecture file already holds every figure to.
+
+<sub>`grep -n 'measuring' frontend/maquette/design/src/styles/harness.css` · `grep -n 'measuring' frontend/maquette/oracle.py`</sub>
