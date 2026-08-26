@@ -148,6 +148,7 @@ when the defect comes back.
 | B-105 | Ten elements carry no class at all, in a prototype that imports no preflight | by audit | `open` |
 | B-106 | Nothing measures the interface against the constitution: five DOIT clauses have no surface | by audit | `open` |
 | B-107 | §17 (accounts, rights, Plex SSO) has no surface, no contract operation and no lot | by audit | `open` |
+| B-108 | §18 (ratio per tracker) needs three operations the backend already answers and nothing calls | by audit | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -2359,3 +2360,32 @@ replaces or joins the current sign-in, what becomes of a Plex user with no right
 Plex account sees by default. None is the steward's to answer.
 
 <sub>`grep -n 'WEB_ROLE\|require_not_staging' docs/reference/web-ui.md` · `python3 -c "import json;print([p for p in json.load(open('frontend/maquette/contract/openapi.json'))['paths'] if 'auth' in p])"`</sub>
+
+**B-108 — the engine measures the ratio, and the interface shows none of it.**
+The operator dictated **§18 — Le ratio est une ressource, et elle se pilote** on 2026-08-26, with
+`DOIT-13`. Unlike §17, this one asks for almost no new backend: it asks the interface to read what
+is already answered.
+
+**Measured on the running backend**: the per-tracker policy exists — `min_ratio` and
+`min_seed_time` on `TrackerProviderConfig`, read at the grab (`_grab_pass.py:370`) and at the
+cross-seed (`cross_seed.py:871`) — and `GET /api/acquisition/obligations` is documented in the
+route itself as « List seed obligations with their current ratio state ». `stalled-grabs` and
+`downloads` answer beside it.
+
+**All three are in `frontend-backend-demands.md` § 4** — the 24 operations the backend has and the
+interface does not use. Which is the finding: this is not a capability to build, it is one already
+built and never surfaced. The demands register named it a month before the constitution did, in a
+list whose own heading says it « says what the switchover MAY retire ». **Retiring `obligations`
+would have retired §18's subject**, and nothing in that list distinguishes an operation the new
+design outgrew from one it has not reached yet — which is exactly the verdict column B-106 asks for,
+now with a case that would have gone the wrong way.
+
+**What §18 adds that the backend does not already answer** is the acting half: setting a tracker's
+policy from the surface that shows its ratio (DOIT-3 applied here) is a write, and no operation in
+either contract does it — the policy is configuration, edited today as a file.
+
+**And one requirement that is a trap rather than a feature**: the displayed ratio must be the one
+the TRACKER recognises, not a locally computed figure that drifts. An obligation shown as met and
+still counted due by the tracker is NE-DOIT-PAS-1 with the account as the price.
+
+<sub>`grep -rn 'min_ratio\|min_seed_time' personalscraper/acquire/*.py` · `grep -n 'obligations' personalscraper/web/routes/acquisition.py` · `docs/reference/frontend-backend-demands.md` § 4</sub>

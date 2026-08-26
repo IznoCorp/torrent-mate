@@ -537,7 +537,49 @@ le second prouve la sécurité et pas l'interface — et c'est l'interface que c
 **Aucune de ces exigences n'est bloquée par la maquette, ni ne la bloque.** Elles se dessinent
 comme tout le reste : dans la maquette d'abord, avec des états nommés et une règle qui mord.
 
-## Ce que l'interface DOIT faire (DOIT-1 … DOIT-12)
+## §18 — Le ratio est une ressource, et elle se pilote (dicté par l'opérateur, 2026-08-26)
+
+**Sur un tracker privé, le ratio est ce qui donne le droit de continuer à télécharger.** Le perdre
+n'est pas un désagrément d'affichage : c'est perdre l'outil. L'application doit donc laisser
+l'opérateur **voir** où il en est, tracker par tracker, et **agir** dessus — pas seulement subir
+une politique écrite dans un fichier de configuration.
+
+**Le moteur sait déjà tout cela, et l'interface n'en montre rien.** La politique par tracker existe
+(`min_ratio`, `min_seed_time` de `TrackerProviderConfig`, lue au grab et au cross-seed), les
+obligations de seed sont suivies avec leur état de ratio courant
+(`GET /api/acquisition/obligations` — « List seed obligations with their current ratio state »), et
+les téléchargements en cours comme les grabs bloqués ont leur endpoint. **Aucun des trois n'est
+appelé par la maquette** : ils figurent parmi les 24 opérations que le backend expose et que
+l'interface n'utilise pas.
+
+### Ce que cela pose
+
+1. **Le ratio se lit PAR TRACKER, jamais en un seul chiffre.** Un ratio global moyen cache
+   précisément la situation dangereuse : bien portant chez l'un, en dette chez l'autre.
+2. **Une obligation de seed est un « rien » qui a sa raison** — §8, et **DOIT-2** nommait déjà
+   « torrent différé (ratio, espace) ». Un torrent conservé parce qu'il doit encore semer doit dire
+   qu'il l'est, jusqu'à quand ou jusqu'à quel ratio, et non ressembler à un téléchargement oublié.
+3. **Agir là où l'on observe** (**DOIT-3**) vaut ici comme ailleurs : la politique d'un tracker se
+   règle depuis la surface qui montre son ratio, pas dans un fichier que l'interface se contente de
+   relire.
+4. **Ce que l'application ne fera jamais pour améliorer un ratio** : maltraiter le tracker.
+   **NE-DOIT-PAS-8** couvre déjà les rafales ; il est rappelé ici parce que c'est précisément le §
+   où la tentation existe.
+
+### Ce que cela ne tranche pas, et qui reste à dicter
+
+- **Quelles actions** l'opérateur exerce sur un torrent au regard du ratio — forcer le seed,
+  libérer une obligation, refuser un grab qui coûterait trop.
+- **Ce qui est montré d'un tracker** au-delà du ratio : dette, marge, tendance, échéance.
+- **Si l'interface propose une décision** (« ce grab vous met en dette ») ou se borne à l'exposer.
+
+### Ce que cela impose à la preuve
+
+Le ratio affiché est **celui que le tracker reconnaît**, pas une valeur calculée localement qui
+diverge en silence — **NE-DOIT-PAS-1**. Une obligation affichée comme tenue et qu'un tracker
+compte encore due est un mensonge, et c'est celui qui coûte le compte.
+
+## Ce que l'interface DOIT faire (DOIT-1 … DOIT-13)
 
 1. **DOIT-1 — Tout montrer, en français clair.** Chaque média a un état compréhensible sans être
    développeur : intégré, renommé, identifié, posters récupérés, trailer, dispatché. Un libellé
@@ -566,6 +608,10 @@ comme tout le reste : dans la maquette d'abord, avec des états nommés et une r
     compte connecté peut exercer ; ce qu'il ne peut pas faire est visible et expliqué plutôt que
     silencieusement absent, quand le cacher tromperait sur l'état du système. Un refus reçu après
     le geste est un défaut d'interface.
+13. **DOIT-13 — Montrer et piloter le ratio, tracker par tracker (§18).** Où en est chaque tracker,
+    quelles obligations de seed courent et jusqu'où, et de quoi régler la politique depuis la
+    surface qui l'affiche. Un ratio global unique ne satisfait pas cette clause : c'est par tracker
+    que le droit de télécharger se gagne ou se perd.
 
 ## Ce que l'interface NE DOIT PAS faire (NE-DOIT-PAS-1 … NE-DOIT-PAS-9)
 
