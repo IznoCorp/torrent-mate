@@ -89,6 +89,7 @@ check: lint test-cov
 	python3 scripts/check-legacy-css-residue.py
 	python3 scripts/check-markup-contracts.py
 	python3 scripts/check-frontend-boundaries.py
+	python3 scripts/check-state-ownership.py
 	python3 frontend/maquette/oracle.py --contracts
 	python3 scripts/check-i18n-placeholders.py
 	python3 scripts/check-command-safety.py
@@ -183,7 +184,7 @@ harness:
 	frontend/maquette/harness/run.sh
 
 harness-contracts:
-	@echo "Running the contract subset (7 rules) — what CI runs on every maquette PR..."
+	@echo "Running the contract subset (8 rules) — what CI runs on every maquette PR..."
 	frontend/maquette/harness/run.sh --contracts
 
 maquette-oracle:

@@ -21,6 +21,7 @@
     "vitest": "^4.1.11"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.102.6",
     "@tanstack/react-router": "^1.170.29",
     "@tanstack/store": "^0.11.1",
     "class-variance-authority": "^0.7.1",

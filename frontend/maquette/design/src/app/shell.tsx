@@ -82,6 +82,8 @@ import {
   withoutPanel,
 } from "../lib/addresses";
 import { installNavigation } from "../lib/navigate";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { createQueryClient } from "../lib/query-client";
 
 declare global {
   interface Window {
@@ -124,6 +126,10 @@ declare global {
         screen?: boolean;
       };
     };
+    // The query cache, published for the harness. It is the one place server
+    // state lives (invariant 4), so a rule asking « what does this surface
+    // hold, and did a mutation put it back? » asks it here.
+    __queries: import("@tanstack/react-query").QueryClient;
     // The domain hooks and the probes read the engine's state through this.
     __store: Store;
   }
@@ -259,8 +265,22 @@ installFocusManager();
 // everything above the bar sits on `0px`.
 publishBarHeight();
 
+// THE QUERY CACHE, created here and wrapped around the router (invariant 4).
+// Server state lives in it; the address lives in the router; only ephemeral
+// interface state lives in the store. It is created in the BOOT rather than at
+// its module's evaluation for the same reason the store is — one owner, one
+// instant, named in the order everything else is named in.
+//
+// Published for the harness beside the other seams: a rule that has to reach
+// inside a module to ask what the cache holds is a rule coupled to how the
+// module is built, which is the arrangement `__store` and `__mocks` refuse.
+const queryClient = createQueryClient();
+window.__queries = queryClient;
+
 ReactDOM.createRoot(mountNode).render(
   <React.StrictMode>
-    <RouterProvider router={router} />
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
   </React.StrictMode>,
 );

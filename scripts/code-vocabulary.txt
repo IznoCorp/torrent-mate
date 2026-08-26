@@ -137,6 +137,7 @@ clear
 clearq
 clef
 click
+client
 clock
 close
 closed
@@ -156,6 +157,7 @@ confirmadd
 containers
 contains
 content
+contract
 copy
 corps
 cote
@@ -247,6 +249,7 @@ exit
 fab
 fact
 facts
+failure
 fallback
 fast
 fetch
@@ -533,6 +536,7 @@ parameters
 params
 parent
 parents
+parsed
 part
 passer
 password
@@ -690,6 +694,7 @@ selection
 selector
 selmode
 semibold
+send
 separator
 series
 served

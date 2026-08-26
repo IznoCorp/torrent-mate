@@ -683,6 +683,55 @@ def arm_tree(root: Path) -> int:
 
 
 
+# THE ONE FILE UNDER `mocks/` THAT IS NOT A MOCK, and the exemption is narrow on
+# purpose. `mocks/contract-types.d.ts` is GENERATED from
+# `frontend/maquette/contract/openapi.json` — it describes the CONTRACT, not a
+# fixture, and it happens to sit in this bucket because that is where L08's
+# generator writes it. Its placement is questionable and is recorded as such
+# (B-104); moving it is a rename with five ends and belongs to its own change,
+# not to the phase that first needed to import it.
+#
+# WHAT MAKES THE EXEMPTION SAFE IS THE TYPE-ONLY CONDITION, not the file name.
+# The defect this arm exists to refuse is a module reading a SEED directly, so
+# that a fixture survives its own removal while the rendering stays identical.
+# A `.d.ts` carries no runtime value at all and a type-only edge is erased by
+# the compiler, so nothing can travel it — the same reasoning `app/reference.d.ts`
+# already states for its own type-only imports of every feature.
+# Matched on the STEM so the graph's own spelling of a `.d.ts` module —
+# `mocks/contract-types.d.ts`, `mocks/contract-types.d` or
+# `mocks/contract-types` depending on how it was resolved — cannot make
+# this exemption silently miss and the guard silently refuse.
+CONTRACT_TYPES_EXEMPT = ("mocks/contract-types",)
+
+
+def type_only_import(root: Path, source: str, target: str) -> bool:
+    """Tells whether a module imports another with `import type` and nothing else.
+
+    A VALUE import of the same file would be refused: the exemption is about
+    what can travel the edge, never about which file is at its end.
+
+    Args:
+        root: The directory being read.
+        source: The importing module, as the graph names it.
+        target: The imported module, as the graph names it.
+
+    Returns:
+        True when every import of `target` in `source` is type-only.
+    """
+    # The graph names a module by its path WITH its suffix, so nothing is
+    # appended here. A first version added one and looked for
+    # `lib/query-client.ts.ts`, found nothing, and answered « not type-only » —
+    # a reader that misses its target answers the safe-looking thing.
+    path = root / source
+    if not path.is_file():
+        return False
+    leaf = target.rsplit("/", 1)[-1].removesuffix(".ts").removesuffix(".d")
+    text = path.read_text(encoding="utf-8")
+    found = re.findall(rf"^\s*import\s+(type\s+)?[^;]*?['\"][^'\"]*{re.escape(leaf)}['\"]",
+                       text, re.MULTILINE)
+    return bool(found) and all(kind for kind in found)
+
+
 def arm_mocks(root: Path) -> int:
     """Refuse anything but `app/` importing `mocks/`, and `mocks/` importing a feature.
 
@@ -716,6 +765,9 @@ def arm_mocks(root: Path) -> int:
     for source, targets in sorted(edges.items()):
         source_bucket = bucket_of(source)
         for target in sorted(set(targets)):
+            if (any(target.startswith(exempt) for exempt in CONTRACT_TYPES_EXEMPT)
+                    and type_only_import(root, source, target)):
+                continue
             if bucket_of(target) == "mocks" and source_bucket not in ("mocks", "app"):
                 violations.append(
                     f"{source} → {target}: only `app/` may import `mocks/` — a feature "
