@@ -142,6 +142,8 @@ when the defect comes back.
 | B-085 | Guards green over what they do not read: 17 in three consecutive waves, counted by nobody | by audit | `open` |
 | B-100 | Invariant 10 is written and unarmed: no arm counts the frame's domain words | by audit | `open` |
 | B-101 | The steward's brief predicted an oracle movement that could not happen | by audit | `open` |
+| B-102 | Seven register rows are duplicated, once `fixed` and once `open` | by audit | `open` |
+| B-103 | Two invariants are numbered 10, and a brief pointed at « invariant 10 » | by audit | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -2118,3 +2120,37 @@ Fix: no forecast of an instrument's behaviour in a hand-off without the command 
 it, the same rule § 0 of the architecture file already holds every figure to.
 
 <sub>`grep -n 'measuring' frontend/maquette/design/src/styles/harness.css` · `grep -n 'measuring' frontend/maquette/oracle.py`</sub>
+
+**B-102 — seven rows appear twice, with contradicting statuses, and the count reads them both.**
+`BUGS.md` carries **108** rows and **101** distinct identifiers. B-079 to B-085 each appear once as
+`fixed #505` — written by the correction wave that repaired them — and once as `open`, re-added by
+#507 beside the two rows that wave was really filing.
+
+**What it costs is the count, and the count is now a step.** B-085 made « recount at each wave's
+close » the fifth post-merge gesture, and the first figure anyone reads to do it is the number of
+rows. L09's own hand-off brief said « 108 entrées », which is what this register reports and not
+what it holds.
+
+**It is recorded and not repaired here, deliberately.** § 7.1's rule is that a record is corrected
+by what is added beside it, never by editing the old text — and seven rows saying two things is
+exactly the kind of thing an implementing wave should not silently tidy on its way past. Whoever
+repairs it decides which status is true for each of the seven; six of them are plainly `fixed #505`
+and B-085 is arguable, since what it asked for is a standing measurement rather than a repair.
+
+<sub>`grep -c '^| B-' BUGS.md` → 108 · `grep -oE '^\| B-[0-9]+' BUGS.md | sort -u | wc -l` → 101 · `grep -oE '^\| B-[0-9]+' BUGS.md | sort | uniq -d`</sub>
+
+**B-103 — § 3 of the architecture file has two invariants numbered 10.**
+#507 inserted « **The frame does not name the domain** » as item 10 and left « **No French in the
+code and no interface text in the code** » numbered 10 below it. Both are binding, both are
+called 10, and items 11 to 14 now sit one place away from every citation of them written before.
+
+**It is not cosmetic, because the numbers are cited.** L09's hand-off brief instructed the wave on
+« l'invariant 10 » meaning the new one; `docs/reference/frontend-architecture.md` cites « the
+reduced-motion invariant » by name rather than by number in one place and by number in another;
+and three « Where it lives (invariant 10) » lines were added to L10, L11 and L12 in the same
+commit — those resolve correctly only if a reader stops at the first 10 they meet.
+
+**Recorded, not renumbered.** § 7.1: the operator arbitrates this file and an agent proposes.
+Renumbering it inside the wave that implements against it is the one moment it should not be done.
+
+<sub>`grep -nE '^1?[0-9]+\. \*\*' docs/reference/frontend-architecture.md | sed -n '/^4[0-9][0-9]:/p'` · the two rows read `10.` </sub>
