@@ -144,6 +144,10 @@ when the defect comes back.
 | B-101 | The steward's brief predicted an oracle movement that could not happen | by audit | `open` |
 | B-102 | Seven register rows are duplicated, once `fixed` and once `open` | by audit | `open` |
 | B-103 | Two invariants are numbered 10, and a brief pointed at « invariant 10 » | by audit | `open` |
+| B-104 | The generated contract types live under `mocks/`, and they are not a mock | by gate | `open` |
+| B-105 | R89's waterfall hold was green over the exact defect it names | by mutation | `fixed #NNN` |
+| B-106 | The server-state arm read only the component tree, so its ceiling was pre-satisfied | by mutation | `fixed #NNN` |
+| B-107 | `git checkout --` on an untracked file is a no-op, and a mutation stayed in the tree | by review | `fixed #NNN` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -1966,7 +1970,8 @@ absence of a row can mean either.
 | L07-bis | 5 | B-075 |
 | L08 | 6 | PR #503's squash body — B-093 and B-094 write out two of the six; B-092 and B-095 are adjacent findings of that wave, not members of the six |
 | L08-bis (#505, the correction wave) | 9 | itemised below · squash `12a134ca` |
-| **Total** | **26** | at 2026-08-26, **recounted at L08-bis's close** — step five of § 5, executed for the first time |
+| L09 (in flight) | 2 so far | B-105 and B-106, both found by mutation in the phases that wrote the instruments · recounted at the wave's close |
+| **Total** | **28** | at 2026-08-26, **provisional while L09 is in flight** — the wave's final figure is written at its close, step five of § 5 |
 
 **The nine the correction wave found, since a wave that counts itself has to name its own.** The
 figure is large because the count is honest, not because the wave was worse: four of the nine are
@@ -2154,3 +2159,78 @@ commit — those resolve correctly only if a reader stops at the first 10 they m
 Renumbering it inside the wave that implements against it is the one moment it should not be done.
 
 <sub>`grep -nE '^1?[0-9]+\. \*\*' docs/reference/frontend-architecture.md | sed -n '/^4[0-9][0-9]:/p'` · the two rows read `10.` </sub>
+
+**B-104 — the generated contract types sit in `mocks/`, and they describe the contract.**
+`design/src/mocks/contract-types.d.ts` is generated from `frontend/maquette/contract/openapi.json`
+by `npm run generate-contract-types`. It is the CONTRACT's shape — what the interface may ask for
+— and it is in the bucket L04 declared for « handlers and fixture seeds ».
+
+**It surfaced as a gate failure rather than as a reading.** L09 phase 3 gave `lib/query-client.ts`
+a path typed against the contract, so an address the contract does not declare is a compile error
+instead of a 404 nobody sees until the surface is open. `check-frontend-boundaries.py --arm mocks`
+refused the import, correctly by its own wording: only `app/` may import `mocks/`.
+
+**What was done, and what was NOT.** The arm gained one narrow exemption — a TYPE-ONLY import of
+that file — with the reason written beside it: a `.d.ts` carries no runtime value, a type-only edge
+is erased by the compiler, and the defect the arm exists to refuse is a module reading a SEED so
+that a fixture survives its own removal. Nothing can travel a type-only edge. A VALUE import of the
+same file is still refused, proved by mutation.
+
+**What stays open is the PLACEMENT.** Moving the file has five ends — the `package.json` script,
+`make check-contract-types`, `check-mock-seeds.py --arm generated`, the boundaries guard's
+`GENERATED` table, and four importers — and a rename with five ends belongs to its own change, not
+to the phase that first needed to import it. Until then a reader of the tree is told the contract
+is a mock.
+
+<sub>`grep -rn "mocks/contract-types" frontend/maquette/design/src scripts Makefile frontend/maquette/design/package.json`</sub>
+
+**B-105 — the hold that names a defect, written so that the defect passes it.**
+R89 (`harness/settle.py`) holds that `window.__mocks.quiet()` waits for a request the first one had
+not issued yet — the waterfall, and the reason L08 made `releaseWaiters` a macrotask. **The first
+version read `inFlight()` after quiet and expected 0. Both behaviours produce 0.** Released a task
+later, the second request is already counted, so quiet waits for it and the count is 0 afterwards;
+released inside the settlement, quiet answers before the second request exists and the count is 0
+then too.
+
+The mutation that removes the macrotask left the hold GREEN. What distinguishes the two is ORDER,
+never a count: **did the second request FINISH before quiet answered?** It reads that now, and it
+falls on the mutation.
+
+**Found by mutating, not by reading** — and it is the hold that L09's whole proof rests on, written
+in the phase whose stated purpose was to stop exactly this being discovered at the tenth surface.
+
+<sub>`python3 frontend/maquette/harness/settle.py` — the hold « quiet() waits for a request the first one had not issued yet »</sub>
+
+**B-106 — a ceiling above its own count, in the arm written to make that impossible.**
+`scripts/check-state-ownership.py --arm server-state` holds invariant 4 as a count refused upward.
+Its first version read the component tree alone — `app/ features/ lib/ routes/ ui/ mocks/` — and
+reported **4** against a ceiling of **11**. A ceiling seven above its own count can never fall,
+which is B-075's shape, in the arm whose own header names B-075.
+
+**The eleven were measured across the whole tree, the engine included**, and the engine writes
+seven of them. They are server state in the interface's bag whoever wrote them: components READ
+`state.phase` and `state.pipe` regardless. The arm reads both now and holds the UNION, printing the
+two shares apart.
+
+**And a second ceiling had to exist, which the mutation is what showed.** A component writing
+`pipe` — a key the engine already writes — left the union at 11 and the run green, while the
+component share went 4 → 5. That is invariant 4 in its purest form, the interface copying server
+state itself, and the union alone is blind to it.
+
+<sub>`python3 scripts/check-state-ownership.py --arm server-state`</sub>
+
+**B-107 — a restoration that silently did not happen.**
+A mutation was applied to `scripts/check-state-ownership.py` and restored with
+`git checkout -- scripts/check-state-ownership.py || true`. **The file was untracked**, so the
+command failed, `|| true` swallowed the error, and the mutation stayed in the tree — the arm was
+left reading five buckets instead of six.
+
+Caught by re-reading the file rather than by trusting the command. « A failed command is not a
+no-op — it is an edit that did not happen », read from the other end: here the edit that did not
+happen was the RESTORATION, and the tree kept a change nobody intended.
+
+**The remedy is the one the rule already implies**: a mutation is restored from a copy taken
+before it, or from git only where git tracks the file — and the restoration is VERIFIED by reading
+the target, never by the command's exit code.
+
+<sub>`git checkout -- <untracked path>` exits 1 with « did not match any file(s) known to git »</sub>
