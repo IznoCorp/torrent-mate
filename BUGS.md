@@ -146,6 +146,7 @@ when the defect comes back.
 | B-103 | Three typed variants were written and never wired; one leaves a bare button unreadable | by operator | `open` |
 | B-104 | Back returns to the top of a page: the scroll memory only knows overlay screens | by operator | `open` |
 | B-105 | Ten elements carry no class at all, in a prototype that imports no preflight | by audit | `open` |
+| B-106 | Nothing measures the interface against the constitution: five DOIT clauses have no surface | by audit | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -2276,3 +2277,52 @@ emits nothing to read. Ten lines of AST would return this list, and it is the si
 check: one asks which variants are never called, the other which elements never call one.
 
 <sub>a scan of `design/src/**/*.tsx` for the six tags rendered without `className` or `class`</sub>
+
+**B-106 — three instruments measure the interface, and all three are bounded by what already exists.**
+Raised by the operator on 2026-08-26: « what is missing is not limited to what the maquette already
+offers, but also to what the app is FOR ». The three instruments this repository has answer a
+narrower question than that:
+
+| Instrument | Compares | Blind to |
+| --- | --- | --- |
+| `IMPLEMENTATION.md` § THE OBJECTIVE | pages, API modules, WebSocket files, service worker | anything that is not a file count |
+| `frontend-backend-demands.md` | the maquette's contract against the running backend | anything the backend does not expose |
+| `audit_design_coverage.py` | `tests/feature_map/` against the design docs | the product's own intent — despite the name |
+
+**None reads `product-intent.md`**, which is the only document saying what the product must BE. So
+a capability the constitution requires, that neither the maquette nor the backend has, is invisible
+to every gate in this repository.
+
+**Measured: the eleven DOIT clauses against the 53 operations the interface declares.** Five have
+no surface, and each one names an operation the backend already exposes and the interface does not
+call — so they are not speculative:
+
+| Clause | What it requires | The gap |
+| --- | --- | --- |
+| **DOIT-2** | « torrent différé (ratio, espace) … chaque « rien » a sa raison affichée » | `GET /api/acquisition/stalled-grabs` and `/obligations` are called by nothing |
+| **DOIT-3** | « lancer/stopper le pipeline, **relancer le watcher** » | run/kill/pause/resume are declared; `POST /api/pipeline/watcher` is not |
+| **DOIT-5** | « progression visible jusqu'au bout » | `GET /api/pipeline/stages` is called by nothing |
+| **DOIT-6** | « X détectés, Y disponibles, Z récupérés » for one run | `GET /api/pipeline/history/{run_uid}` — the single run's detail — is called by nothing |
+| — | configuration edited without validation | `POST /api/config/validate` is called by nothing |
+
+**The five are not five independent gaps.** Four of them belong to `/pipeline` and `/control` — the
+two surfaces § 1 of the architecture file places deliberately outside the lots, « named here only so
+nobody reads their absence as an arbitration ». That framing is right and it has a consequence
+nobody drew: **the clauses those pages would satisfy are unsatisfied for as long as the pages are
+undrawn**, and no instrument says so.
+
+**What is asked here is an instrument, not a page.** The 24 unused operations of
+`frontend-backend-demands.md` § 4 are recomputed at every `make check` — that figure cannot go
+stale. What is missing is the verdict column: for each, whether the new design retired it, whether
+it is a surface still to be drawn, or whether it serves something outside the interface. Written
+once, by the operator, it turns a list of « maybe » into work with a number — and any new operation
+appears in it on its own.
+
+**Two limits of this entry, stated rather than discovered.** DOIT-1, 4, 7, 8 and 10 are BEHAVIOURS,
+not operations — a queued action shown as queued, a confirmation before replacement — and an
+operation census cannot see them; they need reading, surface by surface, which this entry has not
+done. And DOIT-10 (« Retour … refait le chemin emprunté ») is arguably already breached by B-104,
+where the path is retraced and the position is not: whether the scroll is part of « le chemin » is
+the operator's reading, not this steward's.
+
+<sub>`python3 -c "import json;d=json.load(open('frontend/maquette/contract/openapi.json'));print(sum(1 for p in d['paths'].values() for v in p if v in ('get','post','put','patch','delete')))"` · `sed -n '492,517p' docs/reference/product-intent.md` · `docs/reference/frontend-backend-demands.md` § 4</sub>
