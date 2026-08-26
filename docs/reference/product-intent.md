@@ -579,7 +579,52 @@ Le ratio affiché est **celui que le tracker reconnaît**, pas une valeur calcul
 diverge en silence — **NE-DOIT-PAS-1**. Une obligation affichée comme tenue et qu'un tracker
 compte encore due est un mensonge, et c'est celui qui coûte le compte.
 
-## Ce que l'interface DOIT faire (DOIT-1 … DOIT-13)
+## §19 — Le cross-seed se voit et se décide (dicté par l'opérateur, 2026-08-26)
+
+**Le cross-seed est le seul levier qui améliore un ratio sans rien télécharger** : un fichier déjà
+possédé est proposé au seed sur un autre tracker. C'est donc le prolongement direct du §18, et
+c'est aussi le mécanisme le plus silencieux du moteur — celui qui agit le plus loin de l'œil de
+l'opérateur.
+
+**Aujourd'hui il est entièrement invisible.** Le moteur en a 797 lignes
+(`personalscraper/acquire/cross_seed.py`), il émet `CrossSeedInjected` et `CrossSeedRejected` à
+chaque décision — et **aucune route ne l'expose**, dans aucun des deux contrats, ni ne relaie ces
+événements au flux temps réel. La seule trace dans l'interface est une clé de configuration
+booléenne. Un mécanisme qui injecte des torrents chez des tiers et dont l'opérateur n'apprend rien
+est **NE-DOIT-PAS-5**, échec silencieux, appliqué à un succès autant qu'à un échec.
+
+### Ce que cela pose
+
+1. **Une injection se voit, et un refus s'explique.** Les deux événements existent déjà et portent
+   la raison. Un cross-seed rejeté parce que la disposition des fichiers ne correspond pas n'est
+   pas la même chose qu'un rejet pour politique de tracker — §8, et **DOIT-2** : chaque « rien » a
+   sa raison affichée.
+2. **Le cross-seed se rattache au média, pas seulement au torrent.** Le lecteur qui regarde une
+   fiche doit pouvoir savoir que ce titre sème ailleurs, et où. Sans cela l'obligation de seed du
+   §18 apparaît sans son origine.
+3. **Décider, c'est aussi refuser.** L'opérateur doit pouvoir empêcher un cross-seed autant que le
+   déclencher : un tracker qu'il ne veut pas alimenter, un titre qu'il compte supprimer.
+   **DOIT-4** tient — une action légitime n'est jamais refusée par un « occupé » — et
+   **NE-DOIT-PAS-6** aussi : rien n'est injecté chez un tiers sans que ce soit voulu.
+4. **NE-DOIT-PAS-8 est la limite dure.** Un cross-seed cherche des correspondances chez des
+   trackers : c'est précisément le geste qui fait bannir s'il part en rafale. Le §18 le rappelait
+   pour le ratio ; il est ici opposable à toute idée d'automatisation plus agressive.
+
+### Ce que cela ne tranche pas, et qui reste à dicter
+
+- **Automatique, proposé, ou manuel** : le moteur injecte-t-il seul, soumet-il des candidats, ou
+  attend-il un geste ?
+- **Ce qu'on voit d'un cross-seed** : le fil des injections, l'état par tracker, ou les deux.
+- **Où il vit** — une surface à lui, une part de la fiche média, ou une part du poste de contrôle.
+
+### Ce que cela impose à la preuve
+
+Contrairement au §18, **ce § demande du backend qui n'existe pas** : il n'y a rien à appeler. Ce
+n'est pas une raison de dessiner moins — §15 dit que le backend suit l'interface — mais c'en est
+une de l'écrire ici, pour que la demande parte de ce que l'expérience exige et non de ce que le
+moteur expose déjà.
+
+## Ce que l'interface DOIT faire (DOIT-1 … DOIT-14)
 
 1. **DOIT-1 — Tout montrer, en français clair.** Chaque média a un état compréhensible sans être
    développeur : intégré, renommé, identifié, posters récupérés, trailer, dispatché. Un libellé
@@ -612,6 +657,9 @@ compte encore due est un mensonge, et c'est celui qui coûte le compte.
     quelles obligations de seed courent et jusqu'où, et de quoi régler la politique depuis la
     surface qui l'affiche. Un ratio global unique ne satisfait pas cette clause : c'est par tracker
     que le droit de télécharger se gagne ou se perd.
+14. **DOIT-14 — Rendre le cross-seed visible et décidable (§19).** Ce qui a été injecté, où, et
+    pourquoi un candidat a été refusé ; de quoi l'empêcher ou le provoquer. Un mécanisme qui dépose
+    des torrents chez des tiers sans que l'opérateur en sache rien ne satisfait pas cette clause.
 
 ## Ce que l'interface NE DOIT PAS faire (NE-DOIT-PAS-1 … NE-DOIT-PAS-9)
 

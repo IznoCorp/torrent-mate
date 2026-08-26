@@ -149,6 +149,7 @@ when the defect comes back.
 | B-106 | Nothing measures the interface against the constitution: five DOIT clauses have no surface | by audit | `open` |
 | B-107 | §17 (accounts, rights, Plex SSO) has no surface, no contract operation and no lot | by audit | `open` |
 | B-108 | §18 (ratio per tracker) needs three operations the backend already answers and nothing calls | by audit | `open` |
+| B-109 | §19 (cross-seed) has no route in either contract, and its events reach no stream | by audit | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -2389,3 +2390,35 @@ the TRACKER recognises, not a locally computed figure that drifts. An obligation
 still counted due by the tracker is NE-DOIT-PAS-1 with the account as the price.
 
 <sub>`grep -rn 'min_ratio\|min_seed_time' personalscraper/acquire/*.py` · `grep -n 'obligations' personalscraper/web/routes/acquisition.py` · `docs/reference/frontend-backend-demands.md` § 4</sub>
+
+**B-109 — 797 lines of engine that inject torrents at third parties, and no way to know it happened.**
+The operator dictated **§19 — Le cross-seed se voit et se décide** on 2026-08-26, with `DOIT-14`.
+
+**Measured, and it is the most closed of the three sections dictated today.**
+`personalscraper/acquire/cross_seed.py` is 797 non-blank lines. It emits `CrossSeedInjected` and
+`CrossSeedRejected` on every decision. **Neither contract carries a single route for it** — zero
+matches for cross-seed in `frontend/openapi.json` AND in `frontend/maquette/contract/openapi.json` —
+and nothing under `personalscraper/web/` relays those events to `/ws/events`. The only trace
+reaching any interface is a boolean configuration key, `"cross_seed": False` in
+`web/routes/config.py:113`.
+
+**The three sections dictated today are three different distances, and the distinction decides how
+each is planned:**
+
+| Section | What exists | What is asked |
+| --- | --- | --- |
+| §18 — ratio | three operations answering, none called | wire them, plus one write for the policy |
+| §17 — accounts | one role, one account, no notion of several | a model, then surfaces |
+| §19 — cross-seed | an engine, and **no exposure at all** | the backend follows the interface (§15) |
+
+**§19 is where D7's rule earns itself.** « The maquette declares the contract its interface
+REQUIRES … every divergence is recorded as a demand on the backend. » There is nothing to read from
+here, so the demand has to start from what the experience needs — which is precisely the case D7
+was written for, and the first one to arise since it was written.
+
+**The defect this entry files, beyond the gap**: an engine that acts on third parties and reports
+to nothing is `NE-DOIT-PAS-5` — silent failure — applied to a SUCCESS as much as to a failure. The
+events are emitted and dropped. Whatever §19 becomes, the cheapest half is already built and
+unplugged: two event types, already carrying their reason.
+
+<sub>`grep -rc 'cross.seed' frontend/openapi.json frontend/maquette/contract/openapi.json` · `grep -rn 'CrossSeed' personalscraper/web/` · `grep -c '[^[:space:]]' personalscraper/acquire/cross_seed.py`</sub>
