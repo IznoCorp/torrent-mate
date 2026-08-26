@@ -83,6 +83,48 @@ html.measuring .note {
   display: none !important;
 }
 
+/* THE DESIGN NOTES, AND THE PAIR THAT DECIDES WHETHER THEY ARE SEEN.
+   They are the prototype's annotations — a paragraph beside a section saying
+   what a surface is for — so they belong to the harness and never to the
+   product, and they are HIDDEN BY DEFAULT: the reader asks for them with the
+   information button, which toggles `notes` on `<html>`.
+
+   BOTH HALVES OR NEITHER. The engine toggles that class, flips `aria-pressed`
+   and announces a message whether or not any rule reads it, so a missing pair
+   does not fail — it reports success while the notes stay on screen. That is
+   exactly what happened when the fragment's BLOCK 1 was deleted: the pair went
+   with it, and the DEFAULT silently became « shown ».
+
+   AND THE MEASURING HIDE ABOVE IS NOT A SUBSTITUTE FOR IT — it is what made
+   the loss invisible. `html.measuring` is set only while the oracle captures,
+   so the instrument went on measuring a document with no notes while every
+   screen the operator judged carried them. An eye and an instrument pointed at
+   two different documents, with nothing saying so. With the default restored,
+   the measured document and the judged one are the same document again. */
+.note {
+  display: none;
+  border-left: 3px solid var(--color-primary);
+  background: color-mix(in oklab, var(--color-primary) 9%, transparent);
+  border-radius: 0 var(--radius-2) var(--radius-2) 0;
+  padding: var(--spacing-4) var(--spacing-5);
+  font-size: var(--text-2);
+  line-height: 1.5;
+  color: var(--color-foreground);
+}
+.note b {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+.note code {
+  font-size: var(--text-1);
+  background: var(--color-muted);
+  padding: var(--spacing-1) var(--spacing-2);
+  border-radius: var(--radius-1);
+}
+:root.notes .note {
+  display: block;
+}
+
 /* DECLARED HARNESS DEVIATION — the frame forces the phone presentation.
    The app's breakpoints measure the WINDOW, which is right in the app, where
    the window IS the phone. Here a phone is drawn inside a wide page, so on a

@@ -9509,6 +9509,46 @@ import { screens, panel, bridge } from "./seams.js";
     cadre = select("#device"),
     fab = select("#fab");
 
+  /* THE FLOATING ACTION BUTTON HAS ONE DECISION POINT, and it reads TWO facts.
+     A page says whether it has a primary action at all; a message on screen
+     says whether that action may be shown right now. Written in two places,
+     the second writer would erase the first — the page's own answer — and the
+     button would come back on a page that never had one.
+
+     WHY A MESSAGE HIDES IT. The message and the button are anchored to the same
+     bottom-right corner by construction, and the message paints over it: the
+     close target measures 24 by 24 and lands INSIDE the button's 52 by 52 box,
+     so the reader aiming at « close » is aiming at « add ». Measured on the
+     served copy, not deduced: `elementFromPoint` at the close button's centre
+     answers the action button. */
+  let pageWantsActionButton = false;
+  let messageIsOnScreen = false;
+  let actionButtonReturn = null;
+
+  function refreshActionButton(afterAMessage) {
+    clearTimeout(actionButtonReturn);
+    if (!pageWantsActionButton || messageIsOnScreen) {
+      fab.hidden = true;
+      return;
+    }
+    /* IT COMES BACK WHEN THE MESSAGE HAS FINISHED LEAVING, not when it starts —
+       and ONLY on that path. The message fades out over its own transition; a
+       button restored on the first frame of that fade is a target appearing
+       under a finger still travelling towards the close it was aiming at. The
+       wait is the message's exit duration and nothing else.
+
+       A page arriving with an action of its own waits for nothing: delaying
+       THAT would make the button late on every navigation, which is a
+       rendering change with no defect behind it. */
+    if (!afterAMessage) {
+      fab.hidden = false;
+      return;
+    }
+    actionButtonReturn = setTimeout(() => {
+      fab.hidden = false;
+    }, 200);
+  }
+
   function renderNav() {
     nav.innerHTML = PAGES_OF()
       .filter((element) => !element.offBar)
@@ -9573,7 +9613,8 @@ import { screens, panel, bridge } from "./seams.js";
       view.innerHTML = found.render();
       legacyNodes = [...view.childNodes];
     }
-    fab.hidden = !found.fab;
+    pageWantsActionButton = Boolean(found.fab);
+    refreshActionButton();
     mountDeck();
     renderNav();
     mountLoaders();
@@ -10707,43 +10748,41 @@ import { screens, panel, bridge } from "./seams.js";
   }
 
   /* Interactions */
+  /* WHETHER A MESSAGE IS ON SCREEN IS WRITTEN IN ONE PLACE. Six call sites
+     flipped the class and the attribute by hand, which was already two ends
+     kept in step by hand — and the moment a THIRD end appeared (the action
+     button, which must not sit under the message's close target) six sites
+     would have had to move together or the interface would half-work in a way
+     no single one of them reveals. */
+  function setMessageShown(on) {
+    const host = select("#toast");
+    host.classList.toggle("show", on);
+    host.toggleAttribute("data-shown", on);
+    messageIsOnScreen = on;
+    refreshActionButton(!on);
+  }
+
   function toast(msg) {
     select("#toastmsg").textContent = msg;
-    select("#toast").classList.add("show");
-    select("#toast").toggleAttribute("data-shown", true);
+    setMessageShown(true);
     clearTimeout(toast._t);
-    toast._t = setTimeout(
-      () => {
-        select("#toast").classList.remove("show");
-        select("#toast").toggleAttribute("data-shown", false);
-      },
-      5000,
-    );
+    toast._t = setTimeout(() => setMessageShown(false), 5000);
   }
-  select("#toastx").onclick = () => {
-    select("#toast").classList.remove("show");
-    select("#toast").toggleAttribute("data-shown", false);
-  };
+  select("#toastx").onclick = () => setMessageShown(false);
 
   /* An action triggered by a GESTURE must be undoable: a sliding thumb is
      wrong more often than a pressing finger. */
   function toastUndo(msg, undo) {
-    const host = select("#toast");
     select("#toastmsg").innerHTML =
       `${escapeHtml(msg)} <button id="toastundo" style="border:0;background:transparent;color:var(--color-primary);font-weight:700;padding:0 0 0 10px">Annuler</button>`;
-    host.classList.add("show");
-    host.toggleAttribute("data-shown", true);
+    setMessageShown(true);
     clearTimeout(toast._t);
-    toast._t = setTimeout(() => {
-      host.classList.remove("show");
-      host.toggleAttribute("data-shown", false);
-    }, 6000);
+    toast._t = setTimeout(() => setMessageShown(false), 6000);
     const undoButton = select("#toastundo");
     if (undoButton)
       undoButton.onclick = (event) => {
         event.stopPropagation();
-        host.classList.remove("show");
-        host.toggleAttribute("data-shown", false);
+        setMessageShown(false);
         undo();
       };
   }
