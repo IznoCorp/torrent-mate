@@ -142,6 +142,7 @@ when the defect comes back.
 | B-085 | Guards green over what they do not read: 17 in three consecutive waves, counted by nobody | by audit | `open` |
 | B-100 | Invariant 10 is written and unarmed: no arm counts the frame's domain words | by audit | `open` |
 | B-101 | The steward's brief predicted an oracle movement that could not happen | by audit | `open` |
+| B-102 | The profile panel's avatar is unconstrained and covers the sheet, on a surface no state names | by operator | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -2118,3 +2119,43 @@ Fix: no forecast of an instrument's behaviour in a hand-off without the command 
 it, the same rule § 0 of the architecture file already holds every figure to.
 
 <sub>`grep -n 'measuring' frontend/maquette/design/src/styles/harness.css` · `grep -n 'measuring' frontend/maquette/oracle.py`</sub>
+
+**B-102 — the same component converted twice, once whole and once half, and the half nobody measures.**
+Reported by the operator on 2026-08-26 from a live phone: opening the user sheet from the header
+avatar paints the image at its natural size. It covers the name, the address and the « Profil et
+préférences » entry underneath.
+
+**Before L07**, `refonte.html` carried the component in three rules:
+
+    .avatar     { width: 32px; height: 32px; border-radius: full; background; color; … }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; display: block }
+    .avatar.big { width: 42px; height: 42px; font-size: var(--text-6) }
+
+**Today no `.avatar` rule survives in any stylesheet** — `grep -rn '\.avatar' src/styles/*.css`
+returns nothing. The two call sites were converted differently:
+
+| | Container | The `<img>` inside |
+| --- | --- | --- |
+| header (`index.html:193`) | all of `.avatar` — size, `rounded-full`, `bg-muted`, `grid place-items-center` | `w-full h-full object-cover rounded-[inherit] block` — all of `.avatar img` |
+| panel (`ui/panel/index.tsx:221`) | `sheetAvatar()` = `big w-[42px] h-[42px] text-6` — only what `.avatar.big` ADDED | **no class at all** |
+
+`sheetAvatar` converted the modifier and assumed the base would come from somewhere. It does not.
+So the panel's container has a size and no shape, and its image has nothing — which is precisely
+what the screenshot shows, a square that overflows.
+
+**And the class `avatar` is still on both**, now an identity anchor that styles nothing. A class
+that looks like it paints and does not is the shape `regions.json`'s `$vocabulary` exists to keep
+honest.
+
+**Why 2 739 measurements did not see it, and this is the finding worth more than the defect.** The
+user sheet is reached by tapping the header avatar, and **no named state opens it**: `regions.json`
+holds `screen-profile/body` — « a person's screen », a different surface — and the only sheet-shaped
+state is `sheet-hidden-under-layer`, which tests something else. The oracle cannot regress what it
+never visits. A conversion wave proved 530 rules moved without the rendering changing, on the states
+it measures; this one moved wrong on a state it does not.
+
+Fix, in two halves: restore the base and the image rules for BOTH call sites — the shared way, since
+the header already proves what the full set is — and **give the user sheet a named state**, so the
+next conversion has something to be held by. The second half is the one that stops this recurring.
+
+<sub>`grep -rn '\.avatar' frontend/maquette/design/src/styles/*.css` · `git show 5fdbfc9a^:frontend/maquette/design/refonte.html | sed -n '505,525p'` · `grep -o '"sheet-[a-z0-9-]*"' frontend/maquette/regions.json`</sub>
