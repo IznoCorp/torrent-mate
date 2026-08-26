@@ -26,15 +26,15 @@ EXTRACTOR = ROOT / "scripts" / "extract-maquette-fixtures.mjs"
 def run_guard(*arguments: str) -> subprocess.CompletedProcess[str]:
     """Runs the guard from the repository root and returns its result."""
     return subprocess.run(
-        [sys.executable, str(GUARD), *arguments],
-        cwd=ROOT, capture_output=True, text=True, check=False)
+        [sys.executable, str(GUARD), *arguments], cwd=ROOT, capture_output=True, text=True, check=False
+    )
 
 
 def test_the_extractor_answers_where_it_can_run() -> None:
     """`--typescript-install` prints a real, existing file and exits zero."""
     answer = subprocess.run(
-        ["node", str(EXTRACTOR), "--typescript-install"],
-        cwd=ROOT, capture_output=True, text=True, check=False)
+        ["node", str(EXTRACTOR), "--typescript-install"], cwd=ROOT, capture_output=True, text=True, check=False
+    )
     if answer.returncode == 3:
         return  # no install on this machine; the absence branch is tested below
     assert answer.returncode == 0, answer.stderr
@@ -49,8 +49,8 @@ def test_the_extractor_answers_where_it_can_run() -> None:
 def test_an_unknown_flag_is_not_read_as_a_missing_install() -> None:
     """Only exit 3 means « no install »; anything else must not be mistaken for it."""
     answer = subprocess.run(
-        ["node", str(EXTRACTOR), "--a-flag-that-does-not-exist"],
-        cwd=ROOT, capture_output=True, text=True, check=False)
+        ["node", str(EXTRACTOR), "--a-flag-that-does-not-exist"], cwd=ROOT, capture_output=True, text=True, check=False
+    )
     assert answer.returncode not in (0, 3)
 
 

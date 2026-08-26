@@ -2,7 +2,7 @@
 
 THE DEFECT WAS NOT SILENCE, and that distinction is the whole rule. The drawer
 stated `0.98.23` and `build 58d0d4fd · à jour` as literals while the repository
-stood twenty patch versions further on, and « à jour » asserted a freshness
+stood nineteen patch versions further on, and « à jour » asserted a freshness
 nothing measured. A screen that says nothing sends its reader to look; a screen
 that states a plausible answer stops them looking. So this rule holds two
 things that are easy to confuse:

@@ -39,7 +39,8 @@ def test_it_does_not_occupy_the_size_it_reports(tmp_path: Path) -> None:
     occupied = written.stat().st_blocks * 512
     assert occupied < PLACEHOLDER_SIZE // 100, (
         f"{occupied} bytes on disk for a {PLACEHOLDER_SIZE}-byte placeholder — "
-        "the file is dense, and a full test pass will write gigabytes again")
+        "the file is dense, and a full test pass will write gigabytes again"
+    )
 
 
 def test_reading_it_back_returns_what_a_dense_file_would(tmp_path: Path) -> None:
@@ -84,13 +85,13 @@ def test_every_fixture_site_goes_through_it() -> None:
             for size in _sizes_in(line):
                 if size >= 1_000_000:
                     dense.append(f"{source.relative_to(root)}:{number}")
-    assert not dense, (
-        "large dense placeholder(s) — use `write_placeholder_media`: " + ", ".join(dense))
+    assert not dense, "large dense placeholder(s) — use `write_placeholder_media`: " + ", ".join(dense)
 
 
 def _sizes_in(line: str) -> list[int]:
     """Returns the byte sizes a `write_bytes` line multiplies out to."""
     import re
+
     found = re.search(r'write_bytes\(b"\\x00" \* \(?([0-9_]+)((?: \* 1024)*)\)?\)', line)
     if not found:
         return []

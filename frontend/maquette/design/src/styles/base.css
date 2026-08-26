@@ -170,8 +170,12 @@
    out, painted and TAPPABLE while the markup says it is gone. The list that
    stood here answered that one class at a time (`.fab[hidden]`,
    `.installbar[hidden]`, …), which worked for the twelve names somebody had
-   thought of and for no other: `#nav` — the navigation drawer — and `#ptr`
-   were never on it, and `hidden` was inert on both. Measured, not deduced.
+   thought of and for no other: `#nav` — the bottom tab bar — and `#ptr` were
+   never on it, so the attribute was inert on both. Measured, not deduced —
+   and measured further: neither is ever GIVEN the attribute today, in the
+   markup or at run time, so nothing was appearing on screen. What was true is
+   that the remedy depended on somebody remembering to extend a list, and a
+   list only ever covers the names somebody already thought of.
 
    THE FORM IS TAILWIND'S PREFLIGHT REMEDY, AND ONLY IT. This prototype
    deliberately does not import preflight (`theme.css`): a second reset landing

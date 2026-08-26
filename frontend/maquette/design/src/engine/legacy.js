@@ -266,7 +266,7 @@ import { servedIdentityLines } from "../lib/served-identity";
       t: "L'Odyssée",
       serie: null,
       since: "6 août",
-      searches: 15,
+      searches: 16,
       k: "movie",
       y: 2026,
       st: "pending",
@@ -275,7 +275,7 @@ import { servedIdentityLines } from "../lib/served-identity";
       t: "Spider-Man : Brand New Day",
       serie: null,
       since: "5 août",
-      searches: 18,
+      searches: 19,
       k: "movie",
       y: 2026,
       st: "pending",
@@ -370,7 +370,7 @@ import { servedIdentityLines } from "../lib/served-identity";
       t: "Ted Lasso",
       serie: "Continuing",
       since: "4 août",
-      searches: 13,
+      searches: 15,
       k: "show",
       y: 2020,
       st: "up_to_date",
@@ -10750,11 +10750,16 @@ import { servedIdentityLines } from "../lib/served-identity";
 
   /* Interactions */
   /* WHETHER A MESSAGE IS ON SCREEN IS WRITTEN IN ONE PLACE. Six call sites
-     flipped the class and the attribute by hand, which was already two ends
-     kept in step by hand — and the moment a THIRD end appeared (the action
-     button, which must not sit under the message's close target) six sites
-     would have had to move together or the interface would half-work in a way
-     no single one of them reveals. */
+     flipped the class and the attribute by hand — across two functions and a
+     handler bound beside them — which was already two ends kept in step by
+     hand. The moment a THIRD end appeared (the action button, which must not
+     sit under the message's close target) all of them would have had to move
+     together or the interface would half-work in a way no single one reveals.
+
+     THERE WAS A SEVENTH, and counting six is how it was missed: the boot hint
+     is also dismissed from a capture-phase `pointerdown`, which wrote the class
+     alone and left the state saying a message was up. It goes through here now,
+     and R86 drives that path. */
   function setMessageShown(on) {
     const host = select("#toast");
     host.classList.toggle("show", on);

@@ -62,7 +62,7 @@ def served_identity(root: Path) -> dict[str, object] | None:
 
     COMPUTED ON EVERY REQUEST, never cached. The whole defect this answers is a
     screen asserting something that had stopped being true — a hard-coded
-    version and a build sha the repository had left twenty patch versions
+    version and a build sha the repository had left nineteen patch versions
     behind — so an answer cached at boot would be the same defect with a
     shorter half-life. The host already rebuilds per request for exactly this
     reason; naming what it rebuilt costs three bounded git reads beside it.

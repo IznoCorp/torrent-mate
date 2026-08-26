@@ -3,7 +3,7 @@
 //
 // THE DEFECT THIS REPLACES WAS NOT SILENCE. The drawer stated a version and a
 // build as literals — `0.98.23`, `build 58d0d4fd · à jour` — while the
-// repository stood twenty patch versions further on, and « à jour » asserted a
+// repository stood nineteen patch versions further on, and « à jour » asserted a
 // freshness nothing measured. A screen that says nothing sends its reader to
 // look; a screen that states a plausible answer stops them looking, and the
 // value was credible precisely because it had been a real version once.

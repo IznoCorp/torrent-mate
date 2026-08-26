@@ -14,8 +14,9 @@ laid out, painted and TAPPABLE, while every other signal said it was gone.
                     every author rule beats. Any element carrying a `display`
                     beside it was not hidden at all. The hand-maintained list
                     that answered this covered the names somebody had thought
-                    of; `#nav` — the navigation drawer — and `#ptr` were not
-                    among them.
+                    of; `#nav` — the bottom tab bar — and `#ptr` were not among
+                    them, and neither is ever GIVEN the attribute today: what
+                    was inert was the remedy, not a live element.
   the action button the message and the button share the bottom-right corner by
                     construction, and the message paints over it. The close
                     target is 24 by 24 and sits INSIDE the button's 52 by 52

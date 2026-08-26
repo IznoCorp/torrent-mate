@@ -1531,7 +1531,7 @@ say what they are, because a labelled mock is data and an unlabelled one is a li
 > identity is unavailable, with the reason, and falls back to nothing at all. A fallback there is
 > B-080 wearing a different number.
 >
-> **R87, 17 holds, mutation-tested five ways**: the unavailable case made to state a plausible
+> **R87, 26 holds, mutation-tested seven ways**: the unavailable case made to state a plausible
 > version (falls), the dirty mark dropped (falls), the answer cached at boot (falls), the host
 > stopped publishing (falls), and a tree outside a repository given a guess (falls).
 >
@@ -1591,6 +1591,20 @@ L13. This entry is the visible half and can be repaired now.
 > button shows them »). A rule holding only the pressed state would have passed on the broken tree,
 > because the notes were visible in both positions.
 >
+> **AND `.note` WAS NOT ONLY THE PROTOTYPE'S ANNOTATION**, which restoring its default made
+> visible: twenty-seven paragraphs on product surfaces wore it, and hiding them by default took
+> with them the only sentence saying that a maintenance rubric DELETES. Found by an adversarial
+> reviewer; the operator arbitrated an audit of all twenty-seven rather than a single exception.
+>
+> **The test applied, written where the answer lives (`ui/variants/layout.ts`)**: a paragraph is an
+> annotation if it addresses the reader of the MAQUETTE — what changed, what was drawn anew, which
+> section of the constitution it serves — and guidance if it addresses the operator USING the
+> application. Twenty-three are annotations and keep `.note`. **Four are guidance** and wear
+> `guidance()`: the maintenance rubric's subtitle, the scheduler line explaining a status the
+> operator would otherwise misread, « un champ laissé vide n'efface rien » on the secrets form, and
+> what « laisser tel quel » does before it is done. R86 holds the two apart in one document, and
+> the mutation that gives `guidance()` the annotation's class falls.
+>
 > **B-071 stays open**, as this entry instructs: its third end lives inside the dying engine and
 > belongs to L13.
 
@@ -1641,10 +1655,20 @@ tap at its coordinates reaches nothing.
 > hand-maintained group — `.fab[hidden]`, `.installbar[hidden]`, `.installsteps[hidden]` and nine
 > more — **unlayered**, precisely so it would beat a utility. Measured in the document by setting
 > the attribute and reading `getComputedStyle` back: `#fab`, `#installbar` and `#installsteps`
-> already computed `display: none`. **Two were really inert — `#nav`, the navigation drawer, and
-> `#ptr` — and neither was on that list.** A conclusion drawn from what was not read, in the very
-> entry that reports conclusions drawn from what was not read. Counted in § Guards green over what
-> they do not read.
+> already computed `display: none`. **Only `#nav` and `#ptr` were inert.**
+>
+> **AND THE CORRECTION ITSELF WAS WRONG TWICE, which is why it is written out rather than
+> summarised.** This entry calls `#nav` « the navigation drawer »: it is the **bottom tab bar**
+> (`class="bottombar"`, `data-part="shell/tab-bar"`); the drawer is `#drawer`. The correction
+> repeated that, into four files, before an adversarial reviewer read the markup. And the
+> remaining two were inert only in the STYLESHEET: neither `#nav` nor `#ptr` is ever GIVEN the
+> attribute — not in `index.html`, not at run time, verified across all 83 named states — so
+> nothing was ever appearing on screen because of this. What was true, and is what the fix
+> answers, is that the remedy depended on somebody remembering to extend a list.
+>
+> Three readings of one defect, each drawn from what the reader had not opened, inside the entry
+> that reports conclusions drawn from what was not read. Both are counted in § Guards green over
+> what they do not read.
 >
 > **The fix is what this entry asks for and it also removes the list.** Preflight's remedy alone —
 > `[hidden]:where(:not([hidden="until-found"])) { display: none !important }` — unlayered, in the
@@ -1667,13 +1691,21 @@ tap at its coordinates reaches nothing.
 > **The button's visibility has ONE decision point**, reading two facts — whether the page has a
 > primary action, and whether a message is up. A second writer would erase the page's own answer
 > and a page with no action would acquire one when a message closed; that case is a hold, and the
-> mutation that introduces the second writer falls on it. `data-shown` had six writers across two
-> functions; it has one.
+> mutation that introduces the second writer falls on it.
 >
-> **R86, mutation-tested four ways** beyond the two on the notes: the base-layer rule removed
+> **`data-shown` had SEVEN writers, and the commit that introduced the seam counted six.** The
+> seventh dismisses the boot hint from a capture-phase `pointerdown`; it wrote the class alone and
+> left the state saying a message was up. Found by an adversarial reviewer, who measured the
+> consequence rather than deducing it: the primary « add » action absent for about four seconds on
+> the first tap of every session, on the page that has one. R86 walked the close button and the
+> timer, and both go through the seam — a path nobody drives is a path nobody measures. It drives
+> that path now, and the mutation restoring the defect falls on it.
+>
+> **R86, mutation-tested five ways** beyond the two on the notes: the base-layer rule removed
 > (falls on all five elements, on the probe and on the collision), the message decoupled from the
-> button (falls), a second writer introduced (falls, naming the page that acquires an action), and
-> the button returned on the first frame of the fade (falls).
+> button (falls), a second writer introduced (falls, naming the page that acquires an action), the
+> button returned on the first frame of the fade (falls), and the seventh writer restored to
+> writing the class alone (falls, naming the tap that leaves the state behind).
 
 **B-083 — L08 landed and its design and plan stayed under `docs/features/`.**
 Every lot from L01 to L07 sits under `docs/archive/features/`; `docs/features/` holds
@@ -1686,8 +1718,9 @@ gesture that is remembered two times out of three is a gesture that needs a chec
 <sub>`ls docs/features/` · `ls docs/archive/features/ | tr ' ' '\n' | grep maquette`</sub>
 
 > **FIXED by #505, the correction wave between L08 and L09** — `docs/archive/features/maquette-l08/`,
-> with the two cross-references that named the old path moved in the same step
-> (`frontend-architecture.md` § L08, `IMPLEMENTATION.md` § Next action).
+> with the three references that named the old path answered in the same step: two moved
+> (`frontend-architecture.md` § L08, `IMPLEMENTATION.md` § Next action) and one REPLACED — B-084's
+> own `<sub>` command, which pointed at a directory this entry had just emptied.
 >
 > **The operator arbitrated the remedy on 2026-08-26, and refused the guard this entry asks for.**
 > Three shapes were put: a check reading § 4's `LANDED` markers and refusing a `docs/features/`
@@ -1726,7 +1759,10 @@ release name). Not one of those is findable today by anyone who was not in that 
 > **FIXED by #505, the correction wave between L08 and L09: thirteen entries, B-086 to B-098.** They are
 > READ OUT of #503's squash body and of the four adversarial reviews it records, never invented —
 > the commit message is the report of record, and it survives the squash that consumed the branch.
-> The register held 85 rows before them and holds 98 after.
+> The register held 85 rows before them and holds 99 after, B-099 included — and the entry's own
+> opening sentence, written by the audit, says 78. That figure was already stale when it was
+> written: `main` held 85 after L08. It is left as written, because § 7.1's rule is that a record
+> is corrected by what is added beside it and never by editing the old text.
 >
 > **They are entered as CLASSES, which is what this entry says was lost.** « A false name that
 > compiles » is four of them (B-086, B-089, B-090, B-091) and they are deliberately kept apart
@@ -1766,8 +1802,8 @@ read? » is the question that has paid for itself seventeen times.
 
 <sub>L07: PR #494's review · L07-bis: B-075 · L08: PR #503's session report</sub>
 
-> **THE FIGURE NOW EXISTS. It is § Guards green over what they do not read, at the end of this
-> file, and it is re-measured at every wave's close** — step five of `frontend-architecture.md`
+> **THE FIGURE NOW EXISTS. It is § Guards green over what they do not read, below, and it is
+> re-measured at every wave's close** — step five of `frontend-architecture.md`
 > § 5's post-merge list, beside re-recording the oracle's references. Where it lives and who
 > recounts it was the operator's arbitration, 2026-08-26; a line in § 6 of the architecture file
 > was offered as an alternative and as a companion, and the register alone was chosen.
@@ -1917,30 +1953,48 @@ absence of a row can mean either.
 | --- | --- | --- |
 | L07 | 6 | PR #494's adversarial review |
 | L07-bis | 5 | B-075 |
-| L08 | 6 | PR #503's squash body — and B-092 to B-095 hold four of them individually |
-| L08-bis (#505, the correction wave) | 4 | B-082 (the register entry itself), R87's per-request hold, D3's « both are held by a guard », and B-099's own two measurements |
-| **Total** | **21** | at 2026-08-26 |
+| L08 | 6 | PR #503's squash body. B-093 and B-094 are two of the six written out; B-092 and
+B-095 are adjacent findings of the same wave, not members of that six |
+| L08-bis (#505, the correction wave) | 9 | itemised below |
+| **Total** | **26** | at 2026-08-26 |
 
-**The four the correction wave found, since a wave that counts itself has to name its own:**
+**The nine the correction wave found, since a wave that counts itself has to name its own.** The
+figure is large because the count is honest, not because the wave was worse: four of the nine are
+in instruments this wave WROTE, which is what a wave gets for asking the question of itself, and
+four were found by the adversarial review — which is what the review is for.
 
 1. **B-082's own entry** concluded that `hidden` was inert on five elements, having read the markup
-   and the import list and not `base.css` — where an unlayered `.fab[hidden]` group already held
-   three of the five. A conclusion from what was not read, inside the register that reports
-   conclusions from what was not read.
+   and the import list and not `base.css`, where an unlayered group already held three of them.
+   **And the correction was itself wrong twice more**: it called `#nav` the navigation drawer (it
+   is the tab bar), and the two remaining elements are never GIVEN the attribute at all, so
+   nothing was ever appearing on screen. Three readings, each from what the reader had not opened.
 2. **R87's per-request hold, in its first version**, made the served tree dirty between two
    requests and compared the answers. On a tree that was already dirty — every tree a wave is
-   written on — both read `dirty: true` and the hold passed having distinguished nothing. It builds
-   a tree it controls now.
-3. **D3's « Neither may grow, both are held by a guard »** was half true. `legacy.css` is held by
-   `check-legacy-css-residue.py`; **`harness.css` is held by nothing** — no guard measures its
-   size, its rules or its growth, and the only script naming it names it to exclude it. A
-   directive sentence with no arm, which is what `CLAUDE.md` § Language warns about one file over.
-4. **`du -sh` said the temp residue was 0 and proved nothing** (B-099). The placeholders had just
-   been made sparse, so a run that deleted everything and a run that kept 47 049 files both read
-   as 0 bytes. The measurement had to change unit — files, not size — before it could tell the two
-   apart. And the probe that first « proved » the retention policy ran with `rootdir` set to a
-   scratch directory, never read `pyproject.toml`, and reported the default: a hold that had not
-   loaded the setting it was testing.
+   written on — both read `dirty: true` and the hold passed having distinguished nothing.
+3. **R87's script-body hold did not exist**, and the obvious substitute would not have worked
+   either: the corrupted payload PARSES as valid JSON, so a `json.loads` would have passed over a
+   document whose only inline script had a syntax error and whose head carried live markup.
+4. **R87 held « closing the message cannot reach the button » after holding the button was
+   `display: none`** — an element at `display: none` is not hit-testable, so the second hold
+   restated the first and could only fail if `elementFromPoint` returned nothing at all.
+5. **R86 walked two of the three dismissal paths.** The close button and the timer both go through
+   the seam; the capture-phase `pointerdown` that dismisses the boot hint does not, and that is
+   the one that broke — four seconds without the primary action, on the first tap of a session.
+6. **D3's « Neither may grow, both are held by a guard »** is half true. `legacy.css` is held;
+   `harness.css` is held by nothing at all, and the only script naming it names it to EXCLUDE it.
+7. **`check-no-french.py` named the maquette's Python one file at a time**, in five corpora across
+   two files — so `host_identity.py`, split OUT of `serve.py`, inherited none of `serve.py`'s
+   coverage and sat outside every arm on the day it was written. Replaced by a glob, which
+   immediately found three French names in `oracle.py` that no arm had ever read.
+8. **`check-mock-seeds.py`'s skip collapsed every extractor failure into « no TypeScript
+   install »**, so a syntax error in the file its arms parse returned success with a confident
+   wrong reason — and it skipped seven arms where three need the parser, leaving two written
+   exemptions elsewhere resting on a check that read nothing.
+9. **B-099's own two measurements.** `du` reported 0 bytes and proved nothing — the files had just
+   been made sparse, so a run that deletes everything and a run that keeps 47 049 files both read
+   as 0; the unit had to change to FILES. And the probe that first « proved » the retention policy
+   ran with `rootdir` set to a scratch directory, never read `pyproject.toml`, and reported the
+   default.
 
 **The forms already met, kept as the question's checklist** — before writing a hold, ask what it
 does NOT read, and whether that answer is acceptable:
@@ -1978,13 +2032,24 @@ churn with no defect behind it.
 fixtures that exist today: `tmp_path_retention_policy = "failed"` keeps a temporary directory only
 where it can still be read, which is a test that failed.
 
-**Measured after, and the first measurement was WRONG in the way this wave keeps counting.** `du`
-reported 0 bytes and that proved nothing — the files are sparse, so a green run and a run keeping
-everything both read as 0. Counted properly, by FILE: **47 049 files before, 0 after.** And the
-retention policy had to be proven separately, because the probe that « proved » it first ran with
-`rootdir` set to a scratch directory and never read `pyproject.toml` at all — it reported `POLICY =
-all` when asked directly. Re-run from inside the repository: the passing test's directory is gone,
-the failing test's is kept.
+**Measured after, and BOTH first measurements were WRONG in the way this wave keeps counting.**
+`du` reported 0 bytes and that proved nothing — the files are sparse, so a green run and a run
+keeping everything both read as 0. Counted properly, by FILE: **47 049 files before, 0 after** a
+full `make test`. And the retention policy had to be proven separately, because the probe that
+« proved » it first ran with `rootdir` set to a scratch directory and never read `pyproject.toml`
+at all — it reported `POLICY = all` when asked directly. Re-run from inside the repository: the
+passing test's directory is gone, the failing test's is kept.
+
+**What « 0 » does and does not cover, since the entry's own checklist warns against a figure nobody
+compares.** The policy governs the per-test `tmp_path` fixture; SESSION-scoped directories from
+`tmp_path_factory.mktemp` are outside it, and a run of two packages left twenty files and 136 kB
+of them. That is a rounding error against 13 GB and it is not zero, so it is written here rather
+than rounded away.
+
+**And the sparseness stops at the source.** `rsync` re-expands a sparse file unless told not to,
+and no capability's flag tuple carries `--sparse`, so the tests that really DISPATCH write dense
+copies on the destination side — 315 MB for four of them. For those the saving comes entirely from
+the retention policy. Both halves were needed; neither alone would have done.
 
 **The pass is also a third faster** — 180 s to 105 s — because it is no longer writing gigabytes.
 
