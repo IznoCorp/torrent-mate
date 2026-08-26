@@ -27,6 +27,7 @@ from personalscraper.indexer.fingerprint import (
     oshash,
     xxh3_partial,
 )
+from tests._media_files import write_placeholder_media
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -118,7 +119,8 @@ class TestOshash:
     def test_oshash_returns_16_hex_chars(self, tmp_path: Path) -> None:
         """Result must always be exactly 16 lowercase hexadecimal characters."""
         f = tmp_path / "video.mkv"
-        f.write_bytes(b"\x00" * (1024 * 1024))  # 1 MiB of zeros
+        write_placeholder_media(f, 1024 * 1024)  # 1 MiB, and a sparse read
+        # returns the same zeroes, so the hash is the same hash.
         result = oshash(f)
         assert len(result) == 16
         assert result == result.lower()

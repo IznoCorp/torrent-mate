@@ -13,7 +13,7 @@
     "title": "L'Odyssée",
     "showStatus": null,
     "since": "6 août",
-    "searches": 15,
+    "searches": 16,
     "kind": "movie",
     "year": 2026,
     "status": "pending"
@@ -22,7 +22,7 @@
     "title": "Spider-Man : Brand New Day",
     "showStatus": null,
     "since": "5 août",
-    "searches": 18,
+    "searches": 19,
     "kind": "movie",
     "year": 2026,
     "status": "pending"
@@ -117,7 +117,7 @@
     "title": "Ted Lasso",
     "showStatus": "Continuing",
     "since": "4 août",
-    "searches": 13,
+    "searches": 15,
     "kind": "show",
     "year": 2020,
     "status": "up_to_date",

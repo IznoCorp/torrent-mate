@@ -10,11 +10,12 @@ from unittest.mock import MagicMock
 
 from personalscraper.naming_patterns import PATTERNS
 from personalscraper.verify.verifier import Verifier
+from tests._media_files import write_placeholder_media
 
 
 def _valid_movie(d: Path) -> None:
     """Create a minimal valid movie directory for fix-policy tests."""
-    (d / "M.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+    write_placeholder_media(d / "M.mkv", 200 * 1024 * 1024)
     root = ET.Element("movie")
     ET.SubElement(root, "title").text = "M"
     ET.SubElement(root, "year").text = "2020"

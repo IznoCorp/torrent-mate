@@ -24,7 +24,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from nofrench_lexicon import (  # noqa: E402
     DICTIONARY_EXCEPTIONS, FROZEN_IDENTIFIERS, HARNESS, MAQUETTE, ROOT,
-    SCRIPTS, SHELL, examined, read, relative, split_identifier,
+    SCRIPTS, SHELL, examined, maquette_servers, read, relative,
+    split_identifier,
 )
 from nofrench_scan import (  # noqa: E402
     TS_DECLARATION, python_declarations,
@@ -84,7 +85,7 @@ def declared_names() -> list[tuple[str, str, int]]:
         (relative path, declared name, 1-based line) for each declaration.
     """
     out: list[tuple[str, str, int]] = []
-    python = ([MAQUETTE / "serve.py", MAQUETTE / "resync.py"]
+    python = (maquette_servers()
               + sorted(HARNESS.glob("*.py"))
               + [p for p in sorted(SCRIPTS.rglob("*.py"))
                  if p.name != Path(__file__).name]

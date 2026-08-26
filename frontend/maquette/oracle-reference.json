@@ -1,6 +1,6 @@
 {
-  "$comment": "The recorded oracle's reference — `frontend/maquette/oracle.py`. One entry per (named state x region): a bounding rectangle rounded to one decimal, and the computed properties of `regions.json`'s `probe.computedStyleSubset`. `null` means the region's selector matched nothing in that state, which is data rather than an omission. Regenerate with `--record`; entérine a REVIEWED change with `--accept`, never from a gate.",
-  "baseCommit": "ce1d7b5a4fbdd9b41d8cd93c0532586a70966027",
+  "$comment": "The recorded oracle's reference — `frontend/maquette/oracle.py`. One entry per (named state x region): a bounding rectangle rounded to one decimal, and the computed properties of `regions.json`'s `probe.computedStyleSubset`. `null` means the region's selector matched nothing in that state, which is data rather than an omission. Regenerate with `--record`; ratify a REVIEWED change with `--accept`, never from a gate.",
+  "baseCommit": "a921889899c885f307f760cb36730cd896289327",
   "platform": "Darwin/arm64",
   "counts": {
     "states": 83,
@@ -8089,7 +8089,7 @@
           "x": 0,
           "y": 45.5,
           "width": 390,
-          "height": 2207.4
+          "height": 2303.4
         },
         "style": {
           "position": "static",
@@ -10532,7 +10532,7 @@
           "x": 0,
           "y": 45.5,
           "width": 390,
-          "height": 1421.5
+          "height": 1517.5
         },
         "style": {
           "position": "static",
@@ -19097,7 +19097,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 242.3
+          "height": 288.8
         },
         "style": {
           "position": "static",
@@ -19285,7 +19285,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 242.3
+          "height": 288.8
         },
         "style": {
           "position": "static",
@@ -19863,7 +19863,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 711.3
+          "height": 757.8
         },
         "style": {
           "position": "static",
@@ -20051,7 +20051,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 711.3
+          "height": 757.8
         },
         "style": {
           "position": "static",
@@ -31399,7 +31399,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 961.9
+          "height": 1041.4
         },
         "style": {
           "position": "static",
@@ -31581,7 +31581,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 961.9
+          "height": 1041.4
         },
         "style": {
           "position": "static",
@@ -34877,7 +34877,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2360.3
+          "height": 2472.8
         },
         "style": {
           "position": "static",
@@ -35059,7 +35059,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2360.3
+          "height": 2472.8
         },
         "style": {
           "position": "static",
@@ -36026,7 +36026,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2360.3
+          "height": 2472.8
         },
         "style": {
           "position": "static",
@@ -36208,7 +36208,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2360.3
+          "height": 2472.8
         },
         "style": {
           "position": "static",

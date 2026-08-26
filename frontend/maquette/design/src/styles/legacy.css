@@ -1950,9 +1950,6 @@ padding: var(--spacing-1) var(--spacing-5);
    bar has to declare its own hidden case (R8). And a read-only field
    flattens the note inside it — a CONTEXTUAL override the note cannot
    know about. */
-.savebar[hidden] {
-display: none;
-}
 .field.readonly .rulenote {
 margin: 0;
 }
@@ -2235,10 +2232,11 @@ margin: 0;
 
 /* Loading — CONVERTED IN PART (L07, phase 6 finished). The list's foot, its
    end mark and its error surface are typed variants; the SKELETONS are the
-   engine's and are in `src/styles/legacy.css`; and the two id rules — R8's
-   `[hidden]` cases and the suggestion list's own display — are in the base
-   layer, because an id beats a class and the alternative was writing the
-   gallery grid twice. */
+   engine's and are in `src/styles/legacy.css`; and the suggestion list's own
+   display is in the base layer, because an id beats a class and the
+   alternative was writing the gallery grid twice. Its `[hidden]` case is no
+   longer written anywhere: the one base-layer rule reaches it, and that rule's
+   `!important` is what beats the INLINE display this list once carried. */
 
 /* Grid selection — NOT CONVERTED (L07 phase 9): nine of its eleven class
    names are the ENGINE's. In `src/styles/legacy.css`. */

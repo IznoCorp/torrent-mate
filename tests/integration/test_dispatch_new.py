@@ -21,6 +21,7 @@ from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import FileType
 from personalscraper.dispatch.run import run_dispatch
+from tests._media_files import write_placeholder_media
 
 # Minimum video size (bytes) to pass the verify "sample" size check (100 MB).
 _MIN_VIDEO_BYTES = 100 * 1024 * 1024 + 1
@@ -56,7 +57,7 @@ def _build_verified_movie_dir(parent: Path, title: str = "Oppenheimer", year: in
     movie_dir.mkdir(parents=True, exist_ok=True)
 
     # Video file — must exceed 100 MB to avoid the "sample" warning check.
-    (movie_dir / f"{title}.mkv").write_bytes(b"\x00" * _MIN_VIDEO_BYTES)
+    write_placeholder_media(movie_dir / f"{title}.mkv", _MIN_VIDEO_BYTES)
 
     # NFO with mandatory fields: title, year, tmdb+imdb uniqueids, genre,
     # and a streamdetails block (verifier checks for its presence).

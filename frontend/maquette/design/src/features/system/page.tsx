@@ -22,6 +22,7 @@ import { useSystemReference } from "../../features/system/reference";
 import { type Fact } from "../../lib/engine-drawing";
 import { useUiState } from "../../lib/store-access";
 import { crossReference, crossReferenceLink, section, sectionHeading, surfaceError, topicRow } from "../../ui/variants";
+import { guidance } from "../../ui/variants/layout";
 
 export function SystemPage(): ReactElement | null {
   const state = useUiState();
@@ -85,7 +86,7 @@ export function SystemPage(): ReactElement | null {
       {facts(state.fault ? SERVICES_PANNE : SERVICES)}
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.system.schedulers")}</h2>
-      <div className="note" data-part="note">
+      <div className={guidance()} data-part="guidance">
         <b>{t("screens.system.schedulerLead")}</b>
         {t("screens.system.schedulerRest")}
       </div>

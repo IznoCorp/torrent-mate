@@ -34,6 +34,7 @@ import { useStoreContent } from "../../lib/store-access";
 import { settingLabel } from "../../features/settings/labels";
 import { emptyNote, factsPanel, loadError, loadErrorAction, qualityHint, searchClear, searchField, searchInput, sectionHeading, topicRow } from "../../ui/variants";
 import { saveAction, saveBar, settingsRow } from "./variants";
+import { guidance } from "../../ui/variants/layout";
 
 // The pending-edit marker and the row's own identity live on the same element:
 // the row IS the control the delegation reads.
@@ -216,7 +217,7 @@ export function SettingsPage(): ReactElement | null {
             </button>
           ))}
         </div>
-        <div className="note" data-part="note">
+        <div className={guidance()} data-part="guidance">
           <b>{t("screens.settings.secretsNoteLead")}</b>
           {t("screens.settings.secretsNoteRest")}
         </div>

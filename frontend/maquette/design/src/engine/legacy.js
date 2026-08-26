@@ -33,6 +33,7 @@
 */
 
 import { screens, panel, bridge } from "./seams.js";
+import { servedIdentityLines } from "../lib/served-identity";
 
   /* TorrentMate — mobile-first redesign prototype
      Data: real library titles (1,861 items). */
@@ -265,7 +266,7 @@ import { screens, panel, bridge } from "./seams.js";
       t: "L'Odyssée",
       serie: null,
       since: "6 août",
-      searches: 15,
+      searches: 16,
       k: "movie",
       y: 2026,
       st: "pending",
@@ -274,7 +275,7 @@ import { screens, panel, bridge } from "./seams.js";
       t: "Spider-Man : Brand New Day",
       serie: null,
       since: "5 août",
-      searches: 18,
+      searches: 19,
       k: "movie",
       y: 2026,
       st: "pending",
@@ -369,7 +370,7 @@ import { screens, panel, bridge } from "./seams.js";
       t: "Ted Lasso",
       serie: "Continuing",
       since: "4 août",
-      searches: 13,
+      searches: 15,
       k: "show",
       y: 2020,
       st: "up_to_date",
@@ -9509,6 +9510,46 @@ import { screens, panel, bridge } from "./seams.js";
     cadre = select("#device"),
     fab = select("#fab");
 
+  /* THE FLOATING ACTION BUTTON HAS ONE DECISION POINT, and it reads TWO facts.
+     A page says whether it has a primary action at all; a message on screen
+     says whether that action may be shown right now. Written in two places,
+     the second writer would erase the first — the page's own answer — and the
+     button would come back on a page that never had one.
+
+     WHY A MESSAGE HIDES IT. The message and the button are anchored to the same
+     bottom-right corner by construction, and the message paints over it: the
+     close target measures 24 by 24 and lands INSIDE the button's 52 by 52 box,
+     so the reader aiming at « close » is aiming at « add ». Measured on the
+     served copy, not deduced: `elementFromPoint` at the close button's centre
+     answers the action button. */
+  let pageWantsActionButton = false;
+  let messageIsOnScreen = false;
+  let actionButtonReturn = null;
+
+  function refreshActionButton(afterAMessage) {
+    clearTimeout(actionButtonReturn);
+    if (!pageWantsActionButton || messageIsOnScreen) {
+      fab.hidden = true;
+      return;
+    }
+    /* IT COMES BACK WHEN THE MESSAGE HAS FINISHED LEAVING, not when it starts —
+       and ONLY on that path. The message fades out over its own transition; a
+       button restored on the first frame of that fade is a target appearing
+       under a finger still travelling towards the close it was aiming at. The
+       wait is the message's exit duration and nothing else.
+
+       A page arriving with an action of its own waits for nothing: delaying
+       THAT would make the button late on every navigation, which is a
+       rendering change with no defect behind it. */
+    if (!afterAMessage) {
+      fab.hidden = false;
+      return;
+    }
+    actionButtonReturn = setTimeout(() => {
+      fab.hidden = false;
+    }, 200);
+  }
+
   function renderNav() {
     nav.innerHTML = PAGES_OF()
       .filter((element) => !element.offBar)
@@ -9573,7 +9614,8 @@ import { screens, panel, bridge } from "./seams.js";
       view.innerHTML = found.render();
       legacyNodes = [...view.childNodes];
     }
-    fab.hidden = !found.fab;
+    pageWantsActionButton = Boolean(found.fab);
+    refreshActionButton();
     mountDeck();
     renderNav();
     mountLoaders();
@@ -10707,43 +10749,46 @@ import { screens, panel, bridge } from "./seams.js";
   }
 
   /* Interactions */
+  /* WHETHER A MESSAGE IS ON SCREEN IS WRITTEN IN ONE PLACE. Six call sites
+     flipped the class and the attribute by hand — across two functions and a
+     handler bound beside them — which was already two ends kept in step by
+     hand. The moment a THIRD end appeared (the action button, which must not
+     sit under the message's close target) all of them would have had to move
+     together or the interface would half-work in a way no single one reveals.
+
+     THERE WAS A SEVENTH, and counting six is how it was missed: the boot hint
+     is also dismissed from a capture-phase `pointerdown`, which wrote the class
+     alone and left the state saying a message was up. It goes through here now,
+     and R86 drives that path. */
+  function setMessageShown(on) {
+    const host = select("#toast");
+    host.classList.toggle("show", on);
+    host.toggleAttribute("data-shown", on);
+    messageIsOnScreen = on;
+    refreshActionButton(!on);
+  }
+
   function toast(msg) {
     select("#toastmsg").textContent = msg;
-    select("#toast").classList.add("show");
-    select("#toast").toggleAttribute("data-shown", true);
+    setMessageShown(true);
     clearTimeout(toast._t);
-    toast._t = setTimeout(
-      () => {
-        select("#toast").classList.remove("show");
-        select("#toast").toggleAttribute("data-shown", false);
-      },
-      5000,
-    );
+    toast._t = setTimeout(() => setMessageShown(false), 5000);
   }
-  select("#toastx").onclick = () => {
-    select("#toast").classList.remove("show");
-    select("#toast").toggleAttribute("data-shown", false);
-  };
+  select("#toastx").onclick = () => setMessageShown(false);
 
   /* An action triggered by a GESTURE must be undoable: a sliding thumb is
      wrong more often than a pressing finger. */
   function toastUndo(msg, undo) {
-    const host = select("#toast");
     select("#toastmsg").innerHTML =
       `${escapeHtml(msg)} <button id="toastundo" style="border:0;background:transparent;color:var(--color-primary);font-weight:700;padding:0 0 0 10px">Annuler</button>`;
-    host.classList.add("show");
-    host.toggleAttribute("data-shown", true);
+    setMessageShown(true);
     clearTimeout(toast._t);
-    toast._t = setTimeout(() => {
-      host.classList.remove("show");
-      host.toggleAttribute("data-shown", false);
-    }, 6000);
+    toast._t = setTimeout(() => setMessageShown(false), 6000);
     const undoButton = select("#toastundo");
     if (undoButton)
       undoButton.onclick = (event) => {
         event.stopPropagation();
-        host.classList.remove("show");
-        host.toggleAttribute("data-shown", false);
+        setMessageShown(false);
         undo();
       };
   }
@@ -11824,17 +11869,31 @@ import { screens, panel, bridge } from "./seams.js";
           ).join("")}
         </div>
       </div>
-      <div class="ver">
-        <p class="vt">Version déployée</p>
-        <p class="vv">0.98.23</p>
-        <p class="vc">build 58d0d4fd · à jour</p>
-      </div>`;
+      ${servedIdentityBlock()}`;
     setOpen(element, true);
     setOpen(select("#scrim"), true);
     try {
       __bridge.pushLayer("drawer");
     } catch (error) {}
   }
+  /* WHAT THIS HOST IS SERVING — the drawer's footer, and it used to be a lie.
+     Three literals sat here: a version, a build sha and « à jour », none of
+     them computed and none of them checked, while the repository stood twenty
+     patch versions further on. The identity is the HOST's now, published per
+     request on the document it sends, and worded by `lib/served-identity.ts`,
+     which also owns the case where nothing published one. `known` is
+     forwarded as a `data-*` so a rule can tell the two apart without reading
+     the words — by PRESENCE, like every other boolean state attribute here:
+     `data-known="false"` would read as a state that is set. */
+  function servedIdentityBlock() {
+    const lines = servedIdentityLines();
+    return `<div class="ver" data-part="shell/served-identity"${lines.known ? " data-known" : ""}>
+        <p class="vt">${escapeHtml(lines.label)}</p>
+        <p class="vv">${escapeHtml(lines.primary)}</p>
+        <p class="vc">${escapeHtml(lines.secondary)}</p>
+      </div>`;
+  }
+
   function closeDrawer(pop) {
     if (!select("#drawer").classList.contains("open")) return;
     setOpen(select("#drawer"), false);
@@ -35039,9 +35098,16 @@ import { screens, panel, bridge } from "./seams.js";
       "pointerdown",
       () => {
         hintShown = true;
-        const toast2 = select("#toast");
-        if (toast2.textContent.includes("notes de conception"))
-          toast2.classList.remove("show");
+        /* THROUGH THE ONE SEAM, like every other dismissal. This site wrote the
+           `show` class alone, which was survivable while the class was the
+           whole of the state — it is not: `data-shown` is read by other rules,
+           and the action button's visibility now reads whether a message is up.
+           Left as it was, the first tap of a session cleared the hint visually
+           and stranded the action button until the pending timer fired. */
+        if (select("#toast").textContent.includes("notes de conception")) {
+          clearTimeout(toast._t);
+          setMessageShown(false);
+        }
       },
       { capture: true },
     );

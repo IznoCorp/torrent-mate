@@ -659,7 +659,7 @@ def render_reference(measurements: dict, regions: dict, states: list) -> str:
             "to one decimal, and the computed properties of `regions.json`'s "
             "`probe.computedStyleSubset`. `null` means the region's selector "
             "matched nothing in that state, which is data rather than an "
-            "omission. Regenerate with `--record`; entérine a REVIEWED change "
+            "omission. Regenerate with `--record`; ratify a REVIEWED change "
             "with `--accept`, never from a gate."
         ),
         "baseCommit": base_commit(),
@@ -774,7 +774,7 @@ async def record(to_stdout: bool = False) -> int:
 
 
 async def check(accept: bool = False) -> int:
-    """Compares the maquette against the reference, or entérines a change.
+    """Compares the maquette against the reference, or ratifies a change.
 
     Args:
         accept: Overwrite the reference with what was measured. Never reachable
@@ -975,7 +975,7 @@ def main() -> int:
     parser.add_argument("--check", action="store_true",
                         help="compare against the reference; non-zero on divergence")
     parser.add_argument("--accept", action="store_true",
-                        help="entérine a REVIEWED change into the reference")
+                        help="ratify a REVIEWED change into the reference")
     arguments = parser.parse_args()
     if arguments.contracts:
         return check_contracts()

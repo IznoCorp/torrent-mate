@@ -69,6 +69,7 @@ import argparse
 import importlib.util
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -601,6 +602,64 @@ ARM_ORDER = ("classification", "lossless", "correspondence", "schema", "provenan
              "generated", "handlers")
 
 
+EXTRACTOR = ROOT / "scripts" / "extract-maquette-fixtures.mjs"
+
+# THE ARMS THAT READ THE ENGINE THROUGH THE TypeScript PARSER, and only those.
+# `classification` runs the extractor directly; `lossless` and `correspondence`
+# reach it through the builder. The other four read JSON and text — the
+# contract, the seeds, the generated types, the handler modules — and need
+# neither node nor an install.
+#
+# NAMED RATHER THAN COUNTED, and the distinction cost a correction: a first
+# version of the skip below announced « the 7 arms that read the engine through
+# its parser » beside `len(ARMS)`, which was false about four of them AND was a
+# second copy of a list that already exists. Two written exemptions — the
+# vocabulary arm's and the boundary guard's, both for `contract-types.d.ts` —
+# rest on `generated` running wherever the guards do, and skipping it would
+# have left them resting on a check that read nothing.
+NEEDS_THE_PARSER = ("classification", "lossless", "correspondence")
+
+# The extractor's own exit code for « there is no TypeScript install here ».
+# Distinguished from every other failure ON PURPOSE: a syntax error in the
+# extractor exits 1, an unknown flag exits 2, and collapsing those into « no
+# install » would announce a confident WRONG reason while returning success —
+# which is worse than failing, and is the shape B-046 records.
+NO_TYPESCRIPT_INSTALL = 3
+
+
+def typescript_install() -> str | None:
+    """Returns the TypeScript install the extractor would parse through.
+
+    ASKED OF THE EXTRACTOR, never re-derived here. The candidate paths are the
+    extractor's own, and a second copy of them in this file would be a table
+    that rots — the extractor is where they belong, so it is the extractor that
+    is asked.
+
+    Returns:
+        The resolved install path when there is one, or None when the extractor
+        answered `NO_TYPESCRIPT_INSTALL`.
+
+    Raises:
+        RuntimeError: When the extractor could not answer at all — it is
+            missing, node is absent, it timed out, or it failed for any reason
+            other than the absence of an install. That is not « cannot run
+            here »; it is a broken instrument, and it must be loud.
+    """
+    try:
+        run = subprocess.run(["node", str(EXTRACTOR), "--typescript-install"],
+                             cwd=ROOT, capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.SubprocessError) as failure:
+        raise RuntimeError(f"the extractor could not be run: {failure!r}")
+    if run.returncode == NO_TYPESCRIPT_INSTALL:
+        return None
+    if run.returncode != 0 or not run.stdout.strip():
+        raise RuntimeError(
+            f"the extractor answered {run.returncode} to --typescript-install "
+            f"instead of 0 or {NO_TYPESCRIPT_INSTALL}: "
+            f"{(run.stderr or run.stdout).strip()[-300:] or 'nothing at all'}")
+    return run.stdout.strip()
+
+
 def main() -> int:
     """Run the requested arms."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -608,7 +667,30 @@ def main() -> int:
     parser.add_argument("--list", action="store_true",
                         help="print the inventory this guard holds, and refuse nothing")
     arguments = parser.parse_args()
-    module = builder()
+
+    # A CLONE WITH NO npm INSTALL CANNOT RUN THE THREE ARMS THAT PARSE THE
+    # ENGINE, and it must say which three rather than fall over. With no install
+    # this guard used to answer a ten-line node traceback and a non-zero exit —
+    # inside `make check`, two lines above
+    # `openapi-drift: skipped (frontend/node_modules absent)` and
+    # `contract-types: skipped (…)`, which handle exactly the same absence.
+    #
+    # THE SKIP IS NARROW AND LOUD. Narrow, because four arms need no parser at
+    # all and two written exemptions rest on one of them. Loud, because a skip
+    # that reads like a pass is the failure this repository counts in
+    # `BUGS.md` § Guards green over what they do not read. And it is not
+    # reachable where the gate matters: the one continuous-integration job that
+    # runs this guard (`harness-contracts`, through `run.sh --contracts`)
+    # installs `frontend/maquette/design` first.
+    try:
+        without_the_parser = typescript_install() is None
+    except RuntimeError as broken:
+        # A BROKEN INSTRUMENT IS NOT A SKIP. The guard exits non-zero and names
+        # what failed, rather than printing a node traceback or — worse —
+        # announcing « no TypeScript install » about an extractor that is
+        # merely broken.
+        print(f"check-mock-seeds: {broken}", file=sys.stderr)
+        return 1
 
     if arguments.list:
         classified = register()
@@ -618,12 +700,25 @@ def main() -> int:
         print(f"  {len(classified)} family(ies)")
         return 0
 
+    # The builder module is loaded EITHER WAY: importing it runs no node, and
+    # the four arms below read their inputs through its constants. Only the
+    # three arms that CALL the extractor are skipped.
+    module = builder()
+
     print(f"check-mock-seeds: {SEEDS.relative_to(ROOT)}")
     # A DELIBERATE ORDER, not the alphabet. `correspondence` builds every seed,
     # and the builder REFUSES a lossy projection by exiting — so run
     # alphabetically, a lossy projection killed the process before `lossless`
     # could say a word, and that arm could only ever report under `--arm`.
     selected = [arguments.arm] if arguments.arm else ARM_ORDER
+    if without_the_parser:
+        skipped = [name for name in selected if name in NEEDS_THE_PARSER]
+        selected = [name for name in selected if name not in NEEDS_THE_PARSER]
+        if skipped:
+            print(f"  SKIPPED, no TypeScript install: {', '.join(skipped)} — "
+                  f"{len(skipped)} arm(s) that read the engine through its parser "
+                  f"checked NOTHING. Run `npm ci` in frontend/maquette/design or "
+                  f"in frontend. The {len(selected)} arm(s) below did run.")
     violations = sum(ARMS[name](module) for name in selected)
     if violations:
         print(f"check-mock-seeds: {violations} violation(s)")

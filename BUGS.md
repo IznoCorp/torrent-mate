@@ -112,13 +112,27 @@ when the defect comes back.
 | B-076 | The hero's entrance animates for a reader who asked for no motion | by rule | `fixed #500` |
 | B-077 | A test of the browser-free half of a rule could not be collected without a browser | by CI | `fixed #500` |
 | B-078 | The state row outlived its subject, ajourned on a rule that does not exist | by audit | `fixed #501` |
-| B-079 | The design host cannot say which commit it serves, and production's host can | by audit | `open` |
-| B-080 | The drawer shows a hard-coded version and build, and calls itself up to date | by operator | `open` |
-| B-081 | Design notes can no longer be hidden, and the oracle measures without them | by operator | `open` |
-| B-082 | `hidden` hides nothing on five elements, so an invisible button is still tappable | by operator | `open` |
-| B-083 | L08's design and plan were never archived, and every lot before it was | by audit | `open` |
-| B-084 | A wave that found twenty defects wrote none of them in this register | by audit | `open` |
-| B-085 | Guards green over what they do not read: 17 in three consecutive waves, counted by nobody | by audit | `open` |
+| B-079 | The design host cannot say which commit it serves, and production's host can | by audit | `fixed #505` |
+| B-080 | The drawer shows a hard-coded version and build, and calls itself up to date | by operator | `fixed #505` |
+| B-081 | Design notes can no longer be hidden, and the oracle measures without them | by operator | `fixed #505` |
+| B-082 | `hidden` hides nothing on five elements, so an invisible button is still tappable | by operator | `fixed #505` |
+| B-083 | L08's design and plan were never archived, and every lot before it was | by audit | `fixed #505` |
+| B-084 | A wave that found twenty defects wrote none of them in this register | by audit | `fixed #505` |
+| B-085 | Guards green over what they do not read: 17 in three consecutive waves, counted by nobody | by audit | `fixed #505` |
+| B-086 | A season tuple was declared in the wrong order, and a seed claimed 175 episodes of 117 | by review | `fixed #503` |
+| B-087 | A media sheet substituted one family's synopsis for another's, on 213 of 259 titles | by review | `fixed #503` |
+| B-088 | Twenty provider identities name two sheet keys, and the first returned nine empty season lists | by review | `fixed #503` |
+| B-089 | `serie` is a broadcast status, and a rename read it as a series name | by review | `fixed #503` |
+| B-090 | `Setting.value` carries the engine's rendered French, and one of them is lossy | by review | `open` |
+| B-091 | `grabForFollow` answered a hash field with a release name | by review | `fixed #503` |
+| B-092 | Four mutating routes changed nothing the next read could see | by review | `fixed #503` |
+| B-093 | `isPureLiteral` walked an initializer's children and never the initializer | by review | `fixed #503` |
+| B-094 | The register held its families' NAMES and not their classes | by review | `fixed #503` |
+| B-095 | Two families shipped unprojected while the builder reported success and lossless | by review | `fixed #503` |
+| B-096 | The contract was wrong about the data in five places, and the seeds proved it | by review | `fixed #503` |
+| B-097 | Twenty seed renames never reached the index, and only a case-sensitive runner saw it | by CI | `fixed #503` |
+| B-098 | The build plugin raced its own output and failed three jobs on a fresh checkout | by CI | `fixed #503` |
+| B-099 | A test pass writes 13 GB of real zeroes into `/tmp` and pytest keeps three of them | by operator | `fixed #505` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -1503,6 +1517,36 @@ say what they are, because a labelled mock is data and an unlabelled one is a li
 
 <sub>`grep -n '58d0d4fd\|0\.98\.23' frontend/maquette/design/src/engine/legacy.js`</sub>
 
+> **FIXED by #505, the correction wave between L08 and L09 — B-079 and B-080 together, as scheduled.**
+> `frontend/maquette/host_identity.py` computes the branch, the abbreviated commit and whether the
+> tree is dirty, **per request** — split out of `serve.py`, which crossed the soft module ceiling
+> the moment this arrived, on the subject and not on the line count: `serve.py` answers « what
+> document do I send? » and that file answers « what tree am I sending it from? ». `serve.py`
+> publishes it on the document it sends, AFTER the build cache and never inside it, because a
+> branch can change and a tree can go dirty without one build input's mtime moving.
+>
+> **Where it shows was the operator's arbitration, 2026-08-26: the drawer, and there alone.** The
+> phone frame was offered and refused. `lib/served-identity.ts` words it and owns the case where
+> nobody published one — the rule suite's static host, a `vite` preview — where it says the
+> identity is unavailable, with the reason, and falls back to nothing at all. A fallback there is
+> B-080 wearing a different number.
+>
+> **R87, 26 holds, mutation-tested seven ways**: the unavailable case made to state a plausible
+> version (falls), the dirty mark dropped (falls), the answer cached at boot (falls), the host
+> stopped publishing (falls), and a tree outside a repository given a guess (falls).
+>
+> **Its per-request hold was VACUOUS in its first version**, and that is recorded here rather than
+> quietly repaired — it is the wave's own subject. It made the served tree dirty between two
+> requests and compared the answers; on a tree that was already dirty, which is every tree a wave
+> is written on, both answers read `dirty: true` and the hold passed having distinguished nothing.
+> It builds a scratch repository now, with a branch name and a commit the rule chose, and reads it
+> twice from one process across a change it makes itself. Counted in § Guards green over what they
+> do not read.
+>
+> **What is NOT fixed**: production's side is untouched, and was never in question — `GET
+> /api/version`, the boot-cached `BUILD_COMMIT` and post-check R27 are the other half of this
+> question and belong to the shipped application.
+
 **B-081 — the design notes cannot be hidden any more, and the instrument does not see them.**
 Reported by the operator on 2026-08-25: the design-note paragraphs are visible on every screen, and
 the toggle's toast announces « Notes masquées. » while nothing hides.
@@ -1528,6 +1572,41 @@ ways. **Do NOT close B-071 with it**: its third end lives inside the dying engin
 L13. This entry is the visible half and can be repaired now.
 
 <sub>`grep -rn '\.note\b' frontend/maquette/design/src/styles/*.css` · `git show 5fdbfc9a^:frontend/maquette/design/refonte.html | sed -n '4008,4034p'`</sub>
+
+> **FIXED by #505, the correction wave between L08 and L09.** The pair is restored in `harness.css`,
+> with the callout's own appearance, which had gone with it: hidden by default, shown when the
+> information button toggles `notes` on `<html>`.
+>
+> **The half that cost is answered, and it was answered by measuring rather than by asserting.**
+> This entry says the oracle certifies a page nobody looks at; the reading it invites is that the
+> reference would have to move once the default changed. **It does not, and that is the proof.**
+> `html.measuring .note` hides the notes only while the oracle captures — so the notes were
+> ALREADY absent from every measurement, and restoring the default makes the judged document match
+> the measured one WITHOUT moving a number. The oracle reads no divergence over 2 739
+> measurements, taken after the repair. That sentence is the repair's evidence, not a formality:
+> had it diverged, the instrument and the eye would still have been pointed at two documents.
+>
+> **R86, mutation-tested both ways**: the default hide removed (falls, naming « hidden by default »
+> and « releasing it hides them again »), and the toggle half removed (falls, naming « pressing the
+> button shows them »). A rule holding only the pressed state would have passed on the broken tree,
+> because the notes were visible in both positions.
+>
+> **AND `.note` WAS NOT ONLY THE PROTOTYPE'S ANNOTATION**, which restoring its default made
+> visible: twenty-seven paragraphs on product surfaces wore it, and hiding them by default took
+> with them the only sentence saying that a maintenance rubric DELETES. Found by an adversarial
+> reviewer; the operator arbitrated an audit of all twenty-seven rather than a single exception.
+>
+> **The test applied, written where the answer lives (`ui/variants/layout.ts`)**: a paragraph is an
+> annotation if it addresses the reader of the MAQUETTE — what changed, what was drawn anew, which
+> section of the constitution it serves — and guidance if it addresses the operator USING the
+> application. Twenty-three are annotations and keep `.note`. **Four are guidance** and wear
+> `guidance()`: the maintenance rubric's subtitle, the scheduler line explaining a status the
+> operator would otherwise misread, « un champ laissé vide n'efface rien » on the secrets form, and
+> what « laisser tel quel » does before it is done. R86 holds the two apart in one document, and
+> the mutation that gives `guidance()` the annotation's class falls.
+>
+> **B-071 stays open**, as this entry instructs: its third end lives inside the dying engine and
+> belongs to L13.
 
 **B-082 — the `hidden` attribute does not hide, on every element that also carries a display utility.**
 Reported by the operator on 2026-08-25 from a live phone: on opening the design host, the
@@ -1567,6 +1646,67 @@ tap at its coordinates reaches nothing.
 
 <sub>`grep -n 'hidden' frontend/maquette/design/index.html` · `sed -n '55,70p' frontend/maquette/design/src/styles/theme.css`</sub>
 
+> **FIXED by #505, the correction wave between L08 and L09 — and THIS ENTRY WAS WRONG ABOUT THREE OF THE
+> FIVE.** The correction is written before the fix, because it is the same failure the wave
+> exists to count.
+>
+> « Five elements carry `hidden` beside a display utility, so on all five the attribute is inert »
+> was read **from the markup and the import list**. It did not open `base.css`, which carried a
+> hand-maintained group — `.fab[hidden]`, `.installbar[hidden]`, `.installsteps[hidden]` and nine
+> more — **unlayered**, precisely so it would beat a utility. Measured in the document by setting
+> the attribute and reading `getComputedStyle` back: `#fab`, `#installbar` and `#installsteps`
+> already computed `display: none`. **Only `#nav` and `#ptr` were inert.**
+>
+> **AND THE CORRECTION ITSELF WAS WRONG TWICE, which is why it is written out rather than
+> summarised.** This entry calls `#nav` « the navigation drawer »: it is the **bottom tab bar**
+> (`class="bottombar"`, `data-part="shell/tab-bar"`); the drawer is `#drawer`. The correction
+> repeated that, into four files, before an adversarial reviewer read the markup. And the
+> remaining two were inert only in the STYLESHEET: neither `#nav` nor `#ptr` is ever GIVEN the
+> attribute — not in `index.html`, not at run time, verified across all 83 named states — so
+> nothing was ever appearing on screen because of this. What was true, and is what the fix
+> answers, is that the remedy depended on somebody remembering to extend a list.
+>
+> Three readings of one defect, each drawn from what the reader had not opened, inside the entry
+> that reports conclusions drawn from what was not read. Both are counted in § Guards green over
+> what they do not read.
+>
+> **The fix is what this entry asks for and it also removes the list.** Preflight's remedy alone —
+> `[hidden]:where(:not([hidden="until-found"])) { display: none !important }` — unlayered, in the
+> base layer, without adopting preflight entire. The twelve hand-maintained cases are DELETED with
+> it, because a list covers the names somebody thought of and that is exactly how `#nav` was
+> missed. The oracle reads no divergence across that deletion, which is the statement that the
+> twelve were doing nothing the one rule does not.
+>
+> **The second half was a design decision and the operator arbitrated it on 2026-08-26: the action
+> button is taken away while a message is on screen.** Two alternatives were put with it — raising
+> the message above the button, and shortening it on the right — and both were refused. The
+> collision itself is now a measured hold rather than a claim: `elementFromPoint` at the close
+> target's centre answers `#fab`.
+>
+> **One concern was raised before the choice and it is answered in the implementation**: a button
+> that returns the instant a message closes is a target appearing under a finger still travelling.
+> It returns only once the message has finished leaving, and never on a page navigation, where
+> waiting would be a rendering change with no defect behind it.
+>
+> **The button's visibility has ONE decision point**, reading two facts — whether the page has a
+> primary action, and whether a message is up. A second writer would erase the page's own answer
+> and a page with no action would acquire one when a message closed; that case is a hold, and the
+> mutation that introduces the second writer falls on it.
+>
+> **`data-shown` had SEVEN writers, and the commit that introduced the seam counted six.** The
+> seventh dismisses the boot hint from a capture-phase `pointerdown`; it wrote the class alone and
+> left the state saying a message was up. Found by an adversarial reviewer, who measured the
+> consequence rather than deducing it: the primary « add » action absent for about four seconds on
+> the first tap of every session, on the page that has one. R86 walked the close button and the
+> timer, and both go through the seam — a path nobody drives is a path nobody measures. It drives
+> that path now, and the mutation restoring the defect falls on it.
+>
+> **R86, mutation-tested five ways** beyond the two on the notes: the base-layer rule removed
+> (falls on all five elements, on the probe and on the collision), the message decoupled from the
+> button (falls), a second writer introduced (falls, naming the page that acquires an action), the
+> button returned on the first frame of the fade (falls), and the seventh writer restored to
+> writing the class alone (falls, naming the tap that leaves the state behind).
+
 **B-083 — L08 landed and its design and plan stayed under `docs/features/`.**
 Every lot from L01 to L07 sits under `docs/archive/features/`; `docs/features/` holds
 `maquette-l08` and `tech-debt-2` and nothing else. The closing pull request (#504) did the other
@@ -1576,6 +1716,23 @@ that slips**: the L06 audit had to do it retroactively, L07 did it in the move, 
 gesture that is remembered two times out of three is a gesture that needs a check, not a reminder.
 
 <sub>`ls docs/features/` · `ls docs/archive/features/ | tr ' ' '\n' | grep maquette`</sub>
+
+> **FIXED by #505, the correction wave between L08 and L09** — `docs/archive/features/maquette-l08/`,
+> with the three references that named the old path answered in the same step: two moved
+> (`frontend-architecture.md` § L08, `IMPLEMENTATION.md` § Next action) and one REPLACED — B-084's
+> own `<sub>` command, which pointed at a directory this entry had just emptied.
+>
+> **The operator arbitrated the remedy on 2026-08-26, and refused the guard this entry asks for.**
+> Three shapes were put: a check reading § 4's `LANDED` markers and refusing a `docs/features/`
+> directory for a landed lot; a wider check also covering § 7.1's deferred « a lot marked LANDED
+> whose files do not exist »; and a step in the post-merge list. **The step was chosen.** It is
+> now step four of five in `frontend-architecture.md` § 5, beside re-recording the references.
+>
+> **The objection is kept rather than tidied away, because it is this register's job to keep it**:
+> that same list has been skipped three times out of four, so the remedy chosen is the one whose
+> failure mode is already measured. What the step adds is that the count is now written next to
+> it — whoever finds this gesture skipped a fourth time has a figure to argue with instead of a
+> memory.
 
 **B-084 — the wave that found the most wrote the least down.**
 `BUGS.md` holds 78 entries on `main` after L08, the same 78 it held before. L08's own session
@@ -1597,7 +1754,31 @@ for a series carrying a broadcast status; a contract value holding the engine's 
 lossily — « multi, vf, vostfr +1 » standing in for four items; a hash field answering with a
 release name). Not one of those is findable today by anyone who was not in that session.
 
-<sub>`grep -c '^| B-' BUGS.md` · `ls docs/features/maquette-l08/`</sub>
+<sub>`grep -c '^| B-' BUGS.md` · `git log ce1d7b5a -1 --format=%B` — the squash body is the report of record</sub>
+
+> **FIXED by #505, the correction wave between L08 and L09: thirteen entries, B-086 to B-098.** They are
+> READ OUT of #503's squash body and of the four adversarial reviews it records, never invented —
+> the commit message is the report of record, and it survives the squash that consumed the branch.
+> The register held 85 rows before them and holds 99 after, B-099 included — and the entry's own
+> opening sentence, written by the audit, says 78. That figure was already stale when it was
+> written: `main` held 85 after L08. It is left as written, because § 7.1's rule is that a record
+> is corrected by what is added beside it and never by editing the old text.
+>
+> **They are entered as CLASSES, which is what this entry says was lost.** « A false name that
+> compiles » is four of them (B-086, B-089, B-090, B-091) and they are deliberately kept apart
+> rather than folded into one row: a pair of integers in the wrong order, a field named for a
+> series carrying a broadcast status, a contract value holding rendered French, and a hash field
+> answering with a release name are four different ways for a name to be wrong while every type
+> agrees, and a reader looking for the one they have just met needs to find it.
+>
+> **What is REPAIRED is `fixed #503` and what is not is `open`, and the distinction is not
+> cosmetic.** B-090 is open: `Setting.value` still carries the engine's `displayedValue` — a
+> rendered French summary, one of them lossy — and #503 recorded that, it did not fix it. Marking
+> it fixed because the wave that found it merged would be the register lying about the code, which
+> is worse than the register being empty.
+>
+> **The count itself is now a step**, not an intention: § 5's post-merge list owes the register the
+> wave's findings at the same moment it owes the re-recorded references.
 
 **B-085 — the same shape has appeared in three consecutive waves, and nothing counts it.**
 « A guard is green because of what it does not read. » L07's adversarial review found it **six**
@@ -1620,3 +1801,256 @@ not proven by being written; it is proven by being read back — and « what doe
 read? » is the question that has paid for itself seventeen times.
 
 <sub>L07: PR #494's review · L07-bis: B-075 · L08: PR #503's session report</sub>
+
+> **THE FIGURE NOW EXISTS. It is § Guards green over what they do not read, below, and it is
+> re-measured at every wave's close** — step five of `frontend-architecture.md`
+> § 5's post-merge list, beside re-recording the oracle's references. Where it lives and who
+> recounts it was the operator's arbitration, 2026-08-26; a line in § 6 of the architecture file
+> was offered as an alternative and as a companion, and the register alone was chosen.
+>
+> **What the count is FOR, stated so a later reader does not mistake it for scoreboarding.** Each
+> of the seventeen was found, repaired and recorded as an incident of its own wave, so the shape
+> read as bad luck three times. A running total says the other thing: that « a guard is green
+> because of what it does not read » is the dominant failure mode of this repository's
+> instruments, and that the question to ask a new guard is **« what does this NOT read? »** before
+> asking whether it passes.
+>
+> **The correction wave applied it to itself, which is the only evidence this entry can offer.**
+> Three of its own instances are in the table — including one it had written that morning: R87's
+> per-request hold made the served tree dirty between two requests and compared the answers, which
+> on a tree that was already dirty distinguished nothing and passed. Found by asking the question,
+> not by a gate.
+
+---
+
+**B-086 — a season tuple was declared in the wrong order, and a seed claimed 175 episodes of 117.**
+Found by an adversarial reviewer of #503, and it is the worst defect that wave produced. The engine
+writes `[number, aired, owned]`; L08's projection declared `[number, owned, aired]`. **No automatic
+check could catch it**: no leaf moves, every type matches, and the lossless arm compares leaf VALUES
+across a rename — so both readings are lossless and only one is true. Three independent
+cross-checks agree on the engine's order: its own comment, the `INCOMPLETE` derivation, and the
+count of episode numbers `owned` actually holds. Repaired in the wave that made it.
+
+<sub>`git log ce1d7b5a -1 --format=%B | grep -n 'SWAPPED PAIR' -A 8`</sub>
+
+**B-087 — a media sheet substituted one family's synopsis for another's, on 213 of 259 titles.**
+Several of them in English. It is a **re-derivation**, which the projection contract forbids in
+terms: a seed is a rename and a regroup of what the fixture holds, never a value computed from
+another. The rule exists because a re-derived value renders plausibly and diverges silently.
+Repaired in #503.
+
+<sub>`git log ce1d7b5a -1 --format=%B | grep -n 'synopsis'`</sub>
+
+**B-088 — twenty provider identities name TWO sheet keys each, and taking the first returned nine
+empty season lists.** For the three shows a reader opens first. A one-to-many mapping read as
+one-to-one: the code was right about the shape it believed in and the data had never had that
+shape. Repaired in #503.
+
+<sub>`git log ce1d7b5a -1 --format=%B | grep -n 'provider identities'`</sub>
+
+**B-089 — `serie` is the show's RUN STATUS, and a rename read it as a series name.**
+« Continuing », null for a film. The rename was mechanical and the name invited it. **Only reading
+the twelve values found it** — the leaf check cannot see this class by construction, because the
+leaf is the same leaf under either reading. Repaired in #503, and it is the archetype of the class
+B-086, B-090 and B-091 belong to.
+
+<sub>`git log ce1d7b5a -1 --format=%B | grep -n '`serie` is the SHOW'</sub>
+
+**B-090 — `Setting.value` carries the engine's rendered French, and one of them is lossy.**
+It is the engine's `displayedValue`: a summary RENDERED for a screen, not the value the setting
+holds. **110 of the 159 fields differ from `raw`, and one is lossy** — a four-element list renders
+« multi, vf, vostfr +1 », so the fourth element is gone and no reader of the contract can get it
+back.
+
+**HALF OF THIS IS REPAIRED AND HALF IS NOT, and the halves are worth telling apart.** #503 renamed
+the field to `displayedValue` and wrote the measurement into the contract's own description, so
+the NAME no longer lies — that is the B-089 class, and it is closed. **The lossy value itself
+stands**, and deliberately: L08's D-L08-5 says a pre-formatted fixture value is carried VERBATIM
+and the underlying fact is asked for in `docs/reference/frontend-backend-demands.md`, because
+decomposing it here would be a better contract and would forfeit the zero-divergence proof L09
+rests on. Re-deriving the fourth element is the one thing forbidden outright (B-087).
+
+**So the status is `open`**: the defect reported was a contract value holding rendered French,
+lossily, and it still does. Marking it fixed because the wave that found it merged would be this
+register lying about the code. It closes when the demand is served.
+
+<sub>`grep -n 'displayedValue' frontend/maquette/design/src/mocks/contract-types.d.ts`</sub>
+
+**B-091 — `grabForFollow` answered `infoHash` with a release name.**
+A field whose name states its content, carrying something else entirely — the same class as B-089,
+in a mutation's answer rather than in a read. Repaired in #503.
+
+<sub>`git log ce1d7b5a -1 --format=%B | grep -n 'grabForFollow'`</sub>
+
+**B-092 — four mutating routes changed nothing the next read could see.**
+A maintenance run, a configuration write, a grab, and a pipeline verb that toggled instead of
+transitioning. **The rule that should have caught them read ONE of sixteen mutating routes, and
+the one that worked.** It reads five now, on five different subjects. Repaired in #503, and
+counted in § Guards green over what they do not read.
+
+<sub>`grep -n 'a mutation changes what the next read returns' frontend/maquette/harness/mocks.py`</sub>
+
+**B-093 — `isPureLiteral` walked an initializer's children and never the initializer.**
+So `const settle = afterUnwind` was judged a literal and then threw when read. **Seven « families »
+were that shape.** It surfaced only when `--all` asked for every family at once; `--family` had
+only ever been called on data already known to be good — a reader proven on the cases somebody
+chose. Repaired in #503, and counted in § Guards green over what they do not read.
+
+<sub>`grep -n 'isPureLiteral' scripts/extract-maquette-fixtures.mjs`</sub>
+
+**B-094 — the register held its families' NAMES and not their classes.**
+So a family moved from `served` to `interface` moved in one place and the tally beside it did not,
+with every guard green. `$counts` is held against the classification now, and the anonymous
+exclusion is a figure compared rather than printed. Repaired in #503, counted in § Guards green
+over what they do not read.
+
+<sub>`python3 scripts/check-mock-seeds.py --arm classification`</sub>
+
+**B-095 — two families shipped UNPROJECTED while the builder reported success and lossless.**
+The leaf-value check cannot see a projection that never ran: no leaf moves, so the two documents
+compare equal. That limit is written beside the arm now, and the schema arm is what answers it.
+Repaired in #503, counted in § Guards green over what they do not read.
+
+<sub>`python3 scripts/check-mock-seeds.py --arm schema`</sub>
+
+**B-096 — the contract was wrong about the data in five places, and the seeds proved it.**
+`trailer` is a title and not an object, `runtime` is minutes and not a string, `tmdbTelevisionId`
+is a string, recents carry no category, and `QueueCard`, `Follow` and `PendingDecision` each lacked
+a field. Worth keeping as an entry rather than as a footnote: it is the direction of proof that
+matters — the DATA corrected the CONTRACT, which is the whole reason the seeds are taken from the
+fixtures instead of written. Repaired in #503.
+
+**B-097 — twenty seed renames never reached the index, and only a case-sensitive runner saw it.**
+macOS is case-insensitive, so git saw `ACCOUNT.json` and `account.json` as one file and reported
+nothing to stage, while the runner's checkout carried the old names and none of the new ones.
+`CLAUDE.md` names this trap for `git mv`; it applies just as much to a TOOL that writes the files.
+Repaired in #503 with `git rm --cached` and a re-add, so the twenty appear as the renames they are.
+
+<sub>`git config core.ignorecase`</sub>
+
+**B-098 — the build plugin raced its own output and failed three jobs on a fresh checkout.**
+`closeBundle` links the assets directory into `dist/` and assumed `dist/` existed. It does on a
+machine that has built before; on a fresh checkout it exists only once the write has finished. The
+race was invisible while the bundle was small and lost the moment it grew — L08 took it from
+1.6 MB to 2.8 MB. The hook creates the directory it writes into now. Repaired in #503.
+
+<sub>`grep -n 'closeBundle' frontend/maquette/design/vite.config.mjs`</sub>
+
+---
+
+## Guards green over what they do not read
+
+**The count B-085 asks for.** « A guard is green because of what it does not read » — a rule that
+greps a file whose subject has moved, a floor placed at today's value, a reader that never opens
+the file the defect would live in, an arm that measured nothing and said so as success.
+
+**Re-measured at every wave's close**, as step five of `frontend-architecture.md` § 5's post-merge
+list. A wave that found none writes `0`, with the same authority as a wave that found six: a row
+missing and a row saying zero are not the same statement, and this table is worthless if the
+absence of a row can mean either.
+
+| Wave | Found | Where it is written down |
+| --- | --- | --- |
+| L07 | 6 | PR #494's adversarial review |
+| L07-bis | 5 | B-075 |
+| L08 | 6 | PR #503's squash body. B-093 and B-094 are two of the six written out; B-092 and
+B-095 are adjacent findings of the same wave, not members of that six |
+| L08-bis (#505, the correction wave) | 9 | itemised below |
+| **Total** | **26** | at 2026-08-26 |
+
+**The nine the correction wave found, since a wave that counts itself has to name its own.** The
+figure is large because the count is honest, not because the wave was worse: four of the nine are
+in instruments this wave WROTE, which is what a wave gets for asking the question of itself, and
+four were found by the adversarial review — which is what the review is for.
+
+1. **B-082's own entry** concluded that `hidden` was inert on five elements, having read the markup
+   and the import list and not `base.css`, where an unlayered group already held three of them.
+   **And the correction was itself wrong twice more**: it called `#nav` the navigation drawer (it
+   is the tab bar), and the two remaining elements are never GIVEN the attribute at all, so
+   nothing was ever appearing on screen. Three readings, each from what the reader had not opened.
+2. **R87's per-request hold, in its first version**, made the served tree dirty between two
+   requests and compared the answers. On a tree that was already dirty — every tree a wave is
+   written on — both read `dirty: true` and the hold passed having distinguished nothing.
+3. **R87's script-body hold did not exist**, and the obvious substitute would not have worked
+   either: the corrupted payload PARSES as valid JSON, so a `json.loads` would have passed over a
+   document whose only inline script had a syntax error and whose head carried live markup.
+4. **R87 held « closing the message cannot reach the button » after holding the button was
+   `display: none`** — an element at `display: none` is not hit-testable, so the second hold
+   restated the first and could only fail if `elementFromPoint` returned nothing at all.
+5. **R86 walked two of the three dismissal paths.** The close button and the timer both go through
+   the seam; the capture-phase `pointerdown` that dismisses the boot hint does not, and that is
+   the one that broke — four seconds without the primary action, on the first tap of a session.
+6. **D3's « Neither may grow, both are held by a guard »** is half true. `legacy.css` is held;
+   `harness.css` is held by nothing at all, and the only script naming it names it to EXCLUDE it.
+7. **`check-no-french.py` named the maquette's Python one file at a time**, in five corpora across
+   two files — so `host_identity.py`, split OUT of `serve.py`, inherited none of `serve.py`'s
+   coverage and sat outside every arm on the day it was written. Replaced by a glob, which
+   immediately found three French names in `oracle.py` that no arm had ever read.
+8. **`check-mock-seeds.py`'s skip collapsed every extractor failure into « no TypeScript
+   install »**, so a syntax error in the file its arms parse returned success with a confident
+   wrong reason — and it skipped seven arms where three need the parser, leaving two written
+   exemptions elsewhere resting on a check that read nothing.
+9. **B-099's own two measurements.** `du` reported 0 bytes and proved nothing — the files had just
+   been made sparse, so a run that deletes everything and a run that keeps 47 049 files both read
+   as 0; the unit had to change to FILES. And the probe that first « proved » the retention policy
+   ran with `rootdir` set to a scratch directory, never read `pyproject.toml`, and reported the
+   default.
+
+**The forms already met, kept as the question's checklist** — before writing a hold, ask what it
+does NOT read, and whether that answer is acceptable:
+
+- a counter placed at the current value, pre-satisfied, able only to catch a later decrease;
+- an empty read that passes in silence, because « found nothing » and « looked at nothing » print
+  the same;
+- a corpus enumerated by hand, which goes stale the day a file moves;
+- a hold armed on one of two ends, so the pair can drift while the hold stays green;
+- a reader proven only on data somebody chose, never on everything at once;
+- a figure printed and never compared.
+
+---
+
+**B-099 — a test pass writes 13 GB of real zeroes into `/tmp`, and pytest keeps three passes.**
+Reported by the operator on 2026-08-26, in the hardest available form: the machine's boot volume
+filled up mid-session and no command could run at all — the tool could not create its own output
+file. 117 GB was cleared by hand.
+
+**The mechanism, measured.** Thirty-eight fixture sites wrote a placeholder video with
+`write_bytes(b"\x00" * 200 * 1024 * 1024)` — two hundred megabytes of REAL zeroes, allocated block
+by block, one per movie or series a test builds. One `make test` pass left **13 GB across 47 049
+files** under `/tmp/pytest-of-izno`. `tmp_path_retention_policy` was unset, so pytest's default
+`all` kept the last three passes: ~39 GB steady state, growing every run. The comment above one of
+those lines read « small but enough for tests ».
+
+**What the tests need is the SIZE, never the content** — the library checks refuse a video under a
+minimum, the disk cleaner acts above a threshold, and not one of them reads a byte. So the
+placeholder is SPARSE now (`tests/_media_files.py`): `stat().st_size` answers the full figure, the
+file costs one block, and a read returns the same zeroes byte for byte, so no test's meaning
+changes. The small placeholders — a kilobyte, a thousand bytes — are deliberately left alone:
+churn with no defect behind it.
+
+**And the retention policy is the second half**, because the first half only holds for the
+fixtures that exist today: `tmp_path_retention_policy = "failed"` keeps a temporary directory only
+where it can still be read, which is a test that failed.
+
+**Measured after, and BOTH first measurements were WRONG in the way this wave keeps counting.**
+`du` reported 0 bytes and that proved nothing — the files are sparse, so a green run and a run
+keeping everything both read as 0. Counted properly, by FILE: **47 049 files before, 0 after** a
+full `make test`. And the retention policy had to be proven separately, because the probe that
+« proved » it first ran with `rootdir` set to a scratch directory and never read `pyproject.toml`
+at all — it reported `POLICY = all` when asked directly. Re-run from inside the repository: the
+passing test's directory is gone, the failing test's is kept.
+
+**What « 0 » does and does not cover, since the entry's own checklist warns against a figure nobody
+compares.** The policy governs the per-test `tmp_path` fixture; SESSION-scoped directories from
+`tmp_path_factory.mktemp` are outside it, and a run of two packages left twenty files and 136 kB
+of them. That is a rounding error against 13 GB and it is not zero, so it is written here rather
+than rounded away.
+
+**And the sparseness stops at the source.** `rsync` re-expands a sparse file unless told not to,
+and no capability's flag tuple carries `--sparse`, so the tests that really DISPATCH write dense
+copies on the destination side — 315 MB for four of them. For those the saving comes entirely from
+the retention policy. Both halves were needed; neither alone would have done.
+
+**The pass is also a third faster** — 180 s to 105 s — because it is no longer writing gigabytes.
+
+<sub>`python -m pytest tests/verify -q && find /tmp/pytest-of-izno -type f | wc -l` · `grep -n tmp_path_retention_policy pyproject.toml`</sub>

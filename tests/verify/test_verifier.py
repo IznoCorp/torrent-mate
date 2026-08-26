@@ -15,13 +15,14 @@ from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.verify.checks.base import CheckContext, CheckResult, CheckStage, Severity
 from personalscraper.verify.run import _record_verify_terminal, run_verify
 from personalscraper.verify.verifier import Verifier, VerifyResult
+from tests._media_files import write_placeholder_media
 
 
 def _make_valid_movie(parent: Path, title: str = "Movie", year: int = 2024) -> Path:
     """Create a minimal valid movie directory."""
     d = parent / f"{title} ({year})"
     d.mkdir()
-    (d / f"{title}.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+    write_placeholder_media(d / f"{title}.mkv", 200 * 1024 * 1024)
     root = ET.Element("movie")
     ET.SubElement(root, "title").text = title
     ET.SubElement(root, "year").text = str(year)
@@ -69,7 +70,7 @@ class TestVerifyMovie:
         """Badly named movie with NFO should be fixed."""
         d = tmp_path / "bad.name"
         d.mkdir()
-        (d / "Fight Club.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+        write_placeholder_media(d / "Fight Club.mkv", 200 * 1024 * 1024)
         root = ET.Element("movie")
         ET.SubElement(root, "title").text = "Fight Club"
         ET.SubElement(root, "year").text = "1999"
@@ -160,7 +161,7 @@ class TestVerifyCheckFixCycle:
         # Create a movie with bad naming (fixable) but otherwise valid
         d = tmp_path / "bad.name"
         d.mkdir()
-        (d / "GoodMovie.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+        write_placeholder_media(d / "GoodMovie.mkv", 200 * 1024 * 1024)
         root = ET.Element("movie")
         ET.SubElement(root, "title").text = "GoodMovie"
         ET.SubElement(root, "year").text = "2024"
@@ -189,7 +190,7 @@ class TestVerifyCheckFixCycle:
         """Multiple fixable issues should all be corrected."""
         d = tmp_path / "bad.name.2024"
         d.mkdir()
-        (d / "Movie.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+        write_placeholder_media(d / "Movie.mkv", 200 * 1024 * 1024)
         root = ET.Element("movie")
         ET.SubElement(root, "title").text = "Movie"
         ET.SubElement(root, "year").text = "2024"
@@ -256,7 +257,7 @@ class TestVerifyTvshow:
         show_dir.mkdir()
         season_dir = show_dir / "Saison 01"
         season_dir.mkdir()
-        (season_dir / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+        write_placeholder_media(season_dir / "S01E01 - Pilot.mkv", 200 * 1024 * 1024)
         # Phase 9 verify hardening requires episode NFOs to carry the
         # canonical uniqueid (tvdb here, matching tvshow.nfo below).
         (season_dir / "S01E01 - Pilot.nfo").write_text(
@@ -345,10 +346,10 @@ class TestReinforcedChecks:
         season = show / "Saison 01"
         season.mkdir()
         # Properly named episode
-        (season / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+        write_placeholder_media(season / "S01E01 - Pilot.mkv", 200 * 1024 * 1024)
         (season / "S01E01 - Pilot.nfo").write_text("<episodedetails/>")
         # Unrenamed episode (raw release name)
-        (season / "show.s01e02.1080p.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+        write_placeholder_media(season / "show.s01e02.1080p.mkv", 200 * 1024 * 1024)
 
         root = ET.Element("tvshow")
         ET.SubElement(root, "title").text = "Show"
@@ -379,7 +380,7 @@ class TestReinforcedChecks:
         show.mkdir()
         season = show / "Saison 01"
         season.mkdir()
-        (season / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+        write_placeholder_media(season / "S01E01 - Pilot.mkv", 200 * 1024 * 1024)
         (season / "S01E01 - Pilot.nfo").write_text("<episodedetails/>")
 
         # NFO without uniqueid
@@ -441,7 +442,7 @@ class TestVerifierEdgeCases:
         """In dry-run, fix produces a FixAction with new_path but movie_dir is NOT updated."""
         d = tmp_path / "bad.name"
         d.mkdir()
-        (d / "Fight Club.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+        write_placeholder_media(d / "Fight Club.mkv", 200 * 1024 * 1024)
         root = ET.Element("movie")
         ET.SubElement(root, "title").text = "Fight Club"
         ET.SubElement(root, "year").text = "1999"
@@ -473,7 +474,7 @@ class TestVerifierEdgeCases:
         bad.mkdir()
         season = bad / "Saison 01"
         season.mkdir()
-        (season / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+        write_placeholder_media(season / "S01E01 - Pilot.mkv", 200 * 1024 * 1024)
         (season / "S01E01 - Pilot.nfo").write_text("<episodedetails/>")
 
         root = ET.Element("tvshow")
@@ -505,7 +506,7 @@ class TestVerifierEdgeCases:
         bad.mkdir()
         season = bad / "Saison 01"
         season.mkdir()
-        (season / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+        write_placeholder_media(season / "S01E01 - Pilot.mkv", 200 * 1024 * 1024)
         (season / "S01E01 - Pilot.nfo").write_text("<episodedetails/>")
 
         root = ET.Element("tvshow")
@@ -551,7 +552,7 @@ class TestVerifierEdgeCases:
         bad.mkdir()
         season = bad / "Saison 01"
         season.mkdir()
-        (season / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+        write_placeholder_media(season / "S01E01 - Pilot.mkv", 200 * 1024 * 1024)
         (season / "S01E01 - Pilot.nfo").write_text("<episodedetails/>")
         root = ET.Element("tvshow")
         ET.SubElement(root, "title").text = "Show"

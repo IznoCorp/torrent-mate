@@ -22,6 +22,7 @@ import { useMaintenanceReference } from "../../features/maintenance/reference";
 import { type Fact } from "../../lib/engine-drawing";
 import { useUiState } from "../../lib/store-access";
 import { crossReference, section, sectionHeading, surfaceError, topicRow } from "../../ui/variants";
+import { guidance } from "../../ui/variants/layout";
 
 export function MaintenancePage(): ReactElement | null {
   const state = useUiState();
@@ -69,7 +70,7 @@ export function MaintenancePage(): ReactElement | null {
           {t("screens.maintenance.allCommands")}
         </button>
         <h2 className={sectionHeading()} data-part="heading">{topic.t}</h2>
-        <div className="note" data-part="note">{topic.s}</div>
+        <div className={guidance()} data-part="guidance">{topic.s}</div>
         {facts(
           actions.map((action) => ({
             l: action.l,

@@ -161,56 +161,51 @@
   }
 }
 
-/* UNLAYERED, DELIBERATELY, and it is the same lesson twice over. R8 says an
-   author `display` rule BEATS the `[hidden]` attribute, so any class that
-   declares a display must declare its own hidden case. Inside `@layer base`
-   this group then LOST to Tailwind's `grid` utility, and the floating action
-   button reappeared on every page that hides it — the oracle read it as
-   `display: none -> grid` across nineteen states. An override that must win
-   against a utility cannot live below one.
+/* `hidden` HIDES, WHATEVER ELSE THE ELEMENT WEARS — one rule, in place of the
+   hand-maintained list this used to be.
 
-   And it stays a RULE rather than becoming a utility for a separate reason: it
-   is a promise about elements the markup has not met yet, and a utility can
-   only be written on an element somebody has already decided to hide. */
-/* R8 AGAIN, and the reason is worth keeping: `#sugitems` carried its display
-   as an INLINE style, which beats the `[hidden]` attribute — the list stayed
-   visible UNDER the loading skeletons. Its display lives here, with its hidden
-   case beside it.
+   THE COLLISION. `hidden` is styled by the user-agent stylesheet, which every
+   author rule beats. So an element carrying both the attribute and a `display`
+   — a utility, a class, or an inline style — is not hidden at all: it is laid
+   out, painted and TAPPABLE while the markup says it is gone. The list that
+   stood here answered that one class at a time (`.fab[hidden]`,
+   `.installbar[hidden]`, …), which worked for the twelve names somebody had
+   thought of and for no other: `#nav` — the bottom tab bar — and `#ptr` were
+   never on it, so the attribute was inert on both. Measured, not deduced —
+   and measured further: neither is ever GIVEN the attribute today, in the
+   markup or at run time, so nothing was appearing on screen. What was true is
+   that the remedy depended on somebody remembering to extend a list, and a
+   list only ever covers the names somebody already thought of.
+
+   THE FORM IS TAILWIND'S PREFLIGHT REMEDY, AND ONLY IT. This prototype
+   deliberately does not import preflight (`theme.css`): a second reset landing
+   on the one this application already has changes a dozen elements, and that
+   is a lot with its own proof, not a side effect of a bug fix. What is taken
+   is the single declaration, verbatim — the `:where()` keeps its specificity
+   at zero so any rule may still override it deliberately, `until-found` is
+   spared because a browser sets it to reveal content it is scrolling to, and
+   the `!important` is what beats an inline `display`, which nothing else can.
+
+   UNLAYERED, for the reason the list before it was: inside `@layer base` this
+   would sit BELOW the utilities and below the dying stylesheet, and an
+   override that must win cannot live under what it overrides. */
+[hidden]:where(:not([hidden="until-found"])) {
+  display: none !important;
+}
+
+/* R8, and the reason is worth keeping: `#sugitems` carried its display as an
+   INLINE style, which beats the `[hidden]` attribute — the list stayed visible
+   UNDER the loading skeletons. Its display lives here; its hidden case is the
+   rule above, whose `!important` is what reaches an inline declaration.
 
    The list format stacks; the poster format takes the shared gallery grid,
    which is a CLASS. An id rule would beat it by specificity alone, and one of
    the two would then have to be written twice — the one written twice is the
-   one that drifts.
-
-   UNLAYERED, like every other `[hidden]` case here: inside `@layer base` these
-   would sit BELOW the utilities and below the dying stylesheet, and an
-   override that must win cannot live under what it overrides. */
+   one that drifts. */
 #sugitems:not(.gallery) {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-7);
-}
-#sugitems[hidden],
-#sugload[hidden],
-#libitems[hidden] {
-  display: none;
-}
-
-/* The install banner's three hidden cases, for the same reason as the group
-   below: an author `display` beats the attribute. */
-.installbar[hidden],
-.installsub[hidden],
-.installsteps[hidden],
-.installgo[hidden] {
-  display: none;
-}
-
-.fab[hidden],
-.selbar[hidden],
-.live[hidden],
-.crossref[hidden],
-.chip[hidden] {
-  display: none;
 }
 
 /* ── SELECTORS TAILWIND CANNOT EXPRESS FROM THE ELEMENT'S SIDE ─────────

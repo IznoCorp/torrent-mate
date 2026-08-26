@@ -38,6 +38,7 @@ from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.outbox._drain import drain_if_present
 from personalscraper.indexer.repos import disk_repo
 from personalscraper.indexer.schema import DiskRow
+from tests._media_files import write_placeholder_media
 
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "indexer" / "migrations"
 
@@ -136,7 +137,7 @@ def _build_verified_movie_dir(parent: Path, title: str = "Oppenheimer", year: in
     movie_dir.mkdir(parents=True, exist_ok=True)
 
     # Video file — must exceed 100 MB to avoid the "sample" warning check.
-    (movie_dir / f"{title}.mkv").write_bytes(b"\x00" * _MIN_VIDEO_BYTES)
+    write_placeholder_media(movie_dir / f"{title}.mkv", _MIN_VIDEO_BYTES)
 
     # NFO with mandatory fields: title, year, tmdb+imdb uniqueids, genre,
     # and a streamdetails block (verifier checks for its presence).

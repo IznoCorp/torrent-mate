@@ -217,8 +217,22 @@ sheet, and no transitory sheet without its end named here.
 The distinction that makes this a widening and not a dilution: a layer is where CSS is meant to
 live; a transitory sheet is CSS that has not finished leaving. `legacy.css` is what the dying
 engine still needs and it dies with **L13**; `harness.css` is the phone frame and it dies at
-**switchover**. Neither may grow, both are held by a guard, and when their date arrives the
-absence is checked against this paragraph.
+**switchover**. Neither may grow, and when their date arrives the absence is checked against this
+paragraph.
+
+**« Both are held by a guard » was half true, and the correction wave between L08 and L09 is what
+read it.** `legacy.css` is held — `check-legacy-css-residue.py`, classes, declarations and rules,
+at the ceiling. **`harness.css` is held by nothing at all**: no guard measures its size, its rule
+count or its growth, and the only script that names it (`check-compositor-css.py`) names it to
+EXCLUDE it. So the sentence read as a pair of held files when one of them was on trust — which is
+the arm-less directive `CLAUDE.md` § Language warns about, one file over.
+
+**And « may not grow » needs its one exception stated, because that wave grew it.** B-081 restored
+the design-note pair — `.note { display: none }` and `:root.notes .note { display: block }` — which
+L07 deleted with BLOCK 1 and which belongs to this sheet: the notes are the prototype's
+annotations and they ship nowhere. **Restoring what was wrongly taken out of a sheet is not the
+accumulation this decision forbids**; taking new work INTO it would be. Whoever writes the guard
+this paragraph now admits is missing should measure from after that repair, not from before it.
 
 **Why it is not cosmetic.** L13 removes `legacy.css` and the switchover removes `harness.css`.
 Whoever reads D3 on that day must be able to tell that the three layers were always the target
@@ -811,7 +825,7 @@ failure and latency; divergences from the existing backend contract are recorded
 determinism is sufficient for the oracle to depend on it.
 
 **Landed** — PR **#503**, merged 2026-08-26, version 0.98.42, squash `ce1d7b5a`. Design and plan
-in `docs/features/maquette-l08/`. The
+in `docs/archive/features/maquette-l08/`. The
 contract is `frontend/maquette/contract/openapi.json`: 49 paths, 53 operations, 43 schemas, its
 TypeScript types generated and held against drift two ways. 46 seeds, built from `legacy.js` by a declared
 projection and held by `scripts/check-mock-seeds.py` — seven arms, each of which says what it
@@ -1034,6 +1048,23 @@ in a file about *where things stand* is a step the next wave never reads.
 **The same moment owes a third thing: move the wave's row from « In flight » to « Last landed »**,
 and name the next lot. It sits here, with the two commands, for the reason the paragraph above
 gives — it is the only step of the three that cannot be done from the wave's own branch.
+
+**And a fourth: ARCHIVE the wave's design and plan** — `docs/features/<codename>/` moves under
+`docs/archive/features/`, and every cross-reference to it moves in the same step. Added on
+2026-08-26 by B-083, after the third wave out of eight where this gesture slipped: the L06 audit
+had to do it retroactively, L07 did it in the move, L08 did not and the correction wave did it a
+wave late. The operator arbitrated a step here rather than a guard — the check is cheap to
+imagine and this list is not, on the evidence, cheap to remember, so whoever finds it skipped a
+fourth time has the count above to argue with.
+
+**And a fifth, and it is a measurement rather than a gesture: recount « guards green over what
+they do not read »** in `BUGS.md` § Guards green over what they do not read, adding the wave's own
+figure with the pull request or register entry that establishes it. B-085's whole finding is that
+seventeen instances across three consecutive waves were each recorded as an incident of their own
+wave and no figure anywhere carried the total — so the shape read as bad luck three times instead
+of as the dominant failure mode of this repository's instruments. A total nobody recounts is a
+total that stops being true at the next wave. **Zero is a real answer and it is written down**: a
+wave that found none says so, in its row, with the same authority as a wave that found six.
 
 **The maquette first.** Nothing about a surface is decided anywhere else. A surface is drawn
 before it is coded, with named states and a rule that bites.

@@ -1,8 +1,8 @@
 {
   "$comment": "The ceiling under `src/styles/legacy.css`, the CSS residue D-L07-5 let survive the conversion. It dies with the engine at L13. These figures may be LOWERED after a conversion shrinks the residue; raising one is the conversion undone one file over. Read by `scripts/check-legacy-css-residue.py`.",
   "ceiling": {
-    "rules": 285,
-    "classes": 176,
-    "declarations": 1189
+    "rules": 284,
+    "classes": 175,
+    "declarations": 1188
   }
 }

@@ -89,7 +89,7 @@ implementation directives change IN THE SAME MOVE. What loses its subject is rem
      breach is attributable to the phase that commits it and not to a fifteen-phase
      interval. `make check` entire is NOT among them: its fourteen minutes of tests stay a
      wave gate.
-   - no flag (56 rules, 20-25 min) is the **gate before a wave is merged**, and it is not
+   - no flag (59 rules, 20-25 min) is the **gate before a wave is merged**, and it is not
      optional. It ran nowhere automatically until 2026-08-20, and on that day a rename that
      looked contained broke SIX contracts — four of them visible to nothing else, including a
      dead pipeline stop button, while `lint`, `test` and `check` were all green.

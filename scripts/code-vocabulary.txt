@@ -302,6 +302,7 @@ grab
 grid
 group
 groups
+guidance
 harness
 has
 hauteur
@@ -374,6 +375,7 @@ json
 jsx
 kept
 key
+keys
 kind
 knob
 known
@@ -404,6 +406,7 @@ libretry
 light
 like
 line
+lines
 link
 list
 listener
@@ -441,6 +444,7 @@ media
 mediasheet
 medium
 member
+message
 meta
 method
 migrated
@@ -585,6 +589,8 @@ queued
 quiet
 radius
 rank
+ratifies
+ratify
 raw
 read
 real
@@ -629,6 +635,7 @@ restore
 result
 results
 resume
+return
 rich
 right
 ring
@@ -680,6 +687,7 @@ selmode
 semibold
 separator
 series
+served
 services
 set
 setting
@@ -831,6 +839,7 @@ unwinding
 upcoming
 urgency
 url
+usable
 use
 user
 username
@@ -847,6 +856,7 @@ vsw
 waiters
 waiting
 wanted
+wants
 warm
 warning
 was
@@ -860,6 +870,7 @@ width
 window
 with
 without
+wording
 wordmark
 words
 world
