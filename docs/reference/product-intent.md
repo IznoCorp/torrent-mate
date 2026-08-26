@@ -489,7 +489,55 @@ chargement à froid a déjà laissé passer deux défauts sur la vague L05 — c
 qu'ils sont passés sous des règles vertes.
 
 
-## Ce que l'interface DOIT faire (DOIT-1 … DOIT-11)
+## §17 — Comptes, droits et identité Plex (dicté par l'opérateur, 2026-08-26)
+
+**L'application gère des utilisateurs, des profils et des droits.** Elle n'est plus un poste de
+contrôle à un seul occupant : plusieurs personnes s'en servent, elles n'ont pas les mêmes
+permissions, et l'interface doit le refléter partout — pas seulement à la porte d'entrée.
+
+**Les utilisateurs Plex sont des utilisateurs de l'application, et ils s'authentifient par le SSO
+Plex.** Quelqu'un qui a accès au serveur Plex du foyer n'a pas à se voir attribuer un second
+mot de passe pour consulter la médiathèque : il se connecte avec son compte Plex.
+
+### Ce que cela pose
+
+1. **Un droit se lit sur la surface, jamais seulement à l'appel.** Une action qu'un compte n'a pas
+   le droit d'exercer ne doit pas être offerte puis refusée : l'interface montre ce que CE compte
+   peut faire. Un `403` reçu après un geste est un défaut d'interface, pas une sécurité qui
+   fonctionne — c'est **NE-DOIT-PAS-3** appliqué aux droits, et le refus est ici légitime, donc
+   c'est l'offre qui doit disparaître.
+2. **Ce qu'un compte ne peut pas faire reste VISIBLE et EXPLIQUÉ**, quand le cacher tromperait sur
+   l'état du système. §8 — rien en silence — ne s'annule pas parce que le lecteur a moins de
+   droits : il voit que la chose existe et qu'elle ne lui est pas ouverte, il ne voit pas une
+   application amputée dont il croirait qu'elle est complète.
+3. **Le rôle en lecture seule qui existe déjà est un cas de ce §, pas une mécanique à côté.**
+   `PERSONALSCRAPER_WEB_ROLE=staging` refuse aujourd'hui toute écriture par une dépendance unique
+   (`require_not_staging`). Le modèle de droits qui arrive doit l'ABSORBER — un seul chemin
+   d'autorisation, jamais deux —, faute de quoi c'est **NE-DOIT-PAS-7**, un second mécanisme
+   parallèle.
+
+### Ce que cela ne tranche pas, et qui reste à dicter
+
+Écrit ici comme ouvert pour que personne ne les décide en chemin :
+
+- **Quels rôles, et leurs droits exacts.** L'application en connaît un aujourd'hui (lecture seule),
+  et « profils » suggère davantage.
+- **Le SSO Plex remplace-t-il l'authentification actuelle ou s'y ajoute-t-il ?** Le compte
+  opérateur d'aujourd'hui repose sur `WEB_PASSWORD_HASH` et une session signée.
+- **Ce qu'il advient d'un utilisateur Plex qui n'a aucun droit ici** : refusé à la porte, ou admis
+  avec le minimum.
+- **Ce qu'un compte Plex voit par défaut.** Consulter la médiathèque n'est pas piloter le pipeline.
+
+### Ce que cela impose à la preuve
+
+Un droit se vérifie **des deux côtés et séparément** : l'action absente de la surface pour le
+compte qui ne l'a pas, et l'appel refusé pour celui qui la forcerait. Une tenue qui ne mesure que
+le second prouve la sécurité et pas l'interface — et c'est l'interface que ce document régit.
+
+**Aucune de ces exigences n'est bloquée par la maquette, ni ne la bloque.** Elles se dessinent
+comme tout le reste : dans la maquette d'abord, avec des états nommés et une règle qui mord.
+
+## Ce que l'interface DOIT faire (DOIT-1 … DOIT-12)
 
 1. **DOIT-1 — Tout montrer, en français clair.** Chaque média a un état compréhensible sans être
    développeur : intégré, renommé, identifié, posters récupérés, trailer, dispatché. Un libellé
@@ -514,6 +562,10 @@ qu'ils sont passés sous des règles vertes.
    pleinement fonctionnel mais n'est pas le point de départ du dessin.
 10. **DOIT-10 — Retrouvable.** Chaque détail a son URL ; Retour ferme ce qu'il doit fermer, et il **refait le chemin emprunté** (§16).
 11. **DOIT-11 — Être consultable.** Tout média affiché ouvre sa fiche détail ; la fiche dit ce qu'est le média (titre, année, synopsis, réalisateur, bande-annonce ; pour une série : saisons, épisodes, statut) **et** où il en est chez nous (possédé ou non, complétude par saison). La fiche est atteignable par un lien stable (`/media/:provider/:id`).
+12. **DOIT-12 — Montrer l'application de CE compte (§17).** Les actions offertes sont celles que le
+    compte connecté peut exercer ; ce qu'il ne peut pas faire est visible et expliqué plutôt que
+    silencieusement absent, quand le cacher tromperait sur l'état du système. Un refus reçu après
+    le geste est un défaut d'interface.
 
 ## Ce que l'interface NE DOIT PAS faire (NE-DOIT-PAS-1 … NE-DOIT-PAS-9)
 

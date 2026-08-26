@@ -147,6 +147,7 @@ when the defect comes back.
 | B-104 | Back returns to the top of a page: the scroll memory only knows overlay screens | by operator | `open` |
 | B-105 | Ten elements carry no class at all, in a prototype that imports no preflight | by audit | `open` |
 | B-106 | Nothing measures the interface against the constitution: five DOIT clauses have no surface | by audit | `open` |
+| B-107 | §17 (accounts, rights, Plex SSO) has no surface, no contract operation and no lot | by audit | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -2326,3 +2327,35 @@ where the path is retraced and the position is not: whether the scroll is part o
 the operator's reading, not this steward's.
 
 <sub>`python3 -c "import json;d=json.load(open('frontend/maquette/contract/openapi.json'));print(sum(1 for p in d['paths'].values() for v in p if v in ('get','post','put','patch','delete')))"` · `sed -n '492,517p' docs/reference/product-intent.md` · `docs/reference/frontend-backend-demands.md` § 4</sub>
+
+**B-107 — the constitution gained a section, and nothing in the plan answers it.**
+The operator dictated **§17 — Comptes, droits et identité Plex** on 2026-08-26: the application
+manages users, profiles and rights, and Plex users authenticate through Plex SSO. `DOIT-12` was
+added with it — the actions offered are those the connected account may exercise.
+
+**Recorded here the day it was written, because B-106 is one entry old**: three instruments measure
+this interface and none reads the constitution, so a clause it gains is invisible to every gate
+until someone says so. This is that someone.
+
+**What exists today, measured**: one role (`PERSONALSCRAPER_WEB_ROLE=staging`, refusing writes
+through the single `require_not_staging` dependency), one account (`WEB_PASSWORD_HASH` and a signed
+session), and `GET /api/auth/me` in the maquette's contract carrying `avatar`, `email`, `name` and
+nothing about rights. Plex is integrated for library refresh (`X-Plex-Token`, `plex-api.md`) and
+never for identity.
+
+**What §17 needs and nothing provides**: no operation in the 53 the interface declares concerns a
+user other than the one connected, a role, or a permission; none of the thirteen lots names
+accounts; and `frontend/maquette/design/src/features/account/` is a single `page.tsx` showing the
+current person, not a model of several.
+
+**The one thing §17 says that is a REQUIREMENT on existing code rather than new work**: the
+read-only role must be ABSORBED by the rights model, not sit beside it. Two authorisation paths is
+NE-DOIT-PAS-7, and the one that exists today is a single shared dependency — which is what makes
+absorbing it cheap now and expensive after a second path exists.
+
+Four questions §17 leaves open are written INTO the section rather than here, so that whoever
+implements it reads them where the rule is: which roles and their exact rights, whether Plex SSO
+replaces or joins the current sign-in, what becomes of a Plex user with no rights here, and what a
+Plex account sees by default. None is the steward's to answer.
+
+<sub>`grep -n 'WEB_ROLE\|require_not_staging' docs/reference/web-ui.md` · `python3 -c "import json;print([p for p in json.load(open('frontend/maquette/contract/openapi.json'))['paths'] if 'auth' in p])"`</sub>
