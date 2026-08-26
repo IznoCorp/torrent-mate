@@ -116,6 +116,9 @@ when the defect comes back.
 | B-080 | The drawer shows a hard-coded version and build, and calls itself up to date | by operator | `open` |
 | B-081 | Design notes can no longer be hidden, and the oracle measures without them | by operator | `open` |
 | B-082 | `hidden` hides nothing on five elements, so an invisible button is still tappable | by operator | `open` |
+| B-083 | L08's design and plan were never archived, and every lot before it was | by audit | `open` |
+| B-084 | A wave that found twenty defects wrote none of them in this register | by audit | `open` |
+| B-085 | Guards green over what they do not read: 17 in three consecutive waves, counted by nobody | by audit | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -1563,3 +1566,57 @@ the same corner as a primary action. Mutation for the first: set `hidden` on `#f
 tap at its coordinates reaches nothing.
 
 <sub>`grep -n 'hidden' frontend/maquette/design/index.html` · `sed -n '55,70p' frontend/maquette/design/src/styles/theme.css`</sub>
+
+**B-083 — L08 landed and its design and plan stayed under `docs/features/`.**
+Every lot from L01 to L07 sits under `docs/archive/features/`; `docs/features/` holds
+`maquette-l08` and `tech-debt-2` and nothing else. The closing pull request (#504) did the other
+two post-merge gestures — both references re-recorded at `ce1d7b5a`, verified ancestors of `HEAD`,
+on `Darwin/arm64` — and left this one. **Third wave out of eight where archiving is the gesture
+that slips**: the L06 audit had to do it retroactively, L07 did it in the move, L08 did not. A
+gesture that is remembered two times out of three is a gesture that needs a check, not a reminder.
+
+<sub>`ls docs/features/` · `ls docs/archive/features/ | tr ' ' '\n' | grep maquette`</sub>
+
+**B-084 — the wave that found the most wrote the least down.**
+`BUGS.md` holds 78 entries on `main` after L08, the same 78 it held before. L08's own session
+report enumerates roughly twenty findings: four value defects « no instrument could catch », five
+the instruments did catch, six instruments that were wrong about themselves, and six faults the
+agent declares as its own. **None of them is in this register**, and there is no `drafts/`
+directory under the lot to hold them either.
+
+**The precedent is one wave old and it was raised before the merge, not after.** The steward's
+hand-off for L07 named this as correction 1 — « the register has not been touched, and the squash
+will carry off what the wave found » — and L07 answered it with thirteen entries, several of them
+`fixed #494`. The rule this register opens with does not exempt a defect because it was repaired
+in the same wave: **reported is written down**, and a defect repaired in flight is precisely the
+one whose recurrence nobody will recognise.
+
+What is lost is not the repairs — those are in the code. It is the CLASSES: « a false name that
+compiles » (an inverted integer pair claiming a series holds 175 episodes of 117; a field named
+for a series carrying a broadcast status; a contract value holding the engine's rendered French,
+lossily — « multi, vf, vostfr +1 » standing in for four items; a hash field answering with a
+release name). Not one of those is findable today by anyone who was not in that session.
+
+<sub>`grep -c '^| B-' BUGS.md` · `ls docs/features/maquette-l08/`</sub>
+
+**B-085 — the same shape has appeared in three consecutive waves, and nothing counts it.**
+« A guard is green because of what it does not read. » L07's adversarial review found it **six**
+times, and named it the wave's own doctrine turned against it. L07-bis found it **five** more
+(B-075), two of them inside the reader of the rule that wave was building — and recorded that the
+seven-hold floor was a pre-satisfied counter *one wave after* the wave that named that trap. L08's
+report lists **six** more: an extractor demanding a TypeScript install the runner lacks, a handler
+guard not reading `state.ts`, a boundary arm refusing features but not the dying engine, a register
+holding its names and not its classes, an oracle change with no rule at all, and an `isPureLiteral`
+that never judged the node it was given.
+
+**Seventeen in three waves.** Each was found, each was repaired, and each was recorded as an
+incident of its own wave. **No figure anywhere carries the total**, so the shape reads as bad luck
+three times instead of as the dominant failure mode of this repository's instruments — which is
+what a count would have said after the first six.
+
+This entry is the count. It is not a defect in one file: it asks for the figure to exist and to be
+re-measured at each wave's close, the way every other figure here carries its command. A guard is
+not proven by being written; it is proven by being read back — and « what does this guard NOT
+read? » is the question that has paid for itself seventeen times.
+
+<sub>L07: PR #494's review · L07-bis: B-075 · L08: PR #503's session report</sub>
