@@ -143,6 +143,7 @@ when the defect comes back.
 | B-100 | Invariant 10 is written and unarmed: no arm counts the frame's domain words | by audit | `open` |
 | B-101 | The steward's brief predicted an oracle movement that could not happen | by audit | `open` |
 | B-102 | The profile panel's avatar is unconstrained, inside a region whose probe reads only the container | by operator | `open` |
+| B-103 | Three typed variants were written and never wired; one leaves a bare button unreadable | by operator | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -2175,3 +2176,43 @@ other, and it is D8's arbitration, not this entry's.
 > where it belongs: the failure is identical whether the reader is a guard or a person.
 
 <sub>`grep -rn '\.avatar' frontend/maquette/design/src/styles/*.css` · `git show 5fdbfc9a^:frontend/maquette/design/refonte.html | sed -n '505,525p'` · `grep -o '"sheet-[a-z0-9-]*"' frontend/maquette/regions.json`</sub>
+
+**B-103 — three variants exist, are exported, and are called by nothing.**
+Reported by the operator on 2026-08-26: after adding a media to follows, the bar at the bottom of
+the add screen shows « 1 média ajouté » beside **a white rectangle whose text cannot be read**, and
+there is no way to dismiss it.
+
+**The variant was written correctly and never connected.** L07 converted `.addfoot button` into
+`addFooterAction` — `ml-auto [border:0] bg-transparent text-primary font-semibold text-3`, exactly
+the six declarations the old rule carried. The call site does not use it:
+
+    features/acquisition/add-screen.tsx:366
+    <button onClick={toFollows}>{t("screens.add.seeFollows")}</button>
+
+A bare `<button>`. **Preflight is deliberately not imported** (`theme.css`, L07's decision and a
+right one), so a classless button keeps the user-agent's own painting — light background, dark
+text, border. On this application's dark surface that is the white rectangle, and « Voir mes
+suivis → » becomes unreadable. Same root as B-082 reached from the other end: there the remedy for
+bare elements was a hand-kept list; here an element is bare that should not have been.
+
+**It is not one button. Three variants in that one file are called from nowhere** — verified one by
+one rather than trusting the sweep that found them: `addFooterAction`, `resultList` and
+`suggestionChip` each return exactly one grep hit, their own declaration. One surface was converted
+with three of its variants left unplugged.
+
+**Nothing could have caught it.** TypeScript does not fault an unused export. The oracle cannot:
+the footer paints only when `added.size > 0`, and the two named states of that screen are
+`acq-add-empty` and `acq-add-results` — the second searches « star wars » and adds nothing — so **no
+measured state ever paints this bar**. Not a coverage gap this time but a STATE gap: the surface has
+states, and none reaches the condition.
+
+**The finding is that this is measurable in twenty lines and nothing measures it.** A variant
+exported from a `variants.ts` and called from no other file is a mechanical check, and it would have
+returned all three at once. It also asks what no existing guard asks: `check-markup-contracts.py`
+reads the classes that ARE emitted; nothing reads the ones that were meant to be.
+
+**A second defect, separate, and the operator's to arbitrate**: the bar is `sticky` above the
+content and nothing reserves the space beneath it, so it covers a card. It is not a toast and has no
+dismissal by design — whether it should have one is a layout decision, not a repair.
+
+<sub>`grep -rn 'addFooterAction\|resultList\|suggestionChip' frontend/maquette/design/src/` · `grep -n 'acq-add' frontend/maquette/design/src/engine/states.js`</sub>
