@@ -142,7 +142,7 @@ when the defect comes back.
 | B-085 | Guards green over what they do not read: 17 in three consecutive waves, counted by nobody | by audit | `open` |
 | B-100 | Invariant 10 is written and unarmed: no arm counts the frame's domain words | by audit | `open` |
 | B-101 | The steward's brief predicted an oracle movement that could not happen | by audit | `open` |
-| B-102 | The profile panel's avatar is unconstrained and covers the sheet, on a surface no state names | by operator | `open` |
+| B-102 | The profile panel's avatar is unconstrained, inside a region whose probe reads only the container | by operator | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -2147,15 +2147,31 @@ what the screenshot shows, a square that overflows.
 that looks like it paints and does not is the shape `regions.json`'s `$vocabulary` exists to keep
 honest.
 
-**Why 2 739 measurements did not see it, and this is the finding worth more than the defect.** The
-user sheet is reached by tapping the header avatar, and **no named state opens it**: `regions.json`
-holds `screen-profile/body` — « a person's screen », a different surface — and the only sheet-shaped
-state is `sheet-hidden-under-layer`, which tests something else. The oracle cannot regress what it
-never visits. A conversion wave proved 530 rules moved without the rendering changing, on the states
-it measures; this one moved wrong on a state it does not.
+**Why 2 739 measurements did not see it, and this is the finding worth more than the defect.**
+The state EXISTS and is measured: `engine/states.js` declares `sheet-user` — « Menu utilisateur —
+profil et déconnexion » — driven by `openUserSheet()`, and `regions.json` covers it with
+`shell/sheet-content` → `#sheetin`. The oracle visits this surface at every run.
 
-Fix, in two halves: restore the base and the image rules for BOTH call sites — the shared way, since
-the header already proves what the full set is — and **give the user sheet a named state**, so the
-next conversion has something to be held by. The second half is the one that stops this recurring.
+**It reads the container.** D8's probe takes a bounding rectangle and 19 computed properties **of
+the region's own element**, which here is `#sheetin`. The avatar is a descendant, and a descendant
+painting at the wrong size changes neither of those. This is the limit D8 records — written on
+2026-08-25 for pseudo-elements (B-061) — reaching the same way through ordinary CHILDREN, which
+that paragraph does not say.
+
+So the gap is not coverage, it is depth: a region can be visited at every run, for months, while
+what is wrong inside it is structurally outside what the probe returns.
+
+Fix, in two halves: restore the base and the image rules for BOTH call sites — the header already
+proves what the full set is — and decide what holds a descendant. A named rule reading the image
+the way R26 reads a pseudo-element is the shape that exists; widening the probe to children is the
+other, and it is D8's arbitration, not this entry's.
+
+> **THIS ENTRY'S FIRST DIAGNOSIS WAS WRONG, and it is kept here because the way it was wrong is
+> the point.** It read « no named state opens it », concluded from `regions.json` — which holds
+> regions and not states — without opening `engine/states.js`, where `sheet-user` has been declared
+> all along. **Third time in three waves** the same office has concluded from the one place a fact
+> ought to live: B-082's five elements (`base.css` unopened), B-101's oracle forecast
+> (`html.measuring` unjoined), and this. Counted in § Guards green over what they do not read,
+> where it belongs: the failure is identical whether the reader is a guard or a person.
 
 <sub>`grep -rn '\.avatar' frontend/maquette/design/src/styles/*.css` · `git show 5fdbfc9a^:frontend/maquette/design/refonte.html | sed -n '505,525p'` · `grep -o '"sheet-[a-z0-9-]*"' frontend/maquette/regions.json`</sub>
