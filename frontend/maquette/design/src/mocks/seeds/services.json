@@ -1,0 +1,32 @@
+[
+  {
+    "label": "TorrentMate",
+    "tone": "success",
+    "value": "en ligne",
+    "secondaryLine": "depuis ce matin 09 h 36"
+  },
+  {
+    "label": "TorrentMate (staging)",
+    "tone": "success",
+    "value": "en ligne",
+    "secondaryLine": "depuis ce matin 08 h 25"
+  },
+  {
+    "label": "Veille des téléchargements",
+    "tone": "success",
+    "value": "en ligne",
+    "secondaryLine": "depuis le 10 août"
+  },
+  {
+    "label": "Déploiement automatique",
+    "tone": "success",
+    "value": "en ligne",
+    "secondaryLine": "depuis le 10 août"
+  },
+  {
+    "label": "Hôte de la maquette",
+    "tone": "success",
+    "value": "en ligne",
+    "secondaryLine": "depuis ce matin 08 h 28 · redémarré à la main après chaque édition"
+  }
+]

@@ -1,0 +1,127 @@
+[
+  {
+    "title": "Kyma, l'onde mystérieuse",
+    "showStatus": null,
+    "since": "9 août",
+    "searches": 13,
+    "kind": "movie",
+    "year": 2026,
+    "status": "pending",
+    "fresh": true
+  },
+  {
+    "title": "L'Odyssée",
+    "showStatus": null,
+    "since": "6 août",
+    "searches": 15,
+    "kind": "movie",
+    "year": 2026,
+    "status": "pending"
+  },
+  {
+    "title": "Spider-Man : Brand New Day",
+    "showStatus": null,
+    "since": "5 août",
+    "searches": 18,
+    "kind": "movie",
+    "year": 2026,
+    "status": "pending"
+  },
+  {
+    "title": "Wicker",
+    "showStatus": null,
+    "since": "31 juillet",
+    "searches": 18,
+    "kind": "movie",
+    "year": 2026,
+    "status": "pending"
+  },
+  {
+    "title": "American Dad!",
+    "showStatus": "Continuing",
+    "since": "3 juillet",
+    "searches": 79,
+    "kind": "show",
+    "year": 2005,
+    "status": "up_to_date",
+    "owned": 403,
+    "aired": 403
+  },
+  {
+    "title": "Dexter: Resurrection",
+    "showStatus": "Continuing",
+    "since": "5 août",
+    "searches": 0,
+    "kind": "show",
+    "year": 2025,
+    "status": "up_to_date",
+    "owned": 96,
+    "aired": 96
+  },
+  {
+    "title": "Furious",
+    "showStatus": "Continuing",
+    "since": "27 juillet",
+    "searches": 15,
+    "kind": "show",
+    "year": 2026,
+    "status": "up_to_date",
+    "owned": 5,
+    "aired": 5
+  },
+  {
+    "title": "House of the Dragon",
+    "showStatus": "Continuing",
+    "since": "3 juillet",
+    "searches": 17,
+    "kind": "show",
+    "year": 2022,
+    "status": "up_to_date",
+    "owned": 26,
+    "aired": 26
+  },
+  {
+    "title": "President Curtis",
+    "showStatus": "Continuing",
+    "since": "29 juillet",
+    "searches": 23,
+    "kind": "show",
+    "year": 2026,
+    "status": "up_to_date",
+    "owned": 3,
+    "aired": 3
+  },
+  {
+    "title": "Silo",
+    "showStatus": "Continuing",
+    "since": "3 juillet",
+    "searches": 13,
+    "kind": "show",
+    "year": 2023,
+    "status": "pending",
+    "owned": 26,
+    "aired": 27
+  },
+  {
+    "title": "Star Trek: Strange New Worlds",
+    "showStatus": "Continuing",
+    "since": "28 juillet",
+    "searches": 18,
+    "kind": "show",
+    "year": 2022,
+    "status": "up_to_date",
+    "owned": 33,
+    "aired": 33
+  },
+  {
+    "title": "Ted Lasso",
+    "showStatus": "Continuing",
+    "since": "4 août",
+    "searches": 13,
+    "kind": "show",
+    "year": 2020,
+    "status": "up_to_date",
+    "owned": 35,
+    "aired": 35
+  }
+]

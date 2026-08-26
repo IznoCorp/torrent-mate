@@ -1,0 +1,38 @@
+[
+  {
+    "label": "Contrôle de santé",
+    "tone": "success",
+    "value": "à l'heure",
+    "secondaryLine": "toutes les heures à la 15ᵉ minute · dernier passage il y a moins d'une heure · 261 passages"
+  },
+  {
+    "label": "Récupération des releases",
+    "tone": "success",
+    "value": "à l'heure",
+    "secondaryLine": "à 03 h 20 et 15 h 20 · dernier passage ce matin à 03 h 20 · 24 passages"
+  },
+  {
+    "label": "Recherche de releases",
+    "tone": "success",
+    "value": "à l'heure",
+    "secondaryLine": "à 03 h 10 et 15 h 10 · dernier passage ce matin à 03 h 10 · 15 passages"
+  },
+  {
+    "label": "Détection des suivis",
+    "tone": "success",
+    "value": "à l'heure",
+    "secondaryLine": "chaque jour à 03 h 00 · dernier passage ce matin à 03 h 00 · 11 passages"
+  },
+  {
+    "label": "Enrichissement de l'index",
+    "tone": "success",
+    "value": "à l'heure",
+    "secondaryLine": "le dimanche à 04 h 30 · dernier passage le 9 août · 2 passages"
+  },
+  {
+    "label": "Complétion des identifiants",
+    "tone": "success",
+    "value": "à l'heure",
+    "secondaryLine": "le dimanche à 05 h 00 · dernier passage le 9 août · 2 passages"
+  }
+]

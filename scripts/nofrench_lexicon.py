@@ -175,6 +175,34 @@ FROZEN_PATH_SEGMENTS = {
     ),
 }
 
+# Files NOBODY WRITES. The vocabulary arm asks « is this word one we use? »,
+# and that question is about a name someone CHOSE. A generated file's names are
+# the generator's — `paths`, `webhooks`, `components`, `operations`, `$defs` are
+# the OpenAPI and JSON Schema specifications' own words, arriving through
+# `openapi-typescript`.
+#
+# THE ALTERNATIVE WAS WORSE, and it is why this is a file exemption rather than
+# five new words. Adding them to `code-vocabulary.txt` would license them as
+# names EVERYWHERE — including `defs`, which is an abbreviation the naming rule
+# refuses outright. A vocabulary widened to accommodate a generator is a
+# vocabulary that has stopped describing what this codebase writes.
+#
+# NARROW ON PURPOSE: only this arm skips these files. The arms that ask « is
+# this French? » keep reading them, so French arriving through the contract's
+# own descriptions would still be caught.
+#
+# AND IT IS NOT A HOLE SOMEONE MAY WIDEN BY HAND: the value names the command
+# that produces the file and the two checks that hold it. One regenerates it and
+# refuses any difference — the strongest proof, and it needs the generator, so
+# it runs where the generator is. The other holds it against the contract by
+# structure, needs nothing, and runs wherever this guard does. Naming only the
+# first left the exemption unproven on every machine that reads it.
+GENERATED_SOURCES = {
+    "mocks/contract-types.d.ts": (
+        "npm run generate-contract-types — from frontend/maquette/contract/openapi.json. Held two ways: `make check-contract-types` regenerates it and refuses any difference, which needs the generator and runs only where it is installed; and `scripts/check-mock-seeds.py --arm generated` holds it against the contract by structure, needs neither node nor the generator, and runs wherever the guards do — which is where THIS exemption is read."
+    ),
+}
+
 # Declared NAMES that stay French. Kept apart from the path allowlist above on
 # purpose: « this directory is an address » is a reason about paths, and letting
 # it excuse a variable would make five French words legal as names everywhere on

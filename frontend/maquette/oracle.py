@@ -447,6 +447,29 @@ REST = """(budget)=>{
   });
 }"""
 
+# Wait until nothing is in flight, and it is a FACT the page publishes rather
+# than a duration.
+#
+# WHY IT IS HERE BEFORE IT IS NEEDED (D-L08-9). L01's own entry says it: « when
+# real data replaces the fixtures (L09), determinism moves to the mock layer —
+# the oracle then depends on L08, so plan the two together rather than against
+# each other ». Nothing fetches today, so `quiet()` resolves on the spot and no
+# measurement can move; adding it at L09 would mean changing the instrument
+# inside the wave the instrument is measuring.
+#
+# GUARDED, so a document built without the mock layer is unaffected: `__mocks`
+# is optional and its absence is not an error here. Raced against a budget for
+# the same reason every other half of this signal is — a handler that never
+# answers must not hang a measurement, it must be reported by the rule that
+# holds the layer (R85), not by a stalled oracle.
+NETWORK_QUIET = """(budget)=>Promise.race([
+  window.__mocks ? window.__mocks.quiet() : Promise.resolve(),
+  new Promise((resolve)=>setTimeout(resolve, budget)),
+])"""
+
+# How long the in-flight signal is given before the settle goes on without it.
+NETWORK_QUIET_BUDGET_MS = 2000
+
 # How long a finite animation is given to end before the signal gives up on it.
 # A budget, never a wait: the common path resolves as soon as the last one ends.
 FINITE_ANIMATION_BUDGET_MS = 2000
@@ -460,7 +483,8 @@ async def settle(page, regions: dict | None = None) -> None:
 
     A delay in milliseconds is a race that passes on an idle machine and fails
     on a loaded one, and an oracle that flickers is an oracle someone disables.
-    Every step here is a fact about the document.
+    Every step here is a fact about the document — including the first, which
+    asks the mock layer whether anything is still in flight (D-L08-9).
 
     `TM_ORACLE_NO_SETTLE=1` drops back to the two-frame floor, so the divergence
     the signal prevents can be produced on demand — a counter-measure that is
@@ -478,6 +502,7 @@ async def settle(page, regions: dict | None = None) -> None:
         await page.evaluate(TWO_FRAMES)
         return
 
+    await page.evaluate(NETWORK_QUIET, NETWORK_QUIET_BUDGET_MS)
     await page.evaluate(REST, FINITE_ANIMATION_BUDGET_MS)
     await page.evaluate(TWO_FRAMES)
     if not regions:

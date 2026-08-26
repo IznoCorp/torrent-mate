@@ -1,0 +1,236 @@
+[
+  {
+    "id": "library-status",
+    "label": "État de la bibliothèque",
+    "description": "Affiche le résumé du dernier scan d'indexation terminé.",
+    "group": "query",
+    "risk": "ro",
+    "long": false,
+    "dryRun": false
+  },
+  {
+    "id": "library-search",
+    "label": "Recherche dans la bibliothèque",
+    "description": "Recherche des médias indexés avec le langage de requête flex-attr.",
+    "group": "query",
+    "risk": "ro",
+    "long": false,
+    "dryRun": false
+  },
+  {
+    "id": "library-show",
+    "label": "Détail d'un élément",
+    "description": "Affiche toutes les données stockées pour un média (ID DB).",
+    "group": "query",
+    "risk": "ro",
+    "long": false,
+    "dryRun": false
+  },
+  {
+    "id": "library-index",
+    "label": "Indexer la bibliothèque",
+    "description": "Lance un scan complet ou rapide des disques et met à jour l'index.",
+    "group": "scan",
+    "risk": "write",
+    "long": true,
+    "dryRun": true
+  },
+  {
+    "id": "library-init-canonical",
+    "label": "Initialiser le provider canonique",
+    "description": "Peuple canonical_provider et external_ids_json depuis les fichiers NFO.",
+    "group": "scan",
+    "risk": "write",
+    "long": true,
+    "dryRun": true
+  },
+  {
+    "id": "library-scan",
+    "label": "Scan complet (alias)",
+    "description": "Alias visible de library-index --mode full. Parcourt tous les disques.",
+    "group": "scan",
+    "risk": "write",
+    "long": true,
+    "dryRun": true
+  },
+  {
+    "id": "library-backfill-ids",
+    "label": "Backfill des IDs croisés",
+    "description": "Remplit les IDs cross-provider et les ratings manquants via TMDB/TVDB/OMDb.",
+    "group": "scan",
+    "risk": "write",
+    "long": true,
+    "dryRun": true
+  },
+  {
+    "id": "library-verify",
+    "label": "Vérifier les fichiers",
+    "description": "Re-stat chaque fichier indexé et signale les divergences dans la repair_queue.",
+    "group": "repair",
+    "risk": "write",
+    "long": true,
+    "dryRun": false
+  },
+  {
+    "id": "library-repair",
+    "label": "Réparer (repair queue)",
+    "description": "Vide la repair_queue dans la limite du budget temps. FIFO, reprenable.",
+    "group": "repair",
+    "risk": "write",
+    "long": true,
+    "dryRun": true
+  },
+  {
+    "id": "library-clean",
+    "label": "Nettoyer les disques",
+    "description": "Supprime les répertoires .actors/, dossiers vides et fichiers junk des disques.",
+    "group": "clean",
+    "risk": "destructive",
+    "long": true,
+    "dryRun": true
+  },
+  {
+    "id": "library-validate",
+    "label": "Valider la bibliothèque",
+    "description": "Vérifie la conformité des NFO, artworks et nommages des éléments.",
+    "group": "clean",
+    "risk": "destructive",
+    "long": true,
+    "dryRun": true
+  },
+  {
+    "id": "library-reconcile",
+    "label": "Réconcilier index ↔ disques",
+    "description": "Détecte les divergences entre l'index et les fichiers sans rescan complet.",
+    "group": "fix",
+    "risk": "write",
+    "long": true,
+    "dryRun": true
+  },
+  {
+    "id": "library-ghost-audit",
+    "label": "Audit des fichiers fantômes",
+    "description": "Détecte les entrées fantômes NTFS-via-macFUSE sur les disques.",
+    "group": "query",
+    "risk": "ro",
+    "long": true,
+    "dryRun": false
+  },
+  {
+    "id": "library-relink",
+    "label": "Relier les fichiers orphelins",
+    "description": "Relie les media_file sans release_id à leur media_release.",
+    "group": "fix",
+    "risk": "write",
+    "long": true,
+    "dryRun": true
+  },
+  {
+    "id": "library-refresh-path",
+    "label": "Rafraîchir un dossier renommé",
+    "description": "Réconciliation d'index ciblée après un rename/move manuel : invalide le sous-arbre, rescanne le disque propriétaire, relie et répare les compteurs.",
+    "group": "fix",
+    "risk": "write",
+    "long": true,
+    "dryRun": true
+  },
+  {
+    "id": "library-analyze",
+    "label": "Analyser la bibliothèque",
+    "description": "Résumé des codecs, audio et sous-titres depuis les streams enrichis.",
+    "group": "analyze",
+    "risk": "ro",
+    "long": true,
+    "dryRun": false
+  },
+  {
+    "id": "library-recommend",
+    "label": "Recommandations",
+    "description": "Génère des recommandations de re-téléchargement (codec, taille, priorité).",
+    "group": "analyze",
+    "risk": "ro",
+    "long": true,
+    "dryRun": false
+  },
+  {
+    "id": "library-rescrape",
+    "label": "Re-scraper des éléments",
+    "description": "Re-scrape ciblé des éléments via TMDB/TVDB (NFO, artwork, épisodes).",
+    "group": "analyze",
+    "risk": "destructive",
+    "long": true,
+    "dryRun": true
+  },
+  {
+    "id": "library-report",
+    "label": "Rapport de bibliothèque",
+    "description": "Affiche les statistiques et l'état de santé global de la bibliothèque.",
+    "group": "analyze",
+    "risk": "ro",
+    "long": true,
+    "dryRun": false
+  },
+  {
+    "id": "library-doctor",
+    "label": "Diagnostic de la base",
+    "description": "Exécute une suite de vérifications sur la base indexer (intégrité, FK, dérive…).",
+    "group": "query",
+    "risk": "ro",
+    "long": false,
+    "dryRun": false
+  },
+  {
+    "id": "library-gc",
+    "label": "Nettoyage de l'outbox",
+    "description": "Supprime les vieilles lignes index_outbox (status=done) pour éviter la croissance infinie.",
+    "group": "fix",
+    "risk": "write",
+    "long": false,
+    "dryRun": true
+  },
+  {
+    "id": "library-fix-canonical-provider",
+    "label": "Corriger canonical_provider",
+    "description": "Répare les valeurs incorrectes de canonical_provider (shows→tvdb, movies→tmdb).",
+    "group": "fix",
+    "risk": "write",
+    "long": false,
+    "dryRun": true
+  },
+  {
+    "id": "library-fix-nfo",
+    "label": "Réparer les NFO malformés",
+    "description": "Tronque le contenu hors-racine XML dans les fichiers NFO (liens TVDB parasites).",
+    "group": "fix",
+    "risk": "destructive",
+    "long": true,
+    "dryRun": true
+  },
+  {
+    "id": "library-fix-orphan-files",
+    "label": "Réparer les fichiers orphelins",
+    "description": "Relie les media_file sans release_id à leur media_release (2 niveaux : item + épisode).",
+    "group": "fix",
+    "risk": "destructive",
+    "long": true,
+    "dryRun": true
+  },
+  {
+    "id": "library-fix-season-counts",
+    "label": "Corriger le compte d'épisodes",
+    "description": "Recalcule season.episode_count pour les saisons dont le cache a dérivé.",
+    "group": "fix",
+    "risk": "write",
+    "long": false,
+    "dryRun": true
+  },
+  {
+    "id": "library-dedup-titles",
+    "label": "Dédupliquer les titres",
+    "description": "Fusionne les media_item dont le titre ne diffère que par la normalisation NFD/NFC.",
+    "group": "fix",
+    "risk": "destructive",
+    "long": true,
+    "dryRun": true
+  }
+]

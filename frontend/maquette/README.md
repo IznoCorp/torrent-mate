@@ -507,6 +507,58 @@ into a code change it happens to precede.
 
 ---
 
+## The mock layer — what it is, and how to drive it (L08)
+
+**The prototype is still NOT connected to a backend, and this changes nothing about that**
+(operator, 2026-08-20). A mock layer is not a connection: it answers the maquette's own
+contract, in process, from data taken out of the engine's fixtures. The wiring belongs to the
+switchover.
+
+**What it is.** `design/src/mocks/` — one module replaces `fetch` with a table of 54 routes, one
+per operation `frontend/maquette/contract/openapi.json` declares. No service worker: the oracle
+measures at first paint and a worker's registration is asynchronous. It is installed
+synchronously in the boot, before the engine starts, behind the build-time constant
+`__MOCKS_BUILT_IN__`.
+
+**Where its data comes from, and it is the whole point.** `design/src/mocks/seeds/*.json` are
+built from `design/src/engine/legacy.js` by a declared projection — a rename of keys and a
+regroup of positional arrays, never a re-derivation. Nothing in them is invented. That is what
+makes the NEXT lot provable: wiring a surface to a mock that returns exactly what the fixture
+returns renders the same thing, so the oracle proves the wiring at zero divergence.
+
+```
+python3 scripts/build-mock-seeds.py --write     # rebuild every seed
+python3 scripts/check-mock-seeds.py             # six arms, ~1 s
+python3 scripts/check-mock-seeds.py --list      # the inventory it holds
+node scripts/extract-maquette-fixtures.mjs --measure
+```
+
+**After `resync.py` or `refresh-maquette-fixture.py` rewrites a fixture, rebuild the seeds in the
+same commit.** The correspondence arm re-derives on every run, so a refresh that does not is a
+red guard — which is wanted, and is the reminder rather than a defect.
+
+**How to drive it**, from the console or from a rule — `window.__mocks`:
+
+| | |
+| --- | --- |
+| `.routes()` | every route it answers, `METHOD template` |
+| `.scenario()` | the scenario in force: the frozen clock, the default latency, the per-operation overrides |
+| `.scenario().operations.<operationId> = { status: 503 }` | make one operation fail |
+| `.scenario().operations.<operationId> = { latencyMilliseconds: 250 }` | hold one answer back |
+| `.inFlight()` | how many requests are in flight |
+| `.quiet()` | a promise that settles when none is. `oracle.py`'s settle reads it |
+| `.reset()` | the seeded state and the empty scenario, both back |
+
+**A request no route claims FAILS and names itself** — 404 with the method and the path. Never a
+pass-through, never a silent empty object: a mock that answers something to everything is a mock
+that hides a missing handler.
+
+**What holds it**: `harness/mocks.py` (R85, 15 holds) in the full suite,
+`scripts/check-mock-seeds.py` and `scripts/compare-contracts.py --check` in the per-phase tier and
+in `make check`.
+
+---
+
 ## Two rules the prototype itself re-taught, the hard way
 
 - **R7 — `minmax(0, 1fr)`, never `1fr`.** An `auto` grid track's floor is the item's

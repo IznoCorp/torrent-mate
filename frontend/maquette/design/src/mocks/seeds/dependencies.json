@@ -1,0 +1,20 @@
+[
+  {
+    "label": "Redis",
+    "tone": "success",
+    "value": "connecté",
+    "secondaryLine": "le relais d'événements répond"
+  },
+  {
+    "label": "TMDB / TVDB",
+    "tone": "success",
+    "value": "disponibles",
+    "secondaryLine": "aucun disjoncteur ouvert"
+  },
+  {
+    "label": "qBittorrent",
+    "tone": "success",
+    "value": "joignable",
+    "secondaryLine": "derrière le proxy, comme il doit l'être"
+  }
+]

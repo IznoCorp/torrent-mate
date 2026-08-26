@@ -538,6 +538,20 @@ def check_vocabulary(violations: list[str]) -> None:
     sources = [p for p in SHELL.rglob("*")
                if p.is_file() and p.suffix in {".ts", ".tsx", ".js"}
                and "i18n" not in p.parts]
+    # A GENERATED file's names are the generator's, not a choice anyone made,
+    # so this arm — and only this arm — steps over them. The count is PRINTED
+    # rather than merely applied: an exemption nobody counts is
+    # indistinguishable from an oversight, and a stale entry, one naming a file
+    # that is not there, is a violation of its own.
+    generated = {SHELL / name for name in GENERATED_SOURCES}
+    for name in sorted(GENERATED_SOURCES):
+        if not (SHELL / name).is_file():
+            violations.append(
+                f"{relative(SHELL / name)}: recorded as generated and is not in the "
+                "tree — the exemption has stopped describing anything")
+    sources = [p for p in sources if p not in generated]
+    examined.setdefault("generated sources stepped over / shell", 0)
+    examined["generated sources stepped over / shell"] += len(generated)
     for path in sorted(sources):
         raw = read(path)
         lines = raw.splitlines()
