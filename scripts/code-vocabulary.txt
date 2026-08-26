@@ -632,6 +632,7 @@ resolved
 rest
 restart
 restore
+restoration
 result
 results
 resume

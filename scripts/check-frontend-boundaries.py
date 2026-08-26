@@ -267,7 +267,6 @@ GENERATED = {
 GRANDFATHERED = {
     "engine/legacy.js": "L13 — the engine dies by subtraction, surface by surface",
     "engine/states.js": "L13 — the scenario table goes with the engine it drives",
-    "app/shell.tsx": "L13 — what is left of the boot goes with the engine (L05 took the routing)",
     "features/acquisition/page.tsx": "L09 — the data layer takes it (L07 converted the surface)",
     "features/library/page.tsx": "L09 — the data layer takes it (L07 converted the surface)",
     "features/media/media-screen.tsx": "L09 — the data layer takes it (L07 converted the surface)",

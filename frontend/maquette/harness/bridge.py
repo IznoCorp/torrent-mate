@@ -56,7 +56,8 @@ from common import (DESIGN_SOURCES, PHONE, ROOT, Journal, design_source,
 # only way to the single writer.
 #
 # THE PATTERN USED TO BE `history.<primitive>` AND THAT WAS ONLY EVER TRUE
-# BECAUSE THE READ WAS NARROW. `history` is a NAME, and in `app/shell.tsx` it
+# BECAUSE THE READ WAS NARROW. `history` is a NAME, and in `app/history-bridge.ts`
+# it
 # names the router's own instance (`const history = createBrowserHistory()`) —
 # which is the single writer this rule exists to protect, not a breach of it.
 # The moment L07 widened `DESIGN_SOURCES` onto the component tree, the old
@@ -85,8 +86,12 @@ PRIMITIVES = (
 
 # The one file allowed to name a history primitive, because it is the one that
 # CREATES the instance. Named as a path fragment so a move is a failure rather
-# than a silent pass.
-HISTORY_OWNER = "app/shell.tsx"
+# than a silent pass — and it HAS moved: L09 split the shell onto five subjects
+# and the history instance went with the bridge that spends it. `shell.tsx`
+# imports the instance now and names no primitive on it, so this constant
+# following the instance is the contract's three ends moving in one step, not
+# an exemption being widened.
+HISTORY_OWNER = "app/history-bridge.ts"
 
 
 _journal = None

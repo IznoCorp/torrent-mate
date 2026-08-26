@@ -17,7 +17,7 @@
 #   --contracts   the rules that break when a NAME moves — a state id, a
 #                 `data-*` value, a route, a store field. Minutes, so CI runs
 #                 this on every pull request. Running them at once buys this
-#                 tier almost nothing — `audit2.py` is one of the five and is
+#                 tier almost nothing — `audit2.py` is one of the seven and is
 #                 nearly the whole of its cost — which is the same sentence as
 #                 the floor named below, read from the other end.
 #                 It also runs the repository's CHEAP guards (see below) — the
@@ -69,13 +69,18 @@ SERVED="/tmp/tm-refonte"
 #   logout           a route renamed on one side only
 #   residue          an identity anchor shared by a residue rule and a typed
 #                    variant, where the residue WINS and the oracle is blind
+#   boot_order       the eight steps of the boot, and the five files the shell
+#                    was split onto. It joined at L09 and it belongs here on
+#                    this tier's own test: every phase of that lot adds to the
+#                    boot, so a reordering has to land on the phase that
+#                    commits it. 1.6 s, measured.
 #
 # `arrivals.py` guards the `data-pipe` contract too and is NOT here: it holds
 # R66, which checks every figure against the run `library.db` really recorded,
 # by run_uid. That database is the operator's and a CI runner has none, so the
 # rule would fail there for a reason that has nothing to do with the change
 # under test. It runs in the full suite, on the machine that has the data.
-CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.py)
+CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.py boot_order.py)
 
 # THE REPOSITORY'S CHEAP GUARDS, run beside the rules (B-063, arbitrated by the
 # operator on 2026-08-25). They read the tree in seconds and they read exactly
