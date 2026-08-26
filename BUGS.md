@@ -133,6 +133,14 @@ when the defect comes back.
 | B-097 | Twenty seed renames never reached the index, and only a case-sensitive runner saw it | by CI | `fixed #503` |
 | B-098 | The build plugin raced its own output and failed three jobs on a fresh checkout | by CI | `fixed #503` |
 | B-099 | A test pass writes 13 GB of real zeroes into `/tmp` and pytest keeps three of them | by operator | `fixed #505` |
+| B-079 | The design host cannot say which commit it serves, and production's host can | by audit | `open` |
+| B-080 | The drawer shows a hard-coded version and build, and calls itself up to date | by operator | `open` |
+| B-081 | Design notes can no longer be hidden, and the oracle measures without them | by operator | `open` |
+| B-082 | `hidden` hides nothing on five elements, so an invisible button is still tappable | by operator | `open` |
+| B-083 | L08's design and plan were never archived, and every lot before it was | by audit | `open` |
+| B-084 | A wave that found twenty defects wrote none of them in this register | by audit | `open` |
+| B-085 | Guards green over what they do not read: 17 in three consecutive waves, counted by nobody | by audit | `open` |
+| B-100 | Invariant 10 is written and unarmed: no arm counts the frame's domain words | by audit | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -2053,3 +2061,27 @@ the retention policy. Both halves were needed; neither alone would have done.
 **The pass is also a third faster** — 180 s to 105 s — because it is no longer writing gigabytes.
 
 <sub>`python -m pytest tests/verify -q && find /tmp/pytest-of-izno -type f | wc -l` · `grep -n tmp_path_retention_policy pyproject.toml`</sub>
+**B-100 — invariant 10 exists as a sentence, and this register knows what that is worth.**
+Written 2026-08-26 with the operator: **the frame does not name the domain**, except in the three
+tables whose job is to. It freezes a property that measurement shows is already true — `ui/` carries
+one domain word across 1 162 lines, `lib/` only in `addresses.ts` and the dying `engine-drawing.ts`,
+`app/` only in the three files that hold the list of pages.
+
+**No arm counts any of it.** `CLAUDE.md`'s own line applies without softening: every rule has an
+arm, or it is a sentence in a file — and this repository has watched exactly that happen to
+`data-*` names, four of which simply stayed. The invariant is therefore recorded here as unarmed
+rather than left to be discovered as such.
+
+The shape of the arm is already in the repository, twice: `check-frontend-boundaries.py` reads the
+import graph per directory, and `french-exemption-baseline.json` is the per-scope count that may
+fall and never rise. This is those two, joined — a count of domain words per directory, outside
+comments, refused upward.
+
+**Two things it must NOT be**, both learned here at cost. It must not be an interdiction: a shared
+component that genuinely needs a domain word should cost one reviewed line with its reason, the way
+`code-vocabulary.txt` works, because a guard that blocks without a readable reason gets worked
+around. And its baseline must not be seeded to the current value without being read — a floor set
+where the count already sits is pre-satisfied and can never fall, which is B-075's shape, found
+twice in two waves.
+
+<sub>the measurement: domain-word count per directory of `design/src`, outside comment lines</sub>
