@@ -1,0 +1,77 @@
+[
+  {
+    "title": "President Curtis",
+    "secondaryLine": "S01E02 · suivi",
+    "strip": [
+      1,
+      1,
+      "now",
+      0,
+      0
+    ],
+    "chip": {
+      "tone": "info",
+      "text": "Ingestion"
+    }
+  },
+  {
+    "title": "Furious",
+    "secondaryLine": "S01E01 · suivi",
+    "strip": [
+      1,
+      1,
+      1,
+      "now",
+      0
+    ],
+    "chip": {
+      "tone": "info",
+      "text": "Scraping"
+    }
+  },
+  {
+    "title": "The Alabama Solution",
+    "secondaryLine": "2025 · qBittorrent (manuel)",
+    "strip": [
+      1,
+      1,
+      1,
+      "now",
+      0
+    ],
+    "chip": {
+      "tone": "info",
+      "text": "Scraping"
+    }
+  },
+  {
+    "title": "Conclave",
+    "secondaryLine": "2024 · qBittorrent (manuel)",
+    "strip": [
+      1,
+      1,
+      1,
+      1,
+      "now"
+    ],
+    "chip": {
+      "tone": "info",
+      "text": "Rangement"
+    }
+  },
+  {
+    "title": "Les Zinzins de l'Espace",
+    "secondaryLine": "S03E14 · suivi",
+    "strip": [
+      1,
+      "now",
+      0,
+      0,
+      0
+    ],
+    "chip": {
+      "tone": "info",
+      "text": "Téléchargement 34 %"
+    }
+  }
+]

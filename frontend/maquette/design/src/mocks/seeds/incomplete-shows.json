@@ -1,0 +1,74 @@
+[
+  {
+    "title": "SAV des émissions",
+    "owned": 12,
+    "aired": 71,
+    "year": 2005
+  },
+  {
+    "title": "Les Animaniacs",
+    "owned": 117,
+    "aired": 175,
+    "year": 1993
+  },
+  {
+    "title": "La cour de récré",
+    "owned": 54,
+    "aired": 100,
+    "year": 1997
+  },
+  {
+    "title": "Les Zinzins de l'Espace",
+    "owned": 78,
+    "aired": 104,
+    "year": 1997
+  },
+  {
+    "title": "Les aventures de Tintin",
+    "owned": 21,
+    "aired": 39,
+    "year": 1991
+  },
+  {
+    "title": "Earl",
+    "owned": 90,
+    "aired": 96,
+    "year": 2005
+  },
+  {
+    "title": "Stargate SG-1",
+    "owned": 211,
+    "aired": 214,
+    "year": 1997
+  },
+  {
+    "title": "Parks and Recreation",
+    "owned": 122,
+    "aired": 125,
+    "year": 2009
+  },
+  {
+    "title": "Regular Show",
+    "owned": 204,
+    "aired": 207,
+    "year": 2010
+  },
+  {
+    "title": "Friends",
+    "owned": 234,
+    "aired": 236,
+    "year": 1994
+  },
+  {
+    "title": "Monk",
+    "owned": 60,
+    "aired": 61,
+    "year": 2002
+  },
+  {
+    "title": "Farscape",
+    "owned": 89,
+    "aired": 90,
+    "year": 1999
+  }
+]

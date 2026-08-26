@@ -1,0 +1,102 @@
+{
+  "steps": [
+    {
+      "name": "ingest",
+      "label": "Récupération",
+      "description": "Les téléchargements terminés sont copiés dans la zone de tri."
+    },
+    {
+      "name": "sort",
+      "label": "Tri",
+      "description": "Chaque fichier rejoint sa catégorie, et son nom est nettoyé."
+    },
+    {
+      "name": "clean",
+      "label": "Noms et doublons",
+      "description": "Les noms de dossiers sont repris, les doublons repérés."
+    },
+    {
+      "name": "scrape",
+      "label": "Identification",
+      "description": "Le média est reconnu, sa fiche et ses affiches récupérées."
+    },
+    {
+      "name": "cleanup",
+      "label": "Dossiers vides",
+      "description": "Ce que l'identification a laissé derrière elle."
+    },
+    {
+      "name": "enforce",
+      "label": "Mise en forme",
+      "description": "Les noms de fichiers sont assainis, la structure validée."
+    },
+    {
+      "name": "verify",
+      "label": "Contrôle",
+      "description": "Le dernier examen avant le rangement. C'est ici qu'un média est bloqué."
+    },
+    {
+      "name": "trailers",
+      "label": "Bandes-annonces",
+      "description": "La bande-annonce est récupérée quand il en existe une."
+    },
+    {
+      "name": "dispatch",
+      "label": "Rangement",
+      "description": "Le média rejoint son disque, et la médiathèque le voit."
+    }
+  ],
+  "triggers": {
+    "completion": "la fin d'un téléchargement",
+    "safety_net": "le filet de sécurité",
+    "scheduled": "le planificateur",
+    "manual": "vous"
+  },
+  "last": {
+    "uid": "2b598104",
+    "when": "aujourd'hui à 07 h 08",
+    "duration": "1 min 44 s",
+    "trigger": "completion",
+    "outcome": "success",
+    "facts": [
+      {
+        "name": "ingest",
+        "result": "3 copiés",
+        "secondaryLine": "79 étaient déjà là"
+      },
+      {
+        "name": "sort",
+        "result": "3 rangés en catégorie"
+      },
+      {
+        "name": "clean"
+      },
+      {
+        "name": "scrape",
+        "result": "2 identifiés",
+        "secondaryLine": "Stuart Fails to Save the Universe, Top Chef Le Concours Parallèle"
+      },
+      {
+        "name": "cleanup"
+      },
+      {
+        "name": "enforce",
+        "result": "rien à changer",
+        "secondaryLine": "2 étaient déjà en forme"
+      },
+      {
+        "name": "verify",
+        "result": "1 validé",
+        "blockedCount": 1
+      },
+      {
+        "name": "trailers"
+      },
+      {
+        "name": "dispatch",
+        "result": "1 rangé sur Disk1",
+        "secondaryLine": "Stuart Fails to Save the Universe"
+      }
+    ]
+  }
+}

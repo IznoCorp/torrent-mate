@@ -1,0 +1,44 @@
+[
+  {
+    "title": "Backrooms.2026.MULTi.2160p.WEB-DL",
+    "secondaryLine": "arrivé à 06 h 14 · qBittorrent (manuel)",
+    "reason": "Aucun média identifié : ni TMDB ni TVDB ne renvoient de correspondance pour ce nom.",
+    "chip": {
+      "tone": "danger",
+      "text": "Confiance faible"
+    },
+    "strip": [
+      1,
+      1,
+      "blocked",
+      0,
+      0
+    ],
+    "withoutPoster": true
+  },
+  {
+    "title": "S.W.A.T.",
+    "secondaryLine": "S08E12 · arrivé à 22 h 51 · qBittorrent (manuel)",
+    "reason": "Deux correspondances possibles — TVDB 328724 (2017) et TVDB 71663 (1975). Il faut choisir.",
+    "strip": [
+      1,
+      1,
+      "blocked",
+      0,
+      0
+    ]
+  },
+  {
+    "title": "doc_fr_2026_final",
+    "secondaryLine": "arrivé hier à 19 h 03 · dépôt manuel",
+    "reason": "Aucun fichier vidéo dans le dossier : seulement 3 fichiers .nfo et une archive .rar non extraite. Aucun arbitrage n'y changera rien.",
+    "strip": [
+      1,
+      "blocked",
+      0,
+      0,
+      0
+    ],
+    "withoutPoster": true
+  }
+]

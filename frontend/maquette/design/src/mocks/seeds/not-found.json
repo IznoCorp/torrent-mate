@@ -1,0 +1,38 @@
+[
+  {
+    "title": "Kyma, l'onde mystérieuse",
+    "secondaryLine": "2026 · film",
+    "reason": "Aucune release conforme au profil depuis l'ajout. Prochaine recherche à 15 h 20.",
+    "chip": {
+      "tone": "waiting",
+      "text": "Cherché, rien trouvé"
+    }
+  },
+  {
+    "title": "L'Odyssée",
+    "secondaryLine": "2026 · film",
+    "reason": "Aucune release conforme au profil depuis 4 jours. Prochaine recherche à 15 h 20.",
+    "chip": {
+      "tone": "waiting",
+      "text": "Cherché, rien trouvé"
+    }
+  },
+  {
+    "title": "Spider-Man : Brand New Day",
+    "secondaryLine": "2026 · film",
+    "reason": "Aucune release conforme au profil depuis 4 jours. Prochaine recherche à 15 h 20.",
+    "chip": {
+      "tone": "waiting",
+      "text": "Cherché, rien trouvé"
+    }
+  },
+  {
+    "title": "Wicker",
+    "secondaryLine": "2026 · film",
+    "reason": "Aucune release conforme au profil depuis 9 jours. Prochaine recherche à 15 h 20.",
+    "chip": {
+      "tone": "waiting",
+      "text": "Cherché, rien trouvé"
+    }
+  }
+]

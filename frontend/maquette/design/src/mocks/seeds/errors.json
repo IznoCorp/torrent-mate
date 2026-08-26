@@ -1,0 +1,7 @@
+{
+  "total": 14,
+  "outOf": 425,
+  "latest": "le 6 août à 08 h 08",
+  "what": "une maintenance : grab --followed-id 26 est sorti en erreur",
+  "where": "api/torrent/qbittorrent.py, dans build_client"
+}

@@ -1,0 +1,4426 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TorrentMate — the contract the maquette's interface requires",
+    "version": "0.1.0",
+    "description": "WHAT THE NEXT VERSION OF THE FRONTEND NEEDS A SERVER TO ANSWER, declared by the interface rather than read off the backend that exists (D7 of docs/reference/frontend-architecture.md).\n\nIT IS NOT frontend/openapi.json, which is generated FROM the running backend. The two differ on purpose and every difference is a DEMAND, computed by scripts/compare-contracts.py into docs/reference/frontend-backend-demands.md. No backend work happens until the interface is frozen; the register IS the future specification, delivered as a diff rather than a blank page.\n\nSOME FIELDS ARE UGLY ON PURPOSE. Where a maquette fixture holds a pre-formatted string, this contract carries it verbatim rather than decomposing it into facts. That is D-L08-5, and it is what makes L09 provable: a mock returning exactly what the fixture returns renders the same thing, so the oracle proves the wiring at zero divergence. Every such field says so, and the demand register asks for the underlying fact.\n\nx-seeded-from NAMES THE FIXTURE FAMILIES an operation's mock is seeded from. It is read by scripts/check-mock-seeds.py, so it is a contract and not a note.\n\nx-unseeded IS THE OTHER HALF OF x-seeded-from, and every operation carries exactly one of the two. An operation whose response no fixture covers — an acknowledgement, a count derived from the request, a state token from this contract's own enum — says so in as many words. Without it, « nothing was invented here » and « nobody looked » are the same silence, and scripts/check-mock-seeds.py --arm provenance refuses an operation carrying neither."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "same origin as the interface"
+    }
+  ],
+  "tags": [
+    {
+      "name": "authentication",
+      "description": "who is signed in"
+    },
+    {
+      "name": "library",
+      "description": "what the library holds"
+    },
+    {
+      "name": "media",
+      "description": "one title, and what we hold of it"
+    },
+    {
+      "name": "acquisition",
+      "description": "what is wanted, and what is being fetched"
+    },
+    {
+      "name": "staging",
+      "description": "what has arrived and not yet settled"
+    },
+    {
+      "name": "pipeline",
+      "description": "the run, and its control"
+    },
+    {
+      "name": "decisions",
+      "description": "what the scrape could not decide alone"
+    },
+    {
+      "name": "system",
+      "description": "whether the machine is well"
+    },
+    {
+      "name": "maintenance",
+      "description": "the actions, and what they cost"
+    },
+    {
+      "name": "configuration",
+      "description": "the settings and the secrets"
+    }
+  ],
+  "paths": {
+    "/api/auth/me": {
+      "get": {
+        "operationId": "readAccount",
+        "summary": "The signed-in account",
+        "tags": [
+          "authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "the account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "ACCOUNT"
+        ]
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "operationId": "signIn",
+        "summary": "Open a session",
+        "tags": [
+          "authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "the account the session belongs to",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "password",
+                  "username"
+                ]
+              }
+            }
+          }
+        },
+        "x-unseeded": "an acknowledgement. The prototype holds no credentials — a password written into a page is readable by everyone the page reaches — so there is nothing to seed and nothing to invent."
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "operationId": "signOut",
+        "summary": "Close the session",
+        "tags": [
+          "authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "the session is closed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "an acknowledgement. The engine's one real network call is this logout, and it answers a redirect rather than a payload."
+      }
+    },
+    "/api/library/items": {
+      "get": {
+        "operationId": "readLibraryItems",
+        "summary": "The library listing, one page of it",
+        "tags": [
+          "library"
+        ],
+        "responses": {
+          "200": {
+            "description": "one page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total": {
+                      "type": "integer",
+                      "description": "how many titles the library holds in all"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/LibraryItem"
+                      }
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "total"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "lens",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "which lens groups the listing: category, recent, incomplete"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the category identifier, when the lens is category"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the sort in force"
+          },
+          {
+            "name": "reversed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "whether the sort runs the other way"
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the search text"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "the page, zero based"
+          }
+        ],
+        "x-seeded-from": [
+          "LIBRARY",
+          "LIB_TOTAL",
+          "SYNOPSIS"
+        ]
+      },
+      "delete": {
+        "operationId": "deleteLibraryItems",
+        "summary": "Delete titles from the library",
+        "tags": [
+          "library"
+        ],
+        "responses": {
+          "200": {
+            "description": "how many went",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deleted": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "deleted"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "titles": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "titles"
+                ]
+              }
+            }
+          }
+        },
+        "x-unseeded": "a count of what went. It is derived from the request and from the seeded library, never from a fixture of its own."
+      }
+    },
+    "/api/library/categories": {
+      "get": {
+        "operationId": "readLibraryCategories",
+        "summary": "The categories and their counts",
+        "tags": [
+          "library"
+        ],
+        "responses": {
+          "200": {
+            "description": "the categories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LibraryCategory"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "CATS"
+        ]
+      }
+    },
+    "/api/library/recent": {
+      "get": {
+        "operationId": "readLibraryRecent",
+        "summary": "The most recently added titles",
+        "tags": [
+          "library"
+        ],
+        "responses": {
+          "200": {
+            "description": "the recents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LibraryRow"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "RECENT"
+        ]
+      }
+    },
+    "/api/library/incomplete": {
+      "get": {
+        "operationId": "readLibraryIncomplete",
+        "summary": "The series with holes, and how big each hole is",
+        "tags": [
+          "library"
+        ],
+        "responses": {
+          "200": {
+            "description": "the incomplete series",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IncompleteShow"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "INCOMPLETE"
+        ]
+      }
+    },
+    "/api/media/{provider}/{providerId}": {
+      "get": {
+        "operationId": "readMediaSheet",
+        "summary": "One media sheet, by its provider identity",
+        "tags": [
+          "media"
+        ],
+        "responses": {
+          "200": {
+            "description": "the sheet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaSheet"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "tmdb or tvdb"
+          },
+          {
+            "name": "providerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the identifier at that provider"
+          }
+        ],
+        "x-seeded-from": [
+          "SHEETS_RAW",
+          "POSTERS",
+          "POSTERS_HD",
+          "HERO_IMAGES",
+          "CAST",
+          "trailerIds"
+        ]
+      }
+    },
+    "/api/media/{provider}/{providerId}/seasons": {
+      "get": {
+        "operationId": "readMediaSeasons",
+        "summary": "The seasons of a show, and what the library holds of each",
+        "tags": [
+          "media"
+        ],
+        "responses": {
+          "200": {
+            "description": "the seasons and the holdings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "seasons": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Season"
+                      }
+                    },
+                    "owned": {
+                      "type": "object",
+                      "properties": {},
+                      "required": [],
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer"
+                        }
+                      },
+                      "description": "owned episode numbers, keyed by season number"
+                    }
+                  },
+                  "required": [
+                    "owned",
+                    "seasons"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "tmdb or tvdb"
+          },
+          {
+            "name": "providerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the identifier at that provider"
+          }
+        ],
+        "x-seeded-from": [
+          "SEASONS",
+          "OWNED"
+        ]
+      }
+    },
+    "/api/acquisition/followed": {
+      "get": {
+        "operationId": "readFollows",
+        "summary": "Everything being followed",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "200": {
+            "description": "the follows",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Follow"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "FOLLOWS"
+        ]
+      },
+      "post": {
+        "operationId": "createFollow",
+        "summary": "Follow a title",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "200": {
+            "description": "the follow as it now stands",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Follow"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "type": "string"
+                  },
+                  "year": {
+                    "type": "integer"
+                  },
+                  "provider": {
+                    "type": "string"
+                  },
+                  "providerId": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "title",
+                  "kind"
+                ]
+              }
+            }
+          }
+        },
+        "x-unseeded": "the follow as it now stands, built from the request over the seeded follows."
+      }
+    },
+    "/api/acquisition/followed/{followedId}": {
+      "patch": {
+        "operationId": "updateFollow",
+        "summary": "Pause or resume a follow",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "200": {
+            "description": "the follow as it now stands",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Follow"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "followedId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the follow"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "x-unseeded": "the follow as it now stands, read back from the seeded follows after the change."
+      },
+      "delete": {
+        "operationId": "deleteFollow",
+        "summary": "Stop following",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "200": {
+            "description": "it is gone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "followedId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the follow"
+          }
+        ],
+        "x-unseeded": "an acknowledgement."
+      }
+    },
+    "/api/acquisition/followed/{followedId}/search": {
+      "post": {
+        "operationId": "searchForFollow",
+        "summary": "Search now for one follow",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "200": {
+            "description": "what the search found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "found": {
+                      "type": "integer",
+                      "description": "how many conforming releases were found"
+                    }
+                  },
+                  "required": [
+                    "found"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "followedId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the follow"
+          }
+        ],
+        "x-unseeded": "how many conforming releases were found. The engine has no fixture for a search RESULT COUNT; the figure is derived from the seeded releases."
+      }
+    },
+    "/api/acquisition/followed/{followedId}/grab": {
+      "post": {
+        "operationId": "grabForFollow",
+        "summary": "Take a release for one follow",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "200": {
+            "description": "the torrent that was taken",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "releaseName": {
+                      "type": "string",
+                      "description": "the release that was taken, by name. The fixture carries no info hash at all — the demand register asks for one"
+                    }
+                  },
+                  "required": [
+                    "releaseName"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "followedId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the follow"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "releaseName": {
+                    "type": "string"
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        },
+        "x-unseeded": "the release that was taken, identified by the release the request named. The fixture carries no torrent digest, so the answer names what it can."
+      }
+    },
+    "/api/acquisition/search": {
+      "get": {
+        "operationId": "searchProviders",
+        "summary": "Search the providers for a title to follow",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "200": {
+            "description": "one page of results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "what was typed"
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "restrict to films or to shows"
+          }
+        ],
+        "x-seeded-from": [
+          "SEARCH"
+        ]
+      }
+    },
+    "/api/acquisition/suggestions": {
+      "get": {
+        "operationId": "readSuggestions",
+        "summary": "Titles worth following, and why",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "200": {
+            "description": "the deck",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Suggestion"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "continue a deck already started"
+          }
+        ],
+        "x-seeded-from": [
+          "SUGGESTIONS"
+        ]
+      }
+    },
+    "/api/acquisition/status": {
+      "get": {
+        "operationId": "readAcquisitionStatus",
+        "summary": "The grab cadence, and when the next search runs",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "200": {
+            "description": "the cadence",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "cadence": {
+                      "type": "string",
+                      "description": "the cron expression the scheduler runs on"
+                    },
+                    "nextSearch": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "when the next search runs"
+                    }
+                  },
+                  "required": [
+                    "cadence",
+                    "nextSearch"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "CADENCE_CRON"
+        ]
+      }
+    },
+    "/api/acquisition/detect": {
+      "post": {
+        "operationId": "runDetection",
+        "summary": "Look now for everything that could be taken",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "200": {
+            "description": "the figures DOIT-6 requires",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detected": {
+                      "type": "integer"
+                    },
+                    "available": {
+                      "type": "integer"
+                    },
+                    "grabbed": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "available",
+                    "detected",
+                    "grabbed"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "the three figures DOIT-6 requires. Derived from the seeded acquisition queue, never from a fixture of its own."
+      }
+    },
+    "/api/acquisition/to-handle": {
+      "get": {
+        "operationId": "readAcquisitionQueue",
+        "summary": "What the acquisition side is holding, by bucket",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "200": {
+            "description": "the five buckets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "takeable": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/QueueCard"
+                      }
+                    },
+                    "blocked": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/QueueCard"
+                      }
+                    },
+                    "inFlight": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/QueueCard"
+                      }
+                    },
+                    "notFound": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/QueueCard"
+                      }
+                    },
+                    "doneToday": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/QueueCard"
+                      }
+                    }
+                  },
+                  "required": [
+                    "blocked",
+                    "doneToday",
+                    "inFlight",
+                    "notFound",
+                    "takeable"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "TAKEABLE",
+          "BLOCKED",
+          "INFLIGHT",
+          "NOTFOUND",
+          "NOTFOUND_REAL",
+          "DONE_TODAY"
+        ],
+        "parameters": [
+          {
+            "name": "scenario",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "real",
+                "loaded"
+              ]
+            },
+            "description": "which body of data to answer with. `real` is the operator's system as it stands — calm, and what makes a REST state judgeable at all; `loaded` is a dense one, for judging density and scrolling. The prototype has always carried both, and an interface that could only ever be busy would never show its rest states."
+          }
+        ]
+      }
+    },
+    "/api/acquisition/journeys/{infoHash}": {
+      "get": {
+        "operationId": "readJourney",
+        "summary": "One torrent's journey, stage by stage",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "200": {
+            "description": "the stages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/JourneyStage"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "infoHash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the torrent"
+          }
+        ],
+        "x-seeded-from": [
+          "openJourneySheet.steps"
+        ]
+      }
+    },
+    "/api/acquisition/releases": {
+      "get": {
+        "operationId": "readReleases",
+        "summary": "The release candidates for one wanted item",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "200": {
+            "description": "the candidates, ranked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Release"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "title",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the title they are for"
+          },
+          {
+            "name": "season",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "the season"
+          },
+          {
+            "name": "episode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "the episode"
+          }
+        ],
+        "x-seeded-from": [
+          "RELEASES"
+        ]
+      }
+    },
+    "/api/staging/media": {
+      "get": {
+        "operationId": "readStaging",
+        "summary": "What is in the staging area, by bucket",
+        "tags": [
+          "staging"
+        ],
+        "responses": {
+          "200": {
+            "description": "the three buckets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "stuck": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/QueueCard"
+                      }
+                    },
+                    "moving": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/QueueCard"
+                      }
+                    },
+                    "settled": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/QueueCard"
+                      }
+                    }
+                  },
+                  "required": [
+                    "moving",
+                    "settled",
+                    "stuck"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "STUCK",
+          "STUCK_REAL",
+          "MOVING",
+          "SETTLED",
+          "SETTLED_REAL"
+        ],
+        "parameters": [
+          {
+            "name": "scenario",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "real",
+                "loaded"
+              ]
+            },
+            "description": "which body of data to answer with. `real` is the operator's system as it stands — calm, and what makes a REST state judgeable at all; `loaded` is a dense one, for judging density and scrolling. The prototype has always carried both, and an interface that could only ever be busy would never show its rest states."
+          }
+        ]
+      }
+    },
+    "/api/staging/media/{mediaId}/continue": {
+      "post": {
+        "operationId": "continueStagedMedia",
+        "summary": "Send a staged item back through the pipeline",
+        "tags": [
+          "staging"
+        ],
+        "responses": {
+          "200": {
+            "description": "it is moving again",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "mediaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the staged item"
+          }
+        ],
+        "x-unseeded": "an acknowledgement."
+      }
+    },
+    "/api/staging/media/{mediaId}/discard": {
+      "post": {
+        "operationId": "discardStagedMedia",
+        "summary": "Leave a staged item where it is",
+        "tags": [
+          "staging"
+        ],
+        "responses": {
+          "200": {
+            "description": "it is left alone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "mediaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the staged item"
+          }
+        ],
+        "x-unseeded": "an acknowledgement."
+      }
+    },
+    "/api/pipeline/status": {
+      "get": {
+        "operationId": "readPipeline",
+        "summary": "The pipeline, its nine steps, and its last run",
+        "tags": [
+          "pipeline"
+        ],
+        "responses": {
+          "200": {
+            "description": "the pipeline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pipeline"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "PIPELINE"
+        ]
+      }
+    },
+    "/api/pipeline/run": {
+      "post": {
+        "operationId": "runPipeline",
+        "summary": "Start a run, or queue one visibly",
+        "tags": [
+          "pipeline"
+        ],
+        "responses": {
+          "200": {
+            "description": "what happened to the request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "$ref": "#/components/schemas/PipelineState"
+                    },
+                    "uid": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "the run's identifier once it has one. Null here: a run that has just been asked for has no record yet, and answering the PREVIOUS run's identifier made a maintenance action claim the pipeline's last run as its own"
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "uid"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "the state the request left the pipeline in. The token comes from this contract's own enum — the engine's `pipe` field is STORE state and is not a fixture family at all — so there is nothing to seed from."
+      }
+    },
+    "/api/pipeline/pause": {
+      "post": {
+        "operationId": "pausePipeline",
+        "summary": "Pause the run",
+        "tags": [
+          "pipeline"
+        ],
+        "responses": {
+          "200": {
+            "description": "the state it is now in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "$ref": "#/components/schemas/PipelineState"
+                    }
+                  },
+                  "required": [
+                    "state"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "the state the request left the pipeline in, from this contract's own enum."
+      }
+    },
+    "/api/pipeline/resume": {
+      "post": {
+        "operationId": "resumePipeline",
+        "summary": "Resume the run",
+        "tags": [
+          "pipeline"
+        ],
+        "responses": {
+          "200": {
+            "description": "the state it is now in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "$ref": "#/components/schemas/PipelineState"
+                    }
+                  },
+                  "required": [
+                    "state"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "the state the request left the pipeline in, from this contract's own enum."
+      }
+    },
+    "/api/pipeline/kill": {
+      "post": {
+        "operationId": "killPipeline",
+        "summary": "Stop the run",
+        "tags": [
+          "pipeline"
+        ],
+        "responses": {
+          "200": {
+            "description": "the state it is now in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "$ref": "#/components/schemas/PipelineState"
+                    }
+                  },
+                  "required": [
+                    "state"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "the state the request left the pipeline in, from this contract's own enum."
+      }
+    },
+    "/api/pipeline/history": {
+      "get": {
+        "operationId": "readPipelineHistory",
+        "summary": "The recent runs",
+        "tags": [
+          "pipeline"
+        ],
+        "responses": {
+          "200": {
+            "description": "the runs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PipelineExecution"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "EXECUTIONS"
+        ]
+      }
+    },
+    "/api/decisions/": {
+      "get": {
+        "operationId": "readDecisions",
+        "summary": "The decisions awaiting arbitration, and those already settled",
+        "tags": [
+          "decisions"
+        ],
+        "responses": {
+          "200": {
+            "description": "both lists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "pending": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PendingDecision"
+                      }
+                    },
+                    "settled": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SettledDecision"
+                      }
+                    }
+                  },
+                  "required": [
+                    "pending",
+                    "settled"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "PENDING_DECISIONS",
+          "DECISIONS_REGLEES"
+        ]
+      }
+    },
+    "/api/decisions/{decisionId}/resolve": {
+      "post": {
+        "operationId": "resolveDecision",
+        "summary": "Choose a candidate and re-scrape",
+        "tags": [
+          "decisions"
+        ],
+        "responses": {
+          "200": {
+            "description": "the decision's new state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "$ref": "#/components/schemas/DecisionState"
+                    }
+                  },
+                  "required": [
+                    "state"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "decisionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the decision"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string"
+                  },
+                  "providerId": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "provider",
+                  "providerId"
+                ]
+              }
+            }
+          }
+        },
+        "x-unseeded": "the decision's new state, from the seeded decision moved between the two lists."
+      }
+    },
+    "/api/decisions/{decisionId}/dismiss": {
+      "post": {
+        "operationId": "dismissDecision",
+        "summary": "Leave the folder as it is",
+        "tags": [
+          "decisions"
+        ],
+        "responses": {
+          "200": {
+            "description": "the decision's new state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "$ref": "#/components/schemas/DecisionState"
+                    }
+                  },
+                  "required": [
+                    "state"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "decisionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the decision"
+          }
+        ],
+        "x-unseeded": "the decision's new state, from the seeded decision moved between the two lists."
+      }
+    },
+    "/api/decisions/{decisionId}/search": {
+      "post": {
+        "operationId": "searchForDecision",
+        "summary": "Search the providers by hand for one decision",
+        "tags": [
+          "decisions"
+        ],
+        "responses": {
+          "200": {
+            "description": "the candidates found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DecisionCandidate"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "decisionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the decision"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ]
+              }
+            }
+          }
+        },
+        "x-unseeded": "candidates, taken from the seeded decisions' own candidate lists — a manual search over data that already exists rather than a fixture of its own."
+      }
+    },
+    "/api/system/services": {
+      "get": {
+        "operationId": "readServices",
+        "summary": "The services, and whether each answers",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "the services",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Fact"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "SERVICES"
+        ]
+      }
+    },
+    "/api/system/dependencies": {
+      "get": {
+        "operationId": "readDependencies",
+        "summary": "The external dependencies, and whether each answers",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "the dependencies",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Fact"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "DEPENDENCIES"
+        ]
+      }
+    },
+    "/api/system/errors": {
+      "get": {
+        "operationId": "readErrors",
+        "summary": "How many errors, out of how many runs, and the latest",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "the tally",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeErrors"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "ERRORS"
+        ]
+      }
+    },
+    "/api/maintenance/schedulers": {
+      "get": {
+        "operationId": "readSchedulers",
+        "summary": "The schedulers, their cadence and their last pass",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "the schedulers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Fact"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "SCHEDULERS"
+        ]
+      }
+    },
+    "/api/maintenance/disks": {
+      "get": {
+        "operationId": "readDisks",
+        "summary": "The disks, and how full each is",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "the disks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Fact"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "DISKS"
+        ]
+      }
+    },
+    "/api/maintenance/index-health": {
+      "get": {
+        "operationId": "readIndexHealth",
+        "summary": "The indexer's own figures",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "the figures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Fact"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "INDEX"
+        ]
+      }
+    },
+    "/api/maintenance/actions": {
+      "get": {
+        "operationId": "readMaintenanceActions",
+        "summary": "The maintenance actions, and how risky each is",
+        "tags": [
+          "maintenance"
+        ],
+        "responses": {
+          "200": {
+            "description": "the actions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MaintenanceAction"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "MAINT_ACTIONS"
+        ]
+      }
+    },
+    "/api/maintenance/actions/{actionId}/run": {
+      "post": {
+        "operationId": "runMaintenanceAction",
+        "summary": "Run one maintenance action",
+        "tags": [
+          "maintenance"
+        ],
+        "responses": {
+          "200": {
+            "description": "what happened to the request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "$ref": "#/components/schemas/PipelineState"
+                    },
+                    "uid": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "the run's identifier once it has one. Null here: a run that has just been asked for has no record yet, and answering the PREVIOUS run's identifier made a maintenance action claim the pipeline's last run as its own"
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "uid"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "actionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the action"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dryRun": {
+                    "type": "boolean"
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        },
+        "x-unseeded": "the state the request left the action in, from this contract's own enum."
+      }
+    },
+    "/api/maintenance/destructive-log": {
+      "get": {
+        "operationId": "readDeletionJournal",
+        "summary": "What has been deleted, and when",
+        "tags": [
+          "maintenance"
+        ],
+        "responses": {
+          "200": {
+            "description": "the journal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionJournal"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "JOURNAL"
+        ]
+      }
+    },
+    "/api/config/schema": {
+      "get": {
+        "operationId": "readSettings",
+        "summary": "Every setting, by topic",
+        "tags": [
+          "configuration"
+        ],
+        "responses": {
+          "200": {
+            "description": "the topics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SettingsTopic"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "SETTINGS"
+        ]
+      }
+    },
+    "/api/config/secrets": {
+      "get": {
+        "operationId": "readSecrets",
+        "summary": "Which secrets are defined — never their values",
+        "tags": [
+          "configuration"
+        ],
+        "responses": {
+          "200": {
+            "description": "the secret keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Secret"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "SECRETS"
+        ]
+      },
+      "put": {
+        "operationId": "updateSecrets",
+        "summary": "Set secret values",
+        "tags": [
+          "configuration"
+        ],
+        "responses": {
+          "200": {
+            "description": "whether a restart is owed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "restartRequired": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "restartRequired"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "x-unseeded": "whether a restart is owed. Derived from the request; a secret's VALUE is never read back, by design."
+      }
+    },
+    "/api/config/files": {
+      "get": {
+        "operationId": "readConfigurationFiles",
+        "summary": "The configuration files, and which have pending edits",
+        "tags": [
+          "configuration"
+        ],
+        "responses": {
+          "200": {
+            "description": "the files",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "changed": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "changed",
+                      "name"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "the files and which carry a pending edit. Derived from the seeded settings, whose topics name their own files."
+      }
+    },
+    "/api/config/files/{name}": {
+      "put": {
+        "operationId": "updateConfigurationFile",
+        "summary": "Write one configuration file",
+        "tags": [
+          "configuration"
+        ],
+        "responses": {
+          "200": {
+            "description": "whether a restart is owed, and whether the file moved under the edit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "restartRequired": {
+                      "type": "boolean"
+                    },
+                    "conflict": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "conflict",
+                    "restartRequired"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the file"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "x-unseeded": "whether a restart is owed and whether the file moved under the edit. Derived from the request."
+      }
+    },
+    "/api/config/restart-web": {
+      "post": {
+        "operationId": "restartWeb",
+        "summary": "Restart the web process so a change takes",
+        "tags": [
+          "configuration"
+        ],
+        "responses": {
+          "200": {
+            "description": "the restart was asked for",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "an acknowledgement."
+      }
+    },
+    "/api/config/status": {
+      "get": {
+        "operationId": "readConfigurationStatus",
+        "summary": "Whether the configuration is read-only, and whether a restart is owed",
+        "tags": [
+          "configuration"
+        ],
+        "responses": {
+          "200": {
+            "description": "the state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "readOnly": {
+                      "type": "boolean"
+                    },
+                    "restartRequired": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "readOnly",
+                    "restartRequired"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "whether the configuration is read-only and whether a restart is owed. Both are layer state the engine holds in its STORE, not in a fixture."
+      }
+    },
+    "/api/version": {
+      "get": {
+        "operationId": "readVersion",
+        "summary": "The version the running process serves",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "the version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "version": {
+                      "type": "string"
+                    },
+                    "commit": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "commit",
+                    "version"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "the running version. It is the server's own identity and no maquette fixture carries one."
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Chip": {
+        "type": "object",
+        "properties": {
+          "tone": {
+            "type": "string",
+            "description": "INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
+          },
+          "text": {
+            "type": "string",
+            "description": "INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
+          }
+        },
+        "required": [
+          "text",
+          "tone"
+        ]
+      },
+      "PipelineStrip": {
+        "type": "array",
+        "description": "The five pipeline positions a card has reached: 0 not yet, 1 done, or a string naming the state it is stopped in.",
+        "items": {
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "minItems": 5,
+        "maxItems": 5
+      },
+      "QueueCard": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "secondaryLine": {
+            "type": "string",
+            "description": "CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "reason": {
+            "type": "string",
+            "description": "why this card is where it is, in full prose. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "chip": {
+            "$ref": "#/components/schemas/Chip"
+          },
+          "strip": {
+            "$ref": "#/components/schemas/PipelineStrip"
+          },
+          "withoutPoster": {
+            "type": "boolean",
+            "description": "no poster is known for it, so the placeholder is what says so — never a truncating sentence"
+          }
+        },
+        "required": [
+          "title",
+          "secondaryLine"
+        ]
+      },
+      "Fact": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
+          },
+          "tone": {
+            "type": "string",
+            "description": "INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
+          },
+          "value": {
+            "type": "string",
+            "description": "the fact itself. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "secondaryLine": {
+            "type": "string",
+            "description": "CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          }
+        },
+        "required": [
+          "label",
+          "tone",
+          "value"
+        ]
+      },
+      "LibraryRow": {
+        "type": "object",
+        "description": "A library row as a LISTING shows it. The recents carry no category — that is what the fixture holds — so the category lives on LibraryItem below rather than here.",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "secondaryLine": {
+            "type": "string",
+            "description": "year and kind, or an episode fraction. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          }
+        },
+        "required": [
+          "secondaryLine",
+          "title"
+        ]
+      },
+      "LibraryItem": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "secondaryLine": {
+            "type": "string",
+            "description": "year and kind, or an episode fraction. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "category": {
+            "type": "string",
+            "description": "the category identifier this item is filed under"
+          },
+          "overview": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the synopsis the CARD shows. It comes from a family of its own, keyed by title; the media sheet carries a different text under the same question, and the demand register asks for one answer to it"
+          }
+        },
+        "required": [
+          "category",
+          "secondaryLine",
+          "title"
+        ]
+      },
+      "LibraryCategory": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string",
+            "description": "INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
+          },
+          "count": {
+            "type": "integer"
+          },
+          "includes": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "the category identifiers this one aggregates. Null on the pseudo-category that aggregates EVERYTHING — it filters nothing, which is the opposite of a leaf. Every leaf carries a one-element array naming itself."
+          }
+        },
+        "required": [
+          "count",
+          "id",
+          "includes",
+          "label"
+        ]
+      },
+      "IncompleteShow": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "owned": {
+            "type": "integer",
+            "description": "episodes held"
+          },
+          "aired": {
+            "type": "integer",
+            "description": "episodes aired"
+          },
+          "year": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "aired",
+          "owned",
+          "title",
+          "year"
+        ]
+      },
+      "Follow": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "movie or show"
+          },
+          "year": {
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "description": "the acquisition status token"
+          },
+          "showStatus": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "whether the SHOW is still running — « Continuing » — and null for a film. The fixture's key is `serie`, which reads as a series NAME and is not one: the eight shows all carry « Continuing » and the four films carry null. The rename was `series` until the data was read."
+          },
+          "since": {
+            "type": "string",
+            "description": "when the follow was added. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "searches": {
+            "type": "integer",
+            "description": "how many searches have run for it"
+          },
+          "owned": {
+            "type": "integer",
+            "description": "episodes held. Shows only"
+          },
+          "aired": {
+            "type": "integer",
+            "description": "episodes aired. Shows only"
+          },
+          "fresh": {
+            "type": "boolean",
+            "description": "added recently enough to be marked as such"
+          }
+        },
+        "required": [
+          "kind",
+          "searches",
+          "showStatus",
+          "since",
+          "status",
+          "title",
+          "year"
+        ]
+      },
+      "SearchResult": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "year": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "the provider's own word for the kind. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "overview": {
+            "type": "string"
+          },
+          "owned": {
+            "type": "boolean"
+          },
+          "followed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "followed",
+          "kind",
+          "overview",
+          "owned",
+          "title",
+          "year"
+        ]
+      },
+      "SearchResults": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "how many the provider has"
+          },
+          "shown": {
+            "type": "integer",
+            "description": "how many this page carries"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchResult"
+            }
+          }
+        },
+        "required": [
+          "results",
+          "shown",
+          "total"
+        ]
+      },
+      "SuggestionReason": {
+        "description": "why a title is suggested, as a run of pieces: plain text, and figures the interface emphasises.",
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "emphasis": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "emphasis"
+            ]
+          }
+        ]
+      },
+      "Suggestion": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "year": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "rating": {
+            "type": "number"
+          },
+          "why": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SuggestionReason"
+            },
+            "description": "why the title is suggested, as a run of pieces: plain text, and the figures the interface emphasises. INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
+          }
+        },
+        "required": [
+          "kind",
+          "rating",
+          "title",
+          "why",
+          "year"
+        ]
+      },
+      "Release": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "the release name, as the tracker publishes it"
+          },
+          "resolution": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "seeders": {
+            "type": "integer"
+          },
+          "sizeGigabytes": {
+            "type": "number"
+          },
+          "score": {
+            "type": "integer",
+            "description": "the ranking score"
+          }
+        },
+        "required": [
+          "language",
+          "name",
+          "resolution",
+          "score",
+          "seeders",
+          "sizeGigabytes",
+          "source"
+        ]
+      },
+      "PipelineStep": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "the step identifier"
+          },
+          "label": {
+            "type": "string",
+            "description": "INTERFACE COPY the fixture carries. The demand register asks for it to move to i18n"
+          },
+          "description": {
+            "type": "string",
+            "description": "INTERFACE COPY, as above"
+          }
+        },
+        "required": [
+          "description",
+          "label",
+          "name"
+        ]
+      },
+      "PipelineFact": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "the step this fact reports on"
+          },
+          "result": {
+            "type": "string",
+            "description": "what the step did. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "secondaryLine": {
+            "type": "string",
+            "description": "CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "blockedCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "PipelineRunSummary": {
+        "type": "object",
+        "properties": {
+          "uid": {
+            "type": "string"
+          },
+          "when": {
+            "type": "string",
+            "description": "CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "duration": {
+            "type": "string",
+            "description": "CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "trigger": {
+            "type": "string",
+            "description": "what started it"
+          },
+          "outcome": {
+            "type": "string"
+          },
+          "facts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PipelineFact"
+            }
+          }
+        },
+        "required": [
+          "duration",
+          "facts",
+          "outcome",
+          "trigger",
+          "uid",
+          "when"
+        ]
+      },
+      "Pipeline": {
+        "type": "object",
+        "properties": {
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PipelineStep"
+            }
+          },
+          "triggers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "what each trigger token is called, in French. It is the same shape as every label map the register classifies `interface`, and it is carried here because the fixture carries it inside the pipeline. INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
+          },
+          "last": {
+            "$ref": "#/components/schemas/PipelineRunSummary"
+          }
+        },
+        "required": [
+          "last",
+          "steps",
+          "triggers"
+        ]
+      },
+      "PipelineExecution": {
+        "type": "object",
+        "properties": {
+          "when": {
+            "type": "string",
+            "description": "CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "succeeded": {
+            "type": "boolean"
+          },
+          "cause": {
+            "type": "string",
+            "description": "what started it. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "result": {
+            "type": "string",
+            "description": "what it did. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          }
+        },
+        "required": [
+          "cause",
+          "result",
+          "succeeded",
+          "when"
+        ]
+      },
+      "CodeErrors": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "outOf": {
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "latest": {
+            "type": "string",
+            "description": "CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "what": {
+            "type": "string",
+            "description": "CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "where": {
+            "type": "string",
+            "description": "CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          }
+        },
+        "required": [
+          "latest",
+          "outOf",
+          "total",
+          "what",
+          "where"
+        ]
+      },
+      "JournalRow": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "the media the entry is about — a title, not a label"
+          },
+          "value": {
+            "type": "string",
+            "description": "when it happened. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "secondaryLine": {
+            "type": "string",
+            "description": "CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          }
+        },
+        "required": [
+          "label",
+          "value"
+        ]
+      },
+      "DeletionJournal": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JournalRow"
+            }
+          }
+        },
+        "required": [
+          "rows",
+          "total"
+        ]
+      },
+      "MaintenanceAction": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "group": {
+            "type": "string",
+            "description": "the topic identifier it belongs to"
+          },
+          "risk": {
+            "type": "string",
+            "description": "what it may change: read-only, write, or destructive"
+          },
+          "long": {
+            "type": "boolean",
+            "description": "whether it runs long enough to need progress"
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": "whether it offers a blank run"
+          }
+        },
+        "required": [
+          "description",
+          "dryRun",
+          "group",
+          "id",
+          "label",
+          "long",
+          "risk"
+        ]
+      },
+      "Setting": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "the configuration file that owns it"
+          },
+          "key": {
+            "type": "string",
+            "description": "its full dotted key"
+          },
+          "type": {
+            "type": "string",
+            "description": "the kind of field it is drawn as"
+          },
+          "raw": {
+            "description": "the value as the file holds it"
+          },
+          "name": {
+            "type": "string",
+            "description": "its short name inside the file"
+          },
+          "note": {
+            "type": "string",
+            "description": "what it is for"
+          },
+          "displayedValue": {
+            "description": "what the field SHOWS, already rendered — « 4 entrées », « aucun », « oui », « non défini ». It was called `value` until the values were read: 110 of the 159 fields differ from `raw`, and one is LOSSY — a four-element list renders « multi, vf, vostfr +1 » and the fourth element is gone. The engine's own accessor is `displayedValue`, which is the name that survives here. INTERFACE COPY the fixture carries; the demand register asks the backend for `raw` alone and leaves the rendering to the interface."
+          }
+        },
+        "required": [
+          "displayedValue",
+          "file",
+          "key",
+          "name",
+          "raw",
+          "type"
+        ]
+      },
+      "SettingsTopic": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "description": "INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
+          },
+          "secondaryLine": {
+            "type": "string",
+            "description": "INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
+          },
+          "fileNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "settings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Setting"
+            }
+          }
+        },
+        "required": [
+          "fileNames",
+          "id",
+          "secondaryLine",
+          "settings",
+          "title"
+        ]
+      },
+      "Secret": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string",
+            "description": "INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
+          },
+          "defined": {
+            "type": "boolean",
+            "description": "whether a value exists. NEVER the value itself"
+          }
+        },
+        "required": [
+          "defined",
+          "key",
+          "label"
+        ]
+      },
+      "Account": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "avatar": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "avatar",
+          "email",
+          "name"
+        ]
+      },
+      "DecisionCandidate": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "year": {
+            "type": "integer"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "score": {
+            "type": "number",
+            "description": "the match score"
+          },
+          "withoutPoster": {
+            "type": "boolean",
+            "description": "the provider has no poster; the placeholder says so"
+          },
+          "overview": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "year",
+          "provider",
+          "id",
+          "score"
+        ]
+      },
+      "DecisionChoice": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "via": {
+            "$ref": "#/components/schemas/DecisionRoute"
+          }
+        },
+        "required": [
+          "id",
+          "provider",
+          "title",
+          "via"
+        ]
+      },
+      "PendingDecision": {
+        "type": "object",
+        "properties": {
+          "folder": {
+            "type": "string",
+            "description": "the staging folder awaiting arbitration"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "description": "why the scrape could not decide alone, as a TOKEN. The engine keys its French wording by it (`REASON_LABEL`, classified `interface`) — unlike `QueueCard.reason`, which is a whole sentence."
+          },
+          "when": {
+            "type": "string",
+            "description": "CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecisionCandidate"
+            }
+          },
+          "year": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "the year, where the folder names one"
+          }
+        },
+        "required": [
+          "candidates",
+          "folder",
+          "kind",
+          "reason",
+          "title",
+          "when"
+        ]
+      },
+      "SettledDecision": {
+        "type": "object",
+        "properties": {
+          "folder": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "description": "why the scrape could not decide alone, as a TOKEN. The engine keys its French wording by it (`REASON_LABEL`, classified `interface`) — unlike `QueueCard.reason`, which is a whole sentence."
+          },
+          "state": {
+            "$ref": "#/components/schemas/DecisionState"
+          },
+          "when": {
+            "type": "string",
+            "description": "CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "year": {
+            "type": "integer"
+          },
+          "choice": {
+            "$ref": "#/components/schemas/DecisionChoice"
+          }
+        },
+        "required": [
+          "folder",
+          "kind",
+          "title",
+          "reason",
+          "state",
+          "when"
+        ]
+      },
+      "CastMember": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "role"
+        ]
+      },
+      "Trailer": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "the YouTube key"
+          },
+          "name": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "language",
+          "name"
+        ]
+      },
+      "ProviderIds": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": {
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "MediaSheet": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "movie or show"
+          },
+          "year": {
+            "type": "string",
+            "description": "the year, as the provider writes it"
+          },
+          "rating": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "genres": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the genres, already joined into one line. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "runtime": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "minutes, on the 202 sheets that carry one"
+          },
+          "overview": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "director": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "creator": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cast": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CastMember"
+            }
+          },
+          "trailer": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The trailer's TITLE, and nothing else. It is NOT the other half of `trailerIds`, and that was written here before the two were compared: of the 288 titles both carry, 178 name a DIFFERENT trailer — one the dubbed cut, the other the subtitled one — and 110 of the sheets carrying null have a key and a name in `trailerIds` all the same. So null does not mean « no trailer » either. The demand stands and is the same: one trailer object, its key beside its name, decided once."
+          },
+          "ids": {
+            "$ref": "#/components/schemas/ProviderIds"
+          },
+          "status": {
+            "type": "string",
+            "description": "INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
+          },
+          "owned": {
+            "type": "boolean",
+            "description": "whether the library holds it"
+          },
+          "episodes": {
+            "type": "object",
+            "description": "the episode catalogue, keyed by season number. Shows only",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Episode"
+              }
+            }
+          },
+          "seasons": {
+            "type": "array",
+            "description": "the seasons the provider knows of. Shows only",
+            "items": {
+              "$ref": "#/components/schemas/SeasonSummary"
+            }
+          },
+          "tmdbTelevisionId": {
+            "type": "string",
+            "description": "the TMDB television identifier, on the eleven sheets that carry one — a string, as the fixture holds it"
+          },
+          "poster": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the poster's address. A BUILD-LOCAL PATH the fixture carries — the maquette's own hashed file, which no server can produce. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
+          },
+          "posterHighDefinition": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the poster at gallery definition, same caveat"
+          },
+          "hero": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the wide visual, same caveat"
+          },
+          "trailerVideo": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Trailer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the trailer's key and name, from the family keyed by the same title. See `trailer` above for why the two disagree 178 times"
+          },
+          "castPortraits": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "this title's own cast portraits, keyed by name"
+          }
+        },
+        "required": [
+          "cast",
+          "creator",
+          "director",
+          "genres",
+          "ids",
+          "kind",
+          "overview",
+          "owned",
+          "rating",
+          "runtime",
+          "status",
+          "trailer",
+          "year"
+        ],
+        "description": "One media sheet. Every field's type below was MEASURED across the 326 sheets the fixture holds, not assumed: `runtime` is an integer count of minutes and was written as a string, `tmdbTelevisionId` is a string on the eleven sheets that carry it and was written as an integer, and `trailer` is a title rather than an object. The schema arm of `scripts/check-mock-seeds.py` found all three."
+      },
+      "Season": {
+        "type": "object",
+        "properties": {
+          "season": {
+            "type": "integer"
+          },
+          "owned": {
+            "type": "integer",
+            "description": "how many of them the library holds"
+          },
+          "aired": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "how many episodes the provider catalogue lists, or null when it does not say. The interface then shows a question mark rather than an invented total"
+          }
+        },
+        "required": [
+          "aired",
+          "owned",
+          "season"
+        ]
+      },
+      "JourneyStage": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "when": {
+            "type": "string",
+            "description": "CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "state": {
+            "type": "string",
+            "description": "done, now, or todo"
+          }
+        },
+        "required": [
+          "label",
+          "state",
+          "when"
+        ]
+      },
+      "Problem": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string",
+            "description": "what went wrong, in one line"
+          },
+          "detail": {
+            "type": "string",
+            "description": "the real reason, never a code alone (NE-DOIT-PAS-4, NE-DOIT-PAS-5)"
+          }
+        },
+        "required": [
+          "status",
+          "title"
+        ]
+      },
+      "Episode": {
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "airDate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "duration": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "minutes, where known"
+          }
+        },
+        "required": [
+          "number",
+          "title"
+        ]
+      },
+      "SeasonSummary": {
+        "type": "object",
+        "description": "a season as the PROVIDER knows it — how many episodes, and when it began. `Season` beside it is what the LIBRARY holds of one, which is a different question and a different endpoint.",
+        "properties": {
+          "number": {
+            "type": "integer"
+          },
+          "episodes": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "airDate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "number"
+        ]
+      },
+      "PipelineState": {
+        "type": "string",
+        "enum": [
+          "idle",
+          "running",
+          "queued",
+          "paused",
+          "stopping"
+        ],
+        "description": "What the pipeline is doing. `queued` is what a run asked for during a run answers with — visibly queued, never refused (DOIT-4, NE-DOIT-PAS-3)."
+      },
+      "DecisionState": {
+        "type": "string",
+        "enum": [
+          "resolved",
+          "dismissed",
+          "superseded"
+        ],
+        "description": "Where a decision has got to. The engine keys its French labels by these same tokens (`DECISION_STATE`, classified `interface` — the labels belong to the interface, the tokens to this contract)."
+      },
+      "DecisionRoute": {
+        "type": "string",
+        "enum": [
+          "pick",
+          "search_override"
+        ],
+        "description": "how a candidate was reached: picked from the list the decision offered, or found by a manual search that bypassed it. The engine keys its French wording by these tokens (`VIA_LABEL`, classified `interface`)."
+      }
+    },
+    "responses": {
+      "Problem": {
+        "description": "the request failed, and the reason is the real one (NE-DOIT-PAS-4, NE-DOIT-PAS-5)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      }
+    }
+  }
+}

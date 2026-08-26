@@ -1,0 +1,54 @@
+{
+  "total": 257,
+  "shown": 6,
+  "results": [
+    {
+      "title": "La Guerre des étoiles",
+      "year": "1977",
+      "kind": "Film",
+      "overview": "Il y a bien longtemps, dans une galaxie très lointaine... La guerre civile fait rage entre l'Empire galactique et l'Alliance rebelle. Capturée par les troupes de choc de l'Empereur menées pa",
+      "owned": true,
+      "followed": false
+    },
+    {
+      "title": "Star Wars : The Clone Wars",
+      "year": "2008",
+      "kind": "Série",
+      "overview": "La galaxie est en proie à la Guerre des Clones, un conflit à grande échelle qui oppose les maléfiques Séparatistes et leurs immenses armées d'androïdes à la République. Les Chevaliers Jedi, ",
+      "owned": true,
+      "followed": false
+    },
+    {
+      "title": "Star Wars : The Mandalorian and Grogu",
+      "year": "2026",
+      "kind": "Film",
+      "overview": "L'Empire maléfique est tombé et les seigneurs de guerre impériaux restent dispersés dans toute la galaxie. Alors que la nouvelle République naissante travaille pour protéger tout ce que la r",
+      "owned": true,
+      "followed": false
+    },
+    {
+      "title": "Star Wars : Les Aventures des Petits Jedi",
+      "year": "2023",
+      "kind": "Série",
+      "overview": "L'incroyable parcours des Younglings, de jeunes recrues entamant un long cheminement dans l'espoir de devenir un jour des chevaliers Jedi dignes de ce nom. Leur formation va les amener à se ",
+      "owned": false,
+      "followed": false
+    },
+    {
+      "title": "Star Wars : The Clone Wars",
+      "year": "2008",
+      "kind": "Film",
+      "overview": "La galaxie est en proie à la Guerre des Clones, un conflit à grande échelle qui oppose les maléfiques Séparatistes et leurs immenses armées d'androïdes à la République. Les Chevaliers Jedi, ",
+      "owned": false,
+      "followed": false
+    },
+    {
+      "title": "Star Wars Vintage : Clone Wars",
+      "year": "2003",
+      "kind": "Série",
+      "overview": "Dans une galaxie très lointaine, se noue un drame. Le chaos règne et une guerre impitoyable se déclare entre la République et les forces séparatistes menées par les sinistres Sith du côté ob",
+      "owned": false,
+      "followed": false
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+[
+  {
+    "label": "Médiathèque",
+    "tone": "info",
+    "value": "1 863 titres",
+    "secondaryLine": "97 999 fichiers · 25 939 épisodes"
+  },
+  {
+    "label": "Dernier balayage",
+    "tone": "success",
+    "value": "réussi",
+    "secondaryLine": "réparation, à la fin du dernier passage du pipeline"
+  },
+  {
+    "label": "Réparations en attente",
+    "tone": "success",
+    "value": "aucune",
+    "secondaryLine": "la file est vide"
+  },
+  {
+    "label": "Écritures en attente",
+    "tone": "success",
+    "value": "aucune",
+    "secondaryLine": "rien ne reste à propager"
+  },
+  {
+    "label": "Anomalies relevées",
+    "tone": "warning",
+    "value": "à nettoyer",
+    "secondaryLine": "633 en tout · 607 fichiers parasites · 18 restes de release · 8 autres"
+  }
+]

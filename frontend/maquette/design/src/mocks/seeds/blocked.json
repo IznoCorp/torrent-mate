@@ -1,0 +1,14 @@
+[
+  {
+    "title": "Lucky",
+    "secondaryLine": "S02E07 · 1080p",
+    "reason": "Deux séries portent ce titre : TVDB 445120 « Lucky (2026) » et TMDB 90233 « Lucky (2021) ». Le scrape ne peut pas choisir seul.",
+    "strip": [
+      1,
+      1,
+      1,
+      "blocked",
+      0
+    ]
+  }
+]

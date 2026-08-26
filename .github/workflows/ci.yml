@@ -212,6 +212,15 @@ jobs:
         with: { python-version: "3.12" }
       - run: pip install playwright && python -m playwright install --with-deps chromium
         if: needs.changes.outputs.maquette == 'true'
+      # `scripts/check-mock-seeds.py` is one of the cheap guards this tier folds
+      # in, and its schema arm validates every mock seed against the maquette
+      # contract. `jsonschema` is declared in pyproject's dev extra, which this
+      # job does not install — installing the ONE package keeps this to seconds,
+      # the same reasoning the python job records for TypeScript. Without it the
+      # arm answers « not installed » and the tier is red for a reason foreign
+      # to every change under test.
+      - run: pip install jsonschema
+        if: needs.changes.outputs.maquette == 'true'
       - run: npm ci --prefix frontend/maquette/design
         if: needs.changes.outputs.maquette == 'true'
       # The CONTRACT subset only. The 56-rule suite is a wave gate, not a
