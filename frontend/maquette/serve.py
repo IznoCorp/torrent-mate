@@ -53,8 +53,19 @@ import urllib.parse
 from collections.abc import Callable
 from pathlib import Path
 
+# THIS FILE IS LOADED THREE WAYS, and only one of them puts its directory on the
+# import path. Run as a script it is `__main__` and Python adds the directory;
+# imported by a rule that inserted it first, it resolves; but
+# `scripts/csstokens_login.py` loads it by FILE LOCATION to compose the sign-in
+# page and measure it, and a spec-from-file load adds nothing. Without the line
+# below the sibling import raised `ModuleNotFoundError` there — caught by the
+# full rule suite, which is where a guard that reads what nobody else reads
+# earns its place. The directory is this file's own, resolved, never the
+# caller's working directory.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 # The identity of the tree this host serves — its own subject, its own file.
-from host_identity import with_served_identity
+from host_identity import with_served_identity  # noqa: E402 — the path line above must run first
 
 
 def renamed_env(current: str, former: str) -> str | None:
