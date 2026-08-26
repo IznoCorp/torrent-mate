@@ -133,6 +133,15 @@ when the defect comes back.
 | B-097 | Twenty seed renames never reached the index, and only a case-sensitive runner saw it | by CI | `fixed #503` |
 | B-098 | The build plugin raced its own output and failed three jobs on a fresh checkout | by CI | `fixed #503` |
 | B-099 | A test pass writes 13 GB of real zeroes into `/tmp` and pytest keeps three of them | by operator | `fixed #505` |
+| B-079 | The design host cannot say which commit it serves, and production's host can | by audit | `open` |
+| B-080 | The drawer shows a hard-coded version and build, and calls itself up to date | by operator | `open` |
+| B-081 | Design notes can no longer be hidden, and the oracle measures without them | by operator | `open` |
+| B-082 | `hidden` hides nothing on five elements, so an invisible button is still tappable | by operator | `open` |
+| B-083 | L08's design and plan were never archived, and every lot before it was | by audit | `open` |
+| B-084 | A wave that found twenty defects wrote none of them in this register | by audit | `open` |
+| B-085 | Guards green over what they do not read: 17 in three consecutive waves, counted by nobody | by audit | `open` |
+| B-100 | Invariant 10 is written and unarmed: no arm counts the frame's domain words | by audit | `open` |
+| B-101 | The steward's brief predicted an oracle movement that could not happen | by audit | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -2053,3 +2062,59 @@ the retention policy. Both halves were needed; neither alone would have done.
 **The pass is also a third faster** — 180 s to 105 s — because it is no longer writing gigabytes.
 
 <sub>`python -m pytest tests/verify -q && find /tmp/pytest-of-izno -type f | wc -l` · `grep -n tmp_path_retention_policy pyproject.toml`</sub>
+**B-100 — invariant 10 exists as a sentence, and this register knows what that is worth.**
+Written 2026-08-26 with the operator: **the frame does not name the domain**, except in the three
+tables whose job is to. It freezes a property that measurement shows is already true — `ui/` carries
+one domain word across 1 162 lines, `lib/` only in `addresses.ts` and the dying `engine-drawing.ts`,
+`app/` only in the three files that hold the list of pages.
+
+**No arm counts any of it.** `CLAUDE.md`'s own line applies without softening: every rule has an
+arm, or it is a sentence in a file — and this repository has watched exactly that happen to
+`data-*` names, four of which simply stayed. The invariant is therefore recorded here as unarmed
+rather than left to be discovered as such.
+
+The shape of the arm is already in the repository, twice: `check-frontend-boundaries.py` reads the
+import graph per directory, and `french-exemption-baseline.json` is the per-scope count that may
+fall and never rise. This is those two, joined — a count of domain words per directory, outside
+comments, refused upward.
+
+**Two things it must NOT be**, both learned here at cost. It must not be an interdiction: a shared
+component that genuinely needs a domain word should cost one reviewed line with its reason, the way
+`code-vocabulary.txt` works, because a guard that blocks without a readable reason gets worked
+around. And its baseline must not be seeded to the current value without being read — a floor set
+where the count already sits is pre-satisfied and can never fall, which is B-075's shape, found
+twice in two waves.
+
+<sub>the measurement: domain-word count per directory of `design/src`, outside comment lines</sub>
+
+**B-101 — a brief that told a wave what it would measure, and was wrong about it.**
+The steward's hand-off for L08-bis stated, in bold: « **Cette vague VA faire bouger l'oracle** —
+B-081 change ce qui est peint par défaut », and instructed the wave to expect a re-record and to
+name every accepted divergence. **It could not move, and the reason was available before the brief
+was written.**
+
+The oracle captures with `html.measuring` on, and `harness.css`'s
+`html.measuring .note { display: none !important }` was the ONE surviving rule touching `.note` —
+a fact the steward had itself measured and written into B-081 the day before. The notes were
+therefore absent from all 2 739 measurements and had always been. Restoring the hidden-by-default
+pair aligns the judged document with the measured one **without changing the measured one**: the
+oracle staying at zero IS the proof of the repair, not a surprise. Had it diverged, eye and
+instrument would still be aimed at two documents.
+
+**The failure is not the prediction; it is deducing where a measurement was one command away.**
+The steward held both halves — the probe runs under `measuring`, and `measuring` hides `.note` —
+and joined them into a forecast instead of into a check. That is the shape this register counts
+under « guards green over what they do not read », applied to a person rather than a guard, and it
+is the second time in two waves: B-082's five elements were read from the markup without opening
+`base.css`.
+
+**Why it belongs in the register rather than in a session's apologies.** A brief steers a wave: it
+says what to expect, and an agent that expects a divergence looks for a reason to accept one. This
+one did not — it measured and contradicted the brief, which is the outcome to want. The next brief
+may be read by an agent that does not. **A figure in a brief carries the same duty as a figure in
+the plan: the command that produces it, or it is not stated.**
+
+Fix: no forecast of an instrument's behaviour in a hand-off without the command that establishes
+it, the same rule § 0 of the architecture file already holds every figure to.
+
+<sub>`grep -n 'measuring' frontend/maquette/design/src/styles/harness.css` · `grep -n 'measuring' frontend/maquette/oracle.py`</sub>

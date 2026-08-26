@@ -437,6 +437,25 @@ divergence » and mean « I compared nothing » — which a first version of it 
    imported by more than a set number of features is refused — the executable form of "no god
    module", and the only guard in this file that acts before its defect exists.
 9. **No `any`, no `ts-ignore`.** A ratchet held from zero (L04).
+10. **The frame does not name the domain**, except in the three tables whose job is to. `ui/`,
+    `lib/` and `app/` may carry the application's SHAPE — a shell, a page host, an address model,
+    a component vocabulary — and not its SUBJECT. The three exceptions are named because they
+    cannot be anything else: `lib/addresses.ts` (an address IS the page's identity, D1),
+    `routes/*` (a route names the page it mounts), and whatever table the shell reads to compose
+    navigation. Held by a count per directory, refused upward — never by an interdiction, so a
+    shared component that genuinely needs a domain word is one reviewed line, not a wall.
+
+    **Measured on 2026-08-26, outside comments**: `ui/` carries **one** domain word across 1 162
+    lines, `lib/` carries them only in `addresses.ts` and in `engine-drawing.ts` (which dies with
+    L13), and `app/` concentrates them in three files — `shell.tsx`, `page-host.tsx`,
+    `reference.d.ts` — all three being the list of pages, which every framework has somewhere.
+    **This invariant freezes a property that is already true; it does not ask for a refactor.**
+
+    **Why it is not written for the extraction.** A frame that does not name its subject is easier
+    to read, easier to test and easier to move between waves — that alone pays for it. Reusing it
+    on another product is a consequence, never the justification, and the day a measure here can
+    only be defended by that future is the day it has gone too far.
+
 10. **No French in the code and no interface text in the code.** Unchanged
    (`scripts/check-no-french.py`), and it applies to everything written here.
 11. **Every change lands with a rule that bites**, mutation-tested: break the behaviour on
@@ -890,6 +909,8 @@ against the mocks, or its divergences are accepted one by one with reasons.
 
 **Objective.** The event stream, and the cache invalidations it drives.
 
+
+**Where it lives (invariant 10).** A relay, its reconnection policy and its replay window are the application's SHAPE, not its subject: they belong in `lib/`, never under a `features/` folder because that is the surface the work was tested against.
 **Done when.** A server event refreshes exactly what it should and nothing else; reconnection and
 loss are handled visibly; no polling remains where an event exists.
 
@@ -899,6 +920,8 @@ loss are handled visibly; no polling remains where an event exists.
 the platform entry points a media application owes — receiving a shared link, and being the
 handler its links deserve.
 
+
+**Where it lives (invariant 10).** The service worker, the offline shell, the mutation queue and the install entry points are frame, not feature. They live in `app/` or `lib/`. A service worker under `features/` is the single most likely misplacement of this whole plan, because the page one happens to be testing is not the thing being built.
 **Done when.** The application opens and reads offline; a mutation issued offline departs on
 reconnection, exactly once; installation and its entry points are exercised on a real device.
 
@@ -950,6 +973,8 @@ history entry.
 before they are needed — the same asynchronous decode that makes the oracle flicker makes a
 shared-element transition tear.
 
+
+**Where it lives (invariant 10).** A gesture arbitration is vocabulary: it belongs to `ui/` or `lib/`. What stays feature-local is which gesture a given surface offers, never how a press, a drag and a scroll are told apart.
 **Done when.** Every transition is declared rather than scripted, the one named spring excepted;
 every gesture is proved against a real pointer stream **and** against a real mouse; reduced motion
 is defined for each of them (the reduced-motion invariant); the feedback seam has exactly one call site; no
