@@ -65,6 +65,16 @@ jobs:
             maquette:
               - 'frontend/maquette/**'
               - '.github/workflows/ci.yml'
+              # THE TWO TOOLS THAT LIVE UNDER `scripts/` AND ARE READ BY NO
+              # OTHER JOB. `harness-contracts` is the only job that runs
+              # `check-mock-seeds.py` (through `run.sh --contracts`), and that
+              # guard parses `extract-maquette-fixtures.mjs`'s output. Without
+              # these two lines a pull request touching only one of them ran
+              # the guard NOWHERE — added 2026-08-26, after a change to both
+              # in the same commit.
+              - 'scripts/check-mock-seeds.py'
+              - 'scripts/extract-maquette-fixtures.mjs'
+              - 'scripts/build-mock-seeds.py'
             # design-gaps parses design-doc ANCHORS (audit_design_coverage.py):
             # a docs-only PR that renames a heading can flip its verdict.
             docs:

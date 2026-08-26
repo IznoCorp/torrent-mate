@@ -158,6 +158,33 @@ export const sheetActions = cva("sheetacts flex flex-col gap-3 mt-2 mx-0 mb-7", 
   defaultVariants: { secondary: false },
 });
 
+/**
+ * A paragraph that GUIDES the reader of the application, not of the design.
+ *
+ * IT EXISTS BECAUSE `.note` DID NOT DISTINGUISH THE TWO, and the distinction is
+ * load-bearing: `.note` is the prototype's annotation, styled in the harness
+ * sheet and hidden until the reader asks for it — so a paragraph wearing it is
+ * invisible by default. Four paragraphs wearing it were not annotations at all.
+ * They tell the operator what a control does, what a displayed value means, or
+ * what an action is about to do, and one of them is the only sentence saying
+ * that a maintenance rubric DELETES.
+ *
+ * THE TEST, applied to all twenty-seven: a paragraph is an annotation if it
+ * addresses the reader of the MAQUETTE — what changed, what was drawn anew,
+ * which section of the constitution it serves. It is guidance if it addresses
+ * the operator USING the application. Twenty-three were annotations and stay
+ * `.note`; four are guidance and wear this.
+ *
+ * It carries the annotation's own shape deliberately — the reader has learnt
+ * that a left-bordered tinted paragraph is an explanation — in the muted tone
+ * rather than the accent, because guidance is part of the page and an
+ * annotation is a layer over it.
+ */
+export const guidance = cva(
+  "guidance border-l-[3px] border-border bg-muted rounded-r-2 py-4 px-5 " +
+    "text-2 leading-[1.5] text-foreground",
+);
+
 /** A note stating a rule, set off by a rule of its own. */
 export const ruleNote = cva(
   "rulenote mt-0 mx-0 mb-7 text-3 leading-[1.45] text-muted-foreground " +

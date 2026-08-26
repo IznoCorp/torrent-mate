@@ -32,6 +32,7 @@
     "servedIdentity": {
       "label": "Version déployée",
       "dirty": "modifié",
+      "detached": "HEAD détaché — aucune branche",
       "unavailable": "identité indisponible",
       "unavailableReason": "cette copie n'est pas servie par l'hôte de design"
     }

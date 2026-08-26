@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """What the design host is serving — the branch, the commit, and the dirt.
 
-THE DEFECT THIS ANSWERS. The drawer stated `0.98.23` and `build 58d0d4fd · à
-jour` as literals, while the repository stood twenty patch versions further on
-and « à jour » asserted a freshness nothing measured. A screen that says
+THE DEFECT THIS ANSWERS. The drawer stated a version and a build sha as
+literals — nineteen patch versions behind what the repository actually held —
+and claimed in the same breath that they were up to date, which is a freshness
+nothing measured. A screen that says
 nothing sends its reader to look; a screen that states a plausible answer stops
 them looking, and that value was credible precisely because it had been a real
 version of this repository once (B-079, B-080).
@@ -76,22 +77,36 @@ def served_identity(root: Path) -> dict[str, object] | None:
         root: The tree the host serves from.
 
     Returns:
-        A mapping with `branch`, `commit` and `dirty`, or None when the root is
-        not a git repository — in which case the page says so rather than
-        showing a plausible value.
+        A mapping with `branch`, `detached`, `commit` and `dirty`, or None when
+        the root is not a git repository — in which case the page says so
+        rather than showing a plausible value.
     """
-    branch = _git(root, "rev-parse", "--abbrev-ref", "HEAD")
+    # A DETACHED HEAD IS ITS OWN STATE, NOT A BRANCH CALLED « HEAD ».
+    # `rev-parse --abbrev-ref HEAD` answers the literal string `HEAD` on a
+    # detached checkout, exit 0, so the drawer would render `HEAD` where it
+    # renders a branch name — plausible, wrong, and unreadable as an anomaly.
+    # That is the exact defect this whole mechanism repairs, and it is not a
+    # hypothetical state: the incident that opened B-079 was a detached
+    # checkout two commits behind, mistaken for a branch. `symbolic-ref` is
+    # what tells the two apart — it fails on a detached HEAD and succeeds
+    # otherwise.
+    branch = _git(root, "symbolic-ref", "--quiet", "--short", "HEAD")
     commit = _git(root, "rev-parse", "--short", "HEAD")
-    if not branch or not commit:
+    if not commit:
         return None
-    # `--porcelain` over the whole tree, untracked files INCLUDED: a file that
-    # is not in the index is still a file the build reads, and `serve.py`
-    # rebuilds from `src/` whatever git thinks of it. An empty answer is the
-    # only clean tree.
-    status = _git(root, "status", "--porcelain")
+    # THE DIRT IS SCOPED TO WHAT THE HOST ACTUALLY SERVES. `git status` is
+    # repository-scoped whatever its working directory, so an edit to
+    # `personalscraper/`, to `tests/` or to this register would have marked the
+    # design host « modifié » — and a mark that is always on stops being read,
+    # which is the failure this mechanism exists to end. The pathspec narrows
+    # it to the design root, which is what `mtime_sources()` in `serve.py`
+    # rebuilds from. Untracked files are INCLUDED by default: a file that is
+    # not in the index is still a file the build reads.
+    status = _git(root, "status", "--porcelain", "--", str(root))
     if status is None:
         return None
-    return {"branch": branch, "commit": commit, "dirty": bool(status)}
+    return {"branch": branch or "", "detached": branch is None,
+            "commit": commit, "dirty": bool(status)}
 
 
 # WHERE THE IDENTITY IS PUBLISHED ON THE PAGE. A classic inline script runs
@@ -119,7 +134,27 @@ def with_served_identity(document: bytes, root: Path) -> bytes:
         # reason. A partial payload would render « undefined » on screen, which
         # reads as a value.
         return document
-    published = json.dumps(identity, ensure_ascii=False).encode("utf-8")
+    # THE THREE CHARACTERS THAT END A SCRIPT ELEMENT ARE ESCAPED, and this is
+    # not belt-and-braces. `json.dumps` escapes `"` and `\\` and nothing else
+    # that matters inside a `<script>` body: a git ref may legally contain `<`,
+    # `>` and `/`, so a branch named `</script><img src=x onerror=…>` closes the
+    # element, leaves `window.__servedIdentity=` as a syntax error — the drawer
+    # then says « unavailable » on exactly the branch that broke it — and turns
+    # the rest into live markup on the design host's own origin. Verified with
+    # `git check-ref-format --branch`, which accepts that name.
+    #
+    # Not merely the author's own branch, either: `gh pr checkout` and
+    # `/implement:adopt` both name a local branch after somebody else's head
+    # ref.
+    #
+    # `\\u003c` and friends are valid JSON escapes, so the payload still parses
+    # as the same string — which is also why `json.loads` on it proves nothing,
+    # and why the rule holds the SCRIPT BODY rather than the JSON.
+    published = (json.dumps(identity, ensure_ascii=False)
+                 .replace("<", "\\u003c")
+                 .replace(">", "\\u003e")
+                 .replace("&", "\\u0026")
+                 .encode("utf-8"))
     script = b"<script>window.__servedIdentity=" + published + b";</script>"
     marker = IDENTITY_MARKER.encode("utf-8")
     head, found, rest = document.partition(marker)

@@ -302,6 +302,7 @@ grab
 grid
 group
 groups
+guidance
 harness
 has
 hauteur
@@ -374,6 +375,7 @@ json
 jsx
 kept
 key
+keys
 kind
 knob
 known
@@ -587,6 +589,8 @@ queued
 quiet
 radius
 rank
+ratifies
+ratify
 raw
 read
 real
@@ -866,6 +870,7 @@ width
 window
 with
 without
+wording
 wordmark
 words
 world

@@ -23,6 +23,25 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 MAQUETTE = ROOT / "frontend" / "maquette"
+
+
+def maquette_servers():
+    """Returns the maquette root's own Python — the hosts and the instruments.
+
+    A GLOB, AND IT USED TO BE A HAND LIST. Five corpora in two files named
+    `serve.py` and `resync.py` one by one, so `host_identity.py` — split OUT of
+    `serve.py` — inherited none of `serve.py`'s coverage and sat outside every
+    arm on the day it was written. That is the shape this guard's own comments
+    record about `frontend/scripts/` not being `scripts/`, met again from the
+    inside.
+
+    `harness/` is NOT here: it is globbed separately by every caller, and it is
+    a different scope in the tally.
+
+    Returns:
+        Every `*.py` directly under the maquette root, in a stable order.
+    """
+    return sorted(MAQUETTE.glob("*.py"))
 VOCABULARY = ROOT / "scripts" / "code-vocabulary.txt"
 DEBT_BANNER = "# ── THE ENGINE'S LAST FRENCH WORDS"
 DEBT_FILE = "frontend/maquette/design/src/engine/legacy.js"

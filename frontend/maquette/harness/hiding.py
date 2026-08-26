@@ -41,8 +41,9 @@ generalises: a fresh element wearing a display utility and the attribute proves
 the RULE, where the five prove the elements as they stand today.
 """
 import asyncio
+import time
 
-from common import Journal, open_page
+from common import PHONE, PROTOTYPE, Journal, open_page
 from playwright.async_api import async_playwright
 
 # The five the register named. `#fab`, `#installbar` and `#installsteps` were
@@ -116,6 +117,32 @@ async def main():
               released["displays"] == ["none"] and released["pressed"] == "false",
               str(released))
 
+        # 1b. AND THE PARAGRAPHS THAT ARE NOT ANNOTATIONS STAY. `.note` did not
+        #     distinguish the prototype's annotations from the application's own
+        #     guidance, so hiding it by default took four paragraphs with it that
+        #     tell the operator what a control does — including the only sentence
+        #     saying a maintenance rubric DELETES. They wear `guidance` now, and
+        #     the two must be readable apart in the same document: a rule that
+        #     only checked the notes would go green over exactly that loss.
+        guidance = await page.evaluate("""async ()=>{
+          const seen = [];
+          for (const state of ['maintenance-topic', 'system', 'settings-secrets',
+                               'arr-resolution']) {
+            window.__go(state);
+            await new Promise(done => setTimeout(done, 250));
+            for (const block of document.querySelectorAll('[data-part="guidance"]'))
+              seen.push([state, getComputedStyle(block).display]);
+          }
+          return seen;
+        }""")
+        check("the application's own guidance is on four surfaces",
+              len(guidance) >= 4, str(len(guidance)))
+        check("and none of it is hidden with the annotations",
+              bool(guidance) and all(display != "none" for _, display in guidance),
+              str(guidance))
+        await page.evaluate("()=>window.__go('acq-now-idle')")
+        await page.wait_for_timeout(250)
+
         # 2. `hidden` BITES, on every element that also wears a display.
         #    Measured by SETTING the attribute and reading the computed value
         #    back, then restoring — never by reading the stylesheet.
@@ -126,7 +153,7 @@ async def main():
             element.setAttribute('hidden','');
             const display=getComputedStyle(element).display;
             if (!had) element.removeAttribute('hidden');
-            return {id, display, wore: getComputedStyle(element).position};
+            return {id, display, wore: element.className.split(' ')[0]};
         })""", list(DECLARED_HIDEABLE))
         for row in bites:
             check(f"« hidden » hides #{row['id']}",
@@ -164,8 +191,11 @@ async def main():
               found != "none", found)
 
         # 3. THE ACTION BUTTON IS NOT UNDER THE MESSAGE'S CLOSE TARGET.
-        #    The boot hint is left to expire first: a message already on screen
-        #    would make the « quiet » reading say what the next one is meant to.
+        #    A message must be off screen first, or the « quiet » reading would
+        #    say what the next one is meant to. What is dismissed here is the
+        #    NOTES toast that step 1's two presses raised — each `toast()` call
+        #    clears the pending timer, so the boot hint's own 5 s wait was
+        #    cancelled long before this line and is not what is being waited on.
         await page.wait_for_timeout(2600)
         await page.evaluate("()=>document.getElementById('toastx').click()")
         await page.wait_for_timeout(400)
@@ -177,18 +207,39 @@ async def main():
         check("and the message's close target sits over it — the collision, measured",
               quiet["atCloseTarget"] == "fab", str(quiet["atCloseTarget"]))
 
-        await page.evaluate("()=>window.toast('essai')")
+        await page.evaluate("()=>window.toast('probe')")
         await page.wait_for_timeout(250)
         during = await page.evaluate(READ_MESSAGE)
         check("a message on screen takes the action button away",
               during["messageShown"] and during["buttonHidden"]
               and during["buttonDisplay"] == "none", str(during))
-        check("so closing the message cannot reach it",
-              during["atCloseTarget"] == "the message", str(during["atCloseTarget"]))
+        # NOT « the close target is now the message » — that is ENTAILED by the
+        # hold above: an element at `display: none` is not hit-testable, so once
+        # the button is gone `elementFromPoint` cannot answer it, and the hold
+        # would restate its predecessor. What is measured instead is the thing
+        # the previous hold does not say: the message's own close control is
+        # reachable, which is the point of taking the button away.
+        reachable = await page.evaluate("""()=>{
+          const close=document.getElementById('toastx');
+          const box=close.getBoundingClientRect();
+          const hit=document.elementFromPoint(box.x+box.width/2, box.y+box.height/2);
+          return hit !== null && close.contains(hit);
+        }""")
+        check("and the message's own close control is what a tap reaches",
+              reachable, str(during["atCloseTarget"]))
 
+        # 60 ms against a 200 ms return leaves 140 ms for the round trip — the
+        # tightest margin in this rule, and a stalled page would flip it red for
+        # a reason it does not hold. The reading is taken IMMEDIATELY instead,
+        # and the elapsed time is measured and asserted to be inside the window,
+        # so a slow machine reports « I could not measure this » rather than
+        # « the button came back too early ».
         await page.evaluate("()=>document.getElementById('toastx').click()")
-        await page.wait_for_timeout(60)
+        started = time.monotonic()
         leaving = await page.evaluate(READ_MESSAGE)
+        elapsed = (time.monotonic() - started) * 1000
+        check("the leaving reading was taken inside the return window",
+              elapsed < 150, f"{elapsed:.0f} ms of the 200 ms window")
         check("and it does not come back while the message is still leaving",
               not leaving["messageShown"] and leaving["buttonHidden"], str(leaving))
 
@@ -197,13 +248,40 @@ async def main():
         check("it comes back once the message has gone",
               not back["buttonHidden"] and back["buttonDisplay"] != "none", str(back))
 
+        # EVERY DISMISSAL PATH, not only the two the interface offers a reader.
+        # The engine also dismisses its boot hint from a capture-phase
+        # `pointerdown`, and that site wrote the `show` class alone — so the
+        # message left the screen while the state still said it was up, and the
+        # action button stayed away until a pending timer fired: four seconds,
+        # on the first tap of a session, on the page that HAS an action. Every
+        # hold above walks the close button or the timer, both of which go
+        # through the one seam. A path nobody drives is a path nobody measures,
+        # so this one drives it — on a FRESH page, because the hint fires once.
+        hint_context = await browser.new_context(**PHONE)
+        hint_page = await hint_context.new_page()
+        await hint_page.goto(PROTOTYPE, wait_until="load")
+        await hint_page.evaluate("()=>window.__loadingDone?.()")
+        await hint_page.wait_for_timeout(1400)
+        raised = await hint_page.evaluate(READ_MESSAGE)
+        check("the boot hint really appears, so this path is being driven",
+              raised["messageShown"], str(raised))
+        await hint_page.evaluate("""()=>document.getElementById('port')
+            .dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}))""")
+        await hint_page.wait_for_timeout(500)
+        after_tap = await hint_page.evaluate(READ_MESSAGE)
+        check("a tap that dismisses the hint clears the state with it",
+              not after_tap["messageShown"], str(after_tap))
+        check("and gives the action button back",
+              not after_tap["buttonHidden"], str(after_tap))
+        await hint_context.close()
+
         # The page's OWN answer is not erased by the message's. A page with no
         # primary action must not acquire one when a message closes — which is
         # what a second writer of `hidden` would have done.
         await page.evaluate("()=>window.__go('system')")
         await page.wait_for_timeout(300)
         pageless = await page.evaluate(READ_MESSAGE)
-        await page.evaluate("()=>window.toast('essai')")
+        await page.evaluate("()=>window.toast('probe')")
         await page.wait_for_timeout(250)
         await page.evaluate("()=>document.getElementById('toastx').click()")
         await page.wait_for_timeout(500)

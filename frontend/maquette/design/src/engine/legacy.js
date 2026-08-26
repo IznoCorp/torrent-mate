@@ -35093,9 +35093,16 @@ import { servedIdentityLines } from "../lib/served-identity";
       "pointerdown",
       () => {
         hintShown = true;
-        const toast2 = select("#toast");
-        if (toast2.textContent.includes("notes de conception"))
-          toast2.classList.remove("show");
+        /* THROUGH THE ONE SEAM, like every other dismissal. This site wrote the
+           `show` class alone, which was survivable while the class was the
+           whole of the state — it is not: `data-shown` is read by other rules,
+           and the action button's visibility now reads whether a message is up.
+           Left as it was, the first tap of a session cleared the hint visually
+           and stranded the action button until the pending timer fired. */
+        if (select("#toast").textContent.includes("notes de conception")) {
+          clearTimeout(toast._t);
+          setMessageShown(false);
+        }
       },
       { capture: true },
     );

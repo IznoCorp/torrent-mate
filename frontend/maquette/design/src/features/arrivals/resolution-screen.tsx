@@ -51,6 +51,7 @@ import { useArrivalsReference, type PendingDecision, type SettledDecision } from
 import { type QueueCard } from "../../lib/engine-queue";
 import { useStoreContent } from "../../lib/store-access";
 import { actionButton, backAction, body, emptyNote, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, sheetActions } from "../../ui/variants";
+import { guidance } from "../../ui/variants/layout";
 
 // Same helper as `media.tsx`'s, `profile.tsx`'s, `add.tsx`'s and
 // `releases.tsx`'s, still not shared: the extraction those files' comments
@@ -394,7 +395,7 @@ export function ResolutionScreen() {
               ""
             )}
           </div>
-          <div className="note" data-part="note">
+          <div className={guidance()} data-part="guidance">
             <b>{t("screens.resolution.note2Title")}</b>{" "}
             {t("screens.resolution.note2Body")}
           </div>

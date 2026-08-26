@@ -53,6 +53,9 @@ from playwright.async_api import async_playwright
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 PORT = 8716  # never 8710 / 8711 (the reverse proxy) and never 8712 (the design host)
 PASSWORD = "harness-only-password"
+# A LEGAL git ref that ends a script element. `git check-ref-format --branch`
+# accepts it; only a space would be refused, and the payload needs none.
+HOSTILE_BRANCH = "</script><img/src=x/onerror=alert(1)>"
 IDENTITY = '[data-part="shell/served-identity"]'
 
 _journal = None
@@ -137,7 +140,8 @@ async def read_drawer():
         # design host, so that the DRAWER's two states are read the same way.
         # That the host really publishes this shape is the server half below.
         await page.evaluate("""()=>{window.__servedIdentity =
-            {branch:'branch-under-test', commit:'0badc0de', dirty:true};}""")
+            {branch:'branch-under-test', detached:false,
+             commit:'0badc0de', dirty:true};}""")
         await page.evaluate("()=>window.__go('acq-now-idle')")
         await page.wait_for_timeout(200)
         await page.evaluate("()=>window.__go('drawer-navigation')")
@@ -154,15 +158,55 @@ async def read_drawer():
         clean = await page.evaluate(
             "(selector)=>[...document.querySelector(selector).children]"
             ".map(line=>line.textContent)", IDENTITY)
+
+        # A DETACHED HEAD IS NOT A BRANCH CALLED « HEAD », and this is the hold
+        # that says so. `rev-parse --abbrev-ref HEAD` answers the literal string
+        # `HEAD` there, exit 0, so a reader that trusted it would render `HEAD`
+        # where it renders a branch — plausible, wrong, and unreadable as an
+        # anomaly. The incident that opened this defect WAS a detached checkout
+        # two commits behind, read as a branch.
+        await page.evaluate("""()=>{window.__servedIdentity =
+            {branch:'', detached:true, commit:'0badc0de', dirty:false};}""")
+        await page.evaluate("()=>window.__go('acq-now-idle')")
+        await page.wait_for_timeout(200)
+        await page.evaluate("()=>window.__go('drawer-navigation')")
+        await page.wait_for_timeout(400)
+        detached = await page.evaluate(
+            "(selector)=>{const block=document.querySelector(selector);"
+            "return {known: block.hasAttribute('data-known'),"
+            " lines: [...block.children].map(line=>line.textContent)};}", IDENTITY)
+
+        # AND A MISSING RESOURCE SHOWS ITS KEY, never the word « undefined ».
+        # `i18next.t(key, {returnObjects: true})` answers the KEY AS A STRING
+        # when the key is absent, so an unchecked cast yields `undefined` for
+        # every field — and `undefined` on screen reads as a value, which is the
+        # defect this whole block repairs, one layer down.
+        removed = await page.evaluate("""()=>{
+            // The engine draws the drawer from the module's own reader, so the
+            // resource has to be emptied where the reader looks: i18next's
+            // store. If the bundle does not expose it, say so rather than let
+            // the hold below pass over a substitution that never happened.
+            const store = window.__i18n?.store?.data?.fr?.translation?.common;
+            if (!store || !store.servedIdentity) return false;
+            delete store.servedIdentity;
+            return true;
+        }""")
+        await page.evaluate("()=>window.__go('acq-now-idle')")
+        await page.wait_for_timeout(200)
+        await page.evaluate("()=>window.__go('drawer-navigation')")
+        await page.wait_for_timeout(400)
+        missing = await page.evaluate(
+            "(selector)=>[...document.querySelector(selector).children]"
+            ".map(line=>line.textContent)", IDENTITY)
         await browser.close()
-    return unpublished, dirty, clean
+    return unpublished, dirty, clean, detached, missing, removed
 
 
 def main() -> None:
     global _journal
     _journal = Journal("R87 — the drawer names what the host is serving")
 
-    unpublished, dirty, clean = asyncio.run(read_drawer())
+    unpublished, dirty, clean, detached, missing, removed = asyncio.run(read_drawer())
 
     # 1. THE HONEST ABSENCE. The rule suite reads a static copy, which publishes
     #    nothing — so this is the state the harness itself is always in, and it
@@ -186,6 +230,20 @@ def main() -> None:
           dirty["lines"][2] != clean[2] and len(dirty["lines"][2]) > len(clean[2]),
           f"dirty {dirty['lines'][2]!r} · clean {clean[2]!r}")
     check("while a clean one is not", clean[2] == "0badc0de", str(clean))
+    check("a detached head is named as one, not shown as a branch called « HEAD »",
+          detached["known"] and detached["lines"][1] not in ("HEAD", "", "0badc0de")
+          and detached["lines"][1] != "branch-under-test", str(detached["lines"]))
+    check("and it still names the commit", detached["lines"][2] == "0badc0de",
+          str(detached["lines"]))
+    check("the resource could really be emptied, so the hold below means something",
+          removed, str(removed))
+    check("with its words gone the block shows their KEYS, never « undefined »",
+          removed and all("undefined" not in line for line in missing)
+          and any("servedIdentity" in line for line in missing), str(missing))
+    check("and no line of the block ever renders « undefined »",
+          not any("undefined" in line for line in
+                  lines + dirty["lines"] + clean + detached["lines"] + missing),
+          str(missing))
 
     # 3. THE SERVER HALF: the served document really carries it.
     environment = {**os.environ, "TM_DESIGN_PASSWORD_HASH": password_hash()}
@@ -266,6 +324,66 @@ def main() -> None:
               after is not None and after["dirty"] is True, str(after))
         check("so the two reads differ across the change — nothing was cached",
               before != after, f"{before} vs {after}")
+
+        # A BRANCH NAME MAY LEGALLY END THE SCRIPT ELEMENT, and until this hold
+        # existed nothing said so. `json.dumps` escapes `"` and the backslash and
+        # nothing else that matters inside a script body; a git ref may contain
+        # `<`, `>` and `/`, so a branch named to close the element left
+        # `window.__servedIdentity=` as a syntax error — the drawer then said
+        # « unavailable » on exactly the branch that broke it — and turned the
+        # rest into live markup on the design host's own origin.
+        #
+        # HELD ON THE SCRIPT BODY, NOT ON THE JSON, and that distinction IS the
+        # finding: the corrupted payload parses as valid JSON, because JSON
+        # permits `<` and `/` inside a string. A `json.loads` here would pass.
+        subprocess.run(["git", "checkout", "-q", "-b", HOSTILE_BRANCH],
+                       cwd=root, capture_output=True, check=True)
+        emitter = (
+            "import os, pathlib, sys;"
+            "sys.path.insert(0, os.environ['HARNESS_SERVER_DIR']);"
+            "import host_identity;"
+            "root = pathlib.Path(os.environ['TM_DESIGN_ROOT']);"
+            "page = b'<html><head><title>t</title></head><body></body></html>';"
+            "sys.stdout.write(host_identity.with_served_identity(page, root).decode())"
+        )
+        answer = subprocess.run(
+            [sys.executable, "-c", emitter],
+            env={**os.environ, "TM_DESIGN_ROOT": str(root),
+                 "HARNESS_SERVER_DIR": str(ROOT)},
+            capture_output=True, text=True, timeout=60)
+        served = answer.stdout
+        check("a branch name that ends a script element is escaped, not emitted",
+              answer.returncode == 0 and served.lower().count("</script") == 1,
+              f"{served.lower().count('</script')} script close(s) — "
+              f"{served.strip()[:150]}")
+        check("and its markup does not become markup",
+              "<img" not in served, served.strip()[:150])
+        carried = ""
+        if "window.__servedIdentity=" in served:
+            carried = json.loads(served.split("window.__servedIdentity=", 1)[1]
+                                 .split(";</script>", 1)[0]).get("branch", "")
+        check("while the escaped value still round-trips to the branch it names",
+              carried == HOSTILE_BRANCH, repr(carried)[:150])
+
+        # AND THE DETACHED CASE, ON THE HOST rather than in the drawer. The
+        # drawer hold above injects `detached: true` and proves the WORDING; it
+        # says nothing about whether the host can tell a detached checkout from
+        # a branch. It cannot, if it asks `rev-parse --abbrev-ref HEAD`: that
+        # answers the literal string `HEAD`, exit 0. Only `symbolic-ref` fails
+        # on a detached head, which is what makes the two distinguishable — and
+        # a detached checkout is the state the incident behind this defect was.
+        subprocess.run(["git", "checkout", "-q", "--detach"],
+                       cwd=root, capture_output=True, check=True)
+        answer = subprocess.run(
+            [sys.executable, "-c", reader],
+            env={**os.environ, "TM_DESIGN_ROOT": str(root),
+                 "HARNESS_SERVER_DIR": str(ROOT)},
+            capture_output=True, text=True, timeout=60)
+        loose = json.loads(answer.stdout)[0] if answer.returncode == 0 else None
+        check("a detached checkout is reported as detached, not as a branch",
+              loose is not None and loose["detached"] is True
+              and loose["branch"] == "",
+              str(loose))
 
     # 5. AND WHERE THERE IS NO REPOSITORY, IT NAMES NOTHING. This is the case
     #    the drawer's « unavailable » exists for; a value invented here would be

@@ -75,18 +75,27 @@ const TYPESCRIPT_INSTALLS = [
   "../frontend/node_modules/typescript",
 ];
 
-const typescriptInstall = TYPESCRIPT_INSTALLS.find((install) => {
-  try {
-    require_.resolve(install);
-    return true;
-  } catch {
-    return false;
-  }
-});
-
 const NO_TYPESCRIPT =
   `no TypeScript install found. Tried: ${TYPESCRIPT_INSTALLS.join(", ")}. Run ` +
   "`npm ci` in frontend/maquette/design or in frontend.";
+
+// THE LOAD IS WHAT DECIDES, NOT THE RESOLUTION, and the difference is a real
+// one: an interrupted `npm ci` leaves a directory that RESOLVES and then throws
+// when it is required. Selecting on `resolve` alone would let that install win
+// and the tool would fail, where the loop below falls through to the second.
+// This is how it has always chosen; the probe below only reports the choice.
+const loadTypescript = () => {
+  for (const install of TYPESCRIPT_INSTALLS) {
+    try {
+      return { install, parser: require_(install) };
+    } catch {
+      continue;
+    }
+  }
+  return null;
+};
+
+const typescriptChoice = loadTypescript();
 
 // ASKED BEFORE THE PARSER IS LOADED, because the parser is what is missing.
 // `--typescript-install` answers « can this tool run here? » with the path it
@@ -97,17 +106,21 @@ const NO_TYPESCRIPT =
 // that shape more than once. Exit 3 rather than 1: « cannot run here » is not
 // « found a violation », and a caller must be able to tell them apart.
 if (process.argv[2] === "--typescript-install") {
-  if (typescriptInstall === undefined) {
+  if (typescriptChoice === null) {
     process.stderr.write(`${NO_TYPESCRIPT}\n`);
     process.exit(3);
   }
-  process.stdout.write(`${typescriptInstall}\n`);
+  // THE RESOLVED PATH, not the specifier. The list holds specifiers relative to
+  // THIS file; a caller that runs from the repository root would resolve them
+  // against its own directory and reach nothing. What is printed is the file
+  // the parser was actually loaded from.
+  process.stdout.write(`${require_.resolve(typescriptChoice.install)}\n`);
   process.exit(0);
 }
 
 const typescript = (() => {
-  if (typescriptInstall === undefined) throw new Error(NO_TYPESCRIPT);
-  return require_(typescriptInstall);
+  if (typescriptChoice === null) throw new Error(NO_TYPESCRIPT);
+  return typescriptChoice.parser;
 })();
 
 const REPOSITORY_ROOT = resolve(import.meta.dirname, "..");

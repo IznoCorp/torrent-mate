@@ -1,6 +1,6 @@
 r"""Test helper — write a media placeholder whose SIZE is real and whose bytes are not.
 
-WHY THIS EXISTS, measured on 2026-08-26. Thirty-two fixture sites wrote a
+WHY THIS EXISTS, measured on 2026-08-26. Thirty-eight fixture sites wrote a
 placeholder video with `write_bytes(b"\x00" * 200 * 1024 * 1024)` — two hundred
 megabytes of REAL zeroes, allocated block by block. One `make test` pass left
 13 GB across 47 049 files under `/tmp/pytest-of-izno`, pytest keeps the last
@@ -16,6 +16,13 @@ byte — so nothing about any test's meaning changes.
 The small placeholders (a kilobyte, a thousand bytes) are deliberately left as
 they are: they cost nothing, and rewriting them would be churn with no defect
 behind it.
+
+WHERE THE SPARSENESS STOPS, measured rather than assumed. `rsync` re-expands a
+sparse file unless it is told not to, and no capability's flag tuple carries
+`--sparse` — so the tests that really DISPATCH write dense copies on the
+destination side: 315 MB for four of them. For those, the saving comes from
+`tmp_path_retention_policy` and not from this helper. Both halves were needed;
+neither alone would have been enough.
 """
 
 from __future__ import annotations

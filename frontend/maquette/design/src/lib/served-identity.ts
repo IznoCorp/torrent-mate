@@ -24,30 +24,58 @@ import i18next from "../i18n";
 
 /** What the host publishes about the tree it is serving. */
 export interface ServedIdentity {
-  /** The branch checked out, as `git rev-parse --abbrev-ref HEAD` gives it. */
+  /** The branch checked out, or "" when HEAD is detached. */
   branch: string;
+  /** Whether HEAD is detached — no branch, only a commit. */
+  detached: boolean;
   /** The commit, abbreviated. */
   commit: string;
-  /** Whether the working tree carries changes that commit does not. */
+  /** Whether the tree the host serves from carries changes that commit does not. */
   dirty: boolean;
 }
 
 declare global {
   interface Window {
-    __servedIdentity?: ServedIdentity;
+    __servedIdentity?: ServedIdentity | null;
   }
 }
 
 /** The three lines the drawer shows, already worded. */
 export interface IdentityLines {
-  /** What the block is: « Version déployée ». */
+  /** What the block is. */
   label: string;
-  /** The branch, or the unavailable statement. */
+  /** The branch, the detached statement, or the unavailable one. */
   primary: string;
   /** The commit and its dirty mark, or why nothing could be named. */
   secondary: string;
   /** Whether a real identity was published — read by the rule, not by a style. */
   known: boolean;
+}
+
+/** The resource keys this block words itself from, in one place. */
+const WORDS = "common.servedIdentity";
+const KEYS = ["label", "dirty", "detached", "unavailable", "unavailableReason"] as const;
+
+/**
+ * Reads the interface's words for this block, and never renders `undefined`.
+ *
+ * `i18next.t(key, { returnObjects: true })` answers the KEY AS A STRING when
+ * the key is missing, so an unchecked cast to an object yields `undefined` for
+ * every field — and `undefined` on screen reads as a value, which is the whole
+ * defect this block was written to end. A missing resource therefore shows its
+ * own key path: unmistakably broken, in no language, and holdable by a rule.
+ *
+ * @returns One entry per key, each a non-empty string.
+ */
+function words(): Record<string, string> {
+  const read = i18next.t(WORDS, { returnObjects: true });
+  const found = (typeof read === "object" && read !== null ? read : {}) as Record<string, unknown>;
+  const wording: Record<string, string> = {};
+  for (const key of KEYS) {
+    const value = found[key];
+    wording[key] = typeof value === "string" && value !== "" ? value : `${WORDS}.${key}`;
+  }
+  return wording;
 }
 
 /**
@@ -60,29 +88,41 @@ export interface IdentityLines {
  * @returns The worded lines, whether or not a host published anything.
  */
 export function servedIdentityLines(): IdentityLines {
-  const words = i18next.t("common.servedIdentity", { returnObjects: true }) as Record<string, string>;
+  const wording = words();
   const served = typeof window === "undefined" ? undefined : window.__servedIdentity;
-  // Every field is checked, not merely the object: a partial payload would
-  // render « undefined » on screen, which reads as a value rather than as a
-  // hole. A host that cannot name all three names none.
+  // `!= null` and not `!== undefined`: a published `null` would pass the
+  // stricter test and then throw on the first field read, from inside the
+  // drawer's own render — so the whole drawer would fail, not merely its
+  // footer.
+  //
+  // Every field is checked, not merely the object: a partial payload renders
+  // « undefined » on screen, which reads as a value rather than as a hole. A
+  // host that cannot name all of them names none. A DETACHED head carries no
+  // branch, so `branch` is empty there by construction and is required only
+  // when `detached` is false.
   const usable =
-    served !== undefined &&
-    typeof served.branch === "string" && served.branch !== "" &&
+    served != null &&
+    typeof served.detached === "boolean" &&
+    typeof served.branch === "string" &&
+    (served.detached || served.branch !== "") &&
     typeof served.commit === "string" && served.commit !== "" &&
     typeof served.dirty === "boolean";
   if (!usable) {
     return {
-      label: words.label,
-      primary: words.unavailable,
-      secondary: words.unavailableReason,
+      label: wording.label,
+      primary: wording.unavailable,
+      secondary: wording.unavailableReason,
       known: false,
     };
   }
   const identity = served as ServedIdentity;
   return {
-    label: words.label,
-    primary: identity.branch,
-    secondary: identity.dirty ? `${identity.commit} · ${words.dirty}` : identity.commit,
+    label: wording.label,
+    // A detached checkout is NOT a branch called « HEAD », and saying so is the
+    // point: the incident that opened this defect was a detached checkout two
+    // commits behind, read as a branch.
+    primary: identity.detached ? wording.detached : identity.branch,
+    secondary: identity.dirty ? `${identity.commit} · ${wording.dirty}` : identity.commit,
     known: true,
   };
 }

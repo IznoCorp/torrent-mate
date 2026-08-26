@@ -193,7 +193,7 @@ def check_strings(violations: list[str]) -> None:
     """Runs the string arm over the shell, the servers and the hold labels."""
     strict: list[Path] = [p for p in SHELL.rglob("*") if p.is_file()
                           and p.suffix in {".ts", ".tsx"} and "i18n" not in p.parts]
-    strict += [MAQUETTE / "serve.py", MAQUETTE / "resync.py"]
+    strict += maquette_servers()
     strict += sorted(HARNESS.glob("*.mjs"))
     # The repository's own tools speak to a DEVELOPER, so they speak English.
     # (The `personalscraper` CLI is a different case entirely: it speaks to the
@@ -275,7 +275,7 @@ def check_strings(violations: list[str]) -> None:
 
 def check_identifiers(violations: list[str]) -> None:
     """Runs the identifier arm over the shell, the servers, the harness, the tools."""
-    python = ([MAQUETTE / "serve.py", MAQUETTE / "resync.py"]
+    python = (maquette_servers()
               + sorted(HARNESS.glob("*.py"))
               + [p for p in sorted(SCRIPTS.rglob("*.py"))
                  if p.name not in SELF]
@@ -352,7 +352,7 @@ def check_class_names(violations: list[str]) -> None:
     """Runs the class-name arm over code classes and declared CSS classes."""
     allowed = css_allowlist()
 
-    for path in ([MAQUETTE / "serve.py", MAQUETTE / "resync.py"]
+    for path in (maquette_servers()
                  + sorted(HARNESS.glob("*.py"))):
         tree = ast.parse(read(path))
         for node in ast.walk(tree):
@@ -472,7 +472,7 @@ def check_french_debt(violations: list[str]) -> None:
                and "i18n" not in p.parts and relative(p) != DEBT_FILE]
     sources += [p for p in (ROOT / "frontend" / "src").rglob("*")
                 if p.is_file() and p.suffix in {".ts", ".tsx"}]
-    sources += [MAQUETTE / "serve.py", MAQUETTE / "resync.py"]
+    sources += maquette_servers()
     sources += sorted(HARNESS.glob("*.py"))
     sources += [p for p in sorted(SCRIPTS.rglob("*.py")) if p.name not in SELF]
     sources += sorted((ROOT / "personalscraper").rglob("*.py"))
