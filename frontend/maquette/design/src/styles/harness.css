@@ -18,9 +18,13 @@
 
 /* BLOCK 1 — PROTOTYPE HARNESS. NEVER EXTRACTED INTO THE APP.
    Phone frame, demo bars, design-note callouts, scenario switch.
-   `scripts/extract-maquette-css.py` exports ONLY the selectors declared
-   in
-   regions.json, and none of these appear there. */
+
+   IT USED TO CITE AN EXTRACTION TOOL HERE, and that tool no longer exists —
+   it belonged to the model where the application migrated towards the
+   prototype surface by surface, which was reversed. Nothing exports from this
+   file, and nothing is meant to: what makes these selectors the harness's is
+   that they are in this file, which is imported in exactly one place and
+   ships nowhere. */
 
 
 /* DECLARED HARNESS DEVIATION
