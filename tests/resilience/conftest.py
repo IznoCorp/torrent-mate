@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from personalscraper.conf.models.config import Config
+from tests._media_files import write_placeholder_media
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
@@ -81,7 +82,7 @@ def make_valid_movie_dir(movies_dir: Path, title: str = "Movie", year: int = 202
     d = movies_dir / f"{title} ({year})"
     d.mkdir(exist_ok=True)
     # Video file (small but enough for tests)
-    (d / f"{title}.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+    write_placeholder_media(d / f"{title}.mkv", 200 * 1024 * 1024)
     # Valid NFO with uniqueid
     root = ET.Element("movie")
     ET.SubElement(root, "title").text = title
@@ -132,7 +133,7 @@ def make_valid_tvshow_dir(tvshows_dir: Path, title: str = "Show", year: int = 20
     # Season with properly named episode
     season = d / "Saison 01"
     season.mkdir()
-    (season / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+    write_placeholder_media(season / "S01E01 - Pilot.mkv", 200 * 1024 * 1024)
     # Phase 9 verify hardening: episode NFO must carry canonical uniqueid.
     (season / "S01E01 - Pilot.nfo").write_text(
         '<episodedetails><uniqueid type="tvdb" default="true">9001</uniqueid></episodedetails>'

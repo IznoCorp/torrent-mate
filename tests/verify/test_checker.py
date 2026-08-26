@@ -13,6 +13,7 @@ from personalscraper.conf.models.config import Config
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.verify.checker import MediaChecker
 from personalscraper.verify.checks.base import Severity
+from tests._media_files import write_placeholder_media
 
 
 @pytest.fixture
@@ -28,7 +29,7 @@ def _make_movie_dir(tmp_path: Path, title: str = "Fight Club", year: int = 1999)
     d.mkdir()
     # Video file
     video = d / f"{title}.mkv"
-    video.write_bytes(b"\x00" * (200 * 1024 * 1024))  # 200 MB
+    write_placeholder_media(video, 200 * 1024 * 1024)
     # NFO
     root = ET.Element("movie")
     ET.SubElement(root, "title").text = title
@@ -146,7 +147,7 @@ class TestCheckMovieNFO:
         """Should fail nfo_present if no NFO file."""
         d = tmp_path / "Movie (2024)"
         d.mkdir()
-        (d / "Movie.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+        write_placeholder_media(d / "Movie.mkv", 200 * 1024 * 1024)
         results = checker.check_movie(d)
         nfo_check = next(r for r in results if r.name == "nfo_present")
         assert not nfo_check.passed
@@ -155,7 +156,7 @@ class TestCheckMovieNFO:
         """Should fail nfo_valid for malformed XML."""
         d = tmp_path / "Movie (2024)"
         d.mkdir()
-        (d / "Movie.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+        write_placeholder_media(d / "Movie.mkv", 200 * 1024 * 1024)
         (d / "Movie.nfo").write_text("not xml <><<>")
         results = checker.check_movie(d)
         valid_check = next(r for r in results if r.name == "nfo_valid")

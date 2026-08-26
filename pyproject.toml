@@ -102,6 +102,13 @@ include = ["personalscraper*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = [".", "scripts"]
+# KEEP A TEMPORARY DIRECTORY ONLY WHERE IT CAN STILL BE READ — a test that
+# failed. pytest's default is `all`, which keeps every test's directory for the
+# last three passes; on 2026-08-26 that filled this machine's boot volume. The
+# placeholders are sparse now (`tests/_media_files.py`), so the 13 GB a pass
+# left behind is gone at the source — this line is the second half: what a green
+# pass leaves behind is nothing at all, whatever a future fixture writes.
+tmp_path_retention_policy = "failed"
 markers = [
     "e2e: End-to-end tests requiring storage disks and/or live APIs",
     "roundtrip: Roundtrip tests — torrentify disk media, re-match via API, compare",

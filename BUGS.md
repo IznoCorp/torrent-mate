@@ -132,6 +132,7 @@ when the defect comes back.
 | B-096 | The contract was wrong about the data in five places, and the seeds proved it | by review | `fixed #503` |
 | B-097 | Twenty seed renames never reached the index, and only a case-sensitive runner saw it | by CI | `fixed #503` |
 | B-098 | The build plugin raced its own output and failed three jobs on a fresh checkout | by CI | `fixed #503` |
+| B-099 | A test pass writes 13 GB of real zeroes into `/tmp` and pytest keeps three of them | by operator | `fixed #505` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -1917,10 +1918,10 @@ absence of a row can mean either.
 | L07 | 6 | PR #494's adversarial review |
 | L07-bis | 5 | B-075 |
 | L08 | 6 | PR #503's squash body — and B-092 to B-095 hold four of them individually |
-| L08-bis (#505, the correction wave) | 3 | B-082 (the register entry itself), R87's per-request hold, D3's « both are held by a guard » |
-| **Total** | **20** | at 2026-08-26 |
+| L08-bis (#505, the correction wave) | 4 | B-082 (the register entry itself), R87's per-request hold, D3's « both are held by a guard », and B-099's own two measurements |
+| **Total** | **21** | at 2026-08-26 |
 
-**The three the correction wave found, since a wave that counts itself has to name its own:**
+**The four the correction wave found, since a wave that counts itself has to name its own:**
 
 1. **B-082's own entry** concluded that `hidden` was inert on five elements, having read the markup
    and the import list and not `base.css` — where an unlayered `.fab[hidden]` group already held
@@ -1934,6 +1935,12 @@ absence of a row can mean either.
    `check-legacy-css-residue.py`; **`harness.css` is held by nothing** — no guard measures its
    size, its rules or its growth, and the only script naming it names it to exclude it. A
    directive sentence with no arm, which is what `CLAUDE.md` § Language warns about one file over.
+4. **`du -sh` said the temp residue was 0 and proved nothing** (B-099). The placeholders had just
+   been made sparse, so a run that deleted everything and a run that kept 47 049 files both read
+   as 0 bytes. The measurement had to change unit — files, not size — before it could tell the two
+   apart. And the probe that first « proved » the retention policy ran with `rootdir` set to a
+   scratch directory, never read `pyproject.toml`, and reported the default: a hold that had not
+   loaded the setting it was testing.
 
 **The forms already met, kept as the question's checklist** — before writing a hold, ask what it
 does NOT read, and whether that answer is acceptable:
@@ -1945,3 +1952,40 @@ does NOT read, and whether that answer is acceptable:
 - a hold armed on one of two ends, so the pair can drift while the hold stays green;
 - a reader proven only on data somebody chose, never on everything at once;
 - a figure printed and never compared.
+
+---
+
+**B-099 — a test pass writes 13 GB of real zeroes into `/tmp`, and pytest keeps three passes.**
+Reported by the operator on 2026-08-26, in the hardest available form: the machine's boot volume
+filled up mid-session and no command could run at all — the tool could not create its own output
+file. 117 GB was cleared by hand.
+
+**The mechanism, measured.** Thirty-eight fixture sites wrote a placeholder video with
+`write_bytes(b"\x00" * 200 * 1024 * 1024)` — two hundred megabytes of REAL zeroes, allocated block
+by block, one per movie or series a test builds. One `make test` pass left **13 GB across 47 049
+files** under `/tmp/pytest-of-izno`. `tmp_path_retention_policy` was unset, so pytest's default
+`all` kept the last three passes: ~39 GB steady state, growing every run. The comment above one of
+those lines read « small but enough for tests ».
+
+**What the tests need is the SIZE, never the content** — the library checks refuse a video under a
+minimum, the disk cleaner acts above a threshold, and not one of them reads a byte. So the
+placeholder is SPARSE now (`tests/_media_files.py`): `stat().st_size` answers the full figure, the
+file costs one block, and a read returns the same zeroes byte for byte, so no test's meaning
+changes. The small placeholders — a kilobyte, a thousand bytes — are deliberately left alone:
+churn with no defect behind it.
+
+**And the retention policy is the second half**, because the first half only holds for the
+fixtures that exist today: `tmp_path_retention_policy = "failed"` keeps a temporary directory only
+where it can still be read, which is a test that failed.
+
+**Measured after, and the first measurement was WRONG in the way this wave keeps counting.** `du`
+reported 0 bytes and that proved nothing — the files are sparse, so a green run and a run keeping
+everything both read as 0. Counted properly, by FILE: **47 049 files before, 0 after.** And the
+retention policy had to be proven separately, because the probe that « proved » it first ran with
+`rootdir` set to a scratch directory and never read `pyproject.toml` at all — it reported `POLICY =
+all` when asked directly. Re-run from inside the repository: the passing test's directory is gone,
+the failing test's is kept.
+
+**The pass is also a third faster** — 180 s to 105 s — because it is no longer writing gigabytes.
+
+<sub>`python -m pytest tests/verify -q && find /tmp/pytest-of-izno -type f | wc -l` · `grep -n tmp_path_retention_policy pyproject.toml`</sub>

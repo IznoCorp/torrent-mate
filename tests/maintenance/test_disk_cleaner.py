@@ -7,6 +7,7 @@ from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.models.paths import PathConfig
 from personalscraper.maintenance.disk_cleaner import clean_library
+from tests._media_files import write_placeholder_media
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
@@ -353,7 +354,7 @@ class TestCleanOrphans:
         disk_path = tmp_path / "medias"
         movie = disk_path / "films" / "Real Movie (2024)"
         movie.mkdir(parents=True)
-        (movie / "movie.mkv").write_bytes(b"\x00" * (51 * 1024 * 1024))  # >50 MB
+        write_placeholder_media(movie / "movie.mkv", 51 * 1024 * 1024)  # >50 MB
         (movie / "movie.nfo").write_text("<movie/>")
 
         config = _make_v15_config(disk_path, "disk1", "films", "movies", tmp_path)
@@ -381,7 +382,7 @@ class TestCleanOrphans:
         movie = disk_path / "films" / "Trailer Only (2024)"
         movie.mkdir(parents=True)
         # Trailer marker in stem demotes it from "main video".
-        (movie / "movie-trailer.mp4").write_bytes(b"\x00" * (60 * 1024 * 1024))
+        write_placeholder_media(movie / "movie-trailer.mp4", 60 * 1024 * 1024)
         (movie / "movie.nfo").write_text("<movie/>")
 
         config = _make_v15_config(disk_path, "disk1", "films", "movies", tmp_path)
@@ -396,7 +397,7 @@ class TestCleanOrphans:
         show = disk_path / "series" / "Show (2024)"
         season = show / "Saison 01"
         season.mkdir(parents=True)
-        (season / "S01E01.mkv").write_bytes(b"\x00" * (60 * 1024 * 1024))
+        write_placeholder_media(season / "S01E01.mkv", 60 * 1024 * 1024)
         (show / "tvshow.nfo").write_text("<tvshow/>")
 
         config = _make_v15_config(disk_path, "disk1", "series", "tv_shows", tmp_path)
@@ -687,7 +688,7 @@ class TestInternalHelpers:
         from personalscraper.maintenance import disk_cleaner as _dc
 
         f = tmp_path / "movie-trailer.mp4"
-        f.write_bytes(b"\x00" * (60 * 1024 * 1024))
+        write_placeholder_media(f, 60 * 1024 * 1024)
         assert _dc._looks_like_main_video(f) is False
 
     def test_looks_like_main_video_stat_oserror_returns_false(self, tmp_path: Path, monkeypatch) -> None:

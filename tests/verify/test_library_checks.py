@@ -9,6 +9,7 @@ from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.models.paths import PathConfig
 from personalscraper.verify.library_checks import ValidationItem, validate_library
+from tests._media_files import write_placeholder_media
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
@@ -57,7 +58,7 @@ class TestValidateLibrary:
         movie = disk / "films" / "Test (2024)"
         movie.mkdir(parents=True)
         # 200 MB to pass not_sample check
-        (movie / "Test.mkv").write_bytes(b"\x00" * 200_000_000)
+        write_placeholder_media(movie / "Test.mkv", 200_000_000)
         (movie / "Test.nfo").write_text(_VALID_MOVIE_NFO)
         (movie / "Test-poster.jpg").write_bytes(b"\x00" * 100)
         (movie / "Test-landscape.jpg").write_bytes(b"\x00" * 100)
@@ -74,7 +75,7 @@ class TestValidateLibrary:
         disk = tmp_path / "medias"
         movie = disk / "films" / "NoNfo (2024)"
         movie.mkdir(parents=True)
-        (movie / "NoNfo.mkv").write_bytes(b"\x00" * 200_000_000)
+        write_placeholder_media(movie / "NoNfo.mkv", 200_000_000)
 
         config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
         result = validate_library(config)
@@ -88,8 +89,8 @@ class TestValidateLibrary:
         d2 = tmp_path / "d2" / "medias"
         (d1 / "films" / "A (2024)").mkdir(parents=True)
         (d2 / "films" / "B (2024)").mkdir(parents=True)
-        (d1 / "films" / "A (2024)" / "A.mkv").write_bytes(b"\x00" * 200_000_000)
-        (d2 / "films" / "B (2024)" / "B.mkv").write_bytes(b"\x00" * 200_000_000)
+        write_placeholder_media(d1 / "films" / "A (2024)" / "A.mkv", 200_000_000)
+        write_placeholder_media(d2 / "films" / "B (2024)" / "B.mkv", 200_000_000)
 
         config = Config(
             paths=PathConfig(

@@ -18,6 +18,7 @@ from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import FileType
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
 from personalscraper.dispatch.run import run_dispatch
+from tests._media_files import write_placeholder_media
 
 # Small but non-zero bytes for episode files in this test.
 # The TV show checker warns about sample-sized files (< 100 MB) but does NOT
@@ -87,7 +88,7 @@ def _build_verified_tvshow_dir(
     season_dir.mkdir(parents=True, exist_ok=True)
     for ep_name in episodes:
         # Write a large-enough video file so the not_sample check passes.
-        (season_dir / ep_name).write_bytes(b"\x00" * _MIN_VIDEO_BYTES)
+        write_placeholder_media(season_dir / ep_name, _MIN_VIDEO_BYTES)
         # Companion NFO so episode_nfo check passes.
         nfo_name = Path(ep_name).with_suffix(".nfo").name
         ep_nfo = ET.Element("episodedetails")
