@@ -1,8 +1,8 @@
 {
-  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 45 of 57 rule(s) report a hold count; the other 12 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
-  "taken_at_commit": "ce1d7b5a4fbdd9b41d8cd93c0532586a70966027",
+  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 47 of 59 rule(s) report a hold count; the other 12 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
+  "taken_at_commit": "2b51dd6fa36e04249247e9d9d437909cb2b00115",
   "taken_on": "2026-08-26",
-  "suite": "57 of 57 rule(s)",
+  "suite": "59 of 59 rule(s)",
   "host": "http://127.0.0.1:8899/",
   "rules": {
     "actions.py": {
@@ -115,10 +115,20 @@
       "count": null,
       "reason": "no recognized executed-count line in its output"
     },
+    "hiding.py": {
+      "exit": 0,
+      "count": 20,
+      "source": "common.Journal summary"
+    },
     "ident.py": {
       "exit": 0,
       "count": null,
       "reason": "no recognized executed-count line in its output"
+    },
+    "identity.py": {
+      "exit": 0,
+      "count": 17,
+      "source": "common.Journal summary"
     },
     "images.py": {
       "exit": 0,
@@ -292,10 +302,10 @@
     }
   },
   "totals": {
-    "rules": 57,
-    "parseable": 45,
+    "rules": 59,
+    "parseable": 47,
     "unparseable": 12,
-    "holds": 1268,
+    "holds": 1305,
     "failed": 0
   }
 }
