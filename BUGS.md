@@ -115,6 +115,7 @@ when the defect comes back.
 | B-079 | The design host cannot say which commit it serves, and production's host can | by audit | `open` |
 | B-080 | The drawer shows a hard-coded version and build, and calls itself up to date | by operator | `open` |
 | B-081 | Design notes can no longer be hidden, and the oracle measures without them | by operator | `open` |
+| B-082 | `hidden` hides nothing on five elements, so an invisible button is still tappable | by operator | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -1524,3 +1525,41 @@ ways. **Do NOT close B-071 with it**: its third end lives inside the dying engin
 L13. This entry is the visible half and can be repaired now.
 
 <sub>`grep -rn '\.note\b' frontend/maquette/design/src/styles/*.css` · `git show 5fdbfc9a^:frontend/maquette/design/refonte.html | sed -n '4008,4034p'`</sub>
+
+**B-082 — the `hidden` attribute does not hide, on every element that also carries a display utility.**
+Reported by the operator on 2026-08-25 from a live phone: on opening the design host, the
+design-notes toast covers the floating add button; **the toast's close button (×) fires the add
+button underneath**, and the reader lands on the add-to-follows search from a control that was not
+on screen. Their reading — « an element removed from view should not be clickable » — is right, and
+the mechanism is worse than that: **the element was never removed from view at all.**
+
+**Measured.** `index.html`'s `#fab` carries `hidden` AND `grid` (from `grid place-items-center`).
+`hidden` is styled by the user-agent stylesheet, which every author rule beats. Tailwind v4's
+preflight carries the remedy — `[hidden]:where(:not([hidden="until-found"])) { display: none
+!important }`, whose `!important` exists for exactly this collision — and **this prototype
+deliberately does not import preflight** (`src/styles/theme.css`, L07: a second reset landing on
+the one the prototype already has would break the wave's own claim; « adopting preflight belongs to
+the lot that can prove what it changes »). That decision was right for L07 and it left this hole,
+which nothing named.
+
+**It is not one button. Five elements carry `hidden` beside a display utility**, so on all five the
+attribute is inert: `#fab` (grid), `#nav` (flex), `#ptr` (grid), `#installbar` (flex),
+`#installsteps` (flex). `#nav` is the navigation drawer.
+
+**Why the collision lands here specifically.** The toast and the button are anchored to the SAME
+edge — both `bottom-[calc(var(--tm-bottom-bar-h,0px)+16px)]`, one `right-[14px]` and the other
+`right-[16px]` — so they occupy the same corner by construction, the toast at `z-[49]` painting
+over the button at `z-30`. The close target is `w-[24px] h-[24px]`, which is WCAG 2.2 AA's floor
+and no more, on a 52 px control hidden directly beneath it.
+
+**What is proven and what is not.** That `hidden` is inert on those five elements is certain, read
+from the markup and the import list. The exact path by which the tap reaches the button — a finger
+landing outside the 24 px target, or the toast being dismissed and the same gesture falling through
+to what it revealed — needs a device to separate, and the fix does not depend on knowing which.
+
+Fix, and it is two independent halves: make `hidden` bite (a base-layer rule carrying preflight's
+`!important` form, without adopting preflight entire), and stop anchoring a dismissible banner to
+the same corner as a primary action. Mutation for the first: set `hidden` on `#fab` and confirm a
+tap at its coordinates reaches nothing.
+
+<sub>`grep -n 'hidden' frontend/maquette/design/index.html` · `sed -n '55,70p' frontend/maquette/design/src/styles/theme.css`</sub>
