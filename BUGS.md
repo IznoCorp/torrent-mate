@@ -1953,10 +1953,9 @@ absence of a row can mean either.
 | --- | --- | --- |
 | L07 | 6 | PR #494's adversarial review |
 | L07-bis | 5 | B-075 |
-| L08 | 6 | PR #503's squash body. B-093 and B-094 are two of the six written out; B-092 and
-B-095 are adjacent findings of the same wave, not members of that six |
-| L08-bis (#505, the correction wave) | 9 | itemised below |
-| **Total** | **26** | at 2026-08-26 |
+| L08 | 6 | PR #503's squash body — B-093 and B-094 write out two of the six; B-092 and B-095 are adjacent findings of that wave, not members of the six |
+| L08-bis (#505, the correction wave) | 9 | itemised below · squash `12a134ca` |
+| **Total** | **26** | at 2026-08-26, **recounted at L08-bis's close** — step five of § 5, executed for the first time |
 
 **The nine the correction wave found, since a wave that counts itself has to name its own.** The
 figure is large because the count is honest, not because the wave was worse: four of the nine are
