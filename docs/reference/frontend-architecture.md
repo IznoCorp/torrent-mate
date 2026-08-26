@@ -793,7 +793,7 @@ declares 53 operations of its own and answers every one of them from a mock laye
 none of the others: no surface is wired to any of it, which is L09's.
 <sub>commands in `IMPLEMENTATION.md` § THE OBJECTIVE</sub>
 
-#### L08 — The data contract and the mocks · `IN PROGRESS` · *depends on L04*
+#### L08 — The data contract and the mocks · `LANDED` · *depended on L04*
 
 **Objective.** D7 in force. The contract the interface requires, plus a mock layer serving it, so
 the maquette codes against a real shape with no backend touched.
@@ -810,9 +810,8 @@ seeded from the fixture it replaces, and a check holds that correspondence; the 
 failure and latency; divergences from the existing backend contract are recorded as demands;
 determinism is sufficient for the oracle to depend on it.
 
-**In progress** — branch `feat/maquette-l08`, design and plan in `docs/features/maquette-l08/`.
-Moving this to `LANDED` is a POST-MERGE step (§ 5), and writing it early is not the same trade as
-writing the « In flight » row early: that row is self-correcting and this word is not. The
+**Landed** — PR **#503**, merged 2026-08-26, version 0.98.42, squash `ce1d7b5a`. Design and plan
+in `docs/features/maquette-l08/`. The
 contract is `frontend/maquette/contract/openapi.json`: 49 paths, 53 operations, 43 schemas, its
 TypeScript types generated and held against drift two ways. 46 seeds, built from `legacy.js` by a declared
 projection and held by `scripts/check-mock-seeds.py` — seven arms, each of which says what it
