@@ -112,13 +112,13 @@ when the defect comes back.
 | B-076 | The hero's entrance animates for a reader who asked for no motion | by rule | `fixed #500` |
 | B-077 | A test of the browser-free half of a rule could not be collected without a browser | by CI | `fixed #500` |
 | B-078 | The state row outlived its subject, ajourned on a rule that does not exist | by audit | `fixed #501` |
-| B-079 | The design host cannot say which commit it serves, and production's host can | by audit | `fixed #TBD` |
-| B-080 | The drawer shows a hard-coded version and build, and calls itself up to date | by operator | `fixed #TBD` |
-| B-081 | Design notes can no longer be hidden, and the oracle measures without them | by operator | `fixed #TBD` |
-| B-082 | `hidden` hides nothing on five elements, so an invisible button is still tappable | by operator | `fixed #TBD` |
-| B-083 | L08's design and plan were never archived, and every lot before it was | by audit | `fixed #TBD` |
-| B-084 | A wave that found twenty defects wrote none of them in this register | by audit | `fixed #TBD` |
-| B-085 | Guards green over what they do not read: 17 in three consecutive waves, counted by nobody | by audit | `fixed #TBD` |
+| B-079 | The design host cannot say which commit it serves, and production's host can | by audit | `fixed #505` |
+| B-080 | The drawer shows a hard-coded version and build, and calls itself up to date | by operator | `fixed #505` |
+| B-081 | Design notes can no longer be hidden, and the oracle measures without them | by operator | `fixed #505` |
+| B-082 | `hidden` hides nothing on five elements, so an invisible button is still tappable | by operator | `fixed #505` |
+| B-083 | L08's design and plan were never archived, and every lot before it was | by audit | `fixed #505` |
+| B-084 | A wave that found twenty defects wrote none of them in this register | by audit | `fixed #505` |
+| B-085 | Guards green over what they do not read: 17 in three consecutive waves, counted by nobody | by audit | `fixed #505` |
 | B-086 | A season tuple was declared in the wrong order, and a seed claimed 175 episodes of 117 | by review | `fixed #503` |
 | B-087 | A media sheet substituted one family's synopsis for another's, on 213 of 259 titles | by review | `fixed #503` |
 | B-088 | Twenty provider identities name two sheet keys, and the first returned nine empty season lists | by review | `fixed #503` |
@@ -1516,7 +1516,7 @@ say what they are, because a labelled mock is data and an unlabelled one is a li
 
 <sub>`grep -n '58d0d4fd\|0\.98\.23' frontend/maquette/design/src/engine/legacy.js`</sub>
 
-> **FIXED by the correction wave between L08 and L09 (B-079 and B-080 together, as scheduled).**
+> **FIXED by #505, the correction wave between L08 and L09 — B-079 and B-080 together, as scheduled.**
 > `frontend/maquette/host_identity.py` computes the branch, the abbreviated commit and whether the
 > tree is dirty, **per request** — split out of `serve.py`, which crossed the soft module ceiling
 > the moment this arrived, on the subject and not on the line count: `serve.py` answers « what
@@ -1572,7 +1572,7 @@ L13. This entry is the visible half and can be repaired now.
 
 <sub>`grep -rn '\.note\b' frontend/maquette/design/src/styles/*.css` · `git show 5fdbfc9a^:frontend/maquette/design/refonte.html | sed -n '4008,4034p'`</sub>
 
-> **FIXED by the correction wave between L08 and L09.** The pair is restored in `harness.css`,
+> **FIXED by #505, the correction wave between L08 and L09.** The pair is restored in `harness.css`,
 > with the callout's own appearance, which had gone with it: hidden by default, shown when the
 > information button toggles `notes` on `<html>`.
 >
@@ -1631,7 +1631,7 @@ tap at its coordinates reaches nothing.
 
 <sub>`grep -n 'hidden' frontend/maquette/design/index.html` · `sed -n '55,70p' frontend/maquette/design/src/styles/theme.css`</sub>
 
-> **FIXED by the correction wave between L08 and L09 — and THIS ENTRY WAS WRONG ABOUT THREE OF THE
+> **FIXED by #505, the correction wave between L08 and L09 — and THIS ENTRY WAS WRONG ABOUT THREE OF THE
 > FIVE.** The correction is written before the fix, because it is the same failure the wave
 > exists to count.
 >
@@ -1684,7 +1684,7 @@ gesture that is remembered two times out of three is a gesture that needs a chec
 
 <sub>`ls docs/features/` · `ls docs/archive/features/ | tr ' ' '\n' | grep maquette`</sub>
 
-> **FIXED by the correction wave between L08 and L09** — `docs/archive/features/maquette-l08/`,
+> **FIXED by #505, the correction wave between L08 and L09** — `docs/archive/features/maquette-l08/`,
 > with the two cross-references that named the old path moved in the same step
 > (`frontend-architecture.md` § L08, `IMPLEMENTATION.md` § Next action).
 >
@@ -1722,7 +1722,7 @@ release name). Not one of those is findable today by anyone who was not in that 
 
 <sub>`grep -c '^| B-' BUGS.md` · `git log ce1d7b5a -1 --format=%B` — the squash body is the report of record</sub>
 
-> **FIXED by the correction wave between L08 and L09: thirteen entries, B-086 to B-098.** They are
+> **FIXED by #505, the correction wave between L08 and L09: thirteen entries, B-086 to B-098.** They are
 > READ OUT of #503's squash body and of the four adversarial reviews it records, never invented —
 > the commit message is the report of record, and it survives the squash that consumed the branch.
 > The register held 85 rows before them and holds 98 after.
@@ -1917,7 +1917,7 @@ absence of a row can mean either.
 | L07 | 6 | PR #494's adversarial review |
 | L07-bis | 5 | B-075 |
 | L08 | 6 | PR #503's squash body — and B-092 to B-095 hold four of them individually |
-| L08-bis (the correction wave) | 3 | B-082 (the register entry itself), R87's per-request hold, D3's « both are held by a guard » |
+| L08-bis (#505, the correction wave) | 3 | B-082 (the register entry itself), R87's per-request hold, D3's « both are held by a guard » |
 | **Total** | **20** | at 2026-08-26 |
 
 **The three the correction wave found, since a wave that counts itself has to name its own:**
