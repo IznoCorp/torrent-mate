@@ -100,6 +100,8 @@ check: lint test-cov
 	python3 scripts/audit_design_coverage.py --strict
 	@echo "Checking maquette fixture drift..."
 	python3 scripts/refresh-maquette-fixture.py --check
+	@echo "Running the maquette's unit suite, and holding its floor..."
+	python3 scripts/check-maquette-unit-tests.py
 	@echo "Checking the mock seeds against the fixtures they were taken from..."
 	python3 scripts/check-mock-seeds.py
 	@echo "Checking the backend-demand register against the two contracts..."
@@ -181,7 +183,7 @@ harness:
 	frontend/maquette/harness/run.sh
 
 harness-contracts:
-	@echo "Running the contract subset (5 rules) — what CI runs on every maquette PR..."
+	@echo "Running the contract subset (7 rules) — what CI runs on every maquette PR..."
 	frontend/maquette/harness/run.sh --contracts
 
 maquette-oracle:

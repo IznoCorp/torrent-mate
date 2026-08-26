@@ -382,6 +382,7 @@ known
 lab
 label
 labels
+landed
 large
 last
 latency
@@ -504,6 +505,7 @@ offered
 offset
 old
 on
+once
 only
 open
 operation
@@ -511,6 +513,7 @@ option
 order
 origin
 original
+others
 out
 outcome
 outgoing
@@ -677,6 +680,7 @@ secrets
 section
 seed
 seeded
+seen
 seg
 segment
 segments
@@ -780,6 +784,7 @@ synopses
 synopsis
 system
 tab
+table
 tabpanel
 tabs
 tabular

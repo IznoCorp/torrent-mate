@@ -101,6 +101,13 @@ CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.
 # measured. `check-tailwind-confinement.py` is the one deliberately left out:
 # it needs a build of its own and costs 102 s.
 #
+# `check-maquette-unit-tests.py` joined at L09 and it belongs here on the same
+# test: 1.1 s, and it runs the maquette's own unit suite — which a maquette
+# phase edits by definition. It is the RUNNER's guard as much as the suite's: a
+# run that collects one file out of two is green and reports a smaller number
+# nobody compares, so it holds a floor on both counts. Where the maquette's
+# dependencies are absent it says SKIPPED and says that is not a pass.
+#
 # `check-mock-seeds.py` joined at L08 and it belongs here on the same test: it
 # reads FILES — the engine, the register, the seeds, the contract — and it costs
 # 1.1 s. It cost 66 s when written, because it started one node process per
@@ -130,6 +137,7 @@ REPOSITORY_GUARDS=(
   "scripts/check-markup-contracts.py"
   "scripts/check-i18n-placeholders.py"
   "scripts/check-mock-seeds.py"
+  "scripts/check-maquette-unit-tests.py"
   "scripts/compare-contracts.py --check"
 )
 REPOSITORY_ROOT="$(cd "$HERE/../../.." && pwd)"
