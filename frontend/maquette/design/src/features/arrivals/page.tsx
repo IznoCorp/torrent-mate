@@ -27,6 +27,7 @@ import { useTranslation } from "react-i18next";
 import { SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
 import { useArrivalsReference, type PipelineFact } from "../../features/arrivals/reference";
+import { usePipeline } from "./queries";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useUiState } from "../../lib/store-access";
 import {
@@ -85,10 +86,15 @@ function lastRunRows(
 // The pilot's bar. Three states, and the third is the one DOIT-4 exists for:
 // an action asked at a bad moment is QUEUED, visibly, and never refused with
 // « occupé, réessaie ».
-function PipelineBar(): ReactElement {
+function PipelineBar(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
-  const { PIPELINE } = useArrivalsReference();
+  // FROM THE CACHE (invariant 4), not from `window.__referentiel`. Nothing is
+  // drawn until it has answered: the oracle measures at rest, so what it reads
+  // is the settled bar — the same bar, from the same bytes, since the seed is
+  // held against the fixture it replaced.
+  const { data: PIPELINE } = usePipeline();
+  if (!PIPELINE) return null;
 
   if (state.pipe === "running" || state.pipe === "queued") {
     const step = PIPELINE.steps[3];
@@ -158,9 +164,11 @@ function PipelineBar(): ReactElement {
 
 // The last run, told as its nine steps. The counts are the ones `pipeline_run`
 // recorded; nothing here is derived from what the page shows.
-function LastRun(): ReactElement {
+function LastRun(): ReactElement | null {
   const { t } = useTranslation();
-  const { PIPELINE, factRowsHTML } = useArrivalsReference();
+  const { factRowsHTML } = useArrivalsReference();
+  const { data: PIPELINE } = usePipeline();
+  if (!PIPELINE) return null;
   const run = PIPELINE.last;
   return (
     <section className={sectionClass()} data-part="section">

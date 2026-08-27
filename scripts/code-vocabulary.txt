@@ -34,6 +34,7 @@
 # `radius` identifier is good English anywhere in this repository — but it is
 # written down here so the next reader knows it was a decision.
 
+above
 accent
 account
 acq
@@ -61,6 +62,7 @@ annotations
 announced
 answer
 any
+anywhere
 appearance
 apply
 arm
@@ -117,6 +119,7 @@ caption
 card
 cards
 carries
+cases
 cast
 cat
 catalog
@@ -158,6 +161,7 @@ containers
 contains
 content
 contract
+converted
 copy
 corps
 cote
@@ -246,11 +250,13 @@ exec
 executions
 exists
 exit
+expanded
 fab
 fact
 facts
 failure
 fallback
+families
 fast
 fetch
 fetching
@@ -368,6 +374,7 @@ installsub
 inter
 interval
 into
+inverted
 ios
 is
 item
@@ -509,6 +516,7 @@ offset
 old
 on
 once
+one
 only
 open
 operation
@@ -577,6 +585,8 @@ primary
 problem
 profile
 progress
+projection
+projections
 proposer
 prov
 provider
@@ -623,6 +633,8 @@ released
 releases
 remembered
 remove
+renamed
+renames
 render
 renderer
 renderers
@@ -640,6 +652,7 @@ rest
 restart
 restore
 restoration
+restored
 result
 results
 resume
@@ -706,11 +719,13 @@ settings
 settle
 settled
 shadow
+shape
 sheet
 sheetgrab
 sheetin
 sheets
 shell
+shorthands
 shot
 show
 shown
@@ -780,6 +795,7 @@ suite
 surf
 surface
 surfaces
+survivors
 svg
 swallow
 swatch
@@ -836,6 +852,7 @@ tracking
 trailer
 travelled
 trim
+tuples
 typed
 ua
 ui
@@ -868,6 +885,7 @@ visible
 vsw
 waiters
 waiting
+walk
 wanted
 wants
 warm

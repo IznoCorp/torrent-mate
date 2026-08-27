@@ -145,7 +145,15 @@ def build_graph(root: Path) -> tuple[dict[str, list[str]], list[str]]:
             if resolved is None:
                 unresolved.append(f"{name}: {specifier}")
                 continue
-            targets.append(str(resolved.relative_to(absolute_root)))
+            # AN IMPORT THAT LEAVES THE TREE is not a module of this graph.
+            # It used to CRASH here, which was the right failure to have — the
+            # guard refused to judge what it could not read. It is ANSWERED
+            # rather than swallowed: outside imports are collected, and the
+            # `tree` arm holds them against a named list.
+            try:
+                targets.append(str(resolved.relative_to(absolute_root)))
+            except ValueError:
+                OUTSIDE_IMPORTS.setdefault(name, set()).add(str(resolved))
         edges[name] = targets
     return edges, unresolved
 
@@ -177,6 +185,44 @@ def find_cycles(edges: dict[str, list[str]]) -> list[tuple[str, ...]]:
     for node in edges:
         walk(node, [node])
     return sorted(cycles)
+
+
+# WHAT MAY IMPORT FROM OUTSIDE `design/src`, and it is one file.
+#
+# `engine/engine-shape.ts` reads `frontend/maquette/fixture-projections.json` —
+# the projection L08 DECLARED, which the seed builder and the correspondence
+# guard read too. It inverts that declaration to hand contract-shaped data to
+# the engine's own markup producers, and it dies with them at L13. Importing the
+# declaration rather than copying it is the point: a copy is a second definition
+# of one thing, and the drift between them would be invisible, each staying
+# internally consistent while describing different data.
+#
+# NAMED HERE SO THE NEXT ONE IS A DECISION. The maquette BECOMES the app, so a
+# module reaching outside the tree makes it non-self-contained.
+OUTSIDE_IMPORTS_ALLOWED = {
+    "engine/engine-shape.ts": {"frontend/maquette/fixture-projections.json"},
+    # Its test reads the same declaration, and for the same reason: asking
+    # the declaration what names must not survive is what keeps the
+    # assertion from being a list in the test file that rots.
+    "engine/engine-shape.test.ts": {"frontend/maquette/fixture-projections.json"},
+}
+
+# Filled by `build_graph`: importer -> the absolute paths it reaches outside the
+# tree. Module level because several arms build the graph and each would
+# otherwise re-derive it.
+OUTSIDE_IMPORTS: dict[str, set[str]] = {}
+
+
+def is_test(module: str) -> bool:
+    """Tells whether a module is a test rather than something that ships.
+
+    Args:
+        module: The module's path, as the graph names it.
+
+    Returns:
+        True for a `*.test.ts` / `*.test.tsx`.
+    """
+    return module.endswith(".test.ts") or module.endswith(".test.tsx")
 
 
 def arm_cycles(root: Path) -> int:
@@ -675,6 +721,22 @@ def arm_tree(root: Path) -> int:
                     f"{relative} — a directory under {enclosing.as_posix()}/ is named "
                     f"« {echoed}/ » again: a tree copied under its own path is read by "
                     f"nothing and drifts from the one it mirrors")
+    # AN IMPORT THAT LEAVES THE TREE, held against a named list. It used to make
+    # `build_graph` CRASH, which was the right failure to have — the guard
+    # refused to judge what it could not read — and this answers it rather than
+    # swallowing it. The maquette BECOMES the app, so a module reaching outside
+    # `design/src` makes it non-self-contained, and the next one is a decision.
+    build_graph(root)
+    for importer, reached in sorted(OUTSIDE_IMPORTS.items()):
+        allowed = OUTSIDE_IMPORTS_ALLOWED.get(importer, set())
+        for target in sorted(reached):
+            relative = target.split("PersonalScraper/", 1)[-1]
+            if relative not in allowed:
+                strays.append(
+                    f"{importer} imports {relative}, outside `design/src`. Add it to "
+                    f"OUTSIDE_IMPORTS_ALLOWED with its reason, or keep it inside.")
+    print(f"  outside-imports: {len(OUTSIDE_IMPORTS)} module(s) reach outside the tree, "
+          f"{len(OUTSIDE_IMPORTS_ALLOWED)} named")
     print(f"  tree: {len(BUCKETS)} declared bucket(s), {len(strays)} file(s) outside them "
           f"({nested} under a repeated directory)")
     for entry in strays:
@@ -767,6 +829,16 @@ def arm_mocks(root: Path) -> int:
         for target in sorted(set(targets)):
             if (any(target.startswith(exempt) for exempt in CONTRACT_TYPES_EXEMPT)
                     and type_only_import(root, source, target)):
+                continue
+            # A TEST MAY READ A SEED, and that is the opposite of the defect
+            # this arm refuses. The defect is a COMPONENT reading one: it would
+            # render identically while never going through the network seam, so
+            # nothing would measure the wiring. A test reading the committed
+            # seed is the oracle OUTSIDE the tool — the artefact is held byte
+            # for byte against `legacy.js` by `check-mock-seeds.py`, and
+            # asserting against anything else would be asserting against the
+            # code under test. A test renders nothing and ships nowhere.
+            if is_test(source):
                 continue
             if bucket_of(target) == "mocks" and source_bucket not in ("mocks", "app"):
                 violations.append(

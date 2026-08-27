@@ -356,6 +356,24 @@ async def open_frame(browser, recipe: dict):
             "    rm -rf /tmp/tm-refonte/vite && cp -R dist/vite /tmp/tm-refonte/vite"
         )
 
+    # THE INSTRUMENT'S OWN SELF-TEST KNOB, and it is the twin of
+    # `TM_ORACLE_NO_SETTLE` above. The settle asks the mock layer whether
+    # anything is in flight; with the layer answering instantly, the two frames
+    # of the floor are enough to catch every request and the settle would look
+    # unnecessary whether or not it worked. Holding every answer back for a
+    # named number of milliseconds is what lets the pair be RUN:
+    #
+    #     TM_ORACLE_LATENCY_MS=400                     -> no divergence
+    #     TM_ORACLE_LATENCY_MS=400 TM_ORACLE_NO_SETTLE=1 -> divergence, on the
+    #                                                      wired surfaces alone
+    #
+    # A counter-measure that is merely coded is a claim; one that is
+    # demonstrated failing without it is a proof. Unset in every normal run, so
+    # the recorded reference is never taken through it.
+    latency = os.environ.get("TM_ORACLE_LATENCY_MS")
+    if latency:
+        await page.evaluate("(ms)=>window.__mocks?.setDefaultLatency(Number(ms))", latency)
+
     await neutralise(page, recipe)
     return context, page
 
