@@ -71,10 +71,6 @@ ENGINE_SOURCES = ("engine/legacy.js", "engine/states.js")
 # in the interface's own bag — invariant 4's violation, one per name. They leave
 # as their surface is wired, and the ceiling below follows them down.
 SERVER_STATE_KEYS = {
-    "libCount": "how many library rows have been asked for — a page cursor",
-    "libErr": "whether the library read failed — query state",
-    "libLoading": "whether the library read is in flight — query state",
-    "libFailedOnce": "whether the simulated failure has already fired",
     "sugCount": "how many suggestions have been asked for — a page cursor",
     "sugGone": "which suggestions have been dismissed — server state",
     "sugLoading": "whether the suggestion read is in flight — query state",
@@ -96,8 +92,12 @@ INTERFACE_STATE_KEYS = {
 }
 
 # What the union may be, and it is refused UPWARD. Lowered in the commit that
-# converts a surface, never raised to let one through.
-SERVER_STATE_CEILING = 11
+# converts a surface, never raised to let one through. It started at ELEVEN;
+# L09 phase 6 took the Médiathèque's four — `libCount`, `libErr`, `libLoading`,
+# `libFailedOnce`, all of them the query's — and the four names left this list
+# with the keys, because a list that kept them would go on describing a store
+# that no longer holds them.
+SERVER_STATE_CEILING = 7
 
 # And the COMPONENT share separately, because the union alone cannot see a
 # component newly copying a key the engine already writes: the union stays 11
@@ -105,7 +105,7 @@ SERVER_STATE_CEILING = 11
 # state written by the interface itself — passes. Measured by mutation, not
 # reasoned: writing `pipe` from a component left the union at 11 and the run
 # green, while the component share went 4 → 5.
-COMPONENT_SHARE_CEILING = 4
+COMPONENT_SHARE_CEILING = 0
 
 # How many `useEffect` call sites the second arm must find before it may report
 # anything at all. Raised as the tree grows; a corpus below it means the reader

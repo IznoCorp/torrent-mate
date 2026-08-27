@@ -8,7 +8,9 @@ the list, where a long scroll is the only way in:
 
   · the end of the sample SAYS it is the end of the sample, and says how many
     titles the prototype really carries — otherwise the last row contradicts
-    the « of 1 861 » counter above it;
+    the « of 1 861 » counter above it. Since L09 those are two fields of one
+    answer rather than two functions of the engine: `loaded` is what the source
+    holds and `total` is what the library claims, and the hold reads both;
   · a page that fails to load says what remains VALID, and offers to try
     again — the failure is simulated once, on purpose, because a path nobody
     can see is a path nobody can judge;
@@ -26,15 +28,28 @@ from common import Journal, open_page
 
 from playwright.async_api import async_playwright
 
-READ = """()=>({
-  foot: (document.querySelector('#libload')||{}).textContent || '',
-  retry: !!document.querySelector('#libretry'),
-  rows: document.querySelectorAll('#libitems [data-part="card"], #libitems [data-part="tile"]').length,
-  count: window.__store.read().state.libCount,
-  err: !!window.__store.read().state.libErr,
-  total: window.__referentiel.libFiltered().length,
-  carried: window.__referentiel.libraryLoaded(),
-})"""
+# READ WHERE THE LIBRARY READS, since L09. The count, the failure and the two
+# totals were four values in the interface's own store and in the engine's
+# fixture; they are the query's now — `libCount`, `libErr`, `libLoading` and
+# `libFailedOnce` no longer exist, and `libFiltered()` / `libraryLoaded()` went
+# with the fixture they read. What the rule HOLDS is untouched: how many are
+# shown, whether the failure says so, and whether the end mark names the sample
+# rather than the library.
+READ = """()=>{
+  const listing = window.__queries.getQueryCache().getAll()
+    .find((query) => query.queryKey[0] === '/api/library/items');
+  const pages = listing?.state.data?.pages ?? [];
+  return {
+    foot: (document.querySelector('#libload')||{}).textContent || '',
+    retry: !!document.querySelector('#libretry'),
+    rows: document.querySelectorAll('#libitems [data-part="card"], #libitems [data-part="tile"]').length,
+    count: pages.reduce((held, page) => held + page.items.length, 0),
+    err: listing?.state.status === 'error'
+         || listing?.state.fetchStatus === 'idle' && !!listing?.state.error,
+    total: pages[0]?.total ?? 0,
+    carried: pages[0]?.loaded ?? 0,
+  };
+}"""
 
 
 async def main():
@@ -92,9 +107,25 @@ async def main():
         # ── the end of the sample says it is the end of the SAMPLE ─────────
         await page.evaluate("()=>window.__go('lib-list')")
         await page.wait_for_timeout(600)
-        await page.evaluate("""()=>{const state = window.__store.read().state;
-          window.__store.write({libCount: window.__referentiel.libFiltered().length});
-          window.__referentiel.render();}""")
+        # ASK FOR EVERY PAGE, through the door the list publishes. Writing a
+        # count into the store used to be enough because the store WAS the
+        # paging; the cache holds the pages now, so reaching the end means
+        # asking for them. Bounded, and it stops when nothing more arrives —
+        # a loop that trusted a count would spin on a list that stopped growing.
+        await page.evaluate("""async ()=>{
+          const held = () => {
+            const listing = window.__queries.getQueryCache().getAll()
+              .find((query) => query.queryKey[0] === '/api/library/items');
+            return (listing?.state.data?.pages ?? [])
+              .reduce((count, page) => count + page.items.length, 0);
+          };
+          for (let asked = 0; asked < 40; asked += 1) {
+            const before = held();
+            window.__libraryNextPage?.();
+            await new Promise((settle) => setTimeout(settle, 30));
+            if (held() === before) break;
+          }
+        }""")
         await page.wait_for_timeout(600)
         ended = await page.evaluate(READ)
         journal.check(
@@ -106,8 +137,9 @@ async def main():
             f"{ended['carried']} carried — {ended['foot'][:90]}")
         journal.check(
             "which is the number it really has, not the library's own total",
-            ended["carried"] == ended["total"] and ended["carried"] < 1861,
-            f"{ended['carried']} carried, {ended['total']} filtered")
+            ended["carried"] == ended["rows"] and ended["carried"] < ended["total"],
+            f"{ended['carried']} carried, {ended['rows']} drawn, "
+            f"{ended['total']} claimed by the library")
 
         await browser.close()
     journal.summary(errors)

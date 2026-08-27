@@ -225,6 +225,14 @@
                       "type": "integer",
                       "description": "how many titles the library holds in all"
                     },
+                    "matching": {
+                      "type": "integer",
+                      "description": "how many rows this question matches — the set a page is a page OF. Distinct from `total`, which is what the library claims when nothing filters, and from `loaded`, which is what the source holds whatever is filtered for. Paging that compared against `total` never reached the end of a source smaller than the claim"
+                    },
+                    "loaded": {
+                      "type": "integer",
+                      "description": "how many titles the source really holds, whatever is being filtered for — distinct from `total`, which is the library's own count when nothing filters and the size of the result set when something does. The end mark says « you have reached the end of what there is », and a filtered count would make that a lie under every search"
+                    },
                     "items": {
                       "type": "array",
                       "items": {
@@ -234,7 +242,9 @@
                   },
                   "required": [
                     "items",
-                    "total"
+                    "total",
+                    "loaded",
+                    "matching"
                   ]
                 }
               }

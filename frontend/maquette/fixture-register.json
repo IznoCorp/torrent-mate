@@ -56,7 +56,8 @@
     "CATS": {
       "class": "served",
       "why": "the categories and their counts, read from library.db",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 6 — the Médiathèque reads /api/library/categories"
     },
     "DECISIONS_REGLEES": {
       "class": "served",
@@ -249,7 +250,8 @@
     "RECENT": {
       "class": "served",
       "why": "the twelve most recently added titles",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 6 — the « récent » lens draws the listing in the source's own order, so this fixture lost its reader rather than gaining a route"
     },
     "RELEASES": {
       "class": "served",
@@ -364,7 +366,8 @@
     "SYNOPSIS": {
       "class": "served",
       "why": "synopses, from TMDB",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 6 — a library row carries its own overview, from /api/library/items"
     },
     "TAKEABLE": {
       "class": "served",

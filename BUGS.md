@@ -152,6 +152,9 @@ when the defect comes back.
 | B-109 | A retry that re-asks nothing was written, and the invariant-4 arm refused it | by gate | `fixed #NNN` |
 | B-110 | The fixture register had no word for a family L09 deliberately deletes | by gate | `fixed #NNN` |
 | B-111 | An edit replaced a span it had not read, and took six published members with it | by rule | `fixed #NNN` |
+| B-112 | The library's sentinel watched the wrong port, masked by a 620 ms delay | by oracle | `fixed #NNN` |
+| B-113 | A named state was reachable from a known store and an unknown cache | by oracle | `fixed #NNN` |
+| B-114 | The listing conflated what the library claims with what the source holds | by rule | `fixed #NNN` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -1974,8 +1977,8 @@ absence of a row can mean either.
 | L07-bis | 5 | B-075 |
 | L08 | 6 | PR #503's squash body — B-093 and B-094 write out two of the six; B-092 and B-095 are adjacent findings of that wave, not members of the six |
 | L08-bis (#505, the correction wave) | 9 | itemised below · squash `12a134ca` |
-| L09 (in flight) | 4 so far | B-105 and B-106, both found by mutation in the phases that wrote the instruments; **B-108**, the oracle itself — its `neutralise` broke the React tree and it recorded the damage as the reference, on four states of the exact kind this lot wires; and B-110's first attempt, which took three seeds out of the schema arm while the register claimed that arm held them · recounted at the wave's close |
-| **Total** | **30** | at 2026-08-26, **provisional while L09 is in flight** — the wave's final figure is written at its close, step five of § 5 |
+| L09 (in flight) | 5 so far | B-105 and B-106, both found by mutation in the phases that wrote the instruments; **B-108**, the oracle itself — its `neutralise` broke the React tree and it recorded the damage as the reference, on four states of the exact kind this lot wires; B-110's first attempt, which took three seeds out of the schema arm while the register claimed that arm held them; and the filters rule, which read the FIRST listing in the cache rather than the active one and reported 24 rows beside a count line saying 4 · recounted at the wave's close |
+| **Total** | **31** | at 2026-08-26, **provisional while L09 is in flight** — the wave's final figure is written at its close, step five of § 5 |
 
 **The nine the correction wave found, since a wave that counts itself has to name its own.** The
 figure is large because the count is honest, not because the wave was worse: four of the nine are
@@ -2345,3 +2348,52 @@ recognise » is that trap wearing a different hat. The span was assumed; a diff 
 in one command, and did.
 
 <sub>`diff /tmp/legacy.bak frontend/maquette/design/src/engine/legacy.js | grep '^<'`</sub>
+
+**B-112 — the library's sentinel watched a port it was not in, and a delay hid it for months.**
+`LibraryList`'s infinite-scroll observer took its root from `document.querySelector("#port")` —
+whichever port comes FIRST in the document. With a media sheet open over the library that is the
+SHEET's port, so the footer counted as « in view » in a container it does not live in and the
+sentinel asked for page after page nobody had scrolled to.
+
+**Nothing showed it while the engine paced the loading.** Its loader waited 620 ms per page and
+re-checked the store's version on landing, so a measurement taken before the first timer landed saw
+a still list. Wiring the list to a cache that answers at once turned a masked defect into **46 402
+px of list** where the reference holds 3 388 — the oracle's first reading of the wired surface.
+
+**Two repairs, and the second is the one that mattered.** The root is now `foot.closest(".port")` —
+the port the footer is actually in. And the observer is not set at all while the list is not on
+screen: a surface showing a skeleton or an error has had nothing scrolled past it, and its footer
+sits high in a short container, which is exactly where an observer fires.
+
+<sub>`python3 frontend/maquette/oracle.py --check` — `shell/library-list` 3 208 px against 46 222 before the repair</sub>
+
+**B-113 — a named state was reachable from a known STORE and an unknown CACHE.**
+`window.__reset()` carries the sentence this whole arrangement rests on: « a measurement must never
+inherit the mutations of a previous one ». It was true while every surface read a fixture. A
+surface reads a query cache now, and a cache keeps what it holds — so driving one state after
+another left the Médiathèque showing every page a previous state had asked for.
+
+The cache and the mock layer's seeds go back with the world, in the same function, for the same
+reason. **The alternative — each named state clearing what it happens to know about — is the
+arrangement that produced this defect in the first place.**
+
+<sub>`grep -n "window.__reset = " frontend/maquette/design/src/engine/legacy.js`</sub>
+
+**B-114 — the listing answered one number to three different questions.**
+`total` meant « what the library claims » when nothing filtered and « the size of the result set »
+when something did. Three questions were being asked of it: how many rows does THIS question match
+(what a page is a page of), how many does the source really hold (what the end mark says), and how
+many does the library claim (what the count line says « sur »).
+
+**Two of them broke, in opposite directions.** Paging compared the rows so far against `total`, so
+on an unfiltered listing it waited for 1 861 rows from a source holding 345: `hasNextPage` stayed
+true over empty pages for ever and the end mark was never drawn. And the end mark itself said the
+FILTERED count, so under a search that matched nothing it announced « 0 titres réels » where the
+prototype carries 345.
+
+The answer declares `matching`, `loaded` and `total` now, each with what it is for written beside
+it in the contract. R79's own hold moved with them: « the number it really has, not the library's
+own total » compares `loaded` against the rows drawn and against the claim, which is what that
+sentence always meant.
+
+<sub>`python3 frontend/maquette/harness/library_load.py` — 8 holds</sub>

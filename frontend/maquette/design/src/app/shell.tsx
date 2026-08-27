@@ -85,6 +85,7 @@ import { installNavigation } from "../lib/navigate";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createQueryClient } from "../lib/query-client";
 import { installDecisionLookup } from "../features/arrivals/queries";
+import { installLibraryPaging } from "../features/library/queries";
 
 declare global {
   interface Window {
@@ -281,6 +282,7 @@ window.__queries = queryClient;
 // (§13: one derivation per question). It is installed here, beside the other
 // seams, and it goes with the engine at L13.
 installDecisionLookup(queryClient);
+installLibraryPaging(queryClient);
 
 ReactDOM.createRoot(mountNode).render(
   <React.StrictMode>

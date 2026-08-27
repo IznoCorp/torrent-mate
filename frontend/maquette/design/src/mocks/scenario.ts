@@ -19,6 +19,35 @@ export type OperationOutcome = {
   status: number;
   /** How long the answer is held back, in milliseconds. Always the same. */
   latencyMilliseconds: number;
+  /**
+   * How many calls answer normally before the status above takes effect.
+   *
+   * WHY IT EXISTS. « The list loaded, and then the next page did not » is a
+   * real state the interface has to draw, and it cannot be asked for by a
+   * status alone: an operation set to fail fails its FIRST call, so the list
+   * never appears and the surface shows a whole-surface error instead of a
+   * footer one. The engine drew that state from a `libFailedOnce` flag it kept
+   * in the interface's own store — server state in a client store, invariant 4
+   * — and this is where that flag goes.
+   *
+   * Zero means « from the first call », which is what a scenario that does not
+   * mention it asks for.
+   */
+  afterCalls: number;
+  /**
+   * How many calls fail before the operation answers normally again.
+   *
+   * WHY IT IS NOT ALWAYS « every call from now on ». « The next page failed »
+   * and « this resource is down » are different states, and the interface draws
+   * them differently: the first offers to try again and the retry WORKS, which
+   * is the whole of what a retry is for. The engine expressed the first with a
+   * `libFailedOnce` flag it kept in the interface's own store; this is where
+   * that flag goes.
+   *
+   * Absent means « every call from `afterCalls` on », which is what a scenario
+   * that does not mention it asks for.
+   */
+  failingCalls?: number;
 };
 
 /** What the whole layer is currently asked to do. */
@@ -56,6 +85,12 @@ const initial = (): Scenario => ({
 
 let current: Scenario = initial();
 
+// How many times each operation has been asked for since the last reset. It is
+// the counter `afterCalls` is read against, and a reset puts it back — a
+// scenario that survived a reset would make a named state depend on which
+// states were driven before it.
+let calls: Record<string, number> = {};
+
 /** Returns the scenario in force. */
 export function scenario(): Scenario {
   return current;
@@ -86,6 +121,7 @@ export function setDefaultLatency(milliseconds: number): void {
 /** Returns the layer to its starting scenario: no failure, no latency. */
 export function resetScenario(): void {
   current = initial();
+  calls = {};
 }
 
 /**
@@ -96,9 +132,20 @@ export function resetScenario(): void {
  */
 export function outcomeFor(operationId: string): OperationOutcome {
   const asked = current.operations[operationId] ?? {};
+  const seen = calls[operationId] ?? 0;
+  calls[operationId] = seen + 1;
+  const afterCalls = asked.afterCalls ?? 0;
+  // THE COUNT IS TAKEN BEFORE THE ANSWER, so « fail after one call » means the
+  // second call is the one that fails — the call that has one before it.
+  const failingCalls = asked.failingCalls;
+  const armed =
+    seen >= afterCalls
+    && (failingCalls === undefined || seen < afterCalls + failingCalls);
   return {
-    status: asked.status ?? 200,
+    status: armed ? (asked.status ?? 200) : 200,
     latencyMilliseconds:
       asked.latencyMilliseconds ?? current.defaultLatencyMilliseconds,
+    afterCalls,
+    ...(failingCalls === undefined ? {} : { failingCalls }),
   };
 }

@@ -30,7 +30,7 @@ async def main():
           count:document.querySelector('#libcount')?.textContent.replace(/\\s+/g,' ').trim(),
           empty:!!document.querySelector('#libitems [data-part="empty-state"]'),
           coherent:[...document.querySelectorAll('#libitems [data-part="tile"]')].every(t=>{
-            const o=libFiltered().find(x=>x.t===t.querySelector('[data-part="tile/title"]').textContent); return !!o;})})""")
+            const o=(window.__queries.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages??[]).flatMap(p=>p.items).find(x=>x.t===t.querySelector('[data-part="tile/title"]').textContent); return !!o;})})""")
         ok = r["shown"] > 0 or r["empty"]
         if not ok: ko.append(cat["l"])
         print(("  PASS" if ok else "  FAIL"), f"{cat['l']:16} {r['shown']:3} rendered · {r['count']}")
@@ -39,7 +39,7 @@ async def main():
     await pg.evaluate("()=>document.querySelector('[data-cat=\"tv\"]').click()"); await pg.wait_for_timeout(280)
     await pg.evaluate("()=>{const i=document.querySelector('#libq');i.value='dex';i.dispatchEvent(new Event('input',{bubbles:true}));}")
     await pg.wait_for_timeout(350)
-    print("\ncombined (Séries + « dex »):", await pg.evaluate("()=>({n:libFiltered().length, titles:libFiltered().map(x=>x.t), count:document.querySelector('#libcount').textContent.replace(/\\s+/g,' ').trim()})"))
+    print("\ncombined (Séries + « dex »):", await pg.evaluate("()=>({n:(window.__queries.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages??[]).flatMap(p=>p.items).length, titles:(window.__queries.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages??[]).flatMap(p=>p.items).map(x=>x.t), count:document.querySelector('#libcount').textContent.replace(/\\s+/g,' ').trim()})"))
     await shot(pg, "filters")
     print("\nJS errors:", errs or "none")
     print("VERDICT:", "filters filter, and the parts sum to the whole" if not ko and not errs else f"remaining: {ko}")
