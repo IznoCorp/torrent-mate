@@ -161,6 +161,7 @@ when the defect comes back.
 | B-118 | The seed builder deleted twenty-one seeds the mock layer serves | by review | `fixed #NNN` |
 | B-119 | A copy of the design root no longer builds, and the rule read a broken host | by rule | `fixed #NNN` |
 | B-120 | A journey rule read the verb of a panel the previous half had left open | by rule | `fixed #NNN` |
+| B-121 | A gate compared a committed seed to a counter the daemon increments | by gate | `fixed #NNN` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -2523,3 +2524,24 @@ value. The rendering does not move — the two numbers are the same width — an
 it: 2 739 measurements, no divergence.
 
 <sub>`python3 scripts/refresh-maquette-fixture.py --check` — no drift</sub>
+
+**B-121 — a gate compared a committed seed to a counter the daemon increments.**
+`make check` ran `refresh-maquette-fixture.py --check` as a blocking step. `searches` is the number
+of times the acquisition daemon has looked for a followed show, so it goes up on its own: measured
+19 when this wave's gate started and 21 when the gate reached that step, in one `make check`.
+
+**And where it blocks, it verifies nothing.** CI has no `acquire.db`, so the script prints « no
+database — nothing verified » and passes. Vacuous where it gates and moving where it does not is not
+a check — it is the exact shape CLAUDE.md already names for `arrivals.py`: a rule that reads the
+operator's live databases says nothing about the change under test.
+
+It still runs and still prints in `make check`, prefixed `-` so its exit code does not gate, and
+`--apply` stays the deliberate gesture.
+
+**What it did NOT do, checked rather than assumed**: pointed at the deleted `FOLLOWS` array, the
+tool as `main` holds it answers « refusing to report agreement about an array it could not find »
+— the refusal its own tests were written to guarantee. It never reported a false agreement. What
+made the drift visible again is that this lot moved the tool to the seed the family now lives in,
+in the same step as the family; until then the step could only refuse.
+
+<sub>`make check` — exit 0 · `python3 scripts/refresh-maquette-fixture.py --check`</sub>

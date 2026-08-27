@@ -215,7 +215,7 @@ async def main():
         # this read it there; a cache holds the pages that were asked for, and
         # « none of the 24 loaded rows lacks a plot » is not the same statement.
         missing = await pg.evaluate("""async ()=>{
-          const found = []; 
+          const found = [];
           for (let page = 0; page < 40; page += 1) {
             const answer = await (await window.fetch(
               `/api/library/items?page=${page}`)).json();
