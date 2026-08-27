@@ -16,7 +16,7 @@ async def main():
     await pg.evaluate("()=>window.__measure(true)")
     await pg.evaluate("()=>window.__go('lib-grid')"); await pg.wait_for_timeout(400)
 
-    cats = await pg.evaluate("()=>CATS.map(c=>({id:c.id,l:c.l,c:c.c}))")
+    cats = await pg.evaluate("()=>(window.__queries.getQueryCache().getAll().find(q=>q.queryKey[0]==='/api/library/categories')?.state.data||[]).map(c=>({id:c.id,l:c.l,c:c.c}))")
     parts = sum(c["c"] for c in cats if c["id"] != "all")
     whole = next(c["c"] for c in cats if c["id"] == "all")
     print(f"category parts: {parts} · announced total: {whole}",

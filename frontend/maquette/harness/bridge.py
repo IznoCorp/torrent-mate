@@ -244,8 +244,17 @@ async def main():
 
         # Scrolled away from the top before leaving, so the return has a
         # position to restore and not merely a list to redraw.
-        await pg.evaluate(
-            """()=>{document.querySelector('[data-part="screen"][data-open] [data-part="viewport"]').scrollTop = 300;}"""
+        # SCROLLED TO A POSITION THE SCREEN ACTUALLY HAS, and the number is
+        # read rather than written. It was 300, which held while the results
+        # came from a fixture that answered six titles to every query; the
+        # layer SEARCHES since L09, so a query matching five leaves a shorter
+        # list and 300 is unreachable — the browser clamps, and the hold failed
+        # on a number rather than on its subject. What this rule is about is
+        # that the position COMES BACK, so it scrolls as far as there is to go
+        # and asserts that exact offset returns.
+        scrolled = await pg.evaluate(
+            """()=>{const v=document.querySelector('[data-part="screen"][data-open] [data-part="viewport"]');
+                    v.scrollTop = v.scrollHeight; return v.scrollTop;}"""
         )
         await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card/poster"]').click()""")
         await pg.wait_for_timeout(450)
@@ -289,7 +298,7 @@ async def main():
         # tolerance as R71, which holds the same journey off the bridge.
         check(
             "with its scroll position",
-            abs(back_state["scroll"] - 300) <= 40,
+            abs(back_state["scroll"] - scrolled) <= 40,
             f"{back_state['scroll']}px",
         )
 

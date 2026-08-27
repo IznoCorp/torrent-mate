@@ -347,7 +347,6 @@
     "scripts/markup_text.py": 4,
     "scripts/nofrench_lexicon.py": 1,
     "scripts/nofrench_scan.py": 3,
-    "scripts/refresh-maquette-fixture.py": 1,
     "scripts/update_feature_map.py": 2
   }
 }

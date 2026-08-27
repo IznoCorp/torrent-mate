@@ -124,9 +124,18 @@ export function acquisitionRoutes(): MockRoute[] {
     route("searchProviders", GET, "/api/acquisition/search", (request: MockRequest) => {
       const wanted = (request.query.get("query") ?? "").toLowerCase();
       if (wanted === "") return SEARCH_RESULTS;
-      const results = SEARCH_RESULTS.results.filter((result) =>
-        result.title.toLowerCase().includes(wanted),
-      );
+      // MATCHED ON WORDS, NOT ON THE WHOLE STRING, and a provider is what this
+      // stands in for. The interface pre-fills this field with a staging
+      // FOLDER's name — « Backrooms 2026 » — and a provider asked that returns
+      // Backrooms; a substring match returns nothing, because the title is
+      // « Backrooms » and the year is not in it. Measured: the identify screen
+      // drew no candidate at all, on the one surface whose job is to offer them
+      // (DOIT-7 — never a dead end).
+      const words = wanted.split(/\s+/).filter((word) => word !== "");
+      const results = SEARCH_RESULTS.results.filter((result) => {
+        const title = result.title.toLowerCase();
+        return words.some((word) => title.includes(word));
+      });
       return { ...SEARCH_RESULTS, shown: results.length, results };
     }),
     // The deck PAGES. Answering the first batch to every request made the

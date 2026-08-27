@@ -291,7 +291,16 @@ async def main():
         # the body opens the panel on a plain tap, so `armPress` refuses to arm
         # a timer that would open it twice. A rule asserting a press there would
         # be asserting a behaviour the design does not want.
-        await pg.evaluate("()=>window.__go('acq-identify')")
+        # DRIVEN ON THE STATE THAT HAS ONE, and the state changed for a reason
+        # rather than for convenience. `acq-identify` pre-fills the field with a
+        # staging FOLDER's name, and the seeded provider answer is a « star wars »
+        # search: the engine showed those six results to every query, so a card
+        # was there whatever was typed. The layer SEARCHES since L09, so that
+        # query legitimately matches nothing and the screen draws its empty case
+        # — which is right, and is not what this hold is about. What it holds is
+        # that a card drawn ABOVE the scrollport refuses the browser's menu, and
+        # `acq-add-results` is a state that has one.
+        await pg.evaluate("()=>window.__go('acq-add-results')")
         await pg.wait_for_timeout(450)
         # `acq-identifier` opens the add screen — a real route now
         # (`/add`, rendered inside `#coquille`), not `#screen`: the card

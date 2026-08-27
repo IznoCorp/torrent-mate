@@ -208,10 +208,10 @@ async def main():
       document.querySelector('#view [data-part="swipe"] [data-part="swipe/action"][data-action="remove"]').click(); await new Promise(r=>setTimeout(r,320));
       if (!document.querySelector('#toastundo')) out.push('removing a follow: no undo');
       window.__go('lib-list'); await new Promise(r=>setTimeout(r,260));
-      const before=world.lib.length;
+      const before=(window.__queries?.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages?.[0]?.loaded ?? 0);
       document.querySelector('#libitems [data-part="swipe"] [data-part="swipe/action"][data-action="remove"]').click(); await new Promise(r=>setTimeout(r,320));
       if (!document.querySelector('#dlg').hasAttribute('data-open')) out.push('deleting a medium: no confirmation');
-      if (world.lib.length!==before) out.push('deleting a medium: mutation BEFORE confirmation');
+      if ((window.__queries?.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages?.[0]?.loaded ?? 0)!==before) out.push('deleting a medium: mutation BEFORE confirmation');
       return out;}""")
     for x in rev: note("R17 destruction without a guard", x)
 
@@ -454,7 +454,7 @@ async def main():
     # what is true about the medium, so the rule checks that derivation instead
     # of forbidding a destination.
     dest=await pg.evaluate("""async ()=>{const out=[];
-      /* THE FOLLOWS ARE THE LAYER'S SINCE L09 — `world.follows` was the
+      /* THE FOLLOWS ARE THE LAYER'S SINCE L09 — `(window.__followActions?.all()||[])` was the
          engine's own copy, and it is gone. */
       const followed=new Set((window.__followActions?.all()||[]).map(x=>x.t));
       for (const state_ of ['lib-incomplete','lib-list','lib-recent']) {

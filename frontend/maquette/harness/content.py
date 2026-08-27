@@ -155,7 +155,10 @@ async def main():
                               c.getBoundingClientRect().bottom + 1;}).length,
                 invented: cards.filter(c => {
                   const e = c.querySelector('[data-part="card/overview"]');
-                  return e && !SYNOPSIS[(c.querySelector('[data-part="card/title"]')||{}).textContent];
+                  /* THE SYNOPSIS IS A FIELD OF A ROW SINCE L09 — `SYNOPSIS` was a global
+                     map keyed by title, and the library row carries its own `overview`. */
+                  const title=(c.querySelector('[data-part="card/title"]')||{}).textContent;
+                  return e && !((window.__queries.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages||[]).flatMap(p=>p.items).find(r=>r.t===title)||{}).overview;
                 }).map(c => (c.querySelector('[data-part="card/title"]')||{}).textContent)};}""")
             check(f"{name}: the rows carry the synopsis",
                   seen["n"] > 4 and seen["withPlot"] == seen["n"], f"{seen['withPlot']}/{seen['n']}")
@@ -207,20 +210,49 @@ async def main():
 
         # A medium whose NFO carries no plot shows nothing rather than a filler.
         # Reading only the rows on screen proves nothing — the first two dozen
-        # all have a plot — so the row is BUILT for a title known to lack one.
-        missing = await pg.evaluate(
-            "()=>LIBRARY.filter(x => !(x.t in SYNOPSIS)).map(x => x.t)")
+        # all have a plot — so the LAYER is walked page by page for a title
+        # known to lack one. The engine held the whole library in memory and
+        # this read it there; a cache holds the pages that were asked for, and
+        # « none of the 24 loaded rows lacks a plot » is not the same statement.
+        missing = await pg.evaluate("""async ()=>{
+          const found = []; 
+          for (let page = 0; page < 40; page += 1) {
+            const answer = await (await window.fetch(
+              `/api/library/items?page=${page}`)).json();
+            if (!answer.items.length) break;
+            for (const row of answer.items) if (!row.overview) found.push(row.title);
+          }
+          return found;}""")
         check("a medium without a synopsis exists in the library",
               len(missing) > 0, f"{len(missing)} without a plot: {missing[:3]}")
         if missing:
-            empty = await pg.evaluate("""(t)=>{
-              const item = LIBRARY.find(x => x.t === t);
-              const d = document.createElement('div');
-              d.innerHTML = libRowHTML(item, 0);
-              const cov = d.querySelector('[data-part="card/overview"]');
-              return cov ? cov.textContent : null;}""", missing[0])
+            # AND THE ROW IS THE ONE THE SURFACE DRAWS. This used to call the
+            # engine's `libRowHTML` on a detached node — a markup producer
+            # answering about itself. The title is searched for instead, so
+            # what is read is the row the operator would be looking at.
+            await pg.evaluate("""(title)=>{
+              const field = document.querySelector('#libq');
+              const setter = Object.getOwnPropertyDescriptor(
+                window.HTMLInputElement.prototype, 'value').set;
+              setter.call(field, title);
+              field.dispatchEvent(new Event('input', {bubbles:true}));}""", missing[0])
+            await pg.wait_for_timeout(700)
+            drawn = await pg.evaluate("""(title)=>{
+              const rows = [...document.querySelectorAll('#libitems [data-part="card"]')];
+              const row = rows.find(x => x.textContent.includes(title));
+              if (!row) return {found: false};
+              const overview = row.querySelector('[data-part="card/overview"]');
+              return {found: true, filler: overview ? overview.textContent : null};}""",
+              missing[0])
             check("and its row shows no filler text",
-                  empty is None, str(empty))
+                  drawn["found"] and not drawn["filler"], str(drawn))
+            await pg.evaluate("""()=>{
+              const field = document.querySelector('#libq');
+              const setter = Object.getOwnPropertyDescriptor(
+                window.HTMLInputElement.prototype, 'value').set;
+              setter.call(field, "");
+              field.dispatchEvent(new Event('input', {bubbles:true}));}""")
+            await pg.wait_for_timeout(500)
 
         # ── the list starts at the same height on all three lenses ─────────
         # Each put its context line somewhere else — outside the body, inside

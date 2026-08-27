@@ -54,7 +54,6 @@ export type SearchResults = {
 };
 
 export type AcquisitionReference = EngineDrawing & EngineQueue & {
-  SEARCH: SearchResults;
   // What the Acquisition page draws. The follow VOCABULARY — a fraction, a
   // status word, a grid badge — and the two functions that turn a cron
   // expression into a sentence. `GROUPS` is the grouped mode's own order, and
@@ -69,7 +68,6 @@ export type AcquisitionReference = EngineDrawing & EngineQueue & {
   URGENCY: Record<string, number>;
   GROUPS: FollowGroup[];
   CADENCE_CRON: string;
-  derivedFollows: () => Follow[];
   // The suggestion machinery. It stays the FRAGMENT's — the deck's gesture
   // mutates its own DOM and a replaced node cannot animate — and a migrated
   // page asks it to fill the containers React has just drawn.

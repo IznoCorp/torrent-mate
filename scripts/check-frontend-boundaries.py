@@ -881,7 +881,74 @@ def arm_mocks(root: Path) -> int:
     return len(violations)
 
 
+def arm_reference_slice(root: Path) -> int:
+    """Refuse a slice that declares a member the engine no longer publishes.
+
+    WHY IT EXISTS. Each feature declares the slice of `window.__referentiel` it
+    reads, and the global's own type is their intersection — so a member left in
+    a slice after L09 deleted the fixture behind it is a TYPE THAT LIES. Nothing
+    else catches it: the declaration compiles, the reader is gone, and the next
+    person to add a reader gets `undefined` at run time with the compiler's
+    blessing. Four were left after the conversions — `SEARCH`, `derivedFollows`,
+    `SYNOPSIS`, `RELEASES`.
+
+    WHAT IT DOES NOT READ, said before what it does: only members whose name is
+    written in the engine's own vocabulary — a slice also declares TYPES, and a
+    type's field names are not published on anything. It compares the member
+    names of the `Reference` types alone, which is the level `__referentiel` is
+    an object of.
+
+    Args:
+        root: The directory to read.
+
+    Returns:
+        The number of members nothing publishes.
+    """
+    engine = root / "engine" / "legacy.js"
+    if not engine.is_file():
+        print("  reference-slice: the engine is gone — this arm has no subject", file=sys.stderr)
+        return 1
+    text = engine.read_text(encoding="utf-8")
+    start = text.index("window.__referentiel = {")
+    depth, cursor = 0, start
+    while cursor < len(text):
+        if text[cursor] == "{":
+            depth += 1
+        elif text[cursor] == "}":
+            depth -= 1
+            if depth == 0:
+                break
+        cursor += 1
+    block = text[start:cursor]
+    published = set(re.findall(r"^\s*([A-Za-z_$][\w$]*)[,:]", block, re.MULTILINE))
+    published |= set(re.findall(r"get ([A-Za-z_$][\w$]*)\(\)", block))
+
+    stale: list[str] = []
+    read = 0
+    for path in sorted((root / "features").glob("*/reference.ts")):
+        source = path.read_text(encoding="utf-8")
+        for declaration in re.finditer(
+            r"export type \w*Reference = [^{]*\{(.*?)^\};", source, re.S | re.MULTILINE
+        ):
+            for member in re.findall(r"^  ([A-Za-z_$][\w$]*)\??:", declaration.group(1),
+                                     re.MULTILINE):
+                read += 1
+                if member not in published:
+                    stale.append(
+                        f"{path.relative_to(root).as_posix()}: `{member}` is declared and the "
+                        f"engine publishes nothing by that name — a type that lies")
+    print(f"  reference-slice: {read} declared member(s) read against "
+          f"{len(published)} published, {len(stale)} stale")
+    # A CORPUS OF NOTHING would print « 0 stale » and mean « I read nothing ».
+    if read == 0:
+        stale.append("no slice member was read at all — the arm found no `…Reference` type")
+    for entry in stale:
+        print("    " + entry, file=sys.stderr)
+    return len(stale)
+
+
 ARMS = {
+    "reference-slice": arm_reference_slice,
     "cycles": arm_cycles,
     "mocks": arm_mocks,
     "layering": arm_layering,

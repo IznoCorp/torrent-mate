@@ -85,8 +85,9 @@ import { installNavigation } from "../lib/navigate";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createQueryClient } from "../lib/query-client";
 import { installDecisionLookup } from "../features/arrivals/queries";
-import { installLibraryPaging } from "../features/library/queries";
+import { installLibraryDelete, installLibraryPaging } from "../features/library/queries";
 import { installEngineRedraw } from "./engine-redraw";
+import { installEngineData } from "./engine-data";
 import {
   installFollowActions,
   installSuggestionsLookup,
@@ -291,6 +292,7 @@ window.__queries = queryClient;
 // seams, and it goes with the engine at L13.
 installDecisionLookup(queryClient);
 installLibraryPaging(queryClient);
+installLibraryDelete(queryClient);
 installQueueActions(queryClient);
 installSuggestionsLookup(queryClient);
 installFollowActions(queryClient);
@@ -298,6 +300,8 @@ installReleasesLookup(queryClient);
 installSearchLookup(queryClient);
 // The engine draws surfaces that read the cache, and it draws them once.
 installEngineRedraw(queryClient);
+// And what the engine reads with no component to ask for it.
+installEngineData(queryClient);
 
 ReactDOM.createRoot(mountNode).render(
   <React.StrictMode>

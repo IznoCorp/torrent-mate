@@ -46,7 +46,8 @@ function restoreScroll(y: number, token: number): void {
   // The router commits its re-render on its own schedule, so the port of the
   // screen being restored does not exist yet at subscription time. A bounded
   // retry over a few frames is what waits for it without polling forever.
-  let framesLeft = 5;
+  // Enough frames for a query to land and its rows to be drawn.
+  let framesLeft = 30;
   const attempt = () => {
     if (token !== restoreToken) return;
     const port = activePort();
@@ -55,6 +56,17 @@ function restoreScroll(y: number, token: number): void {
       return;
     }
     port.scrollTop = y;
+    // AND IF IT WAS CLAMPED, THE CONTENT IS NOT ALL THERE YET. A list whose
+    // rows arrive from a query is short at this instant, and the browser
+    // refuses an offset past the end — silently, by moving it. It used to be
+    // whole before the first frame, because it came from a fixture; the same
+    // bounded retry the port itself needs is what waits for it now. Measured:
+    // a walk back landed at 177 px where it had left at 300.
+    if (port.scrollTop < y && framesLeft > 0) {
+      framesLeft -= 1;
+      requestAnimationFrame(attempt);
+      return;
+    }
     const images = [...port.querySelectorAll("img")].filter(
       (image) => !image.complete,
     );

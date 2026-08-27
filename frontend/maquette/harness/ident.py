@@ -41,6 +41,26 @@ async def where(pg):
     return None
 
 
+# The operator TYPES. Both halves of this journey reach the add screen on a
+# query the seeded provider cannot answer — the first carries a staging
+# FOLDER's name, the second carries nothing at all — and since L09 the layer
+# SEARCHES, so it answers none and the screen draws its empty case. That is the
+# DOIT-7 door working, not a dead end. The engine hid it by answering the same
+# six results to every query, which is why no rule had ever walked this half.
+#
+# The value goes in through the prototype's own setter: React holds the input,
+# and assigning `.value` directly is a write React never hears.
+TYPE = """(text)=>{
+  const field = document.querySelector('#addq');
+  if (!field) return false;
+  const setter = Object.getOwnPropertyDescriptor(
+    window.HTMLInputElement.prototype, 'value').set;
+  setter.call(field, text);
+  field.dispatchEvent(new Event('input', {bubbles:true}));
+  return true;
+}"""
+
+
 async def main():
   async with async_playwright() as p:
     b=await p.chromium.launch(channel="chrome")
@@ -56,7 +76,7 @@ async def main():
     await pg.evaluate(COUNTER)
 
     await pg.evaluate("()=>window.__go('arr-loaded')"); await pg.wait_for_timeout(320)
-    before = await pg.evaluate("()=>({stuck:derived.stuck().length, moving:derived.moving().length, follows:world.follows.length})")
+    before = await pg.evaluate("()=>({stuck:(window.__queue?.().stuck||[]).length, moving:(window.__queue?.().moving||[]).length, follows:(window.__followActions?.all()||[]).length})")
     print("starting state           :", before)
     # Where the walk stands BEFORE `/add` — the manual search pops the
     # resolution entry before pushing its own, so this is the entry the add
@@ -82,16 +102,17 @@ async def main():
       return {banner:(s.querySelector('[data-part="surface-error"] b')||{}).textContent,
               query:s.querySelector('#addq')?.value,
               idBlock:(s.querySelector('[data-part="add/by-id"] summary')||{}).textContent};}""")
+    typed = await pg.evaluate(TYPE, "star wars"); await pg.wait_for_timeout(600)
     # The card wears no inline action: the verb lives in the result's panel,
     # so the panel is where the rule reads it — same path the finger takes.
-    await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card/body"]').click()"""); await pg.wait_for_timeout(420)
+    await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card/body"]')?.click()"""); await pg.wait_for_timeout(420)
     r["verbs"] = await pg.evaluate("""()=>[...document.querySelectorAll('#sheet [data-part="sheet/action"][data-tone="primary"]')].map(x=>x.textContent.trim())""")
     print("search screen            :", r)
     await shot(pg, "identify")
 
     before_assoc = await where(pg)
     await pg.evaluate("""()=>document.querySelector('#sheet [data-part="sheet/action"][data-tone="primary"]').click()"""); await pg.wait_for_timeout(700)
-    after = await pg.evaluate("()=>({stuck:derived.stuck().length, moving:derived.moving().length, follows:world.follows.length})")
+    after = await pg.evaluate("()=>({stuck:(window.__queue?.().stuck||[]).length, moving:(window.__queue?.().moving||[]).length, follows:(window.__followActions?.all()||[]).length})")
     print("after « Associer »       :", after)
     print("notification             :", (await pg.evaluate("()=>document.querySelector('#toastmsg')?.textContent"))[:90])
 
@@ -145,6 +166,13 @@ async def main():
     # silence and printed an empty list.
     await pg.evaluate("()=>window.__go('acq-now-loaded')"); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>document.querySelector('#fab').click()"); await pg.wait_for_timeout(500)
+    # The « + » opens the screen on an EMPTY query, so it types too — and the
+    # panel from the first half is closed first, or the row click below would
+    # read the verb of a result that is no longer on screen. That is exactly
+    # what it did: « Associer » was printed for a journey that never opened
+    # anything, and the verdict read a leftover.
+    await pg.evaluate("()=>window.__panel?.close?.()"); await pg.wait_for_timeout(200)
+    typed_again = await pg.evaluate(TYPE, "star wars"); await pg.wait_for_timeout(600)
     opened = await pg.evaluate(
         """()=>{const r=document.querySelector('[data-part="result/list"] [data-part="card/body"]');"""
         " if(!r) return false; r.click(); return true;}")
@@ -153,7 +181,7 @@ async def main():
     # AND THE ANSWER REACHES THE VERDICT. `v` was computed, printed, and then
     # dropped: `ok and held and not errs` never mentioned it, so these four
     # lines drove the interface and threw away what they found.
-    verb = opened and any(
+    verb = typed and typed_again and opened and any(
         word in action for action in v for word in ("Suivre", "Ajouter"))
     print("— the « + » says « Suivre/Ajouter » again :", v,
           "" if opened else "(NO RESULT ROW TO OPEN)")

@@ -154,8 +154,20 @@ PAGE_WALKS = {
 # fixture this rule has to REPORT, and an exception inside `page.evaluate`
 # ends the run at the line it was thrown from instead.
 PANEL_SUBJECTS = {
-    "follow": "()=>(window.__store.read().world.follows[0]||{}).t||''",
-    "journey": "()=>(window.INFLIGHT[0]||{}).t||''",
+    # THE FOLLOWS ARE THE LAYER'S SINCE L09. A blind replacement over the old
+    # `world.follows` left a syntax error here — `read().(…)` — which the rule
+    # reported as an unexpected token rather than as a moved seam.
+    "follow": "()=>((window.__followActions?.all()||[])[0]||{}).t||''",
+    # A JOURNEY ANSWERS FOR TWO KINDS OF SUBJECT, and the engine's own `REOPEN`
+    # says so: an acquisition in flight, or any medium the interface holds. The
+    # idle world holds no acquisition in flight — the dense one does — and the
+    # `INFLIGHT` fixture this used to read answered the dense world's list
+    # whatever world was in force, which is exactly the blindness this lot
+    # removes. So the in-flight list is asked first and a followed medium
+    # answers when it is empty; both are subjects a cold load can resolve.
+    "journey": ("()=>{const flying=(window.__queue?.().inFlight||[])[0];"
+                " if (flying && flying.t) return flying.t;"
+                " return ((window.__followActions?.all()||[])[0]||{}).t||'';}"),
     "setting": "()=>{const s=window.allSettings()[0]; return s?window.settingId(s):'';}",
     "action": "()=>(window.MAINT_ACTIONS[0]||{}).id||''",
 }

@@ -159,6 +159,8 @@ when the defect comes back.
 | B-116 | The inverse projection turned a string into an object of its characters | by rule | `fixed #NNN` |
 | B-117 | The queue read served the dense world under the real scenario | by review | `fixed #NNN` |
 | B-118 | The seed builder deleted twenty-one seeds the mock layer serves | by review | `fixed #NNN` |
+| B-119 | A copy of the design root no longer builds, and the rule read a broken host | by rule | `fixed #NNN` |
+| B-120 | A journey rule read the verb of a panel the previous half had left open | by rule | `fixed #NNN` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -2483,3 +2485,41 @@ asserts against. Removing it would leave that test with a golden written from it
 is the vacuity this whole lot is built against. It dies with the fixture that produces it, at L13.
 
 <sub>`cd frontend/maquette/design && npm test -- --run` — 57 tests · `grep -n deprecated frontend/maquette/contract/openapi.json`</sub>
+
+**B-119 — a copy of the design root no longer builds, and the rule read a broken host.**
+R73 boots the real `serve.py` on a scratch COPY of the design root, because a measurement must not
+write into the operator's source. Since L09 that copy does not build: `engine/engine-shape.ts`
+imports the mock layer's declaration from `frontend/maquette/`, one level ABOVE the design root —
+a reach the boundaries guard names as a decision, and the only one there is until the engine dies
+at L13.
+
+**Every hold in the rule answered 503**, including the ones about sessions and portals that have
+nothing to do with a build, and the rule reported a broken host where there was an incomplete copy.
+A rule that copies a tree has to copy what the tree reads.
+
+The copy is NESTED now, so a reach one level up lands where the import expects it, and what to carry
+is found by READING the sources rather than by naming a file in the rule: a name typed there is a
+second copy of the guard's allowance list, and it rots the day a second reach is allowed.
+
+<sub>`python3 frontend/maquette/harness/switchover.py` — 11 rules, no violation</sub>
+
+**B-120 — a journey rule read the verb of a panel the previous half had left open.**
+`ident.py` walks two halves: identify a folder (« Associer »), then reach the same screen from the
+« + » (« Suivre »). The second half opened nothing — the result row it clicks did not exist — and the
+verb it printed was the FIRST half's panel, still on screen. The `?.` on the row click swallowed the
+absence, so a journey that never happened reported a verb.
+
+The panel is closed before the second half is read, and the two typing gestures are asserted rather
+than assumed: `typed and typed_again and opened` reaches the verdict, so a gesture that lands on
+nothing fells the rule instead of being carried by the one before it.
+
+<sub>`python3 frontend/maquette/harness/ident.py` — VERDICT: identify != follow, and context picks the verb</sub>
+
+**The follows fixture was one search behind the operator's own database, and had been on `main`.**
+Not a defect of this lot and recorded so it is not read as one: `refresh-maquette-fixture.py --check`
+answered « Star Trek: Strange New Worlds · searches: « 18 » vs 19 », and `main` held 18 too. The
+guard now follows `FOLLOWS` to the seed it lives in since L09, and `--apply` wrote the measured
+value. The rendering does not move — the two numbers are the same width — and the oracle confirms
+it: 2 739 measurements, no divergence.
+
+<sub>`python3 scripts/refresh-maquette-fixture.py --check` — no drift</sub>

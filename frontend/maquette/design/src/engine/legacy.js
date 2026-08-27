@@ -5575,7 +5575,7 @@ import { servedIdentityLines } from "../lib/served-identity";
     if (!window.__queueActions?.leave(title)) return false;
     render();
     toast(
-      `« ${exit.released.t} » laissé tel quel — le résultat automatique est conservé, rien n'a été re-scrapé.`,
+      `« ${title} » laissé tel quel — le résultat automatique est conservé, rien n'a été re-scrapé.`,
     );
     return true;
   }
@@ -5586,7 +5586,7 @@ import { servedIdentityLines } from "../lib/served-identity";
     window.__queueActions?.resolve(title, choice);
     render();
     toast(
-      `Identifié comme « ${choice ?? exit.released.t} » — le pipeline reprend jusqu'à la médiathèque.`,
+      `Identifié comme « ${choice ?? title} » — le pipeline reprend jusqu'à la médiathèque.`,
     );
   }
 
@@ -5641,8 +5641,11 @@ import { servedIdentityLines } from "../lib/served-identity";
   }
 
   function actionDelete(titres) {
-    titres.forEach((title) => world.removedLib.add(title));
-    world.lib = world.lib.filter((lib) => !world.removedLib.has(lib.t));
+    /* THE REMOVAL IS THE LAYER'S SINCE L09. `world.lib` stopped holding the
+       library when the listing converted, so this filtered an empty array and
+       deleted nothing at all — on the one surface whose subject is what is
+       there. The confirmation stays here: it is drawn here (NE-DOIT-PAS-6). */
+    window.__deleteLibraryItems?.(titres);
     store.write({ selMode: false, selected: new Set() });
     render();
     toast(
@@ -32981,13 +32984,24 @@ import { servedIdentityLines } from "../lib/served-identity";
    *     True when a panel was opened, false when the value was refused — a
    *     refusal leaves the caller's entry alone and says why.
    */
-  function reopenAddressedPanel(search, onCurrentEntry) {
+  function reopenAddressedPanel(search, onCurrentEntry, waiting) {
     const asked = window.__address.parse(location.pathname, search);
     if (!asked.panel) return false;
     const separator = asked.panel.indexOf(":");
     const kind = separator > 0 ? asked.panel.slice(0, separator) : "";
     const subject = separator > 0 ? asked.panel.slice(separator + 1) : "";
     const entry = REOPEN[kind];
+    /* NOT YET IS NOT NO, and telling them apart is what a cold load needs
+       since L09. Every entry of `REOPEN` answers « does this interface HOLD
+       the subject », and those answers now come from the query cache — the
+       follows, the acquisitions in flight, the maintenance actions. On a cold
+       load none of them has landed when the boot runs, so a perfectly good
+       `?panel=follow:Silo` looks like a subject nobody holds. A caller that
+       can wait asks for `waiting`, and gets « not yet » instead of a refusal
+       that warns and cleans the address it was about to retry from. */
+    if (waiting && !asked.notFound && subject && entry && !entry.resolves(subject)) {
+      return "not yet";
+    }
     if (asked.notFound || !subject || !entry || !entry.resolves(subject)) {
       /* ENGLISH, and not in the i18n resources: a console message is a tool
          message, read by a developer, never by a reader of the interface.
@@ -33238,7 +33252,23 @@ import { servedIdentityLines } from "../lib/served-identity";
 
        It PUSHES that entry, which is what tells the reader apart from the
        Forward the same function serves. */
-    reopenAddressedPanel(arrivalSearch, false);
+    /* AND IT WAITS FOR WHAT IT VALIDATES AGAINST. Every entry of `REOPEN`
+       answers « does this interface HOLD the subject », and since L09 those
+       answers come from the query cache — the follows, the acquisitions in
+       flight, the maintenance actions. On a COLD LOAD the boot runs before any
+       of them has landed, so a perfectly good `?panel=follow:Silo` was refused
+       as a subject nobody holds and the reader arrived on a clean address with
+       nothing open. A bounded wait over frames is the same shape the shell's
+       scroll restoration and the listing's paging door already use, and for the
+       same reason: the thing being waited for does not exist yet. */
+    let framesLeft = 60;
+    const reopenWhenTheSubjectIsThere = () => {
+      const answer = reopenAddressedPanel(arrivalSearch, false, framesLeft > 1);
+      if (answer !== "not yet") return;
+      framesLeft -= 1;
+      requestAnimationFrame(reopenWhenTheSubjectIsThere);
+    };
+    reopenWhenTheSubjectIsThere();
     /* The welcome hint disappears on first interaction: a bubble that
        returns over an open sheet is a nuisance, not help. */
     let hintShown = false;

@@ -70,8 +70,8 @@ export function installSuggestionsLookup(queryClient: QueryClient): void {
   // named state clears the cache so no measurement inherits a previous one's
   // pages, and a query with an OBSERVER is re-asked by that observer while one
   // without is not. This is the door `__reset` re-asks through.
-  window.__refillEngineData = () => void queryClient.prefetchQuery(suggestionsQuery);
-  window.__refillEngineData();
+  window.__refillSuggestions = () => void queryClient.prefetchQuery(suggestionsQuery);
+  window.__refillSuggestions();
 }
 
 /** What the operator follows. */
@@ -143,8 +143,6 @@ declare global {
       add: (follow: { t: string; k: string; st: string; fresh: boolean }) => void;
       all: () => Follow[];
     };
-    /** Re-asks for what the engine reads and no component observes. */
-    __refillEngineData?: () => void;
     /** The discover deck's cards, read synchronously by the dying engine. */
     __suggestions?: () => unknown[];
   }

@@ -260,7 +260,7 @@ async def main():
       const out=[];
       const expected={movie:{add:'Ajouter',pause:'Ne plus chercher',retrait:'Retirer de la liste'},
                       show:{add:'Suivre',pause:'Mettre en pause',retrait:'Retirer le suivi'}};
-      for (const f of world.follows) {
+      for (const f of (window.__followActions?.all()||[])) {
         const lab = stLabel(f);
         if (f.k==='movie' && /jour|Terminé/.test(lab)) out.push(`movie « ${f.t} » wears « ${lab} » (series vocabulary)`);
       }
@@ -275,8 +275,8 @@ async def main():
       // pipeline dial joined when Arrivées gained its pilot's bar: « Lancer le
       // pipeline » really does change the interface, and this rule said it did
       // not — a false accusation is as expensive as a missed defect.
-      const out=[]; const snap=()=>JSON.stringify({t:world.takeable.length,i:world.inflight.length,s:world.stuck.length,
-        m:world.moving.length,f:world.follows.length,l:world.lib.length,p:state.page,tab:state.acqTab,lens:state.libLens,
+      const out=[]; const snap=()=>JSON.stringify({t:(window.__queue?.().takeable||[]).length,i:(window.__queue?.().inFlight||[]).length,s:(window.__queue?.().stuck||[]).length,
+        m:(window.__queue?.().moving||[]).length,f:(window.__followActions?.all()||[]).length,l:(window.__queries?.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages?.[0]?.loaded ?? 0),p:state.page,tab:state.acqTab,lens:state.libLens,
         pipe:state.pipe});
       for (const id of ['acq-now-loaded','arr-loaded','lib-incomplete']) {
         window.__go(id); await new Promise(r=>setTimeout(r,220));

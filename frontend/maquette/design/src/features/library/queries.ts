@@ -12,7 +12,7 @@
 // remembered whether the simulated failure had already fired. All four lived in
 // the interface's own store; the cache owns every one of them now.
 import { useInfiniteQuery, useQuery, type QueryClient } from "@tanstack/react-query";
-import { read } from "../../lib/query-client";
+import { read, send } from "../../lib/query-client";
 import { toEngineShape } from "../../engine/engine-shape";
 import type { IncompleteShow, LibraryCategory, LibraryRow } from "./reference";
 
@@ -164,5 +164,59 @@ declare global {
   interface Window {
     /** Asks the listing for one more page. Registered by the list, read by a named state. */
     __libraryNextPage?: () => void;
+  }
+}
+
+/**
+ * Installs the library's delete, for the dying engine's delegation to call.
+ *
+ * WHY IT HAD TO MOVE. `actionDelete` filtered `world.lib`, and the world stopped
+ * holding the library the moment the listing converted — so deleting removed
+ * nothing at all, silently, on a surface whose whole subject is what is there.
+ * No named state deletes, so the oracle could not see it.
+ *
+ * THE OPTIMISTIC PATH IS THE LISTING'S OWN PAGES. The rows leave the screen in
+ * the same task as the tap; the layer is asked afterwards; a refusal puts back
+ * exactly what was there.
+ *
+ * NE-DOIT-PAS-6 IS THE ENGINE'S STILL: the confirmation happens before this is
+ * called, and it stays where it is drawn.
+ *
+ * @param queryClient The cache the surfaces read.
+ */
+export function installLibraryDelete(queryClient: QueryClient): void {
+  window.__deleteLibraryItems = (titles) => {
+    const listings = queryClient
+      .getQueryCache()
+      .getAll()
+      .filter((query) => query.queryKey[0] === "/api/library/items");
+    const before = listings.map((listing) => [listing.queryKey, listing.state.data] as const);
+    const gone = new Set(titles);
+    for (const [key, data] of before) {
+      const held = data as { pages: LibraryPage[] } | undefined;
+      if (held === undefined) continue;
+      queryClient.setQueryData(key, {
+        ...held,
+        pages: held.pages.map((page) => ({
+          ...page,
+          items: page.items.filter((row) => !gone.has(String(row.t))),
+        })),
+      });
+    }
+    void send("DELETE", "/api/library/items", { titles })
+      .catch((refusal) => {
+        for (const [key, data] of before) queryClient.setQueryData(key, data);
+        throw refusal;
+      })
+      .finally(() => {
+        void queryClient.invalidateQueries({ queryKey: ["/api/library/items"] });
+      });
+  };
+}
+
+declare global {
+  interface Window {
+    /** Removes titles from the library. Called by the dying engine's delegation. */
+    __deleteLibraryItems?: (titles: string[]) => void;
   }
 }

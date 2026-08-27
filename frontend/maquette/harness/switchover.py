@@ -14,6 +14,7 @@ import hashlib
 import http.client
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -23,7 +24,14 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from common import ROOT, Journal
 
 PORT = 8918
-SCRATCH = pathlib.Path("/tmp/tm-refonte/_r73")
+# The scratch design root is NESTED, because the tree it copies is not
+# self-contained and says so: `engine/engine-shape.ts` imports the mock layer's
+# declaration from `frontend/maquette/`, one level above the design root, and
+# the boundaries guard names that reach as a decision until the engine dies at
+# L13. A flat scratch made the copy unbuildable — every hold here answered 503
+# and the rule read a broken host where there was only an incomplete copy.
+SCRATCH_HOME = pathlib.Path("/tmp/tm-refonte/_r73")
+SCRATCH = SCRATCH_HOME / "design"
 PASSWORD = "epreuve"
 
 
@@ -39,8 +47,8 @@ def prepare_scratch() -> None:
     """Builds the scratch design root: copies for what mutates, links for
     what must stay shared and read-only (node_modules, the artwork).
     """
-    if SCRATCH.exists():
-        shutil.rmtree(SCRATCH)
+    if SCRATCH_HOME.exists():
+        shutil.rmtree(SCRATCH_HOME)
     SCRATCH.mkdir(parents=True)
     design = ROOT / "design"
     for name in ("refonte.html", "index.html", "vite.config.mjs", "package.json"):
@@ -52,6 +60,28 @@ def prepare_scratch() -> None:
     shutil.copytree(design / "src", SCRATCH / "src")
     (SCRATCH / "node_modules").symlink_to(design / "node_modules")
     (SCRATCH / "assets").symlink_to(design / "assets")
+    # And whatever the tree reaches for OUTSIDE itself, found by reading the
+    # sources rather than by naming one file here: a name typed into this rule
+    # is a second copy of the guard's list, and it would rot the day a second
+    # reach is allowed. Each is copied at the same relative depth, so the
+    # copy resolves the import exactly as the source does.
+    for module in sorted(SCRATCH.glob("src/**/*.ts")) + sorted(SCRATCH.glob("src/**/*.tsx")):
+        for match in re.finditer(r'from "((?:\.\./)+[^"]+)"', module.read_text()):
+            # RESOLVED ON BOTH SIDES, because `/tmp` is a symlink to
+            # `/private/tmp` here: comparing a resolved target against an
+            # unresolved root made every in-tree import look like an escape.
+            target = (module.parent / match.group(1)).resolve()
+            root = SCRATCH.resolve()
+            if root in target.parents:
+                continue
+            # Where it sits relative to the design root is what the source tree
+            # is asked for — the file NAME alone would read the wrong file the
+            # day two directories hold the same one.
+            step = os.path.relpath(target, root)
+            landing = SCRATCH / step
+            if not landing.exists():
+                landing.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(design / step, landing)
 
 
 def request_(path_, cookie=None, method="GET", body=None):

@@ -47,7 +47,6 @@ export type MediaReference = EngineDrawing & {
   // otherwise silently diverge from.
   HERO_IMAGES: Record<string, string>;
   trailerIds: Record<string, Trailer>;
-  SYNOPSIS: Record<string, string>;
 };
 
 /**

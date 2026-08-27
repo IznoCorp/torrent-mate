@@ -130,7 +130,12 @@ export function AddScreen() {
 
   // FROM THE CACHE (invariant 4). Nothing is drawn before it answers, and the
   // oracle measures at rest — which is where the answer is.
-  const { data: SEARCH } = useProviderSearch(String(state.addQ ?? ""));
+  // THE ROUTER'S OWN `q`, never `state.addQ`. The store's copy is the ENTRY
+  // query and is stale by construction — the shell's own comment says so:
+  // typing updates the ROUTER's search params through `go()`, and nothing
+  // writes it back. Wiring the read to the store made the search answer for
+  // what the screen was opened with and ignore every keystroke after it.
+  const { data: SEARCH } = useProviderSearch(q ?? "");
   const filtered = (SEARCH?.results ?? [])
     .map((r, i) => ({ r, i }))
     .filter(

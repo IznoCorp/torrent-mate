@@ -41,7 +41,11 @@ export function useProviderSearch(query: string) {
  */
 export function installSearchLookup(queryClient: QueryClient): void {
   window.__searchResults = () => {
-    const asked = String(window.__store?.read().state.addQ ?? "");
+    // THE ROUTER'S OWN `q`, read the way the screen reads it. `state.addQ` is
+    // the ENTRY query and is stale the moment the operator types; two readings
+    // of one question is what §13 forbids, and here it would have the engine's
+    // « add » handler index into a different result set from the one on screen.
+    const asked = new URLSearchParams(window.location.search).get("q") ?? "";
     return (
       (queryClient.getQueryData(["/api/acquisition/search", asked]) as SearchResults | undefined)
       ?? { total: 0, shown: 0, results: [] }
