@@ -329,7 +329,10 @@ GRANDFATHERED = {
 # root, blaming the plan for being unreadable: « unreadable is a violation »
 # turns a wrong path into a hard failure with a message that names the wrong
 # culprit.
-PLAN = Path(__file__).resolve().parent.parent / "docs" / "reference" / "frontend-architecture.md"
+# The repository root, so a path can be NAMED the way the allowance list
+# writes it whatever the checkout is called.
+REPOSITORY = Path(__file__).resolve().parent.parent
+PLAN = REPOSITORY / "docs" / "reference" / "frontend-architecture.md"
 LOT_HEADING = re.compile(r"^####\s+(L\d\d)\b[^\n]*?·\s*`(NOT STARTED|IN PROGRESS|LANDED)`", re.M)
 
 # THE LABEL'S GRAMMAR: the lot that OWES the reduction, then a dash, then why.
@@ -745,7 +748,15 @@ def arm_tree(root: Path) -> int:
     for importer, reached in sorted(OUTSIDE_IMPORTS.items()):
         allowed = OUTSIDE_IMPORTS_ALLOWED.get(importer, set())
         for target in sorted(reached):
-            relative = target.split("PersonalScraper/", 1)[-1]
+            # NAMED FROM THE REPOSITORY ROOT, computed — not by cutting the
+            # path on this checkout's own DIRECTORY NAME. It used to split on
+            # « PersonalScraper/ », which is what the operator's clone happens
+            # to be called; the CI runner checks out into `torrent-mate/`, the
+            # split matched nothing, and every allowed reach was compared as an
+            # ABSOLUTE path against a relative allowance. Two violations there,
+            # none here, over an identical tree — a guard that answers
+            # differently by machine is measuring the machine.
+            relative = str(Path(target).resolve().relative_to(REPOSITORY))
             if relative not in allowed:
                 strays.append(
                     f"{importer} imports {relative}, outside `design/src`. Add it to "

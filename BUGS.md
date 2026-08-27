@@ -162,6 +162,7 @@ when the defect comes back.
 | B-119 | A copy of the design root no longer builds, and the rule read a broken host | by rule | `fixed #NNN` |
 | B-120 | A journey rule read the verb of a panel the previous half had left open | by rule | `fixed #NNN` |
 | B-121 | A gate compared a committed seed to a counter the daemon increments | by gate | `fixed #NNN` |
+| B-122 | A guard named a path by cutting it on the operator's own clone directory | by CI | `fixed #NNN` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -2545,3 +2546,24 @@ made the drift visible again is that this lot moved the tool to the seed the fam
 in the same step as the family; until then the step could only refuse.
 
 <sub>`make check` — exit 0 · `python3 scripts/refresh-maquette-fixture.py --check`</sub>
+
+**B-122 — a guard named a path by cutting it on the operator's own clone directory.**
+`check-frontend-boundaries.py`'s `outside-imports` arm compares a module's reach against a list of
+allowed reaches written repository-relative. To get that relative form it did
+`target.split("PersonalScraper/", 1)[-1]` — the name this operator's clone happens to have. The CI
+runner checks out into `torrent-mate/`, the split matched nothing, and every allowed reach was
+compared as an ABSOLUTE path against a relative allowance: **two violations on CI, none locally,
+over an identical tree**.
+
+**A guard that answers differently by machine is measuring the machine.** It is the same class as
+`arrivals.py` reading the operator's `library.db`, with the failure inverted: that one is red where
+it should be silent, this one was green where it should have been red — the arm cannot have refused
+a NEW outside import on this machine either, because no path it built could ever match the list.
+
+The path is computed from the repository root now. **Proved under the other name**, which is the only
+proof that means anything here: the tree was copied to `/tmp/torrent-mate-probe/` and the guard run
+there — exit 0 with the repair, exit 1 with the old cut restored, naming
+`/private/tmp/torrent-mate-probe/frontend/maquette/fixture-projections.json` exactly as CI did.
+
+<sub>`python3 scripts/check-frontend-boundaries.py` — 0 violations · same script, same tree, under a
+directory called `torrent-mate-probe` — 0 violations</sub>
