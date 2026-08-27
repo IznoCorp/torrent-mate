@@ -367,7 +367,7 @@ def _run_dry(
             if item.kind == "episode" and item.season is not None and item.episode is not None:
                 from personalscraper.acquire.orchestrator import filter_to_episode  # noqa: PLC0415
 
-                narrowed = filter_to_episode(narrowed, item.season, item.episode)
+                narrowed = filter_to_episode(narrowed, item.season, item.episode, titles=[title, original_title])
             elif item.kind == "movie" and title is not None:
                 # #28 (review F4) — mirror the real grab's movie identity filter
                 # so the preview's Top is the SAME film the grab would take, not

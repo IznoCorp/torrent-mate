@@ -971,6 +971,47 @@ def test_search_no_matching_season_wrong_series_regression() -> None:
     _assert_no_side_effects(spy, torrent_client)
 
 
+def test_search_no_matching_episode_wrong_series_regression() -> None:
+    """2026-08-24 class REGRESSION: a wrong SERIES' episode must not satisfy an episode row.
+
+    The season guard (#489) closes the pack path; the episode path has the
+    same hole — the fuzzy answer to ``Les Groos S02E01`` can be the
+    ``Je.S.Appelle.Groot.S02E01`` release, whose SxxEyy token matches, and the
+    grab would install I Am Groot content as « Les Groos S02E01 ». With the
+    title guard wired, the verdict must be ('not_found', 'no_matching_episode', 0).
+    """
+    wrong_show_episode = SearchOutcome(
+        results=[
+            _make_result(
+                title="Je.S.Appelle.Groot.S02E01.VOSTFR.1080p.WEB.EAC3.5.1.H264-FW",
+                info_hash="cbf75356",
+            ),
+        ],
+        trackers_queried=1,
+        trackers_errored=0,
+    )
+    orchestrator, spy, _registry, torrent_client, _seed = _make_orchestrator(search_outcome=wrong_show_episode)
+
+    def _wanted_series_title(item: WantedItem) -> str | None:
+        return "Les Groos"
+
+    orchestrator._title_resolver = _wanted_series_title  # noqa: SLF001 — test wiring of the D3 seam
+
+    episode_item = WantedItem(
+        media_ref=MediaRef(tvdb_id=478476),
+        kind="episode",
+        status="searching",
+        enqueued_at=1_700_000_000,
+        attempts=1,
+        season=2,
+        episode=1,
+    )
+    verdict = orchestrator.search(episode_item, QualityProfile())
+
+    assert (verdict.disposition, verdict.outcome, verdict.found) == ("not_found", "no_matching_episode", 0)
+    _assert_no_side_effects(spy, torrent_client)
+
+
 def test_search_all_filtered_concludes_zero() -> None:
     """Only hard-filtered releases came back → ('not_found', 'all_filtered', 0).
 

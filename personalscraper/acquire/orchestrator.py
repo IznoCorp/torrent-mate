@@ -557,7 +557,7 @@ class GrabOrchestrator:
         results = outcome.results
         if item.kind == "episode" and item.season is not None and item.episode is not None:
             raw_before_filter = list(results)  # R2: snapshot for season conversion
-            results = filter_to_episode(results, item.season, item.episode)
+            results = filter_to_episode(results, item.season, item.episode, titles=[title, original_title])
             if not results:
                 return _QueryAttempt(
                     empty_verdict=_SearchChainResult(

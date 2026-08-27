@@ -119,6 +119,39 @@ class TestFilterToEpisode:
         res = [_Result("Rick.and.Morty.S09E01.MULTi.VFF.1080p")]
         assert filter_to_episode(res, 9, 5) == []
 
+    def test_rejects_wrong_series_episode_with_titles(self) -> None:
+        """2026-08-24 class: a wrong SERIES' episode must be dropped (Groos/Groot).
+
+        The tracker's fuzzy answer to ``Les Groos S02E01`` can be the
+        ``Je.S.Appelle.Groot.S02E01`` release — the SxxEyy token matches, and
+        without the title guard the wrong show's episode survives to the grab.
+        """
+        res = [_Result("Je.S.Appelle.Groot.S02E01.VOSTFR.1080p.WEB.EAC3.5.1.H264-FW")]
+        assert filter_to_episode(res, 2, 1, titles=["Les Groos"]) == []
+
+    def test_keeps_matching_series_episode_with_titles(self) -> None:
+        """The same release passes when the wanted series IS the release's show.
+
+        The VOSTFR name is the series' own French title, and the
+        accent/punctuation differences must not drop a legitimate episode.
+        """
+        res = [_Result("Je.S.Appelle.Groot.S02E01.VOSTFR.1080p.WEB.EAC3.5.1.H264-FW")]
+        assert self._titles(filter_to_episode(res, 2, 1, titles=["Je s'appelle Groot"])) == [
+            "Je.S.Appelle.Groot.S02E01.VOSTFR.1080p.WEB.EAC3.5.1.H264-FW"
+        ]
+
+    def test_titles_none_keeps_legacy_behavior(self) -> None:
+        """``titles=None`` (legacy callers) leaves the identity guard inactive."""
+        res = [_Result("Rick.and.Morty.S09E05.MULTi")]
+        assert self._titles(filter_to_episode(res, 9, 5)) == ["Rick.and.Morty.S09E05.MULTi"]
+
+    def test_bare_str_titles_raises(self) -> None:
+        """A bare ``str`` is a sequence of characters — refuse it loudly."""
+        import pytest
+
+        with pytest.raises(TypeError):
+            filter_to_episode([_Result("Show.S01E01")], 1, 1, titles="Show")
+
     def test_tolerates_zero_padding(self) -> None:
         """S9E5 and S09E05 both match; S09E50 does not (boundary)."""
         res = [_Result("Show.S9E5.x"), _Result("Show.S09E05.y"), _Result("Show.S09E50.z")]
