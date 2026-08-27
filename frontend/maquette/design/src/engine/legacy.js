@@ -287,60 +287,6 @@ import { servedIdentityLines } from "../lib/served-identity";
   /* Results of a REAL TMDB search for « star wars », cross-checked against
      the library: 3 already owned, 3 absent. 257 results found, 6 shown —
      which the interface must state. */
-  const SEARCH = {
-    total: 257,
-    shown: 6,
-    results: [
-      {
-        t: "La Guerre des étoiles",
-        y: "1977",
-        k: "Film",
-        ov: "Il y a bien longtemps, dans une galaxie très lointaine... La guerre civile fait rage entre l'Empire galactique et l'Alliance rebelle. Capturée par les troupes de choc de l'Empereur menées pa",
-        owned: true,
-        followed: false,
-      },
-      {
-        t: "Star Wars : The Clone Wars",
-        y: "2008",
-        k: "Série",
-        ov: "La galaxie est en proie à la Guerre des Clones, un conflit à grande échelle qui oppose les maléfiques Séparatistes et leurs immenses armées d'androïdes à la République. Les Chevaliers Jedi, ",
-        owned: true,
-        followed: false,
-      },
-      {
-        t: "Star Wars : The Mandalorian and Grogu",
-        y: "2026",
-        k: "Film",
-        ov: "L'Empire maléfique est tombé et les seigneurs de guerre impériaux restent dispersés dans toute la galaxie. Alors que la nouvelle République naissante travaille pour protéger tout ce que la r",
-        owned: true,
-        followed: false,
-      },
-      {
-        t: "Star Wars : Les Aventures des Petits Jedi",
-        y: "2023",
-        k: "Série",
-        ov: "L'incroyable parcours des Younglings, de jeunes recrues entamant un long cheminement dans l'espoir de devenir un jour des chevaliers Jedi dignes de ce nom. Leur formation va les amener à se ",
-        owned: false,
-        followed: false,
-      },
-      {
-        t: "Star Wars : The Clone Wars",
-        y: "2008",
-        k: "Film",
-        ov: "La galaxie est en proie à la Guerre des Clones, un conflit à grande échelle qui oppose les maléfiques Séparatistes et leurs immenses armées d'androïdes à la République. Les Chevaliers Jedi, ",
-        owned: false,
-        followed: false,
-      },
-      {
-        t: "Star Wars Vintage : Clone Wars",
-        y: "2003",
-        k: "Série",
-        ov: "Dans une galaxie très lointaine, se noue un drame. Le chaos règne et une guerre impitoyable se déclare entre la République et les forces séparatistes menées par les sinistres Sith du côté ob",
-        owned: false,
-        followed: false,
-      },
-    ],
-  };
 
   const SEASONS = {
     "American Dad!": [
@@ -5554,6 +5500,17 @@ import { servedIdentityLines } from "../lib/served-identity";
   /* THE FOLLOWS, read from the layer. Same reason as `queued()`: these callers
      ask from click handlers that cannot await, and they read the same cache the
      deck draws. */
+  /* WHAT A SEARCH TURNED UP, and WHAT A RELEASE PICKER LISTS, read from the
+     layer. Both were fixtures here and left at L09; both are indexed into from
+     click handlers that cannot await. They go with the delegation at L13. */
+  function searchResults() {
+    return window.__searchResults?.() ?? { total: 0, shown: 0, results: [] };
+  }
+
+  function releases() {
+    return window.__releases?.() ?? [];
+  }
+
   function follows() {
     return window.__followActions?.all() ?? [];
   }
@@ -7921,44 +7878,6 @@ import { servedIdentityLines } from "../lib/served-identity";
   /* Release candidates — INVENTED, and the only invented data in this
      prototype: no tracker is queried here. The vocabulary (source,
      resolution, language, seeders) is the real ranking's. */
-  const RELEASES = [
-    {
-      n: "Silo.S03E07.MULTi.2160p.WEB-DL.DDP5.1.HDR.H265-FRATERNITY",
-      res: "2160p",
-      src: "WEB-DL",
-      lang: "MULTi",
-      s: 142,
-      go: 8.4,
-      sc: 96,
-    },
-    {
-      n: "Silo.S03E07.MULTi.1080p.WEB-DL.DDP5.1.H264-FRATERNITY",
-      res: "1080p",
-      src: "WEB-DL",
-      lang: "MULTi",
-      s: 318,
-      go: 3.1,
-      sc: 88,
-    },
-    {
-      n: "Silo.S03E07.VOSTFR.1080p.WEB-DL.H264-BRiNK",
-      res: "1080p",
-      src: "WEB-DL",
-      lang: "VOSTFR",
-      s: 74,
-      go: 2.8,
-      sc: 61,
-    },
-    {
-      n: "Silo.S03E07.FRENCH.720p.WEBRip.x264-JiHEFF",
-      res: "720p",
-      src: "WEBRip",
-      lang: "FRENCH",
-      s: 22,
-      go: 1.2,
-      sc: 34,
-    },
-  ];
   /* The REAL profile, as defined in acquire/desired.py
      `QualityProfile` has only FOUR fields, and that is everything a follow
      can set. Anything else (accepted sources, CAM/TS exclusions) does not
@@ -7985,12 +7904,10 @@ import { servedIdentityLines } from "../lib/served-identity";
      store's reactivity contract; it is exposed once, at definition time,
      well before the deferred module script (shell.tsx) runs. */
   window.__referentiel = {
-    RELEASES,
     RESOLUTIONS,
     AUDIOS,
     icons,
     baseTitle,
-    SEARCH,
     cardHTML,
     addVerb,
     render,
@@ -8871,7 +8788,7 @@ import { servedIdentityLines } from "../lib/served-identity";
      the act — the card wears no inline button, so the row stays the size of
      what it lists. */
   function openAddSheet(index) {
-    const result = SEARCH.results[index];
+    const result = searchResults().results[index];
     const done = currentState().added.has(index);
     panel.open({
       title: result.t,
@@ -10573,7 +10490,7 @@ import { servedIdentityLines } from "../lib/served-identity";
       return;
     }
     if (closest.dataset.take) {
-      const release = RELEASES[Number(closest.dataset.take)];
+      const release = releases()[Number(closest.dataset.take)];
       // One router pop — the release-choice screen is a route now, and the
       // dispatcher's own `layer`/`tm: "nav"` checks no-op harmlessly on the
       // entry it wrote, so the screen simply unmounts.
@@ -10823,7 +10740,7 @@ import { servedIdentityLines } from "../lib/served-identity";
       // return the same title twice — « Star Wars : The Clone Wars » is both a
       // film and a series here — so the title does not identify the result.
       const index = Number(closest.dataset.act.slice(4));
-      const result = SEARCH.results[index];
+      const result = searchResults().results[index];
       if (currentState().addMode === "identify") {
         // This ASSOCIATES: the stuck folder becomes this medium and the pipeline
         // resumes. No follow is created — that was not the request.
@@ -33420,8 +33337,8 @@ Object.assign(window, {
   LIB_PAGE, LIB_TOTAL, MAINT_ACTIONS, MAINT_TOPICS, MOIS, REASON_LABEL,
   REASON_DETAIL, REASON_TONE, NAVIGATION,
   PAGES_OF, SCHEDULERS, SCHEDULERS_DOWN, OWNED,
-  POSTERS, SETTINGS, SETTINGS_STATE, RELEASES, RESOLUTIONS, BACK_WINDOW,
-  RISQUES, SEARCH, SEASONS, SECRETS, SERVICES, SERVICES_PANNE,
+  POSTERS, SETTINGS, SETTINGS_STATE, RESOLUTIONS, BACK_WINDOW,
+  RISQUES, SEASONS, SECRETS, SERVICES, SERVICES_PANNE,
   STRIP_LABELS, ST_LABEL,
   ST_LABEL_MOVIE, ST_TONE, SUG_BATCH,
   TRIS, URGENCY, VIA_LABEL, actionLeave, actionPause,

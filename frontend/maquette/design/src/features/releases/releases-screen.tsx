@@ -16,6 +16,7 @@
 // this screen leans on, exactly as `media.tsx` and `profile.tsx`.
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { useReleases } from "./queries";
 import { useReleasesReference } from "../../features/releases/reference";
 import { actionButton, backAction, body, emptyNote, qualityHint, resultCount, screen, screenBar, scrollport } from "../../ui/variants";
 import { releaseName, releaseRow, releaseScore, releaseTags } from "../../features/releases/variants";
@@ -46,9 +47,10 @@ export function ReleasesScreen() {
   const {
     icons,
     baseTitle,
-    RELEASES,
   } = useReleasesReference();
   const { t } = useTranslation();
+  // FROM THE CACHE (invariant 4).
+  const { data: RELEASES = [] } = useReleases();
 
   return (
     <section

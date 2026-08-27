@@ -263,7 +263,8 @@
     "RELEASES": {
       "class": "served",
       "why": "the release candidates. NOT REAL — no tracker is queried (README, What is real in here) — but a release list IS server state, so it is served and the register says where its values came from",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 8 — the release picker and the quality profile read /api/acquisition/releases"
     },
     "RESOLUTIONS": {
       "class": "interface",
@@ -283,7 +284,8 @@
     "SEARCH": {
       "class": "served",
       "why": "a search result page",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 8 — the add screen reads /api/acquisition/search"
     },
     "SEASONS": {
       "class": "served",

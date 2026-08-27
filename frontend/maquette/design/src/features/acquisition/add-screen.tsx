@@ -42,6 +42,7 @@ import { Icon } from "../../ui/icon";
 import { go } from "../../lib/navigate";
 import { useAcquisitionReference } from "../../features/acquisition/reference";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
+import { useProviderSearch } from "./search-queries";
 import { actionButton, backAction, emptyNote, resultCount, screen, screenBar, scrollport, searchField, searchInput, surfaceError } from "../../ui/variants";
 import { addFooter, addForm, addRow, byIdentifier, byIdentifierBody, refusalReason, suggestions } from "../../features/acquisition/variants";
 
@@ -73,7 +74,6 @@ export function AddScreen() {
   const {
     icons,
     baseTitle,
-    SEARCH,
     cardHTML,
     addVerb,
     render,
@@ -128,7 +128,10 @@ export function AddScreen() {
     });
   }
 
-  const filtered = SEARCH.results
+  // FROM THE CACHE (invariant 4). Nothing is drawn before it answers, and the
+  // oracle measures at rest — which is where the answer is.
+  const { data: SEARCH } = useProviderSearch(String(state.addQ ?? ""));
+  const filtered = (SEARCH?.results ?? [])
     .map((r, i) => ({ r, i }))
     .filter(
       ({ r }) =>
@@ -269,8 +272,8 @@ export function AddScreen() {
               {filtered.length > 1
                 ? t("screens.add.shownPlural")
                 : t("screens.add.shown")}{" "}
-              {t("screens.add.outOf")} <b>{SEARCH.total}</b>{" "}
-              {SEARCH.total > 1
+              {t("screens.add.outOf")} <b>{SEARCH?.total ?? 0}</b>{" "}
+              {(SEARCH?.total ?? 0) > 1
                 ? t("screens.add.foundPlural")
                 : t("screens.add.found")}
               {addKind !== "Tout"

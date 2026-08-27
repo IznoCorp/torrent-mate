@@ -92,6 +92,8 @@ import {
   installSuggestionsLookup,
 } from "../features/acquisition/queries";
 import { installQueueActions } from "../lib/queue";
+import { installReleasesLookup } from "../features/releases/queries";
+import { installSearchLookup } from "../features/acquisition/search-queries";
 
 declare global {
   interface Window {
@@ -292,6 +294,8 @@ installLibraryPaging(queryClient);
 installQueueActions(queryClient);
 installSuggestionsLookup(queryClient);
 installFollowActions(queryClient);
+installReleasesLookup(queryClient);
+installSearchLookup(queryClient);
 // The engine draws surfaces that read the cache, and it draws them once.
 installEngineRedraw(queryClient);
 
