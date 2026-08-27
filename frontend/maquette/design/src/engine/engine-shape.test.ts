@@ -19,11 +19,12 @@
 // wrong instead of which region did.
 import { describe, expect, it } from "vitest";
 import projections from "../../../fixture-projections.json";
-import { toEngineShape } from "./engine-shape";
+import { toEngineShape, toEngineShapeEntry } from "./engine-shape";
 import PIPELINE from "../mocks/seeds/pipeline.json";
 import PENDING_DECISIONS from "../mocks/seeds/pending-decisions.json";
 import SETTLED_DECISIONS from "../mocks/seeds/settled-decisions.json";
 import STUCK from "../mocks/seeds/stuck.json";
+import MEDIA_SHEETS from "../mocks/seeds/media-sheets.json";
 import SUGGESTIONS from "../mocks/seeds/suggestions.json";
 
 type Renames = Record<string, string>;
@@ -149,6 +150,38 @@ describe("toEngineShape", () => {
     expect(why[0]).toBe((SUGGESTIONS as { why: unknown[] }[])[0].why[0]);
     expect(why[1]).toHaveProperty("e");
     expect(why[1]).not.toHaveProperty("emphasis");
+  });
+
+  it("walks `*[]`, which is every key of an object and then every element", () => {
+    // `SHEETS_RAW` declares `/eps/*[]` — for each season number, for each
+    // episode. A walker matching only the bare `*` fell through to the field
+    // lookup, found no field called `*`, and left every episode wearing the
+    // contract's names; the engine drew blank rows and the oracle saw ten
+    // pixels.
+    const sheets = MEDIA_SHEETS as Record<string, Record<string, unknown>>;
+    const withEpisodes = Object.values(sheets).find(
+      (sheet) => sheet.episodes !== undefined);
+    expect(withEpisodes).toBeDefined();
+    const converted = toEngineShapeEntry<Record<string, unknown>>(
+      "SHEETS_RAW", withEpisodes!);
+    const episodes = converted.eps as Record<string, Record<string, unknown>[]>;
+    const first = Object.values(episodes)[0][0];
+    expect(first).toHaveProperty("n");
+    expect(first).toHaveProperty("t");
+    expect(first).not.toHaveProperty("number");
+    expect(first).not.toHaveProperty("airDate");
+  });
+
+  it("converts ONE ENTRY of a family the projection keys by data", () => {
+    // `SHEETS_RAW` is a map keyed by title, and the layer serves one sheet at
+    // an address. Its declared paths describe one VALUE of that map.
+    const sheets = MEDIA_SHEETS as Record<string, Record<string, unknown>>;
+    const one = Object.values(sheets)[0];
+    const converted = toEngineShapeEntry<Record<string, unknown>>("SHEETS_RAW", one);
+    expect(converted).toHaveProperty("k");
+    expect(converted).toHaveProperty("ov");
+    expect(converted).not.toHaveProperty("kind");
+    expect(converted).not.toHaveProperty("overview");
   });
 
   it("refuses a family nobody declared rather than answering the identity", () => {

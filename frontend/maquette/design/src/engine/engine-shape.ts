@@ -175,6 +175,28 @@ function atPath(
     if (segment === "[]") {
       return (held as unknown[]).map((entry) => walk(entry, index + 1));
     }
+    // `*` IS EVERY KEY OF AN OBJECT, and the media sheet is where it appears:
+    // `/eps/*[]` means « for each season number, for each episode ». A walker
+    // that did not know it would treat `*` as a field name, find nothing, and
+    // stop — leaving every episode wearing the contract's names, which the
+    // engine renders as blank rows.
+    if (segment === "*" || segment === "*[]") {
+      // AND `*[]` IS THE FORM THAT ACTUALLY APPEARS. `/eps/*[]` is « for each
+      // season number, for each episode », and a first version matched only the
+      // bare `*` — so the segment fell through to the field lookup, found no
+      // field called `*`, and returned the episodes untouched. They kept the
+      // contract's names and the engine drew blank rows, which the oracle saw
+      // as ten pixels.
+      const walkEach = segment.endsWith("[]");
+      const entries = Object.entries(held as Record<string, unknown>);
+      return Object.fromEntries(
+        entries.map(([key, value]) => [
+          key,
+          walkEach && Array.isArray(value)
+            ? (value as unknown[]).map((one) => walk(one, index + 1))
+            : walk(value, index + 1),
+        ]));
+    }
     const walkList = segment.endsWith("[]");
     const engineName = walkList ? segment.slice(0, -2) : segment;
     // The LAST segment is the one the parent map renamed; an intermediate one
@@ -223,6 +245,22 @@ function tuplesRestored(value: unknown, tuples: Record<string, string[]>): unkno
 }
 
 /**
+ * Converts ONE ENTRY of a family the projection keys by data.
+ *
+ * WHY IT IS SEPARATE. A family marked `keyedByData` is a MAP — `SHEETS_RAW` is
+ * every media sheet, keyed by title — and its declared paths describe one
+ * VALUE of that map rather than the map itself. The layer serves one sheet at
+ * an address, not the map, so the paths are applied to what arrived.
+ *
+ * @param family The fixture family it stands for, as the register spells it.
+ * @param value One entry, as the layer answered it.
+ * @returns The same entry wearing the engine's own field names.
+ */
+export function toEngineShapeEntry<Result>(family: string, value: unknown): Result {
+  return convert(projectionOf(family), value) as Result;
+}
+
+/**
  * Converts one contract-shaped value into the shape the engine's markup reads.
  *
  * @param family The fixture family it stands for, as the register spells it.
@@ -230,7 +268,17 @@ function tuplesRestored(value: unknown, tuples: Record<string, string[]>): unkno
  * @returns The same data wearing the engine's own field names.
  */
 export function toEngineShape<Result>(family: string, value: unknown): Result {
-  const projection = projectionOf(family);
+  return convert(projectionOf(family), value) as Result;
+}
+
+/**
+ * Applies one projection's declared paths, deepest first.
+ *
+ * @param projection The projection, shorthand expanded.
+ * @param value What to convert.
+ * @returns The converted value.
+ */
+function convert(projection: Projection, value: unknown): unknown {
   let held = value;
   // ROOT FIRST, THEN DEEPER. A deeper path names its segment in the ENGINE's
   // vocabulary; renaming the root before descending would leave the segment
@@ -243,5 +291,5 @@ export function toEngineShape<Result>(family: string, value: unknown): Result {
     held = atPath(held, path, renames, projection.rename ?? {});
   }
   if (projection.tuples) held = tuplesRestored(held, projection.tuples);
-  return held as Result;
+  return held;
 }

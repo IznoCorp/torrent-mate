@@ -125,8 +125,20 @@ export function mediaRoutes(): MockRoute[] {
           request.parameters.provider,
           request.parameters.providerId,
         );
+        // THE CATALOGUE IS THE SHEET'S OWN, and this answered a different
+        // family. `SEASONS` is keyed by title like everything else here, but it
+        // is not what the engine crossed: `seasonsOf` read `sheetFor(title)
+        // .seasons` — the catalogue carried INSIDE the sheet — and fell back to
+        // the owned numbers only when it was empty. Measured on « mediasheet-
+        // series »: the sheet carries four seasons and `SEASONS` holds three,
+        // so the matrix drew one short. Same class as B-088: two families
+        // keyed the same way are not the same answer.
+        const found = underAnyTitle(MEDIA_SHEETS as ByTitle, titles) as
+          | Record<string, unknown>
+          | undefined;
+        const catalogue = found?.seasons ?? underAnyTitle(SEASONS as ByTitle, titles) ?? [];
         return {
-          seasons: underAnyTitle(SEASONS as ByTitle, titles) ?? [],
+          seasons: catalogue,
           owned: underAnyTitle(OWNED_EPISODES as ByTitle, titles) ?? {},
         };
       },
