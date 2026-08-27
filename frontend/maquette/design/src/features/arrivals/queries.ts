@@ -16,7 +16,7 @@
 // THE KEYS ARE THE ADDRESS, deliberately. A cache key that repeated the
 // surface's name would make two surfaces reading one resource miss each other's
 // invalidations; the address is what the resource IS.
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { read } from "../../lib/query-client";
 import { toEngineShape } from "../../engine/engine-shape";
 import type { QueueCard } from "../../lib/engine-queue";
@@ -94,4 +94,31 @@ export function useDecisions() {
       } satisfies Decisions;
     },
   });
+}
+
+/**
+ * Publishes the pending decisions for the dying engine to read synchronously.
+ *
+ * WHY A SEAM AND NOT AN IMPORT. `legacy.js` answers « does this folder have a
+ * pending decision » from inside a click handler, which cannot await — and it
+ * is the same question the resolution screen asks. §13 of the constitution:
+ * two surfaces answering one question read the SAME code, or they will
+ * diverge and the operator will see two truths.
+ *
+ * It reports an empty list before the query has answered, which is the answer
+ * this lookup already gave for a folder with no decision. It dies with the
+ * engine's own branch at L13.
+ *
+ * @param queryClient The cache the surfaces read.
+ */
+export function installDecisionLookup(queryClient: QueryClient): void {
+  window.__pendingDecisions = () =>
+    (queryClient.getQueryData(["/api/decisions/"]) as Decisions | undefined)?.pending ?? [];
+}
+
+declare global {
+  interface Window {
+    /** The pending decisions, read synchronously by the dying engine. */
+    __pendingDecisions?: () => PendingDecision[];
+  }
 }

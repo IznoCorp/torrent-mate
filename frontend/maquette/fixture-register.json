@@ -61,7 +61,8 @@
     "DECISIONS_REGLEES": {
       "class": "served",
       "why": "the decisions already settled, with how each was reached",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 5 — the resolution screen reads /api/decisions/"
     },
     "DECISION_STATE": {
       "class": "interface",
@@ -201,12 +202,14 @@
     "PENDING_DECISIONS": {
       "class": "served",
       "why": "the decisions still awaiting arbitration, with their candidates",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 5 — the resolution screen reads /api/decisions/"
     },
     "PIPELINE": {
       "class": "served",
       "why": "the last run, told as its nine steps, with the counts pipeline_run recorded",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 5 — Arrivées' pilot bar and last-run panel read /api/pipeline/status"
     },
     "POSTERS": {
       "class": "asset",
@@ -423,5 +426,6 @@
       "why": "YouTube trailer ids, from TMDB /videos",
       "seed": null
     }
-  }
+  },
+  "$converted": "A FAMILY THE ENGINE NO LONGER DECLARES, because the surface that read it now reads the mock layer instead (D5 — the engine dies by subtraction, surface by surface). Its class is unchanged: it is still `served`, and its seed is still what the layer answers with. What changes is WHAT HOLDS THE SEED. `--arm correspondence` compared it against the engine's own literal, and that literal is gone — so for a converted family that arm has nothing left to compare and says so by name rather than passing over it in silence, which would be the vacuity this whole file is built against. Two instruments still hold it: `--arm schema` validates it against the contract, and the ORACLE holds the rendering it produces at zero divergence — which is the stronger of the two, since it reads the bytes all the way to the screen. The value of `converted` names the wave and the surface, so the day somebody asks « when did this stop being checkable against the engine » the answer is in the file."
 }

@@ -96,13 +96,6 @@ export type SettledDecision = DecisionCommon & {
 };
 
 export type ArrivalsReference = EngineDrawing & EngineQueue & {
-  PIPELINE: Pipeline;
-  // The arbitration flow — decisions the scrape could not make on its own,
-  // spelled out for a folder rather than a medium. `PENDING_DECISIONS` /
-  // `DECISIONS_REGLEES` are the mock's twelve rows of `scrape_decision` (ten
-  // réglées, two en attente), split by whether an operator has answered yet.
-  PENDING_DECISIONS: PendingDecision[];
-  DECISIONS_REGLEES: SettledDecision[];
   REASON_LABEL: Record<string, string>;
   REASON_TONE: Record<string, string>;
   REASON_DETAIL: Record<string, string>;
@@ -112,11 +105,6 @@ export type ArrivalsReference = EngineDrawing & EngineQueue & {
   DECISION_STATE: Record<string, [string, string]>;
   DECISION_STATE_DETAIL: Record<string, string>;
   VIA_LABEL: Record<string, string>;
-  // `target` is `state.resolveTarget`, which is `string | null` (see this
-  // module's `UiState`-cast comment below); a target absent from
-  // `PENDING_DECISIONS` — already resolved, or never a decision at all —
-  // answers `null` rather than throwing.
-  decisionPending: (target: string | null) => PendingDecision | null;
 };
 
 /**

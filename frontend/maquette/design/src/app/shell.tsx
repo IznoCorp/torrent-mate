@@ -84,6 +84,7 @@ import {
 import { installNavigation } from "../lib/navigate";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createQueryClient } from "../lib/query-client";
+import { installDecisionLookup } from "../features/arrivals/queries";
 
 declare global {
   interface Window {
@@ -276,6 +277,10 @@ publishBarHeight();
 // module is built, which is the arrangement `__store` and `__mocks` refuse.
 const queryClient = createQueryClient();
 window.__queries = queryClient;
+// The dying engine asks one question synchronously that the cache now owns
+// (§13: one derivation per question). It is installed here, beside the other
+// seams, and it goes with the engine at L13.
+installDecisionLookup(queryClient);
 
 ReactDOM.createRoot(mountNode).render(
   <React.StrictMode>

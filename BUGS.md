@@ -150,6 +150,8 @@ when the defect comes back.
 | B-107 | `git checkout --` on an untracked file is a no-op, and a mutation stayed in the tree | by review | `fixed #NNN` |
 | B-108 | The oracle tore React's own nodes out before measuring, and recorded four states as blank | by oracle | `fixed #NNN` |
 | B-109 | A retry that re-asks nothing was written, and the invariant-4 arm refused it | by gate | `fixed #NNN` |
+| B-110 | The fixture register had no word for a family L09 deliberately deletes | by gate | `fixed #NNN` |
+| B-111 | An edit replaced a span it had not read, and took six published members with it | by rule | `fixed #NNN` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -1972,8 +1974,8 @@ absence of a row can mean either.
 | L07-bis | 5 | B-075 |
 | L08 | 6 | PR #503's squash body — B-093 and B-094 write out two of the six; B-092 and B-095 are adjacent findings of that wave, not members of the six |
 | L08-bis (#505, the correction wave) | 9 | itemised below · squash `12a134ca` |
-| L09 (in flight) | 3 so far | B-105 and B-106, both found by mutation in the phases that wrote the instruments; **B-108**, the oracle itself — its `neutralise` broke the React tree and it recorded the damage as the reference, on four states of the exact kind this lot wires · recounted at the wave's close |
-| **Total** | **29** | at 2026-08-26, **provisional while L09 is in flight** — the wave's final figure is written at its close, step five of § 5 |
+| L09 (in flight) | 4 so far | B-105 and B-106, both found by mutation in the phases that wrote the instruments; **B-108**, the oracle itself — its `neutralise` broke the React tree and it recorded the damage as the reference, on four states of the exact kind this lot wires; and B-110's first attempt, which took three seeds out of the schema arm while the register claimed that arm held them · recounted at the wave's close |
+| **Total** | **30** | at 2026-08-26, **provisional while L09 is in flight** — the wave's final figure is written at its close, step five of § 5 |
 
 **The nine the correction wave found, since a wave that counts itself has to name its own.** The
 figure is large because the count is honest, not because the wave was worse: four of the nine are
@@ -2295,3 +2297,51 @@ wrote it is the arrangement working; a guard whose refusal is quietly worked aro
 arrangement failing, and only a register entry tells the two apart afterwards.
 
 <sub>`python3 scripts/check-state-ownership.py --arm server-state`</sub>
+
+**B-110 — the seed guard refuses a deletion the plan requires, and it was right to.**
+L09's whole shape is D5: a surface is wired and its fixture is deleted from `legacy.js`. L08's
+register holds the opposite rule, deliberately — « a family that disappears fails the guard too » —
+because that is exactly right for an accidental deletion. On the first conversion the two met:
+three families gone, `--arm classification` red, and the seed builder raising « the engine declares
+no fixture family named 'DECISIONS_REGLEES' ».
+
+**The gap was in the REGISTER, not in either instrument.** It could say what a family IS and not
+that it had been converted. An entry now carries `converted`, naming the wave and the surface, and
+three arms follow it: `classification` expects the absence and REFUSES THE REVERSE — a family
+called converted that the engine still declares is a fixture that outlived its own removal;
+`correspondence` prints what it can no longer compare rather than quietly comparing three fewer;
+and the builder does not try to re-derive it.
+
+**What holds a converted seed afterwards is the part worth writing down.** Its own literal is gone,
+so `--arm correspondence` has nothing to compare it against — which is stated, per family, instead
+of being absorbed. `--arm schema` still validates it against the contract, and the ORACLE holds the
+rendering it produces at zero divergence, which reads the bytes all the way to the screen and is
+the stronger of the two.
+
+**And the first attempt at this made the claim false.** Excluding converted families from the
+builder took them out of the SCHEMA arm too — 46 seeds validated became 43 — so the register said
+« held by the contract's schema » while the code had stopped reading them. Caught by comparing the
+printed counts before and after, which is the only reason it is not this wave's fifth instance of
+guards-green-over-what-they-do-not-read.
+
+<sub>`python3 scripts/check-mock-seeds.py` — `classification … 3 converted` · `correspondence … 3 no longer re-derivable` · `schema: 46 seed(s) validated`</sub>
+
+**B-111 — an edit replaced a span it had assumed rather than read.**
+A stale comment in `legacy.js` named three fixtures that L09 had just deleted. The fix replaced the
+text from that comment up to the next member it recognised — and six members sat in between:
+`REASON_LABEL`, `REASON_TONE`, `REASON_DETAIL`, `DECISION_STATE`, `DECISION_STATE_DETAIL`,
+`VIA_LABEL`. All six stopped being published on `window.__referentiel`, and the resolution screen
+threw `Cannot read properties of undefined (reading 'superseded')` on every cold load.
+
+**The contracts tier caught it in the same run** — `screen_addresses.py`'s hold (k) fell naming the
+dead address, and the oracle reported `screen-resolution/body present=True -> False`. Repaired by
+DIFFING against a copy of the file taken before the edit, and the audit was widened rather than
+narrowed: every `const`, every `function` and every published member the whole subtraction removed
+was listed, and it is exactly the three literals and their three publication lines.
+
+**The lesson is the same one from the other end.** « Renaming needs a parser, not a regex » is
+written in the plan's own trap table; an edit bounded by « from this text to the next thing I
+recognise » is that trap wearing a different hat. The span was assumed; a diff would have shown it
+in one command, and did.
+
+<sub>`diff /tmp/legacy.bak frontend/maquette/design/src/engine/legacy.js | grep '^<'`</sub>

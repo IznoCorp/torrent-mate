@@ -5973,127 +5973,6 @@ import { servedIdentityLines } from "../lib/served-identity";
   };
 
   /* Décisions RÉGLÉES — les dix vraies lignes de scrape_decision. */
-  const DECISIONS_REGLEES = [
-    {
-      d: "The Odyssey (2026)",
-      k: "movie",
-      t: "The Odyssey",
-      reason: "ambiguous",
-      state: "superseded",
-      when: "6 août, 09 h 24",
-      y: 2026,
-    },
-    {
-      d: "The Bombing of Pan Am 103",
-      k: "show",
-      t: "The Bombing of Pan Am S01E03",
-      reason: "below_threshold",
-      state: "resolved",
-      when: "4 août, 12 h 37",
-      choice: {
-        t: "The Bombing of Pan Am S01E03",
-        p: "tvdb",
-        id: 456595,
-        via: "search_override",
-      },
-    },
-    {
-      d: "Star Trek",
-      k: "show",
-      t: "Star Trek",
-      reason: "mid_band",
-      state: "superseded",
-      when: "30 juillet, 15 h 42",
-    },
-    {
-      d: "The Hawk",
-      k: "show",
-      t: "The Hawk",
-      reason: "ambiguous",
-      state: "resolved",
-      when: "22 juillet, 22 h 11",
-      choice: { t: "The Hawk", p: "tvdb", id: 450088, via: "pick" },
-    },
-    {
-      d: "Lucky",
-      k: "show",
-      t: "Lucky",
-      reason: "ambiguous",
-      state: "resolved",
-      when: "15 juillet, 14 h 55",
-      choice: { t: "Lucky (2026)", p: "tvdb", id: 457437, via: "pick" },
-    },
-    {
-      d: "Top Chef Le Concours Parallèle (2026)",
-      k: "show",
-      t: "Top Chef Le Concours Parallele",
-      reason: "mid_band",
-      state: "resolved",
-      when: "13 juillet, 18 h 44",
-      y: 2026,
-      choice: {
-        t: "Top Chef Le Concours Parallele",
-        p: "tvdb",
-        id: 475278,
-        via: "pick",
-      },
-    },
-    {
-      d: "Ferrari Tsamere Lecaplain La tournee du Trio (2025)",
-      k: "movie",
-      t: "Ferrari Tsamere Lecaplain La tournee du Trio",
-      reason: "manual",
-      state: "resolved",
-      when: "13 juillet, 18 h 44",
-      y: 2025,
-      choice: {
-        t: "Ferrari, Tsamere, Lecaplain : La Tournée du Trio",
-        p: "tmdb",
-        id: 1433379,
-        via: "pick",
-      },
-    },
-    {
-      d: "Aymeric Lompret et Pierre Emmanuel Barre Woke me up (2026)",
-      k: "movie",
-      t: "Aymeric Lompret et Pierre Emmanuel Barre Woke me up",
-      reason: "manual",
-      state: "resolved",
-      when: "13 juillet, 18 h 44",
-      y: 2026,
-      choice: {
-        t: "Aymeric Lompret et Pierre Emmanuel Barre Woke me up",
-        p: "tmdb",
-        id: 1629753,
-        via: "pick",
-      },
-    },
-    {
-      d: "Obsession (2026)",
-      k: "movie",
-      t: "Obsession",
-      reason: "manual",
-      state: "resolved",
-      when: "13 juillet, 16 h 46",
-      y: 2026,
-      choice: { t: "Obsession", p: "tmdb", id: 1339713, via: "pick" },
-    },
-    {
-      d: "Remarkably Bright Creatures (2026)",
-      k: "movie",
-      t: "Remarkably Bright Creatures",
-      reason: "manual",
-      state: "resolved",
-      when: "13 juillet, 16 h 05",
-      y: 2026,
-      choice: {
-        t: "Remarkably Bright Creatures",
-        p: "tmdb",
-        id: 1330021,
-        via: "search_override",
-      },
-    },
-  ];
 
   /* Décisions EN ATTENTE.
 
@@ -6107,76 +5986,6 @@ import { servedIdentityLines } from "../lib/served-identity";
      two of the ten rows in the base came back with no candidate at all. It
      hangs on the dense scenario's folder, whose stated reason already says
      precisely that. */
-  const PENDING_DECISIONS = [
-    {
-      d: "Lucky",
-      k: "show",
-      t: "Lucky",
-      reason: "ambiguous",
-      when: "15 juillet, 14 h 52",
-      c: [
-        {
-          t: "Lucky!",
-          y: 2022,
-          p: "tvdb",
-          id: 427619,
-          s: 1.0,
-          sans: false,
-          resume:
-            "The extraordinary story of Bernie Ecclestone's meteoric rise from post-war car dealer to the creation and 50-year reign over the cutthroat world of Formula One.",
-        },
-        {
-          t: "Lucky (2026)",
-          y: 2026,
-          p: "tvdb",
-          id: 457437,
-          s: 1.0,
-          sans: false,
-          resume:
-            "A reformed criminal is forced to confront her past and return to illicit activities for one final job, hoping to secure her freedom and leave her former life behind for good.",
-        },
-        {
-          t: "Lucky (2006)",
-          y: 2006,
-          p: "tvdb",
-          id: 317944,
-          s: 1.0,
-          sans: true,
-          resume:
-            "About a young man Lucky, who runs a fake antique shop in Chor Bazaar and has the simplest ways of living, i.e. conning people by selling them fake antiques and actually making them believe that the artifacts are genuine. Lucky is a street smart, confident and intelligent character, who loves life the way it comes until he gets to know about the Rakshaks who were born for protecting sacred and priceless treasures and that now he is going to be the chosen one...the fifth Rakshak.",
-        },
-        {
-          t: "Lucky (2003)",
-          y: 2003,
-          p: "tvdb",
-          id: 70876,
-          s: 1.0,
-          sans: false,
-          resume:
-            "After winning $1 million in the World Series of Poker at a Las Vegas casino, Michael 'Lucky' Linkletter lived like a king... briefly. Now, one year later, he's penniless. Although Lucky's been clean from his gambling addiction for six months, his debts continue to mount - including money owed to his deceased wife's parents and a mobster.",
-        },
-        {
-          t: "Lucky Chances",
-          y: 1990,
-          p: "tvdb",
-          id: 298989,
-          s: 0.9,
-          sans: false,
-          resume:
-            'Based on the novels "Chances" and "Lucky" by Jackie Collins, this miniseries features the rise of Gino Santangelo in the Las Vegas casino industry, and his daughter Lucky\'s subsequent struggle to maintain the family empire.',
-        },
-      ],
-    },
-    {
-      d: "Backrooms.2026.MULTi.2160p.WEB-DL",
-      k: "movie",
-      t: "Backrooms",
-      y: 2026,
-      reason: "below_threshold",
-      when: "aujourd'hui, 06 h 16",
-      c: [],
-    },
-  ];
 
   const MOVING = [
     {
@@ -6238,94 +6047,6 @@ import { servedIdentityLines } from "../lib/served-identity";
      `blockedCount` is what makes this page more than a report: the step that BLOCKS
      is the one the operator can act on, and it points at « Ça coince » just
      below rather than at a log. */
-  const PIPELINE = {
-    steps: [
-      {
-        n: "ingest",
-        l: "Récupération",
-        d: "Les téléchargements terminés sont copiés dans la zone de tri.",
-      },
-      {
-        n: "sort",
-        l: "Tri",
-        d: "Chaque fichier rejoint sa catégorie, et son nom est nettoyé.",
-      },
-      {
-        n: "clean",
-        l: "Noms et doublons",
-        d: "Les noms de dossiers sont repris, les doublons repérés.",
-      },
-      {
-        n: "scrape",
-        l: "Identification",
-        d: "Le média est reconnu, sa fiche et ses affiches récupérées.",
-      },
-      {
-        n: "cleanup",
-        l: "Dossiers vides",
-        d: "Ce que l'identification a laissé derrière elle.",
-      },
-      {
-        n: "enforce",
-        l: "Mise en forme",
-        d: "Les noms de fichiers sont assainis, la structure validée.",
-      },
-      {
-        n: "verify",
-        l: "Contrôle",
-        d: "Le dernier examen avant le rangement. C'est ici qu'un média est bloqué.",
-      },
-      {
-        n: "trailers",
-        l: "Bandes-annonces",
-        d: "La bande-annonce est récupérée quand il en existe une.",
-      },
-      {
-        n: "dispatch",
-        l: "Rangement",
-        d: "Le média rejoint son disque, et la médiathèque le voit.",
-      },
-    ],
-    /* The trigger, said rather than encoded. `completion` is the one that
-       fires most: a download finished, so the pipeline runs. */
-    declencheurs: {
-      completion: "la fin d'un téléchargement",
-      safety_net: "le filet de sécurité",
-      scheduled: "le planificateur",
-      manual: "vous",
-    },
-    /* The run of 14/08 07:08, exactly as `pipeline_run` recorded it. */
-    last: {
-      uid: "2b598104",
-      when: "aujourd'hui à 07 h 08",
-      duree: "1 min 44 s",
-      declencheur: "completion",
-      issue: "success",
-      facts: [
-        { n: "ingest", r: "3 copiés", s: "79 étaient déjà là" },
-        { n: "sort", r: "3 rangés en catégorie" },
-        { n: "clean" },
-        {
-          n: "scrape",
-          r: "2 identifiés",
-          s: "Stuart Fails to Save the Universe, Top Chef Le Concours Parallèle",
-        },
-        { n: "cleanup" },
-        /* The em dash means « nothing to do ». This step HAD something to
-           look at and found it already in order, which is a different
-           sentence — an em dash beside « 2 étaient déjà en forme » would
-           contradict its own sub-line. */
-        { n: "enforce", r: "rien à changer", s: "2 étaient déjà en forme" },
-        { n: "verify", r: "1 validé", blockedCount: 1 },
-        { n: "trailers" },
-        {
-          n: "dispatch",
-          r: "1 rangé sur Disk1",
-          s: "Stuart Fails to Save the Universe",
-        },
-      ],
-    },
-  };
 
   /* ── MAINTENANCE ──────────────────────────────────────────────────────
      The 26 `library-*` commands the engine really registers, read from
@@ -9813,7 +9534,6 @@ import { servedIdentityLines } from "../lib/served-identity";
     get TRIS() {
       return TRIS;
     },
-    PIPELINE,
     skelCards,
     skelCardsInner,
     surfErr,
@@ -9880,21 +9600,20 @@ import { servedIdentityLines } from "../lib/served-identity";
     typedValue,
     changeSetting,
     openSetting,
-    // The arbitration flow. `PENDING_DECISIONS` / `DECISIONS_REGLEES` and the
-    // label maps are all `const` declared above this literal, so a plain
-    // shorthand reference reads the finished value — no TDZ here. `toast` and
-    // `decisionPending` are declared with `function` further down this same
-    // script; a function declaration hoists its whole definition (unlike
-    // `let`/`const`, which only hoist to a temporal dead zone), so a plain
-    // shorthand reference to either is already callable at this point too.
-    PENDING_DECISIONS,
-    DECISIONS_REGLEES,
+    // The arbitration flow's LABELS, which are the interface's own words and
+    // were never server state — the register classifies them `interface`, and
+    // they stay exactly where they are.
     REASON_LABEL,
     REASON_TONE,
     REASON_DETAIL,
     DECISION_STATE,
     DECISION_STATE_DETAIL,
     VIA_LABEL,
+    // The flow's own lookup. Its DATA left at L09 — the surface reads
+    // `/api/decisions/` and `PENDING_DECISIONS` is deleted — and this answer
+    // stays because the engine's « Passer à la suivante » branch asks it
+    // synchronously from a click handler. It reads the cache through
+    // `window.__pendingDecisions` and goes with that branch at L13.
     decisionPending,
     // Thin arrows over `derived.blocked` / `derived.stuck` — `derived` itself
     // is already initialized above this literal, but the wrapper still earns
@@ -33827,8 +33546,16 @@ import { servedIdentityLines } from "../lib/served-identity";
   /* A folder either HAS a pending decision or it has none, and the screen must
      not borrow one. Showing another folder's candidates would be the worst
      possible lie on the one screen whose job is to name what is on disk. */
+  /* IT READS THE CACHE NOW, and the fixture it used to read is gone (L09). The
+     shell publishes `window.__pendingDecisions` over the query cache — a
+     SYNCHRONOUS read, because this is called from a click handler that cannot
+     await. Before the query has answered it reports « no decision », which is
+     the same answer this function already gave for a folder that has none, and
+     the surfaces that draw a decision render nothing until the cache has one.
+     It dies with the branch below at L13. */
   function decisionPending(target) {
-    return PENDING_DECISIONS.find((decision) => decision.d === target) ?? null;
+    const pending = window.__pendingDecisions?.() ?? [];
+    return pending.find((decision) => decision.d === target) ?? null;
   }
 
   /* Every medium opens the SAME panel, and this function exists only to say
@@ -35180,14 +34907,14 @@ export {
    across all 254 names, and this is the only one. */
 Object.assign(window, {
   CAST, POSTERS_HD, APPARENCES, PRESS_MS, PRESS_TOLERANCE, AUDIOS,
-  TODAY, BLOCKED, CADENCE_CRON, CATS, ACCOUNT, PENDING_DECISIONS,
-  DECISIONS_REGLEES, STARTUP_MS, DEPENDENCIES, DISKS, DONE_TODAY,
+  TODAY, BLOCKED, CADENCE_CRON, CATS, ACCOUNT,
+  STARTUP_MS, DEPENDENCIES, DISKS, DONE_TODAY,
   EP_LABEL, EP_ORDER, EP_SWATCH, ERRORS, DECISION_STATE,
   DECISION_STATE_DETAIL, EXECUTIONS, SHEETS_IDX, SHEETS_OLD, SHEETS_RAW,
   FOLLOWS, GROUPS, HERO_IMAGES, INCOMPLETE, INDEX, INFLIGHT, JOURNAL, LIBRARY,
   LIB_PAGE, LIB_TOTAL, MAINT_ACTIONS, MAINT_TOPICS, MOIS, REASON_LABEL,
   REASON_DETAIL, REASON_TONE, MOVING, NAVIGATION, NOTFOUND, NOTFOUND_REAL,
-  PAGES_OF, PIPELINE, SCHEDULERS, SCHEDULERS_DOWN, OWNED,
+  PAGES_OF, SCHEDULERS, SCHEDULERS_DOWN, OWNED,
   POSTERS, RECENT, SETTINGS, SETTINGS_STATE, RELEASES, RESOLUTIONS, BACK_WINDOW,
   RISQUES, SEARCH, SEASONS, SECRETS, SERVICES, SERVICES_PANNE, SETTLED,
   SETTLED_REAL, STRIP_LABELS, STUCK, STUCK_REAL, ST_LABEL,

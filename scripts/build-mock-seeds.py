@@ -284,10 +284,33 @@ def canonical(value: object) -> str:
 
 
 def seeded_families() -> list[str]:
-    """The families a seed is built for, in a stable order."""
+    """The families a seed can still be BUILT for, in a stable order.
+
+    A CONVERTED FAMILY IS NOT ONE OF THEM, and that is D5 rather than an
+    exception. Once L09 wires the surface that read a fixture, the fixture is
+    deleted from `legacy.js` — so there is nothing left to re-derive the seed
+    FROM, and asking for one raises. The seed itself stays: it is what the mock
+    layer answers with, and it is now held by the contract's schema and by the
+    oracle's rendering rather than by the engine's own literal. The register
+    says which, and why, in each entry's `converted`.
+
+    Returns:
+        The families whose seed can be re-derived from the engine today.
+    """
     families = json.loads(REGISTER.read_text(encoding="utf-8"))["families"]
     return sorted(name for name, entry in families.items()
-                  if entry["class"] in SEEDED_CLASSES)
+                  if entry["class"] in SEEDED_CLASSES and not entry.get("converted"))
+
+
+def converted_families() -> list[str]:
+    """The families whose fixture the engine no longer declares, in order.
+
+    Returns:
+        Their names, so a caller can print what it did NOT compare rather than
+        leaving the absence to be read as a pass.
+    """
+    families = json.loads(REGISTER.read_text(encoding="utf-8"))["families"]
+    return sorted(name for name, entry in families.items() if entry.get("converted"))
 
 
 def file_for(name: str) -> Path:

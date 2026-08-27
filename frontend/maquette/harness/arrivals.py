@@ -113,9 +113,25 @@ async def main():
         # The uid and the counts the prototype claims, read from its own data
         # rather than scraped off the screen — the screen is what is being
         # judged against them.
-        claimed = await pg.evaluate("()=>({uid: PIPELINE.last.uid,"
-                                    " decl: PIPELINE.last.declencheur,"
-                                    " facts: PIPELINE.last.facts})")
+        # READ WHERE THE INTERFACE READS IT. `PIPELINE` was a literal in
+        # `legacy.js`, republished on `window`, and this rule read it there. L09
+        # moved the surface onto the mock layer and DELETED the literal, so the
+        # figures the screen is judged against now come from the same request
+        # the screen makes — which is a closer question than the old one, not a
+        # weaker one. The contract's own names: `trigger` for `declencheur`, and
+        # each fact carrying `name` / `result` / `secondaryLine`.
+        answered = await pg.evaluate(
+            "async ()=>(await (await fetch('/api/pipeline/status')).json())")
+        claimed = {
+            "uid": answered["last"]["uid"],
+            "decl": answered["last"]["trigger"],
+            "facts": [
+                {"n": fact.get("name"), "r": fact.get("result"),
+                 "s": fact.get("secondaryLine"),
+                 "blockedCount": fact.get("blockedCount")}
+                for fact in answered["last"]["facts"]
+            ],
+        }
 
         view = await on_arrivals(pg, "idle")
 

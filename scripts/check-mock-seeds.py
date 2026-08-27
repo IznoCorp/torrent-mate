@@ -181,7 +181,15 @@ def arm_classification(module) -> int:
     declared = set(register())
     found = set(module.fixtures())
     unclassified = sorted(found - declared)
-    vanished = sorted(declared - found)
+    # A FAMILY THE REGISTER DECLARES `converted` IS EXPECTED TO BE ABSENT. L09
+    # wires a surface and deletes the fixture it read (D5), so « the engine no
+    # longer declares it » stops being a defect for that family and becomes the
+    # record of a decision. It is NOT a way to silence the check: the entry
+    # names the wave and the surface, and the count is printed either way, so a
+    # family that vanished without anybody declaring it still fails.
+    converted = {name for name, entry in register().items() if entry.get("converted")}
+    vanished = sorted(declared - found - converted)
+    unrecorded = sorted(converted & found)
     # THE CLASS IS HELD, and only the NAMES were. The counts live in the
     # register beside the classification, so a family moved from `served` to
     # `interface` has to be moved in two places by a hand that meant it —
@@ -206,8 +214,13 @@ def arm_classification(module) -> int:
               f"{anonymous} — a family excluded from the inventory has appeared or gone",
               file=sys.stderr)
     print(f"  classification: {len(found)} fixture(s) in the engine, "
-          f"{len(declared)} in the register, "
-          f"{len(unclassified) + len(vanished) + int(miscounted)} out of step")
+          f"{len(declared)} in the register, {len(converted)} converted, "
+          f"{len(unclassified) + len(vanished) + len(unrecorded) + int(miscounted)} "
+          f"out of step")
+    for name in unrecorded:
+        print(f"    {name}: the register calls it converted and the engine still "
+              f"declares it — a fixture that outlived its own removal",
+              file=sys.stderr)
     if miscounted:
         print(f"    the register's $counts says {recorded} and its families are {counts} — "
               f"a class was changed and the tally beside it was not",
@@ -218,7 +231,7 @@ def arm_classification(module) -> int:
     for name in vanished:
         print(f"    {name}: the register classifies it and the engine no longer "
               f"declares it", file=sys.stderr)
-    return len(unclassified) + len(vanished) + int(miscounted)
+    return len(unclassified) + len(vanished) + len(unrecorded) + int(miscounted)
 
 
 def arm_correspondence(module) -> int:
@@ -239,11 +252,18 @@ def arm_correspondence(module) -> int:
                            f"Rebuild with `python3 scripts/build-mock-seeds.py --write`")
         else:
             compared += 1
+    # A CONVERTED FAMILY'S SEED IS STILL CLAIMED, and it can no longer be
+    # re-derived: the engine's literal it came from is gone. Its file is
+    # exempted from « no family claims it » BY NAME, from the register's own
+    # declaration, and the count is printed — an arm that compared 43 where it
+    # used to compare 46 must say so, or the shrinking is the silent kind.
+    kept = {str(module.file_for(name)) for name in module.converted_families()}
     for existing in sorted(SEEDS.glob("*.json")):
-        if str(existing) not in built:
+        if str(existing) not in built and str(existing) not in kept:
             drifted.append(f"{existing.name}: no family claims it")
     print(f"  correspondence: {compared} seed(s) re-derived from legacy.js and "
-          f"identical, {len(drifted)} out of step")
+          f"identical, {len(kept)} no longer re-derivable (converted — held by the "
+          f"contract's schema and by the oracle instead), {len(drifted)} out of step")
     for entry in drifted:
         print(f"    {entry}", file=sys.stderr)
     return len(drifted)
@@ -301,7 +321,13 @@ def arm_schema(module) -> int:
     declared = json.loads(module.PROJECTIONS.read_text(encoding="utf-8"))["families"]
     failures: list[str] = []
     validated = 0
-    for name in module.seeded_families():
+    # THE CONVERTED FAMILIES ARE VALIDATED TOO, and leaving them out was the
+    # mistake this comment exists to stop somebody repeating. A converted
+    # family's seed can no longer be re-derived from the engine — that arm says
+    # so by name — and this one is what still holds it. Dropping it here would
+    # have made « held by the contract's schema » a sentence the code did not
+    # honour, on the very seeds that lost their other reader.
+    for name in module.seeded_families() + module.converted_families():
         expression = declared.get(name, {}).get("answers")
         if not expression:
             failures.append(f"{name}: no `answers` declared, so nothing can be validated "
