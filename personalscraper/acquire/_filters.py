@@ -355,6 +355,8 @@ def filter_to_episode(
     results: "list[TrackerResult]",
     season: int,
     episode: int,
+    *,
+    titles: "Sequence[str | None] | None" = None,
 ) -> "list[TrackerResult]":
     """Keep only results whose title carries the exact ``SxxEyy`` token.
 
@@ -367,18 +369,63 @@ def filter_to_episode(
     match E05). Season packs (no ``E`` token) are intentionally dropped — an
     exact-episode want should not pull a whole season.
 
+    **Series-identity guard** (when *titles* is provided): the ``SxxEyy`` token
+    alone never establishes WHICH series a release belongs to, and a title
+    query returns fuzzy matches — ``Les Groos S02E01`` on c411 can yield the
+    ``Je.S.Appelle.Groot.S02E01`` releases, the SxxEyy token being exact while
+    the title tokens are fuzzy, as observed for the season-pack query
+    (2026-08-23 class, sibling of the season-pack guard #489). So the release's
+    parsed title must be similar to any known title of the wanted series
+    (rapidfuzz token-set, :data:`_TITLE_SIMILARITY_THRESHOLD` — the same guard
+    ``filter_to_movie`` and ``filter_to_season`` apply). *titles* ``None``
+    leaves the guard inactive, and so does a sequence with no known title:
+    an unknown wanted identity must not drop every episode — the guard only
+    bites when the wanted series is known and the release contradicts it.
+
     Args:
         results: The raw tracker results for the query.
         season: Wanted season number.
         episode: Wanted episode number.
+        titles: Every known title of the wanted series (display title,
+            original title), or ``None`` to leave the identity guard inactive.
+            ``None``/empty entries and duplicates are ignored.
 
     Returns:
         The subset whose title names the exact episode (possibly empty).
+
+    Raises:
+        TypeError: If *titles* is a bare ``str`` — a string IS a sequence of
+            single characters, and matching against characters would silently
+            drop every release.
     """
+    from rapidfuzz import fuzz  # noqa: PLC0415 — local import keeps module load light
+
+    if isinstance(titles, str):
+        raise TypeError("filter_to_episode takes a sequence of titles, not a bare str")
+    known_titles = list(dict.fromkeys(t for t in titles if t)) if titles is not None else []
+    guard_active = bool(known_titles)
+
     # (?<![0-9]) / (?![0-9]) bound the numbers so E5 does not match E51 and
     # S9 does not match S19; 0* absorbs the zero-padding difference.
     pattern = re.compile(rf"(?<![0-9])s0*{season}e0*{episode}(?![0-9])", re.IGNORECASE)
-    return [r for r in results if pattern.search(r.title)]
+    kept: list[TrackerResult] = []
+    for r in results:
+        if not pattern.search(r.title):
+            continue
+        if guard_active:
+            parsed_title, _ = _parse_release_identity(r.title)
+            if parsed_title and all(
+                fuzz.token_set_ratio(parsed_title, t) < _TITLE_SIMILARITY_THRESHOLD for t in known_titles
+            ):
+                log.debug(
+                    "acquire.filter.episode_title_mismatch",
+                    title=r.title,
+                    parsed_title=parsed_title,
+                    wanted_titles=known_titles,
+                )
+                continue
+        kept.append(r)
+    return kept
 
 
 def _episode_numbers(episode_raw: object) -> list[int]:
@@ -568,8 +615,9 @@ def filter_to_season(
 #: wanted title to survive the series/movie identity guard. Deliberately LOOSE —
 #: a subset like "Wicker" vs "The Wicker Man" scores high either way, so the
 #: YEAR (movie) is the real discriminator; this threshold only drops the
-#: wholly-unrelated — like "Je s'appelle Groot" vs "Les Groos" (44/100, the
-#: 2026-08-23 wrong-show grab).
+#: wholly-unrelated — like "Je s'appelle Groot" vs "Les Groos" (52/100 on the
+#: title pair, 44/100 on the parsed release title, the 2026-08-23 wrong-show
+#: grab).
 _TITLE_SIMILARITY_THRESHOLD = 60
 
 
