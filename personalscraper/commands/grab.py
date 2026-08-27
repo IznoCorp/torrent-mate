@@ -368,6 +368,19 @@ def _run_dry(
                 from personalscraper.acquire.orchestrator import filter_to_episode  # noqa: PLC0415
 
                 narrowed = filter_to_episode(narrowed, item.season, item.episode, titles=[title, original_title])
+            elif item.kind == "season" and item.season is not None:
+                # Mirror the real grab's season narrowing (#489 identity guard
+                # + F4 coverage): a wrong-show pack must not green-light in the
+                # preview while the run would drop it — the same lie F4 is about.
+                from personalscraper.acquire.orchestrator import filter_to_season  # noqa: PLC0415
+
+                expected_count = None
+                if item.followed_id is not None:
+                    aired = store.aired.list_for_followed(item.followed_id)
+                    expected_count = len([r for r in aired if r.season == item.season]) or None
+                narrowed = filter_to_season(
+                    narrowed, item.season, expected_count=expected_count, titles=[title, original_title]
+                )
             elif item.kind == "movie" and title is not None:
                 # #28 (review F4) — mirror the real grab's movie identity filter
                 # so the preview's Top is the SAME film the grab would take, not

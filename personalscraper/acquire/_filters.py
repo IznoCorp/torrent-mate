@@ -371,13 +371,14 @@ def filter_to_episode(
 
     **Series-identity guard** (when *titles* is provided): the ``SxxEyy`` token
     alone never establishes WHICH series a release belongs to, and a title
-    query returns fuzzy matches — ``Les Groos S02E01`` on c411 yields the
-    ``Je.S.Appelle.Groot.S02E01`` releases (2026-08-24 class, sibling of the
-    season-pack guard #489). So the release's parsed title must be similar to
-    any known title of the wanted series (rapidfuzz token-set,
-    :data:`_TITLE_SIMILARITY_THRESHOLD` — the same guard ``filter_to_movie``
-    and ``filter_to_season`` apply). *titles* ``None`` leaves the guard
-    inactive (legacy callers), and so does a sequence with no known title:
+    query returns fuzzy matches — ``Les Groos S02E01`` on c411 can yield the
+    ``Je.S.Appelle.Groot.S02E01`` releases, the SxxEyy token being exact while
+    the title tokens are fuzzy, as observed for the season-pack query
+    (2026-08-23 class, sibling of the season-pack guard #489). So the release's
+    parsed title must be similar to any known title of the wanted series
+    (rapidfuzz token-set, :data:`_TITLE_SIMILARITY_THRESHOLD` — the same guard
+    ``filter_to_movie`` and ``filter_to_season`` apply). *titles* ``None``
+    leaves the guard inactive, and so does a sequence with no known title:
     an unknown wanted identity must not drop every episode — the guard only
     bites when the wanted series is known and the release contradicts it.
 
@@ -614,8 +615,9 @@ def filter_to_season(
 #: wanted title to survive the series/movie identity guard. Deliberately LOOSE —
 #: a subset like "Wicker" vs "The Wicker Man" scores high either way, so the
 #: YEAR (movie) is the real discriminator; this threshold only drops the
-#: wholly-unrelated — like "Je s'appelle Groot" vs "Les Groos" (44/100, the
-#: 2026-08-23 wrong-show grab).
+#: wholly-unrelated — like "Je s'appelle Groot" vs "Les Groos" (52/100 on the
+#: title pair, 44/100 on the parsed release title, the 2026-08-23 wrong-show
+#: grab).
 _TITLE_SIMILARITY_THRESHOLD = 60
 
 

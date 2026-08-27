@@ -9,6 +9,8 @@ title is available.
 
 from dataclasses import dataclass
 
+import pytest
+
 from personalscraper.acquire.domain import WantedItem
 from personalscraper.acquire.orchestrator import build_search_query, filter_to_episode
 from personalscraper.core.identity import MediaRef
@@ -120,7 +122,7 @@ class TestFilterToEpisode:
         assert filter_to_episode(res, 9, 5) == []
 
     def test_rejects_wrong_series_episode_with_titles(self) -> None:
-        """2026-08-24 class: a wrong SERIES' episode must be dropped (Groos/Groot).
+        """2026-08-23 class: a wrong SERIES' episode must be dropped (Groos/Groot).
 
         The tracker's fuzzy answer to ``Les Groos S02E01`` can be the
         ``Je.S.Appelle.Groot.S02E01`` release — the SxxEyy token matches, and
@@ -128,6 +130,17 @@ class TestFilterToEpisode:
         """
         res = [_Result("Je.S.Appelle.Groot.S02E01.VOSTFR.1080p.WEB.EAC3.5.1.H264-FW")]
         assert filter_to_episode(res, 2, 1, titles=["Les Groos"]) == []
+
+    def test_rejects_wrong_series_episode_with_both_known_titles(self) -> None:
+        """The drop holds with BOTH known titles provided (production wiring).
+
+        The factory resolves display AND original title for every followed
+        row, so the guard runs with ``titles=[title, original_title]`` — the
+        any-match-keeps semantics must still drop a release that resembles
+        neither of the wanted series' own names.
+        """
+        res = [_Result("Je.S.Appelle.Groot.S02E01.VOSTFR.1080p.WEB.EAC3.5.1.H264-FW")]
+        assert filter_to_episode(res, 2, 1, titles=["Les Groos", "The Groos"]) == []
 
     def test_keeps_matching_series_episode_with_titles(self) -> None:
         """The same release passes when the wanted series IS the release's show.
@@ -140,15 +153,20 @@ class TestFilterToEpisode:
             "Je.S.Appelle.Groot.S02E01.VOSTFR.1080p.WEB.EAC3.5.1.H264-FW"
         ]
 
+    def test_keeps_wanted_show_own_episode_with_titles(self) -> None:
+        """A release OF the wanted show must never be dropped by the guard."""
+        res = [_Result("Les.Groos.S02E01.VFF.1080p.WEB-DL.x265-GRP")]
+        assert self._titles(filter_to_episode(res, 2, 1, titles=["Les Groos"])) == [
+            "Les.Groos.S02E01.VFF.1080p.WEB-DL.x265-GRP"
+        ]
+
     def test_titles_none_keeps_legacy_behavior(self) -> None:
-        """``titles=None`` (legacy callers) leaves the identity guard inactive."""
+        """``titles=None`` leaves the identity guard inactive."""
         res = [_Result("Rick.and.Morty.S09E05.MULTi")]
         assert self._titles(filter_to_episode(res, 9, 5)) == ["Rick.and.Morty.S09E05.MULTi"]
 
     def test_bare_str_titles_raises(self) -> None:
         """A bare ``str`` is a sequence of characters — refuse it loudly."""
-        import pytest
-
         with pytest.raises(TypeError):
             filter_to_episode([_Result("Show.S01E01")], 1, 1, titles="Show")
 
