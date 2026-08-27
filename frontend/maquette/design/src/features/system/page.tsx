@@ -22,25 +22,37 @@ import type { ReactElement } from "react";
 import { useSystemReference } from "../../features/system/reference";
 import { type Fact } from "../../lib/engine-drawing";
 import { useUiState } from "../../lib/store-access";
+import {
+  useDependencies,
+  useDisks,
+  useIndexHealth,
+  usePipelineHistory,
+  useSchedulers,
+  useServices,
+  useSystemErrors,
+} from "./queries";
 import { crossReference, crossReferenceLink, section, sectionHeading, topicRow } from "../../ui/variants";
 import { guidance } from "../../ui/variants/layout";
 
 export function SystemPage(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
-  const {
-    factRowsHTML,
-    skelCardsInner,
-    SERVICES,
-    SERVICES_PANNE,
-    SCHEDULERS,
-    SCHEDULERS_DOWN,
-    EXECUTIONS,
-    DISKS,
-    INDEX,
-    DEPENDENCIES,
-    ERRORS,
-  } = useSystemReference();
+  const { factRowsHTML, skelCardsInner, SERVICES_PANNE, SCHEDULERS_DOWN } =
+    useSystemReference();
+  // FROM THE CACHE (invariant 4). The fault variants stay the engine's: they
+  // carry no class in the register, so no seed derives from them and no
+  // operation answers them.
+  const { data: SERVICES = [] } = useServices();
+  const { data: SCHEDULERS = [] } = useSchedulers();
+  const { data: EXECUTIONS = [] } = usePipelineHistory();
+  const { data: DISKS = [] } = useDisks();
+  const { data: INDEX = [] } = useIndexHealth();
+  const { data: DEPENDENCIES = [] } = useDependencies();
+  // The errors are an OBJECT, not a list, so the empty case is the shape
+  // rather than an empty array — and it is stated here rather than left to a
+  // question mark at each of its five readers.
+  const { data: ERRORS = { total: 0, outOf: 0, latest: "", what: "", where: "" } } =
+    useSystemErrors();
 
   // The two non-ready surfaces, emitted by the fragment exactly as before. The
   // host element is the `div.body` the legacy returned, so what goes here is

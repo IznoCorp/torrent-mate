@@ -7,14 +7,17 @@
 // the shape is settled here so the feature does not have to teach its own form
 // twice when it arrives.
 import { useTranslation } from "react-i18next";
+import { useAccount } from "./queries";
 import type { ReactElement } from "react";
 import { useAccountReference } from "../../features/account/reference";
 import { useEngineDrawing } from "../../lib/engine-drawing";
 import { actionButton, emptyNote, sectionHeading } from "../../ui/variants";
 
-export function AccountPage(): ReactElement {
+export function AccountPage(): ReactElement | null {
   const { t } = useTranslation();
-  const { ACCOUNT } = useAccountReference();
+  // FROM THE CACHE (invariant 4).
+  const { data: ACCOUNT } = useAccount();
+  if (!ACCOUNT) return null;
   const { factRowsHTML, emptyInner } = useEngineDrawing();
   const facts = (rows: Parameters<typeof factRowsHTML>[0]) => (
     <ol

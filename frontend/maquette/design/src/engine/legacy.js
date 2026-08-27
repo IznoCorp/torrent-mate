@@ -6369,7 +6369,8 @@ import { servedIdentityLines } from "../lib/served-identity";
           n: "max_size_movie_gb",
           v: "4.0",
           note: "Maximum movie file size in GB",
-        },
+        precision: 1,
+      },
         {
           f: "encoding",
           c: "library.video.max_size_episode_gb",
@@ -6378,7 +6379,8 @@ import { servedIdentityLines } from "../lib/served-identity";
           n: "max_size_episode_gb",
           v: "2.0",
           note: "Maximum episode file size in GB",
-        },
+        precision: 1,
+      },
         {
           f: "encoding",
           c: "library.audio.profile_priority",
@@ -6484,7 +6486,8 @@ import { servedIdentityLines } from "../lib/served-identity";
           brut: 2.0,
           n: "target_ratio",
           v: "2.0",
-        },
+        precision: 1,
+      },
         {
           f: "tracker",
           c: "tracker.providers.c411.economy.min_ratio",
@@ -6492,7 +6495,8 @@ import { servedIdentityLines } from "../lib/served-identity";
           brut: 1.0,
           n: "min_ratio",
           v: "1.0",
-        },
+        precision: 1,
+      },
         {
           f: "tracker",
           c: "tracker.providers.c411.economy.min_seed_time",
@@ -6978,6 +6982,7 @@ import { servedIdentityLines } from "../lib/served-identity";
           brut: 0.0,
           n: "min_ratio",
           v: "0.0",
+          precision: 1,
         },
         {
           f: "scraper",
@@ -7010,7 +7015,8 @@ import { servedIdentityLines } from "../lib/served-identity";
           brut: 95.0,
           n: "short_title_threshold",
           v: "95.0",
-        },
+        precision: 1,
+      },
         {
           f: "scraper",
           c: "fuzzy_match.long_title_threshold",
@@ -7018,7 +7024,8 @@ import { servedIdentityLines } from "../lib/served-identity";
           brut: 90.0,
           n: "long_title_threshold",
           v: "90.0",
-        },
+        precision: 1,
+      },
         {
           f: "trailers",
           c: "trailers.enabled",

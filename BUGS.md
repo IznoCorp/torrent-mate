@@ -123,7 +123,7 @@ when the defect comes back.
 | B-087 | A media sheet substituted one family's synopsis for another's, on 213 of 259 titles | by review | `fixed #503` |
 | B-088 | Twenty provider identities name two sheet keys, and the first returned nine empty season lists | by review | `fixed #503` |
 | B-089 | `serie` is a broadcast status, and a rename read it as a series name | by review | `fixed #503` |
-| B-090 | `Setting.value` carries the engine's rendered French, and one of them is lossy | by review | `open` |
+| B-090 | `Setting.value` carries the engine's rendered French, and one of them is lossy | by review | `fixed #NNN` |
 | B-091 | `grabForFollow` answered a hash field with a release name | by review | `fixed #503` |
 | B-092 | Four mutating routes changed nothing the next read could see | by review | `fixed #503` |
 | B-093 | `isPureLiteral` walked an initializer's children and never the initializer | by review | `fixed #503` |
@@ -158,6 +158,7 @@ when the defect comes back.
 | B-115 | A redraw bridge deduplicated on a clock the oracle is allowed to stop | by oracle | `fixed #NNN` |
 | B-116 | The inverse projection turned a string into an object of its characters | by rule | `fixed #NNN` |
 | B-117 | The queue read served the dense world under the real scenario | by review | `fixed #NNN` |
+| B-118 | The seed builder deleted twenty-one seeds the mock layer serves | by review | `fixed #NNN` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -1980,8 +1981,8 @@ absence of a row can mean either.
 | L07-bis | 5 | B-075 |
 | L08 | 6 | PR #503's squash body — B-093 and B-094 write out two of the six; B-092 and B-095 are adjacent findings of that wave, not members of the six |
 | L08-bis (#505, the correction wave) | 9 | itemised below · squash `12a134ca` |
-| L09 (in flight) | 6 so far | B-105 and B-106, both found by mutation in the phases that wrote the instruments; **B-108**, the oracle itself — its `neutralise` broke the React tree and it recorded the damage as the reference, on four states of the exact kind this lot wires; B-110's first attempt, which took three seeds out of the schema arm while the register claimed that arm held them; and the filters rule, which read the FIRST listing in the cache rather than the active one and reported 24 rows beside a count line saying 4 · recounted at the wave's close |
-| **Total** | **32** | at 2026-08-26, **provisional while L09 is in flight** — the wave's final figure is written at its close, step five of § 5 |
+| L09 (in flight) | 7 so far | B-105 and B-106, both found by mutation in the phases that wrote the instruments; **B-108**, the oracle itself — its `neutralise` broke the React tree and it recorded the damage as the reference, on four states of the exact kind this lot wires; B-110's first attempt, which took three seeds out of the schema arm while the register claimed that arm held them; and the filters rule, which read the FIRST listing in the cache rather than the active one and reported 24 rows beside a count line saying 4 · recounted at the wave's close |
+| **Total** | **33** | at 2026-08-26, **provisional while L09 is in flight** — the wave's final figure is written at its close, step five of § 5 |
 
 **The nine the correction wave found, since a wave that counts itself has to name its own.** The
 figure is large because the count is honest, not because the wave was worse: four of the nine are
@@ -2442,3 +2443,43 @@ the empties: a run that has just been read off the disk has moved nothing, and a
 the dense lists there puts a queue on screen that no run produced.
 
 <sub>`grep -n "scenario" frontend/maquette/design/src/mocks/handlers/staging.ts frontend/maquette/design/src/mocks/handlers/acquisition.ts`</sub>
+
+**B-118 — the seed builder deleted twenty-one seeds the mock layer serves.**
+`build-mock-seeds.py --write` deletes any seed file no family claims: « an orphan seed is a payload
+nothing can re-derive », which is right. Since L09 a family is deleted from `legacy.js` the moment
+its surface reads the layer instead (D5) — so it cannot be re-derived, `build()` does not build it,
+and the naive reading of « not in built » became « delete the payload the mock layer actually
+serves ».
+
+**Measured: one `--write` removed twenty-one of them**, including every queue list, every decision,
+the follows, the suggestions, the pipeline and the releases. Restored from git, and the builder
+keeps a CONVERTED family's seed by name now — the same list the correspondence arm already reads.
+
+**It was reached by a rebuild that had nothing to do with any of them**: adding one field to the
+settings fixture. The most destructive thing a script here can do was one flag away from a routine
+regeneration.
+
+<sub>`python3 scripts/build-mock-seeds.py --write` · `git status --short frontend/maquette/design/src/mocks/seeds/`</sub>
+
+**B-090 — the settings say the value they HOLD, and the lossy field is nobody's source.**
+The panel read `displayedValue` — the engine's `v`, a French summary rendered for a screen. 110 of
+the 159 fields differed from `raw` and two LOST information: a four-element list read
+« multi, vf, vostfr +1 » and an eighteen-file list read « paths.json5, disks.json5,
+categories.json5 +15 ».
+
+**A pre-formatted French value cannot feed a control**, which is what made this unavoidable at the
+surface with eight field kinds rather than merely untidy.
+
+`features/settings/format.ts` says a value in the interface's own words, and its test asserts
+against all 159 committed strings — extracted from `legacy.js` and held byte for byte against it,
+which is the only non-vacuous oracle available for a rendering. **152 reproduce exactly.** The
+seven that do not are the ones JSON cannot carry: `4` and `4.0` are one number, and the contract
+gains a `precision` — added to the FIXTURE, so the seed carries it and no list of keys lives in a
+handler where it would rot.
+
+**WHAT IS NOT DONE, and it is stated rather than glossed.** `displayedValue` is still declared, now
+`deprecated` and carrying its reason: no surface reads it, and it is what the formatter's test
+asserts against. Removing it would leave that test with a golden written from its own output, which
+is the vacuity this whole lot is built against. It dies with the fixture that produces it, at L13.
+
+<sub>`cd frontend/maquette/design && npm test -- --run` — 57 tests · `grep -n deprecated frontend/maquette/contract/openapi.json`</sub>

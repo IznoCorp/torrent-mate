@@ -217,6 +217,7 @@ dial
 dialog
 dials
 diffuses
+digits
 direct
 direction
 discover
@@ -335,6 +336,7 @@ hd
 head
 header
 heading
+health
 height
 held
 hero
@@ -453,6 +455,7 @@ loginform
 long
 lookup
 loop
+lossy
 main
 maintact
 maintenance
@@ -473,11 +476,13 @@ media
 mediasheet
 medium
 member
+members
 message
 meta
 method
 migrated
 min
+minute
 missing
 mobile
 mock
@@ -599,6 +604,7 @@ positions
 post
 poster
 posters
+precision
 present
 press
 previous
@@ -697,13 +703,16 @@ rule
 run
 running
 safari
+said
 same
 save
 savebar
+say
 says
 scale
 scen
 scenario
+schedule
 schedulers
 schemas
 score
@@ -880,6 +889,7 @@ trailer
 travelled
 trim
 tuples
+two
 typed
 ua
 ui
@@ -891,6 +901,7 @@ units
 universe
 unknown
 unnamed
+unreadable
 unwind
 unwinding
 upcoming
@@ -920,6 +931,7 @@ warning
 was
 watcher
 ways
+weekday
 weight
 what
 when
@@ -937,6 +949,7 @@ world
 wrap
 write
 written
+wrong
 xl
 xs
 year

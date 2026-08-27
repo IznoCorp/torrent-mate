@@ -22,6 +22,7 @@ import type { ReactElement } from "react";
 import { useMaintenanceReference } from "../../features/maintenance/reference";
 import { type Fact } from "../../lib/engine-drawing";
 import { useUiState } from "../../lib/store-access";
+import { useDeletionJournal, useMaintenanceActions } from "./queries";
 import { crossReference, section, sectionHeading, topicRow } from "../../ui/variants";
 import { guidance } from "../../ui/variants/layout";
 
@@ -32,10 +33,11 @@ export function MaintenancePage(): ReactElement | null {
     factRowsHTML,
     skelCardsInner,
     MAINT_TOPICS,
-    MAINT_ACTIONS,
     RISQUES,
-    JOURNAL,
   } = useMaintenanceReference();
+  // FROM THE CACHE (invariant 4).
+  const { data: MAINT_ACTIONS = [] } = useMaintenanceActions();
+  const { data: JOURNAL = { total: 0, lignes: [] } } = useDeletionJournal();
 
   if (state.phase !== "ready") {
     return state.phase === "error" ? (

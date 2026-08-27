@@ -490,7 +490,8 @@
         "raw": 4,
         "name": "max_size_movie_gb",
         "displayedValue": "4.0",
-        "note": "Maximum movie file size in GB"
+        "note": "Maximum movie file size in GB",
+        "precision": 1
       },
       {
         "file": "encoding",
@@ -499,7 +500,8 @@
         "raw": 2,
         "name": "max_size_episode_gb",
         "displayedValue": "2.0",
-        "note": "Maximum episode file size in GB"
+        "note": "Maximum episode file size in GB",
+        "precision": 1
       },
       {
         "file": "encoding",
@@ -627,7 +629,8 @@
         "type": "number",
         "raw": 2,
         "name": "target_ratio",
-        "displayedValue": "2.0"
+        "displayedValue": "2.0",
+        "precision": 1
       },
       {
         "file": "tracker",
@@ -635,7 +638,8 @@
         "type": "number",
         "raw": 1,
         "name": "min_ratio",
-        "displayedValue": "1.0"
+        "displayedValue": "1.0",
+        "precision": 1
       },
       {
         "file": "tracker",
@@ -1129,7 +1133,8 @@
         "type": "number",
         "raw": 0,
         "name": "min_ratio",
-        "displayedValue": "0.0"
+        "displayedValue": "0.0",
+        "precision": 1
       },
       {
         "file": "scraper",
@@ -1161,7 +1166,8 @@
         "type": "number",
         "raw": 95,
         "name": "short_title_threshold",
-        "displayedValue": "95.0"
+        "displayedValue": "95.0",
+        "precision": 1
       },
       {
         "file": "scraper",
@@ -1169,7 +1175,8 @@
         "type": "number",
         "raw": 90,
         "name": "long_title_threshold",
-        "displayedValue": "90.0"
+        "displayedValue": "90.0",
+        "precision": 1
       },
       {
         "file": "trailers",

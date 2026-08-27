@@ -386,12 +386,22 @@ def main() -> int:
     if arguments.write:
         for path, text in built.items():
             Path(path).write_text(text, encoding="utf-8")
-        # A seed whose family has left the register is deleted rather than
-        # left behind: an orphan seed is a payload nothing can re-derive.
+        # A seed whose family has left the register is deleted rather than left
+        # behind: an orphan seed is a payload nothing can re-derive.
+        #
+        # A CONVERTED FAMILY'S SEED IS NOT AN ORPHAN, and deleting one is the
+        # worst thing this script can do. Since L09 a family is deleted from
+        # `legacy.js` the moment its surface reads the layer instead (D5) — so
+        # it cannot be re-derived, `build()` does not build it, and the naive
+        # reading of « not in built » is « delete the payload the mock layer
+        # actually serves ». Measured: one `--write` removed twenty-one of them,
+        # including every queue list and every decision.
+        kept = {str(file_for(name)) for name in converted_families()}
         for existing in sorted(SEEDS.glob("*.json")):
-            if str(existing) not in built:
-                existing.unlink()
-                print(f"  removed {existing.relative_to(ROOT)} — no family claims it")
+            if str(existing) in built or str(existing) in kept:
+                continue
+            existing.unlink()
+            print(f"  removed {existing.relative_to(ROOT)} — no family claims it")
         print(f"build-mock-seeds: wrote {len(built)} seed(s) to "
               f"{SEEDS.relative_to(ROOT)}")
         return 0
