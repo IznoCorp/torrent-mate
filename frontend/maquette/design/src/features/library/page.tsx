@@ -22,6 +22,7 @@ import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Icon } from "../../ui/icon";
+import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { useLibraryReference, type IncompleteShow, type LibraryRow } from "../../features/library/reference";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
 import { body, countLine, countLineAction, emptyNote, endMark, filterPill, filterPillCount, filterZone, loadError, loadErrorAction, loadFooter, pillBar, pillScroll, searchClear, searchField, searchInput, section, segment, segmentCount, segmentTab, statusDot, viewSwitch, viewSwitchButton, viewSwitchWrap, viewTabs } from "../../ui/variants";
@@ -269,7 +270,6 @@ function LibraryList(): ReactElement {
     libFiltered,
     libRowHTML,
     tileHTML,
-    surfErrInner,
     paintSelBar,
     libraryLoaded,
     LIB_PAGE,
@@ -358,20 +358,24 @@ function LibraryList(): ReactElement {
   if (state.phase === "loading") {
     items = (
       <div id="libitems" className={grid ? "gallery" : "sec"} data-part={grid ? "grid" : "section"}>
-        {Array.from({ length: grid ? 9 : 5 }, (_, index) => (
-          <div key={index} className={grid ? "sk tile" : "sk skcard"} data-skeleton="" data-part={grid ? "tile" : undefined} />
-        ))}
+        <Skeletons count={grid ? 9 : 5} shape={grid ? "tile" : "card"} />
       </div>
     );
   } else if (state.phase === "error") {
+    // THE ENGINE'S LAST COMPONENT READER, and it is gone. This branch used to
+    // ask `legacy.js` for a string and hand it to `dangerouslySetInnerHTML`, so
+    // the markup, the French and the retry all lived in the dying half. The
+    // engine keeps `surfErr` for the surfaces IT still draws (D5 — its share
+    // dies with the surface that stops needing it), and the retry is real:
+    // B-031's inert `<button data-phase="ready">` set a store field and re-asked
+    // nothing.
     items = (
       <div
         id="libitems"
         className={grid ? "gallery" : "sec"} data-part={grid ? "grid" : "section"}
-        dangerouslySetInnerHTML={{
-          __html: `<div class="surferr" data-part="surface-error" role="alert">${surfErrInner(t("screens.library.errorSubject"))}</div>`,
-        }}
-      />
+      >
+        <SurfaceError subject={t("screens.library.errorSubject")} />
+      </div>
     );
   } else if (rows.length === 0) {
     items = (
@@ -447,9 +451,7 @@ function LibraryList(): ReactElement {
     } else {
       foot = grid ? (
         <div className="gallery" data-part="grid">
-          {Array.from({ length: 3 }, (_, index) => (
-            <div key={index} className="sk tile" data-part="tile" data-skeleton="" />
-          ))}
+          <Skeletons count={3} shape="tile" />
         </div>
       ) : (
         <div className={section()} data-part="section">

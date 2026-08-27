@@ -643,6 +643,7 @@ restoration
 result
 results
 resume
+retry
 return
 rich
 right
@@ -722,6 +723,7 @@ since
 size
 skel
 skeleton
+skeletons
 skip
 slice
 slot

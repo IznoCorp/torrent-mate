@@ -17,11 +17,12 @@
 // and error surfaces) and `state.maintTopic` (which rubric is open, `null` for the
 // list) — and the delegation is what writes them.
 import { useTranslation } from "react-i18next";
+import { SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
 import { useMaintenanceReference } from "../../features/maintenance/reference";
 import { type Fact } from "../../lib/engine-drawing";
 import { useUiState } from "../../lib/store-access";
-import { crossReference, section, sectionHeading, surfaceError, topicRow } from "../../ui/variants";
+import { crossReference, section, sectionHeading, topicRow } from "../../ui/variants";
 import { guidance } from "../../ui/variants/layout";
 
 export function MaintenancePage(): ReactElement | null {
@@ -30,7 +31,6 @@ export function MaintenancePage(): ReactElement | null {
   const {
     factRowsHTML,
     skelCardsInner,
-    surfErrInner,
     MAINT_TOPICS,
     MAINT_ACTIONS,
     RISQUES,
@@ -39,12 +39,7 @@ export function MaintenancePage(): ReactElement | null {
 
   if (state.phase !== "ready") {
     return state.phase === "error" ? (
-      <div
-        className={surfaceError()} data-part="surface-error" role="alert"
-        dangerouslySetInnerHTML={{
-          __html: surfErrInner(t("screens.maintenance.errorSubject")),
-        }}
-      />
+      <SurfaceError subject={t("screens.maintenance.errorSubject")} />
     ) : (
       <div
         className={section()} data-part="section"

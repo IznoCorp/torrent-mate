@@ -705,5 +705,12 @@
       "clearLabel": "Effacer la recherche",
       "saveBarLabel": "Modifications non enregistrées"
     }
+  },
+  "surfaces": {
+    "error": {
+      "lead": "Impossible de charger {{subject}}.",
+      "body": "\n      Le serveur n'a pas répondu dans le temps imparti. Rien n'est perdu — ce qui\n      est affiché ailleurs reste valide.\n      ",
+      "retry": "Réessayer"
+    }
   }
 }

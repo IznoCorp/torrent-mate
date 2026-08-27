@@ -1,6 +1,6 @@
 {
   "$comment": "The recorded oracle's reference — `frontend/maquette/oracle.py`. One entry per (named state x region): a bounding rectangle rounded to one decimal, and the computed properties of `regions.json`'s `probe.computedStyleSubset`. `null` means the region's selector matched nothing in that state, which is data rather than an omission. Regenerate with `--record`; ratify a REVIEWED change with `--accept`, never from a gate.",
-  "baseCommit": "12a134caf7d870c0ab7347b19c3baac9cbe1ed89",
+  "baseCommit": "6b529812f1e55edeeec2dded6050f9c853509d32",
   "platform": "Darwin/arm64",
   "counts": {
     "states": 83,
@@ -6369,7 +6369,7 @@
           "x": 0,
           "y": 128.5,
           "width": 390,
-          "height": 28
+          "height": 162
         },
         "style": {
           "position": "static",
@@ -6595,7 +6595,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 87.5
+          "height": 221.5
         },
         "style": {
           "position": "static",
@@ -7605,7 +7605,7 @@
           "x": 0,
           "y": 128.5,
           "width": 390,
-          "height": 28
+          "height": 300
         },
         "style": {
           "position": "static",
@@ -7831,7 +7831,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 87.5
+          "height": 359.5
         },
         "style": {
           "position": "static",
@@ -8461,7 +8461,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 28
+          "height": 162
         },
         "style": {
           "position": "static",
@@ -8655,7 +8655,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 28
+          "height": 162
         },
         "style": {
           "position": "static",
@@ -9668,7 +9668,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 28
+          "height": 230
         },
         "style": {
           "position": "static",
@@ -9862,7 +9862,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 28
+          "height": 230
         },
         "style": {
           "position": "static",

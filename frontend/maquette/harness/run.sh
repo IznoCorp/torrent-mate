@@ -78,13 +78,18 @@ SERVED="/tmp/tm-refonte"
 #                    back. It is not a NAME that moved — it is the instrument
 #                    every later phase's proof rests on, and a phase that
 #                    breaks it must be the phase that hears about it.
+#   state_surfaces   the loading and error surfaces, read by their own text and
+#                    their own control rather than by a rectangle. It is here
+#                    because B-108 showed the oracle recording four of them as
+#                    BLANK — an instrument's blind spot needs a second reader,
+#                    not a wider version of itself.
 #
 # `arrivals.py` guards the `data-pipe` contract too and is NOT here: it holds
 # R66, which checks every figure against the run `library.db` really recorded,
 # by run_uid. That database is the operator's and a CI runner has none, so the
 # rule would fail there for a reason that has nothing to do with the change
 # under test. It runs in the full suite, on the machine that has the data.
-CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.py boot_order.py settle.py)
+CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.py boot_order.py settle.py state_surfaces.py)
 
 # THE REPOSITORY'S CHEAP GUARDS, run beside the rules (B-063, arbitrated by the
 # operator on 2026-08-25). They read the tree in seconds and they read exactly

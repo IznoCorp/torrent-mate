@@ -148,6 +148,8 @@ when the defect comes back.
 | B-105 | R89's waterfall hold was green over the exact defect it names | by mutation | `fixed #NNN` |
 | B-106 | The server-state arm read only the component tree, so its ceiling was pre-satisfied | by mutation | `fixed #NNN` |
 | B-107 | `git checkout --` on an untracked file is a no-op, and a mutation stayed in the tree | by review | `fixed #NNN` |
+| B-108 | The oracle tore React's own nodes out before measuring, and recorded four states as blank | by oracle | `fixed #NNN` |
+| B-109 | A retry that re-asks nothing was written, and the invariant-4 arm refused it | by gate | `fixed #NNN` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -1970,8 +1972,8 @@ absence of a row can mean either.
 | L07-bis | 5 | B-075 |
 | L08 | 6 | PR #503's squash body — B-093 and B-094 write out two of the six; B-092 and B-095 are adjacent findings of that wave, not members of the six |
 | L08-bis (#505, the correction wave) | 9 | itemised below · squash `12a134ca` |
-| L09 (in flight) | 2 so far | B-105 and B-106, both found by mutation in the phases that wrote the instruments · recounted at the wave's close |
-| **Total** | **28** | at 2026-08-26, **provisional while L09 is in flight** — the wave's final figure is written at its close, step five of § 5 |
+| L09 (in flight) | 3 so far | B-105 and B-106, both found by mutation in the phases that wrote the instruments; **B-108**, the oracle itself — its `neutralise` broke the React tree and it recorded the damage as the reference, on four states of the exact kind this lot wires · recounted at the wave's close |
+| **Total** | **29** | at 2026-08-26, **provisional while L09 is in flight** — the wave's final figure is written at its close, step five of § 5 |
 
 **The nine the correction wave found, since a wave that counts itself has to name its own.** The
 figure is large because the count is honest, not because the wave was worse: four of the nine are
@@ -2234,3 +2236,62 @@ before it, or from git only where git tracks the file — and the restoration is
 the target, never by the command's exit code.
 
 <sub>`git checkout -- <untracked path>` exits 1 with « did not match any file(s) known to git »</sub>
+
+**B-108 — the oracle measured its own damage, and four states were recorded as blank.**
+`oracle.py`'s `neutralise` ran before each of its two passes and REMOVED every `.note` node from
+the DOM. Those nodes are drawn by React components. On the next reconciliation React tried to
+remove a child that was no longer its own and threw
+`NotFoundError: Failed to execute 'removeChild' on 'Node'` — **22 times over the 83 states** — the
+subtree died, and the surface rendered nothing.
+
+**The reference recorded that nothing as the truth.** Four states, eight measurements, and every
+one of them is a loading or an error surface:
+
+| State | Region | Recorded | Really renders |
+| --- | --- | ---: | ---: |
+| `acq-now-error` | `acquisition/body` | 28 px | 162 px |
+| `acq-now-loading` | `acquisition/body` | 28 px | 300 px |
+| `arr-error` | `arrivals/body` | 28 px | 162 px |
+| `arr-loading` | `arrivals/body` | 28 px | 230 px |
+
+**The instrument was blind exactly where L09 needs it.** These are the states this lot exists to
+wire, and the oracle would have proved them at zero divergence by comparing one blank against
+another.
+
+**The removal was also REDUNDANT.** `harness.css` carries
+`html.measuring .note { display: none !important }` — restored by B-081 on 2026-08-26 — and the
+oracle measures under `html.measuring`. The notes were already invisible to every capture. The DOM
+removal added nothing and cost the tree; the entry's original reasoning (a note left in place
+springs back to 75.6 px and pushes every region below it down) is answered by the CSS hide rather
+than discarded.
+
+**How it was found, and it is the method rather than luck.** L09 phase 4 converted six error
+surfaces onto one component. Four measurements moved. The wave's own brief says a moved measurement
+is named and explained before it is accepted — so it was, and the explanation was the instrument.
+
+**The repair**: one entry gone from `probe.neutralise`, its reasoning recorded in its place, and the
+reference re-recorded with the operator's arbitration. **8 measurements moved, 2 731 byte-identical**,
+and on each of the eight only the HEIGHT changed — no x, no y, no width, no computed property, which
+is the exact signature of a subtree that was rendering nothing and now renders. **R90**
+(`harness/state_surfaces.py`, 30 holds) reads those surfaces by their own text and their own control
+rather than by a rectangle, so an instrument's blind spot has a second reader instead of a wider
+version of itself.
+
+<sub>`python3 frontend/maquette/oracle.py --check` · 22 React errors measured by driving the 83 states under `html.measuring` with the removal in place, 0 without it</sub>
+
+**B-109 — a retry that re-asks nothing, refused by the arm written three phases earlier.**
+Phase 4 gave the library's error surface an `onRetry` that wrote `{ phase: "ready", libErr: false }`
+and restarted the simulated load. `phase` is a SERVER-STATE key, and
+`check-state-ownership.py --arm server-state` refused it: the component share went **4 → 5** against
+a ceiling of 4.
+
+**The arm was right and the change was taken back in the same phase.** No surface is wired to the
+query cache yet, so there is nothing to re-ask; a retry that only writes the store is a half-fix
+wearing the shape of a repair. The `onRetry` prop went with it — a prop with no caller is machinery
+nobody can justify, and it belongs to the phase that gives that surface a query.
+
+**It is written down because the count is what makes it real.** A guard refusing the wave that
+wrote it is the arrangement working; a guard whose refusal is quietly worked around is the
+arrangement failing, and only a register entry tells the two apart afterwards.
+
+<sub>`python3 scripts/check-state-ownership.py --arm server-state`</sub>

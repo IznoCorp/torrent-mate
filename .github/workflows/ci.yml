@@ -234,7 +234,7 @@ jobs:
       - run: npm ci --prefix frontend/maquette/design
         if: needs.changes.outputs.maquette == 'true'
       # The CONTRACT subset only. The 56-rule suite is a wave gate, not a
-      # per-PR one: 59 headless-Chrome runs cost 20-25 minutes, and these EIGHT
+      # per-PR one: 59 headless-Chrome runs cost 20-25 minutes, and these NINE
       # are the ones that fall when a NAME moves without all of its ends —
       # which is what a pull request most often does wrong. The step also runs
       # the repository's cheap guards, which `run.sh` folds into this tier.

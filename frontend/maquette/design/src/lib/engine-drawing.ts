@@ -120,7 +120,6 @@ export type EngineDrawing = {
   skelCards: (count: number) => string;
   skelCardsInner: (count: number) => string;
   surfErr: (subject: string) => string;
-  surfErrInner: (subject: string) => string;
   emptyInner: (title: string, body: string) => string;
   chipHTML: (chip: [string, string] | null | undefined) => string;
   svgIcon: (paths: string, strokeWidth?: number) => string;

@@ -24,6 +24,7 @@
 // and it reproduces the outer function's EMPTY case by drawing no section at
 // all.
 import { useTranslation } from "react-i18next";
+import { SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
 import { useArrivalsReference, type PipelineFact } from "../../features/arrivals/reference";
 import { type QueueCard } from "../../lib/engine-queue";
@@ -41,8 +42,7 @@ import {
   section as sectionClass,
   sectionHead,
   statusDot as statusDotClass,
-  surfaceError,
-} from "../../ui/variants";
+  } from "../../ui/variants";
 import {
   pilotActions,
   pilotBar,
@@ -198,7 +198,6 @@ export function ArrivalsPage(): ReactElement | null {
     secInner,
     emptyInner,
     skelCardsInner,
-    surfErrInner,
     derivedStuck,
     derivedMoving,
     derivedSettled,
@@ -208,12 +207,7 @@ export function ArrivalsPage(): ReactElement | null {
     // Each emits ONE root element, and this draws that element itself so no
     // wrapper appears where the legacy had none.
     return state.phase === "error" ? (
-      <div
-        className={surfaceError()} data-part="surface-error" role="alert"
-        dangerouslySetInnerHTML={{
-          __html: surfErrInner(t("screens.arrivals.errorSubject")),
-        }}
-      />
+      <SurfaceError subject={t("screens.arrivals.errorSubject")} />
     ) : (
       <div
         className={sectionClass()} data-part="section"

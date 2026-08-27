@@ -21,6 +21,7 @@
 // `paintSelBar` already has, one level down.
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
 import { Icon } from "../../ui/icon";
 import { useAcquisitionReference, type Follow } from "../../features/acquisition/reference";
@@ -90,7 +91,6 @@ function NowTab(): ReactElement {
     secInner,
     emptyInner,
     skelCardsInner,
-    surfErrInner,
     derivedTakeable,
     derivedBlocked,
     derivedInflight,
@@ -103,12 +103,7 @@ function NowTab(): ReactElement {
     return (
       <div className={body()} data-part="surface/body" data-region="acquisition/body">
         {state.phase === "error" ? (
-          <div
-            className={surfaceError()} data-part="surface-error" role="alert"
-            dangerouslySetInnerHTML={{
-              __html: surfErrInner(t("screens.acquisition.errorNow")),
-            }}
-          />
+          <SurfaceError subject={t("screens.acquisition.errorNow")} />
         ) : (
           <div
             className={sectionClass()} data-part="section"
@@ -242,7 +237,6 @@ function FollowsTab(): ReactElement {
     tileHTML,
     swipeHTML,
     skelCardsInner,
-    surfErrInner,
     emptyInner,
     svgIcon,
     stFraction,
@@ -393,12 +387,7 @@ function FollowsTab(): ReactElement {
     );
   } else if (state.phase === "error") {
     content = (
-      <div
-        className={surfaceError()} data-part="surface-error" role="alert"
-        dangerouslySetInnerHTML={{
-          __html: surfErrInner(t("screens.acquisition.errorFollows")),
-        }}
-      />
+      <SurfaceError subject={t("screens.acquisition.errorFollows")} />
     );
   } else if (visible.length === 0) {
     content = (
@@ -589,7 +578,6 @@ function DiscoverTab(): ReactElement {
   const {
     icons,
     skelCardsInner,
-    surfErrInner,
     fillSug,
     sugFoot,
     mountDeck,
@@ -734,12 +722,7 @@ function DiscoverTab(): ReactElement {
             dangerouslySetInnerHTML={{ __html: skelCardsInner(4) }}
           />
         ) : state.phase === "error" ? (
-          <div
-            className={surfaceError()} data-part="surface-error" role="alert"
-            dangerouslySetInnerHTML={{
-              __html: surfErrInner(t("screens.acquisition.errorSuggestions")),
-            }}
-          />
+          <SurfaceError subject={t("screens.acquisition.errorSuggestions")} />
         ) : null}
         {/* FILLED BY THE FRAGMENT, never by React — see this file's header. */}
         <div id="sugitems" hidden={state.phase !== "ready"}></div>

@@ -17,11 +17,12 @@
 // seam depends on being byte-exact. This component draws the `<ol class="flux">`
 // itself, because React cannot set the outer markup of a node it also renders.
 import { useTranslation } from "react-i18next";
+import { SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
 import { useSystemReference } from "../../features/system/reference";
 import { type Fact } from "../../lib/engine-drawing";
 import { useUiState } from "../../lib/store-access";
-import { crossReference, crossReferenceLink, section, sectionHeading, surfaceError, topicRow } from "../../ui/variants";
+import { crossReference, crossReferenceLink, section, sectionHeading, topicRow } from "../../ui/variants";
 import { guidance } from "../../ui/variants/layout";
 
 export function SystemPage(): ReactElement | null {
@@ -30,7 +31,6 @@ export function SystemPage(): ReactElement | null {
   const {
     factRowsHTML,
     skelCardsInner,
-    surfErrInner,
     SERVICES,
     SERVICES_PANNE,
     SCHEDULERS,
@@ -49,12 +49,7 @@ export function SystemPage(): ReactElement | null {
     // Each emits ONE root element, and this draws that element itself so no
     // wrapper appears where the legacy had none.
     return state.phase === "error" ? (
-      <div
-        className={surfaceError()} data-part="surface-error" role="alert"
-        dangerouslySetInnerHTML={{
-          __html: surfErrInner(t("screens.system.errorSubject")),
-        }}
-      />
+      <SurfaceError subject={t("screens.system.errorSubject")} />
     ) : (
       <div
         className={section()} data-part="section"
