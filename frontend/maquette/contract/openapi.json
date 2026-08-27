@@ -1670,7 +1670,31 @@
             "description": "the staged item"
           }
         ],
-        "x-unseeded": "an acknowledgement."
+        "x-unseeded": "an acknowledgement.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "outcome": {
+                    "type": "string",
+                    "enum": [
+                      "resolved",
+                      "left"
+                    ],
+                    "description": "whether the operator agreed with a CANDIDATE, which puts the folder back through the pipeline under the name picked, or with the MACHINE, which keeps the automatic result and re-scrapes nothing. The card says which afterwards, so the answer cannot be derived from the request"
+                  },
+                  "choice": {
+                    "type": "string",
+                    "description": "the title picked, when the operator picked one"
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/staging/media/{mediaId}/discard": {
@@ -3161,6 +3185,45 @@
           }
         },
         "x-unseeded": "the running version. It is the server's own identity and no maquette fixture carries one."
+      }
+    },
+    "/api/acquisition/to-handle/{mediaId}/take": {
+      "post": {
+        "operationId": "takeQueued",
+        "summary": "Restart one item that was waiting to be acquired",
+        "description": "The interface offers « récupérer » on every takeable card and the contract had no operation for it — the engine moved the card inside its own fixture. Recorded here as the interface's requirement (D7): the backend must restart the acquisition and the card must leave « à récupérer » for « en vol » at its first step.",
+        "parameters": [
+          {
+            "name": "mediaId",
+            "in": "path",
+            "required": true,
+            "description": "the card's own title, which is how the queue keys one",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "whether a card of that name was waiting",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-unseeded": "whether a card of that name was waiting is decided by the layer's own state at the moment of the call, not by a fixture — there is nothing to seed it from"
       }
     }
   },

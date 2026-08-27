@@ -841,6 +841,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/to-handle/{mediaId}/take": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restart one item that was waiting to be acquired
+         * @description The interface offers « récupérer » on every takeable card and the contract had no operation for it — the engine moved the card inside its own fixture. Recorded here as the interface's requirement (D7): the backend must restart the acquisition and the card must leave « à récupérer » for « en vol » at its first step.
+         */
+        post: operations["takeQueued"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2021,7 +2041,19 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description whether the operator agreed with a CANDIDATE, which puts the folder back through the pipeline under the name picked, or with the MACHINE, which keeps the automatic result and re-scrapes nothing. The card says which afterwards, so the answer cannot be derived from the request
+                     * @enum {string}
+                     */
+                    outcome?: "resolved" | "left";
+                    /** @description the title picked, when the operator picked one */
+                    choice?: string;
+                };
+            };
+        };
         responses: {
             /** @description it is moving again */
             200: {
@@ -2856,6 +2888,31 @@ export interface operations {
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
+        };
+    };
+    takeQueued: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the card's own title, which is how the queue keys one */
+                mediaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description whether a card of that name was waiting */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                    };
+                };
+            };
         };
     };
 }

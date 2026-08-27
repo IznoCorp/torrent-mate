@@ -36,6 +36,7 @@
 
 above
 accent
+accepted
 account
 acq
 acqtab
@@ -71,6 +72,7 @@ arrival
 arrivals
 arriving
 artwork
+as
 ask
 asked
 at
@@ -366,6 +368,7 @@ index
 inert
 inflight
 info
+informative
 initial
 inner
 input
@@ -431,6 +434,7 @@ list
 listener
 listeners
 listing
+lists
 live
 lmode
 load
@@ -489,6 +493,7 @@ multi
 multiple
 muted
 name
+named
 names
 nav
 navgo
@@ -628,8 +633,10 @@ recents
 reconcile
 record
 rect
+redraw
 ref
 reference
+refill
 refresh
 refusal
 refuse
@@ -644,6 +651,7 @@ released
 releases
 remembered
 remove
+removed
 renamed
 renames
 render
@@ -910,6 +918,7 @@ weight
 what
 when
 white
+why
 wide
 width
 window

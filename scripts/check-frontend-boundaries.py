@@ -413,6 +413,19 @@ def arm_layering(root: Path) -> int:
     return len(violations)
 
 
+# THE ONE MODULE EVERY WIRED SURFACE IMPORTS, and it is exempt because that is
+# its subject rather than a symptom. `engine/engine-shape.ts` inverts the
+# projection L08 declared, so that data from the mock layer can be handed to the
+# markup producers still living in `legacy.js`. Every surface L09 wires needs it,
+# by construction — and it DIES WITH THOSE PRODUCERS at L13, taking this
+# exemption with it.
+#
+# It is not in `ui/` or `lib/`, which the arm already skips, because lifetime is
+# what decides where it lives: `engine/` is the bucket L13 empties, and a
+# conversion INTO the engine's shape has no meaning after the engine.
+FAN_IN_EXEMPT = frozenset({"engine/engine-shape.ts"})
+
+
 def arm_fan_in(root: Path) -> int:
     """Refuse a module outside `ui/` and `lib/` that too many features import.
 
@@ -427,6 +440,8 @@ def arm_fan_in(root: Path) -> int:
     for source, targets in edges.items():
         for target in set(targets):
             if bucket_of(target) in ("ui", "lib"):
+                continue
+            if target in FAN_IN_EXEMPT:
                 continue
             importers.setdefault(target, set()).add(feature_of(source) or bucket_of(source))
     over = {m: f for m, f in importers.items() if len(f) > FAN_IN_CEILING}

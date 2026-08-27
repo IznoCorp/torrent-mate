@@ -41,7 +41,8 @@
     "BLOCKED": {
       "class": "served",
       "why": "arrivals — what is blocked, with the reason",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
     "CADENCE_CRON": {
       "class": "served",
@@ -88,7 +89,8 @@
     "DONE_TODAY": {
       "class": "served",
       "why": "arrivals — what reached the library today",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
     "EP_LABEL": {
       "class": "interface",
@@ -118,7 +120,8 @@
     "FOLLOWS": {
       "class": "served",
       "why": "the twelve follows with their true states, read from acquire.db",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the deck reads /api/acquisition/followed"
     },
     "GROUPS": {
       "class": "interface",
@@ -143,7 +146,8 @@
     "INFLIGHT": {
       "class": "served",
       "why": "arrivals — what is in flight",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
     "JOURNAL": {
       "class": "served",
@@ -183,17 +187,20 @@
     "MOVING": {
       "class": "served",
       "why": "staging — what is moving through the pipeline",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
     "NOTFOUND": {
       "class": "served",
       "why": "arrivals — what no release satisfies, loaded scenario",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
     "NOTFOUND_REAL": {
       "class": "served",
       "why": "arrivals — what no release satisfies, real scenario",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
     "OWNED": {
       "class": "served",
@@ -301,12 +308,14 @@
     "SETTLED": {
       "class": "served",
       "why": "staging — what has settled, loaded scenario",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
     "SETTLED_REAL": {
       "class": "served",
       "why": "staging — what has settled, real scenario",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
     "SHEETS_OLD": {
       "class": "unserved",
@@ -331,12 +340,14 @@
     "STUCK": {
       "class": "served",
       "why": "staging — the folders the pipeline could not name, loaded scenario",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
     "STUCK_REAL": {
       "class": "served",
       "why": "staging — the folders the pipeline could not name, real scenario",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
     "ST_LABEL": {
       "class": "interface",
@@ -356,7 +367,8 @@
     "SUGGESTIONS": {
       "class": "served",
       "why": "the suggestion deck, produced by the engine actually executing a TMDB call",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the deck reads /api/acquisition/suggestions through a seam; its own index paging is drawing, and goes at L13"
     },
     "SUG_BATCH": {
       "class": "interface",
@@ -372,7 +384,8 @@
     "TAKEABLE": {
       "class": "served",
       "why": "arrivals — what is ready to be grabbed",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
     "TODAY": {
       "class": "unserved",

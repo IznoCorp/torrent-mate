@@ -48,9 +48,10 @@ import { useTranslation } from "react-i18next";
 // sentence, and `t()` would only wrap the lookup in a second one.
 import fr from "../../i18n/fr.json";
 import { useDecisions } from "./queries";
+import { useAcquisitionQueue, useStaging } from "../../lib/queue";
 import { useArrivalsReference, type PendingDecision, type SettledDecision } from "../../features/arrivals/reference";
 import { type QueueCard } from "../../lib/engine-queue";
-import { useStoreContent } from "../../lib/store-access";
+import { useStoreContent, useUiState } from "../../lib/store-access";
 import { actionButton, backAction, body, emptyNote, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, sheetActions } from "../../ui/variants";
 import { guidance } from "../../ui/variants/layout";
 
@@ -289,8 +290,6 @@ export function ResolutionScreen() {
     REASON_DETAIL,
     REASON_LABEL,
     REASON_TONE,
-    derivedBlocked,
-    derivedStuck,
   } = useArrivalsReference();
   const { t } = useTranslation();
   // THE DECISIONS COME FROM THE CACHE (invariant 4). `decisionPending` and
@@ -305,6 +304,9 @@ export function ResolutionScreen() {
   // engine's document-level delegation, and it converts when its last reader
   // does. Splitting it here would leave two truths about one queue.
   const { data: decisions } = useDecisions();
+  const scenario = String(useUiState().scen) === "loaded" ? "loaded" : "";
+  const { data: staging } = useStaging(scenario);
+  const { data: queue } = useAcquisitionQueue(scenario);
   const settledDecisions = decisions?.settled ?? [];
   const decisionPending = (subject: string | null) =>
     decisions?.pending.find((entry) => entry.d === subject) ?? null;
@@ -316,8 +318,8 @@ export function ResolutionScreen() {
   // acquisition side and « Ça coince » in Arrivées. They are two views of one
   // thing — a folder the scrape could not name — and a progression that
   // counted only one of them would be wrong on the other.
-  const pending = derivedBlocked()
-    .concat(derivedStuck())
+  const pending = (queue?.blocked ?? [])
+    .concat(staging?.stuck ?? [])
     .filter((card: QueueCard) => decisionPending(card.t as string) != null);
   const rank = decision
     ? pending.findIndex((card: QueueCard) => card.t === decision.d) + 1

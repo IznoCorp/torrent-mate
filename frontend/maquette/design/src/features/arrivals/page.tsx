@@ -28,6 +28,7 @@ import { SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
 import { useArrivalsReference, type PipelineFact } from "../../features/arrivals/reference";
 import { usePipeline } from "./queries";
+import { useStaging } from "../../lib/queue";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useUiState } from "../../lib/store-access";
 import {
@@ -201,15 +202,13 @@ function LastRun(): ReactElement | null {
 export function ArrivalsPage(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
-  const {
-    cardHTML,
-    secInner,
-    emptyInner,
-    skelCardsInner,
-    derivedStuck,
-    derivedMoving,
-    derivedSettled,
-  } = useArrivalsReference();
+  const { cardHTML, secInner, emptyInner, skelCardsInner } = useArrivalsReference();
+  // WHICH WORLD. The prototype carries two and the harness switches between
+  // them; the key carries it, so a surface never reads the other one's cards.
+  const scenario = state.scen === "loaded" ? "loaded" : "";
+  // FROM THE CACHE (invariant 4). The three lists are one resource with four
+  // readers; this is one of them.
+  const { data: staging } = useStaging(scenario);
 
   if (state.phase !== "ready") {
     // Each emits ONE root element, and this draws that element itself so no
@@ -224,9 +223,9 @@ export function ArrivalsPage(): ReactElement | null {
     );
   }
 
-  const stuck = derivedStuck();
-  const moving = derivedMoving();
-  const settled = derivedSettled();
+  const stuck = staging?.stuck ?? [];
+  const moving = staging?.moving ?? [];
+  const settled = staging?.settled ?? [];
   const nothing = stuck.length + moving.length + settled.length === 0;
 
   // A section that would be empty is not drawn at all — the outer `secHTML`

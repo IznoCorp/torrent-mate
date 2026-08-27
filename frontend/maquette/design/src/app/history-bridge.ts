@@ -9,6 +9,7 @@
 // and it stays legible in one place.
 import { createBrowserHistory } from "@tanstack/react-router";
 import { go } from "../lib/navigate";
+import { firstStuckFolder } from "../lib/queue";
 
 // The bridge's contract, stated once. The verbs are the legacy nav cluster's
 // primitives, and their names are the fragment's own; the state objects
@@ -241,7 +242,10 @@ window.__screens = {
   // out of `fr.json`: it is a route parameter, and an address that changed
   // with the interface language would no longer identify anything.
   resolution: (folder?: string, replace?: boolean) => {
-    const first = window.__referentiel.derivedStuck()[0]?.t;
+    // FROM THE CACHE, since L09 — the same three lists every surface reads.
+    // A default subject read off a fixture the engine no longer holds would be
+    // a door opening onto nothing.
+    const first = firstStuckFolder();
     const target = folder ?? (typeof first === "string" ? first : null);
     window.__store.write({ resolveTarget: target });
     go({

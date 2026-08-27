@@ -24,6 +24,7 @@ import PIPELINE from "../mocks/seeds/pipeline.json";
 import PENDING_DECISIONS from "../mocks/seeds/pending-decisions.json";
 import SETTLED_DECISIONS from "../mocks/seeds/settled-decisions.json";
 import STUCK from "../mocks/seeds/stuck.json";
+import SUGGESTIONS from "../mocks/seeds/suggestions.json";
 
 type Renames = Record<string, string>;
 type Projection = { rename?: Record<string, Renames>; tuples?: Record<string, string[]>;
@@ -134,6 +135,20 @@ describe("toEngineShape", () => {
     // and so must the inverse.
     const converted = toEngineShape<Record<string, unknown>[]>("STUCK_REAL", STUCK);
     expect(converted[0].strip).toEqual((STUCK as Record<string, unknown>[])[0].strip);
+  });
+
+  it("leaves a plain string inside a mixed array alone", () => {
+    // A suggestion's `why` is « Recoupé par », then `{emphasis: "4"}`, then
+    // « titres de votre médiathèque ». Renaming a STRING's keys turns it into
+    // an object of its own characters, and the engine rendered the result as
+    // `undefined` in bold — caught on screen by R11 before this test existed.
+    const converted = toEngineShape<Record<string, unknown>[]>(
+      "SUGGESTIONS", SUGGESTIONS);
+    const why = converted[0].why as unknown[];
+    expect(typeof why[0]).toBe("string");
+    expect(why[0]).toBe((SUGGESTIONS as { why: unknown[] }[])[0].why[0]);
+    expect(why[1]).toHaveProperty("e");
+    expect(why[1]).not.toHaveProperty("emphasis");
   });
 
   it("refuses a family nobody declared rather than answering the identity", () => {

@@ -86,6 +86,12 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createQueryClient } from "../lib/query-client";
 import { installDecisionLookup } from "../features/arrivals/queries";
 import { installLibraryPaging } from "../features/library/queries";
+import { installEngineRedraw } from "./engine-redraw";
+import {
+  installFollowActions,
+  installSuggestionsLookup,
+} from "../features/acquisition/queries";
+import { installQueueActions } from "../lib/queue";
 
 declare global {
   interface Window {
@@ -283,6 +289,11 @@ window.__queries = queryClient;
 // seams, and it goes with the engine at L13.
 installDecisionLookup(queryClient);
 installLibraryPaging(queryClient);
+installQueueActions(queryClient);
+installSuggestionsLookup(queryClient);
+installFollowActions(queryClient);
+// The engine draws surfaces that read the cache, and it draws them once.
+installEngineRedraw(queryClient);
 
 ReactDOM.createRoot(mountNode).render(
   <React.StrictMode>

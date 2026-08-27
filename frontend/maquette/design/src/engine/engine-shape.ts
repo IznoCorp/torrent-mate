@@ -101,9 +101,17 @@ function inverted(renames: Renames): Renames {
  * @param renames The contract-to-engine map.
  * @returns A new object wearing the engine's names.
  */
-function renamedKeys(value: Record<string, unknown>, renames: Renames): Record<string, unknown> {
+function renamedKeys(value: unknown, renames: Renames): unknown {
+  // A VALUE THAT IS NOT A PLAIN OBJECT CROSSES UNTOUCHED, and leaving that out
+  // is how a string becomes an object of its own characters. A suggestion's
+  // `why` is a MIXED array — « Recoupé par », then `{emphasis: "4"}`, then
+  // « titres de votre médiathèque » — and renaming a string's keys turned each
+  // sentence into `{0: "R", 1: "e", …}`, which the engine rendered as
+  // `undefined` in bold. Found by R11, which watches for exactly that word
+  // reaching the screen.
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return value;
   const out: Record<string, unknown> = {};
-  for (const [key, held] of Object.entries(value)) {
+  for (const [key, held] of Object.entries(value as Record<string, unknown>)) {
     out[renames[key] ?? key] = held;
   }
   return out;
@@ -160,9 +168,8 @@ function atPath(
     if (held === undefined || held === null) return held;
     if (index === segments.length) {
       return Array.isArray(held)
-        ? (held as Record<string, unknown>[]).map(
-            (entry) => renamedKeys(entry, inverted(renames)))
-        : renamedKeys(held as Record<string, unknown>, inverted(renames));
+        ? (held as unknown[]).map((entry) => renamedKeys(entry, inverted(renames)))
+        : renamedKeys(held, inverted(renames));
     }
     const segment = segments[index];
     if (segment === "[]") {

@@ -155,6 +155,9 @@ when the defect comes back.
 | B-112 | The library's sentinel watched the wrong port, masked by a 620 ms delay | by oracle | `fixed #NNN` |
 | B-113 | A named state was reachable from a known store and an unknown cache | by oracle | `fixed #NNN` |
 | B-114 | The listing conflated what the library claims with what the source holds | by rule | `fixed #NNN` |
+| B-115 | A redraw bridge deduplicated on a clock the oracle is allowed to stop | by oracle | `fixed #NNN` |
+| B-116 | The inverse projection turned a string into an object of its characters | by rule | `fixed #NNN` |
+| B-117 | The queue read served the dense world under the real scenario | by review | `fixed #NNN` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -1977,8 +1980,8 @@ absence of a row can mean either.
 | L07-bis | 5 | B-075 |
 | L08 | 6 | PR #503's squash body — B-093 and B-094 write out two of the six; B-092 and B-095 are adjacent findings of that wave, not members of the six |
 | L08-bis (#505, the correction wave) | 9 | itemised below · squash `12a134ca` |
-| L09 (in flight) | 5 so far | B-105 and B-106, both found by mutation in the phases that wrote the instruments; **B-108**, the oracle itself — its `neutralise` broke the React tree and it recorded the damage as the reference, on four states of the exact kind this lot wires; B-110's first attempt, which took three seeds out of the schema arm while the register claimed that arm held them; and the filters rule, which read the FIRST listing in the cache rather than the active one and reported 24 rows beside a count line saying 4 · recounted at the wave's close |
-| **Total** | **31** | at 2026-08-26, **provisional while L09 is in flight** — the wave's final figure is written at its close, step five of § 5 |
+| L09 (in flight) | 6 so far | B-105 and B-106, both found by mutation in the phases that wrote the instruments; **B-108**, the oracle itself — its `neutralise` broke the React tree and it recorded the damage as the reference, on four states of the exact kind this lot wires; B-110's first attempt, which took three seeds out of the schema arm while the register claimed that arm held them; and the filters rule, which read the FIRST listing in the cache rather than the active one and reported 24 rows beside a count line saying 4 · recounted at the wave's close |
+| **Total** | **32** | at 2026-08-26, **provisional while L09 is in flight** — the wave's final figure is written at its close, step five of § 5 |
 
 **The nine the correction wave found, since a wave that counts itself has to name its own.** The
 figure is large because the count is honest, not because the wave was worse: four of the nine are
@@ -2397,3 +2400,45 @@ own total » compares `loaded` against the rows drawn and against the claim, whi
 sentence always meant.
 
 <sub>`python3 frontend/maquette/harness/library_load.py` — 8 holds</sub>
+
+**B-115 — a redraw bridge that trusted a clock the instrument is allowed to stop.**
+Surfaces the engine draws do not re-render when a query lands: `render()` writes markup once, from
+whatever the accessors answered at that instant. `app/engine-redraw.ts` subscribes to the cache and
+asks the engine to redraw — and its first version skipped events whose `dataUpdatedAt` it had
+already seen.
+
+**`dataUpdatedAt` is `Date.now()`, and the oracle measures under a FROZEN CLOCK.** Every landing
+carried the same instant, so « skip what I have already seen » skipped every redraw after the
+first. The discover deck measured **311.8 px** where the live page draws **4 497** — the instrument
+saw an empty deck and the page was right.
+
+**A timestamp is not an identity when something is allowed to stop time.** The dedupe is gone; the
+bridge redraws on any update carrying data, which is idempotent and bounded.
+
+<sub>`TM_ORACLE_NO_FROZEN_CLOCK` in `frontend/maquette/oracle.py` is the switch that made this
+visible — the same measurement without it, and the deck drew</sub>
+
+**B-116 — the inverse projection turned a sentence into an object of its own characters.**
+A suggestion's `why` is a MIXED array: « Recoupé par », then `{emphasis: "4"}`, then « titres de
+votre médiathèque ». The walker renamed the keys of every element, and `Object.entries` on a string
+yields its characters — so each sentence became `{0: "R", 1: "e", …}` and the engine rendered
+`undefined` in bold.
+
+**Caught by R11**, which watches for exactly that word reaching the screen, and the oracle was green
+over it: the deck's height did not change enough to move a measured rectangle. A unit test names it
+now, asserting against the committed seed.
+
+<sub>`python3 frontend/maquette/harness/audit2.py` — « R11 visible jargon or technical value »</sub>
+
+**B-117 — the queue read served the dense world under the real scenario.**
+`readAcquisitionQueue` answered `TAKEABLE`, `BLOCKED`, `IN_FLIGHT` and `DONE_TODAY` whatever was
+asked for, while the engine's own `derived` answered EMPTY for the first two under the real
+scenario and empty reels for the others. `readStaging` had the same shape one list over: it served
+the dense `MOVING` where the engine had nothing moved yet.
+
+**No surface read either route, so nothing said so.** L08 seeded them and L09 is the first wave to
+ask. The two routes answer per scenario now, exactly as `derived` did — and « exactly » includes
+the empties: a run that has just been read off the disk has moved nothing, and a layer answering
+the dense lists there puts a queue on screen that no run produced.
+
+<sub>`grep -n "scenario" frontend/maquette/design/src/mocks/handlers/staging.ts frontend/maquette/design/src/mocks/handlers/acquisition.ts`</sub>

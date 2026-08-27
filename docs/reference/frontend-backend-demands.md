@@ -13,9 +13,9 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 53 |
+| operations the interface requires | 54 |
 | operations the backend has | 65 |
-| required and missing | 12 |
+| required and missing | 13 |
 | declared by both, different response shape | 41 |
 | declared by both, path parameter spelled differently | 11 |
 | fields carried pre-formatted | 25 |
@@ -39,6 +39,7 @@ than a blank page.
 | `GET /api/system/dependencies` | `readDependencies` | The external dependencies, and whether each answers |
 | `GET /api/system/errors` | `readErrors` | How many errors, out of how many runs, and the latest |
 | `GET /api/system/services` | `readServices` | The services, and whether each answers |
+| `POST /api/acquisition/to-handle/{mediaId}/take` | `takeQueued` | Restart one item that was waiting to be acquired |
 
 ## 2. Operations both declare, whose response carries different property names
 

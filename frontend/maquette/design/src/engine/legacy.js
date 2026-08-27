@@ -140,82 +140,6 @@ import { servedIdentityLines } from "../lib/served-identity";
   /* Real data */
   const LIB_TOTAL = 1861;
 
-  const TAKEABLE = [
-    {
-      t: "The Hawk",
-      s: "S01E04 · 1080p · 12 sources",
-      chip: ["warning", "À récupérer"],
-    },
-    {
-      t: "Backrooms",
-      s: "2026 · 2160p · 5 sources",
-      chip: ["warning", "À récupérer"],
-    },
-  ];
-  const BLOCKED = [
-    {
-      t: "Lucky",
-      s: "S02E07 · 1080p",
-      r: "Deux séries portent ce titre : TVDB 445120 « Lucky (2026) » et TMDB 90233 « Lucky (2021) ». Le scrape ne peut pas choisir seul.",
-      strip: [1, 1, 1, "blocked", 0],
-    },
-  ];
-  const INFLIGHT = [
-    {
-      t: "President Curtis",
-      s: "S01E02 · 1080p · VOSTFR",
-      strip: [1, 1, "now", 0, 0],
-      chip: ["info", "Ingestion"],
-    },
-    {
-      t: "Furious",
-      s: "S01E01 · 2160p",
-      strip: [1, 1, 1, "now", 0],
-      chip: ["info", "Scraping"],
-    },
-    {
-      t: "This City Is Ours",
-      s: "S01E06 · 1080p",
-      strip: [1, "now", 0, 0, 0],
-      chip: ["info", "Téléchargement 68 %"],
-    },
-  ];
-  const NOTFOUND = [
-    {
-      t: "I Will Find You",
-      s: "S01E03",
-      r: "Aucune release conforme depuis 4 jours. Prochaine recherche dans 2 h 10.",
-      chip: ["waiting", "Cherché, rien trouvé"],
-    },
-    {
-      t: "Dead Landes",
-      s: "S02E01",
-      r: "Aucune release conforme depuis 11 jours. Prochaine recherche dans 47 min.",
-      chip: ["waiting", "Cherché, rien trouvé"],
-    },
-  ];
-  const DONE_TODAY = [
-    {
-      t: "The Bombing of Pan Am 103",
-      s: "S01E05 · rangé à 14 h 12",
-      chip: ["success", "En médiathèque"],
-    },
-    {
-      t: "Smiling Friends",
-      s: "S03E02 · rangé à 11 h 40",
-      chip: ["success", "En médiathèque"],
-    },
-    {
-      t: "On l'appelait Robin des Bois",
-      s: "2026 · rangé à 09 h 27",
-      chip: ["success", "En médiathèque"],
-    },
-    {
-      t: "Ninja Turtles",
-      s: "2014 · rangé à 08 h 03",
-      chip: ["success", "En médiathèque"],
-    },
-  ];
 
   /* The 12 REAL follows, read from acquire.db with their true state: 4
      films waiting for a torrent, 8 series up to date (fractions cross-
@@ -224,160 +148,7 @@ import { servedIdentityLines } from "../lib/served-identity";
   /* In the « réel » scenario: nothing to grab, nothing to resolve, nothing
      in flight — the four followed films are at the legitimate rest state «
      searched, found nothing ». */
-  const NOTFOUND_REAL = [
-    {
-      t: "Kyma, l'onde mystérieuse",
-      s: "2026 · film",
-      r: "Aucune release conforme au profil depuis l'ajout. Prochaine recherche à 15 h 20.",
-      chip: ["waiting", "Cherché, rien trouvé"],
-    },
-    {
-      t: "L'Odyssée",
-      s: "2026 · film",
-      r: "Aucune release conforme au profil depuis 4 jours. Prochaine recherche à 15 h 20.",
-      chip: ["waiting", "Cherché, rien trouvé"],
-    },
-    {
-      t: "Spider-Man : Brand New Day",
-      s: "2026 · film",
-      r: "Aucune release conforme au profil depuis 4 jours. Prochaine recherche à 15 h 20.",
-      chip: ["waiting", "Cherché, rien trouvé"],
-    },
-    {
-      t: "Wicker",
-      s: "2026 · film",
-      r: "Aucune release conforme au profil depuis 9 jours. Prochaine recherche à 15 h 20.",
-      chip: ["waiting", "Cherché, rien trouvé"],
-    },
-  ];
 
-  const FOLLOWS = [
-    {
-      t: "Kyma, l'onde mystérieuse",
-      serie: null,
-      since: "9 août",
-      searches: 13,
-      k: "movie",
-      y: 2026,
-      st: "pending",
-      fresh: true,
-    },
-    {
-      t: "L'Odyssée",
-      serie: null,
-      since: "6 août",
-      searches: 16,
-      k: "movie",
-      y: 2026,
-      st: "pending",
-    },
-    {
-      t: "Spider-Man : Brand New Day",
-      serie: null,
-      since: "5 août",
-      searches: 19,
-      k: "movie",
-      y: 2026,
-      st: "pending",
-    },
-    {
-      t: "Wicker",
-      serie: null,
-      since: "31 juillet",
-      searches: 18,
-      k: "movie",
-      y: 2026,
-      st: "pending",
-    },
-    {
-      t: "American Dad!",
-      serie: "Continuing",
-      since: "3 juillet",
-      searches: 79,
-      k: "show",
-      y: 2005,
-      st: "up_to_date",
-      own: 403,
-      aired: 403,
-    },
-    {
-      t: "Dexter: Resurrection",
-      serie: "Continuing",
-      since: "5 août",
-      searches: 0,
-      k: "show",
-      y: 2025,
-      st: "up_to_date",
-      own: 96,
-      aired: 96,
-    },
-    {
-      t: "Furious",
-      serie: "Continuing",
-      since: "27 juillet",
-      searches: 15,
-      k: "show",
-      y: 2026,
-      st: "up_to_date",
-      own: 5,
-      aired: 5,
-    },
-    {
-      t: "House of the Dragon",
-      serie: "Continuing",
-      since: "3 juillet",
-      searches: 17,
-      k: "show",
-      y: 2022,
-      st: "up_to_date",
-      own: 26,
-      aired: 26,
-    },
-    {
-      t: "President Curtis",
-      serie: "Continuing",
-      since: "29 juillet",
-      searches: 23,
-      k: "show",
-      y: 2026,
-      st: "up_to_date",
-      own: 3,
-      aired: 3,
-    },
-    {
-      t: "Silo",
-      serie: "Continuing",
-      since: "3 juillet",
-      searches: 13,
-      k: "show",
-      y: 2023,
-      st: "pending",
-      own: 26,
-      aired: 27,
-    },
-    {
-      t: "Star Trek: Strange New Worlds",
-      serie: "Continuing",
-      since: "28 juillet",
-      searches: 18,
-      k: "show",
-      y: 2022,
-      st: "up_to_date",
-      own: 33,
-      aired: 33,
-    },
-    {
-      t: "Ted Lasso",
-      serie: "Continuing",
-      since: "4 août",
-      searches: 15,
-      k: "show",
-      y: 2020,
-      st: "up_to_date",
-      own: 35,
-      aired: 35,
-    },
-  ];
 
   /* 150 REAL suggestions: the output of the engine actually run against
      library.db (16 seeds → 32 TMDB calls → 640 raw titles → 503 survivors
@@ -665,394 +436,6 @@ import { servedIdentityLines } from "../lib/served-identity";
   /* Only suggestions whose sheet is COMPLETE (synopsis, genres, cast) are
      served: a card that opens a hollow sheet is a dead end. The reserve
      honestly states how many it carries. */
-  const SUGGESTIONS = [
-    {
-      t: "Superman : L'Homme de demain",
-      y: "2020",
-      k: "Film",
-      note: 7.1,
-      why: [
-        "Recoupé par ",
-        { e: "4" },
-        " titres de votre médiathèque, dont Ninja Turtles et Supergirl.",
-      ],
-    },
-    {
-      t: "Alita : Battle Angel",
-      y: "2019",
-      k: "Film",
-      note: 7.3,
-      why: [
-        "Recoupé par ",
-        { e: "3" },
-        " titres de votre médiathèque, dont Ninja Turtles et Supergirl.",
-      ],
-    },
-    {
-      t: "Numéro quatre",
-      y: "2011",
-      k: "Film",
-      note: 6.2,
-      why: [
-        "Recoupé par ",
-        { e: "3" },
-        " titres de votre médiathèque, dont Supergirl et Disclosure Day.",
-      ],
-    },
-    {
-      t: "Avengers : Endgame",
-      y: "2019",
-      k: "Film",
-      note: 8.2,
-      why: [
-        "Parce que vous avez ",
-        { e: "Supergirl" },
-        " et The Mandalorian and Grogu.",
-      ],
-    },
-    {
-      t: "L'Incroyable Hulk",
-      y: "2008",
-      k: "Film",
-      note: 6.2,
-      why: [
-        "Parce que vous avez ",
-        { e: "Ninja Turtles" },
-        " et The Mandalorian and Grogu.",
-      ],
-    },
-    {
-      t: "Man of Steel",
-      y: "2013",
-      k: "Film",
-      note: 6.7,
-      why: [
-        "Parce que vous avez ",
-        { e: "Supergirl" },
-        " et The Mandalorian and Grogu.",
-      ],
-    },
-    {
-      t: "X-Men : Dark Phoenix",
-      y: "2019",
-      k: "Film",
-      note: 6.0,
-      why: [
-        "Parce que vous avez ",
-        { e: "Supergirl" },
-        " et The Mandalorian and Grogu.",
-      ],
-    },
-    {
-      t: "Premier Contact",
-      y: "2016",
-      k: "Film",
-      note: 7.6,
-      why: [
-        "Parce que vous avez ",
-        { e: "Marjorie Prime" },
-        " et Disclosure Day.",
-      ],
-    },
-    {
-      t: "Ant-Man et la Guêpe : Quantumania",
-      y: "2023",
-      k: "Film",
-      note: 6.2,
-      why: ["Parce que vous avez ", { e: "Ninja Turtles" }, " et Supergirl."],
-    },
-    {
-      t: "The Venture Bros",
-      y: "2004",
-      k: "Série",
-      note: 7.8,
-      why: [
-        "Parce que vous avez ",
-        { e: "Batman Caped Crusader (2024)" },
-        " et President Curtis (2026).",
-      ],
-    },
-    {
-      t: "Fast Charlie",
-      y: "2023",
-      k: "Film",
-      note: 6.2,
-      why: [
-        "Parce que vous avez ",
-        { e: "On l'appelait Robin des Bois" },
-        " et Margin Call.",
-      ],
-    },
-    {
-      t: "Grimsburg",
-      y: "2024",
-      k: "Série",
-      note: 6.1,
-      why: [
-        "Parce que vous avez ",
-        { e: "Batman Caped Crusader (2024)" },
-        " et President Curtis (2026).",
-      ],
-    },
-    {
-      t: "Solo: A Star Wars Story",
-      y: "2018",
-      k: "Film",
-      note: 6.6,
-      why: [
-        "Parce que vous avez ",
-        { e: "Supergirl" },
-        " et The Mandalorian and Grogu.",
-      ],
-    },
-    {
-      t: "L'Assassin",
-      y: "2025",
-      k: "Série",
-      note: 6.9,
-      why: [
-        "Parce que vous avez ",
-        { e: "Batman Caped Crusader (2024)" },
-        " et Furious (2026).",
-      ],
-    },
-    {
-      t: "Power Rangers",
-      y: "2017",
-      k: "Film",
-      note: 6.2,
-      why: [
-        "Parce que vous avez ",
-        { e: "Supergirl" },
-        " et The Mandalorian and Grogu.",
-      ],
-    },
-    {
-      t: "Agent Elvis",
-      y: "2023",
-      k: "Série",
-      note: 6.9,
-      why: [
-        "Parce que vous avez ",
-        { e: "Batman Caped Crusader (2024)" },
-        " et President Curtis (2026).",
-      ],
-    },
-    {
-      t: "Marvel's M.O.D.O.K.",
-      y: "2021",
-      k: "Série",
-      note: 6.6,
-      why: [
-        "Parce que vous avez ",
-        { e: "Batman Caped Crusader (2024)" },
-        " et President Curtis (2026).",
-      ],
-    },
-    {
-      t: "Un Duplex pour 3",
-      y: "2003",
-      k: "Film",
-      note: 6.1,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Alexandre Kominek Bâtard sensible.",
-      ],
-    },
-    {
-      t: "Les Trois Corniauds",
-      y: "2012",
-      k: "Film",
-      note: 5.8,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Alexandre Kominek Bâtard sensible.",
-      ],
-    },
-    {
-      t: "L'Embrouille est dans le sac",
-      y: "1991",
-      k: "Film",
-      note: 6.4,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Alexandre Kominek Bâtard sensible.",
-      ],
-    },
-    {
-      t: "Impostor",
-      y: "2001",
-      k: "Film",
-      note: 6.1,
-      why: [
-        "Parce que vous avez ",
-        { e: "Disclosure Day" },
-        " et The Mandalorian and Grogu.",
-      ],
-    },
-    {
-      t: "Green Lantern : Le Complot",
-      y: "2009",
-      k: "Film",
-      note: 6.9,
-      why: [
-        "Parce que vous avez ",
-        { e: "Supergirl" },
-        " et The Mandalorian and Grogu.",
-      ],
-    },
-    {
-      t: "Green Lantern : Méfiez-vous de mon pouvoir",
-      y: "2022",
-      k: "Film",
-      note: 6.7,
-      why: ["Parce que vous avez ", { e: "Ninja Turtles" }, " et Supergirl."],
-    },
-    {
-      t: "Monsieur le député",
-      y: "1992",
-      k: "Film",
-      note: 6.0,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Alexandre Kominek Bâtard sensible.",
-      ],
-    },
-    {
-      t: "Touche pas à mon gazon",
-      y: "1977",
-      k: "Film",
-      note: 6.6,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Scary Movie.",
-      ],
-    },
-    {
-      t: "LOL 2.0",
-      y: "2026",
-      k: "Film",
-      note: 6.0,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Alexandre Kominek Bâtard sensible.",
-      ],
-    },
-    {
-      t: "Thunderstruck",
-      y: "2012",
-      k: "Film",
-      note: 6.2,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Alexandre Kominek Bâtard sensible.",
-      ],
-    },
-    {
-      t: "American Dreamer",
-      y: "2022",
-      k: "Film",
-      note: 6.0,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Alexandre Kominek Bâtard sensible.",
-      ],
-    },
-    {
-      t: "Y-a-t'il quelqu'un pour l'ambulance ?",
-      y: "1992",
-      k: "Film",
-      note: 6.1,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Alexandre Kominek Bâtard sensible.",
-      ],
-    },
-    {
-      t: "Jim Gaffigan: Beyond the Pale",
-      y: "2006",
-      k: "Film",
-      note: 7.0,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Alexandre Kominek Bâtard sensible.",
-      ],
-    },
-    {
-      t: "Eddie Murphy: Delirious",
-      y: "1983",
-      k: "Film",
-      note: 7.6,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Alexandre Kominek Bâtard sensible.",
-      ],
-    },
-    {
-      t: "Jim Gaffigan: Mr. Universe",
-      y: "2012",
-      k: "Film",
-      note: 6.8,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Alexandre Kominek Bâtard sensible.",
-      ],
-    },
-    {
-      t: "Spider-Man : Brand New Day",
-      y: "2026",
-      k: "Film",
-      note: 7.9,
-      why: ["Parce que vous avez ", { e: "Ninja Turtles" }, "."],
-    },
-    {
-      t: "Esprits criminels",
-      y: "2005",
-      k: "Série",
-      note: 8.3,
-      why: ["Parce que vous avez ", { e: "Furious (2026)" }, "."],
-    },
-    {
-      t: "Avengers : Infinity War",
-      y: "2018",
-      k: "Film",
-      note: 8.2,
-      why: ["Parce que vous avez ", { e: "Supergirl" }, "."],
-    },
-    {
-      t: "Arrow",
-      y: "2012",
-      k: "Série",
-      note: 6.8,
-      why: ["Parce que vous avez ", { e: "Batman Caped Crusader (2024)" }, "."],
-    },
-    {
-      t: "Avatar : De feu et de cendres",
-      y: "2025",
-      k: "Film",
-      note: 7.6,
-      why: ["Parce que vous avez ", { e: "The Mandalorian and Grogu" }, "."],
-    },
-    {
-      t: "Manhunt",
-      y: "2017",
-      k: "Série",
-      note: 7.6,
-      why: ["Parce que vous avez ", { e: "The Bombing of Pan Am 103" }, "."],
-    },
-  ];
 
   /* 260 REAL titles extracted from library.db (read-only) — enough to
      exercise scrolling on more than a handful of examples. */
@@ -5167,21 +4550,6 @@ import { servedIdentityLines } from "../lib/served-identity";
      The switch lives in the harness, not in the app. */
 
   /* REAL contents of the staging directory. */
-  const STUCK_REAL = [
-    {
-      t: "Top Chef Le Concours Parallèle (2026)",
-      s: "002-TVSHOWS · déposé à la main",
-      r: "Aucune donnée d'épisode chez TVDB ni chez TMDB pour cette série : la détection ne peut pas nommer les fichiers. Blocage connu, assumé ouvert.",
-      strip: [1, 1, "blocked", 0, 0],
-    },
-    {
-      t: "Marvels.Spider-Man.2.v1.526.0.FRENCH-Mephisto",
-      s: "098-AUTRES · déposé à la main",
-      r: "Aucun fichier vidéo dans le dossier : c'est un jeu, pas un média. Il ne peut pas traverser le pipeline.",
-      strip: [1, "blocked", 0, 0, 0],
-      noposter: true,
-    },
-  ];
 
   /* « Ça coince » holds TWO populations, and merging them would be the defect.
      A folder can be stuck because the scrape could not CHOOSE — that is a
@@ -5189,29 +4557,6 @@ import { servedIdentityLines } from "../lib/served-identity";
      nothing in it can go through the pipeline at all, which no arbitration
      will ever fix. The first here carries a pending decision; the last two
      carry none, and say so by having no reason chip. */
-  const STUCK = [
-    {
-      t: "Backrooms.2026.MULTi.2160p.WEB-DL",
-      s: "arrivé à 06 h 14 · qBittorrent (manuel)",
-      r: "Aucun média identifié : ni TMDB ni TVDB ne renvoient de correspondance pour ce nom.",
-      chip: ["danger", "Confiance faible"],
-      strip: [1, 1, "blocked", 0, 0],
-      noposter: true,
-    },
-    {
-      t: "S.W.A.T.",
-      s: "S08E12 · arrivé à 22 h 51 · qBittorrent (manuel)",
-      r: "Deux correspondances possibles — TVDB 328724 (2017) et TVDB 71663 (1975). Il faut choisir.",
-      strip: [1, 1, "blocked", 0, 0],
-    },
-    {
-      t: "doc_fr_2026_final",
-      s: "arrivé hier à 19 h 03 · dépôt manuel",
-      r: "Aucun fichier vidéo dans le dossier : seulement 3 fichiers .nfo et une archive .rar non extraite. Aucun arbitrage n'y changera rien.",
-      strip: [1, "blocked", 0, 0, 0],
-      noposter: true,
-    },
-  ];
   /* ── Décisions de scrapage ────────────────────────────────────────────
      A decision is a FOLDER, never a medium — that is the whole reason it
      exists. The scrape could not name what is inside it, so what the operator
@@ -5280,47 +4625,6 @@ import { servedIdentityLines } from "../lib/served-identity";
      hangs on the dense scenario's folder, whose stated reason already says
      precisely that. */
 
-  const MOVING = [
-    {
-      t: "President Curtis",
-      s: "S01E02 · suivi",
-      strip: [1, 1, "now", 0, 0],
-      chip: ["info", "Ingestion"],
-    },
-    {
-      t: "Furious",
-      s: "S01E01 · suivi",
-      strip: [1, 1, 1, "now", 0],
-      chip: ["info", "Scraping"],
-    },
-    {
-      t: "The Alabama Solution",
-      s: "2025 · qBittorrent (manuel)",
-      strip: [1, 1, 1, "now", 0],
-      chip: ["info", "Scraping"],
-    },
-    {
-      t: "Conclave",
-      s: "2024 · qBittorrent (manuel)",
-      strip: [1, 1, 1, 1, "now"],
-      chip: ["info", "Rangement"],
-    },
-    {
-      t: "Les Zinzins de l'Espace",
-      s: "S03E14 · suivi",
-      strip: [1, "now", 0, 0, 0],
-      chip: ["info", "Téléchargement 34 %"],
-    },
-  ];
-  const SETTLED = [
-    { t: "The Bombing of Pan Am 103", s: "S01E05 · Disk2 · 14 h 12" },
-    { t: "Smiling Friends", s: "S03E02 · Disk1 · 11 h 40" },
-    { t: "On l'appelait Robin des Bois", s: "2026 · Disk3 · 09 h 27" },
-    { t: "Ninja Turtles", s: "2014 · Disk1 · 08 h 03" },
-    { t: "Marjorie Prime", s: "2017 · Disk3 · 07 h 55" },
-    { t: "Big Chicken", s: "2026 · Disk2 · 07 h 12" },
-    { t: "Margin Call", s: "2011 · Disk1 · 06 h 48" },
-  ];
 
   const STRIP_LABELS = ["pris", "téléch.", "ingéré", "scrapé", "rangé"];
 
@@ -5965,16 +5269,6 @@ import { servedIdentityLines } from "../lib/served-identity";
      « moved » are two different events for the operator — an episode joining
      a series they already have is not a new title on a disk — so they are not
      flattened into one word. */
-  const SETTLED_REAL = [
-    {
-      t: "Stuart Fails to Save the Universe (2026)",
-      s: "nouveau sur Disk1 · aujourd'hui à 07 h 10",
-    },
-    {
-      t: "Star Trek: Strange New Worlds (2022)",
-      s: "S04E04 fusionné sur Disk3 · hier à 15 h 25",
-    },
-  ];
 
   /* State */
   /* THE SEED, and only the seed. This used to be `let state`, a module-level
@@ -6249,30 +5543,41 @@ import { servedIdentityLines } from "../lib/served-identity";
   // The single owner of the mutable state, adopted at boot by
   // window.__startEngine — null until the shell calls it.
   let store = null;
+  /* THE DECK'S CARDS, read from the layer. `SUGGESTIONS` was a fixture here and
+     left at L09; the deck still indexes into a list from a click handler that
+     cannot await, so it asks a synchronous accessor. It reports an empty list
+     before the query has answered, which is what the deck already drew for a
+     batch fully seen. It goes with the deck at L13. */
+  /* THE QUEUE, read from the layer. The lists left at L09 and these callers
+     ask from click handlers that cannot await; they read the same cache the
+     surfaces do, never a copy. They go with the drawing at L13. */
+  /* THE FOLLOWS, read from the layer. Same reason as `queued()`: these callers
+     ask from click handlers that cannot await, and they read the same cache the
+     deck draws. */
+  function follows() {
+    return window.__followActions?.all() ?? [];
+  }
+
+  function queued() {
+    return (
+      window.__queue?.() ?? {
+        stuck: [], moving: [], settled: [], takeable: [],
+        blocked: [], inFlight: [], notFound: [], doneToday: [],
+      }
+    );
+  }
+
+  function suggestions() {
+    return window.__suggestions?.() ?? [];
+  }
+
+  /* WHAT IS LEFT OF THE WORLD, and it is the library's rows and nothing else.
+     The queue — takeable, blocked, in flight, not found, done today, stuck,
+     moving, settled, follows — left at L09: it is server state, it lives in the
+     query cache, and a copy here would be a second truth about one queue.
+     `lib` and `removedLib` go with the media sheet's own wave. */
   function seedWorld() {
-    const deepCopy = (value) => JSON.parse(JSON.stringify(value));
-    world = {
-      takeable: deepCopy(TAKEABLE),
-      blocked: deepCopy(BLOCKED),
-      inflight: deepCopy(INFLIGHT),
-      notfound: deepCopy(NOTFOUND),
-      notfoundReel: deepCopy(NOTFOUND_REAL),
-      doneToday: deepCopy(DONE_TODAY),
-      stuck: deepCopy(STUCK),
-      stuckReel: deepCopy(STUCK_REAL),
-      settledReel: deepCopy(SETTLED_REAL),
-      moving: deepCopy(MOVING),
-      settled: deepCopy(SETTLED),
-      // The seed, NOT the current state — otherwise seed() clones itself.
-      follows: deepCopy(FOLLOWS),
-      lib: LIBRARY.slice(),
-      removedLib: new Set(),
-    };
-    // Reseeding REPLACES the world object, so the store's copy of the
-    // reference has to be replaced too — the engine's actions go on mutating
-    // `world` in place, and a store still holding the previous object would
-    // hand a component a world nobody writes to anymore. Optional because the
-    // first seed runs before the shell hands the store over.
+    world = { lib: [], removedLib: new Set() };
     store?.adoptWorld(world);
   }
   seedWorld();
@@ -6282,16 +5587,8 @@ import { servedIdentityLines } from "../lib/served-identity";
      in En vol at the taken step, and the badge loses 1 ». */
 
   function actionTake(title) {
-    const findIndex = world.takeable.findIndex(
-      (takeable) => takeable.t === title,
-    );
-    if (findIndex < 0) return;
-    const [splice] = world.takeable.splice(findIndex, 1);
-    world.inflight.unshift({
-      ...splice,
-      strip: ["now", 0, 0, 0, 0],
-      chip: ["info", "Récupération lancée"],
-    });
+    /* Same as the two above. */
+    window.__queueActions?.take(title);
     render();
     toast(`« ${baseTitle(title)} » récupéré — suivez-le dans « En vol ».`);
   }
@@ -6306,36 +5603,19 @@ import { servedIdentityLines } from "../lib/served-identity";
      « Résoudre → » on an acquisition card used to change nothing at all: the
      button was there, the screen opened, the choice was made, and the item
      stayed exactly where it was. */
-  function leaveQueue(title) {
-    for (const [list, towardsLoaded] of [
-      [world.stuck, true],
-      [world.stuckReel, false],
-      [world.blocked, true],
-    ]) {
-      if (!list) continue;
-      const index = list.findIndex((item) => item.t === title);
-      if (index < 0) continue;
-      const [released] = list.splice(index, 1);
-      return { released, towardsLoaded };
-    }
-    return null;
-  }
 
   /* Agreeing with the machine. The automatic result stands, nothing is
      re-scraped — and the folder LEAVES the queue, because the operator has
      answered. A queue that kept what has been answered would grow forever and
      stop meaning « what is waiting for me ». */
   function actionLeave(title) {
-    const exit = leaveQueue(title);
-    if (!exit) return false;
-    const card = {
-      t: exit.released.t,
-      s: exit.released.s,
-      strip: [1, 1, 1, "now", 0],
-      chip: ["neutral", "Laissé tel quel"],
-    };
-    if (exit.towardsLoaded) world.moving.unshift(card);
-    else (world.movingReel ??= []).unshift(card);
+    /* THE MOVE IS THE LAYER'S SINCE L09, and what stays here is the sentence
+       the operator reads. The folder leaving one queue and joining another is
+       server state; keeping a copy of it in `world` beside the cache the
+       surfaces read would be two truths about one queue. `leaveQueue` went with
+       it — the layer walks the same three lists, in the same order, and it says
+       so in its own words. */
+    if (!window.__queueActions?.leave(title)) return false;
     render();
     toast(
       `« ${exit.released.t} » laissé tel quel — le résultat automatique est conservé, rien n'a été re-scrapé.`,
@@ -6344,62 +5624,55 @@ import { servedIdentityLines } from "../lib/served-identity";
   }
 
   function actionResolve(title, choice) {
-    const exit = leaveQueue(title);
-    if (!exit) return;
-    const card = {
-      t: choice ?? exit.released.t,
-      s: exit.released.s,
-      strip: [1, 1, 1, "now", 0],
-      chip: ["info", "Scraping"],
-    };
-    if (exit.towardsLoaded) world.moving.unshift(card);
-    else (world.movingReel ??= []).unshift(card);
+    /* Same as `actionLeave`: the move is the layer's, the sentence is this
+       function's. */
+    window.__queueActions?.resolve(title, choice);
     render();
     toast(
       `Identifié comme « ${choice ?? exit.released.t} » — le pipeline reprend jusqu'à la médiathèque.`,
     );
   }
 
+  /* THE STATE IS THE LAYER'S SINCE L09; what stays here is the sentence the
+     operator reads and the undo it offers. */
   function actionPause(title) {
-    const found = world.follows.find((follow) => follow.t === title);
+    const found = follows().find((follow) => follow.t === title);
     if (!found) return;
     const before = found.st;
-    found.st =
+    const after =
       found.st === "disabled"
         ? found.k === "movie"
           ? "pending"
           : "up_to_date"
         : "disabled";
-    const remis = found.st !== "disabled";
+    window.__followActions?.setStatus(title, after);
+    const remis = after !== "disabled";
     render();
     toastUndo(
       remis
         ? `« ${found.t} » réactivé.`
         : `« ${found.t} » ${found.k === "movie" ? "ne sera plus cherché" : "mis en pause"}.`,
       () => {
-        found.st = before;
+        window.__followActions?.setStatus(title, before);
         render();
       },
     );
   }
 
   function actionRetirer(title) {
-    const findIndex = world.follows.findIndex((follow) => follow.t === title);
-    if (findIndex < 0) return;
-    const [splice] = world.follows.splice(findIndex, 1);
+    const removed = follows().find((follow) => follow.t === title);
+    if (!removed) return;
+    window.__followActions?.remove(title);
     render();
-    toastUndo(`« ${splice.t} » retiré de vos suivis.`, () => {
-      world.follows.splice(findIndex, 0, splice);
+    toastUndo(`« ${removed.t} » retiré de vos suivis.`, () => {
+      window.__followActions?.add(removed);
       render();
     });
   }
 
   function actionFollow(title, kind) {
-    if (
-      world.follows.some((follow) => baseTitle(follow.t) === baseTitle(title))
-    )
-      return;
-    world.follows.unshift({
+    if (follows().some((follow) => baseTitle(follow.t) === baseTitle(title))) return;
+    window.__followActions?.add({
       t: title,
       k: kind === "Film" ? "movie" : "show",
       st: "unverified",
@@ -6440,6 +5713,10 @@ import { servedIdentityLines } from "../lib/served-identity";
        back with it. */
     window.__queries?.clear();
     window.__mocks?.reset();
+    /* AND WHAT NO COMPONENT OBSERVES IS ASKED FOR AGAIN. A cleared query
+       with an observer is re-asked by that observer; the deck's cards have
+       none, because the engine draws the deck. */
+    window.__refillEngineData?.();
     store.write({
       /* The SCENARIO is state too, and the loudest kind: it decides which
          world every later reading is taken from. A state that switched to the
@@ -6487,22 +5764,6 @@ import { servedIdentityLines } from "../lib/served-identity";
 
   /* Active datasets, resolved by scenario. The rest of the code does not
      know which scenario is running — it reads these accessors. */
-  const derived = {
-    takeable: () => (currentState().scen === "real" ? [] : world.takeable),
-    blocked: () => (currentState().scen === "real" ? [] : world.blocked),
-    inflight: () =>
-      currentState().scen === "real" ? (world.inflightReel ?? []) : world.inflight,
-    notfound: () =>
-      currentState().scen === "real" ? world.notfoundReel : world.notfound,
-    doneToday: () =>
-      currentState().scen === "real" ? (world.doneReel ?? []) : world.doneToday,
-    stuck: () => (currentState().scen === "real" ? world.stuckReel : world.stuck),
-    moving: () =>
-      currentState().scen === "real" ? (world.movingReel ?? []) : world.moving,
-    settled: () =>
-      currentState().scen === "real" ? (world.settledReel ?? []) : world.settled,
-    follows: () => world.follows,
-  };
 
   /* Three phases per surface, driven by the harness
      `prete` (default), `chargement`, `erreur`. Every surface goes through
@@ -8432,7 +7693,7 @@ import { servedIdentityLines } from "../lib/served-identity";
       /* The nav badge and the tab badge read THE SAME derivation: what
          awaits the operator = to grab + to resolve. Never a constant, never
          a neighbouring counter. */
-      badge: derived.takeable().length + derived.blocked().length,
+      badge: queued().takeable.length + queued().blocked.length,
       /* No `render`: the shell draws this page (`pages/acquisition.tsx`).
          Clearing `shellOwned` without restoring a renderer therefore CRASHES
          rather than quietly drawing a page nobody maintains any more. */
@@ -8453,7 +7714,7 @@ import { servedIdentityLines } from "../lib/served-identity";
       id: "arr",
       l: "Arrivées",
       ic: icons.inbox,
-      badge: derived.stuck().length,
+      badge: queued().stuck.length,
       /* No `render`: the shell draws this page (`pages/arrivals.tsx`). Clearing
          `shellOwned` without restoring a renderer therefore CRASHES rather
          than quietly drawing a page nobody maintains any more. */
@@ -8769,7 +8030,6 @@ import { servedIdentityLines } from "../lib/served-identity";
     URGENCY,
     GROUPS,
     CADENCE_CRON,
-    derivedFollows: () => derived.follows(),
     /* The account the server really has, and the escaper the fragment's own
        emitters use — a migrated page that builds a fragment of markup has to
        escape exactly what the legacy escaped. */
@@ -8913,14 +8173,6 @@ import { servedIdentityLines } from "../lib/served-identity";
     // is already initialized above this literal, but the wrapper still earns
     // its keep: it publishes a STABLE function reference while the value each
     // call returns stays live against the scenario switch inside `derived`.
-    derivedBlocked: () => derived.blocked(),
-    derivedStuck: () => derived.stuck(),
-    derivedMoving: () => derived.moving(),
-    derivedSettled: () => derived.settled(),
-    derivedTakeable: () => derived.takeable(),
-    derivedInflight: () => derived.inflight(),
-    derivedNotfound: () => derived.notfound(),
-    derivedDoneToday: () => derived.doneToday(),
     actionResolve,
     actionLeave,
     actionTake,
@@ -9367,9 +8619,19 @@ import { servedIdentityLines } from "../lib/served-identity";
   /* Deck order. « Passer » does not decide anything: it sends the card to the
      back, so it comes round again. « Pas intéressé » removes it, with an undo. */
   function deckOrder() {
-    if (!currentState().sugOrder)
+    /* THE ORDER IS DERIVED FROM THE LIST, and it is re-derived while the two
+       disagree in LENGTH. It used to be computed once, on the first draw — which
+       was safe while the list was a fixture that existed before anything ran.
+       It is a query now: the first draw happens before the cards land, so an
+       order computed then is empty and stays empty, and the deck draws nothing
+       for ever. Re-deriving on a length mismatch keeps what a shuffle or a
+       dismissal put there, and fills it the moment the cards arrive. */
+    if (
+      !currentState().sugOrder ||
+      currentState().sugOrder.length !== suggestions().length
+    )
       store.write({
-        sugOrder: SUGGESTIONS.map((SUGGESTIONS2, index) => index),
+        sugOrder: suggestions().map((one, index) => index),
       });
     return currentState().sugOrder.filter((sugOrder) => !currentState().sugGone.has(sugOrder));
   }
@@ -9381,12 +8643,12 @@ import { servedIdentityLines } from "../lib/served-identity";
 
   function deckHTML() {
     const restants = deckOrder().map((element) => [
-      SUGGESTIONS[element],
+      suggestions()[element],
       element,
     ]);
     if (!restants.length) {
       return `<div class="empty" data-part="empty-state"><b>Vous avez tout parcouru.</b>
-        <p>Les ${SUGGESTIONS.length} suggestions du lot ont été vues. La réserve en garde d'autres.</p>
+        <p>Les ${suggestions().length} suggestions du lot ont été vues. La réserve en garde d'autres.</p>
         <button class="btnprimary" data-sugmore="1">${svgIcon(icons.refresh)}Charger 30 de plus</button></div>`;
     }
     const pile = restants
@@ -9444,7 +8706,7 @@ import { servedIdentityLines } from "../lib/served-identity";
     if (next != null) {
       deck.insertAdjacentHTML(
         "afterbegin",
-        deckCardHTML(SUGGESTIONS[next], next, 3),
+        deckCardHTML(suggestions()[next], next, 3),
       );
       const incoming = deck.querySelector('.dcard[data-depth="3"]');
       requestAnimationFrame(() =>
@@ -9492,7 +8754,7 @@ import { servedIdentityLines } from "../lib/served-identity";
     }
     const cardTemplate = currentState().sugMode === "poster" ? sugTileHTML : sugCardHTML;
     box.className = currentState().sugMode === "poster" ? "gallery" : "";
-    box.innerHTML = SUGGESTIONS.slice(0, currentState().sugCount)
+    box.innerHTML = suggestions().slice(0, currentState().sugCount)
       .map((slice, index) =>
         currentState().sugGone.has(index) ? "" : cardTemplate(slice, index),
       )
@@ -9510,7 +8772,7 @@ import { servedIdentityLines } from "../lib/served-identity";
       currentState().sugGone.add(index);
       store.touch();
       refreshDeck();
-      toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
+      toastUndo(`« ${suggestions()[index].t} » écarté.`, () => {
         currentState().sugGone.delete(index);
         store.touch();
         refreshDeck();
@@ -9524,7 +8786,7 @@ import { servedIdentityLines } from "../lib/served-identity";
     element.style.height = element.getBoundingClientRect().height + "px";
     requestAnimationFrame(() => element.classList.add("gone"));
     setTimeout(() => element.remove(), 320);
-    toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
+    toastUndo(`« ${suggestions()[index].t} » écarté.`, () => {
       currentState().sugGone.delete(index);
       store.touch();
       fillSug();
@@ -9533,7 +8795,7 @@ import { servedIdentityLines } from "../lib/served-identity";
   }
 
   function openSugSheet(index) {
-    const suggestion = SUGGESTIONS[index];
+    const suggestion = suggestions()[index];
     panel.open({
       title: suggestion.t,
       meta: `${suggestion.y} · ${suggestion.k} · note TMDB ${suggestion.note}`,
@@ -9649,8 +8911,8 @@ import { servedIdentityLines } from "../lib/served-identity";
   function sugFoot() {
     const foot = document.querySelector("#sugload");
     if (!foot) return;
-    if (currentState().sugCount >= SUGGESTIONS.length) {
-      foot.innerHTML = `<p class="endmark">Fin de la réserve chargée dans cette maquette — ${SUGGESTIONS.length} des 503 suggestions réellement calculées pour vous. La passe de fond en recalcule après chaque nouvelle note TMDB.</p>`;
+    if (currentState().sugCount >= suggestions().length) {
+      foot.innerHTML = `<p class="endmark">Fin de la réserve chargée dans cette maquette — ${suggestions().length} des 503 suggestions réellement calculées pour vous. La passe de fond en recalcule après chaque nouvelle note TMDB.</p>`;
       return;
     }
     foot.innerHTML = `<div style="display:flex;flex-direction:column;gap:14px">${'<div class="sk row" data-skeleton="" style="height:104px"></div>'.repeat(2)}</div>`;
@@ -9665,13 +8927,13 @@ import { servedIdentityLines } from "../lib/served-identity";
   }
 
   function loadMoreSug() {
-    if (currentState().sugLoading || currentState().sugCount >= SUGGESTIONS.length) return;
+    if (currentState().sugLoading || currentState().sugCount >= suggestions().length) return;
     store.write({ sugLoading: true });
     if (sugObserver) sugObserver.disconnect();
     setTimeout(() => {
       store.write({
         sugLoading: false,
-        sugCount: Math.min(SUGGESTIONS.length, currentState().sugCount + SUG_BATCH),
+        sugCount: Math.min(suggestions().length, currentState().sugCount + SUG_BATCH),
       });
       fillSug();
       sugFoot();
@@ -10768,7 +10030,7 @@ import { servedIdentityLines } from "../lib/served-identity";
      that keeps them OFF Système has to know their names, and a rule that
      cannot reach them compares against an empty list and passes whatever it
      is shown — which is what it did before this seam existed. */
-  window.__blocked = () => derived.stuck().map((card) => card.t);
+  window.__blocked = () => queued().stuck.map((card) => card.t);
 
   /* Clears ALL harness chrome before a capture or a pixel comparison:
      harness buttons float above the shell, which is a measured region and
@@ -11160,7 +10422,7 @@ import { servedIdentityLines } from "../lib/served-identity";
       const idx = closest.dataset.sugidx;
       const suggestion =
         idx != null
-          ? SUGGESTIONS[Number(idx)]
+          ? suggestions()[Number(idx)]
           : closest.dataset.fkind
             ? { k: closest.dataset.fkind }
             : null;
@@ -11186,7 +10448,7 @@ import { servedIdentityLines } from "../lib/served-identity";
       // The media sheet used to REOPEN itself here so its button would toggle
       // under the finger — an action whose screen does not change reads as a
       // failed action. The sheet is a React screen now and re-renders from
-      // the store instead, but `actionFollow` mutates `world.follows` IN
+      // the store instead, but `actionFollow` writes the follows cache IN
       // PLACE and no `render()` follows on this branch: the bump has to be
       // explicit, exactly as it is for the dismissed suggestion above, or
       // the button never learns the follow happened.
@@ -11239,9 +10501,8 @@ import { servedIdentityLines } from "../lib/served-identity";
     /* What the desktop deck's ⏎ did, without a keyboard: the next folder
        waiting, on the same screen. */
     if (closest.dataset.next) {
-      const suite = derived
-        .blocked()
-        .concat(derived.stuck())
+      const suite = queued()
+        .blocked.concat(queued().stuck)
         .map((blockedCount) => decisionPending(blockedCount.t))
         .find(
           (decision) =>
@@ -11713,7 +10974,7 @@ import { servedIdentityLines } from "../lib/served-identity";
       INCOMPLETE.find((INCOMPLETE2) => INCOMPLETE2.t === title2);
     const followed = titles.filter(
       (title2) =>
-        world.follows.some((follow) => follow.t === title2) || !!inc(title2),
+        follows().some((follow) => follow.t === title2) || !!inc(title2),
     );
     const files = titles.reduce(
       (accumulator, element) =>
@@ -32908,14 +32169,14 @@ import { servedIdentityLines } from "../lib/served-identity";
      sheet is not a follow. */
   function knownMedium(title) {
     return (
-      world.follows.some((follow) => follow.t === title) ||
+      follows().some((follow) => follow.t === title) ||
       INCOMPLETE.some((entry) => entry.t === title) ||
       LIBRARY.some((entry) => entry.t === title)
     );
   }
 
   function openFollowSheet(title) {
-    const follow = world.follows.find((follow2) => follow2.t === title) ||
+    const follow = follows().find((follow2) => follow2.t === title) ||
       INCOMPLETE.map((INCOMPLETE2) => ({
         t: INCOMPLETE2.t,
         k: "show",
@@ -32936,17 +32197,14 @@ import { servedIdentityLines } from "../lib/served-identity";
        the panel was opened from. That is what makes the panel the same object
        everywhere, instead of a family of look-alikes. */
     const incomplete = INCOMPLETE.some((INCOMPLETE2) => INCOMPLETE2.t === title);
-    const isFollowed = world.follows.some((follow2) => follow2.t === title);
+    const isFollowed = follows().some((follow2) => follow2.t === title);
     const inLibrary = incomplete || LIBRARY.some((LIB) => LIB.t === title);
     /* Read from the SAME derivations the urgency sections read. A section that
        computes what to grab while the panel computes it separately is two
        answers to one question, and they part company on the first change. */
-    const toTake = derived
-      .takeable()
-      .some((takeable) => takeable.t === title);
-    const toResolve = derived
-      .blocked()
-      .concat(derived.stuck())
+    const toTake = queued().takeable.some((takeable) => takeable.t === title);
+    const toResolve = queued()
+      .blocked.concat(queued().stuck)
       .some((concat) => concat.t === title);
     // An unidentified release has no sheet. Offering to open one is the same
     // broken promise as a poster that leads nowhere.
@@ -33533,7 +32791,7 @@ import { servedIdentityLines } from "../lib/served-identity";
         currentState().sugGone.add(index);
         store.touch();
         advanceDeck(index, 1);
-        toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
+        toastUndo(`« ${suggestions()[index].t} » écarté.`, () => {
           currentState().sugGone.delete(index);
           store.touch();
           refreshDeck();
@@ -33766,7 +33024,7 @@ import { servedIdentityLines } from "../lib/served-identity";
          a medium this interface holds, plus the acquisitions in flight —
          which are what a journey describes. */
       resolves: (subject) =>
-        knownMedium(subject) || INFLIGHT.some((entry) => entry.t === subject),
+        knownMedium(subject) || queued().inFlight.some((entry) => entry.t === subject),
     },
     setting: {
       open: openSetting,
@@ -34154,18 +33412,18 @@ export {
    across all 254 names, and this is the only one. */
 Object.assign(window, {
   CAST, POSTERS_HD, APPARENCES, PRESS_MS, PRESS_TOLERANCE, AUDIOS,
-  TODAY, BLOCKED, CADENCE_CRON, ACCOUNT,
-  STARTUP_MS, DEPENDENCIES, DISKS, DONE_TODAY,
+  TODAY, CADENCE_CRON, ACCOUNT,
+  STARTUP_MS, DEPENDENCIES, DISKS,
   EP_LABEL, EP_ORDER, EP_SWATCH, ERRORS, DECISION_STATE,
   DECISION_STATE_DETAIL, EXECUTIONS, SHEETS_IDX, SHEETS_OLD, SHEETS_RAW,
-  FOLLOWS, GROUPS, HERO_IMAGES, INCOMPLETE, INDEX, INFLIGHT, JOURNAL, LIBRARY,
+  GROUPS, HERO_IMAGES, INCOMPLETE, INDEX, JOURNAL, LIBRARY,
   LIB_PAGE, LIB_TOTAL, MAINT_ACTIONS, MAINT_TOPICS, MOIS, REASON_LABEL,
-  REASON_DETAIL, REASON_TONE, MOVING, NAVIGATION, NOTFOUND, NOTFOUND_REAL,
+  REASON_DETAIL, REASON_TONE, NAVIGATION,
   PAGES_OF, SCHEDULERS, SCHEDULERS_DOWN, OWNED,
   POSTERS, SETTINGS, SETTINGS_STATE, RELEASES, RESOLUTIONS, BACK_WINDOW,
-  RISQUES, SEARCH, SEASONS, SECRETS, SERVICES, SERVICES_PANNE, SETTLED,
-  SETTLED_REAL, STRIP_LABELS, STUCK, STUCK_REAL, ST_LABEL,
-  ST_LABEL_MOVIE, ST_TONE, SUGGESTIONS, SUG_BATCH, TAKEABLE,
+  RISQUES, SEARCH, SEASONS, SECRETS, SERVICES, SERVICES_PANNE,
+  STRIP_LABELS, ST_LABEL,
+  ST_LABEL_MOVIE, ST_TONE, SUG_BATCH,
   TRIS, URGENCY, VIA_LABEL, actionLeave, actionPause,
   actionTake, actionResolve, actionRetirer, actionFollow,
   actionDelete, addVerb, showSignIn, showStartup,
@@ -34174,7 +33432,7 @@ Object.assign(window, {
   advancePageGesture, baseTitle, beforeReset, cadenceFR, cardHTML, chipHTML,
   closeDlg, closeHarness, closeScreen, closeSheet, coverLoading,
   dateFR, startPageGesture, decisionPending, deckCardHTML, deckHTML,
-  deckOrder, signOut, alreadyInstalled, derived, unwindLayer,
+  deckOrder, signOut, alreadyInstalled, unwindLayer,
   dismissSug, emptyInner, endCardDrag, endDeckDrag, endPageDrag,
   endSugDrag, epState, escapeHtml, navigationState,
   factRowsHTML, closePopEp, closeDrawer, changedFiles, fillSug,
@@ -34192,7 +33450,7 @@ Object.assign(window, {
   refreshDeck, settingId, resetSettings, render, renderNav,
   richText, seasonsOf, sheetSeasonsHTML, secHTML, secInner, seedWorld,
   select, sheetFor, titleForProviderId, addressIdsFor, skelCards, skelCardsInner, skelTiles, sortLabel,
-  leaveQueue, stFraction, stLabel, stripHTML, sugCardHTML, sugFoot,
+  stFraction, stLabel, stripHTML, sugCardHTML, sugFoot,
   sugTileHTML, sugVerb, followPress, onIOSSafari, onEngineBack,
   surfErr, surfErrInner, svgIcon, swipeHTML, tileHTML, toast, toastUndo,
   allSettings, trailerIds, displayedValue,

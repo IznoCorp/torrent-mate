@@ -1,14 +1,8 @@
 // What is wanted, and what is being fetched.
-import BLOCKED from "../seeds/blocked.json";
 import GRAB_CADENCE from "../seeds/grab-cadence.json";
-import DONE_TODAY from "../seeds/done-today.json";
-import IN_FLIGHT from "../seeds/in-flight.json";
-import NOT_FOUND from "../seeds/not-found.json";
-import NOT_FOUND_LOADED from "../seeds/not-found-loaded.json";
 import RELEASES from "../seeds/releases.json";
 import SEARCH_RESULTS from "../seeds/search-results.json";
 import SUGGESTIONS from "../seeds/suggestions.json";
-import TAKEABLE from "../seeds/takeable.json";
 import JOURNEY_STAGES from "../seeds/journey-stages.json";
 import { DELETE, GET, PATCH, POST, field, route, text } from "./shared";
 import { mockState } from "../state";
@@ -16,6 +10,16 @@ import type { MockRequest, MockRoute } from "../router";
 
 // How many suggestions one batch of the deck carries. The engine's own batch
 // size is `SUG_BATCH`, classified `interface` — the interface owns it.
+// What the card says once it has been restarted. The engine's own words,
+// carried verbatim (D-L08-5).
+const STARTED_LABEL = "Récupération lancée";  // french-ok: a carried fixture value
+
+// The strip's FIRST step, which is where a restarted item stands, and the tone
+// a card in motion wears. The engine's own tokens, carried like every other
+// value on a card.
+const RUNNING_NOW = "now";
+const INFORMATIVE = "info";
+
 const BATCH_SIZE = 30;
 
 // The dense body of data, asked for by name.
@@ -138,17 +142,59 @@ export function acquisitionRoutes(): MockRoute[] {
       nextSearch: null,
     })),
     route("runDetection", POST, "/api/acquisition/detect", () => ({
-      detected: TAKEABLE.length + IN_FLIGHT.length,
-      available: TAKEABLE.length,
-      grabbed: IN_FLIGHT.length,
+      detected: mockState().takeable.length + mockState().inFlight.length,
+      available: mockState().takeable.length,
+      grabbed: mockState().inFlight.length,
     })),
-    route("readAcquisitionQueue", GET, "/api/acquisition/to-handle", (request) => ({
-      takeable: TAKEABLE,
-      blocked: BLOCKED,
-      inFlight: IN_FLIGHT,
-      notFound: request.query.get("scenario") === LOADED ? NOT_FOUND_LOADED : NOT_FOUND,
-      doneToday: DONE_TODAY,
-    })),
+    route("readAcquisitionQueue", GET, "/api/acquisition/to-handle", (request) => {
+      const state = mockState();
+      // THE SCENARIO PICKS THE WORLD, exactly as the engine's `derived` does —
+      // and « exactly » includes the empties. Under the REAL scenario there is
+      // nothing to take and nothing blocked: that run found what it found, and
+      // a layer answering the dense lists there would put a queue on screen
+      // that no run produced. Answering them unconditionally is what this
+      // route used to do, and no surface read it yet, so nothing said so.
+      if (request.query.get("scenario") === LOADED) {
+        return {
+          takeable: state.takeable,
+          blocked: state.blocked,
+          inFlight: state.inFlight,
+          notFound: state.notFound,
+          doneToday: state.doneToday,
+        };
+      }
+      return {
+        takeable: [],
+        blocked: [],
+        inFlight: state.inFlightReel,
+        notFound: state.notFoundReal,
+        doneToday: state.doneReel,
+      };
+    }),
+    route(
+      "takeQueued",
+      POST,
+      "/api/acquisition/to-handle/{mediaId}/take",
+      (request) => {
+        // RESTARTING WHAT WAS WAITING. It leaves « à récupérer » and joins
+        // « en vol » at the first step — which is what the strip says, and it
+        // is the engine's own.
+        const state = mockState();
+        const asked = request.parameters.mediaId;
+        const found = state.takeable.find((card) => card.title === asked);
+        if (found === undefined) return { ok: false };
+        state.takeable = state.takeable.filter((card) => card !== found);
+        state.inFlight = [
+          {
+            ...found,
+            strip: [RUNNING_NOW, 0, 0, 0, 0],
+            chip: { tone: INFORMATIVE, text: STARTED_LABEL },
+          },
+          ...state.inFlight,
+        ];
+        return { ok: true };
+      },
+    ),
     route("readJourney", GET, "/api/acquisition/journeys/{infoHash}", () => JOURNEY_STAGES),
     route("readReleases", GET, "/api/acquisition/releases", () => RELEASES),
   ];

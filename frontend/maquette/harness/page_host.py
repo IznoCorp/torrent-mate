@@ -649,7 +649,10 @@ async def main():
             '''()=>[...document.querySelectorAll('#view [data-part="section/head"] [data-part="section/count"]')]'''
             ".map((x) => x.textContent)")
         moved = await page.evaluate(
-            "()=>{const first = window.__referentiel.derivedTakeable()[0];"
+# THE QUEUE IS THE LAYER'S SINCE L09. `derivedTakeable` was a thin arrow over
+# the engine's own world; the world is a query cache now, and `window.__queue`
+# is the same answer read where the surfaces read it.
+            "()=>{const first = (window.__queue?.().takeable ?? [])[0];"
             " if (!first) return null;"
             " window.__referentiel.actionTake(first.t);"
             " return first.t;}")
