@@ -173,7 +173,14 @@ function atPath(
     }
     const segment = segments[index];
     if (segment === "[]") {
-      return (held as unknown[]).map((entry) => walk(entry, index + 1));
+      // WHAT ARRIVED HAS TO BE A LIST. A `null` here threw
+      // « Cannot read properties of null (reading 'map') » inside a `queryFn`,
+      // so the surface drew its error state with nothing naming the cause; the
+      // contract has nullable fields, and handlers compose payloads the seeds
+      // never held. What is not a list is left as it is — the same answer the
+      // terminal level already gives.
+      if (!Array.isArray(held)) return held;
+      return held.map((entry) => walk(entry, index + 1));
     }
     // `*` IS EVERY KEY OF AN OBJECT, and the media sheet is where it appears:
     // `/eps/*[]` means « for each season number, for each episode ». A walker
@@ -188,6 +195,13 @@ function atPath(
       // contract's names and the engine drew blank rows, which the oracle saw
       // as ten pixels.
       const walkEach = segment.endsWith("[]");
+      // AND `Object.entries` IS ONLY MEANINGFUL OVER AN OBJECT. Over a string
+      // it answers `{0: "a", 1: "b"}` — that is B-116 exactly, a title turned
+      // into an object of its characters and drawn as `undefined` in bold —
+      // and over an ARRAY it answers an object keyed "0", "1", …, which the
+      // engine iterates as nothing. B-116's repair stopped at the terminal
+      // level and never reached the walk.
+      if (held === null || typeof held !== "object" || Array.isArray(held)) return held;
       const entries = Object.entries(held as Record<string, unknown>);
       return Object.fromEntries(
         entries.map(([key, value]) => [
@@ -211,8 +225,12 @@ function atPath(
     const entry = held as Record<string, unknown>;
     const inner = entry[contractName];
     if (inner === undefined) return entry;
+    // A DECLARED LIST THAT ARRIVED AS SOMETHING ELSE is left alone rather than
+    // thrown over: `/steps[]`, `/cast[]`, `/seasons[]` and five more reach this
+    // line, and a `null` from a nullable field made a whole surface report an
+    // error it could not explain.
     const converted = walkList
-      ? (inner as unknown[]).map((one) => walk(one, index + 1))
+      ? (Array.isArray(inner) ? inner.map((one) => walk(one, index + 1)) : inner)
       : walk(inner, index + 1);
     return { ...entry, [contractName]: converted };
   };
@@ -247,10 +265,18 @@ function tuplesRestored(value: unknown, tuples: Record<string, string[]>): unkno
 /**
  * Converts ONE ENTRY of a family the projection keys by data.
  *
- * WHY IT IS SEPARATE. A family marked `keyedByData` is a MAP — `SHEETS_RAW` is
- * every media sheet, keyed by title — and its declared paths describe one
- * VALUE of that map rather than the map itself. The layer serves one sheet at
- * an address, not the map, so the paths are applied to what arrived.
+ * WHY IT IS SEPARATE, and what it really does. A family marked `keyedByData` is
+ * a MAP — `SHEETS_RAW` is every media sheet, keyed by title — and its declared
+ * paths describe one VALUE of that map rather than the map itself. The layer
+ * serves one sheet at an address, not the map, so the paths are applied to what
+ * arrived.
+ *
+ * THE BODY IS THE SAME WALK, and that is deliberate rather than an oversight:
+ * the difference is in WHAT the caller hands over, and there is nothing here to
+ * implement. Said out loud because the paragraph above, alone, reads as a
+ * guarantee that this function protects a map from its own value-level paths —
+ * and it does not. Handing it the whole map applies a root rename to media
+ * TITLES.
  *
  * @param family The fixture family it stands for, as the register spells it.
  * @param value One entry, as the layer answered it.

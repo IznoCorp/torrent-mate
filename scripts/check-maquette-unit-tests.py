@@ -35,8 +35,15 @@ DESIGN = pathlib.Path(__file__).resolve().parent.parent / "frontend" / "maquette
 
 # What the suite must collect at least. Raised in the commit that adds tests,
 # never lowered to let a deletion through.
-TEST_FLOOR = 36
-FILE_FLOOR = 2
+#
+# AND IT IS RAISED TO THE CORPUS, not to something under it. These sat at 36 and
+# 2 while the suite held 58 tests in 4 files — so an entire test FILE could be
+# deleted with both floors clear, which is precisely the mutation the phase that
+# wrote them watched fall. A floor 37 % below what it guards is a floor nothing
+# stands on: the smallest of the four files is 7 tests, so the file floor is the
+# file count and the test floor is the test count.
+TEST_FLOOR = 93
+FILE_FLOOR = 5
 
 
 def main() -> int:

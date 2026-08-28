@@ -51,14 +51,45 @@ invalid (`docs/reference/feature-lifecycle.md`).
 | ACC-02 | `python3 frontend/maquette/oracle.py --check` | `no divergence`, at every phase |
 | ACC-03 | `cd frontend/maquette/design && npm test -- --run` | all pass, 0 failed |
 | ACC-04 | `cd frontend/maquette/design && npm test -- --run` under `xvfb`-less CI | collected without a browser (B-077) |
-| ACC-05 | `python3 scripts/check-frontend-boundaries.py --arm server-state` | count ≤ its recorded ceiling, ending at 0 |
-| ACC-06 | `python3 scripts/check-frontend-boundaries.py --arm effect-fetch` | 0 violations, corpus size ≥ floor, printed |
-| ACC-07 | `grep -c 'displayedValue' frontend/maquette/contract/openapi.json` | 0 |
+| ACC-05 | `python3 scripts/check-state-ownership.py --arm server-state` | union ≤ its recorded ceiling (7), and **0 written by a component** |
+| ACC-06 | `python3 scripts/check-state-ownership.py --arm effect-fetch` | 0 violations, corpus size ≥ floor, printed |
+| ACC-07 | `grep -c 'displayedValue' frontend/maquette/contract/openapi.json` | **2** — declared and `deprecated`, read by no surface |
 | ACC-08 | `python3 scripts/compare-contracts.py --check` | exit 0, the precision demand present |
 | ACC-09 | `python3 scripts/check-mock-seeds.py` | 7 arms, no violation |
 | ACC-10 | `frontend/maquette/harness/run.sh` | every rule, no violation |
 | ACC-11 | `make check` | exit 0, 0 failed and 0 error |
-| ACC-12 | `grep -rn "__referentiel" frontend/maquette/design/src/features \| wc -l` | 0 — no surface reads a fixture |
+| ACC-12 | `python3 scripts/check-mock-seeds.py --arm classification` | **21** families converted, and every one of them gone from the engine |
 | ACC-13 | `python3 scripts/check-module-size.py --root frontend` | no file over the hard ceiling |
 
 ACC-05, ACC-06, ACC-07, ACC-08 and ACC-12 are the `Done when` of the lot, said as commands.
+
+**Four of them were AMENDED after an adversarial review ran them, and the amendments are the
+finding.** They are recorded here rather than quietly rewritten, because a criterion edited to
+match what happened proves nothing at all:
+
+- **ACC-05 and ACC-06 named the wrong script.** Both arms live in `check-state-ownership.py`, a
+  separate file by this lot's own D-L09 decision, and `check-frontend-boundaries.py --arm
+  server-state` exits with `invalid choice`. A criterion that cannot run is not a gate, and these
+  two were written before the split they describe. ACC-05's expected output also said « ending at
+  0 »: the union is **7**, all seven written by the DYING ENGINE, and the number that must be zero
+  is the COMPONENT share — which is what the arm now prints separately and what the criterion now
+  names.
+- **ACC-07 expected 0 and the answer is 2, by decision.** `displayedValue` stays declared and
+  `deprecated`: no surface reads it, and it is what the formatter's test asserts against. Removing
+  it would leave that test with a golden written from its own output. The criterion was written
+  before that decision and is corrected to it — the deprecation, not the deletion, is what this
+  lot owed.
+- **ACC-12 asked the wrong question.** `grep "__referentiel" … | wc -l` counts a hook that reads
+  the ENGINE's reference object, which is how every engine-drawn surface still gets its markup —
+  it is not « a surface reading a fixture », and it cannot reach 0 while the engine draws
+  anything. It is 20 today and would still be 20 with every family converted. What this lot owes
+  is that a CONVERTED family is gone from the engine, and that is what the classification arm
+  reads, family by family.
+
+**What is NOT amended, and is stated as unmet**: the lot's `Done when` in
+`docs/reference/frontend-architecture.md` reads « No surface reads a fixture; the fixture literals
+are gone from the engine ». **60 families remain declared in the engine** against 21 converted.
+They are the ones whose surfaces the engine still DRAWS — the media sheet, the posters, the cast,
+the seasons — and converting their data while the engine draws them would give one surface two
+sources. That is L13's subject, and it is written here as an open gap rather than closed by
+rewording the sentence that names it.

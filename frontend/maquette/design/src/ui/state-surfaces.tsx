@@ -76,7 +76,11 @@ export function Skeletons({
  * AN `onRetry` PROP WAS WRITTEN AND TAKEN BACK IN THE SAME PHASE. It made the
  * library's surface write `phase` — a SERVER-STATE key — from a component, and
  * `check-state-ownership.py --arm server-state` refused it: the component share
- * went 4 → 5 against a ceiling of 4. The arm was right. A retry that re-asks
+ * went 4 → 5 against the ceiling in force that day, which is what a component
+ * ceiling exists to see — the union alone stays put when the engine already
+ * writes the key. (Both numbers moved after that phase: the ceiling is 0 now
+ * and so is the share. This paragraph records the measurement that refused the
+ * prop, not a threshold in force.) The arm was right. A retry that re-asks
  * belongs to the phase that gives this surface a query, and adding the prop
  * before its first caller would be machinery nobody could justify.
  *

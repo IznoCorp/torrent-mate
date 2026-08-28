@@ -182,20 +182,28 @@ async def hold_the_browser(journal):
         # The engine reaches the same three objects by IMPORT, filled by
         # `installSeams`. Calling it a second time is refused, and that refusal
         # is the only observable proof from outside that it ran at all.
-        refused = await page.evaluate(
+        # AND THE ANSWER REACHES A HOLD. This read `window.__seamsInstalledProbe`
+        # into `refused`, printed it in a message, and held on something else
+        # entirely — so the probe could answer anything, or not exist, and the
+        # rule said the same thing. Either it is worth reading or it is not.
+        probe = await page.evaluate(
             """() => {
                 const seams = window.__seamsInstalledProbe;
                 return seams === undefined ? "no probe" : seams;
             }""")
+        opened = (await page.evaluate(
+            """() => { window.__screens.profile("Silo");
+                       return location.pathname; }""")).startswith("/quality/")
         journal.check("the engine's imported seams are filled",
                       # The engine drives every screen through them; a screen
                       # opening at all is that proof, and it is cheaper and
                       # less coupled than exporting a probe for it.
-                      (await page.evaluate(
-                          """() => { window.__screens.profile("Silo");
-                                     return location.pathname; }""")
-                       ).startswith("/quality/"),
-                      f"probe={refused}")
+                      opened, f"probe={probe}")
+        journal.check("and no second installation is claimed",
+                      # The probe exists only if something installed twice and
+                      # left a trace. « no probe » is the healthy answer, and
+                      # saying so is what makes reading it worth anything.
+                      probe == "no probe", str(probe))
 
         await browser.close()
 

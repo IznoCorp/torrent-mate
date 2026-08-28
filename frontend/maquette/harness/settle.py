@@ -47,6 +47,7 @@ WHAT IT DOES NOT READ, said before what it does:
 """
 import asyncio
 import pathlib
+import re
 import sys
 
 from playwright.async_api import async_playwright
@@ -57,7 +58,18 @@ from common import PHONE, Journal, open_page
 # What `oracle.py` gives the signal before it goes on without it. Named here so
 # the two cannot drift silently: a rule that measured a latency ABOVE this
 # number would be measuring the budget expiring and calling it a settle.
-ORACLE_QUIET_BUDGET_MS = 2000
+# THE ORACLE'S OWN NUMBER, READ FROM THE ORACLE. It was written here as `2000`
+# beside a comment saying « named here so the two cannot drift silently », and
+# nothing read the other side: the hold below compared two constants declared
+# in this same file, so it held under any value either of them took. The number
+# this whole rule rests on was the one thing it did not measure.
+ORACLE_SOURCE = (pathlib.Path(__file__).resolve().parent.parent / "oracle.py")
+_budget = re.search(r"^NETWORK_QUIET_BUDGET_MS\s*=\s*(\d+)",
+                    ORACLE_SOURCE.read_text(encoding="utf-8"), re.MULTILINE)
+if _budget is None:
+    raise SystemExit("R89: `NETWORK_QUIET_BUDGET_MS` is not declared in oracle.py — "
+                     "this rule cannot hold a budget it cannot read.")
+ORACLE_QUIET_BUDGET_MS = int(_budget.group(1))
 
 # The latency the held-back request answers after. Comfortably under the budget
 # above, and comfortably over the time a resolved promise takes to settle.

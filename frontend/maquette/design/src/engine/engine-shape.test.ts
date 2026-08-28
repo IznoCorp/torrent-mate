@@ -188,4 +188,38 @@ describe("toEngineShape", () => {
     expect(() => toEngineShape("NOT_A_FAMILY", {}))
       .toThrowError(/not a declared fixture family/);
   });
+
+  // ── what arrives is not always what the declaration describes ────────────
+  //
+  // The seeds are no longer the only input: handlers compose payloads, and the
+  // contract has nullable fields. B-116 was one of these — a string reaching a
+  // `*` path and coming back as an object of its characters, drawn as
+  // `undefined` in bold — and its repair stopped at the terminal level without
+  // reaching the walk. These three are the siblings it left.
+
+  it("leaves a null where a list was declared, instead of throwing inside a read", () => {
+    // `/steps[]`, `/cast[]`, `/seasons[]` and five more reach this line. A
+    // `null` used to throw « Cannot read properties of null (reading 'map') »
+    // inside a `queryFn`, so the surface drew an error naming nothing.
+    const answered = toEngineShape<Record<string, unknown>>(
+      "PIPELINE", { steps: null });
+    expect(answered).toEqual({ steps: null });
+  });
+
+  it("leaves a string where a keyed map was declared, instead of spelling it out", () => {
+    // `/eps/*[]` is the one `*` path there is, so `episodes` is where a
+    // non-object reaches it. `Object.entries("ab")` answers `{0: "a", 1: "b"}`
+    // — that is B-116, whose repair stopped at the terminal level.
+    const answered = toEngineShapeEntry<Record<string, unknown>>(
+      "SHEETS_RAW", { episodes: "none at all" });
+    expect(answered.eps).toBe("none at all");
+  });
+
+  it("leaves an array where a keyed map was declared, instead of keying it by index", () => {
+    // `Object.fromEntries(Object.entries([…]))` answers an object keyed "0",
+    // "1", … which the engine iterates as nothing at all.
+    const answered = toEngineShapeEntry<Record<string, unknown>>(
+      "SHEETS_RAW", { episodes: [{ n: 1 }] });
+    expect(Array.isArray(answered.eps)).toBe(true);
+  });
 });

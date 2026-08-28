@@ -136,7 +136,13 @@ export function acquisitionRoutes(): MockRoute[] {
         const title = result.title.toLowerCase();
         return words.some((word) => title.includes(word));
       });
-      return { ...SEARCH_RESULTS, shown: results.length, results };
+      // AND THE COUNTS ARE THE ANSWER'S, both of them. `total` was spread
+      // through untouched, so a search matching nothing drew « 0 résultat
+      // affiché sur 257 trouvés » — a screen saying « nothing » while claiming
+      // 257, which is the very defect the library listing was repaired for two
+      // files away (« answering 1 861 over a search for two rows made the count
+      // describe the library rather than the answer »).
+      return { ...SEARCH_RESULTS, total: results.length, shown: results.length, results };
     }),
     // The deck PAGES. Answering the first batch to every request made the
     // contract's own `after` parameter unusable and turned a deck that pages
@@ -205,6 +211,30 @@ export function acquisitionRoutes(): MockRoute[] {
       },
     ),
     route("readJourney", GET, "/api/acquisition/journeys/{infoHash}", () => JOURNEY_STAGES),
-    route("readReleases", GET, "/api/acquisition/releases", () => RELEASES),
+    // THE RELEASES OF THE TITLE ASKED FOR. The contract declares `title`,
+    // `season` and `episode`; this answered the same eight releases to every
+    // question, so the picker opened on « Ted Lasso » and then on « Silo »
+    // showed one list — and the second came from the cache without a request,
+    // because the query key carried no title either. A release list that does
+    // not depend on what it is a list OF is not a list.
+    route("readReleases", GET, "/api/acquisition/releases", (request) => {
+      const title = (request.query.get("title") ?? "").toLowerCase();
+      const season = request.query.get("season") ?? "";
+      const episode = request.query.get("episode") ?? "";
+      return RELEASES.filter((release) => {
+        // A RELEASE CARRIES ITS SEASON AND EPISODE IN ITS NAME, which is what a
+        // release name is. Reading them off a field the seed does not have and
+        // falling back to « it matches » would make both parameters vacuous —
+        // accepted and ignored, the defect this handler is being repaired for.
+        const name = String(release.name ?? "");
+        const counted = /S(?<season>\d+)E(?<episode>\d+)/i.exec(name);
+        if (title !== "" && !name.toLowerCase().includes(title)) return false;
+        if (season !== "" && counted?.groups?.season !== undefined
+            && Number(counted.groups.season) !== Number(season)) return false;
+        if (episode !== "" && counted?.groups?.episode !== undefined
+            && Number(counted.groups.episode) !== Number(episode)) return false;
+        return true;
+      });
+    }),
   ];
 }

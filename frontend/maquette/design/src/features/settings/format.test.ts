@@ -38,10 +38,12 @@ const FIELDS: Setting[] = (SETTINGS as { settings: Setting[] }[])
   .flatMap((topic) => topic.settings);
 
 // The seven fields whose rendering carries a decimal the value does not. JSON
-// holds one number for `4` and `4.0`; the contract's `precision` is what the
-// backend is asked for, and until it answers these are named rather than
-// silently wrong.
-const WITHOUT_PRECISION = new Set([
+// holds one number for `4` and `4.0`, so the contract carries a `precision` and
+// the seed answers it. They are NAMED here — not excluded — because a field
+// that needs a second datum to render is worth reading by name, and because the
+// loop below asserts them like every other field: excluding them was how the
+// whole point of `precision` came to be asserted by a hardcoded literal.
+const WITH_PRECISION = new Set([
   "library.video.max_size_movie_gb",
   "library.video.max_size_episode_gb",
   "tracker.providers.c411.economy.target_ratio",
@@ -59,10 +61,14 @@ describe("settingInWords", () => {
   it("says every field exactly as the engine did", () => {
     const wrong: string[] = [];
     for (const field of FIELDS) {
-      if (WITHOUT_PRECISION.has(field.key)) continue;
-      const kind = field.type === "text" && /^[\d*]/.test(String(field.raw))
-        && String(field.raw).split(/\s+/).length === 5 ? "schedule" : field.type;
-      const said = settingInWords(kind, field.raw, field.precision);
+      // WHAT THE PAGE PASSES, and nothing else. This loop used to DERIVE a
+      // `schedule` kind from the shape of the value — five whitespace-separated
+      // groups starting with a digit or a star — and the application derives
+      // nothing: `page.tsx` passes `setting.type` verbatim. So the test agreed
+      // with itself while the six cron settings rendered as `15 * * * *` on
+      // screen. The kind is a fact about the setting; it is carried by the
+      // fixture, and read from it here.
+      const said = settingInWords(field.type, field.raw, field.precision);
       if (said !== field.displayedValue) {
         wrong.push(`${field.key}: « ${said} » !== « ${field.displayedValue} »`);
       }
@@ -81,15 +87,32 @@ describe("settingInWords", () => {
   });
 
   it("names the seven fields whose precision the value cannot carry", () => {
-    for (const key of WITHOUT_PRECISION) {
+    // AND READS THE SEED'S OWN `precision`, never a literal. Passing `1` here
+    // proved that `settingInWords` can honour a precision — it proved nothing
+    // about whether the seed carries one, so stripping `precision` from the
+    // fixture left this suite green while the screen drew « 4 » for « 4.0 ».
+    for (const key of WITH_PRECISION) {
       const field = FIELDS.find((one) => one.key === key);
       expect(field).toBeDefined();
-      // Without the contract's precision the number says itself, which is why
-      // the demand exists; with it, it says what the screen said.
+      expect(field!.precision).toBeGreaterThan(0);
+      // Without it the number says itself, which is why the field exists.
       expect(settingInWords("number", field!.raw)).toBe(String(field!.raw));
-      expect(settingInWords("number", field!.raw, 1)).toBe(field!.displayedValue);
+      expect(settingInWords("number", field!.raw, field!.precision))
+        .toBe(field!.displayedValue);
     }
   });
+
+  it("has a schedule to say, and says it in words", () => {
+    // The corpus floor for the kind that had none: six cron settings, and a
+    // rendering that is not the raw expression. A `schedule` that renders as
+    // itself is the defect this file was written blind to.
+    const withASchedule = FIELDS.filter((field) => field.type === "schedule");
+    expect(withASchedule.length).toBe(6);
+    for (const field of withASchedule) {
+      expect(settingInWords(field.type, field.raw)).not.toBe(String(field.raw));
+    }
+  });
+
 });
 
 describe("scheduleInWords", () => {

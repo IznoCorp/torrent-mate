@@ -1,7 +1,7 @@
 // Saying a setting's value in the interface's own words.
 //
 // B-090 IS WHY THIS EXISTS. The contract carried `displayedValue` — the engine's
-// `v` field, a French summary RENDERED for a screen — and 110 of the 159 fields
+// `v` field, a French summary RENDERED for a screen — and 59 of the 159 fields
 // differed from the value the setting actually holds. Two of them were LOSSY: a
 // four-element list read « multi, vf, vostfr +1 » and an eighteen-file list read
 // « paths.json5, disks.json5, categories.json5 +15 », so the fourth element and

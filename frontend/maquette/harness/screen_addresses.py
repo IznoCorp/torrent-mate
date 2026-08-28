@@ -217,6 +217,7 @@ RELEASES_STATE = """() => {
     key: screen?.dataset.key ?? null,
     bar: (screen?.querySelector('[data-part="screen/bar"] span') || {}).textContent ?? null,
     candidates: screen ? screen.querySelectorAll('[data-part="release"]').length : 0,
+    wayOut: !!screen?.querySelector('[data-part="empty-state"] [data-part="card/foot"]'),
     pathname: location.pathname,
   };
 }"""
@@ -602,20 +603,32 @@ async def main():
                              not errors, str(errors))
             await ctx.close()
 
-            # ─── Hold (p): an unknown deep /releases value renders the SAME
-            # candidate list — RELEASES carries no per-title lookup to fail,
-            # unlike a mediaSheet's `sheetFor`, so the honest case here is simply
-            # the ordinary screen, wearing whatever title was typed. ───────
+            # ─── Hold (p): an unknown deep /releases value renders the
+            # ordinary screen wearing whatever title was typed, and says it
+            # found nothing FOR THAT TITLE — with a way out.
+            #
+            # THIS HOLD USED TO REQUIRE CANDIDATES, and its stated reason was
+            # « RELEASES carries no per-title lookup to fail ». Since L09 it
+            # does: the picker asks `/api/acquisition/releases?title=…` and the
+            # layer answers for the title. So an unknown title legitimately
+            # answers none — that is the lookup working — and what has to hold
+            # is the other half, which nothing was reading: the screen still
+            # renders, it names the title asked for, and it offers a way out
+            # rather than a blank (DOIT-7, never a dead end).
             wrong_releases_address = f"{base}/releases/{UNKNOWN_ADDRESS}"
             ctx, pg, errors = await open_at(browser, wrong_releases_address)
+            await pg.wait_for_timeout(700)
             releases_lost = await pg.evaluate(RELEASES_STATE)
             journal.check(
-                "(p) an unknown title still renders the releases list, "
-                "with that title in the bar",
+                "(p) an unknown title renders the releases screen, names the "
+                "title, finds nothing, and offers a way out",
                 releases_lost["open"]
                 and releases_lost["bar"] == "N'Existe Pas"
-                and releases_lost["candidates"] > 0,
-                f"key={releases_lost['key']} bar={releases_lost['bar']!r}")
+                and releases_lost["candidates"] == 0
+                and releases_lost["wayOut"],
+                f"key={releases_lost['key']} bar={releases_lost['bar']!r} "
+                f"candidates={releases_lost['candidates']} "
+                f"wayOut={releases_lost['wayOut']}")
             journal.check(
                 "the address stays exactly as typed",
                 pg.url == wrong_releases_address, pg.url)

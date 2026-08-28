@@ -190,7 +190,12 @@ function CountLine(): ReactElement {
   const shown = (listing.data?.pages ?? []).reduce(
     (count, page) => count + page.items.length, 0);
   const category = CATS.find((entry) => entry.id === state.libCat);
-  const universe = category && category.of ? category.c : 1861;
+  // THE LIBRARY'S OWN TOTAL, SERVED. It was written here as the literal 1861,
+  // three lines under a comment saying the count comes « from the same query
+  // the list reads, so the two cannot disagree » — while the query answered
+  // that very number and the screen printed a constant instead. Change the
+  // seed and the screen went on saying 1861.
+  const universe = category && category.of ? category.c : total;
   const suffix =
     category && category.of
       ? t("screens.library.countCategory", { category: category.l.toLowerCase() })

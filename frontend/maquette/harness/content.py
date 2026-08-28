@@ -93,10 +93,22 @@ async def main():
 
         # Compared against the DATABASE, not against itself: a card printing a
         # number the engine never held would otherwise pass.
+        #
+        # AND IT REPORTS RATHER THAN GATES, which is the same ruling B-121 took
+        # on the repository side. `searches` is a counter the acquisition daemon
+        # increments: it moved from 18 to 19 to 21 for one show across two days
+        # of this wave, all by itself. A gate that fails because a daemon ran
+        # overnight says nothing about the change under test — CLAUDE.md already
+        # names this exact shape for `arrivals.py` — and on any machine without
+        # the operator's `acquire.db` it verifies nothing at all.
+        #
+        # What it still does, and it is the part worth keeping: it PRINTS the
+        # drift, by title, with both numbers. `scripts/refresh-maquette-fixture.py
+        # --apply` is the deliberate gesture that closes it.
         real = real_facts()
         if not real:
-            check("the numbers come from acquire.db",
-                  False, f"database absent: {ACQUIRE}")
+            print(f"    [advisory] no database at {ACQUIRE} — the follow counts "
+                  f"were not compared against anything")
         else:
             wrong = []
             for s in follows:
@@ -108,8 +120,21 @@ async def main():
                 pattern = rf"\b{r['searches']}\s+recherche"
                 if not re.search(pattern, s["facts"]):
                     wrong.append(f"{s['title']} : « {s['facts']} » vs {r['searches']}")
-            check("the numbers come from acquire.db, not from the mock-up",
-                  not wrong, str(wrong[:3]))
+            if wrong:
+                print(f"    [advisory] {len(wrong)} follow(s) drifted from "
+                      f"acquire.db — run `scripts/refresh-maquette-fixture.py "
+                      f"--apply`: {wrong[:3]}")
+            else:
+                print("    [advisory] the follow counts agree with the "
+                      "operator's acquisition database")
+            # WHAT STILL GATES is the half that is about the INTERFACE rather
+            # than about the operator's data: a card must print a number of
+            # searches at all, and it must be the seed's own — which is what
+            # `check-mock-seeds.py` re-derives and refuses.
+            check("every follow card prints a search count",
+                  all(re.search(r"\b\d+\s+recherche", s["facts"]) for s in follows),
+                  str([s["title"] for s in follows
+                       if not re.search(r"\b\d+\s+recherche", s["facts"])][:3]))
 
         # ── the two tabs say the same thing the same way ────────────────────
         # « En cours » already had the sentence; the follow tab had none, and

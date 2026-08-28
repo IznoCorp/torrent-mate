@@ -50,7 +50,7 @@ export function ReleasesScreen() {
   } = useReleasesReference();
   const { t } = useTranslation();
   // FROM THE CACHE (invariant 4).
-  const { data: RELEASES = [] } = useReleases();
+  const { data: RELEASES = [] } = useReleases(baseTitle(title));
 
   return (
     <section

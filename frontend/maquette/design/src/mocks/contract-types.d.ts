@@ -1070,8 +1070,11 @@ export interface components {
             file: string;
             /** @description its full dotted key */
             key: string;
-            /** @description the kind of field it is drawn as */
-            type: string;
+            /**
+             * @description the kind of field it is drawn as, and the kind its value is READ as. `schedule` is a cron expression said in words: the kind used to live nowhere, so the interface guessed it from the shape of the value and the six cron settings rendered as raw cron.
+             * @enum {string}
+             */
+            type: "boolean" | "duration" | "empty" | "list" | "number" | "path" | "schedule" | "structure" | "text";
             /** @description the value as the file holds it */
             raw: unknown;
             /** @description its short name inside the file */
@@ -1080,7 +1083,7 @@ export interface components {
             note?: string;
             /**
              * @deprecated
-             * @description B-090, AND WHAT IS LEFT OF IT. This is the engine's own French summary of the value, rendered for a screen — 110 of the 159 fields differ from `raw`, and two of them LOSE information: a four-element list reads « multi, vf, vostfr +1 » and an eighteen-file list reads « paths.json5, disks.json5, categories.json5 +15 ». NO SURFACE READS IT ANY MORE: the settings panel says the value from `raw` through the interface's own formatter, and `precision` carries the one fact `raw` cannot. It stays declared for one reason — it is what the formatter's test asserts against, 159 strings extracted from `legacy.js` and held byte for byte against it, which is the only non-vacuous oracle available for a rendering. It dies with the fixture that produces it, at L13.
+             * @description B-090, AND WHAT IS LEFT OF IT. This is the engine's own French summary of the value, rendered for a screen — 59 of the 159 fields differ from `String(raw)`, and two of them LOSE information: a four-element list reads « multi, vf, vostfr +1 » and an eighteen-file list reads « paths.json5, disks.json5, categories.json5 +15 ». NO SURFACE READS IT ANY MORE: the settings panel says the value from `raw` through the interface's own formatter, and `precision` carries the one fact `raw` cannot. It stays declared for one reason — it is what the formatter's test asserts against, 159 strings extracted from `legacy.js` and held byte for byte against it — all 159 of them, `precision` and the `schedule` kind included — which is the only non-vacuous oracle available for a rendering. It dies with the fixture that produces it, at L13.
              */
             displayedValue?: string;
             /** @description how many decimals the value is WRITTEN with, when it has any. JSON holds one number for 4 and 4.0 and the interface shows two different settings — a size in whole gigabytes and a ratio to one decimal — so the schema is the only thing that knows which. Seven fields carry it. B-090: the field this replaces was `displayedValue`, a French summary rendered for a screen, which no control could edit and which had lost the fourth element of a four-element list. */
@@ -1363,14 +1366,12 @@ export interface operations {
     readLibraryItems: {
         parameters: {
             query?: {
-                /** @description which lens groups the listing: category, recent, incomplete */
-                lens?: string;
                 /** @description the category identifier, when the lens is category */
                 category?: string;
                 /** @description the sort in force */
                 sort?: string;
-                /** @description whether the sort runs the other way */
-                reversed?: boolean;
+                /** @description whether the sort runs the other way — present and « 1 », or absent. Declared `boolean` at first, while both ends spoke the string « 1 »: a query parameter is a string on the wire, and a contract that says otherwise describes an encoding nobody implements. */
+                reversed?: "1";
                 /** @description the search text */
                 query?: string;
                 /** @description the page, zero based */

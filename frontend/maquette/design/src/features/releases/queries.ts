@@ -10,12 +10,26 @@ import { read } from "../../lib/query-client";
 import { toEngineShape } from "../../engine/engine-shape";
 import type { Release } from "./reference";
 
-/** The releases a search turned up. */
-export function useReleases() {
+/**
+ * The releases a search turned up, for one title.
+ *
+ * THE TITLE IS IN THE KEY, and that is not a detail. Without it the picker
+ * opened on « Ted Lasso », then on « Silo », and drew one list — the second
+ * served from the cache with no request made, because two different questions
+ * had the same key. A list that does not depend on what it is a list OF is not
+ * a list.
+ *
+ * @param title The medium the releases are for. An empty title asks for all of
+ *     them, which is what the quality profile counts against.
+ * @returns The query, holding the releases in the engine's own shape.
+ */
+export function useReleases(title = "") {
+  const parameters = new URLSearchParams(title === "" ? {} : { title });
   return useQuery({
-    queryKey: ["/api/acquisition/releases"],
+    queryKey: ["/api/acquisition/releases", title],
     queryFn: async () =>
-      toEngineShape<Release[]>("RELEASES", await read("/api/acquisition/releases")),
+      toEngineShape<Release[]>(
+        "RELEASES", await read("/api/acquisition/releases", parameters)),
   });
 }
 
@@ -29,8 +43,17 @@ export function useReleases() {
  * @param queryClient The cache the surfaces read.
  */
 export function installReleasesLookup(queryClient: QueryClient): void {
-  window.__releases = () =>
-    (queryClient.getQueryData(["/api/acquisition/releases"]) as Release[] | undefined) ?? [];
+  // WHICHEVER LIST IS IN FORCE. The engine indexes into « the releases on
+  // screen », and since the key carries the title there is one entry per title
+  // rather than one entry. The most recently answered is the one being looked
+  // at — the same reading the redraw bridge takes, and for the same reason.
+  window.__releases = () => {
+    const answered = queryClient.getQueryCache().getAll()
+      .filter((entry) => entry.queryKey[0] === "/api/acquisition/releases"
+              && entry.state.data !== undefined)
+      .sort((left, right) => right.state.dataUpdatedAt - left.state.dataUpdatedAt);
+    return (answered[0]?.state.data as Release[] | undefined) ?? [];
+  };
 }
 
 declare global {

@@ -72,7 +72,11 @@ phase 1 of it, because a file is split BEFORE it is added to, never after.
 ### B-090, measured rather than quoted
 
 The register says « a four-element list becomes *multi, vf, vostfr +1* ». Measured over all
-**159** settings fields: **110** differ from `raw`, but only **15** lose information.
+**159** settings fields: **59** differ from `String(raw)`, and only **2** lose information.
+(This line first said 110 and 15. The 110 came from comparing `JSON.stringify(raw)`, which
+counts the quotes around a string as a difference, and the 15 counted every elision-looking
+rendering rather than the ones that actually elide. Both were corrected by re-running the
+method this section states, which is the point of stating it.)
 
 | Family | Count | What is lost |
 | --- | ---: | --- |
@@ -80,7 +84,7 @@ The register says « a four-element list becomes *multi, vf, vostfr +1* ». Meas
 | Numbers | **7** | JSON carries `4`, the screen shows « 4.0 » — the float-ness is not in `raw` |
 | Cron strings | **6** | `15 * * * *` → « toutes les heures, à la 15ᵉ minute » — a renderer, not a value |
 
-The other 95 differences are **reproducible** from `raw`: a boolean renders « oui »/« non », a
+The other 57 differences are **reproducible** from `raw`: a boolean renders « oui »/« non », a
 short list joins on « , », an empty list renders « aucun », a list of objects renders « N entrées ».
 
 <sub>method: read `design/src/mocks/seeds/settings.json`, compare `raw` against `displayedValue` per field and group by what the difference is</sub>

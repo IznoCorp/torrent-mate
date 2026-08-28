@@ -1486,7 +1486,7 @@
       {
         "file": "ecosystem.config.js",
         "key": "personalscraper-health-check",
-        "type": "text",
+        "type": "schedule",
         "raw": "15 * * * *",
         "name": "cron_restart",
         "displayedValue": "toutes les heures, à la 15ᵉ minute",
@@ -1495,7 +1495,7 @@
       {
         "file": "ecosystem.config.js",
         "key": "personalscraper-search",
-        "type": "text",
+        "type": "schedule",
         "raw": "10 3,15 * * *",
         "name": "cron_restart",
         "displayedValue": "à 03 h 10 et 15 h 10",
@@ -1504,7 +1504,7 @@
       {
         "file": "ecosystem.config.js",
         "key": "personalscraper-grab",
-        "type": "text",
+        "type": "schedule",
         "raw": "20 3,15 * * *",
         "name": "cron_restart",
         "displayedValue": "à 03 h 20 et 15 h 20",
@@ -1513,7 +1513,7 @@
       {
         "file": "ecosystem.config.js",
         "key": "personalscraper-follow-detect",
-        "type": "text",
+        "type": "schedule",
         "raw": "0 3 * * *",
         "name": "cron_restart",
         "displayedValue": "chaque jour à 03 h 00",
@@ -1522,7 +1522,7 @@
       {
         "file": "ecosystem.config.js",
         "key": "personalscraper-index-enrich",
-        "type": "text",
+        "type": "schedule",
         "raw": "30 4 * * 0",
         "name": "cron_restart",
         "displayedValue": "le dimanche à 04 h 30",
@@ -1531,7 +1531,7 @@
       {
         "file": "ecosystem.config.js",
         "key": "personalscraper-backfill-ids",
-        "type": "text",
+        "type": "schedule",
         "raw": "0 5 * * 0",
         "name": "cron_restart",
         "displayedValue": "le dimanche à 05 h 00",

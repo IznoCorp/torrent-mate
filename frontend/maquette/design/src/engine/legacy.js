@@ -7338,7 +7338,7 @@ import { servedIdentityLines } from "../lib/served-identity";
         {
           f: "ecosystem.config.js",
           c: "personalscraper-health-check",
-          type: "text",
+          type: "schedule",
           brut: "15 * * * *",
           n: "cron_restart",
           v: "toutes les heures, à la 15ᵉ minute",
@@ -7347,7 +7347,7 @@ import { servedIdentityLines } from "../lib/served-identity";
         {
           f: "ecosystem.config.js",
           c: "personalscraper-search",
-          type: "text",
+          type: "schedule",
           brut: "10 3,15 * * *",
           n: "cron_restart",
           v: "à 03 h 10 et 15 h 10",
@@ -7356,7 +7356,7 @@ import { servedIdentityLines } from "../lib/served-identity";
         {
           f: "ecosystem.config.js",
           c: "personalscraper-grab",
-          type: "text",
+          type: "schedule",
           brut: "20 3,15 * * *",
           n: "cron_restart",
           v: "à 03 h 20 et 15 h 20",
@@ -7365,7 +7365,7 @@ import { servedIdentityLines } from "../lib/served-identity";
         {
           f: "ecosystem.config.js",
           c: "personalscraper-follow-detect",
-          type: "text",
+          type: "schedule",
           brut: "0 3 * * *",
           n: "cron_restart",
           v: "chaque jour à 03 h 00",
@@ -7374,7 +7374,7 @@ import { servedIdentityLines } from "../lib/served-identity";
         {
           f: "ecosystem.config.js",
           c: "personalscraper-index-enrich",
-          type: "text",
+          type: "schedule",
           brut: "30 4 * * 0",
           n: "cron_restart",
           v: "le dimanche à 04 h 30",
@@ -7383,7 +7383,7 @@ import { servedIdentityLines } from "../lib/served-identity";
         {
           f: "ecosystem.config.js",
           c: "personalscraper-backfill-ids",
-          type: "text",
+          type: "schedule",
           brut: "0 5 * * 0",
           n: "cron_restart",
           v: "le dimanche à 05 h 00",

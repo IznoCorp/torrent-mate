@@ -689,6 +689,12 @@ const STATES = [
       ["duration", "une durée"],
       ["structure", "une structure, qui refuse"],
       ["empty", "une valeur non définie"],
+      /* The ninth, since L09. Its CONTROL is the text field — the difference is
+         in how the value is READ — and that is exactly why it needs a state of
+         its own: the six cron settings were rendering « 15 * * * * » where the
+         reference said « toutes les heures, à la 15ᵉ minute », and no state
+         showed a schedule for anyone to look at. */
+      ["schedule", "un horaire, dit en toutes lettres"],
     ].map(([genre, what]) => [
       `settings-field-${genre}`,
       `Réglages — ${what}`,

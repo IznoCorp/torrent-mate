@@ -88,14 +88,6 @@ export function useLibraryCategories() {
   });
 }
 
-/** The most recently added titles. */
-export function useLibraryRecent() {
-  return useQuery({
-    queryKey: ["/api/library/recent"],
-    queryFn: async () =>
-      toEngineShape<LibraryRow[]>("RECENT", await read("/api/library/recent")),
-  });
-}
 
 /** The shows the index knows are incomplete. */
 export function useLibraryIncomplete() {

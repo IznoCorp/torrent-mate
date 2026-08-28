@@ -120,12 +120,19 @@ export function stagingRoutes(): MockRoute[] {
       POST,
       "/api/staging/media/{mediaId}/discard",
       (request) => {
+        // THE SAME THREE LISTS ITS SIBLING WALKS. This filtered `stuck` alone,
+        // so a card served from the DENSE world — or from « ça bloque » — was
+        // asked to be discarded, nothing was removed, `{ok: false}` came back
+        // and the card stayed on screen. The list a card is IN is a fact about
+        // the scenario in force, never about the operation being asked for.
         const state = mockState();
-        const before = state.stuck.length;
-        state.stuck = state.stuck.filter(
-          (card) => card.title !== request.parameters.mediaId,
-        );
-        return { ok: state.stuck.length !== before };
+        const asked = request.parameters.mediaId;
+        for (const list of [FROM_REAL, FROM_DENSE, FROM_BLOCKED] as const) {
+          const before = state[list].length;
+          state[list] = state[list].filter((card) => card.title !== asked);
+          if (state[list].length !== before) return { ok: true };
+        }
+        return { ok: false };
       },
     ),
     route("readPipeline", GET, "/api/pipeline/status", () => mockState().pipeline),

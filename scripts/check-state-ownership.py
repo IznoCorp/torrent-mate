@@ -89,6 +89,13 @@ INTERFACE_STATE_KEYS = {
     "relatedTitle", "addQ", "addMode", "panelDescriptor", "kind", "too",
     "notes", "libLens", "libCat", "libMode", "followMode", "maintTopic",
     "sortKey", "sortReversed",
+    # The add screen's two: which kind is being searched for, and which provider
+    # the « identify by id » block names. Both are what the operator has chosen
+    # on screen, and neither is anything a server told us. They were on NEITHER
+    # list until an adversarial review of L09 read them: the arm could not see
+    # the writes at all, so its promise that « a new key cannot arrive
+    # unclassified » had already been broken three times over.
+    "addKind", "idProv",
 }
 
 # What the union may be, and it is refused UPWARD. Lowered in the commit that
@@ -110,11 +117,22 @@ COMPONENT_SHARE_CEILING = 0
 # How many `useEffect` call sites the second arm must find before it may report
 # anything at all. Raised as the tree grows; a corpus below it means the reader
 # stopped reading, not that the tree got cleaner.
-EFFECT_CORPUS_FLOOR = 3
+EFFECT_CORPUS_FLOOR = 5
 
-# How a write into the interface's own store is spelled.
-WRITE_CALLS = (r"writeUiState\s*\(\s*\{", r"__store\s*\.\s*write\s*\(\s*\{",
-               r"\bstore\s*\.\s*write\s*\(\s*\{")
+# How a write into the interface's own store is spelled. THE CALL, not the call
+# followed by a brace: requiring `({` meant a write whose argument was anything
+# else — a variable, a spread, a one-line local wrapper — was not seen at all,
+# and a wrapper is one line to write. Measured: `function write(patch) {
+# writeUiState(patch); }` in `add-screen.tsx` made four component writes
+# invisible, two of them of keys on neither list, under a green run.
+# What marks the module that IMPLEMENTS the write, rather than one that calls
+# it. Matched on the exported declaration, so a second module claiming the
+# exemption would have to export a second `writeUiState` — which is a defect the
+# `fan-in` and `one-address` arms would each have something to say about.
+IS_THE_SEAM = "export function writeUiState"
+
+WRITE_CALLS = (r"writeUiState\s*\(", r"__store\s*\.\s*write\s*\(",
+               r"\bstore\s*\.\s*write\s*\(")
 
 # What a data request looks like inside an effect's body. The query cache's own
 # hooks are included: moving a read into an effect through `fetchQuery` is the
@@ -122,7 +140,19 @@ WRITE_CALLS = (r"writeUiState\s*\(\s*\{", r"__store\s*\.\s*write\s*\(\s*\{",
 REQUEST_IN_EFFECT = (
     r"\bfetch\s*\(", r"\bread\s*<", r"\bread\s*\(", r"\bsend\s*\(",
     r"fetchQuery\s*\(", r"prefetchQuery\s*\(", r"ensureQueryData\s*\(",
+    # WHAT AN INFINITE QUERY IS PAGED WITH. `\bfetch\s*\(` does not match
+    # `fetchNextPage(` — the `\(` needs a bracket where there is an `N` — so the
+    # commonest read in a paged surface was outside the arm entirely.
+    r"fetchNextPage\s*\(", r"fetchPreviousPage\s*\(", r"\brefetch\s*\(",
 )
+
+# Where a request is a violation and where it is not. A read WRITTEN in the
+# effect's own body runs when the effect runs — that is invariant 5. A read
+# inside a callback the effect merely REGISTERS (an observer, a paging door, an
+# event listener) runs when that callback is called, which is a gesture, and
+# refusing it would forbid infinite scrolling altogether. So the nested
+# functions are blanked before the body is read.
+NESTED_FUNCTION = re.compile(r"(\([^()]*\)|[A-Za-z_$][\w$]*)\s*=>\s*|\bfunction\b[^{]*")
 
 
 def sources(root: pathlib.Path):
@@ -184,27 +214,82 @@ def balanced_span(source: str, opened_at: int, opener: str, closer: str) -> str:
     return ""
 
 
+def top_level_parts(literal: str) -> list[str]:
+    """Splits an object literal on its own commas, ignoring nested ones.
+
+    Args:
+        literal: The literal, braces included.
+
+    Returns:
+        One string per property, in order.
+    """
+    parts, depth, start = [], 0, 1
+    for index in range(1, len(literal) - 1):
+        character = literal[index]
+        if character in "{[(":
+            depth += 1
+        elif character in "}])":
+            depth -= 1
+        elif character == "," and depth == 0:
+            parts.append(literal[start:index])
+            start = index + 1
+    parts.append(literal[start:len(literal) - 1])
+    return [part for part in parts if part.strip()]
+
+
 def keys_written(source: str) -> tuple[list[str], list[str]]:
-    """Reads the keys of every store-write literal in one module.
+    """Reads the keys of every store-write in one module.
+
+    THREE SPELLINGS, and the arm used to read one. `{ pipe: value }` was read;
+    `{ pipe }` — the ES6 shorthand, which is the canonical form — was not, and
+    neither was a write whose argument is not a literal at all. Both were
+    proven by mutation to leave a component writing named server state under a
+    green run.
 
     Args:
         source: The module's text, comments already blanked.
 
     Returns:
-        The key names found, and the sites whose key is COMPUTED — refused
-        rather than skipped, because a key this arm cannot classify is a key
-        that would otherwise leave the count meaning « the ones I could read ».
+        The key names found, and the sites this arm CANNOT read — refused
+        rather than skipped, because a key it cannot classify is a key that
+        would otherwise leave the count meaning « the ones I could read ».
     """
-    keys, computed = [], []
+    keys, unreadable = [], []
+    # THE SEAM ITSELF is not a wrapper. `store-access.ts` holds the one function
+    # every component writes through, and it necessarily forwards a patch it did
+    # not compose. Reading it as a call made the arm refuse the file that
+    # provides the very seam it reads.
+    if IS_THE_SEAM in source:
+        return keys, unreadable
     for pattern in WRITE_CALLS:
         for match in re.finditer(pattern, source):
-            brace = source.index("{", match.start())
-            literal = balanced_span(source, brace, "{", "}")
-            if re.search(r"\[[^\]]+\]\s*:", literal):
-                computed.append(literal[:60])
+            before = source[max(0, match.start() - 40):match.start()]
+            if re.search(r"\b(function|const|let|var)\s+$", before):
                 continue
-            keys.extend(re.findall(r"(?:^|[,{\s])([A-Za-z_$][\w$]*)\s*:", literal))
-    return keys, computed
+            opening = source.index("(", match.start())
+            argument = balanced_span(source, opening, "(", ")").strip()
+            if not argument.startswith("{"):
+                # A VARIABLE, A CALL, A SPREAD — anything whose keys are not
+                # written here. This is where the one-line wrapper lived.
+                unreadable.append(f"a write whose argument is not a literal "
+                                  f"({argument[:40]}…)")
+                continue
+            brace = source.index("{", opening)
+            literal = "{" + balanced_span(source, brace, "{", "}") + "}"
+            for part in top_level_parts(literal):
+                body = part.strip()
+                if body.startswith("..."):
+                    unreadable.append(f"a spread inside a write ({body[:40]}…)")
+                elif re.match(r"^\[[^\]]+\]\s*:", body):
+                    unreadable.append(f"a computed key ({body[:40]}…)")
+                elif named := re.match(r"^([A-Za-z_$][\w$]*)\s*:", body):
+                    keys.append(named.group(1))
+                elif shorthand := re.match(r"^([A-Za-z_$][\w$]*)$", body):
+                    keys.append(shorthand.group(1))
+                else:
+                    unreadable.append(f"a property this arm cannot name "
+                                      f"({body[:40]}…)")
+    return keys, unreadable
 
 
 def arm_server_state(root: pathlib.Path) -> int:
@@ -216,8 +301,8 @@ def arm_server_state(root: pathlib.Path) -> int:
 
     for relative, text in sources(root):
         keys, unreadable = keys_written(blanked(text))
-        computed.extend(f"{relative}: a computed key ({site}…) — this arm cannot "
-                        f"classify it, so it refuses it" for site in unreadable)
+        computed.extend(f"{relative}: {site} — this arm cannot classify it, "
+                        f"so it refuses it" for site in unreadable)
         for key in keys:
             if key in SERVER_STATE_KEYS:
                 by_component.setdefault(key, set()).add(relative)
@@ -264,17 +349,65 @@ def arm_server_state(root: pathlib.Path) -> int:
     return len(violations)
 
 
+def without_nested_functions(body: str) -> str:
+    """Blanks every function declared inside a body, keeping its own statements.
+
+    Args:
+        body: The effect callback's text.
+
+    Returns:
+        The same text with each nested function's body replaced by spaces, so a
+        search reads only what runs when the effect runs.
+    """
+    kept = list(body)
+    index = 0
+    while index < len(body):
+        match = NESTED_FUNCTION.search(body, index)
+        if match is None:
+            break
+        brace = body.find("{", match.end() - 1)
+        if brace == -1:
+            break
+        # An arrow with an EXPRESSION body — `() => void listing.fetchNextPage()`
+        # — has no brace of its own; the next brace belongs to something else.
+        # Its own extent is the rest of the statement, so it is blanked to the
+        # next top-level `;` or `)`.
+        if body[match.end():brace].strip() not in ("", ")"):
+            end = match.end()
+            depth = 0
+            while end < len(body) and not (depth == 0 and body[end] in ";,"):
+                if body[end] in "({[":
+                    depth += 1
+                elif body[end] in ")}]":
+                    if depth == 0:
+                        break
+                    depth -= 1
+                end += 1
+        else:
+            span = balanced_span(body, brace, "{", "}")
+            end = brace + len(span) + 2
+        for position in range(match.start(), min(end, len(body))):
+            kept[position] = " "
+        index = max(end, match.end())
+    return "".join(kept)
+
+
 def arm_effect_fetch(root: pathlib.Path) -> int:
     """Refuses a data request inside a `useEffect`, and refuses an empty corpus."""
     corpus = 0
     violations: list[str] = []
     for relative, text in sources(root):
         source = blanked(text)
-        for match in re.finditer(r"\buseEffect\s*\(", source):
+        # `useLayoutEffect` TOO, and it was outside the corpus entirely: the
+        # string does not contain `useEffect`, so the arm neither checked those
+        # bodies nor counted them — the floor that is its whole defence against
+        # reading nothing was under-reporting on the day it landed.
+        for match in re.finditer(r"\buse(?:Layout)?Effect\s*\(", source):
             corpus += 1
             body = balanced_span(source, source.index("(", match.start()), "(", ")")
+            running = without_nested_functions(body)
             for pattern in REQUEST_IN_EFFECT:
-                if re.search(pattern, body):
+                if re.search(pattern, running):
                     violations.append(
                         f"{relative}: a `useEffect` body matches `{pattern}` — invariant 5. "
                         f"A read belongs to the query cache, which decides when to make it")

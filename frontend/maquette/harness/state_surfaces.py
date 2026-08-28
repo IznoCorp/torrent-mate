@@ -60,6 +60,12 @@ async def hold(journal):
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel="chrome")
         _context, page = await open_page(browser, **PHONE)
+        # EVERY PAGE ERROR THE WALK RAISES, collected from the page itself.
+        # This rule was written for B-108 — twenty-two React `NotFoundError`s
+        # over 83 states, which nothing read — and it carried a comment saying
+        # so at the end of the walk with no listener anywhere in the file.
+        raised: list[str] = []
+        page.on("pageerror", lambda error: raised.append(str(error)))
         # UNDER THE MEASURING CLASS, deliberately: this is the document the
         # oracle judges, and B-108 is what happens when the two differ.
         await page.evaluate("()=>document.documentElement.classList.add('measuring')")
@@ -107,6 +113,9 @@ async def hold(journal):
 
         # No React error anywhere in the walk. B-108 was 22 of them over 83
         # states, and nothing read them.
+        journal.check("no error was raised walking the error states",
+                      not raised, "; ".join(raised[:3]) or "none")
+
         await browser.close()
 
 

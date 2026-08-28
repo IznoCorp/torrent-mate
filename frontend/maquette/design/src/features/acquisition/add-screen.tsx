@@ -80,10 +80,6 @@ export function AddScreen() {
   } = useAcquisitionReference();
   const { t } = useTranslation();
 
-  function write(patch: Record<string, unknown>): void {
-    writeUiState(patch);
-  }
-
   // Always invoked from INSIDE this screen — search() runs only while
   // AddScreen is mounted, which means the address already reads `/add`.
   // Routing it through `window.__screens.ajout()` (a PUSH, meant for arriving
@@ -96,7 +92,7 @@ export function AddScreen() {
   // (`state.addQ`/`state.addMode`) `window.__screens.ajout()` also performs,
   // without the push.
   function search(value: string): void {
-    write({ addQ: value, addMode: mode });
+    writeUiState({ addQ: value, addMode: mode });
     go({
       to: "/add",
       search: {
@@ -119,7 +115,7 @@ export function AddScreen() {
   // rendered explicitly, since nothing subscribes the legacy `#view` to the
   // store automatically (see `render`'s own doc comment in data.ts).
   function toFollows(): void {
-    write({ page: "acq", acqTab: "now" });
+    writeUiState({ page: "acq", acqTab: "now" });
     render();
     go({
       to: "/",
@@ -256,7 +252,7 @@ export function AddScreen() {
                 <button
                   key={value}
                   aria-pressed={addKind === value}
-                  onClick={() => write({ addKind: value })}
+                  onClick={() => writeUiState({ addKind: value })}
                 >
                   {t(`screens.add.${key}`)}
                 </button>
@@ -322,7 +318,7 @@ export function AddScreen() {
                 <button
                   key={element}
                   aria-pressed={idProv === element}
-                  onClick={() => write({ idProv: element })}
+                  onClick={() => writeUiState({ idProv: element })}
                 >
                   {element}
                 </button>

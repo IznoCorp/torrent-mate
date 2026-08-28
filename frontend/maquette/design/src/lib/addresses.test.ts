@@ -121,6 +121,16 @@ describe("withPanel", () => {
 });
 
 describe("dialsOfPage", () => {
+  it("has dials to give at all", () => {
+    // A CORPUS FLOOR, and it is not decoration: the hold below asserts inside
+    // `for (const parameter of dialsOfPage(page))`, so emptying the dials table
+    // — the whole query-state half of the address model — satisfied it in
+    // silence. Proven by mutation: `return []` left 25 tests green.
+    const total = Object.keys(PAGE_PATHS)
+      .reduce((count, page) => count + dialsOfPage(page).length, 0);
+    expect(total).toBeGreaterThanOrEqual(5);
+  });
+
   it("gives a page only its own dials", () => {
     for (const page of Object.keys(PAGE_PATHS)) {
       for (const parameter of dialsOfPage(page)) {

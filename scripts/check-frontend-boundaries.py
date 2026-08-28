@@ -205,6 +205,18 @@ OUTSIDE_IMPORTS_ALLOWED = {
     # the declaration what names must not survive is what keeps the
     # assertion from being a list in the test file that rots.
     "engine/engine-shape.test.ts": {"frontend/maquette/fixture-projections.json"},
+    # The conformance test reads the CONTRACT itself, because that is its
+    # subject: it holds what a handler answers against what the contract
+    # requires, and the generated types cannot answer for it — a TypeScript type
+    # carries no `required` list at runtime. Importing the contract rather than
+    # restating its required fields is the same decision as the two above: a
+    # copy is a second definition, and the drift between them is invisible.
+    #
+    # THIS ENTRY IS ALSO B-122's PROOF. That defect made the arm compare an
+    # absolute path against a relative allowance, so it could not refuse a new
+    # outside import on this machine at all. This one was refused the moment it
+    # was written.
+    "mocks/contract-conformance.test.ts": {"frontend/maquette/contract/openapi.json"},
 }
 
 # Filled by `build_graph`: importer -> the absolute paths it reaches outside the
@@ -426,6 +438,23 @@ def arm_layering(root: Path) -> int:
 # It is not in `ui/` or `lib/`, which the arm already skips, because lifetime is
 # what decides where it lives: `engine/` is the bucket L13 empties, and a
 # conversion INTO the engine's shape has no meaning after the engine.
+#
+# AND HERE IS THE ARGUMENT AGAINST IT, because an exemption that only records its
+# own defence is half a record. This arm is the one guard that acts BEFORE the
+# defect exists — the plan calls it « the one that would have stopped `data.ts`
+# at four importers instead of seventeen » — and this module sits at 13 against a
+# ceiling of 4. « It dies at L13 » is available to anything, and L13 has three
+# unstarted lots in front of it; it is the argument `data.ts` could have made.
+#
+# What makes it different, and it is the whole of the difference: `data.ts` was a
+# hub of DATA, so every importer was coupled to every other through the values it
+# held. This is one exported pure function over a declaration — no state, no
+# ordering, nothing an importer can observe about another importer. A god module
+# couples; a shared pure conversion does not.
+#
+# That is a judgement, not a measurement, so it is the OPERATOR'S to confirm and
+# it is written here to be found rather than argued once in a commit message. If
+# the answer is no, the split is per family and it is mechanical.
 FAN_IN_EXEMPT = frozenset({"engine/engine-shape.ts"})
 
 
