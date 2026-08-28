@@ -69,6 +69,15 @@ RECONNECT_WINDOW_MS = 900
 GAP_TYPES = ("GapOne", "GapTwo", "GapThree")
 FIRST_TYPE = "GapZero"
 
+# AND ONE EVENT THE MAP REALLY CLAIMS. The gap above is unmapped on purpose —
+# it isolates the reconnect from the map's own work — but proving arrival only
+# for events that refresh NOTHING proves it for the one category where losing
+# them costs nothing. A relay that dropped every claimed event during a replay
+# passed all ten holds. This one is claimed, so its key moving across the
+# reconnect is what says the gap really healed.
+CLAIMED_TYPE = "PipelineStarted"
+CLAIMED_KEY = '["/api/pipeline/status"]'
+
 # Past three failed attempts the relay stops saying « reconnecting ». Four
 # failures is therefore the first moment `lost` is correct, and the sum of the
 # first four backoff delays is 250 + 500 + 1000 + 2000.
@@ -96,8 +105,19 @@ async def hold(journal):
                  const stream = window.__mocks.stream;
                  // A CACHE WITH SOMETHING IN IT, or « nothing was invalidated »
                  // would be true of an empty cache and prove nothing.
-                 await fetch("/api/library/categories");
-                 await fetch("/api/system/services");
+                 //
+                 // PRIMED THROUGH THE CACHE, not through `fetch`. This block
+                 // used to call `fetch("/api/library/categories")` and
+                 // `fetch("/api/system/services")` and its comment claimed they
+                 // established the precondition. They go through the mock seam
+                 // and create NO query-cache entry at all — what satisfied
+                 // `len(before) > 0` was the landing route's own mounted
+                 // queries, which this rule neither names nor controls.
+                 const prime = (key) =>
+                   window.__queries.setQueryData(key, { primed: true });
+                 prime(["/api/library/categories"]);
+                 prime(["/api/system/services"]);
+                 prime(["/api/pipeline/status"]);
                  await window.__mocks.quiet();
                  const readCache = () => window.__queries.getQueryCache().getAll()
                    .map((entry) => ({
@@ -125,7 +145,8 @@ async def hold(journal):
                  };
                }""",
             {"reconnectWindow": RECONNECT_WINDOW_MS,
-             "first": FIRST_TYPE, "gap": list(GAP_TYPES)})
+             "first": FIRST_TYPE, "gap": list(GAP_TYPES),
+})
 
         journal.check(
             "a drop is noticed, and the connection says so",
@@ -148,23 +169,64 @@ async def hold(journal):
         # socket nobody was reading.
         gap = observed["unmatched"]
         journal.check(
-            "every event of the gap arrives, in order, exactly once",
+            "every unclaimed event of the gap arrives, in order, exactly once",
             gap == [FIRST_TYPE, *GAP_TYPES],
             f"the relay announced {gap}")
+        # A SECOND WALK, because the two questions are opposites: the first
+        # needs a gap that refreshes NOTHING — or « the reconnect invalidates
+        # nothing » measures the map's own work — and this one needs a gap that
+        # refreshes SOMETHING.
+        claimed = await page.evaluate(
+            """async ({ reconnectWindow, claimed, claimedKey }) => {
+                 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+                 const readOne = () => {
+                   const entry = window.__queries.getQueryCache().getAll()
+                     .find((one) => JSON.stringify(one.queryKey) === claimedKey);
+                   return entry === undefined ? null
+                     : `${entry.state.dataUpdatedAt}/${entry.state.isInvalidated}`;
+                 };
+                 const before = readOne();
+                 window.__mocks.stream.drop(1006);
+                 await wait(40);
+                 window.__mocks.stream.emit(claimed, {});
+                 await wait(reconnectWindow);
+                 await window.__mocks.quiet();
+                 return { before, after: readOne() };
+               }""",
+            {"reconnectWindow": RECONNECT_WINDOW_MS,
+             "claimed": CLAIMED_TYPE, "claimedKey": CLAIMED_KEY})
+        journal.check(
+            "and a CLAIMED event of the gap really refreshed its key",
+            claimed["before"] is not None and claimed["after"] != claimed["before"],
+            f"{CLAIMED_KEY} read {claimed['before']} before the drop and "
+            f"{claimed['after']} after the recovery — the unmatched "
+            "list above can only ever prove arrival for events that refresh "
+            "nothing, so a relay dropping every claimed event during a replay "
+            "passed every hold in this file")
 
         # NO RELOAD. The reconnect is the one moment a blanket invalidation
         # would be invisible — the screen looks right either way.
         before = {entry["key"]: entry for entry in observed["cacheBefore"]}
         after = {entry["key"]: entry for entry in observed["cacheAfter"]}
+        # `key in before` USED TO BE THE WHOLE COMPARISON, so an entry that
+        # DISAPPEARED contributed nothing. `queryClient.clear()` on reconnect —
+        # the most literal "reload under another name" there is, and one line to
+        # write — emptied the cache and this hold reported no movement.
+        # Measured: 5 entries before, 0 after, `moved == []`, PASS.
+        gone = sorted(set(before) - set(after))
         moved = [key for key, entry in after.items()
                  if key in before and (entry["updated"] != before[key]["updated"]
                                        or entry["invalidated"] != before[key]["invalidated"])]
         journal.check(
-            "the reconnect itself invalidates nothing",
-            len(before) > 0 and moved == [],
-            f"{len(before)} cache entr(ies) before the drop, {len(moved)} moved: {moved} "
-            "— a reconnect that invalidates everything heals every gap and is "
-            "indistinguishable from a reload")
+            "the reconnect itself invalidates nothing, and removes nothing",
+            len(before) > 0 and moved == [] and gone == []
+            and observed["afterRecovery"] == "connected",
+            f"{len(before)} cache entr(ies) before the drop, {len(moved)} moved "
+            f"({moved}) and {len(gone)} removed ({gone}) — a reconnect that "
+            "invalidates or empties the cache heals every gap and is "
+            "indistinguishable from a reload. AND the reconnect must have "
+            "happened: without that condition this hold passes vacuously on a "
+            "loaded machine, where nothing reconnected and so nothing moved")
 
         # THE WALK past « reconnecting », driven by a server that is really not
         # there: the connection never opens, which is a different path through

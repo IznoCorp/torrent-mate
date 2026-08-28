@@ -98,6 +98,12 @@ async def hold(journal):
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel="chrome")
         _context, page = await open_page(browser, **PHONE)
+        # R93 collects these and this rule did not. An uncaught exception
+        # thrown inside the delivery path is reported to the page and was
+        # swallowed here — and the delivery path is exactly where the counters
+        # can desynchronise.
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
 
         present = await page.evaluate(
             "()=>typeof window.__mocks?.quiet === 'function'"
@@ -181,6 +187,15 @@ async def hold(journal):
         stream = await page.evaluate(
             """async () => {
                 window.__mocks.reset();
+                // A DELIVERY IS COUNTED WHETHER OR NOT ANYONE IS LISTENING:
+                // `deliver()` wraps the push, and `push()` iterates a possibly
+                // empty list of sockets. So these holds passed with ZERO
+                // sockets open — with `installRelay()` deleted from the boot
+                // entirely — while the one named « resolves once the FAN-OUT has
+                // been issued » reported success over a fan-out that could not
+                // exist. What is asserted first is that there is a client.
+                const listening = window.__mocks.stream.state().sockets;
+                const claimedBefore = window.__relay.unmatched().length;
                 const before = window.__mocks.inFlight();
                 window.__mocks.stream.emit("SettleProbe", {});
                 const during = window.__mocks.inFlight();
@@ -195,8 +210,16 @@ async def hold(journal):
                 ]);
                 await window.__mocks.quiet();
                 const after = window.__mocks.inFlight();
-                return { before, during, first, after, drained };
+                return { before, during, first, after, drained, listening,
+                         arrived: window.__relay.unmatched().length - claimedBefore };
             }""")
+        journal.check(
+            "there is a socket to deliver to, and the frame arrived at it",
+            stream["listening"] >= 1 and stream["arrived"] == 1,
+            f"{stream['listening']} socket(s) open and {stream['arrived']} frame(s) "
+            "reached the relay — the counter answers for the DRIVER having been "
+            "called, so without this every hold below passes over a page where "
+            "nothing is delivered at all")
         journal.check("a delivery is counted while it is in flight",
                       stream["before"] == 0 and stream["during"] == 1,
                       f"inFlight() was {stream['before']} before the emit and "
@@ -216,6 +239,8 @@ async def hold(journal):
         burst = await page.evaluate(
             """async () => {
                 window.__mocks.reset();
+                const listening = window.__mocks.stream.state().sockets;
+                const claimedBefore = window.__relay.unmatched().length;
                 // EVENTS NO RULE CLAIMS. The counter answers for deliveries
                 // AND for requests in flight, so a mapped event adds its own
                 // refetch to the number and the arithmetic this hold is about
@@ -228,30 +253,52 @@ async def hold(journal):
                 ]);
                 const during = window.__mocks.inFlight();
                 await window.__mocks.quiet();
-                return { during, after: window.__mocks.inFlight() };
+                return { during, after: window.__mocks.inFlight(), listening,
+                         arrived: window.__relay.unmatched().length - claimedBefore };
             }""")
         journal.check("a burst of three counts three, and settles at zero",
-                      burst["during"] == 3 and burst["after"] == 0,
-                      f"counted {burst['during']} during the burst, "
-                      f"{burst['after']} after")
+                      burst["during"] == 3 and burst["after"] == 0
+                      and burst["listening"] >= 1 and burst["arrived"] == 3,
+                      f"counted {burst['during']} during the burst and "
+                      f"{burst['after']} after, over {burst['listening']} "
+                      f"socket(s), with {burst['arrived']} frame(s) arriving")
 
         # (6) the budget is stated rather than discovered. A latency above it is
         # measured mid-flight BY DESIGN, and this hold is what makes that a
         # documented limit instead of a surprise at surface ten.
+        # THE BUDGET, MEASURED RATHER THAN COMPARED. This hold used to be
+        # `HELD_BACK_MS < ORACLE_QUIET_BUDGET_MS` — two numbers declared in this
+        # file, touching nothing running. A `quiet()` that became slower than
+        # the oracle's budget would leave every hold here green while the oracle
+        # timed out on all 2 871 of its measurements and took each one
+        # mid-flight, which is the exact condition this rule exists to prevent.
+        settled = await page.evaluate(
+            """async ({ address, latency }) => {
+                window.__mocks.reset();
+                window.__mocks.setDefaultLatency(latency);
+                const started = performance.now();
+                window.fetch(address);
+                await window.__mocks.quiet();
+                return performance.now() - started;
+            }""",
+            {"address": PROBE_ADDRESS, "latency": HELD_BACK_MS})
         journal.check(
-            f"the oracle's budget for this signal is {ORACLE_QUIET_BUDGET_MS} ms",
-            HELD_BACK_MS < ORACLE_QUIET_BUDGET_MS,
-            f"held back {HELD_BACK_MS} ms — a request slower than "
-            f"{ORACLE_QUIET_BUDGET_MS} ms is measured in flight, by design")
+            f"the signal settles inside the oracle's {ORACLE_QUIET_BUDGET_MS} ms budget",
+            settled < ORACLE_QUIET_BUDGET_MS,
+            f"a request held back {HELD_BACK_MS} ms settled in {settled:.0f} ms "
+            f"against a budget of {ORACLE_QUIET_BUDGET_MS} ms — past it, "
+            "`oracle.py` stops waiting and measures the page in flight, on every "
+            "one of its states, with nothing red anywhere")
 
         await page.evaluate("()=>window.__mocks.reset()")
         await browser.close()
+    return errors
 
 
 def main():
     journal = Journal("R89 — the quiet signal tracks what is in flight")
-    asyncio.run(hold(journal))
-    journal.summary()
+    errors = asyncio.run(hold(journal))
+    journal.summary(errors or ())
 
 
 if __name__ == "__main__":
