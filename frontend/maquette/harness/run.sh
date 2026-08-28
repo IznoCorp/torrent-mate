@@ -83,6 +83,12 @@ SERVED="/tmp/tm-refonte"
 #                    because B-108 showed the oracle recording four of them as
 #                    BLANK — an instrument's blind spot needs a second reader,
 #                    not a wider version of itself.
+#   scroll_memory    the two viewport anchors — `data-part="viewport"` on a
+#                    page and `[data-part="screen"][data-open]` on a screen.
+#                    B-140 was exactly a NAME that had moved on one side only:
+#                    the code read `.screen.open .port` while the main pages
+#                    scrolled in `#port`, for a wave, with every gate green.
+#                    5 s, measured.
 #   relay_states     the connection's four conditions, read the same way and on
 #                    the same test: `data-part="shell/connection-mark"`, three
 #                    state ids and a `data-connection` value are NAMES, and the
@@ -99,7 +105,7 @@ SERVED="/tmp/tm-refonte"
 # by run_uid. That database is the operator's and a CI runner has none, so the
 # rule would fail there for a reason that has nothing to do with the change
 # under test. It runs in the full suite, on the machine that has the data.
-CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.py boot_order.py settle.py state_surfaces.py relay_states.py)
+CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.py boot_order.py settle.py state_surfaces.py relay_states.py scroll_memory.py)
 
 # THE REPOSITORY'S CHEAP GUARDS, run beside the rules (B-063, arbitrated by the
 # operator on 2026-08-25). They read the tree in seconds and they read exactly

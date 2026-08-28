@@ -20,9 +20,16 @@ import { history } from "./history-bridge";
    Reading happens in the history subscription, which runs BEFORE React
    commits the new route: the outgoing screen is still in the DOM at that
    instant, which is the only moment its position can still be read.
-   `.screen.open .port` resolves the React screen first (`#shell` precedes
-   the legacy `#screen` in document order), which is exactly the one that is
-   about to be unmounted; a legacy screen above it keeps its own restoration.
+   `[data-part="screen"][data-open]` resolves the React screen first (`#shell`
+   precedes the legacy `#screen` in document order), which is exactly the one
+   that is about to be unmounted; a legacy screen above it keeps its own
+   restoration. With no screen open it is `#port`, the page's own viewport —
+   see `activePort` for why that half was missing for a wave.
+
+   AND THAT REPAIR PAYS OFF ONE OF B-104's THREE CLAUSES: programmatic
+   scrolling now has ONE path. The semantic scroll index named in
+   `frontend-architecture.md` § 1 would write through this same function, and
+   it could not have while the function knew one port out of two.
 
    Restoring mirrors the legacy re-apply: once as soon as the port exists,
    then once more when the late-loading posters have settled — the restored
@@ -39,7 +46,26 @@ function entryKey(state: unknown): string | null {
 }
 
 function activePort(): HTMLElement | null {
-  return document.querySelector<HTMLElement>(".screen.open .port");
+  // IT KNEW ONE PORT OUT OF TWO (B-140). It was `.screen.open .port` — the
+  // viewport of an OVERLAY SCREEN — and the main pages do not scroll in one:
+  // they scroll inside `#port`, which is never within a `.screen.open`. So on a
+  // main page the save either stored nothing (the query returned null) or
+  // stored the just-opened screen's offset under the departing page's key.
+  // Either way the return found nothing to restore, and the operator landed at
+  // the top of the list they had walked down.
+  //
+  // ANCHORED ON `data-*`, NEVER ON A STYLE CLASS (D4). `.port` is a class
+  // Tailwind variants own and L07 has already moved once; `data-part` and
+  // `data-open` are names chosen to be read, and `harness/scroll.py` reads the
+  // same pair.
+  //
+  // THE OPEN SCREEN WINS, and the order is the whole of the function. A screen
+  // is what is about to be unmounted at the instant the history subscription
+  // runs, so its position is the one that can still be read — and while one is
+  // open the page underneath is not what the operator is looking at.
+  return document.querySelector<HTMLElement>(
+    '[data-part="screen"][data-open] [data-part="viewport"]',
+  ) ?? document.getElementById("port");
 }
 
 function restoreScroll(y: number, token: number): void {
