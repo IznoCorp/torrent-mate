@@ -26,10 +26,20 @@ import { history } from "./history-bridge";
    restoration. With no screen open it is `#port`, the page's own viewport —
    see `activePort` for why that half was missing for a wave.
 
-   AND THAT REPAIR PAYS OFF ONE OF B-104's THREE CLAUSES: programmatic
-   scrolling now has ONE path. The semantic scroll index named in
-   `frontend-architecture.md` § 1 would write through this same function, and
-   it could not have while the function knew one port out of two.
+   WHAT THIS REPAIR DOES AND DOES NOT PAY OFF. `frontend-architecture.md` § 1
+   lists three things that keep the semantic scroll index's door open, and one
+   of them is « programmatic scrolling must have one path ». This function is
+   now the one path for HISTORY-driven scrolling, which it was not — and that
+   clause is still NOT paid: `app/focus.ts` writes `#port.scrollTop = 0` from
+   the skip link, on the very element this function owns, and `ui/sheet.tsx`
+   resets a panel's own offset. The claim first written here said the debt was
+   settled, and a comment that says a debt is paid is worse than one that says
+   nothing.
+
+   IT ALSO CITED THE WRONG ENTRY. The three clauses belong to B-140; B-104 is
+   about the generated contract types living under `mocks/`. The wrong number
+   was inherited from `frontend-architecture.md` § 1, which makes the same
+   mistake in the sentence that describes this very defect.
 
    Restoring mirrors the legacy re-apply: once as soon as the port exists,
    then once more when the late-loading posters have settled — the restored
@@ -133,6 +143,11 @@ history.subscribe(({ action, location }) => {
   )
     return;
   const remembered = currentKey ? scrollPositions.get(currentKey) : undefined;
-  if (remembered) restoreScroll(remembered, restoreToken);
+  // A STORED ZERO IS A POSITION, not an absence. B-140's own register entry
+  // named this as a second, latent defect in the same block, and the repair
+  // closed the entry without touching it. It is latent because the top is where
+  // a page starts anyway — until a surface's default position is not the top,
+  // or the page host stops resetting `#port` on a draw.
+  if (remembered !== undefined) restoreScroll(remembered, restoreToken);
 });
 }

@@ -75,8 +75,13 @@ not reach it.
 in an INDEXABLE form — first letter, month — in the DATA CONTRACT rather than in the markup, which
 is L09's decision to make when it wires the library. The scroll container must stay one identified
 element (`#port`, already true). And programmatic scrolling must have one path — which is a debt
-today: B-104 records that the current mechanism knows one port out of two, and an index that jumps
-to a letter would write through that same path.
+today: **B-140** records that the mechanism knew one port out of two — L10 repaired that, so this
+function is now the one path for HISTORY-driven scrolling, and an index that jumps to a letter
+would write through it. **The clause is still not paid**: `app/focus.ts` writes `#port.scrollTop`
+from the skip link, on the very element that function owns, and `ui/sheet.tsx` resets a panel's own
+offset. ⚠ This sentence cited **B-104** until 2026-08-28, which is about the generated contract
+types living under `mocks/` and has nothing to do with scrolling. The wrong number was copied out
+of here into the repair's own comment — a mis-citation in a binding file propagates.
 
 **The design risk, stated with the objective**: a control that both scrolls AND jumps teaches two
 things in one object, and on a six-pixel-wide thumb the margin between « I am scrolling » and « I
