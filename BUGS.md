@@ -219,6 +219,7 @@ when the defect comes back.
 | B-176 | `unmatched` grew without bound, fed by the highest-frequency events by design | by adversarial review | `fixed #512` |
 | B-177 | A mutation's `git checkout` reverted an uncommitted repair, and a commit described it anyway | by adversarial review | `fixed #512` |
 | B-178 | B-140 was closed with the second defect its own entry names still in the code | by adversarial review | `fixed #512` |
+| B-179 | Two correct repairs, together wrong: closing a drawer put an older offset back | by gate | `fixed #512` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
@@ -405,6 +406,24 @@ the tree. Here `git checkout` on a TRACKED file reverted an uncommitted repair, 
 followed described an attribute the tree did not contain. The rule covering both is one sentence and
 was already written down: commit before mutating, always. It was followed for thirteen mutations and
 skipped for the fourteenth.
+
+**B-179 — two repairs that were each right and together wrong.**
+B-140 taught `activePort()` about `#port`; B-178 stopped `if (remembered)` skipping a stored zero.
+Neither is questionable alone. Together they made the scroll memory act across a LAYER boundary,
+which it must never do: a drawer, a panel or a sheet opens OVER the page — `#port` keeps its
+element, its height and its offset throughout — so opening one stored the page's offset and closing
+one wrote that older value back over whatever the operator had scrolled to since.
+
+Measured by `drawer.py`, which is not R94: `18 → 0`, on two layers.
+
+**Neither repair could have been dropped, and neither test could have found it.** R94 walks pages;
+`drawer.py` walks layers and had held this property since before L10 existed. The defect lives
+exactly on the seam between them, and it was found by the WAVE GATE — the full suite, run before the
+merge — which is the one thing in this project's method that reads both.
+
+R94 gains the hold anyway. Two readers of one property is not duplication here: `drawer.py` asks
+whether closing a layer disturbs the page, and R94 asks whether the scroll memory knows what a layer
+is. The second question is the one that will still make sense when the first rule's subject moves.
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04

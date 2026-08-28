@@ -50,6 +50,29 @@ const scrollPositions = new Map<string, number>();
 // just left.
 let restoreToken = 0;
 
+/**
+ * Says whether a history entry is a LAYER — a drawer, a panel, a sheet.
+ *
+ * A LAYER NEVER REPLACES THE PAGE'S CONTENT. It opens over it; `#port` keeps
+ * its element, its height and its offset throughout, so there is nothing to
+ * remember and nothing to put back. Saving across one stores the position the
+ * page had when the layer OPENED, and restoring it on the way out overwrites
+ * whatever the operator has scrolled to since.
+ *
+ * IT ONLY BECAME REACHABLE WITH B-140's REPAIR. While `activePort()` knew one
+ * port out of two it returned null here and nothing was stored — and the stored
+ * zero was skipped again by `if (remembered)`, which B-140's own entry called a
+ * second, latent defect. Repairing both at once made the pair live: a page
+ * scrolled to 300 with a drawer open came back to 0. Found by the wave gate,
+ * which is what the wave gate is for.
+ *
+ * @param state The entry's state, as the history library stamps it.
+ * @returns True when the entry is a layer rather than a page.
+ */
+function isLayer(state: unknown): boolean {
+  return typeof (state as { layer?: unknown } | undefined)?.layer === "string";
+}
+
 function entryKey(state: unknown): string | null {
   const stamped = state as { key?: string; __TSR_key?: string } | undefined;
   return stamped?.key ?? stamped?.__TSR_key ?? null;
@@ -129,11 +152,19 @@ function restoreScroll(y: number, token: number): void {
  */
 export function installScrollRestoration(): void {
 let currentKey = entryKey(history.location.state);
+let currentIsLayer = isLayer(history.location.state);
 history.subscribe(({ action, location }) => {
-  const port = activePort();
+  const nextIsLayer = isLayer(location.state);
+  // ACROSS A LAYER BOUNDARY, NEITHER HALF RUNS. Opening one must not store the
+  // page's offset — the page is still on screen and still scrolling — and
+  // closing one must not put an older offset back over it.
+  const crossesALayer = currentIsLayer || nextIsLayer;
+  const port = crossesALayer ? null : activePort();
   if (currentKey && port) scrollPositions.set(currentKey, port.scrollTop);
   currentKey = entryKey(location.state);
+  currentIsLayer = nextIsLayer;
   restoreToken += 1;
+  if (crossesALayer) return;
   // Only a RETURN restores: arriving forward on an address one has seen
   // before is a new visit, and it starts where a new visit starts.
   if (

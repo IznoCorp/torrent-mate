@@ -35,6 +35,16 @@ WHAT IT HOLDS:
 
 WHAT IT DOES NOT READ, said before what it does:
 
+  - It did not read a LAYER at all, and that is how a regression left this file
+    and was caught by `drawer.py` instead. A drawer, a panel or a sheet opens
+    OVER the page: `#port` keeps its element, its height and its offset, so
+    there is nothing to remember. Saving across one stores the position the page
+    had when the layer opened, and restoring it on the way out overwrites what
+    the operator scrolled to since. It became reachable only when B-140's repair
+    taught `activePort()` about `#port` AND B-178's repair stopped skipping a
+    stored zero — two repairs that were each right and together wrong. The hold
+    for it is below; `drawer.py` keeps its own, which is the second reader that
+    found this one.
   - It does not read the retry budget, the image wait or the token
     invalidation. Those work; the defect was the selector, and a rule that
     re-asserted the parts that were right would report a pass about them every
@@ -234,6 +244,41 @@ async def hold(journal):
                 f"{on_screen['reached']} — this half worked before B-140's "
                 "repair, and a repair that traded one port for the other would "
                 "pass every hold above and fail here")
+
+        # A LAYER IS NOT A PAGE. Scrolling with one open, then closing it, must
+        # leave the offset exactly where the operator put it.
+        layered = await page.evaluate(
+            """async ({ offset }) => {
+                 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+                 const port = () => document.querySelector("#port");
+                 document.querySelector('#nav [data-page="lib"]').click();
+                 await window.__mocks.quiet();
+                 await wait(500);
+                 port().scrollTop = 0;
+                 const opener = document.querySelector("[data-drawer]");
+                 if (!opener) return { after: null, why: "no drawer control" };
+                 opener.click();
+                 await wait(400);
+                 port().scrollTop = Math.min(
+                   offset, port().scrollHeight - port().clientHeight);
+                 await wait(150);
+                 const whileOpen = port().scrollTop;
+                 if (whileOpen < 20) return { after: null, why: "page too short" };
+                 window.__bridge.back();
+                 await wait(700);
+                 return { whileOpen, after: port().scrollTop, why: "" };
+               }""",
+            {"offset": OFFSET})
+        journal.check(
+            "a layer opening and closing leaves the page where it was",
+            layered["after"] is not None
+            and abs(layered["after"] - layered["whileOpen"]) <= TOLERANCE,
+            (layered["why"] or
+             f"scrolled to {layered['whileOpen']} with a layer open and came "
+             f"back to {layered['after']} — a layer opens OVER the page and "
+             "replaces nothing, so there is no position to put back and an "
+             "older one written over it is a loss the operator caused nothing "
+             "to happen for"))
 
         # AND IT SURVIVES BEING DONE TWICE. A restoration that fires once and
         # then leaves its token stale would pass every hold above.
