@@ -76,16 +76,20 @@ repository.
 53 flat `.py` files (recorded and deliberately unscheduled), and B-036 / B-040, which belong to
 their own waves.
 
-**Next action**: **L09 — The data layer, surface by surface** is the next lot, and nothing is open
-on it: no design, no plan, no branch. A wave opens with both. L08's design and plan are ARCHIVED —
-`docs/archive/features/maquette-l08/`, by the correction wave, one wave later than the post-merge
-steps ask for (B-083); the step that should have caught it is step four of § 5 now. **L08-bis
-archives nothing of its own: a correction wave opens with no design and no plan**, which is what
-distinguishes it from a lot. What L08 leaves L09, ready to use:
-`window.__mocks.reset()` so a named state is reached from a known store, the scenario surface so a
-loading or error state is driven by the failure the interface will really meet, and
-`window.__mocks.quiet()`, which `oracle.py`'s settle already reads — it resolves immediately today
-because nothing fetches, and it is what stops a wired surface being measured mid-flight.
+**Next action**: **L10 — The live relay** is the lot in hand, and its design and its plan are
+open on `feat/maquette-l10`: `docs/features/maquette-l10/DESIGN.md` and `plan/INDEX.md`, ten
+phases, fourteen ACCEPTANCE criteria. L09's design and plan are ARCHIVED —
+`docs/archive/features/maquette-l09/` — in the wave's own move, which is the fourth post-merge
+step (B-083) kept for once. **This paragraph was stale when L10 opened**: it still named L09 as
+the next lot two commits after L09 merged, which is B-148's shape surviving in the one file § 0
+was pointed at instead. Filed as **B-152**.
+
+What L09 leaves L10, ready to use: eleven surfaces on a query cache whose policy is decided in one
+file (`lib/query-client.ts`), nineteen `useQuery` call sites and five mutation-driven
+`invalidateQueries` — and `window.__mocks.quiet()`, which now counts `fetch` in flight and knows
+nothing about a socket. **L10 is the first lot where « quiet » has to mean something**, and the
+first where a cache can go permanently stale: `staleTime: Infinity` with no focus refetch and no
+reconnect refetch means a missed invalidation never heals.
 
 **Phases of L07** — the plan is `docs/archive/features/maquette-l07/plan/INDEX.md`, which owns the
 reasoning and the 20 ACCEPTANCE criteria. This table owns only the status.

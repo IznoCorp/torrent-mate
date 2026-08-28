@@ -192,6 +192,52 @@ when the defect comes back.
 | B-149 | A declared departure from the lot's « Done when » lives only in a session report | by audit | `fixed #511` |
 | B-150 | A size promise expired unnoticed because the guard read the status B-148 froze | by audit | `fixed #511` |
 | B-151 | `coverage-merge` reports « Artifact not found » whenever an earlier job fails | by audit | `open` |
+| B-152 | `IMPLEMENTATION.md` still named L09 as the next lot two commits after L09 merged | by design | `fixed #TBD` |
+| B-153 | The demand register is computed from OpenAPI paths, and a WebSocket has none | by design | `open` |
+| B-154 | `staleTime: Infinity` with no focus or reconnect refetch: a missed invalidation never heals | by design | `open` |
+
+**B-152 — the one file § 0 was pointed at was itself stale.**
+Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
+day (B-148) precisely so that state would exist once, in `IMPLEMENTATION.md`. The « Landed, in
+order » row and the « Next » row were both correct. The **« Next action »** paragraph 20 lines
+below them was not: it still read « **L09 — The data layer, surface by surface** is the next lot,
+and nothing is open on it », two commits after L09 merged.
+
+**This is B-148's shape, one file to the left.** Removing a duplicate state from the plan does not
+help if the file that keeps the state carries the same fact twice — a row and a paragraph — and a
+wave updates one. The repair is the same repair: the paragraph now says what is IN HAND rather than
+re-deriving what is next, so it cannot disagree with the row above it about a lot's status.
+Repaired on `feat/maquette-l10`.
+
+**B-153 — the demands register cannot describe the thing L10 is about.**
+`scripts/compare-contracts.py` COMPUTES `docs/reference/frontend-backend-demands.md` by diffing
+paths and operations between `frontend/maquette/contract/openapi.json` (50 paths) and
+`frontend/openapi.json` (61). **Neither declares the event stream**, and neither can: OpenAPI does
+not describe a WebSocket.
+
+<sub>`python3 -c "import json;d=json.load(open('frontend/maquette/contract/openapi.json'));print(len(d['paths']),[k for k in d['paths'] if 'ws' in k or 'event' in k])"` → `50 []`</sub>
+
+So every demand L10 raises about the stream must be filed BY HAND, and the computed register will
+go on reporting nothing about it — which reads as « no demands » rather than « out of scope ».
+D7 says the contract is the maquette's own artefact; the stream is part of that contract and has
+no artefact. Left open: what shape a stream contract should take is an arbitration, not a fix, and
+L10 does not take it — it files its demands by hand and says so.
+
+**B-154 — the cache has no way to heal itself, and nothing says so where it matters.**
+`lib/query-client.ts` sets `staleTime: Infinity`, `refetchOnWindowFocus: false`,
+`refetchOnReconnect: false`, `retry: false`. Each is argued in the file, each is right, and their
+SUM is a property no one of the four comments states: **a query that misses an invalidation is
+stale for the life of the process.** There is no clock, no focus event and no reconnect refetch
+underneath.
+
+Production's `useWsInvalidation` is a per-surface hook and is safe there because 21 `refetchInterval`
+sites poll underneath it — a missed event costs 60 seconds. Here it would cost forever. The same
+shape, transposed, would be a defect that only ever shows as « the screen was out of date and I do
+not know since when ».
+
+L10 designs around it (the relay subscribes once, at boot, never with a surface — D-L10-1). The
+entry stays open because the PROPERTY is still undocumented at the one place a future reader meets
+it: nothing in `query-client.ts` says the four options together forbid self-healing.
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
