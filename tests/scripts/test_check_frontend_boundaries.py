@@ -610,9 +610,7 @@ class TestSizeArmReadsTheLabel:
         assert violations == 1, captured.err
         assert "no lot heading could be read" in captured.err
 
-    def test_an_advancement_that_cannot_be_read_is_a_violation_not_a_pass(
-        self, monkeypatch, capsys
-    ) -> None:
+    def test_an_advancement_that_cannot_be_read_is_a_violation_not_a_pass(self, monkeypatch, capsys) -> None:
         """The advancement moved out of the plan on 2026-08-28, and so did this hold's blind spot.
 
         The status used to live in the plan, and one emptiness covered both
