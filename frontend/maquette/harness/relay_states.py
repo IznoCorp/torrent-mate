@@ -363,7 +363,7 @@ async def hold(journal):
                    const label = document.querySelector(mark).lastElementChild;
                    const hue = (colour) => {
                      const found = colour.match(
-                       /oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)/);
+                       /oklch[(]([0-9.]+)[ ]+([0-9.]+)[ ]+([0-9.]+)/);
                      return found ? Number(found[3]) : null;
                    };
                    out[condition] = {

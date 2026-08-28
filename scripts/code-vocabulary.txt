@@ -203,6 +203,7 @@ cutoff
 danger
 data
 date
+deadline
 decision
 decisions
 deck
@@ -354,6 +355,7 @@ gauge
 gesture
 get
 go
+going
 gone
 good
 grab
@@ -387,6 +389,8 @@ hphase
 hscen
 htmdb
 html
+hue
+hues
 icon
 icons
 id
@@ -459,6 +463,7 @@ legacy
 legend
 lens
 lenses
+let
 lg
 lib
 libcount
@@ -978,6 +983,7 @@ typed
 ua
 ui
 uid
+unblock
 under
 undo
 unit

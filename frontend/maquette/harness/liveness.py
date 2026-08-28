@@ -66,8 +66,12 @@ from playwright.async_api import async_playwright
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from common import PHONE, Journal, open_page
 
+# WHERE THE TWO CONSTANTS ARE DECLARED. They moved out of `relay.ts` when it
+# crossed invariant 6's ceiling, and this rule fell LOUDLY — `declares None` —
+# rather than reading a file that no longer holds them. A rule that reads a
+# source path is a two-ended contract like any other; this end is named once.
 RELAY_SOURCE = (pathlib.Path(__file__).resolve().parent.parent
-                / "design" / "src" / "lib" / "relay.ts")
+                / "design" / "src" / "lib" / "relay-limits.ts")
 
 # What the two limits must be in the shipped source. The server pings after
 # thirty seconds of client silence, so a silence limit at or below thirty would
@@ -104,12 +108,13 @@ async def hold(journal):
     journal.check(
         f"the shipped silence limit is {WANTED_SILENCE_MS} ms",
         silence == WANTED_SILENCE_MS,
-        f"`relay.ts` declares {silence} — the server pings after 30 s of client "
+        f"`relay-limits.ts` declares {silence} — the server pings after 30 s of "
+        "client "
         "silence, so a limit at or below that tears down healthy connections")
     journal.check(
         f"the shipped opening limit is {WANTED_OPENING_MS} ms",
         opening == WANTED_OPENING_MS,
-        f"`relay.ts` declares {opening}")
+        f"`relay-limits.ts` declares {opening}")
 
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel="chrome")
