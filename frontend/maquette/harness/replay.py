@@ -305,6 +305,47 @@ async def hold(journal):
             f"{refused['attemptsMade']} connection(s) were made after the refusal — "
             "retrying an expired session is a loop that produces nothing")
 
+        # THE FREEZE, AND THE THAW. A listener that throws must stop the cursor
+        # — or the failed event is skipped by the next replay — and a fresh
+        # connection must start it again, or the replay window grows for ever.
+        # Found by mutation: removing the thaw made no rule fall.
+        frozen = await page.evaluate(
+            """async ({ window: reconnectWindow }) => {
+                 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+                 window.__relay.reset();
+                 await wait(200);
+                 const off = () => { throw new Error("a listener that throws"); };
+                 const stop = window.__relay.subscribe(off);
+                 window.__mocks.stream.emit("FreezeOne", {});
+                 await window.__mocks.quiet();
+                 const afterThrow = window.__relay.cursor();
+                 window.__mocks.stream.emit("FreezeTwo", {});
+                 await window.__mocks.quiet();
+                 const stillFrozen = window.__relay.cursor();
+                 stop();
+                 // A fresh connection replays from the frozen id and thaws it.
+                 window.__mocks.stream.drop(1006);
+                 await wait(reconnectWindow);
+                 window.__mocks.stream.emit("FreezeThree", {});
+                 await window.__mocks.quiet();
+                 return { afterThrow, stillFrozen, thawed: window.__relay.cursor() };
+               }""",
+            {"window": RECONNECT_WINDOW_MS})
+        journal.check(
+            "a listener that throws stops the cursor, and keeps it stopped",
+            frozen["stillFrozen"] == frozen["afterThrow"],
+            f"the cursor read {frozen['afterThrow']!r} after the throw and "
+            f"{frozen['stillFrozen']!r} after the next event — a cursor that "
+            "steps past a failed delivery skips it on the next replay, which is "
+            "the whole reason it stops")
+        journal.check(
+            "and a fresh connection starts it again",
+            frozen["thawed"] is not None
+            and frozen["thawed"] != frozen["stillFrozen"],
+            f"after the reconnect the cursor read {frozen['thawed']!r} against "
+            f"{frozen['stillFrozen']!r} — without the thaw the freeze is "
+            "permanent and every later reconnect re-requests the whole stream")
+
         await page.evaluate("()=>{ window.__relay.reset(); window.__mocks.reset(); }")
         await context.close()
         await browser.close()

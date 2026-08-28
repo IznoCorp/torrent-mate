@@ -87,6 +87,7 @@ import {
   setLimits,
 } from "../lib/relay";
 import { installRelayRecovery } from "./relay-recovery";
+import { readCursor, subscribeToEvents } from "../lib/relay-events";
 import { ConnectionMark, ConnectionNotice } from "./connection-notice";
 import { installSeams } from "../engine/seams";
 import {
@@ -164,6 +165,8 @@ declare global {
       reconnect: typeof reconnectNow;
       unmatched: typeof unmatchedEvents;
       unmatchedCount: typeof unmatchedCount;
+      subscribe: typeof subscribeToEvents;
+      cursor: typeof readCursor;
       force: typeof forceCondition;
       limits: typeof setLimits;
       readLimits: typeof readLimits;
@@ -357,6 +360,8 @@ window.__relay = {
   reconnect: reconnectNow,
   unmatched: unmatchedEvents,
   unmatchedCount,
+  subscribe: subscribeToEvents,
+  cursor: readCursor,
   force: forceCondition,
   limits: setLimits,
   readLimits,

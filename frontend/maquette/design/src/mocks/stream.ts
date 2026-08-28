@@ -246,6 +246,7 @@ function emit(type: string, data: Record<string, unknown> = {}): StreamEntry {
  * @param push What delivers the frames.
  */
 function deliver(push: () => void): void {
+  const settle = deliveries.ended;
   deliveries.began();
   try {
     push();
@@ -256,7 +257,9 @@ function deliver(push: () => void): void {
     // and the oracle silently burned its two-second budget on every remaining
     // state of that page, with no rule red anywhere. Total, silent, and
     // recoverable only by a reload.
-    globalThis.setTimeout(deliveries.ended, 0);
+    // THE RELEASE CAPTURED AT THE START, so a `reset()` between the two hands
+    // this delivery the hook of the world it began in.
+    globalThis.setTimeout(settle, 0);
   }
 }
 

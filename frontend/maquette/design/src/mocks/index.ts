@@ -42,6 +42,14 @@ let inFlight = 0;
 // settle reads, and a rule that had to await two signals would be a rule that
 // can await the wrong one.
 let delivering = 0;
+// WHICH RESET A SETTLEMENT BELONGS TO. Flooring the decrements was the first
+// repair and it trades one defect for another: `reset()` zeroes the counters
+// while N requests are genuinely in flight, each lands and floors at zero, and
+// once a NEW request is issued a stale one landing drives the count to zero and
+// releases the waiters — so `quiet()` resolves over a request that is really
+// running. A generation token settles it: a decrement from before the reset
+// belongs to a world that no longer exists, and is ignored rather than clamped.
+let generation = 0;
 let becameQuiet: (() => void)[] = [];
 
 // The statuses that carry NO body. Building a response with one throws, so a
@@ -202,15 +210,15 @@ export function installMockNetwork(): void {
   if (installed) return;
   installed = true;
   globalThis.fetch = ((input: RequestInfo | URL, options?: RequestInit) => {
+    const issued = generation;
     inFlight += 1;
     return answer(input, options).finally(() => {
-      // FLOORED, NOT DECREMENTED. `reset()` zeroes the counters so a
-      // desynchronised page has a way back — and a request already in flight
-      // when it ran would then decrement past zero. At -1 both
-      // `releaseWaiters` and `quiet()` are false FOR EVER: the repair for an
-      // accidental desynchronisation would have made a deterministic and
-      // unrecoverable one, on the signal all 2 871 oracle measurements rest on.
-      inFlight = Math.max(0, inFlight - 1);
+      // A SETTLEMENT FROM BEFORE THE RESET IS NOT THIS WORLD'S. Decrementing it
+      // would take the count below zero — where `quiet()` never resolves again —
+      // and flooring it would leave the count short, so a later stale landing
+      // releases the waiters over a request that is really in flight. Ignored.
+      if (issued !== generation) return;
+      inFlight -= 1;
       if (inFlight === 0) releaseWaiters();
     });
   }) as NetworkCall;
@@ -228,9 +236,7 @@ export function installMockNetwork(): void {
       delivering += 1;
     },
     ended: () => {
-      // Floored for the reason the request counter is — a `reset()` between a
-      // delivery and its release would otherwise take it below zero.
-      delivering = Math.max(0, delivering - 1);
+      delivering -= 1;
       if (inFlight === 0 && delivering === 0) releaseWaiters();
     },
   });
@@ -246,10 +252,12 @@ export function installMockNetwork(): void {
       resetScenario();
       resetMockState();
       resetStream();
-      // AND THE COUNTERS. `reset()` put the scenario, the state and the stream
-      // back and left `inFlight`, `delivering` and the waiting list exactly as
-      // they were — so a counter that had desynchronised had no way back at
-      // all, and `quiet()` would never resolve again on that page.
+      // AND THE COUNTERS, under a new generation. `reset()` used to leave them
+      // exactly as they were, so a desynchronised page had no way back and
+      // `quiet()` never resolved again. Zeroing them alone was worse: a request
+      // still in flight would decrement past zero. The generation makes every
+      // settlement still owed belong to a world that has ended.
+      generation += 1;
       inFlight = 0;
       delivering = 0;
       const stranded = becameQuiet;

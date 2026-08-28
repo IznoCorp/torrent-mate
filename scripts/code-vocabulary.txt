@@ -195,6 +195,7 @@ cover
 create
 cron
 cross
+crossed
 crosses
 cur
 current
@@ -352,6 +353,7 @@ future
 gaps
 gauche
 gauge
+generation
 gesture
 get
 go
@@ -434,6 +436,7 @@ into
 inverted
 ios
 is
+issued
 item
 items
 journal
@@ -943,6 +946,7 @@ template
 term
 testid
 text
+thawed
 the
 theme
 there

@@ -91,11 +91,18 @@ cp -R frontend/maquette/design/dist/vite /tmp/tm-refonte/vite
 FELL=0
 for RULE in "$@"; do
   echo "── $RULE ───────────────────────────────────────────"
-  if python3 "$RULE" 2>&1 | grep -E "^  FAIL|violation"; then
+  # CAPTURED, NOT PIPED. Under `pipefail` a pipeline takes the FAILING stage's
+  # status, so `python3 rule | grep` reported the rule's own exit — which for a
+  # rule that fell is non-zero — and the script announced « no hold fell »
+  # under the falls it had just printed.
+  OUTPUT="$(mktemp)"
+  python3 "$RULE" >"$OUTPUT" 2>&1 || true
+  if grep -E "^  FAIL|violation\(s\)" "$OUTPUT"; then
     FELL=1
   else
     echo "  (no hold fell — the rule does not catch this mutation)"
   fi
+  rm -f "$OUTPUT"
 done
 
 # The restore runs from the trap, and the served copy is rebuilt after it.
