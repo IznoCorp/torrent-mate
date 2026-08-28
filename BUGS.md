@@ -188,8 +188,8 @@ when the defect comes back.
 | B-145 | §19 (cross-seed) has no route in either contract, and its events reach no stream | by audit | `open` |
 | B-146 | D11 is decided and nothing styles a scrollbar yet; the change may move the oracle | by audit | `open` |
 | B-147 | Nine steward findings were stacked on five unmerged branches and collided with a wave | by audit | `fixed #511` |
-| B-148 | L09 is `NOT STARTED` in the plan after merging, so § 0's rule elects a landed lot | by audit | `open` |
-| B-149 | A declared departure from the lot's « Done when » lives only in a session report | by audit | `open` |
+| B-148 | Lot status lives in two files, and § 0 reads the one a wave forgets | by audit | `open` |
+| B-149 | A declared departure from the lot's « Done when » lives only in a session report | by audit | `fixed #511` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -3137,6 +3137,12 @@ Fix, and it is a rule rather than a repair: a steward branch that is not merged 
 its numbers **at the moment it is opened as a pull request**, from `main` as it stands then — or
 carries no number at all until it does. The entries are written; only the label waits.
 
+**A postscript that is the entry's own lesson repeated.** This entry was written carrying
+`fixed #511` before any pull request existed — the number was GUESSED, which is precisely the fault
+the L08 agent declared about itself two waves earlier. The pull request opened as #511. **Being
+right by luck is not being right by method**, and the guess would have been silently wrong on any
+other day.
+
 <sub>`grep -o '^| B-[0-9]*' BUGS.md | sed 's/| B-//' | sort -n | tail -1` before writing any new row</sub>
 
 **B-148 — the plan still calls L09 `NOT STARTED`, and its selection rule reads the plan.**
@@ -3165,6 +3171,11 @@ Every prior wave did the first correctly; L09 is the first to miss it, which is 
 caught it before and why nothing will catch the next one.
 
 <sub>`grep -n '^#### L09' docs/reference/frontend-architecture.md` · `grep -o 'Next\*\*[^|]*| [^|]\{0,60\}' IMPLEMENTATION.md`</sub>
+
+> **The symptom is repaired by #511 and the entry stays `open`, deliberately.** L09 is marked
+> `LANDED`, `Next` names L10, and the two other lots § 0 elects are written beside it. What is not
+> repaired is why it happened: the status is still in two files. `open` here means the arbitration
+> is owed, not that the plan is still wrong.
 
 **B-149 — the lot's contract says the fixture literals left the engine; sixty families remain.**
 L09's « Done when » includes « each surface takes its data and **its share of the fixture dies with
