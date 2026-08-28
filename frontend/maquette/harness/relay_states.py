@@ -83,6 +83,10 @@ NOTICES = {
 # is the app's rendered output; the time itself is the moment of the run.
 SINCE_LEAD = "Les informations affichées datent de"   # french-ok: the app's rendered output
 
+# Where the sign-in lives, read from the address model rather than retyped.
+# <sub>`grep -n "SIGN_IN_PATH =" frontend/maquette/design/src/lib/addresses.ts`</sub>
+SIGN_IN_PATH = "/login"
+
 # WHAT EACH NOTICE SAYS IT IS ABOUT, and this list exists because the rule was
 # GREEN WITHOUT IT. Its first version held that the notice named a real reason
 # by looking for the SINCE lead and the absence of « 4401 » — so a mutation that
@@ -102,6 +106,18 @@ REASONS = {                                  # french-ok: the app's rendered out
 LABELS = {                                   # french-ok: the app's rendered output
     "lost": "Réessayer maintenant",
     "refused": "Se reconnecter",
+}
+
+# THE TITLE EACH CONDITION CARRIES. It was READ into the rule's snapshot and
+# asserted nowhere — the signature of a hold someone intended and did not write,
+# and the attribute is B-155's own: the header used to carry
+# `title="Temps réel connecté"` as a literal. At the width this rule measures it
+# is also the only WORDS a reader gets, because the label is `display: none`.
+TITLES = {                                  # french-ok: the app's rendered output
+    "connected": "Temps réel connecté",
+    "reconnecting": "Temps réel : la connexion a été perdue, reconnexion en cours",
+    "lost": "Temps réel interrompu — cet écran ne se met plus à jour",
+    "refused": "Session expirée — reconnectez-vous pour revoir les mises à jour",
 }
 
 # The dot and the notice, by their `data-*` anchors (D4).
@@ -134,6 +150,14 @@ async def read_condition(page, state):
                word: dot ? dot.textContent.trim() : null,
                title: dot ? dot.getAttribute("title") : null,
                body: bar ? bar.textContent.trim() : null,
+               // FORMATTED FROM THE RELAY'S OWN INSTANT, with the surface's own
+               // options — so the hold compares what the notice SAYS against
+               // what the connection KNOWS, rather than against a constant.
+               stamp: (() => {
+                 const since = window.__relay.condition().currentSince;
+                 return since === null ? null : new Date(since)
+                   .toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+               })(),
                action: control ? control.getAttribute("data-connection-action") : null,
                role: bar ? bar.getAttribute("role") : null,
              };
@@ -178,10 +202,22 @@ async def hold(journal):
             selected == {"connected": 1, "reconnecting": 0, "lost": 0, "refused": 0},
             f"selecting each condition by value found {selected}")
 
+        journal.check(
+            "an ordinary state carries the title of the condition it has",
+            good["title"] == TITLES["connected"],
+            f"the header's title is {good['title']!r}")
+
         seen = {"connected": good["word"]}
+        titles = {"connected": good["title"]}
         for condition, expected in NOTICES.items():
             drawn = await read_condition(page, f"relay-{condition}")
             seen[condition] = drawn["word"]
+            titles[condition] = drawn["title"]
+            journal.check(
+                f"`{condition}` carries its own title",
+                drawn["title"] == TITLES[condition],
+                f"the title is {drawn['title']!r}, expected "
+                f"{TITLES[condition]!r} — a literal here is B-155 rewritten")
             journal.check(
                 f"`{condition}` draws its own word in the header",
                 drawn["condition"] == condition and drawn["word"] == WORDS[condition],
@@ -192,9 +228,14 @@ async def hold(journal):
                 f"the notice reads {drawn['body']!r}, and must carry "
                 f"{REASONS[condition]!r}")
             journal.check(
-                f"`{condition}` says since when",
-                drawn["body"] is not None and SINCE_LEAD in drawn["body"],
-                f"the notice reads {drawn['body']!r}")
+                f"`{condition}` says since when, and says the RIGHT when",
+                drawn["body"] is not None and SINCE_LEAD in drawn["body"]
+                and drawn["stamp"] is not None and drawn["stamp"] in drawn["body"],
+                f"the notice reads {drawn['body']!r} and the connection's own "
+                f"instant renders as {drawn['stamp']!r} — the lead phrase says a "
+                "time is coming; it does not say the time is the right one, and "
+                "the age of the data is the one fact this notice has that a "
+                "reader can act on")
             journal.check(
                 f"`{condition}` labels its control for what it does",
                 drawn["body"] is not None and LABELS[condition] in drawn["body"],
@@ -216,6 +257,7 @@ async def hold(journal):
 
         reconnecting = await read_condition(page, "relay-reconnecting")
         seen["reconnecting"] = reconnecting["word"]
+        titles["reconnecting"] = reconnecting["title"]
         journal.check(
             "`reconnecting` draws its own word, and no notice",
             reconnecting["word"] == WORDS["reconnecting"]
@@ -230,6 +272,10 @@ async def hold(journal):
             "the four conditions draw four different words",
             len(set(seen.values())) == 4,
             f"the header drew {sorted(seen.values())}")
+        journal.check(
+            "and four different titles",
+            len(set(titles.values())) == 4,
+            f"the header carried {sorted(titles.values())}")
 
         # AND NO TWO NOTICES SAY THE SAME THING. Every hold above is per
         # condition, so a notice drawing ANOTHER condition's copy would need a
@@ -238,6 +284,54 @@ async def hold(journal):
             "the two notices say different things",
             len(set(REASONS.values())) == 2 and len(set(LABELS.values())) == 2,
             f"the reasons are {sorted(REASONS.values())}")
+
+        # THE COLOUR IS THE MESSAGE, and until this hold existed nothing read
+        # it. At 390 px `hidden sm:inline` removes the word, and `harness.css`
+        # re-hides it ABOVE 640 px inside the phone frame — so in the frame the
+        # oracle and this rule measure, the label is `display: none` at EVERY
+        # width and the dot is all a reader has. Five holds above read a
+        # `textContent` CSS had taken off the page, and the one colour assertion
+        # compared `reconnecting` with itself. `lost: "bg-success"` — a green dot
+        # over a dead stream, B-155 exactly — passed all 25.
+        painted = await page.evaluate(
+            """async ({ mark, states }) => {
+                 const out = {};
+                 for (const [condition, state] of Object.entries(states)) {
+                   window.__go(state);
+                   await new Promise((r) => setTimeout(r, 120));
+                   const dot = document.querySelector(mark).firstElementChild;
+                   const label = document.querySelector(mark).lastElementChild;
+                   out[condition] = {
+                     colour: getComputedStyle(dot).backgroundColor,
+                     labelShown: getComputedStyle(label).display !== "none",
+                   };
+                 }
+                 return out;
+               }""",
+            {"mark": MARK, "states": {
+                "connected": "acq-now-idle",
+                "reconnecting": "relay-reconnecting",
+                "lost": "relay-lost",
+                "refused": "relay-refused"}})
+        journal.check(
+            "the word is not visible at the width this rule measures",
+            not any(one["labelShown"] for one in painted.values()),
+            "the label is shown — if that is true the word holds above measure "
+            "something a reader sees, and this hold can go; while it is false "
+            "they measure a `textContent` CSS has removed from the page")
+        colours = {name: one["colour"] for name, one in painted.items()}
+        journal.check(
+            "a healthy connection is not painted like a broken one",
+            colours["connected"] != colours["lost"]
+            and colours["connected"] != colours["refused"]
+            and colours["connected"] != colours["reconnecting"],
+            f"the four conditions painted {colours} — the colour is the whole of "
+            "what a reader sees here, and a dot that stayed green over a dead "
+            "stream is the defect this rule opens by naming")
+        journal.check(
+            "and a wait is not painted like a settled failure",
+            colours["reconnecting"] != colours["lost"],
+            f"reconnecting {colours['reconnecting']}, lost {colours['lost']}")
 
         # THE CONTROL DOES SOMETHING, held by what happens and not by its label.
         acted = await page.evaluate(
@@ -253,6 +347,28 @@ async def hold(journal):
             "the retry really reconnects",
             acted == "connected",
             f"after the retry the condition is {acted!r}")
+
+        # AND `refused` OFFERS THE WAY BACK, held by where it LANDS. The
+        # docstring said the action was "held by what the control DOES, not by
+        # its label", and only the `lost` retry was: `refused`'s was held by a
+        # `data-*` attribute and a label authored beside each other in the same
+        # expression. Deleting the navigation left 25 holds green over the one
+        # control a reader with an expired session can press.
+        went = await page.evaluate(
+            """async ({ notice }) => {
+                 window.__go("relay-refused");
+                 await new Promise((r) => setTimeout(r, 80));
+                 document.querySelector(notice).querySelector("button").click();
+                 await new Promise((r) => setTimeout(r, 300));
+                 return location.pathname;
+               }""",
+            {"notice": NOTICE})
+        journal.check(
+            "`refused` really leads back to the sign-in",
+            went == SIGN_IN_PATH,
+            f"the control landed on {went!r}, expected {SIGN_IN_PATH!r} — a "
+            "dead control in the state that offers it is B-156, and this is its "
+            "other branch")
 
         # REDUCED MOTION IS A DRAWN STATE. The dot keeps its colour and loses
         # its movement — never the other way round, and never nothing at all.
