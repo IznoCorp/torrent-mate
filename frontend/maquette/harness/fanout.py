@@ -415,12 +415,12 @@ async def hold(journal):
         unclaimed = await page.evaluate(
             """async ({ type }) => {
                  window.__fanoutRefresh();
-                 const countBefore = window.__relay.unmatched().length;
+                 const countBefore = window.__relay.unmatchedCount();
                  window.__mocks.stream.emit(type, {});
                  await window.__mocks.quiet();
                  return {
                    still: window.__fanoutSince().length === 0,
-                   counted: window.__relay.unmatched().length - countBefore,
+                   counted: window.__relay.unmatchedCount() - countBefore,
                    last: window.__relay.unmatched().slice(-1)[0],
                  };
                }""",

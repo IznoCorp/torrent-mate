@@ -88,14 +88,6 @@ export function countAttempt(): number {
   return attempts;
 }
 
-/**
- * Reads the attempt count without changing it.
- *
- * @returns How many attempts have failed since the last success.
- */
-export function attemptCount(): number {
-  return attempts;
-}
 
 /**
  * Subscribes to the connection, for a component drawing its condition.
@@ -127,9 +119,4 @@ export function readCondition(): RelaySnapshot {
 export function forceCondition(wanted: RelayCondition | null): void {
   forced = wanted;
   publish();
-}
-
-/** Whether a condition is being drawn over the real one. */
-export function isForced(): boolean {
-  return forced !== null;
 }

@@ -322,6 +322,22 @@ export function setLimits(wanted: { silence?: number; opening?: number }): void 
 }
 
 /**
+ * Reads the limits the relay is RUNNING on.
+ *
+ * Published because the two holds that certify them read the CONSTANTS out of
+ * this file's source, and a constant is not a program: `let silenceLimit =
+ * SILENCE_LIMIT_MILLISECONDS / 45` would leave both green while a one-second
+ * watchdog tore down healthy connections, and so would a `setLimits` call
+ * anywhere in the boot. This is what a rule compares against on a fresh page,
+ * before it shortens anything.
+ *
+ * @returns The deadlines in force, in milliseconds.
+ */
+export function readLimits(): { silence: number; opening: number } {
+  return { silence: silenceLimit, opening: openingLimit };
+}
+
+/**
  * Starts the relay. Called once, from the boot.
  *
  * @returns Nothing. There is no disposer, because nothing calls one — a

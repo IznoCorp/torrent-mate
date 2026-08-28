@@ -119,6 +119,19 @@ async def hold(journal):
 
         present = await page.evaluate(
             "()=>Boolean(window.__relay?.limits && window.__mocks?.stream?.stall)")
+        # THE LIMITS THE RELAY IS RUNNING ON, read on a fresh page before
+        # anything shortens them. The two holds above read the CONSTANTS out of
+        # `relay.ts`, and a constant is not a program: `let silenceLimit =
+        # SILENCE_LIMIT_MILLISECONDS / 45` leaves both green while a one-second
+        # watchdog tears down every healthy connection, and so does a
+        # `setLimits` call anywhere in the boot.
+        running = await page.evaluate("()=>window.__relay.readLimits()")
+        journal.check(
+            "and they are the limits the relay is actually running on",
+            running == {"silence": WANTED_SILENCE_MS, "opening": WANTED_OPENING_MS},
+            f"the relay reports {running} on a fresh page — the holds above read "
+            "a source file, and nothing else held that the program uses what the "
+            "file declares")
         journal.check("the relay and the fake both answer for liveness", present)
         if not present:
             await browser.close()
@@ -201,6 +214,11 @@ async def hold(journal):
                           recovered: window.__relay.condition().condition };
                }""",
             {"limit": SHORT_OPENING_MS})
+        journal.check(
+            "a hung opening reads as connecting while it hangs",
+            hung["whileHanging"] == "connecting",
+            f"the condition was {hung['whileHanging']!r} — a value this rule "
+            "computed and asserted nowhere until now")
         journal.check(
             "an opening that resolves neither way is noticed",
             hung["noticed"]["condition"] != "connecting"

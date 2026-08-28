@@ -220,6 +220,26 @@ when the defect comes back.
 | B-177 | A mutation's `git checkout` reverted an uncommitted repair, and a commit described it anyway | by adversarial review | `fixed #512` |
 | B-178 | B-140 was closed with the second defect its own entry names still in the code | by adversarial review | `fixed #512` |
 | B-179 | Two correct repairs, together wrong: closing a drawer put an older offset back | by gate | `fixed #512` |
+| B-180 | The repair for the false « connected » reintroduced it: a teardown flag nothing consumed | by adversarial review | `fixed #512` |
+| B-181 | `reset()` could drive the settle counters NEGATIVE, and then `quiet()` never resolved again | by adversarial review | `fixed #512` |
+| B-182 | There was no `open` listener, so the opening deadline was a time-to-first-frame deadline | by adversarial review | `fixed #512` |
+| B-183 | The cursor « moves only if delivered » was jumped over by the next event that succeeded | by adversarial review | `fixed #512` |
+| B-184 | The way out of a refusal could be spent before the refusal arrived | by adversarial review | `fixed #512` |
+| B-185 | `ProviderCallCompleted` is a throttled health sample, exempted as per-item progress | by adversarial review | `fixed #512` |
+| B-186 | `ItemProgressed` had no predicate and fired ~540 times a run at two lists | by adversarial review | `fixed #512` |
+| B-187 | `CACHE_WIDE` was matched line by line, so a wrapped whole-cache invalidation passed | by adversarial review | `fixed #512` |
+| B-188 | `SELF_RESCHEDULING` could not cross a semicolon, so it missed every realistic poll | by adversarial review | `fixed #512` |
+| B-189 | The exemptions reader kept the adjacency defect the rules reader was repaired for | by adversarial review | `fixed #512` |
+| B-190 | A comment claimed `fanout.py` had been repaired for that defect; it had not | by adversarial review | `fixed #512` |
+| B-191 | R95's recovery hold was a tautology, and its own printed proof contradicted it | by adversarial review | `fixed #512` |
+| B-192 | R95's « superseded socket » hold could not produce a superseded socket | by adversarial review | `fixed #512` |
+| B-193 | R92's colour hold was a difference test, and a SWAP of two tokens passed it | by adversarial review | `fixed #512` |
+| B-194 | R94's layer hold never verified that a layer opened | by adversarial review | `fixed #512` |
+| B-195 | R91's sibling was seeded under the key, where it could never be an over-refresh | by adversarial review | `fixed #512` |
+| B-196 | R95 certified the shipped limits from a literal, not from the running program | by adversarial review | `fixed #512` |
+| B-197 | The hold-count baseline was stale for three rules, so the gate reported false regressions | by adversarial review | `fixed #512` |
+| B-198 | `resetQueries`/`removeQueries`/`refetchQueries` were refused even when given a key | by adversarial review | `fixed #512` |
+| B-199 | The event corpus was a regex re-implementation of a registry the bus already keeps | by adversarial review | `fixed #512` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
@@ -424,6 +444,40 @@ merge — which is the one thing in this project's method that reads both.
 R94 gains the hold anyway. Two readers of one property is not duplication here: `drawer.py` asks
 whether closing a layer disturbs the page, and R94 asks whether the scroll memory knows what a layer
 is. The second question is the one that will still make sense when the first rule's subject moves.
+
+**B-180 to B-199 — the second review, and what it says about the first.**
+Three reviewers read the twelve commits that repaired round one. Thirty-three findings, six
+severe — **and six of the severe ones were in the REPAIRS, not in the code they repaired.** That is
+the whole case for a second round, and it was not predicted: the first round's own findings all sat
+in code written without a reader, and these sit in code written BY one, in response to one.
+
+**B-180 is the sharpest thing in this register.** The repair for « the relay says connected over a
+dead link » introduced `teardownAsked`, a module-level flag set when this side asks for a teardown
+and consumed by the close it expects. It is consumed by nothing when `socket` is already `null` —
+which is every `reconnectNow()` from `refused` or `lost` — because `close()` on null is a no-op. And
+in a REAL browser it is consumed by nothing at all, because `close()` is asynchronous and the close
+arrives after the replacement is in place, where the identity guard eats it first. Either way the
+flag stays true, and the next unsolicited `1000` — one per deploy — is swallowed. **The condition
+stays « connected », with no socket and nothing scheduled: B-160 exactly, through the door of its own
+fix.** The repair deletes the flag rather than mending it: nulling the socket before closing makes
+the identity guard do the work, per-socket, with nothing to leak.
+
+**B-181 is the same shape on the instrument side.** `reset()` was taught to zero `inFlight` and
+`delivering` so a desynchronised page had a way back — and a request already in flight then
+decremented past zero. At `-1` both `releaseWaiters` and `quiet()` are false for ever. **A repair for
+an accidental desynchronisation created a deterministic and unrecoverable one, on the signal all
+2 871 oracle measurements rest on.**
+
+**B-190 is worth its own line.** A comment stated that `fanout.py` had been repaired for the rule
+reader's adjacency defect. It had not been. A false claim about a repair is worse than the defect,
+because the next reader stops looking — and this register exists because that keeps happening.
+
+**And B-185 closes the loop on the wave's own headline.** Round one found `DownloadProgressed`
+refused on a reason its docstring contradicts. Round two found `ProviderCallCompleted` ACCEPTED into
+an exemption on a reason its docstring contradicts — it is throttled to one sample per ten seconds
+and exists so the web process can track per-provider latency, which is the derivation
+`/api/system/dependencies` is built on. The same error, at the other end, in the same wave, after
+the first was found. A `because` line is a claim, and a claim nobody checks is a coin toss.
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -2250,7 +2304,8 @@ absence of a row can mean either.
 | Steward, between L09 and L10 (#511) | **1** | **B-150**, and it is the sharpest variant in this table: the size arm read the RIGHT file and asked the RIGHT question — « has the lot this label promises already landed? » — and got a stale answer, because the plan still called L09 `NOT STARTED` a wave after it merged. Four labels promised a reduction nobody owed and the guard reported clean. Found by removing the duplicated status, not by a gate: the fix for B-148 turned this one red |
 | L10 | **4** | Recounted at the wave's close. **B-157**, and it is the plainest form in this table: R92 held « `lost` says what is wrong, and since when » by looking for the TIMESTAMP and the absence of « 4401 », so the mutation that made `lost` draw the RECONNECTING copy — the exact defect the rule names in its own docstring — passed. The tell was in the hold's own sentence: a hold containing « and » answers two questions and passes whenever the easier one is true. **B-158**, R94 walking a journey that cannot lose a scroll position — a screen overlays the page, `#port` is never unmounted, and the offset survives with or without any memory at all; measured with the defect restored, 300 px before, during and after. **B-159**, two instruments splitting a feature's `live.ts` on the WORD « Exemptions », whose first occurrence is the type import: the guard then read an import statement and printed « 3 refreshed addresses » out of 24, a confident number nobody could tell was short. And **R91's stated limit**, counted here rather than filed because it is the same species and it is permanent: the rule holds the IMPLEMENTATION against the DECLARATION, so a rule that declares the wrong key and invalidates that same wrong key is green — measured, by pointing `ItemProgressed` at the pipeline status and watching every per-rule hold stay green. What catches it is another arm, and the limit is written into the rule's docstring so nobody reads it as proving more than it does |
 | L10, after the adversarial review | **9** | Seven reviewers against a gate green on every tier. **B-170**, R91 computing « nothing else » and never « everything it declares » — measured, `rule.keys.slice(0, 1)` silently stopped refreshing five addresses and all 57 holds stayed green — with a docstring claiming BOTH DIRECTIONS from the day it was written. **B-171**, R92 asserting five words the CSS removes at every width the frame measures, while the colour that replaces them was compared reconnecting-against-reconnecting: `lost: "bg-success"` passed all 25. **B-172**, R93 comparing only keys present in BOTH snapshots, so `queryClient.clear()` read as no movement. **B-173**, R89's four stream holds passing with zero sockets open, including the one named « resolves once the FAN-OUT has been issued ». **B-174**, R94's central hold green while a different page was on screen, in the rule rewritten because of B-158. **B-175**, a whole-cache invalidation counted as evidence the guard was working. **B-168**, an event corpus of six hand-written files with nine real events outside it. **B-169**, a `StrEnum` counted as an event, which inflated a total AND masked the dead rule naming it. And **R89's budget hold**, comparing two constants declared in its own file — a `quiet()` slower than the oracle's budget would have left every hold green while all 2 871 measurements were taken mid-flight |
-| **Total** | **54** | at 2026-08-28. **The wave that built the most instruments found the most blind ones**, and that is the reading: nine of L09's fourteen were found by adversarial reviewers reading the gate AFTER it went green. **And a guard can be blind to a document rather than to code** — B-150's arm was correct in every line and read a file that had stopped being true. **L10 adds a fourth reading, and it is the sharpest in this table**: the wave reported **4**, found by its own mutations in the phases that wrote the instruments, and was wrong by **9**. Seven adversarial reviewers reading the same green gate found nine more — six of them in rules that had each already been mutation-tested. **Mutation proves a rule catches the defect you thought of**; every one of the nine is a defect the author did not think of, and they are all the same species: a word the CSS removes, a key that disappears rather than changes, a socket that is not there. The two methods are not substitutes, and the ratio is the argument — 4 to 9 |
+| L10, after the SECOND adversarial review | **11** | Three reviewers on the repairs alone. **B-191**, R95's recovery hold a tautology whose own printed proof — a list ending in `reconnecting` — contradicted it. **B-192**, its « superseded socket » hold unable to produce one, because the fake removes a closed socket synchronously; nothing measured the identity guard until `pushStale()` existed. **B-193**, R92's colour hold a set of inequalities that a SWAP of two tokens satisfies. **B-194**, R94's layer hold never reading that a layer opened. **B-195**, R91's sibling seeded where it could never be an over-refresh. **B-196**, R95 certifying the shipped limits from a source literal rather than the running program. **B-197**, a stale hold-count baseline reporting three false regressions — which teaches whoever re-records to accept moved numbers, and that is how a count that FALLS goes through. **B-187**, `CACHE_WIDE` read line by line, so a wrapped whole-cache invalidation produced no violation AND no movement in the number printed as evidence. **B-188**, a poll regex that could not cross a semicolon and matched only the shape nobody writes. **B-189/B-190**, the exemptions reader keeping the defect the rules reader was repaired for, under a comment claiming the sibling instrument had been repaired too. And **R89's `> 1` threshold**, which could not tell one delivery plus one refetch from a delivery counted twice |
+| **Total** | **65** | at 2026-08-28. **The wave that built the most instruments found the most blind ones**, and that is the reading: nine of L09's fourteen were found by adversarial reviewers reading the gate AFTER it went green. **And a guard can be blind to a document rather than to code** — B-150's arm was correct in every line and read a file that had stopped being true. **L10 adds a fourth reading, and it is the sharpest in this table**: the wave reported **4**, found by its own mutations in the phases that wrote the instruments, and was wrong by **9**. Seven adversarial reviewers reading the same green gate found nine more — six of them in rules that had each already been mutation-tested. **Mutation proves a rule catches the defect you thought of**; every one of the nine is a defect the author did not think of, and they are all the same species: a word the CSS removes, a key that disappears rather than changes, a socket that is not there. The two methods are not substitutes, and the ratio is the argument — 4 to 9. **AND THEN THE REPAIRS WERE REVIEWED, AND HELD ELEVEN MORE.** Six of those eleven are in instruments the author had just written in response to a review, mutation-tested, and believed. The reading that survives all three rounds is not « review harder » — it is that **an instrument written by the person whose work it measures inherits that person's blind spots, whatever the discipline**, and only a second pair of eyes on the instrument finds them. 4 by mutation, 9 by review, 11 by reviewing the repairs |
 
 **The nine the correction wave found, since a wave that counts itself has to name its own.** The
 figure is large because the count is honest, not because the wave was worse: four of the nine are

@@ -79,7 +79,13 @@ import {
   unmatchedEvents,
 } from "./live-updates";
 import { forceCondition, readCondition } from "../lib/relay-condition";
-import { installRelay, reconnectNow, resetRelay, setLimits } from "../lib/relay";
+import {
+  installRelay,
+  readLimits,
+  reconnectNow,
+  resetRelay,
+  setLimits,
+} from "../lib/relay";
 import { installRelayRecovery } from "./relay-recovery";
 import { ConnectionMark, ConnectionNotice } from "./connection-notice";
 import { installSeams } from "../engine/seams";
@@ -160,6 +166,7 @@ declare global {
       unmatchedCount: typeof unmatchedCount;
       force: typeof forceCondition;
       limits: typeof setLimits;
+      readLimits: typeof readLimits;
       reset: () => void;
     };
     // The domain hooks and the probes read the engine's state through this.
@@ -352,6 +359,7 @@ window.__relay = {
   unmatchedCount,
   force: forceCondition,
   limits: setLimits,
+  readLimits,
   reset: () => {
     resetLiveUpdates();
     resetRelay();

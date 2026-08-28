@@ -195,7 +195,7 @@ async def hold(journal):
                 // been issued » reported success over a fan-out that could not
                 // exist. What is asserted first is that there is a client.
                 const listening = window.__mocks.stream.state().sockets;
-                const claimedBefore = window.__relay.unmatched().length;
+                const claimedBefore = window.__relay.unmatchedCount();
                 const before = window.__mocks.inFlight();
                 window.__mocks.stream.emit("SettleProbe", {});
                 const during = window.__mocks.inFlight();
@@ -211,7 +211,7 @@ async def hold(journal):
                 await window.__mocks.quiet();
                 const after = window.__mocks.inFlight();
                 return { before, during, first, after, drained, listening,
-                         arrived: window.__relay.unmatched().length - claimedBefore };
+                         arrived: window.__relay.unmatchedCount() - claimedBefore };
             }""")
         journal.check(
             "there is a socket to deliver to, and the frame arrived at it",
@@ -240,7 +240,7 @@ async def hold(journal):
             """async () => {
                 window.__mocks.reset();
                 const listening = window.__mocks.stream.state().sockets;
-                const claimedBefore = window.__relay.unmatched().length;
+                const claimedBefore = window.__relay.unmatchedCount();
                 // EVENTS NO RULE CLAIMS. The counter answers for deliveries
                 // AND for requests in flight, so a mapped event adds its own
                 // refetch to the number and the arithmetic this hold is about
@@ -254,7 +254,7 @@ async def hold(journal):
                 const during = window.__mocks.inFlight();
                 await window.__mocks.quiet();
                 return { during, after: window.__mocks.inFlight(), listening,
-                         arrived: window.__relay.unmatched().length - claimedBefore };
+                         arrived: window.__relay.unmatchedCount() - claimedBefore };
             }""")
         journal.check("a burst of three counts three, and settles at zero",
                       burst["during"] == 3 and burst["after"] == 0
@@ -277,21 +277,30 @@ async def hold(journal):
         mapped = await page.evaluate(
             """async () => {
                 window.__mocks.reset();
+                // THE DELIVERY'S OWN COST, MEASURED FIRST. `> 1` could not tell
+                // one delivery plus one refetch from a delivery counted twice —
+                // the burst hold pins that elsewhere, in another evaluation,
+                // and nothing stated the dependency. An unmapped event gives
+                // the baseline in the same breath.
+                window.__mocks.stream.emit("SettleBaseline", {});
+                const deliveryAlone = window.__mocks.inFlight();
+                await window.__mocks.quiet();
                 const base = window.__mocks.inFlight();
-                window.__mocks.stream.emit("ItemDispatched", {});
+                window.__mocks.stream.emit("ItemDispatched", { action: "replaced" });
                 const straightAway = window.__mocks.inFlight();
                 await window.__mocks.quiet();
-                return { base, straightAway, after: window.__mocks.inFlight() };
+                return { base, deliveryAlone, straightAway,
+                         after: window.__mocks.inFlight() };
             }""")
         journal.check(
             "a MAPPED event's refetch is counted before the delivery is released",
-            mapped["base"] == 0 and mapped["straightAway"] > 1
-            and mapped["after"] == 0,
-            f"inFlight() read {mapped['base']} before, {mapped['straightAway']} "
-            f"immediately after a mapped emit, {mapped['after']} once quiet — "
-            "one delivery plus at least one request, counted synchronously. At "
-            "1 the refetch had not been issued yet and every measurement of a "
-            "live surface would be taken mid-flight")
+            mapped["base"] == 0 and mapped["after"] == 0
+            and mapped["straightAway"] > mapped["deliveryAlone"],
+            f"an unmapped emit costs {mapped['deliveryAlone']}; a mapped one "
+            f"reads {mapped['straightAway']} immediately, {mapped['after']} once "
+            "quiet — the DIFFERENCE is the refetch, counted synchronously. Equal, "
+            "the refetch had not been issued yet and every measurement of a live "
+            "surface would be taken mid-flight")
 
         # (6) the budget is stated rather than discovered. A latency above it is
         # measured mid-flight BY DESIGN, and this hold is what makes that a

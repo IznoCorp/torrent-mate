@@ -243,17 +243,50 @@ def arm_named_invalidation():
 
 
 def backend_events():
-    """Every `Event` subclass in the package, wherever it is declared.
+    """Every `Event` subclass, from the registry AND from the source.
+
+    TWO ORACLES, COMPARED. The bus keeps `_EVENT_CLASS_REGISTRY`, populated by
+    `__init_subclass__` — the authoritative answer, and the one the wire
+    actually carries. The regex is a re-implementation of it, and a
+    re-implementation that agrees today is one nobody can tell is wrong: it
+    requires a column-zero `class`, a single base spelled exactly `Event`, and
+    both on one physical line, so an event subclassing another event or
+    declaring a second base would be registered by the bus and invisible here.
+
+    The two are compared rather than one being trusted. They agree at 48 today;
+    the day they do not, the disagreement is the finding.
 
     Returns:
-        (the class names, None) — or (None, why) when the package is not there.
+        (the class names, None) — or (None, why) when neither can answer.
     """
     if not PACKAGE.is_dir():
         return None, str(PACKAGE)
-    found = set()
+    from_source = set()
     for path in sorted(PACKAGE.rglob("*.py")):
-        found |= set(EVENT_BASE.findall(path.read_text(encoding="utf-8")))
-    return found, None
+        from_source |= set(EVENT_BASE.findall(path.read_text(encoding="utf-8")))
+    try:
+        sys.path.insert(0, str(ROOT))
+        import importlib
+        importlib.import_module("personalscraper.events")
+        registry = set(importlib.import_module(
+            "personalscraper.core.event_bus")._EVENT_CLASS_REGISTRY)
+    except Exception:                      # noqa: BLE001 - any import failure
+        # The registry needs the package importable; a tree without its
+        # dependencies still gets the source answer, and says so.
+        print("check-live-relay[map-completeness]: the event registry could not "
+              "be imported — the corpus is the source scan alone, which is a "
+              "re-implementation nothing is cross-checking here.",
+              file=sys.stderr)
+        return from_source, None
+    if registry != from_source:
+        print("check-live-relay[map-completeness]: the bus registry and the "
+              f"source scan disagree — only in the registry: "
+              f"{sorted(registry - from_source)}; only in the source: "
+              f"{sorted(from_source - registry)}. The registry is what the wire "
+              "carries; the scan is a regex that cannot see a subclassed or "
+              "multi-base event.")
+        return registry | from_source, None
+    return registry, None
 
 
 def brace_body(source, opened):
@@ -475,7 +508,10 @@ def arm_map_completeness():
           f"somewhere, and the two sets overlap by "
           f"{len(emitted & mapped & exempt_types)}; "
           f"{len(addresses)} address(es) read across {tables} feature table(s) — "
-          f"{len(refreshed)} refreshed, {len(exempt_keys)} exempt")
+          f"{len(refreshed)} refreshed, {len(exempt_keys)} exempt, and the two "
+          f"overlap by {len(refreshed & exempt_keys)}. AN ADDRESS CAN BE BOTH: "
+          "a rule's prefix may already cover a read that an exemption also "
+          "names, and 17 + 8 over 24 is that overlap rather than an error")
     return 1 if violations else 0
 
 
