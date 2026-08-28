@@ -183,13 +183,18 @@
         <span class="wm" data-part="brand/wordmark">Torrent<em>Mate</em></span>
       </a>
       <div class="sp ml-auto flex items-center gap-6">
-        <span
-          class="ps-dot ps-dot--done inline-flex items-center gap-3 text-3 text-muted-foreground"
-          title="Temps réel connecté"
-        >
-          <span class="ps-dot__d relative w-[8px] h-[8px] rounded-full flex-none bg-success"></span
-          ><span class="ps-dot__label hidden sm:inline">Connecté</span>
-        </span>
+        <!-- THE CONNECTION, AND IT USED TO BE A CLAIM RATHER THAN A READING.
+             This span said « Connecté » and carried `title="Temps réel
+             connecté"` written into the markup, with no connection anywhere in
+             the prototype (B-155). §8 of the constitution is « rien en
+             silence », and a permanent green dot over a dead stream is its
+             exact inversion: the interface looked current whatever the truth.
+
+             `display: contents` generates NO BOX, so the flex row above is
+             laid out exactly as it was and the dot React draws inside is the
+             same direct child of `.sp` the static one was. A wrapper with a
+             box would have added a flex item and moved the header. -->
+        <span id="connection" class="contents" data-part="shell/connection"></span>
         <button
           class="avatar w-[32px] h-[32px] rounded-full [border:0] bg-muted text-muted-foreground
                  text-3 font-medium grid place-items-center"

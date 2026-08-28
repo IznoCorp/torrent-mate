@@ -6,6 +6,12 @@ interface REQUIRES — against `frontend/openapi.json`, which is generated FROM 
 backend. `--check` refuses a committed register that differs from the computed one, so the
 two cannot separate. Edit the contract, not this file.
 
+**IT DESCRIBES OPERATIONS, AND A WEBSOCKET IS NOT ONE.** OpenAPI cannot declare
+`/ws/events`, so nothing about the event stream can ever appear below — and nothing
+reads as identical to no demands (B-153). The stream's demands are written BY HAND in
+`docs/reference/frontend-backend-demands-stream.md`. This pointer lives in the
+GENERATOR, so regenerating this file cannot drop it.
+
 **NOBODY IS BUILDING THIS YET, and that is D7.** No backend work happens until the
 interface is frozen; starting earlier means rebuilding against a specification that is
 still moving. What this file is FOR is that the specification arrives as a diff rather

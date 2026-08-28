@@ -180,7 +180,7 @@ when the defect comes back.
 | B-137 | Four ACCEPTANCE criteria could not run, or expected the wrong answer | by adversarial review | `fixed #509` |
 | B-138 | The profile panel's avatar is unconstrained, inside a region whose probe reads only the container | by operator | `open` |
 | B-139 | Three typed variants were written and never wired; one leaves a bare button unreadable | by operator | `open` |
-| B-140 | Back returns to the top of a page: the scroll memory only knows overlay screens | by operator | `open` |
+| B-140 | Back returns to the top of a page: the scroll memory only knows overlay screens | by operator | `fixed #512` |
 | B-141 | Ten elements carry no class at all, in a prototype that imports no preflight | by audit | `open` |
 | B-142 | Nothing measures the interface against the constitution: five DOIT clauses have no surface | by audit | `open` |
 | B-143 | §17 (accounts, rights, Plex SSO) has no surface, no contract operation and no lot | by audit | `open` |
@@ -192,6 +192,292 @@ when the defect comes back.
 | B-149 | A declared departure from the lot's « Done when » lives only in a session report | by audit | `fixed #511` |
 | B-150 | A size promise expired unnoticed because the guard read the status B-148 froze | by audit | `fixed #511` |
 | B-151 | `coverage-merge` reports « Artifact not found » whenever an earlier job fails | by audit | `open` |
+| B-152 | `IMPLEMENTATION.md` still named L09 as the next lot two commits after L09 merged | by design | `fixed #512` |
+| B-153 | The demand register is computed from OpenAPI paths, and a WebSocket has none | by design | `open` |
+| B-154 | `staleTime: Infinity` with no focus or reconnect refetch: a missed invalidation never heals | by design | `open` |
+| B-155 | The header claimed « Temps réel connecté » as a literal, with no connection anywhere | by design | `fixed #512` |
+| B-156 | The harness's condition lever left the retry control dead in the state that offers it | by rule | `fixed #512` |
+| B-157 | R92 held that a notice named its reason by reading the TIMESTAMP beside it | by mutation | `fixed #512` |
+| B-158 | R94 walked a journey that cannot lose a scroll position, and passed over B-140 | by mutation | `fixed #512` |
+| B-159 | Two instruments split a file on a WORD whose first use is the type import | by gate | `fixed #512` |
+| B-160 | The relay said « connected » over a dead link, by three independent routes | by adversarial review | `fixed #512` |
+| B-161 | `currentSince` was the age of the CONNECTION, and the notice called it the age of the data | by adversarial review | `fixed #512` |
+| B-162 | A refusal was inescapable: signing back in left the relay dead and the notice pointing at it | by adversarial review | `fixed #512` |
+| B-163 | The message listener had no identity guard, so a stale socket could report health | by adversarial review | `fixed #512` |
+| B-164 | The cursor took every id it was handed and could walk backwards | by adversarial review | `fixed #512` |
+| B-165 | `DownloadStarted`/`Progressed` were refused as per-tick; they fire once and thrice | by adversarial review | `fixed #512` |
+| B-166 | `FilmAcquired` deletes a follow and closes a wanted row, and refreshed neither list | by adversarial review | `fixed #512` |
+| B-167 | Three transition events existed for a demand that asked the backend to build them | by adversarial review | `fixed #512` |
+| B-168 | The guard's event corpus was six files written by hand, and nine events lived outside | by adversarial review | `fixed #512` |
+| B-169 | `StepItemStatus` is a StrEnum, and a rule named it as an event that can never arrive | by adversarial review | `fixed #512` |
+| B-170 | R91 computed one direction while its docstring claimed two | by adversarial review | `fixed #512` |
+| B-171 | R92 read a word the CSS had removed, and never read the colour that replaced it | by adversarial review | `fixed #512` |
+| B-172 | R93 was blind to cache REMOVAL, the purest form of the reload it refuses | by adversarial review | `fixed #512` |
+| B-173 | R89's four stream holds passed with no socket open at all | by adversarial review | `fixed #512` |
+| B-174 | R94's central hold passed while a different page was on screen | by adversarial review | `fixed #512` |
+| B-175 | `invalidateQueries({queryKey: []})` was counted as a HEALTHY named invalidation | by adversarial review | `fixed #512` |
+| B-176 | `unmatched` grew without bound, fed by the highest-frequency events by design | by adversarial review | `fixed #512` |
+| B-177 | A mutation's `git checkout` reverted an uncommitted repair, and a commit described it anyway | by adversarial review | `fixed #512` |
+| B-178 | B-140 was closed with the second defect its own entry names still in the code | by adversarial review | `fixed #512` |
+| B-179 | Two correct repairs, together wrong: closing a drawer put an older offset back | by gate | `fixed #512` |
+| B-180 | The repair for the false « connected » reintroduced it: a teardown flag nothing consumed | by adversarial review | `fixed #512` |
+| B-181 | `reset()` could drive the settle counters NEGATIVE, and then `quiet()` never resolved again | by adversarial review | `fixed #512` |
+| B-182 | There was no `open` listener, so the opening deadline was a time-to-first-frame deadline | by adversarial review | `fixed #512` |
+| B-183 | The cursor « moves only if delivered » was jumped over by the next event that succeeded | by adversarial review | `fixed #512` |
+| B-184 | The way out of a refusal could be spent before the refusal arrived | by adversarial review | `fixed #512` |
+| B-185 | `ProviderCallCompleted` is a throttled health sample, exempted as per-item progress | by adversarial review | `fixed #512` |
+| B-186 | `ItemProgressed` had no predicate and fired ~540 times a run at two lists | by adversarial review | `fixed #512` |
+| B-187 | `CACHE_WIDE` was matched line by line, so a wrapped whole-cache invalidation passed | by adversarial review | `fixed #512` |
+| B-188 | `SELF_RESCHEDULING` could not cross a semicolon, so it missed every realistic poll | by adversarial review | `fixed #512` |
+| B-189 | The exemptions reader kept the adjacency defect the rules reader was repaired for | by adversarial review | `fixed #512` |
+| B-190 | A comment claimed `fanout.py` had been repaired for that defect; it had not | by adversarial review | `fixed #512` |
+| B-191 | R95's recovery hold was a tautology, and its own printed proof contradicted it | by adversarial review | `fixed #512` |
+| B-192 | R95's « superseded socket » hold could not produce a superseded socket | by adversarial review | `fixed #512` |
+| B-193 | R92's colour hold was a difference test, and a SWAP of two tokens passed it | by adversarial review | `fixed #512` |
+| B-194 | R94's layer hold never verified that a layer opened | by adversarial review | `fixed #512` |
+| B-195 | R91's sibling was seeded under the key, where it could never be an over-refresh | by adversarial review | `fixed #512` |
+| B-196 | R95 certified the shipped limits from a literal, not from the running program | by adversarial review | `fixed #512` |
+| B-197 | The hold-count baseline was stale for three rules, so the gate reported false regressions | by adversarial review | `fixed #512` |
+| B-198 | `resetQueries`/`removeQueries`/`refetchQueries` were refused even when given a key | by adversarial review | `fixed #512` |
+| B-199 | The event corpus was a regex re-implementation of a registry the bus already keeps | by adversarial review | `fixed #512` |
+
+**B-152 — the one file § 0 was pointed at was itself stale.**
+Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
+day (B-148) precisely so that state would exist once, in `IMPLEMENTATION.md`. The « Landed, in
+order » row and the « Next » row were both correct. The **« Next action »** paragraph 20 lines
+below them was not: it still read « **L09 — The data layer, surface by surface** is the next lot,
+and nothing is open on it », two commits after L09 merged.
+
+**This is B-148's shape, one file to the left.** Removing a duplicate state from the plan does not
+help if the file that keeps the state carries the same fact twice — a row and a paragraph — and a
+wave updates one. The repair is the same repair: the paragraph now says what is IN HAND rather than
+re-deriving what is next, so it cannot disagree with the row above it about a lot's status.
+Repaired on `feat/maquette-l10`.
+
+**B-153 — the demands register cannot describe the thing L10 is about.**
+`scripts/compare-contracts.py` COMPUTES `docs/reference/frontend-backend-demands.md` by diffing
+paths and operations between `frontend/maquette/contract/openapi.json` (50 paths) and
+`frontend/openapi.json` (61). **Neither declares the event stream**, and neither can: OpenAPI does
+not describe a WebSocket.
+
+<sub>`python3 -c "import json;d=json.load(open('frontend/maquette/contract/openapi.json'));print(len(d['paths']),[k for k in d['paths'] if 'ws' in k or 'event' in k])"` → `50 []`</sub>
+
+So every demand L10 raises about the stream must be filed BY HAND, and the computed register will
+go on reporting nothing about it — which reads as « no demands » rather than « out of scope ».
+D7 says the contract is the maquette's own artefact; the stream is part of that contract and has
+no artefact. Left open: what shape a stream contract should take is an arbitration, not a fix, and
+L10 does not take it — it files its demands by hand and says so.
+
+**B-154 — the cache has no way to heal itself, and nothing says so where it matters.**
+`lib/query-client.ts` sets `staleTime: Infinity`, `refetchOnWindowFocus: false`,
+`refetchOnReconnect: false`, `retry: false`. Each is argued in the file, each is right, and their
+SUM is a property no one of the four comments states: **a query that misses an invalidation is
+stale for the life of the process.** There is no clock, no focus event and no reconnect refetch
+underneath.
+
+Production's `useWsInvalidation` is a per-surface hook and is safe there because 21 `refetchInterval`
+sites poll underneath it — a missed event costs 60 seconds. Here it would cost forever. The same
+shape, transposed, would be a defect that only ever shows as « the screen was out of date and I do
+not know since when ».
+
+L10 designs around it (the relay subscribes once, at boot, never with a surface — D-L10-1). The
+entry stays open because the PROPERTY is still undocumented at the one place a future reader meets
+it: nothing in `query-client.ts` says the four options together forbid self-healing.
+
+**B-155 — the interface claimed to be live, in the markup, forever.**
+`index.html` carried, in the header and as literals:
+
+```html
+<span class="ps-dot ps-dot--done …" title="Temps réel connecté">
+  <span class="ps-dot__d … bg-success"></span><span class="ps-dot__label …">Connecté</span>
+</span>
+```
+
+A green dot, the word « Connecté », and a tooltip saying real-time was connected — in a prototype
+where nothing connected to anything. **This is §8 of the constitution inverted.** §8 refuses a
+« rien ne se passe » with no visible reason; a permanent claim of liveness is worse than silence,
+because a reader who checks the indicator is told the screen is current whatever the truth. Nothing
+could have contradicted it: the value was not read from anywhere.
+
+It was not a lie anyone told on purpose — it was a drawing of what the state should look like,
+which is what a maquette is for. It became a defect the moment a real connection existed to
+contradict it. Repaired by L10 phase 4: the same element, in the same place, drawing what the
+relay really reports. The connected rendering is byte-identical to what the oracle recorded — the
+React portal sits in a `display: contents` wrapper, which generates no box — and the measurement
+says so: 2 871 measurements over 87 states, the three new ones added, **zero existing measurement
+changed**.
+
+**B-156 — the lever that draws a condition made the control in it dead.**
+Found by R92, in the phase that wrote it. A named state reaches `relay-lost` through
+`window.__relay.force("lost")`, because `__go` is synchronous and the condition takes a backoff
+and a handshake to reach for real. `reconnectNow()` then set the REAL condition back to
+`connecting` and connected — and the snapshot went on reporting `lost`, because the override was
+still in place. So « Réessayer maintenant », in the very state whose whole purpose is to offer it,
+did nothing a reader could see.
+
+**It is the §8 defect sitting inside the §8 feature**, and it is exactly the shape this repository
+keeps paying for: an instrument's lever left in the product's path. The repair is also the correct
+semantics — an explicit ask clears the override, because a reader who taps « réessayer » has asked
+for the real condition, not for the drawn one.
+
+**What is worth keeping is why it was caught**: the hold does not read the control's LABEL, it
+clicks it and reads what the connection then is. A hold asserting that a button exists and says
+« Réessayer maintenant » would have been green over a dead control.
+
+**B-157 — the hold read when it happened, not what happened.**
+R92's first version held « `lost` says what is wrong, and since when » by looking for two things
+in the notice: the lead « Les informations affichées datent de », and the ABSENCE of the string
+« 4401 ». Both survive a notice that says something entirely different.
+
+**The mutation is what found it, and it found nothing the first time.** Making `lost` draw the
+RECONNECTING copy — a real defect, the exact « wrong state » failure the rule names in its own
+docstring — left the timestamp and the retry label in place, so the rule reported 20 holds and no
+violation. The rule was green over the defect it was written for, which is B-085's shape and
+this repository's dominant one: **the seventeenth, eighteenth and every instance since have all
+been an instrument reading a neighbour of its subject rather than its subject.**
+
+Repaired by holding the REASON itself, per condition, read off `i18n/fr.json` rather than retyped —
+plus the control's label, plus a hold that the two notices differ from each other, so one wrong
+entry in the list cannot pass. Re-mutated: both `lost` and `refused` fall, each naming the copy it
+should have carried. A second mutation — the notice never rendering at all — falls twelve holds.
+
+**What is worth carrying forward**: « and since when » in the hold's own NAME was the tell. A hold
+whose sentence contains « and » is answering two questions, and it will pass whenever the easier
+one is true.
+
+**B-158 — the rule walked a journey that cannot lose anything.**
+R94 was written to hold B-140's repair, and its mutation — restore
+`.screen.open .port` — did not fall. The rule scrolled the library, opened a media sheet and
+came back, which is the operator's sentence read literally.
+
+**That journey cannot lose a position.** A screen is `position: absolute` over the page: `#port`
+is never unmounted and its height does not change, so the offset survives with or without any
+memory at all. Measured with the defect restored: 300 px before, 300 during, 300 after.
+
+What loses it is a TOP-LEVEL PAGE SWITCH — the content is replaced, `#port` becomes a different
+length, and the browser clamps the offset to zero. Measured on one build, one selector apart:
+back at **0** with `.screen.open .port`, back at **300** with the repair.
+
+**And the journey needs the item's push BEFORE the tab**, which is not a detail: a top-level tab
+REPLACES the current entry (D1b), so leaving the page directly consumes the very entry the return
+needs — `history.back()` stays put and the rule fails for a reason that is not the defect. It is
+also the operator's own journey read properly: **the position is not lost coming back FROM the
+item, it is lost coming back from somewhere else.**
+
+The rule now carries the hold that would have caught its own first version: « leaving a page
+really loses the offset, so the return means something ». A rule that measures a return without
+first establishing that anything was at stake passes with no memory at all.
+
+**B-159 — two instruments split a file on a word whose first use is the import.**
+`check-live-relay.py` and `harness/fanout.py` both read each feature's `live.ts` and both needed
+to separate the RULES from the EXEMPTIONS. Both split on the string `"Exemptions"`. Its first
+occurrence in every one of those files is the TYPE IMPORT on line 1.
+
+**The two failed differently, and that is the whole entry.** The guard's `rules` variable held an
+import statement, so it reported **3 refreshed addresses out of 24** — a confident number, printed,
+that only a reader comparing it against the tree would ever have questioned. The harness rule read
+three exemptions as rules with empty type lists and raised `IndexError` on the first one.
+
+A crash is a better failure than a wrong number, and neither was found by design: the guard's was
+found because 3 looked implausible, the rule's because it stopped. Both split on the exemptions
+OBJECT now (`^export const \w+LiveExemptions`), and R91 additionally holds that every declared
+rule names at least one event — so a rule that ends up empty falls with a sentence rather than a
+traceback.
+
+**B-160 to B-178 — what an adversarial review found under a green gate.**
+Seven reviewers, one lens each, against 66 rules / 17 guards / an oracle at 2 871 measurements /
+`make check` at 10 849 passed. They returned roughly fifty findings; the ones recorded here are
+those verified line by line before being acted on. **Five were production defects, and three of them
+made the lot's own headline promise false.**
+
+**The shape that produced most of them is one sentence**: the fake transport pushes nothing on its
+own (D-L10-4), so **silence is its normal state** — and no rule could tell « quiet because nothing
+happened » from « quiet because the link is dead ». `MockSocket` had exactly two ways to end a
+connection, both explicit and both delivered. A hang was unrepresentable, so the watchdog defect was
+unreachable by construction. **The instrument's design made the defect invisible.**
+
+**B-160** — a half-open socket (sleep, backgrounding, an idle proxy) never closes itself and the
+relay listened only for `close`; a hung 101 upgrade fires neither event, and the backoff ladder only
+steps on a `close`; and an unsolicited clean 1000 — **which is how this connection ends on every
+merge**, because `torrentmate-autodeploy` restarts the web process — was treated as a teardown this
+side had asked for. Three routes to a green dot over a frozen screen, in the lot whose §8 promise is
+that the interface says when it stops updating. Production had answered for all of it since before
+the maquette existed: `useEventStream.ts` carries `WATCHDOG_MS = 45_000` re-armed on every frame and
+`CONNECT_TIMEOUT_MS = 10_000`.
+
+**B-165 is the one to keep.** The wave's headline refusal — `DownloadProgressed` « fires per torrent
+per tick » — is contradicted by the event's own docstring: only the highest threshold crossed per
+pass fires, the mark never regresses, and the thresholds are 25/50/75. **Three emissions for a whole
+download.** `DownloadStarted` fires once per info-hash. Meanwhile `ItemProgressed`, which the map
+DOES point at a list, fires once per item per step across nine steps. **The volume argument was
+applied to the bounded events and not to the unbounded one**, and the card drew « Téléchargement
+68 % » frozen for the life of the tab. It was written into the file, the demands register, the
+commit message and the pull-request body — five places, one unchecked claim.
+
+**B-167 and B-166 are the same error read from the other end**: two demands asked the backend for
+work it had already done. `CircuitBreakerOpened/Closed/HalfOpened` fire on transition and never per
+probe, which is exactly what demand §4 asked to be built; `FilmAcquired` and
+`SeasonAbsorbedEpisodes` carry `media_ref`, which is exactly what §1 asked for. **Asking for work
+already done is worse than asking for nothing**: it reads as a considered gap.
+
+**B-177 is a discipline failure, not a defect**, and it is recorded because it happened twice.
+B-107 records the mirror — `git checkout` on an UNTRACKED file is a no-op and a mutation stayed in
+the tree. Here `git checkout` on a TRACKED file reverted an uncommitted repair, and the commit that
+followed described an attribute the tree did not contain. The rule covering both is one sentence and
+was already written down: commit before mutating, always. It was followed for thirteen mutations and
+skipped for the fourteenth.
+
+**B-179 — two repairs that were each right and together wrong.**
+B-140 taught `activePort()` about `#port`; B-178 stopped `if (remembered)` skipping a stored zero.
+Neither is questionable alone. Together they made the scroll memory act across a LAYER boundary,
+which it must never do: a drawer, a panel or a sheet opens OVER the page — `#port` keeps its
+element, its height and its offset throughout — so opening one stored the page's offset and closing
+one wrote that older value back over whatever the operator had scrolled to since.
+
+Measured by `drawer.py`, which is not R94: `18 → 0`, on two layers.
+
+**Neither repair could have been dropped, and neither test could have found it.** R94 walks pages;
+`drawer.py` walks layers and had held this property since before L10 existed. The defect lives
+exactly on the seam between them, and it was found by the WAVE GATE — the full suite, run before the
+merge — which is the one thing in this project's method that reads both.
+
+R94 gains the hold anyway. Two readers of one property is not duplication here: `drawer.py` asks
+whether closing a layer disturbs the page, and R94 asks whether the scroll memory knows what a layer
+is. The second question is the one that will still make sense when the first rule's subject moves.
+
+**B-180 to B-199 — the second review, and what it says about the first.**
+Three reviewers read the twelve commits that repaired round one. Thirty-three findings, six
+severe — **and six of the severe ones were in the REPAIRS, not in the code they repaired.** That is
+the whole case for a second round, and it was not predicted: the first round's own findings all sat
+in code written without a reader, and these sit in code written BY one, in response to one.
+
+**B-180 is the sharpest thing in this register.** The repair for « the relay says connected over a
+dead link » introduced `teardownAsked`, a module-level flag set when this side asks for a teardown
+and consumed by the close it expects. It is consumed by nothing when `socket` is already `null` —
+which is every `reconnectNow()` from `refused` or `lost` — because `close()` on null is a no-op. And
+in a REAL browser it is consumed by nothing at all, because `close()` is asynchronous and the close
+arrives after the replacement is in place, where the identity guard eats it first. Either way the
+flag stays true, and the next unsolicited `1000` — one per deploy — is swallowed. **The condition
+stays « connected », with no socket and nothing scheduled: B-160 exactly, through the door of its own
+fix.** The repair deletes the flag rather than mending it: nulling the socket before closing makes
+the identity guard do the work, per-socket, with nothing to leak.
+
+**B-181 is the same shape on the instrument side.** `reset()` was taught to zero `inFlight` and
+`delivering` so a desynchronised page had a way back — and a request already in flight then
+decremented past zero. At `-1` both `releaseWaiters` and `quiet()` are false for ever. **A repair for
+an accidental desynchronisation created a deterministic and unrecoverable one, on the signal all
+2 871 oracle measurements rest on.**
+
+**B-190 is worth its own line.** A comment stated that `fanout.py` had been repaired for the rule
+reader's adjacency defect. It had not been. A false claim about a repair is worse than the defect,
+because the next reader stops looking — and this register exists because that keeps happening.
+
+**And B-185 closes the loop on the wave's own headline.** Round one found `DownloadProgressed`
+refused on a reason its docstring contradicts. Round two found `ProviderCallCompleted` ACCEPTED into
+an exemption on a reason its docstring contradicts — it is throttled to one sample per ten seconds
+and exists so the web process can track per-provider latency, which is the derivation
+`/api/system/dependencies` is built on. The same error, at the other end, in the same wave, after
+the first was found. A `because` line is a claim, and a claim nobody checks is a coin toss.
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -2016,7 +2302,10 @@ absence of a row can mean either.
 | L08-bis (#505, the correction wave) | 9 | itemised below · squash `12a134ca` |
 | L09 | **14** | Recounted at the wave's close, and the count TREBLED between the gate and the merge — four adversarial reviewers ran before it, and nine of these fourteen are theirs. **B-105** and **B-106**, both found by mutation in the phases that wrote the instruments. **B-108**, the oracle itself — its `neutralise` broke the React tree and it recorded the damage as the reference, on four states of the exact kind this lot wires. **B-110**'s first attempt, which took three seeds out of the schema arm while the register claimed that arm held them. The **filters rule**, which read the FIRST listing in the cache rather than the active one. **B-121**, a gate vacuous where it blocks and moving where it does not. **B-122**, an arm that built a path by cutting it on the operator's own clone directory, so it could never match its own allowance list — two violations on CI, none locally, over an identical tree. **B-123**, a test that DERIVED a rule the application derives nowhere and then asserted the rendering that derivation produced, over a live production regression. **B-124**, one spelling of a store write out of three, defeated by a one-line wrapper already in the tree. **B-125**, an arm blind to `fetchNextPage` and to every layout effect — including in its own corpus count, which is the floor that is supposed to catch this. **B-126**, floors a third under the corpus. **B-133**, three rules of this lot's own making holding on something other than what they read. **B-134**, no arm reading what a HANDLER answers. **B-135**, three named states measuring the panel left open by the state before them, off screen, for as long as the reference has existed |
 | Steward, between L09 and L10 (#511) | **1** | **B-150**, and it is the sharpest variant in this table: the size arm read the RIGHT file and asked the RIGHT question — « has the lot this label promises already landed? » — and got a stale answer, because the plan still called L09 `NOT STARTED` a wave after it merged. Four labels promised a reduction nobody owed and the guard reported clean. Found by removing the duplicated status, not by a gate: the fix for B-148 turned this one red |
-| **Total** | **41** | at 2026-08-28. **The wave that built the most instruments found the most blind ones**, and that is the reading: nine of L09's fourteen were found by adversarial reviewers reading the gate AFTER it went green. **And a guard can be blind to a document rather than to code** — B-150's arm was correct in every line and read a file that had stopped being true |
+| L10 | **4** | Recounted at the wave's close. **B-157**, and it is the plainest form in this table: R92 held « `lost` says what is wrong, and since when » by looking for the TIMESTAMP and the absence of « 4401 », so the mutation that made `lost` draw the RECONNECTING copy — the exact defect the rule names in its own docstring — passed. The tell was in the hold's own sentence: a hold containing « and » answers two questions and passes whenever the easier one is true. **B-158**, R94 walking a journey that cannot lose a scroll position — a screen overlays the page, `#port` is never unmounted, and the offset survives with or without any memory at all; measured with the defect restored, 300 px before, during and after. **B-159**, two instruments splitting a feature's `live.ts` on the WORD « Exemptions », whose first occurrence is the type import: the guard then read an import statement and printed « 3 refreshed addresses » out of 24, a confident number nobody could tell was short. And **R91's stated limit**, counted here rather than filed because it is the same species and it is permanent: the rule holds the IMPLEMENTATION against the DECLARATION, so a rule that declares the wrong key and invalidates that same wrong key is green — measured, by pointing `ItemProgressed` at the pipeline status and watching every per-rule hold stay green. What catches it is another arm, and the limit is written into the rule's docstring so nobody reads it as proving more than it does |
+| L10, after the adversarial review | **9** | Seven reviewers against a gate green on every tier. **B-170**, R91 computing « nothing else » and never « everything it declares » — measured, `rule.keys.slice(0, 1)` silently stopped refreshing five addresses and all 57 holds stayed green — with a docstring claiming BOTH DIRECTIONS from the day it was written. **B-171**, R92 asserting five words the CSS removes at every width the frame measures, while the colour that replaces them was compared reconnecting-against-reconnecting: `lost: "bg-success"` passed all 25. **B-172**, R93 comparing only keys present in BOTH snapshots, so `queryClient.clear()` read as no movement. **B-173**, R89's four stream holds passing with zero sockets open, including the one named « resolves once the FAN-OUT has been issued ». **B-174**, R94's central hold green while a different page was on screen, in the rule rewritten because of B-158. **B-175**, a whole-cache invalidation counted as evidence the guard was working. **B-168**, an event corpus of six hand-written files with nine real events outside it. **B-169**, a `StrEnum` counted as an event, which inflated a total AND masked the dead rule naming it. And **R89's budget hold**, comparing two constants declared in its own file — a `quiet()` slower than the oracle's budget would have left every hold green while all 2 871 measurements were taken mid-flight |
+| L10, after the SECOND adversarial review | **11** | Three reviewers on the repairs alone. **B-191**, R95's recovery hold a tautology whose own printed proof — a list ending in `reconnecting` — contradicted it. **B-192**, its « superseded socket » hold unable to produce one, because the fake removes a closed socket synchronously; nothing measured the identity guard until `pushStale()` existed. **B-193**, R92's colour hold a set of inequalities that a SWAP of two tokens satisfies. **B-194**, R94's layer hold never reading that a layer opened. **B-195**, R91's sibling seeded where it could never be an over-refresh. **B-196**, R95 certifying the shipped limits from a source literal rather than the running program. **B-197**, a stale hold-count baseline reporting three false regressions — which teaches whoever re-records to accept moved numbers, and that is how a count that FALLS goes through. **B-187**, `CACHE_WIDE` read line by line, so a wrapped whole-cache invalidation produced no violation AND no movement in the number printed as evidence. **B-188**, a poll regex that could not cross a semicolon and matched only the shape nobody writes. **B-189/B-190**, the exemptions reader keeping the defect the rules reader was repaired for, under a comment claiming the sibling instrument had been repaired too. And **R89's `> 1` threshold**, which could not tell one delivery plus one refetch from a delivery counted twice |
+| **Total** | **65** | at 2026-08-28. **The wave that built the most instruments found the most blind ones**, and that is the reading: nine of L09's fourteen were found by adversarial reviewers reading the gate AFTER it went green. **And a guard can be blind to a document rather than to code** — B-150's arm was correct in every line and read a file that had stopped being true. **L10 adds a fourth reading, and it is the sharpest in this table**: the wave reported **4**, found by its own mutations in the phases that wrote the instruments, and was wrong by **9**. Seven adversarial reviewers reading the same green gate found nine more — six of them in rules that had each already been mutation-tested. **Mutation proves a rule catches the defect you thought of**; every one of the nine is a defect the author did not think of, and they are all the same species: a word the CSS removes, a key that disappears rather than changes, a socket that is not there. The two methods are not substitutes, and the ratio is the argument — 4 to 9. **AND THEN THE REPAIRS WERE REVIEWED, AND HELD ELEVEN MORE.** Six of those eleven are in instruments the author had just written in response to a review, mutation-tested, and believed. The reading that survives all three rounds is not « review harder » — it is that **an instrument written by the person whose work it measures inherits that person's blind spots, whatever the discipline**, and only a second pair of eyes on the instrument finds them. 4 by mutation, 9 by review, 11 by reviewing the repairs |
 
 **The nine the correction wave found, since a wave that counts itself has to name its own.** The
 figure is large because the count is honest, not because the wave was worse: four of the nine are

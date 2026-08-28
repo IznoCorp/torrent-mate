@@ -27,6 +27,7 @@ import {
   setOperationOutcome,
 } from "./scenario";
 import { resetMockState } from "./state";
+import { installMockStream, resetStream, type StreamDriver } from "./stream";
 import { routes } from "./handlers";
 
 /** The signature this module replaces. */
@@ -36,6 +37,11 @@ type NetworkCall = typeof globalThis.fetch;
 // is no uninstall, so keeping one would be a claim nothing honours.
 let installed = false;
 let inFlight = 0;
+// Deliveries dispatched whose fan-out has not been issued yet. A SECOND
+// COUNTER and not a second signal: `quiet()` is the one thing the oracle's
+// settle reads, and a rule that had to await two signals would be a rule that
+// can await the wrong one.
+let delivering = 0;
 let becameQuiet: (() => void)[] = [];
 
 // The statuses that carry NO body. Building a response with one throws, so a
@@ -184,7 +190,7 @@ function problem(status: number, title: string, detail: string): Response {
  */
 function releaseWaiters(): void {
   globalThis.setTimeout(() => {
-    if (inFlight !== 0) return;
+    if (inFlight !== 0 || delivering !== 0) return;
     const waiting = becameQuiet;
     becameQuiet = [];
     for (const settle of waiting) settle();
@@ -198,7 +204,13 @@ export function installMockNetwork(): void {
   globalThis.fetch = ((input: RequestInfo | URL, options?: RequestInit) => {
     inFlight += 1;
     return answer(input, options).finally(() => {
-      inFlight -= 1;
+      // FLOORED, NOT DECREMENTED. `reset()` zeroes the counters so a
+      // desynchronised page has a way back — and a request already in flight
+      // when it ran would then decrement past zero. At -1 both
+      // `releaseWaiters` and `quiet()` are false FOR EVER: the repair for an
+      // accidental desynchronisation would have made a deterministic and
+      // unrecoverable one, on the signal all 2 871 oracle measurements rest on.
+      inFlight = Math.max(0, inFlight - 1);
       if (inFlight === 0) releaseWaiters();
     });
   }) as NetworkCall;
@@ -208,8 +220,24 @@ export function installMockNetwork(): void {
   // and the reference object already use, for the same reason: a measurement
   // that has to reach inside a module is a measurement coupled to how the
   // module is built.
+  // THE STREAM IS INSTALLED WITH THE SEAM, not beside it. Both are the network
+  // as far as the application is concerned, and a layer that lifted out in two
+  // halves would leave a page with a socket and no requests.
+  const stream = installMockStream({
+    began: () => {
+      delivering += 1;
+    },
+    ended: () => {
+      // Floored for the reason the request counter is — a `reset()` between a
+      // delivery and its release would otherwise take it below zero.
+      delivering = Math.max(0, delivering - 1);
+      if (inFlight === 0 && delivering === 0) releaseWaiters();
+    },
+  });
+
   window.__mocks = {
     routes: () => routes().map((route) => `${route.method} ${route.template}`),
+    stream,
     scenario,
     outcomeFor,
     setOperationOutcome,
@@ -217,10 +245,20 @@ export function installMockNetwork(): void {
     reset: () => {
       resetScenario();
       resetMockState();
+      resetStream();
+      // AND THE COUNTERS. `reset()` put the scenario, the state and the stream
+      // back and left `inFlight`, `delivering` and the waiting list exactly as
+      // they were — so a counter that had desynchronised had no way back at
+      // all, and `quiet()` would never resolve again on that page.
+      inFlight = 0;
+      delivering = 0;
+      const stranded = becameQuiet;
+      becameQuiet = [];
+      for (const settle of stranded) settle();
     },
-    inFlight: () => inFlight,
+    inFlight: () => inFlight + delivering,
     quiet: () =>
-      inFlight === 0
+      inFlight === 0 && delivering === 0
         ? Promise.resolve()
         : new Promise<void>((settle) => {
             becameQuiet.push(settle);
@@ -237,11 +275,14 @@ declare global {
      */
     __mocks?: {
       routes: () => string[];
+      /** The event stream's driving surface — emit, drop, refuse, replay. */
+      stream: StreamDriver;
       scenario: typeof scenario;
       outcomeFor: typeof outcomeFor;
       setOperationOutcome: typeof setOperationOutcome;
       setDefaultLatency: typeof setDefaultLatency;
       reset: () => void;
+      /** Requests in flight PLUS deliveries whose fan-out is not yet issued. */
       inFlight: () => number;
       quiet: () => Promise<void>;
     };

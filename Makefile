@@ -90,6 +90,7 @@ check: lint test-cov
 	python3 scripts/check-markup-contracts.py
 	python3 scripts/check-frontend-boundaries.py
 	python3 scripts/check-state-ownership.py
+	python3 scripts/check-live-relay.py
 	python3 frontend/maquette/oracle.py --contracts
 	python3 scripts/check-i18n-placeholders.py
 	python3 scripts/check-command-safety.py

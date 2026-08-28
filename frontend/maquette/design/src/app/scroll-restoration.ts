@@ -20,9 +20,26 @@ import { history } from "./history-bridge";
    Reading happens in the history subscription, which runs BEFORE React
    commits the new route: the outgoing screen is still in the DOM at that
    instant, which is the only moment its position can still be read.
-   `.screen.open .port` resolves the React screen first (`#shell` precedes
-   the legacy `#screen` in document order), which is exactly the one that is
-   about to be unmounted; a legacy screen above it keeps its own restoration.
+   `[data-part="screen"][data-open]` resolves the React screen first (`#shell`
+   precedes the legacy `#screen` in document order), which is exactly the one
+   that is about to be unmounted; a legacy screen above it keeps its own
+   restoration. With no screen open it is `#port`, the page's own viewport —
+   see `activePort` for why that half was missing for a wave.
+
+   WHAT THIS REPAIR DOES AND DOES NOT PAY OFF. `frontend-architecture.md` § 1
+   lists three things that keep the semantic scroll index's door open, and one
+   of them is « programmatic scrolling must have one path ». This function is
+   now the one path for HISTORY-driven scrolling, which it was not — and that
+   clause is still NOT paid: `app/focus.ts` writes `#port.scrollTop = 0` from
+   the skip link, on the very element this function owns, and `ui/sheet.tsx`
+   resets a panel's own offset. The claim first written here said the debt was
+   settled, and a comment that says a debt is paid is worse than one that says
+   nothing.
+
+   IT ALSO CITED THE WRONG ENTRY. The three clauses belong to B-140; B-104 is
+   about the generated contract types living under `mocks/`. The wrong number
+   was inherited from `frontend-architecture.md` § 1, which makes the same
+   mistake in the sentence that describes this very defect.
 
    Restoring mirrors the legacy re-apply: once as soon as the port exists,
    then once more when the late-loading posters have settled — the restored
@@ -33,13 +50,55 @@ const scrollPositions = new Map<string, number>();
 // just left.
 let restoreToken = 0;
 
+/**
+ * Says whether a history entry is a LAYER — a drawer, a panel, a sheet.
+ *
+ * A LAYER NEVER REPLACES THE PAGE'S CONTENT. It opens over it; `#port` keeps
+ * its element, its height and its offset throughout, so there is nothing to
+ * remember and nothing to put back. Saving across one stores the position the
+ * page had when the layer OPENED, and restoring it on the way out overwrites
+ * whatever the operator has scrolled to since.
+ *
+ * IT ONLY BECAME REACHABLE WITH B-140's REPAIR. While `activePort()` knew one
+ * port out of two it returned null here and nothing was stored — and the stored
+ * zero was skipped again by `if (remembered)`, which B-140's own entry called a
+ * second, latent defect. Repairing both at once made the pair live: a page
+ * scrolled to 300 with a drawer open came back to 0. Found by the wave gate,
+ * which is what the wave gate is for.
+ *
+ * @param state The entry's state, as the history library stamps it.
+ * @returns True when the entry is a layer rather than a page.
+ */
+function isLayer(state: unknown): boolean {
+  return typeof (state as { layer?: unknown } | undefined)?.layer === "string";
+}
+
 function entryKey(state: unknown): string | null {
   const stamped = state as { key?: string; __TSR_key?: string } | undefined;
   return stamped?.key ?? stamped?.__TSR_key ?? null;
 }
 
 function activePort(): HTMLElement | null {
-  return document.querySelector<HTMLElement>(".screen.open .port");
+  // IT KNEW ONE PORT OUT OF TWO (B-140). It was `.screen.open .port` — the
+  // viewport of an OVERLAY SCREEN — and the main pages do not scroll in one:
+  // they scroll inside `#port`, which is never within a `.screen.open`. So on a
+  // main page the save either stored nothing (the query returned null) or
+  // stored the just-opened screen's offset under the departing page's key.
+  // Either way the return found nothing to restore, and the operator landed at
+  // the top of the list they had walked down.
+  //
+  // ANCHORED ON `data-*`, NEVER ON A STYLE CLASS (D4). `.port` is a class
+  // Tailwind variants own and L07 has already moved once; `data-part` and
+  // `data-open` are names chosen to be read, and `harness/scroll.py` reads the
+  // same pair.
+  //
+  // THE OPEN SCREEN WINS, and the order is the whole of the function. A screen
+  // is what is about to be unmounted at the instant the history subscription
+  // runs, so its position is the one that can still be read — and while one is
+  // open the page underneath is not what the operator is looking at.
+  return document.querySelector<HTMLElement>(
+    '[data-part="screen"][data-open] [data-part="viewport"]',
+  ) ?? document.getElementById("port");
 }
 
 function restoreScroll(y: number, token: number): void {
@@ -93,11 +152,19 @@ function restoreScroll(y: number, token: number): void {
  */
 export function installScrollRestoration(): void {
 let currentKey = entryKey(history.location.state);
+let currentIsLayer = isLayer(history.location.state);
 history.subscribe(({ action, location }) => {
-  const port = activePort();
+  const nextIsLayer = isLayer(location.state);
+  // ACROSS A LAYER BOUNDARY, NEITHER HALF RUNS. Opening one must not store the
+  // page's offset — the page is still on screen and still scrolling — and
+  // closing one must not put an older offset back over it.
+  const crossesALayer = currentIsLayer || nextIsLayer;
+  const port = crossesALayer ? null : activePort();
   if (currentKey && port) scrollPositions.set(currentKey, port.scrollTop);
   currentKey = entryKey(location.state);
+  currentIsLayer = nextIsLayer;
   restoreToken += 1;
+  if (crossesALayer) return;
   // Only a RETURN restores: arriving forward on an address one has seen
   // before is a new visit, and it starts where a new visit starts.
   if (
@@ -107,6 +174,11 @@ history.subscribe(({ action, location }) => {
   )
     return;
   const remembered = currentKey ? scrollPositions.get(currentKey) : undefined;
-  if (remembered) restoreScroll(remembered, restoreToken);
+  // A STORED ZERO IS A POSITION, not an absence. B-140's own register entry
+  // named this as a second, latent defect in the same block, and the repair
+  // closed the entry without touching it. It is latent because the top is where
+  // a page starts anyway — until a surface's default position is not the top,
+  // or the page host stops resetting `#port` on a draw.
+  if (remembered !== undefined) restoreScroll(remembered, restoreToken);
 });
 }

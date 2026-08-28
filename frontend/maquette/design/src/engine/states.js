@@ -736,9 +736,54 @@ const STATES = [
         applyState({ page: "cfg", phase: "ready" });
       },
     ],
+    [
+      "relay-reconnecting",
+      "Temps réel — la connexion a été perdue",
+      () => {
+        applyState({ page: "acq", acqTab: "now", phase: "ready" });
+        window.__relay.force("reconnecting");
+      },
+    ],
+    [
+      "relay-lost",
+      "Temps réel — cet écran ne se met plus à jour",
+      () => {
+        applyState({ page: "acq", acqTab: "now", phase: "ready" });
+        window.__relay.force("lost");
+      },
+    ],
+    [
+      "relay-refused",
+      "Temps réel — session expirée",
+      () => {
+        applyState({ page: "acq", acqTab: "now", phase: "ready" });
+        window.__relay.force("refused");
+      },
+    ],
 ];
+
+// EVERY STATE STARTS FROM A GOOD CONNECTION, and that is not a courtesy to the
+// three above — it is what keeps them from leaking into the other eighty-four.
+// A forced condition is a global, `__go` drives one state after another in one
+// document, and a state that had drawn a warning would leave the next
+// eighty-three drawing it too. Wrapping here rather than asking each state to
+// clean up is the same decision `window.__reset()` embodies: a state pins what
+// it means to show, and everything else starts from a known place.
+//
+// IT IS WRAPPED HERE AND NOT IN THE ENGINE because the engine dies by
+// SUBTRACTION (D5): a line added to `legacy.js` is a line someone has to take
+// back out at L13. This table is the harness's own fixture, and resetting the
+// harness's own seam is its work.
+const WITH_A_GOOD_CONNECTION = STATES.map(([id, label, run]) => [
+  id,
+  label,
+  () => {
+    window.__relay?.reset();
+    run();
+  },
+]);
 
 // The engine owns the driving and looks the state up here. Registering at
 // module evaluation — before the shell's body starts the engine — means the
 // table is in place by the time anything can ask for a state.
-window.__recordStates(STATES);
+window.__recordStates(WITH_A_GOOD_CONNECTION);

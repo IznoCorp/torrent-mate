@@ -72,6 +72,22 @@ import {
 } from "./history-bridge";
 import { installScrollRestoration } from "./scroll-restoration";
 import { installPanelHost } from "./panel-host";
+import {
+  installLiveUpdates,
+  resetLiveUpdates,
+  unmatchedCount,
+  unmatchedEvents,
+} from "./live-updates";
+import { forceCondition, readCondition } from "../lib/relay-condition";
+import {
+  installRelay,
+  readLimits,
+  reconnectNow,
+  resetRelay,
+  setLimits,
+} from "../lib/relay";
+import { installRelayRecovery } from "./relay-recovery";
+import { ConnectionMark, ConnectionNotice } from "./connection-notice";
 import { installSeams } from "../engine/seams";
 import {
   addressOf,
@@ -141,6 +157,18 @@ declare global {
     // state lives (invariant 4), so a rule asking « what does this surface
     // hold, and did a mutation put it back? » asks it here.
     __queries: import("@tanstack/react-query").QueryClient;
+    /** The live relay's driving surface — what the connection is doing, a
+        manual retry, the events nothing claimed, and a way back to cold. */
+    __relay: {
+      condition: typeof readCondition;
+      reconnect: typeof reconnectNow;
+      unmatched: typeof unmatchedEvents;
+      unmatchedCount: typeof unmatchedCount;
+      force: typeof forceCondition;
+      limits: typeof setLimits;
+      readLimits: typeof readLimits;
+      reset: () => void;
+    };
     // The domain hooks and the probes read the engine's state through this.
     __store: Store;
   }
@@ -302,10 +330,50 @@ installSearchLookup(queryClient);
 installEngineRedraw(queryClient);
 // And what the engine reads with no component to ask for it.
 installEngineData(queryClient);
+// THE LIVE RELAY, LAST OF THE CACHE'S INSTALLERS AND BEFORE THE RENDER. Two
+// things fix its place and neither is a preference:
+//
+//   AFTER the query client, because it invalidates into it and receives it as
+//   an argument — the same reason `installPanelHost(store)` sits after
+//   `createStore()`.
+//   BEFORE the render, because the first event may arrive before React has
+//   committed anything, and a subscription installed inside a component would
+//   be a subscription that misses it. It is installed for the document's
+//   lifetime, never mounted with a surface: `staleTime: Infinity` with no focus
+//   and no reconnect refetch means a query that misses its invalidation is
+//   stale for the life of the process (B-154), so a subscription that comes and
+//   goes with a page is a subscription that loses data permanently.
+installLiveUpdates(queryClient);
+installRelay();
+// AFTER the relay, because it reconnects one — and it subscribes to the same
+// history instance the scroll restoration does, so it inherits that step's own
+// ordering constraint.
+installRelayRecovery();
+// Published for the harness beside the other seams, for the reason the query
+// cache is: a rule that has to reach inside a module to ask what the connection
+// is doing is a rule coupled to how the module is built.
+window.__relay = {
+  condition: readCondition,
+  reconnect: reconnectNow,
+  unmatched: unmatchedEvents,
+  unmatchedCount,
+  force: forceCondition,
+  limits: setLimits,
+  readLimits,
+  reset: () => {
+    resetLiveUpdates();
+    resetRelay();
+  },
+};
 
 ReactDOM.createRoot(mountNode).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
+      {/* The connection, FIRST, and outside the router on purpose: what the
+          interface says about its own liveness is true of every page, and a
+          notice mounted per route would come and go with a navigation. */}
+      <ConnectionMark />
+      <ConnectionNotice />
       <RouterProvider router={router} />
     </QueryClientProvider>
   </React.StrictMode>,

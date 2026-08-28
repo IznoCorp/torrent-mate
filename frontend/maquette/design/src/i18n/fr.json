@@ -733,5 +733,32 @@
       "5": "vendredi",
       "6": "samedi"
     }
+  },
+  "connection": {
+    "since": "Les informations affichées datent de {{time}}.",
+    "connecting": {
+      "short": "Connexion…",
+      "title": "Temps réel : connexion en cours"
+    },
+    "connected": {
+      "short": "Connecté",
+      "title": "Temps réel connecté"
+    },
+    "reconnecting": {
+      "short": "Reconnexion…",
+      "title": "Temps réel : la connexion a été perdue, reconnexion en cours"
+    },
+    "lost": {
+      "short": "Hors ligne",
+      "title": "Temps réel interrompu — cet écran ne se met plus à jour",
+      "body": "Cet écran ne se met plus à jour : la connexion au serveur est perdue.",
+      "action": "Réessayer maintenant"
+    },
+    "refused": {
+      "short": "Session expirée",
+      "title": "Session expirée — reconnectez-vous pour revoir les mises à jour",
+      "body": "Votre session n'est plus valide, cet écran ne se met plus à jour.",
+      "action": "Se reconnecter"
+    }
   }
 }

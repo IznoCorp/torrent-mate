@@ -194,6 +194,11 @@
      the oracle reads, so the shorthand has to be identical, and a name is
      easier to keep identical than a four-part value. */
   --animate-hero-in: heroin var(--duration-4) var(--ease-standard) both;
+  /* The connection's dot, while it is trying to come back. Declared for the
+     same reason as the hero above, and used only through `motion-safe:` —
+     motion is a DESIGNED state here, not a fallback (invariant 14), and the
+     still appearance is the same dot in the same warning colour. */
+  --animate-connection-pulse: pulse var(--duration-loop-2) var(--ease-standard) infinite;
   /* scale:end */ /* login:scale:end */
 
   /* THE PALETTE, AND WHY IT IS HERE. Tailwind reads only what `@theme`
