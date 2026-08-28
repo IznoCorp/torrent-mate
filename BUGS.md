@@ -191,6 +191,7 @@ when the defect comes back.
 | B-148 | Lot status lives in two files, and § 0 reads the one a wave forgets | by audit | `fixed #511` |
 | B-149 | A declared departure from the lot's « Done when » lives only in a session report | by audit | `fixed #511` |
 | B-150 | A size promise expired unnoticed because the guard read the status B-148 froze | by audit | `fixed #511` |
+| B-151 | `coverage-merge` reports « Artifact not found » whenever an earlier job fails | by audit | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -3241,6 +3242,32 @@ plan, because a debt with no owner is the state the ceiling is supposed to refus
 > duplicated status did not create this defect; it uncovered one that had been green for a wave.
 > A second copy of a fact does not merely go stale — it answers for the first, and everything
 > downstream reads the answer.
+
+---
+
+**B-151 — a red check that names the wrong culprit, on every pull request whose lint fails.**
+`coverage-merge` declares `needs: [changes, test]` with `if: always() && !cancelled()`, and gates
+each of its steps on `needs.changes.outputs.python == 'true'` — on whether Python files CHANGED,
+never on whether `test` actually ran. So when `lint` fails, `test` is skipped as a dependency, no
+`coverage` artefact is uploaded, and `coverage-merge` runs anyway and fails with:
+
+    Unable to download artifact(s): Artifact not found for name: coverage
+
+**Two red checks, one cause, and the second one points nowhere.** A reader who opens
+`coverage-merge` first — it is the one at the top of the list — reads an artefact problem and looks
+for a coverage defect that does not exist. Observed on #511, where the real failure was a
+`ruff format --check` difference of one line.
+
+**It is a condition that reads the wrong question.** « Did Python change? » was the right gate for
+whether coverage MATTERS; it is not the gate for whether the artefact EXISTS. The step needs the
+second question too — `needs.test.result == 'success'` — and, failing that, the job should not
+carry `always()` past a skipped dependency.
+
+**Left open deliberately.** The fix is one line of `.github/workflows/ci.yml` and it belongs to
+whoever next has a reason to open that file; recording it costs nothing and forgetting it costs a
+misdirected diagnosis every time a gate goes red.
+
+<sub>`gh run view <id> --job coverage-merge` on any run whose `lint` failed · `.github/workflows/ci.yml` § Stage 3</sub>
 
 Fix: carry it to L13 as L07's was, or amend L09's clause to say what it actually promised — the
 share of the fixture belonging to a surface the ENGINE no longer draws. Not both; the point is
