@@ -59,6 +59,7 @@ air
 aired
 all
 already
+anchor
 annotations
 announce
 announced
@@ -171,6 +172,7 @@ common
 compare
 complete
 condition
+conditions
 config
 configuration
 confirmadd
@@ -326,6 +328,8 @@ font
 foot
 footer
 for
+force
+forced
 foreground
 form
 found
@@ -346,6 +350,7 @@ gesture
 get
 go
 gone
+good
 grab
 grid
 group
@@ -557,6 +562,7 @@ note
 notes
 notfound
 nothing
+notice
 now
 number
 numbers

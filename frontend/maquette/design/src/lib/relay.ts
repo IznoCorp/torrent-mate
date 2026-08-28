@@ -90,6 +90,14 @@ let currentSince: number | null = null;
 let condition: RelayCondition = "connecting";
 let retryTimer: number | null = null;
 let stopped = false;
+// A condition the HARNESS asked for, overriding what the transport is really
+// doing. It exists because a named state is driven SYNCHRONOUSLY — `__go` calls
+// its function and does not await — while three of the four conditions take a
+// backoff delay and a handshake to reach for real. So this drives the DRAWING,
+// and the transport's own walk into each condition is R93's, measured against a
+// real socket. R92 holds one condition reached BOTH ways, which is what keeps
+// the two rules from proving different things about the same interface.
+let forced: RelayCondition | null = null;
 
 // The snapshot is REBUILT ONLY WHEN SOMETHING CHANGES. `useSyncExternalStore`
 // compares by identity and re-renders on every new object, so a getter that
@@ -109,7 +117,7 @@ const eventListeners = new Set<EventListener>();
  * Publishes a new snapshot and tells everyone watching the connection.
  */
 function publish(): void {
-  snapshot = { condition, attempts, buildCommit, currentSince };
+  snapshot = { condition: forced ?? condition, attempts, buildCommit, currentSince };
   for (const listener of [...conditionListeners]) listener();
 }
 
@@ -214,13 +222,17 @@ function connect(): void {
     if (event.code === REFUSED_CODE) {
       // NOT A CONNECTION PROBLEM, so not a reconnection. The interface says the
       // session is over and offers the way back; retrying would say nothing.
+      // `currentSince` IS KEPT. What is on screen really does date from the
+      // moment the connection was last good, and a session ending does not
+      // make that less true — clearing it would take the one fact the notice
+      // has that a reader can act on. It also kept the drawn state and the
+      // real path saying different things, which is how a maquette starts
+      // lying about the application it is.
       condition = "refused";
-      currentSince = null;
       publish();
       return;
     }
     if (event.code === CLEAN_CODE || stopped) return;
-    currentSince = currentSince ?? null;
     retry();
   });
   opened.addEventListener("error", () => {
@@ -285,6 +297,12 @@ export function subscribeToEvents(listener: EventListener): () => void {
  * saying the screen is cold.
  */
 export function reconnectNow(): void {
+  // A FORCED CONDITION DOES NOT SURVIVE AN EXPLICIT ASK. The harness's lever
+  // exists to DRAW a condition, and a reader who taps « réessayer » has asked
+  // for the real one — leaving the override in place made the control dead in
+  // the exact state that offers it, which is the §8 defect this whole feature
+  // exists to end, sitting inside the feature (B-156).
+  forced = null;
   if (retryTimer !== null) {
     globalThis.clearTimeout(retryTimer);
     retryTimer = null;
@@ -298,23 +316,28 @@ export function reconnectNow(): void {
 }
 
 /**
- * Stops the relay and forgets its cursor.
+ * Asks for a condition, for the harness alone.
  *
- * For the harness alone: a named state that needs a cold relay reaches it
- * through this rather than through a private field.
+ * @param wanted The condition to draw, or null to go back to the real one.
+ */
+export function forceCondition(wanted: RelayCondition | null): void {
+  forced = wanted;
+  publish();
+}
+
+/**
+ * Puts the relay back to a known good place between named states.
+ *
+ * IT DOES NOT TEAR THE CONNECTION DOWN, and that is the same decision
+ * `resetStream()` takes for the same reason: a reset runs between states while
+ * the application keeps running, so closing the socket would make every state
+ * after the first measure a reconnecting shell. What it clears is what a
+ * previous state could have left behind — a forced condition, above all, which
+ * would otherwise draw a warning over eighty-four states that have nothing
+ * wrong with them.
  */
 export function resetRelay(): void {
-  stopped = true;
-  if (retryTimer !== null) {
-    globalThis.clearTimeout(retryTimer);
-    retryTimer = null;
-  }
-  socket?.close(CLEAN_CODE, "reset");
-  socket = null;
-  attempts = 0;
-  cursor = null;
-  buildCommit = null;
-  currentSince = null;
-  condition = "connecting";
+  forced = null;
   publish();
+  if (condition !== "connected" && condition !== "connecting") reconnectNow();
 }

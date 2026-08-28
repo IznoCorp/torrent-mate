@@ -74,11 +74,13 @@ import { installScrollRestoration } from "./scroll-restoration";
 import { installPanelHost } from "./panel-host";
 import { installLiveUpdates, resetLiveUpdates, unmatchedEvents } from "./live-updates";
 import {
+  forceCondition,
   installRelay,
   readCondition,
   reconnectNow,
   resetRelay,
 } from "../lib/relay";
+import { ConnectionMark, ConnectionNotice } from "./connection-notice";
 import { installSeams } from "../engine/seams";
 import {
   addressOf,
@@ -154,6 +156,7 @@ declare global {
       condition: typeof readCondition;
       reconnect: typeof reconnectNow;
       unmatched: typeof unmatchedEvents;
+      force: typeof forceCondition;
       reset: () => void;
     };
     // The domain hooks and the probes read the engine's state through this.
@@ -339,6 +342,7 @@ window.__relay = {
   condition: readCondition,
   reconnect: reconnectNow,
   unmatched: unmatchedEvents,
+  force: forceCondition,
   reset: () => {
     resetLiveUpdates();
     resetRelay();
@@ -348,6 +352,11 @@ window.__relay = {
 ReactDOM.createRoot(mountNode).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
+      {/* The connection, FIRST, and outside the router on purpose: what the
+          interface says about its own liveness is true of every page, and a
+          notice mounted per route would come and go with a navigation. */}
+      <ConnectionMark />
+      <ConnectionNotice />
       <RouterProvider router={router} />
     </QueryClientProvider>
   </React.StrictMode>,

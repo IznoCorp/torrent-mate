@@ -195,6 +195,8 @@ when the defect comes back.
 | B-152 | `IMPLEMENTATION.md` still named L09 as the next lot two commits after L09 merged | by design | `fixed #TBD` |
 | B-153 | The demand register is computed from OpenAPI paths, and a WebSocket has none | by design | `open` |
 | B-154 | `staleTime: Infinity` with no focus or reconnect refetch: a missed invalidation never heals | by design | `open` |
+| B-155 | The header claimed « Temps réel connecté » as a literal, with no connection anywhere | by design | `fixed #TBD` |
+| B-156 | The harness's condition lever left the retry control dead in the state that offers it | by rule | `fixed #TBD` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
@@ -238,6 +240,46 @@ not know since when ».
 L10 designs around it (the relay subscribes once, at boot, never with a surface — D-L10-1). The
 entry stays open because the PROPERTY is still undocumented at the one place a future reader meets
 it: nothing in `query-client.ts` says the four options together forbid self-healing.
+
+**B-155 — the interface claimed to be live, in the markup, forever.**
+`index.html` carried, in the header and as literals:
+
+```html
+<span class="ps-dot ps-dot--done …" title="Temps réel connecté">
+  <span class="ps-dot__d … bg-success"></span><span class="ps-dot__label …">Connecté</span>
+</span>
+```
+
+A green dot, the word « Connecté », and a tooltip saying real-time was connected — in a prototype
+where nothing connected to anything. **This is §8 of the constitution inverted.** §8 refuses a
+« rien ne se passe » with no visible reason; a permanent claim of liveness is worse than silence,
+because a reader who checks the indicator is told the screen is current whatever the truth. Nothing
+could have contradicted it: the value was not read from anywhere.
+
+It was not a lie anyone told on purpose — it was a drawing of what the state should look like,
+which is what a maquette is for. It became a defect the moment a real connection existed to
+contradict it. Repaired by L10 phase 4: the same element, in the same place, drawing what the
+relay really reports. The connected rendering is byte-identical to what the oracle recorded — the
+React portal sits in a `display: contents` wrapper, which generates no box — and the measurement
+says so: 2 871 measurements over 87 states, the three new ones added, **zero existing measurement
+changed**.
+
+**B-156 — the lever that draws a condition made the control in it dead.**
+Found by R92, in the phase that wrote it. A named state reaches `relay-lost` through
+`window.__relay.force("lost")`, because `__go` is synchronous and the condition takes a backoff
+and a handshake to reach for real. `reconnectNow()` then set the REAL condition back to
+`connecting` and connected — and the snapshot went on reporting `lost`, because the override was
+still in place. So « Réessayer maintenant », in the very state whose whole purpose is to offer it,
+did nothing a reader could see.
+
+**It is the §8 defect sitting inside the §8 feature**, and it is exactly the shape this repository
+keeps paying for: an instrument's lever left in the product's path. The repair is also the correct
+semantics — an explicit ask clears the override, because a reader who taps « réessayer » has asked
+for the real condition, not for the drawn one.
+
+**What is worth keeping is why it was caught**: the hold does not read the control's LABEL, it
+clicks it and reads what the connection then is. A hold asserting that a button exists and says
+« Réessayer maintenant » would have been green over a dead control.
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04

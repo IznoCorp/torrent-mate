@@ -190,3 +190,69 @@ export const ruleNote = cva(
   "rulenote mt-0 mx-0 mb-7 text-3 leading-[1.45] text-muted-foreground " +
     "border-l-2 border-border pt-1 pr-0 pb-1 pl-5",
 );
+
+/**
+ * The header's connection indicator — the dot and its word.
+ *
+ * `ps-dot` IS KEPT AT THE FRONT, emptied of style, because it is an identity
+ * anchor (D4) and `harness.css` still selects `.ps-dot__label` to hide the word
+ * at phone width. The utilities are what the static markup already carried, so
+ * the connected rendering is byte-identical to the one the oracle recorded.
+ */
+export const connectionMark = cva(
+  "ps-dot inline-flex items-center gap-3 text-3 text-muted-foreground",
+);
+
+/**
+ * The dot itself — its colour IS the message.
+ *
+ * The colour lives in every branch and never in the base: a property a variant
+ * may change does not belong in the base, or which utility wins is decided by
+ * the generator's sort order rather than by the author (`ui/cva.ts`).
+ */
+export const connectionDot = cva(
+  "ps-dot__d relative w-[8px] h-[8px] rounded-full flex-none",
+  {
+    variants: {
+      condition: {
+        connecting: "bg-muted-foreground",
+        connected: "bg-success",
+        // THE ONE CONDITION THAT MOVES, and it moves because it is the one
+        // that is TEMPORARY: a pulse says « wait », which is exactly what
+        // reconnecting asks of a reader. `lost` and `refused` are settled
+        // states and a pulsing settled state would say something false.
+        // `motion-safe:` and never a bare `animate-*`: under a reduced-motion
+        // preference the dot is the same dot in the same warning colour, which
+        // is a drawn state rather than an absence (invariant 14).
+        reconnecting: "bg-warning motion-safe:animate-connection-pulse",
+        lost: "bg-danger",
+        refused: "bg-danger",
+      },
+    },
+    defaultVariants: { condition: "connected" },
+  },
+);
+
+/**
+ * The notice below the header: what is wrong, since when, what to do.
+ *
+ * IT IS IN THE FLOW, never floating. A bar over the content would cover the
+ * first row of whatever the reader was looking at, which is the one thing a
+ * message about staleness must not do — and `screenBar`'s own comment records
+ * the same lesson from the other end.
+ */
+export const connectionNotice = cva(
+  "flex-none flex items-center gap-4 py-3 px-6 text-2",
+  {
+    variants: {
+      condition: {
+        connecting: "bg-muted text-muted-foreground",
+        connected: "bg-muted text-muted-foreground",
+        reconnecting: "bg-muted text-muted-foreground",
+        lost: "bg-danger/12 text-danger",
+        refused: "bg-danger/12 text-danger",
+      },
+    },
+    defaultVariants: { condition: "lost" },
+  },
+);
