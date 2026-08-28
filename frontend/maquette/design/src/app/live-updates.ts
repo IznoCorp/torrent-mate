@@ -21,6 +21,11 @@ import type { QueryClient } from "@tanstack/react-query";
 
 import { subscribeToEvents, type RelayEvent } from "../lib/relay";
 
+// ONE LINE PER FEATURE — the frame naming its features, which is what
+// `router-tree.tsx` does with its pages. What each line brings is the feature's
+// own; nothing here knows an event name or a query key.
+import { arrivalsLiveRules } from "../features/arrivals/live";
+
 /**
  * One rule: the events that refresh a set of query keys.
  *
@@ -70,11 +75,7 @@ export function unmatchedEvents(): string[] {
  * @returns Nothing. It is installed for the document's lifetime.
  */
 export function installLiveUpdates(queryClient: QueryClient): void {
-  // ONE LINE PER FEATURE, and the list is empty until phase 5 fills it. The
-  // relay dispatches into an empty table for now, deliberately: the first phase
-  // where a cache entry moves is the first phase a movement can be attributed
-  // to.
-  const rules: LiveRule[] = [];
+  const rules: LiveRule[] = [...arrivalsLiveRules];
   // Built once, not per event: a lookup rebuilt on every frame would turn a
   // replay burst into N table constructions.
   const byType = new Map<string, LiveRule[]>();
