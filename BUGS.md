@@ -150,6 +150,7 @@ when the defect comes back.
 | B-107 | §17 (accounts, rights, Plex SSO) has no surface, no contract operation and no lot | by audit | `open` |
 | B-108 | §18 (ratio per tracker) needs three operations the backend already answers and nothing calls | by audit | `open` |
 | B-109 | §19 (cross-seed) has no route in either contract, and its events reach no stream | by audit | `open` |
+| B-110 | D11 is decided and nothing styles a scrollbar yet; the change may move the oracle | by audit | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -2422,3 +2423,30 @@ events are emitted and dropped. Whatever §19 becomes, the cheapest half is alre
 unplugged: two event types, already carrying their reason.
 
 <sub>`grep -rc 'cross.seed' frontend/openapi.json frontend/maquette/contract/openapi.json` · `grep -rn 'CrossSeed' personalscraper/web/` · `grep -c '[^[:space:]]' personalscraper/acquire/cross_seed.py`</sub>
+
+**B-110 — D11 is written, and no stylesheet carries a single scrollbar declaration.**
+Arbitrated by the operator on 2026-08-26 after they reported that the desktop shows a native
+scrollbar the phone does not: **the bar is STYLED, never replaced.** Measured before the decision —
+`grep -rn 'scrollbar' src/styles/*.css` returns one hit, and it is a COMMENT inside
+`.visually-hidden` explaining why `white-space: nowrap` stops a stray scrollbar appearing. Nothing
+declares `scrollbar-width`, `scrollbar-color` or `::-webkit-scrollbar`.
+
+**Recorded rather than left as a sentence**, for the reason this register keeps: a decision with no
+arm and no code is a decision the next session reads as done.
+
+**The one thing whoever implements it must NOT assume, and it is the whole entry.**
+`scrollbar-width: thin` narrows the gutter, so the content beside it widens by a few pixels — and
+**every measured rectangle inside that container may move.** Three outcomes are possible: no
+divergence (the probe's container is inside the padding), a broad divergence across most states, or
+one confined to the scrolling regions. **Which one is a run of the oracle**, on the machine that
+owns the references, and this entry deliberately does not guess. Predicting an instrument's answer
+from two facts held in hand is B-101, filed one week ago against this same office.
+
+If the divergence is broad, it is not a reason to abandon D11: it is a re-record with every
+signature named, the way L06's 47 folds were accepted. It IS a reason not to slip the change into a
+wave whose proof rests on the oracle staying at zero.
+
+**What it does not fix, and D11 says so**: the gutter still exists on a desktop. The comparison
+that prompted this is the phone frame of `harness.css`, which ships nowhere.
+
+<sub>`grep -rn 'scrollbar' frontend/maquette/design/src/styles/*.css` · `frontend/maquette/design/index.html:221` for the container</sub>

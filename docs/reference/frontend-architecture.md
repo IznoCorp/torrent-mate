@@ -55,6 +55,25 @@ This file covers items 2, 3 and 4 of `IMPLEMENTATION.md` § THE OBJECTIVE → RE
 language, the application itself, and the legacy engine — plus the safety net they all need and
 the method they all follow.
 
+**Also named here and deliberately unscheduled — the SEMANTIC SCROLL INDEX** (operator,
+2026-08-26). A list would offer an index shaped by its own sort: letters when sorted
+alphabetically, month markers when sorted by date. It is **not a scrollbar** — D11 settles that
+one — but a separate control, the shape a phone's fast-scroller has. It is written down so the
+objective is not lost, and it is **not a lot**: nothing schedules it, and § 0's selection rule must
+not reach it.
+
+**Three things keep the door open, and they cost nothing now.** The list must expose its sort key
+in an INDEXABLE form — first letter, month — in the DATA CONTRACT rather than in the markup, which
+is L09's decision to make when it wires the library. The scroll container must stay one identified
+element (`#port`, already true). And programmatic scrolling must have one path — which is a debt
+today: B-104 records that the current mechanism knows one port out of two, and an index that jumps
+to a letter would write through that same path.
+
+**The design risk, stated with the objective**: a control that both scrolls AND jumps teaches two
+things in one object, and on a six-pixel-wide thumb the margin between « I am scrolling » and « I
+jumped to M » is thin. Two functions, two objects — the bar stays a bar, the index appears when it
+serves.
+
 **Item 1 is deliberately outside this file**: `/control` (8 panels) and `/pipeline` (10 panels)
 are surfaces still to be drawn. They follow the existing method — drawn in the maquette first,
 named states, a rule that bites — and they are named here only so nobody reads their absence as
@@ -411,6 +430,29 @@ descendant pairs, whose one- and two-letter anchors collide across contexts — 
 `.sechead .t` would both pair with `sectionTitle()` and only one of them is that variant. It holds
 a FLOOR on the number of pairs found, because a pairing that found nothing would print « no
 divergence » and mean « I compared nothing » — which a first version of it did.
+
+### D11 — The scrollbar is STYLED, never replaced (operator, 2026-08-26)
+
+**Decision.** The scroll container's bar is given the design system's appearance through
+`scrollbar-width`, `scrollbar-color` and `::-webkit-scrollbar` — declarative, in `base.css`,
+therefore under the oracle. **A scrollbar rebuilt in JavaScript is refused.**
+
+**Why, and each reason is already a rule here.** A rebuilt bar loses the keyboard (PageUp/Down,
+Home/End, the gutter click), the middle-click, and the native role — against L03, whose floor is
+zero findings over 83 states. Its thumb would be positioned by a `scroll` handler, which is D9
+rule 1 exactly: motion written in JavaScript leaves the field of measurement. And the scroll path
+is compositor-facing, the category § 6 records as load-bearing — deleting one selector from that
+family once swallowed the whole pointer stream.
+
+**What styling does NOT solve, recorded so it is not rediscovered as a defect**: on a desktop the
+bar still occupies its gutter. That is the platform behaving correctly, and the phone frame the
+operator compares against is `harness.css`, which ships nowhere — a declared deviation, not the
+target. A real phone paints an overlay bar that fades.
+
+**A risk to measure before the change lands, not after.** `scrollbar-width: thin` narrows the
+gutter, so the content beside it widens by a few pixels. Every measured rectangle in that container
+may move. Whether it does is a run of the oracle on the machine that owns the references — it is
+not asserted here, and a wave that assumes either answer is doing what B-101 records.
 
 ---
 
