@@ -20,7 +20,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 
 import type { LiveRule } from "../lib/live-rule";
-import { subscribeToEvents, type RelayEvent } from "../lib/relay";
+import { subscribeToEvents, type RelayEvent } from "../lib/relay-events";
 
 // ONE LINE PER FEATURE — the frame naming its features, which is what
 // `router-tree.tsx` does with its pages. What each line brings is the feature's

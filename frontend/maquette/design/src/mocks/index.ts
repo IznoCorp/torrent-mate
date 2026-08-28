@@ -238,6 +238,15 @@ export function installMockNetwork(): void {
       resetScenario();
       resetMockState();
       resetStream();
+      // AND THE COUNTERS. `reset()` put the scenario, the state and the stream
+      // back and left `inFlight`, `delivering` and the waiting list exactly as
+      // they were — so a counter that had desynchronised had no way back at
+      // all, and `quiet()` would never resolve again on that page.
+      inFlight = 0;
+      delivering = 0;
+      const stranded = becameQuiet;
+      becameQuiet = [];
+      for (const settle of stranded) settle();
     },
     inFlight: () => inFlight + delivering,
     quiet: () =>

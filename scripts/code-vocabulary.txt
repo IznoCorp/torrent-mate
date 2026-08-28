@@ -217,6 +217,7 @@ deleted
 deletefield
 deletion
 deliver
+delivered
 delivering
 delivery
 delsel
@@ -586,6 +587,7 @@ one
 only
 open
 opened
+opener
 opening
 operation
 option
@@ -769,11 +771,13 @@ scenario
 schedule
 schedulers
 schemas
+scheme
 score
 screen
 screens
 screenshots
 scrim
+scripted
 scroll
 scrollport
 seams
@@ -821,6 +825,7 @@ shorthands
 shot
 show
 shown
+sibling
 side
 sidebar
 sign
@@ -873,6 +878,7 @@ steps
 sticky
 stopped
 store
+stranded
 stream
 strip
 strong
@@ -1013,6 +1019,7 @@ why
 wide
 width
 window
+wired
 with
 without
 wording

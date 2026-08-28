@@ -263,6 +263,36 @@ async def hold(journal):
                       f"{burst['after']} after, over {burst['listening']} "
                       f"socket(s), with {burst['arrived']} frame(s) arriving")
 
+        # THE COMPOSITE THE MACROTASK EXISTS FOR. Both stream holds above use
+        # UNMAPPED types, for a stated reason — the arithmetic stays visible —
+        # and the consequence is that the chain the macrotask protects (frame
+        # arrives -> rule invalidates -> refetch is issued -> the counter sees
+        # it before waiters are released) is exercised by no hold in this file.
+        # It holds today by a property of the cache library's internals that
+        # nothing here asserts: `invalidateQueries` -> `refetchQueries` ->
+        # `fetch` is synchronous. Anything that moves the refetch onto the
+        # observer-notification path — a batching wrapper, a `refetchType`
+        # change, a library upgrade — lands it AFTER the release, and `quiet()`
+        # resolves over a page about to change.
+        mapped = await page.evaluate(
+            """async () => {
+                window.__mocks.reset();
+                const base = window.__mocks.inFlight();
+                window.__mocks.stream.emit("ItemDispatched", {});
+                const straightAway = window.__mocks.inFlight();
+                await window.__mocks.quiet();
+                return { base, straightAway, after: window.__mocks.inFlight() };
+            }""")
+        journal.check(
+            "a MAPPED event's refetch is counted before the delivery is released",
+            mapped["base"] == 0 and mapped["straightAway"] > 1
+            and mapped["after"] == 0,
+            f"inFlight() read {mapped['base']} before, {mapped['straightAway']} "
+            f"immediately after a mapped emit, {mapped['after']} once quiet — "
+            "one delivery plus at least one request, counted synchronously. At "
+            "1 the refetch had not been issued yet and every measurement of a "
+            "live surface would be taken mid-flight")
+
         # (6) the budget is stated rather than discovered. A latency above it is
         # measured mid-flight BY DESIGN, and this hold is what makes that a
         # documented limit instead of a surprise at surface ten.

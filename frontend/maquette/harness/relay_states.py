@@ -161,6 +161,18 @@ async def read_condition(page, state):
                word: dot ? dot.textContent.trim() : null,
                title: dot ? dot.getAttribute("title") : null,
                body: bar ? bar.textContent.trim() : null,
+               // READ THE WAY A READER GETS IT. `textContent` returns text CSS
+               // has taken off the page — measured on the header's own label,
+               // where it says « Hors ligne » while `innerText` says nothing.
+               // A notice this rule could not see is the §8 defect wearing the
+               // fix's clothes.
+               shown: bar ? {
+                 text: bar.innerText.trim(),
+                 display: getComputedStyle(bar).display,
+                 visibility: getComputedStyle(bar).visibility,
+                 height: Math.round(bar.getBoundingClientRect().height),
+                 top: Math.round(bar.getBoundingClientRect().top),
+               } : null,
                // FORMATTED FROM THE RELAY'S OWN INSTANT, with the surface's own
                // options — so the hold compares what the notice SAYS against
                // what the connection KNOWS, rather than against a constant.
@@ -268,9 +280,25 @@ async def hold(journal):
                 drawn["action"] == expected,
                 f"the control is {drawn['action']!r}, expected {expected!r}")
             journal.check(
-                f"`{condition}` announces itself to a screen reader",
+                f"`{condition}` is actually ON SCREEN",
+                drawn["shown"] is not None
+                and drawn["shown"]["text"] != ""
+                and drawn["shown"]["display"] != "none"
+                and drawn["shown"]["visibility"] != "hidden"
+                and drawn["shown"]["height"] > 0
+                and 0 <= drawn["shown"]["top"] < 844,
+                f"the notice reads {drawn['shown']} — every other hold in this "
+                "file reads `textContent`, which CSS can empty without any of "
+                "them noticing")
+            journal.check(
+                f"`{condition}` carries a live-region role",
                 drawn["role"] == "status",
-                f"role={drawn['role']!r}")
+                f"role={drawn['role']!r}. NAMED FOR WHAT IT MEASURES: this hold "
+                "used to be called « announces itself to a screen reader », "
+                "which it cannot know — the region is CREATED rather than "
+                "filled, and whether that is announced varies by assistive "
+                "technology. Mounting it permanently and swapping its content "
+                "is the shape that would let a rule say the stronger sentence")
 
         reconnecting = await read_condition(page, "relay-reconnecting")
         seen["reconnecting"] = reconnecting["word"]
@@ -356,14 +384,27 @@ async def hold(journal):
                  window.__go("relay-lost");
                  await new Promise((r) => setTimeout(r, 60));
                  document.querySelector(notice).querySelector("button").click();
-                 await new Promise((r) => setTimeout(r, 200));
-                 return window.__relay.condition().condition;
+                 await new Promise((r) => setTimeout(r, 400));
+                 // THE DRAWING, not only the store. A component that stopped
+                 // re-rendering on the condition would leave « cet écran ne se
+                 // met plus à jour » on screen over a healthy connection, and
+                 // this hold read the store and passed.
+                 const mark = document.querySelector('[data-part="shell/connection-mark"]');
+                 return {
+                   condition: window.__relay.condition().condition,
+                   drawn: mark ? mark.getAttribute("data-connection") : null,
+                   noticeGone: document.querySelector(notice) === null,
+                 };
                }""",
             {"notice": NOTICE})
         journal.check(
-            "the retry really reconnects",
-            acted == "connected",
-            f"after the retry the condition is {acted!r}")
+            "the retry really reconnects, and the warning really goes",
+            acted["condition"] == "connected" and acted["drawn"] == "connected"
+            and acted["noticeGone"],
+            f"the condition is {acted['condition']!r}, the header draws "
+            f"{acted['drawn']!r}, the notice is gone: {acted['noticeGone']} — a "
+            "retry that fixes the store and leaves the warning on screen is "
+            "still a screen saying something false")
 
         # AND `refused` OFFERS THE WAY BACK, held by where it LANDS. The
         # docstring said the action was "held by what the control DOES, not by
@@ -418,13 +459,22 @@ async def hold(journal):
                  const dot = document.querySelector(mark).firstElementChild;
                  const style = getComputedStyle(dot);
                  return { animation: style.animationName, colour: style.backgroundColor,
+                          // `getComputedStyle` IS BLIND to the Web Animations
+                          // API and to `requestAnimationFrame`: both read
+                          // `animationName: "none"`. A hold whose stated
+                          // subject is « the motion is DECLARED » must ask the
+                          // element what is animating it, not what CSS says.
+                          scripted: dot.getAnimations().length,
                           word: document.querySelector(mark).textContent.trim() };
                }""",
             {"mark": MARK})
         journal.check(
-            "under reduced motion the dot stops moving",
-            still["animation"] == "none",
-            f"animation-name is {still['animation']!r}")
+            "under reduced motion the dot stops moving, by every mechanism",
+            still["animation"] == "none" and still["scripted"] == 0,
+            f"animation-name is {still['animation']!r} and "
+            f"{still['scripted']} animation(s) are running on the element — a "
+            "scripted movement reads `none` here, so the CSS answer alone "
+            "leaves invariant 14 held only against the mechanism nobody used")
         journal.check(
             "and it is still the same dot, in the same colour, saying the same thing",
             still["colour"] == motion["colour"] and still["word"] == WORDS["reconnecting"],
@@ -465,6 +515,48 @@ async def hold(journal):
             f"a real refusal drew {real['word']!r} with control {real['action']!r} "
             f"and the notice {real['body']!r}")
         await real_context.close()
+
+        # `lost` REACHED FOR REAL, and it is the condition that most needed it:
+        # the join to the transport was ONE hold, on `refused`, which is a
+        # single close rather than a schedule. `lost` requires the ladder to
+        # climb past three failed attempts — exactly the mechanism a forced
+        # condition steps over — so a relay that could never REACH it would draw
+        # the state perfectly in the named state and never in production.
+        real_lost_context, real_lost_page = await open_page(browser, **PHONE)
+        real_lost = await real_lost_page.evaluate(
+            """async ({ mark, notice }) => {
+                 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+                 window.__go("acq-now-idle");
+                 await wait(80);
+                 window.__relay.limits({ silence: 60_000, opening: 120 });
+                 window.__mocks.stream.setUnreachable(true);
+                 window.__mocks.stream.drop(1006);
+                 // Past the fourth failure: 250 + 500 + 1000 + 2000.
+                 await wait(4200);
+                 const dot = document.querySelector(mark);
+                 const bar = document.querySelector(notice);
+                 window.__mocks.stream.setUnreachable(false);
+                 return {
+                   attempts: window.__relay.condition().attempts,
+                   condition: dot ? dot.getAttribute("data-connection") : null,
+                   word: dot ? dot.textContent.trim() : null,
+                   action: bar ? bar.querySelector("button")
+                     .getAttribute("data-connection-action") : null,
+                 };
+               }""",
+            {"mark": MARK, "notice": NOTICE})
+        journal.check(
+            "a REAL climb past the backoff draws what the named state draws",
+            real_lost["condition"] == "lost"
+            and real_lost["word"] == WORDS["lost"]
+            and real_lost["action"] == NOTICES["lost"]
+            and real_lost["attempts"] > 3,
+            f"after {real_lost['attempts']} failed attempt(s) the header drew "
+            f"{real_lost['word']!r} at {real_lost['condition']!r} with control "
+            f"{real_lost['action']!r} — the named states force the condition, so "
+            "without this `lost` was proved against a lever and never against "
+            "the ladder that has to climb to it")
+        await real_lost_context.close()
 
         await browser.close()
     journal.summary(errors)

@@ -72,6 +72,10 @@ EVENT_BASE = re.compile(r"^class (\w+)\(Event\)", re.MULTILINE)
 # which is one of the forms B-085 counts.
 POLLING_CORPUS_FLOOR = 60
 
+# And how many of them must DECLARE A READ. A poll lives beside a `useQuery`,
+# and eleven files hold one today.
+READING_FILES_FLOOR = 8
+
 # What `map-completeness` must have read for its answer to mean anything. Nine
 # feature tables exist and 24 addresses are declared; a floor under both catches
 # a parser that has silently stopped reading part of the tree.
@@ -85,6 +89,17 @@ POLLING = (
     (re.compile(r"\bsetInterval\s*\("), "setInterval"),
     (re.compile(r"\brefetchIntervalInBackground\b"), "refetchIntervalInBackground"),
 )
+
+# A POLL WRITTEN AS A SELF-RESCHEDULING `setTimeout`. The arm ruled `setTimeout`
+# out because « a delay happens once » — true of the relay's backoff, false of
+# the standard way to write a poll with backoff, which is a callback that
+# re-arms itself. Matched by NAME: a `setTimeout(name, …)` inside the body of a
+# binding called `name`. The relay's own `setTimeout(connect, delay)` is not one
+# — `connect` does not call `retry` directly, `retry` calls `connect` — and it
+# is the only shape in this tree that comes close.
+SELF_RESCHEDULING = re.compile(
+    r"(?:const|let|function)\s+(\w+)\s*=?[^;]{0,400}?setTimeout\(\s*\1\b",
+    re.DOTALL)
 
 # EVERY SPELLING THAT REACHES THE WHOLE CACHE, and the first version knew two of
 # them. `invalidateQueries({ queryKey: [] })` was the worst miss: an empty key
@@ -129,9 +144,34 @@ def arm_no_polling():
                           "live relay is what refreshes this. A clock beside an "
                           "event is a second answer to one question, and the "
                           "two disagree the moment the network is slow.")
+    for path in files:
+        source = path.read_text(encoding="utf-8")
+        for found in SELF_RESCHEDULING.finditer(source):
+            violations += 1
+            line = source[: found.start()].count("\n") + 1
+            print(f"  {path.relative_to(ROOT)}:{line}: `{found.group(1)}` "
+                  "re-arms itself with `setTimeout`. A delay happens once; a "
+                  "callback that reschedules itself is a poll, and it is the "
+                  "shape a search for `setInterval` can never find.")
+    # THE SUBJECT IS FLOORED, not only the sweep. 60 against 124 files is a real
+    # floor against total collapse and blind to targeted loss: a poll would be
+    # written in a `queries.ts`, in `lib/queue.ts` or in a component — 13 files
+    # of the 124. Deleting every one of them leaves 111, comfortably above 60,
+    # with the arm having lost its whole subject and printing a reassuring
+    # three-digit number.
+    reads = [path for path in files if path.name.endswith("queries.ts")
+             or path.name == "queue.ts"]
     print(f"check-live-relay[no-polling]: {len(files)} TypeScript file(s) read "
-          f"outside the dying engine, floor {POLLING_CORPUS_FLOOR} — "
+          f"outside the dying engine (floor {POLLING_CORPUS_FLOOR}), of which "
+          f"{len(reads)} declare reads (floor {READING_FILES_FLOOR}) — "
           f"{violations} poll(s)")
+    if len(reads) < READING_FILES_FLOOR:
+        print(f"check-live-relay[no-polling]: {len(reads)} file(s) declare a "
+              f"read, under the floor of {READING_FILES_FLOOR}. A poll is "
+              "written where reads are; a corpus that kept its size and lost "
+              "its subject reports the same word as a complete one.",
+              file=sys.stderr)
+        return 1
     if len(files) < POLLING_CORPUS_FLOOR:
         print(f"check-live-relay[no-polling]: the corpus is {len(files)} file(s), "
               f"under the floor of {POLLING_CORPUS_FLOOR}. This arm starts at "
@@ -256,12 +296,19 @@ def declared():
 
 
 def read_addresses():
-    """Every address a surface asks the cache for, per feature file."""
+    """Every address ANY module asks the cache for.
+
+    THE CORPUS WAS THREE FILENAMES — `features/**/queries.ts`,
+    `search-queries.ts` and `lib/queue.ts` — and nothing enforces that query
+    keys live there. `app/engine-data.ts` already declared four the arm never
+    read; a `mutations.ts` or a component-level `useQuery` would be four more.
+    A hand-named corpus is the shape this register counts, and it was one.
+    """
     found = {}
-    for path in sorted(list(FEATURES.rglob("queries.ts"))
-                       + list(FEATURES.rglob("search-queries.ts"))
-                       + [LIBRARY / "queue.ts"]):
-        if not path.is_file():
+    for path in sorted(DESIGN.rglob("*")):
+        if not path.is_file() or path.suffix not in {".ts", ".tsx"}:
+            continue
+        if ENGINE in path.parents:
             continue
         source = path.read_text(encoding="utf-8")
         addresses = set(re.findall(r'queryKey:\s*\[\s*"([^"]+)"', source))
@@ -271,7 +318,20 @@ def read_addresses():
         # `useSystemRead(address)` keys on its argument, so the addresses are
         # the literals handed to it — read them rather than reporting a
         # variable, which would be an address this arm cannot check.
-        addresses |= set(re.findall(r'useSystemRead<[^>]*>\(\s*"([^"]+)"', source))
+        # `useSystemRead<Fact[]>("…")` keys on its argument. The generic used
+        # to be matched with `[^>]*`, which breaks on a NESTED one —
+        # `useSystemRead<Record<string, Fact>>` yielded nothing, and seven of
+        # the twenty-four addresses hang on this one pattern.
+        addresses |= set(re.findall(
+            r'useSystemRead<.*?>\(\s*"([^"]+)"', source, re.DOTALL))
+        addresses |= set(re.findall(
+            r'prefetchQuery\(\s*\{\s*queryKey:\s*\[\s*"([^"]+)"', source))
+        # A CACHE KEY IS NOT ALWAYS SPELLED `queryKey:`. `app/engine-data.ts`
+        # declares its four under `key:` in a table it hands to
+        # `fetchQuery`/`setQueryData` — read by no version of this arm until
+        # now, and every one of them an address a surface really holds.
+        addresses |= set(re.findall(
+            r'^\s*key:\s*\[\s*"(/api/[^"]+)"', source, re.MULTILINE))
         for address in addresses:
             found.setdefault(address, str(path.relative_to(ROOT)))
     return found
@@ -341,8 +401,64 @@ def arm_map_completeness():
     return 1 if violations else 0
 
 
+def arm_wired():
+    """Refuses a rules table that is written and never handed to the relay.
+
+    `declared()` reads all nine `features/*/live.ts` and counts their keys as
+    refreshed. `app/live-updates.ts` imports six. A table that is WRITTEN and
+    never imported refreshes nothing, and every other arm here counts it as
+    coverage — an address it names reads as accounted for while the events that
+    would refresh it reach an empty table.
+
+    R91 would catch it, by a hold falling on « refreshes something ». R91 is a
+    browser rule in the wave gate; this runs in `make check` and in the
+    per-pull-request tier. The difference is a fifteen-phase attribution
+    interval, which is what the cheap tier exists to close.
+
+    WHAT IT DOES NOT READ: whether the rules are RIGHT, or whether the relay is
+    installed at all. It reads one edge — table declared, table composed.
+
+    Returns:
+        1 when a non-empty table is not composed, 0 otherwise.
+    """
+    composer = DESIGN / "app" / "live-updates.ts"
+    if not composer.is_file():
+        print(f"check-live-relay[wired]: {composer} is not there — this arm "
+              "compares tables against their composition and has nothing to "
+              "compare against.", file=sys.stderr)
+        return 1
+    source = composer.read_text(encoding="utf-8")
+    violations, checked = 0, 0
+    for path in sorted(FEATURES.glob("*/live.ts")):
+        exported = re.search(r"^export const (\w+LiveRules)[^=]*=\s*\[(\s*)\]",
+                             path.read_text(encoding="utf-8"), re.MULTILINE)
+        name = re.search(r"^export const (\w+LiveRules)",
+                         path.read_text(encoding="utf-8"), re.MULTILINE)
+        if name is None:
+            continue
+        checked += 1
+        if exported is not None:
+            continue                      # an empty table composes nothing
+        if re.search(rf"\b{name.group(1)}\b.*\bfrom\b", source) is None \
+                or f"...{name.group(1)}" not in source:
+            violations += 1
+            print(f"  {path.relative_to(ROOT)}: `{name.group(1)}` is declared "
+                  "and not composed in `app/live-updates.ts`. Its events reach "
+                  "an empty table, its addresses read as covered, and every "
+                  "other arm here reports clean.")
+    if checked < TABLE_FLOOR:
+        print(f"check-live-relay[wired]: {checked} table(s) against a floor of "
+              f"{TABLE_FLOOR} — a corpus that has emptied reports the same word "
+              "as a complete one.", file=sys.stderr)
+        return 1
+    print(f"check-live-relay[wired]: {checked} table(s) declared, "
+          f"{violations} not composed")
+    return 1 if violations else 0
+
+
 ARMS = {
     "no-polling": arm_no_polling,
+    "wired": arm_wired,
     "named-invalidation": arm_named_invalidation,
     "map-completeness": arm_map_completeness,
 }

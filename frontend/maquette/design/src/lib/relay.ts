@@ -29,8 +29,8 @@
 const HELLO_TYPE = "ws.hello";
 /** What the server pushes after thirty seconds of client silence. */
 const PING_TYPE = "ws.ping";
-/** The address the stream is served at. */
-const RELAY_ADDRESS = "/ws/events";
+/** The path the stream is served at. */
+const RELAY_PATH = "/ws/events";
 /** What the client answers a ping with. Any text frame is a pong. */
 const PONG_FRAME = "pong";
 
@@ -38,7 +38,7 @@ const PONG_FRAME = "pong";
 // and only then reads the cookie, so a refusal is a close on an OPEN socket —
 // which is what makes this branch reachable at all. Closing before accept would
 // give a browser an opaque 1006 and this code would be dead in production.
-import { isNewerCursor } from "./stream-cursor";
+import { announce, readCursor, resetCursor } from "./relay-events";
 import {
   countAttempt,
   forceCondition,
@@ -95,17 +95,8 @@ let silenceLimit = SILENCE_LIMIT_MILLISECONDS;
 let openingLimit = OPENING_LIMIT_MILLISECONDS;
 
 /** One event, as the server writes it onto the stream. */
-export type RelayEvent = {
-  id: string;
-  type: string;
-  data: Record<string, unknown>;
-};
-
-/** What a listener is handed for every event that arrives. */
-type EventListener = (event: RelayEvent) => void;
 
 let socket: WebSocket | null = null;
-let cursor: string | null = null;
 let retryTimer: number | null = null;
 // The deadline the current socket is being held to: the opening limit until it
 // speaks, the silence limit afterwards. ONE timer for both, because a socket is
@@ -149,29 +140,6 @@ function disarmLiveness(): void {
   globalThis.clearTimeout(livenessTimer);
   livenessTimer = null;
 }
-
-/**
- * Hands one event to everyone listening.
- *
- * EVERY EVENT, ONE AT A TIME, as it arrives. A reconnect replays a burst
- * synchronously, and a listener that inspected only the newest of them would
- * drop the rest — production lived that defect in three separate hooks. Here
- * the shape cannot occur, and R93 emits a burst and asserts it anyway, because
- * « cannot occur » is a claim and a rule is a proof.
- *
- * @param event What arrived.
- */
-function announce(event: RelayEvent): void {
-  // THE CURSOR ONLY EVER MOVES FORWARD. It used to take every id it was handed,
-  // and two sockets briefly overlapping — a replacement opening while the old
-  // one drains its buffer — could hand it an OLDER id than the one already
-  // reached. The next reconnect would then replay from behind, delivering
-  // events a second time.
-  //
-  if (cursor === null || isNewerCursor(event.id, cursor)) cursor = event.id;
-  for (const listener of [...eventListeners]) listener(event);
-}
-
 
 /**
  * Reads one frame, whatever the server sent.
@@ -265,9 +233,19 @@ function retry(): void {
 function connect(): void {
   if (stopped) return;
   retryTimer = null;
+  // BUILT ABSOLUTE, and the scheme is derived from the page's. A RELATIVE
+  // address is a recent addition to the `WebSocket` constructor — Firefox 124,
+  // Safari 17.4, Chromium 116 — so an older engine, an embedded WebView or the
+  // system WebView backing an installed PWA throws `SyntaxError` on it. The
+  // throw is caught below, but a connection that can never be made is not a
+  // failure worth being resilient about: production has built the absolute form
+  // since before this file existed.
+  const scheme = globalThis.location.protocol === "https:" ? "wss:" : "ws:";
+  const base = `${scheme}//${globalThis.location.host}${RELAY_PATH}`;
+  const cursor = readCursor();
   const address = cursor === null
-    ? RELAY_ADDRESS
-    : `${RELAY_ADDRESS}?last_id=${encodeURIComponent(cursor)}`;
+    ? base
+    : `${base}?last_id=${encodeURIComponent(cursor)}`;
   // THE DEADLINE IS ARMED BEFORE THE SOCKET EXISTS, so an opening that never
   // resolves is caught by the same mechanism that catches silence afterwards.
   armLiveness(openingLimit);
@@ -356,18 +334,6 @@ export function installRelay(): void {
 
 
 
-/**
- * Subscribes to the EVENTS.
- *
- * @param listener What to call for every event, one at a time, in order.
- * @returns The unsubscribe.
- */
-export function subscribeToEvents(listener: EventListener): () => void {
-  eventListeners.add(listener);
-  return () => {
-    eventListeners.delete(listener);
-  };
-}
 
 /**
  * Asks for a connection now, whatever the backoff was waiting for.

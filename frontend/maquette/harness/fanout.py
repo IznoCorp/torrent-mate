@@ -154,7 +154,14 @@ WATCH = """
     // measurement must not depend on how many ran before it.
     window.__fanoutRefresh = () => {
       for (const entry of window.__queries.getQueryCache().getAll())
-        window.__queries.setQueryData(entry.queryKey, entry.state.data);
+        // `setQueryData` RETURNS EARLY ON `undefined` — it never builds or
+        // dispatches anything — so an entry whose read errored or is still
+        // pending stays invalidated for ever and can never be observed to move
+        // again. It would go silent mid-run, and going silent is always safe
+        // under a subset check. A placeholder is written instead.
+        window.__queries.setQueryData(
+          entry.queryKey,
+          entry.state.data === undefined ? { refreshed: true } : entry.state.data);
       window.__fanout = [];
     };
   }
@@ -215,6 +222,13 @@ async def warm(page, keys):
                  window.__queries.setQueryData(key, { seeded: true });
              };
              for (const key of keys) seed(key);
+             // A SIBLING UNDER EVERY DECLARED KEY. Without one, an
+             // over-refresh is measurable BETWEEN address families and never
+             // WITHIN one — and the narrowest keys in the map are exactly the
+             // ones where within matters: the media sheet's own comment calls
+             // an event about one title refreshing another's sheet the defect
+             // to avoid, and there was never a second sheet to over-refresh.
+             for (const key of keys) seed([...key, "__sibling"]);
              // Two extra scenarios under staging's own address, so « every
              // scenario refreshes » has more than one to refresh.
              seed(["/api/staging/media", "dense"]);
@@ -377,10 +391,16 @@ async def hold(journal):
                }""",
             {"types": burst_types})
         exact, complaint = covers(burst, burst_keys)
+        distinct = len({json.dumps(key, separators=(",", ":"), ensure_ascii=False)
+                        for key in burst_keys})
         journal.check(
             "a burst refreshes the union of its rules, and nothing beyond it",
-            exact and len(burst) > 0,
-            complaint or f"a burst of {len(burst_types)} moved {burst}")
+            exact and len(burst) >= distinct,
+            complaint or f"a burst of {len(burst_types)} moved {len(burst)} "
+            f"entr(ies) against {distinct} distinct declared key(s): {burst} — "
+            "floored at « something moved », this hold passed over a relay that "
+            "kept only the newest frame of a burst, which is the defect it "
+            "names (FRONTEND-DATA-03)")
 
         # THE ONE DELIBERATELY WIDE KEY, held so its width is on the record.
         wide = await page.evaluate(
@@ -393,8 +413,11 @@ async def hold(journal):
                }""")
         journal.check(
             "staging's key is wide ON PURPOSE: every scenario refreshes",
-            len(wide) >= 2,
-            f"{len(wide)} staging entr(ies) refreshed — a key naming one "
+            len(wide) >= 4,
+            f"{len(wide)} staging entr(ies) refreshed, against the four the "
+            "warm-up seeds — a threshold of two was reached for free by the "
+            "surface's own entries, so it passed even if both seeds failed. "
+            "A key naming one "
             "scenario would leave the other stale until the process ended, and "
             "`staleTime: Infinity` means that is forever (B-154)")
 

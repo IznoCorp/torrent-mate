@@ -78,9 +78,12 @@ FIRST_TYPE = "GapZero"
 CLAIMED_TYPE = "PipelineStarted"
 CLAIMED_KEY = '["/api/pipeline/status"]'
 
-# Past three failed attempts the relay stops saying « reconnecting ». Four
-# failures is therefore the first moment `lost` is correct, and the sum of the
-# first four backoff delays is 250 + 500 + 1000 + 2000.
+# Past three failed attempts the relay stops saying « reconnecting ». `lost` is
+# therefore correct from the FOURTH failure, which the first three delays reach:
+# 250 + 500 + 1000 ≈ 1 750 ms. The window is deliberately over-generous — the
+# run reports five attempts — and the comment used to say « the fourth delay »,
+# which is one delay too many and would have sent a reader looking for a defect
+# in the ladder rather than in the arithmetic.
 LOST_WINDOW_MS = 4200
 
 
@@ -126,10 +129,11 @@ async def hold(journal):
                      invalidated: entry.state.isInvalidated,
                    }));
 
-                 stream.emit(first, {});
+                 const opener = stream.emit(first, {});
                  await window.__mocks.quiet();
                  const cacheBefore = readCache();
 
+                 const openedBefore = stream.connections().length;
                  stream.drop(1006);
                  await wait(40);
                  const whileDown = window.__relay.condition().condition;
@@ -142,6 +146,18 @@ async def hold(journal):
                  return {
                    whileDown, afterRecovery, addresses, cacheBefore, cacheAfter,
                    unmatched: window.__relay.unmatched(),
+                   // THE CURSOR THE FIRST EVENT WAS GIVEN, rather than `1-0`
+                   // written out. That literal was only ever right because
+                   // `reset()` is called at the END of this rule and never at
+                   // the start, so `sequence` happened to be 0 on a fresh page.
+                   // Any earlier emit — a future boot-time state, another rule
+                   // sharing a context — makes it `2-0` and the hold fails for a
+                   // reason unrelated to the cursor.
+                   opener: opener.id,
+                   // AND HOW MANY SOCKETS THE WINDOW OPENED. Reading only the
+                   // last address says nothing about a relay that opened five
+                   // in 900 ms, which is a real transport defect nobody counted.
+                   openedInWindow: stream.connections().length - openedBefore,
                  };
                }""",
             {"reconnectWindow": RECONNECT_WINDOW_MS,
@@ -159,8 +175,10 @@ async def hold(journal):
             f"{observed['afterRecovery']!r}")
         journal.check(
             "the reconnect carries the cursor of the last event seen",
-            observed["addresses"][-1].endswith("last_id=1-0"),
-            f"it asked for {observed['addresses'][-1]!r} — without the cursor the "
+            observed["addresses"][-1].endswith(
+                f"last_id={observed['opener']}"),
+            f"it asked for {observed['addresses'][-1]!r}, and the first event "
+            f"was given {observed['opener']!r} — without the cursor the "
             "gap is either lost or papered over by invalidating everything")
 
         # THE GAP. Three events happened while the socket was down; the relay
@@ -227,6 +245,13 @@ async def hold(journal):
             "indistinguishable from a reload. AND the reconnect must have "
             "happened: without that condition this hold passes vacuously on a "
             "loaded machine, where nothing reconnected and so nothing moved")
+
+        journal.check(
+            "and it opened ONE socket, not a storm",
+            observed["openedInWindow"] == 1,
+            f"{observed['openedInWindow']} socket(s) were opened in the "
+            f"{RECONNECT_WINDOW_MS} ms window — reading only the last address "
+            "says nothing about a relay that opened five")
 
         # THE WALK past « reconnecting », driven by a server that is really not
         # there: the connection never opens, which is a different path through

@@ -255,8 +255,17 @@ function emit(type: string, data: Record<string, unknown> = {}): StreamEntry {
  */
 function deliver(push: () => void): void {
   beganDelivery();
-  push();
-  globalThis.setTimeout(endedDelivery, 0);
+  try {
+    push();
+  } finally {
+    // THE RELEASE IS UNCONDITIONAL. A throw before the frames go out — a
+    // payload `JSON.stringify` refuses, a `BigInt`, a circular object — used to
+    // leave the counter incremented for ever: `quiet()` never resolved again,
+    // and the oracle silently burned its two-second budget on every remaining
+    // state of that page, with no rule red anywhere. Total, silent, and
+    // recoverable only by a reload.
+    globalThis.setTimeout(endedDelivery, 0);
+  }
 }
 
 /**
