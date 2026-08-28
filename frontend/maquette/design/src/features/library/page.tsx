@@ -22,7 +22,14 @@ import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Icon } from "../../ui/icon";
+import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { useLibraryReference, type IncompleteShow, type LibraryRow } from "../../features/library/reference";
+import {
+  registerListingPaging,
+  useLibraryCategories,
+  useLibraryIncomplete,
+  useLibraryListing,
+} from "./queries";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
 import { body, countLine, countLineAction, emptyNote, endMark, filterPill, filterPillCount, filterZone, loadError, loadErrorAction, loadFooter, pillBar, pillScroll, searchClear, searchField, searchInput, section, segment, segmentCount, segmentTab, statusDot, viewSwitch, viewSwitchButton, viewSwitchWrap, viewTabs } from "../../ui/variants";
 
@@ -33,12 +40,8 @@ const INCOMPLETE_COUNT = 47;
 function LibraryHead(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const {
-    icons,
-    CATS,
-    LIB_PAGE,
-    render,
-  } = useLibraryReference();
+  const { icons, render } = useLibraryReference();
+  const { data: CATS = [] } = useLibraryCategories();
   const lenses = [
     { id: "cat", label: t("screens.library.lensMedia") },
     { id: "rec", label: t("screens.library.lensRecent") },
@@ -102,11 +105,12 @@ function LibraryHead(): ReactElement {
               if (element.getAttribute("value") !== query)
                 element.setAttribute("value", query);
               const commit = () => {
-                writeUiState({
-                  q: element.value,
-                  libCount: LIB_PAGE,
-                  libErr: false,
-                });
+                // ONLY THE QUERY. Resetting a page cursor and clearing an error
+                // beside it is what the interface had to do while it owned
+                // both; the query KEY carries the search now, so typing asks a
+                // different question, which has its own pages and its own
+                // error by construction.
+                writeUiState({ q: element.value });
                 render();
               };
               element.addEventListener("input", commit);
@@ -172,11 +176,26 @@ function LibraryHead(): ReactElement {
 function CountLine(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const { CATS, libFiltered } = useLibraryReference();
-  const total = libFiltered().length;
-  const shown = Math.min(state.libCount as number, total);
+  const { data: CATS = [] } = useLibraryCategories();
+  // FROM THE SAME QUERY THE LIST READS, so the two cannot disagree about how
+  // many rows are on screen — §13's « une seule dérivation par question »,
+  // which two independent counts is the standing way to break.
+  const listing = useLibraryListing(
+    String(state.q ?? ""),
+    String(state.libCat ?? ""),
+    String(state.sortKey ?? ""),
+    Boolean(state.sortReversed),
+  );
+  const total = listing.data?.pages[0]?.total ?? 0;
+  const shown = (listing.data?.pages ?? []).reduce(
+    (count, page) => count + page.items.length, 0);
   const category = CATS.find((entry) => entry.id === state.libCat);
-  const universe = category && category.of ? category.c : 1861;
+  // THE LIBRARY'S OWN TOTAL, SERVED. It was written here as the literal 1861,
+  // three lines under a comment saying the count comes « from the same query
+  // the list reads, so the two cannot disagree » — while the query answered
+  // that very number and the screen printed a constant instead. Change the
+  // seed and the screen went on saying 1861.
+  const universe = category && category.of ? category.c : total;
   const suffix =
     category && category.of
       ? t("screens.library.countCategory", { category: category.l.toLowerCase() })
@@ -213,7 +232,7 @@ function CountLine(): ReactElement {
 function EmptyLibrary(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const { CATS } = useLibraryReference();
+  const { data: CATS = [] } = useLibraryCategories();
   const category = CATS.find((entry) => entry.id === state.libCat);
   const filter = category && category.of ? category.l.toLowerCase() : null;
   if ((state.q as string).trim() !== "") {
@@ -265,20 +284,30 @@ function LibraryList(): ReactElement {
   // in-place world mutations a delegated action makes.
   const version = useStoreContent((content) => content.version);
   const { t } = useTranslation();
-  const {
-    libFiltered,
-    libRowHTML,
-    tileHTML,
-    surfErrInner,
-    paintSelBar,
-    libraryLoaded,
-    LIB_PAGE,
-  } = useLibraryReference();
+  const { libRowHTML, tileHTML, paintSelBar } = useLibraryReference();
   const footRef = useRef<HTMLDivElement | null>(null);
   const grid = state.libMode === "grid";
-  const rows = libFiltered();
-  const count = state.libCount as number;
-  const complete = count >= rows.length;
+  // FROM THE CACHE, PAGE BY PAGE (invariant 4). Four keys leave the interface's
+  // own store with this: `libCount` was a page cursor, `libLoading` and
+  // `libErr` were query state, and `libFailedOnce` remembered whether the
+  // simulated failure had fired. Every one of them is the query's, and the
+  // query is where they live now.
+  //
+  // THE ORDER IS PART OF THE QUESTION. The filtering and the sort used to be
+  // done here over the whole set; a page index only means something once the
+  // server orders what it pages.
+  const listing = useLibraryListing(
+    String(state.q ?? ""),
+    String(state.libCat ?? ""),
+    String(state.sortKey ?? ""),
+    Boolean(state.sortReversed),
+  );
+  const rows = (listing.data?.pages ?? []).flatMap((page) => page.items);
+  // WHAT THE END MARK SAYS is what the source HOLDS, never what the library
+  // claims and never the size of a filtered answer.
+  const loaded = listing.data?.pages[0]?.loaded ?? 0;
+  const count = rows.length;
+  const complete = !listing.hasNextPage && !listing.isFetchingNextPage;
 
   // The selection bar is the FRAGMENT's node, repainted after this component
   // draws — exactly where `fillLib` repainted it.
@@ -291,59 +320,54 @@ function LibraryList(): ReactElement {
     if (drawsRows) paintSelBar();
   });
 
-  // ONE PAGE MORE, asked for by the sentinel coming into view. The delay, the
-  // single simulated failure and the page size are the legacy's own: this is
-  // the same function, moved, not a new one.
-  // IT READS THE LIVE STATE, never this render's snapshot, and that is a
-  // correctness fix rather than a style: the legacy read the engine's alias,
-  // which is always current. A closure over `state` freezes `libErr` at the
-  // value the footer was drawn with — so « Réessayer », which clears the error
-  // on the line above, is refused by the guard on the line below, every time.
-  // The same closure froze `libCount`: a search or a sort that resets it to one
-  // page while the 620 ms timer is in flight would then be overwritten with the
-  // OLD count plus a page, jumping the list past what the count line promised.
+  // ONE PAGE MORE, asked for by the sentinel coming into view. The cache owns
+  // the whole of it now: whether one is in flight, whether the last one failed,
+  // and how many have landed. What is left here is the ASKING.
+  //
+  // WHAT WENT WITH IT, and it is the point of the phase. The 620 ms delay and
+  // the « fail once past three pages » were the interface simulating a server
+  // it did not have; the delay is the scenario's `setDefaultLatency` and the
+  // failure is its `afterCalls`. An interface that decides when its own reads
+  // fail is an interface that cannot be shown a real failure.
   const loadMore = () => {
-    const live = () => window.__store.read().state;
-    if (live().libLoading || live().libErr) return;
-    if ((live().libCount as number) >= libFiltered().length) return;
-    // WHAT THE LOAD WAS ASKED FROM. Six hundred and twenty milliseconds is long
-    // enough for the page to have moved on — a search, a sort, another lens,
-    // all of which put the count back to one page — and a load that lands after
-    // that would extend a list nobody asked to extend, from a number that no
-    // longer exists. So the page it was asked from is remembered, and a landing
-    // that does not recognise it does nothing. Measured: a state that draws a
-    // skeleton starts a load, and 620 ms later it landed on the NEXT state,
-    // which then drew two pages where it had asked for one.
-    const asked = live().libCount as number;
-    writeUiState({ libLoading: true });
-    // THE STORE'S OWN VERSION is the identity, not the count: two different
-    // states can both sit at one page, and « the count is what it was » would
-    // then let a stale load through. Every write bumps the version, so anything
-    // that happened while this load was in flight — a search, a sort, a lens,
-    // another state driven by the harness — makes it stale by definition.
-    const askedAt = window.__store.read().version;
-    window.setTimeout(() => {
-      if (window.__store.read().version !== askedAt) return;
-      writeUiState({ libLoading: false });
-      if (!live().libFailedOnce && asked >= LIB_PAGE * 3) {
-        writeUiState({ libFailedOnce: true, libErr: true });
-        return;
-      }
-      writeUiState({
-        libCount: Math.min(libFiltered().length, asked + LIB_PAGE),
-      });
-    }, 620);
+    if (listing.isFetchingNextPage || listing.isError || !listing.hasNextPage) return;
+    void listing.fetchNextPage();
   };
+
+  // THE LIST'S OWN « one more page », handed to the door a named state asks
+  // through. Registered rather than reconstructed: the query's definition lives
+  // in one place, and this is the function that already holds it. Registering
+  // is not asking — invariant 5 is about a READ issued from an effect, and
+  // nothing is read here.
+  useEffect(() => {
+    registerListingPaging(() => void listing.fetchNextPage());
+    return () => registerListingPaging(null);
+  });
 
   useEffect(() => {
     const foot = footRef.current;
-    const port = document.querySelector("#port");
-    if (!foot || !port || complete || state.libErr) return undefined;
+    // THE PORT THIS FOOTER IS ACTUALLY IN, never the first one in the document.
+    // `document.querySelector("#port")` answers with whichever port comes first,
+    // and with a media sheet open OVER the library that is the SHEET's — so the
+    // footer counted as « in view » in a container it does not live in, and the
+    // sentinel asked for page after page nobody had scrolled to. The engine
+    // never showed it: its loader waited 620 ms per page and the measurement
+    // happened before the first one landed. Wiring the list to a cache that
+    // answers at once turned a masked defect into 46 402 px of list.
+    const port = foot?.closest(".port") ?? null;
+    // AND NOT WHILE THE LIST IS NOT ON SCREEN. A surface showing a skeleton or
+    // an error is not showing its rows, so nothing has been scrolled past and
+    // nothing should be asked for — and the footer sits high in a short
+    // container, which is precisely where an observer fires. The engine never
+    // showed this either: its loader waited 620 ms per page and re-checked the
+    // store's version on landing, so a state measured before the first timer
+    // landed looked still. Answering at once made the difference visible.
+    if (!foot || !port || complete || listing.isError || !drawsRows) return undefined;
     // NOT WHILE A PAGE IS IN FLIGHT: `loadMoreLib` disconnected the observer
-    // for the duration of its own load and reconnected after. The live guard
-    // already refuses a second load, but an observer that keeps firing during
-    // those 620 ms is a difference in what the page DOES.
-    if (state.libLoading) return undefined;
+    // for the duration of its own load and reconnected after. The guard in
+    // `loadMore` already refuses a second one, but an observer that keeps
+    // firing while a page is in flight is a difference in what the page DOES.
+    if (listing.isFetchingNextPage) return undefined;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) loadMore();
@@ -358,20 +382,24 @@ function LibraryList(): ReactElement {
   if (state.phase === "loading") {
     items = (
       <div id="libitems" className={grid ? "gallery" : "sec"} data-part={grid ? "grid" : "section"}>
-        {Array.from({ length: grid ? 9 : 5 }, (_, index) => (
-          <div key={index} className={grid ? "sk tile" : "sk skcard"} data-skeleton="" data-part={grid ? "tile" : undefined} />
-        ))}
+        <Skeletons count={grid ? 9 : 5} shape={grid ? "tile" : "card"} />
       </div>
     );
   } else if (state.phase === "error") {
+    // THE ENGINE'S LAST COMPONENT READER, and it is gone. This branch used to
+    // ask `legacy.js` for a string and hand it to `dangerouslySetInnerHTML`, so
+    // the markup, the French and the retry all lived in the dying half. The
+    // engine keeps `surfErr` for the surfaces IT still draws (D5 — its share
+    // dies with the surface that stops needing it), and the retry is real:
+    // B-031's inert `<button data-phase="ready">` set a store field and re-asked
+    // nothing.
     items = (
       <div
         id="libitems"
         className={grid ? "gallery" : "sec"} data-part={grid ? "grid" : "section"}
-        dangerouslySetInnerHTML={{
-          __html: `<div class="surferr" data-part="surface-error" role="alert">${surfErrInner(t("screens.library.errorSubject"))}</div>`,
-        }}
-      />
+      >
+        <SurfaceError subject={t("screens.library.errorSubject")} />
+      </div>
     );
   } else if (rows.length === 0) {
     items = (
@@ -416,10 +444,10 @@ function LibraryList(): ReactElement {
     if (complete) {
       foot = (
         <p className={endMark()}>
-          {t("screens.library.endMark", { count: libraryLoaded() })}
+          {t("screens.library.endMark", { count: loaded })}
         </p>
       );
-    } else if (state.libErr) {
+    } else if (listing.isError) {
       foot = (
         <div className={loadError()} data-part="load-error">
           <b>{t("screens.library.loadErrorLead")}</b>
@@ -435,10 +463,7 @@ function LibraryList(): ReactElement {
           <button
             className={loadErrorAction()}
             id="libretry"
-            onClick={() => {
-              writeUiState({ libErr: false });
-              loadMore();
-            }}
+            onClick={() => void listing.fetchNextPage()}
           >
             {t("screens.library.retry")}
           </button>
@@ -447,9 +472,7 @@ function LibraryList(): ReactElement {
     } else {
       foot = grid ? (
         <div className="gallery" data-part="grid">
-          {Array.from({ length: 3 }, (_, index) => (
-            <div key={index} className="sk tile" data-part="tile" data-skeleton="" />
-          ))}
+          <Skeletons count={3} shape="tile" />
         </div>
       ) : (
         <div className={section()} data-part="section">
@@ -474,11 +497,13 @@ function LibraryList(): ReactElement {
 export function LibraryPage(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
-  const {
-    INCOMPLETE,
-    cardHTML,
-    tileHTML,
-  } = useLibraryReference();
+  const { cardHTML, tileHTML } = useLibraryReference();
+  // The « incomplets » lens reads its own resource. The « récent » lens does
+  // NOT: it draws the same `LibraryList`, which is the listing in the source's
+  // own order — a second read of the same rows would be a second answer to one
+  // question (§13), and `RECENT` is the fixture that arrangement made
+  // redundant.
+  const { data: INCOMPLETE = [] } = useLibraryIncomplete();
 
   if (state.libLens === "inc") {
     return (

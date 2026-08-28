@@ -284,10 +284,33 @@ def canonical(value: object) -> str:
 
 
 def seeded_families() -> list[str]:
-    """The families a seed is built for, in a stable order."""
+    """The families a seed can still be BUILT for, in a stable order.
+
+    A CONVERTED FAMILY IS NOT ONE OF THEM, and that is D5 rather than an
+    exception. Once L09 wires the surface that read a fixture, the fixture is
+    deleted from `legacy.js` — so there is nothing left to re-derive the seed
+    FROM, and asking for one raises. The seed itself stays: it is what the mock
+    layer answers with, and it is now held by the contract's schema and by the
+    oracle's rendering rather than by the engine's own literal. The register
+    says which, and why, in each entry's `converted`.
+
+    Returns:
+        The families whose seed can be re-derived from the engine today.
+    """
     families = json.loads(REGISTER.read_text(encoding="utf-8"))["families"]
     return sorted(name for name, entry in families.items()
-                  if entry["class"] in SEEDED_CLASSES)
+                  if entry["class"] in SEEDED_CLASSES and not entry.get("converted"))
+
+
+def converted_families() -> list[str]:
+    """The families whose fixture the engine no longer declares, in order.
+
+    Returns:
+        Their names, so a caller can print what it did NOT compare rather than
+        leaving the absence to be read as a pass.
+    """
+    families = json.loads(REGISTER.read_text(encoding="utf-8"))["families"]
+    return sorted(name for name, entry in families.items() if entry.get("converted"))
 
 
 def file_for(name: str) -> Path:
@@ -363,12 +386,22 @@ def main() -> int:
     if arguments.write:
         for path, text in built.items():
             Path(path).write_text(text, encoding="utf-8")
-        # A seed whose family has left the register is deleted rather than
-        # left behind: an orphan seed is a payload nothing can re-derive.
+        # A seed whose family has left the register is deleted rather than left
+        # behind: an orphan seed is a payload nothing can re-derive.
+        #
+        # A CONVERTED FAMILY'S SEED IS NOT AN ORPHAN, and deleting one is the
+        # worst thing this script can do. Since L09 a family is deleted from
+        # `legacy.js` the moment its surface reads the layer instead (D5) — so
+        # it cannot be re-derived, `build()` does not build it, and the naive
+        # reading of « not in built » is « delete the payload the mock layer
+        # actually serves ». Measured: one `--write` removed twenty-one of them,
+        # including every queue list and every decision.
+        kept = {str(file_for(name)) for name in converted_families()}
         for existing in sorted(SEEDS.glob("*.json")):
-            if str(existing) not in built:
-                existing.unlink()
-                print(f"  removed {existing.relative_to(ROOT)} — no family claims it")
+            if str(existing) in built or str(existing) in kept:
+                continue
+            existing.unlink()
+            print(f"  removed {existing.relative_to(ROOT)} — no family claims it")
         print(f"build-mock-seeds: wrote {len(built)} seed(s) to "
               f"{SEEDS.relative_to(ROOT)}")
         return 0

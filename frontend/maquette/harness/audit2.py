@@ -189,7 +189,10 @@ async def main():
       for (const s of ['real','loaded']) { window.__store.write({scen: s}); window.__go('acq-now-'+(s==='real'?'idle':'loaded'));
         await new Promise(r=>setTimeout(r,240));
         const badge=document.querySelector('[data-page=acq] [data-part="shell/tab-badge"]');
-        const expected=derived.takeable().length+derived.blocked().length;
+        /* THE QUEUE IS THE LAYER'S SINCE L09 — `derived` was the engine's own
+           table over its own world, and both are gone. */
+        const q=window.__queue?.()||{takeable:[],blocked:[]};
+        const expected=q.takeable.length+q.blocked.length;
         const read=badge?Number(badge.textContent):0;
         if (read!==expected) out.push(`${s}: badge ${read} != to-grab+to-resolve ${expected}`);
         const tab=document.querySelector('[data-part="segment"] [data-part="segment/count"]');
@@ -205,10 +208,10 @@ async def main():
       document.querySelector('#view [data-part="swipe"] [data-part="swipe/action"][data-action="remove"]').click(); await new Promise(r=>setTimeout(r,320));
       if (!document.querySelector('#toastundo')) out.push('removing a follow: no undo');
       window.__go('lib-list'); await new Promise(r=>setTimeout(r,260));
-      const before=world.lib.length;
+      const before=(window.__queries?.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages?.[0]?.loaded ?? 0);
       document.querySelector('#libitems [data-part="swipe"] [data-part="swipe/action"][data-action="remove"]').click(); await new Promise(r=>setTimeout(r,320));
       if (!document.querySelector('#dlg').hasAttribute('data-open')) out.push('deleting a medium: no confirmation');
-      if (world.lib.length!==before) out.push('deleting a medium: mutation BEFORE confirmation');
+      if ((window.__queries?.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages?.[0]?.loaded ?? 0)!==before) out.push('deleting a medium: mutation BEFORE confirmation');
       return out;}""")
     for x in rev: note("R17 destruction without a guard", x)
 
@@ -451,7 +454,9 @@ async def main():
     # what is true about the medium, so the rule checks that derivation instead
     # of forbidding a destination.
     dest=await pg.evaluate("""async ()=>{const out=[];
-      const followed=new Set(world.follows.map(x=>x.t));
+      /* THE FOLLOWS ARE THE LAYER'S SINCE L09 — `(window.__followActions?.all()||[])` was the
+         engine's own copy, and it is gone. */
+      const followed=new Set((window.__followActions?.all()||[]).map(x=>x.t));
       for (const state_ of ['lib-incomplete','lib-list','lib-recent']) {
         for (let i=0; i<6; i++) {
           window.__go(state_); await new Promise(r=>setTimeout(r,300));

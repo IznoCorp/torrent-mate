@@ -68,7 +68,15 @@ async def main():
         await pg.wait_for_timeout(300)
 
         # ── The reported journey, exit 1: the browser back ──────────────────
-        await pg.evaluate("""()=>{document.querySelector('[data-part="screen"][data-open] [data-part="viewport"]').scrollTop = 300;}""")
+        # SCROLLED TO A POSITION THE SCREEN ACTUALLY HAS, and the number is read
+        # rather than written. It was 300, which held while the results came from
+        # a fixture answering six titles to every query; the layer SEARCHES since
+        # L09, so a query matching five leaves a shorter list and 300 is
+        # unreachable — the browser clamps, and the hold failed on a number rather
+        # than on its subject. What this rule is about is that the position COMES
+        # BACK.
+        scrolled = await pg.evaluate("""()=>{const v=document.querySelector('[data-part="screen"][data-open] [data-part="viewport"]');
+                    v.scrollTop = v.scrollHeight; return v.scrollTop;}""")
         await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card/poster"]').click()""")
         await pg.wait_for_timeout(450)
         # The poster's target is a MEDIA SHEET, and it left `#screen` for a
@@ -106,7 +114,7 @@ async def main():
               and back["query"] == start["query"],
               f"{back['cards']} cards · query « {back['query']} »")
         check("with its scroll position",
-              abs(back["scroll"] - 300) <= 40, f"{back['scroll']}px")
+              abs(back["scroll"] - scrolled) <= 40, f"{back['scroll']}px")
         check("and the media sheet is gone",
               not back["sheetStillThere"], f"sheet open={back['sheetStillThere']}")
 

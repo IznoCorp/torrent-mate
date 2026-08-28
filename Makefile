@@ -89,6 +89,7 @@ check: lint test-cov
 	python3 scripts/check-legacy-css-residue.py
 	python3 scripts/check-markup-contracts.py
 	python3 scripts/check-frontend-boundaries.py
+	python3 scripts/check-state-ownership.py
 	python3 frontend/maquette/oracle.py --contracts
 	python3 scripts/check-i18n-placeholders.py
 	python3 scripts/check-command-safety.py
@@ -98,8 +99,19 @@ check: lint test-cov
 	python3 scripts/update_feature_map.py --check
 	@echo "Auditing design coverage..."
 	python3 scripts/audit_design_coverage.py --strict
-	@echo "Checking maquette fixture drift..."
-	python3 scripts/refresh-maquette-fixture.py --check
+	@echo "Checking maquette fixture drift (advisory — it reads a LIVE database)..."
+	@# NOT A GATE, and the reason is the one CLAUDE.md already writes down for
+	@# `arrivals.py`: a check that reads the operator's live databases says
+	@# nothing about the change under test. This one is worse than most —
+	@# `searches` is a counter the acquisition daemon increments, so it drifts
+	@# while the gate is running (measured: 19 at the start of a `make check`
+	@# and 21 at the fixture step), and on CI there is no `acquire.db` at all,
+	@# so it verifies nothing where it would gate. Vacuous where it blocks and
+	@# moving where it does not is not a check. It still RUNS and still prints,
+	@# because the drift is worth seeing; `--apply` is the deliberate gesture.
+	-python3 scripts/refresh-maquette-fixture.py --check
+	@echo "Running the maquette's unit suite, and holding its floor..."
+	python3 scripts/check-maquette-unit-tests.py
 	@echo "Checking the mock seeds against the fixtures they were taken from..."
 	python3 scripts/check-mock-seeds.py
 	@echo "Checking the backend-demand register against the two contracts..."
@@ -181,7 +193,7 @@ harness:
 	frontend/maquette/harness/run.sh
 
 harness-contracts:
-	@echo "Running the contract subset (5 rules) — what CI runs on every maquette PR..."
+	@echo "Running the contract subset (9 rules) — what CI runs on every maquette PR..."
 	frontend/maquette/harness/run.sh --contracts
 
 maquette-oracle:

@@ -145,7 +145,15 @@ def build_graph(root: Path) -> tuple[dict[str, list[str]], list[str]]:
             if resolved is None:
                 unresolved.append(f"{name}: {specifier}")
                 continue
-            targets.append(str(resolved.relative_to(absolute_root)))
+            # AN IMPORT THAT LEAVES THE TREE is not a module of this graph.
+            # It used to CRASH here, which was the right failure to have — the
+            # guard refused to judge what it could not read. It is ANSWERED
+            # rather than swallowed: outside imports are collected, and the
+            # `tree` arm holds them against a named list.
+            try:
+                targets.append(str(resolved.relative_to(absolute_root)))
+            except ValueError:
+                OUTSIDE_IMPORTS.setdefault(name, set()).add(str(resolved))
         edges[name] = targets
     return edges, unresolved
 
@@ -177,6 +185,56 @@ def find_cycles(edges: dict[str, list[str]]) -> list[tuple[str, ...]]:
     for node in edges:
         walk(node, [node])
     return sorted(cycles)
+
+
+# WHAT MAY IMPORT FROM OUTSIDE `design/src`, and it is one file.
+#
+# `engine/engine-shape.ts` reads `frontend/maquette/fixture-projections.json` —
+# the projection L08 DECLARED, which the seed builder and the correspondence
+# guard read too. It inverts that declaration to hand contract-shaped data to
+# the engine's own markup producers, and it dies with them at L13. Importing the
+# declaration rather than copying it is the point: a copy is a second definition
+# of one thing, and the drift between them would be invisible, each staying
+# internally consistent while describing different data.
+#
+# NAMED HERE SO THE NEXT ONE IS A DECISION. The maquette BECOMES the app, so a
+# module reaching outside the tree makes it non-self-contained.
+OUTSIDE_IMPORTS_ALLOWED = {
+    "engine/engine-shape.ts": {"frontend/maquette/fixture-projections.json"},
+    # Its test reads the same declaration, and for the same reason: asking
+    # the declaration what names must not survive is what keeps the
+    # assertion from being a list in the test file that rots.
+    "engine/engine-shape.test.ts": {"frontend/maquette/fixture-projections.json"},
+    # The conformance test reads the CONTRACT itself, because that is its
+    # subject: it holds what a handler answers against what the contract
+    # requires, and the generated types cannot answer for it — a TypeScript type
+    # carries no `required` list at runtime. Importing the contract rather than
+    # restating its required fields is the same decision as the two above: a
+    # copy is a second definition, and the drift between them is invisible.
+    #
+    # THIS ENTRY IS ALSO B-122's PROOF. That defect made the arm compare an
+    # absolute path against a relative allowance, so it could not refuse a new
+    # outside import on this machine at all. This one was refused the moment it
+    # was written.
+    "mocks/contract-conformance.test.ts": {"frontend/maquette/contract/openapi.json"},
+}
+
+# Filled by `build_graph`: importer -> the absolute paths it reaches outside the
+# tree. Module level because several arms build the graph and each would
+# otherwise re-derive it.
+OUTSIDE_IMPORTS: dict[str, set[str]] = {}
+
+
+def is_test(module: str) -> bool:
+    """Tells whether a module is a test rather than something that ships.
+
+    Args:
+        module: The module's path, as the graph names it.
+
+    Returns:
+        True for a `*.test.ts` / `*.test.tsx`.
+    """
+    return module.endswith(".test.ts") or module.endswith(".test.tsx")
 
 
 def arm_cycles(root: Path) -> int:
@@ -267,7 +325,6 @@ GENERATED = {
 GRANDFATHERED = {
     "engine/legacy.js": "L13 — the engine dies by subtraction, surface by surface",
     "engine/states.js": "L13 — the scenario table goes with the engine it drives",
-    "app/shell.tsx": "L13 — what is left of the boot goes with the engine (L05 took the routing)",
     "features/acquisition/page.tsx": "L09 — the data layer takes it (L07 converted the surface)",
     "features/library/page.tsx": "L09 — the data layer takes it (L07 converted the surface)",
     "features/media/media-screen.tsx": "L09 — the data layer takes it (L07 converted the surface)",
@@ -284,7 +341,10 @@ GRANDFATHERED = {
 # root, blaming the plan for being unreadable: « unreadable is a violation »
 # turns a wrong path into a hard failure with a message that names the wrong
 # culprit.
-PLAN = Path(__file__).resolve().parent.parent / "docs" / "reference" / "frontend-architecture.md"
+# The repository root, so a path can be NAMED the way the allowance list
+# writes it whatever the checkout is called.
+REPOSITORY = Path(__file__).resolve().parent.parent
+PLAN = REPOSITORY / "docs" / "reference" / "frontend-architecture.md"
 LOT_HEADING = re.compile(r"^####\s+(L\d\d)\b[^\n]*?·\s*`(NOT STARTED|IN PROGRESS|LANDED)`", re.M)
 
 # THE LABEL'S GRAMMAR: the lot that OWES the reduction, then a dash, then why.
@@ -368,6 +428,36 @@ def arm_layering(root: Path) -> int:
     return len(violations)
 
 
+# THE ONE MODULE EVERY WIRED SURFACE IMPORTS, and it is exempt because that is
+# its subject rather than a symptom. `engine/engine-shape.ts` inverts the
+# projection L08 declared, so that data from the mock layer can be handed to the
+# markup producers still living in `legacy.js`. Every surface L09 wires needs it,
+# by construction — and it DIES WITH THOSE PRODUCERS at L13, taking this
+# exemption with it.
+#
+# It is not in `ui/` or `lib/`, which the arm already skips, because lifetime is
+# what decides where it lives: `engine/` is the bucket L13 empties, and a
+# conversion INTO the engine's shape has no meaning after the engine.
+#
+# AND HERE IS THE ARGUMENT AGAINST IT, because an exemption that only records its
+# own defence is half a record. This arm is the one guard that acts BEFORE the
+# defect exists — the plan calls it « the one that would have stopped `data.ts`
+# at four importers instead of seventeen » — and this module sits at 13 against a
+# ceiling of 4. « It dies at L13 » is available to anything, and L13 has three
+# unstarted lots in front of it; it is the argument `data.ts` could have made.
+#
+# What makes it different, and it is the whole of the difference: `data.ts` was a
+# hub of DATA, so every importer was coupled to every other through the values it
+# held. This is one exported pure function over a declaration — no state, no
+# ordering, nothing an importer can observe about another importer. A god module
+# couples; a shared pure conversion does not.
+#
+# That is a judgement, not a measurement, so it is the OPERATOR'S to confirm and
+# it is written here to be found rather than argued once in a commit message. If
+# the answer is no, the split is per family and it is mechanical.
+FAN_IN_EXEMPT = frozenset({"engine/engine-shape.ts"})
+
+
 def arm_fan_in(root: Path) -> int:
     """Refuse a module outside `ui/` and `lib/` that too many features import.
 
@@ -382,6 +472,8 @@ def arm_fan_in(root: Path) -> int:
     for source, targets in edges.items():
         for target in set(targets):
             if bucket_of(target) in ("ui", "lib"):
+                continue
+            if target in FAN_IN_EXEMPT:
                 continue
             importers.setdefault(target, set()).add(feature_of(source) or bucket_of(source))
     over = {m: f for m, f in importers.items() if len(f) > FAN_IN_CEILING}
@@ -676,12 +768,85 @@ def arm_tree(root: Path) -> int:
                     f"{relative} — a directory under {enclosing.as_posix()}/ is named "
                     f"« {echoed}/ » again: a tree copied under its own path is read by "
                     f"nothing and drifts from the one it mirrors")
+    # AN IMPORT THAT LEAVES THE TREE, held against a named list. It used to make
+    # `build_graph` CRASH, which was the right failure to have — the guard
+    # refused to judge what it could not read — and this answers it rather than
+    # swallowing it. The maquette BECOMES the app, so a module reaching outside
+    # `design/src` makes it non-self-contained, and the next one is a decision.
+    build_graph(root)
+    for importer, reached in sorted(OUTSIDE_IMPORTS.items()):
+        allowed = OUTSIDE_IMPORTS_ALLOWED.get(importer, set())
+        for target in sorted(reached):
+            # NAMED FROM THE REPOSITORY ROOT, computed — not by cutting the
+            # path on this checkout's own DIRECTORY NAME. It used to split on
+            # « PersonalScraper/ », which is what the operator's clone happens
+            # to be called; the CI runner checks out into `torrent-mate/`, the
+            # split matched nothing, and every allowed reach was compared as an
+            # ABSOLUTE path against a relative allowance. Two violations there,
+            # none here, over an identical tree — a guard that answers
+            # differently by machine is measuring the machine.
+            relative = str(Path(target).resolve().relative_to(REPOSITORY))
+            if relative not in allowed:
+                strays.append(
+                    f"{importer} imports {relative}, outside `design/src`. Add it to "
+                    f"OUTSIDE_IMPORTS_ALLOWED with its reason, or keep it inside.")
+    print(f"  outside-imports: {len(OUTSIDE_IMPORTS)} module(s) reach outside the tree, "
+          f"{len(OUTSIDE_IMPORTS_ALLOWED)} named")
     print(f"  tree: {len(BUCKETS)} declared bucket(s), {len(strays)} file(s) outside them "
           f"({nested} under a repeated directory)")
     for entry in strays:
         print("    " + entry, file=sys.stderr)
     return len(strays)
 
+
+
+# THE ONE FILE UNDER `mocks/` THAT IS NOT A MOCK, and the exemption is narrow on
+# purpose. `mocks/contract-types.d.ts` is GENERATED from
+# `frontend/maquette/contract/openapi.json` — it describes the CONTRACT, not a
+# fixture, and it happens to sit in this bucket because that is where L08's
+# generator writes it. Its placement is questionable and is recorded as such
+# (B-104); moving it is a rename with five ends and belongs to its own change,
+# not to the phase that first needed to import it.
+#
+# WHAT MAKES THE EXEMPTION SAFE IS THE TYPE-ONLY CONDITION, not the file name.
+# The defect this arm exists to refuse is a module reading a SEED directly, so
+# that a fixture survives its own removal while the rendering stays identical.
+# A `.d.ts` carries no runtime value at all and a type-only edge is erased by
+# the compiler, so nothing can travel it — the same reasoning `app/reference.d.ts`
+# already states for its own type-only imports of every feature.
+# Matched on the STEM so the graph's own spelling of a `.d.ts` module —
+# `mocks/contract-types.d.ts`, `mocks/contract-types.d` or
+# `mocks/contract-types` depending on how it was resolved — cannot make
+# this exemption silently miss and the guard silently refuse.
+CONTRACT_TYPES_EXEMPT = ("mocks/contract-types",)
+
+
+def type_only_import(root: Path, source: str, target: str) -> bool:
+    """Tells whether a module imports another with `import type` and nothing else.
+
+    A VALUE import of the same file would be refused: the exemption is about
+    what can travel the edge, never about which file is at its end.
+
+    Args:
+        root: The directory being read.
+        source: The importing module, as the graph names it.
+        target: The imported module, as the graph names it.
+
+    Returns:
+        True when every import of `target` in `source` is type-only.
+    """
+    # The graph names a module by its path WITH its suffix, so nothing is
+    # appended here. A first version added one and looked for
+    # `lib/query-client.ts.ts`, found nothing, and answered « not type-only » —
+    # a reader that misses its target answers the safe-looking thing.
+    path = root / source
+    if not path.is_file():
+        return False
+    leaf = target.rsplit("/", 1)[-1].removesuffix(".ts").removesuffix(".d")
+    text = path.read_text(encoding="utf-8")
+    found = re.findall(rf"^\s*import\s+(type\s+)?[^;]*?['\"][^'\"]*{re.escape(leaf)}['\"]",
+                       text, re.MULTILINE)
+    return bool(found) and all(kind for kind in found)
 
 
 def arm_mocks(root: Path) -> int:
@@ -717,6 +882,19 @@ def arm_mocks(root: Path) -> int:
     for source, targets in sorted(edges.items()):
         source_bucket = bucket_of(source)
         for target in sorted(set(targets)):
+            if (any(target.startswith(exempt) for exempt in CONTRACT_TYPES_EXEMPT)
+                    and type_only_import(root, source, target)):
+                continue
+            # A TEST MAY READ A SEED, and that is the opposite of the defect
+            # this arm refuses. The defect is a COMPONENT reading one: it would
+            # render identically while never going through the network seam, so
+            # nothing would measure the wiring. A test reading the committed
+            # seed is the oracle OUTSIDE the tool — the artefact is held byte
+            # for byte against `legacy.js` by `check-mock-seeds.py`, and
+            # asserting against anything else would be asserting against the
+            # code under test. A test renders nothing and ships nowhere.
+            if is_test(source):
+                continue
             if bucket_of(target) == "mocks" and source_bucket not in ("mocks", "app"):
                 violations.append(
                     f"{source} → {target}: only `app/` may import `mocks/` — a feature "
@@ -743,7 +921,74 @@ def arm_mocks(root: Path) -> int:
     return len(violations)
 
 
+def arm_reference_slice(root: Path) -> int:
+    """Refuse a slice that declares a member the engine no longer publishes.
+
+    WHY IT EXISTS. Each feature declares the slice of `window.__referentiel` it
+    reads, and the global's own type is their intersection — so a member left in
+    a slice after L09 deleted the fixture behind it is a TYPE THAT LIES. Nothing
+    else catches it: the declaration compiles, the reader is gone, and the next
+    person to add a reader gets `undefined` at run time with the compiler's
+    blessing. Four were left after the conversions — `SEARCH`, `derivedFollows`,
+    `SYNOPSIS`, `RELEASES`.
+
+    WHAT IT DOES NOT READ, said before what it does: only members whose name is
+    written in the engine's own vocabulary — a slice also declares TYPES, and a
+    type's field names are not published on anything. It compares the member
+    names of the `Reference` types alone, which is the level `__referentiel` is
+    an object of.
+
+    Args:
+        root: The directory to read.
+
+    Returns:
+        The number of members nothing publishes.
+    """
+    engine = root / "engine" / "legacy.js"
+    if not engine.is_file():
+        print("  reference-slice: the engine is gone — this arm has no subject", file=sys.stderr)
+        return 1
+    text = engine.read_text(encoding="utf-8")
+    start = text.index("window.__referentiel = {")
+    depth, cursor = 0, start
+    while cursor < len(text):
+        if text[cursor] == "{":
+            depth += 1
+        elif text[cursor] == "}":
+            depth -= 1
+            if depth == 0:
+                break
+        cursor += 1
+    block = text[start:cursor]
+    published = set(re.findall(r"^\s*([A-Za-z_$][\w$]*)[,:]", block, re.MULTILINE))
+    published |= set(re.findall(r"get ([A-Za-z_$][\w$]*)\(\)", block))
+
+    stale: list[str] = []
+    read = 0
+    for path in sorted((root / "features").glob("*/reference.ts")):
+        source = path.read_text(encoding="utf-8")
+        for declaration in re.finditer(
+            r"export type \w*Reference = [^{]*\{(.*?)^\};", source, re.S | re.MULTILINE
+        ):
+            for member in re.findall(r"^  ([A-Za-z_$][\w$]*)\??:", declaration.group(1),
+                                     re.MULTILINE):
+                read += 1
+                if member not in published:
+                    stale.append(
+                        f"{path.relative_to(root).as_posix()}: `{member}` is declared and the "
+                        f"engine publishes nothing by that name — a type that lies")
+    print(f"  reference-slice: {read} declared member(s) read against "
+          f"{len(published)} published, {len(stale)} stale")
+    # A CORPUS OF NOTHING would print « 0 stale » and mean « I read nothing ».
+    if read == 0:
+        stale.append("no slice member was read at all — the arm found no `…Reference` type")
+    for entry in stale:
+        print("    " + entry, file=sys.stderr)
+    return len(stale)
+
+
 ARMS = {
+    "reference-slice": arm_reference_slice,
     "cycles": arm_cycles,
     "mocks": arm_mocks,
     "layering": arm_layering,

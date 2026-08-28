@@ -42,6 +42,7 @@ import { Icon } from "../../ui/icon";
 import { go } from "../../lib/navigate";
 import { useAcquisitionReference } from "../../features/acquisition/reference";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
+import { useProviderSearch } from "./search-queries";
 import { actionButton, backAction, emptyNote, resultCount, screen, screenBar, scrollport, searchField, searchInput, surfaceError } from "../../ui/variants";
 import { addFooter, addForm, addRow, byIdentifier, byIdentifierBody, refusalReason, suggestions } from "../../features/acquisition/variants";
 
@@ -73,16 +74,11 @@ export function AddScreen() {
   const {
     icons,
     baseTitle,
-    SEARCH,
     cardHTML,
     addVerb,
     render,
   } = useAcquisitionReference();
   const { t } = useTranslation();
-
-  function write(patch: Record<string, unknown>): void {
-    writeUiState(patch);
-  }
 
   // Always invoked from INSIDE this screen — search() runs only while
   // AddScreen is mounted, which means the address already reads `/add`.
@@ -96,7 +92,7 @@ export function AddScreen() {
   // (`state.addQ`/`state.addMode`) `window.__screens.ajout()` also performs,
   // without the push.
   function search(value: string): void {
-    write({ addQ: value, addMode: mode });
+    writeUiState({ addQ: value, addMode: mode });
     go({
       to: "/add",
       search: {
@@ -119,7 +115,7 @@ export function AddScreen() {
   // rendered explicitly, since nothing subscribes the legacy `#view` to the
   // store automatically (see `render`'s own doc comment in data.ts).
   function toFollows(): void {
-    write({ page: "acq", acqTab: "now" });
+    writeUiState({ page: "acq", acqTab: "now" });
     render();
     go({
       to: "/",
@@ -128,7 +124,15 @@ export function AddScreen() {
     });
   }
 
-  const filtered = SEARCH.results
+  // FROM THE CACHE (invariant 4). Nothing is drawn before it answers, and the
+  // oracle measures at rest — which is where the answer is.
+  // THE ROUTER'S OWN `q`, never `state.addQ`. The store's copy is the ENTRY
+  // query and is stale by construction — the shell's own comment says so:
+  // typing updates the ROUTER's search params through `go()`, and nothing
+  // writes it back. Wiring the read to the store made the search answer for
+  // what the screen was opened with and ignore every keystroke after it.
+  const { data: SEARCH } = useProviderSearch(q ?? "");
+  const filtered = (SEARCH?.results ?? [])
     .map((r, i) => ({ r, i }))
     .filter(
       ({ r }) =>
@@ -248,7 +252,7 @@ export function AddScreen() {
                 <button
                   key={value}
                   aria-pressed={addKind === value}
-                  onClick={() => write({ addKind: value })}
+                  onClick={() => writeUiState({ addKind: value })}
                 >
                   {t(`screens.add.${key}`)}
                 </button>
@@ -269,8 +273,8 @@ export function AddScreen() {
               {filtered.length > 1
                 ? t("screens.add.shownPlural")
                 : t("screens.add.shown")}{" "}
-              {t("screens.add.outOf")} <b>{SEARCH.total}</b>{" "}
-              {SEARCH.total > 1
+              {t("screens.add.outOf")} <b>{SEARCH?.total ?? 0}</b>{" "}
+              {(SEARCH?.total ?? 0) > 1
                 ? t("screens.add.foundPlural")
                 : t("screens.add.found")}
               {addKind !== "Tout"
@@ -314,7 +318,7 @@ export function AddScreen() {
                 <button
                   key={element}
                   aria-pressed={idProv === element}
-                  onClick={() => write({ idProv: element })}
+                  onClick={() => writeUiState({ idProv: element })}
                 >
                   {element}
                 </button>

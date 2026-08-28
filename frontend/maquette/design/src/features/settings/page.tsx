@@ -31,6 +31,8 @@ import { createPortal } from "react-dom";
 import { Icon } from "../../ui/icon";
 import { useSettingsReference, type Setting, type SettingsTopic } from "../../features/settings/reference";
 import { useStoreContent } from "../../lib/store-access";
+import { settingInWords } from "./format";
+import { useSecrets, useSettings } from "./queries";
 import { settingLabel } from "../../features/settings/labels";
 import { emptyNote, factsPanel, loadError, loadErrorAction, qualityHint, searchClear, searchField, searchInput, sectionHeading, topicRow } from "../../ui/variants";
 import { saveAction, saveBar, settingsRow } from "./variants";
@@ -45,14 +47,18 @@ function SettingRow({
   setting: Setting;
   withFile?: boolean;
 }): ReactElement {
-  const {
-    SETTINGS_STATE,
-    settingId,
-    displayedValue,
-    fileName,
-  } = useSettingsReference();
+  const { SETTINGS_STATE, settingId, fileName } = useSettingsReference();
   const identity = settingId(setting);
   const edited = SETTINGS_STATE.modifs.has(identity);
+  // B-090. The row said the value the CONTRACT carried — the engine's own
+  // French summary, which no control could edit and which had lost the fourth
+  // element of a four-element list. It says the value the setting HOLDS now, in
+  // the interface's own words. A pending edit still wins: what the operator has
+  // typed is what they must see.
+  const pending = SETTINGS_STATE.modifs.get(identity);
+  const said = pending === undefined
+    ? settingInWords(setting.type, setting.brut, setting.precision)
+    : String(pending);
   // `withFile` is false when a group header already names the file: repeating it
   // there prints the file twice on one line and wraps the origin onto two.
   const origin = withFile
@@ -69,7 +75,7 @@ function SettingRow({
         {settingLabel(setting)}{" "}
         <span className="rf" data-part="setting/origin">{origin}</span>
       </span>
-      <span className="rv" data-part="setting/value">{String(displayedValue(setting))}</span>
+      <span className="rv" data-part="setting/value">{said}</span>
     </button>
   );
 }
@@ -177,15 +183,19 @@ export function SettingsPage(): ReactElement | null {
   useStoreContent((content) => content.version);
   const { t } = useTranslation();
   const {
-    SETTINGS,
     SETTINGS_STATE,
-    SECRETS,
     emptyInner,
     chipHTML,
     allSettings,
     changedFiles,
   } = useSettingsReference();
+  // FROM THE CACHE (invariant 4). The panel says a value from what the
+  // setting HOLDS — B-090 — so the read has to carry it.
+  const { data: SETTINGS = [] } = useSettings();
 
+  // FROM THE CACHE (invariant 4). A secret's VALUE is never read back — the
+  // layer answers which keys exist and whether each is defined.
+  const { data: SECRETS = [] } = useSecrets();
   if (SETTINGS_STATE.topic === "secrets") {
     return (
       <>

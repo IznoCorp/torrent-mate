@@ -17,7 +17,7 @@
 #   --contracts   the rules that break when a NAME moves — a state id, a
 #                 `data-*` value, a route, a store field. Minutes, so CI runs
 #                 this on every pull request. Running them at once buys this
-#                 tier almost nothing — `audit2.py` is one of the five and is
+#                 tier almost nothing — `audit2.py` is one of the seven and is
 #                 nearly the whole of its cost — which is the same sentence as
 #                 the floor named below, read from the other end.
 #                 It also runs the repository's CHEAP guards (see below) — the
@@ -69,13 +69,27 @@ SERVED="/tmp/tm-refonte"
 #   logout           a route renamed on one side only
 #   residue          an identity anchor shared by a residue rule and a typed
 #                    variant, where the residue WINS and the oracle is blind
+#   boot_order       the eight steps of the boot, and the five files the shell
+#                    was split onto. It joined at L09 and it belongs here on
+#                    this tier's own test: every phase of that lot adds to the
+#                    boot, so a reordering has to land on the phase that
+#                    commits it. 1.6 s, measured.
+#   settle           the quiet signal, exercised against a request really held
+#                    back. It is not a NAME that moved — it is the instrument
+#                    every later phase's proof rests on, and a phase that
+#                    breaks it must be the phase that hears about it.
+#   state_surfaces   the loading and error surfaces, read by their own text and
+#                    their own control rather than by a rectangle. It is here
+#                    because B-108 showed the oracle recording four of them as
+#                    BLANK — an instrument's blind spot needs a second reader,
+#                    not a wider version of itself.
 #
 # `arrivals.py` guards the `data-pipe` contract too and is NOT here: it holds
 # R66, which checks every figure against the run `library.db` really recorded,
 # by run_uid. That database is the operator's and a CI runner has none, so the
 # rule would fail there for a reason that has nothing to do with the change
 # under test. It runs in the full suite, on the machine that has the data.
-CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.py)
+CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.py boot_order.py settle.py state_surfaces.py)
 
 # THE REPOSITORY'S CHEAP GUARDS, run beside the rules (B-063, arbitrated by the
 # operator on 2026-08-25). They read the tree in seconds and they read exactly
@@ -95,6 +109,13 @@ CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.
 # The six added below cost 6 s together — twelve invocations, 31 s in all,
 # measured. `check-tailwind-confinement.py` is the one deliberately left out:
 # it needs a build of its own and costs 102 s.
+#
+# `check-maquette-unit-tests.py` joined at L09 and it belongs here on the same
+# test: 1.1 s, and it runs the maquette's own unit suite — which a maquette
+# phase edits by definition. It is the RUNNER's guard as much as the suite's: a
+# run that collects one file out of two is green and reports a smaller number
+# nobody compares, so it holds a floor on both counts. Where the maquette's
+# dependencies are absent it says SKIPPED and says that is not a pass.
 #
 # `check-mock-seeds.py` joined at L08 and it belongs here on the same test: it
 # reads FILES — the engine, the register, the seeds, the contract — and it costs
@@ -125,6 +146,8 @@ REPOSITORY_GUARDS=(
   "scripts/check-markup-contracts.py"
   "scripts/check-i18n-placeholders.py"
   "scripts/check-mock-seeds.py"
+  "scripts/check-maquette-unit-tests.py"
+  "scripts/check-state-ownership.py"
   "scripts/compare-contracts.py --check"
 )
 REPOSITORY_ROOT="$(cd "$HERE/../../.." && pwd)"

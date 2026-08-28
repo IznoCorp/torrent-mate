@@ -417,14 +417,35 @@ const STATES = [
            later, over the state, with a second page of media whose sheets are
            hollow (B-030). A state exists to show ONE thing; racing its own
            loader makes a red run say something other than what it is for. */
+        /* THE FAILURE IS THE LAYER'S NOW, not a flag in the store. « The list
+           loaded and then the next page did not » cannot be asked for by a
+           status alone — an operation set to fail fails its FIRST call, and the
+           list would never appear at all. `afterCalls: 1` lets the first page
+           through and refuses the second, which is the state this exists to
+           show. The reset is what makes it independent of whatever was driven
+           before it. */
+        window.__mocks?.reset();
+        window.__mocks?.setOperationOutcome("readLibraryItems", {
+          status: 500,
+          afterCalls: 1,
+          /* ONCE. « The next page failed » is a state whose way out is a retry
+             that WORKS; an operation that keeps failing is a different state
+             and draws differently. The engine said this with a `libFailedOnce`
+             flag in the interface's own store. */
+          failingCalls: 1,
+        });
         applyState({
           page: "lib",
           libLens: "cat",
           libMode: "list",
           phase: "ready",
-          libFailedOnce: true,
-          libErr: true,
         });
+        /* And ASK for the page that fails. The layer only fails a page somebody
+           asks for, so a scenario alone leaves the list whole and the error
+           nowhere — the state has to reach what it names. The waiting is the
+           door's, not this state's: it is the same wait for every surface, and
+           written here it would be written again for the next one. */
+        window.__libraryNextPage?.();
       },
     ],
     [
@@ -668,6 +689,12 @@ const STATES = [
       ["duration", "une durée"],
       ["structure", "une structure, qui refuse"],
       ["empty", "une valeur non définie"],
+      /* The ninth, since L09. Its CONTROL is the text field — the difference is
+         in how the value is READ — and that is exactly why it needs a state of
+         its own: the six cron settings were rendering « 15 * * * * » where the
+         reference said « toutes les heures, à la 15ᵉ minute », and no state
+         showed a schedule for anyone to look at. */
+      ["schedule", "un horaire, dit en toutes lettres"],
     ].map(([genre, what]) => [
       `settings-field-${genre}`,
       `Réglages — ${what}`,

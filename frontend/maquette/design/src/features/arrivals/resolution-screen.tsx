@@ -47,9 +47,11 @@ import { useTranslation } from "react-i18next";
 // dictionaries, and for the same reason — an index into a table is not a
 // sentence, and `t()` would only wrap the lookup in a second one.
 import fr from "../../i18n/fr.json";
+import { useDecisions } from "./queries";
+import { useAcquisitionQueue, useStaging } from "../../lib/queue";
 import { useArrivalsReference, type PendingDecision, type SettledDecision } from "../../features/arrivals/reference";
 import { type QueueCard } from "../../lib/engine-queue";
-import { useStoreContent } from "../../lib/store-access";
+import { useStoreContent, useUiState } from "../../lib/store-access";
 import { actionButton, backAction, body, emptyNote, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, sheetActions } from "../../ui/variants";
 import { guidance } from "../../ui/variants/layout";
 
@@ -288,12 +290,26 @@ export function ResolutionScreen() {
     REASON_DETAIL,
     REASON_LABEL,
     REASON_TONE,
-    DECISIONS_REGLEES,
-    decisionPending,
-    derivedBlocked,
-    derivedStuck,
   } = useArrivalsReference();
   const { t } = useTranslation();
+  // THE DECISIONS COME FROM THE CACHE (invariant 4). `decisionPending` and
+  // `DECISIONS_REGLEES` were the engine's, read straight off the fixture; the
+  // same two answers are derived here from `/api/decisions/`.
+  //
+  // THE QUEUE IS STILL THE ENGINE'S, and that is a measured decision rather
+  // than an oversight. `derivedStuck` has FOUR readers — this screen, Arrivées,
+  // Acquisition and the shell's own screen opener — and `leaveQueue` spans
+  // `stuck`, `stuckReel` AND `blocked`, which is Acquisition's list. It is a
+  // shared resource rather than a surface, its actions are driven by the
+  // engine's document-level delegation, and it converts when its last reader
+  // does. Splitting it here would leave two truths about one queue.
+  const { data: decisions } = useDecisions();
+  const scenario = String(useUiState().scen) === "loaded" ? "loaded" : "";
+  const { data: staging } = useStaging(scenario);
+  const { data: queue } = useAcquisitionQueue(scenario);
+  const settledDecisions = decisions?.settled ?? [];
+  const decisionPending = (subject: string | null) =>
+    decisions?.pending.find((entry) => entry.d === subject) ?? null;
   // A folder either HAS a pending decision or it has none, and the screen must
   // not borrow one. Showing another folder's candidates would be the worst
   // possible lie on the one screen whose job is to name what is on disk.
@@ -302,8 +318,8 @@ export function ResolutionScreen() {
   // acquisition side and « Ça coince » in Arrivées. They are two views of one
   // thing — a folder the scrape could not name — and a progression that
   // counted only one of them would be wrong on the other.
-  const pending = derivedBlocked()
-    .concat(derivedStuck())
+  const pending = (queue?.blocked ?? [])
+    .concat(staging?.stuck ?? [])
     .filter((card: QueueCard) => decisionPending(card.t as string) != null);
   const rank = decision
     ? pending.findIndex((card: QueueCard) => card.t === decision.d) + 1
@@ -399,13 +415,13 @@ export function ResolutionScreen() {
             <b>{t("screens.resolution.note2Title")}</b>{" "}
             {t("screens.resolution.note2Body")}
           </div>
-          {DECISIONS_REGLEES.length > 0 ? (
+          {settledDecisions.length > 0 ? (
             <>
               <h2 className={sectionHeading()} data-part="heading" style={{ marginTop: "18px" }}>
                 {t("screens.resolution.settledHeading")}
               </h2>
               <p className={qualityHint()}>{t("screens.resolution.settledHint")}</p>
-              {DECISIONS_REGLEES.slice(0, 6).map((settled) => (
+              {settledDecisions.slice(0, 6).map((settled) => (
                 <DecisionCard key={settled.d} decision={settled} />
               ))}
             </>

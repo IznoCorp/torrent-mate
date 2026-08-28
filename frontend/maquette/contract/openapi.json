@@ -225,6 +225,14 @@
                       "type": "integer",
                       "description": "how many titles the library holds in all"
                     },
+                    "matching": {
+                      "type": "integer",
+                      "description": "how many rows this question matches — the set a page is a page OF. Distinct from `total`, which is what the library claims when nothing filters, and from `loaded`, which is what the source holds whatever is filtered for. Paging that compared against `total` never reached the end of a source smaller than the claim"
+                    },
+                    "loaded": {
+                      "type": "integer",
+                      "description": "how many titles the source really holds, whatever is being filtered for — distinct from `total`, which is the library's own count when nothing filters and the size of the result set when something does. The end mark says « you have reached the end of what there is », and a filtered count would make that a lie under every search"
+                    },
                     "items": {
                       "type": "array",
                       "items": {
@@ -234,7 +242,9 @@
                   },
                   "required": [
                     "items",
-                    "total"
+                    "total",
+                    "loaded",
+                    "matching"
                   ]
                 }
               }
@@ -261,15 +271,6 @@
         },
         "parameters": [
           {
-            "name": "lens",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "description": "which lens groups the listing: category, recent, incomplete"
-          },
-          {
             "name": "category",
             "in": "query",
             "required": false,
@@ -292,9 +293,12 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "boolean"
+              "type": "string",
+              "enum": [
+                "1"
+              ]
             },
-            "description": "whether the sort runs the other way"
+            "description": "whether the sort runs the other way — present and « 1 », or absent. Declared `boolean` at first, while both ends spoke the string « 1 »: a query parameter is a string on the wire, and a contract that says otherwise describes an encoding nobody implements."
           },
           {
             "name": "query",
@@ -1660,7 +1664,31 @@
             "description": "the staged item"
           }
         ],
-        "x-unseeded": "an acknowledgement."
+        "x-unseeded": "an acknowledgement.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "outcome": {
+                    "type": "string",
+                    "enum": [
+                      "resolved",
+                      "left"
+                    ],
+                    "description": "whether the operator agreed with a CANDIDATE, which puts the folder back through the pipeline under the name picked, or with the MACHINE, which keeps the automatic result and re-scrapes nothing. The card says which afterwards, so the answer cannot be derived from the request"
+                  },
+                  "choice": {
+                    "type": "string",
+                    "description": "the title picked, when the operator picked one"
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/staging/media/{mediaId}/discard": {
@@ -3152,6 +3180,45 @@
         },
         "x-unseeded": "the running version. It is the server's own identity and no maquette fixture carries one."
       }
+    },
+    "/api/acquisition/to-handle/{mediaId}/take": {
+      "post": {
+        "operationId": "takeQueued",
+        "summary": "Restart one item that was waiting to be acquired",
+        "description": "The interface offers « récupérer » on every takeable card and the contract had no operation for it — the engine moved the card inside its own fixture. Recorded here as the interface's requirement (D7): the backend must restart the acquisition and the card must leave « à récupérer » for « en vol » at its first step.",
+        "parameters": [
+          {
+            "name": "mediaId",
+            "in": "path",
+            "required": true,
+            "description": "the card's own title, which is how the queue keys one",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "whether a card of that name was waiting",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-unseeded": "whether a card of that name was waiting is decided by the layer's own state at the moment of the call, not by a fixture — there is nothing to seed it from"
+      }
     }
   },
   "components": {
@@ -3821,7 +3888,18 @@
           },
           "type": {
             "type": "string",
-            "description": "the kind of field it is drawn as"
+            "description": "the kind of field it is drawn as, and the kind its value is READ as. `schedule` is a cron expression said in words: the kind used to live nowhere, so the interface guessed it from the shape of the value and the six cron settings rendered as raw cron.",
+            "enum": [
+              "boolean",
+              "duration",
+              "empty",
+              "list",
+              "number",
+              "path",
+              "schedule",
+              "structure",
+              "text"
+            ]
           },
           "raw": {
             "description": "the value as the file holds it"
@@ -3835,11 +3913,16 @@
             "description": "what it is for"
           },
           "displayedValue": {
-            "description": "what the field SHOWS, already rendered — « 4 entrées », « aucun », « oui », « non défini ». It was called `value` until the values were read: 110 of the 159 fields differ from `raw`, and one is LOSSY — a four-element list renders « multi, vf, vostfr +1 » and the fourth element is gone. The engine's own accessor is `displayedValue`, which is the name that survives here. INTERFACE COPY the fixture carries; the demand register asks the backend for `raw` alone and leaves the rendering to the interface."
+            "type": "string",
+            "deprecated": true,
+            "description": "B-090, AND WHAT IS LEFT OF IT. This is the engine's own French summary of the value, rendered for a screen — 59 of the 159 fields differ from `String(raw)`, and two of them LOSE information: a four-element list reads « multi, vf, vostfr +1 » and an eighteen-file list reads « paths.json5, disks.json5, categories.json5 +15 ». NO SURFACE READS IT ANY MORE: the settings panel says the value from `raw` through the interface's own formatter, and `precision` carries the one fact `raw` cannot. It stays declared for one reason — it is what the formatter's test asserts against, 159 strings extracted from `legacy.js` and held byte for byte against it — all 159 of them, `precision` and the `schedule` kind included — which is the only non-vacuous oracle available for a rendering. It dies with the fixture that produces it, at L13."
+          },
+          "precision": {
+            "type": "integer",
+            "description": "how many decimals the value is WRITTEN with, when it has any. JSON holds one number for 4 and 4.0 and the interface shows two different settings — a size in whole gigabytes and a ratio to one decimal — so the schema is the only thing that knows which. Seven fields carry it. B-090: the field this replaces was `displayedValue`, a French summary rendered for a screen, which no control could edit and which had lost the fourth element of a four-element list."
           }
         },
         "required": [
-          "displayedValue",
           "file",
           "key",
           "name",

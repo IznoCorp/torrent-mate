@@ -93,10 +93,22 @@ async def main():
 
         # Compared against the DATABASE, not against itself: a card printing a
         # number the engine never held would otherwise pass.
+        #
+        # AND IT REPORTS RATHER THAN GATES, which is the same ruling B-121 took
+        # on the repository side. `searches` is a counter the acquisition daemon
+        # increments: it moved from 18 to 19 to 21 for one show across two days
+        # of this wave, all by itself. A gate that fails because a daemon ran
+        # overnight says nothing about the change under test — CLAUDE.md already
+        # names this exact shape for `arrivals.py` — and on any machine without
+        # the operator's `acquire.db` it verifies nothing at all.
+        #
+        # What it still does, and it is the part worth keeping: it PRINTS the
+        # drift, by title, with both numbers. `scripts/refresh-maquette-fixture.py
+        # --apply` is the deliberate gesture that closes it.
         real = real_facts()
         if not real:
-            check("the numbers come from acquire.db",
-                  False, f"database absent: {ACQUIRE}")
+            print(f"    [advisory] no database at {ACQUIRE} — the follow counts "
+                  f"were not compared against anything")
         else:
             wrong = []
             for s in follows:
@@ -108,8 +120,21 @@ async def main():
                 pattern = rf"\b{r['searches']}\s+recherche"
                 if not re.search(pattern, s["facts"]):
                     wrong.append(f"{s['title']} : « {s['facts']} » vs {r['searches']}")
-            check("the numbers come from acquire.db, not from the mock-up",
-                  not wrong, str(wrong[:3]))
+            if wrong:
+                print(f"    [advisory] {len(wrong)} follow(s) drifted from "
+                      f"acquire.db — run `scripts/refresh-maquette-fixture.py "
+                      f"--apply`: {wrong[:3]}")
+            else:
+                print("    [advisory] the follow counts agree with the "
+                      "operator's acquisition database")
+            # WHAT STILL GATES is the half that is about the INTERFACE rather
+            # than about the operator's data: a card must print a number of
+            # searches at all, and it must be the seed's own — which is what
+            # `check-mock-seeds.py` re-derives and refuses.
+            check("every follow card prints a search count",
+                  all(re.search(r"\b\d+\s+recherche", s["facts"]) for s in follows),
+                  str([s["title"] for s in follows
+                       if not re.search(r"\b\d+\s+recherche", s["facts"])][:3]))
 
         # ── the two tabs say the same thing the same way ────────────────────
         # « En cours » already had the sentence; the follow tab had none, and
@@ -155,7 +180,10 @@ async def main():
                               c.getBoundingClientRect().bottom + 1;}).length,
                 invented: cards.filter(c => {
                   const e = c.querySelector('[data-part="card/overview"]');
-                  return e && !SYNOPSIS[(c.querySelector('[data-part="card/title"]')||{}).textContent];
+                  /* THE SYNOPSIS IS A FIELD OF A ROW SINCE L09 — `SYNOPSIS` was a global
+                     map keyed by title, and the library row carries its own `overview`. */
+                  const title=(c.querySelector('[data-part="card/title"]')||{}).textContent;
+                  return e && !((window.__queries.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages||[]).flatMap(p=>p.items).find(r=>r.t===title)||{}).overview;
                 }).map(c => (c.querySelector('[data-part="card/title"]')||{}).textContent)};}""")
             check(f"{name}: the rows carry the synopsis",
                   seen["n"] > 4 and seen["withPlot"] == seen["n"], f"{seen['withPlot']}/{seen['n']}")
@@ -207,20 +235,49 @@ async def main():
 
         # A medium whose NFO carries no plot shows nothing rather than a filler.
         # Reading only the rows on screen proves nothing — the first two dozen
-        # all have a plot — so the row is BUILT for a title known to lack one.
-        missing = await pg.evaluate(
-            "()=>LIBRARY.filter(x => !(x.t in SYNOPSIS)).map(x => x.t)")
+        # all have a plot — so the LAYER is walked page by page for a title
+        # known to lack one. The engine held the whole library in memory and
+        # this read it there; a cache holds the pages that were asked for, and
+        # « none of the 24 loaded rows lacks a plot » is not the same statement.
+        missing = await pg.evaluate("""async ()=>{
+          const found = [];
+          for (let page = 0; page < 40; page += 1) {
+            const answer = await (await window.fetch(
+              `/api/library/items?page=${page}`)).json();
+            if (!answer.items.length) break;
+            for (const row of answer.items) if (!row.overview) found.push(row.title);
+          }
+          return found;}""")
         check("a medium without a synopsis exists in the library",
               len(missing) > 0, f"{len(missing)} without a plot: {missing[:3]}")
         if missing:
-            empty = await pg.evaluate("""(t)=>{
-              const item = LIBRARY.find(x => x.t === t);
-              const d = document.createElement('div');
-              d.innerHTML = libRowHTML(item, 0);
-              const cov = d.querySelector('[data-part="card/overview"]');
-              return cov ? cov.textContent : null;}""", missing[0])
+            # AND THE ROW IS THE ONE THE SURFACE DRAWS. This used to call the
+            # engine's `libRowHTML` on a detached node — a markup producer
+            # answering about itself. The title is searched for instead, so
+            # what is read is the row the operator would be looking at.
+            await pg.evaluate("""(title)=>{
+              const field = document.querySelector('#libq');
+              const setter = Object.getOwnPropertyDescriptor(
+                window.HTMLInputElement.prototype, 'value').set;
+              setter.call(field, title);
+              field.dispatchEvent(new Event('input', {bubbles:true}));}""", missing[0])
+            await pg.wait_for_timeout(700)
+            drawn = await pg.evaluate("""(title)=>{
+              const rows = [...document.querySelectorAll('#libitems [data-part="card"]')];
+              const row = rows.find(x => x.textContent.includes(title));
+              if (!row) return {found: false};
+              const overview = row.querySelector('[data-part="card/overview"]');
+              return {found: true, filler: overview ? overview.textContent : null};}""",
+              missing[0])
             check("and its row shows no filler text",
-                  empty is None, str(empty))
+                  drawn["found"] and not drawn["filler"], str(drawn))
+            await pg.evaluate("""()=>{
+              const field = document.querySelector('#libq');
+              const setter = Object.getOwnPropertyDescriptor(
+                window.HTMLInputElement.prototype, 'value').set;
+              setter.call(field, "");
+              field.dispatchEvent(new Event('input', {bubbles:true}));}""")
+            await pg.wait_for_timeout(500)
 
         # ── the list starts at the same height on all three lenses ─────────
         # Each put its context line somewhere else — outside the body, inside

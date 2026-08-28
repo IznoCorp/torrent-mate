@@ -283,5 +283,8 @@ def test_the_committed_reference_carries_a_platform():
     # elsewhere (`window.__states()`); what this assertion pins is the COMMITTED reference's
     # own bookkeeping, so a reference recorded on a different corpus cannot pass. It moves
     # only when a state is added deliberately — 83 since the `mediasheet-no-poster` state
-    # (7ba93b07).
-    assert reference["counts"] == {"states": 83, "regions": 33}
+    # (7ba93b07), and 84 since `settings-field-schedule`, the state for the NINTH kind of
+    # settings field. That kind existed nowhere before L09: the interface guessed a cron
+    # from the shape of its value, and the six cron settings rendered as raw cron with no
+    # state showing one for anybody to look at.
+    assert reference["counts"] == {"states": 84, "regions": 33}

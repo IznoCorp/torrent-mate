@@ -41,7 +41,8 @@
     "BLOCKED": {
       "class": "served",
       "why": "arrivals — what is blocked, with the reason",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
     "CADENCE_CRON": {
       "class": "served",
@@ -56,12 +57,14 @@
     "CATS": {
       "class": "served",
       "why": "the categories and their counts, read from library.db",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 6 — the Médiathèque reads /api/library/categories"
     },
     "DECISIONS_REGLEES": {
       "class": "served",
       "why": "the decisions already settled, with how each was reached",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 5 — the resolution screen reads /api/decisions/"
     },
     "DECISION_STATE": {
       "class": "interface",
@@ -86,7 +89,8 @@
     "DONE_TODAY": {
       "class": "served",
       "why": "arrivals — what reached the library today",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
     "EP_LABEL": {
       "class": "interface",
@@ -116,7 +120,8 @@
     "FOLLOWS": {
       "class": "served",
       "why": "the twelve follows with their true states, read from acquire.db",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the deck reads /api/acquisition/followed"
     },
     "GROUPS": {
       "class": "interface",
@@ -141,7 +146,8 @@
     "INFLIGHT": {
       "class": "served",
       "why": "arrivals — what is in flight",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
     "JOURNAL": {
       "class": "served",
@@ -181,17 +187,20 @@
     "MOVING": {
       "class": "served",
       "why": "staging — what is moving through the pipeline",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
     "NOTFOUND": {
       "class": "served",
       "why": "arrivals — what no release satisfies, loaded scenario",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
     "NOTFOUND_REAL": {
       "class": "served",
       "why": "arrivals — what no release satisfies, real scenario",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
     "OWNED": {
       "class": "served",
@@ -201,12 +210,14 @@
     "PENDING_DECISIONS": {
       "class": "served",
       "why": "the decisions still awaiting arbitration, with their candidates",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 5 — the resolution screen reads /api/decisions/"
     },
     "PIPELINE": {
       "class": "served",
       "why": "the last run, told as its nine steps, with the counts pipeline_run recorded",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 5 — Arrivées' pilot bar and last-run panel read /api/pipeline/status"
     },
     "POSTERS": {
       "class": "asset",
@@ -246,12 +257,14 @@
     "RECENT": {
       "class": "served",
       "why": "the twelve most recently added titles",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 6 — the fixture is gone and `/api/library/recent` is served, but NO SURFACE READS IT: the « récent » lens draws the same `LibraryList` as « tout », which is what it drew before this wave too. Recorded as it is rather than as it sounded: the first wording said the lens draws « the listing in the source's own order », and the listing is drawn in whatever order the shared sort control last set. A lens that means « les derniers ajouts » would read this resource; that is a design decision, not a wiring detail, and it is not this lot's to take."
     },
     "RELEASES": {
       "class": "served",
       "why": "the release candidates. NOT REAL — no tracker is queried (README, What is real in here) — but a release list IS server state, so it is served and the register says where its values came from",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 8 — the release picker and the quality profile read /api/acquisition/releases"
     },
     "RESOLUTIONS": {
       "class": "interface",
@@ -271,7 +284,8 @@
     "SEARCH": {
       "class": "served",
       "why": "a search result page",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 8 — the add screen reads /api/acquisition/search"
     },
     "SEASONS": {
       "class": "served",
@@ -296,12 +310,14 @@
     "SETTLED": {
       "class": "served",
       "why": "staging — what has settled, loaded scenario",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
     "SETTLED_REAL": {
       "class": "served",
       "why": "staging — what has settled, real scenario",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
     "SHEETS_OLD": {
       "class": "unserved",
@@ -326,12 +342,14 @@
     "STUCK": {
       "class": "served",
       "why": "staging — the folders the pipeline could not name, loaded scenario",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
     "STUCK_REAL": {
       "class": "served",
       "why": "staging — the folders the pipeline could not name, real scenario",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
     "ST_LABEL": {
       "class": "interface",
@@ -351,7 +369,8 @@
     "SUGGESTIONS": {
       "class": "served",
       "why": "the suggestion deck, produced by the engine actually executing a TMDB call",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the deck reads /api/acquisition/suggestions through a seam; its own index paging is drawing, and goes at L13"
     },
     "SUG_BATCH": {
       "class": "interface",
@@ -361,12 +380,14 @@
     "SYNOPSIS": {
       "class": "served",
       "why": "synopses, from TMDB",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 6 — a library row carries its own overview, from /api/library/items"
     },
     "TAKEABLE": {
       "class": "served",
       "why": "arrivals — what is ready to be grabbed",
-      "seed": null
+      "seed": null,
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
     "TODAY": {
       "class": "unserved",
@@ -423,5 +444,6 @@
       "why": "YouTube trailer ids, from TMDB /videos",
       "seed": null
     }
-  }
+  },
+  "$converted": "A FAMILY THE ENGINE NO LONGER DECLARES, because the surface that read it now reads the mock layer instead (D5 — the engine dies by subtraction, surface by surface). Its class is unchanged: it is still `served`, and its seed is still what the layer answers with. What changes is WHAT HOLDS THE SEED. `--arm correspondence` compared it against the engine's own literal, and that literal is gone — so for a converted family that arm has nothing left to compare and says so by name rather than passing over it in silence, which would be the vacuity this whole file is built against. Two instruments still hold it: `--arm schema` validates it against the contract, and the ORACLE holds the rendering it produces at zero divergence — which is the stronger of the two, since it reads the bytes all the way to the screen. The value of `converted` names the wave and the surface, so the day somebody asks « when did this stop being checkable against the engine » the answer is in the file."
 }

@@ -178,7 +178,7 @@ async def main():
                     """()=>[...document.querySelectorAll('[data-part="card/foot"]')]"""
                     ".find(x=>x.textContent.includes('Résoudre')).click()")
                 await pg.wait_for_timeout(420)
-            before = await pg.evaluate(f"()=>derived.{list_}().length")
+            before = await pg.evaluate(f"()=>(window.__queue?.().{list_}||[]).length")
             # Without the way out there is nothing to click, and clicking
             # nothing raises instead of naming the defect. A crash is a
             # failure nobody can read.
@@ -188,7 +188,7 @@ async def main():
                 continue
             await pg.evaluate("(s)=>document.querySelector(s).click()", exit_)
             await pg.wait_for_timeout(700)
-            after = await pg.evaluate(f"()=>derived.{list_}().length")
+            after = await pg.evaluate(f"()=>(window.__queue?.().{list_}||[]).length")
             check(f"answering empties the « {list_} » queue", after == before - 1,
                   f"{before} → {after}")
 

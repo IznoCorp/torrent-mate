@@ -56,7 +56,8 @@ from common import (DESIGN_SOURCES, PHONE, ROOT, Journal, design_source,
 # only way to the single writer.
 #
 # THE PATTERN USED TO BE `history.<primitive>` AND THAT WAS ONLY EVER TRUE
-# BECAUSE THE READ WAS NARROW. `history` is a NAME, and in `app/shell.tsx` it
+# BECAUSE THE READ WAS NARROW. `history` is a NAME, and in `app/history-bridge.ts`
+# it
 # names the router's own instance (`const history = createBrowserHistory()`) —
 # which is the single writer this rule exists to protect, not a breach of it.
 # The moment L07 widened `DESIGN_SOURCES` onto the component tree, the old
@@ -85,8 +86,12 @@ PRIMITIVES = (
 
 # The one file allowed to name a history primitive, because it is the one that
 # CREATES the instance. Named as a path fragment so a move is a failure rather
-# than a silent pass.
-HISTORY_OWNER = "app/shell.tsx"
+# than a silent pass — and it HAS moved: L09 split the shell onto five subjects
+# and the history instance went with the bridge that spends it. `shell.tsx`
+# imports the instance now and names no primitive on it, so this constant
+# following the instance is the contract's three ends moving in one step, not
+# an exemption being widened.
+HISTORY_OWNER = "app/history-bridge.ts"
 
 
 _journal = None
@@ -239,8 +244,17 @@ async def main():
 
         # Scrolled away from the top before leaving, so the return has a
         # position to restore and not merely a list to redraw.
-        await pg.evaluate(
-            """()=>{document.querySelector('[data-part="screen"][data-open] [data-part="viewport"]').scrollTop = 300;}"""
+        # SCROLLED TO A POSITION THE SCREEN ACTUALLY HAS, and the number is
+        # read rather than written. It was 300, which held while the results
+        # came from a fixture that answered six titles to every query; the
+        # layer SEARCHES since L09, so a query matching five leaves a shorter
+        # list and 300 is unreachable — the browser clamps, and the hold failed
+        # on a number rather than on its subject. What this rule is about is
+        # that the position COMES BACK, so it scrolls as far as there is to go
+        # and asserts that exact offset returns.
+        scrolled = await pg.evaluate(
+            """()=>{const v=document.querySelector('[data-part="screen"][data-open] [data-part="viewport"]');
+                    v.scrollTop = v.scrollHeight; return v.scrollTop;}"""
         )
         await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card/poster"]').click()""")
         await pg.wait_for_timeout(450)
@@ -284,7 +298,7 @@ async def main():
         # tolerance as R71, which holds the same journey off the bridge.
         check(
             "with its scroll position",
-            abs(back_state["scroll"] - 300) <= 40,
+            abs(back_state["scroll"] - scrolled) <= 40,
             f"{back_state['scroll']}px",
         )
 

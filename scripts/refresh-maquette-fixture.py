@@ -29,13 +29,34 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import pathlib
 import re
 import sqlite3
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-FIXTURE = ROOT / "frontend" / "maquette" / "design" / "src" / "engine" / "legacy.js"
+# WHERE `FOLLOWS` LIVES SINCE L09. It was an array in `legacy.js`, and the
+# Acquisition deck read it from there; the deck reads `/api/acquisition/followed`
+# now and the fixture was deleted (D5 — the engine dies by subtraction). The
+# seed is what the mock layer answers with, so it is what may drift from the
+# operator's own database.
+#
+# A JSON TARGET IS NOT A WEAKER ONE. The walker this replaces existed because a
+# JavaScript array has to be parsed by hand, and it had been wrong twice — one
+# version cut an entry short at a nested object, another matched nothing at all
+# and dropped a field in silence. What it guarded against is unchanged and is
+# below: an absent file, an absent array and an unknown title each REFUSE rather
+# than report agreement.
+FIXTURE = (ROOT / "frontend" / "maquette" / "design" / "src" / "mocks" / "seeds"
+           / "follows.json")
+
+# The seed's own names for the two facts the database owns, and for the title
+# they hang on. They are the CONTRACT's, which is what the projection renamed
+# them to; the engine's were `t`, `searches` and `serie`.
+SEED_TITLE = "title"
+SEED_SEARCHES = "searches"
+SEED_STATUS = "showStatus"
 ACQUIRE = ROOT / ".data" / "acquire.db"
 
 # One entry of the FOLLOWS array, from its title to the end of its object.
@@ -44,62 +65,88 @@ FOLLOWS = re.compile(r"\bconst FOLLOWS\s*=\s*\[", re.S)
 TITLE = re.compile(r'(?<![\w$])t:\s*"(?P<title>(?:[^"\\]|\\.)*)"')
 
 
-def entries(text):
-    """Yields (start, end, title) for each object of the FOLLOWS array.
-
-    A REGEX CANNOT DO THIS, and three shapes proved it. `.*?` stopping at the
-    first `\n },` cut an entry short at a NESTED object, so its `searches:` was
-    never reached and the drift it hid was reported as agreement. An entry
-    without a trailing comma — the last one — let the body run out of the array
-    entirely, so `--check` blamed the wrong title and `--apply` rewrote a value
-    belonging to a DIFFERENT array. And an entry written on one line, or with
-    `searches:` before `t:`, matched nothing at all and was dropped in silence,
-    which the module docstring promises never happens.
-
-    Braces are counted instead, and only inside FOLLOWS.
+def seeded(text: str) -> list[dict]:
+    """Reads the seeded follows, refusing anything that is not the array.
 
     Args:
-        text: The fixture source.
+        text: The seed file's contents.
 
-    Yields:
-        (start, end, title) for every top-level object of the array. `end` is
-        exclusive and points just past the closing brace.
+    Returns:
+        The entries.
 
     Raises:
-        SystemExit: When the array cannot be found — the caller must not treat
-            "no entries" as "nothing drifted".
+        SystemExit: When the file is not an array of objects — the caller must
+            not treat « no entries » as « nothing drifted », which is the whole
+            reason this refuses instead of returning an empty list.
     """
-    opening = FOLLOWS.search(text)
-    if opening is None:
+    try:
+        held = json.loads(text)
+    except json.JSONDecodeError as broken:
         raise SystemExit(
-            "refresh-maquette-fixture: no `const FOLLOWS = [` in the fixture — "
+            f"refresh-maquette-fixture: {FIXTURE.name} does not parse ({broken}) — "
+            "refusing to report agreement about a file it could not read.")
+    if not isinstance(held, list) or not held:
+        raise SystemExit(
+            f"refresh-maquette-fixture: {FIXTURE.name} is not a non-empty array — "
             "refusing to report agreement about an array it could not find.")
-    index = opening.end()
-    depth = 0
-    start = None
-    while index < len(text):
-        char = text[index]
-        if char == "]" and depth == 0:
-            return
-        if char == "{":
-            if depth == 0:
-                start = index
-            depth += 1
-        elif char == "}":
-            depth -= 1
-            if depth == 0 and start is not None:
-                chunk = text[start:index + 1]
-                found = TITLE.search(chunk)
-                if found:
-                    yield start, index + 1, found.group("title")
-                start = None
-        elif char in "\"'":
-            # Skip the string whole: a brace or a `t:` inside a title must not
-            # move the walk.
-            quote, index = char, index + 1
-            while index < len(text) and text[index] != quote:
-                index += 2 if text[index] == "\\" else 1
-        index += 1
+    if any(not isinstance(entry, dict) or SEED_TITLE not in entry for entry in held):
+        raise SystemExit(
+            f"refresh-maquette-fixture: an entry of {FIXTURE.name} carries no "
+            f"`{SEED_TITLE}` — refusing to compare entries it cannot name.")
+    return held
+
+
+def drift(text: str, facts: dict[str, dict[str, object]]) -> list[tuple[str, str, str]]:
+    """Every value the seed holds that the database contradicts.
+
+    Args:
+        text: The seed file's contents.
+        facts: What the database holds, by title.
+
+    Returns:
+        One entry per disagreement: the title, the field, and what was measured.
+    """
+    found: list[tuple[str, str, str]] = []
+    for entry in seeded(text):
+        title = entry[SEED_TITLE]
+        held = facts.get(title)
+        if held is None:
+            # A TITLE THE DATABASE DOES NOT KNOW is not a value to rewrite, and
+            # saying so is the point: it survives every `--apply` and stays
+            # visible until a human decides what it is.
+            found.append((title, "title", "the database follows nothing by that name"))
+            continue
+        if entry.get(SEED_SEARCHES) != held["searches"]:
+            found.append((title, SEED_SEARCHES,
+                          f"« {entry.get(SEED_SEARCHES)} » vs {held['searches']}"))
+        if held["series"] is not None and entry.get(SEED_STATUS) != held["series"]:
+            found.append((title, SEED_STATUS,
+                          f"« {entry.get(SEED_STATUS)} » vs {held['series']}"))
+    return found
+
+
+def rewrite(text: str, facts: dict[str, dict[str, object]]) -> str:
+    """Writes the database's values into the seed, keeping everything else.
+
+    A TITLE THE DATABASE DOES NOT KNOW IS LEFT ALONE, which is why `--apply`
+    can still finish with drift outstanding and says so.
+
+    Args:
+        text: The seed file's contents.
+        facts: What the database holds, by title.
+
+    Returns:
+        The seed, rewritten.
+    """
+    held = seeded(text)
+    for entry in held:
+        known = facts.get(entry[SEED_TITLE])
+        if known is None:
+            continue
+        entry[SEED_SEARCHES] = known["searches"]
+        if known["series"] is not None and SEED_STATUS in entry:
+            entry[SEED_STATUS] = known["series"]
+    return json.dumps(held, ensure_ascii=False, indent=2) + "\n"
 
 
 def live_facts(database: pathlib.Path) -> dict[str, dict[str, object]]:
@@ -137,76 +184,6 @@ def live_facts(database: pathlib.Path) -> dict[str, dict[str, object]]:
 
 SEARCHES = re.compile(r"(?<![\w$])searches:\s*(?P<n>\d+)")
 SERIE = re.compile(r'(?<![\w$])serie:\s*(?P<v>null|"(?:[^"\\]|\\.)*")')
-
-
-def as_js_string(value: str) -> str:
-    """Renders a database value as a JavaScript double-quoted string.
-
-    Interpolating it raw wrote broken JavaScript the moment a series status
-    held a quote — `serie: "En "pause""` — and a backslash would have been
-    eaten as an `re.sub` group reference.
-
-    Args:
-        value: The value as the database holds it.
-
-    Returns:
-        The value, quoted and escaped.
-    """
-    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-    return f'"{escaped}"'
-
-
-def drift(text: str, facts: dict[str, dict[str, object]]) -> list[tuple[str, str, str]]:
-    """Lists every fixture value the database disagrees with.
-
-    Args:
-        text: The fixture source.
-        facts: The live facts, keyed by title.
-
-    Returns:
-        One (title, field, message) per disagreement.
-    """
-    found: list[tuple[str, str, str]] = []
-    for begin, stop, title in entries(text):
-        body = text[begin:stop]
-        # Only entries carrying a `searches:` are follow entries; the same shape
-        # holds cards and releases elsewhere in the file.
-        searches = SEARCHES.search(body)
-        if not searches:
-            continue
-        real = facts.get(title)
-        if real is None:
-            found.append((title, "title", "absent from acquire.db"))
-            continue
-        if int(searches.group("n")) != int(real["searches"]):
-            found.append(
-                (title, "searches",
-                 f"fixture {searches.group('n')} vs database {real['searches']}"))
-        serie = SERIE.search(body)
-        if serie and real["series"] is not None:
-            spelled = as_js_string(str(real["series"]))
-            if serie.group("v") != spelled:
-                found.append((title, "serie", f"fixture {serie.group('v')} vs database {spelled}"))
-    return found
-
-
-def rewrite(text: str, facts: dict[str, dict[str, object]]) -> str:
-    """Returns the fixture with every drifted value replaced by the live one.
-
-    Entries are rewritten back to front so an earlier edit cannot move the
-    offsets of a later one.
-    """
-    for begin, stop, title in sorted(entries(text), reverse=True):
-        body = text[begin:stop]
-        real = facts.get(title)
-        if real is None or not SEARCHES.search(body):
-            continue
-        body = SEARCHES.sub(lambda m: f"searches: {int(real['searches'])}", body, count=1)
-        if real["series"] is not None:
-            spelled = as_js_string(str(real["series"]))
-            body = SERIE.sub(lambda m: f"serie: {spelled}", body, count=1)
-        text = text[:begin] + body + text[stop:]
-    return text
 
 
 def main() -> int:

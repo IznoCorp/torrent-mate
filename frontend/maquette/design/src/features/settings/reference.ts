@@ -28,7 +28,16 @@ export type Setting = {
   type: string;
   brut: unknown;
   n: string;
+  /* WHAT THE SCREEN USED TO SAY, and B-090 is why it is no longer read. It is
+     the engine's own French summary — one of them lossy — and no control can
+     edit « 4 entrées ». The panel says the value from `brut` now, through
+     `settingInWords`. It stays declared while the engine still writes it. */
   v: unknown;
+  /* HOW MANY DECIMALS THE VALUE IS WRITTEN WITH. JSON holds one number for `4`
+     and `4.0`, and the interface shows two different settings; the schema is the
+     only thing that knows which. Seven fields need it, and the backend is asked
+     for it (D7). */
+  precision?: number;
   note?: string;
   topic: Record<string, unknown>;
 };

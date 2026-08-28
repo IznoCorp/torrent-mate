@@ -17,30 +17,42 @@
 // seam depends on being byte-exact. This component draws the `<ol class="flux">`
 // itself, because React cannot set the outer markup of a node it also renders.
 import { useTranslation } from "react-i18next";
+import { SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
 import { useSystemReference } from "../../features/system/reference";
 import { type Fact } from "../../lib/engine-drawing";
 import { useUiState } from "../../lib/store-access";
-import { crossReference, crossReferenceLink, section, sectionHeading, surfaceError, topicRow } from "../../ui/variants";
+import {
+  useDependencies,
+  useDisks,
+  useIndexHealth,
+  usePipelineHistory,
+  useSchedulers,
+  useServices,
+  useSystemErrors,
+} from "./queries";
+import { crossReference, crossReferenceLink, section, sectionHeading, topicRow } from "../../ui/variants";
 import { guidance } from "../../ui/variants/layout";
 
 export function SystemPage(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
-  const {
-    factRowsHTML,
-    skelCardsInner,
-    surfErrInner,
-    SERVICES,
-    SERVICES_PANNE,
-    SCHEDULERS,
-    SCHEDULERS_DOWN,
-    EXECUTIONS,
-    DISKS,
-    INDEX,
-    DEPENDENCIES,
-    ERRORS,
-  } = useSystemReference();
+  const { factRowsHTML, skelCardsInner, SERVICES_PANNE, SCHEDULERS_DOWN } =
+    useSystemReference();
+  // FROM THE CACHE (invariant 4). The fault variants stay the engine's: they
+  // carry no class in the register, so no seed derives from them and no
+  // operation answers them.
+  const { data: SERVICES = [] } = useServices();
+  const { data: SCHEDULERS = [] } = useSchedulers();
+  const { data: EXECUTIONS = [] } = usePipelineHistory();
+  const { data: DISKS = [] } = useDisks();
+  const { data: INDEX = [] } = useIndexHealth();
+  const { data: DEPENDENCIES = [] } = useDependencies();
+  // The errors are an OBJECT, not a list, so the empty case is the shape
+  // rather than an empty array — and it is stated here rather than left to a
+  // question mark at each of its five readers.
+  const { data: ERRORS = { total: 0, outOf: 0, latest: "", what: "", where: "" } } =
+    useSystemErrors();
 
   // The two non-ready surfaces, emitted by the fragment exactly as before. The
   // host element is the `div.body` the legacy returned, so what goes here is
@@ -49,12 +61,7 @@ export function SystemPage(): ReactElement | null {
     // Each emits ONE root element, and this draws that element itself so no
     // wrapper appears where the legacy had none.
     return state.phase === "error" ? (
-      <div
-        className={surfaceError()} data-part="surface-error" role="alert"
-        dangerouslySetInnerHTML={{
-          __html: surfErrInner(t("screens.system.errorSubject")),
-        }}
-      />
+      <SurfaceError subject={t("screens.system.errorSubject")} />
     ) : (
       <div
         className={section()} data-part="section"

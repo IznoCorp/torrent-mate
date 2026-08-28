@@ -451,6 +451,23 @@ divergence » and mean « I compared nothing » — which a first version of it 
     `reference.d.ts` — all three being the list of pages, which every framework has somewhere.
     **This invariant freezes a property that is already true; it does not ask for a refactor.**
 
+    **Re-measured on 2026-08-27, at L09's close, and it MOVED — §7.1 makes saying so the wave's
+    duty.** Two new files carry domain words, and one of them carries a great many:
+
+    | File | Domain words | Why |
+    | --- | ---: | --- |
+    | `lib/queue.ts` | 169 | The staging and acquisition queue, shared by Arrivées and Acquisition. Invariant 7 is absolute — two features may not import each other — so a queue both read had nowhere else to go. |
+    | `app/engine-data.ts` | 34 | What the dying engine reads with no component to ask for it: four addresses and ten family names. |
+    | `app/history-bridge.ts` | 17 | A slice of `shell.tsx`, whose words came with it. |
+
+    **169 is not « one reviewed line », and calling it that would be the dishonest reading.**
+    `lib/queue.ts` argues its own case in its header, and the case is sound — but what it really
+    is, is the frame carrying a subject because the ONLY alternative available today was worse.
+    Two arbitrations follow from it, and neither is this lot's to take: whether a shared domain
+    module belongs in a `domain/` bucket of its own rather than in `lib/`, and whether B-100 (this
+    invariant is unarmed) is worth arming now that there is something for an arm to refuse.
+    Recorded here so the next wave decides it rather than inheriting it.
+
     **Why it is not written for the extraction.** A frame that does not name its subject is easier
     to read, easier to test and easier to move between waves — that alone pays for it. Reusing it
     on another product is a consequence, never the justification, and the day a measure here can

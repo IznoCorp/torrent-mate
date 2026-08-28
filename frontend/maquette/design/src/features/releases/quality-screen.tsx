@@ -9,6 +9,7 @@
 // geometry it measured on the legacy `#screen`.
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { useReleases } from "./queries";
 import { Icon } from "../../ui/icon";
 import { useReleasesReference, type Release, type Resolution } from "../../features/releases/reference";
 import { useUiState, writeUiState } from "../../lib/store-access";
@@ -56,13 +57,14 @@ export function QualityScreen() {
   const state = useUiState();
   const profile = state.profile as QualityProfile;
   const {
-    RELEASES,
     RESOLUTIONS,
     AUDIOS,
     icons,
     baseTitle,
   } = useReleasesReference();
   const { t } = useTranslation();
+  // FROM THE CACHE (invariant 4).
+  const { data: RELEASES = [] } = useReleases();
   const kept = countKept(profile, RELEASES);
 
   function writeProfile(patch: Partial<QualityProfile>): void {

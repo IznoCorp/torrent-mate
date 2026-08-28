@@ -299,6 +299,12 @@ async def main():
             "duration": '[data-part="field/input"]',
             "structure": '[data-part="field"][data-read-only]',
             "empty": '[data-part="field/input"]',
+            # A CRON EXPRESSION, and it is a NINTH kind since L09. It draws the
+            # same text field as `text` — the difference is in how the value is
+            # READ, not in the control — and the kind had to exist because it
+            # lived nowhere: the interface guessed it from the shape of the
+            # value, and the six cron settings rendered as raw cron on screen.
+            "schedule": '[data-part="field/input"][type=text]',
         }
         seen = await pg.evaluate(
             """()=>[...new Set(SETTINGS.flatMap(r => r.r).map(x => x.type))].sort()""")

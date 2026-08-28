@@ -12,7 +12,15 @@
 //
 // EVERY VALUE HERE COMES FROM A SEED. Nothing in this file invents one; the
 // only literals are the identifiers of the seeds themselves.
+import BLOCKED from "./seeds/blocked.json";
+import DONE_TODAY from "./seeds/done-today.json";
 import FOLLOWS from "./seeds/follows.json";
+import IN_FLIGHT from "./seeds/in-flight.json";
+import NOT_FOUND_LOADED from "./seeds/not-found-loaded.json";
+import NOT_FOUND from "./seeds/not-found.json";
+import STUCK_LOADED from "./seeds/stuck-loaded.json";
+import SETTLED_LOADED from "./seeds/settled-loaded.json";
+import TAKEABLE from "./seeds/takeable.json";
 import PENDING_DECISIONS from "./seeds/pending-decisions.json";
 import SETTLED_DECISIONS from "./seeds/settled-decisions.json";
 import PIPELINE from "./seeds/pipeline.json";
@@ -49,9 +57,35 @@ export type MockState = {
   settledDecisions: Schemas["SettledDecision"][];
   pipeline: Schemas["Pipeline"];
   library: Schemas["LibraryItem"][];
+  /**
+   * THE QUEUE, IN BOTH SCENARIOS, and the pairing is the engine's own.
+   *
+   * The prototype has always carried two worlds — a DENSE one, which is what a
+   * busy morning looks like, and the REAL one recorded off the operator's own
+   * run — and the harness switches between them. The engine held both and
+   * derived which to answer with; the layer holds both now, because a mutation
+   * has to change what the next read returns in whichever one it happened in.
+   *
+   * WHAT THE `Reel` LISTS ARE, and they are not a mirror of the others: under
+   * the real scenario the engine starts them EMPTY and an action fills them.
+   * « Nothing has moved yet » is the true state of a run that has just been
+   * read off the disk, and seeding them from the dense world would have the
+   * layer answer with cards no run ever produced.
+   */
   stuck: Schemas["QueueCard"][];
+  stuckLoaded: Schemas["QueueCard"][];
   moving: Schemas["QueueCard"][];
+  movingReel: Schemas["QueueCard"][];
   settled: Schemas["QueueCard"][];
+  settledLoaded: Schemas["QueueCard"][];
+  takeable: Schemas["QueueCard"][];
+  blocked: Schemas["QueueCard"][];
+  inFlight: Schemas["QueueCard"][];
+  inFlightReel: Schemas["QueueCard"][];
+  notFound: Schemas["QueueCard"][];
+  notFoundReal: Schemas["QueueCard"][];
+  doneToday: Schemas["QueueCard"][];
+  doneReel: Schemas["QueueCard"][];
   settings: Schemas["SettingsTopic"][];
   secrets: Schemas["Secret"][];
   /**
@@ -109,8 +143,19 @@ const seeded = (): MockState => ({
   pipeline: copyOf<Schemas["Pipeline"]>(PIPELINE),
   library: copyOf<Schemas["LibraryItem"][]>(LIBRARY_ITEMS),
   stuck: copyOf<Schemas["QueueCard"][]>(STUCK),
+  stuckLoaded: copyOf<Schemas["QueueCard"][]>(STUCK_LOADED),
   moving: copyOf<Schemas["QueueCard"][]>(MOVING),
+  movingReel: [],
   settled: copyOf<Schemas["QueueCard"][]>(SETTLED),
+  settledLoaded: copyOf<Schemas["QueueCard"][]>(SETTLED_LOADED),
+  takeable: copyOf<Schemas["QueueCard"][]>(TAKEABLE),
+  blocked: copyOf<Schemas["QueueCard"][]>(BLOCKED),
+  inFlight: copyOf<Schemas["QueueCard"][]>(IN_FLIGHT),
+  inFlightReel: [],
+  notFound: copyOf<Schemas["QueueCard"][]>(NOT_FOUND_LOADED),
+  notFoundReal: copyOf<Schemas["QueueCard"][]>(NOT_FOUND),
+  doneToday: copyOf<Schemas["QueueCard"][]>(DONE_TODAY),
+  doneReel: [],
   settings: copyOf<Schemas["SettingsTopic"][]>(SETTINGS),
   secrets: copyOf<Schemas["Secret"][]>(SECRETS),
   pipelineState: IDLE,

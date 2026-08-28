@@ -705,5 +705,33 @@
       "clearLabel": "Effacer la recherche",
       "saveBarLabel": "Modifications non enregistrées"
     }
+  },
+  "surfaces": {
+    "error": {
+      "lead": "Impossible de charger {{subject}}.",
+      "body": "\n      Le serveur n'a pas répondu dans le temps imparti. Rien n'est perdu — ce qui\n      est affiché ailleurs reste valide.\n      ",
+      "retry": "Réessayer"
+    }
+  },
+  "settingValue": {
+    "undefined": "non défini",
+    "yes": "oui",
+    "no": "non",
+    "none": "aucun",
+    "entries": "{{count}} entrées",
+    "andMore": "{{named}} +{{rest}}",
+    "everyHourAtMinute": "toutes les heures, à la {{minute}}ᵉ minute",
+    "everyDayAt": "chaque jour à {{time}}",
+    "onDayAt": "le {{day}} à {{time}}",
+    "atTimes": "à {{first}} et {{last}}",
+    "days": {
+      "0": "dimanche",
+      "1": "lundi",
+      "2": "mardi",
+      "3": "mercredi",
+      "4": "jeudi",
+      "5": "vendredi",
+      "6": "samedi"
+    }
   }
 }

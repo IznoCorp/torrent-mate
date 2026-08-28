@@ -1,8 +1,8 @@
 {
-  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 47 of 59 rule(s) report a hold count; the other 12 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
-  "taken_at_commit": "12a134caf7d870c0ab7347b19c3baac9cbe1ed89",
-  "taken_on": "2026-08-26",
-  "suite": "59 of 59 rule(s)",
+  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 50 of 62 rule(s) report a hold count; the other 12 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
+  "taken_at_commit": "775cb335d894765609051b00ee924c3ed700d9f3",
+  "taken_on": "2026-08-28",
+  "suite": "62 of 62 rule(s)",
   "host": "http://127.0.0.1:8899/",
   "rules": {
     "actions.py": {
@@ -40,6 +40,11 @@
       "count": 12,
       "source": "common.Journal summary"
     },
+    "boot_order.py": {
+      "exit": 0,
+      "count": 20,
+      "source": "common.Journal summary"
+    },
     "bridge.py": {
       "exit": 0,
       "count": 10,
@@ -57,7 +62,7 @@
     },
     "chrome.py": {
       "exit": 0,
-      "count": 166,
+      "count": 168,
       "source": "own EXECUTED count line"
     },
     "content.py": {
@@ -252,7 +257,12 @@
     },
     "settings.py": {
       "exit": 0,
-      "count": 45,
+      "count": 46,
+      "source": "common.Journal summary"
+    },
+    "settle.py": {
+      "exit": 0,
+      "count": 6,
       "source": "common.Journal summary"
     },
     "shell.py": {
@@ -265,9 +275,14 @@
       "count": 28,
       "source": "common.Journal summary"
     },
+    "state_surfaces.py": {
+      "exit": 0,
+      "count": 31,
+      "source": "common.Journal summary"
+    },
     "states.py": {
       "exit": 0,
-      "count": 83,
+      "count": 84,
       "source": "states-conform verdict"
     },
     "surfaces.py": {
@@ -302,10 +317,10 @@
     }
   },
   "totals": {
-    "rules": 59,
-    "parseable": 47,
+    "rules": 62,
+    "parseable": 50,
     "unparseable": 12,
-    "holds": 1320,
+    "holds": 1381,
     "failed": 0
   }
 }

@@ -123,7 +123,7 @@ when the defect comes back.
 | B-087 | A media sheet substituted one family's synopsis for another's, on 213 of 259 titles | by review | `fixed #503` |
 | B-088 | Twenty provider identities name two sheet keys, and the first returned nine empty season lists | by review | `fixed #503` |
 | B-089 | `serie` is a broadcast status, and a rename read it as a series name | by review | `fixed #503` |
-| B-090 | `Setting.value` carries the engine's rendered French, and one of them is lossy | by review | `open` |
+| B-090 | `Setting.value` carries the engine's rendered French, and one of them is lossy | by review | `fixed #NNN` |
 | B-091 | `grabForFollow` answered a hash field with a release name | by review | `fixed #503` |
 | B-092 | Four mutating routes changed nothing the next read could see | by review | `fixed #503` |
 | B-093 | `isPureLiteral` walked an initializer's children and never the initializer | by review | `fixed #503` |
@@ -142,6 +142,42 @@ when the defect comes back.
 | B-085 | Guards green over what they do not read: 17 in three consecutive waves, counted by nobody | by audit | `open` |
 | B-100 | Invariant 10 is written and unarmed: no arm counts the frame's domain words | by audit | `open` |
 | B-101 | The steward's brief predicted an oracle movement that could not happen | by audit | `open` |
+| B-102 | Seven register rows are duplicated, once `fixed` and once `open` | by audit | `open` |
+| B-103 | Two invariants are numbered 10, and a brief pointed at « invariant 10 » | by audit | `open` |
+| B-104 | The generated contract types live under `mocks/`, and they are not a mock | by gate | `open` |
+| B-105 | R89's waterfall hold was green over the exact defect it names | by mutation | `fixed #NNN` |
+| B-106 | The server-state arm read only the component tree, so its ceiling was pre-satisfied | by mutation | `fixed #NNN` |
+| B-107 | `git checkout --` on an untracked file is a no-op, and a mutation stayed in the tree | by review | `fixed #NNN` |
+| B-108 | The oracle tore React's own nodes out before measuring, and recorded four states as blank | by oracle | `fixed #NNN` |
+| B-109 | A retry that re-asks nothing was written, and the invariant-4 arm refused it | by gate | `fixed #NNN` |
+| B-110 | The fixture register had no word for a family L09 deliberately deletes | by gate | `fixed #NNN` |
+| B-111 | An edit replaced a span it had not read, and took six published members with it | by rule | `fixed #NNN` |
+| B-112 | The library's sentinel watched the wrong port, masked by a 620 ms delay | by oracle | `fixed #NNN` |
+| B-113 | A named state was reachable from a known store and an unknown cache | by oracle | `fixed #NNN` |
+| B-114 | The listing conflated what the library claims with what the source holds | by rule | `fixed #NNN` |
+| B-115 | A redraw bridge deduplicated on a clock the oracle is allowed to stop | by oracle | `fixed #NNN` |
+| B-116 | The inverse projection turned a string into an object of its characters | by rule | `fixed #NNN` |
+| B-117 | The queue read served the dense world under the real scenario | by review | `fixed #NNN` |
+| B-118 | The seed builder deleted twenty-one seeds the mock layer serves | by review | `fixed #NNN` |
+| B-119 | A copy of the design root no longer builds, and the rule read a broken host | by rule | `fixed #NNN` |
+| B-120 | A journey rule read the verb of a panel the previous half had left open | by rule | `fixed #NNN` |
+| B-121 | A gate compared a committed seed to a counter the daemon increments | by gate | `fixed #NNN` |
+| B-122 | A guard named a path by cutting it on the operator's own clone directory | by CI | `fixed #NNN` |
+| B-123 | The settings drew a cron expression raw — the kind of the field lived nowhere | by adversarial review | `fixed #NNN` |
+| B-124 | The invariant-4 arm read one spelling of a store write out of three | by adversarial review | `fixed #NNN` |
+| B-125 | The invariant-5 arm did not know `fetchNextPage`, nor count a layout effect | by adversarial review | `fixed #NNN` |
+| B-126 | The unit-test floors sat a third under the corpus they guard | by adversarial review | `fixed #NNN` |
+| B-127 | A search matching nothing said « 0 résultat affiché sur 257 trouvés » | by adversarial review | `fixed #NNN` |
+| B-128 | The release picker was title-blind, and its cache key with it | by adversarial review | `fixed #NNN` |
+| B-129 | The library count line printed a literal beside the number it was served | by adversarial review | `fixed #NNN` |
+| B-130 | Discarding a staged medium walked one list out of three | by adversarial review | `fixed #NNN` |
+| B-131 | A listing parameter, a served resource and a hook, none of them read | by adversarial review | `fixed #NNN` |
+| B-132 | The inverse projection threw, or converted, on shapes nobody declared | by adversarial review | `fixed #NNN` |
+| B-133 | Three new rules held on something other than what they read | by adversarial review | `fixed #NNN` |
+| B-134 | No arm read what a HANDLER answers — only what a seed holds | by adversarial review | `fixed #NNN` |
+| B-135 | Three named states measured the panel left open by the state before them | by adversarial review | `fixed #NNN` |
+| B-136 | B-090's headline figure counted quotes, and it had reached the contract | by adversarial review | `fixed #NNN` |
+| B-137 | Four ACCEPTANCE criteria could not run, or expected the wrong answer | by adversarial review | `fixed #NNN` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -1867,7 +1903,7 @@ B-086, B-090 and B-091 belong to.
 
 **B-090 — `Setting.value` carries the engine's rendered French, and one of them is lossy.**
 It is the engine's `displayedValue`: a summary RENDERED for a screen, not the value the setting
-holds. **110 of the 159 fields differ from `raw`, and one is lossy** — a four-element list renders
+holds. **59 of the 159 fields differ from `String(raw)`, and two are lossy** — a four-element list renders
 « multi, vf, vostfr +1 », so the fourth element is gone and no reader of the contract can get it
 back.
 
@@ -1964,7 +2000,8 @@ absence of a row can mean either.
 | L07-bis | 5 | B-075 |
 | L08 | 6 | PR #503's squash body — B-093 and B-094 write out two of the six; B-092 and B-095 are adjacent findings of that wave, not members of the six |
 | L08-bis (#505, the correction wave) | 9 | itemised below · squash `12a134ca` |
-| **Total** | **26** | at 2026-08-26, **recounted at L08-bis's close** — step five of § 5, executed for the first time |
+| L09 | **14** | Recounted at the wave's close, and the count TREBLED between the gate and the merge — four adversarial reviewers ran before it, and nine of these fourteen are theirs. **B-105** and **B-106**, both found by mutation in the phases that wrote the instruments. **B-108**, the oracle itself — its `neutralise` broke the React tree and it recorded the damage as the reference, on four states of the exact kind this lot wires. **B-110**'s first attempt, which took three seeds out of the schema arm while the register claimed that arm held them. The **filters rule**, which read the FIRST listing in the cache rather than the active one. **B-121**, a gate vacuous where it blocks and moving where it does not. **B-122**, an arm that built a path by cutting it on the operator's own clone directory, so it could never match its own allowance list — two violations on CI, none locally, over an identical tree. **B-123**, a test that DERIVED a rule the application derives nowhere and then asserted the rendering that derivation produced, over a live production regression. **B-124**, one spelling of a store write out of three, defeated by a one-line wrapper already in the tree. **B-125**, an arm blind to `fetchNextPage` and to every layout effect — including in its own corpus count, which is the floor that is supposed to catch this. **B-126**, floors a third under the corpus. **B-133**, three rules of this lot's own making holding on something other than what they read. **B-134**, no arm reading what a HANDLER answers. **B-135**, three named states measuring the panel left open by the state before them, off screen, for as long as the reference has existed |
+| **Total** | **40** | at 2026-08-28, L09 counted at its close (step five of § 5). **The wave that built the most instruments found the most blind ones**, and that is the reading: nine of L09's fourteen were found by adversarial reviewers reading the gate AFTER it went green |
 
 **The nine the correction wave found, since a wave that counts itself has to name its own.** The
 figure is large because the count is honest, not because the wave was worse: four of the nine are
@@ -2118,3 +2155,622 @@ Fix: no forecast of an instrument's behaviour in a hand-off without the command 
 it, the same rule § 0 of the architecture file already holds every figure to.
 
 <sub>`grep -n 'measuring' frontend/maquette/design/src/styles/harness.css` · `grep -n 'measuring' frontend/maquette/oracle.py`</sub>
+
+**B-102 — seven rows appear twice, with contradicting statuses, and the count reads them both.**
+`BUGS.md` carries **108** rows and **101** distinct identifiers. B-079 to B-085 each appear once as
+`fixed #505` — written by the correction wave that repaired them — and once as `open`, re-added by
+#507 beside the two rows that wave was really filing.
+
+**What it costs is the count, and the count is now a step.** B-085 made « recount at each wave's
+close » the fifth post-merge gesture, and the first figure anyone reads to do it is the number of
+rows. L09's own hand-off brief said « 108 entrées », which is what this register reports and not
+what it holds.
+
+**It is recorded and not repaired here, deliberately.** § 7.1's rule is that a record is corrected
+by what is added beside it, never by editing the old text — and seven rows saying two things is
+exactly the kind of thing an implementing wave should not silently tidy on its way past. Whoever
+repairs it decides which status is true for each of the seven; six of them are plainly `fixed #505`
+and B-085 is arguable, since what it asked for is a standing measurement rather than a repair.
+
+<sub>`grep -c '^| B-' BUGS.md` → 108 · `grep -oE '^\| B-[0-9]+' BUGS.md | sort -u | wc -l` → 101 · `grep -oE '^\| B-[0-9]+' BUGS.md | sort | uniq -d`</sub>
+
+**B-103 — § 3 of the architecture file has two invariants numbered 10.**
+#507 inserted « **The frame does not name the domain** » as item 10 and left « **No French in the
+code and no interface text in the code** » numbered 10 below it. Both are binding, both are
+called 10, and items 11 to 14 now sit one place away from every citation of them written before.
+
+**It is not cosmetic, because the numbers are cited.** L09's hand-off brief instructed the wave on
+« l'invariant 10 » meaning the new one; `docs/reference/frontend-architecture.md` cites « the
+reduced-motion invariant » by name rather than by number in one place and by number in another;
+and three « Where it lives (invariant 10) » lines were added to L10, L11 and L12 in the same
+commit — those resolve correctly only if a reader stops at the first 10 they meet.
+
+**Recorded, not renumbered.** § 7.1: the operator arbitrates this file and an agent proposes.
+Renumbering it inside the wave that implements against it is the one moment it should not be done.
+
+<sub>`grep -nE '^1?[0-9]+\. \*\*' docs/reference/frontend-architecture.md | sed -n '/^4[0-9][0-9]:/p'` · the two rows read `10.` </sub>
+
+**B-104 — the generated contract types sit in `mocks/`, and they describe the contract.**
+`design/src/mocks/contract-types.d.ts` is generated from `frontend/maquette/contract/openapi.json`
+by `npm run generate-contract-types`. It is the CONTRACT's shape — what the interface may ask for
+— and it is in the bucket L04 declared for « handlers and fixture seeds ».
+
+**It surfaced as a gate failure rather than as a reading.** L09 phase 3 gave `lib/query-client.ts`
+a path typed against the contract, so an address the contract does not declare is a compile error
+instead of a 404 nobody sees until the surface is open. `check-frontend-boundaries.py --arm mocks`
+refused the import, correctly by its own wording: only `app/` may import `mocks/`.
+
+**What was done, and what was NOT.** The arm gained one narrow exemption — a TYPE-ONLY import of
+that file — with the reason written beside it: a `.d.ts` carries no runtime value, a type-only edge
+is erased by the compiler, and the defect the arm exists to refuse is a module reading a SEED so
+that a fixture survives its own removal. Nothing can travel a type-only edge. A VALUE import of the
+same file is still refused, proved by mutation.
+
+**What stays open is the PLACEMENT.** Moving the file has five ends — the `package.json` script,
+`make check-contract-types`, `check-mock-seeds.py --arm generated`, the boundaries guard's
+`GENERATED` table, and four importers — and a rename with five ends belongs to its own change, not
+to the phase that first needed to import it. Until then a reader of the tree is told the contract
+is a mock.
+
+<sub>`grep -rn "mocks/contract-types" frontend/maquette/design/src scripts Makefile frontend/maquette/design/package.json`</sub>
+
+**B-105 — the hold that names a defect, written so that the defect passes it.**
+R89 (`harness/settle.py`) holds that `window.__mocks.quiet()` waits for a request the first one had
+not issued yet — the waterfall, and the reason L08 made `releaseWaiters` a macrotask. **The first
+version read `inFlight()` after quiet and expected 0. Both behaviours produce 0.** Released a task
+later, the second request is already counted, so quiet waits for it and the count is 0 afterwards;
+released inside the settlement, quiet answers before the second request exists and the count is 0
+then too.
+
+The mutation that removes the macrotask left the hold GREEN. What distinguishes the two is ORDER,
+never a count: **did the second request FINISH before quiet answered?** It reads that now, and it
+falls on the mutation.
+
+**Found by mutating, not by reading** — and it is the hold that L09's whole proof rests on, written
+in the phase whose stated purpose was to stop exactly this being discovered at the tenth surface.
+
+<sub>`python3 frontend/maquette/harness/settle.py` — the hold « quiet() waits for a request the first one had not issued yet »</sub>
+
+**B-106 — a ceiling above its own count, in the arm written to make that impossible.**
+`scripts/check-state-ownership.py --arm server-state` holds invariant 4 as a count refused upward.
+Its first version read the component tree alone — `app/ features/ lib/ routes/ ui/ mocks/` — and
+reported **4** against a ceiling of **11**. A ceiling seven above its own count can never fall,
+which is B-075's shape, in the arm whose own header names B-075.
+
+**The eleven were measured across the whole tree, the engine included**, and the engine writes
+seven of them. They are server state in the interface's bag whoever wrote them: components READ
+`state.phase` and `state.pipe` regardless. The arm reads both now and holds the UNION, printing the
+two shares apart.
+
+**And a second ceiling had to exist, which the mutation is what showed.** A component writing
+`pipe` — a key the engine already writes — left the union at 11 and the run green, while the
+component share went 4 → 5. That is invariant 4 in its purest form, the interface copying server
+state itself, and the union alone is blind to it.
+
+<sub>`python3 scripts/check-state-ownership.py --arm server-state`</sub>
+
+**B-107 — a restoration that silently did not happen.**
+A mutation was applied to `scripts/check-state-ownership.py` and restored with
+`git checkout -- scripts/check-state-ownership.py || true`. **The file was untracked**, so the
+command failed, `|| true` swallowed the error, and the mutation stayed in the tree — the arm was
+left reading five buckets instead of six.
+
+Caught by re-reading the file rather than by trusting the command. « A failed command is not a
+no-op — it is an edit that did not happen », read from the other end: here the edit that did not
+happen was the RESTORATION, and the tree kept a change nobody intended.
+
+**The remedy is the one the rule already implies**: a mutation is restored from a copy taken
+before it, or from git only where git tracks the file — and the restoration is VERIFIED by reading
+the target, never by the command's exit code.
+
+<sub>`git checkout -- <untracked path>` exits 1 with « did not match any file(s) known to git »</sub>
+
+**B-108 — the oracle measured its own damage, and four states were recorded as blank.**
+`oracle.py`'s `neutralise` ran before each of its two passes and REMOVED every `.note` node from
+the DOM. Those nodes are drawn by React components. On the next reconciliation React tried to
+remove a child that was no longer its own and threw
+`NotFoundError: Failed to execute 'removeChild' on 'Node'` — **22 times over the 83 states** — the
+subtree died, and the surface rendered nothing.
+
+**The reference recorded that nothing as the truth.** Four states, eight measurements, and every
+one of them is a loading or an error surface:
+
+| State | Region | Recorded | Really renders |
+| --- | --- | ---: | ---: |
+| `acq-now-error` | `acquisition/body` | 28 px | 162 px |
+| `acq-now-loading` | `acquisition/body` | 28 px | 300 px |
+| `arr-error` | `arrivals/body` | 28 px | 162 px |
+| `arr-loading` | `arrivals/body` | 28 px | 230 px |
+
+**The instrument was blind exactly where L09 needs it.** These are the states this lot exists to
+wire, and the oracle would have proved them at zero divergence by comparing one blank against
+another.
+
+**The removal was also REDUNDANT.** `harness.css` carries
+`html.measuring .note { display: none !important }` — restored by B-081 on 2026-08-26 — and the
+oracle measures under `html.measuring`. The notes were already invisible to every capture. The DOM
+removal added nothing and cost the tree; the entry's original reasoning (a note left in place
+springs back to 75.6 px and pushes every region below it down) is answered by the CSS hide rather
+than discarded.
+
+**How it was found, and it is the method rather than luck.** L09 phase 4 converted six error
+surfaces onto one component. Four measurements moved. The wave's own brief says a moved measurement
+is named and explained before it is accepted — so it was, and the explanation was the instrument.
+
+**The repair**: one entry gone from `probe.neutralise`, its reasoning recorded in its place, and the
+reference re-recorded with the operator's arbitration. **8 measurements moved, 2 731 byte-identical**,
+and on each of the eight only the HEIGHT changed — no x, no y, no width, no computed property, which
+is the exact signature of a subtree that was rendering nothing and now renders. **R90**
+(`harness/state_surfaces.py`, 30 holds) reads those surfaces by their own text and their own control
+rather than by a rectangle, so an instrument's blind spot has a second reader instead of a wider
+version of itself.
+
+<sub>`python3 frontend/maquette/oracle.py --check` · 22 React errors measured by driving the 83 states under `html.measuring` with the removal in place, 0 without it</sub>
+
+**B-109 — a retry that re-asks nothing, refused by the arm written three phases earlier.**
+Phase 4 gave the library's error surface an `onRetry` that wrote `{ phase: "ready", libErr: false }`
+and restarted the simulated load. `phase` is a SERVER-STATE key, and
+`check-state-ownership.py --arm server-state` refused it: the component share went **4 → 5** against
+a ceiling of 4.
+
+**The arm was right and the change was taken back in the same phase.** No surface is wired to the
+query cache yet, so there is nothing to re-ask; a retry that only writes the store is a half-fix
+wearing the shape of a repair. The `onRetry` prop went with it — a prop with no caller is machinery
+nobody can justify, and it belongs to the phase that gives that surface a query.
+
+**It is written down because the count is what makes it real.** A guard refusing the wave that
+wrote it is the arrangement working; a guard whose refusal is quietly worked around is the
+arrangement failing, and only a register entry tells the two apart afterwards.
+
+<sub>`python3 scripts/check-state-ownership.py --arm server-state`</sub>
+
+**B-110 — the seed guard refuses a deletion the plan requires, and it was right to.**
+L09's whole shape is D5: a surface is wired and its fixture is deleted from `legacy.js`. L08's
+register holds the opposite rule, deliberately — « a family that disappears fails the guard too » —
+because that is exactly right for an accidental deletion. On the first conversion the two met:
+three families gone, `--arm classification` red, and the seed builder raising « the engine declares
+no fixture family named 'DECISIONS_REGLEES' ».
+
+**The gap was in the REGISTER, not in either instrument.** It could say what a family IS and not
+that it had been converted. An entry now carries `converted`, naming the wave and the surface, and
+three arms follow it: `classification` expects the absence and REFUSES THE REVERSE — a family
+called converted that the engine still declares is a fixture that outlived its own removal;
+`correspondence` prints what it can no longer compare rather than quietly comparing three fewer;
+and the builder does not try to re-derive it.
+
+**What holds a converted seed afterwards is the part worth writing down.** Its own literal is gone,
+so `--arm correspondence` has nothing to compare it against — which is stated, per family, instead
+of being absorbed. `--arm schema` still validates it against the contract, and the ORACLE holds the
+rendering it produces at zero divergence, which reads the bytes all the way to the screen and is
+the stronger of the two.
+
+**And the first attempt at this made the claim false.** Excluding converted families from the
+builder took them out of the SCHEMA arm too — 46 seeds validated became 43 — so the register said
+« held by the contract's schema » while the code had stopped reading them. Caught by comparing the
+printed counts before and after, which is the only reason it is not this wave's fifth instance of
+guards-green-over-what-they-do-not-read.
+
+<sub>`python3 scripts/check-mock-seeds.py` — `classification: 60 fixture(s) in the engine, 81 in the register, 21 converted, 0 out of step` · `correspondence: 25 seed(s) re-derived, 21 no longer re-derivable` · `schema: 46 seed(s) validated`. **These figures are the wave's CLOSE, not the day this entry was written** — it quoted `3 converted`, which was true for one phase and read as current for the eleven after it.</sub>
+
+**B-111 — an edit replaced a span it had assumed rather than read.**
+A stale comment in `legacy.js` named three fixtures that L09 had just deleted. The fix replaced the
+text from that comment up to the next member it recognised — and six members sat in between:
+`REASON_LABEL`, `REASON_TONE`, `REASON_DETAIL`, `DECISION_STATE`, `DECISION_STATE_DETAIL`,
+`VIA_LABEL`. All six stopped being published on `window.__referentiel`, and the resolution screen
+threw `Cannot read properties of undefined (reading 'superseded')` on every cold load.
+
+**The contracts tier caught it in the same run** — `screen_addresses.py`'s hold (k) fell naming the
+dead address, and the oracle reported `screen-resolution/body present=True -> False`. Repaired by
+DIFFING against a copy of the file taken before the edit, and the audit was widened rather than
+narrowed: every `const`, every `function` and every published member the whole subtraction removed
+was listed, and it is exactly the three literals and their three publication lines.
+
+**The lesson is the same one from the other end.** « Renaming needs a parser, not a regex » is
+written in the plan's own trap table; an edit bounded by « from this text to the next thing I
+recognise » is that trap wearing a different hat. The span was assumed; a diff would have shown it
+in one command, and did.
+
+<sub>`diff /tmp/legacy.bak frontend/maquette/design/src/engine/legacy.js | grep '^<'`</sub>
+
+**B-112 — the library's sentinel watched a port it was not in, and a delay hid it for months.**
+`LibraryList`'s infinite-scroll observer took its root from `document.querySelector("#port")` —
+whichever port comes FIRST in the document. With a media sheet open over the library that is the
+SHEET's port, so the footer counted as « in view » in a container it does not live in and the
+sentinel asked for page after page nobody had scrolled to.
+
+**Nothing showed it while the engine paced the loading.** Its loader waited 620 ms per page and
+re-checked the store's version on landing, so a measurement taken before the first timer landed saw
+a still list. Wiring the list to a cache that answers at once turned a masked defect into **46 402
+px of list** where the reference holds 3 388 — the oracle's first reading of the wired surface.
+
+**Two repairs, and the second is the one that mattered.** The root is now `foot.closest(".port")` —
+the port the footer is actually in. And the observer is not set at all while the list is not on
+screen: a surface showing a skeleton or an error has had nothing scrolled past it, and its footer
+sits high in a short container, which is exactly where an observer fires.
+
+<sub>`python3 frontend/maquette/oracle.py --check` — `shell/library-list` 3 208 px against 46 222 before the repair</sub>
+
+**B-113 — a named state was reachable from a known STORE and an unknown CACHE.**
+`window.__reset()` carries the sentence this whole arrangement rests on: « a measurement must never
+inherit the mutations of a previous one ». It was true while every surface read a fixture. A
+surface reads a query cache now, and a cache keeps what it holds — so driving one state after
+another left the Médiathèque showing every page a previous state had asked for.
+
+The cache and the mock layer's seeds go back with the world, in the same function, for the same
+reason. **The alternative — each named state clearing what it happens to know about — is the
+arrangement that produced this defect in the first place.**
+
+<sub>`grep -n "window.__reset = " frontend/maquette/design/src/engine/legacy.js`</sub>
+
+**B-114 — the listing answered one number to three different questions.**
+`total` meant « what the library claims » when nothing filtered and « the size of the result set »
+when something did. Three questions were being asked of it: how many rows does THIS question match
+(what a page is a page of), how many does the source really hold (what the end mark says), and how
+many does the library claim (what the count line says « sur »).
+
+**Two of them broke, in opposite directions.** Paging compared the rows so far against `total`, so
+on an unfiltered listing it waited for 1 861 rows from a source holding 345: `hasNextPage` stayed
+true over empty pages for ever and the end mark was never drawn. And the end mark itself said the
+FILTERED count, so under a search that matched nothing it announced « 0 titres réels » where the
+prototype carries 345.
+
+The answer declares `matching`, `loaded` and `total` now, each with what it is for written beside
+it in the contract. R79's own hold moved with them: « the number it really has, not the library's
+own total » compares `loaded` against the rows drawn and against the claim, which is what that
+sentence always meant.
+
+<sub>`python3 frontend/maquette/harness/library_load.py` — 8 holds</sub>
+
+**B-115 — a redraw bridge that trusted a clock the instrument is allowed to stop.**
+Surfaces the engine draws do not re-render when a query lands: `render()` writes markup once, from
+whatever the accessors answered at that instant. `app/engine-redraw.ts` subscribes to the cache and
+asks the engine to redraw — and its first version skipped events whose `dataUpdatedAt` it had
+already seen.
+
+**`dataUpdatedAt` is `Date.now()`, and the oracle measures under a FROZEN CLOCK.** Every landing
+carried the same instant, so « skip what I have already seen » skipped every redraw after the
+first. The discover deck measured **311.8 px** where the live page draws **4 497** — the instrument
+saw an empty deck and the page was right.
+
+**A timestamp is not an identity when something is allowed to stop time.** The dedupe is gone; the
+bridge redraws on any update carrying data, which is idempotent and bounded.
+
+<sub>`TM_ORACLE_NO_FROZEN_CLOCK` in `frontend/maquette/oracle.py` is the switch that made this
+visible — the same measurement without it, and the deck drew</sub>
+
+**B-116 — the inverse projection turned a sentence into an object of its own characters.**
+A suggestion's `why` is a MIXED array: « Recoupé par », then `{emphasis: "4"}`, then « titres de
+votre médiathèque ». The walker renamed the keys of every element, and `Object.entries` on a string
+yields its characters — so each sentence became `{0: "R", 1: "e", …}` and the engine rendered
+`undefined` in bold.
+
+**Caught by R11**, which watches for exactly that word reaching the screen, and the oracle was green
+over it: the deck's height did not change enough to move a measured rectangle. A unit test names it
+now, asserting against the committed seed.
+
+<sub>`python3 frontend/maquette/harness/audit2.py` — « R11 visible jargon or technical value »</sub>
+
+**B-117 — the queue read served the dense world under the real scenario.**
+`readAcquisitionQueue` answered `TAKEABLE`, `BLOCKED`, `IN_FLIGHT` and `DONE_TODAY` whatever was
+asked for, while the engine's own `derived` answered EMPTY for the first two under the real
+scenario and empty reels for the others. `readStaging` had the same shape one list over: it served
+the dense `MOVING` where the engine had nothing moved yet.
+
+**No surface read either route, so nothing said so.** L08 seeded them and L09 is the first wave to
+ask. The two routes answer per scenario now, exactly as `derived` did — and « exactly » includes
+the empties: a run that has just been read off the disk has moved nothing, and a layer answering
+the dense lists there puts a queue on screen that no run produced.
+
+<sub>`grep -n "scenario" frontend/maquette/design/src/mocks/handlers/staging.ts frontend/maquette/design/src/mocks/handlers/acquisition.ts`</sub>
+
+**B-118 — the seed builder deleted twenty-one seeds the mock layer serves.**
+`build-mock-seeds.py --write` deletes any seed file no family claims: « an orphan seed is a payload
+nothing can re-derive », which is right. Since L09 a family is deleted from `legacy.js` the moment
+its surface reads the layer instead (D5) — so it cannot be re-derived, `build()` does not build it,
+and the naive reading of « not in built » became « delete the payload the mock layer actually
+serves ».
+
+**Measured: one `--write` removed twenty-one of them**, including every queue list, every decision,
+the follows, the suggestions, the pipeline and the releases. Restored from git, and the builder
+keeps a CONVERTED family's seed by name now — the same list the correspondence arm already reads.
+
+**It was reached by a rebuild that had nothing to do with any of them**: adding one field to the
+settings fixture. The most destructive thing a script here can do was one flag away from a routine
+regeneration.
+
+<sub>`python3 scripts/build-mock-seeds.py --write` · `git status --short frontend/maquette/design/src/mocks/seeds/`</sub>
+
+**B-090 — the settings say the value they HOLD, and the lossy field is nobody's source.**
+The panel read `displayedValue` — the engine's `v`, a French summary rendered for a screen. 110 of
+the 159 fields differed from `raw` and two LOST information: a four-element list read
+« multi, vf, vostfr +1 » and an eighteen-file list read « paths.json5, disks.json5,
+categories.json5 +15 ».
+
+**A pre-formatted French value cannot feed a control**, which is what made this unavoidable at the
+surface with eight field kinds rather than merely untidy.
+
+`features/settings/format.ts` says a value in the interface's own words, and its test asserts
+against all 159 committed strings — extracted from `legacy.js` and held byte for byte against it,
+which is the only non-vacuous oracle available for a rendering. **All 159 reproduce exactly.** The seven that
+JSON cannot carry — `4` and `4.0` are one number — reproduce because the contract gains a
+`precision` — added to the FIXTURE, so the seed carries it and no list of keys lives in a
+handler where it would rot.
+
+**WHAT IS NOT DONE, and it is stated rather than glossed.** `displayedValue` is still declared, now
+`deprecated` and carrying its reason: no surface reads it, and it is what the formatter's test
+asserts against. Removing it would leave that test with a golden written from its own output, which
+is the vacuity this whole lot is built against. It dies with the fixture that produces it, at L13.
+
+<sub>`cd frontend/maquette/design && npm test -- --run` — 57 tests · `grep -n deprecated frontend/maquette/contract/openapi.json`</sub>
+
+**B-119 — a copy of the design root no longer builds, and the rule read a broken host.**
+R73 boots the real `serve.py` on a scratch COPY of the design root, because a measurement must not
+write into the operator's source. Since L09 that copy does not build: `engine/engine-shape.ts`
+imports the mock layer's declaration from `frontend/maquette/`, one level ABOVE the design root —
+a reach the boundaries guard names as a decision, and the only one there is until the engine dies
+at L13.
+
+**Every hold in the rule answered 503**, including the ones about sessions and portals that have
+nothing to do with a build, and the rule reported a broken host where there was an incomplete copy.
+A rule that copies a tree has to copy what the tree reads.
+
+The copy is NESTED now, so a reach one level up lands where the import expects it, and what to carry
+is found by READING the sources rather than by naming a file in the rule: a name typed there is a
+second copy of the guard's allowance list, and it rots the day a second reach is allowed.
+
+<sub>`python3 frontend/maquette/harness/switchover.py` — 11 rules, no violation</sub>
+
+**B-120 — a journey rule read the verb of a panel the previous half had left open.**
+`ident.py` walks two halves: identify a folder (« Associer »), then reach the same screen from the
+« + » (« Suivre »). The second half opened nothing — the result row it clicks did not exist — and the
+verb it printed was the FIRST half's panel, still on screen. The `?.` on the row click swallowed the
+absence, so a journey that never happened reported a verb.
+
+The panel is closed before the second half is read, and the two typing gestures are asserted rather
+than assumed: `typed and typed_again and opened` reaches the verdict, so a gesture that lands on
+nothing fells the rule instead of being carried by the one before it.
+
+<sub>`python3 frontend/maquette/harness/ident.py` — VERDICT: identify != follow, and context picks the verb</sub>
+
+**The follows fixture was one search behind the operator's own database, and had been on `main`.**
+Not a defect of this lot and recorded so it is not read as one: `refresh-maquette-fixture.py --check`
+answered « Star Trek: Strange New Worlds · searches: « 18 » vs 19 », and `main` held 18 too. The
+guard now follows `FOLLOWS` to the seed it lives in since L09, and `--apply` wrote the measured
+value. The rendering does not move — the two numbers are the same width — and the oracle confirms
+it: 2 739 measurements, no divergence.
+
+<sub>`python3 scripts/refresh-maquette-fixture.py --check` — no drift</sub>
+
+**B-121 — a gate compared a committed seed to a counter the daemon increments.**
+`make check` ran `refresh-maquette-fixture.py --check` as a blocking step. `searches` is the number
+of times the acquisition daemon has looked for a followed show, so it goes up on its own: measured
+19 when this wave's gate started and 21 when the gate reached that step, in one `make check`.
+
+**And where it blocks, it verifies nothing.** CI has no `acquire.db`, so the script prints « no
+database — nothing verified » and passes. Vacuous where it gates and moving where it does not is not
+a check — it is the exact shape CLAUDE.md already names for `arrivals.py`: a rule that reads the
+operator's live databases says nothing about the change under test.
+
+It still runs and still prints in `make check`, prefixed `-` so its exit code does not gate, and
+`--apply` stays the deliberate gesture.
+
+**What it did NOT do, checked rather than assumed**: pointed at the deleted `FOLLOWS` array, the
+tool as `main` holds it answers « refusing to report agreement about an array it could not find »
+— the refusal its own tests were written to guarantee. It never reported a false agreement. What
+made the drift visible again is that this lot moved the tool to the seed the family now lives in,
+in the same step as the family; until then the step could only refuse.
+
+<sub>`make check` — exit 0 · `python3 scripts/refresh-maquette-fixture.py --check`</sub>
+
+**B-122 — a guard named a path by cutting it on the operator's own clone directory.**
+`check-frontend-boundaries.py`'s `outside-imports` arm compares a module's reach against a list of
+allowed reaches written repository-relative. To get that relative form it did
+`target.split("PersonalScraper/", 1)[-1]` — the name this operator's clone happens to have. The CI
+runner checks out into `torrent-mate/`, the split matched nothing, and every allowed reach was
+compared as an ABSOLUTE path against a relative allowance: **two violations on CI, none locally,
+over an identical tree**.
+
+**A guard that answers differently by machine is measuring the machine.** It is the same class as
+`arrivals.py` reading the operator's `library.db`, with the failure inverted: that one is red where
+it should be silent, this one was green where it should have been red — the arm cannot have refused
+a NEW outside import on this machine either, because no path it built could ever match the list.
+
+The path is computed from the repository root now. **Proved under the other name**, which is the only
+proof that means anything here: the tree was copied to `/tmp/torrent-mate-probe/` and the guard run
+there — exit 0 with the repair, exit 1 with the old cut restored, naming
+`/private/tmp/torrent-mate-probe/frontend/maquette/fixture-projections.json` exactly as CI did.
+
+<sub>`python3 scripts/check-frontend-boundaries.py` — 0 violations · same script, same tree, under a
+directory called `torrent-mate-probe` — 0 violations</sub>
+
+**B-123 — the settings drew a cron expression raw, and B-090's own repair is where it came from.**
+`settingInWords` has a `schedule` branch — 35 lines that say « toutes les heures, à la 15ᵉ minute »
+— and nothing ever reached it. `page.tsx` passes `setting.type` verbatim, and the six cron settings
+carry `type: "text"`. So the screen drew `15 * * * *`.
+
+**The test agreed with itself.** It DERIVED a kind — « five whitespace-separated groups starting
+with a digit or a star » — that the application derives nowhere, and then asserted the rendering
+that derivation produced. A golden written from a rule only the test knows.
+
+The kind of a field is a fact about the setting, so the FIXTURE carries it, like `precision` before
+it: `type: "schedule"`, nine kinds in the contract's enum, a ninth named state so somebody can look
+at one, and the test reads `field.type` like the page does. The control does not change — a schedule
+is a text field — which is why nothing visual had ever revealed it.
+
+<sub>`cd frontend/maquette/design && npx vitest run` — 94 tests · mutation: the kind removed from the
+seed fells two holds, the precision removed fells two others</sub>
+
+**B-124 — the invariant-4 arm read one spelling of a store write out of three.**
+`WRITE_CALLS` matched `writeUiState\s*\(\s*\{`. So a write through a one-line local wrapper —
+`function write(patch) { writeUiState(patch); }`, which was already in `add-screen.tsx` — was
+invisible, and so was the ES6 shorthand `{ pipe }`, which is the canonical form. Proven by mutation:
+a component writing two named server-state keys plus an unclassified one passed, exit 0, under a
+component ceiling of ZERO.
+
+**And the arm's central promise was already false**: `addKind` and `idProv` were on neither list, so
+« a key cannot arrive unclassified » had been broken before anyone tried. The arm reads the call, not
+the call-and-brace; anything whose keys it cannot read it REFUSES; and the one module that
+implements the write is named, because a seam necessarily forwards a patch it did not compose.
+
+<sub>`python3 scripts/check-state-ownership.py` — clean · three mutations (alias, shorthand,
+unclassified key) each fell, naming its own defect</sub>
+
+**B-125 — the invariant-5 arm did not know `fetchNextPage`, nor count a layout effect.**
+`\bfetch\s*\(` does not match `fetchNextPage(` — the bracket the pattern wants is an `N` — so the
+commonest read in a paged surface was outside the arm entirely. And `useLayoutEffect` does not
+contain `useEffect`, so those bodies were neither read NOR COUNTED: the corpus floor, which is the
+arm's whole defence against reading nothing, was under-reporting by a fifth on the day it landed.
+
+**What the repair had to get right, and it is the interesting half**: a read WRITTEN in an effect's
+body runs when the effect runs — that is the invariant. A read inside a callback the effect merely
+REGISTERS runs on a gesture, and refusing it would forbid infinite scrolling. So the nested functions
+are blanked before the body is read.
+
+<sub>`python3 scripts/check-state-ownership.py` — `effect-fetch: 7 useEffect call site(s) read, 0
+violation(s), corpus floor 5`</sub>
+
+**B-126 — the unit-test floors sat a third under the corpus they guard.**
+`TEST_FLOOR = 36`, `FILE_FLOOR = 2`, against 4 files and 58 tests. Deleting `router.test.ts` — the
+whole proof of the mock routing — left 3 files and 47 tests: both floors clear, guard green, exit 0.
+The docstring says « the floor is raised in the commit that adds tests »; the commit that added
+twenty-two did not raise it. The floors are the corpus now, and the mutation fells them both.
+
+<sub>`python3 scripts/check-maquette-unit-tests.py` — `5 file(s), 93 test(s) (floors: 5, 93)`</sub>
+
+**B-127 — a search matching nothing said « 0 résultat affiché sur 257 trouvés ».**
+`searchProviders` recomputed `shown`, which no surface reads, and spread `total` through untouched,
+which the screen reads for its denominator. So a query the provider cannot answer drew an empty list
+under a line claiming 257 — a screen saying « nothing » and « 257 » in one sentence.
+
+It is the same defect the library listing was repaired for two files away, in the same wave:
+« answering 1 861 over a search for two rows made the count describe the library rather than the
+answer ». Fixed there, reproduced here, one directory apart.
+
+<sub>`cd frontend/maquette/design && npx vitest run src/mocks/contract-conformance.test.ts`</sub>
+
+**B-128 — the release picker was title-blind, and its cache key with it.**
+The contract declares `title`, `season` and `episode` on `/api/acquisition/releases`. The handler
+took none of them and the query key carried none either, so opening the picker for one medium and
+then for another drew one list — and the second came from the cache without a request being made.
+A release list that does not depend on what it is a list OF is not a list.
+
+The handler reads all three, matching season and episode against the `SxxEyy` in the release NAME,
+which is where a release carries them — reading them off a field the seed does not have and falling
+back to « it matches » would leave both parameters accepted and ignored, which is the defect itself
+wearing a repair's clothes.
+
+<sub>`python3 frontend/maquette/harness/screen_addresses.py` — 50 rules, no violation</sub>
+
+**B-129 — the library count line printed a literal beside the number it was served.**
+`const universe = category && category.of ? category.c : 1861;` — three lines under a comment saying
+the count comes « from the same query the list reads, so the two cannot disagree ». The query
+answers that number. Change the seed and the screen went on saying 1861.
+
+<sub>`grep -n "1861" frontend/maquette/design/src/features/library/page.tsx` — no match</sub>
+
+**B-130 — discarding a staged medium walked one list out of three.**
+`discardStagedMedia` filtered `stuck` alone; its sibling `continueStagedMedia` walks `stuck`,
+`stuckLoaded` and `blocked`, with a comment explaining why. So a card served from the dense world was
+asked to be discarded, nothing was removed, `{ok: false}` came back and the card stayed. Latent only
+because the operation is orphaned — no surface calls it — which is the second half of the finding.
+
+<sub>`rg -n "FROM_REAL, FROM_DENSE, FROM_BLOCKED" frontend/maquette/design/src/mocks/handlers/staging.ts`</sub>
+
+**B-131 — a listing parameter, a served resource and a hook, none of them read.**
+Three things declared and unread: `lens` on `/api/library/items` (sent by nobody, read by nobody),
+`useLibraryRecent()` (added by this wave, called by nobody), and the register's claim that the
+« récent » lens « draws the listing in the source's own order » — it draws the shared listing in
+whatever order the sort control last set, which is what it drew before the wave too.
+
+`lens` is struck from the contract, the hook is deleted, and the register entry says what is true:
+the resource is served and NO SURFACE READS IT. A lens meaning « les derniers ajouts » would read it,
+and that is a design decision rather than a wiring detail.
+
+<sub>`python3 scripts/compare-contracts.py --check` · `python3 scripts/check-mock-seeds.py`</sub>
+
+**B-132 — the inverse projection threw, or converted, on shapes nobody declared.**
+B-116 was one of these: a string reaching a `*` path and coming back as an object of its characters,
+drawn as `undefined` in bold. Its repair stopped at the terminal level and never reached the walk,
+which still had three siblings — a `null` where a list is declared threw
+« Cannot read properties of null (reading 'map') » INSIDE a `queryFn`, so the surface drew an error
+naming nothing; and `Object.entries` over an array answered an object keyed "0", "1", …
+
+The seeds are not the only input any more — handlers compose payloads and the contract has nullable
+fields. Three regression tests, each seen red against the code as it stood.
+
+<sub>`cd frontend/maquette/design && npx vitest run src/engine/engine-shape.test.ts` — 18 tests</sub>
+
+**B-133 — three new rules held on something other than what they read.**
+R89's budget hold compared `HELD_BACK_MS < ORACLE_QUIET_BUDGET_MS`, two constants declared in the
+same file, beside a comment saying they were named there « so the two cannot drift silently » — the
+oracle's own number was never read. R90 carried a comment about React errors, written FOR B-108,
+with no `pageerror` listener anywhere in the file. R88 read a probe into a variable, printed it in a
+message, and held on something else entirely.
+
+R89 reads `NETWORK_QUIET_BUDGET_MS` out of `oracle.py` and refuses to run if it cannot find it; R90
+collects the errors; R88 holds on the probe it reads.
+
+<sub>mutation: the oracle's budget set to 100 fells R89's hold · `python3 frontend/maquette/harness/boot_order.py` — 20 rules · `state_surfaces.py` — 31 rules</sub>
+
+**B-134 — no arm read what a HANDLER answers, only what a seed holds.**
+`check-mock-seeds.py` says it in its own words: « handlers, so a handler ignoring its seed passes
+here ». A composed payload touches no seed, so the two fields this lot added to the listing were held
+by nothing but the surface that happened to read them. Drop `matching` and `getNextPageParam`
+compares `held < undefined`, which is false — the list ends after one page under an end mark saying
+the library is exhausted, with every guard green.
+
+`mocks/contract-conformance.test.ts` holds every declared response's REQUIRED properties against what
+the handler answers. Deliberately narrow: not types, not formats — a full validator would be a second
+implementation of the contract, and the value is in the one question nobody was asking.
+
+<sub>mutation: `matching` dropped from the listing → « readLibraryItems is missing matching »</sub>
+
+**B-135 — three named states measured the panel left open by the state before them.**
+`settings-read-only`, `settings-restart` and `settings-secrets` open no panel. `#sheetin` is a
+persistent node that keeps its content after closing — deliberately, so a panel does not flash empty
+as it slides away — and the oracle measures the region whether it is on screen or not. Those three
+were therefore recording, at y=867 and invisible, the height of whichever FIELD the state before them
+had opened.
+
+**It surfaced because adding a ninth field state moved all three by 51.6 px** without touching a line
+any of them draws. Isolated by measurement, not by reasoning: reverting the data changes alone left
+2 739 measurements identical, and reverting the STATE alone was what moved them.
+
+**What was NOT done, and why.** Two repairs were written and backed out — closing the layer in
+`resetSettings`, and clearing the descriptor — because measurement showed neither changed anything:
+the panel is already closed for those states. Adding unproven behaviour to the dying engine is the
+machinery-nobody-can-justify this repository has paid for before. The reference is re-recorded, and
+the weakness is named here: a region measured while its layer is closed describes the previous state.
+
+<sub>`python3 frontend/maquette/oracle.py --check` — 84 states, 2 772 measurements, no divergence</sub>
+
+**B-136 — B-090's headline figure counted quotes, and it had reached the contract.**
+« 110 of the 159 fields differ from `raw` » was measured with `JSON.stringify`, which counts the
+quotes around a string as a difference. The value is **59**, by the method the design document itself
+states. The dependent figure — « the other 95 differences are reproducible » — was wrong with it.
+
+It sat in six places, and two of them SHIP: `frontend/maquette/contract/openapi.json` and the
+generated `contract-types.d.ts`. A figure quoted in a contract description is read by everyone who
+reads the contract.
+
+And « 152 reproduce exactly, the seven that do not are what JSON cannot carry » was stale in the other
+direction: the seed already carried `precision`, so all 159 reproduce — the test was excluding the
+seven it was written for.
+
+<sub>`node -e "…String(f.raw) !== f.displayedValue…"` — 59 of 159</sub>
+
+**B-137 — four ACCEPTANCE criteria could not run, or expected the wrong answer.**
+ACC-05 and ACC-06 named `check-frontend-boundaries.py --arm server-state`, which exits with
+`invalid choice`: both arms live in `check-state-ownership.py`, a separate file by this lot's own
+decision, and the criteria were written before the split they describe. ACC-05 also expected « ending
+at 0 » for a union that is 7 — the number that must be zero is the COMPONENT share. ACC-07 expected
+0 `displayedValue` and the answer is 2, by a decision taken after the criterion. ACC-12 counted
+`__referentiel`, which is how every engine-drawn surface gets its markup and cannot reach 0 while the
+engine draws anything.
+
+**Amended in the plan, with the amendments written out as the finding** — a criterion quietly edited
+to match what happened proves nothing. And what is NOT amended is stated: the lot's `Done when` says
+« the fixture literals are gone from the engine », and 60 families remain against 21 converted. That
+gap is L13's subject and it is recorded as open rather than reworded away.
+
+<sub>`python3 scripts/check-state-ownership.py --arm server-state` · `python3 scripts/check-mock-seeds.py --arm classification`</sub>

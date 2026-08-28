@@ -13,9 +13,9 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 53 |
+| operations the interface requires | 54 |
 | operations the backend has | 65 |
-| required and missing | 12 |
+| required and missing | 13 |
 | declared by both, different response shape | 41 |
 | declared by both, path parameter spelled differently | 11 |
 | fields carried pre-formatted | 25 |
@@ -39,6 +39,7 @@ than a blank page.
 | `GET /api/system/dependencies` | `readDependencies` | The external dependencies, and whether each answers |
 | `GET /api/system/errors` | `readErrors` | How many errors, out of how many runs, and the latest |
 | `GET /api/system/services` | `readServices` | The services, and whether each answers |
+| `POST /api/acquisition/to-handle/{mediaId}/take` | `takeQueued` | Restart one item that was waiting to be acquired |
 
 ## 2. Operations both declare, whose response carries different property names
 
@@ -54,7 +55,7 @@ reports a difference for every optional field and drowns the real findings.
 | `GET /api/acquisition/to-handle` (`readAcquisitionQueue`) | `blocked`, `chip`, `doneToday`, `inFlight`, `notFound`, `secondaryLine`, `strip`, `takeable`, `text`, `tone`, `withoutPoster` | `candidates_count`, `created_at`, `decision_id`, `degraded`, `episode`, `followed_id`, `info_hash`, `items`, `kind`, `orphan_count`, `season`, `stage`, `year` |
 | `GET /api/auth/me` (`readAccount`) | `avatar`, `email`, `name` | — |
 | `GET /api/config/files` (`readConfigurationFiles`) | `changed` | `files`, `mtime`, `owned_keys`, `sha256`, `shadowed_keys`, `size` |
-| `GET /api/config/schema` (`readSettings`) | `displayedValue`, `file`, `fileNames`, `id`, `key`, `name`, `note`, `raw`, `secondaryLine`, `settings`, `title`, `type` | `json_schema`, `ownership`, `restart_impact` |
+| `GET /api/config/schema` (`readSettings`) | `displayedValue`, `file`, `fileNames`, `id`, `key`, `name`, `note`, `precision`, `raw`, `secondaryLine`, `settings`, `title`, `type` | `json_schema`, `ownership`, `restart_impact` |
 | `GET /api/config/secrets` (`readSecrets`) | `defined`, `label` | `description`, `is_set`, `secrets` |
 | `GET /api/config/status` (`readConfigurationStatus`) | `readOnly`, `restartRequired` | `read_only`, `restart_configured`, `restart_required`, `role`, `stale_files` |
 | `GET /api/decisions/` (`readDecisions`) | `candidates`, `choice`, `folder`, `kind`, `overview`, `pending`, `provider`, `reason`, `score`, `settled`, `state`, `title`, `via`, `when`, `withoutPoster`, `year` | `candidates_count`, `created_at`, `extracted_title`, `extracted_year`, `items`, `media_kind`, `page`, `page_size`, `pending_count`, `staging_path`, `status`, `total`, `trigger` |

@@ -24,8 +24,11 @@
 // and it reproduces the outer function's EMPTY case by drawing no section at
 // all.
 import { useTranslation } from "react-i18next";
+import { SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
 import { useArrivalsReference, type PipelineFact } from "../../features/arrivals/reference";
+import { usePipeline } from "./queries";
+import { useStaging } from "../../lib/queue";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useUiState } from "../../lib/store-access";
 import {
@@ -41,8 +44,7 @@ import {
   section as sectionClass,
   sectionHead,
   statusDot as statusDotClass,
-  surfaceError,
-} from "../../ui/variants";
+  } from "../../ui/variants";
 import {
   pilotActions,
   pilotBar,
@@ -85,10 +87,15 @@ function lastRunRows(
 // The pilot's bar. Three states, and the third is the one DOIT-4 exists for:
 // an action asked at a bad moment is QUEUED, visibly, and never refused with
 // « occupé, réessaie ».
-function PipelineBar(): ReactElement {
+function PipelineBar(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
-  const { PIPELINE } = useArrivalsReference();
+  // FROM THE CACHE (invariant 4), not from `window.__referentiel`. Nothing is
+  // drawn until it has answered: the oracle measures at rest, so what it reads
+  // is the settled bar — the same bar, from the same bytes, since the seed is
+  // held against the fixture it replaced.
+  const { data: PIPELINE } = usePipeline();
+  if (!PIPELINE) return null;
 
   if (state.pipe === "running" || state.pipe === "queued") {
     const step = PIPELINE.steps[3];
@@ -158,9 +165,11 @@ function PipelineBar(): ReactElement {
 
 // The last run, told as its nine steps. The counts are the ones `pipeline_run`
 // recorded; nothing here is derived from what the page shows.
-function LastRun(): ReactElement {
+function LastRun(): ReactElement | null {
   const { t } = useTranslation();
-  const { PIPELINE, factRowsHTML } = useArrivalsReference();
+  const { factRowsHTML } = useArrivalsReference();
+  const { data: PIPELINE } = usePipeline();
+  if (!PIPELINE) return null;
   const run = PIPELINE.last;
   return (
     <section className={sectionClass()} data-part="section">
@@ -193,27 +202,19 @@ function LastRun(): ReactElement {
 export function ArrivalsPage(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
-  const {
-    cardHTML,
-    secInner,
-    emptyInner,
-    skelCardsInner,
-    surfErrInner,
-    derivedStuck,
-    derivedMoving,
-    derivedSettled,
-  } = useArrivalsReference();
+  const { cardHTML, secInner, emptyInner, skelCardsInner } = useArrivalsReference();
+  // WHICH WORLD. The prototype carries two and the harness switches between
+  // them; the key carries it, so a surface never reads the other one's cards.
+  const scenario = state.scen === "loaded" ? "loaded" : "";
+  // FROM THE CACHE (invariant 4). The three lists are one resource with four
+  // readers; this is one of them.
+  const { data: staging } = useStaging(scenario);
 
   if (state.phase !== "ready") {
     // Each emits ONE root element, and this draws that element itself so no
     // wrapper appears where the legacy had none.
     return state.phase === "error" ? (
-      <div
-        className={surfaceError()} data-part="surface-error" role="alert"
-        dangerouslySetInnerHTML={{
-          __html: surfErrInner(t("screens.arrivals.errorSubject")),
-        }}
-      />
+      <SurfaceError subject={t("screens.arrivals.errorSubject")} />
     ) : (
       <div
         className={sectionClass()} data-part="section"
@@ -222,9 +223,9 @@ export function ArrivalsPage(): ReactElement | null {
     );
   }
 
-  const stuck = derivedStuck();
-  const moving = derivedMoving();
-  const settled = derivedSettled();
+  const stuck = staging?.stuck ?? [];
+  const moving = staging?.moving ?? [];
+  const settled = staging?.settled ?? [];
   const nothing = stuck.length + moving.length + settled.length === 0;
 
   // A section that would be empty is not drawn at all — the outer `secHTML`

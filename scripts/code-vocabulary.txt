@@ -34,7 +34,9 @@
 # `radius` identifier is good English anywhere in this repository — but it is
 # written down here so the next reader knows it was a decision.
 
+above
 accent
+accepted
 account
 acq
 acqtab
@@ -60,7 +62,9 @@ already
 annotations
 announced
 answer
+answered
 any
+anywhere
 appearance
 apply
 arm
@@ -69,6 +73,8 @@ arrival
 arrivals
 arriving
 artwork
+as
+ask
 asked
 at
 attempt
@@ -109,6 +115,7 @@ by
 byidv
 cadence
 call
+calls
 cancel
 candidate
 candidates
@@ -117,10 +124,13 @@ caption
 card
 cards
 carries
+cases
 cast
 cat
 catalog
+catalogue
 catch
+categories
 category
 cats
 ceil
@@ -132,11 +142,13 @@ check
 child
 chip
 choice
+claimed
 clean
 clear
 clearq
 clef
 click
+client
 clock
 close
 closed
@@ -145,6 +157,7 @@ cls
 code
 cold
 collapse
+collation
 color
 coming
 commit
@@ -156,10 +169,14 @@ confirmadd
 containers
 contains
 content
+contract
+convert
+converted
 copy
 corps
 cote
 count
+counted
 cover
 create
 cron
@@ -200,6 +217,7 @@ dial
 dialog
 dials
 diffuses
+digits
 direct
 direction
 discover
@@ -213,6 +231,7 @@ distance
 dlg
 dlgcancel
 done
+door
 dot
 down
 drag
@@ -222,6 +241,7 @@ draws
 dry
 duration
 dx
+each
 ease
 edited
 element
@@ -234,6 +254,7 @@ entries
 entry
 ep
 episode
+episodes
 eps
 err
 error
@@ -244,10 +265,14 @@ exec
 executions
 exists
 exit
+expanded
 fab
 fact
 facts
+failing
+failure
 fallback
+families
 fast
 fetch
 fetching
@@ -298,6 +323,7 @@ gauge
 gesture
 get
 go
+gone
 grab
 grid
 group
@@ -311,6 +337,7 @@ hd
 head
 header
 heading
+health
 height
 held
 hero
@@ -349,6 +376,7 @@ index
 inert
 inflight
 info
+informative
 initial
 inner
 input
@@ -365,6 +393,7 @@ installsub
 inter
 interval
 into
+inverted
 ios
 is
 item
@@ -382,6 +411,7 @@ known
 lab
 label
 labels
+landed
 large
 last
 latency
@@ -412,6 +442,8 @@ list
 listener
 listeners
 listing
+listings
+lists
 live
 lmode
 load
@@ -425,6 +457,7 @@ loginform
 long
 lookup
 loop
+lossy
 main
 maintact
 maintenance
@@ -438,17 +471,20 @@ maquette
 mark
 match
 matches
+matching
 matrix
 md
 media
 mediasheet
 medium
 member
+members
 message
 meta
 method
 migrated
 min
+minute
 missing
 mobile
 mock
@@ -469,11 +505,13 @@ multi
 multiple
 muted
 name
+named
 names
 nav
 navgo
 navigation
 nb
+needed
 network
 neutral
 new
@@ -504,13 +542,17 @@ offered
 offset
 old
 on
+once
+one
 only
 open
 operation
 option
 order
+ordered
 origin
 original
+others
 out
 outcome
 outgoing
@@ -522,6 +564,7 @@ owned
 owns
 page
 pages
+paging
 paint
 pair
 panel
@@ -530,6 +573,7 @@ parameters
 params
 parent
 parents
+parsed
 part
 passer
 password
@@ -563,6 +607,7 @@ positions
 post
 poster
 posters
+precision
 present
 press
 previous
@@ -570,6 +615,8 @@ primary
 problem
 profile
 progress
+projection
+projections
 proposer
 prov
 provider
@@ -600,8 +647,10 @@ recents
 reconcile
 record
 rect
+redraw
 ref
 reference
+refill
 refresh
 refusal
 refuse
@@ -616,6 +665,9 @@ released
 releases
 remembered
 remove
+removed
+renamed
+renames
 render
 renderer
 renderers
@@ -632,10 +684,14 @@ resolved
 rest
 restart
 restore
+restoration
+restored
 result
 results
 resume
+retry
 return
+reversed
 rich
 right
 ring
@@ -650,12 +706,16 @@ rule
 run
 running
 safari
+said
 same
 save
 savebar
+say
+says
 scale
 scen
 scenario
+schedule
 schedulers
 schemas
 score
@@ -676,6 +736,7 @@ secrets
 section
 seed
 seeded
+seen
 seg
 segment
 segments
@@ -685,6 +746,7 @@ selection
 selector
 selmode
 semibold
+send
 separator
 series
 served
@@ -695,11 +757,14 @@ settings
 settle
 settled
 shadow
+shape
+shaped
 sheet
 sheetgrab
 sheetin
 sheets
 shell
+shorthands
 shot
 show
 shown
@@ -712,6 +777,7 @@ since
 size
 skel
 skeleton
+skeletons
 skip
 slice
 slot
@@ -768,6 +834,7 @@ suite
 surf
 surface
 surfaces
+survivors
 svg
 swallow
 swatch
@@ -779,6 +846,7 @@ synopses
 synopsis
 system
 tab
+table
 tabpanel
 tabs
 tabular
@@ -793,7 +861,9 @@ template
 term
 testid
 text
+the
 theme
+there
 threshold
 tied
 tier
@@ -823,6 +893,8 @@ tracking
 trailer
 travelled
 trim
+tuples
+two
 typed
 ua
 ui
@@ -834,6 +906,7 @@ units
 universe
 unknown
 unnamed
+unreadable
 unwind
 unwinding
 upcoming
@@ -855,6 +928,7 @@ visible
 vsw
 waiters
 waiting
+walk
 wanted
 wants
 warm
@@ -862,9 +936,12 @@ warning
 was
 watcher
 ways
+weekday
 weight
+what
 when
 white
+why
 wide
 width
 window
@@ -877,6 +954,7 @@ world
 wrap
 write
 written
+wrong
 xl
 xs
 year

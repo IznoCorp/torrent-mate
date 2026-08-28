@@ -21,9 +21,12 @@
 // `paintSelBar` already has, one level down.
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
 import { Icon } from "../../ui/icon";
 import { useAcquisitionReference, type Follow } from "../../features/acquisition/reference";
+import { useFollows } from "./queries";
+import { useAcquisitionQueue, useStaging } from "../../lib/queue";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
 import { body, crossReference, crossReferenceLink, crossReferenceStrong, emptyNote, filterPill, filterPillCount, filterZone, liveDot, liveEmphasis, liveStrip, loadFooter, moreButton, pillBar, pillScroll, searchClear, searchField, searchInput, section, section as sectionClass, segment, segmentCount, segmentTab, surfaceError, viewSwitch, viewSwitchButton, viewSwitchWrap, viewTabs } from "../../ui/variants";
@@ -38,16 +41,17 @@ const SEARCH_AGAIN = "chercher"; // french-ok: a data-attribute value, a contrac
 function AcquisitionTabs(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const {
-    icons,
-    derivedTakeable,
-    derivedBlocked,
-  } = useAcquisitionReference();
+  const { icons } = useAcquisitionReference();
+  // THE BADGE COUNTS WHAT IS WAITING, from the same read the deck draws — two
+  // counts of one queue is the standing way to make the operator see two
+  // truths (§13).
+  const scenario = state.scen === "loaded" ? "loaded" : "";
+  const { data: queue } = useAcquisitionQueue(scenario);
   const tabs = [
     {
       id: "now",
       label: t("screens.acquisition.tabNow"),
-      count: derivedTakeable().length + derivedBlocked().length,
+      count: (queue?.takeable ?? []).length + (queue?.blocked ?? []).length,
     },
     { id: "follows", label: t("screens.acquisition.tabFollows") },
     { id: "discover", label: t("screens.acquisition.tabDiscover") },
@@ -90,25 +94,13 @@ function NowTab(): ReactElement {
     secInner,
     emptyInner,
     skelCardsInner,
-    surfErrInner,
-    derivedTakeable,
-    derivedBlocked,
-    derivedInflight,
-    derivedNotfound,
-    derivedDoneToday,
-    derivedStuck,
   } = useAcquisitionReference();
 
   if (state.phase !== "ready") {
     return (
       <div className={body()} data-part="surface/body" data-region="acquisition/body">
         {state.phase === "error" ? (
-          <div
-            className={surfaceError()} data-part="surface-error" role="alert"
-            dangerouslySetInnerHTML={{
-              __html: surfErrInner(t("screens.acquisition.errorNow")),
-            }}
-          />
+          <SurfaceError subject={t("screens.acquisition.errorNow")} />
         ) : (
           <div
             className={sectionClass()} data-part="section"
@@ -119,12 +111,17 @@ function NowTab(): ReactElement {
     );
   }
 
-  const takeable = derivedTakeable();
-  const blocked = derivedBlocked();
-  const inflight = derivedInflight();
-  const notfound = derivedNotfound();
-  const doneToday = derivedDoneToday();
-  const stuck = derivedStuck();
+  // WHICH WORLD. The prototype carries two and the harness switches between
+  // them; the key carries it, so a surface never reads the other one's cards.
+  const scenario = state.scen === "loaded" ? "loaded" : "";
+  const { data: queue } = useAcquisitionQueue(scenario);
+  const { data: staging } = useStaging(scenario);
+  const takeable = queue?.takeable ?? [];
+  const blocked = queue?.blocked ?? [];
+  const inflight = queue?.inFlight ?? [];
+  const notfound = queue?.notFound ?? [];
+  const doneToday = queue?.doneToday ?? [];
+  const stuck = staging?.stuck ?? [];
   const nothing =
     takeable.length +
       blocked.length +
@@ -242,7 +239,6 @@ function FollowsTab(): ReactElement {
     tileHTML,
     swipeHTML,
     skelCardsInner,
-    surfErrInner,
     emptyInner,
     svgIcon,
     stFraction,
@@ -256,10 +252,12 @@ function FollowsTab(): ReactElement {
     URGENCY,
     GROUPS,
     CADENCE_CRON,
-    derivedFollows,
   } = useAcquisitionReference();
 
-  const follows = derivedFollows();
+  // FROM THE CACHE (invariant 4). Following, unfollowing and grabbing are
+  // mutations the engine's delegation still calls; their conversion is the
+  // follows panel's own, and this is the read.
+  const { data: follows = [] } = useFollows();
   const pills = [
     { id: "tout", label: t("screens.acquisition.pillAll"), count: follows.length },
     {
@@ -393,12 +391,7 @@ function FollowsTab(): ReactElement {
     );
   } else if (state.phase === "error") {
     content = (
-      <div
-        className={surfaceError()} data-part="surface-error" role="alert"
-        dangerouslySetInnerHTML={{
-          __html: surfErrInner(t("screens.acquisition.errorFollows")),
-        }}
-      />
+      <SurfaceError subject={t("screens.acquisition.errorFollows")} />
     );
   } else if (visible.length === 0) {
     content = (
@@ -589,7 +582,6 @@ function DiscoverTab(): ReactElement {
   const {
     icons,
     skelCardsInner,
-    surfErrInner,
     fillSug,
     sugFoot,
     mountDeck,
@@ -734,12 +726,7 @@ function DiscoverTab(): ReactElement {
             dangerouslySetInnerHTML={{ __html: skelCardsInner(4) }}
           />
         ) : state.phase === "error" ? (
-          <div
-            className={surfaceError()} data-part="surface-error" role="alert"
-            dangerouslySetInnerHTML={{
-              __html: surfErrInner(t("screens.acquisition.errorSuggestions")),
-            }}
-          />
+          <SurfaceError subject={t("screens.acquisition.errorSuggestions")} />
         ) : null}
         {/* FILLED BY THE FRAGMENT, never by React — see this file's header. */}
         <div id="sugitems" hidden={state.phase !== "ready"}></div>

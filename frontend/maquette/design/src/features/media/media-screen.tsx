@@ -28,7 +28,8 @@ import {
   type MediaReference,
   type MediaSheet,
 } from "../../features/media/reference";
-import { useStoreContent, useWorld } from "../../lib/store-access";
+import { useStoreContent } from "../../lib/store-access";
+import { seasonsHeld, useMediaSeasons, useMediaSheet } from "./queries";
 import {
   actionButton,
   backAction,
@@ -373,27 +374,33 @@ export function MediaScreen() {
   // fresh: this is what flips the « Suivre » button to « Suivi » without the
   // legacy sheet reopening itself.
   useStoreContent((c) => c.version);
-  const world = useWorld() as { follows?: Follow[] } | null;
-  const follows = world?.follows ?? [];
+  // FROM THE CACHE. This read was `useWorld()?.follows`, and the world stopped
+  // holding them when the queue converted — so the sheet had been quietly
+  // reporting « not followed » for everything, which the oracle cannot see
+  // because no named state opens a sheet for a title the operator follows.
+  const follows = (window.__followActions?.all() ?? []) as Follow[];
   const reference = useMediaReference();
   const { t } = useTranslation();
   const {
     icons,
     baseTitle,
-    sheetFor,
-    seasonsOf,
     CAST,
     trailerIds,
     initials,
   } = reference;
 
-  const sheet = sheetFor(title) as (MediaSheet & MediaSheetFields) | null;
+  // FROM THE CACHE, BY ADDRESS (invariant 4, DOIT-11). The engine looked its
+  // sheet up by TITLE out of a fixture keyed by title; the address is the
+  // identity, and it is what the request carries.
+  const { data: answered } = useMediaSheet(provider, id);
+  const sheet = (answered ?? null) as (MediaSheet & MediaSheetFields) | null;
   const isFilm = sheet ? sheet.k === "movie" : false;
   /* Seasons are DERIVED from the provider catalogue crossed with the numbers
      actually owned. A hand-written table gave seasons to 10 series only, and
      none of them to the INCOMPLETE ones — the very media the question is
      about. */
-  const sorted = seasonsOf(title)
+  const { data: catalogue } = useMediaSeasons(provider, id);
+  const sorted = seasonsHeld(catalogue)
     .slice()
     .sort((slice, index) => index[0] - slice[0]);
   const own = sorted.reduce(

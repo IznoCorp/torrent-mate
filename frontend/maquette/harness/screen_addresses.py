@@ -217,6 +217,7 @@ RELEASES_STATE = """() => {
     key: screen?.dataset.key ?? null,
     bar: (screen?.querySelector('[data-part="screen/bar"] span') || {}).textContent ?? null,
     candidates: screen ? screen.querySelectorAll('[data-part="release"]').length : 0,
+    wayOut: !!screen?.querySelector('[data-part="empty-state"] [data-part="card/foot"]'),
     pathname: location.pathname,
   };
 }"""
@@ -310,17 +311,29 @@ async def main():
             await ctx.close()
 
             # ─── Hold 6: /ajout deep entry, cold — field filled, results shown ──
-            add_address = f"{base}/add?q=lucky"
+            # THE QUERY IS ONE THE PROVIDER ANSWERS. It used to be « lucky »,
+            # and it worked because the engine answered the same six results to
+            # every question — a search that ignores what is asked. The seeded
+            # provider answers a real search, so a word it does not know draws
+            # the empty case, correctly, and this hold is about the other half:
+            # an address carrying a query loads its ANSWER on a cold boot.
+            add_address = f"{base}/add?q=star%20wars"
             ctx, pg, errors = await open_at(browser, add_address)
             add_cold = await pg.evaluate(ADD_STATE)
             journal.check(
                 "a deep /ajout address opens the screen, cold, with the field filled",
-                add_cold["open"] and add_cold["field"] == "lucky"
+                add_cold["open"] and add_cold["field"] == "star wars"
                 and add_cold["key"] == "add:follow",
                 f"field={add_cold['field']!r} key={add_cold['key']}")
+            # And the answer is WAITED FOR. The results used to be in the first
+            # paint because they were an array in the bundle; they are an answer
+            # now, and reading the cards in the same tick as the field would
+            # measure the loading state and call it an empty one.
+            await pg.wait_for_timeout(700)
+            add_answered = await pg.evaluate(ADD_STATE)
             journal.check(
                 "and the query shows results",
-                add_cold["cards"] >= 2, f"{add_cold['cards']} cards")
+                add_answered["cards"] >= 2, f"{add_answered['cards']} cards")
             journal.check("no JS error on deep /ajout entry", not errors, str(errors))
             await ctx.close()
 
@@ -590,20 +603,32 @@ async def main():
                              not errors, str(errors))
             await ctx.close()
 
-            # ─── Hold (p): an unknown deep /releases value renders the SAME
-            # candidate list — RELEASES carries no per-title lookup to fail,
-            # unlike a mediaSheet's `sheetFor`, so the honest case here is simply
-            # the ordinary screen, wearing whatever title was typed. ───────
+            # ─── Hold (p): an unknown deep /releases value renders the
+            # ordinary screen wearing whatever title was typed, and says it
+            # found nothing FOR THAT TITLE — with a way out.
+            #
+            # THIS HOLD USED TO REQUIRE CANDIDATES, and its stated reason was
+            # « RELEASES carries no per-title lookup to fail ». Since L09 it
+            # does: the picker asks `/api/acquisition/releases?title=…` and the
+            # layer answers for the title. So an unknown title legitimately
+            # answers none — that is the lookup working — and what has to hold
+            # is the other half, which nothing was reading: the screen still
+            # renders, it names the title asked for, and it offers a way out
+            # rather than a blank (DOIT-7, never a dead end).
             wrong_releases_address = f"{base}/releases/{UNKNOWN_ADDRESS}"
             ctx, pg, errors = await open_at(browser, wrong_releases_address)
+            await pg.wait_for_timeout(700)
             releases_lost = await pg.evaluate(RELEASES_STATE)
             journal.check(
-                "(p) an unknown title still renders the releases list, "
-                "with that title in the bar",
+                "(p) an unknown title renders the releases screen, names the "
+                "title, finds nothing, and offers a way out",
                 releases_lost["open"]
                 and releases_lost["bar"] == "N'Existe Pas"
-                and releases_lost["candidates"] > 0,
-                f"key={releases_lost['key']} bar={releases_lost['bar']!r}")
+                and releases_lost["candidates"] == 0
+                and releases_lost["wayOut"],
+                f"key={releases_lost['key']} bar={releases_lost['bar']!r} "
+                f"candidates={releases_lost['candidates']} "
+                f"wayOut={releases_lost['wayOut']}")
             journal.check(
                 "the address stays exactly as typed",
                 pg.url == wrong_releases_address, pg.url)

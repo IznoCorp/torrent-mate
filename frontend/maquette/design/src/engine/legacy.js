@@ -140,82 +140,6 @@ import { servedIdentityLines } from "../lib/served-identity";
   /* Real data */
   const LIB_TOTAL = 1861;
 
-  const TAKEABLE = [
-    {
-      t: "The Hawk",
-      s: "S01E04 · 1080p · 12 sources",
-      chip: ["warning", "À récupérer"],
-    },
-    {
-      t: "Backrooms",
-      s: "2026 · 2160p · 5 sources",
-      chip: ["warning", "À récupérer"],
-    },
-  ];
-  const BLOCKED = [
-    {
-      t: "Lucky",
-      s: "S02E07 · 1080p",
-      r: "Deux séries portent ce titre : TVDB 445120 « Lucky (2026) » et TMDB 90233 « Lucky (2021) ». Le scrape ne peut pas choisir seul.",
-      strip: [1, 1, 1, "blocked", 0],
-    },
-  ];
-  const INFLIGHT = [
-    {
-      t: "President Curtis",
-      s: "S01E02 · 1080p · VOSTFR",
-      strip: [1, 1, "now", 0, 0],
-      chip: ["info", "Ingestion"],
-    },
-    {
-      t: "Furious",
-      s: "S01E01 · 2160p",
-      strip: [1, 1, 1, "now", 0],
-      chip: ["info", "Scraping"],
-    },
-    {
-      t: "This City Is Ours",
-      s: "S01E06 · 1080p",
-      strip: [1, "now", 0, 0, 0],
-      chip: ["info", "Téléchargement 68 %"],
-    },
-  ];
-  const NOTFOUND = [
-    {
-      t: "I Will Find You",
-      s: "S01E03",
-      r: "Aucune release conforme depuis 4 jours. Prochaine recherche dans 2 h 10.",
-      chip: ["waiting", "Cherché, rien trouvé"],
-    },
-    {
-      t: "Dead Landes",
-      s: "S02E01",
-      r: "Aucune release conforme depuis 11 jours. Prochaine recherche dans 47 min.",
-      chip: ["waiting", "Cherché, rien trouvé"],
-    },
-  ];
-  const DONE_TODAY = [
-    {
-      t: "The Bombing of Pan Am 103",
-      s: "S01E05 · rangé à 14 h 12",
-      chip: ["success", "En médiathèque"],
-    },
-    {
-      t: "Smiling Friends",
-      s: "S03E02 · rangé à 11 h 40",
-      chip: ["success", "En médiathèque"],
-    },
-    {
-      t: "On l'appelait Robin des Bois",
-      s: "2026 · rangé à 09 h 27",
-      chip: ["success", "En médiathèque"],
-    },
-    {
-      t: "Ninja Turtles",
-      s: "2014 · rangé à 08 h 03",
-      chip: ["success", "En médiathèque"],
-    },
-  ];
 
   /* The 12 REAL follows, read from acquire.db with their true state: 4
      films waiting for a torrent, 8 series up to date (fractions cross-
@@ -224,160 +148,7 @@ import { servedIdentityLines } from "../lib/served-identity";
   /* In the « réel » scenario: nothing to grab, nothing to resolve, nothing
      in flight — the four followed films are at the legitimate rest state «
      searched, found nothing ». */
-  const NOTFOUND_REAL = [
-    {
-      t: "Kyma, l'onde mystérieuse",
-      s: "2026 · film",
-      r: "Aucune release conforme au profil depuis l'ajout. Prochaine recherche à 15 h 20.",
-      chip: ["waiting", "Cherché, rien trouvé"],
-    },
-    {
-      t: "L'Odyssée",
-      s: "2026 · film",
-      r: "Aucune release conforme au profil depuis 4 jours. Prochaine recherche à 15 h 20.",
-      chip: ["waiting", "Cherché, rien trouvé"],
-    },
-    {
-      t: "Spider-Man : Brand New Day",
-      s: "2026 · film",
-      r: "Aucune release conforme au profil depuis 4 jours. Prochaine recherche à 15 h 20.",
-      chip: ["waiting", "Cherché, rien trouvé"],
-    },
-    {
-      t: "Wicker",
-      s: "2026 · film",
-      r: "Aucune release conforme au profil depuis 9 jours. Prochaine recherche à 15 h 20.",
-      chip: ["waiting", "Cherché, rien trouvé"],
-    },
-  ];
 
-  const FOLLOWS = [
-    {
-      t: "Kyma, l'onde mystérieuse",
-      serie: null,
-      since: "9 août",
-      searches: 13,
-      k: "movie",
-      y: 2026,
-      st: "pending",
-      fresh: true,
-    },
-    {
-      t: "L'Odyssée",
-      serie: null,
-      since: "6 août",
-      searches: 16,
-      k: "movie",
-      y: 2026,
-      st: "pending",
-    },
-    {
-      t: "Spider-Man : Brand New Day",
-      serie: null,
-      since: "5 août",
-      searches: 19,
-      k: "movie",
-      y: 2026,
-      st: "pending",
-    },
-    {
-      t: "Wicker",
-      serie: null,
-      since: "31 juillet",
-      searches: 18,
-      k: "movie",
-      y: 2026,
-      st: "pending",
-    },
-    {
-      t: "American Dad!",
-      serie: "Continuing",
-      since: "3 juillet",
-      searches: 79,
-      k: "show",
-      y: 2005,
-      st: "up_to_date",
-      own: 403,
-      aired: 403,
-    },
-    {
-      t: "Dexter: Resurrection",
-      serie: "Continuing",
-      since: "5 août",
-      searches: 0,
-      k: "show",
-      y: 2025,
-      st: "up_to_date",
-      own: 96,
-      aired: 96,
-    },
-    {
-      t: "Furious",
-      serie: "Continuing",
-      since: "27 juillet",
-      searches: 15,
-      k: "show",
-      y: 2026,
-      st: "up_to_date",
-      own: 5,
-      aired: 5,
-    },
-    {
-      t: "House of the Dragon",
-      serie: "Continuing",
-      since: "3 juillet",
-      searches: 17,
-      k: "show",
-      y: 2022,
-      st: "up_to_date",
-      own: 26,
-      aired: 26,
-    },
-    {
-      t: "President Curtis",
-      serie: "Continuing",
-      since: "29 juillet",
-      searches: 23,
-      k: "show",
-      y: 2026,
-      st: "up_to_date",
-      own: 3,
-      aired: 3,
-    },
-    {
-      t: "Silo",
-      serie: "Continuing",
-      since: "3 juillet",
-      searches: 13,
-      k: "show",
-      y: 2023,
-      st: "pending",
-      own: 26,
-      aired: 27,
-    },
-    {
-      t: "Star Trek: Strange New Worlds",
-      serie: "Continuing",
-      since: "28 juillet",
-      searches: 18,
-      k: "show",
-      y: 2022,
-      st: "up_to_date",
-      own: 33,
-      aired: 33,
-    },
-    {
-      t: "Ted Lasso",
-      serie: "Continuing",
-      since: "4 août",
-      searches: 15,
-      k: "show",
-      y: 2020,
-      st: "up_to_date",
-      own: 35,
-      aired: 35,
-    },
-  ];
 
   /* 150 REAL suggestions: the output of the engine actually run against
      library.db (16 seeds → 32 TMDB calls → 640 raw titles → 503 survivors
@@ -516,60 +287,6 @@ import { servedIdentityLines } from "../lib/served-identity";
   /* Results of a REAL TMDB search for « star wars », cross-checked against
      the library: 3 already owned, 3 absent. 257 results found, 6 shown —
      which the interface must state. */
-  const SEARCH = {
-    total: 257,
-    shown: 6,
-    results: [
-      {
-        t: "La Guerre des étoiles",
-        y: "1977",
-        k: "Film",
-        ov: "Il y a bien longtemps, dans une galaxie très lointaine... La guerre civile fait rage entre l'Empire galactique et l'Alliance rebelle. Capturée par les troupes de choc de l'Empereur menées pa",
-        owned: true,
-        followed: false,
-      },
-      {
-        t: "Star Wars : The Clone Wars",
-        y: "2008",
-        k: "Série",
-        ov: "La galaxie est en proie à la Guerre des Clones, un conflit à grande échelle qui oppose les maléfiques Séparatistes et leurs immenses armées d'androïdes à la République. Les Chevaliers Jedi, ",
-        owned: true,
-        followed: false,
-      },
-      {
-        t: "Star Wars : The Mandalorian and Grogu",
-        y: "2026",
-        k: "Film",
-        ov: "L'Empire maléfique est tombé et les seigneurs de guerre impériaux restent dispersés dans toute la galaxie. Alors que la nouvelle République naissante travaille pour protéger tout ce que la r",
-        owned: true,
-        followed: false,
-      },
-      {
-        t: "Star Wars : Les Aventures des Petits Jedi",
-        y: "2023",
-        k: "Série",
-        ov: "L'incroyable parcours des Younglings, de jeunes recrues entamant un long cheminement dans l'espoir de devenir un jour des chevaliers Jedi dignes de ce nom. Leur formation va les amener à se ",
-        owned: false,
-        followed: false,
-      },
-      {
-        t: "Star Wars : The Clone Wars",
-        y: "2008",
-        k: "Film",
-        ov: "La galaxie est en proie à la Guerre des Clones, un conflit à grande échelle qui oppose les maléfiques Séparatistes et leurs immenses armées d'androïdes à la République. Les Chevaliers Jedi, ",
-        owned: false,
-        followed: false,
-      },
-      {
-        t: "Star Wars Vintage : Clone Wars",
-        y: "2003",
-        k: "Série",
-        ov: "Dans une galaxie très lointaine, se noue un drame. Le chaos règne et une guerre impitoyable se déclare entre la République et les forces séparatistes menées par les sinistres Sith du côté ob",
-        owned: false,
-        followed: false,
-      },
-    ],
-  };
 
   const SEASONS = {
     "American Dad!": [
@@ -665,394 +382,6 @@ import { servedIdentityLines } from "../lib/served-identity";
   /* Only suggestions whose sheet is COMPLETE (synopsis, genres, cast) are
      served: a card that opens a hollow sheet is a dead end. The reserve
      honestly states how many it carries. */
-  const SUGGESTIONS = [
-    {
-      t: "Superman : L'Homme de demain",
-      y: "2020",
-      k: "Film",
-      note: 7.1,
-      why: [
-        "Recoupé par ",
-        { e: "4" },
-        " titres de votre médiathèque, dont Ninja Turtles et Supergirl.",
-      ],
-    },
-    {
-      t: "Alita : Battle Angel",
-      y: "2019",
-      k: "Film",
-      note: 7.3,
-      why: [
-        "Recoupé par ",
-        { e: "3" },
-        " titres de votre médiathèque, dont Ninja Turtles et Supergirl.",
-      ],
-    },
-    {
-      t: "Numéro quatre",
-      y: "2011",
-      k: "Film",
-      note: 6.2,
-      why: [
-        "Recoupé par ",
-        { e: "3" },
-        " titres de votre médiathèque, dont Supergirl et Disclosure Day.",
-      ],
-    },
-    {
-      t: "Avengers : Endgame",
-      y: "2019",
-      k: "Film",
-      note: 8.2,
-      why: [
-        "Parce que vous avez ",
-        { e: "Supergirl" },
-        " et The Mandalorian and Grogu.",
-      ],
-    },
-    {
-      t: "L'Incroyable Hulk",
-      y: "2008",
-      k: "Film",
-      note: 6.2,
-      why: [
-        "Parce que vous avez ",
-        { e: "Ninja Turtles" },
-        " et The Mandalorian and Grogu.",
-      ],
-    },
-    {
-      t: "Man of Steel",
-      y: "2013",
-      k: "Film",
-      note: 6.7,
-      why: [
-        "Parce que vous avez ",
-        { e: "Supergirl" },
-        " et The Mandalorian and Grogu.",
-      ],
-    },
-    {
-      t: "X-Men : Dark Phoenix",
-      y: "2019",
-      k: "Film",
-      note: 6.0,
-      why: [
-        "Parce que vous avez ",
-        { e: "Supergirl" },
-        " et The Mandalorian and Grogu.",
-      ],
-    },
-    {
-      t: "Premier Contact",
-      y: "2016",
-      k: "Film",
-      note: 7.6,
-      why: [
-        "Parce que vous avez ",
-        { e: "Marjorie Prime" },
-        " et Disclosure Day.",
-      ],
-    },
-    {
-      t: "Ant-Man et la Guêpe : Quantumania",
-      y: "2023",
-      k: "Film",
-      note: 6.2,
-      why: ["Parce que vous avez ", { e: "Ninja Turtles" }, " et Supergirl."],
-    },
-    {
-      t: "The Venture Bros",
-      y: "2004",
-      k: "Série",
-      note: 7.8,
-      why: [
-        "Parce que vous avez ",
-        { e: "Batman Caped Crusader (2024)" },
-        " et President Curtis (2026).",
-      ],
-    },
-    {
-      t: "Fast Charlie",
-      y: "2023",
-      k: "Film",
-      note: 6.2,
-      why: [
-        "Parce que vous avez ",
-        { e: "On l'appelait Robin des Bois" },
-        " et Margin Call.",
-      ],
-    },
-    {
-      t: "Grimsburg",
-      y: "2024",
-      k: "Série",
-      note: 6.1,
-      why: [
-        "Parce que vous avez ",
-        { e: "Batman Caped Crusader (2024)" },
-        " et President Curtis (2026).",
-      ],
-    },
-    {
-      t: "Solo: A Star Wars Story",
-      y: "2018",
-      k: "Film",
-      note: 6.6,
-      why: [
-        "Parce que vous avez ",
-        { e: "Supergirl" },
-        " et The Mandalorian and Grogu.",
-      ],
-    },
-    {
-      t: "L'Assassin",
-      y: "2025",
-      k: "Série",
-      note: 6.9,
-      why: [
-        "Parce que vous avez ",
-        { e: "Batman Caped Crusader (2024)" },
-        " et Furious (2026).",
-      ],
-    },
-    {
-      t: "Power Rangers",
-      y: "2017",
-      k: "Film",
-      note: 6.2,
-      why: [
-        "Parce que vous avez ",
-        { e: "Supergirl" },
-        " et The Mandalorian and Grogu.",
-      ],
-    },
-    {
-      t: "Agent Elvis",
-      y: "2023",
-      k: "Série",
-      note: 6.9,
-      why: [
-        "Parce que vous avez ",
-        { e: "Batman Caped Crusader (2024)" },
-        " et President Curtis (2026).",
-      ],
-    },
-    {
-      t: "Marvel's M.O.D.O.K.",
-      y: "2021",
-      k: "Série",
-      note: 6.6,
-      why: [
-        "Parce que vous avez ",
-        { e: "Batman Caped Crusader (2024)" },
-        " et President Curtis (2026).",
-      ],
-    },
-    {
-      t: "Un Duplex pour 3",
-      y: "2003",
-      k: "Film",
-      note: 6.1,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Alexandre Kominek Bâtard sensible.",
-      ],
-    },
-    {
-      t: "Les Trois Corniauds",
-      y: "2012",
-      k: "Film",
-      note: 5.8,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Alexandre Kominek Bâtard sensible.",
-      ],
-    },
-    {
-      t: "L'Embrouille est dans le sac",
-      y: "1991",
-      k: "Film",
-      note: 6.4,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Alexandre Kominek Bâtard sensible.",
-      ],
-    },
-    {
-      t: "Impostor",
-      y: "2001",
-      k: "Film",
-      note: 6.1,
-      why: [
-        "Parce que vous avez ",
-        { e: "Disclosure Day" },
-        " et The Mandalorian and Grogu.",
-      ],
-    },
-    {
-      t: "Green Lantern : Le Complot",
-      y: "2009",
-      k: "Film",
-      note: 6.9,
-      why: [
-        "Parce que vous avez ",
-        { e: "Supergirl" },
-        " et The Mandalorian and Grogu.",
-      ],
-    },
-    {
-      t: "Green Lantern : Méfiez-vous de mon pouvoir",
-      y: "2022",
-      k: "Film",
-      note: 6.7,
-      why: ["Parce que vous avez ", { e: "Ninja Turtles" }, " et Supergirl."],
-    },
-    {
-      t: "Monsieur le député",
-      y: "1992",
-      k: "Film",
-      note: 6.0,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Alexandre Kominek Bâtard sensible.",
-      ],
-    },
-    {
-      t: "Touche pas à mon gazon",
-      y: "1977",
-      k: "Film",
-      note: 6.6,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Scary Movie.",
-      ],
-    },
-    {
-      t: "LOL 2.0",
-      y: "2026",
-      k: "Film",
-      note: 6.0,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Alexandre Kominek Bâtard sensible.",
-      ],
-    },
-    {
-      t: "Thunderstruck",
-      y: "2012",
-      k: "Film",
-      note: 6.2,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Alexandre Kominek Bâtard sensible.",
-      ],
-    },
-    {
-      t: "American Dreamer",
-      y: "2022",
-      k: "Film",
-      note: 6.0,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Alexandre Kominek Bâtard sensible.",
-      ],
-    },
-    {
-      t: "Y-a-t'il quelqu'un pour l'ambulance ?",
-      y: "1992",
-      k: "Film",
-      note: 6.1,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Alexandre Kominek Bâtard sensible.",
-      ],
-    },
-    {
-      t: "Jim Gaffigan: Beyond the Pale",
-      y: "2006",
-      k: "Film",
-      note: 7.0,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Alexandre Kominek Bâtard sensible.",
-      ],
-    },
-    {
-      t: "Eddie Murphy: Delirious",
-      y: "1983",
-      k: "Film",
-      note: 7.6,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Alexandre Kominek Bâtard sensible.",
-      ],
-    },
-    {
-      t: "Jim Gaffigan: Mr. Universe",
-      y: "2012",
-      k: "Film",
-      note: 6.8,
-      why: [
-        "Parce que vous avez ",
-        { e: "Alison Wheeler La Promesse d'un soir" },
-        " et Alexandre Kominek Bâtard sensible.",
-      ],
-    },
-    {
-      t: "Spider-Man : Brand New Day",
-      y: "2026",
-      k: "Film",
-      note: 7.9,
-      why: ["Parce que vous avez ", { e: "Ninja Turtles" }, "."],
-    },
-    {
-      t: "Esprits criminels",
-      y: "2005",
-      k: "Série",
-      note: 8.3,
-      why: ["Parce que vous avez ", { e: "Furious (2026)" }, "."],
-    },
-    {
-      t: "Avengers : Infinity War",
-      y: "2018",
-      k: "Film",
-      note: 8.2,
-      why: ["Parce que vous avez ", { e: "Supergirl" }, "."],
-    },
-    {
-      t: "Arrow",
-      y: "2012",
-      k: "Série",
-      note: 6.8,
-      why: ["Parce que vous avez ", { e: "Batman Caped Crusader (2024)" }, "."],
-    },
-    {
-      t: "Avatar : De feu et de cendres",
-      y: "2025",
-      k: "Film",
-      note: 7.6,
-      why: ["Parce que vous avez ", { e: "The Mandalorian and Grogu" }, "."],
-    },
-    {
-      t: "Manhunt",
-      y: "2017",
-      k: "Série",
-      note: 7.6,
-      why: ["Parce que vous avez ", { e: "The Bombing of Pan Am 103" }, "."],
-    },
-  ];
 
   /* 260 REAL titles extracted from library.db (read-only) — enough to
      exercise scrolling on more than a handful of examples. */
@@ -4608,678 +3937,6 @@ import { servedIdentityLines } from "../lib/served-identity";
      `media_item` nor a key of `item_attribute` carries it, so the app cannot
      render this today — the read-model has to grow a field first. Nine of the
      349 titles have none, and those show nothing rather than a filler. */
-  const SYNOPSIS = {
-    "22.11.63":
-      "Jake Epping, an ordinary high school teacher, is presented with a chance to change history. When a longtime friend shows Jake how to travel back in time, he tasks Jake with a mission he has been trying in vain to complete: stopping the assassination of John F. Kennedy on Nov. 22, 1963. Jake quickly learns that the past does not want to be changed, and that his attempts to divert the course of history can quickly turn dangerous.",
-    "3%": 'A thriller set in a world sharply divided between progress and devastation, where people are given the chance to make it to the "better side" but only 3% of the candidates succeed.',
-    "Achtsam Morden":
-      "Top-Anwalt Björn Diemel findet zur Rettung seiner Ehe mit Hilfe eines Achtsamkeitsseminars eine neue Work-Life-Balance in seinem Leben und wird dabei aus Versehen zum Mörder.",
-    "Ahmed Sylla - Origami":
-      "Ahmed Sylla s'est plié en quatre, tel un origami, pour nous offrir un spectacle dans lequel il évoque de nombreux thèmes sur lesquels on ne l'attendait pas, tels que la religion, ses origines sénégalaises ou encore les actualités qui ont fait la une ces 5 dernières années. Grâce à sa présence magnétique, Ahmed nous offre un mélange de stand-up et de personnages tous plus drôles les uns que les autres, le tout avec beaucoup d'autodérision et d'observation.",
-    "Alexandre Kominek Bâtard sensible":
-      "C'est un Polonais Tunisien né en Suisse : Ce pourrait être le début d'une blague, il a donc décidé d'en faire un spectacle. Alexandre Kominek avance sans chercher à arrondir les angles. Son humour frontal met à nu les contradictions contemporaines comme le désir, la masculinité ou les rapports sociaux. Pendant 1 heure et 45 minutes, il assomme son public à coups d'histoires aussi folles qu'authentiques.",
-    "Alison Wheeler La Promesse d'un soir":
-      "Son impertinence et sa singularité ont fait le sel de ses passages sur Canal+, France Inter et TMC dans \"Quotidien\". Aujourd'hui, Alison Wheeler monte sur scène pour la première fois. Son spectacle \"La promesse d'un soir\" est l'occasion de la découvrir de façon plus intime. Elle se livre avec un brin de folie et n'hésite pas à offrir ses paradoxes faits des sujets de l'époque. Il n'est pas impossible qu'ils résonnent en vous. Avec beaucoup d'autodérision, elle décrypte aussi bien des situations un brin gênantes que chacun a pu ou pourrait connaître, que les diverses injonctions faites aux femmes. Dans ce monde semble-t-il désenchanté, Alison Wheeler compte, elle, bien tenir sa promesse : celle de nous faire vivre une soirée d'impertinences.",
-    "Aller simple la téléréalité":
-      "Basée sur la série ALLER SIMPLE, ALLER SIMPLE : LA TÉLÉRÉALITÉ met en scène dix inconnus porteurs d’un secret, qui doivent mentir, enquêter en plus de réussir des défis physiques et psychologiques pour sortir gagnant de cette expérience sociale débordante de suspense et de stratégie.",
-    "Among Us":
-      "Eccentric, monochromatic crewmates of a ship transporting junk across the galaxy must root out an Impostor in their midst before they fall victim to its villainous designs. Based on Innersloth’s global video game phenomenon of the same name.",
-    "Andrew The Problem Prince":
-      "The inside story of Prince Andrew's 2019 Newsnight interview with Emily Maitlis and subsequent chain of events that led to royal disaster. In the 80s Andrew was a Falklands war hero and a national heart-throb, glory years culminating in marriage to Sarah Ferguson. But following his departure from the Navy, his new role as trade envoy proved unsuccessful - and his need to fund a lavish lifestyle and friendship with Jeffrey Epstein eventually prompted the interview that cemented his downfall.",
-    "Anger Management":
-      'In Anger Management, Sheen stars as "Charlie," a non-traditional therapist specializing in anger management. Selma Blair, Shawnee Smith, Daniela Bobadilla, Michael Arden, and Noureen DeWulf co-star. He has a successful private practice, holding sessions with his group of primary patients each week, as well as performing pro bono counseling for an inmate group at a state prison. Charlie thrives on the chaos in his life while still battling his own anger issues. His life is complicated by his relationships with his own therapist/best friend, an ex-wife whose positive outlook but poor choice in men frustrates Charlie, and their 13-year-old daughter who has obsessive-compulsive disorder.',
-    Antigang:
-      "Dans les années 1960 en France, les braquages se multiplient, la police est confrontée à des gangs très professionnels qui laissent peu de traces et brouillent les pistes. Un commissaire va alors impulser un changement radical de méthodes. François Le Mouël propose d'identifier des criminels potentiels, les suivre et intervenir le plus vite possible pendant ou après l'infraction. En 1964, La Brigade de Recherche et d'Intervention, la BRI, rebaptisée l'Antigang par les médias, est née.",
-    Arcane:
-      "Amid the stark discord of twin cities Piltover and Zaun, two sisters fight on rival sides of a war between magic technologies and clashing convictions.",
-    Archer:
-      "Archer suit les exploits de huit agents secrets complètement barrés du Service de renseignement secret international (ISIS), une agence de renseignement fictive basée à New York. Ces agents surentraînés qui n'ont de cesse de déstabiliser, humilier et tromper leurs collègues sont : Sterling Archer, narcissique et coureur de jupons invétéré. Malory Archer, directeur de l'ISIS, mère sordide et émotionnellement lointaine de Sterling. Lana Kane, l'ex de Sterling, la maman de sa petite fille et de loin l'agent de terrain le plus professionnel de l'ISIS. Gillette, spécialiste en explosifs de l'agence et ouvertement gaie. Pam Poovey, chef du département des ressources humaines de l'agence, souvent ridiculisé par ses pairs. Cyril Figgis, un comptable doué devenu agent. Cheryl Tunt, assistante psychotique et délirante de Malory. Le Dr Algernop Krieger, un scientifique bizarre, moralement en faillite, qui ne se soucie guère du bien-être de ses sujets.",
-    "Arnaud Tsamere 2 mariages & 1 enterrement":
-      "Capté au Cirque Royal, à Bruxelles. Arnaud Tsamere raconte sa vie, avec son premier mariage, puis ensuite son divorce. Il se remarie et devient père. Mais sa seconde épouse le quitte à son tour. Vient alors le temps de la garde alternée pour son enfant. Au décès de son père, l'humoriste sombre lentement dans la dépression, face aux difficultés de la vie. Mais la même vie est surprenante et quelques années plus tard, le voici dans ce spectacle de la maturation selon ses propres mots. Comment faire rire quand on tombe lentement dans la dépression ? : réponse avec ces 2 mariages et cet enterrement !",
-    "Arnaud Tsamère - Chose Promise":
-      "Dans &quot;Chose Promise&quot;, Arnaud Tsamère incarne Patrice Valenton, un modeste professeur d'économie, qui décide de monter sur scène... Non pas pour une quelconque gloire mais pour honorer une promesse faite solennellement à un ami très bourré et logiquement décédé dans un stupide accident de voiture.",
-    "Arnaud Tsamère - Confidences sur pas mal de trucs plus ou moins confidentiels":
-      "Je vais vous faire une confidence plus ou moins confidentielle : &quot;Pour écrire ce spectacle avec mes comparses François Rollin et Arnaud Joyet, nous sommes partis d'un postulat très simple : la société rigole trop. Une étude américaine d'une université de Californie révèle que depuis janvier 2012, un être humain sur terre rit en moyenne 15 à 16 heures par jour.",
-    "Artus - Saignant à point":
-      "Dans son spectacle Al dente, Artus met les petits plats dans les grands pour concocter un menu hilarant qui comblera les gourmands d’humour et les gastronomes de la déconne. Cuisiné par un chef qui vous aime déjà, un one man à déguster chaud…",
-    "Astérix & Obélix Le Combat des chefs":
-      "Alors que Panoramix a oublié la recette de la potion magique, Astérix et Obélix doivent repousser César, qui compte bien arriver à ses fins grâce à une loi gauloise.",
-    "Astérix Le Domaine des dieux":
-      "Nous sommes en 50 avant Jésus-Christ ; toute la Gaule est occupée par les Romains… Toute ? Non ! Car un village peuplé d'irréductibles Gaulois résiste encore et toujours à l'envahisseur. Exaspéré par la situation, Jules César décide de changer de tactique : puisque ses armées sont incapables de s’imposer par la force, c’est la civilisation romaine elle-même qui saura séduire ces barbares gaulois. Il fait donc construire à côté du village un domaine résidentiel luxueux destiné à des propriétaires romains : \"Le Domaine des Dieux\". Nos amis gaulois résisteront-ils à l’appât du gain et au confort romain ? Leur village deviendra-t-il une simple attraction touristique ? Astérix et Obélix vont tout faire pour contrecarrer les plans de César.",
-    "Au bout c'est la mer":
-      "Sur tous les continents, il existe des fleuves mythiques, de véritables appels à prendre le large. Ils sont la source des plus grandes civilisations, le refuge de peuples oubliés, un poumon économique et culturel, et de merveilleux éco-systèmes.",
-    "Aymeric Lompret & Pierre-Emmanuel Barré Woke me up !":
-      "Avec Aymeric Lompret et Pierre-Emmanuel Barré aux commandes, c’est bien évidemment le progressisme qui sera le fil rouge de ce spectacle créé pour Lillarious. Progressisme fort logiquement incarné par deux mâles blancs cisgenres hétérosexuels de quarante ans… Heureusement, à leurs côtés, six humoristes talentueux·euses tenteront de compenser leur légendaire médiocrité. Captation les 6 février, 7 février et 8 février 2025 au Théâtre Sebastopol à Lille, dans les Hauts-de-France.",
-    "Aymeric Lompret Tant Pis":
-      "Dans son septième spectacle, Aymeric Lompret poursuit la dissection méthodique de la société sur le ton original et caustique qui a fait son succès jusqu'ici. Avec candeur et nonchalance, il disserte sur la marche du monde, entre désillusion et naîveté.",
-    Babar:
-      "Babar est un jeune éléphanteau qui vit avec sa mère et tous les autres éléphants dans la jungle. Sa vie bouscule lorsqu'un chasseur tue sa mère. Il est alors obligé de se réfugier en ville où il rencontre la Vieille Dame qui lui apprend à vivre debout, les us et coutumes de son monde et le vêtit de son célèbre costume vert. Mais la vie de la jungle lui manque et il décide de partir retrouver ses amis qui fuient encore le chasseur. Il fonde Célesteville dont il est le roi, se marie avec sa petite cousine Céleste et donne la vie à Flore, Pom, Alexandre et Isabelle. Affable et réfléchi, Babar vit jeune des aventures passionantes et plus vieux, il se plaît à raconter son vécu à ses enfants et à vivre des péripéties en leur compagnie... Ils auront notamment souvent affaire au méchant Rataxès le rhinocéros, roi de Rhinoland.",
-    Backrooms:
-      "Une étrange porte apparaît dans le sous-sol d'un magasin de meubles.",
-    "Band of Brothers":
-      "The story of Easy Company, 506th Regiment of the 101st Airborne Division, U.S. Army. Based on interviews with survivors of Easy Company, as well as soldiers' journals and letters, the series chronicles the experiences of these young men who knew extraordinary bravery and extraordinary fear.",
-    "Batman Caped Crusader (2024)":
-      "Une réinvention palpitante et cinématographique de la mythologie de Batman, évocatrice des racines noires du personnage.",
-    "Battlestar Galactica":
-      "In a distant part of the universe, a civilization of humans live on planets known as the Twelve Colonies. In the past, the Colonies have been at war with a cybernetic race known as the Cylons. 40 years after the first war the Cylons launch a devastating attack on the Colonies. The only military ship that survived the attack takes up the task of leading a small fugitive fleet of survivors into space in search of a fabled refuge known as Earth.",
-    "Beacon 23":
-      "La relation complexe entre deux individus piégés dans un phare à la frontière de l'univers connu",
-    "Benjamin Tranié - Félicitations et tout et tout":
-      "Philippe Recton et Tiffany Ledut ont l'honneur et la joie de vous convier à leur mariage. Rendez-vous à la mairie à 15h, suivi d'un vin d'honneur et d'un dîner au domaine du Château de Vieux-Sac. Les téléphones, les chiens et vos enfants pénibles ne sont pas admis à la cérémonie.",
-    "Better Call Saul":
-      "Six ans avant de croiser le chemin de Walter White, Saul Goodman, connu sous le nom de Jimmy McGill, est un avocat qui peine à joindre les deux bouts, à Albuquerque, au Nouveau-Mexique. Pour boucler ses fins de mois, il n'aura d'autres choix que se livrer à quelques petites escroqueries. Chemin faisant, il va faire des rencontres qui vont se révéler déterminantes dans son parcours : Nacho Varga, ou encore Mike Ehrmantraut, un criminel spécialisé dans le &quot;nettoyage&quot;, qui deviendra son futur homme de main.",
-    "Big Chicken Le complot de la malbouffe":
-      "L'humoriste Mo Gilligan s'alimente de poulet frit pendant 28 jours en parcourant le Royaume-Uni et les États-Unis pour révéler l'impact de cet engouement et de son industrie.",
-    "Blue Lights":
-      "Suivez des policiers débutants travaillant à Belfast, une ville dans laquelle être flic d'intervention de première ligne s'accompagne de pressions et de dangers uniques.",
-    Bluey:
-      "Petite chienne bouvier australien âgée de six ans, Bluey déborde d'énergie et adore jouer ! En transformant la vie de famille en une aventure quotidienne, elle nourrit son imagination, son ingéniosité, sa résistance physique et sa détermination.",
-    "BoJack Horseman":
-      "Meet the most beloved sitcom horse of the '90s... 20 years later. He’s a curmudgeon with a heart of, not quite gold, but something like gold. Copper?",
-    "Bob l'éponge":
-      "The misadventures of a talking sea sponge who works at a fast food restaurant, attends a boating school, and lives in an underwater pineapple.",
-    "Bob l'éponge - Le film Un héros sort de l'eau":
-      "Tout baigne à Bikini Bottom pour Bob l’éponge, l’éternel optimiste et ses amis: Patrick l’étoile de mer fidèle, Carlo le calamar égoïste, Sandy l’écureuil et Monsieur Krabs, le crustacé obsédé par l’argent! Cependant tout bascule quand la recette du pâté de crabe est volée par le diabolique pirate Steak Barbare (et les mouettes qui ne le quittent jamais…) ! Pour sauver leur monde, Bob et ses amis vont unir leurs forces (avec l’aide de Plankton, l’ennemi de toujours !) et débarquer dans le nôtre ! Transformés en super-héros, ils vont apprendre à maîtriser leurs super-pouvoirs, mais … ça va faire des vagues !",
-    Bodies:
-      "Quatre enquêteurs. Quatre époques. Une victime. Inspirée du roman graphique hallucinant de Si Spencer, Bodies est une série policière unique en son genre. Lorsque le même corps est retrouvé sur Longharvest Lane dans l'East End de Londres en 1890, 1941, 2023 et 2053, quatre détectives doivent mener l'enquête, chacun à son époque. Au fil des décennies, ils découvrent que leurs affaires sont liées, tandis qu'émerge un énigmatique leader politique appelé Elias Mannix (Stephen Graham). A-t-il joué un rôle dans l'un de ces meurtres ? Ou une vérité bien plus sombre se cache-t-elle derrière ces événements ? Pour résoudre le mystère, nos quatre enquêteurs vont devoir collaborer d'une manière ou d'une autre et dévoiler une conspiration qui s'étend sur plus de 150 ans.",
-    Bodkin:
-      "Une bande de podcasteurs décide d'enquêter sur d'anciennes disparitions mystérieuses dans une ville pittoresque d'Irlande qui cache de noirs et terribles secrets.",
-    "Boglands, enquête en terre noire":
-      "Irlande, dans une petite ville du comté de Donegal. Quinze ans après avoir été portée disparue, la mère du policier Conall O Suilleabhain est retrouvée enterrée dans une tourbière. Écarté de l’enquête, Conall se lance à la recherche de la vérité, tandis que Ciara Kate, une jeune journaliste, compte sur l’affaire pour faire décoller sa carrière…",
-    Boots:
-      "En 1990, Cameron, un étudiant homosexuel réservé, rejoint le Corps des Marines avec son meilleur ami, Ray. Une décision dangereuse à une époque où être homosexuel dans l’armée signifiait une peine de prison... ou pire. Alors que les deux amis font face à un difficile entraînement, au cours duquel les mines antipersonnel sont à la fois littérales et métaphoriques, ils traversent un éprouvant voyage de transformation au sein de leur peloton.",
-    Breathe:
-      "Maya et sa fille sont obligées de vivre sous terre après que la Terre ait été rendue inhabitable par un manque d'oxygène. Seuls de brefs voyages à la surface sont possibles grâce à une combinaison à oxygène ultramoderne fabriquée par le mari de Maya, Darius, qu'elle présume mort. Lorsqu'un couple mystérieux arrive, prétendant connaître Darius, Maya accepte de les laisser entrer dans leur bunker, mais sont-ils vraiment ce qu'ils semblent être ?",
-    Broadchurch:
-      "The murder of a young boy in a small coastal town brings a media frenzy, which threatens to tear the community apart.",
-    "Broute 24.":
-      "Dans cette nouvelle adaptation du format court, Bertrand Usclat campe huit personnages complètement décalés : un CRS en manif, l'habitant flemmard d'un éco-village, un vieux lobbyiste en décalage avec l’époque, le principal d'un collège au bord de la crise, un coach en séduction un peu ringard, un maire identitaire forcé d'accueillir une famille de réfugiés dans son village, le membre d'un groupe polyamoureux un peu (très) jaloux, et un jeune papa plus ou moins en congé paternité.",
-    "Burger Quiz":
-      "A humorous quiz show in which two candidates team up with celebrities and compete for a chance to answer all ten questions of the Burger de la mort.",
-    "C'était la guerre d'Algérie":
-      "Juillet 1962, l’Algérie est indépendante. Ils sont des millions à travers tout le pays à fêter la naissance d’une nation et la fin de 130 années de présence française. Un million d’autres, européens, appelés les « pieds-noirs », nés en Algérie, enracinés depuis des générations quittent le pays dans un dramatique exode. «",
-    Caillou:
-      "Caillou est un bambin de quatre ans fort éveillé qui découvre la vie – une aventure à la fois ! À partir de sa propre cour jusqu’à son premier voyage en avion, Caillou découvre la magie et l’émerveillement d’être un tout petit garçon dans un immense univers.",
-    "Caméra Café":
-      "The main originality of the series is the coffee machine, located in the relaxation area of the company, which becomes the point of view of the viewer during each episode. In front of it, parade the employees of the company G.E.S. all as caricatured as each other and to the grotesque humor, even cynical at times. This place of choice allows the viewer to live from within the everyday atmosphere of the head office of a large company in the French (such as the presence of a driver for the president, a director of human resources and 'a full-time psychologist), with professional or private discussions that often turn into caricatures. Some extras pass from time to time down the hall and sometimes serve as spectators in some skits at strategic moments.",
-    "Captain Fall":
-      "Jonathan Fall, un capitaine de mer au caractère bien trempé mais au grand cœur, se retrouve involontairement à la barre d'un navire de contrebande.",
-    "Cash Investigation":
-      "Cash Investigation gives new life to investigative investigations by tackling in each new issue different subjects concerning the business world (drug industry, ready to wear, tax havens, neuromarketing, planned obsolescence ...) but also to the managers themselves.",
-    Cassandra:
-      "Une famille emménage dans une vieille maison connectée et découvre qu'elle est contrôlée par une assistante virtuelle... prête à tout pour les empêcher de sortir.",
-    "Casting(s)":
-      "Casting(s) est une shortcom télévisée française créée par Pierre Niney et Ali Marhyar, écrite par Ali Marhyar, Igor Gotesman et Pierre Niney, produite par Hugo Gélin pour Zazi Films et diffusée depuis le 7 septembre 2013 sur Canal+ en clair. Un directeur de casting fait répéter des comédiens pour différents projets de film.",
-    "Cauchemar en cuisine":
-      "In each episode, Chef Philippe Etchebest tries to help restaurateurs in difficult situations try to avoid bankruptcy, but he does not hesitate to play the tough guy when he is made aware of the mistakes that are endangering their business.",
-    Caïn: "Les enquêtes du capitaine Fred Caïn, policier en fauteuil roulant et de sa coéquipière le lieutenant Lucie Delambre.",
-    "Ce monde ne m'aura pas":
-      "Zerocalcare veut aider un vieil ami de retour dans le quartier à retrouver sa place dans le monde. Mais comment s'y prendre ?",
-    "Cent ans de solitude":
-      "Dans la ville intemporelle de Macondo, sept générations de la famille Buendía naviguent entre l'amour, l'oubli et l'inéluctabilité de leur passé — et de leur destin.",
-    Chacal:
-      "Le Chacal, un assassin solitaire, insaisissable, et particulièrement doué, se fait payer grassement pour abattre ses cibles. Il se trouve confronté à un officier des renseignements britanniques, une femme aussi tenace que lui, qui va se mettre à le traquer. Une course passionnante à travers l'Europe commence.",
-    "Channel Zero":
-      "A chaque saison, son histoire glauque et effrayante. Channel Zero est une série anthologique basée sur les &quot;creepypasta&quot;, des légendes urbaines d'épouvante diffusées sur internet.",
-    Chernobyl:
-      "Chernobyl dramatizes the story of the 1986 nuclear accident — one of the worst man-made catastrophes in history — and the sacrifices made to save Europe from unimaginable disaster.",
-    "Chief of War":
-      "Comme les quatre royaumes d'Hawaiʻi sont déchirés par la guerre, le féroce guerrier Kaʻiana se lance dans une mission monumentale pour unir son peuple, alors qu'une sombre menace se rapproche.",
-    "Childhood's End":
-      "Written by Arthur C. Clarke and hailed as a revolutionary work of science fiction since its publishing in 1953, Childhood’s End follows the peaceful alien invasion of Earth by the mysterious “Overlords,” whose arrival begins decades of apparent utopia under indirect alien rule, at the cost of human identity and culture.",
-    "Chouette, un jeu d'enfants":
-      "Que les enfants soient au bord de l’eau, sur la plage, la banquise ou les rives d’un étang, ils veulent jouer. Pour cela, il leur faut des partenaires, des complices, jeunes ou adultes, avec qui partager leurs fantaisies et jeux de rôles, avec sérieux ou légèreté. Traverser la Terre par des tunnels mystérieux? Secourir un monstre marin sorti des flots? Tenir tête à un génie puissant et très méchant? Taquiner une carpe jusqu’à ce que ce soit elle qui prenne l’avantage de la pêche? Rien d’impossible pour des enfants joueurs, le merveilleux est au rendez-vous du jeu.",
-    "Chère petite":
-      "Une mystérieuse femme retenue captive parvient à échapper à son terrible ravisseur et réveille une enquête non résolue sur une sinistre disparition, treize ans plus tôt.",
-    "Chérie, j'ai agrandi le bébé":
-      "3 ans après avoir rétréci ses enfants, Wayne Szalinski a retrouvé un poste dans un laboratoire du Nevada, où il travaille sur un rayon de dilatation des molécules au Nième degré. Mais le projet lui est retiré. Frustré, il va expérimenter le rayon chez lui et, par mégarde, transformer accidentellement son petit dernier, âgé de 2 ans, Adam, en un véritable Godzilla en culottes courtes…",
-    "Chérie, j'ai rétréci les gosses":
-      "Le facétieux professeur Wayne Szalinski a encore transformé sa maison en un vaste laboratoire et sa famille en cobayes. Sa dernière trouvaille : un rayon laser, capable de rétrécir les objets. Ses enfants, Amy et Nick, ainsi que leurs copains, Ron et Russ, en font malencontreusement l’expérience. Les voici réduits à la taille du Petit Poucet, confrontés à la jungle du jardin, où le moindre brin d’herbe prend des allures de baobab.",
-    "Citoyens clandestins":
-      "La course contre la montre d’un homme pour déjouer un attentat, en France : qui est-il, pour qui travaille-t-il, jusqu’où ira-t-il ? Autour de lui - avec ou contre lui - les services secrets, les terroristes, une journaliste, un infiltré.",
-    "City Hunter":
-      'The story takes place in Seoul, 2011. Lee Yoon-sung is a talented MIT-graduate who\'s working on the international communications team at the Blue House. He encounters dangerous situations while solving a variety of cases, both big and small, for people who need his help, and eventually becomes a "city hunter."',
-    "City on Fire":
-      "Une étudiante se fait tirer dessus à Central Park le 4 juillet 2003. L'enquête établit un lien entre une série de mystérieux incendies, la scène musicale du centre-ville et une riche famille d'agents immobiliers des quartiers chics qui croule sous les secrets.",
-    "Close Enough":
-      "A young married couple juggles everyday challenges such as parenthood, friendship, ham theft, stripper clowns and choosing the right day care.",
-    "Club Dorothée":
-      "Le Club Dorothée (abrégé en Club Do') est une émission de télévision française destinée à la jeunesse et diffusée sur la chaîne télévisée TF1 du 2 septembre 1987 au 30 août 1997 et produite par AB Productions. À la présentation, une équipe de cinq animateurs (Dorothée, Jacky, Ariane Carletti, François Corbier et Patrick Simpson-Jones puis Éric Galliano), ainsi qu'une voix off : Monsieur Cadeau (Olivier Martial Thieffin). L'émission est centrée autour de l'animatrice vedette Dorothée, faisant grandement place à sa facette de chanteuse, lui permettant d'assurer la promotion de ses chansons, albums et spectacles. L'émission s'agrémentait de nombreux dessins animés, séries télévisées, sitcoms, jeux, concours et rubriques éducatives. Durant ses dix années d'existence, elle fut marquée par des records d'audience et sujette à de nombreuses polémiques.",
-    "Cold Case Les meurtres au Tylenol":
-      "Chicago, 1982. Sept décès soudains et inexpliqués secouent la plus grande ville de la région du Midwest. Le lien entre les victimes ? Elles ont toutes consommé des capsules de Tylenol (un analgésique efficace contre la fièvre) empoisonnées au cyanure. Une menace invisible, qui déclenche la panique dans tout le pays, et l’une des enquêtes criminelles les plus importantes de l’histoire des États-Unis. Y aurait-il un génie du crime derrière ces actes odieux ou a-t-on trouvé le bouc émissaire idéal pour dissimuler un complot plus sinistre encore ?",
-    "Comedy Class":
-      "Eric et Ramzy vont partir à la recherche de nouveaux talents de l'humour à Paris, Nantes, Marseille et Bruxelles. Tout au long de l'aventure Comedy Class, les mentors seront accompagnés par des invités d'exception.",
-    "Comme un prince":
-      "Souleyman, 27 ans, champion de boxe en pleine préparation des J.O. avec l’équipe de France, voit son avenir s’écrouler lorsqu’il se fissure les os de la main, suite à une bagarre dans un bar. Souleyman se fait exclure de l’équipe et est envoyé au château de Chambord, où il doit effectuer ses 400 heures de travaux d’intérêt général (T.I.G.) à ramasser les déchets dans les jardins. D’abord insensible au lieu, Souleyman finit par s’intéresser au château, à ceux qui y travaillent, et notamment à Eddy la responsable événementiel, qui va l’embarquer dans un autre univers. Mais sa rencontre avec Mélissa, une jeune ado au talent exceptionnel pour la boxe, va remettre en question ses projets…",
-    "Common Side Effects":
-      "Marshall et Frances, anciens partenaires de laboratoire au lycée, commencent à démêler une conspiration impliquant les grandes sociétés pharmaceutiques et le gouvernement fédéral pour supprimer la connaissance d'un champignon rare qui pourrait être la clé de la guérison de toutes les maladies du monde.",
-    "Couacs en vrac":
-      "Les neveux de Donald ont bien grandi. Riri, Fifi et Loulou sont en effet devenus des adolescents branchés aux allures de skateurs. L'oncle Donald quant à lui est devenu caméraman pour un journal télévisé et travaille de pair avec sa fiancée, Daisy, reporter-journaliste qui est toujours accompagnée de son iguane, Cracotte, qui mange tout ce qui est à portée de sa bouche. Donald est par ailleurs toujours aussi râleur et inintelligible. Les trois malicieux ados passent la plupart de leur temps à jouer à des jeux vidéos, à regarder la télévision ou à traîner au centre commercial comme tous les adolescents de leur âge. Ils seront souvent aidés dans leurs aventures grâce aux inventions du professeur à l'accent autrichien, Ludwig Von Drake, dont l'une peut notamment les transformer en super héros. Chaque épisode mettra en scène nos héros dans des histoires riches en aventures et en rebondissements.",
-    "Coupling - Six Sexy":
-      "On average, men and women think about sex every six seconds. Shorten that to every second, and you've got Coupling. This series centers around Susan and Steve (who are a couple), and Sally and Patrick join the gang as friends of Susan (and then Steve), while Steve pulls in his best friend Jeff and his crazy ex Jane.",
-    Cédric:
-      "Cédric Dupont, un jeune garçon impulsif âgé de 8 ans, voit sa vie basculer par l'arrivée à l'école de Chen, une petite fille chinoise dont il tombe amoureux. Sous les conseils de son pépé et de son meilleur ami Christian, il essayera de gagner son cœur, mais aussi d'avoir de meilleurs bulletins scolaires pour faire plaisir à ses parents surtout son père. Pour lui, tous les moyens sont bons pour ridiculiser Nicolas d'Aulnay des Charentes du Ventou, son ennemi juré, qui drague toujours Chen.",
-    "Daaaaaalí !":
-      "Une journaliste française rencontre Salvador Dali à plusieurs reprises pour un projet de documentaire.",
-    "Dark Matter":
-      "Six personnes se réveillent à bord d'un vaisseau spatial livré à lui-même. Elles n'ont aucun souvenir de leur passé, ni de leur identité. Aidés par un androïde, ces six nouveaux membres d'équipage vont tenter de survivre à travers l'espace et de comprendre pourquoi ils sont là et surtout, connaître qui ils sont...",
-    "De rockstar à tueur Le cas Cantat":
-      "En 2003, le chanteur Bertrand Cantat tue sa compagne, l'actrice Marie Trintignant. Ce documentaire revient sur l'affaire qui a divisé la France.",
-    "De si remarquables créatures":
-      "Tova, une veuve âgée, se lie d'une amitié improbable avec Marcellus, une pieuvre géante et pacifique qui vit dans l'aquarium où elle travaille. Sans que Tova le sache, Marcellus s'est donné pour mission de résoudre un mystère qui guérira le cœur de la veuve et la mènera à une découverte qui changera sa vie. Basé sur le livre à succès.",
-    "Dead Landes":
-      "A team of journalists came to report on the departure of the vacationers at L'Escapade, a small campsite in the Landes. But suddenly, the end of the world seems to arrive, leaving the last vacationers in a total blur. Are they the last survivors of humanity? In front of journalists' cameras, they will try to survive, live together and understand what is happening to them...",
-    "Dear Killer Nannies Criado por sicarios":
-      "Juampi, el hijo de Pablo Escobar, tiene una infancia atípica y vive rodeado de lujos y sicarios que actúan como sus “nannies”. Idealiza a su padre y lo ve como un benefactor, pero a medida que crece empieza a entender que su papá es en realidad un bandido. A lo largo de los años deberá enfrentar el peso de su apellido y decidir si quiere continuar el legado familiar o empezar de cero una vida nueva.",
-    "Death Note":
-      "When a Japanese high schooler comes into possession of a mystical notebook, he finds he has the power to kill anybody whose name he enters in it.",
-    "Derrière la façade":
-      "Décidant de quitter leur nid vide pour écrire un nouveau chapitre de leur vie, Lydia et Paul mettent en vente leur magnifique villa de style espagnol des années 20, située dans l'un des quartiers les plus prisés de Los Angeles. C'est là que la frénésie immobilière commence. Plusieurs familles se précipitent pour acheter ce qu'elles croient être la maison de leurs rêves, convaincues qu'elle résoudra leurs problèmes, quels qu'ils soient. Mais comme Lydia et Paul le savent déjà, la maison de nos rêves cache parfois un véritable cauchemar. Tandis qu'ils s'efforcent de camoufler les secrets sombres et inquiétants incrustés dans les murs de la maison qu'ils quittent, Paul et Lydia commencent à comprendre que la seule façon de se libérer du passé est de l'affronter.",
-    "Des gens bien":
-      "C’est l’histoire de Linda et Tom, un couple rongé par les dettes qui monte une arnaque à l’assurance-vie, de Philippe, un gendarme qui a tout compris mais que personne ne prend au sérieux, et d’une petite communauté frontalière laissée de côté par la modernité. C’est l’histoire de gens bien qui ne voulaient faire de mal à personne.",
-    "Des gens bien ordinaires":
-      "Dans les années 1990, un étudiant se lance dans le porno. Alors qu'il pense y trouver une nouvelle liberté, il découvre un milieu très ordinaire.",
-    "Des trains pas comme les autres":
-      "Chacun des épisodes présente un (ou plusieurs) pays, à travers un parcours sur les lignes ferroviaires nationales. D'étape en étape, l'on découvre des trains insolites, archaïques ou ultramodernes, tortillards de campagne ou palaces roulants, sur des parcours minuscules ou immenses, mais aussi l'histoire, la culture et les peuples de chaque pays.",
-    "Des vivants":
-      "Marie, Caroline, Sébastien, Arnaud, Grégory, Stéphane et David forment le groupe des autoproclamés &quot;Potages&quot; (contraction de &quot;potes&quot; et &quot;otages&quot;). Le soir du 13 novembre 2015, ils ont fait face aux terroristes pendant plus de deux heures dans un étroit couloir du Bataclan. De leur survie miraculeuse est né un lien unique et indéfectible.",
-    Dexter:
-      "Dexter Morgan is a Miami-based blood spatter expert who doesn’t just solve murders; he commits them too. In fact, he’s a serial killer — but he only murders the guilty, so he feels justified with his lifestyle choices. His policewoman sister and his cop co-workers have no idea Dexter lives a double life; however, adoptive father Harry knows his secret, and does, in fact, help Dexter hone his “skills.” It’s a unique brand of justice for which charming Dexter feels a psychological hunger.",
-    "Dexter Les Origines":
-      "En 1991 à Miami, Dexter est un étudiant en passe de devenir un tueur en série. Lorsque ses pulsions sanguinaires ne peuvent plus être ignorées, le jeune homme trouve réconfort et compréhension auprès de Harry, son père adoptif. Celui-ci lui enseigne des règles pour l’aider à repérer et à tuer des personnes qui méritent de mourir, tout en évitant de se faire coincer par les forces de l’ordre. C’est un défi particulier pour le stagiaire débutant en médecine légale au département de police de Miami.",
-    "Dexter New Blood":
-      "The world at large believes Dexter Morgan died in a tragic boating accident, and in a way the world at large isn’t wrong. Far from the life he knew, living under a false name in the small town of Iron Lake, NY, he’s successfully tamped down his Dark Passenger for nearly 10 years. With a normal job and a Chief of Police girlfriend, it seems he’s got life under control – until his son shows up and turns his world upside down. Rattled, Dexter yields to his homicidal urges and soon finds himself on a collision course with a very dangerous local.",
-    "Dexter Resurrection":
-      "Dexter Morgan awakens from a coma and sets out for New York City, determined to find Harrison and make things right. But when Miami Metro's Angel Batista arrives with questions, Dexter realizes his past is catching up to him fast.",
-    Didou:
-      "Tu veux aller sur une île ou même sur la lune ? Tu veux faire la course ? Tu veux parler avec un ours ? Tu veux te protéger de la pluie ? Pas de problème ! Didou, avec l’aide de Yoko, crée et dessine sous tes yeux les décors, les animaux que tu souhaites voir apparaître. Encore mieux : ils t’apprennent aussi à le faire toi-même !",
-    "Die Hart Die Harter":
-      "L'acteur et comédien Kevin Hart prépare un film d'action innovant avec des scènes inattendues et non scénarisées pour consolider son héritage comme le plus grand. Cependant, un angle mort l'amène à être victime d'un complot vengeur issu de son passé.",
-    "Disclosure Day":
-      "Si vous découvriez que nous ne sommes pas seuls, si quelqu'un vous le montrait, vous le prouvait, cela vous effraierait-il ?",
-    "Disney, les courts-métrages d'animation":
-      "Features all of the animated short films produced by Walt Disney and Walt Disney Animation Studios, from 1921 to the present. This includes films produced at the Laugh-O-Gram Studio which Disney founded in 1921 as well as the animation studio now owned by The Walt Disney Company, called the Disney Brothers Cartoon Studio (1923), The Walt Disney Studio (1926), Walt Disney Productions (1929), Walt Disney Feature Animation (1986), and Walt Disney Animation Studios (2007), and includes all of the cartoons of Mickey Mouse, Donald Duck, Goofy, Pluto, Humphrey the Bear and the Disney produced Oswald the Lucky Rabbit shorts.",
-    "Doctor Who":
-      "The Doctor is an alien Time Lord from the planet Gallifrey who travels through all of time and space in the TARDIS. The Doctor has a long list of friends and companions who have shared journeys along the way. Instead of dying, the Doctor is able to “regenerate” into a new body, taking on a new personality with each regeneration.",
-    "Don't Fk with Cats Un tueur trop viral":
-      "A twisted criminal's gruesome videos drive a group of amateur online sleuths to launch a risky manhunt that pulls them into a dark underworld.",
-    "Dope Girls":
-      "Dans le quartier londonien de Soho après la Première Guerre mondiale, Kate Galloway, une mère célibataire, fonde un club illicite où circule la drogue et l'alcool de contrebande.",
-    "Dope Thief":
-      "Deux amis de Philadelphie se font passer pour des agents de la DEA pour braquer des petits dealers. L’arnaque est parfaite, jusqu’à ce qu’ils visent la mauvaise personne et soient pris pour cible par un immense réseau de trafic de drogue.",
-    "Dora l'exploratrice":
-      "Destinée aux jeunes enfants, cette série raconte l'histoire de Dora, une fillette hispano-américaine et de son singe parlant, Babouche. Dora et Babouche sont aidés dans leurs aventures par Sakado, Carte et parfois Diego, le cousin de Dora. Cette série est d'autant plus une série pour apprendre l'anglais aux plus jeunes. Un épisode est basé sur la perte de quelque chose ou de quelqu'un suivie de la recherche de ceux-ci avec plusieurs obstacles.",
-    "Dossier 137":
-      "Le dossier 137 est en apparence une affaire de plus pour Stéphanie, enquêtrice à l’IGPN, la police des polices. Une manifestation tendue, un jeune homme blessé par un tir de LBD, des circonstances à éclaircir pour établir une responsabilité. Mais un élément inattendu va troubler Stéphanie, pour qui le dossier 137 devient autre chose qu’un simple numéro.",
-    "Douglas Is Cancelled":
-      "Un journaliste vedette de la télévision est accusé d’avoir dit une blague sexiste lors d’une soirée. L’affaire s’amplifie sur les réseaux sociaux lorsque sa co-animatrice s’en mêle. C’est le début d’une descente aux enfers et d’une implacable vengeance.",
-    "Down Cemetery Road":
-      "Lorsqu’une enfant disparaît après l’explosion d’une maison, une voisine inquiète et une détective privée font équipe pour la retrouver. À mesure que les masques tombent et qu’un complot militaire se dessine, c’est un véritable chaos qui s’abat sur la paisible banlieue d’Oxford.",
-    "Due spicci":
-      "Vite personali complicate e responsabilità inattese fanno precipitare una situazione già fragile, costringendo tutti a confrontarsi con scelte difficili. Ma anche far aspettare Sarah, mezz’ora, non aiuta.",
-    "Dune Deuxième Partie":
-      "Le voyage mythique de Paul Atreides qui s'allie à Chani et aux Fremen dans sa quête de vengeance envers les conspirateurs qui ont anéanti sa famille. Devant choisir entre l'amour de sa vie et le destin de l'univers, il fera tout pour éviter un terrible futur que lui seul peut prédire.",
-    "Dune Prophecy":
-      "10 000 ans avant l'ascension de Paul Atreides, les Sœurs Harkonnen combattent des forces qui menacent l'avenir de l'humanité et établissent la secte légendaire connue sous le nom de Bene Gesserit.",
-    "Défendre Jacob":
-      "La vie d’une famille est à jamais bouleversée lorsque le fils est accusé du meutre d’un camarade de classe.",
-    Désenchantées:
-      "La disparition de Sarah Leroy, 15 ans, a bouleversé la petite bourgade de Bouville-sur-Mer. Un coupable fut vite arrêté. Pourtant, dans le village, on continuait à élaborer des hypothèses. Ce qui est vraiment arrivé, personne ne l’a jamais su. 20 ans plus tard, Fanny, journaliste, revient sur les lieux du drame qui a marqué sa jeunesse. Tout un passé resurgit… L’histoire de Sarah est aussi un peu la sienne, de sa sœur et celle d’une bande de filles qui ne connaissait que trop bien Sarah…",
-    Earl: "Earl Hickey's life has been full of poor choices and mistakes, and upon discovering that he is the holder of a winning lottery ticket, Earl is hit by a car and the ticket blows out of his hand as he lies unconscious in the street. While recovering in the hospital and watching television, Earl has a karmic epiphany, thanks to Carson Daly, who attributes his success to doing good for others. A light bulb goes on in Earl's dim head, and he sets out to right every wrong he has done. He will turn his good fortune into a life changing event, as he sets out to right all the wrongs from his past. Despite his seemingly limited intelligence, he is oddly effective and has a voice and style of his own.",
-    Empathie:
-      "Suzanne, une ancienne criminologue surdouée et maintenant psychiatre, nous confronte à notre propre rapport à l’empathie. Ayant elle-même eu une vie difficile, ses méthodes non orthodoxes viendront tout bousculer à l’institut psychiatrique Mont-Royal, où elle atterrit après s’être fait fortement recommander de quitter la police.",
-    Engrenages:
-      "Le cadavre d'une jeune femme est retrouvé dans une benne à ordures. Sous la direction d'un juge d'instruction opiniâtre, un groupe de policiers mène l'enquête.",
-    "Enterrement de vie de garçon":
-      "Cinq amis passent la nuit ensemble avant un évènement capital. Ce qu’ils ne savent pas, c’est que l’un d’entre eux a une grosse annonce à leur faire. Cette série au ton moderne propose une réflexion sur la déconstruction de la masculinité.",
-    Eric: "New York, années 80. Un homme désespéré recherche son fils de neuf ans aux côtés d'un flic obstiné, tout en affrontant ses propres démons.",
-    "Espion à l'ancienne":
-      "Cette série comique suit le professeur Charles, veuf, qui s'ennuie à la retraite et répond à une annonce de Julie, enquêtrice privée. Celle-ci l'engage pour s'installer « sous couverture » comme nouveau résident dans une résidence pour personnes âgées de San Francisco. Sa mission : enquêter sur un voleur de bijoux et sur d'autres événements suspects parmi les résidents et les employés de la maison. Charles se fait rapidement de nouveaux amis, ce qui complique sa mission ...",
-    "Esterno Notte":
-      "Le 16 mars 1978, Aldo Moro, le président de la Démocratie chrétienne, est enlevé par les Brigades rouges. En état de choc, le gouvernement italien se retrouve face à un dilemme : faut-il accepter la négociation avec le groupe terroriste, quitte à mettre en péril la démocratie, ou ne rien céder et prendre le risque de l'exécution de l'un des siens ? Marco Bellochio retrace l'enlèvement puis l'assassinat d'Aldo Moro par les Brigades rouges en 1978. Un drame qui a traumatisé l'Italie.",
-    Eux: "L’anthologie &quot;Eux&quot; explore la terreur aux États-Unis. La première saison se déroule dans les années 50 : une famille noire quitte la Caroline du Nord pour un quartier résidentiel blanc de Californie. Leur charmante maison va devenir un enfer, assaillie par des forces malveillantes, venues du voisinage et de l’au-delà, qui menacent les détruire.",
-    "Extra-Lucide":
-      "Denise sait exactement ce que vous pensez. Et pour cause, Denise est télépathe. Elle connaît vos secrets les plus inavouables. Un super-pouvoir devenu peu à peu un super fardeau. Depuis un an, Denise vit recluse, loin des pensées du monde. Elle s’est réfugiée chez Joy, sa meilleure amie, gloire déchue du porno. Deux super-héroïnes sans trop d’illusions. Et au final une question : peut-on être lucide et heureux en même temps ?",
-    Extrapolations:
-      "Huit histoires interconnectées sur une période de 33 ans explorent la manière dont le changement climatique mondial affectera la famille, le travail, la foi et la survie.",
-    "FAKE YOU! Une vraie histoire de faux":
-      "C'est l'histoire d'une arnaque spectaculaire, rassemblant faussaires de talent, stars du showbiz, gendarmes marseillais, marchands d'art et experts peu scrupuleux. Durant près de trois ans, un artiste punk, un jeune acteur et un ancien chauffeur de la Jet Set réussit à inonder le marché de l'art avec des centaines de fausses oeuvres, gagnant au passage quelques dizaines de millions, avant d'être arrêtés après une traque à travers le monde entier.",
-    Fallout:
-      "Tirée de l'un des plus grands jeux vidéo de tous les temps, Fallout est une histoire d'inégalités dans un monde où tous sont égaux face au chaos. Deux cents ans après l'apocalypse, les pacifiques habitants de luxueux abris antiatomiques sont contraints de retourner dans le monde incroyablement complexe, joyeusement étrange et extrêmement violent qui les attend à la surface.",
-    "Famille Pirate":
-      "Le travail d'un pirate est déjà très compliqué mais cela devient quasiment impossible quand il faut gérer une famille par dessus le marché. Victor Mc Bernik est un pirate tout ce qu'il y a de plus 'honnête' qui doit affronter ses ennemis habituels, sa redoutable belle-mère ou bien encore l'institutrice de ses enfants. Notre sympathique gaillard n'est pas très futé et un peu maladroit mais il fait de son mieux pour le bien de sa femme Lucille et de ces enfants Scampi et Bigorneau.",
-    "Family Business":
-      "After learning that France is about to legalize cannabis, faux entrepreneur Joseph rallies his family and friends to transform his father’s kosher butcher shop into France’s first marijuana coffee shop.",
-    "Fantômes contre fantômes":
-      "Un architecte médium arnaque les habitants de sa ville avec l'aide de ses amis revenants. Lorsque plusieurs habitants ont des infarctus, il est le coupable idéal aux yeux de la population. Il va devoir faire appel aux fantômes pour s'en sortir et affronter un véritable spectre-tueur.",
-    Farscape:
-      "Astronaut John Crichton attempts to use the Earth's atmosphere to propel his ship, Farscape 1, at great speeds across the solar system. He went much further though and was sucked down a wormhole to a distant part of the galaxy and into the middle of a battle. He is rescued by a group of escaping prisoners and taken aboard their living ship. As the years went by, Crichton has made enemies, powerful and dangerous enemies. On his journey to find a way back home, he freed other captives who became part of the crew on Moya.",
-    Fiasco:
-      "Sur le tournage de son premier film, un réalisateur voit l'expérience virer au cauchemar, et l'équipe du making-of enregistre tout : couacs, menaces et tentatives de sabordage...",
-    Flashback:
-      "Elsa Letellier, agent de la Police Scientifique de Lyon, a choisi sa carrière en hommage à son père, Josselin, assassiné mystérieusement il y a 30 ans. Alors que l’affaire va être prescrite, Elsa se retrouve propulsée en 1994 quelques mois avant le meurtre de son père. Elle va profiter de ce « voyage » pour se rapprocher de lui et devenir sa coéquipière pour empêcher sa mort, sans jamais lui révéler sa véritable identité. Sauf que tout les oppose ! Leur collaboration s’annonce explosive.",
-    "Florida Man":
-      "Un ex-flic est contraint de retourner dans son état natal, la Floride, pour retrouver la petite amie en fuite d'un mafieux de Philadelphie.",
-    "Fonction Juré présente Le Séminaire d'Entreprise":
-      "Anthony, un véritable assistant intérimaire, est embauché par Mamie Rock'n'Roll (une entreprise fictive) pour son séminaire annuel, le dernier avant le départ du PDG Doug, à la retraite. Alors qu'un investisseur en capital courtise l'entreprise en vue de son rachat, Dougie Jr., le fils de Doug, peine à faire ses preuves en tant que chef.",
-    "For All Mankind":
-      "Imaginez un monde où la course à l’espace n’aurait jamais pris fin. Cette série dramatique suit le parcours d’astronautes de la NASA, héros et superstars de leur époque, et plonge au plus proche des espoirs et des rêves d’une génération.",
-    Foundation:
-      "Inspiré de la saga d'anticipation d'un maître du genre, Foundation suit l'aventure d'un groupe d'exilés dans leur quête monumentale : sauver l'humanité et bâtir une nouvelle civilisation alors que l'Empire galactique se meurt.",
-    From: "In a nightmarish town in middle America that traps everyone who enters, unwilling residents fight to stay alive and search for a way out. But they are plagued by the threats of the surrounding forest including terrifying nocturnal creatures.",
-    Furies:
-      "En quête de vengeance après la mort de son père, une jeune femme se retrouve prise dans la toile de la Furie, gardienne de l'ordre au sein du crime organisé parisien.",
-    "Furious (2026)":
-      "L'agente du FBI Alice Black est à la poursuite d’une tueuse en série aussi mystérieuse que méthodique. Chacune mène sa propre quête de justice, mais alors que leurs destins commencent à s’entrelacer, la frontière entre le bien et le mal devient de plus en plus floue. D'après le film \"La Veuve noire\" (1987) avec Debra Winger.",
-    "Game of Thrones":
-      "Seven noble families fight for control of the mythical land of Westeros. Friction between the houses leads to full-scale war. All while a very ancient evil awakens in the farthest north. Amidst the war, a neglected military order of misfits, the Night's Watch, is all that stands between the realms of men and the icy horrors beyond.",
-    "Go On":
-      "After taking some time to deal with the death of his wife, sportscaster Ryan King is ready to push his feelings down and get back to work. However, Ryan's boss, preferring that Ryan work through his grief first, refuses to let him back on air until he gets counseling. Reluctantly, Ryan joins a support group, where his lack of interest in healing not only makes therapy interesting but also may just serve as the breath of fresh air needed to get his fellow group members back on track to health.",
-    "Gone Girls The Long Island Serial Killer":
-      "La mystérieuse disparition de Shannan Gilbert en 2010 provoque une réaction en chaîne macabre dans cette série sur les meurtres qui ont eu lieu à Gilgo Beach. Une série sous haute tension sur des crimes réels retrace la traque du tueur de Long Island vue par ses victimes, leurs proches et la police.",
-    "Good Luck, Have Fun, Don't Die":
-      "Un soir, dans un resto minable de Los Angeles, un homme étrange et débraillé débarque avec un détonateur à la main et affirme venir du futur. Ce serait la 117ème fois qu’il remonte le temps pour empêcher l’apocalypse déclenchée par une IA et sauver une humanité lobotomisée par les écrans. Son ultime stratégie : recruter les clients du restaurant pour former une équipe capable de sauver le Monde. Si ce groupe aussi improbable que mal préparé y parvient, alors l’Humanité a peut-être encore une chance… Ou peut-être pas. Qui sait ?",
-    Gourou:
-      "Matt est le coach en développement personnel le plus suivi de France. Dans une société en quête de sens où la réussite individuelle est devenue sacrée, il propose à ses adeptes une catharsis qui électrise les foules autant qu'elle inquiète les autorités. Sous le feu des critiques, Matt va s'engager dans une fuite en avant qui le mènera aux frontières de la folie et peut-être de la gloire...",
-    "Guillermo Guiz - La formidable ascension sociale temporaire de Guy Verstraeten":
-      "Dans son spectacle La formidable ascension sociale temporaire de G. Verstraeten, Guillermo Guiz, dont le véritable patronyme est Guy Verstraeten, revient à la fois sur son propre parcours et sur ce qui à ses yeux pose questions dans la société actuelle. Le thème principal de son one-man-show est l'embourgeoisement et comment le vivre par rapport à ses envies de justice sociale.",
-    Hantises:
-      "À la faveur de reconstitutions immersives et d'entretiens actuels, cette série inquiétante retrace des rencontres paranormales du point de vue de ceux qui les ont vécues.",
-    "Harry Potter, les secrets enfin révélés":
-      "Le jeune sorcier orphelin de J.K. Rowling a conquis le monde, mais avant même la publication du premier livre, Warner Brothers avait déjà songé à créer une franchise. Mais comment faire pour que cela se réalise ? Au Royaume-Uni, dans un hangar qui prend l'eau , ces sorciers du cinéma construisent un tout nouveau monde et changent à jamais le cinéma. Grâce à la participation de plusieurs réalisateurs qui se relaient, grâce à un assortiment de créatures magiques, à une demande croissante d'effets visuels et à un casting qui grandit, la série Harry Potter a continué de fasciner le public. Mettez-vous derrière la baguette magique tout au long de cette série pour découvrir les secrets des épreuves, des menaces et des expériences de mort imminente de la part des personnes qui ont réalisé la magie d'Harry Potter.",
-    "Heeramandi Les diamants de la cour":
-      "À la tête d'une maison de courtisanes, la sournoise Mallikajaan voit son règne menacé par une nouvelle rivale alors que la rébellion couve dans l'Inde sous domination britannique.",
-    "Hero Corp":
-      "Following a war which took place in the 1980s, it was decided to create an organization to include all the superheroes to maintain world peace: the Hero Corp agency. The agency has several secret sites all over the planet. In the department of Lozère, the retired, the fired, those resigning and the unmasked. Cut off from the rest of the world they have a quiet and peaceful life. But twenty years later this peaceful existence is destroyed when the supervillain 'The Lord' reappears!",
-    "High School Radical":
-      "A 16 ans, Max est parti, rêves et GoPro en bandoulières, en échange dans un lycée de l’Oklahoma. Depuis, Donald Trump est devenu président, le Capitole a été pris d’assaut et l’interdiction de l’IVG a gagné du terrain. À la veille du second mandat de Trump, Max retourne voir ses amis pour comprendre ce que leurs parcours racontent de l’évolution de la société américaine.",
-    "Hé, oua-oua":
-      "Duggee looks after the Squirrels, who earn different badges on their adventures.",
-    "I Origins":
-      "Ian Gray, un jeune doctorant en biologie moléculaire, porte ses recherches sur l'évolution de l'œil et pour cela photographie les yeux des humains depuis des années. Il rencontre Sofi, une jeune fille énigmatique, et ont tous deux un coup de foudre et ce malgré leurs notions différentes de la vie : il est scientifique et elle, spiritualiste...",
-    "I Will Find You":
-      "An innocent father serves a life sentence for the murder of his own son. When he receives evidence that his son my still be alive, he is determined to break out of prison to discover the truth.",
-    "Imperfect Women":
-      "After a murder shatters the lives of three best friends, their decades-long bond is tested when an investigation reveals betrayals and shocking truths.",
-    "Inès Reg On est toujours ensemble":
-      "Dans « On est toujours ensemble », capté dans l'écrin du mythique Grand Rex, Inès Reg livre un spectacle avec une énergie toujours aussi explosive, mais un regard plus intime, plus lucide et plus sincère sur sa vie, son parcours… et les liens qui nous unissent. Avec son sens unique du rythme, de l'autodérision et de l'improvisation, Inès transforme ses doutes, ses contradictions, ses relations...",
-    "J'irai dormir chez les Gaulois":
-      "J'irai dormir chez les Gaulois est une émission de télévision française de documentaire, animée par Antoine de Maximy et diffusée sur la chaîne RMC Découverte. Antoine de Maximy part sur les routes de l'hexagone à bord de sa décapotable, à la rencontre de Français.",
-    "Jack Ryan de Tom Clancy Guerre Fantôme":
-      "Jack Ryan doit malgré lui replonger dans le monde de l'espionnage quand une opération secrète met au jour une conspiration mortelle. Tandis que chaque seconde compte, il est rejoint par Mike November et James Greer de la CIA, ainsi que par Emma Marlowe, agent chevronné du MI6. Ils affrontent une unité clandestine dans une lutte à haut risque et aux implications personnelles.",
-    "Jinx la vie et les morts de Robert Durst":
-      "Au cours des 30 dernières années, le milliardaire de l'immobilier new-yorkais Robert Durst a été accusé de meurtre à trois reprises, sans jamais être inculpé. Brillant mais réservé, il a toujours gardé le silence. Jusqu'à maintenant.",
-    Joey: "Joey has struck out on his own and moved to Hollywood, hoping to truly make it as an actor. Joey says goodbye to a time when his friends were his family and welcomes the chance to turn his family into his friends. After reuniting with his high-strung sister Gina, a strong and sexy hairdresser, Joey moves in with her genius 20-year-old son, graduate student Michael, who literally is a rocket scientist. What Joey lacks in book smarts, however, he more than makes up for with his people skills, making him the best new friend his nephew could ask for.",
-    "John Lennon Murder Without a Trial":
-      "John Lennon: Murder Without a Trial is the most thoroughly researched examination of John Lennon's 1980 murder, which shocked and saddened the world.",
-    Jumpers:
-      "Mabel, une amoureuse des animaux, utilise une nouvelle technologie pour \"transférer\" sa conscience dans un robot-castor réaliste et communiquer directement avec les animaux. Alors qu'elle découvre des mystères du monde animal dépassant tout ce qu'elle aurait pu imaginer, Mabel se lie d'amitié avec Roi Georges, un charismatique castor, et doit rallier tout le règne animal pour faire face à une menace humaine majeure et imminente : le maire Jerry Generazzo, un beau parleur.",
-    "Jérémy Ferrari - Anesthésie Générale":
-      "Dans la salle de l'Accor Arena de Paris pleine à craquer, Jérémy Ferrari ne va pas endormir le public comme le laisse penser le titre de son spectacle. Dans un show énergique et plein de surprises, l'humoriste en mode rock star évoque le sujet de la santé à travers cette &quot;anesthésie générale&quot;. Jérémy Ferrari délivre une performance de haut vol dans la salle parisienne entièrement acquise à sa cause. Après avoir évoqué les thèmes de la religion et de la guerre, il s'attaque donc à un nouveau sujet avec son style et aussi son propre vécu.",
-    "Jérémy Ferrari - Hallelujah Bordel !":
-      "Considéré aujourd'hui comme le Prince de l'humour noir, le spectacle de Jérémy Ferrari n'a pas fini de vous étonner ! Des faits d'actualité les plus insensés, aux textes religieux du Coran, de la Bible, et de la Torah, vous découvrirez tout, absolument tout ce qui vous a été caché jusqu'à présent ! Jérémy Ferrari n'y comprend rien, mais il a tout de même décidé de vous donner son avis...",
-    "Jérémy Ferrari - Vends 2 pièces à Beyrouth":
-      "Si on lui demande « peut-on faire un spectacle d’humour sur la guerre ? » Jérémy vous dira que oui, parce que la guerre, c’est chouette ! Alors il a creusé, creusé, et osera répondre aux questions que vous n’osez même plus poser ! Sommes nous vraiment protégés par des flics en roller ? Daesh, est-ce vraiment une start-up qui monte ? Est-ce que les entreprises qui ont fait fortune grâce au régime nazi doivent s’en vouloir ? Peut-on faire de l’humanitaire et avoir une terrasse en teck ? Il vous donnera aussi une formation antiterroriste, et vous expliquera pourquoi Al Qaida sans Ben Laden, c’est comme Apple Sans Steve Jobs.",
-    "Jérémy Ferrari Emporté par la Fougue":
-      "Humoriste, producteur, auteur et chroniqueur, Jérémy Ferrari, 33 ans, a vite été abonné au succès. Révélé par l'émission « On n'demande qu'à en rire », ce chantre de l'humour noir a joué 600 fois son one-man-show « Hallelujah bordel ! » et s'est mis à la géopolitique pour le suivant « Vends 2 pièces à Beyrouth ». Ses collègues mais aussi sa famille et son meilleur ami dressent son portrait. Avec la participation, notamment, de l'acteur Lorànt Deutsch et des amuseurs Laura Laune, Guillaume Bats et Mamane.",
-    "Jérôme Commandeur - Toujours en douceur":
-      "Le dernier spectacle de Jérôme Commandeur, &quot;Toujours en douceur&quot;, en direct du Zénith de Nantes. Une écriture ciselée, un spectacle percutant. L'amoureux du verbe, des cacahuètes grillées à sec et du rosé nous offre ici son dernier tour de piste.",
-    "Kaboul Kitchen":
-      'Afghanistan 2005. George Bush is the President of the United States, Jacques Chirac is the president of France and Jacky (Gilbert Melki), patron of the restaurant "Kitchen Kabul." All expatriates in Kabul come here to party. When his daughter arrives, Jacky does not recognize her because he has not seen her for 20 years. She came to do humanitarian work. It is there to make money ...',
-    "Kerviel Un trader, 50 milliards":
-      "Le 24 janvier 2008, la Société Générale annonce une perte soudaine de 4,9 milliards d'euros. A l'origine, un jeune trader inconnu, Jérôme Kerviel.",
-    "Kevin Can Wait":
-      "When Kevin retires from the police force, he thinks life will be all about hanging out with his wife and kids and going on the occasional adventure with fellow retirees. But, a different narrative starts to take shape when he discovers his wife has been protecting him from certain family info while he was out keeping the streets safe.",
-    "Kyan Khojandi Pulsions":
-      "Après un premier spectacle joué à guichets ouverts en 2008, Kyan revient sur scène pour partager ses sentiments et ses histoires personnelles, le spectacle s’appelle Pulsions. Avec un « s ». Et c’est marrant.",
-    "Kyan Khojandi Une bonne soirée":
-      "Capté au Casino de Paris du 7 au 9 janvier 2022. Une bonne soirée, c'est le temps pour Kyan Khojandi de raconter la meilleure soirée de sa vie sous la forme d'un récit à tiroirs dans lequel lui et Navo utilisent avec brio leurs spécialités du running gag et du &quot;rapid speech&quot; (débit rapide) et embarquent l'audience dans une véritable épopée intime, truffée de clins d'oeil. Avec ce spectacle, c'est 90 minutes d'humour pour un feu d'artifice de jolies trouvailles et un final brillantissime en ultime référence à &quot;Bref&quot;, la pastille humoristique où Kyan Khojandi est au centre du récit.",
-    "L'Exoconference":
-      "En bas, sur la Terre, il y a les affaires courantes et la vie domestique, les petites phrases chocs ou les images en une qui monopolisent l'opinion publique. Dans le ciel, une supernova signale l'explosion d'une étoile située à plusieurs millions d'années-lumière, dont l'image ne parvient qu'aujourd'hui. Entre les deux, entre le ridicule du quotidien terrien et les promesses d'une existence extraterrestre, un astrophysicien s'arrache les cheveux. Il donne sa conférence, fait un point. Entre la Terre et les étoiles, il dresse un bilan définitif, pose les questions capitales : « Comment ne pas se vexer que les extraterrestres nous ignorent ? »",
-    "L'Odyssée interstellaire":
-      "En 2207, un vaisseau interstellaire inhabité atteindra peut-être, après un périple d'un demi-siècle, Minerva B, une exoplanète similaire à la Terre située à quelque 4,5 années-lumière de nous, soit près de 40 000 milliards de kilomètres ! S'appuyant sur ce postulat futuriste, cette captivante série documentaire examine l'ensemble des progrès déjà accomplis et les prouesses technologiques à réaliser avant qu'une sonde puisse un jour explorer une planète extra-solaire susceptible d'accueillir une forme de vie. Enrichie de nombreux témoignages d'experts (astronomes, astrophysiciens, planétologues, spécialistes de la propulsion, géologues, géophysiciens…) ; cette aventure découpée en quatre volets thématiques allie rigueur scientifique et spectaculaires images de synthèse.",
-    "L'affaire du juge Delisle":
-      "Accusé d’avoir tué sa femme à demi-paralysée, le juge Delisle a-t-il commis ce crime? L’homme de loi a toujours nié avoir tiré une balle dans la tête de Nicole Rainville, en 2009, dans leur somptueux condo de Sillery. Le juge affirme que Nicole s’est suicidée parce qu’elle n’en pouvait plus de vivre diminuée. Mais une étrange tache de fumée noire dans la paume gauche de la dame ainsi qu’un coûteux divorce à l’horizon sèment de sérieux doutes chez les enquêteurs.",
-    "L'Âge de glace 4 La dérive des continents":
-      "Manny, Diego et Sid se lancent dans leur plus grand périple après qu'un cataclysme a donné naissance à un continent en pleine dérive. Séparé de leurs amis, ils utilisent un iceberg comme navire de fortune et s'embarquent pour une quête maritime. S'ils veulent devenir des héros, Manny et sa bande vont devoir surmonter l'impossible, tout en rencontrant des créatures aquatiques, en explorant un nouveau monde et en combattant des pirates impitoyables. De son côté, Scrat a toujours affaire à son maudit gland et se retrouve catapulté dans un endroit où aucun écureuil préhistorique n'est jamais allé.",
-    "L'éléphant":
-      "Conçu en trois parties par quatre figures majeures de l'animation, Adult Swim's The Elephant raconte un voyage profondément humain vers la découverte de soi, à travers différents univers.",
-    "La Brea":
-      "Tout commence lorsqu'un énorme gouffre s'ouvre au milieu de Los Angeles, entraînant des centaines de personnes et de bâtiments dans ses profondeurs. Ceux qui sont tombés dedans se retrouvent dans une terre primitive mystérieuse et dangereuse, où ils n'ont d'autre choix que de s'unir pour survivre. Pendant ce temps, le reste du monde cherche désespérément à comprendre ce qui s'est passé. Dans sa quête de réponses, une famille déchirée par ce désastre devra percer les secrets de cet événement inexplicable pour trouver un moyen de se retrouver...",
-    "La Citadelle assiégée":
-      "En pleine savane africaine, au sud-est du Burkina Faso, à l'abri dans leur tour de plusieurs mètres de haut, les termites sont au travail… lorsqu'un drame vient bouleverser leur vie bien ordonnée. Une pluie tropicale diluvienne va inonder galeries et chambres de la termitière éventrée. Non loin de là, une colonne de terribles fourmis magnans, carnassières, se prépare à l'attaque. Elles vont profiter de la fragilité de la tour des termites pour mener un véritable assaut. Une guerre sans merci va faire rage…",
-    "La Cité des Anges":
-      "Seth est un ange des temps modernes : une créature céleste qui aspire à se rendre utile sur terre. Pour ce faire, il prend de temps en temps une apparence humaine, mais la mission exige le plus souvent qu'il reste invisible. Les êtres les plus sensibles soupçonnent de temps en temps sa présence lorsque, pris par une angoisse, ils ont la sensation qu'une main invisible à l’œil nu vient se poser sur eux, dissiper leurs ennuis.",
-    "La Famille Suricate":
-      "Il était une fois, en Afrique australe, un bébé suricate répondant au nom de Kolo. Ce petit animal carnivore, malin et joueur, va devoir braver la sècheresse et de dangereux prédateurs afin de relever le plus grand défi de sa vie: retrouver ses parents, ses frères et ses soeurs. A travers sa touchante histoire, nous découvrirons aussi la lutte de son espèce pour survivre dans l'immense et somptueuse savane. Grâce à un langage vocal et tactile élaboré et à leur incroyable solidarité, qui rapprochent mystérieusement ces drôles de petits animaux de l'espèce humaine, vous découvrirez une famille... comme la vôtre !",
-    "La Liste de Schindler":
-      "Évocation des années de guerre d’Oskar Schindler, fils d’industriel d’origine autrichienne rentré à Cracovie en 1939 avec les troupes allemandes. Il va, tout au long de la guerre, protéger des juifs en les faisant travailler dans sa fabrique et en 1944 sauver 800 hommes et 300 femmes du camp d’extermination d’Auschwitz‐Birkenau.",
-    "La Marche de l'empereur":
-      "L'histoire des manchots empereurs et de leur cycle de reproduction est unique au monde. Elle mêle amour, drame, courage et aventure au cœur de l'Antarctique, région la plus isolée et inhospitalière de la planète. Un scénario offert par la nature, qui se perpétue depuis des millénaires et que les hommes n'ont découvert qu'au début du XXème siècle. La Marche de l'empereur raconte cette histoire extraordinaire...",
-    "La Meilleure Version de moi-même":
-      "Satirical comedy by French comedian Blanche Gardin.",
-    "La Petite Sirène":
-      "Malgré l’interdiction de son père, le roi Triton, Ariel, la petite sirène, ne peut résister à la tentation d’aller à la rencontre d’un monde inconnu, celui des humains. Accompagnée de Polochon, elle gagne la surface de l’océan et s’approche d’un grand navire où est donnée une grande fête en l’honneur du prince Eric, dont elle tombe immédiatement amoureuse. Une terrible tempête se lève et le prince est projeté par‐dessus bord. Ariel le sauve de la noyade, le dépose sur le continent puis disparaît. Mais elle ne réussit pas à oublier le prince.",
-    "La Réalité en face":
-      "Après qu'une soirée calamiteuse à Philadelphie avec son frère menace de gâcher sa carrière et le reste, un humoriste mondialement connu cherche à rattraper la situation.",
-    "La Résidence":
-      "Une détective aussi brillante qu'excentrique doit élucider un meurtre commis au cœur de la Maison-Blanche. Tout le personnel et les convives d'un dîner d'État sont suspects !",
-    "La Vie de famille":
-      "The Winslows, a middle-class Black family living in Chicago, deal with various misadventures — many of which are caused by their pesky next-door neighbor, ultra-nerd Steve Urkel.",
-    "La Voisine danoise":
-      "Lorsque Ditte Jensen se retire avec les honneurs des services secrets danois, elle emménage dans un immeuble de Reykjavik où elle va pouvoir cultiver son jardin et vivre sa vie dans l’anonymat. Mais Ditte ne peut cesser d’être qui elle est. Un soldat d’élite et une guerrière. Et bientôt l’immeuble se transforme en champ de bataille pour un monde meilleur. Avec son sens profond de la justice, elle décèle les problèmes de ses voisins et se sent obligée de les aider, qu’ils le veuillent ou non. Et dans son monde, la fin justifie les moyens. Toujours.",
-    "La mer de la Tranquillité":
-      "During a perilous 24-hour mission on the moon, space explorers try to retrieve samples from an abandoned research facility steeped in classified secrets.",
-    "La nuit où Laurier Gaudreault s’est réveillé":
-      "Au début des années 1990, Mireille, son frère Julien et leur meilleur ami Laurier forment un trio inséparable qui se rêve un bel avenir. Mais une nuit d'octobre 1991, leurs destins sont à jamais bouleversés par un terrible incident. Leurs routes se séparent et leurs deux familles sont brisées. Trente ans plus tard, Mireille, devenue thanatologue, retourne dans sa famille pour embaumer le corps de sa mère. Elle retrouve ses frères qu'elle n'avait pas revus depuis des décennies. Bientôt, les secrets et les rancoeurs refont surface.",
-    "La quatrième dimension":
-      'The Twilight Zone was a popular American anthology series. The series was a collection of various tales that range from the tragic to the comedic. They may be scary or just thought-provoking. Most episodes have unexpected endings and a moral lesson. But, no matter what, it\'s "a journey into a wondrous land, whose boundaries are that of the imagination."',
-    Landman:
-      "Située dans les villes en plein essor de l'ouest du Texas, Landman est une histoire moderne de recherche de fortune dans le monde des plateformes pétrolières.",
-    "Le Bus Les Bleus en grève":
-      "Ce documentaire revient sur la controverse entourant l'équipe de France de football lors de la Coupe du monde 2010 et sur la grève qui a fait la une et indigné tout un pays.",
-    "Le Caméléon":
-      "The Pretender is an American television series that aired on NBC from 1996 to 2000. The series starred Michael T. Weiss as Jarod, a genius and former child prodigy with the ability to become anyone he wants to be, i.e., to flawlessly impersonate anyone in virtually any line of work. Patrick Bauchau and Andrea Parker co-starred as Sydney, Jarod's childhood teacher and mentor, and Miss Parker, a childhood friend. They are both operatives for a mysterious organization called \"The Centre\", which took Jarod from his parents as a child and developed his special talents with the intention of making him one of their agents, while also using his brilliant intellect for their own evil purposes. After escaping from their custody, Jarod begins traveling the country, searching for clues to his true identity while posing as a doctor, police officer, attorney, or some other character who helps those in trouble. The Centre's directors are determined to return Jarod to The Centre to further their mysterious plan. A team of operatives, led by Miss Parker, attempts to find and capture The Pretender. Jarod's extreme intelligence combined with his childlike innocence create a memorable and endearing character that was popular with viewers.",
-    "Le Crime à la racine":
-      "Un inspecteur et un généalogiste font équipe pour trouver le coupable d'un double homicide choquant commis 16 ans plus tôt, avant que l'affaire ne soit définitivement classée.",
-    "Le Discours":
-      "Adrien a 40 ans. Aujourd'hui, il dîne chez ses parents avec sa sœur et Ludo, son futur beau-frère, qui lui demande de faire un discours pour leur mariage. Ludo voit bien qu'Adrien est nerveux, alors pour le rassurer il lui conseille de faire quelque chose de simple, et qu'il est sûr que ça va être merveilleux. Adrien a bien entendu. On n'attend pas de lui un simple discours. Non. On attend de lui quelque chose de &quot;merveilleux&quot;. Il s'imagine alors être investi d'une mission divine sur laquelle repose le succès de la cérémonie.",
-    "Le Garçon et l'Univers":
-      "Dans les années 80, un jeune garçon d'une banlieue de Brisbane est confronté aux dures réalités de la vie, ainsi qu'aux dangers imminents qui menacent sa famille.",
-    "Le Grinch":
-      "Terré dans sa cave remplie d’inventions et d’engins pour ses besoins de tous les jours, Le Grinch ne voit ses voisins de Chouville que lorsqu’il manque de nourriture. Chaque année à Noël, ils viennent perturber sa tranquillité solitaire avec des célébrations toujours plus grandioses, brillantes et bruyantes. Quand les Chous déclarent qu’ils vont célébrer Noël trois fois plus fort cette année, le Grinch réalise qu’il n’a plus qu’une solution pour retrouver la paix et la tranquillité : il doit voler Noël.",
-    "Le Jeu de la mort":
-      "Et si la mort en direct devenait un divertissement ? Les dérives de la téléréalité, violences, tortures et humiliations dominent les programmes dans le monde entier. La télévision détient-elle un pouvoir spécial ? Dans les années 1960, une expérience de psychologie sociale prouvait que 62 % des individus administraient des chocs électriques extrêmes en obéissant aux ordres d’un scientifique. Nous avons transposé cette expérience à l’univers des jeux télé. 80 Français face à un jeu aux règles abjectes. Vont-ils se soumettre aux ordres de Tania Young qui exige qu’ils infligent des chocs électriques à un inconnu ? Qui va se soumettre ? Combien oseront désobéir ? Une expérience extrême et une réflexion profonde sur le rôle de la télévision aujourd’hui.",
-    "Le Livre de Boba Fett":
-      "Legendary bounty hunter Boba Fett and mercenary Fennec Shand must navigate the galaxy’s underworld when they return to the sands of Tatooine to stake their claim on the territory once ruled by Jabba the Hutt and his crime syndicate.",
-    "Le Livre de la jungle":
-      "La panthère Baghéera découvre dans la jungle un jeune enfant abandonné. Elle décide de le confier à une famille de loups qui l’élève comme un louveteau. Alors que Mowgli a dix ans, le tigre Shere Kahn approche du territoire des loups. Pour éviter à l’enfant une fin inévitable, les loups l’éloignent et décident de le confier aux hommes d’un village proche. C’est Baghéera qui le conduit. Pendant leur voyage, ils feront de nombreuses rencontres, parfois redoutables.",
-    "Le Maître du Haut Château":
-      "A glimpse into an alternate history of North America: what life after WWII might have been like if the Nazis had won the war. The Man in the High Castle explores daily life in 1962, fourteen years after the end of a longer Second World War (1939–1948 in this history). The victorious Axis Powers - Imperial Japan, Fascist Italy, and Nazi Germany - are conducting intrigues against each other in North America, specifically in the former U.S., which surrendered to them once they had conquered Eurasia and destroyed the populaces of Africa.",
-    "Le Premier Jour du reste de ta vie":
-      "Dans la famille Duval, il y a Robert, le père chauffeur de taxi, Marie-Jeanne, la mère un peu perchée, et les enfants : Albert, brillant mais colérique, Raphaël, un jeune homme doux et rêveur, et Fleur, l'ado rebelle. Le portrait de leur famille s'esquisse sur une douzaine d'années, à travers cinq journées particulières.",
-    "Le Problème à 3 corps":
-      "Une décision prise dans la Chine des années 60 se répercute par-delà l'espace et le temps. Des scientifiques du présent doivent alors affronter la pire menace pour l'humanité.",
-    "Le Président foudroyé":
-      "L'histoire de James Garfield, qui a émergé de l'ombre pour devenir le vingtième président des États-Unis, et de Charles Guiteau, l'homme qui l'a assassiné.",
-    "Le Régime":
-      "Une année entre les murs du palais d'un régime autoritaire qui commence à s'effondrer.",
-    "Le Réveil de la Momie":
-      "Une jeune fille disparue dans le désert égyptien réapparaît mystérieusement huit ans plus tard. Mais les retrouvailles tournent vite au cauchemar. Alors que son comportement devient de plus en plus inquiétant, sa famille se lance dans une course contre la montre pour comprendre l’origine du mal. Ce qu’ils vont découvrir dépasse tout ce qu’ils imaginaient.",
-    "Le Temple du Soleil":
-      "Lorsque sept archéologues découvrent un ancien temple inca, ils deviennent victimes d'une ancienne malédiction. Une fois de retour en Europe, ils tombent l'un après l'autre dans un profond sommeil et seulement une fois par jour, tous à la fois, ils se réveillent pendant quelques minutes et vivent des hallucinations où apparaît la sinistre momie vivante de Rascar Capac.",
-    "Le Visiteur du Futur":
-      "The Visitor from the Future is a cross-media series that combines comedy and science fiction. Since its launch in April 2009, it was viewed 5 million times on the French web and was aired on the TV channel NOLIFE.",
-    "Les Bonobos":
-      "C’est l’histoire de trois potes qui se connaissent depuis l’enfance. Alex l’aveugle, Dani le sourd et Benjamin le muet. Même si nos personnages ressemblent beaucoup aux 3 singes de la sagesse, leur irrésistible envie de copuler les range définitivement dans la catégorie des bonobos ! Mais comment faire pour avoir une sexualité non tarifée quand on est handicapé ? La solution est simple, il suffit de ne plus être handicapé…",
-    "Les Contes de la rue Broca":
-      "Les Contes de la rue Broca est un recueil de contes de fées pour enfants écrit par Pierre Gripari et illustré par Claude Lapointe, publié pour la première fois aux éditions de la Table Ronde en 1967, puis réédité chez Grasset-Jeunesse. Composé de treize contes, il a connu un certain succès et a également été adapté en dessins animés.",
-    "Les Entrechats":
-      "Heathcliff was a big orange striped cat who went around his neighborhood playing practical jokes on a lot of people. He tormented his owner, Grandpa, but was friendly to Grandma, and Iggy Nutmeg. When he wasn't stealing fish from the fish market, he was out on a romantic evening with his girlfriend Sonja, or outsmarting the neighbor's bulldog Spike.",
-    "Les Griffes de la Nuit":
-      "Nancy est une jeune adolescente qui fait régulièrement des cauchemars sur un homme au visage brûlé, avec un vieux pull déchiré et cinq lames tranchantes à la place des doigts. Elle constate d'ailleurs que parmi ses amis, elle n'est pas la seule à faire ces mauvais rêves. Mais bientôt, l'un d'entre eux est sauvagement assassiné pendant son sommeil. C'est ainsi que le groupe fait la connaissance de l'ignoble Freddy Krueger, qui se sert des cauchemars pour assassiner les gens qui rêvent de lui. Nancy comprend qu'elle n'a plus qu'une seule solution : si elle veut rester en vie, elle doit rester éveillée...",
-    "Les Griffes de la nuit":
-      "Nancy, Kris, Quentin, Jesse et Dean habitent Elm Street, au cœur d'une banlieue résidentielle semblable à des milliers d'autres - paisible, proprette et sans histoire... Mais depuis quelques temps, ces cinq jeunes sont hantés chaque nuit par le même cauchemar oppressant : un homme à la voix caverneuse surgit des ténèbres. Vêtu d'un t-shirt rouge et vert lacéré, il dissimule sous un vieux chapeau son visage atrocement brûlé et défiguré. Sa main droite, gantée, est munie de quatre longues griffes d'acier plus tranchantes que des lames de rasoir...",
-    "Les Groos":
-      "Suivez Adam et Seb, deux meilleurs potes, dans leurs aventures quotidiennes. Qu’ils soient sur le canapé, au boulot ou en soirée, avec ce duo irrésistible chaque petit moment de complicité devient une grande histoire d’amour.",
-    "Les Légendaires":
-      "Les Légendaires, intrépides aventuriers, étaient les plus grands héros de leur temps. Mais suite à une terrible malédiction, les voilà redevenus... des enfants de 10 ans ! Danaël, Jadina, Gryf, Shimy et Razzia vont unir leurs pouvoirs pour vaincre le sorcier Darkhell et libérer leur planète de l’enfance éternelle…",
-    "Les Minikeums":
-      'It presents a wide range of puppet characters (the "MiniKeums") which are caricatures of French celebrities but shown as young agents in a television channel.',
-    "Les Moutons détectives":
-      "Lorsque son fermier bien-aimé est retrouvé mort dans des circonstances mystérieuses, un troupeau de moutons conclut qu'il devra résoudre le meurtre lui-même. Cette quête l'oblige à quitter son pâturage pour la première fois et à se confronter à une réalité brutale : le monde des humains est bien plus complexe qu'il y paraît dans les livres.",
-    "Les Papillons noirs":
-      "Écrivain de 40 ans, Adrien Winckler à connu, sous le pseudonyme de Mody, une gloire éphémère à la parution de son premier roman. Mais depuis, l'inspiration s'est tarie et il se confronte à l'angoissant syndrome de la page blanche. Pour subsister, il exerce la profession de &quot;nègre pour inconnus&quot;, rédigeant, contre une somme forfaitaire, le roman d'anonymes qui considèrent que leur vie vaut bien un livre. C'est ainsi qu'il se fait embaucher par Albert Desiderio, modeste retraité, atteint d'une terrible maladie rénale, qui compte bien employer le peu de temps qu'il lui reste à raconter sa vie...",
-    "Les Schtroumpfs":
-      "Chassés de leur village par le méchant sorcier Gargamel, les Schtroumpfs sont soudainement propulsés à New-York au beau milieu de Central Park! Hauts comme trois pommes, perdus dans un monde dont ils ne soupçonnaient pas l'existence, ils vont très vite devoir trouver un moyen de rentrer chez eux, avant que leur pire ennemi ne les attrape...",
-    "Les aventures de Tintin":
-      "Grand reporter, Tintin, accompagné de son fidèle ami à 4 pattes Milou, enquête sur divers évènements de par le monde. Ses reportages lui vaudront de rencontrer de fidèles amis : le colérique Capitaine Haddock, le talentueux (mais sourd) professeur Tournesol et les maladroits détectives Dupont et Dupond, qui l'accompagneront ensuite dans ses aventures...",
-    "Les castors allumés":
-      "Norbert and Daggett are two fun loving beaver brothers who had to leave home when their mum had a new litter. Now in their own chill palace of a home, Norb and Dag can stay up as late as they want, watch late night movies and eat what they want, but living on your own isn't always a blast... Like most brothers Dag and Norb are close and have their fair share of ups and downs. When they're down they sure are a couple of Angry Beavers!",
-    "Les histoires du Père Castor":
-      "Père Castor est un grand-père qui aime raconter de belles et charmantes histoires éducatives à de petits castors (Câline, Grignote et Benjamin). Les histoires, souvent adaptées de nouvelles, parlent d'univers, de pays, de traditions et de personnages très variés pour la joie des petits...",
-    "Lilo & Stitch":
-      "A l'autre bout de l'univers, un savant quelque peu dérangé a donné naissance à Stitch, la créature la plus intelligente et la plus destructrice qui ait jamais existé. Conscientes de son exceptionnel potentiel dévastateur, les autorités de sa planète s'apprêtent à l'arrêter, mais le petit monstre prend la poudre d'escampette à bord de son vaisseau spatial. Stitch échoue sur Terre, en plein Pacifique, sur l'île d’Hawaï. Le petit alien est bientôt recueilli par Lilo, une adorable fillette de six ans qui le prend pour un chien abandonné. Celle-ci, élevée par sa grande sœur depuis la disparition de ses parents, croit enfin avoir trouvé le compagnon de jeu et l'ami qu'elle espérait. Stitch tente de dissimuler sa véritable nature, mais ceux de son monde sont déjà sur ses traces, prêts à tout pour l'éliminer.",
-    "Lord of the Flies":
-      "Stranded on an island, a gang of schoolboys create their own community – but when the rules vanish, the beast within awakens.",
-    "Loups-garous":
-      "13 joueurs, spécialistes en stratégie et en dissimulation, s’affrontent en temps réel pour une partie de Loups Garous grandeur nature.",
-    Lucky:
-      "A reformed criminal is forced to confront her past and return to illicit activities for one final job, hoping to secure her freedom and leave her former life behind for good.",
-    "Lucky Luke":
-      "Dans cette série inédite, Lucky Luke, le légendaire cowboy solitaire, doit aider Louise, une jeune fille de dix-huit ans aussi attachante qu'imprévisible. Ensemble, ils se lancent dans une quête à travers l'Ouest sauvage pour retrouver la mère de Louise, mystérieusement disparue... tout en déjouant un complot qui pourrait changer le cours de l'histoire des États-Unis ! Entre duels, courses-poursuites, furieux coups de boule et alliances inattendues avec les Dalton, Billy the Kid ou Calamity Jane, notre improbable duo découvrira que le plus grand défi n'est pas de sauver l'Amérique... mais bien de faire équipe ! Une aventure palpitante où l'homme qui tire plus vite que son ombre devra affronter les fantômes de son passé et se confronter aux origines de sa légende.",
-    "L’effet miroir":
-      "Théophile est un écrivain à succès sur le déclin. Il retrouve enfin son inspiration avec l’écriture d’un petit conte poétique et aquatique. Mais l’interprétation du texte par ses proches se révèle cataclysmique : ils se reconnaissent terriblement dans les personnages d’oursins, poulpes et autres créatures marines, décelant dans les métaphores des messages cachés. Ce soir, ils se réunissent autour d’un dîner pour régler leurs comptes. Capté au Théâtre de l’Œuvre à Paris 9ème.",
-    MacGyver:
-      "MacGyver follows the adventures of the laid-back, extremely resourceful secret agent Angus MacGyver. He prefers non-violent conflict resolution whenever possible and refuses to carry or use a gun.",
-    "Man With A Plan":
-      "A contractor learns that parenting his three young children may be the most difficult job he’s ever had. When Adam’s wife goes back to work, he’s overwhelmed by his new responsibilities at home, but with the encouragement of his wife and a few equally stressed-out parents, Adam regroups, lays down the law and starts figuring out his new life.",
-    Manhunt:
-      "Thriller politique sur le crime le plus connu et pourtant le plus incompris de l'Histoire. Voici le récit épique de la traque de John Wilkes Booth, assassin d'Abraham Lincoln, tandis que se joue le destin du pays.",
-    "Margin Call":
-      "Automne 2008. Expert en gestion de risque dans une banque d'investissement de Wall Street, Eric Dale est brutalement congédié, à l'instar de 80% des employés de son service. Avant de quitter l'immeuble, il remet à son protégé, le jeune Peter Sullivan, une clé USB contenant le dossier sur lequel il travaillait ce matin-là. Le soir venu, Peter examine ledit dossier et, à la suite de différents calculs, en déduit que la firme détient une quantité inquiétante de produits financiers toxiques, liés à la spéculation sur le marché immobilier. Peter fait alors venir d'urgence son superviseur, le fantasque Will Emerson. En voyant les conclusions obtenues par son jeune employé, le cadre s'empresse de contacter son directeur, Sam Rogers, qui a passé la soirée chez le vétérinaire auprès de son chien mourant. Ébranlé à son tour par les découvertes de Peter, Sam convoque une réunion exceptionnelle des cadres supérieurs de la firme.",
-    "Marjorie Prime":
-      "Alors qu'elle sent sa dernière heure venir, la violoncelliste Marjorie achète les services d'une société permettant de recréer, via des hologrammes, les souvenirs passés...",
-    Marsupilami:
-      "Pour sauver son emploi, David accepte un plan foireux : ramener un mystérieux colis d’Amérique du Sud. Il se retrouve à bord d’une croisière avec son ex Tess, son fils Léo, et son collègue Stéphane, aussi benêt que maladroit, dont David se sert pour transporter le colis à sa place. Tout dérape lorsque ce dernier l’ouvre accidentellement : un adorable bébé Marsupilami apparaît et le voyage vire au chaos !",
-    "Marty Supreme":
-      "Marty Mauser, 23 ans, aspire à devenir le meilleur athlète sur la scène mondiale du tennis de table. Le sport est sous-représenté aux États-Unis, ce qui rend difficile le financement de ses compétitions à l'étranger. Il est toutefois prêt à tout pour arriver à ses fins, y compris nouer des liens avec une ancienne actrice et son riche mari entrepreneur. Son entêtement pose un problème pour les personnes de son entourage, qui font souvent les frais de ses choix cavaliers.",
-    "Matthew Perry Not just Friends":
-      "Matthew Perry, une comédie légère éteinte bien trop tôt. Tout le monde est l'ami éternel et l'être humain bien-aimé. Des images d'archives de l'un des hommes les plus drôles d'Hollywood révèlent sa vie et ses luttes personnelles, sur et en dehors du plateau.",
-    "Maximum Pleasure Guaranteed":
-      "A newly divorced mom falls down a dangerous rabbit hole of blackmail, murder and youth soccer.",
-    Michael:
-      "Michael dresse le portrait cinématographique de la vie et de l’héritage de l’un des artistes les plus influents de notre époque. Le film raconte l’histoire de Michael Jackson au-delà de la musique, depuis la découverte d’un talent hors du commun en tant que leader des Jackson Five, jusqu’à l’artiste visionnaire dont l’ambition créative a alimenté une quête incessante pour devenir le plus grand artiste au monde. Mettant en lumière sa vie hors scène et ses performances les plus emblématiques de ses débuts en solo, le film offre au public une place au premier rang pour découvrir Michael Jackson comme jamais auparavant.",
-    "Michael Jackson The Verdict":
-      "Told by key players who were inside the courtroom, this comprehensive documentary dissects the trial of Michael Jackson and his complex legacy.",
-    Misfits:
-      "A group of teenagers are sentenced to community service for past mistakes only to find their lives changed after a storm gives them strange new powers and new problems to overcome.",
-    "Mon petit renne":
-      "Quand un humoriste fauché manifeste un peu de gentillesse envers une femme fragile, il déclenche une obsession étouffante menaçant de détruire leur vie à tous les deux.",
-    "Mon voisin nu":
-      "Un homme habite au 6ème étage d'un immeuble de l'autre côté du boulevard Montparnasse. Il vit nu, ne se cache pas, ne tire jamais les rideaux, et ne quitte pratiquement jamais son petit appartement dans lequel, du matin au soir, il déambule en tenue d'Adam. François, qui habite en face, a repéré l'étrange manège. Depuis, il ne peut plus travailler. Un jour, il fait venir chez lui Victoire, son amoureuse, et Paul, son meilleur ami, pour leur montrer l'énergumène.",
-    Monk: "Il est aussi ingénieux que névrosé et sujet à des troubles obsessionnels compulsifs. Tony Shalhoub, lauréat d’un Emmy et d’un Golden Globe, incarne le détective Adrian Monk, déclaré inapte à accomplir son devoir et cependant très demandé comme consultant de la police sur les cas les plus épineux. Et tout en combattant le crime, Monk mène également une lutte sans merci contre pratiquement toutes les phobies que connait l’humanité.",
-    "Mortal Kombat II":
-      "Les champions en arts martiaux de l'Earthrealm, secondés par le héros de films d'action Johnny Cage, s'affrontent dans un tournoi ultime. Leur but: renverser Shao Kahn, un tyran qui menace l'existence même de leur monde. L'arrivée fracassante de Kitana, princesse d'Outworld aux loyautés troubles, vient brouiller davantage les lignes séparant ennemis et alliés. Tandis que de nouvelles alliances se forment, les combattants découvrent que les règles du tournoi ont changé. Entre affrontements spectaculaires et révélations mystiques, ils devront repousser leurs limites.",
-    "Mothers' Instinct":
-      "Au début des années 60, deux voisines, Alice et Céline, par ailleurs meilleures amies, mènent une vie paisible et sans histoires entre leurs pelouses bien entretenues, leurs maris prospères et leurs deux fils du même âge. Cette harmonie parfaite se brise tout à coup suite à un tragique accident. La culpabilité, la suspicion et la paranoïa se combinent pour briser leur lien fraternel.",
-    "Mr. & Mrs. Smith":
-      "John et Jane Smith, deux solitaires qui ne se connaissaient pas, ont abandonné leurs vies et leurs identités et se retrouvent forcés de collaborer dans leurs activités d'espionnage... mais aussi dans le mariage.",
-    "Mr. Bean":
-      "Mr. Bean is a comedy show about a man whose whole life is one funny situation after another. He hardly talks, but words are not needed. Everything he does is funny. From playing golf, going to the dentist, and going to church. Mr. Bean is a grown man, but he acts like a child. He has a stuffed bear named Teddy that he carries around with him all the time. This show is full of laugh after laugh!",
-    Mulan:
-      "Dans les paysages montagneux de Chine, surplombés par la grande muraille, les Huns envahissent en pleine nuit le pays. L’empereur prévenu, décrète la mobilisation d’un homme par famille. Fa Mulan , fille unique, s’oppose au départ à la guerre de son père. Dans la nuit orageuse qui suit, elle se coupe les cheveux puis part en direction du camp...",
-    "Ninja Turtles":
-      "Quand une cheville ouvrière menace la ville de New York, un groupe de guerriers tortues mutés doit sortir de l'ombre pour protéger leur maison.",
-    "Nus et culottés":
-      "Nus et culottés est une émission de télévision française diffusée depuis le 26 juillet 2012 sur France 5, où Nans (Nans Thomassey) et Mouts (Guillaume Mouton) tentent des expériences itinérantes culottées en partant nus après s'être fixé un objectif en vue de concrétiser un de leurs rêves.",
-    Obsession:
-      "Et si vous pouviez réaliser votre rêve le plus fou ? Un jeune introverti met la main sur un objet magique capable d’exaucer n’importe quel souhait. Son crush de toujours tombe alors raide dingue de lui… jusqu’à l’obsession la plus totale. Faites attention à ce que vous souhaitez !",
-    "On l'appelait Robin des Bois":
-      "Hanté par son passé après une vie de crimes et de violence, Robin des Bois est laissé pour mort à l’issue d’un combat qu’il pensait être le dernier. Recueilli par une femme mystérieuse, il se voit offrir une ultime chance de rédemption…",
-    "Only Murders in the Building":
-      "Three strangers who share an obsession with true crime suddenly find themselves wrapped up in one.",
-    "Over Your Dead Body":
-      "Over Your Dead Body est un thriller d'humour noir réalisé par Jorma Taccone, mettant en scène un couple marié dysfonctionnel, Dan et Lisa, qui se retirent dans un chalet isolé, chacun ayant secrètement l'intention d'assassiner l'autre. Leurs plans minutieux pour s'entre-tuer sont contrariés lorsque des détenus évadés et une gardienne de prison hors-la-loi interrompent leur séjour.",
-    PONIES:
-      "Moscow, 1977. Two 'PONIES' ('persons of no interest' in intelligence speak) work anonymously as secretaries in the American Embassy. That is until their husbands are killed under mysterious circumstances in the USSR, and the pair become CIA operatives. Bea is an over-educated, Russian-speaking child of Soviet immigrants. Her cohort, Twila, is a small-town girl who is as abrasive as she is fearless. Together, they work to uncover a vast Cold War conspiracy and solve the mystery that made them widows in the first place.",
-    "Parole de tueur":
-      "Henry Lee Lucas rose to infamy when he confessed to hundreds of unsolved murders. This docuseries examines the truth -- and horrifying consequences.",
-    Pinocchio:
-      "Geppetto, un pauvre menuisier italien, fabrique dans un morceau de bois à brûler un pantin qui pleure, rit et parle comme un enfant, une marionnette qu’il nomme Pinocchio. Celui-ci lui fait tout de suite des tours et il lui arrive de nombreuses aventures : il rencontre Mangefeu, le montreur de marionnettes, le Chat et le Renard qui l’attaquent et le pendent. C’est la Fée bleue qui le sauve. Son nez s’allonge à chaque mensonge… Il part ensuite avec son ami Lumignon pour le Pays des jouets, et ils sont transformés tous les deux en baudets.",
-    "Poulet Frites":
-      "Striptease n’est pas mort ! Pour son retour un polar noir. Un vrai meurtre et la pièce à conviction ? Une frite !",
-    Prescott:
-      "Valérie Trudeau, propriétaire du motel de Prescott, découvre un cadavre sur ses terres. Dans une ville où tout le monde connaît quelqu’un lié à la prison, elle décide de mener sa propre enquête. Les soupçons pointent rapidement vers ses ennemis jurés : son ex, Shawn Meunier, et le père de celui-ci, Gilles, à la tête de la cimenterie locale. Entre l’arrivée d'un détenu vedette et la tentative de meurtre d’un des motards, chacun cherche à sauver sa peau, mais personne ne sait à qui faire confiance. D’ailleurs, peut-elle se fier à ce bel inconnu qui débarque au motel familial?",
-    "President Curtis (2026)":
-      "The Commander-in-Chief and his eccentric staff tackle bizarre crises that even Rick Sanchez wouldn't bother with, from interdimensional diplomacy to paranormal investigations and unexplained phenomena.",
-    "Projet Dernière Chance":
-      "Le professeur de sciences Ryland Grace se réveille à bord d’un vaisseau spatial, à des années-lumière de la Terre, sans aucun souvenir de qui il est ni de la façon dont il est arrivé là. À mesure que sa mémoire lui revient, il commence à découvrir sa mission : résoudre l’énigme d’une mystérieuse substance qui provoque l’extinction du Soleil. Il doit faire appel à ses connaissances scientifiques et ses idées peu orthodoxes pour sauver toute vie sur Terre mais une amitié inattendue pourrait signifier qu’il n’aura pas à accomplir cette tâche seul.",
-    "Qui a poussé Mélodie":
-      "Mélodie, une éducatrice de la réputée Académie des ratons, a été poussée par un enfant du haut de l'escalier, la laissant avec un bras cassé et des séquelles psychologiques incalculables. Qui a fait le coup? Mystère.",
-    Rafa: "Explora la legendaria carrera tenística de Rafael Nadal con acceso entre bastidores a su vida personal y archivos inéditos, siguiendo su regreso en 2024 tras superar lesiones en 2023.",
-    Rapa: "Amparo Seoane, maire de Cedeira et femme la plus puissante de la région, est assassinée. Pour Maite, sergente de la garde civile, rechercher le meurtrier est une obligation, c'est son travail. Pour Tomás, professeur de littérature et le seul témoin du meurtre, c'est l'occasion de vivre une histoire comme celles qu'il aime lire et de peut-être pouvoir la raconter. Leur enquête touchera toute la ville : tous, d'une manière ou d'une autre, étaient liés à Amparo. Chacun avait quelque chose à gagner ou à perdre à sa mort…",
-    "Reine rouge":
-      "Antonia Scott possède un don qui est à la fois une bénédiction et une malédiction : une intelligence extraordinaire. Grâce à son esprit aiguisé, elle a sauvé des dizaines de vies, mais elle a aussi tout perdu.",
-    "Rick and Morty (2013)":
-      "Follows the misadventures of an alcoholic scientist Rick and his overly nervous grandson Morty, who split their time between domestic family life and intergalactic travel. Often finding themselves in a heap of trouble that more often than not is created through their own actions.",
-    Ripley:
-      "Au début des années 1960, Tom Ripley, un escroc new-yorkais qui tire le diable par la queue, est engagé par un homme richissime qui l'envoie en Italie pour tenter de convaincre son fils bohème de rentrer à la maison. En acceptant cette mission, Tom met le doigt dans un engrenage complexe qui va le mener au mensonge, à la fraude et au meurtre.",
-    RoboCop:
-      "À l'aube de l'an 2000, Détroit est, comme toujours dans cette sorte d'histoire, la proie du crime et de la corruption. Pour pallier ce terrible état, les services de police inventent une nouvelle arme infaillible, Robocop, mi-homme, mi-robot, policier électronique de chair et d'acier qui a pour mission de sauvegarder la tranquillité de la ville. Mais comme souvent, ce cyborg a aussi une âme.",
-    "STILL la vie de Michael J. Fox":
-      "Des images d’archives et des séquences scénarisées pour raconter l’extraordinaire histoire de Michael J. Fox avec ses propres mots: l’histoire improbable d’un enfant né dans une base militaire canadienne, devenu une star hollywoodienne dans les années 80.",
-    "Sans filtre":
-      "Bonjour, je m'appelle Philippe Maurice. Je suis buraliste, et depuis 24 heures je n'ai plus de filtre. Pas dans ma boutique non, dans ma tête. Pour une raison étrange je dis directement tout ce que je pense à tout le monde et ce dans un langage plus que fleuri. Beaucoup de gens rêveraient de pouvoir se lâcher totalement et de balancer toutes les horreurs qui leur traversent l'esprit, sauf moi pour qui ma vie est devenue un enfer.",
-    "Scary Movie":
-      "Un soir, Drew Becker reçoit un appel anonyme d’un maniaque. Traquée dans sa maison, puis dans son jardin, elle finit par se faire tuer. Sa mort plonge ses camarades de lycée en plein cauchemar, d’autant qu'ils doivent désormais faire face à un tueur en série, caché parmi eux. Flairant le scoop, la journaliste Gail Hailstorn débarque en ville, bien décidée à harceler Cindy Campbell et ses amis à propos de cette histoire...",
-    Scrubs:
-      "JD and Turk scrub in together for the first time in a long time: Medicine has changed; interns have changed; but their bromance has stood the test of time. Characters new and old navigate the waters of Sacred Heart with laughter, heart and some surprises along the way.",
-    Sentinel:
-      "Dans un avenir proche, un petit groupe de soldats se retrouve coincé en mer dans un avant-poste abandonné et attend l'arrivée de la relève ou l'invasion ennemie. Qui des deux arrivera en premier ?",
-    "Sexe, magouilles et culture générale":
-      "Il s'agit d'une caricature assez délirante d'un jeu télévisé de culture générale sur le mode comique et débridé. Les spectateurs du théâtre participent en tant que public improvisé du jeu télévisé. Sur le plateau d'un jeu télévisé baptisé Culture pour tous, Paulette, candidate assez âgée est victorieuse depuis 18 semaines... Pour le producteur du jeu, elle doit impérativement être éliminée car elle plombe l'audimat de la chaîne, qui tombe à 23 %. Il décide de lui mettre comme adversaire une candidate à la plastique avantageuse, mais à l'intellect limité, qui portera une oreillette afin que les bonnes réponses lui soient soufflées. Un ensemble de faits inattendus va contrecarrer le plan du producteur pour éliminer Paulette.",
-    Shameless:
-      "Frank Gallagher est le père d'une famille dysfonctionnelle vivant dans un quartier défavorisé. Alcoolique, égoïste, il laisse la tâche difficile à sa fille Fiona, de gérer ses autres enfants tout en vivant sa propre vie.",
-    Simpsley:
-      "Lorsque Marge Bouvier, une escroc sans le sou, est envoyée en Italie pour convaincre le riche et naïf Seymour Skinner de rentrer au pays, elle est tentée par les signes extérieurs de richesse. Mais un grain de sable vient enrayer la machine : Homer Simpsley, l'invité collant et idiot de Skinner. Mensonges, luxure et lires italiennes sont au rendez-vous.",
-    "Six Feet Under":
-      "A chronicle of the lives of a dysfunctional family who run an independent funeral home in Los Angeles.",
-    "Smiling Friends":
-      "Smiling Friends Inc. is a small company whose main purpose is to bring happiness to its clients. The series follows the day-to-day lives and misadventures of its representatives, the lazy, cynical Charlie, and the cheerful, optimistic Pim, as they try to cheer up and comfort the troubled people who call their company's hotline and help them out with their problems.",
-    "Spider-Noir":
-      "Ben Reilly, a seasoned, down on his luck private investigator in the 1930s New York, is forced to grapple with his past life, following a deeply personal tragedy, as the city's one and only superhero.",
-    "Squid Game":
-      "Tentés par un prix alléchant en cas de victoire malheureusement, des centaines de joueurs désargentés acceptent de s'affronter lors de jeux pour enfants aux enjeux mortels.",
-    "Star City":
-      "Step into a thrilling chapter inspired by For All Mankind. Same alt-history universe. Different perspective: the Soviet Union's. Go behind the Iron Curtain with the cosmonauts, engineers, and intelligence officers who risked it all in the race for the Moon.",
-    "Stargate Atlantis":
-      'The story of Stargate Atlantis follows the cliffhanger episode on Stargate SG-1\'s seventh season finale "Lost City", where SG-1 found an outpost made by the race known as the Ancients in Antarctica. After the events of Stargate SG-1 season eight premiere "New Order", the Stargate Command sends an international team to investigate the outpost. Soon, Dr. Daniel Jackson discovers the location of the greatest city created by the Ancients, Atlantis. The story unfolds when the members of the expedition encounter the Wraith, the race that defeated the Ancients ten thousand years ago.',
-    "Stargate SG-1":
-      "Grâce aux travaux de l'archéologue Daniel Jackson, l'armée américaine est parvenue à maîtriser le fonctionnement de la porte des étoiles, un portail permettant de visiter d'autres mondes, aux confins de la galaxie. L'équipe SG-1, composée de Daniel et de deux militaires, Samantha Carter et Jack O'Neill, s'adjoint les services d'un alien rebelle, Teal'c. Ce dernier a trahi les Goa'ulds, des extraterrestres qui se font passer pour des dieux, et espère que les Terriens l'aideront à combattre la tyrannie sur les planètes occupées par ses anciens maîtres. Ce derniers, qui ont autrefois assujetti les Terriens en prenant l'apparence de dieux égyptiens, grecs ou nordiques, n'entendent pas se laisser faire...",
-    "Stargate Universe":
-      "The previously unknown purpose of the ninth chevron is revealed and takes a group of refugees on a one-way trip to a millions of years old Ancient-built ship. Led by Dr. Nicolas Rush and Colonel Everett Young, the refugees are trapped on the ship, unable to change its programmed mission.",
-    "Stranger Things Tales from '85":
-      "Welcome back to Hawkins in the stark winter of 1985, where the original characters must fight new monsters and unravel a paranormal mystery terrorizing their town.",
-    Sugar:
-      "Un détective privé énigmatique se bat contre ses démons intérieurs pendant son enquête sur la disparition de la petite-fille chérie d’un producteur hollywoodien.",
-    "Super Mario Galaxy, le film":
-      "Mario et Luigi gèrent les tracas du royaume Champignon, se lient d'amitié avec Yoshi, tentent de réhabiliter mini-Bowser et se préparent pour l'anniversaire de Peach. Mais quand un appel à l'aide arrive de l'autre bout de la galaxie, l'équipe part découvrir des mondes nouveaux, des menaces inattendues et des personnages emblématiques, comme Rosalina et Bowser Jr.",
-    Supergirl:
-      "Lorsqu’un ennemi inattendu et impitoyable surgit, Kara Zor-El est forcée, malgré elle, de faire équipe avec un compagnon improbable. Ensemble, ils se lancent dans une épopée cosmique où la vengeance et la justice sont en jeu, et où Kara doit affronter ses origines pour trouver sa propre voie en tant qu’héroïne.",
-    Superman:
-      "Juste avant l’explosion de la planète Krypton, Jor‐El décide de sauver son fils en l’envoyant sur Terre. Le nourrisson est recueilli par le couple Kent qui décide de l’élever comme leur propre fils. L’enfant se met à développer des pouvoirs hors du commun. Une fois adulte, Clark Kent, reporter au Daily Planet, souhaite mener une vie normale. Il ne renie pas pour autant ses capacités à sauver le monde et devient alors Superman : super‐héros volant au secours de la veuve et de l’orphelin, attisant la jalousie de Lex Luthor et l’intérêt de sa collègue Loïs Lane.",
-    "TOC TOC":
-      "La comédie déjantée de Laurent Baffie. 6 personnages atteints de Troubles Obsessionnels Compulsifs se retrouvent coincés dans la salle d'attente du docteur Stern, grand spécialiste des TOC. Les particularités de chacun se croisent et s'entrechoquent dans cette pièce drôle et rythmée",
-    Terminal:
-      "Embarquez avec la compagnie Flywingz et découvrez l'équipage le plus drôle, le plus attachant et le plus incompétent de toute l'histoire de l'aviation française.",
-    "That '70s Show":
-      "Set in the Wisconsin suburbs of the United States, Eric Forman lives under the authority of his parents, Red and Kitty. Next door is his girlfriend/neighbor, Donna Pinciotti and her parents Bob and Midge. The rest of the gang includes Jackie, and her sometimes boyfriend, Kelso, Hyde, a conspiracy theorist and Fez, a foreign exchange student. The gang mostly likes to spend their time in Eric's basement, pondering their lives, parents, and their futures, while getting into many funny mishaps and adventures in their teenage lives along the way.",
-    "The Acolyte":
-      "Cent ans avant la naissance de l'Empire, l'Ordre Jedi et la République Galactique prospéraient depuis des siècles, sans la moindre guerre. Lors d'une enquête concernant un crime odieux, un Maître Jedi va devoir affronter un dangereux guerrier surgissant de son passé.",
-    "The Alabama Solution dans l’enfer de la prison":
-      "Des détenus accomplissent l'impossible et révèlent une affaire dans l'un des systèmes pénitentiaires les plus meurtriers des États-Unis.",
-    "The Big Bang Theory":
-      "A woman who moves into an apartment across the hall from two brilliant but socially awkward physicists shows them how little they know about life outside of the laboratory.",
-    "The Big Cigar":
-      "Le cofondateur du Black Panther Party Huey P. Newton fait appel à un allié insolite, le producteur hollywoodien Bert Schneider, afin d'échapper au FBI et se réfugier à Cuba.",
-    "The Big Door Prize":
-      "Les habitants d'une petite ville voient leur vie transformée quand une mystérieuse machine apparaît et promet de révéler le véritable potentiel de vie de chacun. Ils commencent alors à changer de profession, à reconsidérer leurs relations avec les autres et à remettre en question leurs croyances. Tout ça dans l'espoir d'un avenir meilleur.",
-    "The Bombing of Pan Am 103":
-      "1988: 270 lives are lost when a plane explodes over Lockerbie - the worst terror attack on British soil. Compelling drama revealing the fight to find answers and get justice.",
-    "The Boroughs":
-      "In a seemingly perfect retirement community, a grieving newcomer’s monstrous encounter inspires him to join a misfit crew of unlikely heroes who uncover a dark secret that proves their “golden years” are more dangerous, and they are more formidable, than anyone expects.",
-    "The Boys":
-      'In a world where superheroes embrace the darker side of their massive celebrity and fame, a group of vigilantes known informally as "The Boys" set out to take down corrupt superheroes with no more than blue collar grit and a willingness to fight dirty.',
-    "The Bridge":
-      "A body is found on the bridge from Malmö to Copenhagen causing a jurisdiction issue. Forced to work together, a Swedish and a Danish police detective are on the hunt for a killer.",
-    "The Crowded Room":
-      "Dans ce thriller psychologique qui se déroule à Manhattan pendant l’été 1979, un jeune homme est arrêté pour un crime choquant – et une enquêtrice improbable doit résoudre le mystère qui l’entoure.",
-    "The Deal":
-      "Genève, avril 2015. Des négociations internationales sous haute tension s’ouvrent entre les USA et l’Iran, soupçonné de développer en secret l’arme atomique. Alexandra Weiss, cheffe de la mission diplomatique suisse, tente de maintenir un équilibre fragile entre les parties qui manœuvrent en coulisse. L’arrivée inattendue de son ancien amour, Payam Sanjabi, un ingénieur iranien dont la vie est menacée, va lui compliquer dangereusement la tâche…",
-    "The Drew Carey Show":
-      "This long-running sitcom stars comedian Drew Carey as a sort of blue-collar everyman. The show chronicles Drew's working life, the ups and downs of his romances and his strong relationship with his long-time friends Lewis, Oswald and Kate.",
-    "The Fall":
-      "Detective Superintendent Stella Gibson is brought in from the London Metropolitan Police to help catch the killer when a murder in Belfast remains unsolved. As Gibson travels across from London, we are introduced to the murderer himself; Paul Spector.",
-    "The Flight Attendant":
-      "Flight attendant Cassandra Bowden wakes in a hotel room hungover from the night before in Bangkok with a dead body lying next to her. Afraid to call the police, she continues her morning as if nothing happened. In New York, she is met by FBI agents who question her about her recent layover in Bangkok. Still unable to piece the night together, she begins to wonder if she could be the killer.",
-    "The Hack":
-      "Power. Lies. Corruption. David Tennant &amp; Robert Carlyle lead an all-star cast in this explosive true crime drama about the phone hacking scandal that rocked Britain.",
-    "The Hawk":
-      'On the back nine of his career, golf legend Lonnie "The Hawk" Hawkins chases one final major — and drags everyone he loves into the chaos.',
-    "The Inbetweeners":
-      "Sitcom créée par la chaine anglaise E4 qui retrace la vie de quatre adolescents vivant dans une banlieue anglaise. A la suite du divorce de ses parents, Will doit déménager. Lui qui était auparavant dans une école privée, se retrouve dans une école publique. Il va devoir se faire de nouveaux amis. Rapidement, il intègre une bande de copains composée de Neil, Simon et Jay.",
-    "The Island":
-      "On an island, an enemy is forever. A dysfunctional family's world is shattered in a tense, twisting story of lies, loss and long-buried secrets.",
-    "The Keepers":
-      "This docuseries examines the decades-old murder of Sister Catherine Cesnik and its suspected link to a priest accused of abuse.",
-    "The Killing":
-      "From writer, executive producer and series showrunner Veena Sud (Cold Case), The Killing is based on the wildly successful Danish television series Forbrydelsen and tells the story of the murder of a young girl in Seattle and the subsequent police investigation. The Killing ties together three distinct stories around a single murder including the detectives assigned to the case, the victim's grieving family, and the suspects. Set in Seattle, the story also explores local politics as it follows politicians connected to the case. As the series unfolds, it becomes clear that there are no accidents; everyone has a secret, and while the characters think they've moved on, their past isn't done with them.",
-    "The King of Queens":
-      "Life’s good for deliveryman Doug Heffernan, until his newly widowed father-in-law, Arthur, moves in with him and his wife Carrie. Doug is no longer the king of his domain, and instead of having a big screen television in his recently renovated basement, he now has a crazy old man.",
-    "The Last Man on Earth":
-      "The year is 2022, and after an unlikely event, only one man is left on earth: Phil Miller, who used to be just an average guy who loved his family and hated his job at the bank. Now, in his RV, Phil searches the country for other survivors. He has traveled to every city, every town and every outpost in the United States, Mexico and Canada, and has found no one, which leads him to the painful realization that he is almost certainly the last living being on the face of the earth.",
-    "The Lost Room":
-      'The series revolves around the titular room and some of the everyday items from that room which possess unusual powers. The show\'s protagonist, Joe Miller, is searching for these objects to rescue his daughter, Anna, who has disappeared inside the Room. Once a typical room at a 1960s motel along U.S. Route 66, the Lost Room exists outside of normal time and space since 1961, when what is only referred to as "the Event" took place.',
-    "The Mandalorian and Grogu":
-      "L'Empire maléfique est tombé et les seigneurs de guerre impériaux restent dispersés dans toute la galaxie. Alors que la nouvelle République naissante travaille pour protéger tout ce que la rébellion s'est battue, ils ont fait appel à Din Djarin et à son jeune apprenti Grogu.",
-    "The Michael J. Fox Show":
-      "Look who’s making the news again! One of NY’s most beloved news anchors, Mike Henry (Michael J. Fox), put his career on hold to spend more time with his family and focus on his health after he was diagnosed with Parkinson’s. But now five years later, with the kids busy growing up and Mike growing restless, it just might be time for him to get back to work. Having never wanted Mike to leave in the first place, his old boss Harris Green jumped at the chance to get him back on TV. The trick, as it’s always been, was to make Mike think it was his idea. After several – okay, many - failed attempts, Mike’s family, anxious to see him out of the house, finally succeeded in getting him to “run into” Green. Now their plan is in motion. He’ll be back to juggling home, family, and career, just like the old days – only better.",
-    "The OA":
-      "Seven years after vanishing from her home, a young woman returns with mysterious new abilities and recruits five strangers for a secret mission.",
-    "The Odd Couple":
-      "Oscar's life seems almost perfect...sure he's divorced and his apartment is a mess, but he's the host of a well-known sports show, and is enjoying his bachelor lifestyle in New York City. That is until his college friend, Felix, shows up at Oscar's apartment having just been dumped by his wife. Oscar does his best to console his old buddy and get him back on the dating horse, but his attempts uncover just how unresolved his own feelings are about his ex.",
-    "The Staircase":
-      "Academy Award-winning documentary filmmaker, Jean-Xavier de Lestrade, presents a gripping courtroom thriller, offering a rare and revealing inside look at a high-profile murder trial. In 2001, author Michael Peterson was arraigned for the murder of his wife Kathleen, whose body was discovered lying in a pool of blood on the stairway of their home. Granted unusual access to Peterson's lawyers, home and immediate family, de Lestrade's cameras capture the defense team as it considers its strategic options. The series is an engrossing look at contemporary American justice that features more twists than a legal bestseller.",
-    "The Wrong Mans":
-      "Two lowly office workers Sam and Phil become caught up in a deadly criminal conspiracy after Sam answers a ringing phone at the scene of a horrific car crash.",
-    "This City Is Ours":
-      "All Michael knows is crime, until he falls in love. Now he has something to lose - but how far will he go to keep it?",
-    "Time Traveling Bong":
-      "Jeff and Sharee were caught in a rut – until they happened upon a bong capable of transporting them to any time or place. Now, they're on a kush-fueled adventure through some of the biggest events in history.",
-    "Top Chef":
-      "Un grand casting national a permis de jeunes espoirs de la cuisine française. Ces candidats concourent pour décrocher le titre de ''top chef'' et empocher la somme de 100.000 euros. Pendant plusieurs semaines, quatre chefs de renom jugent leur travail.",
-    "Twin Peaks":
-      "The body of a young girl is washed up on a beach near the small Washington state town of Twin Peaks. Eccentric FBI Special Agent Dale Cooper is called in to investigate her strange demise only to uncover a web of mystery that ultimately leads him deep into the heart of the surrounding woodland and his very own soul. Season 3 - also known as Twin Peaks: The Return - is set 25 years after the events of Seasons 1 and 2.",
-    "Ultraman Rising":
-      "Tandis que Tokyo est assiégée par des monstres, la star du baseball Ken Sato rentre chez elle à contrecœur pour endosser le costume d'Ultraman. Mais le superhéros titanesque rencontre son égal lorsqu'il est contraint d'adopter un bébé kaiju de dix mètres de haut qui crache du feu. Sato va alors devoir mettre son orgueil de côté pour concilier son travail et son rôle de parent, tout en protégeant le bébé contre des forces déterminées à l'exploiter pour leurs propres sombres intérêts.",
-    "Un Jour Au Haram":
-      "L'histoire extraordinaire du Haram de La Mecque, un lieu si vénéré qu'il est interdit aux non-Musulmans d'y mettre les pieds. Pour la première fois dans l'histoire, découvrez les rouages du Haram, vus à travers les yeux des ouvriers. Le film met en lumière certains des personnages humains responsables du fonctionnement de cette immense institution.",
-    "Un meurtre est-il facile":
-      "Angleterre, 1954. Le jeune et ambitieux Luke Fitzwilliam arrive du Nigeria avec la promesse d’un emploi à Whitehall. Dans un train pour Londres, il fait la connaissance de Miss Pinkerton, qui lui confie qu’un tueur sévit dans le village tranquille de Wychwood Under Ashe. Les habitants pensent qu’il s’agit de morts accidentelles, mais Miss Pinkerton sait qu’il n’en est rien. Lorsqu’elle est retrouvée morte sur le chemin de Scotland Yard, Luke Fitzwilliam décide de démasquer le tueur avant qu’il ne frappe à nouveau. Car pour certaines personnes, le meurtre semble facile...",
-    "Un pays qui se tient sage":
-      "Alors que s’accroissent la colère et le mécontentement devant les injustices sociales, de nombreuses manifestations citoyennes font l’objet d’une répression de plus en plus violente. Le documentaire &quot;Un pays qui se tient sage&quot; invite plusieurs citoyens à approfondir, interroger et confronter leurs points de vue sur l’ordre social et la légitimité de l’usage de la violence par l’État.",
-    "Un point c'est tout !":
-      "Moment de vie d'un stage de récupération de point du permis de conduire.",
-    Unbelievable:
-      "Une adolescente déclare avoir été victime d'un viol puis se rétracte. Deux femmes détectives suivent une piste pouvant les mener à la vérité. D'après une histoire vraie.",
-    "Une affaire d'honneur":
-      "Paris, 1887. Les duels ont été officiellement proscrits, mais ils restent une pratique courante. Pour beaucoup, c'est le seul moyen de défendre leur honneur. Clément Lacaze, maître d'armes, tente en vain d'empêcher son neveu de s'engager dans un duel inégal avec le colonel Berchère, plus expérimenté. Marie-Rose Astié de Valsayre, féministe luttant pour l'égalité des femmes, tente de montrer que l'honneur n'est pas qu'une affaire d'hommes.",
-    "Une famille de bâtards":
-      "« Une famille de bâtards » suit Mohamed Akrour, petit gars sans histoires qui hérite de l'affaire familiale et découvre qu'elle abrite machines à sous illégales et réseau de prostitution. Pris entre rivalités explosives, dettes menaçantes et appât du gain, il rencontre surtout demi-frère et sœur qu'il devra protéger… tout en plongeant dans un monde criminel et brutal.",
-    "Une vie":
-      "D'après l'histoire vraie du britannique Nicholas Winton (1909-2015). Avant le début de la Seconde Guerre mondiale, âgé de 29 ans, il sauve 669 enfants tchécoslovaques dont beaucoup sont juifs d'une mort certaine dans les camps d'extermination nazis.",
-    "United States of Tara":
-      "Tara Gregson is a wife and mother of two. Tara has dissociative identity disorder (DID). Whenever she is stressed, she transforms into one of her alternate personalities: wild and flirty teenager T; old-fashioned housewife Alice; and male, loud, beer-drinking Vietnam vet Buck (a fifth personality is introduced later in the season). Tara is supported by her husband Max, her somewhat troubled teenage daughter Kate and quirky, good-hearted gay son Marshall. Her sister, Charmaine, is not so supportive, often expressing her doubt about the validity of Tara's disorder.",
-    Vermines:
-      "Kaleb est un jeune adulte qui vit de petits boulots. Fasciné par les animaux exotiques, il trouve une araignée venimeuse dans un bazar et la ramène dans son appartement. Il ne lui faut qu'un instant pour s'échapper et se reproduire, transformant l'endroit en un terrible piège en toile. A Seule option pour Kaleb et ses amis : trouver la sortie, survivre.",
-    Voilà:
-      "This ensemble comedy is about the inner workings of a high-style magazine owned by Jack Gallo, who has hired his quick-tempered but talented daughter, Maya, to write for the publication. Challenging her at every turn is Nina, a vain and superficial former model. Then there's photographer Elliot, a man who is very popular with his portrait subjects as well as other women. completing the core staff is her father's assistant, Dennis, a glorified secretary who is generally disrespectful to one and all.",
-    "War Machine":
-      "Lors d'une dernière mission éprouvante pendant sa formation de Ranger, un ingénieur militaire doit mener son unité contre une gigantesque machine à tuer venue d'un autre monde.",
-    "Widow's Bay (2026)":
-      "Le maire d'une île de Nouvelle-Angleterre veut attirer des visiteurs, mais il fait face à d'étranges évènements laissant penser que l'île est maudite.",
-    "X-Files  Aux frontières du réel":
-      "`The truth is out there,' and FBI agents Scully and Mulder seek it in this sci-fi phenomenon about their quest to explain the seemingly unexplainable. Their strange cases include UFO sightings, alien abductions and just about anything else paranormal.",
-    "Zero Day":
-      "Rappelé à la vie active pour identifier la source d'une cyberattaque meurtrière, un ancien président des États-Unis découvre un vaste réseau de mensonges et de complots.",
-    "bref.":
-      "In life we are born, at the end we die. Between the two, things happens, in short, it is the story of a guy between the two.",
-    "À la recherche de Harry L'art derrière la magie":
-      "Un aperçu exclusif des coulisses de la série Harry Potter, raconté par les artistes et artisans qui redonnent vie à cette histoire tant appréciée.",
-    "Ça Bienvenue à Derry":
-      "Des événements étranges se déroulent dans la ville de Derry dans les années 1960 liés à Pennywise le clown, un personnage mystérieux qui hante Derry.",
-  };
   const LIBRARY = [
     { t: "On l'appelait Robin des Bois", f: "2026 · Film", c: "movies" },
     { t: "Ninja Turtles", f: "2014 · Film", c: "movies" },
@@ -5813,42 +4470,7 @@ import { servedIdentityLines } from "../lib/served-identity";
      Documentaires » merge their film/series variants: storage is by nature,
      not by medium. The total is 1,861 and it adds up — a filter whose parts
      do not sum to the whole is a filter that lies. */
-  const CATS = [
-    { id: "all", l: "Tout", c: 1861, of: null },
-    { id: "movies", l: "Films", c: 717, of: ["movies"] },
-    { id: "tv", l: "Séries", c: 528, of: ["tv_shows"] },
-    {
-      id: "anim",
-      l: "Animation",
-      c: 382,
-      of: ["movies_animation", "tv_shows_animation"],
-    },
-    { id: "standup", l: "Stand-up", c: 73, of: ["standup"] },
-    {
-      id: "doc",
-      l: "Documentaires",
-      c: 66,
-      of: ["movies_documentary", "tv_shows_documentary"],
-    },
-    { id: "anime", l: "Anime", c: 56, of: ["anime"] },
-    { id: "tvprog", l: "Programmes TV", c: 31, of: ["tv_programs"] },
-    { id: "theater", l: "Théâtre", c: 8, of: ["theater"] },
-  ];
 
-  const RECENT = [
-    { t: "On l'appelait Robin des Bois", f: "2026 · Film" },
-    { t: "The Bombing of Pan Am 103", f: "6/6 épisodes" },
-    { t: "Batman Caped Crusader", f: "10/10 épisodes" },
-    { t: "Ninja Turtles", f: "2014 · Film" },
-    { t: "President Curtis", f: "1/6 épisodes" },
-    { t: "Big Chicken", f: "2026 · Documentaire" },
-    { t: "Marjorie Prime", f: "2017 · Film" },
-    { t: "Furious", f: "1/8 épisodes" },
-    { t: "The Hawk", f: "3/8 épisodes" },
-    { t: "Margin Call", f: "2011 · Film" },
-    { t: "Supergirl", f: "2026 · Film" },
-    { t: "Rick and Morty", f: "71/71 épisodes" },
-  ];
 
   const INCOMPLETE = [
     { t: "SAV des émissions", o: 12, a: 71, y: 2005 },
@@ -5874,21 +4496,6 @@ import { servedIdentityLines } from "../lib/served-identity";
      The switch lives in the harness, not in the app. */
 
   /* REAL contents of the staging directory. */
-  const STUCK_REAL = [
-    {
-      t: "Top Chef Le Concours Parallèle (2026)",
-      s: "002-TVSHOWS · déposé à la main",
-      r: "Aucune donnée d'épisode chez TVDB ni chez TMDB pour cette série : la détection ne peut pas nommer les fichiers. Blocage connu, assumé ouvert.",
-      strip: [1, 1, "blocked", 0, 0],
-    },
-    {
-      t: "Marvels.Spider-Man.2.v1.526.0.FRENCH-Mephisto",
-      s: "098-AUTRES · déposé à la main",
-      r: "Aucun fichier vidéo dans le dossier : c'est un jeu, pas un média. Il ne peut pas traverser le pipeline.",
-      strip: [1, "blocked", 0, 0, 0],
-      noposter: true,
-    },
-  ];
 
   /* « Ça coince » holds TWO populations, and merging them would be the defect.
      A folder can be stuck because the scrape could not CHOOSE — that is a
@@ -5896,29 +4503,6 @@ import { servedIdentityLines } from "../lib/served-identity";
      nothing in it can go through the pipeline at all, which no arbitration
      will ever fix. The first here carries a pending decision; the last two
      carry none, and say so by having no reason chip. */
-  const STUCK = [
-    {
-      t: "Backrooms.2026.MULTi.2160p.WEB-DL",
-      s: "arrivé à 06 h 14 · qBittorrent (manuel)",
-      r: "Aucun média identifié : ni TMDB ni TVDB ne renvoient de correspondance pour ce nom.",
-      chip: ["danger", "Confiance faible"],
-      strip: [1, 1, "blocked", 0, 0],
-      noposter: true,
-    },
-    {
-      t: "S.W.A.T.",
-      s: "S08E12 · arrivé à 22 h 51 · qBittorrent (manuel)",
-      r: "Deux correspondances possibles — TVDB 328724 (2017) et TVDB 71663 (1975). Il faut choisir.",
-      strip: [1, 1, "blocked", 0, 0],
-    },
-    {
-      t: "doc_fr_2026_final",
-      s: "arrivé hier à 19 h 03 · dépôt manuel",
-      r: "Aucun fichier vidéo dans le dossier : seulement 3 fichiers .nfo et une archive .rar non extraite. Aucun arbitrage n'y changera rien.",
-      strip: [1, "blocked", 0, 0, 0],
-      noposter: true,
-    },
-  ];
   /* ── Décisions de scrapage ────────────────────────────────────────────
      A decision is a FOLDER, never a medium — that is the whole reason it
      exists. The scrape could not name what is inside it, so what the operator
@@ -5973,127 +4557,6 @@ import { servedIdentityLines } from "../lib/served-identity";
   };
 
   /* Décisions RÉGLÉES — les dix vraies lignes de scrape_decision. */
-  const DECISIONS_REGLEES = [
-    {
-      d: "The Odyssey (2026)",
-      k: "movie",
-      t: "The Odyssey",
-      reason: "ambiguous",
-      state: "superseded",
-      when: "6 août, 09 h 24",
-      y: 2026,
-    },
-    {
-      d: "The Bombing of Pan Am 103",
-      k: "show",
-      t: "The Bombing of Pan Am S01E03",
-      reason: "below_threshold",
-      state: "resolved",
-      when: "4 août, 12 h 37",
-      choice: {
-        t: "The Bombing of Pan Am S01E03",
-        p: "tvdb",
-        id: 456595,
-        via: "search_override",
-      },
-    },
-    {
-      d: "Star Trek",
-      k: "show",
-      t: "Star Trek",
-      reason: "mid_band",
-      state: "superseded",
-      when: "30 juillet, 15 h 42",
-    },
-    {
-      d: "The Hawk",
-      k: "show",
-      t: "The Hawk",
-      reason: "ambiguous",
-      state: "resolved",
-      when: "22 juillet, 22 h 11",
-      choice: { t: "The Hawk", p: "tvdb", id: 450088, via: "pick" },
-    },
-    {
-      d: "Lucky",
-      k: "show",
-      t: "Lucky",
-      reason: "ambiguous",
-      state: "resolved",
-      when: "15 juillet, 14 h 55",
-      choice: { t: "Lucky (2026)", p: "tvdb", id: 457437, via: "pick" },
-    },
-    {
-      d: "Top Chef Le Concours Parallèle (2026)",
-      k: "show",
-      t: "Top Chef Le Concours Parallele",
-      reason: "mid_band",
-      state: "resolved",
-      when: "13 juillet, 18 h 44",
-      y: 2026,
-      choice: {
-        t: "Top Chef Le Concours Parallele",
-        p: "tvdb",
-        id: 475278,
-        via: "pick",
-      },
-    },
-    {
-      d: "Ferrari Tsamere Lecaplain La tournee du Trio (2025)",
-      k: "movie",
-      t: "Ferrari Tsamere Lecaplain La tournee du Trio",
-      reason: "manual",
-      state: "resolved",
-      when: "13 juillet, 18 h 44",
-      y: 2025,
-      choice: {
-        t: "Ferrari, Tsamere, Lecaplain : La Tournée du Trio",
-        p: "tmdb",
-        id: 1433379,
-        via: "pick",
-      },
-    },
-    {
-      d: "Aymeric Lompret et Pierre Emmanuel Barre Woke me up (2026)",
-      k: "movie",
-      t: "Aymeric Lompret et Pierre Emmanuel Barre Woke me up",
-      reason: "manual",
-      state: "resolved",
-      when: "13 juillet, 18 h 44",
-      y: 2026,
-      choice: {
-        t: "Aymeric Lompret et Pierre Emmanuel Barre Woke me up",
-        p: "tmdb",
-        id: 1629753,
-        via: "pick",
-      },
-    },
-    {
-      d: "Obsession (2026)",
-      k: "movie",
-      t: "Obsession",
-      reason: "manual",
-      state: "resolved",
-      when: "13 juillet, 16 h 46",
-      y: 2026,
-      choice: { t: "Obsession", p: "tmdb", id: 1339713, via: "pick" },
-    },
-    {
-      d: "Remarkably Bright Creatures (2026)",
-      k: "movie",
-      t: "Remarkably Bright Creatures",
-      reason: "manual",
-      state: "resolved",
-      when: "13 juillet, 16 h 05",
-      y: 2026,
-      choice: {
-        t: "Remarkably Bright Creatures",
-        p: "tmdb",
-        id: 1330021,
-        via: "search_override",
-      },
-    },
-  ];
 
   /* Décisions EN ATTENTE.
 
@@ -6107,118 +4570,7 @@ import { servedIdentityLines } from "../lib/served-identity";
      two of the ten rows in the base came back with no candidate at all. It
      hangs on the dense scenario's folder, whose stated reason already says
      precisely that. */
-  const PENDING_DECISIONS = [
-    {
-      d: "Lucky",
-      k: "show",
-      t: "Lucky",
-      reason: "ambiguous",
-      when: "15 juillet, 14 h 52",
-      c: [
-        {
-          t: "Lucky!",
-          y: 2022,
-          p: "tvdb",
-          id: 427619,
-          s: 1.0,
-          sans: false,
-          resume:
-            "The extraordinary story of Bernie Ecclestone's meteoric rise from post-war car dealer to the creation and 50-year reign over the cutthroat world of Formula One.",
-        },
-        {
-          t: "Lucky (2026)",
-          y: 2026,
-          p: "tvdb",
-          id: 457437,
-          s: 1.0,
-          sans: false,
-          resume:
-            "A reformed criminal is forced to confront her past and return to illicit activities for one final job, hoping to secure her freedom and leave her former life behind for good.",
-        },
-        {
-          t: "Lucky (2006)",
-          y: 2006,
-          p: "tvdb",
-          id: 317944,
-          s: 1.0,
-          sans: true,
-          resume:
-            "About a young man Lucky, who runs a fake antique shop in Chor Bazaar and has the simplest ways of living, i.e. conning people by selling them fake antiques and actually making them believe that the artifacts are genuine. Lucky is a street smart, confident and intelligent character, who loves life the way it comes until he gets to know about the Rakshaks who were born for protecting sacred and priceless treasures and that now he is going to be the chosen one...the fifth Rakshak.",
-        },
-        {
-          t: "Lucky (2003)",
-          y: 2003,
-          p: "tvdb",
-          id: 70876,
-          s: 1.0,
-          sans: false,
-          resume:
-            "After winning $1 million in the World Series of Poker at a Las Vegas casino, Michael 'Lucky' Linkletter lived like a king... briefly. Now, one year later, he's penniless. Although Lucky's been clean from his gambling addiction for six months, his debts continue to mount - including money owed to his deceased wife's parents and a mobster.",
-        },
-        {
-          t: "Lucky Chances",
-          y: 1990,
-          p: "tvdb",
-          id: 298989,
-          s: 0.9,
-          sans: false,
-          resume:
-            'Based on the novels "Chances" and "Lucky" by Jackie Collins, this miniseries features the rise of Gino Santangelo in the Las Vegas casino industry, and his daughter Lucky\'s subsequent struggle to maintain the family empire.',
-        },
-      ],
-    },
-    {
-      d: "Backrooms.2026.MULTi.2160p.WEB-DL",
-      k: "movie",
-      t: "Backrooms",
-      y: 2026,
-      reason: "below_threshold",
-      when: "aujourd'hui, 06 h 16",
-      c: [],
-    },
-  ];
 
-  const MOVING = [
-    {
-      t: "President Curtis",
-      s: "S01E02 · suivi",
-      strip: [1, 1, "now", 0, 0],
-      chip: ["info", "Ingestion"],
-    },
-    {
-      t: "Furious",
-      s: "S01E01 · suivi",
-      strip: [1, 1, 1, "now", 0],
-      chip: ["info", "Scraping"],
-    },
-    {
-      t: "The Alabama Solution",
-      s: "2025 · qBittorrent (manuel)",
-      strip: [1, 1, 1, "now", 0],
-      chip: ["info", "Scraping"],
-    },
-    {
-      t: "Conclave",
-      s: "2024 · qBittorrent (manuel)",
-      strip: [1, 1, 1, 1, "now"],
-      chip: ["info", "Rangement"],
-    },
-    {
-      t: "Les Zinzins de l'Espace",
-      s: "S03E14 · suivi",
-      strip: [1, "now", 0, 0, 0],
-      chip: ["info", "Téléchargement 34 %"],
-    },
-  ];
-  const SETTLED = [
-    { t: "The Bombing of Pan Am 103", s: "S01E05 · Disk2 · 14 h 12" },
-    { t: "Smiling Friends", s: "S03E02 · Disk1 · 11 h 40" },
-    { t: "On l'appelait Robin des Bois", s: "2026 · Disk3 · 09 h 27" },
-    { t: "Ninja Turtles", s: "2014 · Disk1 · 08 h 03" },
-    { t: "Marjorie Prime", s: "2017 · Disk3 · 07 h 55" },
-    { t: "Big Chicken", s: "2026 · Disk2 · 07 h 12" },
-    { t: "Margin Call", s: "2011 · Disk1 · 06 h 48" },
-  ];
 
   const STRIP_LABELS = ["pris", "téléch.", "ingéré", "scrapé", "rangé"];
 
@@ -6238,94 +4590,6 @@ import { servedIdentityLines } from "../lib/served-identity";
      `blockedCount` is what makes this page more than a report: the step that BLOCKS
      is the one the operator can act on, and it points at « Ça coince » just
      below rather than at a log. */
-  const PIPELINE = {
-    steps: [
-      {
-        n: "ingest",
-        l: "Récupération",
-        d: "Les téléchargements terminés sont copiés dans la zone de tri.",
-      },
-      {
-        n: "sort",
-        l: "Tri",
-        d: "Chaque fichier rejoint sa catégorie, et son nom est nettoyé.",
-      },
-      {
-        n: "clean",
-        l: "Noms et doublons",
-        d: "Les noms de dossiers sont repris, les doublons repérés.",
-      },
-      {
-        n: "scrape",
-        l: "Identification",
-        d: "Le média est reconnu, sa fiche et ses affiches récupérées.",
-      },
-      {
-        n: "cleanup",
-        l: "Dossiers vides",
-        d: "Ce que l'identification a laissé derrière elle.",
-      },
-      {
-        n: "enforce",
-        l: "Mise en forme",
-        d: "Les noms de fichiers sont assainis, la structure validée.",
-      },
-      {
-        n: "verify",
-        l: "Contrôle",
-        d: "Le dernier examen avant le rangement. C'est ici qu'un média est bloqué.",
-      },
-      {
-        n: "trailers",
-        l: "Bandes-annonces",
-        d: "La bande-annonce est récupérée quand il en existe une.",
-      },
-      {
-        n: "dispatch",
-        l: "Rangement",
-        d: "Le média rejoint son disque, et la médiathèque le voit.",
-      },
-    ],
-    /* The trigger, said rather than encoded. `completion` is the one that
-       fires most: a download finished, so the pipeline runs. */
-    declencheurs: {
-      completion: "la fin d'un téléchargement",
-      safety_net: "le filet de sécurité",
-      scheduled: "le planificateur",
-      manual: "vous",
-    },
-    /* The run of 14/08 07:08, exactly as `pipeline_run` recorded it. */
-    last: {
-      uid: "2b598104",
-      when: "aujourd'hui à 07 h 08",
-      duree: "1 min 44 s",
-      declencheur: "completion",
-      issue: "success",
-      facts: [
-        { n: "ingest", r: "3 copiés", s: "79 étaient déjà là" },
-        { n: "sort", r: "3 rangés en catégorie" },
-        { n: "clean" },
-        {
-          n: "scrape",
-          r: "2 identifiés",
-          s: "Stuart Fails to Save the Universe, Top Chef Le Concours Parallèle",
-        },
-        { n: "cleanup" },
-        /* The em dash means « nothing to do ». This step HAD something to
-           look at and found it already in order, which is a different
-           sentence — an em dash beside « 2 étaient déjà en forme » would
-           contradict its own sub-line. */
-        { n: "enforce", r: "rien à changer", s: "2 étaient déjà en forme" },
-        { n: "verify", r: "1 validé", blockedCount: 1 },
-        { n: "trailers" },
-        {
-          n: "dispatch",
-          r: "1 rangé sur Disk1",
-          s: "Stuart Fails to Save the Universe",
-        },
-      ],
-    },
-  };
 
   /* ── MAINTENANCE ──────────────────────────────────────────────────────
      The 26 `library-*` commands the engine really registers, read from
@@ -6951,16 +5215,6 @@ import { servedIdentityLines } from "../lib/served-identity";
      « moved » are two different events for the operator — an episode joining
      a series they already have is not a new title on a disk — so they are not
      flattened into one word. */
-  const SETTLED_REAL = [
-    {
-      t: "Stuart Fails to Save the Universe (2026)",
-      s: "nouveau sur Disk1 · aujourd'hui à 07 h 10",
-    },
-    {
-      t: "Star Trek: Strange New Worlds (2022)",
-      s: "S04E04 fusionné sur Disk3 · hier à 15 h 25",
-    },
-  ];
 
   /* State */
   /* THE SEED, and only the seed. This used to be `let state`, a module-level
@@ -7025,12 +5279,8 @@ import { servedIdentityLines } from "../lib/served-identity";
     followMode: "list",
     pill: "tout",
     notes: false,
-    libCount: 24,
     selMode: false,
     selected: new Set(),
-    libLoading: false,
-    libErr: false,
-    libFailedOnce: false,
     sugCount: 30,
     sugGone: new Set(),
     sugMode: "list",
@@ -7239,30 +5489,52 @@ import { servedIdentityLines } from "../lib/served-identity";
   // The single owner of the mutable state, adopted at boot by
   // window.__startEngine — null until the shell calls it.
   let store = null;
+  /* THE DECK'S CARDS, read from the layer. `SUGGESTIONS` was a fixture here and
+     left at L09; the deck still indexes into a list from a click handler that
+     cannot await, so it asks a synchronous accessor. It reports an empty list
+     before the query has answered, which is what the deck already drew for a
+     batch fully seen. It goes with the deck at L13. */
+  /* THE QUEUE, read from the layer. The lists left at L09 and these callers
+     ask from click handlers that cannot await; they read the same cache the
+     surfaces do, never a copy. They go with the drawing at L13. */
+  /* THE FOLLOWS, read from the layer. Same reason as `queued()`: these callers
+     ask from click handlers that cannot await, and they read the same cache the
+     deck draws. */
+  /* WHAT A SEARCH TURNED UP, and WHAT A RELEASE PICKER LISTS, read from the
+     layer. Both were fixtures here and left at L09; both are indexed into from
+     click handlers that cannot await. They go with the delegation at L13. */
+  function searchResults() {
+    return window.__searchResults?.() ?? { total: 0, shown: 0, results: [] };
+  }
+
+  function releases() {
+    return window.__releases?.() ?? [];
+  }
+
+  function follows() {
+    return window.__followActions?.all() ?? [];
+  }
+
+  function queued() {
+    return (
+      window.__queue?.() ?? {
+        stuck: [], moving: [], settled: [], takeable: [],
+        blocked: [], inFlight: [], notFound: [], doneToday: [],
+      }
+    );
+  }
+
+  function suggestions() {
+    return window.__suggestions?.() ?? [];
+  }
+
+  /* WHAT IS LEFT OF THE WORLD, and it is the library's rows and nothing else.
+     The queue — takeable, blocked, in flight, not found, done today, stuck,
+     moving, settled, follows — left at L09: it is server state, it lives in the
+     query cache, and a copy here would be a second truth about one queue.
+     `lib` and `removedLib` go with the media sheet's own wave. */
   function seedWorld() {
-    const deepCopy = (value) => JSON.parse(JSON.stringify(value));
-    world = {
-      takeable: deepCopy(TAKEABLE),
-      blocked: deepCopy(BLOCKED),
-      inflight: deepCopy(INFLIGHT),
-      notfound: deepCopy(NOTFOUND),
-      notfoundReel: deepCopy(NOTFOUND_REAL),
-      doneToday: deepCopy(DONE_TODAY),
-      stuck: deepCopy(STUCK),
-      stuckReel: deepCopy(STUCK_REAL),
-      settledReel: deepCopy(SETTLED_REAL),
-      moving: deepCopy(MOVING),
-      settled: deepCopy(SETTLED),
-      // The seed, NOT the current state — otherwise seed() clones itself.
-      follows: deepCopy(FOLLOWS),
-      lib: LIBRARY.slice(),
-      removedLib: new Set(),
-    };
-    // Reseeding REPLACES the world object, so the store's copy of the
-    // reference has to be replaced too — the engine's actions go on mutating
-    // `world` in place, and a store still holding the previous object would
-    // hand a component a world nobody writes to anymore. Optional because the
-    // first seed runs before the shell hands the store over.
+    world = { lib: [], removedLib: new Set() };
     store?.adoptWorld(world);
   }
   seedWorld();
@@ -7272,16 +5544,8 @@ import { servedIdentityLines } from "../lib/served-identity";
      in En vol at the taken step, and the badge loses 1 ». */
 
   function actionTake(title) {
-    const findIndex = world.takeable.findIndex(
-      (takeable) => takeable.t === title,
-    );
-    if (findIndex < 0) return;
-    const [splice] = world.takeable.splice(findIndex, 1);
-    world.inflight.unshift({
-      ...splice,
-      strip: ["now", 0, 0, 0, 0],
-      chip: ["info", "Récupération lancée"],
-    });
+    /* Same as the two above. */
+    window.__queueActions?.take(title);
     render();
     toast(`« ${baseTitle(title)} » récupéré — suivez-le dans « En vol ».`);
   }
@@ -7296,100 +5560,76 @@ import { servedIdentityLines } from "../lib/served-identity";
      « Résoudre → » on an acquisition card used to change nothing at all: the
      button was there, the screen opened, the choice was made, and the item
      stayed exactly where it was. */
-  function leaveQueue(title) {
-    for (const [list, towardsLoaded] of [
-      [world.stuck, true],
-      [world.stuckReel, false],
-      [world.blocked, true],
-    ]) {
-      if (!list) continue;
-      const index = list.findIndex((item) => item.t === title);
-      if (index < 0) continue;
-      const [released] = list.splice(index, 1);
-      return { released, towardsLoaded };
-    }
-    return null;
-  }
 
   /* Agreeing with the machine. The automatic result stands, nothing is
      re-scraped — and the folder LEAVES the queue, because the operator has
      answered. A queue that kept what has been answered would grow forever and
      stop meaning « what is waiting for me ». */
   function actionLeave(title) {
-    const exit = leaveQueue(title);
-    if (!exit) return false;
-    const card = {
-      t: exit.released.t,
-      s: exit.released.s,
-      strip: [1, 1, 1, "now", 0],
-      chip: ["neutral", "Laissé tel quel"],
-    };
-    if (exit.towardsLoaded) world.moving.unshift(card);
-    else (world.movingReel ??= []).unshift(card);
+    /* THE MOVE IS THE LAYER'S SINCE L09, and what stays here is the sentence
+       the operator reads. The folder leaving one queue and joining another is
+       server state; keeping a copy of it in `world` beside the cache the
+       surfaces read would be two truths about one queue. `leaveQueue` went with
+       it — the layer walks the same three lists, in the same order, and it says
+       so in its own words. */
+    if (!window.__queueActions?.leave(title)) return false;
     render();
     toast(
-      `« ${exit.released.t} » laissé tel quel — le résultat automatique est conservé, rien n'a été re-scrapé.`,
+      `« ${title} » laissé tel quel — le résultat automatique est conservé, rien n'a été re-scrapé.`,
     );
     return true;
   }
 
   function actionResolve(title, choice) {
-    const exit = leaveQueue(title);
-    if (!exit) return;
-    const card = {
-      t: choice ?? exit.released.t,
-      s: exit.released.s,
-      strip: [1, 1, 1, "now", 0],
-      chip: ["info", "Scraping"],
-    };
-    if (exit.towardsLoaded) world.moving.unshift(card);
-    else (world.movingReel ??= []).unshift(card);
+    /* Same as `actionLeave`: the move is the layer's, the sentence is this
+       function's. */
+    window.__queueActions?.resolve(title, choice);
     render();
     toast(
-      `Identifié comme « ${choice ?? exit.released.t} » — le pipeline reprend jusqu'à la médiathèque.`,
+      `Identifié comme « ${choice ?? title} » — le pipeline reprend jusqu'à la médiathèque.`,
     );
   }
 
+  /* THE STATE IS THE LAYER'S SINCE L09; what stays here is the sentence the
+     operator reads and the undo it offers. */
   function actionPause(title) {
-    const found = world.follows.find((follow) => follow.t === title);
+    const found = follows().find((follow) => follow.t === title);
     if (!found) return;
     const before = found.st;
-    found.st =
+    const after =
       found.st === "disabled"
         ? found.k === "movie"
           ? "pending"
           : "up_to_date"
         : "disabled";
-    const remis = found.st !== "disabled";
+    window.__followActions?.setStatus(title, after);
+    const remis = after !== "disabled";
     render();
     toastUndo(
       remis
         ? `« ${found.t} » réactivé.`
         : `« ${found.t} » ${found.k === "movie" ? "ne sera plus cherché" : "mis en pause"}.`,
       () => {
-        found.st = before;
+        window.__followActions?.setStatus(title, before);
         render();
       },
     );
   }
 
   function actionRetirer(title) {
-    const findIndex = world.follows.findIndex((follow) => follow.t === title);
-    if (findIndex < 0) return;
-    const [splice] = world.follows.splice(findIndex, 1);
+    const removed = follows().find((follow) => follow.t === title);
+    if (!removed) return;
+    window.__followActions?.remove(title);
     render();
-    toastUndo(`« ${splice.t} » retiré de vos suivis.`, () => {
-      world.follows.splice(findIndex, 0, splice);
+    toastUndo(`« ${removed.t} » retiré de vos suivis.`, () => {
+      window.__followActions?.add(removed);
       render();
     });
   }
 
   function actionFollow(title, kind) {
-    if (
-      world.follows.some((follow) => baseTitle(follow.t) === baseTitle(title))
-    )
-      return;
-    world.follows.unshift({
+    if (follows().some((follow) => baseTitle(follow.t) === baseTitle(title))) return;
+    window.__followActions?.add({
       t: title,
       k: kind === "Film" ? "movie" : "show",
       st: "unverified",
@@ -7401,8 +5641,11 @@ import { servedIdentityLines } from "../lib/served-identity";
   }
 
   function actionDelete(titres) {
-    titres.forEach((title) => world.removedLib.add(title));
-    world.lib = world.lib.filter((lib) => !world.removedLib.has(lib.t));
+    /* THE REMOVAL IS THE LAYER'S SINCE L09. `world.lib` stopped holding the
+       library when the listing converted, so this filtered an empty array and
+       deleted nothing at all — on the one surface whose subject is what is
+       there. The confirmation stays here: it is drawn here (NE-DOIT-PAS-6). */
+    window.__deleteLibraryItems?.(titres);
     store.write({ selMode: false, selected: new Set() });
     render();
     toast(
@@ -7417,6 +5660,23 @@ import { servedIdentityLines } from "../lib/served-identity";
 
   window.__reset = () => {
     seedWorld();
+    /* THE CACHE IS PART OF WHAT A MEASUREMENT INHERITS, since L09. This
+       function's own sentence — « a measurement must never inherit the
+       mutations of a previous one » — used to be true of the world alone,
+       because every surface read a fixture. A surface reads a query cache now,
+       and a cache keeps what it holds: driving one state after another left the
+       Médiathèque showing every page a previous state had asked for, and the
+       oracle measured a 46 402 px list where the reference holds 3 388.
+       Clearing it here rather than in each named state is the same decision
+       `seedWorld()` embodies — a state pins what it means to show, and
+       everything else starts from a known place. The mock layer's own seeds go
+       back with it. */
+    window.__queries?.clear();
+    window.__mocks?.reset();
+    /* AND WHAT NO COMPONENT OBSERVES IS ASKED FOR AGAIN. A cleared query
+       with an observer is re-asked by that observer; the deck's cards have
+       none, because the engine draws the deck. */
+    window.__refillEngineData?.();
     store.write({
       /* The SCENARIO is state too, and the loudest kind: it decides which
          world every later reading is taken from. A state that switched to the
@@ -7428,7 +5688,6 @@ import { servedIdentityLines } from "../lib/served-identity";
       pill: "tout",
       filter: "",
       q: "",
-      libCount: 24,
       sugCount: 30,
       selMode: false,
       selected: new Set(),
@@ -7437,8 +5696,6 @@ import { servedIdentityLines } from "../lib/served-identity";
       // The deck order is state too: without this a measurement inherits the
       // card order left by the previous one.
       sugOrder: null,
-      libErr: false,
-      libFailedOnce: false,
     });
     // The pull indicator lives outside the state object — classes and an
     // inline height on one element — and a refresh in flight outlives a change
@@ -7467,22 +5724,6 @@ import { servedIdentityLines } from "../lib/served-identity";
 
   /* Active datasets, resolved by scenario. The rest of the code does not
      know which scenario is running — it reads these accessors. */
-  const derived = {
-    takeable: () => (currentState().scen === "real" ? [] : world.takeable),
-    blocked: () => (currentState().scen === "real" ? [] : world.blocked),
-    inflight: () =>
-      currentState().scen === "real" ? (world.inflightReel ?? []) : world.inflight,
-    notfound: () =>
-      currentState().scen === "real" ? world.notfoundReel : world.notfound,
-    doneToday: () =>
-      currentState().scen === "real" ? (world.doneReel ?? []) : world.doneToday,
-    stuck: () => (currentState().scen === "real" ? world.stuckReel : world.stuck),
-    moving: () =>
-      currentState().scen === "real" ? (world.movingReel ?? []) : world.moving,
-    settled: () =>
-      currentState().scen === "real" ? (world.settledReel ?? []) : world.settled,
-    follows: () => world.follows,
-  };
 
   /* Three phases per surface, driven by the harness
      `prete` (default), `chargement`, `erreur`. Every surface goes through
@@ -8131,7 +6372,8 @@ import { servedIdentityLines } from "../lib/served-identity";
           n: "max_size_movie_gb",
           v: "4.0",
           note: "Maximum movie file size in GB",
-        },
+        precision: 1,
+      },
         {
           f: "encoding",
           c: "library.video.max_size_episode_gb",
@@ -8140,7 +6382,8 @@ import { servedIdentityLines } from "../lib/served-identity";
           n: "max_size_episode_gb",
           v: "2.0",
           note: "Maximum episode file size in GB",
-        },
+        precision: 1,
+      },
         {
           f: "encoding",
           c: "library.audio.profile_priority",
@@ -8246,7 +6489,8 @@ import { servedIdentityLines } from "../lib/served-identity";
           brut: 2.0,
           n: "target_ratio",
           v: "2.0",
-        },
+        precision: 1,
+      },
         {
           f: "tracker",
           c: "tracker.providers.c411.economy.min_ratio",
@@ -8254,7 +6498,8 @@ import { servedIdentityLines } from "../lib/served-identity";
           brut: 1.0,
           n: "min_ratio",
           v: "1.0",
-        },
+        precision: 1,
+      },
         {
           f: "tracker",
           c: "tracker.providers.c411.economy.min_seed_time",
@@ -8740,6 +6985,7 @@ import { servedIdentityLines } from "../lib/served-identity";
           brut: 0.0,
           n: "min_ratio",
           v: "0.0",
+          precision: 1,
         },
         {
           f: "scraper",
@@ -8772,7 +7018,8 @@ import { servedIdentityLines } from "../lib/served-identity";
           brut: 95.0,
           n: "short_title_threshold",
           v: "95.0",
-        },
+        precision: 1,
+      },
         {
           f: "scraper",
           c: "fuzzy_match.long_title_threshold",
@@ -8780,7 +7027,8 @@ import { servedIdentityLines } from "../lib/served-identity";
           brut: 90.0,
           n: "long_title_threshold",
           v: "90.0",
-        },
+        precision: 1,
+      },
         {
           f: "trailers",
           c: "trailers.enabled",
@@ -9090,7 +7338,7 @@ import { servedIdentityLines } from "../lib/served-identity";
         {
           f: "ecosystem.config.js",
           c: "personalscraper-health-check",
-          type: "text",
+          type: "schedule",
           brut: "15 * * * *",
           n: "cron_restart",
           v: "toutes les heures, à la 15ᵉ minute",
@@ -9099,7 +7347,7 @@ import { servedIdentityLines } from "../lib/served-identity";
         {
           f: "ecosystem.config.js",
           c: "personalscraper-search",
-          type: "text",
+          type: "schedule",
           brut: "10 3,15 * * *",
           n: "cron_restart",
           v: "à 03 h 10 et 15 h 10",
@@ -9108,7 +7356,7 @@ import { servedIdentityLines } from "../lib/served-identity";
         {
           f: "ecosystem.config.js",
           c: "personalscraper-grab",
-          type: "text",
+          type: "schedule",
           brut: "20 3,15 * * *",
           n: "cron_restart",
           v: "à 03 h 20 et 15 h 20",
@@ -9117,7 +7365,7 @@ import { servedIdentityLines } from "../lib/served-identity";
         {
           f: "ecosystem.config.js",
           c: "personalscraper-follow-detect",
-          type: "text",
+          type: "schedule",
           brut: "0 3 * * *",
           n: "cron_restart",
           v: "chaque jour à 03 h 00",
@@ -9126,7 +7374,7 @@ import { servedIdentityLines } from "../lib/served-identity";
         {
           f: "ecosystem.config.js",
           c: "personalscraper-index-enrich",
-          type: "text",
+          type: "schedule",
           brut: "30 4 * * 0",
           n: "cron_restart",
           v: "le dimanche à 04 h 30",
@@ -9135,7 +7383,7 @@ import { servedIdentityLines } from "../lib/served-identity";
         {
           f: "ecosystem.config.js",
           c: "personalscraper-backfill-ids",
-          type: "text",
+          type: "schedule",
           brut: "0 5 * * 0",
           n: "cron_restart",
           v: "le dimanche à 05 h 00",
@@ -9412,7 +7660,7 @@ import { servedIdentityLines } from "../lib/served-identity";
       /* The nav badge and the tab badge read THE SAME derivation: what
          awaits the operator = to grab + to resolve. Never a constant, never
          a neighbouring counter. */
-      badge: derived.takeable().length + derived.blocked().length,
+      badge: queued().takeable.length + queued().blocked.length,
       /* No `render`: the shell draws this page (`pages/acquisition.tsx`).
          Clearing `shellOwned` without restoring a renderer therefore CRASHES
          rather than quietly drawing a page nobody maintains any more. */
@@ -9433,7 +7681,7 @@ import { servedIdentityLines } from "../lib/served-identity";
       id: "arr",
       l: "Arrivées",
       ic: icons.inbox,
-      badge: derived.stuck().length,
+      badge: queued().stuck.length,
       /* No `render`: the shell draws this page (`pages/arrivals.tsx`). Clearing
          `shellOwned` without restoring a renderer therefore CRASHES rather
          than quietly drawing a page nobody maintains any more. */
@@ -9640,44 +7888,6 @@ import { servedIdentityLines } from "../lib/served-identity";
   /* Release candidates — INVENTED, and the only invented data in this
      prototype: no tracker is queried here. The vocabulary (source,
      resolution, language, seeders) is the real ranking's. */
-  const RELEASES = [
-    {
-      n: "Silo.S03E07.MULTi.2160p.WEB-DL.DDP5.1.HDR.H265-FRATERNITY",
-      res: "2160p",
-      src: "WEB-DL",
-      lang: "MULTi",
-      s: 142,
-      go: 8.4,
-      sc: 96,
-    },
-    {
-      n: "Silo.S03E07.MULTi.1080p.WEB-DL.DDP5.1.H264-FRATERNITY",
-      res: "1080p",
-      src: "WEB-DL",
-      lang: "MULTi",
-      s: 318,
-      go: 3.1,
-      sc: 88,
-    },
-    {
-      n: "Silo.S03E07.VOSTFR.1080p.WEB-DL.H264-BRiNK",
-      res: "1080p",
-      src: "WEB-DL",
-      lang: "VOSTFR",
-      s: 74,
-      go: 2.8,
-      sc: 61,
-    },
-    {
-      n: "Silo.S03E07.FRENCH.720p.WEBRip.x264-JiHEFF",
-      res: "720p",
-      src: "WEBRip",
-      lang: "FRENCH",
-      s: 22,
-      go: 1.2,
-      sc: 34,
-    },
-  ];
   /* The REAL profile, as defined in acquire/desired.py
      `QualityProfile` has only FOUR fields, and that is everything a follow
      can set. Anything else (accepted sources, CAM/TS exclusions) does not
@@ -9704,12 +7914,10 @@ import { servedIdentityLines } from "../lib/served-identity";
      store's reactivity contract; it is exposed once, at definition time,
      well before the deferred module script (shell.tsx) runs. */
   window.__referentiel = {
-    RELEASES,
     RESOLUTIONS,
     AUDIOS,
     icons,
     baseTitle,
-    SEARCH,
     cardHTML,
     addVerb,
     render,
@@ -9749,7 +7957,6 @@ import { servedIdentityLines } from "../lib/served-identity";
     URGENCY,
     GROUPS,
     CADENCE_CRON,
-    derivedFollows: () => derived.follows(),
     /* The account the server really has, and the escaper the fragment's own
        emitters use — a migrated page that builds a fragment of markup has to
        escape exactly what the legacy escaped. */
@@ -9775,14 +7982,13 @@ import { servedIdentityLines } from "../lib/served-identity";
     PAGES_OF,
     /* What the Médiathèque draws. `tileHTML` and `swipeHTML` are emitters a
        component calls VERBATIM, for the same reason as `cardHTML`: the rows
-       they emit carry the `data-*` the document-level delegation reads. `CATS`,
-       `RECENT`, `INCOMPLETE` and `SYNOPSIS` are the page's own reference data,
+       they emit carry the `data-*` the document-level delegation reads.
+       `INCOMPLETE` is the page's own reference data — the others left at L09,
        read and never written, and `LIB_PAGE` is the page size the count line
        and the infinite scroll both speak in. */
     tileHTML,
     swipeHTML,
     libRowHTML,
-    libFiltered,
     /* The selection bar stays the FRAGMENT's: it lives in `#device`, React
        never draws it, and the component only asks for it to be repainted after
        a render — the legacy owns that node from creation to removal, which is
@@ -9792,11 +7998,7 @@ import { servedIdentityLines } from "../lib/served-identity";
        out loud rather than letting the end of the list contradict the « of
        1 861 » counter. A thin arrow, like `derivedStuck`: the value is the
        WORLD's and stays live. */
-    libraryLoaded: () => world.lib.length,
-    CATS,
-    RECENT,
     INCOMPLETE,
-    SYNOPSIS,
     /* A GETTER: `LIB_PAGE` is a `const` declared further down this same script,
        so a plain shorthand would hit the temporal dead zone the instant this
        literal is built — the same trap `CAST` and `TRIS` are published
@@ -9813,7 +8015,6 @@ import { servedIdentityLines } from "../lib/served-identity";
     get TRIS() {
       return TRIS;
     },
-    PIPELINE,
     skelCards,
     skelCardsInner,
     surfErr,
@@ -9880,34 +8081,25 @@ import { servedIdentityLines } from "../lib/served-identity";
     typedValue,
     changeSetting,
     openSetting,
-    // The arbitration flow. `PENDING_DECISIONS` / `DECISIONS_REGLEES` and the
-    // label maps are all `const` declared above this literal, so a plain
-    // shorthand reference reads the finished value — no TDZ here. `toast` and
-    // `decisionPending` are declared with `function` further down this same
-    // script; a function declaration hoists its whole definition (unlike
-    // `let`/`const`, which only hoist to a temporal dead zone), so a plain
-    // shorthand reference to either is already callable at this point too.
-    PENDING_DECISIONS,
-    DECISIONS_REGLEES,
+    // The arbitration flow's LABELS, which are the interface's own words and
+    // were never server state — the register classifies them `interface`, and
+    // they stay exactly where they are.
     REASON_LABEL,
     REASON_TONE,
     REASON_DETAIL,
     DECISION_STATE,
     DECISION_STATE_DETAIL,
     VIA_LABEL,
+    // The flow's own lookup. Its DATA left at L09 — the surface reads
+    // `/api/decisions/` and `PENDING_DECISIONS` is deleted — and this answer
+    // stays because the engine's « Passer à la suivante » branch asks it
+    // synchronously from a click handler. It reads the cache through
+    // `window.__pendingDecisions` and goes with that branch at L13.
     decisionPending,
     // Thin arrows over `derived.blocked` / `derived.stuck` — `derived` itself
     // is already initialized above this literal, but the wrapper still earns
     // its keep: it publishes a STABLE function reference while the value each
     // call returns stays live against the scenario switch inside `derived`.
-    derivedBlocked: () => derived.blocked(),
-    derivedStuck: () => derived.stuck(),
-    derivedMoving: () => derived.moving(),
-    derivedSettled: () => derived.settled(),
-    derivedTakeable: () => derived.takeable(),
-    derivedInflight: () => derived.inflight(),
-    derivedNotfound: () => derived.notfound(),
-    derivedDoneToday: () => derived.doneToday(),
     actionResolve,
     actionLeave,
     actionTake,
@@ -9991,53 +8183,12 @@ import { servedIdentityLines } from "../lib/served-identity";
      so « Sélectionner » switched on in list mode with nothing selectable. A
      mode one can enter and do nothing in is worse than no mode at all. */
   /* THE PAGE'S OWN DERIVATION, and it stays HERE while the drawing leaves.
-     `sortLibrary` and `libFiltered` touch no DOM — they answer « which media, in
-     which order », over the world and the state — so they are what a component
-     asks rather than something it reproduces. A rule reads `libFiltered()` too,
-     which is the other reason it stays reachable by name. */
-  function sortLibrary(items) {
-    const slice = items.slice();
-    /* REVERSING IS A SECOND PASS, never a second comparator: « ajout récent »
-       has no comparator at all — its order is the source's — so the direction
-       has to be expressible on a list that was never compared. One `.reverse()`
-       at the end says the same thing for all three. */
-    const direction = (ordered) =>
-      currentState().sortReversed ? ordered.reverse() : ordered;
-    if (currentState().sortKey === "az")
-      return direction(slice.sort((l, index) => l.t.localeCompare(index.t, "fr")));
-    if (currentState().sortKey === "manque") {
-      const manque = (item) => {
-        const exec = /^(\d+)\/(\d+)/.exec(item.f ?? "");
-        const inc = INCOMPLETE.find((INCOMPLETE2) => INCOMPLETE2.t === item.t);
-        return inc
-          ? inc.a - inc.o
-          : exec
-            ? Number(exec[2]) - Number(exec[1])
-            : -1;
-      };
-      return direction(slice.sort((l, index) => manque(index) - manque(l)));
-    }
-    // « récent » is the SOURCE's own order (`date_created` descending)
-    return direction(slice);
-  }
+     WHAT LEFT AT L09. `sortLibrary` and `libFiltered` answered « which media,
+     in which order » over this fixture; the layer answers it now, and it
+     answers it where the paging is — a page of an unsorted set, sorted
+     afterwards, is a page of the wrong rows. `libraryLoaded` went with them:
+     how many titles the source holds is a field of the listing's own answer. */
 
-  function libFiltered() {
-    const cat = CATS.find((CATS2) => CATS2.id === currentState().libCat);
-    let items =
-      cat && cat.of
-        ? world.lib.filter((lib) => cat.of.includes(lib.c))
-        : world.lib;
-    const trim = currentState().q.trim();
-    if (trim !== "") {
-      const norm = (text) =>
-        text
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .toLocaleLowerCase();
-      items = items.filter((l) => norm(l.t).includes(norm(trim)));
-    }
-    return sortLibrary(items);
-  }
 
   function libRowHTML(item, index) {
     if (currentState().selMode) {
@@ -10049,7 +8200,7 @@ import { servedIdentityLines } from "../lib/served-identity";
       </button>`;
     }
     return swipeHTML(
-      cardHTML({ t: item.t, s: item.f, overview: SYNOPSIS[item.t] }),
+      cardHTML({ t: item.t, s: item.f, overview: item.overview }),
       `<button class="act remove" data-part="swipe/action" data-action="remove" data-swipeact="del" data-del="${escapeHtml(item.t)}">${svgIcon(icons.trash)}Supprimer</button>`,
     );
   }
@@ -10395,9 +8546,19 @@ import { servedIdentityLines } from "../lib/served-identity";
   /* Deck order. « Passer » does not decide anything: it sends the card to the
      back, so it comes round again. « Pas intéressé » removes it, with an undo. */
   function deckOrder() {
-    if (!currentState().sugOrder)
+    /* THE ORDER IS DERIVED FROM THE LIST, and it is re-derived while the two
+       disagree in LENGTH. It used to be computed once, on the first draw — which
+       was safe while the list was a fixture that existed before anything ran.
+       It is a query now: the first draw happens before the cards land, so an
+       order computed then is empty and stays empty, and the deck draws nothing
+       for ever. Re-deriving on a length mismatch keeps what a shuffle or a
+       dismissal put there, and fills it the moment the cards arrive. */
+    if (
+      !currentState().sugOrder ||
+      currentState().sugOrder.length !== suggestions().length
+    )
       store.write({
-        sugOrder: SUGGESTIONS.map((SUGGESTIONS2, index) => index),
+        sugOrder: suggestions().map((one, index) => index),
       });
     return currentState().sugOrder.filter((sugOrder) => !currentState().sugGone.has(sugOrder));
   }
@@ -10409,12 +8570,12 @@ import { servedIdentityLines } from "../lib/served-identity";
 
   function deckHTML() {
     const restants = deckOrder().map((element) => [
-      SUGGESTIONS[element],
+      suggestions()[element],
       element,
     ]);
     if (!restants.length) {
       return `<div class="empty" data-part="empty-state"><b>Vous avez tout parcouru.</b>
-        <p>Les ${SUGGESTIONS.length} suggestions du lot ont été vues. La réserve en garde d'autres.</p>
+        <p>Les ${suggestions().length} suggestions du lot ont été vues. La réserve en garde d'autres.</p>
         <button class="btnprimary" data-sugmore="1">${svgIcon(icons.refresh)}Charger 30 de plus</button></div>`;
     }
     const pile = restants
@@ -10472,7 +8633,7 @@ import { servedIdentityLines } from "../lib/served-identity";
     if (next != null) {
       deck.insertAdjacentHTML(
         "afterbegin",
-        deckCardHTML(SUGGESTIONS[next], next, 3),
+        deckCardHTML(suggestions()[next], next, 3),
       );
       const incoming = deck.querySelector('.dcard[data-depth="3"]');
       requestAnimationFrame(() =>
@@ -10520,7 +8681,7 @@ import { servedIdentityLines } from "../lib/served-identity";
     }
     const cardTemplate = currentState().sugMode === "poster" ? sugTileHTML : sugCardHTML;
     box.className = currentState().sugMode === "poster" ? "gallery" : "";
-    box.innerHTML = SUGGESTIONS.slice(0, currentState().sugCount)
+    box.innerHTML = suggestions().slice(0, currentState().sugCount)
       .map((slice, index) =>
         currentState().sugGone.has(index) ? "" : cardTemplate(slice, index),
       )
@@ -10538,7 +8699,7 @@ import { servedIdentityLines } from "../lib/served-identity";
       currentState().sugGone.add(index);
       store.touch();
       refreshDeck();
-      toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
+      toastUndo(`« ${suggestions()[index].t} » écarté.`, () => {
         currentState().sugGone.delete(index);
         store.touch();
         refreshDeck();
@@ -10552,7 +8713,7 @@ import { servedIdentityLines } from "../lib/served-identity";
     element.style.height = element.getBoundingClientRect().height + "px";
     requestAnimationFrame(() => element.classList.add("gone"));
     setTimeout(() => element.remove(), 320);
-    toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
+    toastUndo(`« ${suggestions()[index].t} » écarté.`, () => {
       currentState().sugGone.delete(index);
       store.touch();
       fillSug();
@@ -10561,7 +8722,7 @@ import { servedIdentityLines } from "../lib/served-identity";
   }
 
   function openSugSheet(index) {
-    const suggestion = SUGGESTIONS[index];
+    const suggestion = suggestions()[index];
     panel.open({
       title: suggestion.t,
       meta: `${suggestion.y} · ${suggestion.k} · note TMDB ${suggestion.note}`,
@@ -10637,7 +8798,7 @@ import { servedIdentityLines } from "../lib/served-identity";
      the act — the card wears no inline button, so the row stays the size of
      what it lists. */
   function openAddSheet(index) {
-    const result = SEARCH.results[index];
+    const result = searchResults().results[index];
     const done = currentState().added.has(index);
     panel.open({
       title: result.t,
@@ -10677,8 +8838,8 @@ import { servedIdentityLines } from "../lib/served-identity";
   function sugFoot() {
     const foot = document.querySelector("#sugload");
     if (!foot) return;
-    if (currentState().sugCount >= SUGGESTIONS.length) {
-      foot.innerHTML = `<p class="endmark">Fin de la réserve chargée dans cette maquette — ${SUGGESTIONS.length} des 503 suggestions réellement calculées pour vous. La passe de fond en recalcule après chaque nouvelle note TMDB.</p>`;
+    if (currentState().sugCount >= suggestions().length) {
+      foot.innerHTML = `<p class="endmark">Fin de la réserve chargée dans cette maquette — ${suggestions().length} des 503 suggestions réellement calculées pour vous. La passe de fond en recalcule après chaque nouvelle note TMDB.</p>`;
       return;
     }
     foot.innerHTML = `<div style="display:flex;flex-direction:column;gap:14px">${'<div class="sk row" data-skeleton="" style="height:104px"></div>'.repeat(2)}</div>`;
@@ -10693,13 +8854,13 @@ import { servedIdentityLines } from "../lib/served-identity";
   }
 
   function loadMoreSug() {
-    if (currentState().sugLoading || currentState().sugCount >= SUGGESTIONS.length) return;
+    if (currentState().sugLoading || currentState().sugCount >= suggestions().length) return;
     store.write({ sugLoading: true });
     if (sugObserver) sugObserver.disconnect();
     setTimeout(() => {
       store.write({
         sugLoading: false,
-        sugCount: Math.min(SUGGESTIONS.length, currentState().sugCount + SUG_BATCH),
+        sugCount: Math.min(suggestions().length, currentState().sugCount + SUG_BATCH),
       });
       fillSug();
       sugFoot();
@@ -11492,7 +9653,6 @@ import { servedIdentityLines } from "../lib/served-identity";
     hideLayers();
     store.write(patch);
     if (patch.page || patch.libLens || patch.q !== undefined)
-      store.write({ libCount: LIB_PAGE });
     port.scrollTop = 0;
     render();
   }
@@ -11797,7 +9957,7 @@ import { servedIdentityLines } from "../lib/served-identity";
      that keeps them OFF Système has to know their names, and a rule that
      cannot reach them compares against an empty list and passes whatever it
      is shown — which is what it did before this seam existed. */
-  window.__blocked = () => derived.stuck().map((card) => card.t);
+  window.__blocked = () => queued().stuck.map((card) => card.t);
 
   /* Clears ALL harness chrome before a capture or a pixel comparison:
      harness buttons float above the shell, which is a measured region and
@@ -12122,9 +10282,7 @@ import { servedIdentityLines } from "../lib/served-identity";
       // Changing lens changes the list: start again from the first page.
       store.write({
         libLens: closest.dataset.lens,
-        libCount: LIB_PAGE,
-        libErr: false,
-      });
+        });
       port.scrollTop = 0;
       render();
       replacePath();
@@ -12133,9 +10291,7 @@ import { servedIdentityLines } from "../lib/served-identity";
     if (closest.dataset.cat) {
       store.write({
         libCat: closest.dataset.cat,
-        libCount: LIB_PAGE,
-        libErr: false,
-      });
+        });
       port.scrollTop = 0;
       render();
       return;
@@ -12193,7 +10349,7 @@ import { servedIdentityLines } from "../lib/served-identity";
       const idx = closest.dataset.sugidx;
       const suggestion =
         idx != null
-          ? SUGGESTIONS[Number(idx)]
+          ? suggestions()[Number(idx)]
           : closest.dataset.fkind
             ? { k: closest.dataset.fkind }
             : null;
@@ -12219,7 +10375,7 @@ import { servedIdentityLines } from "../lib/served-identity";
       // The media sheet used to REOPEN itself here so its button would toggle
       // under the finger — an action whose screen does not change reads as a
       // failed action. The sheet is a React screen now and re-renders from
-      // the store instead, but `actionFollow` mutates `world.follows` IN
+      // the store instead, but `actionFollow` writes the follows cache IN
       // PLACE and no `render()` follows on this branch: the bump has to be
       // explicit, exactly as it is for the dismissed suggestion above, or
       // the button never learns the follow happened.
@@ -12272,9 +10428,8 @@ import { servedIdentityLines } from "../lib/served-identity";
     /* What the desktop deck's ⏎ did, without a keyboard: the next folder
        waiting, on the same screen. */
     if (closest.dataset.next) {
-      const suite = derived
-        .blocked()
-        .concat(derived.stuck())
+      const suite = queued()
+        .blocked.concat(queued().stuck)
         .map((blockedCount) => decisionPending(blockedCount.t))
         .find(
           (decision) =>
@@ -12345,7 +10500,7 @@ import { servedIdentityLines } from "../lib/served-identity";
       return;
     }
     if (closest.dataset.take) {
-      const release = RELEASES[Number(closest.dataset.take)];
+      const release = releases()[Number(closest.dataset.take)];
       // One router pop — the release-choice screen is a route now, and the
       // dispatcher's own `layer`/`tm: "nav"` checks no-op harmlessly on the
       // entry it wrote, so the screen simply unmounts.
@@ -12510,7 +10665,6 @@ import { servedIdentityLines } from "../lib/served-identity";
       store.write({
         sortKey: closest.dataset.setsort,
         sortReversed: closest.dataset.reversed === "1",
-        libCount: LIB_PAGE,
       });
       panel.close();
       render();
@@ -12532,7 +10686,7 @@ import { servedIdentityLines } from "../lib/served-identity";
     }
     if (closest.dataset.clearq) {
       if (closest.dataset.clearq === "lib")
-        store.write({ q: "", libCount: LIB_PAGE });
+        store.write({ q: "" });
       else store.write({ filter: "" });
       render();
       return;
@@ -12596,7 +10750,7 @@ import { servedIdentityLines } from "../lib/served-identity";
       // return the same title twice — « Star Wars : The Clone Wars » is both a
       // film and a series here — so the title does not identify the result.
       const index = Number(closest.dataset.act.slice(4));
-      const result = SEARCH.results[index];
+      const result = searchResults().results[index];
       if (currentState().addMode === "identify") {
         // This ASSOCIATES: the stuck folder becomes this medium and the pipeline
         // resumes. No follow is created — that was not the request.
@@ -12747,7 +10901,7 @@ import { servedIdentityLines } from "../lib/served-identity";
       INCOMPLETE.find((INCOMPLETE2) => INCOMPLETE2.t === title2);
     const followed = titles.filter(
       (title2) =>
-        world.follows.some((follow) => follow.t === title2) || !!inc(title2),
+        follows().some((follow) => follow.t === title2) || !!inc(title2),
     );
     const files = titles.reduce(
       (accumulator, element) =>
@@ -33827,8 +31981,16 @@ import { servedIdentityLines } from "../lib/served-identity";
   /* A folder either HAS a pending decision or it has none, and the screen must
      not borrow one. Showing another folder's candidates would be the worst
      possible lie on the one screen whose job is to name what is on disk. */
+  /* IT READS THE CACHE NOW, and the fixture it used to read is gone (L09). The
+     shell publishes `window.__pendingDecisions` over the query cache — a
+     SYNCHRONOUS read, because this is called from a click handler that cannot
+     await. Before the query has answered it reports « no decision », which is
+     the same answer this function already gave for a folder that has none, and
+     the surfaces that draw a decision render nothing until the cache has one.
+     It dies with the branch below at L13. */
   function decisionPending(target) {
-    return PENDING_DECISIONS.find((decision) => decision.d === target) ?? null;
+    const pending = window.__pendingDecisions?.() ?? [];
+    return pending.find((decision) => decision.d === target) ?? null;
   }
 
   /* Every medium opens the SAME panel, and this function exists only to say
@@ -33934,14 +32096,14 @@ import { servedIdentityLines } from "../lib/served-identity";
      sheet is not a follow. */
   function knownMedium(title) {
     return (
-      world.follows.some((follow) => follow.t === title) ||
+      follows().some((follow) => follow.t === title) ||
       INCOMPLETE.some((entry) => entry.t === title) ||
       LIBRARY.some((entry) => entry.t === title)
     );
   }
 
   function openFollowSheet(title) {
-    const follow = world.follows.find((follow2) => follow2.t === title) ||
+    const follow = follows().find((follow2) => follow2.t === title) ||
       INCOMPLETE.map((INCOMPLETE2) => ({
         t: INCOMPLETE2.t,
         k: "show",
@@ -33962,17 +32124,14 @@ import { servedIdentityLines } from "../lib/served-identity";
        the panel was opened from. That is what makes the panel the same object
        everywhere, instead of a family of look-alikes. */
     const incomplete = INCOMPLETE.some((INCOMPLETE2) => INCOMPLETE2.t === title);
-    const isFollowed = world.follows.some((follow2) => follow2.t === title);
+    const isFollowed = follows().some((follow2) => follow2.t === title);
     const inLibrary = incomplete || LIBRARY.some((LIB) => LIB.t === title);
     /* Read from the SAME derivations the urgency sections read. A section that
        computes what to grab while the panel computes it separately is two
        answers to one question, and they part company on the first change. */
-    const toTake = derived
-      .takeable()
-      .some((takeable) => takeable.t === title);
-    const toResolve = derived
-      .blocked()
-      .concat(derived.stuck())
+    const toTake = queued().takeable.some((takeable) => takeable.t === title);
+    const toResolve = queued()
+      .blocked.concat(queued().stuck)
       .some((concat) => concat.t === title);
     // An unidentified release has no sheet. Offering to open one is the same
     // broken promise as a poster that leads nowhere.
@@ -34559,7 +32718,7 @@ import { servedIdentityLines } from "../lib/served-identity";
         currentState().sugGone.add(index);
         store.touch();
         advanceDeck(index, 1);
-        toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
+        toastUndo(`« ${suggestions()[index].t} » écarté.`, () => {
           currentState().sugGone.delete(index);
           store.touch();
           refreshDeck();
@@ -34792,7 +32951,7 @@ import { servedIdentityLines } from "../lib/served-identity";
          a medium this interface holds, plus the acquisitions in flight —
          which are what a journey describes. */
       resolves: (subject) =>
-        knownMedium(subject) || INFLIGHT.some((entry) => entry.t === subject),
+        knownMedium(subject) || queued().inFlight.some((entry) => entry.t === subject),
     },
     setting: {
       open: openSetting,
@@ -34825,13 +32984,24 @@ import { servedIdentityLines } from "../lib/served-identity";
    *     True when a panel was opened, false when the value was refused — a
    *     refusal leaves the caller's entry alone and says why.
    */
-  function reopenAddressedPanel(search, onCurrentEntry) {
+  function reopenAddressedPanel(search, onCurrentEntry, waiting) {
     const asked = window.__address.parse(location.pathname, search);
     if (!asked.panel) return false;
     const separator = asked.panel.indexOf(":");
     const kind = separator > 0 ? asked.panel.slice(0, separator) : "";
     const subject = separator > 0 ? asked.panel.slice(separator + 1) : "";
     const entry = REOPEN[kind];
+    /* NOT YET IS NOT NO, and telling them apart is what a cold load needs
+       since L09. Every entry of `REOPEN` answers « does this interface HOLD
+       the subject », and those answers now come from the query cache — the
+       follows, the acquisitions in flight, the maintenance actions. On a cold
+       load none of them has landed when the boot runs, so a perfectly good
+       `?panel=follow:Silo` looks like a subject nobody holds. A caller that
+       can wait asks for `waiting`, and gets « not yet » instead of a refusal
+       that warns and cleans the address it was about to retry from. */
+    if (waiting && !asked.notFound && subject && entry && !entry.resolves(subject)) {
+      return "not yet";
+    }
     if (asked.notFound || !subject || !entry || !entry.resolves(subject)) {
       /* ENGLISH, and not in the i18n resources: a console message is a tool
          message, read by a developer, never by a reader of the interface.
@@ -35082,7 +33252,23 @@ import { servedIdentityLines } from "../lib/served-identity";
 
        It PUSHES that entry, which is what tells the reader apart from the
        Forward the same function serves. */
-    reopenAddressedPanel(arrivalSearch, false);
+    /* AND IT WAITS FOR WHAT IT VALIDATES AGAINST. Every entry of `REOPEN`
+       answers « does this interface HOLD the subject », and since L09 those
+       answers come from the query cache — the follows, the acquisitions in
+       flight, the maintenance actions. On a COLD LOAD the boot runs before any
+       of them has landed, so a perfectly good `?panel=follow:Silo` was refused
+       as a subject nobody holds and the reader arrived on a clean address with
+       nothing open. A bounded wait over frames is the same shape the shell's
+       scroll restoration and the listing's paging door already use, and for the
+       same reason: the thing being waited for does not exist yet. */
+    let framesLeft = 60;
+    const reopenWhenTheSubjectIsThere = () => {
+      const answer = reopenAddressedPanel(arrivalSearch, false, framesLeft > 1);
+      if (answer !== "not yet") return;
+      framesLeft -= 1;
+      requestAnimationFrame(reopenWhenTheSubjectIsThere);
+    };
+    reopenWhenTheSubjectIsThere();
     /* The welcome hint disappears on first interaction: a bubble that
        returns over an open sheet is a nuisance, not help. */
     let hintShown = false;
@@ -35180,18 +33366,18 @@ export {
    across all 254 names, and this is the only one. */
 Object.assign(window, {
   CAST, POSTERS_HD, APPARENCES, PRESS_MS, PRESS_TOLERANCE, AUDIOS,
-  TODAY, BLOCKED, CADENCE_CRON, CATS, ACCOUNT, PENDING_DECISIONS,
-  DECISIONS_REGLEES, STARTUP_MS, DEPENDENCIES, DISKS, DONE_TODAY,
+  TODAY, CADENCE_CRON, ACCOUNT,
+  STARTUP_MS, DEPENDENCIES, DISKS,
   EP_LABEL, EP_ORDER, EP_SWATCH, ERRORS, DECISION_STATE,
   DECISION_STATE_DETAIL, EXECUTIONS, SHEETS_IDX, SHEETS_OLD, SHEETS_RAW,
-  FOLLOWS, GROUPS, HERO_IMAGES, INCOMPLETE, INDEX, INFLIGHT, JOURNAL, LIBRARY,
+  GROUPS, HERO_IMAGES, INCOMPLETE, INDEX, JOURNAL, LIBRARY,
   LIB_PAGE, LIB_TOTAL, MAINT_ACTIONS, MAINT_TOPICS, MOIS, REASON_LABEL,
-  REASON_DETAIL, REASON_TONE, MOVING, NAVIGATION, NOTFOUND, NOTFOUND_REAL,
-  PAGES_OF, PIPELINE, SCHEDULERS, SCHEDULERS_DOWN, OWNED,
-  POSTERS, RECENT, SETTINGS, SETTINGS_STATE, RELEASES, RESOLUTIONS, BACK_WINDOW,
-  RISQUES, SEARCH, SEASONS, SECRETS, SERVICES, SERVICES_PANNE, SETTLED,
-  SETTLED_REAL, STRIP_LABELS, STUCK, STUCK_REAL, ST_LABEL,
-  ST_LABEL_MOVIE, ST_TONE, SUGGESTIONS, SUG_BATCH, SYNOPSIS, TAKEABLE,
+  REASON_DETAIL, REASON_TONE, NAVIGATION,
+  PAGES_OF, SCHEDULERS, SCHEDULERS_DOWN, OWNED,
+  POSTERS, SETTINGS, SETTINGS_STATE, RESOLUTIONS, BACK_WINDOW,
+  RISQUES, SEASONS, SECRETS, SERVICES, SERVICES_PANNE,
+  STRIP_LABELS, ST_LABEL,
+  ST_LABEL_MOVIE, ST_TONE, SUG_BATCH,
   TRIS, URGENCY, VIA_LABEL, actionLeave, actionPause,
   actionTake, actionResolve, actionRetirer, actionFollow,
   actionDelete, addVerb, showSignIn, showStartup,
@@ -35200,12 +33386,12 @@ Object.assign(window, {
   advancePageGesture, baseTitle, beforeReset, cadenceFR, cardHTML, chipHTML,
   closeDlg, closeHarness, closeScreen, closeSheet, coverLoading,
   dateFR, startPageGesture, decisionPending, deckCardHTML, deckHTML,
-  deckOrder, signOut, alreadyInstalled, derived, unwindLayer,
+  deckOrder, signOut, alreadyInstalled, unwindLayer,
   dismissSug, emptyInner, endCardDrag, endDeckDrag, endPageDrag,
   endSugDrag, epState, escapeHtml, navigationState,
   factRowsHTML, closePopEp, closeDrawer, changedFiles, fillSug,
   gridBadge, hideLayers, icons, initials, initialsOf, drawerWidth,
-  libFiltered, libRowHTML, factsListHTML, loadMoreSug, hideSignIn,
+  libRowHTML, factsListHTML, loadMoreSug, hideSignIn,
   hideStartup, masquerInstallation, sameValue, changeSetting,
   mountDeck, mountLoaders, mountSearch, fileName, normalisedKey,
   recordPath, openAddSheet, openDeleteDialog, openDetailSheet, openDlg,
@@ -35218,10 +33404,10 @@ Object.assign(window, {
   refreshDeck, settingId, resetSettings, render, renderNav,
   richText, seasonsOf, sheetSeasonsHTML, secHTML, secInner, seedWorld,
   select, sheetFor, titleForProviderId, addressIdsFor, skelCards, skelCardsInner, skelTiles, sortLabel,
-  leaveQueue, stFraction, stLabel, stripHTML, sugCardHTML, sugFoot,
+  stFraction, stLabel, stripHTML, sugCardHTML, sugFoot,
   sugTileHTML, sugVerb, followPress, onIOSSafari, onEngineBack,
   surfErr, surfErrInner, svgIcon, swipeHTML, tileHTML, toast, toastUndo,
-  allSettings, trailerIds, sortLibrary, displayedValue,
+  allSettings, trailerIds, displayedValue,
   rawValue, typedValue, view,
 });
 
