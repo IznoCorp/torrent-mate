@@ -291,6 +291,56 @@ async def hold(journal):
             "read as a loss connects immediately AND schedules a second connect, "
             "which is a two-socket storm on every manual retry")
 
+        # THE PATH THAT LEAKED, TWICE, AND WAS MEASURED BY NOTHING. Both
+        # existing clean-close holds retry from a LIVE socket. Every production
+        # caller of the retry does the opposite: the « réessayer » control and
+        # the sign-in recovery both fire from `lost` or `refused`, where the
+        # close handler has already nulled the socket — so a flag consumed by
+        # « the close we expect » was consumed by nothing, and the next
+        # unsolicited 1000 was swallowed for the life of the tab.
+        from_nothing = await page.evaluate(
+            """async ({ limit }) => {
+                 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+                 window.__relay.reset();
+                 window.__relay.limits({ silence: 60_000, opening: limit });
+                 // Climb to a state where the socket is gone.
+                 window.__mocks.stream.setUnreachable(true);
+                 window.__relay.reconnect();
+                 await wait(limit * 8);
+                 const stranded = window.__relay.condition().condition;
+                 window.__mocks.stream.setUnreachable(false);
+                 // The operator taps « réessayer » with no socket to close.
+                 window.__relay.reconnect();
+                 await wait(400);
+                 const back = window.__relay.condition().condition;
+                 // And the server is redeployed.
+                 window.__mocks.stream.drop(1000);
+                 await wait(60);
+                 const afterDeploy = window.__relay.condition().condition;
+                 await wait(900);
+                 return { stranded, back, afterDeploy,
+                          recovered: window.__relay.condition().condition,
+                          sockets: window.__mocks.stream.state().sockets };
+               }""",
+            {"limit": SHORT_OPENING_MS})
+        journal.check(
+            "a retry from a socket-less state reconnects",
+            from_nothing["stranded"] != "connected" and from_nothing["back"] == "connected",
+            f"stranded at {from_nothing['stranded']!r}, back at "
+            f"{from_nothing['back']!r}")
+        journal.check(
+            "and an unsolicited 1000 after it is STILL a loss",
+            from_nothing["afterDeploy"] != "connected"
+            and from_nothing["recovered"] == "connected"
+            and from_nothing["sockets"] >= 1,
+            f"after the server closed cleanly the condition was "
+            f"{from_nothing['afterDeploy']!r} and it recovered to "
+            f"{from_nothing['recovered']!r} over {from_nothing['sockets']} "
+            "socket(s) — a retry that leaves a « we asked for this » mark behind "
+            "swallows the next server shutdown, which is one per deploy, and "
+            "the interface then says « Connecté » over a dead link for the life "
+            "of the tab")
+
         # THE AGE OF THE DATA. Any frame proves the link is alive, so any frame
         # moves it — a ping as much as an event.
         aged = await page.evaluate(
