@@ -17,9 +17,18 @@ is the plan for it.
 1. Read `IMPLEMENTATION.md` § « Where the frontend work stands » — which lot landed, which is
    next. Its § THE OBJECTIVE carries the measured inventory, not the state; the two are different
    sections and this file used to name only the second.
-2. Come back here and find **the first lot whose status is not `LANDED` and whose dependencies
-   are all `LANDED`**. That is the work. There is no other selection rule, and lots are not
-   reordered for convenience.
+2. Come back here and find **the first lot that has not landed and whose dependencies all
+   have**. That is the work. There is no other selection rule, and lots are not reordered for
+   convenience.
+
+   **The two halves live in two files on purpose, and that is what makes the rule reliable.** This
+   file names the ORDER and the DEPENDENCIES — « *depends on L01, L05, L08* » — and it carries **no
+   status**, because a status here is a second copy of something `IMPLEMENTATION.md` already owns
+   as *the only state*. It was removed on 2026-08-28 after L09 merged and left `NOT STARTED` behind
+   in this file, so this very rule elected the lot that had just landed. Adding the update to the
+   post-merge list was the obvious answer and was refused on the evidence written in § 5: that list
+   has been skipped three times out of four, and a sixth entry on a skipped list changes nothing.
+   **A fact that exists once cannot go stale.**
    **If that lot carries a blocking note**, take the next one that satisfies the same rule, and
    say in the wave's plan which lot you skipped and why. A blocked lot is not a reason to stop
    or to go asking where to start — this file is where to start.
@@ -544,7 +553,7 @@ is unchanged, and that promise is currently unprovable: `fidelity.py` cannot run
 it compared are deleted, no recording is committed, and the state ids have been renamed in two
 separate waves since.
 
-#### L01 — The recorded oracle · `LANDED`
+#### L01 — The recorded oracle
 
 **Objective.** One command that says whether the maquette renders today what it rendered at a
 known-good commit.
@@ -609,7 +618,7 @@ on L08**, so plan the two together rather than against each other. And once L12 
 transitions, a transition in flight moves the very rectangles this measures: the oracle reads
 **at rest**, which its settle signal must guarantee rather than assume.
 
-#### L02 — Test anchors move to `data-*` · `LANDED` · *depends on L01*
+#### L02 — Test anchors move to `data-*` · *depends on L01*
 
 **Objective.** No rule selects on a style class. 280 calls move onto `data-*` contracts.
 
@@ -629,7 +638,7 @@ suite is green at unchanged hold counts.
 
 ### Phase 1 — The contracts of markup and structure
 
-#### L03 — Accessibility · `LANDED` · *depended on L01*
+#### L03 — Accessibility · *depended on L01*
 
 **Objective.** Landmarks, roles, accessible names, focus order, focus visibility, keyboard paths,
 and focus management on every layer opening and closing.
@@ -656,7 +665,7 @@ of excepted states: `landmark-one-main` and `page-has-heading-one` describe the 
 and with a modal layer open the background is deliberately `inert`, therefore out of the
 accessibility tree. The split is printed on every run — 65 states asked, 18 could not.
 
-#### L04 — Boundaries and the tree · `LANDED` · *depended on L01*
+#### L04 — Boundaries and the tree · *depended on L01*
 
 **Why here.** Every lot after this one creates files. Deciding afterwards means moving them
 twice. **And why it depends on the oracle**: this lot breaks two import cycles, which is a change
@@ -751,7 +760,7 @@ it waits for a stronger reason than tidiness.
 Plus: the tree matches the target, `data.ts` no longer exists, and grandfathered files are listed
 with their converting lot.
 
-#### L05 — Routing · `LANDED` · *depended on L01, L04*
+#### L05 — Routing · *depended on L01, L04*
 
 **Objective.** D1 in force. Every page and screen on a real path, state in the query, layers
 ranked in three tiers.
@@ -769,7 +778,7 @@ its reason recorded; the oracle is green.
 
 ### Phase 2 — The visual language
 
-#### L06 — The scale · `LANDED` · *depended on L01*
+#### L06 — The scale · *depended on L01*
 
 **Objective.** One declared scale — space, type, radius, duration, easing — and every declaration
 folded onto it. **What landed is 32 tokens in one `:root` block** at the top of BLOCK 2: nine
@@ -836,7 +845,7 @@ findings are gone and `a11y.py`'s contrast run is empty; `.search input` reads a
 focused field no longer zooms iOS; the oracle records the intended visual changes as accepted, each
 reviewed.
 
-#### L07 — Tailwind and CVA, surface by surface · `LANDED` · *depended on L02, L04, L06*
+#### L07 — Tailwind and CVA, surface by surface · *depended on L02, L04, L06*
 
 **Objective.** D2 in force. Each surface converts on its own, oracle green at every step.
 
@@ -885,7 +894,7 @@ declares 53 operations of its own and answers every one of them from a mock laye
 none of the others: no surface is wired to any of it, which is L09's.
 <sub>commands in `IMPLEMENTATION.md` § THE OBJECTIVE</sub>
 
-#### L08 — The data contract and the mocks · `LANDED` · *depended on L04*
+#### L08 — The data contract and the mocks · *depended on L04*
 
 **Objective.** D7 in force. The contract the interface requires, plus a mock layer serving it, so
 the maquette codes against a real shape with no backend touched.
@@ -927,7 +936,7 @@ each found by validating the seeds against it. `serie` is a show's RUN STATUS an
 `const settle = afterUnwind` a literal, because it walked an initializer's children and never the
 initializer.
 
-#### L09 — The data layer, surface by surface · `LANDED` · *depended on L01, L05, L08*
+#### L09 — The data layer, surface by surface · *depended on L01, L05, L08*
 
 **Objective.** Server state in its query cache, mutations with their optimistic paths and their
 rollbacks, the two state-ownership invariants (4 and 5) in force. Each surface takes its data and **its share of the
@@ -964,7 +973,7 @@ ownership is settled — no ambient mutable object read from everywhere; every m
 optimistic path and a rollback, or a written reason why it cannot; the oracle is green
 against the mocks, or its divergences are accepted one by one with reasons.
 
-#### L10 — The live relay · `NOT STARTED` · *depends on L09*
+#### L10 — The live relay · *depends on L09*
 
 **Objective.** The event stream, and the cache invalidations it drives.
 
@@ -973,7 +982,7 @@ against the mocks, or its divergences are accepted one by one with reasons.
 **Done when.** A server event refreshes exactly what it should and nothing else; reconnection and
 loss are handled visibly; no polling remains where an event exists.
 
-#### L11 — Offline and PWA · `NOT STARTED` · *depends on L09*
+#### L11 — Offline and PWA · *depends on L09*
 
 **Objective.** Service worker, offline shell, queued mutations that depart on reconnection, and
 the platform entry points a media application owes — receiving a shared link, and being the
@@ -986,7 +995,7 @@ reconnection, exactly once; installation and its entry points are exercised on a
 
 ### Phase 4 — The finish
 
-#### L12 — Native interaction · `NOT STARTED` · *depends on L05, L07*
+#### L12 — Native interaction · *depends on L05, L07*
 
 **Objective.** View transitions, gestures, mobile geometry, and the performance floor beneath
 them. D9 governs every library question in this lot; its verdict table is the answer, not a
@@ -1040,7 +1049,7 @@ is defined for each of them (the reduced-motion invariant); the feedback seam ha
 unvirtualised long list remains; and the interaction budget is measured on a real device, not in
 a headless browser.
 
-#### L13 — The engine's residue · `NOT STARTED` · *depends on L07, L09, L12*
+#### L13 — The engine's residue · *depends on L07, L09, L12*
 
 **Objective.** What did not die by subtraction: the document-level delegation, the boot
 handshake, `/login` and the splash as components, and the republished `window` surface once the

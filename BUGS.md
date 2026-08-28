@@ -188,7 +188,7 @@ when the defect comes back.
 | B-145 | §19 (cross-seed) has no route in either contract, and its events reach no stream | by audit | `open` |
 | B-146 | D11 is decided and nothing styles a scrollbar yet; the change may move the oracle | by audit | `open` |
 | B-147 | Nine steward findings were stacked on five unmerged branches and collided with a wave | by audit | `fixed #511` |
-| B-148 | Lot status lives in two files, and § 0 reads the one a wave forgets | by audit | `open` |
+| B-148 | Lot status lives in two files, and § 0 reads the one a wave forgets | by audit | `fixed #511` |
 | B-149 | A declared departure from the lot's « Done when » lives only in a session report | by audit | `fixed #511` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
@@ -3172,10 +3172,16 @@ caught it before and why nothing will catch the next one.
 
 <sub>`grep -n '^#### L09' docs/reference/frontend-architecture.md` · `grep -o 'Next\*\*[^|]*| [^|]\{0,60\}' IMPLEMENTATION.md`</sub>
 
-> **The symptom is repaired by #511 and the entry stays `open`, deliberately.** L09 is marked
-> `LANDED`, `Next` names L10, and the two other lots § 0 elects are written beside it. What is not
-> repaired is why it happened: the status is still in two files. `open` here means the arbitration
-> is owed, not that the plan is still wrong.
+> **ARBITRATED AND CLOSED, 2026-08-28: the status leaves the plan.** `frontend-architecture.md`
+> now carries the ORDER and the DEPENDENCIES and no status; `IMPLEMENTATION.md` carries the
+> progress, which § 1 already assigned to it as *the only state*, and gains a « Landed, in order »
+> row so § 0 has one place to read. The selection rule is rewritten to cross the two explicitly.
+>
+> **The obvious answer was refused on the evidence.** Adding « mark the lot LANDED » to the
+> post-merge list is what one reaches for first — and § 5 of the plan already records that this
+> list has been skipped **three times out of four**. A sixth entry on a skipped list changes
+> nothing. **A fact that exists once cannot go stale**, which is the only form of this repair that
+> does not depend on somebody remembering.
 
 **B-149 — the lot's contract says the fixture literals left the engine; sixty families remain.**
 L09's « Done when » includes « each surface takes its data and **its share of the fixture dies with
