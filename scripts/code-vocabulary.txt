@@ -60,6 +60,7 @@ aired
 all
 already
 annotations
+announce
 announced
 answer
 answered
@@ -78,6 +79,7 @@ ask
 asked
 at
 attempt
+attempts
 attribute
 attributes
 audio
@@ -86,6 +88,7 @@ authentication
 avatar
 back
 background
+backoff
 badge
 badges
 bar
@@ -167,9 +170,11 @@ commit
 common
 compare
 complete
+condition
 config
 configuration
 confirmadd
+connect
 connection
 connections
 containers
@@ -203,6 +208,7 @@ deep
 default
 defaults
 del
+delay
 delete
 deleted
 deletefield
@@ -275,8 +281,10 @@ error
 errors
 escape
 event
+events
 exec
 executions
+exemptions
 exists
 exit
 expanded
@@ -473,6 +481,7 @@ long
 lookup
 loop
 lossy
+lost
 main
 maintact
 maintenance
@@ -485,6 +494,7 @@ map
 maquette
 mark
 match
+matched
 matches
 matching
 matrix
@@ -498,6 +508,7 @@ message
 meta
 method
 migrated
+milliseconds
 min
 minute
 missing
@@ -561,6 +572,7 @@ once
 one
 only
 open
+opened
 operation
 option
 order
@@ -613,6 +625,7 @@ pipe
 pipeline
 play
 point
+pong
 pop
 popover
 port
@@ -658,10 +671,12 @@ raw
 read
 real
 reason
+receive
 received
 recent
 recents
 reconcile
+reconnect
 record
 rect
 redraw
@@ -678,6 +693,7 @@ register
 reglees
 regular
 relaxed
+relay
 release
 released
 releases
@@ -721,6 +737,7 @@ routes
 row
 rows
 rule
+rules
 run
 running
 safari
@@ -804,6 +821,7 @@ slot
 slow
 sm
 small
+snapshot
 snug
 socket
 soft
@@ -832,6 +850,7 @@ statuses
 step
 steps
 sticky
+stopped
 store
 stream
 strip
@@ -893,6 +912,7 @@ tight
 tighter
 tile
 tiles
+timer
 title
 titles
 tmdb
@@ -928,11 +948,14 @@ unit
 units
 universe
 unknown
+unmatched
 unnamed
+unreachable
 unreadable
 unwind
 unwinding
 upcoming
+updates
 urgency
 url
 usable

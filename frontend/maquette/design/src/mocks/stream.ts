@@ -53,6 +53,7 @@ type ServerState = {
   entries: StreamEntry[];
   sockets: number;
   refusing: boolean;
+  unreachable: boolean;
   received: string[];
 };
 
@@ -62,6 +63,8 @@ let entries: StreamEntry[] = [];
 let sequence = 0;
 /** Whether the next connection is refused after being accepted. */
 let refusing = false;
+/** Whether the server is unreachable — the connection never opens at all. */
+let unreachable = false;
 /** Every text frame the client has sent — the pongs, in order. */
 let received: string[] = [];
 /** The sockets currently open, so the driver can push and drop. */
@@ -147,6 +150,18 @@ class MockSocket extends EventTarget {
    * The order is the whole of this method, and it is the server's order.
    */
   private handshake(): void {
+    if (unreachable) {
+      // A SERVER THAT IS NOT THERE NEVER ACCEPTS. The browser reports an error
+      // and then an unclean `1006` close, with no `open` in between — which is
+      // a different path through the client from a session being refused, and
+      // the only one that can drive the connection past « reconnecting ».
+      this.readyState = MockSocket.CLOSED;
+      this.dispatchEvent(new Event("error"));
+      this.dispatchEvent(
+        new CloseEvent("close", { code: 1006, reason: "unreachable", wasClean: false }),
+      );
+      return;
+    }
     this.readyState = MockSocket.OPEN;
     open.push(this);
     this.dispatchEvent(new Event("open"));
@@ -307,6 +322,15 @@ function refuse(wanted = true): void {
 }
 
 /**
+ * Makes every connection fail to open at all.
+ *
+ * @param wanted Whether the server is unreachable.
+ */
+function setUnreachable(wanted = true): void {
+  unreachable = wanted;
+}
+
+/**
  * Reads the simulated server's state.
  *
  * @returns What it holds, copied, so a reader cannot write it back.
@@ -316,6 +340,7 @@ function state(): ServerState {
     entries: entries.map((entry) => ({ ...entry })),
     sockets: open.length,
     refusing,
+    unreachable,
     received: [...received],
   };
 }
@@ -331,6 +356,7 @@ export function resetStream(): void {
   entries = [];
   sequence = 0;
   refusing = false;
+  unreachable = false;
   received = [];
   connections = [];
 }
@@ -342,6 +368,7 @@ export type StreamDriver = {
   ping: typeof ping;
   drop: typeof drop;
   refuse: typeof refuse;
+  setUnreachable: typeof setUnreachable;
   state: typeof state;
   connections: () => string[];
   reset: typeof resetStream;
@@ -370,6 +397,7 @@ export function installMockStream(deliveries: {
     ping,
     drop,
     refuse,
+    setUnreachable,
     state,
     connections: () => [...connections],
     reset: resetStream,

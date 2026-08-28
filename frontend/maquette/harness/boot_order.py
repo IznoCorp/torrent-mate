@@ -19,6 +19,17 @@ WHAT THE ORDER IS, AND WHY EACH STEP CANNOT MOVE:
   installPanelHost(store)     must exist before the seams are handed over
   installSeams({...})         the engine imports these three names
   window.__startEngine(...)   the engine runs, and everything above must be real
+  installLiveUpdates(client)  L10. It invalidates INTO the query cache and
+                              receives it as an argument, the same reason
+                              `installPanelHost(store)` follows `createStore()`
+  installRelay()              after the rules are subscribed, or the first
+                              event of the connection reaches an empty table.
+                              And BEFORE the render: a subscription installed
+                              inside a component would miss what arrives before
+                              React commits, and `staleTime: Infinity` with no
+                              focus and no reconnect refetch means a query that
+                              misses its invalidation is stale for the life of
+                              the process (B-154)
 
 READ AT THE SOURCE, AND THEN IN THE BROWSER, because neither alone is enough.
 The source says the calls are in order; it cannot say the application survived
@@ -32,6 +43,9 @@ WHAT THIS RULE DOES NOT READ, said before it says what it does:
     sliced out of the shell byte for byte and the oracle is what holds the
     rendering; this rule holds only that the pieces are called in order.
   - It does not read the engine's own boot writes. Those are `bridge.py`'s.
+  - It does not read whether the relay CONNECTS, or what an event refreshes.
+    Those are R93's and R91's, in a browser, against a real socket and a real
+    cache. This rule reads the order of the call sites and nothing else.
   - It reads the ORDER of the call sites, not the order they EXECUTE in. A
     conditional wrapping one of them would satisfy this rule and change the
     boot — so the rule also refuses a call site that is not at the top level
@@ -79,6 +93,8 @@ BOOT_STEPS = (
     (r"^installPanelHost\(store\);", "installPanelHost(store)"),
     (r"^installSeams\(\{", "installSeams({…})"),
     (r"^const start = window\.__startEngine;", "the engine handshake"),
+    (r"^installLiveUpdates\(queryClient\);", "installLiveUpdates(queryClient)"),
+    (r"^installRelay\(\);", "installRelay()"),
 )
 
 
