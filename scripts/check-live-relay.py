@@ -417,6 +417,8 @@ def arm_map_completeness():
               "classes, and cannot answer without them.", file=sys.stderr)
         return 1
     mapped, exempt_types, refreshed, exempt_keys, tables, unresolved = declared()
+    addresses = read_addresses()
+    violations = 0
     for where, name in unresolved:
         violations += 1
         print(f"  {where}: a rule names `{name}`, which no `const` in that file "
