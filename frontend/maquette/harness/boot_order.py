@@ -30,6 +30,13 @@ WHAT THE ORDER IS, AND WHY EACH STEP CANNOT MOVE:
                               focus and no reconnect refetch means a query that
                               misses its invalidation is stale for the life of
                               the process (B-154)
+  installRelayRecovery()      AFTER the relay, because it reconnects one — and
+                              it subscribes to the same history instance
+                              `installScrollRestoration` does, so it inherits
+                              that step's own ordering constraint. `shell.tsx`
+                              stated the position as a constraint and nothing
+                              read it: the two steps before it were added to
+                              this rule and this one was not
 
 READ AT THE SOURCE, AND THEN IN THE BROWSER, because neither alone is enough.
 The source says the calls are in order; it cannot say the application survived
@@ -95,6 +102,7 @@ BOOT_STEPS = (
     (r"^const start = window\.__startEngine;", "the engine handshake"),
     (r"^installLiveUpdates\(queryClient\);", "installLiveUpdates(queryClient)"),
     (r"^installRelay\(\);", "installRelay()"),
+    (r"^installRelayRecovery\(\);", "installRelayRecovery()"),
 )
 
 

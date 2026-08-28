@@ -130,6 +130,9 @@ async def hold(journal):
         # SILENCE_LIMIT_MILLISECONDS / 45` leaves both green while a one-second
         # watchdog tears down every healthy connection, and so does a
         # `setLimits` call anywhere in the boot.
+        # AFTER the published-seam guard, not before it. Read first, this
+        # dereferenced `window.__relay` and died with a Playwright TypeError
+        # instead of reporting the guard red.
         running = await page.evaluate("()=>window.__relay.readLimits()")
         journal.check(
             "and they are the limits the relay is actually running on",

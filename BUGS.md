@@ -240,6 +240,24 @@ when the defect comes back.
 | B-197 | The hold-count baseline was stale for three rules, so the gate reported false regressions | by adversarial review | `fixed #512` |
 | B-198 | `resetQueries`/`removeQueries`/`refetchQueries` were refused even when given a key | by adversarial review | `fixed #512` |
 | B-199 | The event corpus was a regex re-implementation of a registry the bus already keeps | by adversarial review | `fixed #512` |
+| B-200 | The two headline relay repairs were never in the tree, under a commit describing them | by adversarial review | `fixed #512` |
+| B-201 | The unresolved-key count was made and thrown away two lines later | by adversarial review | `fixed #512` |
+| B-202 | The cursor freeze was permanent: no reconnect could ever thaw it | by adversarial review | `fixed #512` |
+| B-203 | R91 merged every rule's sample, so its verdict depended on source order | by adversarial review | `fixed #512` |
+| B-204 | R92 resolved the token through the cascade that paints it, so a value swap passed | by adversarial review | `fixed #512` |
+| B-205 | Nothing read whether the connection dot is on screen | by adversarial review | `fixed #512` |
+| B-206 | `type:` narrowing was refused beside a key, telling its author to delete it | by adversarial review | `fixed #512` |
+| B-207 | `.clear()` was anchored on nothing: vacuous now, a false diagnosis later | by adversarial review | `fixed #512` |
+| B-208 | The registry-versus-regex disagreement was printed and could fail nothing | by adversarial review | `fixed #512` |
+| B-209 | `violations` was used before assignment a second time, behind an empty loop | by adversarial review | `fixed #512` |
+| B-210 | The counter floor traded a loud deadlock for a silent under-count | by adversarial review | `fixed #512` |
+| B-211 | A nested object before an empty key hid a whole-cache invalidation | by adversarial review | `fixed #512` |
+| B-212 | An event every predicate refused was counted as neither claimed nor unclaimed | by adversarial review | `fixed #512` |
+| B-213 | The poll reader adopted the wrong block for 545 bindings out of 925 | by adversarial review | `fixed #512` |
+| B-214 | The guard's import loaded 41 environment variables to count 48 class names | by adversarial review | `fixed #512` |
+| B-215 | `installRelayRecovery` declared its position as a constraint and no arm read it | by adversarial review | `fixed #512` |
+| B-216 | The mutation tool announced « no hold fell » under the falls it had just printed | by adversarial review | `fixed #512` |
+| B-217 | The cursor thaw was measured by nothing, and the tool's first use found it | by adversarial review | `fixed #512` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
@@ -478,6 +496,51 @@ an exemption on a reason its docstring contradicts — it is throttled to one sa
 and exists so the web process can track per-provider latency, which is the derivation
 `/api/system/dependencies` is built on. The same error, at the other end, in the same wave, after
 the first was found. A `because` line is a claim, and a claim nobody checks is a coin toss.
+
+**B-200 to B-217 — the third review, and the finding that ends the recursion.**
+One reviewer, on the twelve commits that repaired round two. Nineteen findings, **two critical** —
+and neither is a wrong mechanism.
+
+**B-200 is the worst entry in this register.** Commit `435751d3` describes deleting the
+`teardownAsked` flag and adding an `open` listener across five paragraphs, and **does not touch
+`lib/relay.ts`**. `letGo` existed nowhere. The flag was live. B-160 and B-182 were both recorded
+`fixed #512` with neither repair in the tree.
+
+What happened is the whole lesson: the edits were made, the identity-guard mutation ran, and
+`git checkout -- lib/relay.ts` reverted the file **to HEAD** — where the repairs were not yet
+committed. Everything else in the batch was committed around the hole, under a message describing
+work that had just been destroyed. **That is B-177 for the third time in one wave**, each time on
+the file the round's own headline finding was about.
+
+And the register said it first: **B-190**, filed two commits earlier, reads « a false claim about a
+repair is worse than the defect, because the next reader stops looking ». It sits three paragraphs
+below B-180 in the same file, in the same commit that broke it.
+
+**The answer is a tool, not a resolution.** `scripts/mutate.sh` refuses a dirty tree, restores from
+the INDEX rather than HEAD, restores on any exit including an interrupt, and refuses an expression
+that changes nothing. The rule was already written down and writing it down was not enough; the
+failure mode is gone rather than watched. **B-216 and B-217 are its first two uses**: it had a
+`pipefail` defect of its own, and it immediately found that the cursor's thaw was measured by
+nothing.
+
+**B-201 and B-209 are one shape twice.** A `violations` counter used before its assignment, and a
+count made and discarded two lines later. Both survived because the loop that fed them was empty,
+and only `make lint` — which reads the code rather than running it — could see either.
+
+**B-210 is the third attempt at one property**, and worth recording as a sequence: leaving the
+settle counters alone stranded a desynchronised page for ever; zeroing them let a request still in
+flight decrement past zero, where `quiet()` never resolves again — **worse than the defect**;
+flooring left the count short, so a later stale landing released the waiters over a request that was
+really running — quieter, and still wrong. A generation token settles it. Three repairs, two of them
+regressions, on the signal all 2 871 oracle measurements rest on.
+
+**And the second structural gap, which is why B-180 survived two reviews.** `MockSocket.close()`
+dispatched its close SYNCHRONOUSLY. A browser never does — the socket enters CLOSING and the event
+arrives afterwards, by which time a client that replaced it has installed the replacement. That
+asynchrony IS the close-then-replace race, so dispatching synchronously made it unrepresentable: a
+client distinguishing a close it asked for from one it did not could be wrong in production and
+green in every rule. The fake waits a task now, and the flag's reintroduction falls three holds
+where it fell none.
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -2305,7 +2368,8 @@ absence of a row can mean either.
 | L10 | **4** | Recounted at the wave's close. **B-157**, and it is the plainest form in this table: R92 held « `lost` says what is wrong, and since when » by looking for the TIMESTAMP and the absence of « 4401 », so the mutation that made `lost` draw the RECONNECTING copy — the exact defect the rule names in its own docstring — passed. The tell was in the hold's own sentence: a hold containing « and » answers two questions and passes whenever the easier one is true. **B-158**, R94 walking a journey that cannot lose a scroll position — a screen overlays the page, `#port` is never unmounted, and the offset survives with or without any memory at all; measured with the defect restored, 300 px before, during and after. **B-159**, two instruments splitting a feature's `live.ts` on the WORD « Exemptions », whose first occurrence is the type import: the guard then read an import statement and printed « 3 refreshed addresses » out of 24, a confident number nobody could tell was short. And **R91's stated limit**, counted here rather than filed because it is the same species and it is permanent: the rule holds the IMPLEMENTATION against the DECLARATION, so a rule that declares the wrong key and invalidates that same wrong key is green — measured, by pointing `ItemProgressed` at the pipeline status and watching every per-rule hold stay green. What catches it is another arm, and the limit is written into the rule's docstring so nobody reads it as proving more than it does |
 | L10, after the adversarial review | **9** | Seven reviewers against a gate green on every tier. **B-170**, R91 computing « nothing else » and never « everything it declares » — measured, `rule.keys.slice(0, 1)` silently stopped refreshing five addresses and all 57 holds stayed green — with a docstring claiming BOTH DIRECTIONS from the day it was written. **B-171**, R92 asserting five words the CSS removes at every width the frame measures, while the colour that replaces them was compared reconnecting-against-reconnecting: `lost: "bg-success"` passed all 25. **B-172**, R93 comparing only keys present in BOTH snapshots, so `queryClient.clear()` read as no movement. **B-173**, R89's four stream holds passing with zero sockets open, including the one named « resolves once the FAN-OUT has been issued ». **B-174**, R94's central hold green while a different page was on screen, in the rule rewritten because of B-158. **B-175**, a whole-cache invalidation counted as evidence the guard was working. **B-168**, an event corpus of six hand-written files with nine real events outside it. **B-169**, a `StrEnum` counted as an event, which inflated a total AND masked the dead rule naming it. And **R89's budget hold**, comparing two constants declared in its own file — a `quiet()` slower than the oracle's budget would have left every hold green while all 2 871 measurements were taken mid-flight |
 | L10, after the SECOND adversarial review | **11** | Three reviewers on the repairs alone. **B-191**, R95's recovery hold a tautology whose own printed proof — a list ending in `reconnecting` — contradicted it. **B-192**, its « superseded socket » hold unable to produce one, because the fake removes a closed socket synchronously; nothing measured the identity guard until `pushStale()` existed. **B-193**, R92's colour hold a set of inequalities that a SWAP of two tokens satisfies. **B-194**, R94's layer hold never reading that a layer opened. **B-195**, R91's sibling seeded where it could never be an over-refresh. **B-196**, R95 certifying the shipped limits from a source literal rather than the running program. **B-197**, a stale hold-count baseline reporting three false regressions — which teaches whoever re-records to accept moved numbers, and that is how a count that FALLS goes through. **B-187**, `CACHE_WIDE` read line by line, so a wrapped whole-cache invalidation produced no violation AND no movement in the number printed as evidence. **B-188**, a poll regex that could not cross a semicolon and matched only the shape nobody writes. **B-189/B-190**, the exemptions reader keeping the defect the rules reader was repaired for, under a comment claiming the sibling instrument had been repaired too. And **R89's `> 1` threshold**, which could not tell one delivery plus one refetch from a delivery counted twice |
-| **Total** | **65** | at 2026-08-28. **The wave that built the most instruments found the most blind ones**, and that is the reading: nine of L09's fourteen were found by adversarial reviewers reading the gate AFTER it went green. **And a guard can be blind to a document rather than to code** — B-150's arm was correct in every line and read a file that had stopped being true. **L10 adds a fourth reading, and it is the sharpest in this table**: the wave reported **4**, found by its own mutations in the phases that wrote the instruments, and was wrong by **9**. Seven adversarial reviewers reading the same green gate found nine more — six of them in rules that had each already been mutation-tested. **Mutation proves a rule catches the defect you thought of**; every one of the nine is a defect the author did not think of, and they are all the same species: a word the CSS removes, a key that disappears rather than changes, a socket that is not there. The two methods are not substitutes, and the ratio is the argument — 4 to 9. **AND THEN THE REPAIRS WERE REVIEWED, AND HELD ELEVEN MORE.** Six of those eleven are in instruments the author had just written in response to a review, mutation-tested, and believed. The reading that survives all three rounds is not « review harder » — it is that **an instrument written by the person whose work it measures inherits that person's blind spots, whatever the discipline**, and only a second pair of eyes on the instrument finds them. 4 by mutation, 9 by review, 11 by reviewing the repairs |
+| L10, after the THIRD adversarial review | **8** | One reviewer, on round two's repairs. **B-200**, two repairs recorded `fixed` and absent from the tree — the register's own B-190 broken by the commit that filed it. **B-201** and **B-209**, a violation counter used before assignment and a count discarded two lines after being made, both invisible because the loop feeding them was empty. **B-202**, a cursor freeze no reconnect could thaw, under a docstring saying « until the connection is remade ». **B-203**, R91 merging every rule's sample so its verdict depended on source order and a predicate's deletion was invisible. **B-204**, R92 resolving the token through the same cascade that paints it — proving the dot uses the token and nothing more, so exchanging the two VALUES passed every comparison. **B-205**, nothing reading whether the dot is on screen at all. **B-208**, a disagreement between two oracles printed where it could fail nothing. And **B-213**, a poll reader adopting the wrong block for 545 bindings out of 925 |
+| **Total** | **73** | at 2026-08-29. **The wave that built the most instruments found the most blind ones**, and that is the reading: nine of L09's fourteen were found by adversarial reviewers reading the gate AFTER it went green. **And a guard can be blind to a document rather than to code** — B-150's arm was correct in every line and read a file that had stopped being true. **L10 adds a fourth reading, and it is the sharpest in this table**: the wave reported **4**, found by its own mutations in the phases that wrote the instruments, and was wrong by **9**. Seven adversarial reviewers reading the same green gate found nine more — six of them in rules that had each already been mutation-tested. **Mutation proves a rule catches the defect you thought of**; every one of the nine is a defect the author did not think of, and they are all the same species: a word the CSS removes, a key that disappears rather than changes, a socket that is not there. The two methods are not substitutes, and the ratio is the argument — 4 to 9. **AND THEN THE REPAIRS WERE REVIEWED, AND HELD ELEVEN MORE.** Six of those eleven are in instruments the author had just written in response to a review, mutation-tested, and believed. The reading that survives all three rounds is not « review harder » — it is that **an instrument written by the person whose work it measures inherits that person's blind spots, whatever the discipline**, and only a second pair of eyes on the instrument finds them. 4 by mutation, 9 by review, 11 by reviewing the repairs, 8 by reviewing THOSE. **AND THE CURVE IS THE ARGUMENT FOR STOPPING**: five production defects in round one, six in round two, and in round three **none** — its two criticals were an ABSENT repair and a DISCARDED count, both procedural, and both now impossible rather than improbable (`scripts/mutate.sh`, and a fake that closes asynchronously like a real browser). A fourth round would read its own corrections. The criterion for ending is not « no findings »; it is **no undiscovered product defect, and the procedural failure mode eliminated** |
 
 **The nine the correction wave found, since a wave that counts itself has to name its own.** The
 figure is large because the count is honest, not because the wave was worse: four of the nine are

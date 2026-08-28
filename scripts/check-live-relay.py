@@ -115,8 +115,11 @@ NAMED_BINDING = re.compile(r"(?:const|let|function)\s+(\w+)\s*[=({]")
 CACHE_WIDE = (
     (re.compile(r"invalidateQueries\s*\(\s*(\)|\{\s*\})", re.DOTALL),
      "names no key, so it invalidates the WHOLE cache"),
-    (re.compile(r"invalidateQueries\s*\(\s*\{[^}]*?queryKey\s*:\s*\[\s*\]", re.DOTALL),
-     "names an EMPTY key, which matches every query in the cache"),
+    # `[^}]*?` STOPS AT THE FIRST `}`, so a nested object before the key hid a
+    # genuine whole-cache reload: `invalidateQueries({ meta: { a: 1 },
+    # queryKey: [] })`. The scan is brace-aware instead — see `arm_named_invalidation`.
+    (re.compile(r"invalidateQueries\s*\(\s*(?=\{)", re.DOTALL),
+     "@@ARGUMENT@@names an EMPTY key, which matches every query in the cache"),
     # `type:` NARROWS, it does not widen — `{ queryKey: K, type: "active" }` is
     # ordinary and correct, and flagging it told its author to delete a correct
     # narrowing. Only a selector with NO key is cache-wide.
@@ -241,6 +244,15 @@ def arm_named_invalidation():
         # its evidence. Total silence on the arm's central subject.
         for pattern, what in CACHE_WIDE:
             for found in pattern.finditer(text):
+                if what.startswith("@@ARGUMENT@@"):
+                    # THE WHOLE ARGUMENT, brace-matched, so a nested object
+                    # before the key cannot end the scan early.
+                    argument = brace_body(text, found.end())
+                    if argument is None:
+                        continue
+                    if re.search(r"queryKey\s*:\s*\[\s*\]", argument) is None:
+                        continue
+                    what = what.removeprefix("@@ARGUMENT@@")
                 violations += 1
                 number = text[: found.start()].count("\n") + 1
                 print(f"  {path.relative_to(ROOT)}:{number}: this {what}. "
@@ -533,7 +545,8 @@ def arm_map_completeness():
           f"{len(refreshed)} refreshed, {len(exempt_keys)} exempt, and the two "
           f"overlap by {len(refreshed & exempt_keys)}. AN ADDRESS CAN BE BOTH: "
           "a rule's prefix may already cover a read that an exemption also "
-          "names, and 17 + 8 over 24 is that overlap rather than an error")
+          "names, so the two counts sum past the total by exactly the overlap "
+          "printed beside them rather than by an error")
     return 1 if violations else 0
 
 
