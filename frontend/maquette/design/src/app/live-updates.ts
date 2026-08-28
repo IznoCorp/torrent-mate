@@ -19,42 +19,13 @@
 // hands out events; this decides what they mean.
 import type { QueryClient } from "@tanstack/react-query";
 
+import type { LiveRule } from "../lib/live-rule";
 import { subscribeToEvents, type RelayEvent } from "../lib/relay";
 
 // ONE LINE PER FEATURE — the frame naming its features, which is what
 // `router-tree.tsx` does with its pages. What each line brings is the feature's
 // own; nothing here knows an event name or a query key.
 import { arrivalsLiveRules } from "../features/arrivals/live";
-
-/**
- * One rule: the events that refresh a set of query keys.
- *
- * A KEY IS A PREFIX into the cache, and its width is a decision. One element
- * too short covers siblings nobody listed — it compiles, its types agree, and
- * nothing but a measurement against the cache tells the difference. R91 is that
- * measurement.
- */
-export type LiveRule = {
-  /** The event types, spelled as the backend's own class names. */
-  types: readonly string[];
-  /** What to invalidate, each a prefix. */
-  keys: readonly unknown[][];
-  /** Why these events refresh these keys, in one line, for the next reader. */
-  because: string;
-};
-
-/**
- * The event types that reach the interface and deliberately refresh nothing.
- *
- * WRITTEN DOWN RATHER THAN OMITTED. An event nobody handles is not an error; an
- * event nobody can COUNT is how a map silently stops covering its subject. Each
- * entry here is a decision someone took, and `check-live-relay.py --arm
- * map-completeness` refuses a type that is in neither list.
- */
-export type LiveExemptions = {
-  types: readonly string[];
-  because: string;
-};
 
 /** Every event that arrived and matched no rule, since the boot. */
 let unmatched: string[] = [];

@@ -15,7 +15,7 @@
 // `event_to_envelope` writes it. They are not this file's to invent: an event
 // this map names and the server never emits refreshes nothing, silently, and
 // `check-live-relay.py --arm map-completeness` is what refuses one.
-import type { LiveRule } from "../../app/live-updates";
+import type { LiveRule } from "../../lib/live-rule";
 
 /** The address of the pipeline's own status. */
 const PIPELINE_KEY = ["/api/pipeline/status"];
@@ -78,8 +78,8 @@ export const arrivalsLiveRules: readonly LiveRule[] = [
 export const arrivalsLiveExemptions = {
   types: ["DiskFullWarning", "WatcherRunTriggered", "LibraryScanCompleted"],
   because:
-    "none of the three changes what Arrivées reads. A disk warning and a "
-    + "watcher trigger belong to Système, and a library scan to Médiathèque — "
-    + "each is claimed by its own feature's table, and naming them here would "
-    + "make two features answer for one event",
+    "none of the three changes what this feature reads. A disk warning and a "
+    + "watcher trigger belong to the system feature, and a library scan to the "
+    + "library one — each is claimed by its own table, and naming them here "
+    + "would make two features answer for one event",
 } as const;
