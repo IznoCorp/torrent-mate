@@ -73,6 +73,15 @@ WANTED_OPENING_MS = 10_000
 SHORT_SILENCE_MS = 400
 SHORT_OPENING_MS = 400
 
+# THE SILENCE PROBE HOLDS THE OPENING LIMIT LONG, and that is the whole of what
+# lets it name which timer fired. Its first version shortened BOTH to the same
+# value; the opening deadline is armed at connect, so it expired at the same
+# instant and produced the same observable. Removing the silence watchdog
+# entirely then left the rule green — the mutation that was supposed to prove
+# the hold did not fall, which is how the hold was found to be measuring the
+# wrong timer.
+PATIENT_OPENING_MS = 30_000
+
 
 def declared(name):
     """Reads one limit out of `relay.ts`, or None if it is not declared."""
@@ -111,10 +120,10 @@ async def hold(journal):
         # watchdog existed this was indistinguishable from a healthy quiet link,
         # and the interface said « Connecté » for the life of the tab.
         silent = await page.evaluate(
-            """async ({ limit }) => {
+            """async ({ limit, patient }) => {
                  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
                  window.__relay.reset();
-                 window.__relay.limits({ silence: limit, opening: limit });
+                 window.__relay.limits({ silence: limit, opening: patient });
                  window.__relay.reconnect();
                  await wait(120);
                  const whileTalking = window.__relay.condition().condition;
@@ -133,7 +142,7 @@ async def hold(journal):
                  }
                  return { whileTalking, sockets, seen: [...new Set(seen)] };
                }""",
-            {"limit": SHORT_SILENCE_MS})
+            {"limit": SHORT_SILENCE_MS, "patient": PATIENT_OPENING_MS})
         journal.check(
             "a socket that is talking reads `connected`",
             silent["whileTalking"] == "connected" and silent["sockets"] >= 1,
@@ -234,15 +243,26 @@ async def hold(journal):
                           afterEvent: window.__relay.condition().currentSince };
                }""")
         journal.check(
+            "the data carries an instant at all",
+            all(isinstance(aged[one], int) for one in
+                ("atHandshake", "afterPing", "afterEvent")),
+            f"the three readings were {aged} — a `null` here means nothing ever "
+            "dated the data, and comparing two of them would raise rather than "
+            "name the defect")
+        journal.check(
             "a ping dates the data, because it proves the link is alive",
-            aged["afterPing"] > aged["atHandshake"],
+            isinstance(aged["afterPing"], int)
+            and isinstance(aged["atHandshake"], int)
+            and aged["afterPing"] > aged["atHandshake"],
             f"handshake {aged['atHandshake']}, after a ping {aged['afterPing']} — "
             "written only at the handshake it announced the SESSION's start: a "
             "screen opened at 09:00 and dropped at 14:30 claimed its data was "
             "five hours old when it was thirty seconds old")
         journal.check(
             "and so does an event",
-            aged["afterEvent"] > aged["afterPing"],
+            isinstance(aged["afterEvent"], int)
+            and isinstance(aged["afterPing"], int)
+            and aged["afterEvent"] > aged["afterPing"],
             f"after a ping {aged['afterPing']}, after an event {aged['afterEvent']}")
 
         await page.evaluate("()=>{ window.__relay.reset(); window.__mocks.reset(); }")
