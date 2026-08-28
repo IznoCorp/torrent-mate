@@ -25,7 +25,7 @@ from typer.testing import CliRunner
 from personalscraper.acquire._dedup import SearchOutcome, dedup
 from personalscraper.acquire._filters import apply_hard_filters
 from personalscraper.acquire.desired import QualityProfile
-from personalscraper.acquire.domain import WantedItem
+from personalscraper.acquire.domain import FollowedSeries, WantedItem
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.api._contracts import MediaType
 from personalscraper.api._units import ByteSize
@@ -222,5 +222,173 @@ def test_grab_dry_run_season_previews_as_tv(tmp_path: Path, monkeypatch) -> None
     assert mock_registry.search_candidates.call_args.args[1] == MediaType.TV, (
         "a season row must preview as TV, else the year is appended to q and the search returns nothing"
     )
+
+    test_store.close()
+
+
+def _seed_followed_episode(
+    tmp_path: Path,
+    *,
+    media_ref: MediaRef,
+    title: str,
+    season: int,
+    episode: int,
+) -> None:
+    """Seed a followed series row and one pending episode wanted row.
+
+    The preview resolves the follow's title through ``store.follow`` — the
+    same seam the real grab's factory resolves — so the seed must carry the
+    follow row, not just the wanted item.
+    """
+    db_path = tmp_path / "acquire.db"
+    cfg = AcquireConfig(db_path=db_path)
+    seed_store = build_acquire_store(cfg)
+    follow_id = seed_store.follow.add(
+        FollowedSeries(
+            media_ref=media_ref,
+            title=title,
+            added_at=int(time.time()),
+            active=True,
+            kind="show",
+        )
+    )
+    seed_store.wanted.add(
+        WantedItem(
+            media_ref=media_ref,
+            kind="episode",
+            season=season,
+            episode=episode,
+            status="pending",
+            enqueued_at=int(time.time()),
+            followed_id=follow_id,
+        )
+    )
+    seed_store.close()
+
+
+def test_grab_dry_run_episode_preview_drops_wrong_series(tmp_path: Path, monkeypatch) -> None:
+    """2026-08-23 class: the preview must NOT green-light a wrong SERIES' episode.
+
+    The preview mirrors the real grab's narrowing, so the fuzzy answer to
+    ``Les Groos S02E01`` — a ``Je.S.Appelle.Groot.S02E01`` release — must be
+    dropped there exactly as the run drops it. A preview showing it as Top
+    would be the lie F4 is about, one level up (wrong SERIES, not wrong variant).
+    """
+    _seed_followed_episode(
+        tmp_path,
+        media_ref=MediaRef(tvdb_id=478476),
+        title="Les Groos",
+        season=2,
+        episode=1,
+    )
+
+    wrong_show_episode = TrackerResult(
+        provider="c411",
+        tracker_id="g1",
+        title="Je.S.Appelle.Groot.S02E01.VOSTFR.1080p.WEB.EAC3.5.1.H264-FW",
+        size=ByteSize(1_500_000_000),
+        seeders=50,
+        leechers=0,
+        resolution="1080p",
+        info_hash="groot001",
+        download_url="https://c411.test/t/groot",
+    )
+    mock_registry = MagicMock()
+    mock_registry.search_candidates.return_value = SearchOutcome(
+        results=[wrong_show_episode], trackers_queried=1, trackers_errored=0
+    )
+    mock_registry.ranking = _SEEDER_RANKING
+
+    test_store = build_acquire_store(AcquireConfig(db_path=tmp_path / "acquire.db"))
+    from personalscraper.acquire.context import AcquireContext
+
+    mock_acquire = AcquireContext(tracker_registry=mock_registry, store=test_store, grab=None)
+    mock_app_ctx = _make_mock_app_context(acquire=mock_acquire)
+
+    @contextmanager
+    def _fake_boundary(config, settings, *, build_torrent_client=False):
+        yield mock_app_ctx
+
+    monkeypatch.setattr("personalscraper.commands.grab.per_step_boundary", _fake_boundary)
+
+    result = runner.invoke(app, ["grab", "--dry-run"])
+    assert result.exit_code == 0, f"expected exit 0; got {result.exit_code}:\n{result.output}"
+
+    assert "Je.S.Appelle.Groot" not in result.output, (
+        f"the preview must drop the wrong series' episode; got:\n{result.output}"
+    )
+    assert "No result matches" in result.output, f"the wrong-show drop must read as no candidate; got:\n{result.output}"
+
+    test_store.close()
+
+
+def test_grab_dry_run_season_preview_drops_wrong_series(tmp_path: Path, monkeypatch) -> None:
+    """The season preview mirrors #489's guard — a wrong SERIES' pack must not show.
+
+    Sibling of the episode test on the season path: ``filter_to_season`` with
+    the identity guard must drop the ``Je.S.Appelle.Groot.S02`` pack for a
+    ``Les Groos`` season want, exactly as the real grab does since #489.
+    """
+    db_path = tmp_path / "acquire.db"
+    cfg = AcquireConfig(db_path=db_path)
+    seed_store = build_acquire_store(cfg)
+    media_ref = MediaRef(tvdb_id=478476)
+    follow_id = seed_store.follow.add(
+        FollowedSeries(
+            media_ref=media_ref,
+            title="Les Groos",
+            added_at=int(time.time()),
+            active=True,
+            kind="show",
+        )
+    )
+    seed_store.wanted.add(
+        WantedItem(
+            media_ref=media_ref,
+            kind="season",
+            season=2,
+            status="pending",
+            enqueued_at=int(time.time()),
+            followed_id=follow_id,
+        )
+    )
+    seed_store.close()
+
+    wrong_show_pack = TrackerResult(
+        provider="c411",
+        tracker_id="g2",
+        title="Je.S.Appelle.Groot.S02.VOSTFR.1080p.WEB.EAC3.5.1.H264-FW",
+        size=ByteSize(6_000_000_000),
+        seeders=50,
+        leechers=0,
+        resolution="1080p",
+        info_hash="groot002",
+        download_url="https://c411.test/t/groot2",
+    )
+    mock_registry = MagicMock()
+    mock_registry.search_candidates.return_value = SearchOutcome(
+        results=[wrong_show_pack], trackers_queried=1, trackers_errored=0
+    )
+    mock_registry.ranking = _SEEDER_RANKING
+
+    test_store = build_acquire_store(cfg)
+    from personalscraper.acquire.context import AcquireContext
+
+    mock_acquire = AcquireContext(tracker_registry=mock_registry, store=test_store, grab=None)
+    mock_app_ctx = _make_mock_app_context(acquire=mock_acquire)
+
+    @contextmanager
+    def _fake_boundary(config, settings, *, build_torrent_client=False):
+        yield mock_app_ctx
+
+    monkeypatch.setattr("personalscraper.commands.grab.per_step_boundary", _fake_boundary)
+
+    result = runner.invoke(app, ["grab", "--dry-run"])
+    assert result.exit_code == 0, f"expected exit 0; got {result.exit_code}:\n{result.output}"
+
+    assert "Je.S.Appelle.Groot" not in result.output, (
+        f"the preview must drop the wrong series' season pack; got:\n{result.output}"
+    )
+    assert "No result matches" in result.output, f"the wrong-show drop must read as no candidate; got:\n{result.output}"
 
     test_store.close()
