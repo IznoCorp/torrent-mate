@@ -45,6 +45,17 @@ WHAT IT HOLDS:
 
 WHAT IT DOES NOT READ, said before what it does:
 
+  - IT CANNOT SEE `new Date()` SUBSTITUTED FOR `new Date(currentSince)`, and
+    this limit is stated rather than discovered. The notice prints an hour and a
+    minute; a rule runs in a second, so the connection's instant and « now »
+    format identically and the substitution is invisible to any assertion on the
+    rendered string. What IS held is the published `data-since`, compared for
+    EQUALITY against the instant the relay holds — so the age the notice derives
+    from cannot drift from the connection's, which is the defect that was really
+    there (the instant was written at the handshake and announced the session's
+    start). A rule that claimed to catch the substitution would be claiming more
+    than it can do, and this file already has two entries in `BUGS.md` for
+    exactly that.
   - It does not read whether the copy is RIGHT. The strings live in
     `i18n/fr.json` and are quoted here because they are the app's rendered
     output; a hold asserting a KEY would pass over a resource serving nothing.
@@ -153,6 +164,8 @@ async def read_condition(page, state):
                // FORMATTED FROM THE RELAY'S OWN INSTANT, with the surface's own
                // options — so the hold compares what the notice SAYS against
                // what the connection KNOWS, rather than against a constant.
+               since: bar ? bar.getAttribute("data-since") : null,
+               held: window.__relay.condition().currentSince,
                stamp: (() => {
                  const since = window.__relay.condition().currentSince;
                  return since === null ? null : new Date(since)
@@ -230,9 +243,13 @@ async def hold(journal):
             journal.check(
                 f"`{condition}` says since when, and says the RIGHT when",
                 drawn["body"] is not None and SINCE_LEAD in drawn["body"]
-                and drawn["stamp"] is not None and drawn["stamp"] in drawn["body"],
-                f"the notice reads {drawn['body']!r} and the connection's own "
-                f"instant renders as {drawn['stamp']!r} — the lead phrase says a "
+                and drawn["stamp"] is not None and drawn["stamp"] in drawn["body"]
+                and drawn["since"] is not None
+                and int(drawn["since"]) == drawn["held"],
+                f"the notice reads {drawn['body']!r}, derived from "
+                f"{drawn['since']!r} against the connection's own "
+                f"{drawn['held']!r}, rendering as {drawn['stamp']!r} — the "
+                "lead phrase says a "
                 "time is coming; it does not say the time is the right one, and "
                 "the age of the data is the one fact this notice has that a "
                 "reader can act on")
