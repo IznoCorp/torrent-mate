@@ -194,6 +194,7 @@ cover
 create
 cron
 cross
+crosses
 cur
 current
 cursor
