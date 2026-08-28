@@ -48,7 +48,11 @@ let blocked = false;
  * failure freezes the cursor until a reconnect replays from there.
  *
  * THE COST IS STATED: after a failure the replay window grows, and it grows
- * until the connection is remade. That is the deliberate trade — a replayed
+ * until the connection is remade — which is now TRUE. A first version froze the
+ * cursor and cleared it only on a reset that nothing called, so a reconnect
+ * replayed from the frozen id, `announce` returned before advancing, and every
+ * later reconnect re-requested the whole stream from there, each burst larger
+ * than the last, for the life of a tab nobody reloads for days. That is the deliberate trade — a replayed
  * event is idempotent work, a lost invalidation is a screen stale for the life
  * of the process (B-154), and only one of the two can be undone.
  *
@@ -91,6 +95,17 @@ export function subscribeToEvents(listener: EventListener): () => void {
  */
 export function readCursor(): string | null {
   return cursor;
+}
+
+/**
+ * Lets the cursor advance again, because a fresh connection is replaying.
+ *
+ * Called when a hello arrives. The replay from the frozen id re-delivers the
+ * event that failed; if it fails again the next `announce` freezes it again, so
+ * the window is bounded by one connection rather than by the tab's lifetime.
+ */
+export function unblockCursor(): void {
+  blocked = false;
 }
 
 /** Forgets where we got to, so a reset starts from the whole stream. */

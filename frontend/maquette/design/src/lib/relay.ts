@@ -38,7 +38,12 @@ const PONG_FRAME = "pong";
 // and only then reads the cookie, so a refusal is a close on an OPEN socket —
 // which is what makes this branch reachable at all. Closing before accept would
 // give a browser an opaque 1006 and this code would be dead in production.
-import { announce, readCursor, resetCursor } from "./relay-events";
+import {
+  announce,
+  readCursor,
+  resetCursor,
+  unblockCursor,
+} from "./relay-events";
 import {
   countAttempt,
   forceCondition,
@@ -203,6 +208,9 @@ function receive(raw: string): void {
     const commit = typeof data === "object" && data !== null
       ? (data as Record<string, unknown>).build_commit
       : undefined;
+    // A FRESH CONNECTION IS ABOUT TO REPLAY from wherever the cursor stopped,
+    // so a freeze from the previous one is spent.
+    unblockCursor();
     reportCondition({
       condition: "connected",
       attempts: 0,
