@@ -164,10 +164,26 @@ async def moved_by(page, event_type):
         {"type": event_type})
 
 
-async def warm(page):
-    """Fills the cache, so « nothing moved » is a reading and not an empty set."""
+async def warm(page, keys):
+    """Fills the cache, so « nothing moved » is a reading and not an empty set.
+
+    THE SEED LIST IS DERIVED FROM THE MAP, never written out here. A corpus
+    enumerated by hand is one of the forms this repository has already paid for:
+    it goes stale the moment a rule names a key nobody added to the list, and
+    the hold then reports « nothing moved » about a map that is working. Every
+    key any rule declares gets an entry, and one that already has one is left
+    alone — overwriting a key the open surface OBSERVES hands its component a
+    shape it cannot render and unmounts the observer.
+
+    Args:
+        page: The page.
+        keys: Every key any declared rule names.
+
+    Returns:
+        How many entries the cache holds afterwards.
+    """
     return await page.evaluate(
-        """async () => {
+        """async ({ keys }) => {
              window.__go("arr-loaded");
              await window.__mocks.quiet();
              await new Promise((r) => setTimeout(r, 200));
@@ -182,13 +198,22 @@ async def warm(page):
              // entry in the cache unobserved — which is what made the whole
              // measurement sticky. The keys below are ones this surface does
              // not read.
-             const seed = (key) => window.__queries.setQueryData(key, { seeded: true });
+             const held = new Set(window.__queries.getQueryCache().getAll()
+               .map((entry) => JSON.stringify(entry.queryKey)));
+             const seed = (key) => {
+               if (!held.has(JSON.stringify(key)))
+                 window.__queries.setQueryData(key, { seeded: true });
+             };
+             for (const key of keys) seed(key);
+             // Two extra scenarios under staging's own address, so « every
+             // scenario refreshes » has more than one to refresh.
              seed(["/api/staging/media", "dense"]);
              seed(["/api/staging/media", "sparse"]);
              seed(["/api/library/items", "", "", "recent", false]);
              await window.__mocks.quiet();
              return window.__queries.getQueryCache().getAll().length;
-           }""")
+           }""",
+        {"keys": keys})
 
 
 def covers(moved, keys):
@@ -225,10 +250,11 @@ async def hold(journal):
             return
 
         await page.evaluate(WATCH.strip())
-        entries = await warm(page)
+        entries = await warm(
+            page, [key for _, _, rule_keys, _ in rules for key in rule_keys])
         journal.check(
             "the cache holds something, so « nothing moved » is a reading",
-            entries >= 5,
+            entries >= len(rules),
             f"{entries} cache entr(ies) before the first event")
 
         # ONE EVENT FIRES EVERY RULE THAT NAMES IT, so what it must refresh is

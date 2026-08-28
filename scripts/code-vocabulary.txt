@@ -479,6 +479,7 @@ loaded
 loaders
 loading
 lock
+log
 login
 loginerr
 loginform

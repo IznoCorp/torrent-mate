@@ -25,7 +25,12 @@ import { subscribeToEvents, type RelayEvent } from "../lib/relay";
 // ONE LINE PER FEATURE — the frame naming its features, which is what
 // `router-tree.tsx` does with its pages. What each line brings is the feature's
 // own; nothing here knows an event name or a query key.
+import { acquisitionLiveRules } from "../features/acquisition/live";
 import { arrivalsLiveRules } from "../features/arrivals/live";
+import { libraryLiveRules } from "../features/library/live";
+import { maintenanceLiveRules } from "../features/maintenance/live";
+import { mediaLiveRules } from "../features/media/live";
+import { systemLiveRules } from "../features/system/live";
 
 /** Every event that arrived and matched no rule, since the boot. */
 let unmatched: string[] = [];
@@ -46,7 +51,14 @@ export function unmatchedEvents(): string[] {
  * @returns Nothing. It is installed for the document's lifetime.
  */
 export function installLiveUpdates(queryClient: QueryClient): void {
-  const rules: LiveRule[] = [...arrivalsLiveRules];
+  const rules: LiveRule[] = [
+    ...acquisitionLiveRules,
+    ...arrivalsLiveRules,
+    ...libraryLiveRules,
+    ...maintenanceLiveRules,
+    ...mediaLiveRules,
+    ...systemLiveRules,
+  ];
   // Built once, not per event: a lookup rebuilt on every frame would turn a
   // replay burst into N table constructions.
   const byType = new Map<string, LiveRule[]>();
