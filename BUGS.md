@@ -188,6 +188,8 @@ when the defect comes back.
 | B-145 | §19 (cross-seed) has no route in either contract, and its events reach no stream | by audit | `open` |
 | B-146 | D11 is decided and nothing styles a scrollbar yet; the change may move the oracle | by audit | `open` |
 | B-147 | Nine steward findings were stacked on five unmerged branches and collided with a wave | by audit | `fixed #511` |
+| B-148 | L09 is `NOT STARTED` in the plan after merging, so § 0's rule elects a landed lot | by audit | `open` |
+| B-149 | A declared departure from the lot's « Done when » lives only in a session report | by audit | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -3136,3 +3138,52 @@ its numbers **at the moment it is opened as a pull request**, from `main` as it 
 carries no number at all until it does. The entries are written; only the label waits.
 
 <sub>`grep -o '^| B-[0-9]*' BUGS.md | sed 's/| B-//' | sort -n | tail -1` before writing any new row</sub>
+
+**B-148 — the plan still calls L09 `NOT STARTED`, and its selection rule reads the plan.**
+L09 merged on 2026-08-28 (#509, squash `27096f31`). `IMPLEMENTATION.md` says so correctly — « Last
+landed: L09 … squash 27096f31 » — and `frontend-architecture.md` line 930 still reads
+**`#### L09 — The data layer, surface by surface · NOT STARTED`**. `IMPLEMENTATION.md`'s own
+« Next » row also still names L09.
+
+**This is not a cosmetic lag, because § 0 is executable prose.** « Come back here and find the
+first lot whose status is not `LANDED` and whose dependencies are all `LANDED`. That is the work.
+There is no other selection rule. » L09 is `NOT STARTED`; L01, L05 and L08 are `LANDED`. **The rule
+elects the lot that just landed**, and an agent handed the plan and told to follow it would rebuild
+L09 rather than open L10.
+
+**The cause is structural, and naming it matters more than the fix.** The status of a lot is
+written in TWO files — a per-lot label in the plan, and the state section of `IMPLEMENTATION.md` —
+while § 1 assigns « where the work stands » to `IMPLEMENTATION.md` as **the only state**, and that
+section opens by saying duplicating state is what produced a stale table read as current for three
+days. The duplication it warns against is inside the pair of files that carry the warning.
+
+Two repairs, and they are not the same: mark L09 `LANDED` and move « Next » to L10 — the wave's
+missed gesture — and decide whether a lot's status belongs in the plan at all, or whether the plan
+should name the ORDER and let the one state file carry the progress. The second is an arbitration.
+
+Every prior wave did the first correctly; L09 is the first to miss it, which is why nothing has
+caught it before and why nothing will catch the next one.
+
+<sub>`grep -n '^#### L09' docs/reference/frontend-architecture.md` · `grep -o 'Next\*\*[^|]*| [^|]\{0,60\}' IMPLEMENTATION.md`</sub>
+
+**B-149 — the lot's contract says the fixture literals left the engine; sixty families remain.**
+L09's « Done when » includes « each surface takes its data and **its share of the fixture dies with
+it** (D5) ». Measured: **21 fixture families died, 60 remain** — `legacy.js` went from 35 263 lines
+to 33 449, a real subtraction and a fifth of the way.
+
+**The wave declares the gap plainly**, in its session report and its pull request: the sixty belong
+to surfaces the engine still DRAWS, so their fixtures cannot leave before their markup does, which
+is L13. That reading is right, and it is the same shape L07 met when BLOCK 1 was separated instead
+of deleted.
+
+**What is missing is where it is written.** L07's equivalent departure was carried into the L13
+entry of `frontend-architecture.md`, with its own « Done when » and an explicit « any earlier wave
+may take it » — that is § 7.1 done properly, and it is why the deferral survives its session. This
+one lives in a report and a merged pull request body. **After the squash, a reader of the plan sees
+a « Done when » clause that is not true and nothing saying why.**
+
+Fix: carry it to L13 as L07's was, or amend L09's clause to say what it actually promised — the
+share of the fixture belonging to a surface the ENGINE no longer draws. Not both; the point is
+that one file states it.
+
+<sub>`grep -c '[^[:space:]]' frontend/maquette/design/src/engine/legacy.js` against `git show 27096f31^:…` · L13's entry for the shape to copy</sub>
