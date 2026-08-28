@@ -79,6 +79,13 @@ const NOTICE_CONDITIONS: readonly RelayCondition[] = ["lost", "refused"];
 /**
  * The notice: what is wrong, since when, and what to do about it.
  *
+ * `data-since` CARRIES THE INSTANT THE COPY WAS DERIVED FROM, so a rule can
+ * check the DERIVATION rather than the rendering. A time formatted to the
+ * minute cannot distinguish `new Date(currentSince)` from `new Date()` inside a
+ * test that runs in one second — and what was really wrong was drift, not
+ * substitution: the instant was written at the handshake, so the notice
+ * announced the session's start as the age of the data.
+ *
  * SINCE WHEN IS THE PART THAT MATTERS. « Reconnexion… » tells a reader to wait;
  * « les informations datent de 14:32 » tells them what they are looking at.
  * NE-DOIT-PAS-5 asks for the real reason, never a code — so `refused` says the
@@ -102,6 +109,7 @@ export function ConnectionNotice(): ReactElement | null {
       role="status"
       data-part="shell/connection-notice"
       data-connection={condition}
+      {...(currentSince === null ? {} : { "data-since": String(currentSince) })}
     >
       <span>
         {t(`connection.${condition}.body`)}

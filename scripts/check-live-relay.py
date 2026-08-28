@@ -72,6 +72,12 @@ EVENT_BASE = re.compile(r"^class (\w+)\(Event\)", re.MULTILINE)
 # which is one of the forms B-085 counts.
 POLLING_CORPUS_FLOOR = 60
 
+# What `map-completeness` must have read for its answer to mean anything. Nine
+# feature tables exist and 24 addresses are declared; a floor under both catches
+# a parser that has silently stopped reading part of the tree.
+TABLE_FLOOR = 8
+ADDRESS_FLOOR = 20
+
 # What a poll looks like. `setTimeout` is NOT here: a delay happens once, and
 # the relay's own backoff is a schedule of them. A poll is a repetition.
 POLLING = (
@@ -80,9 +86,25 @@ POLLING = (
     (re.compile(r"\brefetchIntervalInBackground\b"), "refetchIntervalInBackground"),
 )
 
-# An invalidation that names nothing. `invalidateQueries()` and
-# `invalidateQueries({})` both invalidate the WHOLE cache.
-BARE_INVALIDATION = re.compile(r"invalidateQueries\s*\(\s*(\)|\{\s*\})")
+# EVERY SPELLING THAT REACHES THE WHOLE CACHE, and the first version knew two of
+# them. `invalidateQueries({ queryKey: [] })` was the worst miss: an empty key
+# array matches every query, and it also matched the `named` counter — so a
+# whole-cache reload INCREMENTED the number this arm prints as evidence that it
+# is working. `resetQueries`, `removeQueries`, `refetchQueries` and `clear` were
+# invisible entirely, and `refetchQueries` is worse than an invalidation because
+# it refires the network at once.
+CACHE_WIDE = (
+    (re.compile(r"invalidateQueries\s*\(\s*(\)|\{\s*\})"),
+     "names no key, so it invalidates the WHOLE cache"),
+    (re.compile(r"invalidateQueries\s*\(\s*\{[^}]*queryKey\s*:\s*\[\s*\]"),
+     "names an EMPTY key, which matches every query in the cache"),
+    (re.compile(r"invalidateQueries\s*\(\s*\{[^}]*\b(predicate|type)\s*:"),
+     "selects by predicate or by type rather than by key"),
+    (re.compile(r"\b(resetQueries|removeQueries|refetchQueries)\s*\("),
+     "reaches every query it is not given a key for"),
+    (re.compile(r"queryClient\s*\.\s*clear\s*\("),
+     "empties the cache outright"),
+)
 
 
 def sources():
@@ -126,14 +148,23 @@ def arm_named_invalidation():
     named = 0
     for path in files:
         text = path.read_text(encoding="utf-8")
-        named += len(re.findall(r"invalidateQueries\s*\(\s*\{\s*queryKey", text))
+        # A NAMED INVALIDATION IS ONE WITH A KEY THAT IS NOT AN EMPTY ARRAY.
+        # Counting every `queryKey:` made `queryKey: []` evidence of health; a
+        # first repair demanded a `[` and then missed `queryKey: key`, which is
+        # how every rule of the map is written — the count fell from 6 to 1 and
+        # said so, which is the whole point of printing it.
+        named += len([
+            one for one in re.findall(
+                r"invalidateQueries\s*\(\s*\{\s*queryKey\s*:\s*([^,}\n]+)", text)
+            if one.strip() not in {"[]", "[ ]"}
+        ])
         for number, line in enumerate(text.splitlines(), 1):
-            if BARE_INVALIDATION.search(line):
-                violations += 1
-                print(f"  {path.relative_to(ROOT)}:{number}: "
-                      "`invalidateQueries()` names no key, so it invalidates the "
-                      "WHOLE cache. That is a reload under another name, and it "
-                      "undoes what L09 built.")
+            for pattern, what in CACHE_WIDE:
+                if pattern.search(line):
+                    violations += 1
+                    print(f"  {path.relative_to(ROOT)}:{number}: this {what}. "
+                          "That is a reload under another name, and it undoes "
+                          "what L09 built.")
     print(f"check-live-relay[named-invalidation]: {named} invalidation(s) name a "
           f"key, {violations} name none")
     if named == 0:
@@ -158,6 +189,28 @@ def backend_events():
     return found, None
 
 
+def rule_objects(source):
+    """Yields each `{ … }` literal of a rules array, brace-matched.
+
+    Args:
+        source: The portion of a `live.ts` holding the rules.
+
+    Yields:
+        The text of each object literal, braces included.
+    """
+    depth, start = 0, None
+    for index, character in enumerate(source):
+        if character == "{":
+            if depth == 0:
+                start = index
+            depth += 1
+        elif character == "}" and depth:
+            depth -= 1
+            if depth == 0 and start is not None:
+                yield source[start:index + 1]
+                start = None
+
+
 def declared():
     """Reads every feature's rules and exemptions out of its `live.ts`.
 
@@ -178,10 +231,20 @@ def declared():
         # printing a confident number nobody could tell was short.
         marker = re.search(r"^export const \w+LiveExemptions", source, re.MULTILINE)
         rules = source[:marker.start()] if marker else source
-        for block in re.findall(r"\{\s*types:\s*\[(.*?)\],\s*keys:\s*\[(.*?)\],",
-                                rules, re.DOTALL):
-            mapped |= set(re.findall(r'"([^"]+)"', block[0]))
-            for name in re.findall(r"\b([A-Z_]+_KEY)\b", block[1]):
+        # EACH RULE OBJECT IS READ AS A UNIT, and `types` / `keys` are found
+        # inside it in any order. The pattern used to require them adjacent and
+        # in that order, and a non-greedy `.*?` does not FAIL on a violation —
+        # it walks forward into the next rule and pairs one rule's types with
+        # another's keys. Moving `because` between them, or writing `keys`
+        # first, silently lost a rule. `fanout.py` carries the same reader, so
+        # both went quiet together.
+        for block in rule_objects(rules):
+            found_types = re.search(r"types:\s*\[(.*?)\]", block, re.DOTALL)
+            found_keys = re.search(r"keys:\s*\[(.*?)\]", block, re.DOTALL)
+            if found_types is None or found_keys is None:
+                continue
+            mapped |= set(re.findall(r'"([^"]+)"', found_types.group(1)))
+            for name in re.findall(r"\b([A-Z_][A-Z0-9_]*_KEY)\b", found_keys.group(1)):
                 refreshed.add(constants[name])
         if marker:
             tail = source[marker.start():]
@@ -226,10 +289,17 @@ def arm_map_completeness():
     addresses = read_addresses()
     violations = 0
 
-    if tables == 0 or not addresses:
-        print(f"check-live-relay[map-completeness]: {tables} table(s) and "
-              f"{len(addresses)} address(es) — an empty corpus reports the same "
-              "word as a complete one.", file=sys.stderr)
+    # THE ADDRESS SIDE HAD NO FLOOR, and B-159 — this arm's own recorded defect
+    # — was not zero: it read 3 addresses out of 24 and printed the number
+    # confidently. A defence that trips only at emptiness cannot see the failure
+    # that actually happened. The floor is under the count at the time of
+    # writing and well above what a single parse failure would leave.
+    if tables < TABLE_FLOOR or len(addresses) < ADDRESS_FLOOR:
+        print(f"check-live-relay[map-completeness]: {tables} table(s) against a "
+              f"floor of {TABLE_FLOOR}, {len(addresses)} address(es) against "
+              f"{ADDRESS_FLOOR} — a corpus that has PARTIALLY emptied reports "
+              "the same word as a complete one, which is how this arm's own "
+              "B-159 went unread for a wave.", file=sys.stderr)
         return 1
 
     for event in sorted(emitted - mapped - exempt_types):
@@ -243,7 +313,12 @@ def arm_map_completeness():
         print(f"  {event}: a rule names it and the backend emits nothing by that "
               "name — the rule is dead, and its surface will never refresh.")
     for address, where in sorted(addresses.items()):
-        if any(address.startswith(one) for one in refreshed | exempt_keys):
+        # COMPARED FOR EQUALITY, not by string prefix. Both sides are a key's
+        # FIRST ELEMENT, so `startswith` made any address that merely extends a
+        # refreshed one silently covered: `/api/media-requests` by `/api/media`,
+        # `/api/library/items-summary` by `/api/library/items`. Sibling paths
+        # sharing a stem are ordinary REST.
+        if address in refreshed | exempt_keys:
             continue
         violations += 1
         print(f"  {address} ({where}): a surface reads it and no event refreshes "
