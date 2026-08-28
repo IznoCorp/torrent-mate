@@ -37,6 +37,11 @@ type NetworkCall = typeof globalThis.fetch;
 // is no uninstall, so keeping one would be a claim nothing honours.
 let installed = false;
 let inFlight = 0;
+// Deliveries dispatched whose fan-out has not been issued yet. A SECOND
+// COUNTER and not a second signal: `quiet()` is the one thing the oracle's
+// settle reads, and a rule that had to await two signals would be a rule that
+// can await the wrong one.
+let delivering = 0;
 let becameQuiet: (() => void)[] = [];
 
 // The statuses that carry NO body. Building a response with one throws, so a
@@ -185,7 +190,7 @@ function problem(status: number, title: string, detail: string): Response {
  */
 function releaseWaiters(): void {
   globalThis.setTimeout(() => {
-    if (inFlight !== 0) return;
+    if (inFlight !== 0 || delivering !== 0) return;
     const waiting = becameQuiet;
     becameQuiet = [];
     for (const settle of waiting) settle();
@@ -212,7 +217,15 @@ export function installMockNetwork(): void {
   // THE STREAM IS INSTALLED WITH THE SEAM, not beside it. Both are the network
   // as far as the application is concerned, and a layer that lifted out in two
   // halves would leave a page with a socket and no requests.
-  const stream = installMockStream();
+  const stream = installMockStream({
+    began: () => {
+      delivering += 1;
+    },
+    ended: () => {
+      delivering -= 1;
+      if (inFlight === 0 && delivering === 0) releaseWaiters();
+    },
+  });
 
   window.__mocks = {
     routes: () => routes().map((route) => `${route.method} ${route.template}`),
@@ -226,9 +239,9 @@ export function installMockNetwork(): void {
       resetMockState();
       resetStream();
     },
-    inFlight: () => inFlight,
+    inFlight: () => inFlight + delivering,
     quiet: () =>
-      inFlight === 0
+      inFlight === 0 && delivering === 0
         ? Promise.resolve()
         : new Promise<void>((settle) => {
             becameQuiet.push(settle);
@@ -252,6 +265,7 @@ declare global {
       setOperationOutcome: typeof setOperationOutcome;
       setDefaultLatency: typeof setDefaultLatency;
       reset: () => void;
+      /** Requests in flight PLUS deliveries whose fan-out is not yet issued. */
       inFlight: () => number;
       quiet: () => Promise<void>;
     };

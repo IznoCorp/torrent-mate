@@ -27,7 +27,16 @@ WHAT IT HOLDS:
      an oracle measures a page that is about to change. L08 made
      `releaseWaiters` a macrotask for exactly this, and a macrotask is the kind
      of decision that is silently undone by someone tidying an await.
-  5. The BUDGET is real and is named. `oracle.py` races the signal against
+  5. THE STREAM. A delivery goes nowhere near `fetch`, so the request counter
+     cannot see one — and between a frame arriving and the refetch it provokes
+     being issued, that counter reads zero over a world that is about to
+     change. It is hold 4's gap, entered from the other side, and L10 is the
+     first lot where it can happen at all: until the relay existed, nothing
+     could arrive while a measurement was being taken. Held three ways — a
+     delivery is counted, `quiet()` loses the race against a timer while one is
+     dispatched, and a burst of N leaves the counter at zero rather than at
+     N - 1 or -1.
+  6. The BUDGET is real and is named. `oracle.py` races the signal against
      2 000 ms and goes on without it — so a request slower than that is measured
      mid-flight, by design, and this rule states the number rather than leaving
      it to be discovered.
@@ -41,6 +50,10 @@ WHAT IT DOES NOT READ, said before what it does:
     a line exists, which is not the same as a rule certifying it works.
   - It does not read whether a SURFACE waits. No surface fetches yet. That is
     phase 5's, and it is written into the plan rather than assumed.
+  - It does not read what a delivery INVALIDATES. That is R91's, measured
+    against the query cache itself; this rule reads only whether the signal
+    knows a delivery is in flight. A rule holding both would answer two
+    questions and answer neither clearly.
   - It does not read a real network. The seam replaces `fetch` in process
     (D-L08-2's stated cost), so caching, redirects and abort signals are outside
     every measurement here.
@@ -155,7 +168,69 @@ async def hold(journal):
             f"second request finished before quiet answered: "
             f"{waterfall['secondFinished']} (inFlight = {waterfall['stillInFlight']})")
 
-        # (5) the budget is stated rather than discovered. A latency above it is
+        # (5) THE STREAM. Judged the same way hold 2 is — by WHICH SETTLES
+        # FIRST — and not by a stopwatch, because a race has one winner on an
+        # idle machine and on a loaded one.
+        #
+        # THE TIMER IT RACES IS A MICROTASK CHAIN, not a `setTimeout`. The
+        # delivery is released one MACROTASK after the frames go out, so a
+        # `setTimeout(…, 0)` would be queued behind it and lose for a reason
+        # that has nothing to do with the signal. A chain of resolved promises
+        # drains entirely before any macrotask runs, which is exactly the
+        # window a wrong implementation would answer inside.
+        stream = await page.evaluate(
+            """async () => {
+                window.__mocks.reset();
+                const before = window.__mocks.inFlight();
+                window.__mocks.stream.emit("PipelineStarted", {});
+                const during = window.__mocks.inFlight();
+                let drained = 0;
+                const microtasks = (async () => {
+                    for (let i = 0; i < 50; i += 1) { drained += 1; await null; }
+                    return "microtasks";
+                })();
+                const first = await Promise.race([
+                    window.__mocks.quiet().then(() => "quiet"),
+                    microtasks,
+                ]);
+                await window.__mocks.quiet();
+                const after = window.__mocks.inFlight();
+                return { before, during, first, after, drained };
+            }""")
+        journal.check("a delivery is counted while it is in flight",
+                      stream["before"] == 0 and stream["during"] == 1,
+                      f"inFlight() was {stream['before']} before the emit and "
+                      f"{stream['during']} during it")
+        journal.check(
+            "quiet() does not resolve inside the delivery's own microtask window",
+            stream["first"] == "microtasks",
+            f"the microtask chain won: {stream['first']} "
+            f"(drained {stream['drained']} turns)")
+        journal.check("quiet() resolves once the fan-out has been issued",
+                      stream["after"] == 0, f"inFlight() = {stream['after']}")
+
+        # A BURST IS THE ARITHMETIC HOLD. A counter incremented once per emit
+        # and released once per macrotask is right; one released per SOCKET, or
+        # once for the whole burst, is off by N and the error only shows at
+        # N > 1. Zero afterwards is the only answer both mistakes fail.
+        burst = await page.evaluate(
+            """async () => {
+                window.__mocks.reset();
+                window.__mocks.stream.emitBurst([
+                    { type: "StepStarted" },
+                    { type: "StepCompleted" },
+                    { type: "ItemProgressed" },
+                ]);
+                const during = window.__mocks.inFlight();
+                await window.__mocks.quiet();
+                return { during, after: window.__mocks.inFlight() };
+            }""")
+        journal.check("a burst of three counts three, and settles at zero",
+                      burst["during"] == 3 and burst["after"] == 0,
+                      f"counted {burst['during']} during the burst, "
+                      f"{burst['after']} after")
+
+        # (6) the budget is stated rather than discovered. A latency above it is
         # measured mid-flight BY DESIGN, and this hold is what makes that a
         # documented limit instead of a surprise at surface ten.
         journal.check(

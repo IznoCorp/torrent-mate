@@ -93,6 +93,7 @@ base
 batch
 became
 before
+began
 beneath
 best
 block
@@ -206,6 +207,9 @@ delete
 deleted
 deletefield
 deletion
+deliver
+delivering
+delivery
 delsel
 delta
 dense
@@ -258,6 +262,7 @@ emphasis
 emphasized
 empty
 end
+ended
 engine
 entries
 entry

@@ -68,6 +68,13 @@ let received: string[] = [];
 let open: MockSocket[] = [];
 /** What the seam replaced, kept so nothing claims an uninstall it cannot do. */
 let installed = false;
+/** What to call around a delivery, so the settle signal can see one.
+    INJECTED, NEVER IMPORTED. `mocks/index.ts` imports this module, so importing
+    it back would be the import cycle invariant 8 refuses — and a cycle makes
+    every other dependency rule unenforceable, because the cycle IS the
+    violation. */
+let beganDelivery: () => void = () => {};
+let endedDelivery: () => void = () => {};
 /** Every address the client has connected to, in order — the closed ones too.
     This is how a rule sees the `?last_id=` cursor a reconnect carried, without
     reaching inside the client to read a private field. */
@@ -224,8 +231,30 @@ class MockSocket extends EventTarget {
 function emit(type: string, data: Record<string, unknown> = {}): StreamEntry {
   const entry: StreamEntry = { id: nextIdentifier(), type, data };
   entries.push(entry);
-  for (const socket of [...open]) socket.push(entry);
+  deliver(() => {
+    for (const socket of [...open]) socket.push(entry);
+  });
   return entry;
+}
+
+/**
+ * Delivers, and keeps the settle signal busy until the fan-out has been issued.
+ *
+ * A DELIVERY GOES NOWHERE NEAR `fetch`, so the request counter cannot see it —
+ * and between the frame arriving and the refetch it provokes being issued,
+ * that counter reads zero over a world that is about to change. It is the same
+ * gap `releaseWaiters()` already defends for a read-render-read waterfall, and
+ * it is closed the same way: ONE MACROTASK. A macrotask runs after the whole
+ * microtask queue, so a refetch the listener scheduled has already called
+ * `fetch` — and therefore already been counted — by the time the delivery is
+ * released.
+ *
+ * @param push What delivers the frames.
+ */
+function deliver(push: () => void): void {
+  beganDelivery();
+  push();
+  globalThis.setTimeout(endedDelivery, 0);
 }
 
 /**
@@ -251,7 +280,9 @@ function emitBurst(
  * @returns Nothing.
  */
 function ping(): void {
-  for (const socket of [...open]) socket.push({ type: PING_TYPE });
+  deliver(() => {
+    for (const socket of [...open]) socket.push({ type: PING_TYPE });
+  });
 }
 
 /**
@@ -261,7 +292,9 @@ function ping(): void {
  *   loss the client is expected to notice.
  */
 function drop(code = 1006): void {
-  for (const socket of [...open]) socket.shut(code, "dropped by the driver");
+  deliver(() => {
+    for (const socket of [...open]) socket.shut(code, "dropped by the driver");
+  });
 }
 
 /**
@@ -317,9 +350,16 @@ export type StreamDriver = {
 /**
  * Installs the fake transport in place of the browser's `WebSocket`.
  *
+ * @param deliveries What to call when a delivery starts and when its fan-out
+ *   has been issued, so the settle signal can see a frame in flight.
  * @returns The driving surface.
  */
-export function installMockStream(): StreamDriver {
+export function installMockStream(deliveries: {
+  began: () => void;
+  ended: () => void;
+}): StreamDriver {
+  beganDelivery = deliveries.began;
+  endedDelivery = deliveries.ended;
   if (!installed) {
     installed = true;
     globalThis.WebSocket = MockSocket as unknown as typeof WebSocket;
