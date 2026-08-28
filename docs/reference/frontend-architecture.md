@@ -927,7 +927,7 @@ each found by validating the seeds against it. `serie` is a show's RUN STATUS an
 `const settle = afterUnwind` a literal, because it walked an initializer's children and never the
 initializer.
 
-#### L09 — The data layer, surface by surface · `NOT STARTED` · *depends on L01, L05, L08*
+#### L09 — The data layer, surface by surface · `LANDED` · *depended on L01, L05, L08*
 
 **Objective.** Server state in its query cache, mutations with their optimistic paths and their
 rollbacks, the two state-ownership invariants (4 and 5) in force. Each surface takes its data and **its share of the
@@ -1048,6 +1048,15 @@ harness no longer drives through it.
 
 **Done when.** `legacy.js` no longer exists; nothing reads a `window.__` seam; the suite is green
 at unchanged hold counts; the oracle is green.
+
+**Carried here by L09, 2026-08-28 — the sixty fixture families it could not kill.** L09's « Done
+when » says each surface's share of the fixture dies with it (D5). Twenty-one families died and
+`legacy.js` lost 1 814 lines; **sixty remain**, and they belong to surfaces the ENGINE still draws —
+their literals cannot leave before their markup does. The wave declared the gap plainly and it is
+recorded here rather than in its session report, because a deferral that lives in a squashed pull
+request body stops existing for the next reader. **Done when** those sixty die with the producers
+that read them, which is this lot's subject. **No earlier wave can take it**: unlike the fragment
+above, this one is not separable from the engine's death.
 
 **Carried here by L07, 2026-08-25 — the prototype fragment, and R72's renegotiation.** L07 emptied
 `frontend/maquette/design/refonte.html` of every style rule and did **not** delete it. Two reasons,
