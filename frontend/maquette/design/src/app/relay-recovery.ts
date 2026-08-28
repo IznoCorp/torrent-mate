@@ -20,7 +20,7 @@
 // model and the transport — and neither may know the other. `lib/relay.ts` must
 // not know what a route is; `lib/addresses.ts` must not know what a socket is.
 import { SIGN_IN_PATH } from "../lib/addresses";
-import { readCondition } from "../lib/relay-condition";
+import { readCondition, subscribeToCondition } from "../lib/relay-condition";
 import { reconnectNow } from "../lib/relay";
 import { history } from "./history-bridge";
 
@@ -31,12 +31,27 @@ import { history } from "./history-bridge";
  */
 export function installRelayRecovery(): void {
   let wasSigningIn = history.location.pathname === SIGN_IN_PATH;
+  // A SIGN-IN THE RELAY HAS NOT SPENT YET. The edge alone is not enough: the
+  // server ACCEPTS and only then reads the cookie, so a refusal is a round trip
+  // away — an operator who signs in and navigates on can leave the sign-in
+  // while the socket still reads « connecting », and the 4401 that lands a
+  // moment later then has no trigger left at all. The visit is remembered until
+  // it is used.
+  let signedInSince = false;
+
+  const takeTheChance = (): void => {
+    if (!signedInSince) return;
+    if (readCondition().condition !== "refused") return;
+    signedInSince = false;
+    reconnectNow();
+  };
+
   history.subscribe(({ location }) => {
     const isSigningIn = location.pathname === SIGN_IN_PATH;
-    const leftTheSignIn = wasSigningIn && !isSigningIn;
+    if (wasSigningIn && !isSigningIn) signedInSince = true;
     wasSigningIn = isSigningIn;
-    if (!leftTheSignIn) return;
-    if (readCondition().condition !== "refused") return;
-    reconnectNow();
+    takeTheChance();
   });
+  // AND WHEN THE REFUSAL ITSELF ARRIVES, for the ordering above.
+  subscribeToCondition(takeTheChance);
 }

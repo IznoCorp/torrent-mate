@@ -255,10 +255,24 @@ async def hold(journal):
                  await window.__mocks.quiet();
                  await wait(500);
                  port().scrollTop = 0;
-                 const opener = document.querySelector("[data-drawer]");
+                 // THE SHELL'S OWN CONTROL. `[data-drawer]` matches a second
+                 // element elsewhere in the tree, so the selector is anchored
+                 // inside the header the shell draws.
+                 const opener = document.querySelector(
+                   '[data-part="shell/header"] [data-drawer]');
                  if (!opener) return { after: null, why: "no drawer control" };
                  opener.click();
                  await wait(400);
+                 // AND A LAYER REALLY OPENED. Without this the hold's pass state
+                 // — « the offset is where I put it » — is the same state you
+                 // get if the click and the back both did nothing, and the one
+                 // property the whole behaviour keys on (`isLayer`, which reads
+                 // the entry's `layer` stamp) went unread.
+                 const layered = {
+                   stamped: typeof history.state?.layer === "string",
+                   drawn: getComputedStyle(
+                     document.querySelector("#drawer")).visibility !== "hidden",
+                 };
                  port().scrollTop = Math.min(
                    offset, port().scrollHeight - port().clientHeight);
                  await wait(150);
@@ -266,9 +280,22 @@ async def hold(journal):
                  if (whileOpen < 20) return { after: null, why: "page too short" };
                  window.__bridge.back();
                  await wait(700);
-                 return { whileOpen, after: port().scrollTop, why: "" };
+                 return { whileOpen, layered, after: port().scrollTop,
+                          closed: getComputedStyle(
+                            document.querySelector("#drawer")).visibility === "hidden",
+                          why: "" };
                }""",
             {"offset": OFFSET})
+        journal.check(
+            "a layer really opened, and really closed",
+            layered["after"] is not None
+            and layered["layered"]["stamped"] and layered["layered"]["drawn"]
+            and layered["closed"],
+            (layered["why"] or
+             f"the entry carried a layer stamp: {layered['layered']['stamped']}, "
+             f"the drawer was drawn: {layered['layered']['drawn']}, and it "
+             f"closed: {layered['closed']} — `isLayer` keys the whole behaviour "
+             "on that stamp, and this hold read neither it nor the drawer"))
         journal.check(
             "a layer opening and closing leaves the page where it was",
             layered["after"] is not None

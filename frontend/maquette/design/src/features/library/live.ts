@@ -20,7 +20,12 @@ export const libraryLiveRules: readonly LiveRule[] = [
       "a dispatched item and a finished scan both change WHAT IS OWNED, which "
       + "is the one thing all three reads are about: the listing gains a row, a "
       + "category's count moves, and a season that was missing may not be any "
-      + "more",
+      + "more. ⚠ THE ORDER MATTERS AND THE SENTENCE USED TO HIDE IT: "
+      + "`ItemDispatched` is emitted per item, and the post-dispatch scan that "
+      + "puts the row into the index runs afterwards — so `LibraryScanCompleted` "
+      + "is the event that carries the change today, and the first is kept "
+      + "because it is where the change belongs once the read is served from "
+      + "what the dispatcher writes (D7)",
   },
   {
     types: ["FilmAcquired"],

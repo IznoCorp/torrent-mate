@@ -11,6 +11,10 @@ export const maintenanceLiveRules: readonly LiveRule[] = [
   {
     types: ["ItemDispatched"],
     keys: [DESTRUCTIVE_LOG_KEY],
+    // A `moved` DESTROYS NOTHING and journals nothing; the event carries which
+    // it was.
+    when: (data) => data.action === "replaced" || data.action === "merged",
+    sample: { action: "replaced" },
     because:
       "a dispatch that REPLACED an existing folder is a destruction, and §7 "
       + "requires it leave a trace in the append-only journal — a journal that "

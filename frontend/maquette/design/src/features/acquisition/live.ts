@@ -70,8 +70,14 @@ export const acquisitionLiveRules: readonly LiveRule[] = [
     types: ["ItemDispatched"],
     keys: [FOLLOWED_KEY],
     because:
-      "a follow shows « 95 sur 96 »; a dispatched episode is what moves that "
-      + "count and can settle the follow's status",
+      "a follow shows « 95 sur 96 », and a dispatched episode is what will "
+      + "move it. ⚠ NOT YET, and the sentence used to say so in the present "
+      + "tense: today `ItemDispatched` is emitted per item and the ownership "
+      + "counts are derived from the index, which the post-dispatch scan writes "
+      + "AFTERWARDS — so at this instant the number has not moved and "
+      + "`LibraryScanCompleted` is the event that carries the change. It is "
+      + "kept because the maquette's contract is what the backend will follow "
+      + "(D7) and a dispatched item is where this belongs; the demand is filed",
   },
 ];
 
@@ -109,7 +115,10 @@ export const acquisitionLiveExemptions: LiveExemptions = {
   keys: ["/api/acquisition/search"],
   /* a search is a QUESTION the reader just asked, not a resource that ages: refreshing it behind them would replace the results they are reading with different ones, which is the one thing a search must not do */
   because:
-    "a per-tick event mapped to a list is a poll wearing an event's clothes; "
-    + "the ratio and cross-seed events belong to surfaces that have no page "
-    + "yet, and claiming them here would refresh a list that does not show them",
+    "the ratio and cross-seed events belong to surfaces that have no page yet, "
+    + "and claiming them here would refresh a list that does not show them. "
+    + "`TrackerAuthFailed` is neither: it is a FAILURE, and it is claimed by "
+    + "the system feature's errors read — named here so that « acquisition does "
+    + "not refresh on it » is a decision rather than an omission, and not "
+    + "because the sentence about ratio events describes it",
 };

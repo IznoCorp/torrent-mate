@@ -142,6 +142,7 @@ category
 cats
 ceil
 cells
+chance
 change
 changed
 chart
@@ -218,6 +219,7 @@ deletefield
 deletion
 deliver
 delivered
+deliveries
 delivering
 delivery
 delsel
@@ -377,6 +379,7 @@ hide
 hint
 history
 home
+hooks
 host
 hot
 hours
@@ -571,6 +574,7 @@ notes
 notfound
 nothing
 notice
+noticed
 now
 number
 numbers
@@ -668,6 +672,7 @@ prov
 provider
 ptr
 publish
+push
 put
 px
 qaud
@@ -725,6 +730,7 @@ renderer
 renderers
 reopen
 replace
+replaced
 report
 request
 required
@@ -761,6 +767,7 @@ running
 safari
 said
 same
+sample
 save
 savebar
 say
@@ -830,6 +837,7 @@ side
 sidebar
 sign
 signal
+signed
 signing
 signout
 silence

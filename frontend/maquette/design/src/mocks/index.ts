@@ -204,7 +204,13 @@ export function installMockNetwork(): void {
   globalThis.fetch = ((input: RequestInfo | URL, options?: RequestInit) => {
     inFlight += 1;
     return answer(input, options).finally(() => {
-      inFlight -= 1;
+      // FLOORED, NOT DECREMENTED. `reset()` zeroes the counters so a
+      // desynchronised page has a way back — and a request already in flight
+      // when it ran would then decrement past zero. At -1 both
+      // `releaseWaiters` and `quiet()` are false FOR EVER: the repair for an
+      // accidental desynchronisation would have made a deterministic and
+      // unrecoverable one, on the signal all 2 871 oracle measurements rest on.
+      inFlight = Math.max(0, inFlight - 1);
       if (inFlight === 0) releaseWaiters();
     });
   }) as NetworkCall;
@@ -222,7 +228,9 @@ export function installMockNetwork(): void {
       delivering += 1;
     },
     ended: () => {
-      delivering -= 1;
+      // Floored for the reason the request counter is — a `reset()` between a
+      // delivery and its release would otherwise take it below zero.
+      delivering = Math.max(0, delivering - 1);
       if (inFlight === 0 && delivering === 0) releaseWaiters();
     },
   });

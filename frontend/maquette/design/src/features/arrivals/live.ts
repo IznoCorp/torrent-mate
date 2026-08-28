@@ -15,7 +15,7 @@
 // `event_to_envelope` writes it. They are not this file's to invent: an event
 // this map names and the server never emits refreshes nothing, silently, and
 // `check-live-relay.py --arm map-completeness` is what refuses one.
-import type { LiveRule } from "../../lib/live-rule";
+import type { LiveExemptions, LiveRule } from "../../lib/live-rule";
 
 /** The address of the pipeline's own status. */
 const PIPELINE_KEY = ["/api/pipeline/status"];
@@ -48,13 +48,28 @@ export const arrivalsLiveRules: readonly LiveRule[] = [
   {
     types: ["ItemProgressed"],
     keys: [STAGING_KEY],
+    // THE STATUSES THAT MOVE AN ITEM BETWEEN THE THREE LISTS, and not the ones
+    // that merely report it is still going. `started` fires in all nine steps
+    // and changes which list nothing.
+    when: (data) => data.status !== "started",
+    sample: { status: "moved" },
     because:
       "an item advancing moves it between stuck, moving and settled, which is "
-      + "the whole of what this read answers",
+      + "the whole of what this read answers — but only when it really moves: "
+      + "the vocabulary also carries a per-step « started » that changes no "
+      + "list, and firing on it turned this rule into a refetch per round trip "
+      + "for the length of a run",
   },
   {
     types: ["ItemProgressed"],
     keys: [DECISIONS_KEY],
+    // ONE STATUS OUT OF THE VOCABULARY. `ItemProgressed` carries a
+    // `StepItemStatus`, and exactly one of its values queues a decision. The
+    // rule was written without this and fired on all of them — for a
+    // sixty-item run, some five hundred and forty invalidations of a list that
+    // changes at the scrape step alone.
+    when: (data) => data.status === "queued_for_decision",
+    sample: { status: "queued_for_decision" },
     because:
       "a decision is QUEUED at the scrape step, fourth of nine, and dispatch is "
       + "~50 minutes of a 57-minute run. Refreshed only at `PipelineEnded`, the "
@@ -84,7 +99,7 @@ export const arrivalsLiveRules: readonly LiveRule[] = [
  * WRITTEN DOWN RATHER THAN OMITTED. An event nobody handles is not an error; an
  * event nobody can COUNT is how a map silently stops covering its subject.
  */
-export const arrivalsLiveExemptions = {
+export const arrivalsLiveExemptions: LiveExemptions = {
   types: ["DiskFullWarning", "WatcherRunTriggered", "LibraryScanCompleted"],
   keys: [],
   /* every address this feature reads is refreshed by a rule above */
@@ -93,4 +108,4 @@ export const arrivalsLiveExemptions = {
     + "watcher trigger belong to the system feature, and a library scan to the "
     + "library one — each is claimed by its own table, and naming them here "
     + "would make two features answer for one event",
-} as const;
+};

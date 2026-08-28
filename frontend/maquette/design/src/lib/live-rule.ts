@@ -27,6 +27,31 @@ export type LiveRule = {
   types: readonly string[];
   /** What to invalidate, each a prefix. */
   keys: readonly unknown[][];
+  /**
+   * Which of those events this rule is about, when the type is not enough.
+   *
+   * A RULE WITHOUT ONE FIRES ON EVERY EVENT OF ITS TYPE, and some types are
+   * not a state change at all — `ItemProgressed` fires once per item per step
+   * across nine steps, which for a sixty-item run is some five hundred and
+   * forty. Pointed at a list with no predicate, that is a refetch every
+   * round-trip for the length of a run: a poll wearing an event's clothes, and
+   * the third clause of this lot read backwards, since a `setInterval` any grep
+   * can find would at least be visible.
+   *
+   * The payload is the event's own `data`, as the server serialised it.
+   */
+  when?: (data: Record<string, unknown>) => boolean;
+  /**
+   * What an event this rule IS about looks like.
+   *
+   * REQUIRED WHEREVER `when` IS, and declared beside it so the two cannot
+   * drift. A predicate with no example is untestable: R91 drives every rule by
+   * emitting an event of its type, and against an empty payload a predicate
+   * refuses — so the rule would read as « declared and nothing moved » and the
+   * measurement would be about the harness rather than the map. The example is
+   * the smallest payload the predicate accepts.
+   */
+  sample?: Record<string, string>;
   /** Why these events refresh these keys, in one line, for the next reader. */
   because: string;
 };

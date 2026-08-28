@@ -97,9 +97,13 @@ POLLING = (
 # binding called `name`. The relay's own `setTimeout(connect, delay)` is not one
 # — `connect` does not call `retry` directly, `retry` calls `connect` — and it
 # is the only shape in this tree that comes close.
-SELF_RESCHEDULING = re.compile(
-    r"(?:const|let|function)\s+(\w+)\s*=?[^;]{0,400}?setTimeout\(\s*\1\b",
-    re.DOTALL)
+# Read over a BRACE-MATCHED body rather than a run of non-semicolons. The first
+# version used `[^;]{0,400}?`, which cannot cross a statement — so it matched
+# `function poll() { setTimeout(poll, 1000) }` and missed every shape anyone
+# writes in a semicolon-using codebase, including the two the comment above
+# names: a callback that does work before re-arming, and one wrapped in an
+# arrow. It was armed against the case that never occurs.
+NAMED_BINDING = re.compile(r"(?:const|let|function)\s+(\w+)\s*[=({]")
 
 # EVERY SPELLING THAT REACHES THE WHOLE CACHE, and the first version knew two of
 # them. `invalidateQueries({ queryKey: [] })` was the worst miss: an empty key
@@ -109,15 +113,22 @@ SELF_RESCHEDULING = re.compile(
 # invisible entirely, and `refetchQueries` is worse than an invalidation because
 # it refires the network at once.
 CACHE_WIDE = (
-    (re.compile(r"invalidateQueries\s*\(\s*(\)|\{\s*\})"),
+    (re.compile(r"invalidateQueries\s*\(\s*(\)|\{\s*\})", re.DOTALL),
      "names no key, so it invalidates the WHOLE cache"),
-    (re.compile(r"invalidateQueries\s*\(\s*\{[^}]*queryKey\s*:\s*\[\s*\]"),
+    (re.compile(r"invalidateQueries\s*\(\s*\{[^}]*?queryKey\s*:\s*\[\s*\]", re.DOTALL),
      "names an EMPTY key, which matches every query in the cache"),
-    (re.compile(r"invalidateQueries\s*\(\s*\{[^}]*\b(predicate|type)\s*:"),
+    (re.compile(r"invalidateQueries\s*\(\s*\{[^}]*?\b(predicate|type)\s*:", re.DOTALL),
      "selects by predicate or by type rather than by key"),
-    (re.compile(r"\b(resetQueries|removeQueries|refetchQueries)\s*\("),
-     "reaches every query it is not given a key for"),
-    (re.compile(r"queryClient\s*\.\s*clear\s*\("),
+    # R3-9: these three are only cache-wide when they are given NO key. A
+    # `removeQueries({ queryKey: [...] })` evicting one sheet after a delete is
+    # correct, and flagging it told its author the opposite of the truth.
+    (re.compile(r"\b(?:resetQueries|removeQueries|refetchQueries)\s*\(\s*(?:\)|\{\s*\})",
+                re.DOTALL),
+     "reaches every query, because it is given no key"),
+    (re.compile(r"\b(?:resetQueries|removeQueries|refetchQueries)"
+                r"\s*\(\s*\{[^}]*?queryKey\s*:\s*\[\s*\]", re.DOTALL),
+     "is given an EMPTY key, which matches every query"),
+    (re.compile(r"\.\s*clear\s*\(\s*\)"),
      "empties the cache outright"),
 )
 
@@ -146,13 +157,23 @@ def arm_no_polling():
                           "two disagree the moment the network is slow.")
     for path in files:
         source = path.read_text(encoding="utf-8")
-        for found in SELF_RESCHEDULING.finditer(source):
+        for found in NAMED_BINDING.finditer(source):
+            name = found.group(1)
+            body = brace_body(source, found.end() - 1)
+            if body is None:
+                continue
+            rearms = re.search(
+                rf"setTimeout\s*\(\s*(?:{name}\b"
+                rf"|(?:async\s*)?\([^)]*\)\s*=>[^;]{{0,120}}?\b{name}\s*\()",
+                body)
+            if rearms is None:
+                continue
             violations += 1
             line = source[: found.start()].count("\n") + 1
-            print(f"  {path.relative_to(ROOT)}:{line}: `{found.group(1)}` "
-                  "re-arms itself with `setTimeout`. A delay happens once; a "
-                  "callback that reschedules itself is a poll, and it is the "
-                  "shape a search for `setInterval` can never find.")
+            print(f"  {path.relative_to(ROOT)}:{line}: `{name}` re-arms itself "
+                  "with `setTimeout`. A delay happens once; a callback that "
+                  "reschedules itself is a poll, and it is the shape a search "
+                  "for `setInterval` can never find.")
     # THE SUBJECT IS FLOORED, not only the sweep. 60 against 124 files is a real
     # floor against total collapse and blind to targeted loss: a poll would be
     # written in a `queries.ts`, in `lib/queue.ts` or in a component — 13 files
@@ -198,13 +219,19 @@ def arm_named_invalidation():
                 r"invalidateQueries\s*\(\s*\{\s*queryKey\s*:\s*([^,}\n]+)", text)
             if one.strip() not in {"[]", "[ ]"}
         ])
-        for number, line in enumerate(text.splitlines(), 1):
-            for pattern, what in CACHE_WIDE:
-                if pattern.search(line):
-                    violations += 1
-                    print(f"  {path.relative_to(ROOT)}:{number}: this {what}. "
-                          "That is a reload under another name, and it undoes "
-                          "what L09 built.")
+        # READ OVER THE WHOLE FILE, never line by line. Every pattern that has
+        # to see `invalidateQueries(` AND its argument needed them on one
+        # PHYSICAL line — so `invalidateQueries({\n  queryKey: [],\n})`, which
+        # is what any formatter produces once the call passes the line budget,
+        # produced no violation AND no movement in the number this arm prints as
+        # its evidence. Total silence on the arm's central subject.
+        for pattern, what in CACHE_WIDE:
+            for found in pattern.finditer(text):
+                violations += 1
+                number = text[: found.start()].count("\n") + 1
+                print(f"  {path.relative_to(ROOT)}:{number}: this {what}. "
+                      "That is a reload under another name, and it undoes "
+                      "what L09 built.")
     print(f"check-live-relay[named-invalidation]: {named} invalidation(s) name a "
           f"key, {violations} name none")
     if named == 0:
@@ -227,6 +254,30 @@ def backend_events():
     for path in sorted(PACKAGE.rglob("*.py")):
         found |= set(EVENT_BASE.findall(path.read_text(encoding="utf-8")))
     return found, None
+
+
+def brace_body(source, opened):
+    """Returns the `{ … }` block that starts at or after `opened`, or None.
+
+    Args:
+        source: The file's text.
+        opened: Where to start looking.
+
+    Returns:
+        The block including its braces, or None when there is no balanced one.
+    """
+    start = source.find("{", opened)
+    if start == -1:
+        return None
+    depth = 0
+    for index in range(start, len(source)):
+        if source[index] == "{":
+            depth += 1
+        elif source[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return source[start:index + 1]
+    return None
 
 
 def rule_objects(source):
@@ -260,10 +311,15 @@ def declared():
     """
     mapped, exempt_types = set(), set()
     refreshed, exempt_keys = set(), set()
+    unresolved = []
     files = sorted(FEATURES.glob("*/live.ts"))
     for path in files:
         source = path.read_text(encoding="utf-8")
-        constants = dict(re.findall(r'^const (\w+) = \["([^"]+)"', source, re.MULTILINE))
+        # `export const` COUNTS. The harvest was anchored on a bare `const`, so
+        # a key constant a sibling module imports raised `KeyError` out of
+        # `make check` with a traceback and nothing about the map.
+        constants = dict(re.findall(
+            r'^(?:export )?const (\w+) = \["([^"]+)"', source, re.MULTILINE))
         # SPLIT ON THE EXEMPTIONS OBJECT, never on the word. The first
         # occurrence of « Exemptions » in every one of these files is the TYPE
         # IMPORT on line 1 — splitting there left `rules` holding an import
@@ -276,8 +332,9 @@ def declared():
         # in that order, and a non-greedy `.*?` does not FAIL on a violation —
         # it walks forward into the next rule and pairs one rule's types with
         # another's keys. Moving `because` between them, or writing `keys`
-        # first, silently lost a rule. `fanout.py` carries the same reader, so
-        # both went quiet together.
+        # first, silently lost a rule. `fanout.py` carried the same reader and
+        # was repaired in the same move — an earlier version of this comment
+        # said so before it was true, which is its own kind of defect.
         for block in rule_objects(rules):
             found_types = re.search(r"types:\s*\[(.*?)\]", block, re.DOTALL)
             found_keys = re.search(r"keys:\s*\[(.*?)\]", block, re.DOTALL)
@@ -285,14 +342,28 @@ def declared():
                 continue
             mapped |= set(re.findall(r'"([^"]+)"', found_types.group(1)))
             for name in re.findall(r"\b([A-Z_][A-Z0-9_]*_KEY)\b", found_keys.group(1)):
+                if name not in constants:
+                    unresolved.append((path.relative_to(ROOT), name))
+                    continue
                 refreshed.add(constants[name])
         if marker:
-            tail = source[marker.start():]
-            block = re.search(r"types:\s*\[(.*?)\],\s*keys:\s*\[(.*?)\]", tail, re.DOTALL)
-            if block:
-                exempt_types |= set(re.findall(r'"([^"]+)"', block.group(1)))
-                exempt_keys |= set(re.findall(r'"([^"]+)"', block.group(2)))
-    return mapped, exempt_types, refreshed, exempt_keys, len(files)
+            # READ AS AN OBJECT, like the rules above. This half kept the exact
+            # adjacency defect the rules half was repaired for — `types` then
+            # `keys`, in that order, nothing between — so moving `because`
+            # between them lost every exempt type in the file. Silently, where
+            # the loss cannot be seen: five of them are mapped by another
+            # feature, so `emitted - mapped - exempt` was unchanged and the arm
+            # stayed green.
+            for block in rule_objects(source[marker.start():]):
+                found_types = re.search(r"types:\s*\[(.*?)\]", block, re.DOTALL)
+                found_keys = re.search(r"keys:\s*\[(.*?)\]", block, re.DOTALL)
+                if found_types is None:
+                    continue
+                exempt_types |= set(re.findall(r'"([^"]+)"', found_types.group(1)))
+                if found_keys is not None:
+                    exempt_keys |= set(re.findall(r'"([^"]+)"', found_keys.group(1)))
+                break
+    return mapped, exempt_types, refreshed, exempt_keys, len(files), unresolved
 
 
 def read_addresses():
@@ -345,7 +416,12 @@ def arm_map_completeness():
               "there — this arm compares against the backend's own event "
               "classes, and cannot answer without them.", file=sys.stderr)
         return 1
-    mapped, exempt_types, refreshed, exempt_keys, tables = declared()
+    mapped, exempt_types, refreshed, exempt_keys, tables, unresolved = declared()
+    for where, name in unresolved:
+        violations += 1
+        print(f"  {where}: a rule names `{name}`, which no `const` in that file "
+              "declares. Its key is unread, so the address it would refresh "
+              "reads as unrefreshed or, worse, as covered by another rule.")
     addresses = read_addresses()
     violations = 0
 
@@ -427,7 +503,12 @@ def arm_wired():
               "compares tables against their composition and has nothing to "
               "compare against.", file=sys.stderr)
         return 1
-    source = composer.read_text(encoding="utf-8")
+    # COMMENTS ARE NOT CODE. Both halves used to be satisfied by prose — and
+    # this composer opens with a twenty-seven-line comment discussing exactly
+    # these tables by name.
+    source = re.sub(r"/\*.*?\*/", "", composer.read_text(encoding="utf-8"),
+                    flags=re.DOTALL)
+    source = "\n".join(re.sub(r"//.*$", "", line) for line in source.splitlines())
     violations, checked = 0, 0
     for path in sorted(FEATURES.glob("*/live.ts")):
         exported = re.search(r"^export const (\w+LiveRules)[^=]*=\s*\[(\s*)\]",
@@ -439,8 +520,15 @@ def arm_wired():
         checked += 1
         if exported is not None:
             continue                      # an empty table composes nothing
-        if re.search(rf"\b{name.group(1)}\b.*\bfrom\b", source) is None \
-                or f"...{name.group(1)}" not in source:
+        # THE IMPORT IS MATCHED ACROSS LINES. Requiring the identifier and the
+        # word `from` on ONE physical line made a wrapped import — what a
+        # formatter produces the moment a second name joins it — read as « not
+        # composed », and a guard that names the wrong defect is worse than one
+        # that stays quiet.
+        imported = re.search(
+            rf"import\s*\{{[^}}]*\b{name.group(1)}\b[^}}]*\}}\s*from",
+            source, re.DOTALL)
+        if imported is None or f"...{name.group(1)}" not in source:
             violations += 1
             print(f"  {path.relative_to(ROOT)}: `{name.group(1)}` is declared "
                   "and not composed in `app/live-updates.ts`. Its events reach "

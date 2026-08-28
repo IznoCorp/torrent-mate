@@ -143,29 +143,43 @@ async def hold(journal):
                  // and by the time a single read lands it says `connected`
                  // again. A hold that read only the end would report the defect
                  // it was written to catch. (It did, the first time.)
+                 // THE FULL SEQUENCE, NOT A SET. Deduped, the first sample —
+                 // taken before any wait, when the previous hold has just
+                 // established the connection is good — put `connected` into it
+                 // for ever, and « it came back » was satisfied by that alone.
+                 // The printed proof of recovery was a two-element list whose
+                 // LAST value was `reconnecting`.
                  const seen = [];
                  for (let i = 0; i < 24; i += 1) {
                    seen.push(window.__relay.condition().condition);
                    await wait(limit / 6);
                  }
-                 return { whileTalking, sockets, seen: [...new Set(seen)] };
+                 return { whileTalking, sockets, seen };
                }""",
             {"limit": SHORT_SILENCE_MS, "patient": PATIENT_OPENING_MS})
         journal.check(
             "a socket that is talking reads `connected`",
             silent["whileTalking"] == "connected" and silent["sockets"] >= 1,
             f"condition {silent['whileTalking']!r} over {silent['sockets']} socket(s)")
+        noticed = next((i for i, one in enumerate(silent["seen"])
+                        if one != "connected"), None)
         journal.check(
             "a socket that stops speaking is noticed",
-            any(one != "connected" for one in silent["seen"]),
+            noticed is not None,
             f"over {SHORT_SILENCE_MS * 4} ms of silence on an OPEN socket the "
-            f"condition was only ever {silent['seen']} — a half-open socket "
+            f"condition was only ever {sorted(set(silent['seen']))} — a "
+            "half-open socket "
             "never closes itself, so a client that waits for `close` waits for "
             "ever, and every screen freezes under a green dot")
         journal.check(
             "and it comes back on its own once the link is replaced",
-            silent["seen"][-1] == "connected" or "connected" in silent["seen"],
-            f"the conditions seen were {silent['seen']}")
+            noticed is not None
+            and "connected" in silent["seen"][noticed:],
+            f"after the condition first left `connected` at sample {noticed}, "
+            f"the samples were {sorted(set(silent['seen'][noticed:] if noticed is not None else []))}"
+            " — a watchdog that notices silence and never reconnects leaves the "
+            "interface on `reconnecting` for the life of the tab, which is this "
+            "rule's own subject half-served")
 
         # THE HANG. Neither accepted nor refused: no `open`, no `close`, no
         # `error`. The backoff ladder only steps on a close, so without a
@@ -229,6 +243,35 @@ async def hold(journal):
             "and it reconnects on its own",
             closes["recovered"] == "connected" and closes["sockets"] >= 1,
             f"condition {closes['recovered']!r} over {closes['sockets']} socket(s)")
+
+        # AND A CLOSE WE ASKED FOR IS SILENT. The docstring promises both
+        # halves and only the first was measured — so removing the whole
+        # distinction would have left the relay retrying after every manual
+        # retry, a two-socket storm on each one, with nothing red.
+        asked = await page.evaluate(
+            """async () => {
+                 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+                 window.__relay.reset();
+                 window.__relay.limits({ silence: 60_000, opening: 30_000 });
+                 window.__relay.reconnect();
+                 await wait(250);
+                 const before = window.__mocks.stream.connections().length;
+                 const seen = [];
+                 window.__relay.reconnect();
+                 for (let i = 0; i < 16; i += 1) {
+                   seen.push(window.__relay.condition().condition);
+                   await wait(50);
+                 }
+                 return { opened: window.__mocks.stream.connections().length - before,
+                          seen: [...new Set(seen)] };
+               }""")
+        journal.check(
+            "a close WE asked for opens exactly one socket, and never retries",
+            asked["opened"] == 1 and "reconnecting" not in asked["seen"],
+            f"a manual retry opened {asked['opened']} socket(s) and the "
+            f"condition passed through {asked['seen']} — a retry that is also "
+            "read as a loss connects immediately AND schedules a second connect, "
+            "which is a two-socket storm on every manual retry")
 
         # THE AGE OF THE DATA. Any frame proves the link is alive, so any frame
         # moves it — a ping as much as an event.
@@ -321,29 +364,53 @@ async def hold(journal):
             "and the notice stayed on screen pointing back at a sign-in already "
             "passed: a loop whose only exit was a page reload")
 
-        # A SUPERSEDED SOCKET SAYS NOTHING. A real `close()` is asynchronous, so
-        # frames already buffered keep arriving after `socket` points elsewhere.
+        # A SUPERSEDED SOCKET SAYS NOTHING, and this now exercises one. The
+        # first version reconnected twice and dropped the LIVE socket: the
+        # replaced socket had already been removed from the fake's open list, so
+        # no frame from it could ever arrive and the block was a duplicate of
+        # R93's « a drop is noticed ». It also computed `before`/`after` and
+        # asserted neither.
         stale = await page.evaluate(
             """async () => {
                  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
                  window.__relay.reset();
+                 window.__relay.limits({ silence: 60_000, opening: 30_000 });
                  window.__relay.reconnect();
-                 await wait(200);
-                 // Reach the sockets the fake holds and push a hello down the
-                 // FIRST one after a second has replaced it.
-                 window.__relay.reconnect();
-                 await wait(200);
+                 await wait(250);
                  const before = window.__relay.condition().currentSince;
-                 window.__mocks.stream.drop(1006);
-                 await wait(20);
-                 return { before, after: window.__relay.condition().currentSince,
-                          condition: window.__relay.condition().condition };
+                 // PUSH DOWN THE SOCKET THE CLIENT NO LONGER HOLDS. `pushStale`
+                 // delivers to a socket the driver kept a handle on after the
+                 // client replaced it — which is what a real browser does with
+                 // frames already in its receive buffer, because `close()` is
+                 // asynchronous there and synchronous in this fake.
+                 const drawn = window.__mocks.stream.pushStale(
+                   { type: "ws.hello", data: { build_commit: "stale" } });
+                 await wait(120);
+                 return {
+                   pushed: drawn,
+                   before,
+                   after: window.__relay.condition().currentSince,
+                   build: window.__relay.condition().buildCommit,
+                   condition: window.__relay.condition().condition,
+                 };
                }""")
         journal.check(
-            "a replaced socket cannot report the connection healthy",
-            stale["condition"] != "connected",
-            f"after the live socket dropped, the condition is "
-            f"{stale['condition']!r}")
+            "there was a superseded socket to push down",
+            stale["pushed"] is True,
+            "the fake held no replaced socket — this hold would then measure "
+            "nothing, which is what its first version did")
+        journal.check(
+            "a superseded socket cannot re-date the data",
+            stale["after"] == stale["before"],
+            f"`currentSince` read {stale['before']} before a stale frame and "
+            f"{stale['after']} after — a frame from a socket the client has "
+            "replaced must reach nothing")
+        journal.check(
+            "and cannot report the connection healthy",
+            stale["build"] != "stale",
+            f"the hello from the superseded socket set `build_commit` to "
+            f"{stale['build']!r} — a stale hello painting a green dot over a "
+            "closing socket is the defect the identity guard exists for")
 
         await page.evaluate("()=>{ window.__relay.reset(); window.__mocks.reset(); }")
         await context.close()

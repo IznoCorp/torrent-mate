@@ -340,6 +340,12 @@ async def hold(journal):
         # over a dead stream, B-155 exactly — passed all 25.
         painted = await page.evaluate(
             """async ({ mark, states }) => {
+                 const probe = document.createElement("span");
+                 document.body.appendChild(probe);
+                 const resolve = (token) => {
+                   probe.style.backgroundColor = `var(${token})`;
+                   return getComputedStyle(probe).backgroundColor;
+                 };
                  const out = {};
                  for (const [condition, state] of Object.entries(states)) {
                    window.__go(state);
@@ -348,9 +354,22 @@ async def hold(journal):
                    const label = document.querySelector(mark).lastElementChild;
                    out[condition] = {
                      colour: getComputedStyle(dot).backgroundColor,
+                     // AGAINST THE TOKEN, not against the other conditions. A
+                     // set of inequalities is satisfied by a SWAP: exchange
+                     // `connected` and `lost` in the variant table and all four
+                     // still hold, while a dead stream draws the success token
+                     // and a healthy one draws danger — B-155 exactly.
+                     // RESOLVED THROUGH THE ENGINE, not read as a string. A
+                     // token's DECLARED text is `oklch(72% .165 152)` and its
+                     // computed form is `oklch(0.72 0.165 152)`: the same
+                     // colour, and a string comparison of the two fails while
+                     // saying nothing about the paint.
+                     success: resolve("--color-success"),
+                     danger: resolve("--color-danger"),
                      labelShown: getComputedStyle(label).display !== "none",
                    };
                  }
+                 probe.remove();
                  return out;
                }""",
             {"mark": MARK, "states": {
@@ -365,6 +384,19 @@ async def hold(journal):
             "something a reader sees, and this hold can go; while it is false "
             "they measure a `textContent` CSS has removed from the page")
         colours = {name: one["colour"] for name, one in painted.items()}
+        journal.check(
+            "a healthy connection is painted with the SUCCESS token",
+            painted["connected"]["colour"] == painted["connected"]["success"],
+            f"connected draws {painted['connected']['colour']} where "
+            f"--color-success is {painted['connected']['success']}")
+        journal.check(
+            "and a lost one with the DANGER token",
+            painted["lost"]["colour"] == painted["lost"]["danger"]
+            and painted["refused"]["colour"] == painted["refused"]["danger"],
+            f"lost draws {painted['lost']['colour']}, refused "
+            f"{painted['refused']['colour']}, where --color-danger is "
+            f"{painted['lost']['danger']} — a set of inequalities is satisfied "
+            "by a SWAP, and a swap is the defect this hold opens by naming")
         journal.check(
             "a healthy connection is not painted like a broken one",
             colours["connected"] != colours["lost"]
@@ -528,7 +560,11 @@ async def hold(journal):
                  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
                  window.__go("acq-now-idle");
                  await wait(80);
-                 window.__relay.limits({ silence: 60_000, opening: 120 });
+                 // THE OPENING DEADLINE IS HELD LONG. Shortened, it climbs a
+                 // ladder of its own on the same schedule and the hold can no
+                 // longer name which timer it measured — the trap R95's own
+                 // `PATIENT_OPENING_MS` comment records.
+                 window.__relay.limits({ silence: 60_000, opening: 30_000 });
                  window.__mocks.stream.setUnreachable(true);
                  window.__mocks.stream.drop(1006);
                  // Past the fourth failure: 250 + 500 + 1000 + 2000.

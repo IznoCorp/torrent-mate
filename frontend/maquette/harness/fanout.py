@@ -80,6 +80,21 @@ FEATURES = ROOT / "design" / "src" / "features"
 UNCLAIMED_TYPE = "NoRuleClaimsThisEvent"
 
 
+def rule_objects(source):
+    """Yields each `{ … }` literal of a rules array, brace-matched."""
+    depth, start = 0, None
+    for index, character in enumerate(source):
+        if character == "{":
+            if depth == 0:
+                start = index
+            depth += 1
+        elif character == "}" and depth:
+            depth -= 1
+            if depth == 0 and start is not None:
+                yield source[start:index + 1]
+                start = None
+
+
 def declared_rules():
     """Reads every feature's live rules out of its source.
 
@@ -108,14 +123,36 @@ def declared_rules():
         rules_only = source[:marker.start()] if marker else source
         # The key constants first, so a rule naming one can be resolved.
         constants = dict(re.findall(
-            r"^const (\w+) = (\[[^\]]*\]);", source, re.MULTILINE))
-        for block in re.findall(r"\{\s*types:\s*\[(.*?)\],\s*keys:\s*\[(.*?)\],",
-                                rules_only, re.DOTALL):
-            types = re.findall(r'"([^"]+)"', block[0])
-            keys = []
-            for name in re.findall(r"\b([A-Z_]+_KEY)\b", block[1]):
-                keys.append(json.loads(constants[name].replace("'", '"')))
-            found.append((feature, types, keys, ""))
+            r"^(?:export )?const (\w+) = (\[[^\]]*\]);", source, re.MULTILINE))
+        # EACH RULE OBJECT IS READ AS A UNIT, `types` and `keys` found inside it
+        # in any order. The pattern used to require them adjacent and in that
+        # order, and a non-greedy `.*?` does not FAIL on a violation — it walks
+        # into the NEXT rule and pairs one rule's types with another's keys.
+        # `check-live-relay.py` was repaired for this and its comment claimed
+        # this reader had been too. It had not.
+        for block in rule_objects(rules_only):
+            found_types = re.search(r"types:\s*\[(.*?)\]", block, re.DOTALL)
+            found_keys = re.search(r"keys:\s*\[(.*?)\]", block, re.DOTALL)
+            if found_types is None or found_keys is None:
+                continue
+            types = re.findall(r'"([^"]+)"', found_types.group(1))
+            # A RULE WITH A PREDICATE DECLARES THE PAYLOAD IT IS ABOUT. Emitting
+            # an empty one against a predicate makes every such rule read as
+            # « declared and nothing moved » — a measurement about this rule
+            # rather than about the map. A predicate with no sample is refused
+            # below, because an untestable rule is worse than an absent one.
+            found_sample = re.search(r"sample:\s*\{(.*?)\}", block, re.DOTALL)
+            sample = dict(re.findall(r'(\w+):\s*"([^"]*)"',
+                                     found_sample.group(1))) if found_sample else {}
+            has_predicate = re.search(r"^\s*when:", block, re.MULTILINE) is not None
+            keys = [json.loads(constants[name].replace("'", '"'))
+                    for name in re.findall(r"\b([A-Z_][A-Z0-9_]*_KEY)\b",
+                                           found_keys.group(1))
+                    if name in constants]
+            if has_predicate and not sample:
+                found.append((feature, types, keys, "MISSING SAMPLE"))
+                continue
+            found.append((feature, types, keys, sample))
     return found
 
 
@@ -168,17 +205,17 @@ WATCH = """
 """
 
 
-async def moved_by(page, event_type):
+async def moved_by(page, event_type, sample):
     """Emits one event and returns which cache entries were invalidated."""
     return await page.evaluate(
-        """async ({ type }) => {
+        """async ({ type, sample }) => {
              window.__fanoutRefresh();
              const total = window.__queries.getQueryCache().getAll().length;
-             window.__mocks.stream.emit(type, {});
+             window.__mocks.stream.emit(type, sample);
              await window.__mocks.quiet();
              return { total, moved: window.__fanoutSince() };
            }""",
-        {"type": event_type})
+        {"type": event_type, "sample": sample})
 
 
 async def warm(page, keys):
@@ -228,7 +265,14 @@ async def warm(page, keys):
              // ones where within matters: the media sheet's own comment calls
              // an event about one title refreshing another's sheet the defect
              // to avoid, and there was never a second sheet to over-refresh.
-             for (const key of keys) seed([...key, "__sibling"]);
+             // SEEDED UNDER THE ADDRESS, not under the key. A sibling under a
+             // declared key is by construction inside that key's prefix, so it
+             // could never be an over-refresh — it only doubled the entries
+             // that legitimately move and loosened the burst floor. Under the
+             // ADDRESS it is armed for the day a rule declares a narrower key
+             // than the address, which is exactly the media sheet's filed
+             // demand.
+             for (const key of keys) seed([key[0], "__sibling"]);
              // Two extra scenarios under staging's own address, so « every
              // scenario refreshes » has more than one to refresh.
              seed(["/api/staging/media", "dense"]);
@@ -263,11 +307,19 @@ def covers(moved, keys):
         json.dumps(key, separators=(",", ":"), ensure_ascii=False)[:-1]
         for key in keys
     }
+    # THE BOUNDARY IS EXPLICIT. A prefix ending in a string carries its closing
+    # quote and is self-terminating; one ending in a NUMBER does not, so
+    # `["/api/media","tvdb",12345` would match `…,123456]` — another title's
+    # sheet reading as covered, which is the very case the media table names as
+    # the one to avoid. The day the narrow key lands, this is where it bites.
+    def under(entry, prefix):
+        return entry == f"{prefix}]" or entry.startswith(f"{prefix},")
+
     for entry in moved:
-        if not any(entry.startswith(prefix) for prefix in wanted):
+        if not any(under(entry, prefix) for prefix in wanted):
             return False, f"{entry} moved and no rule key covers it"
     for prefix in sorted(wanted):
-        if not any(entry.startswith(prefix) for entry in moved):
+        if not any(under(entry, prefix) for entry in moved):
             return False, (f"{prefix}] is declared and nothing under it moved — "
                            "a rule that refreshes a SUBSET of what it declares "
                            "leaves the rest stale for the life of the process")
@@ -326,16 +378,26 @@ async def hold(journal):
         # is two rules on one event, deliberately: what they refresh differs and
         # so does why. A rule that cannot describe its subject is not measuring
         # it.
-        by_type: dict[str, tuple[set[str], list]] = {}
-        for feature, types, keys, _ in rules:
+        journal.check(
+            "every rule with a predicate declares the payload it is about",
+            not any(sample == "MISSING SAMPLE" for _, _, _, sample in rules),
+            "a `when:` with no `sample:` cannot be driven — this rule would emit "
+            "an empty payload, the predicate would refuse, and the key would "
+            "read as declared-and-unmoved")
+
+        by_type: dict[str, tuple[set[str], list, dict]] = {}
+        for feature, types, keys, sample in rules:
             for event_type in types:
-                features, wanted = by_type.setdefault(event_type, (set(), []))
+                features, wanted, payload = by_type.setdefault(
+                    event_type, (set(), [], {}))
                 features.add(feature)
                 wanted.extend(keys)
+                if isinstance(sample, dict):
+                    payload.update(sample)
 
-        for event_type, (features, keys) in sorted(by_type.items()):
+        for event_type, (features, keys, payload) in sorted(by_type.items()):
             named = "+".join(sorted(features))
-            seen = await moved_by(page, event_type)
+            seen = await moved_by(page, event_type, payload)
             exact, complaint = covers(seen["moved"], keys)
             journal.check(
                 f"{named}: {event_type} refreshes only what it declares",
@@ -381,15 +443,20 @@ async def hold(journal):
             "event — a rule with an empty type list is read by nothing and "
             "refreshes nothing")
         burst_types = [types[0] for _, types, _, _ in rules if types]
+        burst_payload = {}
+        for _, _, _, sample in rules:
+            if isinstance(sample, dict):
+                burst_payload.update(sample)
         burst_keys = [key for _, _, keys, _ in rules for key in keys]
         burst = await page.evaluate(
-            """async ({ types }) => {
+            """async ({ types, payload }) => {
                  window.__fanoutRefresh();
-                 window.__mocks.stream.emitBurst(types.map((type) => ({ type })));
+                 window.__mocks.stream.emitBurst(
+                   types.map((type) => ({ type, data: payload })));
                  await window.__mocks.quiet();
                  return window.__fanoutSince();
                }""",
-            {"types": burst_types})
+            {"types": burst_types, "payload": burst_payload})
         exact, complaint = covers(burst, burst_keys)
         distinct = len({json.dumps(key, separators=(",", ":"), ensure_ascii=False)
                         for key in burst_keys})
@@ -406,7 +473,7 @@ async def hold(journal):
         wide = await page.evaluate(
             """async () => {
                  window.__fanoutRefresh();
-                 window.__mocks.stream.emit("ItemProgressed", {});
+                 window.__mocks.stream.emit("ItemProgressed", { status: "moved" });
                  await window.__mocks.quiet();
                  return window.__fanoutSince().filter(
                    (key) => key.startsWith('["/api/staging/media"'));

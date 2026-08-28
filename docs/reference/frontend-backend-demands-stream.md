@@ -112,7 +112,25 @@ per probe: a per-probe event is a poll wearing an event's clothes, which is dema
 page and break this lot's third contract clause, and it is written here so that the easy
 answer is refused on the record rather than in a review.
 
-## 5. A hello that says more than the commit
+## 5. The ownership reads are served from an index the dispatcher does not write
+
+**Asked for by** `features/library/live.ts` and `features/acquisition/live.ts`.
+
+`ItemDispatched` is emitted per item as the dispatcher moves it. The library listing, the
+categories, the incomplete list and a follow's « 95 sur 96 » are all derived from the INDEX, and
+the scoped scan that puts the dispatched row into the index runs **after** the step — emitting
+`LibraryScanCompleted`. So at the instant `ItemDispatched` arrives, none of those numbers has
+moved yet.
+
+Both rules are kept, because a dispatched item is where the change belongs and because D7 says the
+backend follows the interface. What was wrong was the `because` lines stating the derivation as
+established present fact — which is how a wrong mapping survives its next reader.
+
+**What would close it**: the reads served from something the dispatcher writes synchronously, or
+an explicit ordering guarantee that `LibraryScanCompleted` always follows a dispatch. Until then
+`LibraryScanCompleted` is the event that carries the change, and it is mapped.
+
+## 6. A hello that says more than the commit
 
 **Asked for by** `frontend/maquette/design/src/lib/relay.ts`.
 

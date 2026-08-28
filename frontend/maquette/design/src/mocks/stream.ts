@@ -30,6 +30,17 @@
 // the half of the settle decision that no amount of counting could replace.
 
 import {
+  connections,
+  deliveries,
+  dials,
+  log,
+  nextIdentifier,
+  received,
+  recordConnection,
+  recordFrame,
+  resetServer,
+} from "./stream-server";
+import {
   BUILD_COMMIT,
   isNewerCursor,
   HELLO_TYPE,
@@ -52,46 +63,14 @@ type ServerState = {
   received: string[];
 };
 
-/** The log every connection replays from, and the driver appends to. */
-let entries: StreamEntry[] = [];
-/** The next sequence number, so an id is unique and ordered. */
-let sequence = 0;
-/** Whether the next connection is refused after being accepted. */
-let refusing = false;
-/** Whether the server is unreachable — the connection never opens at all. */
-let unreachable = false;
-/** Whether the server HANGS: it neither accepts nor refuses, and says nothing.
-    A different shape from `unreachable`, and the one that matters — a hung 101
-    upgrade fires no event at all, so a client waiting on `close` waits for
-    ever. `unreachable` at least closes. */
-let stalling = false;
-/** Every text frame the client has sent — the pongs, in order. */
-let received: string[] = [];
 /** The sockets currently open, so the driver can push and drop. */
 let open: MockSocket[] = [];
 /** What the seam replaced, kept so nothing claims an uninstall it cannot do. */
 let installed = false;
-/** What to call around a delivery, so the settle signal can see one.
-    INJECTED, NEVER IMPORTED. `mocks/index.ts` imports this module, so importing
-    it back would be the import cycle invariant 8 refuses — and a cycle makes
-    every other dependency rule unenforceable, because the cycle IS the
-    violation. */
-let beganDelivery: () => void = () => {};
-let endedDelivery: () => void = () => {};
-/** Every address the client has connected to, in order — the closed ones too.
-    This is how a rule sees the `?last_id=` cursor a reconnect carried, without
-    reaching inside the client to read a private field. */
-let connections: string[] = [];
+/** The socket most recently taken out of the open list, kept so a rule can
+    push a frame down one the client no longer holds. */
+let replaced: MockSocket | null = null;
 
-/**
- * Builds the next cursor.
- *
- * @returns An id ordered after every id built before it.
- */
-function nextIdentifier(): string {
-  sequence += 1;
-  return `${sequence}-0`;
-}
 
 /**
  * The simulated socket, carrying only what a client may legitimately use.
@@ -118,7 +97,7 @@ class MockSocket extends EventTarget {
   constructor(address: string | URL) {
     super();
     this.url = String(address);
-    connections.push(this.url);
+    recordConnection(this.url);
     // A MACROTASK, so a client that attaches its listeners after construction
     // — which is every client, because `new WebSocket()` returns before a
     // listener can be added — is listening by the time the handshake runs.
@@ -131,13 +110,13 @@ class MockSocket extends EventTarget {
    * The order is the whole of this method, and it is the server's order.
    */
   private handshake(): void {
-    if (stalling) {
+    if (dials.stalling) {
       // NOTHING HAPPENS. No `open`, no `close`, no `error`, and `readyState`
       // stays CONNECTING — which is exactly what a wedged upgrade looks like to
       // a browser, and exactly what no rule could produce before this existed.
       return;
     }
-    if (unreachable) {
+    if (dials.unreachable) {
       // A SERVER THAT IS NOT THERE NEVER ACCEPTS. The browser reports an error
       // and then an unclean `1006` close, with no `open` in between — which is
       // a different path through the client from a session being refused, and
@@ -152,7 +131,7 @@ class MockSocket extends EventTarget {
     this.readyState = MockSocket.OPEN;
     open.push(this);
     this.dispatchEvent(new Event("open"));
-    if (refusing) {
+    if (dials.refusing) {
       // ACCEPTED, THEN REFUSED. The socket was open for that one instant, which
       // is exactly what a browser sees when the server reads the cookie after
       // accepting — and it is why the client's `4401` branch is reachable.
@@ -172,7 +151,7 @@ class MockSocket extends EventTarget {
   private replay(): void {
     const cursor = new URL(this.url, globalThis.location.origin).searchParams.get("last_id");
     if (cursor === null) return;
-    for (const entry of entries) {
+    for (const entry of log.entries) {
       if (isNewerCursor(entry.id, cursor)) this.push(entry);
     }
   }
@@ -196,6 +175,7 @@ class MockSocket extends EventTarget {
   shut(code: number, reason: string): void {
     if (this.readyState === MockSocket.CLOSED) return;
     this.readyState = MockSocket.CLOSED;
+    if (open.includes(this)) replaced = this;
     open = open.filter((socket) => socket !== this);
     this.dispatchEvent(new CloseEvent("close", { code, reason, wasClean: code === 1000 }));
   }
@@ -209,7 +189,7 @@ class MockSocket extends EventTarget {
    * @param frame What the client sent.
    */
   send(frame: string): void {
-    received.push(frame);
+    recordFrame(frame);
   }
 
   /**
@@ -232,7 +212,7 @@ class MockSocket extends EventTarget {
  */
 function emit(type: string, data: Record<string, unknown> = {}): StreamEntry {
   const entry: StreamEntry = { id: nextIdentifier(), type, data };
-  entries.push(entry);
+  log.entries.push(entry);
   deliver(() => {
     for (const socket of [...open]) socket.push(entry);
   });
@@ -254,7 +234,7 @@ function emit(type: string, data: Record<string, unknown> = {}): StreamEntry {
  * @param push What delivers the frames.
  */
 function deliver(push: () => void): void {
-  beganDelivery();
+  deliveries.began();
   try {
     push();
   } finally {
@@ -264,7 +244,7 @@ function deliver(push: () => void): void {
     // and the oracle silently burned its two-second budget on every remaining
     // state of that page, with no rule red anywhere. Total, silent, and
     // recoverable only by a reload.
-    globalThis.setTimeout(endedDelivery, 0);
+    globalThis.setTimeout(deliveries.ended, 0);
   }
 }
 
@@ -297,6 +277,27 @@ function ping(): void {
 }
 
 /**
+ * Delivers one frame down a socket the client has already replaced.
+ *
+ * A REAL `close()` IS ASYNCHRONOUS. The browser goes on dispatching frames
+ * already in its receive buffer while the client's own reference points at the
+ * replacement — which is exactly what the relay's identity guard exists for,
+ * and exactly what this fake could not produce: `shut()` removes the socket
+ * from `open` synchronously, so a replaced socket here is incapable of
+ * speaking. The handle is kept for one push so a rule can measure the guard.
+ *
+ * @param payload What to push.
+ * @returns Whether there was a replaced socket to push down.
+ */
+function pushStale(payload: unknown): boolean {
+  if (replaced === null) return false;
+  replaced.dispatchEvent(
+    new MessageEvent("message", { data: JSON.stringify(payload) }),
+  );
+  return true;
+}
+
+/**
  * Closes every open socket with a code.
  *
  * @param code The close code. `1000` is a clean teardown; anything else is a
@@ -314,7 +315,7 @@ function drop(code = 1006): void {
  * @param wanted Whether to refuse.
  */
 function refuse(wanted = true): void {
-  refusing = wanted;
+  dials.refusing = wanted;
 }
 
 /**
@@ -323,7 +324,7 @@ function refuse(wanted = true): void {
  * @param wanted Whether the server is unreachable.
  */
 function setUnreachable(wanted = true): void {
-  unreachable = wanted;
+  dials.unreachable = wanted;
 }
 
 /**
@@ -332,7 +333,7 @@ function setUnreachable(wanted = true): void {
  * @param wanted Whether the server stalls.
  */
 function stall(wanted = true): void {
-  stalling = wanted;
+  dials.stalling = wanted;
 }
 
 /**
@@ -342,11 +343,11 @@ function stall(wanted = true): void {
  */
 function state(): ServerState {
   return {
-    entries: entries.map((entry) => ({ ...entry })),
+    entries: log.entries.map((entry) => ({ ...entry })),
     sockets: open.length,
-    refusing,
-    unreachable,
-    stalling,
+    refusing: dials.refusing,
+    unreachable: dials.unreachable,
+    stalling: dials.stalling,
     received: [...received],
   };
 }
@@ -359,13 +360,8 @@ function state(): ServerState {
  * every state after the first measure a reconnecting shell.
  */
 export function resetStream(): void {
-  entries = [];
-  sequence = 0;
-  refusing = false;
-  unreachable = false;
-  stalling = false;
-  received = [];
-  connections = [];
+  resetServer();
+  replaced = null;
 }
 
 /** The driving surface, and the only way into this layer. */
@@ -374,6 +370,7 @@ export type StreamDriver = {
   emitBurst: typeof emitBurst;
   ping: typeof ping;
   drop: typeof drop;
+  pushStale: typeof pushStale;
   refuse: typeof refuse;
   setUnreachable: typeof setUnreachable;
   stall: typeof stall;
@@ -389,12 +386,12 @@ export type StreamDriver = {
  *   has been issued, so the settle signal can see a frame in flight.
  * @returns The driving surface.
  */
-export function installMockStream(deliveries: {
+export function installMockStream(hooks: {
   began: () => void;
   ended: () => void;
 }): StreamDriver {
-  beganDelivery = deliveries.began;
-  endedDelivery = deliveries.ended;
+  deliveries.began = hooks.began;
+  deliveries.ended = hooks.ended;
   if (!installed) {
     installed = true;
     globalThis.WebSocket = MockSocket as unknown as typeof WebSocket;
@@ -404,6 +401,7 @@ export function installMockStream(deliveries: {
     emitBurst,
     ping,
     drop,
+    pushStale,
     refuse,
     setUnreachable,
     stall,

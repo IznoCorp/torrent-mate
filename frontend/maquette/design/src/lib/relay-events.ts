@@ -23,6 +23,9 @@ const listeners = new Set<EventListener>();
 
 /** How far this client has got, and what a reconnect asks to resume from. */
 let cursor: string | null = null;
+// Whether an event has failed to reach every listener. Once one has, the cursor
+// STOPS — see `announce`.
+let blocked = false;
 
 /**
  * Hands one event to everyone listening, then records where we got to.
@@ -37,12 +40,20 @@ let cursor: string | null = null;
  * entry point so there will be more: without the isolation, one listener's
  * throw skips every listener after it AND escapes into the page.
  *
- * THE CURSOR MOVES AFTER THE FAN-OUT, AND ONLY IF IT SUCCEEDED. It used to move
- * first, so an event whose invalidation threw was skipped by the next
- * reconnect's replay as well — one screen stale for the life of the process,
- * with nothing anywhere recording it. And it only ever moves FORWARD: two
- * briefly-overlapping sockets could otherwise hand it an older id than the one
- * already reached, and the next reconnect would replay from behind.
+ * THE CURSOR STOPS AT THE LAST EVENT DELIVERED IN FULL, and « stops » is the
+ * word. A first attempt moved it only when the current event succeeded, which
+ * is not the same thing at all: the NEXT event to succeed carried it straight
+ * past the failed one, and the reconnect skipped that event exactly as before.
+ * The property wanted is a high-water mark of what really landed, so a single
+ * failure freezes the cursor until a reconnect replays from there.
+ *
+ * THE COST IS STATED: after a failure the replay window grows, and it grows
+ * until the connection is remade. That is the deliberate trade — a replayed
+ * event is idempotent work, a lost invalidation is a screen stale for the life
+ * of the process (B-154), and only one of the two can be undone.
+ *
+ * And it only ever moves FORWARD: two briefly-overlapping sockets could
+ * otherwise hand it an older id than the one already reached.
  *
  * @param event What arrived.
  */
@@ -55,9 +66,9 @@ export function announce(event: RelayEvent): void {
       delivered = false;
     }
   }
-  if (delivered && (cursor === null || isNewerCursor(event.id, cursor))) {
-    cursor = event.id;
-  }
+  if (!delivered) blocked = true;
+  if (blocked) return;
+  if (cursor === null || isNewerCursor(event.id, cursor)) cursor = event.id;
 }
 
 /**
@@ -85,4 +96,17 @@ export function readCursor(): string | null {
 /** Forgets where we got to, so a reset starts from the whole stream. */
 export function resetCursor(): void {
   cursor = null;
+  blocked = false;
+}
+
+/**
+ * Says whether the cursor has stopped because a delivery failed.
+ *
+ * Published so a rule can hold the freeze rather than infer it from a cursor
+ * that merely stopped changing.
+ *
+ * @returns True once an event failed to reach every listener.
+ */
+export function cursorBlocked(): boolean {
+  return blocked;
 }

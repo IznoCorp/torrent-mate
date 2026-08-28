@@ -102,6 +102,8 @@ export function installLiveUpdates(queryClient: QueryClient): void {
       return;
     }
     for (const rule of matched) {
+      // A RULE MAY BE ABOUT SOME OF ITS TYPE'S EVENTS AND NOT ALL OF THEM.
+      if (rule.when !== undefined && !rule.when(event.data)) continue;
       for (const key of rule.keys) {
         void queryClient.invalidateQueries({ queryKey: key });
       }
