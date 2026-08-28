@@ -180,7 +180,7 @@ when the defect comes back.
 | B-137 | Four ACCEPTANCE criteria could not run, or expected the wrong answer | by adversarial review | `fixed #509` |
 | B-138 | The profile panel's avatar is unconstrained, inside a region whose probe reads only the container | by operator | `open` |
 | B-139 | Three typed variants were written and never wired; one leaves a bare button unreadable | by operator | `open` |
-| B-140 | Back returns to the top of a page: the scroll memory only knows overlay screens | by operator | `fixed #TBD` |
+| B-140 | Back returns to the top of a page: the scroll memory only knows overlay screens | by operator | `fixed #512` |
 | B-141 | Ten elements carry no class at all, in a prototype that imports no preflight | by audit | `open` |
 | B-142 | Nothing measures the interface against the constitution: five DOIT clauses have no surface | by audit | `open` |
 | B-143 | §17 (accounts, rights, Plex SSO) has no surface, no contract operation and no lot | by audit | `open` |
@@ -192,14 +192,14 @@ when the defect comes back.
 | B-149 | A declared departure from the lot's « Done when » lives only in a session report | by audit | `fixed #511` |
 | B-150 | A size promise expired unnoticed because the guard read the status B-148 froze | by audit | `fixed #511` |
 | B-151 | `coverage-merge` reports « Artifact not found » whenever an earlier job fails | by audit | `open` |
-| B-152 | `IMPLEMENTATION.md` still named L09 as the next lot two commits after L09 merged | by design | `fixed #TBD` |
+| B-152 | `IMPLEMENTATION.md` still named L09 as the next lot two commits after L09 merged | by design | `fixed #512` |
 | B-153 | The demand register is computed from OpenAPI paths, and a WebSocket has none | by design | `open` |
 | B-154 | `staleTime: Infinity` with no focus or reconnect refetch: a missed invalidation never heals | by design | `open` |
-| B-155 | The header claimed « Temps réel connecté » as a literal, with no connection anywhere | by design | `fixed #TBD` |
-| B-156 | The harness's condition lever left the retry control dead in the state that offers it | by rule | `fixed #TBD` |
-| B-157 | R92 held that a notice named its reason by reading the TIMESTAMP beside it | by mutation | `fixed #TBD` |
-| B-158 | R94 walked a journey that cannot lose a scroll position, and passed over B-140 | by mutation | `fixed #TBD` |
-| B-159 | Two instruments split a file on a WORD whose first use is the type import | by gate | `fixed #TBD` |
+| B-155 | The header claimed « Temps réel connecté » as a literal, with no connection anywhere | by design | `fixed #512` |
+| B-156 | The harness's condition lever left the retry control dead in the state that offers it | by rule | `fixed #512` |
+| B-157 | R92 held that a notice named its reason by reading the TIMESTAMP beside it | by mutation | `fixed #512` |
+| B-158 | R94 walked a journey that cannot lose a scroll position, and passed over B-140 | by mutation | `fixed #512` |
+| B-159 | Two instruments split a file on a WORD whose first use is the type import | by gate | `fixed #512` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
