@@ -25,10 +25,10 @@ import { SIGN_IN_PATH } from "../lib/addresses";
 import { go } from "../lib/navigate";
 import {
   readCondition,
-  reconnectNow,
   subscribeToCondition,
   type RelayCondition,
-} from "../lib/relay";
+} from "../lib/relay-condition";
+import { reconnectNow } from "../lib/relay";
 import { connectionDot, connectionMark, connectionNotice } from "../ui/variants";
 
 /** Where the header keeps its indicator. `display: contents`, so it adds no box. */

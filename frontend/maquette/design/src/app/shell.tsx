@@ -73,13 +73,8 @@ import {
 import { installScrollRestoration } from "./scroll-restoration";
 import { installPanelHost } from "./panel-host";
 import { installLiveUpdates, resetLiveUpdates, unmatchedEvents } from "./live-updates";
-import {
-  forceCondition,
-  installRelay,
-  readCondition,
-  reconnectNow,
-  resetRelay,
-} from "../lib/relay";
+import { forceCondition, readCondition } from "../lib/relay-condition";
+import { installRelay, reconnectNow, resetRelay, setLimits } from "../lib/relay";
 import { ConnectionMark, ConnectionNotice } from "./connection-notice";
 import { installSeams } from "../engine/seams";
 import {
@@ -157,6 +152,7 @@ declare global {
       reconnect: typeof reconnectNow;
       unmatched: typeof unmatchedEvents;
       force: typeof forceCondition;
+      limits: typeof setLimits;
       reset: () => void;
     };
     // The domain hooks and the probes read the engine's state through this.
@@ -343,6 +339,7 @@ window.__relay = {
   reconnect: reconnectNow,
   unmatched: unmatchedEvents,
   force: forceCondition,
+  limits: setLimits,
   reset: () => {
     resetLiveUpdates();
     resetRelay();

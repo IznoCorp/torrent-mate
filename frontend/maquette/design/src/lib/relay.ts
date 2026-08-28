@@ -38,6 +38,12 @@ const PONG_FRAME = "pong";
 // and only then reads the cookie, so a refusal is a close on an OPEN socket —
 // which is what makes this branch reachable at all. Closing before accept would
 // give a browser an opaque 1006 and this code would be dead in production.
+import {
+  countAttempt,
+  forceCondition,
+  reportCondition,
+} from "./relay-condition";
+
 const REFUSED_CODE = 4401;
 // A clean teardown. Nothing to say, nothing to reconnect to.
 const CLEAN_CODE = 1000;
@@ -53,13 +59,39 @@ const BACKOFF_MILLISECONDS = [250, 500, 1000, 2000, 4000, 8000] as const;
 // a stale list without being told.
 const ATTEMPTS_BEFORE_LOST = 3;
 
-/** What the connection is doing, as an interface may draw it. */
-export type RelayCondition =
-  | "connecting"
-  | "connected"
-  | "reconnecting"
-  | "lost"
-  | "refused";
+// HOW LONG SILENCE MAY LAST BEFORE THE LINK IS PRESUMED DEAD, and this is the
+// defect the whole lot turned on. A socket can go HALF-OPEN — the laptop
+// sleeps, the phone backgrounds the application, a proxy drops an idle flow —
+// and neither peer receives a FIN. `readyState` stays OPEN, no `close` ever
+// arrives, and a client that only listens for `close` believes it is connected
+// for as long as the tab lives. With `staleTime: Infinity` underneath there is
+// no clock to correct it: every screen freezes at the instant of the drop while
+// the interface says « Connecté ». That is §8 exactly inverted, inside the
+// feature written to end it.
+//
+// The server pings after thirty seconds of client silence, so forty-five
+// seconds without a frame OF ANY KIND — event, hello or ping — means the link
+// is gone. The number is production's, which has answered for this protocol
+// against real sockets.
+const SILENCE_LIMIT_MILLISECONDS = 45_000;
+
+// WHAT IS ACTUALLY WAITED, and the two are separated for the harness alone: a
+// rule cannot spend forty-five seconds per hold. `harness/liveness.py` shortens
+// them to exercise the MECHANISM, and reads the two constants above out of this
+// source to hold the NUMBERS — the same arrangement `settle.py` uses for the
+// oracle's budget, and for the same reason: a rule that only ever measured a
+// shortened timer would prove nothing about the one that ships.
+
+// HOW LONG AN OPENING MAY TAKE. A hung 101 upgrade — a captive portal, a VPN
+// drop, a wedged worker — fires neither `open` nor `close`, so the backoff
+// ladder never advances: it only steps on a `close`. Without this the relay
+// waits on the browser's own connect timeout, which is minutes on desktop and
+// effectively never on some mobile stacks, and the interface sits on
+// « Connexion… » with no notice drawn for it.
+const OPENING_LIMIT_MILLISECONDS = 10_000;
+
+let silenceLimit = SILENCE_LIMIT_MILLISECONDS;
+let openingLimit = OPENING_LIMIT_MILLISECONDS;
 
 /** One event, as the server writes it onto the stream. */
 export type RelayEvent = {
@@ -68,57 +100,53 @@ export type RelayEvent = {
   data: Record<string, unknown>;
 };
 
-/** What a reader of the connection sees. */
-export type RelaySnapshot = {
-  condition: RelayCondition;
-  /** Failed attempts since the last success. Zero while connected. */
-  attempts: number;
-  /** The commit the server said it was serving, once it has said so. */
-  buildCommit: string | null;
-  /** When the connection was last known good, as a millisecond instant. */
-  currentSince: number | null;
-};
-
 /** What a listener is handed for every event that arrives. */
 type EventListener = (event: RelayEvent) => void;
 
 let socket: WebSocket | null = null;
-let attempts = 0;
 let cursor: string | null = null;
-let buildCommit: string | null = null;
-let currentSince: number | null = null;
-let condition: RelayCondition = "connecting";
 let retryTimer: number | null = null;
+// The deadline the current socket is being held to: the opening limit until it
+// speaks, the silence limit afterwards. ONE timer for both, because a socket is
+// never simultaneously opening and idle.
+let livenessTimer: number | null = null;
+// Whether THIS side asked for the teardown. A clean close we initiated is
+// silence; a clean close we did not is a loss — see the close handler.
+let teardownAsked = false;
 let stopped = false;
-// A condition the HARNESS asked for, overriding what the transport is really
-// doing. It exists because a named state is driven SYNCHRONOUSLY — `__go` calls
-// its function and does not await — while three of the four conditions take a
-// backoff delay and a handshake to reach for real. So this drives the DRAWING,
-// and the transport's own walk into each condition is R93's, measured against a
-// real socket. R92 holds one condition reached BOTH ways, which is what keeps
-// the two rules from proving different things about the same interface.
-let forced: RelayCondition | null = null;
 
-// The snapshot is REBUILT ONLY WHEN SOMETHING CHANGES. `useSyncExternalStore`
-// compares by identity and re-renders on every new object, so a getter that
-// built a fresh one per call would re-render the shell on every unrelated
-// render — and, in React's strict development double-render, loop.
-let snapshot: RelaySnapshot = {
-  condition,
-  attempts,
-  buildCommit,
-  currentSince,
-};
-
-const conditionListeners = new Set<() => void>();
 const eventListeners = new Set<EventListener>();
 
 /**
- * Publishes a new snapshot and tells everyone watching the connection.
+ * Holds the current socket to a deadline, replacing any deadline it had.
+ *
+ * @param limit How long, in milliseconds.
  */
-function publish(): void {
-  snapshot = { condition: forced ?? condition, attempts, buildCommit, currentSince };
-  for (const listener of [...conditionListeners]) listener();
+function armLiveness(limit: number): void {
+  disarmLiveness();
+  livenessTimer = globalThis.setTimeout(() => {
+    livenessTimer = null;
+    // A HALF-OPEN SOCKET NEVER CLOSES ITSELF, so the retry cannot be left to
+    // the close handler. The socket is dropped from under it FIRST — the close
+    // that may eventually arrive is then guarded out by identity — and the
+    // reconnection is driven from here.
+    const silent = socket;
+    socket = null;
+    try {
+      silent?.close();
+    } catch {
+      // A socket that is already closing throws; there is nothing to do about
+      // it and nothing to say — the retry below is the whole response.
+    }
+    retry();
+  }, limit);
+}
+
+/** Releases the current deadline. */
+function disarmLiveness(): void {
+  if (livenessTimer === null) return;
+  globalThis.clearTimeout(livenessTimer);
+  livenessTimer = null;
 }
 
 /**
@@ -147,6 +175,16 @@ function announce(event: RelayEvent): void {
  * @param raw The frame body.
  */
 function receive(raw: string): void {
+  // ANY FRAME PROVES THE LINK IS ALIVE, including a ping — which is why the
+  // watchdog is re-armed here rather than in the event branch, and why the
+  // instant is recorded here too. `currentSince` is what the notice calls « les
+  // informations affichées datent de », and that is the age of the DATA: the
+  // last moment this client knew it was current, not the moment it connected.
+  // Written only at the handshake, it announced the session's start — a screen
+  // open since 09:00 and dropped at 14:30 claimed its data was five hours old
+  // when it was thirty seconds old.
+  armLiveness(silenceLimit);
+  reportCondition({ currentSince: Date.now() });
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -159,14 +197,14 @@ function receive(raw: string): void {
 
   if (message.type === HELLO_TYPE) {
     const data = message.data;
-    if (typeof data === "object" && data !== null) {
-      const commit = (data as Record<string, unknown>).build_commit;
-      if (typeof commit === "string") buildCommit = commit;
-    }
-    attempts = 0;
-    condition = "connected";
-    currentSince = Date.now();
-    publish();
+    const commit = typeof data === "object" && data !== null
+      ? (data as Record<string, unknown>).build_commit
+      : undefined;
+    reportCondition({
+      condition: "connected",
+      attempts: 0,
+      ...(typeof commit === "string" ? { buildCommit: commit } : {}),
+    });
     return;
   }
   if (message.type === PING_TYPE) {
@@ -187,9 +225,11 @@ function receive(raw: string): void {
  * Schedules the next attempt, and says what the interface should show meanwhile.
  */
 function retry(): void {
-  attempts += 1;
-  condition = attempts > ATTEMPTS_BEFORE_LOST ? "lost" : "reconnecting";
-  publish();
+  disarmLiveness();
+  const attempts = countAttempt();
+  reportCondition({
+    condition: attempts > ATTEMPTS_BEFORE_LOST ? "lost" : "reconnecting",
+  });
   const delay = BACKOFF_MILLISECONDS[
     Math.min(attempts - 1, BACKOFF_MILLISECONDS.length - 1)
   ];
@@ -211,7 +251,23 @@ function connect(): void {
   const address = cursor === null
     ? RELAY_ADDRESS
     : `${RELAY_ADDRESS}?last_id=${encodeURIComponent(cursor)}`;
-  const opened = new WebSocket(address);
+  // THE DEADLINE IS ARMED BEFORE THE SOCKET EXISTS, so an opening that never
+  // resolves is caught by the same mechanism that catches silence afterwards.
+  armLiveness(openingLimit);
+  let opened: WebSocket;
+  try {
+    opened = new WebSocket(address);
+  } catch {
+    // THE CONSTRUCTOR CAN THROW, and this call site is a module-level statement
+    // in the boot: an escaping error would run before `createRoot` and leave the
+    // operator on the startup screen with no interface at all — for a failure in
+    // a transport the interface does not depend on. It is a reconnection like
+    // any other.
+    socket = null;
+    disarmLiveness();
+    retry();
+    return;
+  }
   socket = opened;
   opened.addEventListener("message", (event) => {
     if (typeof event.data === "string") receive(event.data);
@@ -219,6 +275,7 @@ function connect(): void {
   opened.addEventListener("close", (event) => {
     if (opened !== socket) return;
     socket = null;
+    disarmLiveness();
     if (event.code === REFUSED_CODE) {
       // NOT A CONNECTION PROBLEM, so not a reconnection. The interface says the
       // session is over and offers the way back; retrying would say nothing.
@@ -228,11 +285,21 @@ function connect(): void {
       // has that a reader can act on. It also kept the drawn state and the
       // real path saying different things, which is how a maquette starts
       // lying about the application it is.
-      condition = "refused";
-      publish();
+      reportCondition({ condition: "refused" });
       return;
     }
-    if (event.code === CLEAN_CODE || stopped) return;
+    if (stopped) return;
+    // A CLEAN CLOSE IS ONLY SILENCE IF WE ASKED FOR IT. The server closes
+    // cleanly when it shuts down — and this deployment restarts the web process
+    // on every merge, so an unsolicited 1000 is the single most frequent way
+    // this connection ends. Treating every 1000 as a deliberate teardown left
+    // the condition on « connected » with no socket and nothing scheduled:
+    // every open tab showing a live-looking screen that would never update
+    // again.
+    if (event.code === CLEAN_CODE && teardownAsked) {
+      teardownAsked = false;
+      return;
+    }
     retry();
   });
   opened.addEventListener("error", () => {
@@ -240,6 +307,16 @@ function connect(): void {
     // close is where the decision is taken, so this listener exists to stop the
     // error surfacing as an unhandled one, and does nothing else.
   });
+}
+
+/**
+ * Shortens the two deadlines, for the harness alone.
+ *
+ * @param wanted The limits, in milliseconds. Omit one to leave it as it is.
+ */
+export function setLimits(wanted: { silence?: number; opening?: number }): void {
+  if (wanted.silence !== undefined) silenceLimit = wanted.silence;
+  if (wanted.opening !== undefined) openingLimit = wanted.opening;
 }
 
 /**
@@ -253,27 +330,7 @@ export function installRelay(): void {
   connect();
 }
 
-/**
- * Subscribes to the CONNECTION, for a component drawing its condition.
- *
- * @param listener What to call when the condition changes.
- * @returns The unsubscribe.
- */
-export function subscribeToCondition(listener: () => void): () => void {
-  conditionListeners.add(listener);
-  return () => {
-    conditionListeners.delete(listener);
-  };
-}
 
-/**
- * Reads the connection's condition.
- *
- * @returns The snapshot, stable by identity until something changes.
- */
-export function readCondition(): RelaySnapshot {
-  return snapshot;
-}
 
 /**
  * Subscribes to the EVENTS.
@@ -302,28 +359,19 @@ export function reconnectNow(): void {
   // for the real one — leaving the override in place made the control dead in
   // the exact state that offers it, which is the §8 defect this whole feature
   // exists to end, sitting inside the feature (B-156).
-  forced = null;
+  forceCondition(null);
   if (retryTimer !== null) {
     globalThis.clearTimeout(retryTimer);
     retryTimer = null;
   }
+  teardownAsked = true;
+  disarmLiveness();
   socket?.close(CLEAN_CODE, "replaced by a manual retry");
   socket = null;
-  attempts = 0;
-  condition = "connecting";
-  publish();
+  reportCondition({ condition: "connecting", attempts: 0 });
   connect();
 }
 
-/**
- * Asks for a condition, for the harness alone.
- *
- * @param wanted The condition to draw, or null to go back to the real one.
- */
-export function forceCondition(wanted: RelayCondition | null): void {
-  forced = wanted;
-  publish();
-}
 
 /**
  * Puts the relay back to a known good place between named states.
@@ -337,7 +385,7 @@ export function forceCondition(wanted: RelayCondition | null): void {
  * wrong with them.
  */
 export function resetRelay(): void {
-  forced = null;
-  publish();
-  if (condition !== "connected" && condition !== "connecting") reconnectNow();
+  teardownAsked = true;
+  forceCondition(null);
+  if (socket === null) reconnectNow();
 }

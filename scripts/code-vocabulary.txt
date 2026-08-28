@@ -238,6 +238,7 @@ diffuses
 digits
 direct
 direction
+disarm
 discover
 disks
 dismiss
@@ -463,6 +464,7 @@ library
 libretry
 light
 like
+limit
 line
 lines
 link
@@ -473,6 +475,7 @@ listing
 listings
 lists
 live
+liveness
 lmode
 load
 loaded
@@ -580,6 +583,7 @@ one
 only
 open
 opened
+opening
 operation
 option
 order
@@ -817,6 +821,8 @@ sidebar
 sign
 signal
 signout
+silence
+silent
 since
 size
 skel
@@ -904,6 +910,7 @@ take
 takeable
 taken
 target
+teardown
 temp
 template
 term

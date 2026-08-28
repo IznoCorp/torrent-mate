@@ -54,6 +54,7 @@ type ServerState = {
   sockets: number;
   refusing: boolean;
   unreachable: boolean;
+  stalling: boolean;
   received: string[];
 };
 
@@ -65,6 +66,11 @@ let sequence = 0;
 let refusing = false;
 /** Whether the server is unreachable — the connection never opens at all. */
 let unreachable = false;
+/** Whether the server HANGS: it neither accepts nor refuses, and says nothing.
+    A different shape from `unreachable`, and the one that matters — a hung 101
+    upgrade fires no event at all, so a client waiting on `close` waits for
+    ever. `unreachable` at least closes. */
+let stalling = false;
 /** Every text frame the client has sent — the pongs, in order. */
 let received: string[] = [];
 /** The sockets currently open, so the driver can push and drop. */
@@ -150,6 +156,12 @@ class MockSocket extends EventTarget {
    * The order is the whole of this method, and it is the server's order.
    */
   private handshake(): void {
+    if (stalling) {
+      // NOTHING HAPPENS. No `open`, no `close`, no `error`, and `readyState`
+      // stays CONNECTING — which is exactly what a wedged upgrade looks like to
+      // a browser, and exactly what no rule could produce before this existed.
+      return;
+    }
     if (unreachable) {
       // A SERVER THAT IS NOT THERE NEVER ACCEPTS. The browser reports an error
       // and then an unclean `1006` close, with no `open` in between — which is
@@ -331,6 +343,15 @@ function setUnreachable(wanted = true): void {
 }
 
 /**
+ * Makes every connection HANG — neither accepted nor refused.
+ *
+ * @param wanted Whether the server stalls.
+ */
+function stall(wanted = true): void {
+  stalling = wanted;
+}
+
+/**
  * Reads the simulated server's state.
  *
  * @returns What it holds, copied, so a reader cannot write it back.
@@ -341,6 +362,7 @@ function state(): ServerState {
     sockets: open.length,
     refusing,
     unreachable,
+    stalling,
     received: [...received],
   };
 }
@@ -357,6 +379,7 @@ export function resetStream(): void {
   sequence = 0;
   refusing = false;
   unreachable = false;
+  stalling = false;
   received = [];
   connections = [];
 }
@@ -369,6 +392,7 @@ export type StreamDriver = {
   drop: typeof drop;
   refuse: typeof refuse;
   setUnreachable: typeof setUnreachable;
+  stall: typeof stall;
   state: typeof state;
   connections: () => string[];
   reset: typeof resetStream;
@@ -398,6 +422,7 @@ export function installMockStream(deliveries: {
     drop,
     refuse,
     setUnreachable,
+    stall,
     state,
     connections: () => [...connections],
     reset: resetStream,
