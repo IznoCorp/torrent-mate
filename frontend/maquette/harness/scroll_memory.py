@@ -68,35 +68,63 @@ OFFSET = 300
 TOLERANCE = 12
 
 
-async def walk(page, state, opener, port):
-    """Scrolls, opens something, comes back, and reports the offset each time."""
+async def walk_a_page(page):
+    """Scrolls a page, leaves it for another top-level page, and comes back.
+
+    THE JOURNEY IS THE ONE THAT REPRODUCES, and it was found by measuring rather
+    than by reasoning. The first version of this rule scrolled the library,
+    OPENED A MEDIA SHEET and came back — and it passed with the defect restored,
+    because a screen is `position: absolute` OVER the page: `#port` is never
+    unmounted, its height does not change, and its offset survives with or
+    without any memory at all. Measured: 300 px before, 300 during, 300 after.
+
+    What really loses the position is a TOP-LEVEL PAGE SWITCH. The page's
+    content is replaced, `#port` becomes a different length, and the browser
+    clamps the offset to zero. Measured on the same build, one selector apart:
+    back at 0 with `.screen.open .port`, back at 300 with the repair.
+    """
     return await page.evaluate(
-        """async ({ state, opener, port, offset }) => {
+        """async ({ offset }) => {
              const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-             window.__go(state);
+             const port = () => document.querySelector("#port");
+             window.__go("lib-grid");
              await window.__mocks.quiet();
              await wait(400);
-             const scroller = document.querySelector(port);
-             if (!scroller) return { reached: null, why: `no element at ${port}` };
-             scroller.scrollTop = Math.min(
-               offset, scroller.scrollHeight - scroller.clientHeight);
+             port().scrollTop = Math.min(
+               offset, port().scrollHeight - port().clientHeight);
              await wait(200);
-             const left = scroller.scrollTop;
+             const left = port().scrollTop;
              if (left < 20) return { reached: null, why: `page too short: ${left}` };
 
-             const control = document.querySelector(opener);
-             if (!control) return { reached: null, why: `nothing to open at ${opener}` };
-             control.click();
+             // OPEN AN ITEM FIRST, and it is not decoration. A top-level tab
+             // REPLACES the current entry (D1b), so leaving the page directly
+             // would consume the very entry the return needs and there would be
+             // nothing to go back to — measured: `history.back()` stays put and
+             // the rule fails for a reason that is not the defect. The item's
+             // push is what the tab then replaces, leaving the page's own entry
+             // underneath. It is also the operator's own journey: the position
+             // is not lost coming back FROM the item, it is lost coming back
+             // from somewhere else.
+             const tile = document.querySelector('[data-part="tile"]');
+             if (!tile) return { reached: null, why: "the grid drew no tile" };
+             tile.click();
              await window.__mocks.quiet();
-             await wait(500);
+             await wait(600);
 
-             window.__bridge.back();
+             const tab = document.querySelector('#nav [data-page="sys"]');
+             if (!tab) return { reached: null, why: "the tab bar has no system tab" };
+             tab.click();
              await window.__mocks.quiet();
-             await wait(800);
-             const back = document.querySelector(port);
-             return { left, reached: back ? back.scrollTop : null, why: "" };
+             await wait(700);
+             const elsewhere = port().scrollTop;
+
+             history.back();
+             await window.__mocks.quiet();
+             await wait(900);
+             return { left, elsewhere, reached: port().scrollTop,
+                      where: location.pathname, why: "" };
            }""",
-        {"state": state, "opener": opener, "port": port, "offset": OFFSET})
+        {"offset": OFFSET})
 
 
 async def hold(journal):
@@ -108,21 +136,26 @@ async def hold(journal):
         page.on("pageerror", lambda error: errors.append(str(error)))
         await page.evaluate("()=>window.__loadingDone?.()")
 
-        # THE PAGE. The library's grid is the longest surface the prototype has,
-        # and a poster opens the media sheet — which is the journey the operator
-        # described.
-        walked = await walk(page, "lib-grid", '[data-part="tile"]', PAGE_PORT)
+        # THE PAGE, left for another top-level page and returned to.
+        walked = await walk_a_page(page)
         journal.check(
-            "a main page can be scrolled and something opened from it",
+            "a main page can be scrolled and left for another",
             walked["reached"] is not None,
             walked["why"])
         if walked["reached"] is not None:
             journal.check(
+                "leaving a page really loses the offset, so the return means something",
+                walked["elsewhere"] < TOLERANCE,
+                f"the offset was {walked['elsewhere']} on the other page — if it "
+                "survived the departure, this rule would pass with no memory at "
+                "all, which is what its first version did")
+            journal.check(
                 "coming back to a PAGE lands where one left it",
-                abs(walked["reached"] - walked["left"]) <= TOLERANCE,
-                f"left at {walked['left']}, came back to {walked['reached']} — "
-                "the port a main page scrolls in is `#port`, and it is never "
-                "inside a `.screen.open` (B-140)")
+                abs(walked["reached"] - walked["left"]) <= TOLERANCE
+                and walked["where"] == "/",
+                f"left at {walked['left']}, came back to {walked['reached']} at "
+                f"{walked['where']!r} — the port a main page scrolls in is "
+                "`#port`, and it is never inside a `.screen.open` (B-140)")
 
         # THE SCREEN, so the repair is not proved by breaking what worked.
         on_screen = await page.evaluate(
@@ -161,35 +194,15 @@ async def hold(journal):
                 "repair, and a repair that traded one port for the other would "
                 "pass every hold above and fail here")
 
-        # FORWARD IS A NEW VISIT. The mechanism restores on a RETURN only, and
-        # that is a decision rather than an omission.
-        forward = await page.evaluate(
-            """async ({ port, offset }) => {
-                 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-                 window.__go("lib-grid");
-                 await window.__mocks.quiet();
-                 await wait(400);
-                 const scroller = document.querySelector(port);
-                 scroller.scrollTop = Math.min(
-                   offset, scroller.scrollHeight - scroller.clientHeight);
-                 await wait(200);
-                 document.querySelector('[data-part="tile"]').click();
-                 await window.__mocks.quiet();
-                 await wait(500);
-                 window.__bridge.back();
-                 await wait(700);
-                 history.forward();
-                 await wait(700);
-                 window.__bridge.back();
-                 await wait(800);
-                 const back = document.querySelector(port);
-                 return back ? back.scrollTop : null;
-               }""",
-            {"port": PAGE_PORT, "offset": OFFSET})
+        # AND IT SURVIVES BEING DONE TWICE. A restoration that fires once and
+        # then leaves its token stale would pass every hold above.
+        again = await walk_a_page(page)
         journal.check(
-            "a walk out and back twice still lands where one left",
-            forward is not None and abs(forward - OFFSET) <= 60,
-            f"came back to {forward} after going forward and back again")
+            "and it still does the second time",
+            again["reached"] is not None
+            and abs(again["reached"] - again["left"]) <= TOLERANCE,
+            f"the second walk left at {again['left']} and came back to "
+            f"{again['reached']}")
 
         await context.close()
         await browser.close()
