@@ -197,6 +197,7 @@ when the defect comes back.
 | B-154 | `staleTime: Infinity` with no focus or reconnect refetch: a missed invalidation never heals | by design | `open` |
 | B-155 | The header claimed « Temps réel connecté » as a literal, with no connection anywhere | by design | `fixed #TBD` |
 | B-156 | The harness's condition lever left the retry control dead in the state that offers it | by rule | `fixed #TBD` |
+| B-157 | R92 held that a notice named its reason by reading the TIMESTAMP beside it | by mutation | `fixed #TBD` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
@@ -280,6 +281,27 @@ for the real condition, not for the drawn one.
 **What is worth keeping is why it was caught**: the hold does not read the control's LABEL, it
 clicks it and reads what the connection then is. A hold asserting that a button exists and says
 « Réessayer maintenant » would have been green over a dead control.
+
+**B-157 — the hold read when it happened, not what happened.**
+R92's first version held « `lost` says what is wrong, and since when » by looking for two things
+in the notice: the lead « Les informations affichées datent de », and the ABSENCE of the string
+« 4401 ». Both survive a notice that says something entirely different.
+
+**The mutation is what found it, and it found nothing the first time.** Making `lost` draw the
+RECONNECTING copy — a real defect, the exact « wrong state » failure the rule names in its own
+docstring — left the timestamp and the retry label in place, so the rule reported 20 holds and no
+violation. The rule was green over the defect it was written for, which is B-085's shape and
+this repository's dominant one: **the seventeenth, eighteenth and every instance since have all
+been an instrument reading a neighbour of its subject rather than its subject.**
+
+Repaired by holding the REASON itself, per condition, read off `i18n/fr.json` rather than retyped —
+plus the control's label, plus a hold that the two notices differ from each other, so one wrong
+entry in the list cannot pass. Re-mutated: both `lost` and `refused` fall, each naming the copy it
+should have carried. A second mutation — the notice never rendering at all — falls twelve holds.
+
+**What is worth carrying forward**: « and since when » in the hold's own NAME was the tell. A hold
+whose sentence contains « and » is answering two questions, and it will pass whenever the easier
+one is true.
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04

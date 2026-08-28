@@ -83,6 +83,27 @@ NOTICES = {
 # is the app's rendered output; the time itself is the moment of the run.
 SINCE_LEAD = "Les informations affichées datent de"   # french-ok: the app's rendered output
 
+# WHAT EACH NOTICE SAYS IT IS ABOUT, and this list exists because the rule was
+# GREEN WITHOUT IT. Its first version held that the notice named a real reason
+# by looking for the SINCE lead and the absence of « 4401 » — so a mutation that
+# made `lost` draw the reconnecting copy changed the reason, kept the
+# timestamp, and passed (B-157). A hold that reads when a thing happened is not
+# a hold that reads what happened.
+#
+# Read off `i18n/fr.json`, never retyped:
+# <sub>`python3 -c "import json;print(json.load(open('frontend/maquette/design/src/i18n/fr.json'))['connection']['lost']['body'])"`</sub>
+REASONS = {                                  # french-ok: the app's rendered output
+    "lost": "Cet écran ne se met plus à jour : la connexion au serveur est perdue.",
+    "refused": "Votre session n'est plus valide, cet écran ne se met plus à jour.",
+}
+
+# And what each control SAYS, beside what it does. Both are held: a control that
+# did the right thing under the wrong words is a control a reader will not press.
+LABELS = {                                   # french-ok: the app's rendered output
+    "lost": "Réessayer maintenant",
+    "refused": "Se reconnecter",
+}
+
 # The dot and the notice, by their `data-*` anchors (D4).
 #
 # READ BY THEIR PART NAME, NEVER BY `[data-connection]` ON ITS OWN. A presence
@@ -166,9 +187,19 @@ async def hold(journal):
                 drawn["condition"] == condition and drawn["word"] == WORDS[condition],
                 f"the header says {drawn['word']!r} at condition {drawn['condition']!r}")
             journal.check(
-                f"`{condition}` says what is wrong, and since when",
+                f"`{condition}` says what is wrong, in its own words",
+                drawn["body"] is not None and REASONS[condition] in drawn["body"],
+                f"the notice reads {drawn['body']!r}, and must carry "
+                f"{REASONS[condition]!r}")
+            journal.check(
+                f"`{condition}` says since when",
                 drawn["body"] is not None and SINCE_LEAD in drawn["body"],
                 f"the notice reads {drawn['body']!r}")
+            journal.check(
+                f"`{condition}` labels its control for what it does",
+                drawn["body"] is not None and LABELS[condition] in drawn["body"],
+                f"the notice reads {drawn['body']!r}, and must offer "
+                f"{LABELS[condition]!r}")
             journal.check(
                 f"`{condition}` names a reason and never a code",
                 drawn["body"] is not None and "4401" not in drawn["body"],
@@ -199,6 +230,14 @@ async def hold(journal):
             "the four conditions draw four different words",
             len(set(seen.values())) == 4,
             f"the header drew {sorted(seen.values())}")
+
+        # AND NO TWO NOTICES SAY THE SAME THING. Every hold above is per
+        # condition, so a notice drawing ANOTHER condition's copy would need a
+        # reason list wrong in two places to pass — this makes one enough.
+        journal.check(
+            "the two notices say different things",
+            len(set(REASONS.values())) == 2 and len(set(LABELS.values())) == 2,
+            f"the reasons are {sorted(REASONS.values())}")
 
         # THE CONTROL DOES SOMETHING, held by what happens and not by its label.
         acted = await page.evaluate(
