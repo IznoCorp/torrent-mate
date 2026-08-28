@@ -117,8 +117,12 @@ CACHE_WIDE = (
      "names no key, so it invalidates the WHOLE cache"),
     (re.compile(r"invalidateQueries\s*\(\s*\{[^}]*?queryKey\s*:\s*\[\s*\]", re.DOTALL),
      "names an EMPTY key, which matches every query in the cache"),
-    (re.compile(r"invalidateQueries\s*\(\s*\{[^}]*?\b(predicate|type)\s*:", re.DOTALL),
-     "selects by predicate or by type rather than by key"),
+    # `type:` NARROWS, it does not widen — `{ queryKey: K, type: "active" }` is
+    # ordinary and correct, and flagging it told its author to delete a correct
+    # narrowing. Only a selector with NO key is cache-wide.
+    (re.compile(r"invalidateQueries\s*\(\s*\{(?![^}]*?queryKey)[^}]*?"
+                r"\b(?:predicate|type)\s*:", re.DOTALL),
+     "selects by predicate or by type and names no key at all"),
     # R3-9: these three are only cache-wide when they are given NO key. A
     # `removeQueries({ queryKey: [...] })` evicting one sheet after a delete is
     # correct, and flagging it told its author the opposite of the truth.
@@ -128,8 +132,13 @@ CACHE_WIDE = (
     (re.compile(r"\b(?:resetQueries|removeQueries|refetchQueries)"
                 r"\s*\(\s*\{[^}]*?queryKey\s*:\s*\[\s*\]", re.DOTALL),
      "is given an EMPTY key, which matches every query"),
-    (re.compile(r"\.\s*clear\s*\(\s*\)"),
-     "empties the cache outright"),
+    # ANCHORED ON A CACHE, not on any receiver. `Map.clear()`, `Set.clear()` and
+    # `localStorage.clear()` are ordinary; there are none in this tree today, so
+    # the unanchored form was vacuous now and a false diagnosis the first time
+    # anyone wrote one.
+    (re.compile(r"\b(?:queryClient|queryCache|getQueryCache\(\))"
+                r"\s*\.\s*clear\s*\(\s*\)"),
+     "empties the query cache outright"),
 )
 
 
@@ -208,7 +217,12 @@ def arm_named_invalidation():
     violations = 0
     named = 0
     for path in files:
-        text = path.read_text(encoding="utf-8")
+        # COMMENTS ARE NOT CODE, and the sibling arm has known that since it was
+        # written. A doc comment naming `invalidateQueries()` in the forbidden
+        # form broke this one — and this file's own prose does exactly that.
+        raw = path.read_text(encoding="utf-8")
+        text = re.sub(r"/\*.*?\*/", "", raw, flags=re.DOTALL)
+        text = "\n".join(re.sub(r"//.*$", "", line) for line in text.splitlines())
         # A NAMED INVALIDATION IS ONE WITH A KEY THAT IS NOT AN EMPTY ARRAY.
         # Counting every `queryKey:` made `queryKey: []` evidence of health; a
         # first repair demanded a `[` and then missed `queryKey: key`, which is
@@ -279,13 +293,15 @@ def backend_events():
               file=sys.stderr)
         return from_source, None
     if registry != from_source:
-        print("check-live-relay[map-completeness]: the bus registry and the "
-              f"source scan disagree — only in the registry: "
-              f"{sorted(registry - from_source)}; only in the source: "
-              f"{sorted(from_source - registry)}. The registry is what the wire "
-              "carries; the scan is a regex that cannot see a subclassed or "
-              "multi-base event.")
-        return registry | from_source, None
+        # THE DISAGREEMENT IS THE FINDING, and it used to be printed and thrown
+        # away — the same shape as the unresolved-key count two arms over. It is
+        # returned so the caller can refuse.
+        return registry | from_source, (
+            "the bus registry and the source scan disagree — only in the "
+            f"registry: {sorted(registry - from_source)}; only in the source: "
+            f"{sorted(from_source - registry)}. The registry is what the wire "
+            "carries; the scan is a regex that cannot see a subclassed or "
+            "multi-base event, and one of the two is now wrong about this tree")
     return registry, None
 
 
@@ -443,7 +459,16 @@ def read_addresses():
 
 def arm_map_completeness():
     """Refuses an event or an address that is neither claimed nor exempted."""
-    emitted, missing_source = backend_events()
+    # THE COUNTER IS DECLARED BEFORE ANYTHING CAN ADD TO IT. Two defects in
+    # this arm have now been a `violations` used before its assignment — the
+    # first survived because its loop was empty, and only `make lint` could see
+    # either. The declaration goes first, once.
+    violations = 0
+    emitted, disagreement = backend_events()
+    if emitted is not None and disagreement is not None:
+        print(f"  {disagreement}")
+        violations += 1
+    missing_source = disagreement if emitted is None else None
     if emitted is None:
         print(f"check-live-relay[map-completeness]: {missing_source} is not "
               "there — this arm compares against the backend's own event "
@@ -451,14 +476,11 @@ def arm_map_completeness():
         return 1
     mapped, exempt_types, refreshed, exempt_keys, tables, unresolved = declared()
     addresses = read_addresses()
-    violations = 0
     for where, name in unresolved:
         violations += 1
         print(f"  {where}: a rule names `{name}`, which no `const` in that file "
               "declares. Its key is unread, so the address it would refresh "
               "reads as unrefreshed or, worse, as covered by another rule.")
-    addresses = read_addresses()
-    violations = 0
 
     # THE ADDRESS SIDE HAD NO FLOOR, and B-159 — this arm's own recorded defect
     # — was not zero: it read 3 addresses out of 24 and printed the number
