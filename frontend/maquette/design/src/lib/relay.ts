@@ -102,12 +102,7 @@ let retryTimer: number | null = null;
 // speaks, the silence limit afterwards. ONE timer for both, because a socket is
 // never simultaneously opening and idle.
 let livenessTimer: number | null = null;
-// Whether THIS side asked for the teardown. A clean close we initiated is
-// silence; a clean close we did not is a loss — see the close handler.
-let teardownAsked = false;
-let stopped = false;
 
-const eventListeners = new Set<EventListener>();
 
 /**
  * Holds the current socket to a deadline, replacing any deadline it had.
@@ -132,6 +127,38 @@ function armLiveness(limit: number): void {
     }
     retry();
   }, limit);
+}
+
+/**
+ * Lets go of the current socket without hearing its close.
+ *
+ * THE ORDER IS THE WHOLE OF IT. `socket` is nulled FIRST, so the close this
+ * side is about to cause is dropped by the identity guard in the close
+ * listener — which is what makes « every close that reaches the decision is
+ * unsolicited » true by construction rather than by a flag somebody has to
+ * consume.
+ *
+ * A SHARED FLAG WAS TRIED AND IT LEAKED, twice over. `teardownAsked` was set by
+ * `reconnectNow()` and consumed by the close it expected — except when `socket`
+ * was already null, which is every retry from `refused` or `lost`, where
+ * `close()` is a no-op and nothing consumed it; and except in a real browser,
+ * where `close()` is ASYNCHRONOUS and the close arrives after the replacement
+ * is in place, so the identity guard eats it before the flag is read. Either
+ * way the flag stayed true and the next unsolicited 1000 — one per deploy —
+ * was swallowed: condition « connected », no socket, nothing scheduled. The
+ * repair for that defect reintroduced it.
+ *
+ * @param why What to tell the server.
+ */
+function letGo(why: string): void {
+  const going = socket;
+  socket = null;
+  disarmLiveness();
+  try {
+    going?.close(CLEAN_CODE, why);
+  } catch {
+    // A socket already closing throws; it is going away either way.
+  }
 }
 
 /** Releases the current deadline. */
@@ -231,7 +258,6 @@ function retry(): void {
  * an exclusive lower bound, so the same event never arrives twice.
  */
 function connect(): void {
-  if (stopped) return;
   retryTimer = null;
   // BUILT ABSOLUTE, and the scheme is derived from the page's. A RELATIVE
   // address is a recent addition to the `WebSocket` constructor — Firefox 124,
@@ -264,6 +290,17 @@ function connect(): void {
     return;
   }
   socket = opened;
+  opened.addEventListener("open", () => {
+    if (opened !== socket) return;
+    // THE UPGRADE SUCCEEDED, so the opening deadline has done its job and the
+    // silence watchdog takes over. Without this listener the « opening » limit
+    // was really a TIME-TO-FIRST-FRAME limit: a socket accepted at t=0 whose
+    // hello is late — a cold worker, a large `?last_id=` replay — was killed at
+    // ten seconds and retried, re-requesting the same window and being killed
+    // again. A connect storm on exactly the reconnection the cursor exists to
+    // make cheap.
+    armLiveness(silenceLimit);
+  });
   opened.addEventListener("message", (event) => {
     // THE SAME GUARD THE CLOSE LISTENER HAS, and it was missing here. A real
     // `close()` is ASYNCHRONOUS: the browser goes on dispatching frames already
@@ -290,18 +327,16 @@ function connect(): void {
       reportCondition({ condition: "refused" });
       return;
     }
-    if (stopped) return;
-    // A CLEAN CLOSE IS ONLY SILENCE IF WE ASKED FOR IT. The server closes
+      // A CLEAN CLOSE IS ONLY SILENCE IF WE ASKED FOR IT. The server closes
     // cleanly when it shuts down — and this deployment restarts the web process
     // on every merge, so an unsolicited 1000 is the single most frequent way
     // this connection ends. Treating every 1000 as a deliberate teardown left
     // the condition on « connected » with no socket and nothing scheduled:
     // every open tab showing a live-looking screen that would never update
     // again.
-    if (event.code === CLEAN_CODE && teardownAsked) {
-      teardownAsked = false;
-      return;
-    }
+    // EVERY CLOSE THAT REACHES HERE IS UNSOLICITED, BY CONSTRUCTION — see
+    // `letGo`, which nulls the socket before closing so the identity guard four
+    // lines above owns a close this side asked for.
     retry();
   });
   opened.addEventListener("error", () => {
@@ -344,7 +379,6 @@ export function readLimits(): { silence: number; opening: number } {
  *   returned one would be a promise this module does not keep.
  */
 export function installRelay(): void {
-  stopped = false;
   connect();
 }
 
@@ -370,10 +404,7 @@ export function reconnectNow(): void {
     globalThis.clearTimeout(retryTimer);
     retryTimer = null;
   }
-  teardownAsked = true;
-  disarmLiveness();
-  socket?.close(CLEAN_CODE, "replaced by a manual retry");
-  socket = null;
+  letGo("replaced by a manual retry");
   reportCondition({ condition: "connecting", attempts: 0 });
   connect();
 }
@@ -391,7 +422,8 @@ export function reconnectNow(): void {
  * wrong with them.
  */
 export function resetRelay(): void {
-  teardownAsked = true;
   forceCondition(null);
+  resetCursor();
+  letGo("reset");
   if (socket === null) reconnectNow();
 }
