@@ -25,7 +25,7 @@ when the defect comes back.
 | `open`       | Reproduced and diagnosed, not yet fixed.                       |
 | `fixing`     | Being worked on right now. Exactly one bug may hold this.      |
 | `to confirm` | Fixed, rule green, mutation proven — waiting for the operator. |
-| `fixed #NNN` | Fixed on a branch, in the pull request named — not on `main` yet. |
+| `fixed #509` | Fixed on a branch, in the pull request named — not on `main` yet. |
 | `closed`     | Operator confirmed on a real device.                           |
 
 ---
@@ -123,7 +123,7 @@ when the defect comes back.
 | B-087 | A media sheet substituted one family's synopsis for another's, on 213 of 259 titles | by review | `fixed #503` |
 | B-088 | Twenty provider identities name two sheet keys, and the first returned nine empty season lists | by review | `fixed #503` |
 | B-089 | `serie` is a broadcast status, and a rename read it as a series name | by review | `fixed #503` |
-| B-090 | `Setting.value` carries the engine's rendered French, and one of them is lossy | by review | `fixed #NNN` |
+| B-090 | `Setting.value` carries the engine's rendered French, and one of them is lossy | by review | `fixed #509` |
 | B-091 | `grabForFollow` answered a hash field with a release name | by review | `fixed #503` |
 | B-092 | Four mutating routes changed nothing the next read could see | by review | `fixed #503` |
 | B-093 | `isPureLiteral` walked an initializer's children and never the initializer | by review | `fixed #503` |
@@ -145,39 +145,39 @@ when the defect comes back.
 | B-102 | Seven register rows are duplicated, once `fixed` and once `open` | by audit | `open` |
 | B-103 | Two invariants are numbered 10, and a brief pointed at « invariant 10 » | by audit | `open` |
 | B-104 | The generated contract types live under `mocks/`, and they are not a mock | by gate | `open` |
-| B-105 | R89's waterfall hold was green over the exact defect it names | by mutation | `fixed #NNN` |
-| B-106 | The server-state arm read only the component tree, so its ceiling was pre-satisfied | by mutation | `fixed #NNN` |
-| B-107 | `git checkout --` on an untracked file is a no-op, and a mutation stayed in the tree | by review | `fixed #NNN` |
-| B-108 | The oracle tore React's own nodes out before measuring, and recorded four states as blank | by oracle | `fixed #NNN` |
-| B-109 | A retry that re-asks nothing was written, and the invariant-4 arm refused it | by gate | `fixed #NNN` |
-| B-110 | The fixture register had no word for a family L09 deliberately deletes | by gate | `fixed #NNN` |
-| B-111 | An edit replaced a span it had not read, and took six published members with it | by rule | `fixed #NNN` |
-| B-112 | The library's sentinel watched the wrong port, masked by a 620 ms delay | by oracle | `fixed #NNN` |
-| B-113 | A named state was reachable from a known store and an unknown cache | by oracle | `fixed #NNN` |
-| B-114 | The listing conflated what the library claims with what the source holds | by rule | `fixed #NNN` |
-| B-115 | A redraw bridge deduplicated on a clock the oracle is allowed to stop | by oracle | `fixed #NNN` |
-| B-116 | The inverse projection turned a string into an object of its characters | by rule | `fixed #NNN` |
-| B-117 | The queue read served the dense world under the real scenario | by review | `fixed #NNN` |
-| B-118 | The seed builder deleted twenty-one seeds the mock layer serves | by review | `fixed #NNN` |
-| B-119 | A copy of the design root no longer builds, and the rule read a broken host | by rule | `fixed #NNN` |
-| B-120 | A journey rule read the verb of a panel the previous half had left open | by rule | `fixed #NNN` |
-| B-121 | A gate compared a committed seed to a counter the daemon increments | by gate | `fixed #NNN` |
-| B-122 | A guard named a path by cutting it on the operator's own clone directory | by CI | `fixed #NNN` |
-| B-123 | The settings drew a cron expression raw — the kind of the field lived nowhere | by adversarial review | `fixed #NNN` |
-| B-124 | The invariant-4 arm read one spelling of a store write out of three | by adversarial review | `fixed #NNN` |
-| B-125 | The invariant-5 arm did not know `fetchNextPage`, nor count a layout effect | by adversarial review | `fixed #NNN` |
-| B-126 | The unit-test floors sat a third under the corpus they guard | by adversarial review | `fixed #NNN` |
-| B-127 | A search matching nothing said « 0 résultat affiché sur 257 trouvés » | by adversarial review | `fixed #NNN` |
-| B-128 | The release picker was title-blind, and its cache key with it | by adversarial review | `fixed #NNN` |
-| B-129 | The library count line printed a literal beside the number it was served | by adversarial review | `fixed #NNN` |
-| B-130 | Discarding a staged medium walked one list out of three | by adversarial review | `fixed #NNN` |
-| B-131 | A listing parameter, a served resource and a hook, none of them read | by adversarial review | `fixed #NNN` |
-| B-132 | The inverse projection threw, or converted, on shapes nobody declared | by adversarial review | `fixed #NNN` |
-| B-133 | Three new rules held on something other than what they read | by adversarial review | `fixed #NNN` |
-| B-134 | No arm read what a HANDLER answers — only what a seed holds | by adversarial review | `fixed #NNN` |
-| B-135 | Three named states measured the panel left open by the state before them | by adversarial review | `fixed #NNN` |
-| B-136 | B-090's headline figure counted quotes, and it had reached the contract | by adversarial review | `fixed #NNN` |
-| B-137 | Four ACCEPTANCE criteria could not run, or expected the wrong answer | by adversarial review | `fixed #NNN` |
+| B-105 | R89's waterfall hold was green over the exact defect it names | by mutation | `fixed #509` |
+| B-106 | The server-state arm read only the component tree, so its ceiling was pre-satisfied | by mutation | `fixed #509` |
+| B-107 | `git checkout --` on an untracked file is a no-op, and a mutation stayed in the tree | by review | `fixed #509` |
+| B-108 | The oracle tore React's own nodes out before measuring, and recorded four states as blank | by oracle | `fixed #509` |
+| B-109 | A retry that re-asks nothing was written, and the invariant-4 arm refused it | by gate | `fixed #509` |
+| B-110 | The fixture register had no word for a family L09 deliberately deletes | by gate | `fixed #509` |
+| B-111 | An edit replaced a span it had not read, and took six published members with it | by rule | `fixed #509` |
+| B-112 | The library's sentinel watched the wrong port, masked by a 620 ms delay | by oracle | `fixed #509` |
+| B-113 | A named state was reachable from a known store and an unknown cache | by oracle | `fixed #509` |
+| B-114 | The listing conflated what the library claims with what the source holds | by rule | `fixed #509` |
+| B-115 | A redraw bridge deduplicated on a clock the oracle is allowed to stop | by oracle | `fixed #509` |
+| B-116 | The inverse projection turned a string into an object of its characters | by rule | `fixed #509` |
+| B-117 | The queue read served the dense world under the real scenario | by review | `fixed #509` |
+| B-118 | The seed builder deleted twenty-one seeds the mock layer serves | by review | `fixed #509` |
+| B-119 | A copy of the design root no longer builds, and the rule read a broken host | by rule | `fixed #509` |
+| B-120 | A journey rule read the verb of a panel the previous half had left open | by rule | `fixed #509` |
+| B-121 | A gate compared a committed seed to a counter the daemon increments | by gate | `fixed #509` |
+| B-122 | A guard named a path by cutting it on the operator's own clone directory | by CI | `fixed #509` |
+| B-123 | The settings drew a cron expression raw — the kind of the field lived nowhere | by adversarial review | `fixed #509` |
+| B-124 | The invariant-4 arm read one spelling of a store write out of three | by adversarial review | `fixed #509` |
+| B-125 | The invariant-5 arm did not know `fetchNextPage`, nor count a layout effect | by adversarial review | `fixed #509` |
+| B-126 | The unit-test floors sat a third under the corpus they guard | by adversarial review | `fixed #509` |
+| B-127 | A search matching nothing said « 0 résultat affiché sur 257 trouvés » | by adversarial review | `fixed #509` |
+| B-128 | The release picker was title-blind, and its cache key with it | by adversarial review | `fixed #509` |
+| B-129 | The library count line printed a literal beside the number it was served | by adversarial review | `fixed #509` |
+| B-130 | Discarding a staged medium walked one list out of three | by adversarial review | `fixed #509` |
+| B-131 | A listing parameter, a served resource and a hook, none of them read | by adversarial review | `fixed #509` |
+| B-132 | The inverse projection threw, or converted, on shapes nobody declared | by adversarial review | `fixed #509` |
+| B-133 | Three new rules held on something other than what they read | by adversarial review | `fixed #509` |
+| B-134 | No arm read what a HANDLER answers — only what a seed holds | by adversarial review | `fixed #509` |
+| B-135 | Three named states measured the panel left open by the state before them | by adversarial review | `fixed #509` |
+| B-136 | B-090's headline figure counted quotes, and it had reached the contract | by adversarial review | `fixed #509` |
+| B-137 | Four ACCEPTANCE criteria could not run, or expected the wrong answer | by adversarial review | `fixed #509` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
