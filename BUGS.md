@@ -178,6 +178,20 @@ when the defect comes back.
 | B-135 | Three named states measured the panel left open by the state before them | by adversarial review | `fixed #509` |
 | B-136 | B-090's headline figure counted quotes, and it had reached the contract | by adversarial review | `fixed #509` |
 | B-137 | Four ACCEPTANCE criteria could not run, or expected the wrong answer | by adversarial review | `fixed #509` |
+| B-138 | The profile panel's avatar is unconstrained, inside a region whose probe reads only the container | by operator | `open` |
+| B-139 | Three typed variants were written and never wired; one leaves a bare button unreadable | by operator | `open` |
+| B-140 | Back returns to the top of a page: the scroll memory only knows overlay screens | by operator | `open` |
+| B-141 | Ten elements carry no class at all, in a prototype that imports no preflight | by audit | `open` |
+| B-142 | Nothing measures the interface against the constitution: five DOIT clauses have no surface | by audit | `open` |
+| B-143 | §17 (accounts, rights, Plex SSO) has no surface, no contract operation and no lot | by audit | `open` |
+| B-144 | §18 (ratio per tracker) needs three operations the backend already answers and nothing calls | by audit | `open` |
+| B-145 | §19 (cross-seed) has no route in either contract, and its events reach no stream | by audit | `open` |
+| B-146 | D11 is decided and nothing styles a scrollbar yet; the change may move the oracle | by audit | `open` |
+| B-147 | Nine steward findings were stacked on five unmerged branches and collided with a wave | by audit | `fixed #511` |
+| B-148 | Lot status lives in two files, and § 0 reads the one a wave forgets | by audit | `fixed #511` |
+| B-149 | A declared departure from the lot's « Done when » lives only in a session report | by audit | `fixed #511` |
+| B-150 | A size promise expired unnoticed because the guard read the status B-148 froze | by audit | `fixed #511` |
+| B-151 | `coverage-merge` reports « Artifact not found » whenever an earlier job fails | by audit | `open` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -2001,7 +2015,8 @@ absence of a row can mean either.
 | L08 | 6 | PR #503's squash body — B-093 and B-094 write out two of the six; B-092 and B-095 are adjacent findings of that wave, not members of the six |
 | L08-bis (#505, the correction wave) | 9 | itemised below · squash `12a134ca` |
 | L09 | **14** | Recounted at the wave's close, and the count TREBLED between the gate and the merge — four adversarial reviewers ran before it, and nine of these fourteen are theirs. **B-105** and **B-106**, both found by mutation in the phases that wrote the instruments. **B-108**, the oracle itself — its `neutralise` broke the React tree and it recorded the damage as the reference, on four states of the exact kind this lot wires. **B-110**'s first attempt, which took three seeds out of the schema arm while the register claimed that arm held them. The **filters rule**, which read the FIRST listing in the cache rather than the active one. **B-121**, a gate vacuous where it blocks and moving where it does not. **B-122**, an arm that built a path by cutting it on the operator's own clone directory, so it could never match its own allowance list — two violations on CI, none locally, over an identical tree. **B-123**, a test that DERIVED a rule the application derives nowhere and then asserted the rendering that derivation produced, over a live production regression. **B-124**, one spelling of a store write out of three, defeated by a one-line wrapper already in the tree. **B-125**, an arm blind to `fetchNextPage` and to every layout effect — including in its own corpus count, which is the floor that is supposed to catch this. **B-126**, floors a third under the corpus. **B-133**, three rules of this lot's own making holding on something other than what they read. **B-134**, no arm reading what a HANDLER answers. **B-135**, three named states measuring the panel left open by the state before them, off screen, for as long as the reference has existed |
-| **Total** | **40** | at 2026-08-28, L09 counted at its close (step five of § 5). **The wave that built the most instruments found the most blind ones**, and that is the reading: nine of L09's fourteen were found by adversarial reviewers reading the gate AFTER it went green |
+| Steward, between L09 and L10 (#511) | **1** | **B-150**, and it is the sharpest variant in this table: the size arm read the RIGHT file and asked the RIGHT question — « has the lot this label promises already landed? » — and got a stale answer, because the plan still called L09 `NOT STARTED` a wave after it merged. Four labels promised a reduction nobody owed and the guard reported clean. Found by removing the duplicated status, not by a gate: the fix for B-148 turned this one red |
+| **Total** | **41** | at 2026-08-28. **The wave that built the most instruments found the most blind ones**, and that is the reading: nine of L09's fourteen were found by adversarial reviewers reading the gate AFTER it went green. **And a guard can be blind to a document rather than to code** — B-150's arm was correct in every line and read a file that had stopped being true |
 
 **The nine the correction wave found, since a wave that counts itself has to name its own.** The
 figure is large because the count is honest, not because the wave was worse: four of the nine are
@@ -2774,3 +2789,498 @@ to match what happened proves nothing. And what is NOT amended is stated: the lo
 gap is L13's subject and it is recorded as open rather than reworded away.
 
 <sub>`python3 scripts/check-state-ownership.py --arm server-state` · `python3 scripts/check-mock-seeds.py --arm classification`</sub>
+
+**B-138 — the same component converted twice, once whole and once half, and the half nobody measures.**
+Reported by the operator on 2026-08-26 from a live phone: opening the user sheet from the header
+avatar paints the image at its natural size. It covers the name, the address and the « Profil et
+préférences » entry underneath.
+
+**Before L07**, `refonte.html` carried the component in three rules:
+
+    .avatar     { width: 32px; height: 32px; border-radius: full; background; color; … }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; display: block }
+    .avatar.big { width: 42px; height: 42px; font-size: var(--text-6) }
+
+**Today no `.avatar` rule survives in any stylesheet** — `grep -rn '\.avatar' src/styles/*.css`
+returns nothing. The two call sites were converted differently:
+
+| | Container | The `<img>` inside |
+| --- | --- | --- |
+| header (`index.html:193`) | all of `.avatar` — size, `rounded-full`, `bg-muted`, `grid place-items-center` | `w-full h-full object-cover rounded-[inherit] block` — all of `.avatar img` |
+| panel (`ui/panel/index.tsx:221`) | `sheetAvatar()` = `big w-[42px] h-[42px] text-6` — only what `.avatar.big` ADDED | **no class at all** |
+
+`sheetAvatar` converted the modifier and assumed the base would come from somewhere. It does not.
+So the panel's container has a size and no shape, and its image has nothing — which is precisely
+what the screenshot shows, a square that overflows.
+
+**And the class `avatar` is still on both**, now an identity anchor that styles nothing. A class
+that looks like it paints and does not is the shape `regions.json`'s `$vocabulary` exists to keep
+honest.
+
+**Why 2 739 measurements did not see it, and this is the finding worth more than the defect.**
+The state EXISTS and is measured: `engine/states.js` declares `sheet-user` — « Menu utilisateur —
+profil et déconnexion » — driven by `openUserSheet()`, and `regions.json` covers it with
+`shell/sheet-content` → `#sheetin`. The oracle visits this surface at every run.
+
+**It reads the container.** D8's probe takes a bounding rectangle and 19 computed properties **of
+the region's own element**, which here is `#sheetin`. The avatar is a descendant, and a descendant
+painting at the wrong size changes neither of those. This is the limit D8 records — written on
+2026-08-25 for pseudo-elements (B-061) — reaching the same way through ordinary CHILDREN, which
+that paragraph does not say.
+
+So the gap is not coverage, it is depth: a region can be visited at every run, for months, while
+what is wrong inside it is structurally outside what the probe returns.
+
+Fix, in two halves: restore the base and the image rules for BOTH call sites — the header already
+proves what the full set is — and decide what holds a descendant. A named rule reading the image
+the way R26 reads a pseudo-element is the shape that exists; widening the probe to children is the
+other, and it is D8's arbitration, not this entry's.
+
+> **THIS ENTRY'S FIRST DIAGNOSIS WAS WRONG, and it is kept here because the way it was wrong is
+> the point.** It read « no named state opens it », concluded from `regions.json` — which holds
+> regions and not states — without opening `engine/states.js`, where `sheet-user` has been declared
+> all along. **Third time in three waves** the same office has concluded from the one place a fact
+> ought to live: B-082's five elements (`base.css` unopened), B-101's oracle forecast
+> (`html.measuring` unjoined), and this. Counted in § Guards green over what they do not read,
+> where it belongs: the failure is identical whether the reader is a guard or a person.
+
+<sub>`grep -rn '\.avatar' frontend/maquette/design/src/styles/*.css` · `git show 5fdbfc9a^:frontend/maquette/design/refonte.html | sed -n '505,525p'` · `grep -o '"sheet-[a-z0-9-]*"' frontend/maquette/regions.json`</sub>
+
+**B-139 — three variants exist, are exported, and are called by nothing.**
+Reported by the operator on 2026-08-26: after adding a media to follows, the bar at the bottom of
+the add screen shows « 1 média ajouté » beside **a white rectangle whose text cannot be read**, and
+there is no way to dismiss it.
+
+**The variant was written correctly and never connected.** L07 converted `.addfoot button` into
+`addFooterAction` — `ml-auto [border:0] bg-transparent text-primary font-semibold text-3`, exactly
+the six declarations the old rule carried. The call site does not use it:
+
+    features/acquisition/add-screen.tsx:366
+    <button onClick={toFollows}>{t("screens.add.seeFollows")}</button>
+
+A bare `<button>`. **Preflight is deliberately not imported** (`theme.css`, L07's decision and a
+right one), so a classless button keeps the user-agent's own painting — light background, dark
+text, border. On this application's dark surface that is the white rectangle, and « Voir mes
+suivis → » becomes unreadable. Same root as B-082 reached from the other end: there the remedy for
+bare elements was a hand-kept list; here an element is bare that should not have been.
+
+**It is not one button. Three variants in that one file are called from nowhere** — verified one by
+one rather than trusting the sweep that found them: `addFooterAction`, `resultList` and
+`suggestionChip` each return exactly one grep hit, their own declaration. One surface was converted
+with three of its variants left unplugged.
+
+**Nothing could have caught it.** TypeScript does not fault an unused export. The oracle cannot:
+the footer paints only when `added.size > 0`, and the two named states of that screen are
+`acq-add-empty` and `acq-add-results` — the second searches « star wars » and adds nothing — so **no
+measured state ever paints this bar**. Not a coverage gap this time but a STATE gap: the surface has
+states, and none reaches the condition.
+
+**The finding is that this is measurable in twenty lines and nothing measures it.** A variant
+exported from a `variants.ts` and called from no other file is a mechanical check, and it would have
+returned all three at once. It also asks what no existing guard asks: `check-markup-contracts.py`
+reads the classes that ARE emitted; nothing reads the ones that were meant to be.
+
+**A second defect, separate, and the operator's to arbitrate**: the bar is `sticky` above the
+content and nothing reserves the space beneath it, so it covers a card. It is not a toast and has no
+dismissal by design — whether it should have one is a layout decision, not a repair.
+
+<sub>`grep -rn 'addFooterAction\|resultList\|suggestionChip' frontend/maquette/design/src/` · `grep -n 'acq-add' frontend/maquette/design/src/engine/states.js`</sub>
+
+**B-140 — the scroll memory was built for screens and never learned about pages.**
+Reported by the operator on 2026-08-26: scroll a page, open an item, come back — the page is at the
+top. The application feel is to return where one left.
+
+**The mechanism exists and is careful.** `app/shell.tsx` § « SCROLL FOLLOWS THE HISTORY ENTRY »
+keys positions by the history entry, saves the outgoing position inside the history subscription —
+« the only instant it is still in the DOM » — and restores over a bounded retry across five frames,
+because the router commits its re-render on its own schedule. It also restores on a RETURN only,
+correctly: arriving forward on an address one has seen before is a new visit.
+
+**It reads one port out of two.** `activePort()` is
+`document.querySelector(".screen.open .port")` — the port of an OVERLAY SCREEN. The main pages
+scroll inside `#port`, declared in `index.html:221` with both `id="port"` and `class="port …"`, and
+that element is never `.screen.open .port`. So on a main page the save either stores nothing
+(no screen open, the query returns null) or stores the just-opened screen's position under the
+departing page's key. Either way the return finds nothing to restore.
+
+Nothing else covers it: `page-host.tsx:175` reaches `#port` by id, for `aria-busy` only.
+
+**A second, latent defect in the same block**: `if (remembered)` treats a stored **0** as absent.
+It is invisible today because 0 is the top, and it is the shape that hides a real regression the
+day a position of zero must be honoured over a default.
+
+<sub>`grep -n 'activePort\|scrollPositions' frontend/maquette/design/src/app/shell.tsx` · `grep -n 'id="port"' frontend/maquette/design/index.html`</sub>
+
+**B-141 — ten elements carry no class, in a prototype whose reset does not cover bare tags.**
+Measured after B-138 and B-139, because both were one element that had been left bare: a
+`<button>`, `<img>`, `<input>`, `<select>`, `<textarea>` or `<a>` rendered with neither `className`
+nor `class` in `design/src/**/*.tsx`.
+
+| File | Line | Tag |
+| --- | --- | --- |
+| `ui/panel/index.tsx` | 222 | `<img>` — **B-138, confirmed defect** |
+| `features/acquisition/add-screen.tsx` | 366 | `<button>` — **B-139, confirmed defect** |
+| `features/acquisition/add-screen.tsx` | 248, 292, 314 | `<button>` ×3 |
+| `features/acquisition/page.tsx` | 714 | `<button>` |
+| `features/settings/panel-field.tsx` | 139 | `<input>` |
+| `features/media/media-screen.tsx` | 22, 605 | `<a>`, `<img>` |
+| `ui/panel/index.tsx` | 74 | `<img>` |
+
+**This is a list of CANDIDATES, not of ten defects, and the distinction is deliberate.** A bare
+element is only wrong where the user agent's own painting is wrong for it — an `<img>` whose parent
+constrains it fully is fine. Two of the ten are confirmed because the operator saw them. **The
+other eight are unread**, and saying so is the point: this entry exists to be checked, not believed.
+
+**Two of them carry more risk than the rest, on grounds worth naming.** `panel-field.tsx:139` is an
+`<input>`, and a classless input keeps the platform's own field — light ground, system border — on
+a dark surface. And `add-screen.tsx` holds **four** of the ten, the same file as B-139's three
+orphan variants: one surface converted incompletely, twice over, by two different measurements.
+
+**Why nothing reads this.** Preflight is deliberately not imported (`theme.css`, L07), so bare tags
+keep the user agent's painting by design — the decision was right and it makes bare tags a category
+worth counting. `check-markup-contracts.py` reads the classes that ARE emitted; a tag with no class
+emits nothing to read. Ten lines of AST would return this list, and it is the sibling of B-139's
+check: one asks which variants are never called, the other which elements never call one.
+
+<sub>a scan of `design/src/**/*.tsx` for the six tags rendered without `className` or `class`</sub>
+
+**B-142 — three instruments measure the interface, and all three are bounded by what already exists.**
+Raised by the operator on 2026-08-26: « what is missing is not limited to what the maquette already
+offers, but also to what the app is FOR ». The three instruments this repository has answer a
+narrower question than that:
+
+| Instrument | Compares | Blind to |
+| --- | --- | --- |
+| `IMPLEMENTATION.md` § THE OBJECTIVE | pages, API modules, WebSocket files, service worker | anything that is not a file count |
+| `frontend-backend-demands.md` | the maquette's contract against the running backend | anything the backend does not expose |
+| `audit_design_coverage.py` | `tests/feature_map/` against the design docs | the product's own intent — despite the name |
+
+**None reads `product-intent.md`**, which is the only document saying what the product must BE. So
+a capability the constitution requires, that neither the maquette nor the backend has, is invisible
+to every gate in this repository.
+
+**Measured: the eleven DOIT clauses against the 53 operations the interface declares.** Five have
+no surface, and each one names an operation the backend already exposes and the interface does not
+call — so they are not speculative:
+
+| Clause | What it requires | The gap |
+| --- | --- | --- |
+| **DOIT-2** | « torrent différé (ratio, espace) … chaque « rien » a sa raison affichée » | `GET /api/acquisition/stalled-grabs` and `/obligations` are called by nothing |
+| **DOIT-3** | « lancer/stopper le pipeline, **relancer le watcher** » | run/kill/pause/resume are declared; `POST /api/pipeline/watcher` is not |
+| **DOIT-5** | « progression visible jusqu'au bout » | `GET /api/pipeline/stages` is called by nothing |
+| **DOIT-6** | « X détectés, Y disponibles, Z récupérés » for one run | `GET /api/pipeline/history/{run_uid}` — the single run's detail — is called by nothing |
+| — | configuration edited without validation | `POST /api/config/validate` is called by nothing |
+
+**The five are not five independent gaps.** Four of them belong to `/pipeline` and `/control` — the
+two surfaces § 1 of the architecture file places deliberately outside the lots, « named here only so
+nobody reads their absence as an arbitration ». That framing is right and it has a consequence
+nobody drew: **the clauses those pages would satisfy are unsatisfied for as long as the pages are
+undrawn**, and no instrument says so.
+
+**What is asked here is an instrument, not a page.** The 24 unused operations of
+`frontend-backend-demands.md` § 4 are recomputed at every `make check` — that figure cannot go
+stale. What is missing is the verdict column: for each, whether the new design retired it, whether
+it is a surface still to be drawn, or whether it serves something outside the interface. Written
+once, by the operator, it turns a list of « maybe » into work with a number — and any new operation
+appears in it on its own.
+
+**Two limits of this entry, stated rather than discovered.** DOIT-1, 4, 7, 8 and 10 are BEHAVIOURS,
+not operations — a queued action shown as queued, a confirmation before replacement — and an
+operation census cannot see them; they need reading, surface by surface, which this entry has not
+done. And DOIT-10 (« Retour … refait le chemin emprunté ») is arguably already breached by B-140,
+where the path is retraced and the position is not: whether the scroll is part of « le chemin » is
+the operator's reading, not this steward's.
+
+<sub>`python3 -c "import json;d=json.load(open('frontend/maquette/contract/openapi.json'));print(sum(1 for p in d['paths'].values() for v in p if v in ('get','post','put','patch','delete')))"` · `sed -n '492,517p' docs/reference/product-intent.md` · `docs/reference/frontend-backend-demands.md` § 4</sub>
+
+**B-143 — the constitution gained a section, and nothing in the plan answers it.**
+The operator dictated **§17 — Comptes, droits et identité Plex** on 2026-08-26: the application
+manages users, profiles and rights, and Plex users authenticate through Plex SSO. `DOIT-12` was
+added with it — the actions offered are those the connected account may exercise.
+
+**Recorded here the day it was written, because B-142 is one entry old**: three instruments measure
+this interface and none reads the constitution, so a clause it gains is invisible to every gate
+until someone says so. This is that someone.
+
+**What exists today, measured**: one role (`PERSONALSCRAPER_WEB_ROLE=staging`, refusing writes
+through the single `require_not_staging` dependency), one account (`WEB_PASSWORD_HASH` and a signed
+session), and `GET /api/auth/me` in the maquette's contract carrying `avatar`, `email`, `name` and
+nothing about rights. Plex is integrated for library refresh (`X-Plex-Token`, `plex-api.md`) and
+never for identity.
+
+**What §17 needs and nothing provides**: no operation in the 53 the interface declares concerns a
+user other than the one connected, a role, or a permission; none of the thirteen lots names
+accounts; and `frontend/maquette/design/src/features/account/` is a single `page.tsx` showing the
+current person, not a model of several.
+
+**The one thing §17 says that is a REQUIREMENT on existing code rather than new work**: the
+read-only role must be ABSORBED by the rights model, not sit beside it. Two authorisation paths is
+NE-DOIT-PAS-7, and the one that exists today is a single shared dependency — which is what makes
+absorbing it cheap now and expensive after a second path exists.
+
+Four questions §17 leaves open are written INTO the section rather than here, so that whoever
+implements it reads them where the rule is: which roles and their exact rights, whether Plex SSO
+replaces or joins the current sign-in, what becomes of a Plex user with no rights here, and what a
+Plex account sees by default. None is the steward's to answer.
+
+<sub>`grep -n 'WEB_ROLE\|require_not_staging' docs/reference/web-ui.md` · `python3 -c "import json;print([p for p in json.load(open('frontend/maquette/contract/openapi.json'))['paths'] if 'auth' in p])"`</sub>
+
+**B-144 — the engine measures the ratio, and the interface shows none of it.**
+The operator dictated **§18 — Le ratio est une ressource, et elle se pilote** on 2026-08-26, with
+`DOIT-13`. Unlike §17, this one asks for almost no new backend: it asks the interface to read what
+is already answered.
+
+**Measured on the running backend**: the per-tracker policy exists — `min_ratio` and
+`min_seed_time` on `TrackerProviderConfig`, read at the grab (`_grab_pass.py:370`) and at the
+cross-seed (`cross_seed.py:871`) — and `GET /api/acquisition/obligations` is documented in the
+route itself as « List seed obligations with their current ratio state ». `stalled-grabs` and
+`downloads` answer beside it.
+
+**All three are in `frontend-backend-demands.md` § 4** — the 24 operations the backend has and the
+interface does not use. Which is the finding: this is not a capability to build, it is one already
+built and never surfaced. The demands register named it a month before the constitution did, in a
+list whose own heading says it « says what the switchover MAY retire ». **Retiring `obligations`
+would have retired §18's subject**, and nothing in that list distinguishes an operation the new
+design outgrew from one it has not reached yet — which is exactly the verdict column B-142 asks for,
+now with a case that would have gone the wrong way.
+
+**What §18 adds that the backend does not already answer** is the acting half: setting a tracker's
+policy from the surface that shows its ratio (DOIT-3 applied here) is a write, and no operation in
+either contract does it — the policy is configuration, edited today as a file.
+
+**And one requirement that is a trap rather than a feature**: the displayed ratio must be the one
+the TRACKER recognises, not a locally computed figure that drifts. An obligation shown as met and
+still counted due by the tracker is NE-DOIT-PAS-1 with the account as the price.
+
+<sub>`grep -rn 'min_ratio\|min_seed_time' personalscraper/acquire/*.py` · `grep -n 'obligations' personalscraper/web/routes/acquisition.py` · `docs/reference/frontend-backend-demands.md` § 4</sub>
+
+**B-145 — 797 lines of engine that inject torrents at third parties, and no way to know it happened.**
+The operator dictated **§19 — Le cross-seed se voit et se décide** on 2026-08-26, with `DOIT-14`.
+
+**Measured, and it is the most closed of the three sections dictated today.**
+`personalscraper/acquire/cross_seed.py` is 797 non-blank lines. It emits `CrossSeedInjected` and
+`CrossSeedRejected` on every decision. **Neither contract carries a single route for it** — zero
+matches for cross-seed in `frontend/openapi.json` AND in `frontend/maquette/contract/openapi.json` —
+and nothing under `personalscraper/web/` relays those events to `/ws/events`. The only trace
+reaching any interface is a boolean configuration key, `"cross_seed": False` in
+`web/routes/config.py:113`.
+
+**The three sections dictated today are three different distances, and the distinction decides how
+each is planned:**
+
+| Section | What exists | What is asked |
+| --- | --- | --- |
+| §18 — ratio | three operations answering, none called | wire them, plus one write for the policy |
+| §17 — accounts | one role, one account, no notion of several | a model, then surfaces |
+| §19 — cross-seed | an engine, and **no exposure at all** | the backend follows the interface (§15) |
+
+**§19 is where D7's rule earns itself.** « The maquette declares the contract its interface
+REQUIRES … every divergence is recorded as a demand on the backend. » There is nothing to read from
+here, so the demand has to start from what the experience needs — which is precisely the case D7
+was written for, and the first one to arise since it was written.
+
+**The defect this entry files, beyond the gap**: an engine that acts on third parties and reports
+to nothing is `NE-DOIT-PAS-5` — silent failure — applied to a SUCCESS as much as to a failure. The
+events are emitted and dropped. Whatever §19 becomes, the cheapest half is already built and
+unplugged: two event types, already carrying their reason.
+
+<sub>`grep -rc 'cross.seed' frontend/openapi.json frontend/maquette/contract/openapi.json` · `grep -rn 'CrossSeed' personalscraper/web/` · `grep -c '[^[:space:]]' personalscraper/acquire/cross_seed.py`</sub>
+
+**B-146 — D11 is written, and no stylesheet carries a single scrollbar declaration.**
+Arbitrated by the operator on 2026-08-26 after they reported that the desktop shows a native
+scrollbar the phone does not: **the bar is STYLED, never replaced.** Measured before the decision —
+`grep -rn 'scrollbar' src/styles/*.css` returns one hit, and it is a COMMENT inside
+`.visually-hidden` explaining why `white-space: nowrap` stops a stray scrollbar appearing. Nothing
+declares `scrollbar-width`, `scrollbar-color` or `::-webkit-scrollbar`.
+
+**Recorded rather than left as a sentence**, for the reason this register keeps: a decision with no
+arm and no code is a decision the next session reads as done.
+
+**The one thing whoever implements it must NOT assume, and it is the whole entry.**
+`scrollbar-width: thin` narrows the gutter, so the content beside it widens by a few pixels — and
+**every measured rectangle inside that container may move.** Three outcomes are possible: no
+divergence (the probe's container is inside the padding), a broad divergence across most states, or
+one confined to the scrolling regions. **Which one is a run of the oracle**, on the machine that
+owns the references, and this entry deliberately does not guess. Predicting an instrument's answer
+from two facts held in hand is B-101, filed one week ago against this same office.
+
+If the divergence is broad, it is not a reason to abandon D11: it is a re-record with every
+signature named, the way L06's 47 folds were accepted. It IS a reason not to slip the change into a
+wave whose proof rests on the oracle staying at zero.
+
+**What it does not fix, and D11 says so**: the gutter still exists on a desktop. The comparison
+that prompted this is the phone frame of `harness.css`, which ships nowhere.
+
+<sub>`grep -rn 'scrollbar' frontend/maquette/design/src/styles/*.css` · `frontend/maquette/design/index.html:221` for the container</sub>
+
+**B-147 — nine findings held on five stacked branches, and a wave took their numbers.**
+B-138 to B-146 were written as **B-102 to B-110**, across five branches stacked on one another
+between 2026-08-26 and 2026-08-27, none merged because the operator had scheduled them for a single
+later correction wave. L09 landed in that interval and wrote **B-102 to B-137**. Every one of the
+nine collided.
+
+**The register itself had already named this shape, one wave earlier.** L09's own `B-102` reads
+« Seven register rows are duplicated, once `fixed` and once `open` » — the same file, the same
+mechanism, found from the other side.
+
+**Nothing was lost, and that is not the same as nothing being wrong.** The nine are re-entered here
+at B-138…B-146, and the two documents they came with — §17, §18, §19 of the constitution, `DOIT-12`
+to `DOIT-14`, `D11` and the semantic-index objective — were **re-applied over `main`'s version, not
+copied across it**. That distinction is the near-miss worth recording: the first attempt restored
+both files wholesale from the steward branch, which would have silently erased the seventeen lines
+L09 added to invariant 10 at its close — a re-measurement §7.1 obliges a wave to write, and the
+most valuable paragraph either file gained that day. It was caught by asking what `main` had
+touched, not by any gate.
+
+**The cause is a steward habit, not a wave's mistake.** Holding findings on an unmerged branch to
+respect « one correction wave » is right; **numbering them from a register that keeps moving is
+not**. A number is only free while nobody else is writing.
+
+Fix, and it is a rule rather than a repair: a steward branch that is not merged the same day takes
+its numbers **at the moment it is opened as a pull request**, from `main` as it stands then — or
+carries no number at all until it does. The entries are written; only the label waits.
+
+**A postscript that is the entry's own lesson repeated.** This entry was written carrying
+`fixed #511` before any pull request existed — the number was GUESSED, which is precisely the fault
+the L08 agent declared about itself two waves earlier. The pull request opened as #511. **Being
+right by luck is not being right by method**, and the guess would have been silently wrong on any
+other day.
+
+<sub>`grep -o '^| B-[0-9]*' BUGS.md | sed 's/| B-//' | sort -n | tail -1` before writing any new row</sub>
+
+**B-148 — the plan still calls L09 `NOT STARTED`, and its selection rule reads the plan.**
+L09 merged on 2026-08-28 (#509, squash `27096f31`). `IMPLEMENTATION.md` says so correctly — « Last
+landed: L09 … squash 27096f31 » — and `frontend-architecture.md` line 930 still reads
+**`#### L09 — The data layer, surface by surface · NOT STARTED`**. `IMPLEMENTATION.md`'s own
+« Next » row also still names L09.
+
+**This is not a cosmetic lag, because § 0 is executable prose.** « Come back here and find the
+first lot whose status is not `LANDED` and whose dependencies are all `LANDED`. That is the work.
+There is no other selection rule. » L09 is `NOT STARTED`; L01, L05 and L08 are `LANDED`. **The rule
+elects the lot that just landed**, and an agent handed the plan and told to follow it would rebuild
+L09 rather than open L10.
+
+**The cause is structural, and naming it matters more than the fix.** The status of a lot is
+written in TWO files — a per-lot label in the plan, and the state section of `IMPLEMENTATION.md` —
+while § 1 assigns « where the work stands » to `IMPLEMENTATION.md` as **the only state**, and that
+section opens by saying duplicating state is what produced a stale table read as current for three
+days. The duplication it warns against is inside the pair of files that carry the warning.
+
+Two repairs, and they are not the same: mark L09 `LANDED` and move « Next » to L10 — the wave's
+missed gesture — and decide whether a lot's status belongs in the plan at all, or whether the plan
+should name the ORDER and let the one state file carry the progress. The second is an arbitration.
+
+Every prior wave did the first correctly; L09 is the first to miss it, which is why nothing has
+caught it before and why nothing will catch the next one.
+
+<sub>`grep -n '^#### L09' docs/reference/frontend-architecture.md` · `grep -o 'Next\*\*[^|]*| [^|]\{0,60\}' IMPLEMENTATION.md`</sub>
+
+> **ARBITRATED AND CLOSED, 2026-08-28: the status leaves the plan.** `frontend-architecture.md`
+> now carries the ORDER and the DEPENDENCIES and no status; `IMPLEMENTATION.md` carries the
+> progress, which § 1 already assigned to it as *the only state*, and gains a « Landed, in order »
+> row so § 0 has one place to read. The selection rule is rewritten to cross the two explicitly.
+>
+> **The obvious answer was refused on the evidence.** Adding « mark the lot LANDED » to the
+> post-merge list is what one reaches for first — and § 5 of the plan already records that this
+> list has been skipped **three times out of four**. A sixth entry on a skipped list changes
+> nothing. **A fact that exists once cannot go stale**, which is the only form of this repair that
+> does not depend on somebody remembering.
+
+**B-149 — the lot's contract says the fixture literals left the engine; sixty families remain.**
+L09's « Done when » includes « each surface takes its data and **its share of the fixture dies with
+it** (D5) ». Measured: **21 fixture families died, 60 remain** — `legacy.js` went from 35 263 lines
+to 33 449, a real subtraction and a fifth of the way.
+
+**The wave declares the gap plainly**, in its session report and its pull request: the sixty belong
+to surfaces the engine still DRAWS, so their fixtures cannot leave before their markup does, which
+is L13. That reading is right, and it is the same shape L07 met when BLOCK 1 was separated instead
+of deleted.
+
+**What is missing is where it is written.** L07's equivalent departure was carried into the L13
+entry of `frontend-architecture.md`, with its own « Done when » and an explicit « any earlier wave
+may take it » — that is § 7.1 done properly, and it is why the deferral survives its session. This
+one lives in a report and a merged pull request body. **After the squash, a reader of the plan sees
+a « Done when » clause that is not true and nothing saying why.**
+
+**B-150 — four files promised a reduction to a lot that had been and gone, and the guard that
+exists to catch exactly that reported clean.**
+`check-frontend-boundaries.py`'s size arm holds a grandfather list of files over the 400-line
+ceiling, each labelled with the lot that OWES the reduction. B-073 armed it to refuse a label
+naming a lot already landed — « a label naming a lot that is already `LANDED` promises a reduction
+nobody owes any more », in the module's own words. Four entries read **« L09 — the data layer takes
+it »**, and L09 landed on 2026-08-28.
+
+**It reported clean because it read the stale word B-148 is about.** The landed set came from the
+plan's own per-lot status, and the plan said L09 was `NOT STARTED`. The guard was not wrong about
+its rule; it was reading a document that had stopped being true. **Forty-one now** on the B-085
+counter — « a guard is green because of what it does not read » — and this one is the sharpest
+variant yet: the guard read the right file, asked the right question, and got a stale answer.
+
+**What L09 actually delivered against that promise: thirteen lines.** `features/acquisition/page.tsx`
+went 769 → 756 while owing 356; `media-screen.tsx` is 796, `library/page.tsx` 613,
+`resolution-screen.tsx` 430. **The premise of the label was simply wrong** — what makes those files
+long is not the fetching L09 moved out, it is markup and variants. `page.tsx` holds four whole tabs
+in one file, and the same `Icon` component is written out twice in two different features.
+
+**The repair is in three parts, and only the first is the defect's own.** The arm now reads the
+declaration from the plan and the advancement from `IMPLEMENTATION.md`'s « Landed, in order » row,
+with each emptiness its own violation naming its own file — a single « unreadable » message would
+send its reader to the document that was fine. The four labels name **L14**. And L14 exists in the
+plan, because a debt with no owner is the state the ceiling is supposed to refuse.
+
+<sub>`python3 scripts/check-frontend-boundaries.py --arm size` · `git show 5fdbfc9a:frontend/maquette/design/src/features/acquisition/page.tsx | grep -c '[^[:space:]]'`</sub>
+
+> **CLOSED with the arbitration, 2026-08-28 (#511).** The operator's ruling: the plan declares a
+> lot for it rather than hanging the debt on a lot whose subject it is not. **L14 — The surfaces
+> that outgrew their file** is written into `frontend-architecture.md` after L13, depending on L07
+> and L09 — both landed, so it may be pulled forward between any two lots at any time. **What that
+> position costs is written into the entry rather than left to be discovered**: nothing depends on
+> L14, so § 0 elects it last, and L10 through L13 are all worked inside 600-to-800-line files while
+> invariant 6's reason — « an agent modifying a component opens one file » — goes unserved for them.
+>
+> **This entry is the argument for B-148's arbitration, found by making it.** Removing the
+> duplicated status did not create this defect; it uncovered one that had been green for a wave.
+> A second copy of a fact does not merely go stale — it answers for the first, and everything
+> downstream reads the answer.
+>
+> **And the removal itself left five sentences behind, in this office's own commit.** § 4 of the
+> plan still opened « Status is one word and nothing else: `NOT STARTED` · `IN PROGRESS` ·
+> `LANDED` »; § 5's « which lot is next » still named the token; § 7.1's deferred-guard paragraph
+> still described refusing « a lot marked `LANDED` »; `frontend-steward.md`'s first audit step and
+> `IMPLEMENTATION.md`'s § SP5 both still stated the old rule. Thirteen tokens were counted out and
+> the prose that described them was not — **and § 7.1's own line, one paragraph above the worst of
+> them, is « when a decision changes, the implementation directives change in the same move »**.
+> Corrected here. Found by grepping for the dead token after the guard was repaired, which is the
+> only reason it was found at all.
+
+---
+
+**B-151 — a red check that names the wrong culprit, on every pull request whose lint fails.**
+`coverage-merge` declares `needs: [changes, test]` with `if: always() && !cancelled()`, and gates
+each of its steps on `needs.changes.outputs.python == 'true'` — on whether Python files CHANGED,
+never on whether `test` actually ran. So when `lint` fails, `test` is skipped as a dependency, no
+`coverage` artefact is uploaded, and `coverage-merge` runs anyway and fails with:
+
+    Unable to download artifact(s): Artifact not found for name: coverage
+
+**Two red checks, one cause, and the second one points nowhere.** A reader who opens
+`coverage-merge` first — it is the one at the top of the list — reads an artefact problem and looks
+for a coverage defect that does not exist. Observed on #511, where the real failure was a
+`ruff format --check` difference of one line.
+
+**It is a condition that reads the wrong question.** « Did Python change? » was the right gate for
+whether coverage MATTERS; it is not the gate for whether the artefact EXISTS. The step needs the
+second question too — `needs.test.result == 'success'` — and, failing that, the job should not
+carry `always()` past a skipped dependency.
+
+**Left open deliberately.** The fix is one line of `.github/workflows/ci.yml` and it belongs to
+whoever next has a reason to open that file; recording it costs nothing and forgetting it costs a
+misdirected diagnosis every time a gate goes red.
+
+<sub>`gh run view <id> --job coverage-merge` on any run whose `lint` failed · `.github/workflows/ci.yml` § Stage 3</sub>
+
+Fix: carry it to L13 as L07's was, or amend L09's clause to say what it actually promised — the
+share of the fixture belonging to a surface the ENGINE no longer draws. Not both; the point is
+that one file states it.
+
+<sub>`grep -c '[^[:space:]]' frontend/maquette/design/src/engine/legacy.js` against `git show 27096f31^:…` · L13's entry for the shape to copy</sub>

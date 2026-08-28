@@ -489,7 +489,142 @@ chargement à froid a déjà laissé passer deux défauts sur la vague L05 — c
 qu'ils sont passés sous des règles vertes.
 
 
-## Ce que l'interface DOIT faire (DOIT-1 … DOIT-11)
+## §17 — Comptes, droits et identité Plex (dicté par l'opérateur, 2026-08-26)
+
+**L'application gère des utilisateurs, des profils et des droits.** Elle n'est plus un poste de
+contrôle à un seul occupant : plusieurs personnes s'en servent, elles n'ont pas les mêmes
+permissions, et l'interface doit le refléter partout — pas seulement à la porte d'entrée.
+
+**Les utilisateurs Plex sont des utilisateurs de l'application, et ils s'authentifient par le SSO
+Plex.** Quelqu'un qui a accès au serveur Plex du foyer n'a pas à se voir attribuer un second
+mot de passe pour consulter la médiathèque : il se connecte avec son compte Plex.
+
+### Ce que cela pose
+
+1. **Un droit se lit sur la surface, jamais seulement à l'appel.** Une action qu'un compte n'a pas
+   le droit d'exercer ne doit pas être offerte puis refusée : l'interface montre ce que CE compte
+   peut faire. Un `403` reçu après un geste est un défaut d'interface, pas une sécurité qui
+   fonctionne — c'est **NE-DOIT-PAS-3** appliqué aux droits, et le refus est ici légitime, donc
+   c'est l'offre qui doit disparaître.
+2. **Ce qu'un compte ne peut pas faire reste VISIBLE et EXPLIQUÉ**, quand le cacher tromperait sur
+   l'état du système. §8 — rien en silence — ne s'annule pas parce que le lecteur a moins de
+   droits : il voit que la chose existe et qu'elle ne lui est pas ouverte, il ne voit pas une
+   application amputée dont il croirait qu'elle est complète.
+3. **Le rôle en lecture seule qui existe déjà est un cas de ce §, pas une mécanique à côté.**
+   `PERSONALSCRAPER_WEB_ROLE=staging` refuse aujourd'hui toute écriture par une dépendance unique
+   (`require_not_staging`). Le modèle de droits qui arrive doit l'ABSORBER — un seul chemin
+   d'autorisation, jamais deux —, faute de quoi c'est **NE-DOIT-PAS-7**, un second mécanisme
+   parallèle.
+
+### Ce que cela ne tranche pas, et qui reste à dicter
+
+Écrit ici comme ouvert pour que personne ne les décide en chemin :
+
+- **Quels rôles, et leurs droits exacts.** L'application en connaît un aujourd'hui (lecture seule),
+  et « profils » suggère davantage.
+- **Le SSO Plex remplace-t-il l'authentification actuelle ou s'y ajoute-t-il ?** Le compte
+  opérateur d'aujourd'hui repose sur `WEB_PASSWORD_HASH` et une session signée.
+- **Ce qu'il advient d'un utilisateur Plex qui n'a aucun droit ici** : refusé à la porte, ou admis
+  avec le minimum.
+- **Ce qu'un compte Plex voit par défaut.** Consulter la médiathèque n'est pas piloter le pipeline.
+
+### Ce que cela impose à la preuve
+
+Un droit se vérifie **des deux côtés et séparément** : l'action absente de la surface pour le
+compte qui ne l'a pas, et l'appel refusé pour celui qui la forcerait. Une tenue qui ne mesure que
+le second prouve la sécurité et pas l'interface — et c'est l'interface que ce document régit.
+
+**Aucune de ces exigences n'est bloquée par la maquette, ni ne la bloque.** Elles se dessinent
+comme tout le reste : dans la maquette d'abord, avec des états nommés et une règle qui mord.
+
+## §18 — Le ratio est une ressource, et elle se pilote (dicté par l'opérateur, 2026-08-26)
+
+**Sur un tracker privé, le ratio est ce qui donne le droit de continuer à télécharger.** Le perdre
+n'est pas un désagrément d'affichage : c'est perdre l'outil. L'application doit donc laisser
+l'opérateur **voir** où il en est, tracker par tracker, et **agir** dessus — pas seulement subir
+une politique écrite dans un fichier de configuration.
+
+**Le moteur sait déjà tout cela, et l'interface n'en montre rien.** La politique par tracker existe
+(`min_ratio`, `min_seed_time` de `TrackerProviderConfig`, lue au grab et au cross-seed), les
+obligations de seed sont suivies avec leur état de ratio courant
+(`GET /api/acquisition/obligations` — « List seed obligations with their current ratio state »), et
+les téléchargements en cours comme les grabs bloqués ont leur endpoint. **Aucun des trois n'est
+appelé par la maquette** : ils figurent parmi les 24 opérations que le backend expose et que
+l'interface n'utilise pas.
+
+### Ce que cela pose
+
+1. **Le ratio se lit PAR TRACKER, jamais en un seul chiffre.** Un ratio global moyen cache
+   précisément la situation dangereuse : bien portant chez l'un, en dette chez l'autre.
+2. **Une obligation de seed est un « rien » qui a sa raison** — §8, et **DOIT-2** nommait déjà
+   « torrent différé (ratio, espace) ». Un torrent conservé parce qu'il doit encore semer doit dire
+   qu'il l'est, jusqu'à quand ou jusqu'à quel ratio, et non ressembler à un téléchargement oublié.
+3. **Agir là où l'on observe** (**DOIT-3**) vaut ici comme ailleurs : la politique d'un tracker se
+   règle depuis la surface qui montre son ratio, pas dans un fichier que l'interface se contente de
+   relire.
+4. **Ce que l'application ne fera jamais pour améliorer un ratio** : maltraiter le tracker.
+   **NE-DOIT-PAS-8** couvre déjà les rafales ; il est rappelé ici parce que c'est précisément le §
+   où la tentation existe.
+
+### Ce que cela ne tranche pas, et qui reste à dicter
+
+- **Quelles actions** l'opérateur exerce sur un torrent au regard du ratio — forcer le seed,
+  libérer une obligation, refuser un grab qui coûterait trop.
+- **Ce qui est montré d'un tracker** au-delà du ratio : dette, marge, tendance, échéance.
+- **Si l'interface propose une décision** (« ce grab vous met en dette ») ou se borne à l'exposer.
+
+### Ce que cela impose à la preuve
+
+Le ratio affiché est **celui que le tracker reconnaît**, pas une valeur calculée localement qui
+diverge en silence — **NE-DOIT-PAS-1**. Une obligation affichée comme tenue et qu'un tracker
+compte encore due est un mensonge, et c'est celui qui coûte le compte.
+
+## §19 — Le cross-seed se voit et se décide (dicté par l'opérateur, 2026-08-26)
+
+**Le cross-seed est le seul levier qui améliore un ratio sans rien télécharger** : un fichier déjà
+possédé est proposé au seed sur un autre tracker. C'est donc le prolongement direct du §18, et
+c'est aussi le mécanisme le plus silencieux du moteur — celui qui agit le plus loin de l'œil de
+l'opérateur.
+
+**Aujourd'hui il est entièrement invisible.** Le moteur en a 797 lignes
+(`personalscraper/acquire/cross_seed.py`), il émet `CrossSeedInjected` et `CrossSeedRejected` à
+chaque décision — et **aucune route ne l'expose**, dans aucun des deux contrats, ni ne relaie ces
+événements au flux temps réel. La seule trace dans l'interface est une clé de configuration
+booléenne. Un mécanisme qui injecte des torrents chez des tiers et dont l'opérateur n'apprend rien
+est **NE-DOIT-PAS-5**, échec silencieux, appliqué à un succès autant qu'à un échec.
+
+### Ce que cela pose
+
+1. **Une injection se voit, et un refus s'explique.** Les deux événements existent déjà et portent
+   la raison. Un cross-seed rejeté parce que la disposition des fichiers ne correspond pas n'est
+   pas la même chose qu'un rejet pour politique de tracker — §8, et **DOIT-2** : chaque « rien » a
+   sa raison affichée.
+2. **Le cross-seed se rattache au média, pas seulement au torrent.** Le lecteur qui regarde une
+   fiche doit pouvoir savoir que ce titre sème ailleurs, et où. Sans cela l'obligation de seed du
+   §18 apparaît sans son origine.
+3. **Décider, c'est aussi refuser.** L'opérateur doit pouvoir empêcher un cross-seed autant que le
+   déclencher : un tracker qu'il ne veut pas alimenter, un titre qu'il compte supprimer.
+   **DOIT-4** tient — une action légitime n'est jamais refusée par un « occupé » — et
+   **NE-DOIT-PAS-6** aussi : rien n'est injecté chez un tiers sans que ce soit voulu.
+4. **NE-DOIT-PAS-8 est la limite dure.** Un cross-seed cherche des correspondances chez des
+   trackers : c'est précisément le geste qui fait bannir s'il part en rafale. Le §18 le rappelait
+   pour le ratio ; il est ici opposable à toute idée d'automatisation plus agressive.
+
+### Ce que cela ne tranche pas, et qui reste à dicter
+
+- **Automatique, proposé, ou manuel** : le moteur injecte-t-il seul, soumet-il des candidats, ou
+  attend-il un geste ?
+- **Ce qu'on voit d'un cross-seed** : le fil des injections, l'état par tracker, ou les deux.
+- **Où il vit** — une surface à lui, une part de la fiche média, ou une part du poste de contrôle.
+
+### Ce que cela impose à la preuve
+
+Contrairement au §18, **ce § demande du backend qui n'existe pas** : il n'y a rien à appeler. Ce
+n'est pas une raison de dessiner moins — §15 dit que le backend suit l'interface — mais c'en est
+une de l'écrire ici, pour que la demande parte de ce que l'expérience exige et non de ce que le
+moteur expose déjà.
+
+## Ce que l'interface DOIT faire (DOIT-1 … DOIT-14)
 
 1. **DOIT-1 — Tout montrer, en français clair.** Chaque média a un état compréhensible sans être
    développeur : intégré, renommé, identifié, posters récupérés, trailer, dispatché. Un libellé
@@ -514,6 +649,17 @@ qu'ils sont passés sous des règles vertes.
    pleinement fonctionnel mais n'est pas le point de départ du dessin.
 10. **DOIT-10 — Retrouvable.** Chaque détail a son URL ; Retour ferme ce qu'il doit fermer, et il **refait le chemin emprunté** (§16).
 11. **DOIT-11 — Être consultable.** Tout média affiché ouvre sa fiche détail ; la fiche dit ce qu'est le média (titre, année, synopsis, réalisateur, bande-annonce ; pour une série : saisons, épisodes, statut) **et** où il en est chez nous (possédé ou non, complétude par saison). La fiche est atteignable par un lien stable (`/media/:provider/:id`).
+12. **DOIT-12 — Montrer l'application de CE compte (§17).** Les actions offertes sont celles que le
+    compte connecté peut exercer ; ce qu'il ne peut pas faire est visible et expliqué plutôt que
+    silencieusement absent, quand le cacher tromperait sur l'état du système. Un refus reçu après
+    le geste est un défaut d'interface.
+13. **DOIT-13 — Montrer et piloter le ratio, tracker par tracker (§18).** Où en est chaque tracker,
+    quelles obligations de seed courent et jusqu'où, et de quoi régler la politique depuis la
+    surface qui l'affiche. Un ratio global unique ne satisfait pas cette clause : c'est par tracker
+    que le droit de télécharger se gagne ou se perd.
+14. **DOIT-14 — Rendre le cross-seed visible et décidable (§19).** Ce qui a été injecté, où, et
+    pourquoi un candidat a été refusé ; de quoi l'empêcher ou le provoquer. Un mécanisme qui dépose
+    des torrents chez des tiers sans que l'opérateur en sache rien ne satisfait pas cette clause.
 
 ## Ce que l'interface NE DOIT PAS faire (NE-DOIT-PAS-1 … NE-DOIT-PAS-9)
 

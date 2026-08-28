@@ -296,7 +296,7 @@ WARN_LINES = 250
 # arm was careful about the list's composition — it refuses a file over the
 # ceiling with no entry, and an entry for a file back under it — and never once
 # looked at the VALUE. Four entries named L07 for two waves after L07 landed,
-# and all four had GROWN in it. A label naming a lot that is already `LANDED`
+# and all four had GROWN in it. A label naming a lot that has already landed
 # promises a reduction nobody owes any more.
 #
 # So the value names the lot that STILL owes it, and only that lot. « L07, then
@@ -325,27 +325,45 @@ GENERATED = {
 GRANDFATHERED = {
     "engine/legacy.js": "L13 — the engine dies by subtraction, surface by surface",
     "engine/states.js": "L13 — the scenario table goes with the engine it drives",
-    "features/acquisition/page.tsx": "L09 — the data layer takes it (L07 converted the surface)",
-    "features/library/page.tsx": "L09 — the data layer takes it (L07 converted the surface)",
-    "features/media/media-screen.tsx": "L09 — the data layer takes it (L07 converted the surface)",
-    "features/arrivals/resolution-screen.tsx": "L09 — the data layer takes it (L07 converted the surface)",
+    "features/acquisition/page.tsx": "L14 — decomposition (L07 converted the surface, L09 did not shrink it)",
+    "features/library/page.tsx": "L14 — decomposition (L07 converted the surface, L09 did not shrink it)",
+    "features/media/media-screen.tsx": "L14 — decomposition (L07 converted the surface, L09 did not shrink it)",
+    "features/arrivals/resolution-screen.tsx": "L14 — decomposition (L07 converted the surface, L09 did not shrink it)",
 }
 
-# The plan is the authority on a lot's status, and it says it in one word.
-# `#### L07 — Tailwind and CVA, surface by surface · `LANDED` · *depended on …*`
+# A LABEL IS HELD AGAINST TWO DOCUMENTS, because since 2026-08-28 the answer
+# lives in two. The plan declares WHICH lots exist and in what order; it carries
+# no status at all, deliberately — a lot's progress written in two places is a
+# lot's progress wrong in one of them, and it was: `L09` sat at `NOT STARTED` on
+# `main` for a whole wave after it landed, and that stale word is what kept four
+# entries promising a reduction L09 had been and gone without making. So the
+# advancement is read where it now exists ALONE, `IMPLEMENTATION.md`'s
+# « Landed, in order » row, and the plan is read only for the lots it declares.
 #
-# ANCHORED ON THIS FILE, not on the working directory. `--root` exists so the
+# `#### L07 — Tailwind and CVA, surface by surface · *depended on L02, L04, L06*`
+# `| **Landed, in order**  | L01 · L02 · … |`
+#
+# THE WHOLE CELL IS READ, not a leading run of it. The row's job is to name the
+# lots that have landed, so anything lot-shaped inside it is one of them; a
+# grammar that read « the part before the commentary » would be one more rule to
+# keep true, and this arm's own history is a list of holds that stopped
+# describing what they read.
+#
+# ANCHORED ON THESE FILES, not on the working directory. `--root` exists so the
 # arms can be pointed at a copy of the tree, and the tests do exactly that from
-# a scratch directory — but the PLAN is one document wherever the corpus is. A
-# relative path here made the arm exit 1 from any directory but the repository
-# root, blaming the plan for being unreadable: « unreadable is a violation »
-# turns a wrong path into a hard failure with a message that names the wrong
-# culprit.
+# a scratch directory — but the plan and the advancement are one document each
+# wherever the corpus is. A relative path here made the arm exit 1 from any
+# directory but the repository root, blaming the plan for being unreadable:
+# « unreadable is a violation » turns a wrong path into a hard failure with a
+# message that names the wrong culprit.
 # The repository root, so a path can be NAMED the way the allowance list
 # writes it whatever the checkout is called.
 REPOSITORY = Path(__file__).resolve().parent.parent
 PLAN = REPOSITORY / "docs" / "reference" / "frontend-architecture.md"
-LOT_HEADING = re.compile(r"^####\s+(L\d\d)\b[^\n]*?·\s*`(NOT STARTED|IN PROGRESS|LANDED)`", re.M)
+ADVANCEMENT = REPOSITORY / "IMPLEMENTATION.md"
+LOT_HEADING = re.compile(r"^####\s+(L\d\d)\b", re.M)
+LANDED_ROW = re.compile(r"^\|\s*\*\*Landed, in order\*\*\s*\|([^|]*)", re.M)
+LOT_CODE = re.compile(r"\bL\d\d\b")
 
 # THE LABEL'S GRAMMAR: the lot that OWES the reduction, then a dash, then why.
 # Anchored at the start on purpose. A label may go on to mention a lot that has
@@ -357,28 +375,46 @@ LOT_HEADING = re.compile(r"^####\s+(L\d\d)\b[^\n]*?·\s*`(NOT STARTED|IN PROGRES
 # « L07, then L09 » is the shape this refuses, and it is the shape all four
 # entries wore. The debt is owed by ONE lot; a label carrying two, with nothing
 # saying which half is spent, is what let the promise expire unnoticed.
+#
+# AND IT EXPIRED ANYWAY, on the four labels that read « L09 — the data layer
+# takes it ». L09 landed having reduced the largest of them by thirteen lines
+# out of the three hundred and fifty-six it owed, and this arm reported nothing
+# because the status it read said L09 had not run. The debt is L14's now, and
+# L14 exists in the plan because of it.
 OWED_LOT = re.compile(r"^(L\d\d)\b")
 
 
-def plan_lots() -> tuple[set[str], set[str]]:
-    """Read the lots the plan declares, and which of them have landed.
+def declared_and_landed_lots() -> tuple[set[str], set[str]]:
+    """Read the lots the plan declares, and the lots that have landed.
+
+    TWO DOCUMENTS, and that is the point rather than an inconvenience. The
+    declaration is the plan's — it is the file that says which lots exist. The
+    advancement is `IMPLEMENTATION.md`'s, and only its: a status carried in
+    both files is a status that goes stale in one, which is exactly how four
+    grandfather entries kept promising a lot that had already run.
 
     BOTH SETS, and the first one is not decoration. Holding a label only
-    against the LANDED set leaves « L19 — the data layer takes it » green for
-    ever: the plan declares L01 to L13 and nothing else, so a lot that will
+    against the landed set leaves « L19 — the data layer takes it » green for
+    ever: the plan declares L01 to L14 and nothing else, so a lot that will
     never run is a promise nobody can call in — B-073's own defect wearing a
     different disguise.
 
     Returns:
-        A `(declared, landed)` pair of lot codes. BOTH EMPTY when the plan
-        cannot be read — and the caller treats that as its own violation
-        rather than as « no lot has landed », which is the reading that would
+        A `(declared, landed)` pair of lot codes. EITHER MAY BE EMPTY when its
+        document cannot be read, and the caller treats each emptiness as its
+        own violation naming its own file — never as « the plan declares
+        nothing » or « no lot has landed », which are the readings that would
         make this hold pass for the one reason it must never pass for.
     """
-    if not PLAN.is_file():
-        return set(), set()
-    found = LOT_HEADING.findall(PLAN.read_text(encoding="utf-8"))
-    return {lot for lot, _ in found}, {lot for lot, status in found if status == "LANDED"}
+    declared: set[str] = set()
+    if PLAN.is_file():
+        declared = set(LOT_HEADING.findall(PLAN.read_text(encoding="utf-8")))
+    landed: set[str] = set()
+    if ADVANCEMENT.is_file():
+        row = LANDED_ROW.search(ADVANCEMENT.read_text(encoding="utf-8"))
+        if row is not None:
+            landed = set(LOT_CODE.findall(row.group(1)))
+    return declared, landed
 
 
 def feature_of(module: str) -> str | None:
@@ -518,7 +554,7 @@ def arm_size(root: Path, listing: bool = False) -> int:
 
     # THE LABEL IS READ (B-073). Membership was held from both ends and the
     # VALUE from neither, so four entries promised a lot that had landed.
-    declared_lots, landed = plan_lots()
+    declared_lots, landed = declared_and_landed_lots()
     spent: list[str] = []
     unnamed: list[str] = []
     invented: list[str] = []
@@ -533,8 +569,14 @@ def arm_size(root: Path, listing: bool = False) -> int:
             invented.append(f"{module} — its label leads with {owed.group(1)}, "
                             f"which the plan does not declare")
         elif owed.group(1) in landed:
-            spent.append(f"{module} — its label leads with {owed.group(1)}, already `LANDED`")
-    unreadable = not landed
+            # « already landed », not « already `LANDED` ». The backticks quoted a
+            # status TOKEN, and no such token exists any more: the word left the
+            # plan on 2026-08-28. A message naming a spelling nobody can go and
+            # look at sends its reader hunting for a word that is not there.
+            spent.append(f"{module} — its label leads with {owed.group(1)}, "
+                         f"which IMPLEMENTATION.md records as already landed")
+    plan_unreadable = not declared_lots
+    advancement_unreadable = not landed
 
     # An exemption nobody counts is indistinguishable from an oversight, so the
     # generated files are PRINTED on every run rather than merely skipped — and
@@ -543,7 +585,8 @@ def arm_size(root: Path, listing: bool = False) -> int:
     absent = sorted(name for name in GENERATED if not (root / name).is_file())
     print(f"  size: ceiling {BLOCK_LINES}, {len(over)} at or over it "
           f"({len(GRANDFATHERED)} recorded; the plan declares {len(declared_lots)} lot(s), "
-          f"{len(landed)} of them LANDED), {len(warn)} above the {WARN_LINES} warning, "
+          f"and IMPLEMENTATION.md records {len(landed)} landed), "
+          f"{len(warn)} above the {WARN_LINES} warning, "
           f"{len(GENERATED)} generated file(s) exempt")
     for name in absent:
         print(f"    {name}: recorded as generated and is not in the tree — the "
@@ -566,15 +609,22 @@ def arm_size(root: Path, listing: bool = False) -> int:
     for entry in unnamed:
         print(f"    {entry}: its label leads with no lot, and a label nobody can act on "
               f"is the state B-073 found this list in", file=sys.stderr)
-    if unreadable:
-        # NOT « no lot has landed ». A reader that finds nothing and reports
-        # clean is the exact shape this arm was written to end: the hold would
-        # pass for the one reason it must never pass for.
-        print("    docs/reference/frontend-architecture.md: no lot status could be read, so « the label leads "
+    # NEITHER EMPTINESS IS A PASS. A reader that finds nothing and reports clean
+    # is the exact shape this arm was written to end: the hold would pass for the
+    # one reason it must never pass for. Two documents, so two messages — a
+    # single one naming a single file would send its reader to the file that was
+    # fine.
+    if plan_unreadable:
+        print("    docs/reference/frontend-architecture.md: no lot heading could be read, so « the label "
+              "leads with a lot the plan declares » is a sentence this arm cannot check",
+              file=sys.stderr)
+    if advancement_unreadable:
+        print("    IMPLEMENTATION.md: no « Landed, in order » row could be read, so « the label leads "
               "with a lot that has not landed » is a sentence this arm cannot check",
               file=sys.stderr)
     return (len(unrecorded) + len(stale) + len(spent) + len(unnamed)
-            + len(invented) + len(absent) + int(unreadable))
+            + len(invented) + len(absent)
+            + int(plan_unreadable) + int(advancement_unreadable))
 
 
 # `any` in a type position, an assertion to it, and the two suppressions. Not

@@ -17,9 +17,18 @@ is the plan for it.
 1. Read `IMPLEMENTATION.md` § « Where the frontend work stands » — which lot landed, which is
    next. Its § THE OBJECTIVE carries the measured inventory, not the state; the two are different
    sections and this file used to name only the second.
-2. Come back here and find **the first lot whose status is not `LANDED` and whose dependencies
-   are all `LANDED`**. That is the work. There is no other selection rule, and lots are not
-   reordered for convenience.
+2. Come back here and find **the first lot that has not landed and whose dependencies all
+   have**. That is the work. There is no other selection rule, and lots are not reordered for
+   convenience.
+
+   **The two halves live in two files on purpose, and that is what makes the rule reliable.** This
+   file names the ORDER and the DEPENDENCIES — « *depends on L01, L05, L08* » — and it carries **no
+   status**, because a status here is a second copy of something `IMPLEMENTATION.md` already owns
+   as *the only state*. It was removed on 2026-08-28 after L09 merged and left `NOT STARTED` behind
+   in this file, so this very rule elected the lot that had just landed. Adding the update to the
+   post-merge list was the obvious answer and was refused on the evidence written in § 5: that list
+   has been skipped three times out of four, and a sixth entry on a skipped list changes nothing.
+   **A fact that exists once cannot go stale.**
    **If that lot carries a blocking note**, take the next one that satisfies the same rule, and
    say in the wave's plan which lot you skipped and why. A blocked lot is not a reason to stop
    or to go asking where to start — this file is where to start.
@@ -54,6 +63,25 @@ is the plan for it.
 This file covers items 2, 3 and 4 of `IMPLEMENTATION.md` § THE OBJECTIVE → REMAINS — the visual
 language, the application itself, and the legacy engine — plus the safety net they all need and
 the method they all follow.
+
+**Also named here and deliberately unscheduled — the SEMANTIC SCROLL INDEX** (operator,
+2026-08-26). A list would offer an index shaped by its own sort: letters when sorted
+alphabetically, month markers when sorted by date. It is **not a scrollbar** — D11 settles that
+one — but a separate control, the shape a phone's fast-scroller has. It is written down so the
+objective is not lost, and it is **not a lot**: nothing schedules it, and § 0's selection rule must
+not reach it.
+
+**Three things keep the door open, and they cost nothing now.** The list must expose its sort key
+in an INDEXABLE form — first letter, month — in the DATA CONTRACT rather than in the markup, which
+is L09's decision to make when it wires the library. The scroll container must stay one identified
+element (`#port`, already true). And programmatic scrolling must have one path — which is a debt
+today: B-104 records that the current mechanism knows one port out of two, and an index that jumps
+to a letter would write through that same path.
+
+**The design risk, stated with the objective**: a control that both scrolls AND jumps teaches two
+things in one object, and on a six-pixel-wide thumb the margin between « I am scrolling » and « I
+jumped to M » is thin. Two functions, two objects — the bar stays a bar, the index appears when it
+serves.
 
 **Item 1 is deliberately outside this file**: `/control` (8 panels) and `/pipeline` (10 panels)
 are surfaces still to be drawn. They follow the existing method — drawn in the maquette first,
@@ -282,7 +310,8 @@ model out of the engine — `URL_DEFAULTS`, `urlFromState`, `stateFromUrl` and t
 plumbing — leaving it the navigation LOGIC (when to record an arrival, what the entry carries, how
 a back unwinds the layers). `openScreen` went with them, having lost every caller. `__go` and the
 named states remain the harness's own driving seam and belong to L13. The
-delegation, the boot, `/login` and the splash close the plan as L13.
+delegation, the boot, `/login` and the splash are L13's, which is the last lot of the engine's
+death — L14 follows it in this file and has nothing to do with the engine.
 
 ### D6 — Accessibility is a lot, not a side effect
 
@@ -412,6 +441,29 @@ descendant pairs, whose one- and two-letter anchors collide across contexts — 
 a FLOOR on the number of pairs found, because a pairing that found nothing would print « no
 divergence » and mean « I compared nothing » — which a first version of it did.
 
+### D11 — The scrollbar is STYLED, never replaced (operator, 2026-08-26)
+
+**Decision.** The scroll container's bar is given the design system's appearance through
+`scrollbar-width`, `scrollbar-color` and `::-webkit-scrollbar` — declarative, in `base.css`,
+therefore under the oracle. **A scrollbar rebuilt in JavaScript is refused.**
+
+**Why, and each reason is already a rule here.** A rebuilt bar loses the keyboard (PageUp/Down,
+Home/End, the gutter click), the middle-click, and the native role — against L03, whose floor is
+zero findings over 83 states. Its thumb would be positioned by a `scroll` handler, which is D9
+rule 1 exactly: motion written in JavaScript leaves the field of measurement. And the scroll path
+is compositor-facing, the category § 6 records as load-bearing — deleting one selector from that
+family once swallowed the whole pointer stream.
+
+**What styling does NOT solve, recorded so it is not rediscovered as a defect**: on a desktop the
+bar still occupies its gutter. That is the platform behaving correctly, and the phone frame the
+operator compares against is `harness.css`, which ships nowhere — a declared deviation, not the
+target. A real phone paints an overlay bar that fades.
+
+**A risk to measure before the change lands, not after.** `scrollbar-width: thin` narrows the
+gutter, so the content beside it widens by a few pixels. Every measured rectangle in that container
+may move. Whether it does is a run of the oracle on the machine that owns the references — it is
+not asserted here, and a wave that assumes either answer is doing what B-101 records.
+
 ---
 
 ## 3. Invariants — true at the end of every wave
@@ -492,8 +544,12 @@ divergence » and mean « I compared nothing » — which a first version of it 
 
 ## 4. The lots
 
-Status is one word and nothing else: `NOT STARTED` · `IN PROGRESS` · `LANDED`. Anything richer —
-which PR, which measurement, which proof — belongs in `IMPLEMENTATION.md`.
+**No lot below carries a status**, since 2026-08-28. What a lot carries here is its ORDER — its
+position in this file — and its DEPENDENCIES. Whether it has landed is `IMPLEMENTATION.md`'s
+« Landed, in order » row and nowhere else, along with everything richer: which pull request, which
+measurement, which proof. **A fact that exists once cannot go stale**, and this one had: `L09` read
+`NOT STARTED` here for a full wave after it merged, which elected the lot that had just landed and
+left four size promises green that nobody owed any more (B-148, B-150).
 
 ### Phase 0 — The safety net
 
@@ -502,7 +558,7 @@ is unchanged, and that promise is currently unprovable: `fidelity.py` cannot run
 it compared are deleted, no recording is committed, and the state ids have been renamed in two
 separate waves since.
 
-#### L01 — The recorded oracle · `LANDED`
+#### L01 — The recorded oracle
 
 **Objective.** One command that says whether the maquette renders today what it rendered at a
 known-good commit.
@@ -567,7 +623,7 @@ on L08**, so plan the two together rather than against each other. And once L12 
 transitions, a transition in flight moves the very rectangles this measures: the oracle reads
 **at rest**, which its settle signal must guarantee rather than assume.
 
-#### L02 — Test anchors move to `data-*` · `LANDED` · *depends on L01*
+#### L02 — Test anchors move to `data-*` · *depends on L01*
 
 **Objective.** No rule selects on a style class. 280 calls move onto `data-*` contracts.
 
@@ -587,7 +643,7 @@ suite is green at unchanged hold counts.
 
 ### Phase 1 — The contracts of markup and structure
 
-#### L03 — Accessibility · `LANDED` · *depended on L01*
+#### L03 — Accessibility · *depended on L01*
 
 **Objective.** Landmarks, roles, accessible names, focus order, focus visibility, keyboard paths,
 and focus management on every layer opening and closing.
@@ -614,7 +670,7 @@ of excepted states: `landmark-one-main` and `page-has-heading-one` describe the 
 and with a modal layer open the background is deliberately `inert`, therefore out of the
 accessibility tree. The split is printed on every run — 65 states asked, 18 could not.
 
-#### L04 — Boundaries and the tree · `LANDED` · *depended on L01*
+#### L04 — Boundaries and the tree · *depended on L01*
 
 **Why here.** Every lot after this one creates files. Deciding afterwards means moving them
 twice. **And why it depends on the oracle**: this lot breaks two import cycles, which is a change
@@ -709,7 +765,7 @@ it waits for a stronger reason than tidiness.
 Plus: the tree matches the target, `data.ts` no longer exists, and grandfathered files are listed
 with their converting lot.
 
-#### L05 — Routing · `LANDED` · *depended on L01, L04*
+#### L05 — Routing · *depended on L01, L04*
 
 **Objective.** D1 in force. Every page and screen on a real path, state in the query, layers
 ranked in three tiers.
@@ -727,7 +783,7 @@ its reason recorded; the oracle is green.
 
 ### Phase 2 — The visual language
 
-#### L06 — The scale · `LANDED` · *depended on L01*
+#### L06 — The scale · *depended on L01*
 
 **Objective.** One declared scale — space, type, radius, duration, easing — and every declaration
 folded onto it. **What landed is 32 tokens in one `:root` block** at the top of BLOCK 2: nine
@@ -794,7 +850,7 @@ findings are gone and `a11y.py`'s contrast run is empty; `.search input` reads a
 focused field no longer zooms iOS; the oracle records the intended visual changes as accepted, each
 reviewed.
 
-#### L07 — Tailwind and CVA, surface by surface · `LANDED` · *depended on L02, L04, L06*
+#### L07 — Tailwind and CVA, surface by surface · *depended on L02, L04, L06*
 
 **Objective.** D2 in force. Each surface converts on its own, oracle green at every step.
 
@@ -843,7 +899,7 @@ declares 53 operations of its own and answers every one of them from a mock laye
 none of the others: no surface is wired to any of it, which is L09's.
 <sub>commands in `IMPLEMENTATION.md` § THE OBJECTIVE</sub>
 
-#### L08 — The data contract and the mocks · `LANDED` · *depended on L04*
+#### L08 — The data contract and the mocks · *depended on L04*
 
 **Objective.** D7 in force. The contract the interface requires, plus a mock layer serving it, so
 the maquette codes against a real shape with no backend touched.
@@ -885,7 +941,7 @@ each found by validating the seeds against it. `serie` is a show's RUN STATUS an
 `const settle = afterUnwind` a literal, because it walked an initializer's children and never the
 initializer.
 
-#### L09 — The data layer, surface by surface · `NOT STARTED` · *depends on L01, L05, L08*
+#### L09 — The data layer, surface by surface · *depended on L01, L05, L08*
 
 **Objective.** Server state in its query cache, mutations with their optimistic paths and their
 rollbacks, the two state-ownership invariants (4 and 5) in force. Each surface takes its data and **its share of the
@@ -922,7 +978,7 @@ ownership is settled — no ambient mutable object read from everywhere; every m
 optimistic path and a rollback, or a written reason why it cannot; the oracle is green
 against the mocks, or its divergences are accepted one by one with reasons.
 
-#### L10 — The live relay · `NOT STARTED` · *depends on L09*
+#### L10 — The live relay · *depends on L09*
 
 **Objective.** The event stream, and the cache invalidations it drives.
 
@@ -931,7 +987,7 @@ against the mocks, or its divergences are accepted one by one with reasons.
 **Done when.** A server event refreshes exactly what it should and nothing else; reconnection and
 loss are handled visibly; no polling remains where an event exists.
 
-#### L11 — Offline and PWA · `NOT STARTED` · *depends on L09*
+#### L11 — Offline and PWA · *depends on L09*
 
 **Objective.** Service worker, offline shell, queued mutations that depart on reconnection, and
 the platform entry points a media application owes — receiving a shared link, and being the
@@ -944,7 +1000,7 @@ reconnection, exactly once; installation and its entry points are exercised on a
 
 ### Phase 4 — The finish
 
-#### L12 — Native interaction · `NOT STARTED` · *depends on L05, L07*
+#### L12 — Native interaction · *depends on L05, L07*
 
 **Objective.** View transitions, gestures, mobile geometry, and the performance floor beneath
 them. D9 governs every library question in this lot; its verdict table is the answer, not a
@@ -998,7 +1054,7 @@ is defined for each of them (the reduced-motion invariant); the feedback seam ha
 unvirtualised long list remains; and the interaction budget is measured on a real device, not in
 a headless browser.
 
-#### L13 — The engine's residue · `NOT STARTED` · *depends on L07, L09, L12*
+#### L13 — The engine's residue · *depends on L07, L09, L12*
 
 **Objective.** What did not die by subtraction: the document-level delegation, the boot
 handshake, `/login` and the splash as components, and the republished `window` surface once the
@@ -1006,6 +1062,15 @@ harness no longer drives through it.
 
 **Done when.** `legacy.js` no longer exists; nothing reads a `window.__` seam; the suite is green
 at unchanged hold counts; the oracle is green.
+
+**Carried here by L09, 2026-08-28 — the sixty fixture families it could not kill.** L09's « Done
+when » says each surface's share of the fixture dies with it (D5). Twenty-one families died and
+`legacy.js` lost 1 814 lines; **sixty remain**, and they belong to surfaces the ENGINE still draws —
+their literals cannot leave before their markup does. The wave declared the gap plainly and it is
+recorded here rather than in its session report, because a deferral that lives in a squashed pull
+request body stops existing for the next reader. **Done when** those sixty die with the producers
+that read them, which is this lot's subject. **No earlier wave can take it**: unlike the fragment
+above, this one is not separable from the engine's death.
 
 **Carried here by L07, 2026-08-25 — the prototype fragment, and R72's renegotiation.** L07 emptied
 `frontend/maquette/design/refonte.html` of every style rule and did **not** delete it. Two reasons,
@@ -1017,6 +1082,40 @@ renegotiation recorded in `regions.json` rather than a file deletion. Twelve liv
 path. **Done when** the fragment is gone, R72 is renegotiated with its two surviving holds
 mutation-tested, and the ledger has a home that outlives it. **Any earlier wave may take it** —
 nothing depends on waiting — provided it carries both, and folds neither into a conversion commit.
+
+#### L14 — The surfaces that outgrew their file · *depends on L07, L09*
+
+**Objective.** The four feature surfaces that sit over the 400-line hard ceiling come back under
+it, by decomposition: `features/acquisition/page.tsx` (756), `features/media/media-screen.tsx`
+(796), `features/library/page.tsx` (613), `features/arrivals/resolution-screen.tsx` (430).
+
+**Why it exists as a lot rather than as a line in someone else's.** It was one, and the promise
+expired unpaid. Those four files carried the label « L09 — the data layer takes it » in
+`check-frontend-boundaries.py`'s grandfather list, and L09 landed having reduced the largest of
+them by **thirteen lines out of the three hundred and fifty-six it owed**. The premise was simply
+wrong: what makes those files long is not the fetching L09 moved out, it is markup and variants —
+`page.tsx` holds four whole tabs, `media-screen.tsx` holds a season list and an icon set, and the
+same `Icon` component is written out twice in two different files.
+
+**Why nobody noticed.** The label was held against the plan's own per-lot status, and that status
+said `NOT STARTED` for L09 for a full wave after L09 merged. A guard reading a stale word reported
+a promise that had already expired. The status left the plan on 2026-08-28 for that reason among
+others; this lot is the debt the stale word was hiding.
+
+**Where it lives (invariant 10).** Each extracted component stays inside its own feature folder
+unless a second feature already reads it. The duplicated `Icon` is the one exception in sight: a
+component two features draw is vocabulary, and vocabulary lives in `ui/`.
+
+**Its position in this file is deliberate, and so is what that position costs.** Nothing depends
+on it, so it sits last and § 0's rule will elect it last — which means L10 to L13 are all worked
+inside 600-to-800-line files, and invariant 6's reason (« an agent modifying a component opens one
+file ») is not served for them. **Its dependencies have both landed**, so the operator may pull it
+forward between any two lots at any time, and that is a real option rather than a formality.
+
+**Done when.** No file under `frontend/maquette/design/src` is at or over 400 non-blank lines with
+the sole exception of the dying engine's two, `engine/legacy.js` and `engine/states.js`, which
+L13 removes; no component is written out twice; every extraction is proved by the oracle, whose
+whole subject is that nothing moved on the screen.
 
 ---
 
@@ -1140,9 +1239,10 @@ conflict someone has to resolve. This one arrives as green.
 - **Skipping the oracle to move faster.** It is what makes everything else provable. Removing it
   does not save time; it removes the ability to know.
 
-**Which lot is next is decided by § 0's selection rule** — not `LANDED`, every dependency
-`LANDED` — and never by which one happens to be unblocked earliest. Where two are eligible, the
-lower number goes first unless this file says otherwise.
+**Which lot is next is decided by § 0's selection rule** — the first lot in this file's order
+that `IMPLEMENTATION.md` does not record as landed and whose every dependency it does — and never
+by which one happens to be unblocked earliest. Where two are eligible, **this file's order decides,
+not the number**: L14 is written after L13 and runs after it.
 
 ---
 
@@ -1204,9 +1304,11 @@ principle.
 **When a decision changes, the implementation directives change in the same move.** What loses
 its subject is removed, not kept "just in case".
 
-**Deferred, on purpose.** An executable check — one that refuses a lot marked `LANDED` whose
+**Deferred, on purpose.** An executable check — one that refuses a lot recorded as landed whose
 files do not exist, or a cross-reference pointing at a dead path — is wanted and is not built
-yet. It is built once this plan has proved its shape, and not before: a guard written against a
+yet. **The paragraph above cost something the day the status left this file**: five sentences here
+went on describing a `LANDED` token that no longer existed, this one among them, and one guard read
+it. « The directives change in the same move » is not advice; it is the whole of B-150. It is built once this plan has proved its shape, and not before: a guard written against a
 structure still moving guards the wrong thing. This paragraph is its record, so that "we meant to"
 does not become "we forgot".
 

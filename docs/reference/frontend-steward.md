@@ -63,8 +63,10 @@ conversation. What follows is the whole of the office.
 **The audit, in this order.** Each step answers a question the previous one cannot.
 
 1. **Was the order respected?** Is the landed lot the one the plan's § 0 selection rule
-   designates —
-   not `LANDED`, every dependency `LANDED`? A lot taken out of turn is the first symptom, and the
+   designates — the first in the plan's order that `IMPLEMENTATION.md` does not record as landed
+   and whose every dependency it does? **The rule crosses two files since 2026-08-28**: the plan
+   carries the order and the dependencies, `IMPLEMENTATION.md` the « Landed, in order » row, and
+   the plan carries no status at all. A lot taken out of turn is the first symptom, and the
    cheapest to see.
 2. **Is every line of its "Done when" true?** Against the repository, never against what the
    pull request claims. A lot is not finished because its code exists.
