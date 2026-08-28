@@ -48,6 +48,16 @@ WHAT IT DOES NOT READ, said before what it does:
     event classes. That is a source question and it is
     `scripts/check-live-relay.py --arm map-completeness`'s, which costs no
     browser at all.
+  - AND IT DOES NOT READ WHETHER A RULE REFRESHES THE RIGHT THING. It holds the
+    IMPLEMENTATION against the DECLARATION: the keys it expects are read from
+    each feature's `live.ts`, so a rule that declares the wrong key and
+    invalidates that same wrong key passes. Measured, not assumed — pointing
+    `ItemProgressed` at the pipeline status instead of staging leaves every
+    per-rule hold green. What catches THAT is the map's key coverage
+    (`check-live-relay.py --arm map-completeness`: every key a feature's
+    `queries.ts` declares is named by a rule or exempted) and the `because` line
+    a reviewer reads. Stated here rather than left to be discovered, because a
+    rule whose limit is not written down is read as proving more than it does.
 """
 import asyncio
 import json
