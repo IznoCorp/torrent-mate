@@ -72,9 +72,15 @@ import {
 } from "./history-bridge";
 import { installScrollRestoration } from "./scroll-restoration";
 import { installPanelHost } from "./panel-host";
-import { installLiveUpdates, resetLiveUpdates, unmatchedEvents } from "./live-updates";
+import {
+  installLiveUpdates,
+  resetLiveUpdates,
+  unmatchedCount,
+  unmatchedEvents,
+} from "./live-updates";
 import { forceCondition, readCondition } from "../lib/relay-condition";
 import { installRelay, reconnectNow, resetRelay, setLimits } from "../lib/relay";
+import { installRelayRecovery } from "./relay-recovery";
 import { ConnectionMark, ConnectionNotice } from "./connection-notice";
 import { installSeams } from "../engine/seams";
 import {
@@ -151,6 +157,7 @@ declare global {
       condition: typeof readCondition;
       reconnect: typeof reconnectNow;
       unmatched: typeof unmatchedEvents;
+      unmatchedCount: typeof unmatchedCount;
       force: typeof forceCondition;
       limits: typeof setLimits;
       reset: () => void;
@@ -331,6 +338,10 @@ installEngineData(queryClient);
 //   goes with a page is a subscription that loses data permanently.
 installLiveUpdates(queryClient);
 installRelay();
+// AFTER the relay, because it reconnects one — and it subscribes to the same
+// history instance the scroll restoration does, so it inherits that step's own
+// ordering constraint.
+installRelayRecovery();
 // Published for the harness beside the other seams, for the reason the query
 // cache is: a rule that has to reach inside a module to ask what the connection
 // is doing is a rule coupled to how the module is built.
@@ -338,6 +349,7 @@ window.__relay = {
   condition: readCondition,
   reconnect: reconnectNow,
   unmatched: unmatchedEvents,
+  unmatchedCount,
   force: forceCondition,
   limits: setLimits,
   reset: () => {

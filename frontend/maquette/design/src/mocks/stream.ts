@@ -31,7 +31,7 @@
 
 import {
   BUILD_COMMIT,
-  compareIdentifiers,
+  isNewerCursor,
   HELLO_TYPE,
   PING_TYPE,
   type StreamEntry,
@@ -173,7 +173,7 @@ class MockSocket extends EventTarget {
     const cursor = new URL(this.url, globalThis.location.origin).searchParams.get("last_id");
     if (cursor === null) return;
     for (const entry of entries) {
-      if (compareIdentifiers(entry.id, cursor) > 0) this.push(entry);
+      if (isNewerCursor(entry.id, cursor)) this.push(entry);
     }
   }
 

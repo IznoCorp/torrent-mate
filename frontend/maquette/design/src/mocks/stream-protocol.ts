@@ -30,18 +30,10 @@ export type StreamEntry = {
 };
 
 /**
- * Orders two cursors the way the server's `XRANGE` does.
+ * Says whether one cursor comes strictly after another.
  *
- * READ AS TWO NUMBERS, never as strings. `"10-0" < "9-0"` is true in a string
- * comparison and false in the stream's own order, so a lexical compare would
- * replay the whole log again from the tenth event onward.
- *
- * @param left One cursor.
- * @param right The other.
- * @returns A negative number when `left` comes first.
+ * RE-EXPORTED FROM `lib/`, not implemented here. The relay compares cursors to
+ * refuse one that moves backwards and this server compares them to replay from
+ * an exclusive lower bound — one arithmetic, one trap, one place.
  */
-export function compareIdentifiers(left: string, right: string): number {
-  const [leftTime, leftSequence] = left.split("-").map(Number);
-  const [rightTime, rightSequence] = right.split("-").map(Number);
-  return leftTime - rightTime || leftSequence - rightSequence;
-}
+export { isNewerCursor } from "../lib/stream-cursor";

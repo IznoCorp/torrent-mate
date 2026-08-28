@@ -38,6 +38,7 @@ const PONG_FRAME = "pong";
 // and only then reads the cookie, so a refusal is a close on an OPEN socket —
 // which is what makes this branch reachable at all. Closing before accept would
 // give a browser an opaque 1006 and this code would be dead in production.
+import { isNewerCursor } from "./stream-cursor";
 import {
   countAttempt,
   forceCondition,
@@ -161,9 +162,16 @@ function disarmLiveness(): void {
  * @param event What arrived.
  */
 function announce(event: RelayEvent): void {
-  cursor = event.id;
+  // THE CURSOR ONLY EVER MOVES FORWARD. It used to take every id it was handed,
+  // and two sockets briefly overlapping — a replacement opening while the old
+  // one drains its buffer — could hand it an OLDER id than the one already
+  // reached. The next reconnect would then replay from behind, delivering
+  // events a second time.
+  //
+  if (cursor === null || isNewerCursor(event.id, cursor)) cursor = event.id;
   for (const listener of [...eventListeners]) listener(event);
 }
+
 
 /**
  * Reads one frame, whatever the server sent.
@@ -211,7 +219,16 @@ function receive(raw: string): void {
     // ANSWERING IS THE WHOLE OF IT. The server resets its silence timer on any
     // text frame; a missed ping is the server's business and reaches this
     // client as a close, never as a state it has to infer.
-    socket?.send(PONG_FRAME);
+    //
+    // AND IT CAN THROW. `send()` on a socket that has begun closing raises
+    // `InvalidStateError`, and this call sits inside a message listener — an
+    // escaping error there is an uncaught exception on a page whose interface
+    // does not depend on the transport at all.
+    try {
+      socket?.send(PONG_FRAME);
+    } catch {
+      // The socket is going away; the close handler is where that is decided.
+    }
     return;
   }
   if (typeof message.id !== "string") return;
@@ -270,6 +287,13 @@ function connect(): void {
   }
   socket = opened;
   opened.addEventListener("message", (event) => {
+    // THE SAME GUARD THE CLOSE LISTENER HAS, and it was missing here. A real
+    // `close()` is ASYNCHRONOUS: the browser goes on dispatching frames already
+    // in its receive buffer while `socket` already points at the replacement.
+    // A stale `ws.hello` then set the condition to `connected` for a socket
+    // that was closing — a green dot over a link that no longer exists, and a
+    // permanent one if the replacement never opens.
+    if (opened !== socket) return;
     if (typeof event.data === "string") receive(event.data);
   });
   opened.addEventListener("close", (event) => {

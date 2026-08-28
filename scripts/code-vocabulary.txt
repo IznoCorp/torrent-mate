@@ -551,6 +551,7 @@ needed
 network
 neutral
 new
+newer
 newly
 next
 no
@@ -691,6 +692,7 @@ recents
 reconcile
 reconnect
 record
+recovery
 rect
 redraw
 ref
@@ -822,6 +824,7 @@ side
 sidebar
 sign
 signal
+signing
 signout
 silence
 silent

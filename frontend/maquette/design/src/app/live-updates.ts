@@ -32,8 +32,19 @@ import { maintenanceLiveRules } from "../features/maintenance/live";
 import { mediaLiveRules } from "../features/media/live";
 import { systemLiveRules } from "../features/system/live";
 
-/** Every event that arrived and matched no rule, since the boot. */
+// HOW MANY UNCLAIMED EVENTS ARE KEPT. The list is a diagnostic — an event
+// nobody can COUNT is how a map silently stops covering its subject — and it
+// used to grow for the life of the process. The events that feed it are the
+// exempted ones, which include the highest-frequency in the system by design:
+// `BackfillItemCompleted` fires once per item of a backfill that walks the whole
+// library, and this is an installed application nobody reloads for days.
+// A diagnostic bounded to nothing is a leak.
+const UNMATCHED_KEPT = 200;
+
+/** The most recent events that arrived and matched no rule. */
 let unmatched: string[] = [];
+/** How many have arrived in all, which is the figure a rule reads. */
+let unmatchedTotal = 0;
 
 /**
  * Reads the events nothing claimed.
@@ -42,6 +53,18 @@ let unmatched: string[] = [];
  */
 export function unmatchedEvents(): string[] {
   return [...unmatched];
+}
+
+/**
+ * Reads how many unclaimed events have arrived in all.
+ *
+ * SEPARATE FROM THE LIST, because the list is capped: a count taken from its
+ * length would stop rising at the cap and read as « nothing more arrived ».
+ *
+ * @returns The total since the boot.
+ */
+export function unmatchedCount(): number {
+  return unmatchedTotal;
 }
 
 /**
@@ -73,7 +96,9 @@ export function installLiveUpdates(queryClient: QueryClient): void {
   subscribeToEvents((event: RelayEvent) => {
     const matched = byType.get(event.type);
     if (matched === undefined) {
+      unmatchedTotal += 1;
       unmatched.push(event.type);
+      if (unmatched.length > UNMATCHED_KEPT) unmatched.shift();
       return;
     }
     for (const rule of matched) {
@@ -89,4 +114,5 @@ export function installLiveUpdates(queryClient: QueryClient): void {
  */
 export function resetLiveUpdates(): void {
   unmatched = [];
+  unmatchedTotal = 0;
 }

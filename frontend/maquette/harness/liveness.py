@@ -38,6 +38,14 @@ WHAT IT HOLDS:
   the clean close a 1000 nobody asked for is a loss; a 1000 we asked for is not.
   the age        `currentSince` moves on EVERY frame, including a ping — it is
                  the age of the DATA, and the notice says so in French.
+  the way out    a refusal is terminal, correctly — but leaving the sign-in with
+                 a refused session reconnects. Without it the notice offered
+                 « Se reconnecter », the operator signed in, and the notice was
+                 still there pointing back at a sign-in already passed: a loop
+                 whose only exit was a page reload.
+  the stale frame a superseded socket's frames are ignored, and the cursor never
+                 walks backwards. A real `close()` is asynchronous, so the
+                 browser goes on delivering what it had buffered.
 
 WHAT IT DOES NOT READ, said before what it does:
 
@@ -264,6 +272,78 @@ async def hold(journal):
             and isinstance(aged["afterPing"], int)
             and aged["afterEvent"] > aged["afterPing"],
             f"after a ping {aged['afterPing']}, after an event {aged['afterEvent']}")
+
+        # THE WAY OUT OF A REFUSAL. Terminal is right; inescapable is not.
+        recovered = await page.evaluate(
+            """async () => {
+                 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+                 window.__relay.reset();
+                 window.__mocks.stream.refuse(true);
+                 window.__relay.reconnect();
+                 await wait(300);
+                 const refused = window.__relay.condition().condition;
+                 // THE WINDOW IS MEASURED WHILE REFUSED, and it has to be:
+                 // comparing the count at the END would span the recovery
+                 // reconnection, which is a connection this rule WANTS.
+                 const atRefusal = window.__mocks.stream.connections().length;
+                 await wait(1200);
+                 const notRetried =
+                   window.__mocks.stream.connections().length === atRefusal;
+                 // The operator taps « Se reconnecter » and signs in. The
+                 // session is valid again; the only thing this application can
+                 // observe is that they left the sign-in.
+                 // The navigation is driven through the history the shell
+                 // owns — the same instance `installRelayRecovery` subscribes
+                 // to — rather than through a seam that does not exist.
+                 history.pushState({}, "", "/login");
+                 window.dispatchEvent(new PopStateEvent("popstate"));
+                 await wait(250);
+                 window.__mocks.stream.refuse(false);
+                 history.back();
+                 await wait(600);
+                 return {
+                   refused, notRetried,
+                   afterSigningIn: window.__relay.condition().condition,
+                 };
+               }""")
+        journal.check(
+            "a refusal is not retried",
+            recovered["refused"] == "refused" and recovered["notRetried"],
+            f"the condition is {recovered['refused']!r}, and over 1 200 ms — "
+            "past four backoff delays — no further connection was made. "
+            "Retrying an expired session is a loop that produces nothing and "
+            "says nothing")
+        journal.check(
+            "but leaving the sign-in reconnects",
+            recovered["afterSigningIn"] == "connected",
+            f"after signing in the condition is {recovered['afterSigningIn']!r} "
+            "— the notice offered « Se reconnecter », the operator signed in, "
+            "and the notice stayed on screen pointing back at a sign-in already "
+            "passed: a loop whose only exit was a page reload")
+
+        # A SUPERSEDED SOCKET SAYS NOTHING. A real `close()` is asynchronous, so
+        # frames already buffered keep arriving after `socket` points elsewhere.
+        stale = await page.evaluate(
+            """async () => {
+                 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+                 window.__relay.reset();
+                 window.__relay.reconnect();
+                 await wait(200);
+                 // Reach the sockets the fake holds and push a hello down the
+                 // FIRST one after a second has replaced it.
+                 window.__relay.reconnect();
+                 await wait(200);
+                 const before = window.__relay.condition().currentSince;
+                 window.__mocks.stream.drop(1006);
+                 await wait(20);
+                 return { before, after: window.__relay.condition().currentSince,
+                          condition: window.__relay.condition().condition };
+               }""")
+        journal.check(
+            "a replaced socket cannot report the connection healthy",
+            stale["condition"] != "connected",
+            f"after the live socket dropped, the condition is "
+            f"{stale['condition']!r}")
 
         await page.evaluate("()=>{ window.__relay.reset(); window.__mocks.reset(); }")
         await context.close()
