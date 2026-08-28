@@ -952,7 +952,8 @@ and the interface never contradict each other. R69, `harness/url_state.py`.
 2. **The visual language, the application and the legacy engine** — including the three
    questions of this section. **Their scope is written**: `docs/reference/frontend-architecture.md`
    carries the settled decisions and the ordered lots, each with its dependencies and its
-   definition of done. Take the first lot that is not `LANDED` and whose dependencies are.
+   definition of done. Take the first lot in that file's order which the « Landed, in order » row
+   above does not name and whose dependencies it does.
    One consequence was already recorded in the SP4-fin plan and still holds: `refonte.html` is
    on its way out — BLOCK 2 becomes a stylesheet of the maquette's own Vite project, and BLOCK 1
    goes with the harness.

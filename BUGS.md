@@ -3242,6 +3242,16 @@ plan, because a debt with no owner is the state the ceiling is supposed to refus
 > duplicated status did not create this defect; it uncovered one that had been green for a wave.
 > A second copy of a fact does not merely go stale — it answers for the first, and everything
 > downstream reads the answer.
+>
+> **And the removal itself left five sentences behind, in this office's own commit.** § 4 of the
+> plan still opened « Status is one word and nothing else: `NOT STARTED` · `IN PROGRESS` ·
+> `LANDED` »; § 5's « which lot is next » still named the token; § 7.1's deferred-guard paragraph
+> still described refusing « a lot marked `LANDED` »; `frontend-steward.md`'s first audit step and
+> `IMPLEMENTATION.md`'s § SP5 both still stated the old rule. Thirteen tokens were counted out and
+> the prose that described them was not — **and § 7.1's own line, one paragraph above the worst of
+> them, is « when a decision changes, the implementation directives change in the same move »**.
+> Corrected here. Found by grepping for the dead token after the guard was repaired, which is the
+> only reason it was found at all.
 
 ---
 

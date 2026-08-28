@@ -544,8 +544,12 @@ not asserted here, and a wave that assumes either answer is doing what B-101 rec
 
 ## 4. The lots
 
-Status is one word and nothing else: `NOT STARTED` · `IN PROGRESS` · `LANDED`. Anything richer —
-which PR, which measurement, which proof — belongs in `IMPLEMENTATION.md`.
+**No lot below carries a status**, since 2026-08-28. What a lot carries here is its ORDER — its
+position in this file — and its DEPENDENCIES. Whether it has landed is `IMPLEMENTATION.md`'s
+« Landed, in order » row and nowhere else, along with everything richer: which pull request, which
+measurement, which proof. **A fact that exists once cannot go stale**, and this one had: `L09` read
+`NOT STARTED` here for a full wave after it merged, which elected the lot that had just landed and
+left four size promises green that nobody owed any more (B-148, B-150).
 
 ### Phase 0 — The safety net
 
@@ -1235,9 +1239,10 @@ conflict someone has to resolve. This one arrives as green.
 - **Skipping the oracle to move faster.** It is what makes everything else provable. Removing it
   does not save time; it removes the ability to know.
 
-**Which lot is next is decided by § 0's selection rule** — not `LANDED`, every dependency
-`LANDED` — and never by which one happens to be unblocked earliest. Where two are eligible, the
-lower number goes first unless this file says otherwise.
+**Which lot is next is decided by § 0's selection rule** — the first lot in this file's order
+that `IMPLEMENTATION.md` does not record as landed and whose every dependency it does — and never
+by which one happens to be unblocked earliest. Where two are eligible, **this file's order decides,
+not the number**: L14 is written after L13 and runs after it.
 
 ---
 
@@ -1299,9 +1304,11 @@ principle.
 **When a decision changes, the implementation directives change in the same move.** What loses
 its subject is removed, not kept "just in case".
 
-**Deferred, on purpose.** An executable check — one that refuses a lot marked `LANDED` whose
+**Deferred, on purpose.** An executable check — one that refuses a lot recorded as landed whose
 files do not exist, or a cross-reference pointing at a dead path — is wanted and is not built
-yet. It is built once this plan has proved its shape, and not before: a guard written against a
+yet. **The paragraph above cost something the day the status left this file**: five sentences here
+went on describing a `LANDED` token that no longer existed, this one among them, and one guard read
+it. « The directives change in the same move » is not advice; it is the whole of B-150. It is built once this plan has proved its shape, and not before: a guard written against a
 structure still moving guards the wrong thing. This paragraph is its record, so that "we meant to"
 does not become "we forgot".
 
