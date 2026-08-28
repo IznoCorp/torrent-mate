@@ -36,6 +36,14 @@ WHAT THIS RULE HOLDS, and each hold answers one line of the lot's « Done when �
                 flight. Until this hold existed, that line could be deleted and
                 every gate stayed green — including the oracle, which is the
                 instrument the line changes.
+  the stream    the event stream obeys `web-ui.md` § WebSocket Protocol: one
+                hello and it is FIRST; a refused session is ACCEPTED and then
+                closed `4401`, in that order, because closing before accept
+                gives a browser an opaque `1006` and makes the client's
+                terminal branch dead code in production; `?last_id=` replays
+                with an EXCLUSIVE lower bound; a burst arrives in order; and
+                the stream pushes NOTHING unless the driver makes it push,
+                which is what keeps a named state measurable.
   the network   the seam answers from the table rather than leaving the page.
                 It reads ONE route and the `fetch` seam alone: a handler
                 reaching the network through another means — a script tag, an
@@ -401,6 +409,102 @@ async def main():
             f"status {answer['status']}, body opens with "
             f"{answer['body'].lstrip()[:1]!r}",
         )
+
+        # ── the stream ──────────────────────────────────────────────────────
+        # DRIVEN THROUGH `window.__mocks.stream` AND READ AT THE CLIENT'S END.
+        # A hold that asked the driver what it had emitted would be asking the
+        # writer whether it wrote; what is measured here is what a socket
+        # RECEIVED, which is the only end a real client has.
+        observed = await page.evaluate(
+            """async () => {
+                 const stream = window.__mocks.stream;
+                 stream.reset();
+                 const seen = [];
+                 const closed = [];
+                 const socket = new WebSocket("/ws/events");
+                 socket.addEventListener("message", (e) => seen.push(JSON.parse(e.data)));
+                 socket.addEventListener("close", (e) => closed.push(e.code));
+                 await new Promise((r) => setTimeout(r, 80));
+                 const beforeAnyEmit = seen.length;
+                 stream.emitBurst([
+                   { type: "PipelineStarted" },
+                   { type: "StepStarted" },
+                   { type: "StepCompleted" },
+                 ]);
+                 stream.ping();
+                 socket.send("pong");
+                 await new Promise((r) => setTimeout(r, 40));
+                 stream.drop(1006);
+                 await new Promise((r) => setTimeout(r, 40));
+
+                 // Reconnect having seen the FIRST of the three.
+                 const replayed = [];
+                 const second = new WebSocket("/ws/events?last_id=1-0");
+                 second.addEventListener("message", (e) => replayed.push(JSON.parse(e.data)));
+                 await new Promise((r) => setTimeout(r, 80));
+
+                 // A refused session: accepted first, then closed 4401.
+                 stream.refuse(true);
+                 const order = [];
+                 const third = new WebSocket("/ws/events");
+                 third.addEventListener("open", () => order.push("open"));
+                 third.addEventListener("close", (e) => order.push(`close:${e.code}`));
+                 await new Promise((r) => setTimeout(r, 80));
+                 stream.refuse(false);
+
+                 return {
+                   seen, closed, replayed, order, beforeAnyEmit,
+                   pongs: stream.state().received,
+                   addresses: stream.connections(),
+                 };
+               }"""
+        )
+
+        journal.check(
+            "one hello, and it arrives before anything else",
+            observed["beforeAnyEmit"] == 1
+            and observed["seen"][0]["type"] == "ws.hello"
+            and len([one for one in observed["seen"] if one["type"] == "ws.hello"]) == 1,
+            f"the socket saw {observed['beforeAnyEmit']} frame(s) before any emit, "
+            f"opening with {observed['seen'][0]['type'] if observed['seen'] else 'nothing'!r}",
+        )
+        journal.check(
+            "the stream pushes nothing the driver did not push",
+            observed["beforeAnyEmit"] == 1,
+            f"{observed['beforeAnyEmit'] - 1} unsolicited frame(s) arrived before the first emit",
+        )
+        burst = [one["type"] for one in observed["seen"] if one.get("id")]
+        journal.check(
+            "a burst arrives whole and in order",
+            burst == ["PipelineStarted", "StepStarted", "StepCompleted"],
+            f"received {burst}",
+        )
+        journal.check(
+            "the client answers a ping, and the server records the frame",
+            any(one["type"] == "ws.ping" for one in observed["seen"])
+            and observed["pongs"] == ["pong"],
+            f"ping seen: {any(one['type'] == 'ws.ping' for one in observed['seen'])}, "
+            f"frames recorded: {observed['pongs']}",
+        )
+        replayed = [one["id"] for one in observed["replayed"] if one.get("id")]
+        journal.check(
+            "`last_id` replays with an EXCLUSIVE lower bound",
+            replayed == ["2-0", "3-0"],
+            f"reconnecting at 1-0 replayed {replayed}, and 1-0 among them would be "
+            "one event delivered twice on every reconnect",
+        )
+        journal.check(
+            "a refused session is ACCEPTED first, then closed 4401",
+            observed["order"] == ["open", "close:4401"],
+            f"the socket saw {observed['order']} — closing before accept gives a "
+            "browser an opaque 1006 and the client's 4401 branch becomes unreachable",
+        )
+        journal.check(
+            "a reconnect carries the cursor it left on",
+            observed["addresses"][1].endswith("last_id=1-0"),
+            f"the second connection asked for {observed['addresses'][1]!r}",
+        )
+        await page.evaluate("() => window.__mocks.reset()")
 
         await context.close()
         await browser.close()

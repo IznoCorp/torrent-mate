@@ -27,6 +27,7 @@ import {
   setOperationOutcome,
 } from "./scenario";
 import { resetMockState } from "./state";
+import { installMockStream, resetStream, type StreamDriver } from "./stream";
 import { routes } from "./handlers";
 
 /** The signature this module replaces. */
@@ -208,8 +209,14 @@ export function installMockNetwork(): void {
   // and the reference object already use, for the same reason: a measurement
   // that has to reach inside a module is a measurement coupled to how the
   // module is built.
+  // THE STREAM IS INSTALLED WITH THE SEAM, not beside it. Both are the network
+  // as far as the application is concerned, and a layer that lifted out in two
+  // halves would leave a page with a socket and no requests.
+  const stream = installMockStream();
+
   window.__mocks = {
     routes: () => routes().map((route) => `${route.method} ${route.template}`),
+    stream,
     scenario,
     outcomeFor,
     setOperationOutcome,
@@ -217,6 +224,7 @@ export function installMockNetwork(): void {
     reset: () => {
       resetScenario();
       resetMockState();
+      resetStream();
     },
     inFlight: () => inFlight,
     quiet: () =>
@@ -237,6 +245,8 @@ declare global {
      */
     __mocks?: {
       routes: () => string[];
+      /** The event stream's driving surface — emit, drop, refuse, replay. */
+      stream: StreamDriver;
       scenario: typeof scenario;
       outcomeFor: typeof outcomeFor;
       setOperationOutcome: typeof setOperationOutcome;

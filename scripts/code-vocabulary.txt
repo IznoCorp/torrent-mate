@@ -109,7 +109,9 @@ brand
 bridge
 btn
 bugs
+build
 built
+burst
 button
 by
 byidv
@@ -162,10 +164,13 @@ color
 coming
 commit
 common
+compare
 complete
 config
 configuration
 confirmadd
+connection
+connections
 containers
 contains
 content
@@ -183,6 +188,7 @@ cron
 cross
 cur
 current
+cursor
 cutoff
 danger
 data
@@ -238,6 +244,8 @@ drag
 drawer
 drawing
 draws
+driver
+drop
 dry
 duration
 dx
@@ -245,6 +253,7 @@ each
 ease
 edited
 element
+emit
 emphasis
 emphasized
 empty
@@ -340,6 +349,7 @@ heading
 health
 height
 held
+hello
 hero
 hgo
 hide
@@ -593,6 +603,7 @@ pile
 pill
 pills
 pilot
+ping
 pipe
 pipeline
 play
@@ -642,6 +653,7 @@ raw
 read
 real
 reason
+received
 recent
 recents
 reconcile
@@ -655,6 +667,7 @@ refresh
 refusal
 refuse
 refused
+refusing
 region
 register
 reglees
@@ -683,8 +696,8 @@ resolve
 resolved
 rest
 restart
-restore
 restoration
+restore
 restored
 result
 results
@@ -748,8 +761,10 @@ selmode
 semibold
 send
 separator
+sequence
 series
 served
+server
 services
 set
 setting
@@ -785,6 +800,7 @@ slow
 sm
 small
 snug
+socket
 soft
 solid
 soon
@@ -812,6 +828,7 @@ step
 steps
 sticky
 store
+stream
 strip
 strong
 stuck
@@ -895,6 +912,7 @@ travelled
 trim
 tuples
 two
+type
 typed
 ua
 ui
