@@ -190,6 +190,7 @@ when the defect comes back.
 | B-147 | Nine steward findings were stacked on five unmerged branches and collided with a wave | by audit | `fixed #511` |
 | B-148 | Lot status lives in two files, and § 0 reads the one a wave forgets | by audit | `fixed #511` |
 | B-149 | A declared departure from the lot's « Done when » lives only in a session report | by audit | `fixed #511` |
+| B-150 | A size promise expired unnoticed because the guard read the status B-148 froze | by audit | `fixed #511` |
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
@@ -2013,7 +2014,8 @@ absence of a row can mean either.
 | L08 | 6 | PR #503's squash body — B-093 and B-094 write out two of the six; B-092 and B-095 are adjacent findings of that wave, not members of the six |
 | L08-bis (#505, the correction wave) | 9 | itemised below · squash `12a134ca` |
 | L09 | **14** | Recounted at the wave's close, and the count TREBLED between the gate and the merge — four adversarial reviewers ran before it, and nine of these fourteen are theirs. **B-105** and **B-106**, both found by mutation in the phases that wrote the instruments. **B-108**, the oracle itself — its `neutralise` broke the React tree and it recorded the damage as the reference, on four states of the exact kind this lot wires. **B-110**'s first attempt, which took three seeds out of the schema arm while the register claimed that arm held them. The **filters rule**, which read the FIRST listing in the cache rather than the active one. **B-121**, a gate vacuous where it blocks and moving where it does not. **B-122**, an arm that built a path by cutting it on the operator's own clone directory, so it could never match its own allowance list — two violations on CI, none locally, over an identical tree. **B-123**, a test that DERIVED a rule the application derives nowhere and then asserted the rendering that derivation produced, over a live production regression. **B-124**, one spelling of a store write out of three, defeated by a one-line wrapper already in the tree. **B-125**, an arm blind to `fetchNextPage` and to every layout effect — including in its own corpus count, which is the floor that is supposed to catch this. **B-126**, floors a third under the corpus. **B-133**, three rules of this lot's own making holding on something other than what they read. **B-134**, no arm reading what a HANDLER answers. **B-135**, three named states measuring the panel left open by the state before them, off screen, for as long as the reference has existed |
-| **Total** | **40** | at 2026-08-28, L09 counted at its close (step five of § 5). **The wave that built the most instruments found the most blind ones**, and that is the reading: nine of L09's fourteen were found by adversarial reviewers reading the gate AFTER it went green |
+| Steward, between L09 and L10 (#511) | **1** | **B-150**, and it is the sharpest variant in this table: the size arm read the RIGHT file and asked the RIGHT question — « has the lot this label promises already landed? » — and got a stale answer, because the plan still called L09 `NOT STARTED` a wave after it merged. Four labels promised a reduction nobody owed and the guard reported clean. Found by removing the duplicated status, not by a gate: the fix for B-148 turned this one red |
+| **Total** | **41** | at 2026-08-28. **The wave that built the most instruments found the most blind ones**, and that is the reading: nine of L09's fourteen were found by adversarial reviewers reading the gate AFTER it went green. **And a guard can be blind to a document rather than to code** — B-150's arm was correct in every line and read a file that had stopped being true |
 
 **The nine the correction wave found, since a wave that counts itself has to name its own.** The
 figure is large because the count is honest, not because the wave was worse: four of the nine are
@@ -3198,6 +3200,47 @@ entry of `frontend-architecture.md`, with its own « Done when » and an explici
 may take it » — that is § 7.1 done properly, and it is why the deferral survives its session. This
 one lives in a report and a merged pull request body. **After the squash, a reader of the plan sees
 a « Done when » clause that is not true and nothing saying why.**
+
+**B-150 — four files promised a reduction to a lot that had been and gone, and the guard that
+exists to catch exactly that reported clean.**
+`check-frontend-boundaries.py`'s size arm holds a grandfather list of files over the 400-line
+ceiling, each labelled with the lot that OWES the reduction. B-073 armed it to refuse a label
+naming a lot already landed — « a label naming a lot that is already `LANDED` promises a reduction
+nobody owes any more », in the module's own words. Four entries read **« L09 — the data layer takes
+it »**, and L09 landed on 2026-08-28.
+
+**It reported clean because it read the stale word B-148 is about.** The landed set came from the
+plan's own per-lot status, and the plan said L09 was `NOT STARTED`. The guard was not wrong about
+its rule; it was reading a document that had stopped being true. **Forty-one now** on the B-085
+counter — « a guard is green because of what it does not read » — and this one is the sharpest
+variant yet: the guard read the right file, asked the right question, and got a stale answer.
+
+**What L09 actually delivered against that promise: thirteen lines.** `features/acquisition/page.tsx`
+went 769 → 756 while owing 356; `media-screen.tsx` is 796, `library/page.tsx` 613,
+`resolution-screen.tsx` 430. **The premise of the label was simply wrong** — what makes those files
+long is not the fetching L09 moved out, it is markup and variants. `page.tsx` holds four whole tabs
+in one file, and the same `Icon` component is written out twice in two different features.
+
+**The repair is in three parts, and only the first is the defect's own.** The arm now reads the
+declaration from the plan and the advancement from `IMPLEMENTATION.md`'s « Landed, in order » row,
+with each emptiness its own violation naming its own file — a single « unreadable » message would
+send its reader to the document that was fine. The four labels name **L14**. And L14 exists in the
+plan, because a debt with no owner is the state the ceiling is supposed to refuse.
+
+<sub>`python3 scripts/check-frontend-boundaries.py --arm size` · `git show 5fdbfc9a:frontend/maquette/design/src/features/acquisition/page.tsx | grep -c '[^[:space:]]'`</sub>
+
+> **CLOSED with the arbitration, 2026-08-28 (#511).** The operator's ruling: the plan declares a
+> lot for it rather than hanging the debt on a lot whose subject it is not. **L14 — The surfaces
+> that outgrew their file** is written into `frontend-architecture.md` after L13, depending on L07
+> and L09 — both landed, so it may be pulled forward between any two lots at any time. **What that
+> position costs is written into the entry rather than left to be discovered**: nothing depends on
+> L14, so § 0 elects it last, and L10 through L13 are all worked inside 600-to-800-line files while
+> invariant 6's reason — « an agent modifying a component opens one file » — goes unserved for them.
+>
+> **This entry is the argument for B-148's arbitration, found by making it.** Removing the
+> duplicated status did not create this defect; it uncovered one that had been green for a wave.
+> A second copy of a fact does not merely go stale — it answers for the first, and everything
+> downstream reads the answer.
 
 Fix: carry it to L13 as L07's was, or amend L09's clause to say what it actually promised — the
 share of the fixture belonging to a surface the ENGINE no longer draws. Not both; the point is

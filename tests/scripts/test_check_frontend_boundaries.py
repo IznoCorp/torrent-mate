@@ -585,10 +585,10 @@ class TestSizeArmReadsTheLabel:
         violations = guard.arm_size(DESIGN_SRC)
         captured = capsys.readouterr()
         assert violations == 1, captured.err
-        assert "leads with L07, already `LANDED`" in captured.err
+        assert "leads with L07, which IMPLEMENTATION.md records as already landed" in captured.err
 
     def test_a_lot_that_has_not_landed_is_accepted(self, monkeypatch, capsys) -> None:
-        """`L13` is `NOT STARTED`, so the promise still stands."""
+        """`L13` is absent from the landed row, so the promise still stands."""
         monkeypatch.setitem(guard.GRANDFATHERED, "engine/legacy.js", "L13 — the engine dies by subtraction")
         violations = guard.arm_size(DESIGN_SRC)
         captured = capsys.readouterr()
@@ -603,12 +603,40 @@ class TestSizeArmReadsTheLabel:
         assert "leads with no lot" in captured.err
 
     def test_a_plan_that_cannot_be_read_is_a_violation_not_a_pass(self, monkeypatch, capsys) -> None:
-        """No status read means the hold cannot be checked — never that nothing landed."""
+        """No lot declared means the hold cannot be checked — never that the plan declares none."""
         monkeypatch.setattr(guard, "PLAN", Path("does/not/exist.md"))
         violations = guard.arm_size(DESIGN_SRC)
         captured = capsys.readouterr()
         assert violations == 1, captured.err
-        assert "no lot status could be read" in captured.err
+        assert "no lot heading could be read" in captured.err
+
+    def test_an_advancement_that_cannot_be_read_is_a_violation_not_a_pass(
+        self, monkeypatch, capsys
+    ) -> None:
+        """The advancement moved out of the plan on 2026-08-28, and so did this hold's blind spot.
+
+        The status used to live in the plan, and one emptiness covered both
+        halves. It lives in `IMPLEMENTATION.md` now, so a row that cannot be
+        read must be its own violation naming its own file — read as « no lot
+        has landed » it would pass every spent label in the list, which is the
+        one reason this hold must never pass.
+        """
+        monkeypatch.setattr(guard, "ADVANCEMENT", Path("does/not/exist.md"))
+        violations = guard.arm_size(DESIGN_SRC)
+        captured = capsys.readouterr()
+        assert violations == 1, captured.err
+        assert "no « Landed, in order » row could be read" in captured.err
+
+    def test_the_two_documents_are_read_apart(self, capsys) -> None:
+        """The plan declares, `IMPLEMENTATION.md` records — and neither answers for the other.
+
+        A single reader over one file was what let `L09` sit at `NOT STARTED`
+        for a wave after it merged while four labels promised its reduction.
+        """
+        declared, landed = guard.declared_and_landed_lots()
+        assert "L14" in declared, "the plan declares the lot the four labels now name"
+        assert "L09" in landed, "IMPLEMENTATION.md records L09 as landed"
+        assert "L14" not in landed, "a declared lot is not a landed one"
 
     def test_a_label_naming_a_lot_the_plan_never_declares_is_a_violation(self, monkeypatch, capsys) -> None:
         """A lot that will never run is a promise nobody can call in.

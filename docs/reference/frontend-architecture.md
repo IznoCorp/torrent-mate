@@ -310,7 +310,8 @@ model out of the engine — `URL_DEFAULTS`, `urlFromState`, `stateFromUrl` and t
 plumbing — leaving it the navigation LOGIC (when to record an arrival, what the entry carries, how
 a back unwinds the layers). `openScreen` went with them, having lost every caller. `__go` and the
 named states remain the harness's own driving seam and belong to L13. The
-delegation, the boot, `/login` and the splash close the plan as L13.
+delegation, the boot, `/login` and the splash are L13's, which is the last lot of the engine's
+death — L14 follows it in this file and has nothing to do with the engine.
 
 ### D6 — Accessibility is a lot, not a side effect
 
@@ -1077,6 +1078,40 @@ renegotiation recorded in `regions.json` rather than a file deletion. Twelve liv
 path. **Done when** the fragment is gone, R72 is renegotiated with its two surviving holds
 mutation-tested, and the ledger has a home that outlives it. **Any earlier wave may take it** —
 nothing depends on waiting — provided it carries both, and folds neither into a conversion commit.
+
+#### L14 — The surfaces that outgrew their file · *depends on L07, L09*
+
+**Objective.** The four feature surfaces that sit over the 400-line hard ceiling come back under
+it, by decomposition: `features/acquisition/page.tsx` (756), `features/media/media-screen.tsx`
+(796), `features/library/page.tsx` (613), `features/arrivals/resolution-screen.tsx` (430).
+
+**Why it exists as a lot rather than as a line in someone else's.** It was one, and the promise
+expired unpaid. Those four files carried the label « L09 — the data layer takes it » in
+`check-frontend-boundaries.py`'s grandfather list, and L09 landed having reduced the largest of
+them by **thirteen lines out of the three hundred and fifty-six it owed**. The premise was simply
+wrong: what makes those files long is not the fetching L09 moved out, it is markup and variants —
+`page.tsx` holds four whole tabs, `media-screen.tsx` holds a season list and an icon set, and the
+same `Icon` component is written out twice in two different files.
+
+**Why nobody noticed.** The label was held against the plan's own per-lot status, and that status
+said `NOT STARTED` for L09 for a full wave after L09 merged. A guard reading a stale word reported
+a promise that had already expired. The status left the plan on 2026-08-28 for that reason among
+others; this lot is the debt the stale word was hiding.
+
+**Where it lives (invariant 10).** Each extracted component stays inside its own feature folder
+unless a second feature already reads it. The duplicated `Icon` is the one exception in sight: a
+component two features draw is vocabulary, and vocabulary lives in `ui/`.
+
+**Its position in this file is deliberate, and so is what that position costs.** Nothing depends
+on it, so it sits last and § 0's rule will elect it last — which means L10 to L13 are all worked
+inside 600-to-800-line files, and invariant 6's reason (« an agent modifying a component opens one
+file ») is not served for them. **Its dependencies have both landed**, so the operator may pull it
+forward between any two lots at any time, and that is a real option rather than a formality.
+
+**Done when.** No file under `frontend/maquette/design/src` is at or over 400 non-blank lines with
+the sole exception of the dying engine's two, `engine/legacy.js` and `engine/states.js`, which
+L13 removes; no component is written out twice; every extraction is proved by the oracle, whose
+whole subject is that nothing moved on the screen.
 
 ---
 
