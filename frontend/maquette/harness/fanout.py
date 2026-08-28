@@ -227,14 +227,36 @@ async def warm(page, keys):
 
 
 def covers(moved, keys):
-    """Says whether the entries that moved are exactly those under `keys`."""
-    wanted = set()
-    for key in keys:
-        prefix = json.dumps(key)[:-1]        # drop the closing bracket
-        wanted.add(prefix)
+    """Says whether the entries that moved are EXACTLY those under `keys`.
+
+    BOTH DIRECTIONS, AND THE FIRST VERSION ONLY COMPUTED ONE. It walked `moved`
+    and asked whether each entry was declared — the « nothing else » half — and
+    never walked the declared keys to ask whether each had moved. The docstring
+    claimed both from the day it was written. Measured: changing
+    `live-updates.ts` to invalidate `rule.keys.slice(0, 1)` silently stops
+    refreshing five addresses across four features, and all 57 holds stayed
+    green, because the only guard on the missing direction was « something
+    moved » — satisfied by any single key of the union.
+
+    THE SEPARATORS ARE PINNED. `json.dumps` writes `", "` between elements and
+    escapes non-ASCII; `JSON.stringify` writes `","` and does neither. Every key
+    in the map has one element today, so the difference has never shown — the
+    day a two-element key lands (the media sheet's narrow key is a filed
+    demand), the prefix would match nothing and this rule would report a false
+    violation against a correct map.
+    """
+    wanted = {
+        json.dumps(key, separators=(",", ":"), ensure_ascii=False)[:-1]
+        for key in keys
+    }
     for entry in moved:
         if not any(entry.startswith(prefix) for prefix in wanted):
             return False, f"{entry} moved and no rule key covers it"
+    for prefix in sorted(wanted):
+        if not any(entry.startswith(prefix) for entry in moved):
+            return False, (f"{prefix}] is declared and nothing under it moved — "
+                           "a rule that refreshes a SUBSET of what it declares "
+                           "leaves the rest stale for the life of the process")
     return True, ""
 
 
@@ -260,12 +282,29 @@ async def hold(journal):
             return
 
         await page.evaluate(WATCH.strip())
-        entries = await warm(
-            page, [key for _, _, rule_keys, _ in rules for key in rule_keys])
+        declared_keys = [key for _, _, rule_keys, _ in rules for key in rule_keys]
+        entries = await warm(page, declared_keys)
+        held = await page.evaluate(
+            """() => window.__queries.getQueryCache().getAll()
+                 .map((entry) => JSON.stringify(entry.queryKey))""")
+        unmeasured = sorted({
+            json.dumps(key, separators=(",", ":"), ensure_ascii=False)[:-1]
+            for key in declared_keys
+            if not any(one.startswith(
+                json.dumps(key, separators=(",", ":"), ensure_ascii=False)[:-1])
+                for one in held)
+        })
+        # THE FLOOR IS THE DECLARED KEYS, not a number. It used to be
+        # `entries >= len(rules)` — a count of cache entries against a count of
+        # rules, two quantities with no relation: seven declared keys could have
+        # failed to seed and the floor would still have passed, and a key with
+        # no entry is a key this rule cannot measure at all.
         journal.check(
-            "the cache holds something, so « nothing moved » is a reading",
-            entries >= len(rules),
-            f"{entries} cache entr(ies) before the first event")
+            "every declared key has an entry to move",
+            not unmeasured,
+            f"{entries} cache entr(ies), and {len(unmeasured)} declared key(s) "
+            f"have none: {unmeasured} — a key with no entry is a rule this "
+            "measurement silently skips")
 
         # ONE EVENT FIRES EVERY RULE THAT NAMES IT, so what it must refresh is
         # the UNION of their keys — never one rule's. R91's own first version
