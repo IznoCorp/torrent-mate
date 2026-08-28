@@ -55,6 +55,13 @@ from common import PHONE, Journal, open_page
 # pair `app/scroll-restoration.ts` resolves, so the rule and the code read one
 # contract rather than two spellings of it.
 PAGE_PORT = "#port"
+
+# The library's own address. `"/"` is the HOME page — acquisition — and this
+# rule used to pin it, because `__go`'s reset replaces the address with home
+# while drawing whatever state was asked for. An assertion that cannot tell the
+# library from the home page cannot tell « came back » from « never left ».
+# <sub>`grep -n \'lib: "/media"\' frontend/maquette/design/src/lib/addresses.ts`</sub>
+LIBRARY_PATH = "/media"
 SCREEN_PORT = '[data-part="screen"][data-open] [data-part="viewport"]'
 
 # How far down to scroll before leaving. Far enough that landing at the top is
@@ -87,42 +94,62 @@ async def walk_a_page(page):
         """async ({ offset }) => {
              const wait = (ms) => new Promise((r) => setTimeout(r, ms));
              const port = () => document.querySelector("#port");
-             window.__go("lib-grid");
+             const tab = (page) => document.querySelector(`#nav [data-page="${page}"]`);
+             const current = () => {
+               const active = document.querySelector('#nav [data-page][aria-current], '
+                 + '#nav [data-page].on, #nav [data-page][data-on]');
+               return active ? active.getAttribute("data-page") : null;
+             };
+
+             // NAVIGATED FOR REAL, never through `__go`. The driver calls
+             // `window.__reset()`, which ends by replacing the address with
+             // « / » — the HOME page, which is acquisition. So the library was
+             // DRAWN while the address said home, and coming « back » to « / »
+             // re-rendered nothing: this rule passed while the operator was
+             // looking at Système, scrolled 300 px, on a page they never
+             // scrolled. Its own address assertion pinned « / », which is not
+             // the library's address at all.
+             tab("lib").click();
              await window.__mocks.quiet();
-             await wait(400);
+             await wait(500);
+             const arrived = { where: location.pathname, page: current() };
+             if (!port()) return { reached: null, why: "no #port on the library" };
              port().scrollTop = Math.min(
                offset, port().scrollHeight - port().clientHeight);
              await wait(200);
              const left = port().scrollTop;
+             const tall = port().scrollHeight;
              if (left < 20) return { reached: null, why: `page too short: ${left}` };
 
              // OPEN AN ITEM FIRST, and it is not decoration. A top-level tab
              // REPLACES the current entry (D1b), so leaving the page directly
              // would consume the very entry the return needs and there would be
-             // nothing to go back to — measured: `history.back()` stays put and
-             // the rule fails for a reason that is not the defect. The item's
-             // push is what the tab then replaces, leaving the page's own entry
-             // underneath. It is also the operator's own journey: the position
-             // is not lost coming back FROM the item, it is lost coming back
-             // from somewhere else.
+             // nothing to go back to. The item's push is what the tab then
+             // replaces, leaving the page's own entry underneath. It is also
+             // the operator's own journey: the position is not lost coming back
+             // FROM the item, it is lost coming back from somewhere else.
              const tile = document.querySelector('[data-part="tile"]');
              if (!tile) return { reached: null, why: "the grid drew no tile" };
              tile.click();
              await window.__mocks.quiet();
              await wait(600);
 
-             const tab = document.querySelector('#nav [data-page="sys"]');
-             if (!tab) return { reached: null, why: "the tab bar has no system tab" };
-             tab.click();
+             tab("sys").click();
              await window.__mocks.quiet();
              await wait(700);
-             const elsewhere = port().scrollTop;
+             const elsewhere = {
+               offset: port().scrollTop,
+               reachable: port().scrollHeight - port().clientHeight,
+               page: current(),
+             };
 
              history.back();
              await window.__mocks.quiet();
              await wait(900);
-             return { left, elsewhere, reached: port().scrollTop,
-                      where: location.pathname, why: "" };
+             return { arrived, left, tall, elsewhere,
+                      reached: port().scrollTop,
+                      where: location.pathname, page: current(),
+                      backTall: port().scrollHeight, why: "" };
            }""",
         {"offset": OFFSET})
 
@@ -144,17 +171,30 @@ async def hold(journal):
             walked["why"])
         if walked["reached"] is not None:
             journal.check(
-                "leaving a page really loses the offset, so the return means something",
-                walked["elsewhere"] < TOLERANCE,
-                f"the offset was {walked['elsewhere']} on the other page — if it "
-                "survived the departure, this rule would pass with no memory at "
-                "all, which is what its first version did")
+                "the walk really reached the library, and really left it",
+                walked["arrived"]["where"] == LIBRARY_PATH
+                and walked["elsewhere"]["page"] == "sys",
+                f"it arrived at {walked['arrived']['where']!r} on tab "
+                f"{walked['arrived']['page']!r} and left for tab "
+                f"{walked['elsewhere']['page']!r}")
             journal.check(
-                "coming back to a PAGE lands where one left it",
+                "the other page could have held the offset and did not",
+                walked["elsewhere"]["offset"] < TOLERANCE
+                and walked["elsewhere"]["reachable"] >= OFFSET,
+                f"the offset was {walked['elsewhere']['offset']} on a page with "
+                f"{walked['elsewhere']['reachable']} px of reach — if it "
+                "survived the departure, or if the other page were too short to "
+                "scroll, this rule would pass with no memory at all")
+            journal.check(
+                "coming back to a PAGE lands where one left it, ON THAT PAGE",
                 abs(walked["reached"] - walked["left"]) <= TOLERANCE
-                and walked["where"] == "/",
-                f"left at {walked['left']}, came back to {walked['reached']} at "
-                f"{walked['where']!r} — the port a main page scrolls in is "
+                and walked["where"] == LIBRARY_PATH
+                and walked["page"] == "lib"
+                and abs(walked["backTall"] - walked["tall"]) <= TOLERANCE,
+                f"left at {walked['left']} on a {walked['tall']} px page, came "
+                f"back to {walked['reached']} at {walked['where']!r} on tab "
+                f"{walked['page']!r} with {walked['backTall']} px — the port a "
+                "main page scrolls in is "
                 "`#port`, and the selector this replaced could only ever find an "
                 "open screen's (B-140)")
 
