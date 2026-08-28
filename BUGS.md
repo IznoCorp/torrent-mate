@@ -180,7 +180,7 @@ when the defect comes back.
 | B-137 | Four ACCEPTANCE criteria could not run, or expected the wrong answer | by adversarial review | `fixed #509` |
 | B-138 | The profile panel's avatar is unconstrained, inside a region whose probe reads only the container | by operator | `open` |
 | B-139 | Three typed variants were written and never wired; one leaves a bare button unreadable | by operator | `open` |
-| B-140 | Back returns to the top of a page: the scroll memory only knows overlay screens | by operator | `open` |
+| B-140 | Back returns to the top of a page: the scroll memory only knows overlay screens | by operator | `fixed #TBD` |
 | B-141 | Ten elements carry no class at all, in a prototype that imports no preflight | by audit | `open` |
 | B-142 | Nothing measures the interface against the constitution: five DOIT clauses have no surface | by audit | `open` |
 | B-143 | §17 (accounts, rights, Plex SSO) has no surface, no contract operation and no lot | by audit | `open` |
@@ -198,6 +198,8 @@ when the defect comes back.
 | B-155 | The header claimed « Temps réel connecté » as a literal, with no connection anywhere | by design | `fixed #TBD` |
 | B-156 | The harness's condition lever left the retry control dead in the state that offers it | by rule | `fixed #TBD` |
 | B-157 | R92 held that a notice named its reason by reading the TIMESTAMP beside it | by mutation | `fixed #TBD` |
+| B-158 | R94 walked a journey that cannot lose a scroll position, and passed over B-140 | by mutation | `fixed #TBD` |
+| B-159 | Two instruments split a file on a WORD whose first use is the type import | by gate | `fixed #TBD` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
@@ -302,6 +304,45 @@ should have carried. A second mutation — the notice never rendering at all —
 **What is worth carrying forward**: « and since when » in the hold's own NAME was the tell. A hold
 whose sentence contains « and » is answering two questions, and it will pass whenever the easier
 one is true.
+
+**B-158 — the rule walked a journey that cannot lose anything.**
+R94 was written to hold B-140's repair, and its mutation — restore
+`.screen.open .port` — did not fall. The rule scrolled the library, opened a media sheet and
+came back, which is the operator's sentence read literally.
+
+**That journey cannot lose a position.** A screen is `position: absolute` over the page: `#port`
+is never unmounted and its height does not change, so the offset survives with or without any
+memory at all. Measured with the defect restored: 300 px before, 300 during, 300 after.
+
+What loses it is a TOP-LEVEL PAGE SWITCH — the content is replaced, `#port` becomes a different
+length, and the browser clamps the offset to zero. Measured on one build, one selector apart:
+back at **0** with `.screen.open .port`, back at **300** with the repair.
+
+**And the journey needs the item's push BEFORE the tab**, which is not a detail: a top-level tab
+REPLACES the current entry (D1b), so leaving the page directly consumes the very entry the return
+needs — `history.back()` stays put and the rule fails for a reason that is not the defect. It is
+also the operator's own journey read properly: **the position is not lost coming back FROM the
+item, it is lost coming back from somewhere else.**
+
+The rule now carries the hold that would have caught its own first version: « leaving a page
+really loses the offset, so the return means something ». A rule that measures a return without
+first establishing that anything was at stake passes with no memory at all.
+
+**B-159 — two instruments split a file on a word whose first use is the import.**
+`check-live-relay.py` and `harness/fanout.py` both read each feature's `live.ts` and both needed
+to separate the RULES from the EXEMPTIONS. Both split on the string `"Exemptions"`. Its first
+occurrence in every one of those files is the TYPE IMPORT on line 1.
+
+**The two failed differently, and that is the whole entry.** The guard's `rules` variable held an
+import statement, so it reported **3 refreshed addresses out of 24** — a confident number, printed,
+that only a reader comparing it against the tree would ever have questioned. The harness rule read
+three exemptions as rules with empty type lists and raised `IndexError` on the first one.
+
+A crash is a better failure than a wrong number, and neither was found by design: the guard's was
+found because 3 looked implausible, the rule's because it stopped. Both split on the exemptions
+OBJECT now (`^export const \w+LiveExemptions`), and R91 additionally holds that every declared
+rule names at least one event — so a rule that ends up empty falls with a sentence rather than a
+traceback.
 
 **B-041 — the newest guard is the only one of its family with nothing to re-run.**
 `scripts/check-frontend-boundaries.py` is 515 lines and eight arms, and it landed with L04
