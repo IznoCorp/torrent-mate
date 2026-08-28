@@ -287,4 +287,11 @@ def test_the_committed_reference_carries_a_platform():
     # settings field. That kind existed nowhere before L09: the interface guessed a cron
     # from the shape of its value, and the six cron settings rendered as raw cron with no
     # state showing one for anybody to look at.
-    assert reference["counts"] == {"states": 84, "regions": 33}
+    #
+    # 87 SINCE L10, and the three are `relay-reconnecting`, `relay-lost` and `relay-refused`:
+    # what the interface says about its own connection. Until that lot the header carried
+    # « Connecté » as a LITERAL, beside a green dot, with no connection anywhere in the
+    # prototype (B-155) — §8 of the constitution inverted, since a permanent claim of liveness
+    # is worse than silence. The reference GREW rather than moved: 3 states added, 0 removed,
+    # and not one of the 84 existing measurements changed.
+    assert reference["counts"] == {"states": 87, "regions": 33}

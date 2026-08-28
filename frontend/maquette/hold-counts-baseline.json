@@ -1,8 +1,8 @@
 {
-  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 50 of 62 rule(s) report a hold count; the other 12 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
-  "taken_at_commit": "27096f31c93278e71127e2c0a34b5d7a998f3511",
+  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 54 of 66 rule(s) report a hold count; the other 12 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
+  "taken_at_commit": "8265b0a33a0af949ad72aeef5a735f07b4818ba6",
   "taken_on": "2026-08-28",
-  "suite": "62 of 62 rule(s)",
+  "suite": "66 of 66 rule(s)",
   "host": "http://127.0.0.1:8899/",
   "rules": {
     "actions.py": {
@@ -62,7 +62,7 @@
     },
     "chrome.py": {
       "exit": 0,
-      "count": 168,
+      "count": 174,
       "source": "own EXECUTED count line"
     },
     "content.py": {
@@ -98,6 +98,11 @@
     "entry.py": {
       "exit": 0,
       "count": 10,
+      "source": "common.Journal summary"
+    },
+    "fanout.py": {
+      "exit": 0,
+      "count": 57,
       "source": "common.Journal summary"
     },
     "filters.py": {
@@ -177,7 +182,7 @@
     },
     "mocks.py": {
       "exit": 0,
-      "count": 20,
+      "count": 27,
       "source": "common.Journal summary"
     },
     "mouse.py": {
@@ -215,6 +220,16 @@
       "count": 28,
       "source": "own EXECUTED count line"
     },
+    "relay_states.py": {
+      "exit": 0,
+      "count": 25,
+      "source": "common.Journal summary"
+    },
+    "replay.py": {
+      "exit": 0,
+      "count": 10,
+      "source": "common.Journal summary"
+    },
     "residue.py": {
       "exit": 0,
       "count": 20,
@@ -245,6 +260,11 @@
       "count": 4,
       "source": "per-hold PASS/FAIL tally"
     },
+    "scroll_memory.py": {
+      "exit": 0,
+      "count": 6,
+      "source": "common.Journal summary"
+    },
     "selection.py": {
       "exit": 0,
       "count": null,
@@ -262,7 +282,7 @@
     },
     "settle.py": {
       "exit": 0,
-      "count": 6,
+      "count": 10,
       "source": "common.Journal summary"
     },
     "shell.py": {
@@ -282,7 +302,7 @@
     },
     "states.py": {
       "exit": 0,
-      "count": 84,
+      "count": 87,
       "source": "states-conform verdict"
     },
     "surfaces.py": {
@@ -317,10 +337,10 @@
     }
   },
   "totals": {
-    "rules": 62,
-    "parseable": 50,
+    "rules": 66,
+    "parseable": 54,
     "unparseable": 12,
-    "holds": 1381,
+    "holds": 1499,
     "failed": 0
   }
 }

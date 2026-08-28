@@ -431,6 +431,14 @@ async def main():
                    { type: "StepStarted" },
                    { type: "StepCompleted" },
                  ]);
+                 // THE RELAY IS CONNECTED TOO, and it answers pings like any
+                 // client should. A hold expecting exactly one pong was written
+                 // when nothing else was listening, and it fell the moment the
+                 // relay existed — in the full suite, not alone, because
+                 // running this rule by itself boots the same relay. What is
+                 // held is that EVERY open socket answered, which is the
+                 // property, and it does not depend on how many there are.
+                 const listening = stream.state().sockets;
                  stream.ping();
                  socket.send("pong");
                  await new Promise((r) => setTimeout(r, 40));
@@ -454,7 +462,7 @@ async def main():
 
                  return {
                    seen, closed, replayed, order, beforeAnyEmit,
-                   pongs: stream.state().received,
+                   pongs: stream.state().received, listening,
                    addresses: stream.connections(),
                  };
                }"""
@@ -480,11 +488,13 @@ async def main():
             f"received {burst}",
         )
         journal.check(
-            "the client answers a ping, and the server records the frame",
+            "every open socket answers a ping, and the server records the frames",
             any(one["type"] == "ws.ping" for one in observed["seen"])
-            and observed["pongs"] == ["pong"],
+            and "pong" in observed["pongs"]
+            and len(observed["pongs"]) == observed["listening"],
             f"ping seen: {any(one['type'] == 'ws.ping' for one in observed['seen'])}, "
-            f"frames recorded: {observed['pongs']}",
+            f"{len(observed['pongs'])} frame(s) recorded from "
+            f"{observed['listening']} open socket(s): {observed['pongs']}",
         )
         replayed = [one["id"] for one in observed["replayed"] if one.get("id")]
         journal.check(

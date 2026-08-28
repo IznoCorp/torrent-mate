@@ -511,6 +511,23 @@ not asserted here, and a wave that assumes either answer is doing what B-101 rec
     | `lib/queue.ts` | 169 | The staging and acquisition queue, shared by Arrivées and Acquisition. Invariant 7 is absolute — two features may not import each other — so a queue both read had nowhere else to go. |
     | `app/engine-data.ts` | 34 | What the dying engine reads with no component to ask for it: four addresses and ten family names. |
     | `app/history-bridge.ts` | 17 | A slice of `shell.tsx`, whose words came with it. |
+    | `app/live-updates.ts` | 18 | L10. Six features named three times each — the import, the
+      spread and the type. It names no EVENT and no KEY: which events refresh which data lives in
+      `features/<domain>/live.ts`, with the domain. |
+
+    **Re-measured again at L10's close, and it moved by 18 — §7.1 makes saying so the wave's
+    duty.** `app/live-updates.ts` is one import per feature, which is the same species as
+    `router-tree.tsx`'s one import per page: the frame naming its pages, the exception this
+    invariant blesses by name. What would have been a violation is the file production has — a
+    central map carrying forty event names and twenty query keys, belonging to no domain at all —
+    and it is what D-L10-1 refuses. `app/connection-notice.tsx`, the other file L10 adds to `app/`,
+    carries **zero**: it reads a condition and draws it, and could not name a media item.
+
+    <sub>method: strip comments per line, count occurrences of the nine feature names in
+    `app/live-updates.ts` and `app/connection-notice.tsx`. ⚠ The first attempt stripped `//.*`
+    under `re.DOTALL`, which swallows the file from its first comment to the end, and reported
+    **0** — a measurement that read nothing, in the wave that filed three entries about exactly
+    that.</sub>
 
     **169 is not « one reviewed line », and calling it that would be the dishonest reading.**
     `lib/queue.ts` argues its own case in its header, and the case is sound — but what it really

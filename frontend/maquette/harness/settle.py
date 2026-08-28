@@ -182,7 +182,7 @@ async def hold(journal):
             """async () => {
                 window.__mocks.reset();
                 const before = window.__mocks.inFlight();
-                window.__mocks.stream.emit("PipelineStarted", {});
+                window.__mocks.stream.emit("SettleProbe", {});
                 const during = window.__mocks.inFlight();
                 let drained = 0;
                 const microtasks = (async () => {
@@ -216,10 +216,15 @@ async def hold(journal):
         burst = await page.evaluate(
             """async () => {
                 window.__mocks.reset();
+                // EVENTS NO RULE CLAIMS. The counter answers for deliveries
+                // AND for requests in flight, so a mapped event adds its own
+                // refetch to the number and the arithmetic this hold is about
+                // stops being visible. Written with mapped events first, and
+                // the full suite caught it: it read 4 for a burst of 3.
                 window.__mocks.stream.emitBurst([
-                    { type: "StepStarted" },
-                    { type: "StepCompleted" },
-                    { type: "ItemProgressed" },
+                    { type: "BurstOne" },
+                    { type: "BurstTwo" },
+                    { type: "BurstThree" },
                 ]);
                 const during = window.__mocks.inFlight();
                 await window.__mocks.quiet();

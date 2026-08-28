@@ -219,7 +219,19 @@ asserted by their own rule):
 | `relay-lost` | the same, plus « les informations affichées datent de <heure> » and a manual retry | §8: the screen says it is not updating |
 | `relay-refused` | the `4401` case: the session is no longer valid, with the way back to the sign-in | §8 + NE-DOIT-PAS-5: a real reason, never a code |
 
-**Why healthy renders nothing, and it is a design argument before it is a measurement one.** §8
+**AMENDED DURING PHASE 4, AND THE MAQUETTE IS WHAT AMENDED IT.** The paragraph below argued that
+health renders NOTHING, and it was written before the header was read. The header already carries a
+connection indicator — a green dot, the word « Connecté », a `title` — as literals
+(B-155). The mission's second consequence is binding: **what is already in the maquette is
+VALIDATED by the operator and is not relitigated.** Deleting that element would have been exactly
+that.
+
+So the decision as EXECUTED is: the same element, in the same place, made TRUTHFUL, and what is
+added is what was genuinely missing — a notice below the header for the two conditions that owe a
+reader more than a word. The reasoning below survives intact and applies to the NOTICE, which is
+what did not exist; it does not license removing what did.
+
+**Why healthy adds nothing, and it is a design argument before it is a measurement one.** §8
 asks that what is WRONG be said, not that what is right be announced; a permanent green dot is
 chrome that teaches the reader to stop looking at it, which is the precise mechanism by which a
 dead screen looks fresh. That it also leaves the 84 recorded states untouched is a consequence and

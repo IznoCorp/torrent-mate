@@ -58,6 +58,17 @@ from common import PHONE, Journal, open_page
 # being slow.
 RECONNECT_WINDOW_MS = 900
 
+# THE GAP IS MADE OF EVENTS NO RULE CLAIMS, and that is not a convenience. This
+# rule's subject is whether the GAP HEALS and whether the reconnect ITSELF
+# invalidates anything. Filling the gap with real, mapped events would make both
+# measurements read the map's work instead: every one of them legitimately
+# refreshes something, so « the reconnect invalidates nothing » becomes false
+# for a reason that has nothing to do with reconnecting. Written with mapped
+# events first, and the full suite is what caught it — the rule was green alone,
+# when no feature table existed yet.
+GAP_TYPES = ("GapOne", "GapTwo", "GapThree")
+FIRST_TYPE = "GapZero"
+
 # Past three failed attempts the relay stops saying « reconnecting ». Four
 # failures is therefore the first moment `lost` is correct, and the sum of the
 # first four backoff delays is 250 + 500 + 1000 + 2000.
@@ -80,7 +91,7 @@ async def hold(journal):
             return
 
         observed = await page.evaluate(
-            """async ({ reconnectWindow }) => {
+            """async ({ reconnectWindow, first, gap }) => {
                  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
                  const stream = window.__mocks.stream;
                  // A CACHE WITH SOMETHING IN IT, or « nothing was invalidated »
@@ -95,7 +106,7 @@ async def hold(journal):
                      invalidated: entry.state.isInvalidated,
                    }));
 
-                 stream.emit("PipelineStarted", {});
+                 stream.emit(first, {});
                  await window.__mocks.quiet();
                  const cacheBefore = readCache();
 
@@ -103,11 +114,7 @@ async def hold(journal):
                  await wait(40);
                  const whileDown = window.__relay.condition().condition;
                  // The gap: three events the client cannot possibly have seen.
-                 stream.emitBurst([
-                   { type: "StepStarted" },
-                   { type: "StepCompleted" },
-                   { type: "ItemProgressed" },
-                 ]);
+                 stream.emitBurst(gap.map((type) => ({ type })));
                  await wait(reconnectWindow);
                  const afterRecovery = window.__relay.condition().condition;
                  const cacheAfter = readCache();
@@ -117,7 +124,8 @@ async def hold(journal):
                    unmatched: window.__relay.unmatched(),
                  };
                }""",
-            {"reconnectWindow": RECONNECT_WINDOW_MS})
+            {"reconnectWindow": RECONNECT_WINDOW_MS,
+             "first": FIRST_TYPE, "gap": list(GAP_TYPES)})
 
         journal.check(
             "a drop is noticed, and the connection says so",
@@ -141,7 +149,7 @@ async def hold(journal):
         gap = observed["unmatched"]
         journal.check(
             "every event of the gap arrives, in order, exactly once",
-            gap == ["PipelineStarted", "StepStarted", "StepCompleted", "ItemProgressed"],
+            gap == [FIRST_TYPE, *GAP_TYPES],
             f"the relay announced {gap}")
 
         # NO RELOAD. The reconnect is the one moment a blanket invalidation

@@ -155,7 +155,8 @@ async def hold(journal):
                 and walked["where"] == "/",
                 f"left at {walked['left']}, came back to {walked['reached']} at "
                 f"{walked['where']!r} — the port a main page scrolls in is "
-                "`#port`, and it is never inside a `.screen.open` (B-140)")
+                "`#port`, and the selector this replaced could only ever find an "
+                "open screen's (B-140)")
 
         # THE SCREEN, so the repair is not proved by breaking what worked.
         on_screen = await page.evaluate(
