@@ -77,6 +77,8 @@ export const arrivalsLiveRules: readonly LiveRule[] = [
  */
 export const arrivalsLiveExemptions = {
   types: ["DiskFullWarning", "WatcherRunTriggered", "LibraryScanCompleted"],
+  keys: [],
+  /* every address this feature reads is refreshed by a rule above */
   because:
     "none of the three changes what this feature reads. A disk warning and a "
     + "watcher trigger belong to the system feature, and a library scan to the "

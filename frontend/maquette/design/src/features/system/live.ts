@@ -6,8 +6,6 @@
 // name.
 import type { LiveExemptions, LiveRule } from "../../lib/live-rule";
 
-/** The services, and what each is doing. */
-const SERVICES_KEY = ["/api/system/services"];
 /** The schedulers, and when each next runs. */
 const SCHEDULERS_KEY = ["/api/maintenance/schedulers"];
 /** The disks, and what is left on them. */
@@ -67,6 +65,15 @@ export const systemLiveExemptions: LiveExemptions = {
     "StepStarted",
     "StepCompleted",
   ],
+  keys: ["/api/system/dependencies", "/api/system/services"],
+  /* NO EVENT SAYS A SERVICE OR A DEPENDENCY STOPPED ANSWERING, and this is the
+     exemption nobody should be happy with: those two reads are the page's whole
+     subject, and they are the two that cannot arrive as news. It was found by
+     `check-live-relay.py --arm map-completeness` — `SERVICES_KEY` was declared
+     here and named by no rule, which is exactly the shape « the map quietly
+     stopped covering its subject » takes. Filed as a demand rather than papered
+     over with a clock: a poll here would satisfy the letter of the page and
+     break this lot's third clause. */
   because:
     "every one of them is per-item or per-step progress, and this page reads "
     + "state rather than progress. `BackfillItemCompleted` in particular fires "

@@ -50,6 +50,8 @@ export const libraryLiveExemptions: LiveExemptions = {
     "GrabSucceeded",
     "GrabFailed",
   ],
+  keys: [],
+  /* every address this feature reads is refreshed by a rule above */
   because:
     "acquisition is not possession. A download that started, progressed or even "
     + "completed has changed nothing about what is in the library — the item "

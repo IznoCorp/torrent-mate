@@ -29,6 +29,8 @@ export const maintenanceLiveRules: readonly LiveRule[] = [
 /** The events that reach maintenance and deliberately refresh nothing. */
 export const maintenanceLiveExemptions: LiveExemptions = {
   types: ["PipelinePaused", "PipelineResumed"],
+  keys: [],
+  /* every address this feature reads is refreshed by a rule above */
   because:
     "a paused run still holds the lock, so nothing an action can do changes — "
     + "and the actions read is about what is POSSIBLE, not about what is "

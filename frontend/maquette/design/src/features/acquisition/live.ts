@@ -68,6 +68,8 @@ export const acquisitionLiveExemptions: LiveExemptions = {
     "CrossSeedRejected",
     "TrackerAuthFailed",
   ],
+  keys: ["/api/acquisition/search"],
+  /* a search is a QUESTION the reader just asked, not a resource that ages: refreshing it behind them would replace the results they are reading with different ones, which is the one thing a search must not do */
   because:
     "a per-tick event mapped to a list is a poll wearing an event's clothes; "
     + "the ratio and cross-seed events belong to surfaces that have no page "

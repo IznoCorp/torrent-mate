@@ -65,7 +65,30 @@ surfaces they belong to have no page in the maquette yet (B-144, B-145).
 **What would close it**: the pages, not the backend. Listed here so that « the map does not
 name them » reads as a consequence of a known gap rather than as an omission.
 
-## 4. A hello that says more than the commit
+## 4. Nothing says a service or a dependency stopped answering
+
+**Asked for by** `frontend/maquette/design/src/features/system/live.ts`, as its exemption —
+and it is the exemption nobody should be happy with.
+
+`/api/system/services` and `/api/system/dependencies` are the system page's whole subject:
+which services answer, and which external dependencies do. **Neither can arrive as news.**
+No event in the backend's forty says a service started or stopped answering, so both reads
+are refreshed by nothing — and `staleTime: Infinity` with no focus and no reconnect refetch
+means « nothing » is for the life of the process (B-154).
+
+It was found by `check-live-relay.py --arm map-completeness`, not by a reader: the key
+constant was declared in the feature's table and named by no rule, which is exactly the
+shape « the map quietly stopped covering its subject » takes.
+
+**What would close it**: an event when a probed service or dependency changes state — up to
+down, down to up. One per transition, never per probe: a per-probe event is a poll wearing
+an event's clothes, which is demand 2's whole subject.
+
+**What must NOT close it**: a `refetchInterval` on those two reads. It would satisfy the
+page and break this lot's third contract clause, and it is written here so that the easy
+answer is refused on the record rather than in a review.
+
+## 5. A hello that says more than the commit
 
 **Asked for by** `frontend/maquette/design/src/lib/relay.ts`.
 

@@ -34,6 +34,8 @@ export const mediaLiveRules: readonly LiveRule[] = [
 /** The events that reach a media sheet and deliberately refresh nothing. */
 export const mediaLiveExemptions: LiveExemptions = {
   types: ["SeriesFollowed", "SeriesUnfollowed", "TrailerDownloaded"],
+  keys: ["/api/media"],
+  /* the seasons read shares its address with the sheet, so the sheet's rule covers it */
   because:
     "following is acquisition's state, not the sheet's, and it is refreshed "
     + "there. A trailer arriving changes a file on disk and nothing the sheet "

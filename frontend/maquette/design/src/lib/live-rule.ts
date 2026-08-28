@@ -40,6 +40,20 @@ export type LiveRule = {
  * map-completeness` refuses a type that is in neither list.
  */
 export type LiveExemptions = {
+  /** Event types this feature sees and deliberately ignores. */
   types: readonly string[];
+  /**
+   * Addresses this feature READS that no event refreshes.
+   *
+   * THE OTHER HALF OF COMPLETENESS, and it is the half R91 cannot see. That
+   * rule holds the implementation against the DECLARATION — measured, not
+   * assumed: pointing an event at the wrong key leaves every per-rule hold
+   * green, because the key it expects is read from the same file the mistake is
+   * in. What catches a surface that has quietly stopped being refreshed is this
+   * list: every address a feature's `queries.ts` reads is named by a rule or
+   * named here, and `check-live-relay.py --arm map-completeness` refuses one
+   * that is in neither.
+   */
+  keys: readonly string[];
   because: string;
 };
