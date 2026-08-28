@@ -240,24 +240,24 @@ when the defect comes back.
 | B-197 | The hold-count baseline was stale for three rules, so the gate reported false regressions | by adversarial review | `fixed #512` |
 | B-198 | `resetQueries`/`removeQueries`/`refetchQueries` were refused even when given a key | by adversarial review | `fixed #512` |
 | B-199 | The event corpus was a regex re-implementation of a registry the bus already keeps | by adversarial review | `fixed #512` |
-| B-200 | The two headline relay repairs were never in the tree, under a commit describing them | by adversarial review | `fixed #512` |
-| B-201 | The unresolved-key count was made and thrown away two lines later | by adversarial review | `fixed #512` |
-| B-202 | The cursor freeze was permanent: no reconnect could ever thaw it | by adversarial review | `fixed #512` |
-| B-203 | R91 merged every rule's sample, so its verdict depended on source order | by adversarial review | `fixed #512` |
-| B-204 | R92 resolved the token through the cascade that paints it, so a value swap passed | by adversarial review | `fixed #512` |
-| B-205 | Nothing read whether the connection dot is on screen | by adversarial review | `fixed #512` |
-| B-206 | `type:` narrowing was refused beside a key, telling its author to delete it | by adversarial review | `fixed #512` |
-| B-207 | `.clear()` was anchored on nothing: vacuous now, a false diagnosis later | by adversarial review | `fixed #512` |
-| B-208 | The registry-versus-regex disagreement was printed and could fail nothing | by adversarial review | `fixed #512` |
-| B-209 | `violations` was used before assignment a second time, behind an empty loop | by adversarial review | `fixed #512` |
-| B-210 | The counter floor traded a loud deadlock for a silent under-count | by adversarial review | `fixed #512` |
-| B-211 | A nested object before an empty key hid a whole-cache invalidation | by adversarial review | `fixed #512` |
-| B-212 | An event every predicate refused was counted as neither claimed nor unclaimed | by adversarial review | `fixed #512` |
-| B-213 | The poll reader adopted the wrong block for 545 bindings out of 925 | by adversarial review | `fixed #512` |
-| B-214 | The guard's import loaded 41 environment variables to count 48 class names | by adversarial review | `fixed #512` |
-| B-215 | `installRelayRecovery` declared its position as a constraint and no arm read it | by adversarial review | `fixed #512` |
-| B-216 | The mutation tool announced « no hold fell » under the falls it had just printed | by adversarial review | `fixed #512` |
-| B-217 | The cursor thaw was measured by nothing, and the tool's first use found it | by adversarial review | `fixed #512` |
+| B-200 | The two headline relay repairs were never in the tree, under a commit describing them | by adversarial review | `fixed #513` |
+| B-201 | The unresolved-key count was made and thrown away two lines later | by adversarial review | `fixed #513` |
+| B-202 | The cursor freeze was permanent: no reconnect could ever thaw it | by adversarial review | `fixed #513` |
+| B-203 | R91 merged every rule's sample, so its verdict depended on source order | by adversarial review | `fixed #513` |
+| B-204 | R92 resolved the token through the cascade that paints it, so a value swap passed | by adversarial review | `fixed #513` |
+| B-205 | Nothing read whether the connection dot is on screen | by adversarial review | `fixed #513` |
+| B-206 | `type:` narrowing was refused beside a key, telling its author to delete it | by adversarial review | `fixed #513` |
+| B-207 | `.clear()` was anchored on nothing: vacuous now, a false diagnosis later | by adversarial review | `fixed #513` |
+| B-208 | The registry-versus-regex disagreement was printed and could fail nothing | by adversarial review | `fixed #513` |
+| B-209 | `violations` was used before assignment a second time, behind an empty loop | by adversarial review | `fixed #513` |
+| B-210 | The counter floor traded a loud deadlock for a silent under-count | by adversarial review | `fixed #513` |
+| B-211 | A nested object before an empty key hid a whole-cache invalidation | by adversarial review | `fixed #513` |
+| B-212 | An event every predicate refused was counted as neither claimed nor unclaimed | by adversarial review | `fixed #513` |
+| B-213 | The poll reader adopted the wrong block for 545 bindings out of 925 | by adversarial review | `fixed #513` |
+| B-214 | The guard's import loaded 41 environment variables to count 48 class names | by adversarial review | `fixed #513` |
+| B-215 | `installRelayRecovery` declared its position as a constraint and no arm read it | by adversarial review | `fixed #513` |
+| B-216 | The mutation tool announced « no hold fell » under the falls it had just printed | by adversarial review | `fixed #513` |
+| B-217 | The cursor thaw was measured by nothing, and the tool's first use found it | by adversarial review | `fixed #513` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
