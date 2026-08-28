@@ -96,11 +96,21 @@ def declared_rules():
     for path in sorted(FEATURES.glob("*/live.ts")):
         feature = path.parent.name
         source = path.read_text(encoding="utf-8")
+        # THE EXEMPTIONS ARE NOT RULES, and this reader used to think they were.
+        # They gained a `keys` list at phase 8 — the addresses a feature reads
+        # that no event refreshes — and their shape then matched this pattern
+        # exactly. R91 read three exemptions as rules with EMPTY type lists and
+        # crashed on the first of them. The crash is the good outcome: the same
+        # defect in `check-live-relay.py` printed a confident number that was
+        # wrong instead, and only a reader comparing it against the tree would
+        # ever have caught it.
+        marker = re.search(r"^export const \w+LiveExemptions", source, re.MULTILINE)
+        rules_only = source[:marker.start()] if marker else source
         # The key constants first, so a rule naming one can be resolved.
         constants = dict(re.findall(
             r"^const (\w+) = (\[[^\]]*\]);", source, re.MULTILINE))
         for block in re.findall(r"\{\s*types:\s*\[(.*?)\],\s*keys:\s*\[(.*?)\],",
-                                source, re.DOTALL):
+                                rules_only, re.DOTALL):
             types = re.findall(r'"([^"]+)"', block[0])
             keys = []
             for name in re.findall(r"\b([A-Z_]+_KEY)\b", block[1]):
@@ -311,7 +321,13 @@ async def hold(journal):
             "silently stops covering its subject")
 
         # A BURST REFRESHES THE UNION, AND NOTHING BEYOND IT.
-        burst_types = [types[0] for _, types, _, _ in rules]
+        journal.check(
+            "every declared rule names at least one event",
+            all(types for _, types, _, _ in rules),
+            f"{sum(1 for _, types, _, _ in rules if not types)} rule(s) name no "
+            "event — a rule with an empty type list is read by nothing and "
+            "refreshes nothing")
+        burst_types = [types[0] for _, types, _, _ in rules if types]
         burst_keys = [key for _, _, keys, _ in rules for key in keys]
         burst = await page.evaluate(
             """async ({ types }) => {
