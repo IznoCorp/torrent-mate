@@ -23,13 +23,15 @@ export const libraryLiveRules: readonly LiveRule[] = [
       + "more",
   },
   {
-    types: ["FilmAcquired", "SeasonAbsorbedEpisodes"],
+    types: ["FilmAcquired"],
     keys: [INCOMPLETE_KEY],
     because:
       "completeness changed and nothing else did — the item was already in the "
       + "listing and already in its category. A rule that also refreshed those "
       + "two would be a wider invalidation for no reason, which is precisely "
-      + "what this lot's « and nothing else » refuses",
+      + "what this lot's « and nothing else » refuses. `SeasonAbsorbedEpisodes` "
+      + "was here too and does not belong: it absorbs WANTED rows into a season "
+      + "and downloads nothing, so no ownership changes — acquisition claims it",
   },
 ];
 

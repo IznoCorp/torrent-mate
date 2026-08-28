@@ -9,25 +9,31 @@
 import type { LiveExemptions, LiveRule } from "../../lib/live-rule";
 
 /**
- * The sheets. THE PREFIX IS THE ADDRESS, and here that is a decision AGAINST
- * the narrow key rather than for it: the events below carry no identity this
- * table can read, so a rule scoped to one title could only be written by
- * guessing which. Refreshing every open sheet is the honest answer while the
- * events say nothing — and the demand for an identity on them is filed in
- * `docs/reference/frontend-backend-demands.md`, so this widening has a date of
- * death rather than being the shape forever.
+ * The sheets. THE PREFIX IS THE ADDRESS, and the reason first written here was
+ * WRONG: it said the events carry no identity this table can read.
+ * `FilmAcquired` carries `media_ref: MediaRef` — `tvdb_id | tmdb_id | imdb_id`,
+ * encoded as a nested object by `event_to_dict` — so a narrow key IS
+ * constructible for it today. `ItemDispatched` genuinely carries only a source
+ * folder name, and it is the one event that justifies the widening.
+ *
+ * IT IS KEPT WIDE FOR NOW, and that is a stated cost rather than a discovery:
+ * the two events share one rule, and splitting them so `FilmAcquired` keys on
+ * its `media_ref` is a change to what this lot MEASURES, not to what it
+ * refuses. The demand register is corrected to ask for an identity on
+ * `ItemDispatched` alone.
  */
 const SHEETS_KEY = ["/api/media"];
 
 /** What a server event refreshes on a media sheet. */
 export const mediaLiveRules: readonly LiveRule[] = [
   {
-    types: ["ItemDispatched", "SeasonAbsorbedEpisodes", "FilmAcquired"],
+    types: ["ItemDispatched", "FilmAcquired"],
     keys: [SHEETS_KEY],
     because:
-      "each changes whether we own the title, or how much of it — which is the "
-      + "half of a sheet that is about US rather than about the work (§11: a "
-      + "sheet says what a media IS and where it stands here)",
+      "both change whether we own the title — the half of a sheet that is about "
+      + "US rather than about the work (§11). `SeasonAbsorbedEpisodes` was here "
+      + "too and does not belong: it absorbs WANTED rows and downloads nothing, "
+      + "so a sheet's owned counts do not move",
   },
 ];
 

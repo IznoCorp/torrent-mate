@@ -48,17 +48,21 @@ LIBRARY = DESIGN / "lib"
 # and rewriting the engine to satisfy a guard is the opposite of subtraction.
 ENGINE = DESIGN / "engine"
 
-# Where the backend declares the events that reach the stream. Read so that an
-# event the backend GROWS cannot quietly go unclaimed: adding one costs a line
-# in a feature's table or in its exemptions, and nothing else.
-EVENT_SOURCES = (
-    "personalscraper/pipeline_events.py",
-    "personalscraper/verify/events.py",
-    "personalscraper/dispatch/events.py",
-    "personalscraper/trailers/events.py",
-    "personalscraper/acquire/events.py",
-    "personalscraper/indexer/events.py",
-)
+# WHERE THE BACKEND'S EVENTS ARE — DERIVED, NEVER LISTED. This was a tuple of
+# six files, and a hand-enumerated corpus is the shape `BUGS.md` counts: nine
+# real `Event` subclasses lived outside it — three in `core/circuit.py`, six in
+# `api/metadata/registry/_events.py` — and every one of them reaches the browser,
+# because `RedisEventPublisher` subscribes to the BASE `Event` class and the
+# relay broadcasts every entry with no type filter. The arm was holding 40 of 48
+# and could not report the eight it never saw.
+#
+# AND IT MATCHED ANY TOP-LEVEL CLASS, not an `Event` subclass, so
+# `StepItemStatus` — a `StrEnum` of status literals carried as a FIELD of
+# `ItemProgressed` — counted as an event. It inflated the total by one and, worse,
+# masked a dead rule: a feature named it, `mapped - emitted` was empty, and both
+# directions of this arm went quiet over a name the bus can never emit.
+PACKAGE = ROOT / "personalscraper"
+EVENT_BASE = re.compile(r"^class (\w+)\(Event\)", re.MULTILINE)
 
 # The floor beneath `no-polling`'s corpus. It is the number of TypeScript files
 # the arm must have read for its answer to mean anything, and it is set well
@@ -141,14 +145,16 @@ def arm_named_invalidation():
 
 
 def backend_events():
-    """Every event class the backend emits onto the stream."""
+    """Every `Event` subclass in the package, wherever it is declared.
+
+    Returns:
+        (the class names, None) — or (None, why) when the package is not there.
+    """
+    if not PACKAGE.is_dir():
+        return None, str(PACKAGE)
     found = set()
-    for relative in EVENT_SOURCES:
-        path = ROOT / relative
-        if not path.is_file():
-            return None, relative
-        found |= set(re.findall(r"^class ([A-Z]\w+)", path.read_text(encoding="utf-8"),
-                                re.MULTILINE))
+    for path in sorted(PACKAGE.rglob("*.py")):
+        found |= set(EVENT_BASE.findall(path.read_text(encoding="utf-8")))
     return found, None
 
 

@@ -31,25 +31,65 @@ export const acquisitionLiveRules: readonly LiveRule[] = [
       + "would leave a followed series still being suggested",
   },
   {
-    types: ["DownloadCompleted"],
+    types: ["DownloadStarted", "DownloadProgressed", "DownloadCompleted"],
     keys: [QUEUE_KEY],
     because:
-      "a finished download is the moment an item stops being « en cours » — "
-      + "the boundary a reader is actually waiting for",
+      "the three boundaries of a download, and they are BOUNDED — which is the "
+      + "opposite of what this file first claimed. `DownloadStarted` fires « at "
+      + "most once per info-hash » (the mark is persisted before the emit); "
+      + "`DownloadProgressed` fires only on 25/50/75 and « only the HIGHEST "
+      + "threshold crossed per reconcile pass », never regressing. That is four "
+      + "invalidations for a whole download, against the ~540 `ItemProgressed` "
+      + "already sends per pipeline pass. The card draws « Téléchargement 68 % » "
+      + "and a stage strip; refusing these froze that number for the life of the "
+      + "tab",
+  },
+  {
+    types: ["FilmAcquired"],
+    keys: [FOLLOWED_KEY, QUEUE_KEY],
+    because:
+      "acquiring a film DELETES its follow row and closes its wanted row — "
+      + "`detect.py` and `dispatch_reconcile.py` both do exactly that before "
+      + "emitting. The event's own docstring calls itself the operator-visible "
+      + "trace of a film leaving the follows, and it was claimed only by the "
+      + "library and the media sheet — so the two lists it really changes went "
+      + "on showing a film that had left both",
+  },
+  {
+    types: ["SeasonEscalatedAfterEpisodeFailures", "SeasonFellBackToEpisodes",
+            "SeasonAbsorbedEpisodes"],
+    keys: [QUEUE_KEY],
+    because:
+      "all three are wanted-queue routing: a season pack replaces starved "
+      + "episode rows, a season falls back to individual episodes, or episode "
+      + "rows are absorbed into a season. Each rewrites what this list holds AND "
+      + "the reason each card states — and the first two exist, by their own "
+      + "docstrings, so that reason can be right",
+  },
+  {
+    types: ["ItemDispatched"],
+    keys: [FOLLOWED_KEY],
+    because:
+      "a follow shows « 95 sur 96 »; a dispatched episode is what moves that "
+      + "count and can settle the follow's status",
   },
 ];
 
 /**
  * The events that reach acquisition and deliberately refresh nothing.
  *
- * `DownloadProgressed` IS THE DECISION OF THIS PHASE, and it is a refusal.
- * It fires per torrent per tick. Mapping it to the queue would invalidate that
- * list continuously — **a poll wearing an event's clothes**, and the third
- * clause of this lot's contract (« no polling remains where an event exists »)
- * read backwards: a `setInterval` any grep can find would at least be visible.
- * A progress BAR is a real want and it is a different mechanism: a value pushed
- * into the component that draws it, never a list refetched from the top. It is
- * filed as a demand rather than solved here.
+ * `DownloadProgressed` WAS REFUSED HERE, AND THE REFUSAL WAS WRONG. It read
+ * « it fires per torrent per tick », which its own docstring contradicts: only
+ * the HIGHEST threshold crossed per reconcile pass fires, the persisted mark
+ * only moves forward, and the thresholds are 25/50/75 — three emissions for a
+ * whole download. `DownloadStarted` fires once per info-hash, exactly once. The
+ * volume argument was applied to the two bounded events and not to
+ * `ItemProgressed`, which fires per item per step across nine steps and IS
+ * mapped. Both are rules above now.
+ *
+ * A progress BAR is still a different mechanism — a value pushed into the
+ * component that draws it — and that remains a demand. What is not a demand is
+ * a card stuck on « Téléchargement 68 % » for the life of the tab.
  *
  * `RatioMeasured` and the seed-obligation events are the same shape, one order
  * of magnitude slower: they belong to a ratio surface that has no page yet
@@ -58,8 +98,6 @@ export const acquisitionLiveRules: readonly LiveRule[] = [
  */
 export const acquisitionLiveExemptions: LiveExemptions = {
   types: [
-    "DownloadStarted",
-    "DownloadProgressed",
     "RatioMeasured",
     "SeedObligationRecorded",
     "SeedObligationSatisfied",

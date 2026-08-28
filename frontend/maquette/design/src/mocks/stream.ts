@@ -29,24 +29,18 @@
 // which is what keeps the oracle's recorded states measurable at all, and it is
 // the half of the settle decision that no amount of counting could replace.
 
-/** What the server pushes once, before anything else. */
-const HELLO_TYPE = "ws.hello";
-/** What the server pushes after thirty seconds of client silence. */
-const PING_TYPE = "ws.ping";
+import {
+  BUILD_COMMIT,
+  compareIdentifiers,
+  HELLO_TYPE,
+  PING_TYPE,
+  type StreamEntry,
+} from "./stream-protocol";
 
-/**
- * One entry of the stream, as the server writes it.
- *
- * The `id` is the Redis stream cursor the client sends back as `last_id`. Its
- * shape is the real one — `<milliseconds>-<sequence>` — because the client
- * compares cursors and a shape it never meets in the maquette is a shape its
- * comparison is never proved against.
- */
-export type StreamEntry = {
-  id: string;
-  type: string;
-  data: Record<string, unknown>;
-};
+export type { StreamEntry };
+
+/** The address the stream is served at, so a rule can read the cursor back. */
+const RELAY_ADDRESS = "/ws/events";
 
 /** The state of the simulated server, as a rule reads it. */
 type ServerState = {
@@ -88,8 +82,6 @@ let endedDelivery: () => void = () => {};
     This is how a rule sees the `?last_id=` cursor a reconnect carried, without
     reaching inside the client to read a private field. */
 let connections: string[] = [];
-/** What the hello carries. Fixed, so a rule can assert it without a fixture. */
-const buildCommit = "0000000000000000000000000000000000000000";
 
 /**
  * Builds the next cursor.
@@ -99,23 +91,6 @@ const buildCommit = "0000000000000000000000000000000000000000";
 function nextIdentifier(): string {
   sequence += 1;
   return `${sequence}-0`;
-}
-
-/**
- * Orders two cursors the way the server's `XRANGE` does.
- *
- * READ AS TWO NUMBERS, never as strings. `"10-0" < "9-0"` is true in a string
- * comparison and false in the stream's own order, so a lexical compare would
- * replay the whole log again from the tenth event onward.
- *
- * @param left One cursor.
- * @param right The other.
- * @returns A negative number when `left` comes first.
- */
-function compareIdentifiers(left: string, right: string): number {
-  const [leftTime, leftSequence] = left.split("-").map(Number);
-  const [rightTime, rightSequence] = right.split("-").map(Number);
-  return leftTime - rightTime || leftSequence - rightSequence;
 }
 
 /**
@@ -184,7 +159,7 @@ class MockSocket extends EventTarget {
       this.shut(4401, "the session is not valid");
       return;
     }
-    this.push({ type: HELLO_TYPE, data: { build_commit: buildCommit } });
+    this.push({ type: HELLO_TYPE, data: { build_commit: BUILD_COMMIT } });
     this.replay();
   }
 

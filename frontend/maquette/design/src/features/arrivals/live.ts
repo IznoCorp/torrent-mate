@@ -46,11 +46,20 @@ export const arrivalsLiveRules: readonly LiveRule[] = [
       + "§8 defect this lot exists to end",
   },
   {
-    types: ["ItemProgressed", "StepItemStatus"],
+    types: ["ItemProgressed"],
     keys: [STAGING_KEY],
     because:
       "an item advancing moves it between stuck, moving and settled, which is "
       + "the whole of what this read answers",
+  },
+  {
+    types: ["ItemProgressed"],
+    keys: [DECISIONS_KEY],
+    because:
+      "a decision is QUEUED at the scrape step, fourth of nine, and dispatch is "
+      + "~50 minutes of a 57-minute run. Refreshed only at `PipelineEnded`, the "
+      + "screen showed zero decisions for the whole time acting on them would "
+      + "have helped — silent on the one surface this lot opens with",
   },
   {
     types: ["PipelineEnded"],

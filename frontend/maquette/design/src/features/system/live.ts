@@ -12,6 +12,8 @@ const SCHEDULERS_KEY = ["/api/maintenance/schedulers"];
 const DISKS_KEY = ["/api/maintenance/disks"];
 /** The index's health. */
 const INDEX_HEALTH_KEY = ["/api/maintenance/index-health"];
+/** Whether each external provider answers. */
+const DEPENDENCIES_KEY = ["/api/system/dependencies"];
 /** What the code has been complaining about. */
 const ERRORS_KEY = ["/api/system/errors"];
 /** The runs, and how each ended. */
@@ -42,6 +44,16 @@ export const systemLiveRules: readonly LiveRule[] = [
       + "reloaded to show one is §8's own example of a lie by omission",
   },
   {
+    types: ["CircuitBreakerOpened", "CircuitBreakerClosed",
+            "CircuitBreakerHalfOpened"],
+    keys: [DEPENDENCIES_KEY],
+    because:
+      "a breaker trips when a provider stops answering, and this read's own "
+      + "second line IS the breaker state (« aucun disjoncteur ouvert »). They "
+      + "fire ON TRANSITION and never per probe, which is exactly the shape a "
+      + "demand was filed asking the backend to build — it already had it",
+  },
+  {
     types: ["LibraryScanCompleted", "BackfillCompleted"],
     keys: [INDEX_HEALTH_KEY],
     because:
@@ -55,25 +67,27 @@ export const systemLiveExemptions: LiveExemptions = {
     "BackfillStarted",
     "BackfillItemCompleted",
     "BackfillSkipped",
-    "SeasonEscalatedAfterEpisodeFailures",
-    "SeasonFellBackToEpisodes",
     "VerifyItemDone",
-    "StepItemStatus",
     "ItemProgressed",
     "PipelinePaused",
     "PipelineResumed",
     "StepStarted",
     "StepCompleted",
+    "ProviderCallCompleted",
+    "ProviderFallbackTriggered",
+    "ProviderExhaustedEvent",
+    "LockedCapabilityUnresolved",
+    "RegistryFanOutCompleted",
+    "RegistryBootValidated",
   ],
-  keys: ["/api/system/dependencies", "/api/system/services"],
-  /* NO EVENT SAYS A SERVICE OR A DEPENDENCY STOPPED ANSWERING, and this is the
-     exemption nobody should be happy with: those two reads are the page's whole
-     subject, and they are the two that cannot arrive as news. It was found by
-     `check-live-relay.py --arm map-completeness` — `SERVICES_KEY` was declared
-     here and named by no rule, which is exactly the shape « the map quietly
-     stopped covering its subject » takes. Filed as a demand rather than papered
-     over with a clock: a poll here would satisfy the letter of the page and
-     break this lot's third clause. */
+  keys: ["/api/system/services"],
+  /* NO EVENT SAYS A SERVICE STOPPED ANSWERING — and that sentence used to name
+     the DEPENDENCIES too, which was false. `CircuitBreakerOpened/Closed/
+     HalfOpened` exist, fire on transition, and are a rule above. What remains
+     unclaimed is process liveness: nothing is emitted when a service itself
+     stops answering. Filed as a demand rather than papered over with a clock —
+     a poll here would satisfy the letter of the page and break this lot's third
+     clause. */
   because:
     "every one of them is per-item or per-step progress, and this page reads "
     + "state rather than progress. `BackfillItemCompleted` in particular fires "

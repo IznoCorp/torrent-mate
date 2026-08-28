@@ -34,17 +34,32 @@ narrowest in the whole map. Widening it is the one place this lot knowingly refr
 than it should, and it is written down here rather than left as a shape nobody remembers
 choosing.
 
-**What would close it**: `data.provider` and `data.provider_id` on those three events. The
-rule then keys on the identity it was given, and the widening goes.
+**CORRECTED after an adversarial review, and the correction is the point.** This demand first
+named all three events and said none carried an identity. Two of them do: `FilmAcquired` and
+`SeasonAbsorbedEpisodes` both carry `media_ref: MediaRef` — `tvdb_id | tmdb_id | imdb_id` —
+and `event_to_dict` encodes it as a nested object, so it arrives as `data.media_ref.tvdb_id`.
+**The demand was asking the backend for work already done.**
+
+`ItemDispatched` genuinely carries only a source-folder basename, and it is the one event that
+justifies the widening.
+
+**What would close it**: a provider identity on `ItemDispatched`. The rule then keys on what it
+was given, and the widening goes.
 
 ## 2. A progress event needs somewhere to go that is not a list
 
 **Asked for by** `frontend/maquette/design/src/features/acquisition/live.ts`.
 
-`DownloadProgressed` fires per torrent per tick. It is deliberately mapped to nothing:
-pointing it at the queue would invalidate that list continuously — **a poll wearing an
-event's clothes**, and this lot's third contract clause (« no polling remains where an event
-exists ») read backwards, since a `setInterval` any grep can find would at least be visible.
+**THIS DEMAND'S PREMISE WAS FALSE AND THE EVENTS ARE MAPPED NOW.** It said `DownloadProgressed`
+"fires per torrent per tick". Its own docstring says the opposite: only the HIGHEST threshold
+crossed per reconcile pass fires, the persisted mark only moves forward, and the thresholds are
+25/50/75 — **three emissions for a whole download**. `DownloadStarted` fires once per info-hash,
+exactly once. Meanwhile `ItemProgressed`, which the map DOES point at a list, fires once per item
+per step across nine steps. The volume argument was applied to the bounded events and not to the
+unbounded one.
+
+Both are rules in `features/acquisition/live.ts` now, and the card no longer freezes on
+« Téléchargement 68 % » for the life of the tab.
 
 A progress bar is a real want. It is a different mechanism: a value pushed into the component
 that draws it, never a list refetched from the top.
@@ -65,24 +80,33 @@ surfaces they belong to have no page in the maquette yet (B-144, B-145).
 **What would close it**: the pages, not the backend. Listed here so that « the map does not
 name them » reads as a consequence of a known gap rather than as an omission.
 
-## 4. Nothing says a service or a dependency stopped answering
+## 4. Nothing says a SERVICE stopped answering
 
 **Asked for by** `frontend/maquette/design/src/features/system/live.ts`, as its exemption —
 and it is the exemption nobody should be happy with.
 
-`/api/system/services` and `/api/system/dependencies` are the system page's whole subject:
-which services answer, and which external dependencies do. **Neither can arrive as news.**
-No event in the backend's forty says a service started or stopped answering, so both reads
-are refreshed by nothing — and `staleTime: Infinity` with no focus and no reconnect refetch
-means « nothing » is for the life of the process (B-154).
+**HALF OF THIS DEMAND WAS ALREADY BUILT, and an adversarial review is what found that out.**
+It first said that neither `/api/system/services` nor `/api/system/dependencies` could arrive
+as news, and asked for "an event when a probed service or dependency changes state — one per
+transition, never per probe".
 
-It was found by `check-live-relay.py --arm map-completeness`, not by a reader: the key
-constant was declared in the feature's table and named by no rule, which is exactly the
-shape « the map quietly stopped covering its subject » takes.
+`CircuitBreakerOpened`, `CircuitBreakerClosed` and `CircuitBreakerHalfOpened`
+(`personalscraper/core/circuit.py`) fire **on transition and never per probe** — the exact
+shape asked for. And the dependencies read's own rendering says so: its second line is
+« aucun disjoncteur ouvert ». They are a rule in `features/system/live.ts` now.
 
-**What would close it**: an event when a probed service or dependency changes state — up to
-down, down to up. One per transition, never per probe: a per-probe event is a poll wearing
-an event's clothes, which is demand 2's whole subject.
+They were invisible for a compounding reason worth recording: `check-live-relay.py`'s event
+corpus was a hand-written list of six files, and `core/circuit.py` was not among them — nor was
+`api/metadata/registry/_events.py`, six more. **Nine real events reached the browser outside
+everything that counts them.** The corpus is derived from `Event` subclasses now, and the total
+went from 40 to 48.
+
+**What is left, and it is genuinely missing**: nothing is emitted when a SERVICE itself stops
+answering — process liveness, as opposed to a provider call failing. `/api/system/services` is
+refreshed by nothing.
+
+**What would close it**: an event on a service's up/down transition. One per transition, never
+per probe: a per-probe event is a poll wearing an event's clothes, which is demand 2's subject.
 
 **What must NOT close it**: a `refetchInterval` on those two reads. It would satisfy the
 page and break this lot's third contract clause, and it is written here so that the easy

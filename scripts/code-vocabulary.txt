@@ -465,6 +465,7 @@ libretry
 light
 like
 limit
+limits
 line
 lines
 link
@@ -658,6 +659,7 @@ progress
 projection
 projections
 proposer
+protocol
 prov
 provider
 ptr
@@ -851,6 +853,8 @@ st
 stack
 staging
 stale
+stall
+stalling
 stamped
 standard
 start
