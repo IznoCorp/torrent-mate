@@ -26,6 +26,8 @@ in a diff, with this number in it.
 """
 import json
 import pathlib
+import ast
+import tokenize
 import re
 import shutil
 import subprocess
@@ -65,6 +67,89 @@ RUNNER = HARNESS / "run.sh"
 LIVE_DATABASE = re.compile(r"\.db\b|sqlite3\.connect")
 
 
+def executable_source(path: pathlib.Path) -> str:
+    """Returns a module's text with comments and docstrings removed.
+
+    A `.db` NAMED IN PROSE IS NOT A READ. Every paragraph in this repository
+    that explains B-049 writes `library.db`, and a rule carrying that
+    explanation in its own header was disqualified for describing the defect it
+    avoids. String LITERALS stay — a database path reaches the code as one, and
+    dropping those would be the opposite mistake.
+
+    Args:
+        path: The module to read.
+
+    Returns:
+        The source with comment tokens dropped and docstring expressions blanked.
+    """
+    source = path.read_text(encoding="utf-8")
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return source
+    spans = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef,
+                                 ast.AsyncFunctionDef)):
+            continue
+        first = node.body[0] if node.body else None
+        if (isinstance(first, ast.Expr)
+                and isinstance(first.value, ast.Constant)
+                and isinstance(first.value.value, str)):
+            spans.append((first.lineno, first.end_lineno))
+    lines = source.splitlines()
+    for start, end in spans:
+        for number in range(start, end + 1):
+            lines[number - 1] = ""
+    kept = []
+    for line in lines:
+        try:
+            tokens = tokenize.generate_tokens(iter([line + "\n"]).__next__)
+            kept.append("".join(text for kind, text, *_ in tokens
+                                if kind != tokenize.COMMENT))
+        except (tokenize.TokenError, IndentationError):
+            kept.append(line)
+    return "\n".join(kept)
+
+
+def import_closure(path: pathlib.Path) -> list[pathlib.Path]:
+    """Returns a rule and every harness module it can reach by import.
+
+    READING ONE FILE ANSWERS A NARROWER QUESTION THAN THE ONE ASKED. A rule that
+    imports a sibling which opens the database reads the database; the arm saw
+    only the rule's own text, so moving one `sqlite3.connect` into a helper
+    would have let B-049 back into the tier through the front door.
+
+    Args:
+        path: The rule to start from.
+
+    Returns:
+        The rule and its reachable harness siblings, without duplicates.
+    """
+    seen, pending = {}, [path]
+    while pending:
+        current = pending.pop()
+        if current.name in seen or not current.is_file():
+            continue
+        source = current.read_text(encoding="utf-8")
+        seen[current.name] = current
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            continue
+        names = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                names |= {alias.name.split(".")[0] for alias in node.names}
+            elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
+                names.add(node.module.split(".")[0])
+        for name in names:
+            sibling = HARNESS / f"{name}.py"
+            if sibling.is_file():
+                pending.append(sibling)
+    return list(seen.values())
+
+
 def contract_tier() -> list[str]:
     """Returns the rule files `run.sh` puts in the per-pull-request tier.
 
@@ -97,10 +182,17 @@ def check_contract_tier_reads_no_database() -> int:
         if not rule.is_file():
             offenders.append((name, "is named by the tier and does not exist"))
             continue
-        if LIVE_DATABASE.search(rule.read_text(encoding="utf-8")):
+        reached = [module for module in import_closure(rule)
+                   if LIVE_DATABASE.search(executable_source(module))]
+        if reached:
+            through = ("" if reached == [rule] else
+                       " through " + ", ".join(sorted(
+                           module.name for module in reached
+                           if module.name != rule.name)))
             offenders.append((
                 name,
-                "reads a live database. The tier runs in CI on every pull "
+                f"reads a live database{through}. The tier runs in CI on every "
+                "pull "
                 "request touching the maquette, where the operator's databases "
                 "do not exist — the rule would fail for a reason foreign to "
                 "every change under test (B-049)"))
