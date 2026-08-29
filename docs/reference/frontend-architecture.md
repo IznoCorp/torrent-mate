@@ -75,11 +75,31 @@ decide**, and it may amend this file's lots and their order under § 7.1. Invari
 binding since L09 and its subject — the frame — has never been modelled; that is the debt this
 phase pays. Its definition and its agent's brief are `docs/features/maquette-l10-ter/`.
 
-**THREE LOTS ARE OWED AND NOT YET DECLARED — §17, §18 and §19 of the constitution** (operator,
-2026-08-29). The operator dictated three sections on 2026-08-26 and **no lot of this file answers
-any of them**. They are recorded here so the debt has a named place, and they are **deliberately
-without a number, an order or a position**, so § 0's rule cannot reach them: a lot this file has not
-placed is not electable.
+**It RAN on 2026-08-29, and this is what it decided** — its products are `SURVEY.md`, `MODEL.md`,
+`QUESTIONS.md` under that folder and `docs/reference/product-intent-map.md`; the lots below are
+the conversion. **The engine draws no page** (`PAGES_OF()` has eight entries, all `shellOwned`,
+none with a `render`) and no screen (`#screen` is opened by nothing); what it still owns is **the
+frame's chrome** — tab bar, drawer, dialog, toast, the selection slot, the popover layer — **the
+entry** (splash, login, install, appearance), **the ladder's handler**, **all ten bottom-panel
+producers** (zero on the React side), the Découvrir feed, and the 71 verbs of its click delegation.
+Six of those are the frame; the frame is modelled in thirteen parts in `MODEL.md` § 2; and the
+plan changes in five places: **L15 — the frame** is inserted before L11, because an offline shell
+(L11) caches the chrome and the chrome must be the product's before it is cached, and a transition
+between two layers (L12) needs both layers to be components; **L19 — the producers** is inserted
+after L12, because D5's « surface by surface » was applied to the pages and never to the sheets'
+content, so sixty fixture families had no owner (B-236); **L16, L17, L18** are §18, §19 and §17,
+placed after L19 so a new surface inherits the producer template rather than being converted
+twice; **L20 — the control station** is `/control` and `/pipeline`, which item 1 below kept
+outside this file and the clause map (`product-intent-map.md`) could not leave ownerless — four
+DOIT clauses hang on them; and **L13 is re-cut** to what really did not die by subtraction. The
+order is the file's order, below. Every lot from L11 to L14 carries what the model does to it,
+under its own heading. **The where and the when are here; the progress is `IMPLEMENTATION.md`.**
+
+**THREE LOTS WERE OWED AND ARE DECLARED — §17, §18 and §19 of the constitution.** The operator
+dictated three sections on 2026-08-26 and no lot of this file answered any of them; on 2026-08-29
+they were recorded here without a number, an order or a position, so § 0's rule could not reach
+them, and **L10-ter placed them the same day: L16 (§18), L17 (§19), L18 (§17)**, in Phase 5 below.
+The measurement that scheduled them stays here as the record of what existed on the day:
 
 | Section | What exists today | What it is asked for |
 | --- | --- | --- |
@@ -87,11 +107,13 @@ placed is not electable.
 | **§19 — cross-seed is seen and decided** | 797 lines of engine injecting at third parties, emitting `CrossSeedInjected` and `CrossSeedRejected` | **everything**: zero routes in either contract, no event relayed to the stream. D7's case — the interface declares what it requires and the backend follows (§15) |
 | **§17 — accounts, rights and Plex identity** | one role, one account, `GET /api/auth/me` saying nothing of rights | **a model, then surfaces.** None of the 53 declared operations concerns another user, a role or a permission. And one requirement on existing code: the read-only role must be ABSORBED by the rights model, never sit beside it — two authorisation paths is NE-DOIT-PAS-7 |
 
-**They wait for L10-ter, and the reason is not scheduling.** §17 and §19 need new screens, and
-L10-ter is redefining what a screen in this application IS. Placing them before the template exists
-is drawing them twice. §18 escapes that argument in part — it wires existing surfaces — and not
-entirely, since it also asks for a per-tracker policy screen. **L10-ter places all three**, in the
-order §18 → §19 → §17 unless it measures a reason to differ: cheapest first, largest last.
+**Why they sit where they sit.** §17 and §19 need new screens, and a screen is the template
+L10-ter defined (`MODEL.md` § 1: four kinds of surface, one table, a slot and a verb per layer).
+Placing them before the template exists is drawing them twice — so they follow L15; and placing
+them before the sheets' producers have a React template (L19) would draw §18's per-tracker panel
+in the engine's style, so they follow L19 too. The order §18 → §19 → §17 stands — cheapest first,
+largest last — and one measured reason is added: §19 is « the direct continuation of §18 »
+(the constitution's own words) and extends the tracker surface L16 draws, so L17 depends on L16.
 
 **One thing that could not wait, and it is why this paragraph exists at all.**
 `frontend-backend-demands.md` § 4 lists `obligations` among the operations « the switchover MAY
@@ -107,12 +129,12 @@ document saying what the product must BE. A capability the constitution requires
 maquette nor the backend has, is invisible to every gate here. Without it, the next section the
 operator dictates is invisible the same way — and three were dictated in one day.
 
-**Its instrument is L10-ter's** (operator, 2026-08-29). The steward offered to carry it under the
-boundary § 7.2 gained the day before, and said in the same breath what that boundary does not cover:
-the arm needs a declared mapping from each DOIT clause to the surface that serves it, and **a
-mapping is a design decision, not a grep**. L10-ter is already modelling what a surface is, so the
-mapping is a by-product of its subject rather than an errand beside it. The phase carries the
-instrument with the three lots it places.
+**Its mapping is written and its instrument is placed** (2026-08-29). The arm needs a declared
+mapping from each DOIT clause to the surface that serves it, and **a mapping is a design decision,
+not a grep** — so L10-ter wrote it: `docs/reference/product-intent-map.md`, one row per DOIT and
+NE-DOIT-PAS clause, a verdict, a proof or an owning lot. The arm that reads it is specified in
+`MODEL.md` § 4 and **built by L15**, the first lot after the phase — a phase forbidden to write a
+guard does not write one, and a wave's arm gets a wave's adversarial review.
 
 **Also named here and deliberately unscheduled — the SEMANTIC SCROLL INDEX** (operator,
 2026-08-26). A list would offer an index shaped by its own sort: letters when sorted
@@ -138,10 +160,13 @@ things in one object, and on a six-pixel-wide thumb the margin between « I am s
 jumped to M » is thin. Two functions, two objects — the bar stays a bar, the index appears when it
 serves.
 
-**Item 1 is deliberately outside this file**: `/control` (8 panels) and `/pipeline` (10 panels)
-are surfaces still to be drawn. They follow the existing method — drawn in the maquette first,
-named states, a rule that bites — and they are named here only so nobody reads their absence as
-an arbitration. They are not blocked by any lot below, and no lot below is blocked by them.
+**Item 1 is a lot since 2026-08-29 — L20, the control station.** `/control` (8 panels) and
+`/pipeline` (10 panels) were kept outside this file as « surfaces still to be drawn, blocked by
+nothing ». The clause map could not leave them there: DOIT-1, DOIT-3, DOIT-5 and DOIT-6 each have
+a half that only those pages serve, and a clause whose surface has no lot is a clause nobody
+owes. They follow the existing method — drawn in the maquette first, named states, a rule that
+bites — and where their panels land stays the operator's open UX question (`IMPLEMENTATION.md`),
+written into L20 as its blocking note.
 
 ---
 
@@ -357,6 +382,14 @@ The engine's actual code is about **6 949 lines**.
 Most of that fixture stops existing when real data arrives. Killing the engine before the data
 layer means facing 34 650 lines; killing it as surfaces convert means facing seven thousand,
 in pieces, each with the oracle green.
+
+**Measured again on 2026-08-29, at L10-ter, and the subtraction has a shape nobody had drawn.**
+The engine draws no page and no screen any more; it still draws the FRAME (tab bar, drawer,
+dialog, toast — `SURVEY.md` § 1.2) and still PRODUCES every sheet's content (ten `panel.open`
+producers, zero on the React side) — which is why sixty fixture families outlived L09: their
+readers are producers, not markup. « Surface by surface » therefore has two more passes to make,
+and they are lots: **L15** for the frame's chrome and entry, **L19** for the producers. What stays
+cross-cutting is smaller than this decision first said, and it is L13's.
 
 **What is cross-cutting and does NOT strangle surface by surface**: the document-level event
 delegation, the boot handshake, and the 254 top-level declarations republished on `window` for the
@@ -591,6 +624,12 @@ not asserted here, and a wave that assumes either answer is doing what B-101 rec
     module belongs in a `domain/` bucket of its own rather than in `lib/`, and whether B-100 (this
     invariant is unarmed) is worth arming now that there is something for an arm to refuse.
     Recorded here so the next wave decides it rather than inheriting it.
+
+    **Its subject is MODELLED since 2026-08-29** — `docs/features/maquette-l10-ter/MODEL.md`
+    § 2, thirteen parts, each saying where it lives under this invariant, what it owns and what it
+    never knows. The invariant was binding for three lots before its subject had a definition;
+    that debt is paid, and a fourteenth part is a hole in the model, said so in the wave that
+    finds it.
 
     **Why it is not written for the extraction.** A frame that does not name its subject is easier
     to read, easier to test and easier to move between waves — that alone pays for it. Reusing it
@@ -1065,7 +1104,59 @@ against the mocks, or its divergences are accepted one by one with reasons.
 **Done when.** A server event refreshes exactly what it should and nothing else; reconnection and
 loss are handled visibly; no polling remains where an event exists.
 
-#### L11 — Offline and PWA · *depends on L09*
+#### L15 — The frame · *depends on L07, L09*
+
+**Objective.** The engine draws nothing of the frame, and the template exists: one navigation
+table, four kinds of surface, a slot and a verb for every layer. Declared by L10-ter on
+2026-08-29 — `docs/features/maquette-l10-ter/MODEL.md` is its design, part by part, and
+`SURVEY.md` § 1.2 is its inventory. It is numbered after L14 and placed before L11 because
+**this file's order decides, not the number** (§ 5), and renumbering moves citations (B-103).
+
+**Why before L11 and L12, measured.** L11's offline shell CACHES the chrome, and the chrome is the
+engine's today — an offline shell built first would cache `legacy.js`, 33 026 non-blank lines of
+which 26 366 are fixtures, and be rebuilt when the chrome moved. L12's transition between two
+layers needs both layers to be components; the drawer and the dialog are engine markup.
+
+**What it converts** — six surfaces, the entry, and the table:
+
+| Part (`MODEL.md` § 2) | What moves | From | To |
+| --- | --- | --- | --- |
+| 5 — the table | `PAGES_OF` and `NAVIGATION` (engine), `PAGES` (page host), `PAGE_PATHS` (addresses) — **four copies of one fact** | the engine, twice | **one** `app/navigation.ts`: id · path · component · label key · icon · group · in the bar · action button · `badge()` — invariant 10's third exception, and the engine holds no copy |
+| 6 — the chrome | the tab bar (`renderNav`, rebuilt on every `render()` — B-231), the drawer's chrome, the FAB's toggle, the selection **slot** | engine `innerHTML` | `app/tab-bar.tsx`, `app/drawer.tsx`, `app/action-button.tsx`, `app/bottom-slot.tsx`; the library's selection bar becomes its own component portalled into the slot |
+| 7 — the layers | the dialog (`openDlg(html)`, 3 producers), the toast (36 callers), the popover LAYER | engine `innerHTML` | `ui/dialog.tsx`, `ui/toast.tsx`, `ui/popover.tsx` behind DESCRIPTORS on the seam the sheet already uses (`app/panel-host.ts` is the precedent: facts cross, markup is the component's); **the scrim gets one owner**; **the dialog gets its rung** on the ladder (B-229, D1's third tier) |
+| 9 — the entry | splash, login gate, install proposal, appearance (`legacy.js:9678–9915`, `10116`) | engine logic over static markup | `app/splash.ts`, `app/sign-in.tsx`, `app/install.ts`, `app/appearance.ts`; `theme-color` follows the theme (B-233); the viewport fallback that re-adds `user-scalable=no` is removed (B-230) |
+
+**One kind of change, and how it stays one.** Drawing moves; behaviour does not. The ladder's
+HANDLER (`onEngineBack`, `unwindLayer`, `hideLayers`, `__closeLayers`) stays in the engine until
+L13 — the drawer and the dialog REGISTER with it through the seam, exactly as the sheet does
+through `window.__panel`. Every engine edit is a subtraction or a call through a seam; a line
+added to the engine that is neither is the defect. The sheet's own conversion (SP4b) is the
+proof that this shape lands at zero oracle divergence.
+
+**What it must not do.** Extend a grandfathered file — `features/acquisition/page.tsx` and
+`features/library/page.tsx` are two of L14's four, and the selection bar and the Découvrir
+containers live beside them in new files. Move a producer (L19). Move the handler (L13). Draw a
+pixel differently: the rendering of every part is validated (mission of 2026-08-19).
+
+**It builds B-142's instrument.** The map is `docs/reference/product-intent-map.md`; the arm is
+`MODEL.md` § 4 — it refuses a clause with no row, a row naming a surface absent from the tree, a
+« to draw » row naming no lot, a « served » row naming no proof; it prints one line per clause and
+never a count alone; it runs in the contracts tier, over the `docs` filter, and its mutation is
+seen red before it merges.
+
+**Where it lives (invariant 10).** `app/` for hosts, chrome and entry; `ui/` for primitives;
+`lib/` for nothing new. The table is the exception the invariant names; a badge is a FUNCTION the
+row points at, exported by the feature, so the frame names the feature once and its counters never.
+
+**Done when.** The inventory command (`SURVEY.md` § 1.1) lists only the Découvrir feed, the
+popover's content and the harness panel — nothing of the frame; `#nav`, `#drawer`, `#dlg` and
+`#toast` are React-rendered at their ids; one navigation table, and `grep -c "PAGES_OF\|NAVIGATION"
+legacy.js` reads only the seam that asks for it; P1, P2, P3's dialog rung, P14's landmine and P21
+(`MODEL.md` § 3) are each held by a rule seen to bite; the B-142 arm is in the contracts tier with
+its mutation; the oracle is green at every step or its divergences are accepted with reasons; the
+hold counts are unchanged; the accessibility tier reads zero over every named state.
+
+#### L11 — Offline and PWA · *depends on L09, L15*
 
 **Objective.** Service worker, offline shell, queued mutations that depart on reconnection, and
 the platform entry points a media application owes — receiving a shared link, and being the
@@ -1073,12 +1164,24 @@ handler its links deserve.
 
 
 **Where it lives (invariant 10).** The service worker, the offline shell, the mutation queue and the install entry points are frame, not feature. They live in `app/` or `lib/`. A service worker under `features/` is the single most likely misplacement of this whole plan, because the page one happens to be testing is not the thing being built.
-**Done when.** The application opens and reads offline; a mutation issued offline departs on
-reconnection, exactly once; installation and its entry points are exercised on a real device.
 
-### Phase 4 — The finish
+**Re-read against the model by L10-ter (2026-08-29): UNCHANGED in objective, RE-CUT in its
+dependencies and its proof.** It now depends on L15, for the reason written there. Its design is
+`MODEL.md` § 2 Part 13 — what the worker caches (the shell: document, bundles, icons, fonts; never
+`/api/*` nor the stream), the update discipline production already proved (`web-ui.md` § PWA:
+`registerType: 'prompt'`, a check on load, on visibility and every 15 minutes, `/api/version`
+against the baked commit, one reload), and a queue that holds opaque envelopes a feature's
+`queries.ts` enqueues. Its « Done when » is made measurable by **P7, P8 and P9** of `MODEL.md`
+§ 3, and the entry points it names are the operator's **Q4** (`QUESTIONS.md`): `share_target`
+landing on `/add`, `launch_handler`, `handle_links` — recommended all three, decided by nobody yet.
+**Done when.** The application opens and reads offline (P7, a rule under `context.set_offline`);
+a mutation issued offline departs on reconnection, exactly once (P8, on L10's fake transport);
+installation and its entry points are exercised on a real device, and the entry points Q4
+selects are declared in the manifest and reached by a rule.
 
-#### L12 — Native interaction · *depends on L05, L07*
+### Phase 4 — Native interaction
+
+#### L12 — Native interaction · *depends on L05, L07, L15*
 
 **Objective.** View transitions, gestures, mobile geometry, and the performance floor beneath
 them. D9 governs every library question in this lot; its verdict table is the answer, not a
@@ -1126,20 +1229,170 @@ shared-element transition tear.
 
 
 **Where it lives (invariant 10).** A gesture arbitration is vocabulary: it belongs to `ui/` or `lib/`. What stays feature-local is which gesture a given surface offers, never how a press, a drag and a scroll are told apart.
+
+**Re-read against the model by L10-ter (2026-08-29): UNCHANGED in objective, RE-CUT in what it
+may assume.** It depends on L15 now: a view transition between the drawer, a dialog and a page
+needs each of them to be a component, and they are engine markup until L15. The arbitration moves
+to `lib/` here; **each surface's USE of it moves with its producer in L19**, so this lot converts
+the vocabulary and the React surfaces (the sheet's drag, the screens) and leaves the deck's and
+the rows' engine-side callers to L19. Its properties are **P5, P6, P11, P17, P20 and P24** of
+`MODEL.md` § 3; **B-234** (no `interactive-widget` on the viewport meta, so the keyboard resizes
+the viewport by default) is its. The interaction budget is a device-only protocol, written and
+dated — not a gate (`MODEL.md` § 3.1).
 **Done when.** Every transition is declared rather than scripted, the one named spring excepted;
 every gesture is proved against a real pointer stream **and** against a real mouse; reduced motion
 is defined for each of them (the reduced-motion invariant); the feedback seam has exactly one call site; no
 unvirtualised long list remains; and the interaction budget is measured on a real device, not in
 a headless browser.
 
-#### L13 — The engine's residue · *depends on L07, L09, L12*
+### Phase 5 — The producers, and what the constitution owes
 
-**Objective.** What did not die by subtraction: the document-level delegation, the boot
-handshake, `/login` and the splash as components, and the republished `window` surface once the
-harness no longer drives through it.
+Declared by L10-ter on 2026-08-29. The first lot is D5 applied to the sheets — the pass « surface
+by surface » never made; the four after it are the constitution's, each blocked on a dictated
+answer until the operator gives it, and each drawn in the maquette first like every surface.
 
-**Done when.** `legacy.js` no longer exists; nothing reads a `window.__` seam; the suite is green
-at unchanged hold counts; the oracle is green.
+#### L19 — The producers · *depends on L15, L09, L12*
+
+**Objective.** Every surface the engine still PRODUCES moves to its feature, with its share of the
+fixture dying (D5): the ten `panel.open` producers (the follow sheet, the journey, the « ⋮ », the
+account menu, a setting, the seasons, the acquisition status — `grep -n "panel\.open("
+legacy.js`), the Découvrir feed (list, poster, deck, footer — the one feature surface still
+drawn by `innerHTML` after L15), the episode popover's content, and the delegation verbs those
+surfaces own (`data-cancelsetting` is the settings feature's; `data-take` is the arrivals'). The
+frame's own verbs (`data-drawer`, `data-navgo`, `data-sheet`) are not this lot's.
+
+**Why it exists as a lot.** L13 said the sixty fixture families « belong to surfaces the ENGINE
+still draws — their literals cannot leave before their markup does ». The markup left with the
+pages; the families stayed because their readers are producers, and no lot owed those. **A debt
+with no named owner is a debt nobody pays, and it reappears in the last lot** — this is the
+last lot's debt, named and moved.
+
+**Where it lives (invariant 10).** `features/<domain>/` — a producer is a function from the
+cache to a descriptor, and it lives with what makes it change. It reads the query cache, never
+the engine's accessors; each moved producer takes its `installX` seam out of `app/shell.tsx`.
+
+**One kind of change.** A descriptor rendered by `ui/panel` from a React producer is the same
+descriptor rendered from the engine's — the oracle proves each move at zero divergence, surface
+by surface, in L07's order. A verb that moves is a behaviour move and lands in its own commit with
+the rule that held it before, unchanged in count.
+
+**What it must not do.** Extend a grandfathered file (L14's four) — a producer becomes a new file
+beside its page. Add a feature: DOIT-4, DOIT-8, NE-DOIT-PAS-3 and NE-DOIT-PAS-9's missing
+INSTRUMENTS are built here because these are the producers that draw those surfaces, but no
+surface changes.
+
+**Done when.** `grep -c "panel\.open(" legacy.js` reads 0; the inventory command lists only the
+harness panel; the fixture families that fed the producers are gone (D5's bracket-match method
+reads the difference); the delegation handles only the frame's verbs; the four map rows above
+read `served` with a rule that bit; the oracle is green or its divergences accepted with reasons.
+
+#### L16 — §18, the ratio · *depends on L15, L19, L10*
+
+**Objective.** DOIT-13: the ratio is read PER TRACKER, obligations are a « rien » with their
+reason, and a tracker's policy is set from the surface that shows it. Three operations answer and
+nothing calls them (`GET /api/acquisition/obligations`, `/stalled-grabs`, `/downloads`); one
+write — the policy — exists in neither contract and is recorded as a demand (D7). The stream's
+`RatioMeasured` and `SeedObligation*` events reach the browser and no surface claims them
+(`frontend-backend-demands-stream.md` § 3); this lot's `live.ts` does.
+
+**Blocking note.** §18's « Ce que cela ne tranche pas » — which actions, what is shown of a
+tracker beyond the ratio, whether the interface proposes a decision — is dictated before the wave
+opens. § 0's rule then takes the next eligible lot.
+
+**Where it lives (invariant 10).** `features/trackers/` — a tracker is a domain of its own, read
+by the acquisition and the media sheet, and invariant 7 forbids either from importing the other.
+A page with its row in `app/navigation.ts` (bar or drawer — the wave's design says which, drawn
+first), a per-tracker panel through `ui/panel`.
+
+**Done when.** The map's DOIT-13 row and DOIT-2's ratio half read `served` with a rule; the three
+operations are called and mocked (seeded from the running backend's shapes, D7); the policy write
+is in the demands register; the events are claimed by a rule (R91's fan-out); the ratio shown is
+the tracker's (NE-DOIT-PAS-1, held by the mock's own value, never a local computation).
+
+#### L17 — §19, cross-seed · *depends on L16*
+
+**Objective.** DOIT-14: an injection is seen, a refusal is explained, a title says where it seeds,
+and the operator can prevent or provoke it. **Nothing exists to call**: this is D7's first real
+case — the maquette declares the routes its experience requires, the demands register carries
+them, the mocks are INVENTED because no fixture exists (L08's « seeded from the fixture it
+replaces » does not apply, and the oracle records the new surfaces as new rather than proving
+them unchanged). `CrossSeedInjected` and `CrossSeedRejected` are claimed by its `live.ts`.
+
+**Blocking note.** §19's three open points — automatic, proposed or manual; the feed, the
+per-tracker state, or both; where it lives — are dictated before the wave opens.
+
+**Where it lives (invariant 10).** `features/trackers/` extended (the per-tracker state), a block
+in the media sheet's descriptor (a title seeds elsewhere — the media feature's `panel-seasons`
+precedent: a feature ADDS a block kind), and a feed if the operator chooses one.
+
+**Done when.** The map's DOIT-14 row reads `served` with a rule; the declared routes are in the
+maquette's contract and in the demands; the two events are claimed; a refusal is readable from
+the surface with its reason (NE-DOIT-PAS-5 applied to a success).
+
+#### L18 — §17, accounts, rights and Plex identity · *depends on L15*
+
+**Objective.** DOIT-12: the interface shows what THIS account can do, and what it cannot is
+visible and explained where hiding it would mislead. A rights MODEL first, then surfaces; the
+sign-in gate redrawn for Plex SSO; the read-only role ABSORBED by the model — one authorisation
+path (NE-DOIT-PAS-7). `GET /api/auth/me` diverges to carry rights (D7, a demand).
+
+**Blocking note.** §17's four open points — which roles and rights; whether Plex SSO replaces or
+joins; a Plex user with no rights; what a Plex account sees by default — are dictated before the
+wave opens. The lot is last of the three because it is the largest and because it is the one
+that edits the FRAME after L15 (the gate, the drawer's identity block), by design.
+
+**Where it lives (invariant 10).** `features/account/` for the model and the surfaces; the gate
+stays `app/sign-in.tsx` and is redrawn here — the only lot after L15 that touches a frame part,
+and the plan says so rather than discovering it.
+
+**Done when.** A right is proved on BOTH sides and separately (§17 « Ce que cela impose à la
+preuve »): the action absent from the surface for the account without it, the call refused for
+one that forces it; the map's DOIT-12 row reads `served` with that rule; the read-only role has
+no path of its own left.
+
+#### L20 — The control station · *depends on L15, L19, L10*
+
+**Objective.** The two pages the mission re-opened — `/control` (8 panels) and `/pipeline`
+(10 panels) — drawn where the operator's UX arbitration lands them, and the halves of DOIT-1,
+DOIT-3, DOIT-5 and DOIT-6 only they serve: the pipeline's own states in plain French, « relancer
+le watcher » (`POST /api/pipeline/watcher`), progress to the library (`GET /api/pipeline/stages`),
+a run's figures (`GET /api/pipeline/history/{run_uid}`). The tab-bar badge for a running pipeline
+is one row in the navigation table, if **Q6** says yes.
+
+**Blocking note.** Where the panels land — Arrivées / Système / Maintenance / Configuration, or
+pages of their own — is the operator's open UX question in `IMPLEMENTATION.md`, and it is answered
+before the wave opens.
+
+**Where it lives (invariant 10).** `features/pipeline/` and `features/control/`, or the four
+features the panels are redistributed into — the arbitration decides, the design says.
+
+**Done when.** The four map rows read `served` with a rule; the three operations are called and
+mocked; every named state of the two pages renders at 390 px with no overflow; the oracle records
+them as new.
+
+### Phase 6 — The finish
+
+#### L13 — The engine's residue · *depends on L07, L09, L12, L15, L19*
+
+**Objective.** What did not die by subtraction, measured by L10-ter on 2026-08-29 rather than
+listed from memory: the ladder's HANDLER (`onEngineBack`, `unwindLayer`, `hideLayers`,
+`__closeLayers` — `MODEL.md` § 2 Part 4, to `app/layers.ts`), the document-level delegation's
+FRAME verbs, the boot handshake (`__startEngine`), the engine-side seams (`__address`, `__bridge`,
+`__panel`, `__screens`, `__store`), the dead `#screen` layer with its three readers and the
+mount-node placement that rests on it (B-232), `refonte.html` and R72's renegotiation,
+`legacy.css` and its guard, `__go`'s driving (which moves into a harness module of its own — it
+is the harness's, not the product's), and whatever fixture families L19 could not kill.
+
+**Re-read against the model by L10-ter (2026-08-29): RE-CUT.** « `/login` and the splash as
+components » left this lot for L15 — they are the frame's entry (Part 9) and §17 redraws the gate,
+which cannot happen while the gate is engine code. « The sixty fixture families … belong to
+surfaces the ENGINE still draws » was wrong in its reason: their readers are PRODUCERS, and L19
+owns them; this lot inherits only what L19 measures it could not remove.
+
+**Done when.** `legacy.js` no longer exists; no PRODUCT code reads a `window.__` seam — the
+harness's driving seams (`__go`, `__states`, `__queries`, `__relay`, `__mocks`) live in a harness
+module and die at switchover with `harness.css`; the suite is green at unchanged hold counts; the
+oracle is green.
 
 **Carried here by L09, 2026-08-28 — the sixty fixture families it could not kill.** L09's « Done
 when » says each surface's share of the fixture dies with it (D5). Twenty-one families died and
@@ -1189,6 +1442,12 @@ on it, so it sits last and § 0's rule will elect it last — which means L10 to
 inside 600-to-800-line files, and invariant 6's reason (« an agent modifying a component opens one
 file ») is not served for them. **Its dependencies have both landed**, so the operator may pull it
 forward between any two lots at any time, and that is a real option rather than a formality.
+
+**Re-read against the model by L10-ter (2026-08-29): UNCHANGED.** Two lots now write beside its
+four files before it runs — L15 (the selection bar, the Découvrir containers) and L19 (the
+producers) — and neither may extend them; each creates its files beside the page. Whether to pull
+this lot forward before L19 is the operator's **Q3** (`QUESTIONS.md`); the recommendation is
+before L19, and it stays last until the answer.
 
 **Done when.** No file under `frontend/maquette/design/src` is at or over 400 non-blank lines with
 the sole exception of the dying engine's two, `engine/legacy.js` and `engine/states.js`, which
