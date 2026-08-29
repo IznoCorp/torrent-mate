@@ -1652,20 +1652,28 @@ L10-ter land with this entry.
   arbitration remains L12's. The band's `touch-action` and `pointer-events` ride that condition as
   CLASSES, because the compositor reads them when the finger lands and not during the gesture.
 
-**The instrument for both — `harness/gestures.py` (R98), eleven holds.** It drives a REAL touch
+**The instrument for both — `harness/gestures.py` (R98), fourteen holds.** It drives a REAL touch
 stream over the DevTools Protocol AND a real mouse on the same build, because they are not two
 spellings of one exercise: the drawer's first implementation passed one and failed the other.
 
-**The third exercise is the operator's, and it is NOT done.** A pass by hand, with a finger, on the
-device. No script can stand in for it — `pointercancel` is delivered by a compositor deciding it
-wants the gesture, and neither driver above is that compositor. **Both entries are `to confirm`
-until that pass**, with the date and the device recorded here.
+**The third exercise was the operator's, and it is DONE.** A pass by hand, with a finger, on the
+device: **confirmed by the operator on 2026-08-29**, both gestures, including the condition that
+decides between them — a downward swipe in the sheet's top band dismisses at the top of the
+content and SCROLLS anywhere else. No script could stand in for it: `pointercancel` is delivered
+by a compositor deciding it wants the gesture, and neither driver above is that compositor.
+**Both entries move from `to confirm` to confirmed.**
+
+The device is not recorded, because the operator did not name one and this file does not hold
+figures nobody measured. What the pass establishes is the compositor's behaviour on the hardware
+the operator uses; a second device would be a second pass, not a correction of this one.
 
 <sub>mutations, all seen red and restored — return both bands to their previous size (`BAND = 0`,
 `h-[22px]`): three holds fall, one per gesture plus the mouse. **Remove the TOUCH path and keep the
 pointer one: the touch hold falls and the MOUSE hold stays green**, which is the asymmetry the plan
 names and the best proof the two exercises are not two of the same. Close on `pointercancel`
-instead of restoring: the cancel hold falls alone. Restored → `11 rules EXECUTED — no violation`</sub>
+instead of restoring: the cancel hold falls alone. Restored → `14 rules EXECUTED — no violation`, re-derived by running the rule rather than
+by copying the figure beside it: « eleven » was written before the three holds an adversarial
+review added, and it is the same class of stale count this wave corrected in six other places</sub>
 
 <sub>and what they cost the oracle: **nothing**, verified rather than believed — 87 states x 34
 regions, the only divergences being `screen-add/body`'s three, which are B-222's</sub>
