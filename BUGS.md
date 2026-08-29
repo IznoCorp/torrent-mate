@@ -286,7 +286,7 @@ when the defect comes back.
 | B-224 | The header's avatar rendered 20x30 in a 32x32 button, every class on it correct | by audit | `fixed #516` |
 | B-225 | A guard froze its own corpus size in a comment, and the figure drifted three times | by audit | `fixed #516` |
 | B-226 | The cross-check B-208 built never ran in CI: the import branch printed and passed | by audit | `fixed #516` |
-| B-227 | The post-merge gesture was missed at the close of L09, L10 and L10-bis, and § 5’s guard for it stayed a sentence | by audit | `fixing` |
+| B-227 | The post-merge gesture was missed at the close of L09, L10 and L10-bis, and § 5’s guard for it stayed a sentence | by audit | `fixed #518` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
@@ -3957,6 +3957,12 @@ trace row — which are a different subject it would report clean over.
 **Four mutations, each seen red and restored**: a row naming a version `main` has reached → refused,
 naming both versions; a row naming a version beyond `main` → clean, which is the one state it must
 never refuse; the row deleted → refused; `main` out of reach → refused rather than passed.
+
+> **The row read `fixing` until this pull request existed, and the register's own guard is why.**
+> Written `fixed #NNN` first — B-221's exact defect, the placeholder saying the merge was never
+> written down — and `check-bug-register.py`'s vocabulary arm refused it. The alternative was to
+> guess the number, which this office has already done correctly once (B-147) and recorded as a
+> fault: being right by luck is not being right by method.
 
 <sub>`python3 scripts/check-implementation-state.py` · the specification it replaces:
 `frontend-architecture.md` § 5, « Write the landed row when the pull request opens »</sub>
