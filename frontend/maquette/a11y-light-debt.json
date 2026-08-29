@@ -1,0 +1,539 @@
+{
+  "$comment": "The accessibility findings under `data-theme=\"light\"`, which this tier drove for nobody until L10-bis: it measured the DEFAULT theme only, so 154 findings counted by hand during L06 were invisible to it (B-055). THIS FILE IS READ BY `--check` AND THAT IS DELIBERATE — it is a RATCHET, a ceiling that may fall and may not rise, not the tolerance `a11y-debt.json` refuses to be. The dark floor stays a hard zero; remediating this list is a campaign with its own design, and what is held here meanwhile is that nothing is ADDED to it.",
+  "takenAtCommit": "ce67554839b597c2c08b85976418d98da5764572",
+  "platform": "Darwin/arm64",
+  "counts": {
+    "states": 87,
+    "byRule": {
+      "color-contrast": 166
+    },
+    "total": 166
+  },
+  "states": {
+    "acq-add-empty": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".fback"
+        ]
+      }
+    ],
+    "acq-add-results": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".fback"
+        ]
+      }
+    ],
+    "acq-discover": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          "button[data-panel=\"sug:0\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:1\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:10\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:11\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:12\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:13\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:14\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:15\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:16\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:17\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:18\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:19\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:2\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:20\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:21\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:22\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:24\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:26\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:28\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:3\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:4\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:5\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:7\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:8\"] > .cmeta[data-part=\"card/meta\"] > .crating",
+          "button[data-panel=\"sug:9\"] > .cmeta[data-part=\"card/meta\"] > .crating"
+        ]
+      }
+    ],
+    "acq-discover-deck": [],
+    "acq-discover-degraded": [],
+    "acq-discover-exhausted": [],
+    "acq-discover-loading": [],
+    "acq-discover-posters": [],
+    "acq-follows-error": [],
+    "acq-follows-filter-empty": [],
+    "acq-follows-grid": [],
+    "acq-follows-group": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".swipe[data-part=\"swipe\"]:nth-child(5) > .card[data-part=\"card\"] > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .chip.waiting[data-part=\"chip\"]",
+          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .chip.waiting[data-part=\"chip\"]",
+          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .chip.waiting[data-part=\"chip\"]",
+          "button[data-panel=\"media:Silo\"] > .cmeta[data-part=\"card/meta\"] > .chip.waiting[data-part=\"chip\"]",
+          "button[data-panel=\"media:Wicker\"] > .cmeta[data-part=\"card/meta\"] > .chip.waiting[data-part=\"chip\"]"
+        ]
+      }
+    ],
+    "acq-follows-list": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".swipe[data-part=\"swipe\"]:nth-child(4) > .card[data-part=\"card\"] > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "button[data-panel=\"media:Silo\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "button[data-panel=\"media:Wicker\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]"
+        ]
+      }
+    ],
+    "acq-follows-pause-empty": [],
+    "acq-identify": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".fback",
+          ".surferr > b"
+        ]
+      }
+    ],
+    "acq-now-error": [],
+    "acq-now-idle": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
+          ".mt-3",
+          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:Wicker\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]"
+        ]
+      }
+    ],
+    "acq-now-loaded": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".mt-3",
+          "button[data-panel=\"media:Dead Landes\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "button[data-panel=\"media:I Will Find You\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "section:nth-child(3) > .card[data-part=\"card\"] > .ccol > .cfoot[data-part=\"card/foot\"][data-act=\"\"]"
+        ]
+      }
+    ],
+    "acq-now-loading": [],
+    "arr-decision": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".fback"
+        ]
+      }
+    ],
+    "arr-error": [],
+    "arr-idle": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(3) > .ccol > .cfoot[data-act=\"resolve\"][data-part=\"card/foot\"]",
+          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(4) > .ccol > .cfoot[data-act=\"resolve\"][data-part=\"card/foot\"]"
+        ]
+      }
+    ],
+    "arr-loaded": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(3) > .ccol > .cfoot[data-act=\"resolve\"][data-part=\"card/foot\"]",
+          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(4) > .ccol > .cfoot[data-act=\"resolve\"][data-part=\"card/foot\"]",
+          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(5) > .ccol > .cfoot[data-act=\"resolve\"][data-part=\"card/foot\"]"
+        ]
+      }
+    ],
+    "arr-loading": [],
+    "arr-queued": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(3) > .ccol > .cfoot[data-act=\"resolve\"][data-part=\"card/foot\"]",
+          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(4) > .ccol > .cfoot[data-act=\"resolve\"][data-part=\"card/foot\"]",
+          ".min-h-\\[44px\\]"
+        ]
+      }
+    ],
+    "arr-resolution": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".fback",
+          "button[data-manual=\"élément inconnu\"]"
+        ]
+      }
+    ],
+    "arr-running": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(3) > .ccol > .cfoot[data-act=\"resolve\"][data-part=\"card/foot\"]",
+          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(4) > .ccol > .cfoot[data-act=\"resolve\"][data-part=\"card/foot\"]",
+          "button[data-pipe=\"start\"]",
+          "button[data-pipe=\"stop\"]"
+        ]
+      }
+    ],
+    "drawer-navigation": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".dh > span > em"
+        ]
+      }
+    ],
+    "followsheet-complete": [],
+    "followsheet-gaps": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          "button[aria-label=\"S01E01 — En médiathèque\"]",
+          "button[aria-label=\"S01E02 — À récupérer\"]",
+          "button[aria-label=\"S01E03 — En médiathèque\"]",
+          "button[aria-label=\"S01E04 — À récupérer\"]",
+          "button[aria-label=\"S01E05 — En médiathèque\"]",
+          "button[aria-label=\"S01E06 — En médiathèque\"]",
+          "button[aria-label=\"S01E07 — À récupérer\"]",
+          "button[aria-label=\"S01E08 — En médiathèque\"]",
+          "button[aria-label=\"S01E09 — À récupérer\"]",
+          "button[aria-label=\"S01E10 — En médiathèque\"]",
+          "button[aria-label=\"S01E11 — À récupérer\"]",
+          "button[aria-label=\"S01E12 — En médiathèque\"]",
+          "button[aria-label=\"S01E13 — À récupérer\"]",
+          "button[aria-label=\"S02E01 — En médiathèque\"]",
+          "button[aria-label=\"S02E02 — En médiathèque\"]",
+          "button[aria-label=\"S02E03 — À récupérer\"]",
+          "button[aria-label=\"S02E04 — En médiathèque\"]",
+          "button[aria-label=\"S02E05 — À récupérer\"]",
+          "button[aria-label=\"S02E06 — En médiathèque\"]",
+          "button[aria-label=\"S02E07 — À récupérer\"]",
+          "button[aria-label=\"S02E08 — En médiathèque\"]",
+          "button[aria-label=\"S02E09 — À récupérer\"]",
+          "button[aria-label=\"S02E10 — En médiathèque\"]",
+          "button[aria-label=\"S02E11 — À récupérer\"]",
+          "button[aria-label=\"S02E12 — En médiathèque\"]",
+          "button[aria-label=\"S02E13 — À récupérer\"]",
+          "button[aria-label=\"S03E01 — En médiathèque\"]",
+          "button[aria-label=\"S03E02 — À récupérer\"]",
+          "button[aria-label=\"S03E03 — En médiathèque\"]",
+          "button[aria-label=\"S03E04 — À récupérer\"]",
+          "button[aria-label=\"S03E05 — En médiathèque\"]",
+          "button[aria-label=\"S03E06 — À récupérer\"]",
+          "button[aria-label=\"S03E07 — En médiathèque\"]",
+          "button[aria-label=\"S03E08 — À récupérer\"]",
+          "button[aria-label=\"S03E09 — En médiathèque\"]",
+          "button[aria-label=\"S03E10 — À récupérer\"]",
+          "button[aria-label=\"S03E11 — En médiathèque\"]",
+          "button[aria-label=\"S03E12 — À récupérer\"]",
+          "button[aria-label=\"S03E13 — En médiathèque\"]",
+          "details:nth-child(4) > summary > .miss[data-part=\"season/missing\"]",
+          "details:nth-child(5) > summary > .miss[data-part=\"season/missing\"]",
+          "details:nth-child(6) > summary > .miss[data-part=\"season/missing\"]"
+        ]
+      }
+    ],
+    "lib-delete": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".dryrun",
+          ".warnbox > b"
+        ]
+      }
+    ],
+    "lib-delete-multiple": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".dryrun",
+          ".warnbox > b"
+        ]
+      }
+    ],
+    "lib-error": [],
+    "lib-error-more": [],
+    "lib-grid": [],
+    "lib-incomplete": [],
+    "lib-list": [],
+    "lib-loading": [],
+    "lib-recent": [],
+    "lib-search-empty": [],
+    "lib-selection": [],
+    "maintenance": [],
+    "maintenance-delete": [],
+    "maintenance-loading": [],
+    "maintenance-topic": [],
+    "mediasheet-movie": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".fback",
+          ".hn"
+        ]
+      }
+    ],
+    "mediasheet-no-poster": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".fback",
+          ".hn"
+        ]
+      }
+    ],
+    "mediasheet-no-trailer": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".fback",
+          ".hn"
+        ]
+      }
+    ],
+    "mediasheet-series": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".fback",
+          ".hn",
+          "details[open=\"\"] > .panel.bg-card[data-part=\"panel\"] > .in_library.eprow[data-in-library=\"true\"]:nth-child(1) > .en[data-part=\"episode/number\"]",
+          "details[open=\"\"] > .panel.bg-card[data-part=\"panel\"] > .in_library.eprow[data-in-library=\"true\"]:nth-child(2) > .en[data-part=\"episode/number\"]",
+          "details[open=\"\"] > .panel.bg-card[data-part=\"panel\"] > .in_library.eprow[data-in-library=\"true\"]:nth-child(3) > .en[data-part=\"episode/number\"]",
+          "details[open=\"\"] > .panel.bg-card[data-part=\"panel\"] > .in_library.eprow[data-in-library=\"true\"]:nth-child(4) > .en[data-part=\"episode/number\"]",
+          "details[open=\"\"] > .panel.bg-card[data-part=\"panel\"] > .in_library.eprow[data-in-library=\"true\"]:nth-child(5) > .en[data-part=\"episode/number\"]",
+          "details[open=\"\"] > .panel.bg-card[data-part=\"panel\"] > .in_library.eprow[data-in-library=\"true\"]:nth-child(6) > .en[data-part=\"episode/number\"]"
+        ]
+      }
+    ],
+    "mediasheet-suggestion-movie": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".fback",
+          ".hn"
+        ]
+      }
+    ],
+    "mediasheet-suggestion-series": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".fback",
+          ".hn"
+        ]
+      }
+    ],
+    "not-found": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".mt-3"
+        ]
+      }
+    ],
+    "profile": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".cfoot"
+        ]
+      }
+    ],
+    "pwa-android": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
+          ".mt-3",
+          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:Wicker\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]"
+        ]
+      }
+    ],
+    "pwa-ios": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
+          ".mt-3",
+          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:Wicker\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]"
+        ]
+      }
+    ],
+    "relay-lost": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
+          ".mt-3",
+          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:Wicker\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]"
+        ]
+      }
+    ],
+    "relay-reconnecting": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
+          ".mt-3",
+          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:Wicker\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]"
+        ]
+      }
+    ],
+    "relay-refused": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
+          ".mt-3",
+          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:Wicker\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]"
+        ]
+      }
+    ],
+    "screen-profile": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".fback"
+        ]
+      }
+    ],
+    "screen-releases": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".best > .rt.flex-wrap.gap-2 > .sc.font-bold.ml-auto",
+          ".fback",
+          "article:nth-child(4) > .rt.flex-wrap.gap-2 > .sc.font-bold.ml-auto",
+          "article:nth-child(5) > .rt.flex-wrap.gap-2 > .sc.font-bold.ml-auto",
+          "article:nth-child(6) > .rt.flex-wrap.gap-2 > .sc.font-bold.ml-auto",
+          "button[data-take=\"1\"]",
+          "button[data-take=\"2\"]",
+          "button[data-take=\"3\"]"
+        ]
+      }
+    ],
+    "settings": [],
+    "settings-edited": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          ".panel.py-1.px-5:nth-child(6) > .modified.\\[\\&_\\.rv\\]\\:text-primary.before\\:w-\\[3px\\] > .rv[data-part=\"setting/value\"]",
+          ".panel.py-1.px-5:nth-child(8) > .modified.\\[\\&_\\.rv\\]\\:text-primary.before\\:w-\\[3px\\] > .rv[data-part=\"setting/value\"]"
+        ]
+      }
+    ],
+    "settings-field-boolean": [],
+    "settings-field-duration": [],
+    "settings-field-empty": [],
+    "settings-field-list": [],
+    "settings-field-number": [],
+    "settings-field-path": [],
+    "settings-field-schedule": [],
+    "settings-field-structure": [],
+    "settings-field-text": [],
+    "settings-one": [],
+    "settings-read-only": [],
+    "settings-restart": [],
+    "settings-search": [],
+    "settings-secrets": [],
+    "settings-topic": [],
+    "sheet-journey": [],
+    "sheet-more": [],
+    "sheet-user": [],
+    "signin": [],
+    "signin-error": [],
+    "startup": [],
+    "system": [],
+    "system-error": [],
+    "system-loading": [],
+    "system-outage": []
+  }
+}

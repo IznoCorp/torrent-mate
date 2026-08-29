@@ -782,6 +782,37 @@ needs its own design and plan (`docs/archive/features/maquette-l06/drafts/a11y-f
 carries the full inventory). Not decided here: whether the audit runs both themes (doubling
 its runtime) or a lighter arm audits palette pairs alone in light.
 
+
+**CLOSED by L10-bis. The measurement is ARMED; the 154 are not remediated, and that split is the
+entry's own.**
+
+**THE OPEN QUESTION IS DECIDED: the tier drives BOTH themes, and the lighter palette-pair arm was
+refused for this file's own reason.** `a11y.py`'s header argues that a house rule proves the list of
+criteria someone wrote into it and nothing else — it is why axe-core is here at all, and why
+`check-no-french.py` was turned around rather than lengthened. A palette-pair arm would have been
+exactly that rule, on exactly the theme nobody was measuring. Driving axe twice costs a second pass
+of ~25 s and buys the same body of criteria on both themes.
+
+**The light theme is MEASURED AND RECORDED, not enforced**, which is this file's own earlier
+handling of contrast (D-L03-4: measured, written to a file of its own, kept out of the floor,
+because « not measured » would have read as « no problem »). The dark floor stays a HARD ZERO.
+`a11y-light-debt.json` is a RATCHET — read by `--check`, unlike `a11y-debt.json`, and it says so:
+a debt file a gate reads is a tolerance, and a tolerance that only tightens is a ratchet.
+
+**MEASURED TODAY: 166, and all 166 are `color-contrast`.** L06's hand count was 154; the tree has
+moved since, and 166 is what it reads now rather than what a document says. Remediating them is a
+campaign with its own design and plan; what is held meanwhile is that nothing is ADDED.
+
+**Two things the arming needed that are not obvious.** The theme is re-applied AFTER every
+`window.__go`, because several scenarios re-render the shell and put the appearance back — a theme
+set once before the loop is a theme the audit believes it is measuring. And the attribute is
+read back at the end: an audit that silently measured the dark theme twice would report the dark
+theme's zero and call it two themes clean, which is this very defect arriving by a new road.
+
+<sub>mutation — `--color-foreground` broken in the LIGHT palette only: light goes 166 → **1162** and
+the tier FAILS, while dark stays at **0 violation(s)**. That is the entry's own test, and before
+this wave the same mutation was invisible to every instrument. Restored → `a11y: 87 states, 0
+violation(s)` · `a11y[light]: 166 violation(s) … against a ceiling of 166`</sub>
 **B-056 — a French name sits where no arm reads it.** `refonte.html` names a keyframe
 `splashremplit` (used by `.splashbar i`). A keyframe name is a name someone chose — code,
 under the English-names rule — and none of `check-no-french.py`'s fourteen arms reads
