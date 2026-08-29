@@ -22,6 +22,15 @@ What that entails, and these are not formulas:
   arbitration between two equally defensible readings: you PUT them, one by one, worded to be
   answered without re-reading your whole document.
 
+## What you also carry, assigned 2026-08-29
+
+**B-142's instrument, and the three lots §17, §18 and §19.** The plan's § 1 records the three as
+lots that are OWED — deliberately with no number, no order and no position, so § 0 cannot elect
+them — and says **you place them**, in the order §18 → §19 → §17 unless you measure a reason to
+differ. `DEFINITION.md` § 2.b carries B-142: the guard that reads `product-intent.md` against the
+interface, which is yours because it needs a mapping from each DOIT clause to the surface serving
+it, and a mapping is a design decision rather than a grep.
+
 ## What you decide
 
 The operator widened the mandate on 2026-08-29: **you decide where the model is converted into

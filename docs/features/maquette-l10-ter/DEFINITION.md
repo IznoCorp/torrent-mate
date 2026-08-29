@@ -102,6 +102,28 @@ and what it must never know of the domain.
 entries, and **its subject — the frame — has never been modelled.** A rule was written about an
 object before the object was defined.
 
+### 2.b The instrument nothing has — B-142, assigned here on 2026-08-29
+
+**Three instruments measure this interface and all three compare it to what already exists**:
+`IMPLEMENTATION.md` § THE OBJECTIVE counts pages and modules, `frontend-backend-demands.md`
+compares the maquette's contract against the running backend, `audit_design_coverage.py` compares
+design documents against tests. **None reads `product-intent.md`**, the only document saying what
+the product must BE. A capability the constitution requires, that neither the maquette nor the
+backend has, is invisible to every gate in this repository — which is how three dictated sections
+went a month unnoticed.
+
+**It is this phase's because of what the arm needs, not because of when it fits.** A guard that
+checks « every DOIT clause names a surface » needs a **declared mapping from each clause to the
+surface serving it**, and a mapping is a design decision rather than a grep. This phase is already
+modelling what a surface is; the mapping is a by-product of that subject rather than an errand
+beside it.
+
+**Two traps, both already paid for here.** Seeding the mapping from what exists today certifies the
+status quo — the vocabulary file did exactly that and let twenty-five French words in with the rest.
+And a clause that names no surface must be REFUSED with its reason readable, not counted in a
+printed figure nobody compares: a number that is printed and not read is how a control drifted by
+seven inside the pull request that introduced it.
+
 ### 3. The plan reworked — and the agent decides
 
 With the model drawn, **every lot from L11 to L14 is re-read against it** and the plan says what it
