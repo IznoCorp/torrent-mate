@@ -353,7 +353,7 @@ async def hold(journal):
         # `HELD_BACK_MS < ORACLE_QUIET_BUDGET_MS` — two numbers declared in this
         # file, touching nothing running. A `quiet()` that became slower than
         # the oracle's budget would leave every hold here green while the oracle
-        # timed out on all 2 871 of its measurements and took each one
+        # timed out on all 2 958 of its measurements and took each one
         # mid-flight, which is the exact condition this rule exists to prevent.
         settled = await page.evaluate(
             """async ({ address, latency }) => {

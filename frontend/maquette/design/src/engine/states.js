@@ -122,7 +122,7 @@ const STATES = [
         }),
     ],
     [
-      "acq-follows-groupe",
+      "acq-follows-group",
       "Acquisition · Suivis — groupé",
       () =>
         applyState({
@@ -580,7 +580,7 @@ const STATES = [
       () => applyState({ page: "sys", phase: "ready", fault: false }),
     ],
     [
-      "system-panne",
+      "system-outage",
       "Système — une panne (simulée)",
       () => applyState({ page: "sys", phase: "ready", fault: true }),
     ],

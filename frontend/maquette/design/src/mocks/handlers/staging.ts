@@ -3,7 +3,7 @@ import PIPELINE_EXECUTIONS from "../seeds/pipeline-executions.json";
 import { GET, POST, route, text } from "./shared";
 import { mockState } from "../state";
 import type { MockRequest, MockRoute } from "../router";
-import type { components } from "../contract-types";
+import type { components } from "../../contract/types";
 
 type PipelineState = components["schemas"]["PipelineState"];
 

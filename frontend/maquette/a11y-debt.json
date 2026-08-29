@@ -412,7 +412,7 @@
         ]
       }
     ],
-    "acq-follows-groupe": [
+    "acq-follows-group": [
       {
         "rule": "landmark-one-main",
         "impact": "moderate",
@@ -2746,7 +2746,7 @@
         ]
       }
     ],
-    "system-panne": [
+    "system-outage": [
       {
         "rule": "landmark-one-main",
         "impact": "moderate",

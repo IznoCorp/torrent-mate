@@ -2,7 +2,7 @@
 import { GET, POST, route, text } from "./shared";
 import { mockState } from "../state";
 import type { MockRoute } from "../router";
-import type { components } from "../contract-types";
+import type { components } from "../../contract/types";
 
 /** Where a decision has got to, as the contract's own enum names it. */
 type DecisionState = components["schemas"]["DecisionState"];

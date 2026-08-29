@@ -266,6 +266,13 @@ BUCKETS = {
     "lib": "domain-free helpers that render nothing",
     "styles": "tokens and base (L06/L07)",
     "mocks": "handlers and fixture seeds (L08)",
+    # THE CONTRACT'S GENERATED TYPES, and a bucket of their own since L10-bis.
+    # They lived under `mocks/` — the bucket L04 declared for « handlers and
+    # fixture seeds » — and they are neither: they are the SHAPE of what the
+    # interface may ask for, generated from `contract/openapi.json`. Filing them
+    # with the fixtures made `lib/query-client.ts` import from `mocks/`, which
+    # the boundaries arm had to be given a type-only exemption for (B-104).
+    "contract": "the API contract's generated types — what the interface may ask for",
     "i18n": "the interface's French, as resources",
     "engine": "LEGACY — the dying engine and what boots it. Dies with L13",
 }
@@ -317,7 +324,7 @@ WARN_LINES = 250
 # first left the exemption unproven on every machine that reads it, which is the
 # same distance between a proof and a claim the whole lot is about.
 GENERATED = {
-    "mocks/contract-types.d.ts": (
+    "contract/types.d.ts": (
         "npm run generate-contract-types — from frontend/maquette/contract/openapi.json. Held two ways: `make check-contract-types` regenerates it and refuses any difference, which needs the generator and runs only where it is installed; and `scripts/check-mock-seeds.py --arm generated` holds it against the contract by structure, needs neither node nor the generator, and runs wherever the guards do — which is where THIS exemption is read."
     ),
 }
@@ -850,25 +857,21 @@ def arm_tree(root: Path) -> int:
 
 
 
-# THE ONE FILE UNDER `mocks/` THAT IS NOT A MOCK, and the exemption is narrow on
-# purpose. `mocks/contract-types.d.ts` is GENERATED from
-# `frontend/maquette/contract/openapi.json` — it describes the CONTRACT, not a
-# fixture, and it happens to sit in this bucket because that is where L08's
-# generator writes it. Its placement is questionable and is recorded as such
-# (B-104); moving it is a rename with five ends and belongs to its own change,
-# not to the phase that first needed to import it.
+# THE EXEMPTION THIS CONSTANT CARRIED IS GONE, AND SO IS ITS REASON (B-104).
+# `mocks/contract-types.d.ts` was the API contract's generated types filed in
+# the bucket L04 declared for « handlers and fixture seeds », and it is neither:
+# it is the SHAPE of what the interface may ask for. Because it sat there,
+# `lib/query-client.ts` imported from `mocks/` and this arm had to be told that
+# a type-only edge to that one stem was allowed — an exemption whose own comment
+# said « its placement is questionable » and « moving it belongs to its own
+# change ». This is that change: the file is `contract/types.d.ts` now, a bucket
+# of its own, and nothing outside `app/` imports `mocks/` any more.
 #
-# WHAT MAKES THE EXEMPTION SAFE IS THE TYPE-ONLY CONDITION, not the file name.
-# The defect this arm exists to refuse is a module reading a SEED directly, so
-# that a fixture survives its own removal while the rendering stays identical.
-# A `.d.ts` carries no runtime value at all and a type-only edge is erased by
-# the compiler, so nothing can travel it — the same reasoning `app/reference.d.ts`
-# already states for its own type-only imports of every feature.
-# Matched on the STEM so the graph's own spelling of a `.d.ts` module —
-# `mocks/contract-types.d.ts`, `mocks/contract-types.d` or
-# `mocks/contract-types` depending on how it was resolved — cannot make
-# this exemption silently miss and the guard silently refuse.
-CONTRACT_TYPES_EXEMPT = ("mocks/contract-types",)
+# The tuple stays EMPTY rather than being deleted, so the next module that needs
+# to reach into `mocks/` has to write its name here with a reason, in a diff
+# somebody reads — which is what the exemption was for and what a deletion would
+# have taken away.
+CONTRACT_TYPES_EXEMPT = ()
 
 
 def type_only_import(root: Path, source: str, target: str) -> bool:

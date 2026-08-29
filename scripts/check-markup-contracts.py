@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refuses four defect classes — four arms, each naming the corpus it
+"""Refuses six defect classes — six arms, each naming the corpus it
 reads. Read the arm whose scope you are touching.
 
 ARM 1 — a `data-*` value the markup emits and no reader understands.
@@ -41,6 +41,19 @@ WHAT ARM 1 DOES NOT READ. A handler that TRANSLATES rather than forwards
 (`dataset.x === "a" ? "b" : "c"`) is out of scope: the emitted value is
 then an input to a decision, not a stored value, and holding it here
 would report a defect that is not one.
+
+ARM 5 — a typed variant declared and called by nobody. Corpus: every
+`variants.ts` under `design/src` plus `ui/variants/`, against every `.ts`
+and `.tsx` outside the dying engine. The four other arms read what the
+markup EMITS; a variant nobody calls emits nothing, so none of them could
+see three orphans painting a button white on a dark screen. Hard zero.
+
+ARM 6 — a painting element left with no class at a site nobody listed.
+Corpus: every `.tsx` under `design/src`, read through the TypeScript
+parser. The sibling of ARM 5: one asks which variants are never called,
+the other which elements never call one. Not a count — an allow-list
+with a reason per site, because six bare elements are not six of the
+same thing and a ratchet on a number permits trading one for another.
 
 ARM 2 — a rule selection anchored on a style class.
 Corpus: `frontend/maquette/harness`, every `*.py` file, read as text.
@@ -148,7 +161,9 @@ Usage:
 
 from __future__ import annotations
 
+import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -169,6 +184,13 @@ from markup_text import (  # noqa: E402
 # ARM 4, next door. Its corpus is DERIVED from what the harness selects by
 # presence — see that module's header for the seven-name tuple it replaced.
 from markup_states import check_state_attributes  # noqa: E402
+# ARMS 5 and 6, next door. One subject — what a surface declares against what
+# it wears — split out when this file crossed the soft ceiling, on that subject
+# rather than on the line count that prompted it.
+from markup_dressing import (  # noqa: E402, F401
+    BARE_ALLOWED, check_bare_elements, check_orphan_variants,
+    variant_declaring_files, variant_reading_files,
+)
 
 # `store.write({ pipe: closest.dataset.pipe })` — the handler that FORWARDS a
 # markup value into a store field. The two names differ often enough
@@ -681,6 +703,10 @@ def main(argv: list[str] | None = None) -> int:
     if check_named_values():
         rc = 1
     if check_state_attributes():
+        rc = 1
+    if check_orphan_variants():
+        rc = 1
+    if check_bare_elements():
         rc = 1
     return rc
 

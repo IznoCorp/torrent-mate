@@ -211,6 +211,10 @@
       "selector": "[data-region=\"not-found/body\"]",
       "note": "the unknown address"
     },
+    "screen-add/body": {
+      "selector": "[data-region=\"screen-add/body\"]",
+      "note": "the add screen's content \u2014 the search field, the results and the footer that announces what was added. Added at L10-bis: this screen was the ONLY one of the five with no region, so its two named states were measured against nothing and B-139's white rectangle was invisible to the oracle by construction rather than by accident."
+    },
     "screen-media/body": {
       "selector": "[data-region=\"screen-media/body\"]",
       "note": "the media sheet's content"

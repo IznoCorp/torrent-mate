@@ -217,7 +217,7 @@ FROZEN_PATH_SEGMENTS = {
 # structure, needs nothing, and runs wherever this guard does. Naming only the
 # first left the exemption unproven on every machine that reads it.
 GENERATED_SOURCES = {
-    "mocks/contract-types.d.ts": (
+    "contract/types.d.ts": (
         "npm run generate-contract-types — from frontend/maquette/contract/openapi.json. Held two ways: `make check-contract-types` regenerates it and refuses any difference, which needs the generator and runs only where it is installed; and `scripts/check-mock-seeds.py --arm generated` holds it against the contract by structure, needs neither node nor the generator, and runs wherever the guards do — which is where THIS exemption is read."
     ),
 }
@@ -382,6 +382,7 @@ def read(path: Path) -> str:
 # barely move. A scope that empties must be visible as ITSELF.
 examined: dict[str, int] = {
     "string literals / shell": 0,
+    "state identifiers / engine": 0,
     "string literals / servers": 0,
     "string literals / harness tools": 0,
     "string literals / repository tools": 0,

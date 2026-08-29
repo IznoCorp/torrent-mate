@@ -195,8 +195,13 @@
              same direct child of `.sp` the static one was. A wrapper with a
              box would have added a flex item and moved the header. -->
         <span id="connection" class="contents" data-part="shell/connection"></span>
+        <!-- `p-0` IS LOAD-BEARING AND WAS MISSING. A button keeps the
+             platform's own padding, so `w-full` on the image inside resolved
+             against a CONTENT box of 20x30 rather than the 32x32 the button
+             declares: the avatar rendered as a small oval while every class on
+             it was correct. Measured, not reasoned — B-224. -->
         <button
-          class="avatar w-[32px] h-[32px] rounded-full [border:0] bg-muted text-muted-foreground
+          class="avatar w-[32px] h-[32px] p-0 rounded-full [border:0] bg-muted text-muted-foreground
                  text-3 font-medium grid place-items-center"
           data-part="avatar"
           data-sheet="utilisateur"
@@ -452,7 +457,8 @@
     <aside
       class="drawer absolute inset-y-0 left-0 right-auto w-[288px] max-w-[86%] z-[55]
              bg-sidebar border-r border-border flex flex-col [transform:translateX(-100%)]
-             transition-[transform] duration-300 ease-standard invisible"
+             transition-[transform] duration-300 ease-standard invisible touch-pan-y
+             [&_a]:select-none [&_a]:[-webkit-user-drag:none]"
       id="drawer"
       aria-label="Menu"
     ></aside>

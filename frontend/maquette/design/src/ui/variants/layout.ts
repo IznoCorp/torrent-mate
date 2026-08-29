@@ -105,6 +105,49 @@ export const sheetGrab = cva(
     "before:content-[''] before:w-[36px] before:h-[4px] before:rounded-full before:bg-border",
 );
 
+/**
+ * The sheet's DRAG BAND — the grip zone the operator asked to be four times the
+ * handle (E-003).
+ *
+ * IT OVERLAYS AND DOES NOT PUSH. `#sheetin` is the sibling immediately after
+ * the handle and holds the poster, the title and the seasons; an 88px band in
+ * FLOW would take 88px from a sheet already capped at `max-h-[78%]`, either
+ * pushing the content down or stopping the poster scrolling. So it is absolute
+ * over the top of the content, and what it costs was MEASURED rather than
+ * assumed: across all five sheet states, nothing interactive sits in the top
+ * 88px, so no tap is swallowed.
+ *
+ * IT STOPS AT THE SHEET'S EDGE. The operator arbitrated the 12px overhang away
+ * on 2026-08-29: those pixels are the scrim, the scrim closes on TAP, and a tap
+ * that becomes a failed drag closes nothing.
+ *
+ * `88px` is an arbitrary value on purpose — a grip zone is not a spacing step,
+ * and the scale stops at 24px (`styles/theme.css`).
+ *
+ * THE CONDITION IS THE WHOLE ARBITRATION. At the top of the content a downward
+ * drag is a dismissal; anywhere else it is a scroll. A sheet that opens is
+ * always at the top, so the first gesture is always a dismissal and the content
+ * keeps its scrolling. One condition, not a gesture engine — the full
+ * press/drag/scroll arbitration is L12's.
+ */
+export const sheetDragBand = cva(
+  "absolute top-0 left-0 right-0 h-[88px] z-[1]",
+  {
+    variants: {
+      // `touch-none` claims the gesture from the compositor; without it a real
+      // finger is cancelled mid-drag. It may only be claimed where a drag is
+      // what the gesture MEANS, which is why it rides this variant and not the
+      // base — a permanent `touch-none` here would kill scrolling from the top
+      // 88px of every sheet.
+      atTop: {
+        true: "touch-none cursor-grab",
+        false: "pointer-events-none touch-auto",
+      },
+    },
+    defaultVariants: { atTop: true },
+  },
+);
+
 /** The sheet's scrolling viewport. */
 export const sheetViewport = cva(
   "sheetin overflow-y-auto pt-1 px-7 pb-[calc(var(--tm-bottom-bar-h,0px)+var(--spacing-8))]",
@@ -143,6 +186,24 @@ export const sheetIdentity = cva("sheetid min-w-0 flex-1");
 
 /** The avatar, at the size a sheet gives it. */
 export const sheetAvatar = cva("big w-[42px] h-[42px] text-6");
+
+/**
+ * The image INSIDE an avatar, and it is a variant because nothing constrained
+ * it.
+ *
+ * An `<img>` with no rule of its own renders at its natural size — 128 px for
+ * the seeded avatar — whatever box its host declares. The oracle could not see
+ * it: its named region measures the CONTAINER's box and nineteen computed
+ * properties OF THAT ELEMENT, and a child three times too large changes none of
+ * them (B-138, and the same limit B-061 writes into D8 for pseudo-elements).
+ *
+ * `block` is not decoration here. An `<img>` is inline by default, which gives
+ * it a baseline gap under it and makes `height: 100%` resolve against a line
+ * box rather than the host.
+ */
+export const avatarImage = cva(
+  "w-full h-full object-cover rounded-[inherit] block",
+);
 
 /**
  * An entry that is COMING says so instead of being absent: a menu that grows an

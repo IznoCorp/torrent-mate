@@ -33,7 +33,7 @@
 #   --oracle      a THIRD tier, and it duplicates neither: the rules say the
 #                 BEHAVIOUR still holds, the oracle says the RENDERING did not
 #                 move. `frontend/maquette/oracle.py --check`, ~25 s over 83
-#                 states x 33 regions, against a committed reference.
+#                 states x 34 regions, against a committed reference.
 #   --a11y        a FOURTH tier, and it duplicates none of the three: the rules
 #                 say the behaviour holds, the oracle says the rendering did not
 #                 move, this says the markup is USABLE — landmarks, accessible
@@ -122,7 +122,7 @@ CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.
 # `personalscraper/` and `tests/` and none of the cheap ones that read the CSS,
 # the markup and the resources a phase actually touches — `legacy.css`'s own
 # ceiling was absent from the tier of the very wave that edits `legacy.css`.
-# The six added below cost 6 s together — twelve invocations, 31 s in all,
+# The six added below cost 6 s together — nineteen invocations, ~31 s in all,
 # measured. `check-tailwind-confinement.py` is the one deliberately left out:
 # it needs a build of its own and costs 102 s.
 #
@@ -138,6 +138,12 @@ CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.
 # 1.1 s. It cost 66 s when written, because it started one node process per
 # family over a 35 198-line file; the extractor answers `--all` in one pass now.
 # A tier nobody can afford to run is a tier nobody runs.
+#
+# `check-bug-register.py` joined at L10-bis and it belongs here for a reason
+# the others do not have: the register is written DURING a wave (B-084), so
+# `BUGS.md` is a file every maquette phase edits, and its index is where a
+# wave's own account of itself is kept. It costs 0.1 s, it reads two files and
+# it holds the shape that made a count of « 48 open » out of 42.
 #
 # NONE OF THEM READS A DATABASE, and that was checked rather than assumed. It
 # is the disqualifying property for this tier: `arrivals.py` holds R66 against
@@ -165,6 +171,8 @@ REPOSITORY_GUARDS=(
   "scripts/check-maquette-unit-tests.py"
   "scripts/check-state-ownership.py"
   "scripts/check-live-relay.py"
+  "scripts/check-bug-register.py"
+  "scripts/check-frame-domain.py"
   "scripts/compare-contracts.py --check"
 )
 REPOSITORY_ROOT="$(cd "$HERE/../../.." && pwd)"

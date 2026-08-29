@@ -9,9 +9,32 @@ when the defect comes back.
 1. **Reported = written down.** No triage, no judgement first. An unwritten bug is a bug that
    comes back a third time.
 2. **One bug is closed at a time**, and the operator confirms the fix before the next one starts.
-3. **A fix is not a fix without a rule that bites.** The rule is mutation-tested: break the
-   behaviour on purpose, confirm the rule falls and names the right defect, restore. A closing
-   entry names the script and the mutation.
+3. **A fix is not a fix without a rule that bites, and the rule is RUN.** Mutation-tested: break
+   the behaviour on purpose, confirm the rule falls and names the right defect, restore. A closing
+   entry names the script, the mutation, and the run that passed — a command whose output nobody
+   has seen is a claim.
+
+   **When no instrument reaches the defect, building one is part of the work — never a reason to
+   leave the entry open.** Dictated by the operator on 2026-08-28, and the count is why. Forty-one
+   entries stood open that day and eight of them were closed in substance, held open by one
+   sentence wearing the same shape: « not fixed here, it needs its own X ». That sentence satisfies
+   the first half of this rule *perfectly* — a rule nobody wrote cannot fail its mutation — which is
+   how the rule written to force proof became the rule that licensed deferral. It is written into
+   B-036, B-041, B-055, B-057, B-058, B-061, B-100 and B-104, each time in good faith.
+
+   **So every entry a wave takes is closed by an instrument that RAN**: the oracle, a harness hold,
+   the accessibility tier, a guard arm, a test. The entry carries the command and its result.
+   Where the instrument did not exist, the wave built it, and the instrument is the deliverable as
+   much as the fix — B-139's own text says its defect « is measurable in twenty lines and nothing
+   measures it », which is the whole of this rule in one line.
+
+   **The one honest exception, and it is narrow.** Where no instrument can reach the defect, the
+   entry names WHICH instrument cannot, WHY, and what was done instead. Two shapes have been met so
+   far: prose in a document no guard greps (B-024 — a dead phase name cited as live), and a
+   continuous-integration condition provable only by making the pipeline red on purpose (B-151).
+   **An exception that is not named is indistinguishable from an instrument nobody built**, which
+   is B-085's sentence with the reader replaced by a wave.
+
 4. **The rule must cover the path the operator actually walks.** Several bugs below survived a
    green harness because the rule drove a named state instead of the real journey — a cold load,
    a real finger, a real browser menu.
@@ -36,11 +59,14 @@ when the defect comes back.
 > is the answer. What belongs here is only what the column cannot say — WHY an entry is still
 > open when its diagnosis looks finished:
 >
-> **B-024** is diagnosed **latent and unreachable**: the census of `[data-go]` producers shows
-> every one of them renders into `#view`, which sits under every layer, so none can be tapped
-> while a layer is open — real, with no path to it. **B-030** is a defect of the maquette's
-> embedded DATA (87 of 345 sheets carry no genre and no cast), not of the drawing, and the
-> operator has excluded it from the batch closure. Neither was ever `to confirm`.
+> **B-030** is a defect of the maquette's embedded DATA (87 of 345 sheets carry no genre and no
+> cast), not of the drawing, and the operator has excluded it from the batch closure. It was
+> never `to confirm`.
+>
+> **B-024 no longer belongs here**, and this banner said it did for the length of the wave that
+> closed it: its status column reads `fixed #516` while the paragraph above still explained why
+> it stayed open. A banner is exactly the summary the first paragraph warns about — written once,
+> never recounted — and it went stale about the one entry the wave named as an exception.
 
 ## Open
 
@@ -57,7 +83,7 @@ when the defect comes back.
 | B-016 | Swiping a row right, then left, makes it jump         | 1×          | `closed`     |
 | B-017 | Closing a panel sends the list back to its top        | by mutation | `closed`     |
 | B-018 | On a desktop, dragging a row opens the panel          | 1×          | `closed`     |
-| B-024 | `data-go` settles ONE history entry, layers pile      | by review   | `open`       |
+| B-024 | `data-go` settles ONE history entry, layers pile      | by review   | `fixed #516`       |
 | B-025 | The screen half of the `data-go` fix has no Back rule | by review   | `closed`     |
 | B-026 | A silent `catch {}` can let URL and UI disagree       | by review   | `closed`     |
 | B-027 | `resync.py` trusts `t:` first-match + naive braces    | by review   | `closed`     |
@@ -69,29 +95,29 @@ when the defect comes back.
 | B-033 | `test_locks_tmp_orphans` is flaky under xdist          | by rule     | `open`       |
 | B-034 | `TestQuickMode` reads a foreign `os.scandir` caller    | by gate     | `open`       |
 | B-035 | `test_continues_on_per_file_error` writes no backup    | by gate     | `open`       |
-| B-036 | Two state ids are still French: `panne`, `groupe`      | by review   | `open`       |
+| B-036 | Two state ids are still French: `panne`, `groupe`      | by review   | `fixed #516`       |
 | B-037 | `arrivals.py` reads a French global nothing defines      | by review   | `open`       |
 | B-038 | `arrivals.py` reads `empty` and asserts nothing on it    | by mutation | `open`       |
 | B-039 | `actions.py` prints `.freshtag` presence, asserts nothing | by mutation | `open`       |
-| B-040 | Names in files no arm reads: `sweep.py`, a region id, `oracle.py` | by review   | `open`       |
-| B-041 | `check-frontend-boundaries.py` has no committed test                | by audit    | `open`       |
-| B-042 | An orphan `http.server` holds port 8900 on the operator's machine   | by review   | `open`       |
+| B-040 | Names in files no arm reads: `sweep.py`, a region id, `oracle.py` | by review   | `fixed #516`       |
+| B-041 | `check-frontend-boundaries.py` has no committed test                | by audit    | `fixed #516`       |
+| B-042 | An orphan `http.server` holds port 8900 on the operator's machine   | by review   | `fixed #516`       |
 | B-043 | A deep media address lands the 404 page underneath it               | by review   | `fixed #484` |
 | B-044 | A 404's address recomposes to `/` after a cold load                 | by review   | `fixed #484` |
 | B-045 | `?panel=follows` without its colon is accepted, and fabricates media | by review   | `fixed #484` |
 | B-046 | The fallback port moved onto `switchover.py`'s, whose bind error is swallowed | by review | `fixed #484` |
 | B-047 | The navigation-failure flag is raised by no guard and read by no rule | by review   | `fixed #484` |
 | B-048 | The ninth boundary arm stays green with `addresses.ts` deleted      | by review   | `fixed #484` |
-| B-049 | A rule reads the operator's live `acquire.db` and turns red on every cron | by review | `open` |
+| B-049 | A rule reads the operator's live `acquire.db` and turns red on every cron | by review | `fixed #516` |
 | B-050 | `check-frontend-boundaries.py` is at 921 lines, 79 from the hard ceiling | by review | `fixed #500` |
-| B-051 | `toFollows()` carries the page in its query, invisible to the boundaries arm | by review | `open` |
+| B-051 | `toFollows()` carries the page in its query, invisible to the boundaries arm | by review | `fixed #516` |
 | B-052 | A synthesised follow panel labels a film « Série »                  | by review   | `open`       |
 | B-053 | A panel's layer entry is taken by a tab tap on the same layer (revisit) | by review | `open`     |
 | B-054 | `data-go="acq"` no longer forces the « now » tab (revisit)           | by review   | `open`       |
-| B-055 | The a11y floor measures only the dark theme — light carries 154 findings | by review | `open` |
+| B-055 | The a11y floor measures only the dark theme — light carries 154 findings | by review | `fixed #516` |
 | B-056 | A `@keyframes` name is French (`splashremplit`), invisible to no-french  | by review | `open` |
-| B-057 | `audit2.py`'s R12 silently measures four of five contexts, not five | by review   | `open`       |
-| B-058 | commit-msg's AI-attribution match is unanchored, flags quoting prose | by mutation | `open`       |
+| B-057 | `audit2.py`'s R12 silently measures four of five contexts, not five | by review   | `fixed #516`       |
+| B-058 | commit-msg's AI-attribution match is unanchored, flags quoting prose | by mutation | `fixed #516`       |
 | B-059 | `check-css-tokens.py` crossed the 1 000-line hard ceiling during L07        | by audit    | `fixed #494` |
 | B-060 | The rename tool could not rename a CSS custom property, and reported it as success | by mutation | `fixed #494` |
 | B-061 | The oracle cannot see a pseudo-element, so a class that generates nothing reads green | by rule | `open` |
@@ -133,18 +159,11 @@ when the defect comes back.
 | B-097 | Twenty seed renames never reached the index, and only a case-sensitive runner saw it | by CI | `fixed #503` |
 | B-098 | The build plugin raced its own output and failed three jobs on a fresh checkout | by CI | `fixed #503` |
 | B-099 | A test pass writes 13 GB of real zeroes into `/tmp` and pytest keeps three of them | by operator | `fixed #505` |
-| B-079 | The design host cannot say which commit it serves, and production's host can | by audit | `open` |
-| B-080 | The drawer shows a hard-coded version and build, and calls itself up to date | by operator | `open` |
-| B-081 | Design notes can no longer be hidden, and the oracle measures without them | by operator | `open` |
-| B-082 | `hidden` hides nothing on five elements, so an invisible button is still tappable | by operator | `open` |
-| B-083 | L08's design and plan were never archived, and every lot before it was | by audit | `open` |
-| B-084 | A wave that found twenty defects wrote none of them in this register | by audit | `open` |
-| B-085 | Guards green over what they do not read: 17 in three consecutive waves, counted by nobody | by audit | `open` |
-| B-100 | Invariant 10 is written and unarmed: no arm counts the frame's domain words | by audit | `open` |
+| B-100 | Invariant 10 is written and unarmed: no arm counts the frame's domain words | by audit | `fixed #516` |
 | B-101 | The steward's brief predicted an oracle movement that could not happen | by audit | `open` |
-| B-102 | Seven register rows are duplicated, once `fixed` and once `open` | by audit | `open` |
-| B-103 | Two invariants are numbered 10, and a brief pointed at « invariant 10 » | by audit | `open` |
-| B-104 | The generated contract types live under `mocks/`, and they are not a mock | by gate | `open` |
+| B-102 | Seven register rows are duplicated, once `fixed` and once `open` | by audit | `fixed #516` |
+| B-103 | Two invariants are numbered 10, and a brief pointed at « invariant 10 » | by audit | `fixed #516` |
+| B-104 | The generated contract types live under `mocks/`, and they are not a mock | by gate | `fixed #516` |
 | B-105 | R89's waterfall hold was green over the exact defect it names | by mutation | `fixed #509` |
 | B-106 | The server-state arm read only the component tree, so its ceiling was pre-satisfied | by mutation | `fixed #509` |
 | B-107 | `git checkout --` on an untracked file is a no-op, and a mutation stayed in the tree | by review | `fixed #509` |
@@ -178,20 +197,20 @@ when the defect comes back.
 | B-135 | Three named states measured the panel left open by the state before them | by adversarial review | `fixed #509` |
 | B-136 | B-090's headline figure counted quotes, and it had reached the contract | by adversarial review | `fixed #509` |
 | B-137 | Four ACCEPTANCE criteria could not run, or expected the wrong answer | by adversarial review | `fixed #509` |
-| B-138 | The profile panel's avatar is unconstrained, inside a region whose probe reads only the container | by operator | `open` |
-| B-139 | Three typed variants were written and never wired; one leaves a bare button unreadable | by operator | `open` |
+| B-138 | The profile panel's avatar is unconstrained, inside a region whose probe reads only the container | by operator | `fixed #516` |
+| B-139 | Three typed variants were written and never wired; one leaves a bare button unreadable | by operator | `fixed #516` |
 | B-140 | Back returns to the top of a page: the scroll memory only knows overlay screens | by operator | `fixed #512` |
-| B-141 | Ten elements carry no class at all, in a prototype that imports no preflight | by audit | `open` |
+| B-141 | Ten elements carry no class at all, in a prototype that imports no preflight | by audit | `fixed #516` |
 | B-142 | Nothing measures the interface against the constitution: five DOIT clauses have no surface | by audit | `open` |
 | B-143 | §17 (accounts, rights, Plex SSO) has no surface, no contract operation and no lot | by audit | `open` |
 | B-144 | §18 (ratio per tracker) needs three operations the backend already answers and nothing calls | by audit | `open` |
 | B-145 | §19 (cross-seed) has no route in either contract, and its events reach no stream | by audit | `open` |
-| B-146 | D11 is decided and nothing styles a scrollbar yet; the change may move the oracle | by audit | `open` |
+| B-146 | D11 is decided and nothing styles a scrollbar yet; the change may move the oracle | by audit | `fixed #516` |
 | B-147 | Nine steward findings were stacked on five unmerged branches and collided with a wave | by audit | `fixed #511` |
 | B-148 | Lot status lives in two files, and § 0 reads the one a wave forgets | by audit | `fixed #511` |
 | B-149 | A declared departure from the lot's « Done when » lives only in a session report | by audit | `fixed #511` |
 | B-150 | A size promise expired unnoticed because the guard read the status B-148 froze | by audit | `fixed #511` |
-| B-151 | `coverage-merge` reports « Artifact not found » whenever an earlier job fails | by audit | `open` |
+| B-151 | `coverage-merge` reports « Artifact not found » whenever an earlier job fails | by audit | `fixed #516` |
 | B-152 | `IMPLEMENTATION.md` still named L09 as the next lot two commits after L09 merged | by design | `fixed #512` |
 | B-153 | The demand register is computed from OpenAPI paths, and a WebSocket has none | by design | `open` |
 | B-154 | `staleTime: Infinity` with no focus or reconnect refetch: a missed invalidation never heals | by design | `open` |
@@ -259,7 +278,14 @@ when the defect comes back.
 | B-216 | The mutation tool announced « no hold fell » under the falls it had just printed | by adversarial review | `fixed #513` |
 | B-217 | The cursor thaw was measured by nothing, and the tool's first use found it | by adversarial review | `fixed #513` |
 | B-218 | The « Before it » row stopped at L07 and still named a merged PR as « this pull request » | by design | `fixed #514` |
-| B-219 | A wave's brief existed only in a session scratch directory, and its agent could not read it | by agent | `fixed #NNN` |
+| B-219 | A wave's brief existed only in a session scratch directory, and its agent could not read it | by agent | `fixed #515` |
+| B-220 | The drawer and the bottom tab bar are converted by no lot of the plan | by audit | `open` |
+| B-221 | A wave merged leaving its own status as the literal placeholder `fixed #NNN` | by guard | `fixed #516` |
+| B-222 | The add screen is the only one of five measured by no oracle region at all | by audit | `fixed #516` |
+| B-223 | Three more typed variants were orphaned, and the arm for B-139 found them | by guard | `fixed #516` |
+| B-224 | The header's avatar rendered 20x30 in a 32x32 button, every class on it correct | by audit | `fixed #516` |
+| B-225 | A guard froze its own corpus size in a comment, and the figure drifted three times | by audit | `fixed #516` |
+| B-226 | The cross-check B-208 built never ran in CI: the import branch printed and passed | by audit | `fixed #516` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
@@ -587,6 +613,33 @@ Found by the steward's audit of L04, not by a gate — a guard with no test is i
 guard. **Not fixed here**: the office that found it does not carry code (`docs/reference/frontend-steward.md`),
 and the test belongs with whoever wrote the eight arms and knows which mutation each one deserves.
 
+
+**CLOSED by L10-bis, and the entry was half stale and half exactly right.** The test file exists
+since #484 and carries 42 tests — so « nothing to re-run » had stopped being true. What was still
+true is what the entry actually faulted: those 42 tests are ALL about the addressing arm, its own
+docstring says so, and the guard carries **eleven**. **Eight were named by no test at all**,
+measured on 2026-08-29. So the row does NOT close as `fixed #484`; the gap was real and it is
+named.
+
+**The instrument — `tests/scripts/test_check_frontend_boundaries_arms.py`.** A meta-assertion that
+every `arm_*` reachable from the entry point is exercised, against a CEILING on how many are not.
+A ceiling, not a floor: adding an arm without a test raises the count and is refused, which is the
+opposite shape from a floor set at the current value. It also NAMES the three it still allows, so a
+fresh uncovered arm cannot take a retired one's place in silence.
+
+**Five arms were given their mutation in the same commit** — cycles, layering, typing,
+duplicate-import, mocks — and the ceiling fell from 8 to 3. The three left are named with the
+reason each is more than a one-line fixture.
+
+**A defect in the TEST HARNESS came out of writing it**: copying the sources to `tmp/src` breaks
+three imports that climb above the tree (`../../../fixture-projections.json`), `arm_cycles` reports
+three unresolved imports, and **the GREEN case fails** — so every mutation would have been measured
+against a red baseline and proved nothing. The depth is mirrored now, and the green case is asserted
+first, before any mutation.
+
+<sub>mutation — add a new `arm_freshly_added` with no test: the assertion falls NAMING it, not
+merely counting. Neuter `arm_typing` to `return 0`: its own mutation falls. Restored →
+`10 passed`</sub>
 **B-042 — a stray process holds a port nothing in the repository claims.**
 A `python3 -m http.server` listens on **8900** on the operator's machine, working directory
 `/private/tmp/tm-a11y-probe`, and **no file in this repository mentions that port**. It is the
@@ -597,6 +650,31 @@ It is written here because that report lived only in a merged pull request body,
 same defect as B-041 read from the other end: a finding recorded where nothing re-reads it has
 not been recorded. The port the harness actually uses is **8899**; `run.sh` starts it and reuses
 it deliberately, and that one is not this.
+
+**CLOSED by L10-bis, and it was closed with no closure written — which is the most direct
+violation of the very rule this wave hardened.** The status line read `fixed #516` while the body
+below it was byte-identical to `main`: nothing said what had been established, or how, or by whom.
+An adversarial reviewer found it. The rule amended in this wave's first commit says a fix requires
+an instrument that RAN; a status that says « fixed » over an unchanged body is the shape that rule
+exists to refuse, and it appeared inside the wave that wrote it.
+
+What actually establishes it, run on the operator's machine on 2026-08-29 — this wave runs there,
+which is why the entry was takeable at all:
+
+```
+$ lsof -nP -iTCP:8900 -sTCP:LISTEN        # nothing listens
+$ ls -la /private/tmp/tm-a11y-probe       # No such file or directory
+```
+
+Both are gone. The wave did not kill the process — it had already gone, to a reboot or to the
+orphan killer — so the honest closure is « no longer true », not « repaired ». **The port that IS
+listening is 8899**, `frontend/maquette/harness/server.py --serve 8899 /tmp/tm-refonte`, reparented
+to init and three days old: that is the server `run.sh` starts and reuses deliberately, named in
+the paragraph above as not being this one. It stays.
+
+What outlives the process is the entry itself, and that half was never about the port: a finding
+recorded only in a merged pull request body has not been recorded. That is why B-042 was written
+down, and writing it down is what made it checkable three waves later.
 
 **B-043 to B-048 — what L05 left on `main`, and why they are here rather than only in a phase file.**
 All six were found by an adversarial review that did not write the code, and reproduced by the L05
@@ -639,6 +717,35 @@ points), not decided there. **Recurred during L06** (`content.py` reddened by th
 operator's search cron; fixture regenerated from `acquire.db` again, same class, same
 non-fix) — the second occurrence inside two waves, and the question is still not decided.
 
+
+**CLOSED by L10-bis. The question of class is settled and, for the first time, ARMED.**
+
+**The rule**: a hold that reads the operator's live databases may run in the WAVE gate, on the
+machine where those databases exist, and may never be in the per-pull-request `--contracts` tier.
+That was already the practice — `arrivals.py` is out of `CONTRACTS` with the reason written beside
+it — and it was held by nothing at all. It was corrected by hand once; a second rule joining the
+tier with a `sqlite3.connect` in it would have gone unnoticed exactly as the first did.
+
+**The arm** is `check-maquette-unit-tests.py`'s second subject, and the two belong together because
+both ask « does the runner run what it says it runs? ». It reads `CONTRACTS=(…)` out of `run.sh`
+and refuses any member whose source names a `.db` path or opens a connection — a text question with
+a text answer, which is the whole of the disqualifying property. **It runs even where the
+maquette's dependencies are absent**: it reads two files and needs neither node nor a browser, so
+skipping it beside the suite would have made it the kind of check that is only ever green.
+
+**The cadence half.** The three rules that read live data — `arrivals.py`, `content.py`,
+`library_load.py` — were run twice, separated by the full rule suite, and both passes were green:
+**24, 27 and 8 holds, no violation**, at 14:29 and again after the suite. What makes them stable is
+not luck: they assert SHAPE and AGREEMENT — that two tabs say the same thing, that a card carries
+what the row carries — and never a count a cron can move. A rule that pinned a number would drift
+whatever tier it sat in, and that is the real answer to « at what cadence does it re-sync »: it
+does not need to, because it does not read a number.
+
+<sub>mutation — put `arrivals.py` back at the head of `CONTRACTS`, which is B-049's own history:
+the arm falls naming the file and the reason, « 12 rule(s) in the per-pull-request tier, 1 of them
+disqualified ». Rename the declaration so it cannot be parsed: it refuses rather than reading the
+tier as empty. Restored → `11 rule(s) in the per-pull-request tier, none reading a live
+database`</sub>
 **B-050 — the guard that watches module size has itself grown past comfortable.**
 `scripts/check-frontend-boundaries.py` reached 883 lines during the L05 repair (nine arms). The
 module-size ratchet (invariant 6) does not exempt guard scripts. Split before the next arm lands,
@@ -705,6 +812,35 @@ arm's inline-`validateSearch` reader does not reach (it reads route files, not e
 that shapes a query). D1's rule — path carries identity, query carries state — is not enforced
 here by any guard; only readable by a human diff.
 
+
+**CLOSED by L10-bis, and the defect was worse than the entry said.** `toFollows()` navigated to
+**`/`** — not to `/acquisition` — with `search: { page: "acq", tab: "now" }`. So the identity was in
+the query AND the path named the root, which the boot SETTLES onto `/acquisition` with a replace:
+the destination was right only by way of a redirect. `/acquisition` declares
+`SearchParams = { tab?: string }` and carries no `page` at all, which is what the address model has
+said all along. It now reads `to: "/acquisition", search: { tab: "now" }`.
+
+**The instrument — the ninth arm reaches NAVIGATIONS, not only declarations.** Everything it read
+before was `routes/`, where an address is DECLARED; D1 is broken just as easily where one is
+CONSTRUCTED. It reads the `search:` object of every `go(…)`/`navigate(…)` outside `routes/` and the
+dying engine — **22 of them** — and the count is printed, because a reader that finds none reports
+the same word as one that read the tree.
+
+**The arm was written and it matched NOTHING, and the run is what said so.** Its pattern held a
+literal **backspace character** where `\b` was meant: a heredoc turned the escape into `\x08`, so
+`\x08(?:go|navigate)` matched no text in any file. Every gate stayed green, the arm reported « 0
+violations » over 116 files, and the mutation passed. It was found by instrumenting the loop and
+reading the line back **as bytes** — `repr()` on the source, not a look at the diff, because a
+backspace is invisible in a diff. That is CLAUDE.md's « the tool is not the proof » with the tool
+being a heredoc.
+
+**A second instrument holds the other end**: R96 gained a hold on where the action LANDS, because
+the destination moved and a static arm cannot see a redirect.
+
+<sub>mutation — put `to: "/"` and `page: "acq"` back: the ARM falls naming
+`features/acquisition/add-screen.tsx:140`, and R96 falls with « it landed on
+'/?page=acq&tab=now' ». Both ends, from either side. Restored → `22 navigation(s) outside routes/,
+0 violation(s)` · `11 rules EXECUTED — no violation`</sub>
 **B-052 — a synthesised follow panel can label a film « Série ».**
 Found during the same review that produced B-045: an entry fabricated by `knownMedium`'s now-
 narrowed match can still carry the show-shaped label on a film-shaped title, when the synthesis
@@ -732,6 +868,37 @@ needs its own design and plan (`docs/archive/features/maquette-l06/drafts/a11y-f
 carries the full inventory). Not decided here: whether the audit runs both themes (doubling
 its runtime) or a lighter arm audits palette pairs alone in light.
 
+
+**CLOSED by L10-bis. The measurement is ARMED; the 154 are not remediated, and that split is the
+entry's own.**
+
+**THE OPEN QUESTION IS DECIDED: the tier drives BOTH themes, and the lighter palette-pair arm was
+refused for this file's own reason.** `a11y.py`'s header argues that a house rule proves the list of
+criteria someone wrote into it and nothing else — it is why axe-core is here at all, and why
+`check-no-french.py` was turned around rather than lengthened. A palette-pair arm would have been
+exactly that rule, on exactly the theme nobody was measuring. Driving axe twice costs a second pass
+of ~25 s and buys the same body of criteria on both themes.
+
+**The light theme is MEASURED AND RECORDED, not enforced**, which is this file's own earlier
+handling of contrast (D-L03-4: measured, written to a file of its own, kept out of the floor,
+because « not measured » would have read as « no problem »). The dark floor stays a HARD ZERO.
+`a11y-light-debt.json` is a RATCHET — read by `--check`, unlike `a11y-debt.json`, and it says so:
+a debt file a gate reads is a tolerance, and a tolerance that only tightens is a ratchet.
+
+**MEASURED TODAY: 166, and all 166 are `color-contrast`.** L06's hand count was 154; the tree has
+moved since, and 166 is what it reads now rather than what a document says. Remediating them is a
+campaign with its own design and plan; what is held meanwhile is that nothing is ADDED.
+
+**Two things the arming needed that are not obvious.** The theme is re-applied AFTER every
+`window.__go`, because several scenarios re-render the shell and put the appearance back — a theme
+set once before the loop is a theme the audit believes it is measuring. And the attribute is
+read back at the end: an audit that silently measured the dark theme twice would report the dark
+theme's zero and call it two themes clean, which is this very defect arriving by a new road.
+
+<sub>mutation — `--color-foreground` broken in the LIGHT palette only: light goes 166 → **1162** and
+the tier FAILS, while dark stays at **0 violation(s)**. That is the entry's own test, and before
+this wave the same mutation was invisible to every instrument. Restored → `a11y: 87 states, 0
+violation(s)` · `a11y[light]: 166 violation(s) … against a ceiling of 166`</sub>
 **B-056 — a French name sits where no arm reads it.** `refonte.html` names a keyframe
 `splashremplit` (used by `.splashbar i`). A keyframe name is a name someone chose — code,
 under the English-names rule — and none of `check-no-french.py`'s fourteen arms reads
@@ -751,6 +918,22 @@ lot's letter. Fix: either the rule visits a state that paints `.resbtn`, or `mea
 refuses an empty selection the way `type_scale.py` does; mutation-tested either way (hide the
 element, watch the rule fall).
 
+
+**CLOSED by L10-bis, and it was BOTH of the two fixes the entry offered, because one alone would
+have been a lie.** `measure()` now records a MISS instead of returning silently, and R12 prints
+« N of 5 context(s) measured ». **And the fifth context had MOVED**: `.resbtn` returns zero elements
+in `acq-add-results` — a search result's primary action is not on the card any more, it is in the
+PANEL the card opens. So refusing the empty selection alone would have left R12 permanently red
+about a selector that is simply obsolete; re-pointing it alone would have left the silence for the
+next context to move.
+
+**The new selector is a `data-part`, never a style class** — `[data-act^="add:"]` inside the panel,
+reached the way a reader reaches it, by opening the first result.
+
+<sub>mutation — point the fifth context back at `.resbtn`: R12 prints « 4 of 5 context(s)
+measured » and raises « R12 context measured by nothing », one violation, where the same state
+before the repair reported nothing at all. Restored → `Primary button geometry — 5 of 5 context(s)
+measured` · `TOTAL, second pass: 0 violations · 13/13 rules executed`</sub>
 **B-058 — the AI-attribution check can fire on prose that quotes what it looks for.**
 `hooks/commit-msg`'s second alternative, `generated with .*claude`, carries no `^` anchor —
 unlike the other two real-trailer alternatives — so it matches the phrase ANYWHERE in the
@@ -762,6 +945,30 @@ this one the same anchor needs its own mutation test to confirm it still catches
 footer while releasing a quoting sentence; a same-commit reflex fix on a compliance-relevant
 guard is exactly the haste this register exists to slow down.
 
+
+**CLOSED by L10-bis, and NOT as a reflex — the entry's own warning was the instruction.** Measured
+first: a real footer fell, a real `Co-Authored-By:` trailer fell, prose QUOTING that trailer passed,
+and prose describing the ban was REFUSED. The two alternatives that were already anchored never had
+the problem, which is what proves the anchor is the answer rather than a weaker pattern.
+
+**BOTH unanchored alternatives were anchored, not one.** `generated with .*claude` was the one the
+entry named; a bare `🤖` had exactly the same shape three characters later, and repairing one and
+leaving the other is the defect this repository paid for twice in the same week (B-208's `try`,
+A-1's import branch). Fixing only the named half would have left the emoji refusing the same
+paragraph.
+
+**What is no longer caught, stated rather than discovered**: an attribution buried mid-line inside a
+sentence. That is not a trailer, no tool emits it, and refusing it is what made this hook refuse
+English.
+
+**The instrument is a TEST, not the run that proved it.** `tests/scripts/test_commit_msg_hook.py`
+executes the hook as a process — the file git runs, not a Python transcription — over five refusals
+and three acceptances. The five refusals are the half a future loosening breaks first, and this
+pattern has been loosened once already.
+
+<sub>mutation, both ways and both seen red — restore the unanchored pattern: « prose describing the
+footer » fails, which is B-058 reproduced. Delete the `claude-session:` alternative: « a
+Claude-Session trailer » fails, which is the compliance half. Restored → `8 passed`</sub>
 **B-060 — the tool `CLAUDE.md` mandates for renames could not perform one, and said so as success.**
 `scripts/rename-identifiers.py` is the only sanctioned way to rename an identifier in this
 repository. Asked to move the CSS custom property `--card` to `--color-card` it touched **zero
@@ -1002,6 +1209,44 @@ an unchanged prototype. Renaming them would land in the same wave as the instrum
 have to prove the rename. **Its fix belongs to the wave after this one, and it should carry the
 missing arm rather than only the two renames.**
 
+
+**CLOSED by L10-bis, and the arm is the deliverable — the entry said so.** Both ids renamed
+through `scripts/rename-identifiers.py --values`: `acq-follows-groupe` → `acq-follows-group`,
+`system-panne` → `system-outage`.
+
+**THE TOOL REPORTED « 5 file(s) touched » AND LEFT A LIVE END BEHIND.** `harness/audit2.py` still
+read `'acq-follows-groupe'` inside a JavaScript array written within a Python string — `--values`
+moves a WHOLE quoted value, and that one is embedded in a larger literal. Found by re-reading the
+diff rather than the count, which is the rule CLAUDE.md writes after two corruptions found the same
+way. Six ends per id: the engine's table, `oracle-reference.json`, `a11y-contrast.json`,
+`a11y-debt.json`, and two harness rules.
+
+**The arm — `scripts/nofrench_states.py`, arm 15 of `check-no-french.py`.** It asks the
+vocabulary's question of every named-state id, and eleven English words the table already used —
+`android`, `arr`, `boolean`, `degraded`, `exhausted`, `followsheet`, `outage`, `pwa`,
+`reconnecting`, `signin`, `structure` — entered `code-vocabulary.txt` one line each, which is that
+file's own stated point.
+
+**ITS CORPUS IS CROSS-CHECKED, AND THE DISAGREEMENT IS BLOCKING**, because a scan for a quoted
+literal at the head of a bracket reads **77 of the 87**. Ten are written in shapes it never sees:
+one single-line entry (`["signin", …]`) and a family of nine built from a template
+(`` `settings-field-${genre}` ``). The second reader is `oracle-reference.json` — the states the
+recorded oracle actually drove — and **an id it measured that the parser cannot reach is refused**,
+never printed. That is B-208's shape used deliberately, and it is the direction that means
+blindness; the other direction is a state added and not yet re-recorded, which the oracle reports
+itself.
+
+**The first expansion over-generated and would have failed on names nobody wrote.** Sweeping the
+file for `["word", "` invented `settings-field-signin` out of a single-line entry three hundred
+lines away. The members are matched by walking the receiver array's bracket BACKWARDS now, and the
+two readers agree at 87 and 87.
+
+<sub>mutation — restore `system-panne`: the arm falls naming it. Rename the single-line entry to
+`connexion`: it falls naming `connexion`. Rename the generated family to `reglages-champ-${genre}`:
+it falls nine times. **Remove the single-line reader from the arm itself**: the CROSS-CHECK falls —
+« the recorded oracle measured 1 state(s) this arm could not parse — signin » — which is the arm
+proving it cannot go quiet. Restored → `15 arms … no violation`, `87 state identifiers / engine` ·
+oracle unchanged at 3 deliberate divergences, no measurement moved</sub>
 **B-034 and B-035 were found running `make check` on Linux, and they are NOT one defect.**
 Both fail identically on `origin/main` with no local change — a worktree at `9632491c` reproduces
 them — so neither belongs to the work that found them. They are written as two because they have
@@ -1131,6 +1376,30 @@ them. None is reproduced on a device yet; each entry below records the walk that
   Settles with the ownership law when `data-go` itself migrates to the shell (SP4d): if a sixth
   producer, or a new path to the existing five, can ever reach a layer, the entry-count law
   (`__pont.regler(n)`, sketched but unapplied here) is owed then, not before.
+
+  **CLOSED by L10-bis, and the phase name above is dead.** SP4d ran — its two waves are recorded
+  in `IMPLEMENTATION.md` as #447 and #448 — and `data-go` did NOT migrate to the shell in it. The
+  phase that owns that migration today is **L13**, where the dying engine is subtracted. A
+  forward-looking sentence pointing at a phase that has already passed reads as pending to every
+  session after it, and this one has read that way since 2026-08-20.
+
+  **THIS IS ONE OF THE TWO CLOSURES WITH NO INSTRUMENT, and rule 3's amendment obliges naming
+  which one cannot and why.** No guard here greps prose. `check-no-french.py` reads names, not
+  citations; `check-bug-register.py` reads the index, not the bodies; the harness reads a browser.
+  A phase name inside a paragraph of English is text nothing in this repository parses. What was
+  done instead is this correction, written beside the original rather than over it (§ 7.1).
+
+  **The lead the entry offered was checked and is already spent.** « Five such sentences were found
+  in the plan » — `docs/reference/frontend-architecture.md` carries none today; a later wave
+  repaired them. The two survivors are in `product-intent.md` and are HISTORICAL (« ce qui a été
+  livré de SP5 avant cette règle — SP5a »), which is a record and not a forecast, and that document
+  is the operator's. An arm refusing a dead phase name would therefore have to tell a record from a
+  forecast, which is a judgement about a sentence's tense and not a thing to grep. Recorded as
+  measured rather than built, so the next wave inherits the measurement and not the suggestion.
+
+  ⚠ The citation `refonte.html ~17861` in the paragraph above is stale by the same species: that
+  file is **7 057 bytes** today and holds no such line. Left as written, because § 7.1 corrects
+  beside and never over — and named here so a reader does not go looking.
 - **B-025** — harness `bugs.py` check 10b stops at the landing (`10b. « Voir mes suivis » lands`)
   and never presses Back; only the sheet half (9b) is guarded. The `remplacer`-on-screen half of
   the fix — exactly what B-024 concerns — can regress without a single check falling.
@@ -1335,6 +1604,79 @@ L10-ter land with this entry.
   flip it — is recorded in `regions.json` under R78 and is open to contest**: it halves the
   rows but is invisible, and a row that reads « A → Z » and answers Z → A is the opposite of
   showing what the machine will do.
+
+- **E-002 — the menu closes on a leftward swipe from its right edge** (2026-08-28, dictated by
+  the operator as a hand-drawn mark on a screenshot). **The band**: ~67 px measured, **72 px**
+  written as an arbitrary value — a grip zone is not a spacing step and the scale stops at 24 px.
+  It ends exactly on the drawer's right edge, and is measured FROM that edge rather than from the
+  viewport, because the drawer is `max-w-[86%]` and on a narrow frame its edge is not at 288.
+
+  **Zero lines were added to the dying engine, which is D5's whole point.**
+  `design/index.html` declares `<aside id="drawer">` EMPTY and the engine fills, opens and closes
+  it; writing the gesture there would be an ADDITION where only subtraction is allowed. So
+  `app/drawer-gesture.ts` installs against the node as it stands — the posture
+  `installFocusManager()` takes one line above it in `app/shell.tsx`. Closing goes through
+  `window.__closeLayers?.()`, the seam the sheet's scrim already calls: a second closing path
+  would be a second navigation history.
+
+  **AND THE FIRST IMPLEMENTATION WAS WRONG IN THE EXACT WAY THE PLAN PREDICTS.** Written with
+  pointer events alone, it **passed under a real mouse and did nothing at all under a real touch
+  stream**: `pointerdown`, ONE `pointermove`, then `pointercancel`, while the `touchmove` events
+  kept arriving for the same finger. Neither `touch-action: pan-y` nor `touch-none` on the drawer
+  changed it — measured both ways. `setPointerCapture` did not save it either.
+
+  **The engine had already paid for this and written it down**, in `legacy.js` about its own
+  pull-to-refresh: « a pointer-only implementation therefore works under synthetic events, which
+  are never cancelled, and does nothing at all under a real thumb ». The finger is read from TOUCH
+  events and everything else from pointer events, one implementation serving both. The touch
+  listeners are passive, like the engine's.
+
+  **This is the whole argument for exercise 1.** A synthetic mouse would have declared this
+  gesture working. Only a real touch stream over `Input.dispatchTouchEvent` saw it.
+
+- **E-003 — the sheet closes on a downward swipe from a widened top edge** (2026-08-28, same
+  mark). Drag-to-dismiss already worked, from the 22 px `#sheetgrab` alone; the operator asked for
+  four times that. **The band is 88 px and OVERLAYS the content rather than pushing it**:
+  `#sheetin` is capped at `max-h-[78%]` and 88 px in flow would cost the poster and the title
+  their scrolling. **What that costs was MEASURED, not assumed** — across all five sheet states
+  (`sheet-journey`, `sheet-more`, `sheet-user`, `followsheet-complete`, `followsheet-gaps`)
+  nothing interactive sits in the top 88 px, so no tap is swallowed.
+
+  **The band stops at the sheet's edge.** The 12 px overhang the mark suggested was put to the
+  operator before coding and arbitrated away on 2026-08-29: those pixels are the scrim, the scrim
+  closes on TAP, and a tap that becomes a failed drag closes nothing.
+
+  **One condition, not a gesture engine**: at `#sheetin.scrollTop === 0` a downward drag is a
+  dismissal; anywhere else it is a scroll. A sheet that opens is always at the top, so the first
+  gesture is always a dismissal and the content keeps its scrolling. The full press/drag/scroll
+  arbitration remains L12's. The band's `touch-action` and `pointer-events` ride that condition as
+  CLASSES, because the compositor reads them when the finger lands and not during the gesture.
+
+**The instrument for both — `harness/gestures.py` (R98), fourteen holds.** It drives a REAL touch
+stream over the DevTools Protocol AND a real mouse on the same build, because they are not two
+spellings of one exercise: the drawer's first implementation passed one and failed the other.
+
+**The third exercise was the operator's, and it is DONE.** A pass by hand, with a finger, on the
+device: **confirmed by the operator on 2026-08-29**, both gestures, including the condition that
+decides between them — a downward swipe in the sheet's top band dismisses at the top of the
+content and SCROLLS anywhere else. No script could stand in for it: `pointercancel` is delivered
+by a compositor deciding it wants the gesture, and neither driver above is that compositor.
+**Both entries move from `to confirm` to confirmed.**
+
+The device is not recorded, because the operator did not name one and this file does not hold
+figures nobody measured. What the pass establishes is the compositor's behaviour on the hardware
+the operator uses; a second device would be a second pass, not a correction of this one.
+
+<sub>mutations, all seen red and restored — return both bands to their previous size (`BAND = 0`,
+`h-[22px]`): three holds fall, one per gesture plus the mouse. **Remove the TOUCH path and keep the
+pointer one: the touch hold falls and the MOUSE hold stays green**, which is the asymmetry the plan
+names and the best proof the two exercises are not two of the same. Close on `pointercancel`
+instead of restoring: the cancel hold falls alone. Restored → `14 rules EXECUTED — no violation`, re-derived by running the rule rather than
+by copying the figure beside it: « eleven » was written before the three holds an adversarial
+review added, and it is the same class of stale count this wave corrected in six other places</sub>
+
+<sub>and what they cost the oracle: **nothing**, verified rather than believed — 87 states x 34
+regions, the only divergences being `screen-add/body`'s three, which are B-222's</sub>
 
 - **Ouvert opérateur — the 240 ms dead delay on `data-next`** (2026-08-16, SP4c; the attribute
   was named `data-suivante` when this was written and #455 renamed it): the
@@ -1669,6 +2011,20 @@ file, so the copy regenerates for as long as line 637 stands. Fix the source lin
 `.json` copy then corrects itself on the next recording.
 <sub>`grep -c "entérine" frontend/maquette/oracle-reference.json` → 1</sub>
 
+
+**CLOSED by L10-bis: the arm already exists, and the entry had gone stale.** `oracle.py` carries no
+« entérine » — `--accept`'s help string reads « ratify a REVIEWED change into the reference ». A
+later wave renamed it and nothing said so.
+
+**The scope this entry asked for is armed, and that was PROVED rather than read.**
+`nofrench_lexicon.scope_of` maps `frontend/maquette/*.py` to the `servers` scope, which arms 1 and
+2 both read — 927 string literals and 733 declared identifiers on the run below.
+
+<sub>mutation, three ways, all in `oracle.py` — an ACCENTED French help string
+(« entérine un changement RELU… »): arm 1 falls naming the file, the line and the literal. An
+UNACCENTED French help string (« valide un changement relu dans la source »): it still falls, so
+the reader is not the accent alone. A French local (`resultat_du_tri`): arm 6 falls with « built
+from 'tri', which French knows and English does not ». Restored → exit 0</sub>
 **B-073 — the grandfathered list guarantees its membership and never its justification.**
 `scripts/check-frontend-boundaries.py`'s size arm is careful about the list's *composition*: it
 refuses a file over the 400-line ceiling that no entry records (`unrecorded`), and it refuses an
@@ -2427,7 +2783,8 @@ absence of a row can mean either.
 | L10, after the adversarial review | **9** | Seven reviewers against a gate green on every tier. **B-170**, R91 computing « nothing else » and never « everything it declares » — measured, `rule.keys.slice(0, 1)` silently stopped refreshing five addresses and all 57 holds stayed green — with a docstring claiming BOTH DIRECTIONS from the day it was written. **B-171**, R92 asserting five words the CSS removes at every width the frame measures, while the colour that replaces them was compared reconnecting-against-reconnecting: `lost: "bg-success"` passed all 25. **B-172**, R93 comparing only keys present in BOTH snapshots, so `queryClient.clear()` read as no movement. **B-173**, R89's four stream holds passing with zero sockets open, including the one named « resolves once the FAN-OUT has been issued ». **B-174**, R94's central hold green while a different page was on screen, in the rule rewritten because of B-158. **B-175**, a whole-cache invalidation counted as evidence the guard was working. **B-168**, an event corpus of six hand-written files with nine real events outside it. **B-169**, a `StrEnum` counted as an event, which inflated a total AND masked the dead rule naming it. And **R89's budget hold**, comparing two constants declared in its own file — a `quiet()` slower than the oracle's budget would have left every hold green while all 2 871 measurements were taken mid-flight |
 | L10, after the SECOND adversarial review | **11** | Three reviewers on the repairs alone. **B-191**, R95's recovery hold a tautology whose own printed proof — a list ending in `reconnecting` — contradicted it. **B-192**, its « superseded socket » hold unable to produce one, because the fake removes a closed socket synchronously; nothing measured the identity guard until `pushStale()` existed. **B-193**, R92's colour hold a set of inequalities that a SWAP of two tokens satisfies. **B-194**, R94's layer hold never reading that a layer opened. **B-195**, R91's sibling seeded where it could never be an over-refresh. **B-196**, R95 certifying the shipped limits from a source literal rather than the running program. **B-197**, a stale hold-count baseline reporting three false regressions — which teaches whoever re-records to accept moved numbers, and that is how a count that FALLS goes through. **B-187**, `CACHE_WIDE` read line by line, so a wrapped whole-cache invalidation produced no violation AND no movement in the number printed as evidence. **B-188**, a poll regex that could not cross a semicolon and matched only the shape nobody writes. **B-189/B-190**, the exemptions reader keeping the defect the rules reader was repaired for, under a comment claiming the sibling instrument had been repaired too. And **R89's `> 1` threshold**, which could not tell one delivery plus one refetch from a delivery counted twice |
 | L10, after the THIRD adversarial review | **8** | One reviewer, on round two's repairs. **B-200**, two repairs recorded `fixed` and absent from the tree — the register's own B-190 broken by the commit that filed it. **B-201** and **B-209**, a violation counter used before assignment and a count discarded two lines after being made, both invisible because the loop feeding them was empty. **B-202**, a cursor freeze no reconnect could thaw, under a docstring saying « until the connection is remade ». **B-203**, R91 merging every rule's sample so its verdict depended on source order and a predicate's deletion was invisible. **B-204**, R92 resolving the token through the same cascade that paints it — proving the dot uses the token and nothing more, so exchanging the two VALUES passed every comparison. **B-205**, nothing reading whether the dot is on screen at all. **B-208**, a disagreement between two oracles printed where it could fail nothing. And **B-213**, a poll reader adopting the wrong block for 545 bindings out of 925 |
-| **Total** | **73** | at 2026-08-29. **The wave that built the most instruments found the most blind ones**, and that is the reading: nine of L09's fourteen were found by adversarial reviewers reading the gate AFTER it went green. **And a guard can be blind to a document rather than to code** — B-150's arm was correct in every line and read a file that had stopped being true. **L10 adds a fourth reading, and it is the sharpest in this table**: the wave reported **4**, found by its own mutations in the phases that wrote the instruments, and was wrong by **9**. Seven adversarial reviewers reading the same green gate found nine more — six of them in rules that had each already been mutation-tested. **Mutation proves a rule catches the defect you thought of**; every one of the nine is a defect the author did not think of, and they are all the same species: a word the CSS removes, a key that disappears rather than changes, a socket that is not there. The two methods are not substitutes, and the ratio is the argument — 4 to 9. **AND THEN THE REPAIRS WERE REVIEWED, AND HELD ELEVEN MORE.** Six of those eleven are in instruments the author had just written in response to a review, mutation-tested, and believed. The reading that survives all three rounds is not « review harder » — it is that **an instrument written by the person whose work it measures inherits that person's blind spots, whatever the discipline**, and only a second pair of eyes on the instrument finds them. 4 by mutation, 9 by review, 11 by reviewing the repairs, 8 by reviewing THOSE. **AND THE CURVE IS THE ARGUMENT FOR STOPPING**: five production defects in round one, six in round two, and in round three **none** — its two criticals were an ABSENT repair and a DISCARDED count, both procedural, and both now impossible rather than improbable (`scripts/mutate.sh`, and a fake that closes asynchronously like a real browser). A fourth round would read its own corrections. The criterion for ending is not « no findings »; it is **no undiscovered product defect, and the procedural failure mode eliminated** |
+| L10-bis | **20** | **11 counted at the wave's close, 9 more from repairing its review.** Of the first eleven, **ten are in instruments this wave was writing at the time** — which is the table's own reading of L09 arriving from the other side: the wave that builds the most finds the most blind, and it finds them in its OWN work. **The register's index** carried a status nobody could count, `fixed #NNN`, invisible both to « what is open » and to « what did that pull request close » (B-221). **The recorded oracle** was green over the add screen because no region resolved inside it: its three named states were driven, captured and compared against NOTHING, which is why B-139's white rectangle was invisible to it by construction (B-222). **Arm 5's first run returned six orphan variants where the entry named three** (B-223), and **B-138's own reference half was wrong** — the header avatar at 20x30 in a 32x32 button, every class on it correct (B-224). **The D1 arm matched no text at all**: a heredoc turned `\b` into a literal backspace, so it read 116 files and reported zero, and the mutation passed; it was found by printing the source line as BYTES, because a backspace is invisible in a diff. **The invariant-10 arm was wrong twice** — `\bword\b` cannot see `acquisitionLibraryMedia`, and lookarounds under `re.IGNORECASE` reject the very camelCase boundary they are written to accept — and its corrected reading is 124 where the first version said 53; **and with its comment stripper broken it collapsed to `0, 0, 0` and exited 0**, because every ceiling is a MAXIMUM and a reader that has stopped reading satisfies all of them at once. **B-041's green case failed**, so every mutation under it would have been measured against a red baseline. **R96 was written twice against stale DOM** — `.first` on an action reached a panel left by an earlier result, and asking whether a dialog was PRESENT found the closed one, because a closed layer is still in the document. **And a mutation missed its own instrument twice**: two attempts to fell the `generated` arm edited a `paths` key and a `paths` reference while the arm counts the `operations` interface. A mutation that misses what an instrument measures proves nothing about the instrument, and the honest move is to say so rather than to record a fall that never happened |
+| **Total** | **93** | at 2026-08-29, after L10-bis and its review. **The wave that built the most instruments found the most blind ones**, and that is the reading: nine of L09's fourteen were found by adversarial reviewers reading the gate AFTER it went green. **And a guard can be blind to a document rather than to code** — B-150's arm was correct in every line and read a file that had stopped being true. **L10 adds a fourth reading, and it is the sharpest in this table**: the wave reported **4**, found by its own mutations in the phases that wrote the instruments, and was wrong by **9**. Seven adversarial reviewers reading the same green gate found nine more — six of them in rules that had each already been mutation-tested. **Mutation proves a rule catches the defect you thought of**; every one of the nine is a defect the author did not think of, and they are all the same species: a word the CSS removes, a key that disappears rather than changes, a socket that is not there. The two methods are not substitutes, and the ratio is the argument — 4 to 9. **AND THEN THE REPAIRS WERE REVIEWED, AND HELD ELEVEN MORE.** Six of those eleven are in instruments the author had just written in response to a review, mutation-tested, and believed. The reading that survives all three rounds is not « review harder » — it is that **an instrument written by the person whose work it measures inherits that person's blind spots, whatever the discipline**, and only a second pair of eyes on the instrument finds them. 4 by mutation, 9 by review, 11 by reviewing the repairs, 8 by reviewing THOSE. **AND THE CURVE IS THE ARGUMENT FOR STOPPING**: five production defects in round one, six in round two, and in round three **none** — its two criticals were an ABSENT repair and a DISCARDED count, both procedural, and both now impossible rather than improbable (`scripts/mutate.sh`, and a fake that closes asynchronously like a real browser). A fourth round would read its own corrections. The criterion for ending is not « no findings »; it is **no undiscovered product defect, and the procedural failure mode eliminated**. **L10-bis's reading was written before its own review, and the review refuted it.** At the wave's close this cell read: ten of eleven found by the wave itself, at the moment of mutating what it had just written, and therefore « the half that does not need a second reader, because a mutation aimed at the instrument you just wrote is a second reader you can be yourself ». An adversarial review of the finished wave then returned roughly fifty confirmed defects, and **NINE MORE OF THIS SPECIES** came out of repairing them — which is why the count above is 20 and not 11. So the sentence stands exactly reversed: **a mutation aimed at your own instrument is not a second reader, it is the same reader with a sharper tool.** It finds what you thought to break. The nine are what nobody thought to break: **the invariant-10 arm's vocabulary held the nine feature names and none of the seven page ALIASES the frame actually writes**, so `app/page-host.tsx`'s entire table of pages was outside it; **its comment stripper blanked the code after a `//` inside a string**, live on `lib/relay.ts`; **its corpus floor was one SUM across three directories**, so `ui/`, whose ceiling is ZERO, was satisfied by reading nothing at all. **`check-bug-register.py` ran in NO CI job** on a register-only pull request — the guard this wave built to make the register checkable was unreachable by the change it checks — and the hold written to catch that immediately found `BUGS-CLOSED.md` and `CLAUDE.md` in the same state. **The conformity hook accepted `> 🤖 Generated with Claude Code`, `- 🤖 …` and `* Generated with Claude`**, all three refused on `main`, because anchoring its alternatives to column one anchored them to a message nobody writes. **A hold monkeypatched four arms while `main` calls six**, so two ran for real inside a test that believed it had mocked everything. **The light-theme ratchet read `counts.total` and nothing else**: 99999 raised the ceiling by 165 834 without touching one recorded finding. **And the B-049 guard read a rule's own text and not its import closure**, so one `sqlite3.connect` moved into a helper would have let B-049 back into the tier through the front door. Every one of the nine is an instrument, and every one was found by someone reading the instrument rather than running it |
 
 **The nine the correction wave found, since a wave that counts itself has to name its own.** The
 figure is large because the count is honest, not because the wave was worse: four of the nine are
@@ -2550,6 +2907,42 @@ twice in two waves.
 
 <sub>the measurement: domain-word count per directory of `design/src`, outside comment lines</sub>
 
+
+**CLOSED by L10-bis. `scripts/check-frame-domain.py`, a ratchet per directory, refused upward.**
+The vocabulary is DERIVED — it is the nine feature DIRECTORY NAMES, read from the tree, so a tenth
+feature joins by existing rather than by somebody remembering this file. Comments are stripped per
+line, and the entry's two requirements were kept: `frame-domain-baseline.json` carries the reason
+each ceiling is not zero, and every number in it was read before it was written.
+
+**MEASURED: `ui/` 0, `lib/` 16, `app/` 124**, over 10 047 identifier words. `app/`'s is the frame
+naming its PAGES — `reference.d.ts`, `router-tree.tsx`, `page-host.tsx`, `shell.tsx` — which is the
+exception the invariant blesses by name.
+
+**THE FIRST TWO VERSIONS OF THIS ARM WERE BOTH WRONG, and the mutation found both.** Version one
+matched `\bword\b` and walked straight past `acquisitionLibraryMediaCount`, which names three
+domains and contains no word boundary at all — the way a domain word actually reaches the frame.
+Version two used lookarounds with `re.IGNORECASE`, under which `[a-z]` matches capitals too, so the
+lookahead rejected every camelCase boundary it was written to accept and the same mutation passed a
+SECOND time. The arm splits identifiers into words now, which is what the rest of this repository's
+name guards do. **The corrected reading is 124 in `app/` where the regex saw 53** — a ceiling
+seeded from version one would have frozen an undercount and called it the invariant.
+
+**And a third defect, found by the same route**: with the comment stripper broken the count
+collapsed to `0, 0, 0` and the arm exited **0**, because every ceiling is a MAXIMUM and a reader
+that has stopped reading satisfies all of them at once. A floor on the identifier words read is
+what refuses it.
+
+**What it does NOT count, said plainly**: the same thing § 3's prose counts. The invariant records
+`lib/queue.ts` at **169**; this arm reads **16** there. That figure came from a broader notion of
+« domain word » — the queue's whole subject vocabulary — while this counts the nine names, the only
+vocabulary that can be derived rather than listed. The narrower measure is what a ratchet can hold
+honestly.
+
+<sub>mutation — add `acquisitionLibraryMediaCount` to `lib/relay.ts`: the arm falls with « 19
+against a ceiling of 16 » and names the two files. Break the comment stripper to the `DOTALL` shape
+that once reported 0: the corpus floor falls with « 0 identifier word(s), under the floor of 2000 ».
+Remove the baseline: it refuses rather than assuming zero. Restored → `ui/ 0, lib/ 16, app/ 124 …
+read from 10047 identifier word(s)`</sub>
 **B-101 — a brief that told a wave what it would measure, and was wrong about it.**
 The steward's hand-off for L08-bis stated, in bold: « **Cette vague VA faire bouger l'oracle** —
 B-081 change ce qui est peint par défaut », and instructed the wave to expect a re-record and to
@@ -2600,6 +2993,39 @@ and B-085 is arguable, since what it asked for is a standing measurement rather 
 
 <sub>`grep -c '^| B-' BUGS.md` → 108 · `grep -oE '^\| B-[0-9]+' BUGS.md | sort -u | wc -l` → 101 · `grep -oE '^\| B-[0-9]+' BUGS.md | sort | uniq -d`</sub>
 
+**CLOSED by L10-bis, and the deliverable is the guard, not the deletion.** The seven `open` rows
+are gone; which status was true was decided by reading the tree rather than either row, and the
+entry above was right to say that decision belongs to whoever repairs it. **Two of the seven do not
+say « FIXED by #505 » in their bodies** — B-079 and B-085 — so the brief that set this wave going
+was wrong to say all seven did, and reading the tree is what settled them: `host_identity.py` was
+split out of `serve.py` by #505 and `with_served_identity()` is called at `serve.py:735`, which is
+B-079's fix landed; § *Guards green over what they do not read* exists, which is B-085's.
+
+**The instrument — `scripts/check-bug-register.py`, four arms and one tool.** `duplicate-row`
+refuses an identifier carrying more than one index row and NAMES it; `status-vocabulary` refuses a
+status outside § *Status vocabulary*; `invariant-numbers` is B-103; `corpus` PRINTS the number of
+rows read and refuses one below a floor of 150 — seeded well under the 214 rows standing when it
+was written, never at them, because a floor set where the count already sits is pre-satisfied and
+can never fall (B-075, met twice in two waves).
+
+**It found a defect nobody had recorded, on its first run**: B-219 carried the literal status
+`fixed #NNN`. That is B-221, filed rather than quietly corrected.
+
+**What it does not read is written into the module, at the top, before what it does read.** It
+reads the INDEX and never the bodies — so a row marked `open` over a body saying « FIXED by #505 »
+is invisible to it, which is exactly the state these seven were in; it reads `BUGS.md` alone;
+it cannot see another branch; and it does not hold rule 2's « exactly one `fixing` ».
+
+**The recurrence this entry's neighbour really names is not a duplicate row**, and no guard can
+hold it: two branches taking numbers from a register the other is writing. `--next` answers it by
+removing the guessing, and it fails nothing — it is a tool, and the module says so.
+
+<sub>mutation — duplicate a row with a different status: `duplicate-row` falls naming `B-101` and
+both its lines. Write `fixed` with no number: `status-vocabulary` falls. Strip every index row:
+`corpus` falls with « 0 index row(s) read, under the floor of 150 » instead of reporting clean.
+Restored, then `python3 scripts/check-bug-register.py` → `207 index row(s) read … for 207
+identifier(s)` · `check-bug-register: clean`</sub>
+
 **B-103 — § 3 of the architecture file has two invariants numbered 10.**
 #507 inserted « **The frame does not name the domain** » as item 10 and left « **No French in the
 code and no interface text in the code** » numbered 10 below it. Both are binding, both are
@@ -2613,6 +3039,34 @@ commit — those resolve correctly only if a reader stops at the first 10 they m
 
 **Recorded, not renumbered.** § 7.1: the operator arbitrates this file and an agent proposes.
 Renumbering it inside the wave that implements against it is the one moment it should not be done.
+
+**CLOSED by L10-bis, and the repair is NOT the one this entry proposed.** Renumbering the sequence
+— second 10 becomes 11, and 11 to 14 shift up — was measured before being taken, and it was the
+wrong repair. It moves **ten live citations** (`harness/residue.py`, `harness/relay_states.py`
+twice, `ui/variants/layout.ts` twice, `features/media/variants.ts`,
+`scripts/check-maquette-unit-tests.py`, this register, and the architecture file itself) and it
+**silently falsifies three archived documents**, which are frozen and must never be restyled —
+`maquette-l05/plan/INDEX.md` cites invariant 11, `maquette-l07/plan/phase-09-library.md` cites 12,
+`maquette-l10/DESIGN.md` cites 14.
+
+**So the item that MOVED is the one whose number was wrong.** Every citation of « invariant 10 »
+that exists — here, in the archive, in L09's DESIGN, in the three « Where it lives » lines — means
+*the frame does not name the domain*. That invariant owns the number. « No French in the code » is
+the one #507 left holding a number already taken, and it is now **15**, at the end of the list,
+with the reason written beside it. Nothing cites it by number, so nothing moved.
+
+**One sentence of the entry above is measurably false, and § 7.1 is why it is corrected here rather
+than edited there.** « items 11 to 14 now sit one place away from every citation of them written
+before » — they do not. The source numbers 11 to 14 were never shifted by the insertion, and all
+ten citations resolve correctly today. The defect was real; that particular consequence was not.
+
+**The instrument.** `scripts/check-bug-register.py --arm invariant-numbers` refuses a repeated
+number AND a gap in the sequence — a citation of a number nobody wrote points at nothing, which is
+the same defect seen from the other side.
+
+<sub>mutation — renumber invariant 15 back to 10: the arm falls with « invariant 10 is written 2
+times, at lines 497, 562 ». Number it 16 instead: the arm falls with « the sequence has a gap at
+15 ». Restored → `check-bug-register: clean`</sub>
 
 <sub>`grep -nE '^1?[0-9]+\. \*\*' docs/reference/frontend-architecture.md | sed -n '/^4[0-9][0-9]:/p'` · the two rows read `10.` </sub>
 
@@ -2632,11 +3086,146 @@ is erased by the compiler, and the defect the arm exists to refuse is a module r
 that a fixture survives its own removal. Nothing can travel a type-only edge. A VALUE import of the
 same file is still refused, proved by mutation.
 
-**What stays open is the PLACEMENT.** Moving the file has five ends — the `package.json` script,
-`make check-contract-types`, `check-mock-seeds.py --arm generated`, the boundaries guard's
-`GENERATED` table, and four importers — and a rename with five ends belongs to its own change, not
-to the phase that first needed to import it. Until then a reader of the tree is told the contract
-is a mock.
+
+**CLOSED by L10-bis. `mocks/contract-types.d.ts` is `contract/types.d.ts`, in a bucket of its own.**
+It is the SHAPE of what the interface may ask for, generated from `contract/openapi.json`, and it
+was filed in the bucket L04 declared for « handlers and fixture seeds ». It is neither.
+
+**Five ends, moved in one commit**: the `package.json` generator target, `make
+check-contract-types`, `check-mock-seeds.py --arm generated`, the boundaries guard's `GENERATED`
+table and its `BUCKETS` list, and the five importers.
+
+**AND THE EXEMPTION THE MISFILING FORCED IS GONE, which is the part worth more than the move.**
+Because the file sat under `mocks/`, `lib/query-client.ts` imported from `mocks/` and the
+boundaries arm had to be told a type-only edge to that one stem was allowed. That exemption's own
+comment said « its placement is questionable » and « moving it belongs to its own change ». This is
+that change. `CONTRACT_TYPES_EXEMPT` is now EMPTY rather than deleted, so the next module that needs
+to reach into `mocks/` has to write its name there with a reason, in a diff somebody reads.
+
+**The proof is the three instruments passing after the move, and they do**: `--arm generated` reads
+54 operations against 54 with 0 disagreements at the new path; `make check-contract-types`
+regenerates to `src/contract/types.d.ts` and `git diff --exit-code` is clean; the boundaries guard
+reads **10** declared buckets with 0 files outside them and 0 forbidden edges into `mocks/`.
+
+<sub>mutation — a module outside `app/` importing a SEED: the mocks arm falls with « 1 forbidden
+edge(s) », which is what the emptied exemption had to be shown not to have weakened. Remove an
+operation from the generated types: `--arm generated` falls with « 53 operation(s) in the types
+against 54 in the contract » and NAMES `readAccount`. ⚠ Two earlier attempts at that second
+mutation edited a `paths` key and then a `paths` reference, and the arm stayed green both times —
+correctly, because it counts the `operations` interface. A mutation that misses what an instrument
+measures proves nothing about the instrument, and saying so is cheaper than believing it.
+Restored → all three green</sub>
+**B-220 — the drawer and the bottom tab bar are converted by no lot of the plan.**
+`design/index.html:451` declares an **empty** `<aside id="drawer">`; the dying engine fills it,
+opens it, closes it, draws its entries (`#drawer a[data-navgo]`) and pushes its layer.
+`index.html:436` declares an **empty** `<nav id="nav">`, and `renderNav()` fills it. On the React
+side nothing renders either: `app/focus.ts` **watches** the drawer, `app/bar-height.ts`
+**measures** the bar. The plan names the drawer once, in D1's address table, as an example of
+screen state — and **L13's objective enumerates what survives subtraction** (the document-level
+delegation, the boot, `/login`, the splash). Neither the drawer nor the tab bar is there.
+
+**Why nobody saw it, and it matters more than the inventory.** Two instruments watch the engine and
+**both measure its SIZE, never its surfaces**: the boundaries guard counts its lines,
+`check-legacy-css-residue.py` counts its CSS rules. When L09 took `legacy.js` from 35 263 to 33 449
+lines everyone read progress. A file that shrinks looks like a file that is dying, even when a
+whole page never leaves it. It is **L14's class** — a surface whose conversion nobody owes — except
+that here it is the application's main navigation.
+
+**Its number changed three times before it was ever written down**: B-152, then B-160, then B-219,
+each taken by a wave writing the register from another branch. B-219 went to #515 while this wave
+was being briefed, which is the fourth. **Re-derived at the moment of writing** with
+`python3 scripts/check-bug-register.py --next`, the tool B-102's repair ships for this exact
+recurrence.
+
+**Deferred to L10-ter, whose subject it is.** L10-bis records it and touches neither surface: a
+correction wave opens no lot. **It changes nothing for E-002** — the React-side installer works
+against the node as it stands, which is what makes that gesture feasible today.
+
+<sub>`sed -n '448,454p' frontend/maquette/design/index.html` · `grep -rn '#drawer' frontend/maquette/design/src/app/` · `grep -in 'drawer' docs/reference/frontend-architecture.md`</sub>
+
+**B-221 — a wave merged leaving its own status as the literal placeholder `fixed #NNN`.**
+Found by `check-bug-register.py --arm status-vocabulary` on its first run, against `main` at
+`3316e550`. B-219's row read `` `fixed #NNN` `` — the placeholder from § *Status vocabulary*'s
+example, written when the pull request had no number yet and never filled in once #515 merged.
+
+**What it costs is every count that greps for a word.** `fixed #NNN` is neither `open` nor any
+real `fixed #`, so the row is invisible to a count of what is open and invisible to a count of what
+a given pull request closed. It is B-102's damage by another route: not a row saying two things,
+a row saying nothing.
+
+**It is the shape a correction wave produces most easily**, and this one is exposed to it: the
+register is written DURING the wave (B-084), so its own closing rows are written before its pull
+request has a number. The guard is what makes forgetting impossible rather than unlikely — the
+status is filled the moment the number exists, or the gate is red.
+
+<sub>repaired to `fixed #515` · mutation: write `` `fixed` `` with no number → the arm falls naming
+the row and its line</sub>
+
+**B-222 — the add screen is the only one of five overlay screens the oracle measures nothing of.**
+Found while checking whether B-139's repair moved the recorded oracle. It did not, and the reason
+is not that the repair was invisible: `regions.json` declared **33** regions and not one of them
+resolved inside the add screen. Four of the five overlay screens carry a body region —
+`screen-media/body`, `screen-profile/body`, `screen-releases/body`, `screen-resolution/body` — and
+`features/acquisition/add-screen.tsx` carried **no `data-region` at all**.
+
+**So its three named states were driven, captured and compared against nothing.** `acq-add-empty`,
+`acq-add-results` and `acq-identify` are all three in the oracle's 87, and each contributed 33
+measurements of regions that are absent from them. « Two » stood here through the wave that filed
+this entry, and it is the same class of error as the entry itself: a figure written once, about
+the very instrument being repaired, and never recounted against the reference. « No divergence » over that screen was an EMPTY READ, and B-139's white rectangle
+was invisible to the oracle **by construction rather than by accident** — which is B-085's sentence
+with « guard » replaced by « oracle », and the first time this register has caught the instrument
+it trusts most in that shape.
+
+**Repaired.** `data-region="screen-add/body"` rides the scrollport the screen already has, not a
+wrapper of its own: a new block element inside a scroll container is a layout change, and this is a
+measurement being added rather than a drawing being altered. The oracle now reads **34** regions,
+2 958 measurements.
+
+**This is NOT B-061 being relitigated.** That arbitration says the oracle keeps its contract — it
+measures ELEMENTS, not pseudo-elements. Declaring a region on an element is inside that contract,
+and it is what L10 did when it grew the oracle by three states without moving one of the 84
+measurements it already held.
+
+**What is still not held, and it is the sharp end**: nothing refuses a surface that declares no
+region. The repair is one screen; the class is « an instrument's corpus is a list somebody
+maintains by hand », and that list is `regions.json`.
+
+<sub>`python3 -c "import json;print(len(json.load(open('frontend/maquette/regions.json'))['regions']))"` · `grep -c data-region frontend/maquette/design/src/features/acquisition/add-screen.tsx` → 0 before, 1 after</sub>
+
+**B-223 — three more typed variants were orphaned, and B-139's own arm is what found them.**
+`searchIcon` (`ui/variants/controls.ts`), `sectionTitle` and `sectionCount` (`ui/variants/layout.ts`)
+each returned exactly one grep hit — their own declaration — on `main` at `3316e550`. B-139 named
+three; the arm written for it returned **six**, which is the argument for building the instrument
+rather than repairing the three.
+
+**None of them was visible, and the difference from B-139 matters.** `.t` and `.k` are painted by
+`legacy.css:382` and `:387`, and `.search svg` by `base.css:225`. So the screens are correct today
+— and `.t` and `.k` are correct **only until L13**, when `legacy.css` dies and takes those two
+rules with it, leaving two spans bare on every section header in the application. A latent defect
+with a date on it.
+
+**Repaired in two different ways, because they are two different things.** `sectionTitle` and
+`sectionCount` are wired at their three literal call sites, which is what L13 will need anyway.
+`searchIcon` is **removed**: `<Icon>` renders an `<svg>` and takes no class of its own, so nothing
+could ever call it — `base.css` says exactly that in its own comment and sizes `.search svg` with a
+descendant selector for that reason. A variant nothing can call is not a contract waiting for a
+call site.
+
+<sub>the arm is `scripts/check-markup-contracts.py`'s fifth, holding a HARD ZERO — 118 declared
+variants across 9 files, every one named by at least one of 127 readers</sub>
+
+**The PLACEMENT was what stayed open, and L10-bis closed it.** The move had five ends — the
+`package.json` script, `make check-contract-types`, `check-mock-seeds.py --arm generated`, the
+boundaries guard's `GENERATED` table, and its importers — and a rename with five ends belongs to
+its own change rather than to the phase that first needed to import it. The file is
+`contract/types.d.ts` now, in a bucket of its own, and nothing outside `app/` imports `mocks/`.
+
+**The importers are FIVE, and this paragraph said four for the length of the wave that moved
+them**: `mocks/state.ts`, `mocks/handlers/staging.ts`, `mocks/handlers/decisions.ts`,
+`mocks/handlers/maintenance.ts` and `lib/query-client.ts`. Counting one end of a seam by hand and
+writing the figure down is how the count was wrong in the first place — the same move as the
+« twelve invocations » and the « two named states » corrected in this wave.
 
 <sub>`grep -rn "mocks/contract-types" frontend/maquette/design/src scripts Makefile frontend/maquette/design/package.json`</sub>
 
@@ -3257,6 +3846,114 @@ other, and it is D8's arbitration, not this entry's.
 
 <sub>`grep -rn '\.avatar' frontend/maquette/design/src/styles/*.css` · `git show 5fdbfc9a^:frontend/maquette/design/refonte.html | sed -n '505,525p'` · `grep -o '"sheet-[a-z0-9-]*"' frontend/maquette/regions.json`</sub>
 
+**CLOSED by L10-bis, and the entry's second half chose the route it proposed.** A named rule
+reading the image — `harness/avatar.py`, R97 — the way R26 reads a pseudo-element. The probe is NOT
+widened to children: that is D8's arbitration and B-061 settled the equivalent one the other way.
+
+**MEASURED BEFORE IT WAS REPAIRED, on `sheet-user`**: the host declares 42x42 and the image
+rendered at **128x128** — its natural size — with `object-fit: fill` and `display: inline`. The
+repair is `avatarImage`, a variant carrying the base the header already proves, so the two ends
+read one declaration instead of two spellings of it.
+
+**AND THE HALF THAT WAS SUPPOSED TO BE CORRECT WAS NOT.** The header's image carried the complete
+class set and rendered **20x30 inside a 32x32 button** — a `<button>` keeps the platform's own
+padding, so `w-full` resolved against a content box the padding had already shrunk. Every class was
+right and the result was a small oval. That is **B-224**, found by measuring the reference half
+rather than trusting it, and it is why R97 holds BOTH: a rule holding only the panel would go green
+over a fix that traded one avatar for the other.
+
+**THE ORACLE DID NOT MOVE, and that is the entry's own claim confirmed rather than assumed.** Both
+avatars changed size — 128→42 and 20x30→32x32 — and the recorded oracle reported **zero
+divergence** across 87 states and 34 regions. The panel's avatar is a descendant of `#sheetin`,
+whose twenty numbers are unchanged; the header is inside no region at all (B-222's class, one
+surface further on). « Depth, not coverage » is exactly right, and it is now a measurement.
+
+<sub>mutation — unwire the panel's `avatarImage`: three checks fall, the image back at 128x128,
+`fill`, `inline`. Remove the shell button's `p-0`: one check falls at 20x30 against 32x32 and the
+panel's three stay green, which is the trade this rule exists to refuse. Drop `object-cover` from
+the variant: the crop check falls alone. Restored → `7 rules EXECUTED — no violation`</sub>
+
+**B-224 — the header's avatar was 20x30 in a 32x32 button, and every class on it was correct.**
+Found on 2026-08-29 while measuring the half of B-138 that was supposed to be the reference. The
+image carried `w-full h-full object-cover rounded-[inherit] block` and computed **20x30**: a
+`<button>` keeps the platform's padding (6px across, 1px down in Chrome), `w-full` is
+`width: 100%`, and 100% of a content box is not 100% of a border box. 32 − 12 = 20, 32 − 2 = 30,
+and the numbers say it exactly.
+
+**Nothing was wrong with the class list, which is why reading it found nothing.** Three waves have
+now concluded from the one place a fact ought to live rather than measuring it — B-138's own entry
+counts two of them — and this is the same lesson from the other side: the classes were the right
+place to look and they gave the wrong answer.
+
+**Repaired** with `p-0` on the button, and held by R97 alongside the panel's. The header sits in no
+region of the oracle, so nothing else could have seen it.
+
+<sub>measured `[32,32]` host against `[20,30]` image before · `[32,32]` against `[32,32]` after ·
+mutation: remove `p-0` → R97 falls naming the header alone</sub>
+
+**B-225 — a guard froze its own corpus size in a comment, and the figure drifted three times in
+three days.** Recorded by the steward's audit of L10 as A-2. `check-live-relay.py` carried
+`POLLING_CORPUS_FLOOR = 60` with one comment saying « measured: 118 » and another saying « 60
+against 124 files ». The tree read **120** when the pull request was written, **126** when it
+merged, and **127** two days later. Two comments in one file stating one fact, disagreeing with
+each other and with the tree, inside the guard whose whole subject is a count nobody recounts.
+
+**The floor's POSTURE is right and is not the defect.** « A real floor against total collapse and
+blind to targeted loss » is an honest thing for a floor to say about itself. What was wrong is the
+number frozen beside it.
+
+**The instrument, and it is exact rather than a judgement about prose.** A fifth arm,
+`stale-figure`: it takes the counts the arms actually measure NOW and refuses to find them written
+as literals in this module's own source. **A figure that agrees with the tree today is the
+dangerous one** — it is the state every stale figure was in on the day it was typed.
+
+**What it does not read**: any other guard. The class is general and the arm is not, and saying so
+is worth more than an arm that greps every comment in `scripts/` and learns to be ignored. Nor the
+floors themselves, which are the guard's own constants and are meant to be written down.
+
+<sub>mutation — write « 60 against 127 files » back into a comment: the arm falls naming 127 and
+what it measures. Write the reading-files count instead: it falls too, so it is not one number it
+knows. Restored → `check-live-relay[stale-figure]: 2 measured count(s) checked against this
+module's own source` · `--arm no-polling` prints 127 and the module holds no figure at all</sub>
+
+**B-226 — the cross-check B-208 built never ran in continuous integration.** Recorded by the
+steward's audit of L10 as A-1, and it is sharp. `check-live-relay.py`'s `backend_events()` compares
+TWO oracles: the bus registry (`_EVENT_CLASS_REGISTRY`, what the wire actually carries) against a
+regex scan of the sources. That is B-199, and it was the right repair. **B-208 then made the
+DISAGREEMENT blocking** — « printed and could fail nothing » was the shape that wave had just named
+two arms over — **and left the same shape three lines above**, on the import-failure path, where it
+printed and returned no reason.
+
+**And continuous integration took that branch every single time.** `harness-contracts` installs
+`playwright` and `jsonschema` and never this package; `personalscraper/__init__.py` imports
+`dotenv`; so on every pull request touching the maquette the arm ran on the re-implementation alone
+and reported clean. The docstring's « the two are compared rather than one being trusted » was
+false on the branch CI walked. The cross-check existed only in `make check`, which is a WAVE gate.
+
+**BOTH repairs were taken, and the reason is that they answer different questions.** Making the
+non-import a VIOLATION is the honest half: it costs a red the day an environment is incomplete,
+which is what a red is for, and it is the same posture the tier already takes for `jsonschema` —
+whose own comment says a missing package must not read as « no violation ». Installing the package
+in `harness-contracts` is what makes the cross-check actually RUN per pull request rather than
+merely stop lying. Installing alone would have fixed the runner and left the shape: any other
+environment without the package would go back to trusting one oracle with nothing to say so.
+
+**The cost was measured rather than assumed**: the registry import is 0.27 s and needs only
+`dotenv`, `structlog` and `rich` transitively, and `pip install -e .` is marginal beside the
+Chromium download this job already pays for. A hand-listed three-package install was the cheaper
+option and was refused — a corpus enumerated by hand is the shape this register counts, and the
+list would drift the first time `__init__.py` gained an import.
+
+**A second defect came out of the repair**: the caller appended « is not there — » to whatever
+reason it was handed, which read correctly for the absent-package case it was written for and
+became a sentence-and-a-half once the unreachable-registry case started arriving there too. One
+message per reason now.
+
+<sub>mutation — shadow `dotenv` with a module that raises, which is CI's environment exactly: the
+arm falls with « the event registry could not be imported … a cross-check with one side missing is
+not a cross-check », where it used to print and exit 0. Restored → `48 backend event(s), 48
+accounted for` · `check-live-relay: clean`</sub>
+
 **B-139 — three variants exist, are exported, and are called by nothing.**
 Reported by the operator on 2026-08-26: after adding a media to follows, the bar at the bottom of
 the add screen shows « 1 média ajouté » beside **a white rectangle whose text cannot be read**, and
@@ -3281,9 +3978,9 @@ one rather than trusting the sweep that found them: `addFooterAction`, `resultLi
 with three of its variants left unplugged.
 
 **Nothing could have caught it.** TypeScript does not fault an unused export. The oracle cannot:
-the footer paints only when `added.size > 0`, and the two named states of that screen are
-`acq-add-empty` and `acq-add-results` — the second searches « star wars » and adds nothing — so **no
-measured state ever paints this bar**. Not a coverage gap this time but a STATE gap: the surface has
+the footer paints only when `added.size > 0`, and the three named states of that screen are
+`acq-add-empty`, `acq-add-results` and `acq-identify` — the second searches « star wars » and adds
+nothing, the third is the identify pane — so **no measured state ever paints this bar**. Not a coverage gap this time but a STATE gap: the surface has
 states, and none reaches the condition.
 
 **The finding is that this is measurable in twenty lines and nothing measures it.** A variant
@@ -3296,6 +3993,53 @@ content and nothing reserves the space beneath it, so it covers a card. It is no
 dismissal by design — whether it should have one is a layout decision, not a repair.
 
 <sub>`grep -rn 'addFooterAction\|resultList\|suggestionChip' frontend/maquette/design/src/` · `grep -n 'acq-add' frontend/maquette/design/src/engine/states.js`</sub>
+
+**CLOSED by L10-bis. All three wired, and the operator arbitrated the bar's shape before a line
+was written.** Asked on 2026-08-29 whether a legible button was enough: *« Elle réserve pas sa
+place elle passe par dessus c'est une notification comme une autre, elle est fermable. »* So the
+bar keeps overlaying — nothing reserves its space — and it gains a dismissal. Both halves of the
+report are answered: the exit is legible, and there is now an exit that is not the exit.
+
+**The dismissal remembers a COUNT, never a boolean.** `dismissedAtCount` holds the `added.size` the
+bar was dismissed at, so adding a further medium announces again. A boolean would swallow every
+announcement after the first, which is a different defect wearing this fix — mutation-proven below.
+
+**The instruments, and there are two because one could not have been enough.**
+
+**The arm** — `check-markup-contracts.py`'s fifth: every `cva` exported from a `variants.ts` is
+named by another file. It asks what no other arm asks, and the reason is structural: the four
+others read what the markup EMITS, and a variant nobody calls emits nothing to be inconsistent
+with. **It returned six, not three** — `searchIcon`, `sectionTitle` and `sectionCount` were
+orphaned too, filed as B-223. It holds a HARD ZERO, seeded by removing the last orphan rather than
+by recording it.
+
+**The hold** — `harness/add_footer.py` (R96), ten checks walking the operator's own journey: open
+the add screen, search, open a result, add it. The oracle could not do this and the reason is a
+STATE gap, not a coverage one: `acq-add-empty` and `acq-add-results` are the screen's two named
+states and the second adds nothing, so **no measured state has ever painted this bar**. Growing
+`engine/states.js` was the other route and was refused — that file is the dying engine's scenario
+table, which L13 removes, and a repair that grows what must die is a repair made twice.
+
+**The colour is measured against a PROBE, never a literal**: a `<span>` carrying
+`color: var(--color-primary)` is mounted in the same document and compared. A rule holding an
+oklch literal would hold one theme and report about both.
+
+**Two defects in the RULE were found by running it, and both are the same species.** Selecting the
+add action with `.first` clicked a panel from an earlier result — a probe of five results reported
+that every one took the « replace » route while three are seeded `owned: false`. And asking whether
+the replace dialog is PRESENT found the closed one from the previous add, because a closed layer is
+still in the document. Both routes into `added` are walked now, and each is named in its detail
+line.
+
+**What moved in the oracle: nothing, and that was an EMPTY READ.** The add screen carried no region
+at all — B-222, found by asking why a painting change moved no measurement.
+
+<sub>mutation — unwire `addFooterAction`: R96 falls three times, and it is the operator's photograph
+in numbers — colour `oklch(0.96 0.003 286)` against a wanted `oklch(0.808 0.158 79)`, background
+`rgb(239, 239, 239)`, border-style `outset`. Arm 5 falls naming the orphan. Remove the dismissal:
+two checks fall, the touch box measuring 0x0 against 44. Dismiss on a boolean instead of the count:
+the re-announcement falls alone. Restored → `10 rules EXECUTED — no violation` ·
+`check-markup-contracts` clean at 118 variants over 127 readers</sub>
 
 **B-140 — the scroll memory was built for screens and never learned about pages.**
 Reported by the operator on 2026-08-26: scroll a page, open an item, come back — the page is at the
@@ -3352,6 +4096,47 @@ keep the user agent's painting by design — the decision was right and it makes
 worth counting. `check-markup-contracts.py` reads the classes that ARE emitted; a tag with no class
 emits nothing to read. Ten lines of AST would return this list, and it is the sibling of B-139's
 check: one asks which variants are never called, the other which elements never call one.
+
+**CLOSED by L10-bis. The eight were read, and the list had gone stale — which is what the entry
+asked for.** `features/settings/panel-field.tsx`, the item this entry called the highest risk,
+already carries `className={fieldInput({ mono })}`: a later wave dressed it and nothing said so.
+The `<a>` at `media-screen.tsx:22` is gone. And the parser found one the list never had —
+`ui/state-surfaces.tsx`'s retry button.
+
+**Six remain, and NONE of them is a defect today.** Each was traced to what actually paints it,
+in the stylesheet rather than in the class list — B-224's lesson, one entry earlier, is that a class
+list is the right place to look and can give the wrong answer:
+
+| Site | What paints it | Latent? |
+| --- | --- | --- |
+| `ui/state-surfaces.tsx` `<button>` | `.surferr button`, legacy.css:445 | **dies at L13** |
+| `features/acquisition/page.tsx` `<button>` | the same rule, same surface | **dies at L13** |
+| `features/acquisition/add-screen.tsx` `<button>` ×2 | `.segmini button`, legacy.css:1553 | **dies at L13** |
+| `ui/panel/index.tsx` `<img>` | `.sheetposter img`, legacy.css:1929 | **dies at L13** |
+| `features/media/media-screen.tsx` `<img>` | `castPortrait()`'s `[&_img]:*` utilities | no — the parent constrains it entirely |
+
+**Five of the six become real bare elements on the day `legacy.css` dies**, which is B-223's
+latency with the same date on it.
+
+**The instrument is an ALLOW-LIST, not a count, and that is the design decision worth stating.**
+`check-markup-contracts.py`'s sixth arm refuses a painting element left bare at an UNLISTED site.
+A ratchet on a number was the obvious instrument and the wrong one: six is six whether the bare
+element is a poster image its parent constrains or a retry button on a dark error surface, so a
+count permits trading one for the other in silence. Each site carries the reason its own painting
+is right, the way `code-vocabulary.txt` makes a refusal readable — and the five expiry dates are
+written where they will be found at L13.
+
+**It parses rather than greps.** An attribute list spans lines, a `className` may be a template
+literal or a conditional, and an element can sit inside a template string a text reader sees as
+prose. `frontend/maquette/harness/bare_elements.mjs` reads the TypeScript AST; the number of
+elements it parsed is printed against a floor, and elements skipped for a `{...spread}` are counted
+rather than described.
+
+<sub>mutation — undress `addFooterAction`'s button: the arm falls on the site's ceiling (3 against
+2 allowed). Add a bare `<button>` in `features/arrivals/page.tsx`, a file no entry lists: it falls
+naming the file and the line. Remove the extractor: it reports that it could not run and exits 1,
+never « no violation ». Restored → `85 painting element(s) parsed in 37 TSX file(s) (floor 40), 1
+skipped for a spread — 6 bare, every one at a listed site with its reason`</sub>
 
 <sub>a scan of `design/src/**/*.tsx` for the six tags rendered without `className` or `class`</sub>
 
@@ -3524,6 +4309,34 @@ that prompted this is the phone frame of `harness.css`, which ships nowhere.
 
 <sub>`grep -rn 'scrollbar' frontend/maquette/design/src/styles/*.css` · `frontend/maquette/design/index.html:221` for the container</sub>
 
+
+**CLOSED by L10-bis. D11 is implemented in `base.css`, in BOTH spellings.**
+`scrollbar-width`/`scrollbar-color` is what Firefox reads; `::-webkit-scrollbar` is what Chrome
+reads — and Chrome is what the oracle, the harness and the operator's phone all run, so writing one
+alone would have styled the browser nobody here measures.
+
+**THE ORACLE DID NOT MOVE, AND THE ENTRY'S PREDICTION WAS WRONG ABOUT WHY.** It expected narrowing
+the gutter to move « every measured rectangle in that container »; it moved **none**. Measured:
+`#port.offsetWidth - #port.clientWidth` is **0** on this machine, because macOS paints an OVERLAY
+scrollbar that occupies no layout space. So there was nothing to re-record — and this entry was the
+stated reason the wave had to run on the operator's machine. **The machine was still what settled
+it**: only a run here could show the prediction false rather than repeat it.
+
+**Which leaves the styling measured by NOTHING, and that is the real gap.** The oracle's twenty
+numbers per region are geometry and computed properties OF THE ELEMENT; a scrollbar's colour is in
+none of them, and a pseudo-element is in none of them by contract (B-061, D8). The oracle is green
+over this whether it is styled or not.
+
+**The instrument — `harness/scrollbar.py` (R99), ten holds.** Both spellings, BOTH THEMES, and the
+container is asserted to actually overflow before anything is claimed about its bar. The thumb is
+compared against `var(--color-border)` resolved in the same document, never against an oklch
+literal.
+
+<sub>mutation — remove the WebKit block: two holds fall, `::-webkit-scrollbar` back at `auto`.
+Remove the standard block: six fall. **Replace the token with the literal it resolves to in dark:
+the DARK holds stay green and the LIGHT one falls** — which is why the rule drives both themes and
+compares against a token. Restored → `10 rules EXECUTED — no violation` · oracle unchanged at
+B-222's three deliberate divergences</sub>
 **B-147 — nine findings held on five stacked branches, and a wave took their numbers.**
 B-138 to B-146 were written as **B-102 to B-110**, across five branches stacked on one another
 between 2026-08-26 and 2026-08-27, none merged because the operator had scheduled them for a single
@@ -3695,3 +4508,22 @@ share of the fixture belonging to a surface the ENGINE no longer draws. Not both
 that one file states it.
 
 <sub>`grep -c '[^[:space:]]' frontend/maquette/design/src/engine/legacy.js` against `git show 27096f31^:…` · L13's entry for the shape to copy</sub>
+
+
+**CLOSED by L10-bis, and it is the SECOND of the two exceptions rule 3's amendment allows by
+name.** All seven steps of `coverage-merge` now carry `needs.test.result == 'success'` beside the
+« did Python change? » condition they already had. When `lint` fails, `test` is skipped, no
+artefact is uploaded, and the steps stand down instead of failing on a download.
+
+**`always()` is KEPT, deliberately.** Without it a skipped `test` would skip this job too, and a
+skipped required check can sit in « expected » for ever — the trap this workflow already records
+above `harness-contracts`. The job runs and does nothing, which is a green check that honestly did
+nothing rather than a red one blaming the wrong thing.
+
+**NO AUTOMATIC PROOF WITHOUT MAKING THE PIPELINE RED ON PURPOSE**, which is why this entry was named
+in advance as an exception. What was verified here is the shape, not the behaviour: the workflow
+parses, and the seven steps carry the condition — read back from the PARSED yaml rather than from
+the diff, because a condition indented into the wrong block is valid yaml that gates nothing.
+**THE NEXT GENUINELY RED `lint` RUN IS THIS CONDITION'S VERIFICATION**, and it must show `lint` red,
+`test` skipped, and `coverage-merge` green-and-idle. That sentence is written into `ci.yml` beside
+the condition, where the next reader of a red pipeline will be.

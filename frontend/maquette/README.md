@@ -964,17 +964,17 @@ the two apart.
 
 **Run it with `harness/run.sh`, never by hand.** The script builds the prototype and refreshes
 the copy the rules read before measuring anything — that copy is manual, and a stale one measures
-the previous build without saying so. Two tiers: `--contracts` (6 rules, minutes, wired into CI
+the previous build without saying so. Two tiers: `--contracts` (11 rules, minutes, wired into CI
 on every maquette PR) and no flag (all of them, the gate before a wave merges — one headless
 Chrome per rule, as many at a time as the machine has processors). **Both tiers also run the
 repository's cheap guards** since 2026-08-25 — the module tree, the ceilings, the language rule,
-the scale, the residue's ceiling, the markup contracts, the resources: twelve invocations, ~31 s,
+the scale, the residue's ceiling, the markup contracts, the resources: nineteen invocations, ~31 s,
 listed in `run.sh` as `REPOSITORY_GUARDS`.
 
 Until 2026-08-20 the suite ran NOWHERE automatically — not in CI, not in `make check`, which only
 printed a reminder. That day a rename broke six contracts and four were visible to nothing else.
 
-The 59 scripts that measure the prototype in headless Chromium. They are committed because they
+The 71 scripts that measure the prototype in headless Chromium. They are committed because they
 encode recipes that cost time to get right, and because a rule with no script is a sentence in a
 file.
 

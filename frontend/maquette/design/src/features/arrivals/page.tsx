@@ -42,7 +42,9 @@ import {
   // `section` and `pip` are already local bindings in this file; the variants
   // are imported under their own names rather than shadowing them.
   section as sectionClass,
+  sectionCount,
   sectionHead,
+  sectionTitle,
   statusDot as statusDotClass,
   } from "../../ui/variants";
 import {
@@ -175,8 +177,8 @@ function LastRun(): ReactElement | null {
     <section className={sectionClass()} data-part="section">
       <div className={sectionHead()} data-part="section/head">
         <span className={statusDotClass({ tone: "success" })} data-part="status-dot" data-tone="success"></span>
-        <span className="t" data-part="section/title">{t("screens.arrivals.lastRunTitle")}</span>
-        <span className="k" data-part="section/count">{run.duree}</span>
+        <span className={sectionTitle()} data-part="section/title">{t("screens.arrivals.lastRunTitle")}</span>
+        <span className={sectionCount()} data-part="section/count">{run.duree}</span>
       </div>
       <div className={liveStrip()} data-part="live-activity">
         <span

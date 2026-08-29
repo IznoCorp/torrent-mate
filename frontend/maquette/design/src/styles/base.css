@@ -315,3 +315,55 @@
 .screen .port {
   padding-bottom: calc(var(--tm-bottom-bar-h, 0px) + var(--spacing-8));
 }
+
+/* THE SCROLLBAR IS STYLED, NEVER REPLACED — D11 (operator, 2026-08-26), and
+   nothing had implemented it until L10-bis (B-146). It is declarative and it is
+   here, so it is under the oracle, which is the whole reason the decision reads
+   « styled » rather than « rebuilt »: a bar rebuilt in JavaScript loses the
+   keyboard (PageUp/Down, Home/End, the gutter click), the middle-click and the
+   native role, and its thumb would be positioned by a `scroll` handler — D9's
+   first rule exactly, motion written in JavaScript, which leaves the field of
+   measurement.
+
+   TWO SPELLINGS, AND BOTH ARE NEEDED. `scrollbar-width`/`scrollbar-color` is
+   the standard property and is what Firefox reads; `::-webkit-scrollbar` is
+   what Chrome reads, and Chrome is what the oracle, the harness and the
+   operator's phone all run. Writing one alone styles the bar in the browser
+   nobody here measures.
+
+   WHAT THIS DOES NOT SOLVE, and D11 records it so it is not rediscovered as a
+   defect: on a desktop the bar still occupies its gutter. That is the platform
+   behaving correctly. The phone frame the operator compares against is
+   `harness.css`, which is the measuring apparatus and ships nowhere — a
+   declared deviation, not the target. A real phone paints an overlay bar that
+   fades on its own. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+}
+
+/* The bar answers the pointer, which is the half a rebuilt one always forgets
+   and the half the platform gives for nothing. */
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted-foreground);
+}
+
+/* A corner with no colour paints the platform's own grey, which on a dark
+   ground is a light square in the angle of two bars. */
+::-webkit-scrollbar-corner {
+  background: transparent;
+}

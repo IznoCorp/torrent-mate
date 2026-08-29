@@ -4,7 +4,7 @@ import MAINTENANCE_ACTIONS from "../seeds/maintenance-actions.json";
 import { GET, POST, field, route } from "./shared";
 import { mockState } from "../state";
 import type { MockRoute } from "../router";
-import type { components } from "../contract-types";
+import type { components } from "../../contract/types";
 
 type PipelineState = components["schemas"]["PipelineState"];
 

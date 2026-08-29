@@ -44,7 +44,17 @@ import { useAcquisitionReference } from "../../features/acquisition/reference";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
 import { useProviderSearch } from "./search-queries";
 import { actionButton, backAction, emptyNote, resultCount, screen, screenBar, scrollport, searchField, searchInput, surfaceError } from "../../ui/variants";
-import { addFooter, addForm, addRow, byIdentifier, byIdentifierBody, refusalReason, suggestions } from "../../features/acquisition/variants";
+import { AddFooter } from "./add-footer";
+import {
+  addForm,
+  addRow,
+  byIdentifier,
+  byIdentifierBody,
+  refusalReason,
+  resultList,
+  suggestionChip,
+  suggestions,
+} from "../../features/acquisition/variants";
 
 type Mode = "follow" | "identify";
 
@@ -117,9 +127,19 @@ export function AddScreen() {
   function toFollows(): void {
     writeUiState({ page: "acq", acqTab: "now" });
     render();
+    // THE IDENTITY IS IN THE PATH AND THE STATE IS IN THE QUERY — D1, and this
+    // function was the counter-example (B-051). It navigated to `/` with
+    // `search: { page: "acq", tab: "now" }`: the page's identity travelling as
+    // a query parameter, and to an address that is not even the acquisition
+    // page — `/` is the root, which the boot SETTLES onto `/acquisition` with a
+    // replace. So the destination was right only by way of a redirect, and the
+    // key that named it was in the wrong half of the URL.
+    //
+    // `/acquisition` declares `SearchParams = { tab?: string }` and carries no
+    // `page` at all, which is what the address model has said all along.
     go({
-      to: "/",
-      search: { page: "acq", tab: "now" },
+      to: "/acquisition",
+      search: { tab: "now" },
       replace: true,
     });
   }
@@ -184,7 +204,23 @@ export function AddScreen() {
           </span>
         ) : null}
       </div>
-      <div className={scrollport()} data-part="viewport">
+      {/* THE ONLY SCREEN THE ORACLE DID NOT MEASURE. Four of the five overlay
+          screens carry a body region of their own; this one carried none, so
+          its THREE named states — `acq-add-empty`, `acq-add-results` and
+          `acq-identify` — were driven, captured and compared against zero
+          regions (B-222). The anchor rides the scrollport it already has rather
+          than a wrapper of its own: a new block element in a scroll container
+          is a layout change, and this is a measurement being added, not a
+          drawing being altered.
+
+          WHAT THIS DOES NOT DO IS CLOSE B-139. The oracle measures a region's
+          ROOT — this scrollport's box and computed style — not the elements
+          inside it, so a button painted white deeper in the tree is still
+          invisible to it. Writing that the region « is why B-139 survived » was
+          a claim the instrument does not support, in a comment that will be
+          read as current for years. What the region buys is that the screen is
+          measured at all. */}
+      <div className={scrollport()} data-part="viewport" data-region="screen-add/body">
         {identify ? (
           <div style={{ padding: "12px 14px 0" }}>
             <div
@@ -284,7 +320,7 @@ export function AddScreen() {
               {t("screens.add.mostRelevant")}
             </p>
             <div
-              className="reslist sec"
+              className={`${resultList()} sec`}
               data-part="result/list"
               dangerouslySetInnerHTML={{ __html: rows }}
             />
@@ -293,7 +329,11 @@ export function AddScreen() {
           <>
             <div className={suggestions()}>
               {recents.map((recent) => (
-                <button key={recent} onClick={() => search(recent)}>
+                <button
+                  key={recent}
+                  className={suggestionChip()}
+                  onClick={() => search(recent)}
+                >
                   {recent}
                 </button>
               ))}
@@ -356,20 +396,7 @@ export function AddScreen() {
             </button>
           </div>
         </details>
-        {added.size > 0 ? (
-          <div className={addFooter()} data-part="add/foot">
-            <span>
-              <b>{added.size}</b>{" "}
-              {added.size > 1
-                ? t("screens.add.mediaPlural")
-                : t("screens.add.media")}{" "}
-              {added.size > 1
-                ? t("screens.add.addedPlural")
-                : t("screens.add.added")}
-            </span>
-            <button onClick={toFollows}>{t("screens.add.seeFollows")}</button>
-          </div>
-        ) : null}
+        <AddFooter added={added} icons={icons} toFollows={toFollows} />
       </div>
     </section>
   );

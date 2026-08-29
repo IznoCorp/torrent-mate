@@ -19,7 +19,7 @@
 // key — is the first kind. None of it is an arbitration this repository has
 // proved, and all of it is code somebody else has.
 import { QueryClient } from "@tanstack/react-query";
-import type { paths } from "../mocks/contract-types";
+import type { paths } from "../contract/types";
 
 /**
  * Builds the query client, with the policy every surface shares.

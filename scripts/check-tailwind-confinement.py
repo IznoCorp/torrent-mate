@@ -18,7 +18,7 @@ AND utilities Tailwind ships. Today the prototype's rules are unlayered and
 Tailwind's sit in `@layer utilities`, so the prototype wins every conflict; but
 that is a property of the cascade, not a decision anybody took, and it stops
 protecting the moment a colliding class has NO rule of its own for the property
-the utility sets. The oracle cannot be the answer: it measures 33 named regions
+the utility sets. The oracle cannot be the answer: it measures 34 named regions
 out of a whole document, so a collision on an unmeasured element passes.
 
 Exit code is the verdict: 0 when every hold passes, 1 naming what broke.

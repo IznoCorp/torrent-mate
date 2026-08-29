@@ -137,8 +137,14 @@ export const qualityHint = cva("qhint text-2 text-muted-foreground leading-[1.45
 /** The search field's frame. */
 export const searchField = cva("search flex items-center gap-4 bg-muted rounded-3 py-0 px-5");
 
-/** The magnifier, and the clear button's icon. */
-export const searchIcon = cva("w-[15px] h-[15px] text-muted-foreground flex-none");
+// `searchIcon` STOOD HERE AND COULD NEVER BE APPLIED. `<Icon>` renders an
+// `<svg>` and takes no class of its own, so the surface that HOSTS an icon is
+// the only thing that can size it — which is why `styles/base.css` sizes
+// `.search svg` with a descendant selector and argues the case in its own
+// comment. A variant nothing can call is not a contract waiting for a call
+// site; it is a declaration that reads as covered and covers nothing. Removed
+// at L10-bis with the arm that found it (B-139): the rule it duplicated is
+// live in `base.css` and survives L13, since only `legacy.css` dies there.
 
 /**
  * The search input.

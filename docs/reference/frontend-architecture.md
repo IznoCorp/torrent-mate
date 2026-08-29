@@ -547,8 +547,6 @@ not asserted here, and a wave that assumes either answer is doing what B-101 rec
     on another product is a consequence, never the justification, and the day a measure here can
     only be defended by that future is the day it has gone too far.
 
-10. **No French in the code and no interface text in the code.** Unchanged
-   (`scripts/check-no-french.py`), and it applies to everything written here.
 11. **Every change lands with a rule that bites**, mutation-tested: break the behaviour on
    purpose, confirm the rule falls and names the right defect, restore.
 12. **A component asks the width it HAS, not the width of the window.** Container queries, not
@@ -561,6 +559,14 @@ not asserted here, and a wave that assumes either answer is doing what B-101 rec
 14. **Reduced motion is a designed state, not a fallback.** Every transition and every gesture
     has a defined appearance under `prefers-reduced-motion`, drawn like any other state — the
     interface being frozen includes it.
+15. **No French in the code and no interface text in the code.** Unchanged
+    (`scripts/check-no-french.py`), and it applies to everything written here. **It carried the
+    number 10 until 2026-08-29**, alongside the invariant about the frame naming the domain, and
+    it is the one that moved because every citation of « invariant 10 » in this file, in the
+    register, in the archive and in the maquette's own comments means the other one. Renumbering
+    the sequence instead would have moved ten live citations and quietly falsified three archived
+    documents, which are frozen. Held from here by
+    `scripts/check-bug-register.py --arm invariant-numbers` (B-103).
 
 ---
 

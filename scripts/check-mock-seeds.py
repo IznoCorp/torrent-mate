@@ -452,7 +452,7 @@ def arm_handlers(module) -> int:
     # `router.ts` build responses and failure messages, never payloads, and
     # their prose is a tool's own English; `scenario.ts` holds the frozen clock
     # and the latencies, which R85 holds against the engine instead; `seeds/`
-    # is data by definition; `contract-types.d.ts` is generated.
+    # is data by definition; `contract/types.d.ts` is generated.
     layer = SEEDS.parent
     handlers = sorted(layer.glob("handlers/*.ts")) + sorted(layer.glob("handlers/*.tsx"))
     if (layer / "state.ts").is_file():
@@ -580,7 +580,7 @@ def arm_generated(module) -> int:
     Returns:
         The number of ways the file and the contract disagree.
     """
-    generated = SEEDS.parent / "contract-types.d.ts"
+    generated = SEEDS.parent.parent / "contract" / "types.d.ts"
     if not generated.is_file():
         print(f"    {generated.name} is missing, and two guards exempt it from their "
               f"ceilings on the grounds that a generator writes it", file=sys.stderr)
@@ -640,7 +640,7 @@ EXTRACTOR = ROOT / "scripts" / "extract-maquette-fixtures.mjs"
 # version of the skip below announced « the 7 arms that read the engine through
 # its parser » beside `len(ARMS)`, which was false about four of them AND was a
 # second copy of a list that already exists. Two written exemptions — the
-# vocabulary arm's and the boundary guard's, both for `contract-types.d.ts` —
+# vocabulary arm's and the boundary guard's, both for `contract/types.d.ts` —
 # rest on `generated` running wherever the guards do, and skipping it would
 # have left them resting on a check that read nothing.
 NEEDS_THE_PARSER = ("classification", "lossless", "correspondence")

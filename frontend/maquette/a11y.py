@@ -21,10 +21,27 @@ SEQUENCE — focus enters a layer, the background goes inert, focus comes back t
 the trigger — and no static audit can observe it. That is measured by a harness
 rule of its own, and the two instruments are not redundant. Neither can a
 machine judge whether an announcement is USEFUL: this file proves a live region
-is well formed, never that it says something worth hearing. And it measures the
-theme the prototype renders BY DEFAULT — no alternate theme is selected here, so
-a finding that exists only under the other one is outside what this floor
-claims, and that gap is a recorded open point rather than a silence.
+is well formed, never that it says something worth hearing. It used to measure the
+theme the prototype renders BY DEFAULT and nothing else, so a finding that
+existed only under the other one was outside what this floor claimed — B-055,
+and 154 such findings were counted by hand during L06 by someone who set
+`data-theme="light"` themselves.
+
+BOTH THEMES ARE DRIVEN SINCE L10-bis, AND THE ALTERNATIVE WAS REFUSED FOR THIS
+FILE'S OWN REASON. The other route on the table was a lighter arm auditing
+palette PAIRS under the light theme — a house rule, proving the list of criteria
+someone wrote into it and nothing else, which is exactly what the section above
+argues against and exactly how `check-no-french.py` came to report « no
+violation » over a hundred and forty French names. Driving axe twice costs a
+second pass and buys the same body of criteria on both themes.
+
+THE LIGHT THEME IS MEASURED AND RECORDED, NOT YET ENFORCED, and that split is
+the one this file already took rather than a new indulgence: D-L03-4 measured colour
+contrast, wrote it to a file of its own and kept it out of the enforced set,
+because « not measured » would have read as « no problem ». The dark floor stays
+a HARD ZERO. The light count is held by a RATCHET that may only go down —
+`a11y-light-debt.json` — so the campaign that burns it down is a lot with its own
+design, and nothing can quietly add to it in the meantime.
 
 COLOUR CONTRAST IS PART OF THE FLOOR
 -------------------------------------
@@ -70,6 +87,32 @@ ROOT = pathlib.Path(__file__).resolve().parent
 AXE_BUNDLE = ROOT / "design" / "node_modules" / "axe-core" / "axe.min.js"
 DEBT_FILE = ROOT / "a11y-debt.json"
 CONTRAST_FILE = ROOT / "a11y-contrast.json"
+# THE LIGHT THEME'S RATCHET. It is a CEILING and never a floor: the count it
+# holds may fall and may not rise, so the campaign that repairs the palette is a
+# lot of its own while nothing can add to the debt in the meantime. Refreshed by
+# `--record`, and READ by `--check`, which is the difference from
+# `a11y-debt.json` — that one is a starting line the gate never consults,
+# because a debt file a gate reads is a tolerance. This one is read on purpose
+# and says so: a tolerance that only tightens is a ratchet.
+LIGHT_DEBT_FILE = ROOT / "a11y-light-debt.json"
+
+# How the prototype is put into the light theme. The engine's own seam, so the
+# audit and the interface agree about what « light » means rather than each
+# deciding — `legacy.js` sets exactly this attribute from the appearance
+# control, and removing it is what the default (dark) is.
+LIGHT_THEME = """(on) => {
+  if (on) document.documentElement.setAttribute("data-theme", "light");
+  else document.documentElement.removeAttribute("data-theme");
+}"""
+
+# AND A READER THAT WRITES NOTHING, which is the whole point of it being
+# separate. The check used to call the setter above and compare its return
+# value — it wrote the attribute and then read back its OWN write, so `applied`
+# was "light" unconditionally and the `RuntimeError` could never fire. A
+# self-referential getter is a page that reports itself alive; this repository
+# has paid for that shape before, and B-055's entry claimed the read-back as a
+# protection it did not have.
+READ_THEME = """() => document.documentElement.getAttribute("data-theme")"""
 
 # The rule `--record` keeps in a file of its own (D-L06-5). It is NOT carved out
 # of `--check`: the floor counts it like every other rule.
@@ -165,7 +208,7 @@ def split_contrast(findings: list) -> tuple[list, list]:
 
 
 async def audit_state(page, state: str, recipe: dict,
-                      rules: list | None) -> tuple:
+                      rules: list | None, light: bool = False) -> tuple:
     """Drives one named state and audits it once it is at rest.
 
     Args:
@@ -173,6 +216,9 @@ async def audit_state(page, state: str, recipe: dict,
         state: A state id `window.__go` accepts.
         recipe: The oracle's `probe` block.
         rules: When given, the only axe rules to run.
+        light: Re-apply the light theme after driving the state. It is done
+            AFTER `__go` and not before, because several scenarios re-render the
+            shell and put the appearance back.
 
     Returns:
         A `(modal, findings)` pair — whether a modal layer was open, which says
@@ -180,6 +226,12 @@ async def audit_state(page, state: str, recipe: dict,
         output is stable.
     """
     await page.evaluate("(id)=>window.__go(id)", state)
+    # AFTER `__go`, NEVER BEFORE. Several scenarios call `applyState`, which
+    # re-renders the shell and re-applies the appearance the state declares; a
+    # theme set once before the loop is a theme the audit believes it is
+    # measuring while the interface has put it back.
+    if light:
+        await page.evaluate(LIGHT_THEME, True)
     # The same two-pass neutralise-and-settle the oracle uses, and for the same
     # measured reason: the boot toast is raised asynchronously, so a single pass
     # loses the race on the first state driven.
@@ -204,6 +256,17 @@ async def audit_state(page, state: str, recipe: dict,
     await oracle.neutralise(page, recipe)
     await oracle.settle(page)
 
+    # THE THEME IS READ, WITHOUT WRITING, AT THE MOMENT AXE RUNS. Once at the end
+    # of eighty-seven states would say nothing about the eighty-six before it,
+    # and reading through the setter said nothing at all.
+    if light:
+        seen = await page.evaluate(READ_THEME)
+        if seen != "light":
+            raise RuntimeError(
+                f"state {state!r} was audited with `data-theme` reading {seen!r}. "
+                "Measuring the dark theme and reporting it as the light one is "
+                "B-055 arriving by a new road.")
+
     run = dict(AXE_OPTIONS)
     if rules:
         run["runOnly"] = {"type": "rule", "values": rules}
@@ -215,13 +278,26 @@ async def audit_state(page, state: str, recipe: dict,
     return modal, sorted(findings, key=lambda f: (f["rule"], f["targets"]))
 
 
-async def audit_everything(rules: list | None) -> tuple:
+async def audit_everything(rules: list | None, light: bool = False) -> tuple:
     """Drives every named state once and audits each of them.
+
+    Args:
+        rules: When given, the only axe rules to run.
+        light: Drive the LIGHT theme instead of the default. The attribute is
+            re-applied after every state, because `window.__go` re-renders and
+            several scenarios reset the appearance — a theme set once at the
+            start is a theme the audit believes it is measuring.
 
     Returns:
         A `(per_state, states, seconds, modal_states)` tuple. `modal_states` is
         the set measured with a modal layer open, and therefore without the two
         document-level rules.
+
+    Raises:
+        RuntimeError: When the light theme was asked for and the attribute did
+            not take. An audit that silently measured the dark theme twice would
+            report the dark theme's zero and call it two themes clean — which is
+            the whole defect B-055 records, arriving by a new road.
     """
     started = time.monotonic()
     recipe = oracle.load_recipe()
@@ -235,7 +311,8 @@ async def audit_everything(rules: list | None) -> tuple:
         states = await page.evaluate("()=>window.__states()")
         per_state, modal_states = {}, set()
         for state in states:
-            modal, findings = await audit_state(page, state, recipe, rules)
+            modal, findings = await audit_state(page, state, recipe, rules,
+                                                light=light)
             per_state[state] = findings
             if modal:
                 modal_states.add(state)
@@ -275,7 +352,12 @@ def report(payload: dict, what: str) -> str:
         "$comment": what,
         "takenAtCommit": oracle.base_commit(),
         "platform": oracle.fingerprint(),
-        "counts": {"states": len(payload), "byRule": tally(payload)},
+        "counts": {"states": len(payload), "byRule": tally(payload),
+                   # THE TOTAL, written down rather than re-derived. The
+                   # ratchet reads this file, and a reader that has to sum a
+                   # map to learn the number is a reader that can sum it
+                   # differently from the writer.
+                   "total": sum(tally(payload).values())},
         "states": {state: payload[state] for state in sorted(payload)},
     }
     return json.dumps(document, indent=2, ensure_ascii=False,
@@ -332,6 +414,25 @@ async def record() -> int:
           f"{len(tally(enforced))} rule(s)")
     print(f"  {CONTRAST_FILE.name}: "
           f"{sum(tally(contrast).values())} contrast finding(s)")
+
+    # THE LIGHT THEME'S RECORD, and the number in it is what `--check`'s ratchet
+    # reads. Refreshed on every `--record`, unlike `a11y-debt.json`, because it
+    # is a CEILING to be lowered rather than a starting line to be preserved.
+    light_per_state, _, light_seconds, _ = await audit_everything(None, light=True)
+    light_total = sum(tally(light_per_state).values())
+    LIGHT_DEBT_FILE.write_text(report(
+        light_per_state,
+        "The accessibility findings under `data-theme=\"light\"`, which this "
+        "tier drove for nobody until L10-bis: it measured the DEFAULT theme "
+        "only, so 154 findings counted by hand during L06 were invisible to it "
+        "(B-055). THIS FILE IS READ BY `--check` AND THAT IS DELIBERATE — it is "
+        "a RATCHET, a ceiling that may fall and may not rise, not the tolerance "
+        "`a11y-debt.json` refuses to be. The dark floor stays a hard zero; "
+        "remediating this list is a campaign with its own design, and what is "
+        "held here meanwhile is that nothing is ADDED to it."),
+        encoding="utf-8")
+    print(f"  {LIGHT_DEBT_FILE.name}: {light_total} finding(s) under the light "
+          f"theme, in {light_seconds:.1f}s — this is the ceiling `--check` reads")
     return 0
 
 
@@ -371,12 +472,73 @@ async def check(rules: list | None, enforce: bool) -> int:
     print(f"a11y: {len(states) - len(modal)} state(s) asked "
           f"{'/'.join(DOCUMENT_RULES)}; {len(modal)} had a modal layer open, "
           "whose `inert` background is correct and makes those two unanswerable")
-    if total and enforce:
-        return 1
-    if total:
+    dark_failed = bool(total) and enforce
+    if total and not enforce:
         print("a11y: --record-only, so this run REPORTS and does not refuse. "
               "The floor is zero.")
-    return 0
+
+    # THE SECOND THEME, and it is measured whatever the first one said. Running
+    # it only when the dark theme is clean would make the light count invisible
+    # on exactly the runs where something is already wrong, which is when a
+    # reader most needs to know whether one repair caused the other.
+    light_per_state, _, light_seconds, _ = await audit_everything(rules, light=True)
+    light_total = sum(tally(light_per_state).values())
+    ceiling = light_ceiling()
+    print(f"a11y[light]: {light_total} violation(s) under `data-theme=light`, "
+          f"in {light_seconds:.1f}s, against a ceiling of "
+          f"{'none recorded' if ceiling is None else ceiling}")
+    if ceiling is None:
+        print(f"a11y[light]: {LIGHT_DEBT_FILE.name} is absent — run `--record` "
+              "to write it. Until it exists this count is REPORTED and holds "
+              "nothing, and a reported number nobody compares is a number "
+              "nobody reads.", file=sys.stderr)
+        return 1
+    # BOTH VERDICTS ARE PRINTED, THEN THE RUN FAILS ON EITHER. This used to
+    # `return 1` on the dark theme BEFORE the light pass ran, under a comment
+    # saying the second theme « is measured whatever the first one said » — the
+    # comment described exactly the failure the code produced, in the only mode
+    # CI uses. B-055's own mutation broke the LIGHT palette, so it never walked
+    # this branch.
+    light_over = light_total > ceiling
+    if light_over:
+        print(f"a11y[light]: {light_total} against a ceiling of {ceiling}. This "
+              "is a RATCHET and only falls: the 154 findings L06 counted by "
+              "hand are a campaign with its own design (B-055), and what is "
+              "refused here is ADDING to them. Repair the new one, or lower "
+              "nothing and explain.", file=sys.stderr)
+    elif light_total < ceiling:
+        print(f"a11y[light]: {light_total} is BELOW the ceiling of {ceiling} — "
+              f"lower it, with `--record`. A ceiling nobody lowers becomes room "
+              "for a defect nobody notices.")
+    return 1 if (dark_failed or light_over) else 0
+
+
+def light_ceiling():
+    """Returns the recorded light-theme count, or None when nothing is recorded.
+
+    Returns:
+        The ceiling as an integer, or None — which the caller refuses rather
+        than treats as zero or as infinity.
+    """
+    if not LIGHT_DEBT_FILE.exists():
+        return None
+    recorded = json.loads(LIGHT_DEBT_FILE.read_text(encoding="utf-8"))
+    # THE CEILING IS DERIVED FROM THE LIST, and `counts.total` is checked
+    # against it rather than trusted. Reading the summary alone made the whole
+    # ratchet one integer wide: editing `total` to 99999 raised the ceiling by
+    # 165 834 without touching a single recorded finding, and nothing anywhere
+    # compared the two. A ratchet whose bound can be moved without moving its
+    # subject is a tolerance with a ratchet's name.
+    listed = sum(len(finding["targets"])
+                 for findings in recorded["states"].values()
+                 for finding in findings)
+    summarised = recorded["counts"]["total"]
+    if listed != summarised:
+        raise RuntimeError(
+            f"{LIGHT_DEBT_FILE.name}: counts.total says {summarised} and the "
+            f"recorded states hold {listed}. The file is its own subject; "
+            "re-record it with `--record` rather than editing the summary.")
+    return listed
 
 
 def main(argv=None) -> int:
@@ -385,7 +547,8 @@ def main(argv=None) -> int:
         description="axe-core over the maquette's named states.")
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--record", action="store_true",
-                      help="write a11y-debt.json and a11y-contrast.json")
+                      help="write a11y-debt.json, a11y-contrast.json and "
+                           "a11y-light-debt.json")
     mode.add_argument("--check", action="store_true",
                       help="audit every state and report what was found")
     parser.add_argument("--rules", metavar="R1,R2",

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -1146,14 +1147,31 @@ class TestHarnessParses:
         failure AND every arm reports. An early return would trade one silent
         short count for another.
         """
+        # EVERY ARM `main` CALLS, derived from `main` itself rather than listed
+        # here. The list was written when there were four and stayed at four
+        # when arms 5 and 6 landed, so those two ran FOR REAL inside a test that
+        # believes it mocked everything — slow, and silent about whether `main`
+        # reaches them at all. A hand-kept copy of a call list is the thing this
+        # hold exists to check.
+        source = (guard.__file__ and Path(guard.__file__).read_text(encoding="utf-8")) or ""
+        body = source[source.index("\ndef main(") :]
+        arms = [name for name in re.findall(r"if (check_\w+)\(\)", body) if name != "check_harness_parses"]
+        assert len(arms) >= 6, f"main calls {len(arms)} arms; the guard has six"
+
         ran = []
         monkeypatch.setattr(guard, "check_harness_parses", lambda: 1)
-        for arm in ("check_forwarded_values", "check_anchor_debt", "check_named_values", "check_state_attributes"):
+        for arm in arms:
             monkeypatch.setattr(guard, arm, lambda name=arm: ran.append(name) or 0)
 
         assert guard.main([]) == 1
-        assert ran == ["check_forwarded_values", "check_anchor_debt", "check_named_values", "check_state_attributes"]
+        assert ran == arms
 
     def test_every_harness_file_parses(self):
-        """Green on this repository: all 52 rule files are readable Python."""
+        """Green on this repository: every rule file is readable Python.
+
+        THE COUNT IS NOT WRITTEN HERE. It said 52 while the tree held 72 — a
+        figure typed once beside the thing it describes, which is the defect
+        `check-live-relay.py`'s stale-figure arm exists for. The assertion below
+        reads the tree.
+        """
         assert guard.parse_failures(guard.harness_files()) == []

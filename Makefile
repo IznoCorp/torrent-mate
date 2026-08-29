@@ -91,6 +91,8 @@ check: lint test-cov
 	python3 scripts/check-frontend-boundaries.py
 	python3 scripts/check-state-ownership.py
 	python3 scripts/check-live-relay.py
+	python3 scripts/check-bug-register.py
+	python3 scripts/check-frame-domain.py
 	python3 frontend/maquette/oracle.py --contracts
 	python3 scripts/check-i18n-placeholders.py
 	python3 scripts/check-command-safety.py
@@ -167,14 +169,14 @@ openapi:
 
 check-contract-types:
 	@echo "Regenerating the maquette contract types and refusing any difference..."
-	@# THE EXEMPTION THIS TARGET EARNS. `mocks/contract-types.d.ts` is stepped
+	@# THE EXEMPTION THIS TARGET EARNS. `contract/types.d.ts` is stepped
 	@# over by the module-size ceiling and by the vocabulary arm, on the grounds
 	@# that nobody writes it. That claim is only worth what this check is: the
 	@# file is regenerated from the contract and any difference is refused, so a
 	@# file carrying a line a human typed fails here. Both guards name this
 	@# target as the proof behind their exemption.
 	cd frontend/maquette/design && npm run generate-contract-types
-	git diff --exit-code frontend/maquette/design/src/mocks/contract-types.d.ts
+	git diff --exit-code frontend/maquette/design/src/contract/types.d.ts
 
 check-frontend:
 	@echo "Running frontend typecheck..."

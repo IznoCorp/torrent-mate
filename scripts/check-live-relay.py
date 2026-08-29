@@ -66,10 +66,22 @@ EVENT_BASE = re.compile(r"^class (\w+)\(Event\)", re.MULTILINE)
 
 # The floor beneath `no-polling`'s corpus. It is the number of TypeScript files
 # the arm must have read for its answer to mean anything, and it is set well
-# under the count at the time of writing (measured: 118) so an ordinary deletion
-# does not trip it — while a scope that has silently become empty does. A floor
-# posted AT the current value would be pre-satisfied and would prove nothing,
-# which is one of the forms B-085 counts.
+# well under the corpus so an ordinary deletion does not trip it, while a scope
+# that has silently become empty does. A floor posted AT the current value would
+# be pre-satisfied and would prove nothing, which is one of the forms B-085
+# counts.
+#
+# NO NUMBER FOR THE CORPUS IS WRITTEN HERE, and that is the repair. Two comments
+# in this file used to state one, and they stated DIFFERENT ones; the tree moved
+# three times in three days while both sat still. The figures themselves are in
+# the register (A-2) and not here, because the `stale-figure` arm below refuses
+# this module to hold the count it prints. The arm PRINTS its corpus on every
+# run, so the command is the citation:
+#
+#     python3 scripts/check-live-relay.py --arm no-polling
+#
+# That is the plan's own rule applied to a guard's comment — no figure without
+# the command that produces it (A-2).
 POLLING_CORPUS_FLOOR = 60
 
 # And how many of them must DECLARE A READ. A poll lives beside a `useQuery`,
@@ -186,12 +198,15 @@ def arm_no_polling():
                   "with `setTimeout`. A delay happens once; a callback that "
                   "reschedules itself is a poll, and it is the shape a search "
                   "for `setInterval` can never find.")
-    # THE SUBJECT IS FLOORED, not only the sweep. 60 against 124 files is a real
-    # floor against total collapse and blind to targeted loss: a poll would be
-    # written in a `queries.ts`, in `lib/queue.ts` or in a component — 13 files
-    # of the 124. Deleting every one of them leaves 111, comfortably above 60,
-    # with the arm having lost its whole subject and printing a reassuring
-    # three-digit number.
+    # THE SUBJECT IS FLOORED, not only the sweep, and the posture is right even
+    # though the number beside it was not: this floor is a real defence against
+    # total collapse and blind to targeted loss. A poll would be written in a
+    # `queries.ts`, in `lib/queue.ts` or in a component — a small fraction of
+    # the corpus — so deleting every one of them leaves the count comfortably
+    # above the floor, with the arm having lost its whole subject and printing a
+    # reassuring three-digit number. That is why the READING files are floored
+    # separately below; both counts are printed, and neither is written down
+    # here to go stale (A-2).
     reads = [path for path in files if path.name.endswith("queries.ts")
              or path.name == "queue.ts"]
     print(f"check-live-relay[no-polling]: {len(files)} TypeScript file(s) read "
@@ -279,14 +294,18 @@ def backend_events():
     both on one physical line, so an event subclassing another event or
     declaring a second base would be registered by the bus and invisible here.
 
-    The two are compared rather than one being trusted. They agree at 48 today;
-    the day they do not, the disagreement is the finding.
+    The two are compared rather than one being trusted, and BOTH failures are
+    findings: the day they disagree, and the day one of them cannot be reached.
+    The second used to print and pass, which meant continuous integration — where
+    the package is what is missing — ran this arm on the re-implementation alone
+    and reported clean, on every pull request touching the maquette (A-1).
 
     Returns:
-        (the class names, None) — or (None, why) when neither can answer.
+        (the class names, None) — or (None, why) when either oracle is missing.
     """
     if not PACKAGE.is_dir():
-        return None, str(PACKAGE)
+        return None, (f"{PACKAGE} is not there, so the backend's own event "
+                      "classes cannot be read at all")
     from_source = set()
     for path in sorted(PACKAGE.rglob("*.py")):
         from_source |= set(EVENT_BASE.findall(path.read_text(encoding="utf-8")))
@@ -296,14 +315,34 @@ def backend_events():
         importlib.import_module("personalscraper.events")
         registry = set(importlib.import_module(
             "personalscraper.core.event_bus")._EVENT_CLASS_REGISTRY)
-    except Exception:                      # noqa: BLE001 - any import failure
-        # The registry needs the package importable; a tree without its
-        # dependencies still gets the source answer, and says so.
-        print("check-live-relay[map-completeness]: the event registry could not "
-              "be imported — the corpus is the source scan alone, which is a "
-              "re-implementation nothing is cross-checking here.",
-              file=sys.stderr)
-        return from_source, None
+    except Exception as failure:           # noqa: BLE001 - any import failure
+        # THIS BRANCH PRINTED AND PASSED, and CI took it every single time.
+        # B-208 made the DISAGREEMENT below blocking — « printed and could fail
+        # nothing » was the shape that wave had just named two arms over — and
+        # left the same shape three lines above, on the import path. The
+        # docstring's « the two are compared rather than one being trusted » was
+        # false on the branch continuous integration actually walked, because
+        # `harness-contracts` installed playwright and jsonschema and never this
+        # package: `personalscraper/__init__.py` imports `dotenv`, so the
+        # registry was unreachable and the arm ran on the re-implementation
+        # alone, reporting clean, on every pull request touching the maquette.
+        #
+        # IT IS A VIOLATION NOW, and that was chosen over silently degrading.
+        # The alternative — keep printing and install the package in CI — fixes
+        # the runner and leaves the shape: any other environment without the
+        # package would go back to trusting one oracle with nothing to say so.
+        # This costs a red the day an environment is incomplete, which is what
+        # a red is for, and the job installs the package so the day is not
+        # today. It is the same posture the tier already takes for `jsonschema`,
+        # whose comment says a missing package must not read as « no violation ».
+        return None, (
+            f"the event registry could not be imported ({failure!r}). This arm "
+            "compares TWO oracles — the bus registry, which is what the wire "
+            "carries, against a regex re-implementation — and with one of them "
+            "gone it would be trusting a regex that cannot see a subclassed or "
+            "multi-base event. A cross-check with one side missing is not a "
+            "cross-check, and reporting « no violation » over it is the exact "
+            "shape B-208 repaired on the branch below")
     if registry != from_source:
         # THE DISAGREEMENT IS THE FINDING, and it used to be printed and thrown
         # away — the same shape as the unresolved-key count two arms over. It is
@@ -480,11 +519,13 @@ def arm_map_completeness():
     if emitted is not None and disagreement is not None:
         print(f"  {disagreement}")
         violations += 1
-    missing_source = disagreement if emitted is None else None
     if emitted is None:
-        print(f"check-live-relay[map-completeness]: {missing_source} is not "
-              "there — this arm compares against the backend's own event "
-              "classes, and cannot answer without them.", file=sys.stderr)
+        # ONE MESSAGE PER REASON. This branch used to append « is not there — »
+        # to whatever it was handed, which read correctly for the absent-package
+        # case it was written for and became a sentence-and-a-half once the
+        # unreachable-registry case started arriving here too (A-1).
+        print(f"check-live-relay[map-completeness]: {disagreement}.",
+              file=sys.stderr)
         return 1
     mapped, exempt_types, refreshed, exempt_keys, tables, unresolved = declared()
     addresses = read_addresses()
@@ -617,11 +658,75 @@ def arm_wired():
     return 1 if violations else 0
 
 
+def arm_stale_figure():
+    """Refuses this module to write down a corpus figure it also prints.
+
+    A-2. `POLLING_CORPUS_FLOOR` carried two comments stating the size of the
+    corpus it floors, and they stated DIFFERENT sizes; the tree moved three
+    times in three days while both sat still. A number frozen beside a guard is
+    the guard's own subject turned on itself — this file exists because a count
+    nobody recounts stops being true, and it held three such counts.
+
+    THE RULE IS THE PLAN'S OWN, applied to a comment: no figure without the
+    command that produces it. `no-polling` prints its corpus on every run, so
+    the command IS the citation and the literal has nothing left to do but rot.
+
+    HOW IT IS EXACT rather than a judgement about prose: it takes the counts the
+    arms actually measure NOW and refuses to find them written in this module's
+    source. A figure that agrees with the tree today is the dangerous one —
+    it is the state every stale figure was in on the day it was typed.
+
+    WHAT IT DOES NOT READ:
+
+      - ANY OTHER GUARD. This is one module holding one rule about itself. The
+        class is general and the arm is not, and saying so is worth more than an
+        arm that greps every comment in `scripts/` and learns to be ignored.
+      - THE FLOORS THEMSELVES. `60` and `8` are the guard's own constants, not
+        measurements of the tree, and they are meant to be written down. Only
+        the MEASURED counts are refused.
+      - A FIGURE WRITTEN ANY OTHER WAY. « one hundred and twenty-seven » passes,
+        as does a count split across a line break. It refuses the shape that
+        actually occurred, twice, in this file.
+
+    Returns:
+        1 when a measured count is also a literal in this module, 0 otherwise.
+    """
+    source = pathlib.Path(__file__).read_text(encoding="utf-8")
+    files = sources()
+    reads = [path for path in files if path.name.endswith("queries.ts")
+             or path.name == "queue.ts"]
+    measured = {"the TypeScript corpus": len(files),
+                "the files declaring a read": len(reads)}
+    violations = 0
+    for what, count in measured.items():
+        if count in (POLLING_CORPUS_FLOOR, READING_FILES_FLOOR):
+            continue
+        # THE BOUNDARY IS ALPHANUMERIC, not numeric. `(?<![\d])` only refuses a
+        # neighbouring DIGIT, so a corpus of 10 was found inside `L10` and one
+        # of 13 inside `L13` — wave names, of which this file holds several.
+        # Every count this arm can measure is small enough to collide with one.
+        if re.search(rf"(?<![\w]){count}(?![\w])", source):
+            violations += 1
+            print(f"  scripts/check-live-relay.py: {count} — {what} as this run "
+                  "measures it — is also written as a literal in this module. A "
+                  "figure frozen beside a guard is the guard's own subject "
+                  "turned on itself: two comments here stated the corpus size, "
+                  "they disagreed, and the tree moved three times in three days "
+                  "while both sat still. Cite the command that prints it "
+                  "(`--arm no-polling`), or cite no number (A-2).",
+                  file=sys.stderr)
+    print(f"check-live-relay[stale-figure]: {len(measured)} measured count(s) "
+          "checked against this module's own source — a guard may print a "
+          "figure and may not write one down")
+    return 1 if violations else 0
+
+
 ARMS = {
     "no-polling": arm_no_polling,
     "wired": arm_wired,
     "named-invalidation": arm_named_invalidation,
     "map-completeness": arm_map_completeness,
+    "stale-figure": arm_stale_figure,
 }
 
 
