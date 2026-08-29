@@ -79,10 +79,16 @@ made § 0 elect the lot that had just landed.
 ## Two lessons that are days old
 
 **1. Register numbers are taken AFTER re-reading `origin/main`, never from memory.** The drawer
-finding was numbered B-152, then B-160, then B-219 — **three collisions in twenty-four hours on one
-entry**, by the office that had recorded that very defect (B-147). L10's three pull requests carried
-the register from B-151 to B-218. **Verify the next free number before writing it**; L10-bis ships
-`--next` for exactly this.
+finding was numbered B-152, then B-160, then B-219, and it is **B-220** — **four collisions in a
+day and a half on one entry**, by the office that had recorded that very defect (B-147). L10's three
+pull requests carried the register from B-151 to B-218, and two steward pull requests took B-219 and
+B-227 after that. **Verify the next free number before writing it**, and the verification is one
+command, because L10-bis shipped it:
+
+    python3 scripts/check-bug-register.py --next
+
+It reads `BUGS.md` and `BUGS-CLOSED.md` **on the branch it runs on**, and says so: a number taken on
+another branch is invisible to it. Re-read `origin/main` before you write one down.
 
 **2. A mutation that does not fall is information.** The rule written for B-140 walked a journey
 that cannot lose a scroll position; its mutation stayed green, and that is what found the real
@@ -90,16 +96,22 @@ defect (B-158).
 
 ---
 
-## The counter, and it is at 73
+## The counter, and it is at 93
 
 **B-085 — « a guard is green because of what it does not read ».** You write no guard, but **you
 will read many**, and your survey depends on what they report. Before every figure, ask the
-question that has been paid for seventy-three times: **« what does this instrument NOT read? »**
+question that has been paid for ninety-three times: **« what does this instrument NOT read? »**
+
+**Re-derive it rather than trust this line**: `grep -o '| \*\*Total\*\* | \*\*[0-9]*\*\*' BUGS.md`.
+It read 73 when this brief was written on 2026-08-29 and 93 by the end of the same day — L10-bis
+added twenty, eleven at its close and nine more from repairing its own adversarial review.
 
 The shapes already paid for: a floor set at the current value · an empty read passing in silence · a
 corpus enumerated by hand · a hold armed on one of two entry points · a grep reading the markup
 without opening the stylesheet · a guard answering differently per machine · a guard that read the
-right file and got a stale answer · a repair applied to one branch of an `if` and not the other.
+right file and got a stale answer · a repair applied to one branch of an `if` and not the other ·
+**and an equality where an ordering was meant**, which is how `check-implementation-state.py`'s
+first version reported clean over the exact defect it had been written for.
 
 **And the one your subject contains whole: two instruments that count an engine's size and never
 its surfaces.**
