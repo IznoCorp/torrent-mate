@@ -16,6 +16,7 @@ breaks first.
 The hook is run as a process, the way git runs it, so what is tested is the file
 git executes and not a Python transcription of it.
 """
+
 import pathlib
 import subprocess
 
@@ -26,31 +27,23 @@ HOOK = pathlib.Path(__file__).resolve().parents[2] / "hooks" / "commit-msg"
 # The real footers. Every one begins its line, which is what a trailer does and
 # what the anchors read.
 REFUSED = {
-    "the Claude Code footer, verbatim":
-        "fix(scope): a thing\n\n"
-        "🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
-    "a Co-Authored-By trailer":
-        "fix(scope): a thing\n\nCo-Authored-By: Claude <noreply@anthropic.com>\n",
-    "a Claude-Session trailer":
-        "fix(scope): a thing\n\nClaude-Session: https://claude.ai/code/session_x\n",
-    "a bare generated-with footer":
-        "fix(scope): a thing\n\nGenerated with Claude Code\n",
-    "the same trailer indented, which is still a trailer":
-        "fix(scope): a thing\n\n  Co-Authored-By: Anthropic\n",
+    "the Claude Code footer, verbatim": "fix(scope): a thing\n\n"
+    "🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+    "a Co-Authored-By trailer": "fix(scope): a thing\n\nCo-Authored-By: Claude <noreply@anthropic.com>\n",
+    "a Claude-Session trailer": "fix(scope): a thing\n\nClaude-Session: https://claude.ai/code/session_x\n",
+    "a bare generated-with footer": "fix(scope): a thing\n\nGenerated with Claude Code\n",
+    "the same trailer indented, which is still a trailer": "fix(scope): a thing\n\n  Co-Authored-By: Anthropic\n",
 }
 
 # English about the ban. Refusing these is refusing the documentation of the
 # rule, which is what happened.
 ACCEPTED = {
-    "prose describing the footer":
-        "docs(scope): explain the hook\n\n"
-        "The hook refuses a footer reading « Generated with Claude Code » and one\n"
-        "carrying the 🤖 emoji, which is what CLAUDE.md forbids.\n",
-    "prose quoting the trailer mid-sentence":
-        "docs(scope): explain the hook\n\n"
-        "It refuses a Co-Authored-By: Claude trailer, mid-sentence like this.\n",
-    "an ordinary message naming neither":
-        "fix(scope): repair the thing\n\nIt was broken and now it is not.\n",
+    "prose describing the footer": "docs(scope): explain the hook\n\n"
+    "The hook refuses a footer reading « Generated with Claude Code » and one\n"
+    "carrying the 🤖 emoji, which is what CLAUDE.md forbids.\n",
+    "prose quoting the trailer mid-sentence": "docs(scope): explain the hook\n\n"
+    "It refuses a Co-Authored-By: Claude trailer, mid-sentence like this.\n",
+    "an ordinary message naming neither": "fix(scope): repair the thing\n\nIt was broken and now it is not.\n",
 }
 
 
@@ -66,19 +59,21 @@ def run_hook(tmp_path, message):
     """
     target = tmp_path / "COMMIT_EDITMSG"
     target.write_text(message, encoding="utf-8")
-    return subprocess.run(["bash", str(HOOK), str(target)],
-                          capture_output=True, text=True, check=False).returncode
+    return subprocess.run(["bash", str(HOOK), str(target)], capture_output=True, text=True, check=False).returncode
 
 
 @pytest.mark.parametrize("what", sorted(REFUSED))
 def test_a_real_attribution_trailer_is_refused(tmp_path, what):
+    """Every real footer is still refused — the half a loosening breaks first."""
     assert run_hook(tmp_path, REFUSED[what]) == 1, (
-        f"{what} was accepted; the ban is compliance-relevant and this half is "
-        "what a loosened pattern breaks first")
+        f"{what} was accepted; the ban is compliance-relevant and this half is what a loosened pattern breaks first"
+    )
 
 
 @pytest.mark.parametrize("what", sorted(ACCEPTED))
 def test_english_about_the_ban_is_accepted(tmp_path, what):
+    """Prose describing the ban is not the ban (B-058)."""
     assert run_hook(tmp_path, ACCEPTED[what]) == 0, (
         f"{what} was refused — B-058: the hook caught prose because two of its "
-        "four alternatives were not anchored to a line start")
+        "four alternatives were not anchored to a line start"
+    )

@@ -208,6 +208,9 @@ async def audit_state(page, state: str, recipe: dict,
         state: A state id `window.__go` accepts.
         recipe: The oracle's `probe` block.
         rules: When given, the only axe rules to run.
+        light: Re-apply the light theme after driving the state. It is done
+            AFTER `__go` and not before, because several scenarios re-render the
+            shell and put the appearance back.
 
     Returns:
         A `(modal, findings)` pair — whether a modal layer was open, which says

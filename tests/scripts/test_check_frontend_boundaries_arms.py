@@ -20,6 +20,7 @@ refuse, and a second blind spot in the same arm would pass. The addressing arm's
 own history is the warning — three adversarial reviews found three further blind
 spots in a reader that already had tests.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -92,83 +93,90 @@ def copy_tree(tmp_path: Path) -> Path:
 
 def test_every_arm_is_exercised_by_some_test():
     """The count of unexercised arms is a ceiling, and it is printed."""
-    named = "\n".join(path.read_text(encoding="utf-8")
-                      for path in TESTS.glob("test_check_frontend_boundaries*.py"))
+    named = "\n".join(path.read_text(encoding="utf-8") for path in TESTS.glob("test_check_frontend_boundaries*.py"))
     unexercised = [arm for arm in arms() if arm not in named]
     assert len(arms()) >= 8, (
         f"only {len(arms())} arm(s) found — the guard carries eleven, and a "
-        "reader that finds none reports the same word as one that found them all")
+        "reader that finds none reports the same word as one that found them all"
+    )
     assert len(unexercised) <= UNEXERCISED_CEILING, (
         f"{len(unexercised)} arm(s) are named by no test — {sorted(unexercised)} "
         f"— against a ceiling of {UNEXERCISED_CEILING}. An arm nobody exercises "
-        "is a refusal nobody has seen refuse.")
+        "is a refusal nobody has seen refuse."
+    )
     assert set(unexercised) <= KNOWN_UNEXERCISED, (
         f"a NEW arm is unexercised: {sorted(set(unexercised) - KNOWN_UNEXERCISED)}. "
         "The ceiling counts, and this names — a count alone would let a fresh "
-        "arm take a retired one's place in silence.")
+        "arm take a retired one's place in silence."
+    )
 
 
 def test_the_tree_as_it_stands_passes_every_arm(tmp_path):
     """The green case, so a mutation's red means the mutation."""
     root = copy_tree(tmp_path)
-    for arm in ("arm_cycles", "arm_layering", "arm_typing",
-                "arm_duplicate_import", "arm_mocks"):
+    for arm in ("arm_cycles", "arm_layering", "arm_typing", "arm_duplicate_import", "arm_mocks"):
         assert getattr(guard, arm)(root) == 0, (
-            f"{arm} refuses the unmutated tree, so nothing below measures the "
-            "mutation")
+            f"{arm} refuses the unmutated tree, so nothing below measures the mutation"
+        )
 
 
 def test_cycles_refuses_an_import_cycle(tmp_path):
+    """A cycle makes every other dependency rule unenforceable."""
     root = copy_tree(tmp_path)
     (root / "lib" / "cycle-one.ts").write_text(
-        'import { two } from "./cycle-two";\nexport const one = () => two;\n',
-        encoding="utf-8")
+        'import { two } from "./cycle-two";\nexport const one = () => two;\n', encoding="utf-8"
+    )
     (root / "lib" / "cycle-two.ts").write_text(
-        'import { one } from "./cycle-one";\nexport const two = () => one;\n',
-        encoding="utf-8")
+        'import { one } from "./cycle-one";\nexport const two = () => one;\n', encoding="utf-8"
+    )
     assert guard.arm_cycles(root) > 0, (
-        "a cycle makes every other dependency rule unenforceable, because the "
-        "cycle IS the violation (invariant 8)")
+        "a cycle makes every other dependency rule unenforceable, because the cycle IS the violation (invariant 8)"
+    )
 
 
 def test_layering_refuses_ui_importing_a_feature(tmp_path):
+    """`ui/` is a vocabulary, and a vocabulary names no subject."""
     root = copy_tree(tmp_path)
     target = root / "ui" / "layer-probe.tsx"
     target.write_text(
-        'import { AddFooter } from "../features/acquisition/add-footer";\n'
-        "export const probe = AddFooter;\n", encoding="utf-8")
+        'import { AddFooter } from "../features/acquisition/add-footer";\nexport const probe = AddFooter;\n',
+        encoding="utf-8",
+    )
     assert guard.arm_layering(root) > 0, (
-        "`ui/` never imports a feature — invariant 7, and it is what keeps the "
-        "vocabulary a vocabulary")
+        "`ui/` never imports a feature — invariant 7, and it is what keeps the vocabulary a vocabulary"
+    )
 
 
 def test_typing_refuses_an_escape_hatch(tmp_path):
+    """The `any` ratchet has been held from zero since L04."""
     root = copy_tree(tmp_path)
-    (root / "lib" / "typing-probe.ts").write_text(
-        "export const loose = (value: any) => value;\n", encoding="utf-8")
-    assert guard.arm_typing(root) > 0, (
-        "no `any`, no `ts-ignore` — a ratchet held from zero since L04")
+    (root / "lib" / "typing-probe.ts").write_text("export const loose = (value: any) => value;\n", encoding="utf-8")
+    assert guard.arm_typing(root) > 0, "no `any`, no `ts-ignore` — a ratchet held from zero since L04"
 
 
 def test_duplicate_import_refuses_one_module_imported_twice(tmp_path):
+    """Two imports of one module is a conflict resolved by keeping both halves."""
     root = copy_tree(tmp_path)
     (root / "lib" / "duplicate-probe.ts").write_text(
         'import { first } from "./addresses";\n'
         'import { second } from "./addresses";\n'
-        "export const both = [first, second];\n", encoding="utf-8")
+        "export const both = [first, second];\n",
+        encoding="utf-8",
+    )
     assert guard.arm_duplicate_import(root) > 0, (
-        "two import statements for one module is a merge conflict resolved by "
-        "keeping both halves")
+        "two import statements for one module is a merge conflict resolved by keeping both halves"
+    )
 
 
 def test_mocks_refuses_a_value_import_outside_app(tmp_path):
+    """Only `app/` may import `mocks/`: a module reading a SEED is a fixture that outlives its own removal."""
     root = copy_tree(tmp_path)
     (root / "lib" / "mocks-probe.ts").write_text(
-        'import { seeds } from "../mocks";\nexport const leak = seeds;\n',
-        encoding="utf-8")
+        'import { seeds } from "../mocks";\nexport const leak = seeds;\n', encoding="utf-8"
+    )
     assert guard.arm_mocks(root) > 0, (
-        "only `app/` may import `mocks/`: a module reading a SEED is a fixture "
-        "that survives its own removal")
+        "only `app/` may import `mocks/`: a module reading a SEED is a fixture that survives its own removal"
+    )
 
 
 @pytest.mark.parametrize("arm", sorted(KNOWN_UNEXERCISED))
@@ -176,4 +184,5 @@ def test_the_named_debt_is_still_real(arm):
     """A retired name may not sit in the ceiling's list for ever."""
     assert hasattr(guard, arm), (
         f"{arm} no longer exists — remove it from KNOWN_UNEXERCISED and lower "
-        "the ceiling, or the debt list is protecting nothing")
+        "the ceiling, or the debt list is protecting nothing"
+    )
