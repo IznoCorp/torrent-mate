@@ -145,6 +145,24 @@ export const sheetIdentity = cva("sheetid min-w-0 flex-1");
 export const sheetAvatar = cva("big w-[42px] h-[42px] text-6");
 
 /**
+ * The image INSIDE an avatar, and it is a variant because nothing constrained
+ * it.
+ *
+ * An `<img>` with no rule of its own renders at its natural size — 128 px for
+ * the seeded avatar — whatever box its host declares. The oracle could not see
+ * it: its named region measures the CONTAINER's box and nineteen computed
+ * properties OF THAT ELEMENT, and a child three times too large changes none of
+ * them (B-138, and the same limit B-061 writes into D8 for pseudo-elements).
+ *
+ * `block` is not decoration here. An `<img>` is inline by default, which gives
+ * it a baseline gap under it and makes `height: 100%` resolve against a line
+ * box rather than the host.
+ */
+export const avatarImage = cva(
+  "w-full h-full object-cover rounded-[inherit] block",
+);
+
+/**
  * An entry that is COMING says so instead of being absent: a menu that grows an
  * item later teaches its shape twice.
  */

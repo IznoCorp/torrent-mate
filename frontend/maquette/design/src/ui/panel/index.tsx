@@ -24,7 +24,7 @@ import { Fragment, type JSX } from "react";
 import { useTranslation } from "react-i18next";
 import { useEngineDrawing } from "../../lib/engine-drawing";
 import { Icon } from "../../ui/icon";
-import { comingSoon, factsPanel, keyValueRow, ruleNote, sheetActions, sheetAvatar, sheetFacts, sheetHead, sheetIdentity, sheetMeta, sheetTitle } from "../variants";
+import { avatarImage, comingSoon, factsPanel, keyValueRow, ruleNote, sheetActions, sheetAvatar, sheetFacts, sheetHead, sheetIdentity, sheetMeta, sheetTitle } from "../variants";
 import {
   refuseBlock,
   registerBlock,
@@ -219,7 +219,7 @@ export function PanelContent({
     </span>
   ) : descriptor.avatar ? (
     <span className={`avatar ${sheetAvatar()}`} data-part="avatar" aria-hidden="true">
-      <img src={descriptor.avatar} alt="" />
+      <img className={avatarImage()} src={descriptor.avatar} alt="" />
     </span>
   ) : null;
 

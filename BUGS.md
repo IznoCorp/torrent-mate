@@ -280,6 +280,7 @@ when the defect comes back.
 | B-221 | A wave merged leaving its own status as the literal placeholder `fixed #NNN` | by guard | `open` |
 | B-222 | The add screen is the only one of five measured by no oracle region at all | by audit | `open` |
 | B-223 | Three more typed variants were orphaned, and the arm for B-139 found them | by guard | `open` |
+| B-224 | The header's avatar rendered 20x30 in a 32x32 button, every class on it correct | by audit | `open` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
@@ -3435,6 +3436,51 @@ other, and it is D8's arbitration, not this entry's.
 > where it belongs: the failure is identical whether the reader is a guard or a person.
 
 <sub>`grep -rn '\.avatar' frontend/maquette/design/src/styles/*.css` · `git show 5fdbfc9a^:frontend/maquette/design/refonte.html | sed -n '505,525p'` · `grep -o '"sheet-[a-z0-9-]*"' frontend/maquette/regions.json`</sub>
+
+**CLOSED by L10-bis, and the entry's second half chose the route it proposed.** A named rule
+reading the image — `harness/avatar.py`, R97 — the way R26 reads a pseudo-element. The probe is NOT
+widened to children: that is D8's arbitration and B-061 settled the equivalent one the other way.
+
+**MEASURED BEFORE IT WAS REPAIRED, on `sheet-user`**: the host declares 42x42 and the image
+rendered at **128x128** — its natural size — with `object-fit: fill` and `display: inline`. The
+repair is `avatarImage`, a variant carrying the base the header already proves, so the two ends
+read one declaration instead of two spellings of it.
+
+**AND THE HALF THAT WAS SUPPOSED TO BE CORRECT WAS NOT.** The header's image carried the complete
+class set and rendered **20x30 inside a 32x32 button** — a `<button>` keeps the platform's own
+padding, so `w-full` resolved against a content box the padding had already shrunk. Every class was
+right and the result was a small oval. That is **B-224**, found by measuring the reference half
+rather than trusting it, and it is why R97 holds BOTH: a rule holding only the panel would go green
+over a fix that traded one avatar for the other.
+
+**THE ORACLE DID NOT MOVE, and that is the entry's own claim confirmed rather than assumed.** Both
+avatars changed size — 128→42 and 20x30→32x32 — and the recorded oracle reported **zero
+divergence** across 87 states and 34 regions. The panel's avatar is a descendant of `#sheetin`,
+whose twenty numbers are unchanged; the header is inside no region at all (B-222's class, one
+surface further on). « Depth, not coverage » is exactly right, and it is now a measurement.
+
+<sub>mutation — unwire the panel's `avatarImage`: three checks fall, the image back at 128x128,
+`fill`, `inline`. Remove the shell button's `p-0`: one check falls at 20x30 against 32x32 and the
+panel's three stay green, which is the trade this rule exists to refuse. Drop `object-cover` from
+the variant: the crop check falls alone. Restored → `7 rules EXECUTED — no violation`</sub>
+
+**B-224 — the header's avatar was 20x30 in a 32x32 button, and every class on it was correct.**
+Found on 2026-08-29 while measuring the half of B-138 that was supposed to be the reference. The
+image carried `w-full h-full object-cover rounded-[inherit] block` and computed **20x30**: a
+`<button>` keeps the platform's padding (6px across, 1px down in Chrome), `w-full` is
+`width: 100%`, and 100% of a content box is not 100% of a border box. 32 − 12 = 20, 32 − 2 = 30,
+and the numbers say it exactly.
+
+**Nothing was wrong with the class list, which is why reading it found nothing.** Three waves have
+now concluded from the one place a fact ought to live rather than measuring it — B-138's own entry
+counts two of them — and this is the same lesson from the other side: the classes were the right
+place to look and they gave the wrong answer.
+
+**Repaired** with `p-0` on the button, and held by R97 alongside the panel's. The header sits in no
+region of the oracle, so nothing else could have seen it.
+
+<sub>measured `[32,32]` host against `[20,30]` image before · `[32,32]` against `[32,32]` after ·
+mutation: remove `p-0` → R97 falls naming the header alone</sub>
 
 **B-139 — three variants exist, are exported, and are called by nothing.**
 Reported by the operator on 2026-08-26: after adding a media to follows, the bar at the bottom of
