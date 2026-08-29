@@ -169,7 +169,7 @@ openapi:
 
 check-contract-types:
 	@echo "Regenerating the maquette contract types and refusing any difference..."
-	@# THE EXEMPTION THIS TARGET EARNS. `mocks/contract-types.d.ts` is stepped
+	@# THE EXEMPTION THIS TARGET EARNS. `contract/types.d.ts` is stepped
 	@# over by the module-size ceiling and by the vocabulary arm, on the grounds
 	@# that nobody writes it. That claim is only worth what this check is: the
 	@# file is regenerated from the contract and any difference is refused, so a

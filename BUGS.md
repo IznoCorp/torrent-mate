@@ -3207,11 +3207,17 @@ call site.
 <sub>the arm is `scripts/check-markup-contracts.py`'s fifth, holding a HARD ZERO — 118 declared
 variants across 9 files, every one named by at least one of 127 readers</sub>
 
-**What stays open is the PLACEMENT.** Moving the file has five ends — the `package.json` script,
-`make check-contract-types`, `check-mock-seeds.py --arm generated`, the boundaries guard's
-`GENERATED` table, and four importers — and a rename with five ends belongs to its own change, not
-to the phase that first needed to import it. Until then a reader of the tree is told the contract
-is a mock.
+**The PLACEMENT was what stayed open, and L10-bis closed it.** The move had five ends — the
+`package.json` script, `make check-contract-types`, `check-mock-seeds.py --arm generated`, the
+boundaries guard's `GENERATED` table, and its importers — and a rename with five ends belongs to
+its own change rather than to the phase that first needed to import it. The file is
+`contract/types.d.ts` now, in a bucket of its own, and nothing outside `app/` imports `mocks/`.
+
+**The importers are FIVE, and this paragraph said four for the length of the wave that moved
+them**: `mocks/state.ts`, `mocks/handlers/staging.ts`, `mocks/handlers/decisions.ts`,
+`mocks/handlers/maintenance.ts` and `lib/query-client.ts`. Counting one end of a seam by hand and
+writing the figure down is how the count was wrong in the first place — the same move as the
+« twelve invocations » and the « two named states » corrected in this wave.
 
 <sub>`grep -rn "mocks/contract-types" frontend/maquette/design/src scripts Makefile frontend/maquette/design/package.json`</sub>
 

@@ -857,8 +857,6 @@ def arm_tree(root: Path) -> int:
 
 
 
-# THE ONE FILE UNDER `mocks/` THAT IS NOT A MOCK, and the exemption is narrow on
-# purpose. `contract/types.d.ts` is GENERATED from
 # THE EXEMPTION THIS CONSTANT CARRIED IS GONE, AND SO IS ITS REASON (B-104).
 # `mocks/contract-types.d.ts` was the API contract's generated types filed in
 # the bucket L04 declared for « handlers and fixture seeds », and it is neither:
