@@ -100,3 +100,32 @@ oracle runs. And the steward may be auditing text it wrote itself; the anchor is
 repository and the re-run measurement, never remembered intent. A steward that checks the work
 against its own recollection of what it meant will find they agree.
 
+
+**A brief that a wave will execute lives in the REPOSITORY before that wave is launched.** Under
+`docs/features/<codename>/`, on a pushed branch, in English like every other engineering document —
+never in a session's scratch directory, never as an attachment in a conversation, never only in the
+steward's own context.
+
+**This is written here because it failed, on 2026-08-29, and the way it failed is the argument.**
+The briefs for L07, L07-bis, L08, L08-bis, L09 and L10 were all composed in a remote session's
+`/tmp` and handed over by attachment. It worked six times because the operator carried each file by
+hand. The seventh time an agent was launched to execute L10-bis, it began, looked for the two
+documents the brief announced, and **found them in neither the repository nor the home directory nor
+any scratchpad** — because they existed nowhere a second machine could reach, and would have ceased
+existing altogether when that container was reclaimed.
+
+**The cost is not the lost minutes.** An agent discovering mid-task that its own specification does
+not exist has learned that the office directing it does not guarantee what it hands over — and this
+office's entire authority is that its statements can be checked. **A steward whose deliverables live
+in a temporary directory is a steward asking to be trusted rather than read**, which is the exact
+posture it refuses in everyone else.
+
+**It is also the defect this register counts most.** « A fact that exists once cannot go stale » was
+the ruling that removed the duplicated lot status; here a fact existed once, in the one place that
+does not survive. And the reason each wave's reasoning has to be reconstructed from its squashed
+pull-request body — a body this office has just measured to be wrong by a factor of five — is that
+the brief explaining it was never anywhere else.
+
+**So: the brief is committed and pushed before the agent is called, and the call names its path in
+the repository.** A wave's brief is archived with its lot at the post-merge gesture, like its design
+and its plan.

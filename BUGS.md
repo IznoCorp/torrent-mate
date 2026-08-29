@@ -259,6 +259,7 @@ when the defect comes back.
 | B-216 | The mutation tool announced « no hold fell » under the falls it had just printed | by adversarial review | `fixed #513` |
 | B-217 | The cursor thaw was measured by nothing, and the tool's first use found it | by adversarial review | `fixed #513` |
 | B-218 | The « Before it » row stopped at L07 and still named a merged PR as « this pull request » | by design | `fixed #514` |
+| B-219 | A wave's brief existed only in a session scratch directory, and its agent could not read it | by agent | `fixed #NNN` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
@@ -1281,6 +1282,36 @@ footer appears → tap → the screen leaves and Acquisition renders.
 
 **Mutation.** Covered by the B-021 mutations — the same handler, measured on this journey by
 checks 10/10b.
+
+---
+
+**B-219 — the brief a wave was launched with existed in no place a second machine could reach.**
+An agent was launched on 2026-08-29 to execute L10-bis. It started, looked for the two documents its
+own brief announced — `amendement-regle-3.md` and `l10-bis-fermetures.md` — and found them **in
+neither the repository, nor the home directory, nor any scratchpad**. They existed only in a remote
+session's `/tmp`, delivered to the operator as conversation attachments.
+
+**Six waves had been briefed the same way and none had failed**, because the operator carried each
+file by hand: L07, L07-bis, L08, L08-bis, L09 and L10. The seventh was handed to an agent directly,
+and the arrangement met the only condition it could not satisfy.
+
+**The cost is not the lost minutes.** An agent that discovers mid-task that its own specification
+does not exist has learned that the office directing it does not guarantee what it hands over — and
+that office's whole authority is that its statements can be checked rather than believed.
+
+**It is also the shape this register counts most, turned on its author.** « A fact that exists once
+cannot go stale » was the ruling that removed the duplicated lot status from the plan (B-148); here a
+fact existed once, in the one place that does not survive a container being reclaimed. And the reason
+each wave's reasoning has to be reconstructed from its squashed pull-request body — a body this
+office measured, three days later, to be wrong by a factor of five — is that the brief explaining it
+was never written anywhere else.
+
+**Repaired by the rule rather than by the act**: `docs/reference/frontend-steward.md` now states that
+a brief a wave will execute is committed and pushed under `docs/features/<codename>/` before the
+agent is called, and that the call names its path in the repository. The briefs for L10-bis and
+L10-ter land with this entry.
+
+<sub>the six that were never committed: `git log --diff-filter=A --name-only -- 'docs/features/*/BRIEF.md'` returns nothing before this change</sub>
 
 ---
 
