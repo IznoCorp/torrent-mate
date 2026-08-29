@@ -4177,6 +4177,34 @@ that prompted this is the phone frame of `harness.css`, which ships nowhere.
 
 <sub>`grep -rn 'scrollbar' frontend/maquette/design/src/styles/*.css` · `frontend/maquette/design/index.html:221` for the container</sub>
 
+
+**CLOSED by L10-bis. D11 is implemented in `base.css`, in BOTH spellings.**
+`scrollbar-width`/`scrollbar-color` is what Firefox reads; `::-webkit-scrollbar` is what Chrome
+reads — and Chrome is what the oracle, the harness and the operator's phone all run, so writing one
+alone would have styled the browser nobody here measures.
+
+**THE ORACLE DID NOT MOVE, AND THE ENTRY'S PREDICTION WAS WRONG ABOUT WHY.** It expected narrowing
+the gutter to move « every measured rectangle in that container »; it moved **none**. Measured:
+`#port.offsetWidth - #port.clientWidth` is **0** on this machine, because macOS paints an OVERLAY
+scrollbar that occupies no layout space. So there was nothing to re-record — and this entry was the
+stated reason the wave had to run on the operator's machine. **The machine was still what settled
+it**: only a run here could show the prediction false rather than repeat it.
+
+**Which leaves the styling measured by NOTHING, and that is the real gap.** The oracle's twenty
+numbers per region are geometry and computed properties OF THE ELEMENT; a scrollbar's colour is in
+none of them, and a pseudo-element is in none of them by contract (B-061, D8). The oracle is green
+over this whether it is styled or not.
+
+**The instrument — `harness/scrollbar.py` (R99), ten holds.** Both spellings, BOTH THEMES, and the
+container is asserted to actually overflow before anything is claimed about its bar. The thumb is
+compared against `var(--color-border)` resolved in the same document, never against an oklch
+literal.
+
+<sub>mutation — remove the WebKit block: two holds fall, `::-webkit-scrollbar` back at `auto`.
+Remove the standard block: six fall. **Replace the token with the literal it resolves to in dark:
+the DARK holds stay green and the LIGHT one falls** — which is why the rule drives both themes and
+compares against a token. Restored → `10 rules EXECUTED — no violation` · oracle unchanged at
+B-222's three deliberate divergences</sub>
 **B-147 — nine findings held on five stacked branches, and a wave took their numbers.**
 B-138 to B-146 were written as **B-102 to B-110**, across five branches stacked on one another
 between 2026-08-26 and 2026-08-27, none merged because the operator had scheduled them for a single
