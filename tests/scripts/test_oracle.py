@@ -294,4 +294,12 @@ def test_the_committed_reference_carries_a_platform():
     # prototype (B-155) — §8 of the constitution inverted, since a permanent claim of liveness
     # is worse than silence. The reference GREW rather than moved: 3 states added, 0 removed,
     # and not one of the 84 existing measurements changed.
-    assert reference["counts"] == {"states": 87, "regions": 33}
+    #
+    # 34 REGIONS SINCE L10-bis, and this is the first time the pin moved on the REGION side.
+    # `screen-add/body` is the add screen's, and the add screen was the ONLY one of the five
+    # overlay screens carrying no `data-region` at all: its two named states were driven,
+    # captured and compared against nothing, which is why a button the browser painted white
+    # on a dark ground survived every gate (B-139, B-222). The reference GREW again — 87
+    # entries added, 0 removed, and not one of the 2 871 existing measurements changed,
+    # verified by reading the diff rather than the tool's own success line.
+    assert reference["counts"] == {"states": 87, "regions": 34}
