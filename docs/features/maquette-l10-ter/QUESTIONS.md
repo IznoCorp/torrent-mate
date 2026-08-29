@@ -18,13 +18,13 @@ Answer: ☐ drawer alone · ☐ a rail at ≥ md · ☐ later
 
 **Q2 — The order of the product lots against the frame lots.**
 Context: the plan now reads L15 (the frame) → L11 (offline) → L12 (native interaction) → L19 (the
-producers) → L16 (§18 ratio) → L17 (§19 cross-seed) → L18 (§17 accounts) → L20 (the control
-station) → L13 → L14. The three constitution sections and the two undrawn pages are therefore
+producers) → L20 (the control station) → L16 (§18 ratio) → L17 (§19 cross-seed) → L18 (§17
+accounts) → L13 → L14. The three constitution sections and the two undrawn pages are therefore
 four lots away from the next wave.
 Recommendation: **as written** — a surface drawn after L12 and L19 inherits the transition
 vocabulary, the offline queue and the producer template rather than being retrofitted with them.
 The reverse order would draw §18's screens with engine-style producers and convert them twice.
-Answer: ☐ as written · ☐ product lots first (L16 → L17 → L18 → L20, then L11 → L12 → L19)
+Answer: ☐ as written · ☐ product lots first (L20 → L16 → L17 → L18, then L11 → L12 → L19)
 
 **Q3 — Pull L14 forward?**
 Context: L14 (the four files over 400 lines) has both dependencies landed and the plan already
@@ -45,13 +45,11 @@ Recommendation: **all three**, with `share_target` landing on `/add` pre-filled 
 that changes what the operator can do from another app.
 Answer: ☐ all three · ☐ share target only · ☐ none yet
 
-**Q5 — Is a Back with a dialog open a close, or a pop?**
-Context: D1's third tier says a transient layer has no URL « but Back still closes it », and
-names a confirmation as the example. The dialog today pushes no entry and Back pops the page under
-it (B-229). Android closes a dialog on Back; the plan's own decision already says so.
-Recommendation: **a close**, as D1 says — L15 adds the rung. Asked only because it changes what a
-finger does, and a decision that changes that is dictated, not inferred.
-Answer: ☐ close (D1 as written) · ☐ pop (amend D1's table)
+**Q5 — noted, not asked: a Back with a dialog open closes the dialog.**
+D1's third tier already decides it (« Transient — no URL, but Back still closes it », a
+confirmation being its own example), and §16 backs it. B-229 is an unimplemented decision, not an
+open one; L15 implements it. Written here so the finger-visible change is announced rather than
+discovered, and so nobody reads its absence from this list as a question skipped.
 
 **Q6 — Does the pipeline's running state belong in the chrome?**
 Context: production shows a running/paused dot on the `/pipeline` tab. The maquette's chrome has
@@ -61,14 +59,26 @@ Recommendation: **yes, as a tab badge on `/pipeline`** when that page exists —
 running pipelines are seen « au même endroit ».
 Answer: ☐ yes, a tab badge · ☐ no, the page alone
 
-**Q7 — The instrument for B-142: built by L15, or by the office under § 7.2's exception?**
-Context: the mapping is written (`docs/reference/product-intent-map.md`); the arm that reads it
-is specified (`MODEL.md` § 4). The brief forbids this phase from writing a guard; the steward's
-office may write one over directive files. The arm reads two directive files and the tree's
-route and feature NAMES.
-Recommendation: **L15 builds it**, as the plan now says — it is the first wave after this one,
-and a wave's arm gets a wave's adversarial review, which the office's exception does not carry.
-Answer: ☐ L15 · ☐ the office, now
+**Q7 — Ratify or amend the clause map.**
+Context: `docs/reference/product-intent-map.md` says « the operator amends this file; an agent
+proposes ». Its 23 verdicts created four lots (L16, L17, L18, L20) and assigned nine instruments to
+L19. An adversarial review already moved seven verdicts from `served` to `partly`; the rows are
+what they are because a reader checked each proof, and the operator is the reader whose reading
+counts.
+Recommendation: **read the two tables once and mark any row whose verdict you would change**; a
+row left unmarked is ratified.
+Answer: ☐ ratified as written · ☐ rows to change: ______
+
+**Q9 — Do `/control` and `/pipeline` (L20) wait behind eight lots?**
+Context: the mission of 2026-08-19 re-opened these two pages by name; the plan kept them « outside
+this file, blocked by nothing ». This phase gave them a lot — because four DOIT clauses (1, 3, 5,
+6) each have a half only those pages serve — and placed it after L15, L11, L12, L19, L16, L17 and
+L18. That is a scope arbitration of the first order and neither branch of Q2 surfaces it: the
+« product lots first » order still leaves L20 last of the four.
+Recommendation: **after L19** — a page drawn before the producer template exists is drawn twice —
+but **before the three constitution lots**, because it is the operator's own re-opening and the
+clauses it serves are the oldest. The plan is written on the recommendation.
+Answer: ☐ after L19, before L16 (as written) · ☐ last, after L18 · ☐ before L15, as the plan had it
 
 **Q8 — §17's four open points** are written into the constitution itself (§17 « Ce que cela ne
 tranche pas ») and are not restated here: which roles; whether Plex SSO replaces or joins;

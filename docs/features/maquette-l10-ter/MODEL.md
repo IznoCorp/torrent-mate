@@ -66,12 +66,15 @@ installed. It decides WHEN; the modules it calls decide WHAT.
 *Where it lives.* `app/` — the application's shape, by definition.
 *What it owns.* The order, and the single instant each owner is created (store, query client,
 history).
-*What it never knows.* An event name, a query key, a media title. It names FEATURES — eight
-`install*` imports from `features/*/queries.ts` — which is the frame naming its parts once, the
+*What it never knows.* An event name, a query key, a media title. It names FEATURES — seven
+`install*` imports from `features/*` (`grep -o "install[A-Za-z]*" app/shell.tsx | sort -u`) — which
+is the frame naming its parts once, the
 same species as `router-tree.tsx`'s one import per page, blessed under invariant 10 by L10's
 reading (`frontend-architecture.md` § 3, invariant 10, « re-measured at L10's close »).
 *Today → target.* Already the frame's. It also re-parents `#shell` relative to `#screen`
-(`shell.tsx:288–291`) — the one line that reads a dead node, gone with **L13**.
+(`shell.tsx:288–291`) — the one line that reads a dead node, gone with **L13**. The i18n bootstrap
+(`src/i18n`, imported first for its side effect) is this part's too: the boot decides that the
+words exist before the first component asks for them.
 
 ### Part 3 — The address model and the router
 
@@ -117,6 +120,8 @@ exist, at which path, with which label, icon, badge derivation, and whether they
 shell reads to compose navigation ».
 *What it owns.* One owner for `#view` at a time (R77); the page heading; `aria-busy`.
 *What it never knows.* What a page draws or fetches. It knows a page's NAME and its `Body`.
+`app/not-found.tsx` is the one page the FRAME draws — the answer to an address nobody serves — and
+it belongs here, not to a feature: it names no domain.
 *Today → target.* **The table exists four times**, and a fact that exists four times is stale in
 three of them: `PAGES_OF()` in the engine (id, label, icon, badge, `offBar`, `fab`), `NAVIGATION`
 in the engine (the drawer's grouping — Supervision / Système / Configuration), `PAGES` in the page
@@ -137,9 +142,12 @@ bar of its own (today: the library's selection bar) and where the install propos
 also sit, all clearing the bar through `--tm-bottom-bar-h`.
 *Where it lives.* `app/` for the bars (`app/top-bar.tsx`, `app/tab-bar.tsx`,
 `app/action-button.tsx`, `app/bottom-slot.tsx`); `ui/` for what they are built from.
-*What it owns.* Geometry — safe areas, the published bar height (R84, one publisher), z-order
-(the tab bar above every layer but the drawer and the install card, `z-50` against `z-[55]`),
-`md:hidden` on the bar. The current-page mark (`aria-current`). The slot's stacking.
+*What it owns.* Geometry — safe areas, the published bar height (R84, one publisher), **the
+z-order**, which today is not a decision but an accumulation: the tab bar is `z-50`; above it the
+drawer and the install card (`z-[55]`), the selection bar (51), the popover, the harness panel
+and the login (60), the splash (70); **and below it the dialog (48) — a confirmation opens with
+the tab bar over its lower edge (B-237)**. One ranked list, in one place, is what this part owns;
+`md:hidden` on the bar; the current-page mark (`aria-current`); the slot's stacking.
 *What it never knows.* What a badge counts, what a slot contains, what the action button does
 on a given page (the table says whether there is one; the page says what it does).
 *Today → target.* The top bar is static markup with one React child; the tab bar is **rebuilt
@@ -158,14 +166,16 @@ scrim under three of them.
 `ui/dialog.tsx`, `ui/popover.tsx`, `ui/toast.tsx` join it; `app/` for the HOSTS that hold the
 verbs and the state: `app/panel-host.ts` exists, and it is the precedent — a descriptor of facts
 crosses, the markup is the component's.
-*What it owns.* Open and close, the history entry each kind takes (Part 4), focus in and out
+*What it owns.* Open and close, the history entry each kind takes (Part 4), the drawer's own
+dismiss gesture (`app/drawer-gesture.ts`, E-002 — it stays a frame gesture and moves with the
+drawer in L15), focus in and out
 (`app/focus.ts`, which already watches `data-open` on all of them and needs nothing from the
 engine), `inert` on the background, the accessible name (a dialog reads its own heading; a drawer
 is « Menu »), **and the scrim — with ONE owner.** Today the scrim is raised by the engine for the
 drawer and the dialog and by React for the sheet, on one shared element; `hideLayers` and
 `closeDlg` each clear it as a side effect. Target: the layer host raises the scrim when any
 scrim-backed layer is open and no one else writes it.
-*What it never knows.* What a dialog asks. The three engine producers hand `openDlg` an HTML
+*What it never knows.* What a dialog asks. The two engine producers hand `openDlg` an HTML
 string today; they hand it a descriptor — `{ heading, body, actions: [{ text, tone, target }] }`
 — exactly as `panel.open` receives one. A toast is `{ message, undo? }`. A popover is
 `{ anchor, content }` where content is the feature's component. A drawer is the navigation table
@@ -186,11 +196,14 @@ are not layers and not chrome: they are Part 12's subject.
 *What it never knows.* A route, a panel, a domain. All three read the document and the history.
 *Today → target.* Already the frame's. One debt stays written where it is: « programmatic
 scrolling has one path » (plan § 1, the semantic index's door) is NOT paid — `focus.ts` writes
-`#port.scrollTop` from the skip link and the engine's `applyState` writes it on every page switch
-(`legacy.js:9650`). Target: `scroll-restoration.ts` exports the one verb and both callers use
+`#port.scrollTop` from the skip link and the engine writes `scrollTop` at **eleven** sites
+(`grep -c "\.scrollTop = " legacy.js`), `applyState` on every page switch among them
+(`legacy.js:9656`). Target: `scroll-restoration.ts` exports the one verb and every caller uses
 it; the sheet resetting ITS OWN port is not a second path (a layer's port is not `#port`) and is
-written down as such. The engine's write goes with **L13**; the skip link's goes when the index
-is scheduled, and not before — churn with no defect is churn.
+written down as such. The engine's writes go with **L13** (or with the producer that owns each, in
+**L19**); the skip link's goes when the index is scheduled, and not before — churn with no defect
+is churn. **Pull-to-refresh** (`#ptr`, engine-driven, `index.html:241`) is this part's: a gesture on
+`#port` that knows nothing of what refreshes — it moves with the gesture vocabulary in **L12**.
 
 ### Part 9 — The entry
 
@@ -203,7 +216,9 @@ borrows).
 module does.
 *What it owns.* When the splash lifts (`__loadingDone`); the gate's show/hide and its address;
 who is asked to install and when (never over the gate, never when standalone, not twice a
-session); the theme's three values and the meta that follows them (B-233).
+session); **standalone-mode detection** (`display-mode: standalone`, read today only by the install
+offer at `legacy.js:9878`) as the one place that knows whether browser chrome exists around the
+application; the theme's three values and the meta that follows them (B-233).
 *What it never knows.* What is behind the gate. The gate posts to `/api/auth/login` and reads a
 yes or a no; rights (§17) are a feature's to read from `/api/auth/me`, never the gate's.
 *Today → target.* All four are engine logic over static markup (`legacy.js:9678–9915`, `10116`).
@@ -227,7 +242,7 @@ DOM, as `panel.isOpen()` already does.
 
 ### Part 11 — The measuring seams
 
-*What it is.* The `window.__*` names (41 distinct across engine and shell), `states.js` (the
+*What it is.* The `window.__*` names (43 distinct across `design/src`), `states.js` (the
 harness's table, registered with the engine), `styles/harness.css` (the phone frame), the harness
 bar and panel.
 *Where it lives.* Wherever it is; it ships nowhere — `harness.css` is imported once and by
@@ -246,7 +261,10 @@ is not the engine's residue.
 *What it is.* Ten `panel.open(…)` producers (every sheet's content: the follow sheet, the journey,
 the « ⋮ », the account menu, a setting, the seasons, the acquisition status), the Découvrir feed
 (list, poster, deck, footer), the episode popover's content, **and the 71 `data-*` verbs the
-document-level delegation handles** (`legacy.js:10136–10894`) — the actions those surfaces offer.
+document-level delegation handles** (`legacy.js:10136–10894`; four more `dataset.*` keys are read
+outside that span, by the gestures) — the actions those surfaces offer. `app/engine-data.ts` (34
+domain words: what the engine reads with no component to ask for it) is this part's seam and dies
+with the last producer.
 *Where it lives.* `features/<domain>/` — a producer is a function from the cache to a descriptor,
 and it belongs with what makes it change.
 *What it owns.* What a surface says and offers.
@@ -258,6 +276,16 @@ its feature with its share of the fixture dying, oracle green. **No lot owes thi
 **L19** does from here. The delegation's verbs move with their producers where a producer owns
 them (`data-cancelsetting` is the settings feature's) and to `app/` where they are the frame's
 (`data-drawer`, `data-navgo`, `data-sheet`).
+
+### Not assigned to a part, and said so — `lib/queue.ts`
+
+Invariant 10's own text deferred one arbitration « to the next wave »: whether a shared domain
+module (`lib/queue.ts`, 169 domain words by the invariant's count, 6 by the arm's) belongs in a
+`domain/` bucket rather than in `lib/`. **Decided here, and it is the phase's to decide under
+§ 7.1**: no bucket yet. A bucket with one member is a folder for a KIND of file, which the tree
+rule forbids; the ratchet (`check-frame-domain.py`) holds the count from rising; and L16 adds the
+second shared domain module (a tracker is read by the acquisition and by the media sheet), which is
+the day a `domain/` bucket has two members and a reason. L16's design takes it up.
 
 ### Part 13 — Offline and the worker (not built; modelled so L11 builds the right thing)
 
@@ -296,10 +324,10 @@ or dropped and named in § 3.1.
 | P8 | **A mutation issued offline departs exactly once** on reconnection | to build on L10's fake transport | false | L11 |
 | P9 | **Installable, and the handler of its own links**: manifest `display`, `id`, icons (R52), and the entry points L11 names | R51, R52 exist for the first half; the second half is a decision (`QUESTIONS.md` Q4) | half | L11 |
 | P10 | **Safe areas**: the two bars pad by `env(safe-area-inset-*)` and nothing else positions by a distance to an edge | static read of the bars' classes (the compositor guard's shape); the rendered check is device-only | true in the markup | L15 keeps it as the bars move |
-| P11 | **Dynamic viewport**: the frame is `100dvh`, no `100vh` anywhere | `check-css-tokens.py`-shaped static read | to confirm | L12 |
+| P11 | **Dynamic viewport**: the frame is `100dvh`, no `100vh` anywhere | `check-css-tokens.py`-shaped static read | **false** — no `dvh` in the tree; `base.css:54` is `height: 100%`; the only `100svh` is `harness.css`, which ships nowhere | L12 |
 | P12 | **Contained overscroll** on `#port` | the compositor-CSS guard | true | — |
 | P13 | **No zoom on focus**: every field ≥ 16 px | R83 | true | — |
-| P14 | **Pinch-zoom allowed**: no `maximum-scale`, no `user-scalable=no` | axe 1.4.4 on 87 states | true on this host; **a landmine on any other** — B-230 | L15 removes the fallback |
+| P14 | **Pinch-zoom allowed**: no `maximum-scale`, no `user-scalable=no` | axe 1.4.4 on every named state (`window.__states()`, 78 today) | true on this host; **a landmine on any other** — B-230 | L15 removes the fallback |
 | P15 | **Touch targets at the floor** (WCAG 2.5.8) | axe `target-size` | true, 0 violations | — |
 | P16 | **Gestures survive the compositor**: every gesture proved under a real touch stream AND a real mouse | R55, R98, `deck.py`, `drag.py`, `mouse.py` | true for the gestures measured | L12 extends |
 | P17 | **The keyboard resizes the content, not the viewport**: `interactive-widget=resizes-content` | static read of the meta | **false** — B-234 | L12 |
@@ -309,7 +337,13 @@ or dropped and named in § 3.1.
 | P21 | **The status bar follows the theme**: `theme-color` differs under `data-theme="light"` | a rule reads the meta under both themes | **false** — B-233 | L15 |
 | P22 | **Never « connected » over a dead link** | R95 | true | — |
 | P23 | **No chrome flash at boot**: splash first, bar height published before first paint | R53, R84 | true | — |
-| P24 | **No unvirtualised long list** (1 861 titles) | to build — a rule counts rendered rows against the data length | to measure | L12 |
+| P24 | **No unvirtualised long list** (1 861 titles) | to build — a rule counts rendered rows against the data length | **false** — `features/library/page.tsx:371` is infinite scroll by `IntersectionObserver`, not virtualisation | L12 |
+| P25 | **No tap flash**: `-webkit-tap-highlight-color: transparent` on every interactive element | the compositor-CSS guard | **false** — `grep -rn "tap-highlight" design/src design/index.html` → 0 | L12 (base layer) |
+| P26 | **A long press selects no text** on a tile or a card (`user-select: none`) | the compositor-CSS guard, and the real-touch long press `selection.py` already drives | partly — `legacy.css` and one `select-none` on the drawer | L12 |
+| P27 | **Standalone hides browser-only chrome**: what exists only because a browser is around it is absent under `display-mode: standalone` | a rule under an emulated `display-mode` media | unmeasured — nothing reads it but the install offer | L11 |
+| P28 | **Focus survives a redraw**: `document.activeElement` is the same node across a page switch and a store bump | with P2's rule | **false** — B-231 | L15 |
+| P29 | **No layout shift when a poster loads**: every poster box declares its size (`aspect-ratio` or width/height) | static read of the gallery variants, and a CLS probe on a named state | to measure | L12 |
+| P30 | **Back-forward cache is not evicted**: `pageshow.persisted` is true after a walk out and back | a rule on a real navigation | to measure — the exit guard's handler is the kind of thing that evicts | L11 |
 
 ### 3.1 Discarded, and why
 
@@ -319,6 +353,10 @@ or dropped and named in § 3.1.
   the oracle's certification — and it is not a gate. Kept in L12's Done-when as written.
 - **« The app remembers where I was across a restart »** (per-page stacks). Considered and rejected
   in D1b; not a property.
+- **Orientation** and **font scaling**. The harness measures 390 × 844 only, and R83 holds the
+  16 px floor, not the layout under a 200 % text scale (WCAG 1.4.4's other half). Both are
+  measurable and neither is a property of « a mobile application » specifically; they are the
+  accessibility tier's to extend, recorded here so the omission is a choice.
 
 ---
 
@@ -332,10 +370,17 @@ is « to draw » — the lot that owes it. It is a directive file: the operator 
 proposes.
 
 **The arm's shape, so the lot that builds it builds the right one.** It reads the constitution's
-numbered clauses (`^\d+\. \*\*(DOIT|NE-DOIT-PAS)-\d+`), reads the map, and refuses: a clause with
-no row; a row naming a surface that does not exist in the tree (a route path absent from
-`routes/`, a feature absent from `features/`); a « to draw » row naming no lot, or a lot absent
-from the plan; a « served » row naming no proof. It prints one line per clause and never a
+numbered clauses **inside the two sections « Ce que l'interface DOIT faire » and « Ce que
+l'interface NE DOIT PAS faire » only** — `^\d+\. \*\*(DOIT|NE-DOIT-PAS)-\d+` over the whole file
+matches 24 lines for 23 clauses, because §19's fourth point begins « 4. **NE-DOIT-PAS-8 est la
+limite dure.** » — reads the map, and refuses: a clause with no row; a `served`, `served,
+unproved` or `partly` row naming a surface that does not exist in the tree (a route path absent
+from `routes/`, a feature absent from `features/`) — `to draw` and `outside the interface` rows
+name none and are exempt from that check; a `to draw` row, or the « to draw » half of a `partly`
+row, naming no lot, or a lot absent from the plan; a `served` row naming no proof. **And one thing
+it cannot do, said so nobody expects it**: it cannot tell whether a named proof READS the clause —
+two rows of the first map named a print statement and a rule about PM2 processes as proof, and
+only a reader found them. That check is a review's, at every amendment of the map. It prints one line per clause and never a
 count alone. **Two traps it must not fall into, both paid for**: it must not be seeded « served »
 from what exists (the map was written clause by clause against the tree, and five of its rows
 say « to draw »); and a refusal carries its reason, or it gets worked around. It is placed in

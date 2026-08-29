@@ -201,7 +201,7 @@ when the defect comes back.
 | B-139 | Three typed variants were written and never wired; one leaves a bare button unreadable | by operator | `fixed #516` |
 | B-140 | Back returns to the top of a page: the scroll memory only knows overlay screens | by operator | `fixed #512` |
 | B-141 | Ten elements carry no class at all, in a prototype that imports no preflight | by audit | `fixed #516` |
-| B-142 | Nothing measures the interface against the constitution: five DOIT clauses have no surface | by audit | `open` |
+| B-142 | Nothing measures the interface against the constitution: three DOIT clauses have no surface | by audit | `open` |
 | B-143 | §17 (accounts, rights, Plex SSO) has no surface, no contract operation and no lot | by audit | `open` |
 | B-144 | §18 (ratio per tracker) needs three operations the backend already answers and nothing calls | by audit | `open` |
 | B-145 | §19 (cross-seed) has no route in either contract, and its events reach no stream | by audit | `open` |
@@ -279,7 +279,7 @@ when the defect comes back.
 | B-217 | The cursor thaw was measured by nothing, and the tool's first use found it | by adversarial review | `fixed #513` |
 | B-218 | The « Before it » row stopped at L07 and still named a merged PR as « this pull request » | by design | `fixed #514` |
 | B-219 | A wave's brief existed only in a session scratch directory, and its agent could not read it | by agent | `fixed #515` |
-| B-220 | The drawer and the bottom tab bar are converted by no lot of the plan | by audit | `open` |
+| B-220 | The drawer and the bottom tab bar — L15's since 2026-08-29 | by audit | `open` |
 | B-221 | A wave merged leaving its own status as the literal placeholder `fixed #NNN` | by guard | `fixed #516` |
 | B-222 | The add screen is the only one of five measured by no oracle region at all | by audit | `fixed #516` |
 | B-223 | Three more typed variants were orphaned, and the arm for B-139 found them | by guard | `fixed #516` |
@@ -295,7 +295,9 @@ when the defect comes back.
 | B-233 | `theme-color` is a constant while the document paints light | by survey | `open` |
 | B-234 | The viewport meta declares no `interactive-widget` | by survey | `open` |
 | B-235 | No desktop navigation exists beyond the drawer | by survey | `open` |
-| B-236 | Every bottom-panel producer is the engine's, and no lot owes them | by survey | `open` |
+| B-236 | Every bottom-panel producer is the engine's — L19's since 2026-08-29 | by survey | `open` |
+| B-237 | The confirmation dialog paints under the tab bar | by review | `open` |
+| B-238 | A version-less « In flight » row is held by nothing | by review | `open` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
@@ -352,6 +354,10 @@ not describe a WebSocket.
 > **B-142's instrument goes to L10-ter as well**, and the reason is not scheduling: the arm needs a
 > declared mapping from each DOIT clause to the surface that serves it, and a mapping is a design
 > decision rather than a grep. L10-ter is already modelling what a surface is.
+>
+> **SUPERSEDED the same day**: placed as L16 / L17 / L18 (`frontend-architecture.md` § 4, Phase 5);
+> the mapping is written and the arm is **L15's**. This block sits in B-153's entry by the accident
+> of where the arbitration was pasted; the placement notes live under B-143, B-144 and B-145.
 
 <sub>`python3 -c "import json;d=json.load(open('frontend/maquette/contract/openapi.json'));print(len(d['paths']),[k for k in d['paths'] if 'ws' in k or 'event' in k])"` → `50 []`</sub>
 
@@ -2205,9 +2211,11 @@ sentence is worth keeping; what may never be spent is the lot the entry leads wi
 entries are re-labelled with the lot that OWES the reduction.
 **And the first version of that arm had B-073's own defect inside it**, found by review: it held
 the label against the LANDED set alone, so « L19 — the data layer takes it » would have stayed
-green for ever. The plan declares L01 to L13; a lot it never declares is a promise nobody can call
+green for ever. The plan declares a finite set of lots (L01 to L13 when this was written — L19 has
+since been declared, on 2026-08-29, and the fixture moved to `L99`); a lot it never declares is a
+promise nobody can call
 in. The arm reads both sets now.
-<sub>mutation: mark L09 `LANDED` in the plan — the four entries naming it fall by name, exit 1. Second: the plan made unreadable — « no lot status could be read », exit 1. Third: a label leading with `L19` — « which the plan does not declare », exit 1</sub>
+<sub>mutation: mark L09 `LANDED` in the plan — the four entries naming it fall by name, exit 1. Second: the plan made unreadable — « no lot status could be read », exit 1. Third: a label leading with `L19` — « which the plan does not declare », exit 1 (re-recorded with `L99` on 2026-08-30, once L19 existed)</sub>
 
 **B-074 — the abbreviation rule's figures were measured against a list the document did not
 contain.** `docs/reference/code-naming.md` shipped on 2026-08-25 with a debt of **1 507**, a
@@ -2805,8 +2813,8 @@ absence of a row can mean either.
 | L10, after the SECOND adversarial review | **11** | Three reviewers on the repairs alone. **B-191**, R95's recovery hold a tautology whose own printed proof — a list ending in `reconnecting` — contradicted it. **B-192**, its « superseded socket » hold unable to produce one, because the fake removes a closed socket synchronously; nothing measured the identity guard until `pushStale()` existed. **B-193**, R92's colour hold a set of inequalities that a SWAP of two tokens satisfies. **B-194**, R94's layer hold never reading that a layer opened. **B-195**, R91's sibling seeded where it could never be an over-refresh. **B-196**, R95 certifying the shipped limits from a source literal rather than the running program. **B-197**, a stale hold-count baseline reporting three false regressions — which teaches whoever re-records to accept moved numbers, and that is how a count that FALLS goes through. **B-187**, `CACHE_WIDE` read line by line, so a wrapped whole-cache invalidation produced no violation AND no movement in the number printed as evidence. **B-188**, a poll regex that could not cross a semicolon and matched only the shape nobody writes. **B-189/B-190**, the exemptions reader keeping the defect the rules reader was repaired for, under a comment claiming the sibling instrument had been repaired too. And **R89's `> 1` threshold**, which could not tell one delivery plus one refetch from a delivery counted twice |
 | L10, after the THIRD adversarial review | **8** | One reviewer, on round two's repairs. **B-200**, two repairs recorded `fixed` and absent from the tree — the register's own B-190 broken by the commit that filed it. **B-201** and **B-209**, a violation counter used before assignment and a count discarded two lines after being made, both invisible because the loop feeding them was empty. **B-202**, a cursor freeze no reconnect could thaw, under a docstring saying « until the connection is remade ». **B-203**, R91 merging every rule's sample so its verdict depended on source order and a predicate's deletion was invisible. **B-204**, R92 resolving the token through the same cascade that paints it — proving the dot uses the token and nothing more, so exchanging the two VALUES passed every comparison. **B-205**, nothing reading whether the dot is on screen at all. **B-208**, a disagreement between two oracles printed where it could fail nothing. And **B-213**, a poll reader adopting the wrong block for 545 bindings out of 925 |
 | L10-bis | **20** | **11 counted at the wave's close, 9 more from repairing its review.** Of the first eleven, **ten are in instruments this wave was writing at the time** — which is the table's own reading of L09 arriving from the other side: the wave that builds the most finds the most blind, and it finds them in its OWN work. **The register's index** carried a status nobody could count, `fixed #NNN`, invisible both to « what is open » and to « what did that pull request close » (B-221). **The recorded oracle** was green over the add screen because no region resolved inside it: its three named states were driven, captured and compared against NOTHING, which is why B-139's white rectangle was invisible to it by construction (B-222). **Arm 5's first run returned six orphan variants where the entry named three** (B-223), and **B-138's own reference half was wrong** — the header avatar at 20x30 in a 32x32 button, every class on it correct (B-224). **The D1 arm matched no text at all**: a heredoc turned `\b` into a literal backspace, so it read 116 files and reported zero, and the mutation passed; it was found by printing the source line as BYTES, because a backspace is invisible in a diff. **The invariant-10 arm was wrong twice** — `\bword\b` cannot see `acquisitionLibraryMedia`, and lookarounds under `re.IGNORECASE` reject the very camelCase boundary they are written to accept — and its corrected reading is 124 where the first version said 53; **and with its comment stripper broken it collapsed to `0, 0, 0` and exited 0**, because every ceiling is a MAXIMUM and a reader that has stopped reading satisfies all of them at once. **B-041's green case failed**, so every mutation under it would have been measured against a red baseline. **R96 was written twice against stale DOM** — `.first` on an action reached a panel left by an earlier result, and asking whether a dialog was PRESENT found the closed one, because a closed layer is still in the document. **And a mutation missed its own instrument twice**: two attempts to fell the `generated` arm edited a `paths` key and a `paths` reference while the arm counts the `operations` interface. A mutation that misses what an instrument measures proves nothing about the instrument, and the honest move is to say so rather than to record a fall that never happened |
-| L10-ter (the survey) | **1** | **B-228** — the brief's own inventory command, a spelling of one write out of the ways a script draws: it read twelve of thirteen and its figure had moved twice in a day. The survey's command reads every way and says what it does NOT read (descriptors, toggles) — which is how B-236 was found: ten producers no `innerHTML` grep can see |
-| **Total** | **94** | at 2026-08-29, after L10-bis, its review and L10-ter's survey. **L10-ter's one is the smallest entry in this table and the one that changed a plan the most**: the count it corrected was the brief's own premise, and asking what the corrected instrument still did not read is what surfaced ten engine producers and a lot nobody owed (L19). The rest of this cell is as it read before the survey: **The wave that built the most instruments found the most blind ones**, and that is the reading: nine of L09's fourteen were found by adversarial reviewers reading the gate AFTER it went green. **And a guard can be blind to a document rather than to code** — B-150's arm was correct in every line and read a file that had stopped being true. **L10 adds a fourth reading, and it is the sharpest in this table**: the wave reported **4**, found by its own mutations in the phases that wrote the instruments, and was wrong by **9**. Seven adversarial reviewers reading the same green gate found nine more — six of them in rules that had each already been mutation-tested. **Mutation proves a rule catches the defect you thought of**; every one of the nine is a defect the author did not think of, and they are all the same species: a word the CSS removes, a key that disappears rather than changes, a socket that is not there. The two methods are not substitutes, and the ratio is the argument — 4 to 9. **AND THEN THE REPAIRS WERE REVIEWED, AND HELD ELEVEN MORE.** Six of those eleven are in instruments the author had just written in response to a review, mutation-tested, and believed. The reading that survives all three rounds is not « review harder » — it is that **an instrument written by the person whose work it measures inherits that person's blind spots, whatever the discipline**, and only a second pair of eyes on the instrument finds them. 4 by mutation, 9 by review, 11 by reviewing the repairs, 8 by reviewing THOSE. **AND THE CURVE IS THE ARGUMENT FOR STOPPING**: five production defects in round one, six in round two, and in round three **none** — its two criticals were an ABSENT repair and a DISCARDED count, both procedural, and both now impossible rather than improbable (`scripts/mutate.sh`, and a fake that closes asynchronously like a real browser). A fourth round would read its own corrections. The criterion for ending is not « no findings »; it is **no undiscovered product defect, and the procedural failure mode eliminated**. **L10-bis's reading was written before its own review, and the review refuted it.** At the wave's close this cell read: ten of eleven found by the wave itself, at the moment of mutating what it had just written, and therefore « the half that does not need a second reader, because a mutation aimed at the instrument you just wrote is a second reader you can be yourself ». An adversarial review of the finished wave then returned roughly fifty confirmed defects, and **NINE MORE OF THIS SPECIES** came out of repairing them — which is why the count above is 20 and not 11. So the sentence stands exactly reversed: **a mutation aimed at your own instrument is not a second reader, it is the same reader with a sharper tool.** It finds what you thought to break. The nine are what nobody thought to break: **the invariant-10 arm's vocabulary held the nine feature names and none of the seven page ALIASES the frame actually writes**, so `app/page-host.tsx`'s entire table of pages was outside it; **its comment stripper blanked the code after a `//` inside a string**, live on `lib/relay.ts`; **its corpus floor was one SUM across three directories**, so `ui/`, whose ceiling is ZERO, was satisfied by reading nothing at all. **`check-bug-register.py` ran in NO CI job** on a register-only pull request — the guard this wave built to make the register checkable was unreachable by the change it checks — and the hold written to catch that immediately found `BUGS-CLOSED.md` and `CLAUDE.md` in the same state. **The conformity hook accepted `> 🤖 Generated with Claude Code`, `- 🤖 …` and `* Generated with Claude`**, all three refused on `main`, because anchoring its alternatives to column one anchored them to a message nobody writes. **A hold monkeypatched four arms while `main` calls six**, so two ran for real inside a test that believed it had mocked everything. **The light-theme ratchet read `counts.total` and nothing else**: 99999 raised the ceiling by 165 834 without touching one recorded finding. **And the B-049 guard read a rule's own text and not its import closure**, so one `sqlite3.connect` moved into a helper would have let B-049 back into the tier through the front door. Every one of the nine is an instrument, and every one was found by someone reading the instrument rather than running it |
+| L10-ter (the survey) | **5** | **1 found by the phase, 4 by its adversarial review — the L10 curve again, on a phase that wrote no instrument.** **B-228** — the brief's own inventory command, a spelling of one write out of the ways a script draws: it read twelve of thirteen and its figure had moved twice in a day; the survey's command reads every way and says what it does NOT read (descriptors, toggles) — which is how B-236 was found: ten producers no `innerHTML` grep can see. Then three readers on the finished phase: **the seams command** printed in the survey (`grep -on … \| sort -u`) could not count distinct names — it deduped line-prefixed matches and read 90 or 231 where the answer is 43, and the prose beside it said « twelve » and « 41 » in one clause; **two `served` rows of the clause map** rested on proofs that do not read their clause — `selection.py`, which PRINTS the delete dialog and asserts only that a sheet opens, and R67, a rule about PM2 processes, named for the pipeline controls that live in `arrivals.py`; and **the B-142 arm's specified regex** matched 24 clauses for 23, because §19's fourth point begins with a clause name. Seven verdicts moved from `served` to `partly` in the same pass |
+| **Total** | **98** | at 2026-08-30, after L10-bis, its review, L10-ter's survey and its review. **L10-ter's own one was the smallest entry in this table and the one that changed a plan the most**: the count it corrected was the brief's own premise, and asking what the corrected instrument still did not read is what surfaced ten engine producers and a lot nobody owed (L19). **Its review then found four more in a phase that wrote no code** — a map whose purpose is to end « green over what it does not read » shipped two rows that were exactly that, and only a reader of the named proofs saw it. The rest of this cell is as it read before the survey: **The wave that built the most instruments found the most blind ones**, and that is the reading: nine of L09's fourteen were found by adversarial reviewers reading the gate AFTER it went green. **And a guard can be blind to a document rather than to code** — B-150's arm was correct in every line and read a file that had stopped being true. **L10 adds a fourth reading, and it is the sharpest in this table**: the wave reported **4**, found by its own mutations in the phases that wrote the instruments, and was wrong by **9**. Seven adversarial reviewers reading the same green gate found nine more — six of them in rules that had each already been mutation-tested. **Mutation proves a rule catches the defect you thought of**; every one of the nine is a defect the author did not think of, and they are all the same species: a word the CSS removes, a key that disappears rather than changes, a socket that is not there. The two methods are not substitutes, and the ratio is the argument — 4 to 9. **AND THEN THE REPAIRS WERE REVIEWED, AND HELD ELEVEN MORE.** Six of those eleven are in instruments the author had just written in response to a review, mutation-tested, and believed. The reading that survives all three rounds is not « review harder » — it is that **an instrument written by the person whose work it measures inherits that person's blind spots, whatever the discipline**, and only a second pair of eyes on the instrument finds them. 4 by mutation, 9 by review, 11 by reviewing the repairs, 8 by reviewing THOSE. **AND THE CURVE IS THE ARGUMENT FOR STOPPING**: five production defects in round one, six in round two, and in round three **none** — its two criticals were an ABSENT repair and a DISCARDED count, both procedural, and both now impossible rather than improbable (`scripts/mutate.sh`, and a fake that closes asynchronously like a real browser). A fourth round would read its own corrections. The criterion for ending is not « no findings »; it is **no undiscovered product defect, and the procedural failure mode eliminated**. **L10-bis's reading was written before its own review, and the review refuted it.** At the wave's close this cell read: ten of eleven found by the wave itself, at the moment of mutating what it had just written, and therefore « the half that does not need a second reader, because a mutation aimed at the instrument you just wrote is a second reader you can be yourself ». An adversarial review of the finished wave then returned roughly fifty confirmed defects, and **NINE MORE OF THIS SPECIES** came out of repairing them — which is why the count above is 20 and not 11. So the sentence stands exactly reversed: **a mutation aimed at your own instrument is not a second reader, it is the same reader with a sharper tool.** It finds what you thought to break. The nine are what nobody thought to break: **the invariant-10 arm's vocabulary held the nine feature names and none of the seven page ALIASES the frame actually writes**, so `app/page-host.tsx`'s entire table of pages was outside it; **its comment stripper blanked the code after a `//` inside a string**, live on `lib/relay.ts`; **its corpus floor was one SUM across three directories**, so `ui/`, whose ceiling is ZERO, was satisfied by reading nothing at all. **`check-bug-register.py` ran in NO CI job** on a register-only pull request — the guard this wave built to make the register checkable was unreachable by the change it checks — and the hold written to catch that immediately found `BUGS-CLOSED.md` and `CLAUDE.md` in the same state. **The conformity hook accepted `> 🤖 Generated with Claude Code`, `- 🤖 …` and `* Generated with Claude`**, all three refused on `main`, because anchoring its alternatives to column one anchored them to a message nobody writes. **A hold monkeypatched four arms while `main` calls six**, so two ran for real inside a test that believed it had mocked everything. **The light-theme ratchet read `counts.total` and nothing else**: 99999 raised the ceiling by 165 834 without touching one recorded finding. **And the B-049 guard read a rule's own text and not its import closure**, so one `sqlite3.connect` moved into a helper would have let B-049 back into the tier through the front door. Every one of the nine is an instrument, and every one was found by someone reading the instrument rather than running it |
 
 **The nine the correction wave found, since a wave that counts itself has to name its own.** The
 figure is large because the count is honest, not because the wave was worse: four of the nine are
@@ -4010,7 +4018,9 @@ a survey's, not a gate's.
 **B-229 — the confirmation dialog is not on the back ladder.**
 D1's third tier: « Transient — no URL, but Back still closes it », and the example it names is a
 confirmation. `openDlg` (`legacy.js:9062`) pushes no history entry, and `onEngineBack`
-(`legacy.js:9461`) walks drawer → `#screen` → sheet and never `#dlg`. So a hardware Back with a
+(`legacy.js:9461–9608`; rungs at 9477, 9478, 9481–9484) walks drawer → `#screen` → sheet and never
+`#dlg`. Escape does reach the dialog (`app/focus.ts:213–235` → `__closeLayers`) and so does a scrim
+tap; Back alone does not. So a hardware Back with a
 delete confirmation up pops the entry UNDER it — a page, or the exit guard — with the dialog still
 on screen; on `/acquisition` two Backs quit the application over an unanswered « Supprimer ».
 **Derived from the code, not exercised** — the office's first limit; the rule that closes this
@@ -4018,7 +4028,7 @@ entry exercises it. NE-DOIT-PAS-6 is the clause it bends: a Back that does not c
 neither consents nor refuses. **L15's** (the frame lot), as the dialog's rung; the operator's Q5
 confirms D1's reading before it lands.
 
-<sub>`grep -n "pushLayer" legacy.js` → one call, the drawer's · `sed -n 9461,9478p legacy.js`</sub>
+<sub>`grep -n "pushLayer" legacy.js` → one call, the drawer's · `awk 'NR>=9461 && NR<=9608' legacy.js | grep -c dlg` → 0</sub>
 
 **B-230 — the engine re-adds `maximum-scale=1,user-scalable=no` to any host without a viewport meta.**
 `legacy.js:44–50`: if the document carries no `meta[name="viewport"]`, the engine appends one
@@ -4047,8 +4057,8 @@ page switch and a bump.
 
 **B-232 — two dead layers: the page-render branch and `#screen`.**
 `PAGES_OF()` has eight entries, all `shellOwned: true`, none with a `render` — so the `else`
-branch of `render()` at `legacy.js:7856–7863`, `view.innerHTML = found.render()`, is unreachable
-and would throw if reached. `#screen` (`index.html:455`) is opened by nothing: `openScreen` left
+branch of `render()` at `legacy.js:7857–7864`, `view.innerHTML = found.render()`, is unreachable
+and would throw if reached. `#screen` (`index.html:465`) is opened by nothing: `openScreen` left
 with L05 and `screenStack` (`legacy.js:9101`) is never pushed, yet `onEngineBack`, `hideLayers`
 and `window.__close` still test it and `app/shell.tsx:288–291` places the React mount node
 relative to it. Machinery nobody can justify, kept because nobody measured it (D5's own words).
@@ -4087,7 +4097,7 @@ by the answer, and by L15 if the answer is a surface.
 
 <sub>`grep -n "md:hidden" frontend/maquette/design/index.html` · `grep -rln "sidebar\|Sidebar" frontend/maquette/design/src/{app,features,ui,lib}` → none</sub>
 
-**B-236 — every bottom-panel producer is the engine's, and no lot owes them.**
+**B-236 — every bottom-panel producer is the engine's, and no lot owed them.**
 `grep -c "panel\.open(" legacy.js` → **10**; the same grep over `design/src/{features,app,lib,ui}`
 → **0**. The sheet is React (`ui/sheet.tsx`, since SP4b) and its every CONTENT — the follow sheet,
 the journey, the « ⋮ », the account menu, a setting, the seasons, the acquisition status — is a
@@ -4099,6 +4109,34 @@ product's whole sheet layer**, and invisible to the same two size-counting instr
 **L19** from 2026-08-29 (`frontend-architecture.md` § 4, Phase 5).
 
 <sub>`grep -n "panel\.open(" frontend/maquette/design/src/engine/legacy.js` · `grep -rn "panel.open(" frontend/maquette/design/src/{features,app,lib,ui}`</sub>
+
+**B-237 — the confirmation dialog paints under the tab bar.**
+`.dlg` is `z-index: 48` (`legacy.css:225`); `#nav` is `z-50` (`index.html:447`); both are children
+of `.device`, so a delete confirmation opens with the tab bar painted over its lower edge, and the
+bar's four buttons stay tappable over a modal that says `aria-modal="true"`. Found by the
+adversarial review of L10-ter's survey, which had written « the tab bar above every layer but the
+drawer and the install card » from two figures and not from the stylesheet — the z-order in the
+tree is an accumulation, not a list: 48 (dialog) · 50 (bar) · 51 (selection bar) · 55 (drawer,
+install) · 60 (popover, harness panel, login) · 70 (splash). Invisible to the oracle (a rectangle
+does not carry a stacking order) and to the accessibility tier (`inert` is on the background, and
+the bar is in it — so the bar is inert AND painted on top). **L15's**, with the dialog's conversion:
+one ranked list, in `MODEL.md` § 2 Part 6, and a rule that reads `elementFromPoint` over the bar
+while a dialog is open.
+
+<sub>`grep -n "z-index" frontend/maquette/design/src/styles/legacy.css` · `grep -n "z-\[\|z-[0-9]" frontend/maquette/design/index.html`</sub>
+
+**B-238 — a version-less « In flight » row is held by nothing.**
+`scripts/check-implementation-state.py` refuses an « In flight » row naming a version `main` has
+reached. A `no-version-bump` pull request — this phase's, the first since the guard shipped — names
+no version, so the guard prints « the row names no version, so nothing is in flight to check » and
+exits 0: after #521 merges, the row still announcing L10-ter is exactly the defect the guard exists
+for, and it has no arm. The guard's own docstring lists what it does not read and this is not on
+the list. Two shapes would close it: refuse a row whose named branch no longer exists on `origin`,
+or refuse a row whose named pull request is merged (which needs the network the guard was built to
+avoid). **The office's** under § 7.2's exception — the instrument measures the directives — or the
+next wave's post-merge gesture, by hand, with this entry as the reason it is not automatic.
+
+<sub>`python3 scripts/check-implementation-state.py` on this branch → « names no version » · `grep -n "VERSION_IN_ROW" scripts/check-implementation-state.py`</sub>
 
 **B-226 — the cross-check B-208 built never ran in continuous integration.** Recorded by the
 steward's audit of L10 as A-1, and it is sharp. `check-live-relay.py`'s `backend_events()` compares
@@ -4339,7 +4377,8 @@ narrower question than that:
 a capability the constitution requires, that neither the maquette nor the backend has, is invisible
 to every gate in this repository.
 
-**Measured: the eleven DOIT clauses against the 53 operations the interface declares.** Five have
+**Measured: the eleven DOIT clauses against the 53 operations the interface declares.** (Fourteen
+clauses since 2026-08-26; the map re-read all fourteen.) Five have
 no surface, and each one names an operation the backend already exposes and the interface does not
 call — so they are not speculative:
 
@@ -4373,7 +4412,7 @@ the operator's reading, not this steward's.
 
 <sub>`python3 -c "import json;d=json.load(open('frontend/maquette/contract/openapi.json'));print(sum(1 for p in d['paths'].values() for v in p if v in ('get','post','put','patch','delete')))"` · `sed -n '492,517p' docs/reference/product-intent.md` · `docs/reference/frontend-backend-demands.md` § 4</sub>
 
-> **THE MAPPING IS WRITTEN, 2026-08-29 (L10-ter).** `docs/reference/product-intent-map.md` — one row per DOIT and NE-DOIT-PAS clause, a verdict from a five-word vocabulary, a proof or an owning lot. Five rows read `to draw` (L16, L17, L18, L20), four `served, unproved` with the lot that owes the instrument (L19), and the § 4 list of unused operations now has a verdict for every operation a clause names. The arm is specified in `MODEL.md` § 4 and built by **L15**; this entry closes when it runs.
+> **THE MAPPING IS WRITTEN, 2026-08-29 (L10-ter).** `docs/reference/product-intent-map.md` — one row per DOIT and NE-DOIT-PAS clause, a verdict from a five-word vocabulary, a proof or an owning lot. Three rows read `to draw` (L16, L17, L18), eleven `partly` with an owed half (L19, L20), and the § 4 list of unused operations has a verdict for every operation a clause names — fourteen of the twenty-four. The arm is specified in `MODEL.md` § 4 and built by **L15**; this entry closes when it runs.
 
 **B-143 — the constitution gained a section, and nothing in the plan answers it.**
 The operator dictated **§17 — Comptes, droits et identité Plex** on 2026-08-26: the application
@@ -4418,7 +4457,7 @@ Plex account sees by default. None is the steward's to answer.
 
 <sub>`grep -n 'WEB_ROLE\|require_not_staging' docs/reference/web-ui.md` · `python3 -c "import json;print([p for p in json.load(open('frontend/maquette/contract/openapi.json'))['paths'] if 'auth' in p])"`</sub>
 
-> **PLACED, 2026-08-29 (L10-ter): L18**, last of the three, after L16 and L17, with §17's four open points written into the lot as its blocking note. It is the one lot after L15 that edits a frame part (the gate, for Plex SSO), and the plan says so.
+> **PLACED, 2026-08-29 (L10-ter): L18**, last of the three, after L16 and L17, with §17's four open points written into the lot as its blocking note. It is the one lot after L15 that edits frame CODE (the gate, for Plex SSO; L16 and L20 only add navigation-table rows), and the plan says so.
 
 **B-144 — the engine measures the ratio, and the interface shows none of it.**
 The operator dictated **§18 — Le ratio est une ressource, et elle se pilote** on 2026-08-26, with

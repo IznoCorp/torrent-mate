@@ -23,6 +23,7 @@ grep -nE '\.(innerHTML|outerHTML)\s*=|insertAdjacentHTML\(|\.(appendChild|append
 ```
 
 **19 sites** on 2026-08-29 — 13 `innerHTML` writes, 2 `insertAdjacentHTML`, 4 `appendChild`.
+(⚠ `grep -c` counts a function's DEFINITION with its callers: every caller figure below subtracts it.)
 `--count` gives the number; the listing gives the surfaces, and it is the listing that matters,
 because 19 sites draw **nine surfaces** and one of the sites draws nothing at all.
 
@@ -37,18 +38,18 @@ writes markup:
   sheet the operator opens — the follow sheet, the journey, the « ⋮ », the account menu, a
   setting, the seasons — is produced by the engine, drawn by React, and invisible to a grep for
   `innerHTML`.
-- **A toggle.** Twelve nodes are static markup in `index.html` that the engine shows, hides or
-  animates without ever writing them: the splash, the login gate, the install banner, the FAB,
-  the pull-to-refresh indicator. § 2 lists them.
+- **A toggle.** Static markup in `index.html` that the engine shows, hides or animates without
+  ever writing it: the splash, the login gate, the install banner, the FAB, the pull-to-refresh
+  indicator (`#ptr`), the harness bar. § 2 lists every node with its driver.
 
 ### 1.2 The nineteen sites, by surface
 
 | Surface                     | Sites (`legacy.js`)                                                                                         | Container                                                                                | Who owns the container                             | Class                                                                                        |
 | --------------------------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| **The tab bar**             | `7802` `nav.innerHTML` in `renderNav()`                                                                     | `<nav id="nav">`, **empty** in `index.html:441`                                          | static markup                                      | **frame chrome**                                                                             |
-| **The drawer**              | `10000` in `openDrawer()`                                                                                   | `<aside id="drawer">`, **empty** in `index.html:454`                                     | static markup                                      | **frame chrome** — and the NAVIGATION table it draws from is the engine's (`legacy.js:9975`) |
-| **The confirmation dialog** | `9064` `openDlg(html)`                                                                                      | `<div id="dlg">`                                                                         | static markup                                      | **frame layer** — 3 producers hand it HTML strings                                           |
-| **The toast**               | `8943` (undo variant) + `8933` `textContent` (plain)                                                        | `#toastmsg` inside `#toast`                                                              | static markup                                      | **frame chrome** — 30 `toast(…)` and 6 `toastUndo(…)` callers                                |
+| **The tab bar**             | `7802` `nav.innerHTML` in `renderNav()`                                                                     | `<nav id="nav">`, **empty** in `index.html:449`                                          | static markup                                      | **frame chrome**                                                                             |
+| **The drawer**              | `10000` in `openDrawer()`                                                                                   | `<aside id="drawer">`, **empty** in `index.html:462`                                     | static markup                                      | **frame chrome** — and the NAVIGATION table it draws from is the engine's (`legacy.js:9976`) |
+| **The confirmation dialog** | `9064` `openDlg(html)`                                                                                      | `<div id="dlg">`                                                                         | static markup                                      | **frame layer** — 2 producers hand it HTML strings (`10788`, `10915`)                                           |
+| **The toast**               | `8943` (undo variant) + `8933` `textContent` (plain)                                                        | `#toastmsg` inside `#toast`                                                              | static markup                                      | **frame chrome** — 29 `toast(…)` and 5 `toastUndo(…)` callers                                |
 | **The selection bar**       | `8236` + `8239` (appended to `#device`)                                                                     | `.selbar`, created per open                                                              | engine creates the node                            | **frame slot, feature content** — the library's selection mode                               |
 | **The episode popover**     | `32060` + `32061` (appended to `#device`)                                                                   | `.eppop`, created per open                                                               | engine creates the node                            | **transient layer, feature content** — the media/follow sheets                               |
 | **Découvrir — the feed**    | `8653` `.deckbody` · `8677`, `8684` `#sugitems` · `8620`, `8634` deck card swap · `8842`, `8845` `#sugload` | drawn by `features/acquisition/page.tsx:574` (« drawn here and filled by the fragment ») | **React draws the container, the engine fills it** | **feature content** — Acquisition's third tab                                                |
@@ -70,14 +71,16 @@ sed -n 7655,7745p frontend/maquette/design/src/engine/legacy.js | grep -c "shell
 sed -n 7655,7745p frontend/maquette/design/src/engine/legacy.js | grep -c "render:"            # 0
 ```
 
-So the `else` branch of `render()` at `legacy.js:7856–7863` — the one that writes `#view` — is
+So the `else` branch of `render()` at `legacy.js:7857–7864` — the one that writes `#view` — is
 unreachable, and if it were reached it would throw (`found.render` is undefined on every entry).
-The page host's own comment (`app/page-host.tsx:463`: « An id absent from this table is a page
+The page host's own comment (`app/page-host.tsx:70`: « An id absent from this table is a page
 the legacy still draws ») describes a case with zero members.
 
-**The legacy screen layer is dead too.** `#screen` (`index.html:455`) is opened by nothing:
+**The legacy screen layer is dead too.** `#screen` (`index.html:465`) is opened by nothing:
 `openScreen` left with L05, and the stack that `closeScreen` pops is declared at `legacy.js:9101`
-and **never pushed** — `grep -n "screenStack.push" legacy.js` → nothing. Three live code paths
+and **never pushed** — `grep -n "screenStack.push" legacy.js` → nothing; and `setOpen` is the only writer of the
+`open` state, both `setOpen(select("#screen"), …)` calls pass `false`, and no `classList.add("open")` exists under
+`design/src`. Three live code paths
 still test it (`onEngineBack`, `hideLayers`, `window.__close`) and `app/shell.tsx:288–291`
 re-parents the React mount node relative to it. It is the shape D5 forbids — machinery nobody
 can justify, kept because nobody measured it — and it is L13's to remove (`frontend-architecture.md` § 4, L13, as amended by this phase).
@@ -123,16 +126,17 @@ read from `frontend/maquette/design/src/app/*.ts*` and `engine/legacy.js` at the
 **The reading of this table, in one sentence.** React owns the URL, the history, the pages, the
 screens, the sheet, the scrim, focus, scroll memory and liveness; **the engine owns the chrome
 (tab bar, drawer, dialog, toast, FAB), the entry (splash, login, install), the ladder's logic, and
-every verb** — and the two worlds meet on `data-open`, on `#scrim`, and on twelve `window.__`
-seams (`grep -on "window\.__[a-zA-Z]*" … | sort -u | wc -l` → 41 distinct names across engine
-and shell).
+every verb** — and the two worlds meet on `data-open`, on `#scrim`, and on the `window.__` seams:
+**43 distinct names** across `design/src`
+(`grep -rohE "window\.__[a-zA-Z0-9]+" frontend/maquette/design/src | sort -u | wc -l`; `-o` without
+`-h`/`-n`, or a count that keeps the line prefix, dedupes the wrong thing and reads 90 or 231).
 
 ---
 
 ## 3. The layer ladder — what Back walks, and what it does not
 
-The engine's back handler (`onEngineBack`, `legacy.js:9461–9478`) walks the layers in this order,
-and it is the whole of the ladder:
+The engine's back handler (`onEngineBack`, `legacy.js:9461–9608`; the rungs at `9477`, `9478`,
+`9481–9484`) walks the layers in this order, and it is the whole of the ladder:
 
 1. **drawer** — `#drawer.open` → `closeDrawer(true)`. Pushes its own entry (`pushLayer("drawer")`,
    the only `pushLayer` call left in the engine).
@@ -146,7 +150,15 @@ and it is the whole of the ladder:
 but Back still closes it », and names a confirmation as the example. `openDlg` pushes no entry and
 `onEngineBack` has no `#dlg` branch, so a hardware Back with a dialog open pops the entry UNDER the
 dialog — a page or the exit guard — with the dialog still up. Derived from the code, not exercised
-(the office's first limit); it is § 5, finding 2, and it belongs to the frame lot. The toast and
+(the office's first limit); it is § 5, finding 2, and it belongs to the frame lot. **The dialog is
+not closerless**: Escape reaches it (`app/focus.ts:213–235` routes Escape to `window.__closeLayers`,
+which closes the dialog first) and so does a scrim tap — only Back does not.
+
+**And it paints UNDER the tab bar.** `.dlg` is `z-index: 48` (`legacy.css:225`) and `#nav` is
+`z-50` (`index.html:447`), both children of `.device`: a confirmation opens with the tab bar over
+its lower edge. The z-order the tab bar sits above is not « every layer but two »: `.selbar` 51,
+`.eppop` 60, `.hpanel` 60, `.loginscreen` 60, `.splash` 70 all paint over it (`legacy.css:1188,
+1898, 1232, 2278, 2415`), and the dialog paints under it. § 5, finding 10. The toast and
 the episode popover are transient too and are closed by their own timer or tap, which is right for
 them — a Back that dismissed a toast would be a Back stolen from the page.
 
@@ -170,7 +182,7 @@ them. Read from `frontend/src/components/layout/*.tsx`, `hooks/usePwa.ts`,
 
 | Surface                 | Production (`frontend/src`)                                                                                                                               | Maquette                                                                                                            | Verdict                                                                                                                                                                                                          |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The frame               | `AppShell.tsx`: one viewport tall, `h-svh overflow-clip`, one scrollport `main[data-scroll-root]` — chosen to stop iOS's URL bar shivering the fixed zone | `.device` + `main#port`, one scrollport, `100dvh` in the base layer                                                 | **same model**, independently reached; nothing to decide                                                                                                                                                         |
+| The frame               | `AppShell.tsx`: one viewport tall, `h-svh overflow-clip`, one scrollport `main[data-scroll-root]` — chosen to stop iOS's URL bar shivering the fixed zone | `.device` + `main#port`, one scrollport — and **no dynamic viewport unit at all**: `base.css:54` is `height: 100%`, and the only `100svh` in the tree is `harness.css` (`grep -rn "dvh\|svh" design/src/styles design/index.html`), the phone frame that ships nowhere                                                 | same scrollport model; **the viewport unit is a difference nobody decided** — P11 of `MODEL.md` § 3 is false today, and it is L12's                                                                                                                                                         |
 | Bottom tab bar          | `BottomTabBar.tsx`, `< md` only, 4 tabs: Acquisition · Médias · Pipeline · Contrôle                                                                       | `#nav`, `md:hidden`, 4 tabs: Acquisition · Médiathèque · Arrivées · Système                                         | the SET differs because `/pipeline` and `/control` are undrawn (plan § 1, item 1) and Arrivées has no production page. Known; the operator's open UX question in `IMPLEMENTATION.md`                             |
 | Desktop navigation      | `Sidebar.tsx`, `hidden md:flex` — a persistent rail at `≥ md`                                                                                             | **none.** The tab bar hides at `md` and no rail exists: at desktop width the burger's drawer is the only navigation | **a decision nobody took** — `product-intent.md` §12 says the desktop « doit rester pleinement fonctionnel ». It is functional through the drawer; whether a rail is drawn is the operator's (`QUESTIONS.md` Q1) |
 | The drawer              | a shadcn `Sheet side="left"` with the same `NavSections` as the rail, plus `VersionCard`                                                                  | engine-drawn `<aside>` from `NAVIGATION`, plus the served identity block                                            | same content, two owners; **the maquette's is the one that has to move** (frame lot)                                                                                                                             |
@@ -181,7 +193,7 @@ them. Read from `frontend/src/components/layout/*.tsx`, `hooks/usePwa.ts`,
 | Install proposal        | `usePwa` + `InstallBanner`: `beforeinstallprompt`, iOS detection, dismissal in `localStorage`                                                             | engine `9816–9915`: the same two paths, dismissal per session only                                                  | same design; the maquette's logic is in the engine and moves with the frame lot                                                                                                                                  |
 | Route guard             | `ProtectedRoute` → `/login` page                                                                                                                          | `/login` is a layer over a built frame (`lib/addresses.ts`)                                                         | the maquette's is the designed one (D1)                                                                                                                                                                          |
 | Legacy French routes    | `medias`, `systeme`, `controle` redirected by `router.tsx`                                                                                                | `serve.py` answers them with redirects (#456)                                                                       | same                                                                                                                                                                                                             |
-| Frame heights published | `--topbar-h` AND the bottom bar (`bottom-bar-metrics.ts`)                                                                                                 | `--tm-bottom-bar-h` only (`app/bar-height.ts`, R84)                                                                 | the top bar's height is read by nothing in the maquette today; if a surface ever needs it, R84's « exactly one publisher » applies                                                                               |
+| Frame heights published | `--tm-topbar-h` and `--tm-viewtabs-h` as well as the bottom bar (`bottom-bar-metrics.ts`)                                                                                                 | `--tm-bottom-bar-h` only (`app/bar-height.ts`, R84)                                                                 | the top bar's height is read by nothing in the maquette today; if a surface ever needs it, R84's « exactly one publisher » applies                                                                               |
 
 ---
 
@@ -212,7 +224,18 @@ branch at the moment of writing.
 8. **B-235** — no desktop navigation exists beyond the drawer (§ 4). Filed as `open` because the
    answer is the operator's, not because it is known to be wrong.
 9. **B-236** — every bottom-panel producer is still the engine's — ten of ten — and no lot of the
-   plan owes their conversion, which is B-220's class over the product's whole sheet layer.
+   plan owed their conversion, which is B-220's class over the product's whole sheet layer.
+10. **B-237** — the confirmation dialog paints under the tab bar (`z-index: 48` against `z-50`).
+11. **B-238** — a version-less « In flight » row is held by nothing: `check-implementation-state.py`
+    reads a version, and a prose-only wave names none, so the row this phase writes is exactly the
+    row the guard cannot clear.
+
+**And what the adversarial review of this survey found in it**, kept here because a survey that
+hides its own corrections is the thing it was written against: six line citations wrong by 8 to
+257 lines, three `grep -c` counts that included the definition, a seams count produced by a command
+that cannot count names, a `100dvh` asserted from memory and false, and two `served` rows of the
+clause map resting on a print statement and on a rule about PM2 processes. All corrected in the
+same pull request; the « Guards green » row for this phase counts them.
 
 <sub>the commands: § 1.1 for the writes · `grep -n "screenStack" legacy.js` for the dead layer ·
 `grep -n "theme-color" index.html` · `grep -c "interactive-widget" index.html` → 0 ·

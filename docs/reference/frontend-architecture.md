@@ -87,18 +87,19 @@ plan changes in five places: **L15 — the frame** is inserted before L11, becau
 (L11) caches the chrome and the chrome must be the product's before it is cached, and a transition
 between two layers (L12) needs both layers to be components; **L19 — the producers** is inserted
 after L12, because D5's « surface by surface » was applied to the pages and never to the sheets'
-content, so sixty fixture families had no owner (B-236); **L16, L17, L18** are §18, §19 and §17,
-placed after L19 so a new surface inherits the producer template rather than being converted
-twice; **L20 — the control station** is `/control` and `/pipeline`, which item 1 below kept
+content, so sixty fixture families had no owner (B-236); **L20 — the control station** is `/control` and `/pipeline`, which item 1 below kept
 outside this file and the clause map (`product-intent-map.md`) could not leave ownerless — four
-DOIT clauses hang on them; and **L13 is re-cut** to what really did not die by subtraction. The
+DOIT clauses hang on them, placed right after L19; **L16, L17, L18** are §18, §19 and §17,
+placed after L20 so a new surface inherits the producer template rather than being converted
+twice; and **L13 is re-cut** to what really did not die by subtraction. The
 order is the file's order, below. Every lot from L11 to L14 carries what the model does to it,
 under its own heading. **The where and the when are here; the progress is `IMPLEMENTATION.md`.**
 
 **THREE LOTS WERE OWED AND ARE DECLARED — §17, §18 and §19 of the constitution.** The operator
 dictated three sections on 2026-08-26 and no lot of this file answered any of them; on 2026-08-29
 they were recorded here without a number, an order or a position, so § 0's rule could not reach
-them, and **L10-ter placed them the same day: L16 (§18), L17 (§19), L18 (§17)**, in Phase 5 below.
+them, and **L10-ter placed them the same day: L16 (§18), L17 (§19), L18 (§17)**, in Phase 5 below,
+after L20.
 The measurement that scheduled them stays here as the record of what existed on the day:
 
 | Section | What exists today | What it is asked for |
@@ -132,7 +133,8 @@ operator dictates is invisible the same way — and three were dictated in one d
 **Its mapping is written and its instrument is placed** (2026-08-29). The arm needs a declared
 mapping from each DOIT clause to the surface that serves it, and **a mapping is a design decision,
 not a grep** — so L10-ter wrote it: `docs/reference/product-intent-map.md`, one row per DOIT and
-NE-DOIT-PAS clause, a verdict, a proof or an owning lot. The arm that reads it is specified in
+NE-DOIT-PAS clause, a verdict, a proof or an owning lot — three rows `to draw`, five more with a
+« to draw » half. The arm that reads it is specified in
 `MODEL.md` § 4 and **built by L15**, the first lot after the phase — a phase forbidden to write a
 guard does not write one, and a wave's arm gets a wave's adversarial review.
 
@@ -166,7 +168,11 @@ nothing ». The clause map could not leave them there: DOIT-1, DOIT-3, DOIT-5 an
 a half that only those pages serve, and a clause whose surface has no lot is a clause nobody
 owes. They follow the existing method — drawn in the maquette first, named states, a rule that
 bites — and where their panels land stays the operator's open UX question (`IMPLEMENTATION.md`),
-written into L20 as its blocking note.
+written into L20 as its blocking note. **What this makes void**: « not blocked by any lot below »
+— L20 depends on L15 and L19, so the standing freedom to draw those two pages at any moment is
+withdrawn, deliberately: drawn before the producer template, they would be drawn twice. Whether
+they wait behind the three constitution lots as well is the operator's (`QUESTIONS.md` Q9); the
+plan places them before.
 
 ---
 
@@ -375,9 +381,13 @@ file reveals.
 cross-cutting parts are lifted once and early; the rest dies with each surface as that surface is
 converted and wired.
 
-**Why, and this is a measurement rather than a preference.** `legacy.js` is 34 650 lines, of
-which **27 678 (79 %) are fixtures** — `SHEETS_RAW` alone is 20 538 lines of episode catalogue.
-The engine's actual code is about **6 949 lines**.
+**Why, and this is a measurement rather than a preference.** `legacy.js` was 34 650 lines when
+this was decided, of which **27 678 (79 %) are fixtures** — `SHEETS_RAW` alone is 20 538 lines of
+episode catalogue — and the engine's actual code about **6 949 lines**. **Re-measured on
+2026-08-29 (L10-ter)**: 33 449 lines, **33 026 non-blank**
+(`grep -cve '^\s*$' frontend/maquette/design/src/engine/legacy.js`), of which **26 366** sit in
+the **9** declarations over 100 lines the method below finds — L09's « sixty families » counts
+every fixture constant whatever its size, which is a different figure and not this one.
 <sub>method: bracket-match every `const X = [` / `const X = {` declaration and sum the spans over 100 lines</sub>
 Most of that fixture stops existing when real data arrives. Killing the engine before the data
 layer means facing 34 650 lines; killing it as surfaces convert means facing seven thousand,
@@ -398,8 +408,9 @@ model out of the engine — `URL_DEFAULTS`, `urlFromState`, `stateFromUrl` and t
 plumbing — leaving it the navigation LOGIC (when to record an arrival, what the entry carries, how
 a back unwinds the layers). `openScreen` went with them, having lost every caller. `__go` and the
 named states remain the harness's own driving seam and belong to L13. The
-delegation, the boot, `/login` and the splash are L13's, which is the last lot of the engine's
-death — L14 follows it in this file and has nothing to do with the engine.
+delegation and the boot are L13's, which is the last lot of the engine's death. **`/login` and
+the splash were on this list until 2026-08-29 and are L15's now** — they are the frame's entry
+(`MODEL.md` § 2 Part 9), and §17 redraws the gate, which cannot happen while it is engine code.
 
 ### D6 — Accessibility is a lot, not a side effect
 
@@ -1123,15 +1134,18 @@ layers needs both layers to be components; the drawer and the dialog are engine 
 | --- | --- | --- | --- |
 | 5 — the table | `PAGES_OF` and `NAVIGATION` (engine), `PAGES` (page host), `PAGE_PATHS` (addresses) — **four copies of one fact** | the engine, twice | **one** `app/navigation.ts`: id · path · component · label key · icon · group · in the bar · action button · `badge()` — invariant 10's third exception, and the engine holds no copy |
 | 6 — the chrome | the tab bar (`renderNav`, rebuilt on every `render()` — B-231), the drawer's chrome, the FAB's toggle, the selection **slot** | engine `innerHTML` | `app/tab-bar.tsx`, `app/drawer.tsx`, `app/action-button.tsx`, `app/bottom-slot.tsx`; the library's selection bar becomes its own component portalled into the slot |
-| 7 — the layers | the dialog (`openDlg(html)`, 3 producers), the toast (36 callers), the popover LAYER | engine `innerHTML` | `ui/dialog.tsx`, `ui/toast.tsx`, `ui/popover.tsx` behind DESCRIPTORS on the seam the sheet already uses (`app/panel-host.ts` is the precedent: facts cross, markup is the component's); **the scrim gets one owner**; **the dialog gets its rung** on the ladder (B-229, D1's third tier) |
+| 7 — the layers | the dialog (`openDlg(html)`, 2 producers — `grep -n "openDlg(" legacy.js`, minus the definition), the toast (34 callers — 29 `toast(`, 5 `toastUndo(`, definitions subtracted), the popover LAYER | engine `innerHTML` | `ui/dialog.tsx`, `ui/toast.tsx`, `ui/popover.tsx` behind DESCRIPTORS on the seam the sheet already uses (`app/panel-host.ts` is the precedent: facts cross, markup is the component's); **the scrim gets one owner**; **the dialog gets its rung** on the ladder (B-229, D1's third tier) and its place in the z-order (B-237: it paints under the tab bar) |
 | 9 — the entry | splash, login gate, install proposal, appearance (`legacy.js:9678–9915`, `10116`) | engine logic over static markup | `app/splash.ts`, `app/sign-in.tsx`, `app/install.ts`, `app/appearance.ts`; `theme-color` follows the theme (B-233); the viewport fallback that re-adds `user-scalable=no` is removed (B-230) |
 
-**One kind of change, and how it stays one.** Drawing moves; behaviour does not. The ladder's
-HANDLER (`onEngineBack`, `unwindLayer`, `hideLayers`, `__closeLayers`) stays in the engine until
-L13 — the drawer and the dialog REGISTER with it through the seam, exactly as the sheet does
-through `window.__panel`. Every engine edit is a subtraction or a call through a seam; a line
-added to the engine that is neither is the defect. The sheet's own conversion (SP4b) is the
-proof that this shape lands at zero oracle divergence.
+**One kind of change, and how it stays one.** The conversions above are DRAWING moves, proved by
+the oracle at zero divergence — the sheet's own conversion (SP4b) is the precedent. **Four things
+in this lot are BEHAVIOUR changes, and each lands in its own commit with its own rule, never inside
+a conversion commit**: the dialog's rung on the ladder (B-229), the dialog's z-order (B-237),
+`theme-color` following the theme (B-233), and the removal of the viewport fallback (B-230). The
+ladder's HANDLER (`onEngineBack`, `unwindLayer`, `hideLayers`, `__closeLayers`) stays in the
+engine until L13 — the drawer and the dialog REGISTER with it through the seam, exactly as the
+sheet does through `window.__panel`. Every engine edit is a subtraction or a call through a seam;
+a line added to the engine that is neither is the defect.
 
 **What it must not do.** Extend a grandfathered file — `features/acquisition/page.tsx` and
 `features/library/page.tsx` are two of L14's four, and the selection bar and the Découvrir
@@ -1150,8 +1164,8 @@ row points at, exported by the feature, so the frame names the feature once and 
 
 **Done when.** The inventory command (`SURVEY.md` § 1.1) lists only the Découvrir feed, the
 popover's content and the harness panel — nothing of the frame; `#nav`, `#drawer`, `#dlg` and
-`#toast` are React-rendered at their ids; one navigation table, and `grep -c "PAGES_OF\|NAVIGATION"
-legacy.js` reads only the seam that asks for it; P1, P2, P3's dialog rung, P14's landmine and P21
+`#toast` are React-rendered at their ids; one navigation table, and `grep -n "PAGES_OF\|NAVIGATION"
+legacy.js` lists the seam's read sites only — no declaration of either; P1, P2, P3's dialog rung, P14's landmine and P21
 (`MODEL.md` § 3) are each held by a rule seen to bite; the B-142 arm is in the contracts tier with
 its mutation; the oracle is green at every step or its divergences are accepted with reasons; the
 hold counts are unchanged; the accessibility tier reads zero over every named state.
@@ -1286,12 +1300,32 @@ harness panel; the fixture families that fed the producers are gone (D5's bracke
 reads the difference); the delegation handles only the frame's verbs; the four map rows above
 read `served` with a rule that bit; the oracle is green or its divergences accepted with reasons.
 
+#### L20 — The control station · *depends on L15, L19, L10*
+
+**Objective.** The two pages the mission re-opened — `/control` (8 panels) and `/pipeline`
+(10 panels) — drawn where the operator's UX arbitration lands them, and the halves of DOIT-1,
+DOIT-3, DOIT-5 and DOIT-6 only they serve: the pipeline's own states in plain French, « relancer
+le watcher » (`POST /api/pipeline/watcher`), progress to the library (`GET /api/pipeline/stages`),
+a run's figures (`GET /api/pipeline/history/{run_uid}`). The tab-bar badge for a running pipeline
+is one row in the navigation table, if **Q6** says yes.
+
+**Blocking note.** Where the panels land — Arrivées / Système / Maintenance / Configuration, or
+pages of their own — is the operator's open UX question in `IMPLEMENTATION.md`, and it is answered
+before the wave opens.
+
+**Where it lives (invariant 10).** `features/pipeline/` and `features/control/`, or the four
+features the panels are redistributed into — the arbitration decides, the design says.
+
+**Done when.** The four map rows read `served` with a rule; the three operations are called and
+mocked; every named state of the two pages renders at 390 px with no overflow; the oracle records
+them as new.
+
 #### L16 — §18, the ratio · *depends on L15, L19, L10*
 
 **Objective.** DOIT-13: the ratio is read PER TRACKER, obligations are a « rien » with their
 reason, and a tracker's policy is set from the surface that shows it. Three operations answer and
 nothing calls them (`GET /api/acquisition/obligations`, `/stalled-grabs`, `/downloads`); one
-write — the policy — exists in neither contract and is recorded as a demand (D7). The stream's
+write — the policy — exists in neither contract and will be recorded as a demand (D7). The stream's
 `RatioMeasured` and `SeedObligation*` events reach the browser and no surface claims them
 (`frontend-backend-demands-stream.md` § 3); this lot's `live.ts` does.
 
@@ -1329,7 +1363,7 @@ precedent: a feature ADDS a block kind), and a feed if the operator chooses one.
 maquette's contract and in the demands; the two events are claimed; a refusal is readable from
 the surface with its reason (NE-DOIT-PAS-5 applied to a success).
 
-#### L18 — §17, accounts, rights and Plex identity · *depends on L15*
+#### L18 — §17, accounts, rights and Plex identity · *depends on L15, L19*
 
 **Objective.** DOIT-12: the interface shows what THIS account can do, and what it cannot is
 visible and explained where hiding it would mislead. A rights MODEL first, then surfaces; the
@@ -1342,33 +1376,14 @@ wave opens. The lot is last of the three because it is the largest and because i
 that edits the FRAME after L15 (the gate, the drawer's identity block), by design.
 
 **Where it lives (invariant 10).** `features/account/` for the model and the surfaces; the gate
-stays `app/sign-in.tsx` and is redrawn here — the only lot after L15 that touches a frame part,
-and the plan says so rather than discovering it.
+stays `app/sign-in.tsx` and is redrawn here — the only lot after L15 that edits frame CODE (L16
+and L20 add rows to the navigation table, which is the template working as designed), and the
+plan says so rather than discovering it.
 
 **Done when.** A right is proved on BOTH sides and separately (§17 « Ce que cela impose à la
 preuve »): the action absent from the surface for the account without it, the call refused for
 one that forces it; the map's DOIT-12 row reads `served` with that rule; the read-only role has
 no path of its own left.
-
-#### L20 — The control station · *depends on L15, L19, L10*
-
-**Objective.** The two pages the mission re-opened — `/control` (8 panels) and `/pipeline`
-(10 panels) — drawn where the operator's UX arbitration lands them, and the halves of DOIT-1,
-DOIT-3, DOIT-5 and DOIT-6 only they serve: the pipeline's own states in plain French, « relancer
-le watcher » (`POST /api/pipeline/watcher`), progress to the library (`GET /api/pipeline/stages`),
-a run's figures (`GET /api/pipeline/history/{run_uid}`). The tab-bar badge for a running pipeline
-is one row in the navigation table, if **Q6** says yes.
-
-**Blocking note.** Where the panels land — Arrivées / Système / Maintenance / Configuration, or
-pages of their own — is the operator's open UX question in `IMPLEMENTATION.md`, and it is answered
-before the wave opens.
-
-**Where it lives (invariant 10).** `features/pipeline/` and `features/control/`, or the four
-features the panels are redistributed into — the arbitration decides, the design says.
-
-**Done when.** The four map rows read `served` with a rule; the three operations are called and
-mocked; every named state of the two pages renders at 390 px with no overflow; the oracle records
-them as new.
 
 ### Phase 6 — The finish
 
@@ -1438,13 +1453,15 @@ unless a second feature already reads it. The duplicated `Icon` is the one excep
 component two features draw is vocabulary, and vocabulary lives in `ui/`.
 
 **Its position in this file is deliberate, and so is what that position costs.** Nothing depends
-on it, so it sits last and § 0's rule will elect it last — which means L10 to L13 are all worked
-inside 600-to-800-line files, and invariant 6's reason (« an agent modifying a component opens one
-file ») is not served for them. **Its dependencies have both landed**, so the operator may pull it
-forward between any two lots at any time, and that is a real option rather than a formality.
+on it, so it sits last and § 0's rule will elect it last — which means every lot before it is
+worked inside 600-to-800-line files, and invariant 6's reason (« an agent modifying a component
+opens one file ») is not served for them. It depends on nothing that is not already behind it, so
+the operator may pull it forward between any two lots at any time, and that is a real option
+rather than a formality.
 
-**Re-read against the model by L10-ter (2026-08-29): UNCHANGED.** Two lots now write beside its
-four files before it runs — L15 (the selection bar, the Découvrir containers) and L19 (the
+**Re-read against the model by L10-ter (2026-08-29): UNCHANGED in objective; the sentence above
+was refreshed** (it named « L10 to L13 » as the lots worked in oversized files, and the list has
+grown). Two lots now write beside its four files before it runs — L15 (the selection bar, the Découvrir containers) and L19 (the
 producers) — and neither may extend them; each creates its files beside the page. Whether to pull
 this lot forward before L19 is the operator's **Q3** (`QUESTIONS.md`); the recommendation is
 before L19, and it stays last until the answer.
@@ -1496,7 +1513,9 @@ cheap because the row already carries the wave's version: if `personalscraper/__
 has reached the version the « In flight » row names, that wave has landed and the row is stale —
 offline, exact, and green on the wave's own branch, where the two differ by construction. It says
 nothing between waves, when no row names a version, and it prints what it read there rather than
-letting a vacuous pass read as a verdict.
+letting a vacuous pass read as a verdict. **And it says nothing about a prose-only wave either**:
+a `no-version-bump` pull request names no version, so its « In flight » row is cleared by hand and
+held by nothing — B-238, found by the first such row (L10-ter's).
 
 **BUILT on 2026-08-29 as `scripts/check-implementation-state.py`, and building it corrected this
 paragraph twice.** « Has reached » is an ORDERING, not an equality: written as equality — the
@@ -1543,7 +1562,12 @@ and name the next lot. It sits here, with the two commands, for the reason the p
 gives — it is the only step of the three that cannot be done from the wave's own branch.
 
 **And a fourth: ARCHIVE the wave's design and plan** — `docs/features/<codename>/` moves under
-`docs/archive/features/`, and every cross-reference to it moves in the same step. Added on
+`docs/archive/features/`, and every cross-reference to it moves in the same step. **One folder is
+exempt, by name: `docs/features/maquette-l10-ter/`.** It is not a wave's design — it is the frame's
+model and the survey this file cites twenty times, L15's, L11's, L12's and L13's design starts
+from it, and `docs/archive/` is frozen history that a lot may not amend. It archives when L13
+lands, with the engine whose death it measured; until then a lot that finds the model wrong
+amends it under § 7.1 like this file. Added on
 2026-08-26 by B-083, after the third wave out of eight where this gesture slipped: the L06 audit
 had to do it retroactively, L07 did it in the move, L08 did not and the correction wave did it a
 wave late. The operator arbitrated a step here rather than a guard — the check is cheap to
