@@ -176,7 +176,7 @@ check-contract-types:
 	@# file carrying a line a human typed fails here. Both guards name this
 	@# target as the proof behind their exemption.
 	cd frontend/maquette/design && npm run generate-contract-types
-	git diff --exit-code frontend/maquette/design/src/mocks/contract-types.d.ts
+	git diff --exit-code frontend/maquette/design/src/contract/types.d.ts
 
 check-frontend:
 	@echo "Running frontend typecheck..."

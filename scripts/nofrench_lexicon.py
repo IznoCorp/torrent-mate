@@ -217,7 +217,7 @@ FROZEN_PATH_SEGMENTS = {
 # structure, needs nothing, and runs wherever this guard does. Naming only the
 # first left the exemption unproven on every machine that reads it.
 GENERATED_SOURCES = {
-    "mocks/contract-types.d.ts": (
+    "contract/types.d.ts": (
         "npm run generate-contract-types — from frontend/maquette/contract/openapi.json. Held two ways: `make check-contract-types` regenerates it and refuses any difference, which needs the generator and runs only where it is installed; and `scripts/check-mock-seeds.py --arm generated` holds it against the contract by structure, needs neither node nor the generator, and runs wherever the guards do — which is where THIS exemption is read."
     ),
 }

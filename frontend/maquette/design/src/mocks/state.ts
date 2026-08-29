@@ -30,7 +30,7 @@ import MOVING from "./seeds/moving.json";
 import SETTLED from "./seeds/settled.json";
 import SETTINGS from "./seeds/settings.json";
 import SECRETS from "./seeds/secrets.json";
-import type { components } from "./contract-types";
+import type { components } from "../contract/types";
 
 /** The contract's own vocabulary for what the pipeline is doing. */
 export type PipelineState = components["schemas"]["PipelineState"];

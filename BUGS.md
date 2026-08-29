@@ -3049,6 +3049,35 @@ is erased by the compiler, and the defect the arm exists to refuse is a module r
 that a fixture survives its own removal. Nothing can travel a type-only edge. A VALUE import of the
 same file is still refused, proved by mutation.
 
+
+**CLOSED by L10-bis. `mocks/contract-types.d.ts` is `contract/types.d.ts`, in a bucket of its own.**
+It is the SHAPE of what the interface may ask for, generated from `contract/openapi.json`, and it
+was filed in the bucket L04 declared for « handlers and fixture seeds ». It is neither.
+
+**Five ends, moved in one commit**: the `package.json` generator target, `make
+check-contract-types`, `check-mock-seeds.py --arm generated`, the boundaries guard's `GENERATED`
+table and its `BUCKETS` list, and the five importers.
+
+**AND THE EXEMPTION THE MISFILING FORCED IS GONE, which is the part worth more than the move.**
+Because the file sat under `mocks/`, `lib/query-client.ts` imported from `mocks/` and the
+boundaries arm had to be told a type-only edge to that one stem was allowed. That exemption's own
+comment said « its placement is questionable » and « moving it belongs to its own change ». This is
+that change. `CONTRACT_TYPES_EXEMPT` is now EMPTY rather than deleted, so the next module that needs
+to reach into `mocks/` has to write its name there with a reason, in a diff somebody reads.
+
+**The proof is the three instruments passing after the move, and they do**: `--arm generated` reads
+54 operations against 54 with 0 disagreements at the new path; `make check-contract-types`
+regenerates to `src/contract/types.d.ts` and `git diff --exit-code` is clean; the boundaries guard
+reads **10** declared buckets with 0 files outside them and 0 forbidden edges into `mocks/`.
+
+<sub>mutation — a module outside `app/` importing a SEED: the mocks arm falls with « 1 forbidden
+edge(s) », which is what the emptied exemption had to be shown not to have weakened. Remove an
+operation from the generated types: `--arm generated` falls with « 53 operation(s) in the types
+against 54 in the contract » and NAMES `readAccount`. ⚠ Two earlier attempts at that second
+mutation edited a `paths` key and then a `paths` reference, and the arm stayed green both times —
+correctly, because it counts the `operations` interface. A mutation that misses what an instrument
+measures proves nothing about the instrument, and saying so is cheaper than believing it.
+Restored → all three green</sub>
 **B-220 — the drawer and the bottom tab bar are converted by no lot of the plan.**
 `design/index.html:451` declares an **empty** `<aside id="drawer">`; the dying engine fills it,
 opens it, closes it, draws its entries (`#drawer a[data-navgo]`) and pushes its layer.

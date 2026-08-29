@@ -1,10 +1,11 @@
 {
   "$comment": "The `color-contrast` findings, kept in a record of their own. D-L03-4 measured them and left them out of the floor, because the repair was a palette decision; D-L06-5 made the repair and armed the rule, so `--check` now counts contrast in the same hard zero as everything else. THIS IS NOT A TOLERANCE — it is the proof that the debt is empty, which « no file » could never be.",
-  "takenAtCommit": "4d2834a8891014aeaa6a26b13340cd9b3e384c9e",
+  "takenAtCommit": "ce67554839b597c2c08b85976418d98da5764572",
   "platform": "Darwin/arm64",
   "counts": {
-    "states": 83,
-    "byRule": {}
+    "states": 87,
+    "byRule": {},
+    "total": 0
   },
   "states": {
     "acq-add-empty": [],
@@ -62,6 +63,9 @@
     "profile": [],
     "pwa-android": [],
     "pwa-ios": [],
+    "relay-lost": [],
+    "relay-reconnecting": [],
+    "relay-refused": [],
     "screen-profile": [],
     "screen-releases": [],
     "settings": [],
@@ -72,6 +76,7 @@
     "settings-field-list": [],
     "settings-field-number": [],
     "settings-field-path": [],
+    "settings-field-schedule": [],
     "settings-field-structure": [],
     "settings-field-text": [],
     "settings-one": [],
