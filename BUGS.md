@@ -610,6 +610,33 @@ Found by the steward's audit of L04, not by a gate — a guard with no test is i
 guard. **Not fixed here**: the office that found it does not carry code (`docs/reference/frontend-steward.md`),
 and the test belongs with whoever wrote the eight arms and knows which mutation each one deserves.
 
+
+**CLOSED by L10-bis, and the entry was half stale and half exactly right.** The test file exists
+since #484 and carries 42 tests — so « nothing to re-run » had stopped being true. What was still
+true is what the entry actually faulted: those 42 tests are ALL about the addressing arm, its own
+docstring says so, and the guard carries **eleven**. **Eight were named by no test at all**,
+measured on 2026-08-29. So the row does NOT close as `fixed #484`; the gap was real and it is
+named.
+
+**The instrument — `tests/scripts/test_check_frontend_boundaries_arms.py`.** A meta-assertion that
+every `arm_*` reachable from the entry point is exercised, against a CEILING on how many are not.
+A ceiling, not a floor: adding an arm without a test raises the count and is refused, which is the
+opposite shape from a floor set at the current value. It also NAMES the three it still allows, so a
+fresh uncovered arm cannot take a retired one's place in silence.
+
+**Five arms were given their mutation in the same commit** — cycles, layering, typing,
+duplicate-import, mocks — and the ceiling fell from 8 to 3. The three left are named with the
+reason each is more than a one-line fixture.
+
+**A defect in the TEST HARNESS came out of writing it**: copying the sources to `tmp/src` breaks
+three imports that climb above the tree (`../../../fixture-projections.json`), `arm_cycles` reports
+three unresolved imports, and **the GREEN case fails** — so every mutation would have been measured
+against a red baseline and proved nothing. The depth is mirrored now, and the green case is asserted
+first, before any mutation.
+
+<sub>mutation — add a new `arm_freshly_added` with no test: the assertion falls NAMING it, not
+merely counting. Neuter `arm_typing` to `return 0`: its own mutation falls. Restored →
+`10 passed`</sub>
 **B-042 — a stray process holds a port nothing in the repository claims.**
 A `python3 -m http.server` listens on **8900** on the operator's machine, working directory
 `/private/tmp/tm-a11y-probe`, and **no file in this repository mentions that port**. It is the
@@ -774,6 +801,22 @@ lot's letter. Fix: either the rule visits a state that paints `.resbtn`, or `mea
 refuses an empty selection the way `type_scale.py` does; mutation-tested either way (hide the
 element, watch the rule fall).
 
+
+**CLOSED by L10-bis, and it was BOTH of the two fixes the entry offered, because one alone would
+have been a lie.** `measure()` now records a MISS instead of returning silently, and R12 prints
+« N of 5 context(s) measured ». **And the fifth context had MOVED**: `.resbtn` returns zero elements
+in `acq-add-results` — a search result's primary action is not on the card any more, it is in the
+PANEL the card opens. So refusing the empty selection alone would have left R12 permanently red
+about a selector that is simply obsolete; re-pointing it alone would have left the silence for the
+next context to move.
+
+**The new selector is a `data-part`, never a style class** — `[data-act^="add:"]` inside the panel,
+reached the way a reader reaches it, by opening the first result.
+
+<sub>mutation — point the fifth context back at `.resbtn`: R12 prints « 4 of 5 context(s)
+measured » and raises « R12 context measured by nothing », one violation, where the same state
+before the repair reported nothing at all. Restored → `Primary button geometry — 5 of 5 context(s)
+measured` · `TOTAL, second pass: 0 violations · 13/13 rules executed`</sub>
 **B-058 — the AI-attribution check can fire on prose that quotes what it looks for.**
 `hooks/commit-msg`'s second alternative, `generated with .*claude`, carries no `^` anchor —
 unlike the other two real-trailer alternatives — so it matches the phrase ANYWHERE in the
@@ -4238,3 +4281,22 @@ share of the fixture belonging to a surface the ENGINE no longer draws. Not both
 that one file states it.
 
 <sub>`grep -c '[^[:space:]]' frontend/maquette/design/src/engine/legacy.js` against `git show 27096f31^:…` · L13's entry for the shape to copy</sub>
+
+
+**CLOSED by L10-bis, and it is the SECOND of the two exceptions rule 3's amendment allows by
+name.** All seven steps of `coverage-merge` now carry `needs.test.result == 'success'` beside the
+« did Python change? » condition they already had. When `lint` fails, `test` is skipped, no
+artefact is uploaded, and the steps stand down instead of failing on a download.
+
+**`always()` is KEPT, deliberately.** Without it a skipped `test` would skip this job too, and a
+skipped required check can sit in « expected » for ever — the trap this workflow already records
+above `harness-contracts`. The job runs and does nothing, which is a green check that honestly did
+nothing rather than a red one blaming the wrong thing.
+
+**NO AUTOMATIC PROOF WITHOUT MAKING THE PIPELINE RED ON PURPOSE**, which is why this entry was named
+in advance as an exception. What was verified here is the shape, not the behaviour: the workflow
+parses, and the seven steps carry the condition — read back from the PARSED yaml rather than from
+the diff, because a condition indented into the wrong block is valid yaml that gates nothing.
+**THE NEXT GENUINELY RED `lint` RUN IS THIS CONDITION'S VERIFICATION**, and it must show `lint` red,
+`test` skipped, and `coverage-merge` green-and-idle. That sentence is written into `ci.yml` beside
+the condition, where the next reader of a red pipeline will be.

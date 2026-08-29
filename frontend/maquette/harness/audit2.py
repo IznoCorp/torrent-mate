@@ -60,9 +60,21 @@ async def main():
 
     ran('R12')
     # R12 — uniformity of the primary action buttons
+    # FIVE CONTEXTS, AND EVERY MISS IS RECORDED. `measure()` used to return
+    # silently when its selector found nothing, so R12 measured FOUR primaries
+    # while believing it held five and said so to nobody (B-057). A hold that
+    # measures nothing reads exactly like a hold that passed — the family
+    # `type_scale.py` exists to refuse.
+    #
+    # AND THE FIFTH CONTEXT HAD MOVED. `.resbtn` returns zero elements in
+    # `acq-add-results`: a search result's primary action is not on the card any
+    # more, it is in the PANEL the card opens. So the context is reached the way
+    # a reader reaches it — open the first result — and it is selected by
+    # `data-part`, never by a style class.
     geo=await pg.evaluate("""async ()=>{
-      const out={};
-      const measure=(sel,name)=>{const el=document.querySelector(sel); if(!el) return;
+      const out={}, missed=[];
+      const measure=(sel,name)=>{const el=document.querySelector(sel);
+        if(!el){missed.push(name+' ('+sel+')'); return;}
         const s=getComputedStyle(el); const b=el.getBoundingClientRect();
         out[name]={h:Math.round(b.height),weight:s.fontWeight,size:s.fontSize,justify:s.justifyContent,
                    radius:s.borderRadius,icon:!!el.querySelector(':scope > svg')};};
@@ -73,13 +85,27 @@ async def main():
       window.__go('mediasheet-suggestion-movie'); await new Promise(r=>setTimeout(r,240));
       measure('[data-part="media/add"]','media sheet (add)');
       window.__go('acq-add-results'); await new Promise(r=>setTimeout(r,240));
-      measure('.resbtn','search result');
+      document.querySelector('[data-part="result/list"] [data-panel^="add:"]')?.click();
+      await new Promise(r=>setTimeout(r,400));
+      measure('[data-act^="add:"]','search result (in its panel)');
+      window.__closeLayers?.(); await new Promise(r=>setTimeout(r,240));
       window.__go('lib-delete'); await new Promise(r=>setTimeout(r,240));
       measure('[data-part="dialog/button"][data-tone="danger"]','dialog (danger)');
-      return out;}""")
-    print("Primary button geometry:")
-    for k,v in geo.items(): print(f"   {k:26} {v}")
-    hs=[v["h"] for v in geo.values()]
+      return {out, missed, wanted:5};}""")
+    missed = geo["missed"]
+    wanted = geo["wanted"]
+    geo = geo["out"]
+    print(f"Primary button geometry — {len(geo)} of {wanted} context(s) measured:")
+    for k,v in geo.items(): print(f"   {k:30} {v}")
+    for name in missed:
+        note("R12 context measured by nothing",
+             f"{name} selected no element. A hold that measures nothing reads "
+             "as a hold that passed, and this rule believed it held five "
+             "contexts while measuring four (B-057).")
+    if len(geo) + len(missed) != wanted:
+        note("R12 corpus is not the corpus it declares",
+             f"{len(geo)} measured plus {len(missed)} missed is not {wanted}")
+    hs=[v["h"] for v in geo.values()] or [0]
     if max(hs)-min(hs) > 2: note("R12 inconsistent button heights", f"{min(hs)}–{max(hs)} px : {json.dumps(geo,ensure_ascii=False)}")
     for k,v in geo.items():
         # « normal » is NOT centred: rule slackness of that kind let a real
