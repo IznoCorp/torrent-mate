@@ -171,6 +171,7 @@ REPOSITORY_GUARDS=(
   "scripts/check-maquette-unit-tests.py"
   "scripts/check-state-ownership.py"
   "scripts/check-live-relay.py"
+  "scripts/check-implementation-state.py"
   "scripts/check-bug-register.py"
   "scripts/check-frame-domain.py"
   "scripts/compare-contracts.py --check"

@@ -286,6 +286,7 @@ when the defect comes back.
 | B-224 | The header's avatar rendered 20x30 in a 32x32 button, every class on it correct | by audit | `fixed #516` |
 | B-225 | A guard froze its own corpus size in a comment, and the figure drifted three times | by audit | `fixed #516` |
 | B-226 | The cross-check B-208 built never ran in CI: the import branch printed and passed | by audit | `fixed #516` |
+| B-227 | The post-merge gesture was missed at the close of L09, L10 and L10-bis, and § 5’s guard for it stayed a sentence | by audit | `fixing` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
@@ -3915,6 +3916,52 @@ floors themselves, which are the guard's own constants and are meant to be writt
 what it measures. Write the reading-files count instead: it falls too, so it is not one number it
 knows. Restored → `check-live-relay[stale-figure]: 2 measured count(s) checked against this
 module's own source` · `--arm no-polling` prints 127 and the module holds no figure at all</sub>
+
+**B-227 — four waves missed the same gesture, and the guard that catches it had been specified
+and left unbuilt.**
+`IMPLEMENTATION.md`'s « In flight » row goes back to *none* after a merge — the first post-merge
+gesture of § 5. Measured at the close of **L09**, of **L10** (three gestures missed, repaired by
+#514) and of **L10-bis**, where the row still named the wave, its branch and version `0.98.51`
+while `main` carried `0.98.52`. The wave's trace row and the archive of
+`docs/features/maquette-l10-bis/` were missing with it.
+
+**§ 5 already carried the answer, written as a diagnosis with its mechanism and explicitly NOT
+built**: *« a guard is code, and the steward who found this does not carry code (§ 7.2) »*. That
+sentence held for four waves and produced four misses — and the fourth missed the gesture while
+shipping `check-bug-register.py`'s own closure arm for the neighbouring rule. **A specification
+nobody is allowed to implement is a sentence.**
+
+**Building it corrected the specification, twice.**
+
+- **« Has reached » is an ORDERING, not an equality.** Written as equality — the reading § 5's
+  sentence invites, and the first one implemented — the arm reported **clean over the very defect
+  it was written for**: the row named `0.98.51`, `main` carried `0.98.52`, because #517 re-anchored
+  the oracle after the squash and bumped once more. **A wave that merges alongside any other change
+  overshoots by construction.** Caught by running the new guard against the live defect rather than
+  against a fixture.
+- **A guard whose subject no CI filter names runs in no job.** `IMPLEMENTATION.md` was named by no
+  filter, and a post-merge gesture is *precisely* a pull request touching that file alone.
+  `tests/scripts/test_ci_filter_covers_the_guards.py` — L10-bis's own memory, armed as a test —
+  refused it before the line existed. **The wave's instrument caught the steward's.**
+
+**A third, smaller, found by mutation and belonging to this entry rather than to a footnote**: the
+unreachable-`main` message named « neither origin/main nor main » from a literal, and survived a
+mutation that pointed the lookup elsewhere entirely — reporting two refs it had never opened. The
+message is derived from what is actually tried now. Same species as a guard reporting a corpus it
+did not read.
+
+**What this guard does NOT read, written into the module**: the version alone, never the pull
+request number or the branch name; and it cannot see the other two gestures — the archive and the
+trace row — which are a different subject it would report clean over.
+
+**Four mutations, each seen red and restored**: a row naming a version `main` has reached → refused,
+naming both versions; a row naming a version beyond `main` → clean, which is the one state it must
+never refuse; the row deleted → refused; `main` out of reach → refused rather than passed.
+
+<sub>`python3 scripts/check-implementation-state.py` · the specification it replaces:
+`frontend-architecture.md` § 5, « Write the landed row when the pull request opens »</sub>
+
+---
 
 **B-226 — the cross-check B-208 built never ran in continuous integration.** Recorded by the
 steward's audit of L10 as A-1, and it is sharp. `check-live-relay.py`'s `backend_events()` compares

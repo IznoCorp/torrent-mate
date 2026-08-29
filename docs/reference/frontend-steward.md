@@ -86,6 +86,19 @@ implementation code: separating "the directives were wrong" from "the code was w
 changes is the same rule the steward enforces on everyone else — one kind of change per wave. A
 defect found in landed code is reported and proposed, not repaired in the same breath.
 
+**ONE EXCEPTION, and it was carved on the operator's instruction on 2026-08-29 rather than taken.**
+The steward writes the instrument that measures *the office's own subject* when no wave will take
+it — a guard over the directive files, not over the application. It was refused for four waves on
+the reasoning that a guard is code, and § 5 of the plan carried the specification of one, unbuilt,
+with its mechanism written out. Those four waves each missed the gesture that guard would have
+caught, and the fourth missed it while shipping a guard of its own for the neighbouring rule. **A
+specification nobody is allowed to implement is a sentence, and this file has enough of those.**
+
+The exception is narrow and it stays narrow: the subject must be the directives themselves, the
+defect must be one the steward measured and no wave owes, and the instrument lands with its
+mutation like anyone else's. It never reaches `frontend/maquette/design/src`, `personalscraper/`,
+or any code the application runs.
+
 **Contesting the plan carries the burden of proof.** A lot may depart from the plan and be
 right to; the steward must be able to say so. But "the plan is wrong" is an opinion until it is
 measured, and an opinion does not amend a binding file. The claim lands with the command that

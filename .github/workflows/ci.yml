@@ -97,6 +97,13 @@ jobs:
             # a docs-only PR that renames a heading can flip its verdict.
             docs:
               - 'docs/**'
+              # `IMPLEMENTATION.md` is read by `check-implementation-state.py`,
+              # which the contracts tier runs. Without this line a pull request
+              # touching only that file — which is what a post-merge gesture IS
+              # — ran its own guard in no job at all. The hold in
+              # `tests/scripts/test_ci_filter_covers_the_guards.py` refuses
+              # exactly that, and refused this before the line existed.
+              - 'IMPLEMENTATION.md'
       # Refinements the filter's glob language cannot express (negation only
       # works with the global 'every' quantifier, which would break the plain
       # filters above):
