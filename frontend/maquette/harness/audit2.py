@@ -176,7 +176,7 @@ async def main():
     ran('R15')
     # R15 — the three Suivis modes show the SAME number of items
     n=await pg.evaluate("""async ()=>{const o={};
-      for (const m of ['acq-follows-list','acq-follows-groupe','acq-follows-grid']) {
+      for (const m of ['acq-follows-list','acq-follows-group','acq-follows-grid']) {
         window.__go(m); await new Promise(r=>setTimeout(r,240));
         o[m]=document.querySelectorAll('#view [data-part="card"], #view [data-part="tile"]').length;}
       return o;}""")

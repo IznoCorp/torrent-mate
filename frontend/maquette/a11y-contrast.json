@@ -18,7 +18,7 @@
     "acq-follows-error": [],
     "acq-follows-filter-empty": [],
     "acq-follows-grid": [],
-    "acq-follows-groupe": [],
+    "acq-follows-group": [],
     "acq-follows-list": [],
     "acq-follows-pause-empty": [],
     "acq-identify": [],
@@ -89,6 +89,6 @@
     "system": [],
     "system-error": [],
     "system-loading": [],
-    "system-panne": []
+    "system-outage": []
   }
 }

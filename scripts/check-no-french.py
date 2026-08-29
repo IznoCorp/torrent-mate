@@ -7,7 +7,7 @@ lives in the code**: the French a reader of the interface sees lives in the i18n
 resources. This script is the half of the rule that is enforced rather than
 remembered; it runs in `make check` and in CI.
 
-Fourteen arms, each with its own scope, because "French" means a different thing
+Fifteen arms, each with its own scope, because "French" means a different thing
 in a component than it does in a rule script that ASSERTS the French the app
 renders. `ARMS` is the list `main` walks; arm 13 holds this enumeration against
 it, so an arm added without a heading here fails the gate:
@@ -68,7 +68,16 @@ it, so an arm added without a heading here fails the gate:
 13. **Custom-property names** — a `--token` name is a name someone chose, and
    arm 4 stopped at CSS *class* names, so seven French tokens sat under a green
    gate in both trees. Values are not read: those are data.
-14. **The self-description** — the arm that counts the arms. Three files
+14. **Named-state ids** — `window.__go("acq-now-idle")` designates a scenario,
+   so a state id is a NAME and not a value. Nothing read the state table until
+   L10-bis: the French count went 51 → 2 during L01 and then stopped moving,
+   with `system-panne` and `acq-follows-groupe` left behind under a green gate
+   (B-036). Its corpus is CROSS-CHECKED against the recorded oracle, because
+   ten of the eighty-seven ids are written in shapes a scan for a quoted
+   literal never sees — one single-line entry and a family of nine built from
+   a template — and an id the oracle drove that this arm cannot parse is
+   refused rather than printed.
+15. **The self-description** — the arm that counts the arms. Three files
    carried three different counts and none of them was right; this one reads
    `main`, this docstring and `CLAUDE.md`, and refuses a description that has
    drifted away from the arms that actually run.
@@ -139,6 +148,10 @@ from nofrench_css import (  # noqa: E402
 from nofrench_values import (  # noqa: E402
     check_data_attributes, check_named_values,
 )
+# Arm 15 — the named-state table, which no arm read until L10-bis. One arm, one
+# file, the seam every other arm here was split on. See its header for why the
+# corpus is cross-checked against the recorded oracle rather than parsed once.
+from nofrench_states import check_state_identifiers  # noqa: E402
 # Arm 10 — the one oracle from outside this repository. See its header.
 from nofrench_dictionary import check_dictionary  # noqa: E402
 # Arm 9 — the only arm whose corpus is the shell. See its header.
@@ -774,6 +787,7 @@ ARMS: tuple[tuple[object, str], ...] = (
     (check_app_interface_text, "App interface text"),
     (check_test_prose, "Test prose"),
     (check_custom_properties, "Custom-property names"),
+    (check_state_identifiers, "Named-state ids"),
     (check_arm_count, "The self-description"),
 )
 

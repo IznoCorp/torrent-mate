@@ -43,7 +43,7 @@ CARD_STATES = [
     "acq-now-idle",
     "acq-now-loaded",
     "acq-follows-list",
-    "acq-follows-groupe",
+    "acq-follows-group",
     "lib-list",
     "lib-incomplete",
     "lib-recent",

@@ -1023,6 +1023,44 @@ an unchanged prototype. Renaming them would land in the same wave as the instrum
 have to prove the rename. **Its fix belongs to the wave after this one, and it should carry the
 missing arm rather than only the two renames.**
 
+
+**CLOSED by L10-bis, and the arm is the deliverable — the entry said so.** Both ids renamed
+through `scripts/rename-identifiers.py --values`: `acq-follows-groupe` → `acq-follows-group`,
+`system-panne` → `system-outage`.
+
+**THE TOOL REPORTED « 5 file(s) touched » AND LEFT A LIVE END BEHIND.** `harness/audit2.py` still
+read `'acq-follows-groupe'` inside a JavaScript array written within a Python string — `--values`
+moves a WHOLE quoted value, and that one is embedded in a larger literal. Found by re-reading the
+diff rather than the count, which is the rule CLAUDE.md writes after two corruptions found the same
+way. Six ends per id: the engine's table, `oracle-reference.json`, `a11y-contrast.json`,
+`a11y-debt.json`, and two harness rules.
+
+**The arm — `scripts/nofrench_states.py`, arm 15 of `check-no-french.py`.** It asks the
+vocabulary's question of every named-state id, and eleven English words the table already used —
+`android`, `arr`, `boolean`, `degraded`, `exhausted`, `followsheet`, `outage`, `pwa`,
+`reconnecting`, `signin`, `structure` — entered `code-vocabulary.txt` one line each, which is that
+file's own stated point.
+
+**ITS CORPUS IS CROSS-CHECKED, AND THE DISAGREEMENT IS BLOCKING**, because a scan for a quoted
+literal at the head of a bracket reads **77 of the 87**. Ten are written in shapes it never sees:
+one single-line entry (`["signin", …]`) and a family of nine built from a template
+(`` `settings-field-${genre}` ``). The second reader is `oracle-reference.json` — the states the
+recorded oracle actually drove — and **an id it measured that the parser cannot reach is refused**,
+never printed. That is B-208's shape used deliberately, and it is the direction that means
+blindness; the other direction is a state added and not yet re-recorded, which the oracle reports
+itself.
+
+**The first expansion over-generated and would have failed on names nobody wrote.** Sweeping the
+file for `["word", "` invented `settings-field-signin` out of a single-line entry three hundred
+lines away. The members are matched by walking the receiver array's bracket BACKWARDS now, and the
+two readers agree at 87 and 87.
+
+<sub>mutation — restore `system-panne`: the arm falls naming it. Rename the single-line entry to
+`connexion`: it falls naming `connexion`. Rename the generated family to `reglages-champ-${genre}`:
+it falls nine times. **Remove the single-line reader from the arm itself**: the CROSS-CHECK falls —
+« the recorded oracle measured 1 state(s) this arm could not parse — signin » — which is the arm
+proving it cannot go quiet. Restored → `15 arms … no violation`, `87 state identifiers / engine` ·
+oracle unchanged at 3 deliberate divergences, no measurement moved</sub>
 **B-034 and B-035 were found running `make check` on Linux, and they are NOT one defect.**
 Both fail identically on `origin/main` with no local change — a worktree at `9632491c` reproduces
 them — so neither belongs to the work that found them. They are written as two because they have
@@ -1690,6 +1728,20 @@ file, so the copy regenerates for as long as line 637 stands. Fix the source lin
 `.json` copy then corrects itself on the next recording.
 <sub>`grep -c "entérine" frontend/maquette/oracle-reference.json` → 1</sub>
 
+
+**CLOSED by L10-bis: the arm already exists, and the entry had gone stale.** `oracle.py` carries no
+« entérine » — `--accept`'s help string reads « ratify a REVIEWED change into the reference ». A
+later wave renamed it and nothing said so.
+
+**The scope this entry asked for is armed, and that was PROVED rather than read.**
+`nofrench_lexicon.scope_of` maps `frontend/maquette/*.py` to the `servers` scope, which arms 1 and
+2 both read — 927 string literals and 733 declared identifiers on the run below.
+
+<sub>mutation, three ways, all in `oracle.py` — an ACCENTED French help string
+(« entérine un changement RELU… »): arm 1 falls naming the file, the line and the literal. An
+UNACCENTED French help string (« valide un changement relu dans la source »): it still falls, so
+the reader is not the accent alone. A French local (`resultat_du_tri`): arm 6 falls with « built
+from 'tri', which French knows and English does not ». Restored → exit 0</sub>
 **B-073 — the grandfathered list guarantees its membership and never its justification.**
 `scripts/check-frontend-boundaries.py`'s size arm is careful about the list's *composition*: it
 refuses a file over the 400-line ceiling that no entry records (`unrecorded`), and it refuses an

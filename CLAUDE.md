@@ -345,7 +345,7 @@ all engineering documentation (`docs/`, `BUGS.md`, `CHANGELOG.md`, `ROADMAP.md`,
   they must still read years from now, out of context.
 
 **The code itself contains NO French, and no interface text.** Two halves of one rule,
-enforced by `scripts/check-no-french.py` (fourteen arms, in `make check` and in CI):
+enforced by `scripts/check-no-french.py` (fifteen arms, in `make check` and in CI):
 
 - **English names, everywhere and always**: identifiers, function/type/**class** names (code
   AND CSS), **file and directory names**, and every message the tools print. A new file, a new

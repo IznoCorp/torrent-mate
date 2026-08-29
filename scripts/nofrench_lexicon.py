@@ -382,6 +382,7 @@ def read(path: Path) -> str:
 # barely move. A scope that empties must be visible as ITSELF.
 examined: dict[str, int] = {
     "string literals / shell": 0,
+    "state identifiers / engine": 0,
     "string literals / servers": 0,
     "string literals / harness tools": 0,
     "string literals / repository tools": 0,

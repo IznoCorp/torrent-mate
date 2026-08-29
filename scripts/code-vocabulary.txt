@@ -60,6 +60,7 @@ aired
 all
 already
 anchor
+android
 annotations
 announce
 announced
@@ -71,6 +72,7 @@ appearance
 apply
 arm
 armed
+arr
 arrival
 arrivals
 arriving
@@ -105,6 +107,7 @@ blocked
 bodiless
 body
 bold
+boolean
 border
 borne
 bottom
@@ -213,6 +216,7 @@ decoded
 deep
 default
 defaults
+degraded
 del
 delay
 delete
@@ -294,6 +298,7 @@ events
 exec
 executions
 exemptions
+exhausted
 exists
 exit
 expanded
@@ -330,6 +335,7 @@ folder
 follow
 followed
 follows
+followsheet
 follq
 font
 foot
@@ -609,6 +615,7 @@ origin
 original
 others
 out
+outage
 outcome
 outgoing
 overflow
@@ -682,6 +689,7 @@ ptr
 publish
 push
 put
+pwa
 px
 qaud
 qflag
@@ -707,6 +715,7 @@ recent
 recents
 reconcile
 reconnect
+reconnecting
 record
 recovery
 rect
@@ -846,6 +855,7 @@ sidebar
 sign
 signal
 signed
+signin
 signing
 signout
 silence
@@ -898,6 +908,7 @@ stranded
 stream
 strip
 strong
+structure
 stuck
 subject
 subjects

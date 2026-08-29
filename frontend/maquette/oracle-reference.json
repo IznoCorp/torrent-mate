@@ -4626,7 +4626,7 @@
       },
       "system/body": null
     },
-    "acq-follows-groupe": {
+    "acq-follows-group": {
       "account/body": null,
       "acquisition/body": {
         "matches": 1,
@@ -37469,7 +37469,7 @@
         }
       }
     },
-    "system-panne": {
+    "system-outage": {
       "account/body": null,
       "acquisition/body": null,
       "acquisition/filters": null,
