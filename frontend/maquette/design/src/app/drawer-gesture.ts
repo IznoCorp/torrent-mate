@@ -42,6 +42,28 @@
 // grow long enough to scroll, and the band claims the horizontal only. Being
 // compositor-facing, `check-compositor-css.py` is what holds it.
 //
+// TWO MORE THINGS RIDE THAT SAME CLASS, and both were missing until an
+// adversarial review measured them in a browser.
+//
+// The transition is neutralised inline. The class this file used to add was
+// written to cancel it « exactly as the sheet's does », and cancelled
+// nothing: the sheet has a rule in `legacy.css` and the drawer had none,
+// so the 300 ms transition stayed in force for the whole drag. Measured: the
+// drawer lagged 40 to 53 px behind the finger and never caught up — 38 %. The
+// comment described a mechanism that did not exist, which is worse than no
+// comment, and « the drawer FOLLOWS THE FINGER » was false as shipped.
+//
+// `select-none` and `-webkit-user-drag:none` on its links. All six `<a>` of the
+// menu cover the band, and a mouse drag beginning on one starts the browser's
+// own link-drag: `pointerdown`, one `pointermove`, `dragstart`, `pointercancel`
+// — the SAME signature as the touch failure above, from a different cause, and
+// the gesture died on five sixths of the band. The engine had paid for this one
+// too and written the remedy down (`legacy.css:578-587`, about dragging a
+// picture): « it swallows the pointer stream outright … invisible to a touch
+// test, fatal to a mouse one. » R98 stayed green because its mouse hold drags at
+// the drawer's vertical middle, which happens to fall in the gap between two
+// links — one coordinate, chosen geometrically, and the only one that worked.
+//
 // THE TOUCH LISTENERS ARE PASSIVE, like the engine's, and nothing here needs
 // `preventDefault`: the drawer scrolls on neither axis today, so there is no
 // browser gesture to suppress — only one to stop believing in.
@@ -65,7 +87,7 @@ type Drag = { x: number; dx: number };
  *
  * Installed once, with the rest of the shell. It attaches to the node the
  * engine owns and mutates nothing the engine reads: the only thing it writes is
- * a `dragging` class and an inline transform, both removed when the gesture
+ * an inline transition and an inline transform, both removed when the gesture
  * ends.
  */
 export function installDrawerDismissGesture(): void {
@@ -93,12 +115,26 @@ export function installDrawerDismissGesture(): void {
   function begin(clientX: number): void {
     if (!isOpen() || !inBand(clientX)) return;
     drag = { x: clientX, dx: 0 };
-    // The state that CANCELS the transition is not a prop — it is written to
-    // the DOM by the handler, exactly as `.sheet.dragging` is, and for the
-    // reason `ui/variants/layout.ts` records: it has to land in the same task
-    // as the gesture's first event, or the first move animates instead of
-    // tracking the finger.
-    drawer!.classList.add("dragging");
+    // THE TRANSITION IS NEUTRALISED INLINE, not through a class, and the class
+    // this used to add cancelled nothing. `.sheet.dragging` is a rule in
+    // `legacy.css`; `.drawer` had none, so the 300 ms transition stayed in
+    // force for the whole drag and the drawer lagged 40-53 px behind the finger
+    // — measured, 38 %. A comment claiming a mechanism that does not exist is
+    // worse than no comment.
+    //
+    // WHY INLINE RATHER THAN A RULE, and both alternatives were tried and
+    // refused by a guard that was right. A `.drawer.dragging` rule beside its
+    // twin GROWS `legacy.css`, and the residue may only shrink — it is an
+    // exception with a date of death. An arbitrary variant on the drawer's own
+    // class makes Tailwind generate that class name as a utility, and
+    // `check-tailwind-confinement.py` refuses that: `DECLARED_COLLISIONS` is
+    // empty on purpose, because a colliding name does not override one property,
+    // it brings its WHOLE rule — the `grid` incident, 250 oracle divergences.
+    //
+    // So it is written where the transform is already written: on the element,
+    // in the same task as the gesture's first event, which is what the timing
+    // needs anyway.
+    drawer!.style.transition = "none";
   }
 
   function advance(clientX: number): void {
@@ -114,7 +150,7 @@ export function installDrawerDismissGesture(): void {
     const current = drag;
     if (!current) return;
     drag = null;
-    drawer!.classList.remove("dragging");
+    drawer!.style.transition = "";
     drawer!.style.transform = "";
     // A CANCEL IS NOT A LIFT. It puts the drawer back rather than closing it on
     // a gesture the browser took away — `sheet.tsx`'s `endDrag(true)`.
@@ -147,6 +183,9 @@ export function installDrawerDismissGesture(): void {
   // sentence is the engine's, about the same problem.
   drawer.addEventListener("pointerdown", (event: PointerEvent) => {
     if (event.pointerType === "touch") return;
+    // THE PRIMARY BUTTON ONLY. A right-drag is a context menu on its way, not a
+    // dismissal, and closing on it takes the menu out from under the gesture.
+    if (event.button !== 0) return;
     begin(event.clientX);
     if (drag) drawer.setPointerCapture(event.pointerId);
   });

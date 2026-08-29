@@ -59,6 +59,10 @@ SHEET_BAND = 88
 # that it stays inside the frame.
 TRAVEL = 140
 
+# How far the painted drawer may sit behind what the handler wrote. A few pixels
+# is the frame the compositor is mid-way through; forty is a transition.
+FOLLOW_TOLERANCE = 12
+
 
 async def touch_drag(page, start, delta, cancel=False):
     """Drives a REAL touch stream through the DevTools Protocol.
@@ -117,6 +121,44 @@ async def drawer_is_open(page):
              if (!drawer) return false;
              return drawer.hasAttribute("data-open");
            }""")
+
+
+async def drawer_follows(page, start, travel):
+    """Drags the menu half-way and reports what is PAINTED, not what was written.
+
+    THE HOLDS ABOVE READ `data-open` AND NOTHING ELSE, which is why four of them
+    passed over a gesture that was entirely dead: « begun outside the band does
+    not close it » and « a cancelled swipe puts the menu back » are both
+    satisfied by a drag that never started. This one reads the drawer's PAINTED
+    transform mid-gesture, so a handler writing a transform the CSS then
+    animates away — a 300 ms transition nobody cancelled — is visible.
+
+    Returns:
+        A `(written, painted)` pair of pixel offsets, mid-drag.
+    """
+    session = await page.context.new_cdp_session(page)
+    x, y = start
+    await session.send("Input.dispatchTouchEvent", {
+        "type": "touchStart", "touchPoints": [{"x": x, "y": y}]})
+    for step in range(1, 5):
+        await session.send("Input.dispatchTouchEvent", {
+            "type": "touchMove",
+            "touchPoints": [{"x": x - travel * step / 4, "y": y}]})
+        await page.wait_for_timeout(16)
+    reading = await page.evaluate(
+        """()=>{
+             const drawer = document.querySelector("#drawer");
+             const written = drawer.style.transform;
+             const painted = new DOMMatrix(getComputedStyle(drawer).transform).m41;
+             return { written, painted: Math.round(painted) };
+           }""")
+    await session.send("Input.dispatchTouchEvent",
+                       {"type": "touchCancel", "touchPoints": []})
+    await page.wait_for_timeout(300)
+    await session.detach()
+    written = reading["written"]
+    asked = int(float(written.split("(")[1].split("px")[0])) if "(" in written else 0
+    return asked, reading["painted"]
 
 
 # WHICH PANEL, and the two are chosen for what they hold rather than for what
@@ -184,6 +226,61 @@ async def hold_the_drawer(journal, browser):
         await drawer_is_open(page),
         "a cancel is not a lift — `sheet.tsx` paid for this one, and the "
         "gesture that is taken away is the gesture that must change nothing")
+
+    # THE DRAWER FOLLOWS THE FINGER, read from what is PAINTED. The handler
+    # wrote a transform all along; nothing cancelled the 300 ms transition, so
+    # the drawer lagged 40-53 px behind and no hold here could see it.
+    where = await open_drawer(page)
+    asked, painted = await drawer_follows(
+        page, (where["right"] - 10, where["middle"]), TRAVEL)
+    journal.check(
+        "the menu follows the finger rather than animating after it",
+        abs(painted - asked) <= FOLLOW_TOLERANCE,
+        f"mid-drag the handler wrote {asked}px and the browser painted "
+        f"{painted}px — a gap wider than {FOLLOW_TOLERANCE}px is a transition "
+        "nobody cancelled, and « a manipulation rather than a blind command » "
+        "is then false")
+
+    # THE LINKS ARE NOT DRAGGABLE, held on the CAUSE and not on the behaviour,
+    # because the behaviour is not reachable from here.
+    #
+    # All six `<a>` of the menu cover the band. A mouse drag begun on one starts
+    # the browser's own link-drag, and that swallows the pointer stream:
+    # `pointerdown`, one `pointermove`, `dragstart`, `pointercancel` — the touch
+    # failure's signature from another cause.
+    #
+    # ⚠ THIS HOLD READS THE DECLARATION, NOT THE DRAG, and the reason is
+    # measured rather than assumed: a first version dragged from a link and
+    # asserted the drawer closed. It passed WITH the fix and passed WITHOUT it —
+    # Playwright's `page.mouse` emits `pointerdown pointerup` and no `dragstart`
+    # at all, so it cannot reproduce a native link-drag and the hold discriminated
+    # nothing. A hold that cannot fall is worse than no hold, so it was replaced
+    # by this one, which falls the moment the declaration goes.
+    where = await open_drawer(page)
+    links = await page.evaluate(
+        """({ band }) => {
+             const drawer = document.querySelector("#drawer");
+             const edge = drawer.getBoundingClientRect().right;
+             const all = [...drawer.querySelectorAll("a")];
+             const inBand = all.filter((a) => a.getBoundingClientRect().right >= edge - band);
+             return {
+               total: all.length,
+               inBand: inBand.length,
+               undraggable: inBand.filter((a) => {
+                 const style = getComputedStyle(a);
+                 return style.webkitUserDrag === "none" && style.userSelect === "none";
+               }).length,
+             };
+           }""",
+        {"band": DRAWER_BAND})
+    journal.check(
+        "every menu link under the band refuses the browser's own drag",
+        links["inBand"] > 0 and links["undraggable"] == links["inBand"],
+        f"{links['undraggable']} of {links['inBand']} links covering the band "
+        f"carry `-webkit-user-drag: none` and `user-select: none` "
+        f"({links['total']} in the menu) — the remedy `legacy.css:578-587` "
+        "already writes for the same class: « it swallows the pointer stream "
+        "outright … invisible to a touch test, fatal to a mouse one »")
 
     where = await open_drawer(page)
     await page.mouse.move(where["right"] - 10, where["middle"])
@@ -260,6 +357,27 @@ async def hold_the_sheet(journal, browser):
         "a cancelled downward swipe puts the panel back",
         await sheet_is_open(page),
         "the same posture as the menu's, and the same reason")
+
+    # AN UPWARD SWIPE FROM INSIDE THE BAND STILL SCROLLS, and nothing exercised
+    # this until an adversarial review measured it. `touch-action: none` takes
+    # BOTH axes, so while the band is armed — which is every sheet the moment it
+    # opens — an upward swipe in the top 88px scrolled nothing, dismissed
+    # nothing, and did nothing at all: 0 against 399 for the same gesture twelve
+    # pixels lower. The arbitration is POSITIONAL, and what shipped was
+    # bidirectional.
+    where = await open_sheet(page, SCROLLING_SHEET)
+    before = await page.evaluate(
+        """()=>document.querySelector("#sheetin").scrollTop""")
+    await touch_drag(page, (where["middle"], where["top"] + SHEET_BAND - 12),
+                     (0, -TRAVEL))
+    after = await page.evaluate(
+        """()=>document.querySelector("#sheetin").scrollTop""")
+    journal.check(
+        "an upward swipe from inside the band scrolls the content",
+        after > before and await sheet_is_open(page),
+        f"`#sheetin.scrollTop` went {before} → {after} and the panel stayed "
+        "open — the band claims the DOWNWARD half only, and hands the other "
+        "back to the content")
 
     await context.close()
 

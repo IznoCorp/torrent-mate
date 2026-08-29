@@ -166,6 +166,9 @@ export function Sheet({
           className={sheetDragBand({ atTop })}
           aria-hidden="true"
           onPointerDown={(event) => {
+            // The primary button only: a right-drag is a context menu on its
+            // way, and dismissing on it takes the sheet out from under it.
+            if (event.button !== 0) return;
             dragRef.current = { y: event.clientY, dy: 0 };
             sheetRef.current?.classList.add("dragging");
             event.currentTarget.setPointerCapture(event.pointerId);
@@ -173,7 +176,27 @@ export function Sheet({
           onPointerMove={(event) => {
             const current = dragRef.current;
             if (!current) return;
-            current.dy = Math.max(0, event.clientY - current.y);
+            const travelled = event.clientY - current.y;
+            // A FINGER THAT GOES UP IS SCROLLING, AND THE BAND MUST GIVE IT
+            // BACK. `touch-action: none` takes BOTH axes from the compositor,
+            // so while the band is armed — which is every sheet the moment it
+            // opens — an upward swipe begun in the top 88px scrolled nothing,
+            // dismissed nothing, and did nothing at all. Measured: 0 against
+            // 399 for the same gesture twelve pixels lower.
+            //
+            // The arbitration the operator settled is POSITIONAL — at the top
+            // of the content a DOWNWARD drag is a dismissal — and what shipped
+            // was bidirectional. This is that condition finished, not a gesture
+            // engine: the upward half is handed straight back to the content as
+            // scroll, and the drag ends. The full press/drag/scroll arbitration
+            // is still L12's.
+            if (travelled < 0 && current.dy === 0) {
+              const inner = innerRef.current;
+              if (inner) inner.scrollTop -= travelled;
+              endDrag(true);
+              return;
+            }
+            current.dy = Math.max(0, travelled);
             const node = sheetRef.current;
             if (node) node.style.transform = `translateY(${current.dy}px)`;
           }}
