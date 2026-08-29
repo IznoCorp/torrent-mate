@@ -3625,6 +3625,47 @@ worth counting. `check-markup-contracts.py` reads the classes that ARE emitted; 
 emits nothing to read. Ten lines of AST would return this list, and it is the sibling of B-139's
 check: one asks which variants are never called, the other which elements never call one.
 
+**CLOSED by L10-bis. The eight were read, and the list had gone stale — which is what the entry
+asked for.** `features/settings/panel-field.tsx`, the item this entry called the highest risk,
+already carries `className={fieldInput({ mono })}`: a later wave dressed it and nothing said so.
+The `<a>` at `media-screen.tsx:22` is gone. And the parser found one the list never had —
+`ui/state-surfaces.tsx`'s retry button.
+
+**Six remain, and NONE of them is a defect today.** Each was traced to what actually paints it,
+in the stylesheet rather than in the class list — B-224's lesson, one entry earlier, is that a class
+list is the right place to look and can give the wrong answer:
+
+| Site | What paints it | Latent? |
+| --- | --- | --- |
+| `ui/state-surfaces.tsx` `<button>` | `.surferr button`, legacy.css:445 | **dies at L13** |
+| `features/acquisition/page.tsx` `<button>` | the same rule, same surface | **dies at L13** |
+| `features/acquisition/add-screen.tsx` `<button>` ×2 | `.segmini button`, legacy.css:1553 | **dies at L13** |
+| `ui/panel/index.tsx` `<img>` | `.sheetposter img`, legacy.css:1929 | **dies at L13** |
+| `features/media/media-screen.tsx` `<img>` | `castPortrait()`'s `[&_img]:*` utilities | no — the parent constrains it entirely |
+
+**Five of the six become real bare elements on the day `legacy.css` dies**, which is B-223's
+latency with the same date on it.
+
+**The instrument is an ALLOW-LIST, not a count, and that is the design decision worth stating.**
+`check-markup-contracts.py`'s sixth arm refuses a painting element left bare at an UNLISTED site.
+A ratchet on a number was the obvious instrument and the wrong one: six is six whether the bare
+element is a poster image its parent constrains or a retry button on a dark error surface, so a
+count permits trading one for the other in silence. Each site carries the reason its own painting
+is right, the way `code-vocabulary.txt` makes a refusal readable — and the five expiry dates are
+written where they will be found at L13.
+
+**It parses rather than greps.** An attribute list spans lines, a `className` may be a template
+literal or a conditional, and an element can sit inside a template string a text reader sees as
+prose. `frontend/maquette/harness/bare_elements.mjs` reads the TypeScript AST; the number of
+elements it parsed is printed against a floor, and elements skipped for a `{...spread}` are counted
+rather than described.
+
+<sub>mutation — undress `addFooterAction`'s button: the arm falls on the site's ceiling (3 against
+2 allowed). Add a bare `<button>` in `features/arrivals/page.tsx`, a file no entry lists: it falls
+naming the file and the line. Remove the extractor: it reports that it could not run and exits 1,
+never « no violation ». Restored → `85 painting element(s) parsed in 37 TSX file(s) (floor 40), 1
+skipped for a spread — 6 bare, every one at a listed site with its reason`</sub>
+
 <sub>a scan of `design/src/**/*.tsx` for the six tags rendered without `className` or `class`</sub>
 
 **B-142 — three instruments measure the interface, and all three are bounded by what already exists.**
