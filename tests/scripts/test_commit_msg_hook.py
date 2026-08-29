@@ -33,6 +33,13 @@ REFUSED = {
     "a Claude-Session trailer": "fix(scope): a thing\n\nClaude-Session: https://claude.ai/code/session_x\n",
     "a bare generated-with footer": "fix(scope): a thing\n\nGenerated with Claude Code\n",
     "the same trailer indented, which is still a trailer": "fix(scope): a thing\n\n  Co-Authored-By: Anthropic\n",
+    # THE PREFIXED SHAPES, and they are the ones that actually arrive. Anchoring
+    # the pattern to a bare column one let all three through — a hold this file
+    # did not have, so the loosening it exists to catch shipped under it.
+    "the footer behind a quote marker": "fix(scope): a thing\n\n> 🤖 Generated with Claude Code\n",
+    "the footer as a list item": "fix(scope): a thing\n\n- 🤖 Generated with Claude Code\n",
+    "generated-with as a bullet": "fix(scope): a thing\n\n* Generated with Claude Code\n",
+    "a trailer behind an indented bullet": "fix(scope): a thing\n\n  + Co-Authored-By: Claude\n",
 }
 
 # English about the ban. Refusing these is refusing the documentation of the

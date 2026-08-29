@@ -69,7 +69,14 @@ fi
 # a trailer, no tool emits it, and refusing it is what made this hook refuse
 # English. The real footers all begin their line, and the mutations below hold
 # exactly that.
-if printf '%s' "$message" | grep -qiE '^[[:space:]]*co-authored-by:.*(claude|anthropic)|^[[:space:]]*🤖|^[[:space:]]*generated with .*claude|^[[:space:]]*claude-session:'; then
+# THE ANCHOR CARRIES ITS PREFIXES, and leaving them out was a regression this
+# hook shipped: `> 🤖 Generated with Claude Code`, `- 🤖 …` and `* Generated
+# with Claude` all went from refused to accepted, and those three are the exact
+# shapes the attribution arrives in — a quote marker or a list bullet, never a
+# bare column one. An anchor that only knows column one is an anchor for a
+# message nobody writes.
+_LINE='^[[:space:]]*([>*+-][[:space:]]*)*'
+if printf '%s' "$message" | grep -qiE "${_LINE}co-authored-by:.*(claude|anthropic)|${_LINE}🤖|${_LINE}generated with .*claude|${_LINE}claude-session:"; then
     fail "AI attribution trailer. CLAUDE.md forbids Co-Authored-By / Claude / Anthropic / Claude-Session."
 fi
 
