@@ -104,9 +104,15 @@ and it would have gone the wrong way, which is the verdict column B-142 asks for
 three compare the interface to what already exists**: pages against pages, the maquette against the
 running backend, design documents against tests. **None reads `product-intent.md`**, the only
 document saying what the product must BE. A capability the constitution requires, that neither the
-maquette nor the backend has, is invisible to every gate here. Its instrument is owed now rather
-than with the lots, because without it the next section the operator dictates is invisible the same
-way — and three were dictated in one day.
+maquette nor the backend has, is invisible to every gate here. Without it, the next section the
+operator dictates is invisible the same way — and three were dictated in one day.
+
+**Its instrument is L10-ter's** (operator, 2026-08-29). The steward offered to carry it under the
+boundary § 7.2 gained the day before, and said in the same breath what that boundary does not cover:
+the arm needs a declared mapping from each DOIT clause to the surface that serves it, and **a
+mapping is a design decision, not a grep**. L10-ter is already modelling what a surface is, so the
+mapping is a by-product of its subject rather than an errand beside it. The phase carries the
+instrument with the three lots it places.
 
 **Also named here and deliberately unscheduled — the SEMANTIC SCROLL INDEX** (operator,
 2026-08-26). A list would offer an index shaped by its own sort: letters when sorted

@@ -339,9 +339,10 @@ not describe a WebSocket.
 > position, so § 0's rule cannot reach them: a lot the file has not placed is not electable.
 > **L10-ter places all three**, in the order §18 → §19 → §17 unless it measures a reason to differ.
 > They wait for it because §17 and §19 need new screens and L10-ter is redefining what a screen in
-> this application IS — placing them before the template exists is drawing them twice. **B-142's
-> instrument is owed NOW rather than with the lots**: without it, the next section the operator
-> dictates is invisible the same way, and three were dictated in one day.
+> this application IS — placing them before the template exists is drawing them twice.
+> **B-142's instrument goes to L10-ter as well**, and the reason is not scheduling: the arm needs a
+> declared mapping from each DOIT clause to the surface that serves it, and a mapping is a design
+> decision rather than a grep. L10-ter is already modelling what a surface is.
 
 <sub>`python3 -c "import json;d=json.load(open('frontend/maquette/contract/openapi.json'));print(len(d['paths']),[k for k in d['paths'] if 'ws' in k or 'event' in k])"` → `50 []`</sub>
 
@@ -4288,9 +4289,10 @@ Plex account sees by default. None is the steward's to answer.
 > position, so § 0's rule cannot reach them: a lot the file has not placed is not electable.
 > **L10-ter places all three**, in the order §18 → §19 → §17 unless it measures a reason to differ.
 > They wait for it because §17 and §19 need new screens and L10-ter is redefining what a screen in
-> this application IS — placing them before the template exists is drawing them twice. **B-142's
-> instrument is owed NOW rather than with the lots**: without it, the next section the operator
-> dictates is invisible the same way, and three were dictated in one day.
+> this application IS — placing them before the template exists is drawing them twice.
+> **B-142's instrument goes to L10-ter as well**, and the reason is not scheduling: the arm needs a
+> declared mapping from each DOIT clause to the surface that serves it, and a mapping is a design
+> decision rather than a grep. L10-ter is already modelling what a surface is.
 
 <sub>`grep -n 'WEB_ROLE\|require_not_staging' docs/reference/web-ui.md` · `python3 -c "import json;print([p for p in json.load(open('frontend/maquette/contract/openapi.json'))['paths'] if 'auth' in p])"`</sub>
 
@@ -4327,9 +4329,10 @@ still counted due by the tracker is NE-DOIT-PAS-1 with the account as the price.
 > position, so § 0's rule cannot reach them: a lot the file has not placed is not electable.
 > **L10-ter places all three**, in the order §18 → §19 → §17 unless it measures a reason to differ.
 > They wait for it because §17 and §19 need new screens and L10-ter is redefining what a screen in
-> this application IS — placing them before the template exists is drawing them twice. **B-142's
-> instrument is owed NOW rather than with the lots**: without it, the next section the operator
-> dictates is invisible the same way, and three were dictated in one day.
+> this application IS — placing them before the template exists is drawing them twice.
+> **B-142's instrument goes to L10-ter as well**, and the reason is not scheduling: the arm needs a
+> declared mapping from each DOIT clause to the surface that serves it, and a mapping is a design
+> decision rather than a grep. L10-ter is already modelling what a surface is.
 
 <sub>`grep -rn 'min_ratio\|min_seed_time' personalscraper/acquire/*.py` · `grep -n 'obligations' personalscraper/web/routes/acquisition.py` · `docs/reference/frontend-backend-demands.md` § 4</sub>
 
@@ -4369,9 +4372,10 @@ unplugged: two event types, already carrying their reason.
 > position, so § 0's rule cannot reach them: a lot the file has not placed is not electable.
 > **L10-ter places all three**, in the order §18 → §19 → §17 unless it measures a reason to differ.
 > They wait for it because §17 and §19 need new screens and L10-ter is redefining what a screen in
-> this application IS — placing them before the template exists is drawing them twice. **B-142's
-> instrument is owed NOW rather than with the lots**: without it, the next section the operator
-> dictates is invisible the same way, and three were dictated in one day.
+> this application IS — placing them before the template exists is drawing them twice.
+> **B-142's instrument goes to L10-ter as well**, and the reason is not scheduling: the arm needs a
+> declared mapping from each DOIT clause to the surface that serves it, and a mapping is a design
+> decision rather than a grep. L10-ter is already modelling what a surface is.
 
 <sub>`grep -rc 'cross.seed' frontend/openapi.json frontend/maquette/contract/openapi.json` · `grep -rn 'CrossSeed' personalscraper/web/` · `grep -c '[^[:space:]]' personalscraper/acquire/cross_seed.py`</sub>
 
