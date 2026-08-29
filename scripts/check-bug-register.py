@@ -46,6 +46,7 @@ WHAT THIS GUARD DOES NOT READ, and the list is the point:
 import argparse
 import pathlib
 import re
+import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -337,8 +338,115 @@ def print_next_identifier():
     return 0
 
 
+# The identifier at the head of an entry's BODY: `**B-042 — …**`, or a heading
+# naming a range (`**B-043 to B-048 …**`). A body is where a closure is written;
+# the index row only carries the verdict.
+BODY_HEAD = re.compile(r"^\*\*([BE]-\d{3})\b", re.MULTILINE)
+
+
+def entry_bodies(register):
+    """Splits the register into one text span per entry body.
+
+    Args:
+        register: The whole of `BUGS.md`.
+
+    Returns:
+        A dict mapping identifier to the text from its body heading to the next.
+    """
+    heads = [(match.group(1), match.start())
+             for match in BODY_HEAD.finditer(register)]
+    spans = {}
+    for index, (identifier, start) in enumerate(heads):
+        end = heads[index + 1][1] if index + 1 < len(heads) else len(register)
+        spans.setdefault(identifier, register[start:end])
+    return spans
+
+
+def base_register():
+    """Reads `BUGS.md` as it stands at the branch point with origin/main.
+
+    Returns:
+        The base text, or None when git cannot reach it.
+    """
+    for base in ("origin/main", "main"):
+        merge = subprocess.run(["git", "merge-base", "HEAD", base],
+                               capture_output=True, text=True, check=False,
+                               cwd=ROOT)
+        if merge.returncode != 0:
+            continue
+        show = subprocess.run(
+            ["git", "show", f"{merge.stdout.strip()}:BUGS.md"],
+            capture_output=True, text=True, check=False, cwd=ROOT)
+        if show.returncode == 0:
+            return show.stdout
+    return None
+
+
+def arm_closure(register):
+    """Refuses an entry whose status moved to `fixed` with its body untouched.
+
+    THIS IS THE ARM FOR RULE 3 ITSELF, and it exists because the wave that
+    hardened that rule broke it: B-042 shipped marked `fixed #516` with a body
+    BYTE-IDENTICAL to the base. Nothing said what had been established, or how.
+    A reviewer found it; no arm could.
+
+    It compares against the branch point rather than requiring a marker word,
+    because there is no marker word to require: an entry filed AND closed inside
+    one wave was never open elsewhere and writes no « CLOSED » paragraph, while
+    an entry inherited from `main` must say what changed. The difference is
+    exactly « did this pull request write anything about it », and only the base
+    can answer that.
+
+    Args:
+        register: The whole of `BUGS.md`, as it stands.
+
+    Returns:
+        The number of violations.
+    """
+    base = base_register()
+    if base is None:
+        print("  [closure] git could not reach the branch point, so this arm "
+              "read nothing. It refuses rather than passes: an arm that cannot "
+              "see its subject and reports success is the shape this register "
+              "counts. Fetch the history (`fetch-depth: 0`) or run it in a "
+              "clone that has `origin/main`.", file=sys.stderr)
+        return 1
+
+    # THE BASE MAY LIST AN IDENTIFIER TWICE — `main` carries B-079 to B-085
+    # both as `fixed #505` and as `open`, the duplication the `duplicate-row`
+    # arm refuses and this wave cleaned up. Keeping the last row read all seven
+    # as open on the base and closed here, and accused this branch of seven
+    # silent closures it never made. An identifier the base calls closed
+    # ANYWHERE was closed before this branch.
+    was = {}
+    for identifier, status, _ in read_index_rows(base):
+        if not was.get(identifier, "").startswith("fixed"):
+            was[identifier] = status
+    now = {identifier: status
+           for identifier, status, _ in read_index_rows(register)}
+    base_bodies, bodies = entry_bodies(base), entry_bodies(register)
+
+    closed_here = [identifier for identifier, status in now.items()
+                   if status.startswith("fixed")
+                   and not was.get(identifier, "").startswith("fixed")]
+    silent = [identifier for identifier in closed_here
+              if identifier in base_bodies
+              and bodies.get(identifier) == base_bodies[identifier]]
+    for identifier in silent:
+        print(f"  [closure] {identifier} moved to `{now[identifier]}` and its "
+              "body is byte-identical to the branch point. Rule 3 asks for an "
+              "instrument that RAN; a status reading « fixed » over an "
+              "unchanged body says nothing about what was established, or how. "
+              "Write the closure in the entry.", file=sys.stderr)
+    if not silent:
+        print(f"check-bug-register[closure]: {len(now)} status(es) read "
+              f"against the branch point, {len(closed_here)} closed by this "
+              "branch, each with a body that changed")
+    return len(silent)
+
+
 ARMS = ("duplicate-row", "status-vocabulary", "invariant-numbers",
-        "unparsed-row", "corpus")
+        "unparsed-row", "corpus", "closure")
 
 
 def main():
@@ -374,6 +482,8 @@ def main():
             violations += arm_unparsed_row(register, rows)
         elif arm == "corpus":
             violations += arm_corpus(rows, numbers)
+        elif arm == "closure":
+            violations += arm_closure(register)
 
     if violations:
         print(f"check-bug-register: {violations} violation(s)", file=sys.stderr)

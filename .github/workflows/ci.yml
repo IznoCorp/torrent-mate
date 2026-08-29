@@ -230,8 +230,15 @@ jobs:
       # a job-level `if` yields a SKIPPED job, and a required check that is
       # skipped can sit in « expected » forever. Every other job in this file
       # does it this way; this one did not, and was the only exception.
+      # THE FULL HISTORY, because `check-bug-register.py`'s closure arm compares
+      # each entry's body against the branch point — it is the only way to ask
+      # « did this pull request write anything about what it closed ». With the
+      # default depth of 1 there is no branch point, and that arm REFUSES
+      # rather than passing, so this line is what keeps the job green honestly.
       - uses: actions/checkout@v4
         if: needs.changes.outputs.maquette == 'true'
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         if: needs.changes.outputs.maquette == 'true'
         with: { node-version: "22" }

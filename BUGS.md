@@ -648,6 +648,31 @@ same defect as B-041 read from the other end: a finding recorded where nothing r
 not been recorded. The port the harness actually uses is **8899**; `run.sh` starts it and reuses
 it deliberately, and that one is not this.
 
+**CLOSED by L10-bis, and it was closed with no closure written — which is the most direct
+violation of the very rule this wave hardened.** The status line read `fixed #516` while the body
+below it was byte-identical to `main`: nothing said what had been established, or how, or by whom.
+An adversarial reviewer found it. The rule amended in this wave's first commit says a fix requires
+an instrument that RAN; a status that says « fixed » over an unchanged body is the shape that rule
+exists to refuse, and it appeared inside the wave that wrote it.
+
+What actually establishes it, run on the operator's machine on 2026-08-29 — this wave runs there,
+which is why the entry was takeable at all:
+
+```
+$ lsof -nP -iTCP:8900 -sTCP:LISTEN        # nothing listens
+$ ls -la /private/tmp/tm-a11y-probe       # No such file or directory
+```
+
+Both are gone. The wave did not kill the process — it had already gone, to a reboot or to the
+orphan killer — so the honest closure is « no longer true », not « repaired ». **The port that IS
+listening is 8899**, `frontend/maquette/harness/server.py --serve 8899 /tmp/tm-refonte`, reparented
+to init and three days old: that is the server `run.sh` starts and reuses deliberately, named in
+the paragraph above as not being this one. It stays.
+
+What outlives the process is the entry itself, and that half was never about the port: a finding
+recorded only in a merged pull request body has not been recorded. That is why B-042 was written
+down, and writing it down is what made it checkable three waves later.
+
 **B-043 to B-048 — what L05 left on `main`, and why they are here rather than only in a phase file.**
 All six were found by an adversarial review that did not write the code, and reproduced by the L05
 wave itself before it stopped. Each is written up in full — with the command that establishes it and
