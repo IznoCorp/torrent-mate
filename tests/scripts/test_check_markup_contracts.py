@@ -1154,9 +1154,8 @@ class TestHarnessParses:
         # reaches them at all. A hand-kept copy of a call list is the thing this
         # hold exists to check.
         source = (guard.__file__ and Path(guard.__file__).read_text(encoding="utf-8")) or ""
-        body = source[source.index("\ndef main("):]
-        arms = [name for name in re.findall(r"if (check_\w+)\(\)", body)
-                if name != "check_harness_parses"]
+        body = source[source.index("\ndef main(") :]
+        arms = [name for name in re.findall(r"if (check_\w+)\(\)", body) if name != "check_harness_parses"]
         assert len(arms) >= 6, f"main calls {len(arms)} arms; the guard has six"
 
         ran = []

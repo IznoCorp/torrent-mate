@@ -7,6 +7,7 @@ A ratchet whose bound can be moved without moving its subject is a tolerance
 wearing a ratchet's name, which is precisely what `a11y-debt.json` refuses to
 be and what this file was written to be instead.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -45,9 +46,7 @@ def test_the_ceiling_is_the_recorded_findings(audit):
         audit: The loaded module.
     """
     recorded = json.loads(audit.LIGHT_DEBT_FILE.read_text(encoding="utf-8"))
-    listed = sum(len(finding["targets"])
-                 for findings in recorded["states"].values()
-                 for finding in findings)
+    listed = sum(len(finding["targets"]) for findings in recorded["states"].values() for finding in findings)
     assert audit.light_ceiling() == listed
 
 
