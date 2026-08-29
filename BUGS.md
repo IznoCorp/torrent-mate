@@ -689,6 +689,35 @@ points), not decided there. **Recurred during L06** (`content.py` reddened by th
 operator's search cron; fixture regenerated from `acquire.db` again, same class, same
 non-fix) — the second occurrence inside two waves, and the question is still not decided.
 
+
+**CLOSED by L10-bis. The question of class is settled and, for the first time, ARMED.**
+
+**The rule**: a hold that reads the operator's live databases may run in the WAVE gate, on the
+machine where those databases exist, and may never be in the per-pull-request `--contracts` tier.
+That was already the practice — `arrivals.py` is out of `CONTRACTS` with the reason written beside
+it — and it was held by nothing at all. It was corrected by hand once; a second rule joining the
+tier with a `sqlite3.connect` in it would have gone unnoticed exactly as the first did.
+
+**The arm** is `check-maquette-unit-tests.py`'s second subject, and the two belong together because
+both ask « does the runner run what it says it runs? ». It reads `CONTRACTS=(…)` out of `run.sh`
+and refuses any member whose source names a `.db` path or opens a connection — a text question with
+a text answer, which is the whole of the disqualifying property. **It runs even where the
+maquette's dependencies are absent**: it reads two files and needs neither node nor a browser, so
+skipping it beside the suite would have made it the kind of check that is only ever green.
+
+**The cadence half.** The three rules that read live data — `arrivals.py`, `content.py`,
+`library_load.py` — were run twice, separated by the full rule suite, and both passes were green:
+**24, 27 and 8 holds, no violation**, at 14:29 and again after the suite. What makes them stable is
+not luck: they assert SHAPE and AGREEMENT — that two tabs say the same thing, that a card carries
+what the row carries — and never a count a cron can move. A rule that pinned a number would drift
+whatever tier it sat in, and that is the real answer to « at what cadence does it re-sync »: it
+does not need to, because it does not read a number.
+
+<sub>mutation — put `arrivals.py` back at the head of `CONTRACTS`, which is B-049's own history:
+the arm falls naming the file and the reason, « 12 rule(s) in the per-pull-request tier, 1 of them
+disqualified ». Rename the declaration so it cannot be parsed: it refuses rather than reading the
+tier as empty. Restored → `11 rule(s) in the per-pull-request tier, none reading a live
+database`</sub>
 **B-050 — the guard that watches module size has itself grown past comfortable.**
 `scripts/check-frontend-boundaries.py` reached 883 lines during the L05 repair (nine arms). The
 module-size ratchet (invariant 6) does not exempt guard scripts. Split before the next arm lands,
