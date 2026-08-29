@@ -32,6 +32,7 @@
 // same discipline `go()`'s own doc comment states) so keystrokes never stack
 // history — R76's own rule, exercised here for the first time by a CONTROLLED
 // input rather than a one-shot navigation.
+import { useState } from "react";
 import { useSearch } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 // Circular with shell.tsx (it imports AddScreen from this file) and safe
@@ -44,7 +45,19 @@ import { useAcquisitionReference } from "../../features/acquisition/reference";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
 import { useProviderSearch } from "./search-queries";
 import { actionButton, backAction, emptyNote, resultCount, screen, screenBar, scrollport, searchField, searchInput, surfaceError } from "../../ui/variants";
-import { addFooter, addForm, addRow, byIdentifier, byIdentifierBody, refusalReason, suggestions } from "../../features/acquisition/variants";
+import {
+  addFooter,
+  addFooterAction,
+  addFooterDismiss,
+  addForm,
+  addRow,
+  byIdentifier,
+  byIdentifierBody,
+  refusalReason,
+  resultList,
+  suggestionChip,
+  suggestions,
+} from "../../features/acquisition/variants";
 
 type Mode = "follow" | "identify";
 
@@ -79,6 +92,14 @@ export function AddScreen() {
     render,
   } = useAcquisitionReference();
   const { t } = useTranslation();
+
+  // THE BAR IS A NOTIFICATION AND IS DISMISSED, not a state of the screen
+  // (operator, 2026-08-29). What is remembered is the count it was dismissed
+  // AT, never a bare boolean: adding a further medium is a new announcement and
+  // must be seen, and a boolean would swallow it. This is genuinely ephemeral
+  // interface state — nothing server-side is copied here, which is what
+  // invariant 4 refuses.
+  const [dismissedAtCount, setDismissedAtCount] = useState<number | null>(null);
 
   // Always invoked from INSIDE this screen — search() runs only while
   // AddScreen is mounted, which means the address already reads `/add`.
@@ -184,7 +205,15 @@ export function AddScreen() {
           </span>
         ) : null}
       </div>
-      <div className={scrollport()} data-part="viewport">
+      {/* THE ONLY SCREEN THE ORACLE DID NOT MEASURE. Four of the five overlay
+          screens carry a body region of their own; this one carried none, so
+          its two named states were driven, captured and compared against zero
+          regions — which is how a button the browser painted white survived
+          every gate (B-139, B-222). The anchor rides the scrollport it already
+          has rather than a wrapper of its own: a new block element in a scroll
+          container is a layout change, and this is a measurement being added,
+          not a drawing being altered. */}
+      <div className={scrollport()} data-part="viewport" data-region="screen-add/body">
         {identify ? (
           <div style={{ padding: "12px 14px 0" }}>
             <div
@@ -284,7 +313,7 @@ export function AddScreen() {
               {t("screens.add.mostRelevant")}
             </p>
             <div
-              className="reslist sec"
+              className={`${resultList()} sec`}
               data-part="result/list"
               dangerouslySetInnerHTML={{ __html: rows }}
             />
@@ -293,7 +322,11 @@ export function AddScreen() {
           <>
             <div className={suggestions()}>
               {recents.map((recent) => (
-                <button key={recent} onClick={() => search(recent)}>
+                <button
+                  key={recent}
+                  className={suggestionChip()}
+                  onClick={() => search(recent)}
+                >
                   {recent}
                 </button>
               ))}
@@ -356,7 +389,7 @@ export function AddScreen() {
             </button>
           </div>
         </details>
-        {added.size > 0 ? (
+        {added.size > 0 && added.size !== dismissedAtCount ? (
           <div className={addFooter()} data-part="add/foot">
             <span>
               <b>{added.size}</b>{" "}
@@ -367,7 +400,17 @@ export function AddScreen() {
                 ? t("screens.add.addedPlural")
                 : t("screens.add.added")}
             </span>
-            <button onClick={toFollows}>{t("screens.add.seeFollows")}</button>
+            <button className={addFooterAction()} onClick={toFollows}>
+              {t("screens.add.seeFollows")}
+            </button>
+            <button
+              className={addFooterDismiss()}
+              data-part="add/foot-dismiss"
+              aria-label={t("screens.add.dismissAdded")}
+              onClick={() => setDismissedAtCount(added.size)}
+            >
+              <Icon paths={icons.x} />
+            </button>
           </div>
         ) : null}
       </div>

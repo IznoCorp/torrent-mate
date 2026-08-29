@@ -29,7 +29,7 @@ import { useFollows } from "./queries";
 import { useAcquisitionQueue, useStaging } from "../../lib/queue";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
-import { body, crossReference, crossReferenceLink, crossReferenceStrong, emptyNote, filterPill, filterPillCount, filterZone, liveDot, liveEmphasis, liveStrip, loadFooter, moreButton, pillBar, pillScroll, searchClear, searchField, searchInput, section, section as sectionClass, segment, segmentCount, segmentTab, surfaceError, viewSwitch, viewSwitchButton, viewSwitchWrap, viewTabs } from "../../ui/variants";
+import { body, crossReference, crossReferenceLink, crossReferenceStrong, emptyNote, filterPill, filterPillCount, filterZone, liveDot, liveEmphasis, liveStrip, loadFooter, moreButton, pillBar, pillScroll, searchClear, searchField, searchInput, section, section as sectionClass, sectionCount, sectionTitle, segment, segmentCount, segmentTab, surfaceError, viewSwitch, viewSwitchButton, viewSwitchWrap, viewTabs } from "../../ui/variants";
 
 // The swipe action a follow that can be searched again reveals. It is a
 // data-ATTRIBUTE VALUE the document-level delegation dispatches on — a contract
@@ -440,7 +440,7 @@ function FollowsTab(): ReactElement {
               className={sectionClass()} data-part="section"
               dangerouslySetInnerHTML={{
                 __html: `
-            <div class="sechead" data-part="section/head"><span class="pip ${group.pip}" data-part="status-dot"></span><span class="t" data-part="section/title">${group.l}</span><span class="k" data-part="section/count">${items.length}</span></div>
+            <div class="sechead" data-part="section/head"><span class="pip ${group.pip}" data-part="status-dot"></span><span class="${sectionTitle()}" data-part="section/title">${group.l}</span><span class="${sectionCount()}" data-part="section/count">${items.length}</span></div>
             ${items.map((item) => rowOf(item, showStatus)).join("")}
           `,
               }}

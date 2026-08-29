@@ -278,6 +278,8 @@ when the defect comes back.
 | B-219 | A wave's brief existed only in a session scratch directory, and its agent could not read it | by agent | `fixed #515` |
 | B-220 | The drawer and the bottom tab bar are converted by no lot of the plan | by audit | `open` |
 | B-221 | A wave merged leaving its own status as the literal placeholder `fixed #NNN` | by guard | `open` |
+| B-222 | The add screen is the only one of five measured by no oracle region at all | by audit | `open` |
+| B-223 | Three more typed variants were orphaned, and the arm for B-139 found them | by guard | `open` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
@@ -2757,6 +2759,58 @@ status is filled the moment the number exists, or the gate is red.
 <sub>repaired to `fixed #515` · mutation: write `` `fixed` `` with no number → the arm falls naming
 the row and its line</sub>
 
+**B-222 — the add screen is the only one of five overlay screens the oracle measures nothing of.**
+Found while checking whether B-139's repair moved the recorded oracle. It did not, and the reason
+is not that the repair was invisible: `regions.json` declared **33** regions and not one of them
+resolved inside the add screen. Four of the five overlay screens carry a body region —
+`screen-media/body`, `screen-profile/body`, `screen-releases/body`, `screen-resolution/body` — and
+`features/acquisition/add-screen.tsx` carried **no `data-region` at all**.
+
+**So its two named states were driven, captured and compared against nothing.** `acq-add-empty` and
+`acq-add-results` are in the oracle's 87, and both contributed 33 measurements of regions that are
+absent from them. « No divergence » over that screen was an EMPTY READ, and B-139's white rectangle
+was invisible to the oracle **by construction rather than by accident** — which is B-085's sentence
+with « guard » replaced by « oracle », and the first time this register has caught the instrument
+it trusts most in that shape.
+
+**Repaired.** `data-region="screen-add/body"` rides the scrollport the screen already has, not a
+wrapper of its own: a new block element inside a scroll container is a layout change, and this is a
+measurement being added rather than a drawing being altered. The oracle now reads **34** regions,
+2 958 measurements.
+
+**This is NOT B-061 being relitigated.** That arbitration says the oracle keeps its contract — it
+measures ELEMENTS, not pseudo-elements. Declaring a region on an element is inside that contract,
+and it is what L10 did when it grew the oracle by three states without moving one of the 84
+measurements it already held.
+
+**What is still not held, and it is the sharp end**: nothing refuses a surface that declares no
+region. The repair is one screen; the class is « an instrument's corpus is a list somebody
+maintains by hand », and that list is `regions.json`.
+
+<sub>`python3 -c "import json;print(len(json.load(open('frontend/maquette/regions.json'))['regions']))"` · `grep -c data-region frontend/maquette/design/src/features/acquisition/add-screen.tsx` → 0 before, 1 after</sub>
+
+**B-223 — three more typed variants were orphaned, and B-139's own arm is what found them.**
+`searchIcon` (`ui/variants/controls.ts`), `sectionTitle` and `sectionCount` (`ui/variants/layout.ts`)
+each returned exactly one grep hit — their own declaration — on `main` at `3316e550`. B-139 named
+three; the arm written for it returned **six**, which is the argument for building the instrument
+rather than repairing the three.
+
+**None of them was visible, and the difference from B-139 matters.** `.t` and `.k` are painted by
+`legacy.css:382` and `:387`, and `.search svg` by `base.css:225`. So the screens are correct today
+— and `.t` and `.k` are correct **only until L13**, when `legacy.css` dies and takes those two
+rules with it, leaving two spans bare on every section header in the application. A latent defect
+with a date on it.
+
+**Repaired in two different ways, because they are two different things.** `sectionTitle` and
+`sectionCount` are wired at their three literal call sites, which is what L13 will need anyway.
+`searchIcon` is **removed**: `<Icon>` renders an `<svg>` and takes no class of its own, so nothing
+could ever call it — `base.css` says exactly that in its own comment and sizes `.search svg` with a
+descendant selector for that reason. A variant nothing can call is not a contract waiting for a
+call site.
+
+<sub>the arm is `scripts/check-markup-contracts.py`'s fifth, holding a HARD ZERO — 118 declared
+variants across 9 files, every one named by at least one of 127 readers</sub>
+
 **What stays open is the PLACEMENT.** Moving the file has five ends — the `package.json` script,
 `make check-contract-types`, `check-mock-seeds.py --arm generated`, the boundaries guard's
 `GENERATED` table, and four importers — and a rename with five ends belongs to its own change, not
@@ -3421,6 +3475,53 @@ content and nothing reserves the space beneath it, so it covers a card. It is no
 dismissal by design — whether it should have one is a layout decision, not a repair.
 
 <sub>`grep -rn 'addFooterAction\|resultList\|suggestionChip' frontend/maquette/design/src/` · `grep -n 'acq-add' frontend/maquette/design/src/engine/states.js`</sub>
+
+**CLOSED by L10-bis. All three wired, and the operator arbitrated the bar's shape before a line
+was written.** Asked on 2026-08-29 whether a legible button was enough: *« Elle réserve pas sa
+place elle passe par dessus c'est une notification comme une autre, elle est fermable. »* So the
+bar keeps overlaying — nothing reserves its space — and it gains a dismissal. Both halves of the
+report are answered: the exit is legible, and there is now an exit that is not the exit.
+
+**The dismissal remembers a COUNT, never a boolean.** `dismissedAtCount` holds the `added.size` the
+bar was dismissed at, so adding a further medium announces again. A boolean would swallow every
+announcement after the first, which is a different defect wearing this fix — mutation-proven below.
+
+**The instruments, and there are two because one could not have been enough.**
+
+**The arm** — `check-markup-contracts.py`'s fifth: every `cva` exported from a `variants.ts` is
+named by another file. It asks what no other arm asks, and the reason is structural: the four
+others read what the markup EMITS, and a variant nobody calls emits nothing to be inconsistent
+with. **It returned six, not three** — `searchIcon`, `sectionTitle` and `sectionCount` were
+orphaned too, filed as B-223. It holds a HARD ZERO, seeded by removing the last orphan rather than
+by recording it.
+
+**The hold** — `harness/add_footer.py` (R96), ten checks walking the operator's own journey: open
+the add screen, search, open a result, add it. The oracle could not do this and the reason is a
+STATE gap, not a coverage one: `acq-add-empty` and `acq-add-results` are the screen's two named
+states and the second adds nothing, so **no measured state has ever painted this bar**. Growing
+`engine/states.js` was the other route and was refused — that file is the dying engine's scenario
+table, which L13 removes, and a repair that grows what must die is a repair made twice.
+
+**The colour is measured against a PROBE, never a literal**: a `<span>` carrying
+`color: var(--color-primary)` is mounted in the same document and compared. A rule holding an
+oklch literal would hold one theme and report about both.
+
+**Two defects in the RULE were found by running it, and both are the same species.** Selecting the
+add action with `.first` clicked a panel from an earlier result — a probe of five results reported
+that every one took the « replace » route while three are seeded `owned: false`. And asking whether
+the replace dialog is PRESENT found the closed one from the previous add, because a closed layer is
+still in the document. Both routes into `added` are walked now, and each is named in its detail
+line.
+
+**What moved in the oracle: nothing, and that was an EMPTY READ.** The add screen carried no region
+at all — B-222, found by asking why a painting change moved no measurement.
+
+<sub>mutation — unwire `addFooterAction`: R96 falls three times, and it is the operator's photograph
+in numbers — colour `oklch(0.96 0.003 286)` against a wanted `oklch(0.808 0.158 79)`, background
+`rgb(239, 239, 239)`, border-style `outset`. Arm 5 falls naming the orphan. Remove the dismissal:
+two checks fall, the touch box measuring 0x0 against 44. Dismiss on a boolean instead of the count:
+the re-announcement falls alone. Restored → `10 rules EXECUTED — no violation` ·
+`check-markup-contracts` clean at 118 variants over 127 readers</sub>
 
 **B-140 — the scroll memory was built for screens and never learned about pages.**
 Reported by the operator on 2026-08-26: scroll a page, open an item, come back — the page is at the

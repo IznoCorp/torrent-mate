@@ -53,6 +53,12 @@ export const refusalReason = cva("whyoff text-2 text-danger");
  *
  * ANCHORED TO THE BAR, not to the screen's edge: pinned at 0 it slid under the
  * tab bar and its actions became unreachable.
+ *
+ * IT OVERLAYS THE LIST AND DOES NOT RESERVE ITS SPACE, arbitrated by the
+ * operator on 2026-08-29: « c'est une notification comme une autre, elle est
+ * fermable ». A notification passes over what it announces and leaves; what it
+ * may not do is settle there with no way out, which is what this bar did for as
+ * long as its only exit was painted white on white (B-139).
  */
 export const addFooter = cva(
   "addfoot sticky bottom-[var(--tm-bottom-bar-h,0px)] flex items-center gap-5 " +
@@ -63,4 +69,17 @@ export const addFooter = cva(
 /** The footer's own action. */
 export const addFooterAction = cva(
   "ml-auto [border:0] bg-transparent text-primary font-semibold text-3",
+);
+
+/**
+ * The footer's dismissal.
+ *
+ * A notification is dismissible or it is a state of the screen. The touch box
+ * is written as an arbitrary value on purpose — 44px is a target, not a
+ * spacing step, and the scale stops at 24px, so writing it as one would be a
+ * lie about which system it belongs to (`styles/theme.css`).
+ */
+export const addFooterDismiss = cva(
+  "grid place-items-center size-[44px] -mr-4 [border:0] bg-transparent " +
+    "text-muted-foreground [&>svg]:size-5",
 );

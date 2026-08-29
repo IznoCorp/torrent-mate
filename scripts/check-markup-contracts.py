@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refuses four defect classes — four arms, each naming the corpus it
+"""Refuses five defect classes — five arms, each naming the corpus it
 reads. Read the arm whose scope you are touching.
 
 ARM 1 — a `data-*` value the markup emits and no reader understands.
@@ -41,6 +41,12 @@ WHAT ARM 1 DOES NOT READ. A handler that TRANSLATES rather than forwards
 (`dataset.x === "a" ? "b" : "c"`) is out of scope: the emitted value is
 then an input to a decision, not a stored value, and holding it here
 would report a defect that is not one.
+
+ARM 5 — a typed variant declared and called by nobody. Corpus: every
+`variants.ts` under `design/src` plus `ui/variants/`, against every `.ts`
+and `.tsx` outside the dying engine. The four other arms read what the
+markup EMITS; a variant nobody calls emits nothing, so none of them could
+see three orphans painting a button white on a dark screen. Hard zero.
 
 ARM 2 — a rule selection anchored on a style class.
 Corpus: `frontend/maquette/harness`, every `*.py` file, read as text.
@@ -209,6 +215,13 @@ NAMED_MENTION = re.compile(
 # `\"` or `\'` — a quote escaped because the string hosting it uses the
 # same delimiter. On a line carrying a `data-part` selection, this is the
 # shape the raw-text reader walks straight past.
+# `export const addFooterAction = cva(` — a typed variant DECLARED. ARM 5
+# asks whether anything CALLS it, which is the question the other four
+# cannot ask: they all read what the markup EMITS, and a variant nobody
+# calls emits nothing to be read. That is why three of them sat green over
+# a button the browser was painting itself.
+DECLARED_VARIANT = re.compile(r"^export const (\w+) = cva\(", re.MULTILINE)
+
 ESCAPED_QUOTE = re.compile(r"\\[\"']")
 
 
@@ -590,6 +603,115 @@ def check_named_values() -> int:
 
 
 
+def variant_declaring_files() -> list[Path]:
+    """Returns the files that DECLARE typed variants, in a fixed order.
+
+    Returns:
+        Every `variants.ts` under `design/src` plus the members of
+        `ui/variants/`, which is one `variants.ts` split by subject when it
+        crossed the module ceiling. Derived by walking the tree rather than
+        listed: a hand-enumerated corpus is the shape this repository counts,
+        and a sixth feature folder joins it by existing.
+    """
+    files = set(SOURCES.rglob("variants.ts"))
+    files |= set((SOURCES / "ui" / "variants").glob("*.ts"))
+    return sorted(files)
+
+
+def variant_reading_files() -> list[Path]:
+    """Returns every source that could CALL a variant.
+
+    Returns:
+        Every `.ts` and `.tsx` file under `design/src` outside `engine/`. The
+        dying engine is excluded because it is hand-written JavaScript that
+        imports nothing from the typed side (D5), so counting it would only
+        dilute the corpus.
+    """
+    return sorted(path for path in SOURCES.rglob("*")
+                  if path.is_file() and path.suffix in {".ts", ".tsx"}
+                  and "engine" not in path.relative_to(SOURCES).parts)
+
+
+def check_orphan_variants() -> int:
+    """ARM 5: refuses a typed variant that is declared and called by nobody.
+
+    THE DEFECT CLASS, and it was photographed before it was measured. Three
+    variants of `features/acquisition/variants.ts` each returned exactly one
+    grep hit — their own declaration. So the footer's button carried no class
+    at all, the browser painted it with its own defaults — light ground, dark
+    text — and what the operator saw on 2026-08-28 was a white rectangle on a
+    dark screen (B-139).
+
+    WHY NO OTHER ARM COULD SEE IT. The four above read what the markup EMITS
+    and ask whether anything understands it. A variant nobody calls emits
+    nothing: no attribute, no class, no selection, nothing to be inconsistent
+    with. The declaration reads as coverage and covers nothing, which is
+    `BUGS.md` § *Guards green over what they do not read* seen from the side
+    nobody was standing on.
+
+    WHAT THIS ARM DOES NOT READ, and the honesty matters more than the arm:
+
+      - IT MATCHES A NAME, NOT A CALL. A variant imported and never invoked
+        counts as used here. Telling the two apart needs the type checker, not
+        a text reader — and the defect met in the field was a variant no file
+        so much as named.
+      - IT SAYS NOTHING ABOUT WHETHER THE VARIANT IS RIGHT. That the footer's
+        button now carries `text-primary` is this arm's business; that
+        `text-primary` is the correct colour is the oracle's and a reviewer's.
+      - IT READS `variants.ts` FILES ONLY. A `cva` declared inside a component
+        is outside its corpus, deliberately: the contract held here is « the
+        vocabulary a surface declares is the vocabulary it uses », and a
+        variant declared where it is used cannot break it.
+
+    THE FLOOR IS A HARD ZERO, with no baseline and no exemption list, and it
+    was seeded by removing the last orphan rather than by recording it:
+    `searchIcon` duplicated a live rule of `base.css` and could never be
+    applied, since `<Icon>` takes no class of its own. A floor that records
+    what exists is pre-satisfied and can never fall (B-075).
+
+    Returns:
+        1 when any declared variant is called by nobody, 0 otherwise.
+    """
+    declaring = variant_declaring_files()
+    reading = variant_reading_files()
+    if not declaring or not reading:
+        print("check-markup-contracts: no variant declaration or no reader "
+              f"under {SOURCES} — the corpus is empty, so « every variant is "
+              "called » would mean nothing", file=sys.stderr)
+        return 1
+
+    text_of = {path: path.read_text(encoding="utf-8") for path in reading}
+    declared = 0
+    orphans = []
+    for path in declaring:
+        for name in DECLARED_VARIANT.findall(text_of[path]):
+            declared += 1
+            called = any(re.search(rf"\b{re.escape(name)}\b", body)
+                         for other, body in text_of.items() if other != path)
+            if not called:
+                orphans.append((path, name))
+
+    for path, name in orphans:
+        relative = str(path.relative_to(ROOT))
+        print(f"  {relative}: `{name}` is exported and named by no other file. "
+              "The element it was written for therefore carries no class, and "
+              "the browser paints it with its own defaults — which on a dark "
+              "screen is a white rectangle (B-139). Wire it, or remove it and "
+              "write in its place why nothing can call it.", file=sys.stderr)
+
+    if orphans:
+        print(f"\ncheck-markup-contracts: {len(orphans)} declared variant(s) "
+              "nobody names. This arm holds a HARD ZERO: there is no baseline "
+              "to record them in, because a floor set where the count already "
+              "sits can never fall.", file=sys.stderr)
+        return 1
+
+    print(f"check-markup-contracts: {declared} typed variant(s) declared in "
+          f"{len(declaring)} file(s), every one named by at least one of "
+          f"{len(reading)} reader(s) — floor 0.")
+    return 0
+
+
 def check_harness_parses() -> int:
     """The precondition: refuses a rule file the Python parser refuses.
 
@@ -681,6 +803,8 @@ def main(argv: list[str] | None = None) -> int:
     if check_named_values():
         rc = 1
     if check_state_attributes():
+        rc = 1
+    if check_orphan_variants():
         rc = 1
     return rc
 

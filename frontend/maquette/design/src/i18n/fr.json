@@ -374,7 +374,8 @@
       "addedPlural": "ajoutés",
       "seeFollows": "Voir mes suivis →",
       "alreadyInLibrary": "Déjà en médiathèque",
-      "landmark": "Ajout d'un média"
+      "landmark": "Ajout d'un média",
+      "dismissAdded": "Masquer cette notification"
     },
     "resolution": {
       "back": "Retour",
