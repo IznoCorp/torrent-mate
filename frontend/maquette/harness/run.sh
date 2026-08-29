@@ -172,6 +172,7 @@ REPOSITORY_GUARDS=(
   "scripts/check-state-ownership.py"
   "scripts/check-live-relay.py"
   "scripts/check-bug-register.py"
+  "scripts/check-frame-domain.py"
   "scripts/compare-contracts.py --check"
 )
 REPOSITORY_ROOT="$(cd "$HERE/../../.." && pwd)"

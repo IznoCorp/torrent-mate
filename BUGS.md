@@ -2781,6 +2781,42 @@ twice in two waves.
 
 <sub>the measurement: domain-word count per directory of `design/src`, outside comment lines</sub>
 
+
+**CLOSED by L10-bis. `scripts/check-frame-domain.py`, a ratchet per directory, refused upward.**
+The vocabulary is DERIVED — it is the nine feature DIRECTORY NAMES, read from the tree, so a tenth
+feature joins by existing rather than by somebody remembering this file. Comments are stripped per
+line, and the entry's two requirements were kept: `frame-domain-baseline.json` carries the reason
+each ceiling is not zero, and every number in it was read before it was written.
+
+**MEASURED: `ui/` 0, `lib/` 16, `app/` 124**, over 10 047 identifier words. `app/`'s is the frame
+naming its PAGES — `reference.d.ts`, `router-tree.tsx`, `page-host.tsx`, `shell.tsx` — which is the
+exception the invariant blesses by name.
+
+**THE FIRST TWO VERSIONS OF THIS ARM WERE BOTH WRONG, and the mutation found both.** Version one
+matched `\bword\b` and walked straight past `acquisitionLibraryMediaCount`, which names three
+domains and contains no word boundary at all — the way a domain word actually reaches the frame.
+Version two used lookarounds with `re.IGNORECASE`, under which `[a-z]` matches capitals too, so the
+lookahead rejected every camelCase boundary it was written to accept and the same mutation passed a
+SECOND time. The arm splits identifiers into words now, which is what the rest of this repository's
+name guards do. **The corrected reading is 124 in `app/` where the regex saw 53** — a ceiling
+seeded from version one would have frozen an undercount and called it the invariant.
+
+**And a third defect, found by the same route**: with the comment stripper broken the count
+collapsed to `0, 0, 0` and the arm exited **0**, because every ceiling is a MAXIMUM and a reader
+that has stopped reading satisfies all of them at once. A floor on the identifier words read is
+what refuses it.
+
+**What it does NOT count, said plainly**: the same thing § 3's prose counts. The invariant records
+`lib/queue.ts` at **169**; this arm reads **16** there. That figure came from a broader notion of
+« domain word » — the queue's whole subject vocabulary — while this counts the nine names, the only
+vocabulary that can be derived rather than listed. The narrower measure is what a ratchet can hold
+honestly.
+
+<sub>mutation — add `acquisitionLibraryMediaCount` to `lib/relay.ts`: the arm falls with « 19
+against a ceiling of 16 » and names the two files. Break the comment stripper to the `DOTALL` shape
+that once reported 0: the corpus floor falls with « 0 identifier word(s), under the floor of 2000 ».
+Remove the baseline: it refuses rather than assuming zero. Restored → `ui/ 0, lib/ 16, app/ 124 …
+read from 10047 identifier word(s)`</sub>
 **B-101 — a brief that told a wave what it would measure, and was wrong about it.**
 The steward's hand-off for L08-bis stated, in bold: « **Cette vague VA faire bouger l'oracle** —
 B-081 change ce qui est peint par défaut », and instructed the wave to expect a re-record and to
