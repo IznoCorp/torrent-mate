@@ -80,7 +80,7 @@ when the defect comes back.
 | B-016 | Swiping a row right, then left, makes it jump         | 1×          | `closed`     |
 | B-017 | Closing a panel sends the list back to its top        | by mutation | `closed`     |
 | B-018 | On a desktop, dragging a row opens the panel          | 1×          | `closed`     |
-| B-024 | `data-go` settles ONE history entry, layers pile      | by review   | `open`       |
+| B-024 | `data-go` settles ONE history entry, layers pile      | by review   | `fixed #516`       |
 | B-025 | The screen half of the `data-go` fix has no Back rule | by review   | `closed`     |
 | B-026 | A silent `catch {}` can let URL and UI disagree       | by review   | `closed`     |
 | B-027 | `resync.py` trusts `t:` first-match + naive braces    | by review   | `closed`     |
@@ -92,29 +92,29 @@ when the defect comes back.
 | B-033 | `test_locks_tmp_orphans` is flaky under xdist          | by rule     | `open`       |
 | B-034 | `TestQuickMode` reads a foreign `os.scandir` caller    | by gate     | `open`       |
 | B-035 | `test_continues_on_per_file_error` writes no backup    | by gate     | `open`       |
-| B-036 | Two state ids are still French: `panne`, `groupe`      | by review   | `open`       |
+| B-036 | Two state ids are still French: `panne`, `groupe`      | by review   | `fixed #516`       |
 | B-037 | `arrivals.py` reads a French global nothing defines      | by review   | `open`       |
 | B-038 | `arrivals.py` reads `empty` and asserts nothing on it    | by mutation | `open`       |
 | B-039 | `actions.py` prints `.freshtag` presence, asserts nothing | by mutation | `open`       |
-| B-040 | Names in files no arm reads: `sweep.py`, a region id, `oracle.py` | by review   | `open`       |
-| B-041 | `check-frontend-boundaries.py` has no committed test                | by audit    | `open`       |
-| B-042 | An orphan `http.server` holds port 8900 on the operator's machine   | by review   | `open`       |
+| B-040 | Names in files no arm reads: `sweep.py`, a region id, `oracle.py` | by review   | `fixed #516`       |
+| B-041 | `check-frontend-boundaries.py` has no committed test                | by audit    | `fixed #516`       |
+| B-042 | An orphan `http.server` holds port 8900 on the operator's machine   | by review   | `fixed #516`       |
 | B-043 | A deep media address lands the 404 page underneath it               | by review   | `fixed #484` |
 | B-044 | A 404's address recomposes to `/` after a cold load                 | by review   | `fixed #484` |
 | B-045 | `?panel=follows` without its colon is accepted, and fabricates media | by review   | `fixed #484` |
 | B-046 | The fallback port moved onto `switchover.py`'s, whose bind error is swallowed | by review | `fixed #484` |
 | B-047 | The navigation-failure flag is raised by no guard and read by no rule | by review   | `fixed #484` |
 | B-048 | The ninth boundary arm stays green with `addresses.ts` deleted      | by review   | `fixed #484` |
-| B-049 | A rule reads the operator's live `acquire.db` and turns red on every cron | by review | `open` |
+| B-049 | A rule reads the operator's live `acquire.db` and turns red on every cron | by review | `fixed #516` |
 | B-050 | `check-frontend-boundaries.py` is at 921 lines, 79 from the hard ceiling | by review | `fixed #500` |
-| B-051 | `toFollows()` carries the page in its query, invisible to the boundaries arm | by review | `open` |
+| B-051 | `toFollows()` carries the page in its query, invisible to the boundaries arm | by review | `fixed #516` |
 | B-052 | A synthesised follow panel labels a film « Série »                  | by review   | `open`       |
 | B-053 | A panel's layer entry is taken by a tab tap on the same layer (revisit) | by review | `open`     |
 | B-054 | `data-go="acq"` no longer forces the « now » tab (revisit)           | by review   | `open`       |
-| B-055 | The a11y floor measures only the dark theme — light carries 154 findings | by review | `open` |
+| B-055 | The a11y floor measures only the dark theme — light carries 154 findings | by review | `fixed #516` |
 | B-056 | A `@keyframes` name is French (`splashremplit`), invisible to no-french  | by review | `open` |
-| B-057 | `audit2.py`'s R12 silently measures four of five contexts, not five | by review   | `open`       |
-| B-058 | commit-msg's AI-attribution match is unanchored, flags quoting prose | by mutation | `open`       |
+| B-057 | `audit2.py`'s R12 silently measures four of five contexts, not five | by review   | `fixed #516`       |
+| B-058 | commit-msg's AI-attribution match is unanchored, flags quoting prose | by mutation | `fixed #516`       |
 | B-059 | `check-css-tokens.py` crossed the 1 000-line hard ceiling during L07        | by audit    | `fixed #494` |
 | B-060 | The rename tool could not rename a CSS custom property, and reported it as success | by mutation | `fixed #494` |
 | B-061 | The oracle cannot see a pseudo-element, so a class that generates nothing reads green | by rule | `open` |
@@ -156,11 +156,11 @@ when the defect comes back.
 | B-097 | Twenty seed renames never reached the index, and only a case-sensitive runner saw it | by CI | `fixed #503` |
 | B-098 | The build plugin raced its own output and failed three jobs on a fresh checkout | by CI | `fixed #503` |
 | B-099 | A test pass writes 13 GB of real zeroes into `/tmp` and pytest keeps three of them | by operator | `fixed #505` |
-| B-100 | Invariant 10 is written and unarmed: no arm counts the frame's domain words | by audit | `open` |
+| B-100 | Invariant 10 is written and unarmed: no arm counts the frame's domain words | by audit | `fixed #516` |
 | B-101 | The steward's brief predicted an oracle movement that could not happen | by audit | `open` |
-| B-102 | Seven register rows are duplicated, once `fixed` and once `open` | by audit | `open` |
-| B-103 | Two invariants are numbered 10, and a brief pointed at « invariant 10 » | by audit | `open` |
-| B-104 | The generated contract types live under `mocks/`, and they are not a mock | by gate | `open` |
+| B-102 | Seven register rows are duplicated, once `fixed` and once `open` | by audit | `fixed #516` |
+| B-103 | Two invariants are numbered 10, and a brief pointed at « invariant 10 » | by audit | `fixed #516` |
+| B-104 | The generated contract types live under `mocks/`, and they are not a mock | by gate | `fixed #516` |
 | B-105 | R89's waterfall hold was green over the exact defect it names | by mutation | `fixed #509` |
 | B-106 | The server-state arm read only the component tree, so its ceiling was pre-satisfied | by mutation | `fixed #509` |
 | B-107 | `git checkout --` on an untracked file is a no-op, and a mutation stayed in the tree | by review | `fixed #509` |
@@ -194,20 +194,20 @@ when the defect comes back.
 | B-135 | Three named states measured the panel left open by the state before them | by adversarial review | `fixed #509` |
 | B-136 | B-090's headline figure counted quotes, and it had reached the contract | by adversarial review | `fixed #509` |
 | B-137 | Four ACCEPTANCE criteria could not run, or expected the wrong answer | by adversarial review | `fixed #509` |
-| B-138 | The profile panel's avatar is unconstrained, inside a region whose probe reads only the container | by operator | `open` |
-| B-139 | Three typed variants were written and never wired; one leaves a bare button unreadable | by operator | `open` |
+| B-138 | The profile panel's avatar is unconstrained, inside a region whose probe reads only the container | by operator | `fixed #516` |
+| B-139 | Three typed variants were written and never wired; one leaves a bare button unreadable | by operator | `fixed #516` |
 | B-140 | Back returns to the top of a page: the scroll memory only knows overlay screens | by operator | `fixed #512` |
-| B-141 | Ten elements carry no class at all, in a prototype that imports no preflight | by audit | `open` |
+| B-141 | Ten elements carry no class at all, in a prototype that imports no preflight | by audit | `fixed #516` |
 | B-142 | Nothing measures the interface against the constitution: five DOIT clauses have no surface | by audit | `open` |
 | B-143 | §17 (accounts, rights, Plex SSO) has no surface, no contract operation and no lot | by audit | `open` |
 | B-144 | §18 (ratio per tracker) needs three operations the backend already answers and nothing calls | by audit | `open` |
 | B-145 | §19 (cross-seed) has no route in either contract, and its events reach no stream | by audit | `open` |
-| B-146 | D11 is decided and nothing styles a scrollbar yet; the change may move the oracle | by audit | `open` |
+| B-146 | D11 is decided and nothing styles a scrollbar yet; the change may move the oracle | by audit | `fixed #516` |
 | B-147 | Nine steward findings were stacked on five unmerged branches and collided with a wave | by audit | `fixed #511` |
 | B-148 | Lot status lives in two files, and § 0 reads the one a wave forgets | by audit | `fixed #511` |
 | B-149 | A declared departure from the lot's « Done when » lives only in a session report | by audit | `fixed #511` |
 | B-150 | A size promise expired unnoticed because the guard read the status B-148 froze | by audit | `fixed #511` |
-| B-151 | `coverage-merge` reports « Artifact not found » whenever an earlier job fails | by audit | `open` |
+| B-151 | `coverage-merge` reports « Artifact not found » whenever an earlier job fails | by audit | `fixed #516` |
 | B-152 | `IMPLEMENTATION.md` still named L09 as the next lot two commits after L09 merged | by design | `fixed #512` |
 | B-153 | The demand register is computed from OpenAPI paths, and a WebSocket has none | by design | `open` |
 | B-154 | `staleTime: Infinity` with no focus or reconnect refetch: a missed invalidation never heals | by design | `open` |
@@ -277,12 +277,12 @@ when the defect comes back.
 | B-218 | The « Before it » row stopped at L07 and still named a merged PR as « this pull request » | by design | `fixed #514` |
 | B-219 | A wave's brief existed only in a session scratch directory, and its agent could not read it | by agent | `fixed #515` |
 | B-220 | The drawer and the bottom tab bar are converted by no lot of the plan | by audit | `open` |
-| B-221 | A wave merged leaving its own status as the literal placeholder `fixed #NNN` | by guard | `open` |
-| B-222 | The add screen is the only one of five measured by no oracle region at all | by audit | `open` |
-| B-223 | Three more typed variants were orphaned, and the arm for B-139 found them | by guard | `open` |
-| B-224 | The header's avatar rendered 20x30 in a 32x32 button, every class on it correct | by audit | `open` |
-| B-225 | A guard froze its own corpus size in a comment, and the figure drifted three times | by audit | `open` |
-| B-226 | The cross-check B-208 built never ran in CI: the import branch printed and passed | by audit | `open` |
+| B-221 | A wave merged leaving its own status as the literal placeholder `fixed #NNN` | by guard | `fixed #516` |
+| B-222 | The add screen is the only one of five measured by no oracle region at all | by audit | `fixed #516` |
+| B-223 | Three more typed variants were orphaned, and the arm for B-139 found them | by guard | `fixed #516` |
+| B-224 | The header's avatar rendered 20x30 in a 32x32 button, every class on it correct | by audit | `fixed #516` |
+| B-225 | A guard froze its own corpus size in a comment, and the figure drifted three times | by audit | `fixed #516` |
+| B-226 | The cross-check B-208 built never ran in CI: the import branch printed and passed | by audit | `fixed #516` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
