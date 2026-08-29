@@ -755,6 +755,35 @@ arm's inline-`validateSearch` reader does not reach (it reads route files, not e
 that shapes a query). D1's rule — path carries identity, query carries state — is not enforced
 here by any guard; only readable by a human diff.
 
+
+**CLOSED by L10-bis, and the defect was worse than the entry said.** `toFollows()` navigated to
+**`/`** — not to `/acquisition` — with `search: { page: "acq", tab: "now" }`. So the identity was in
+the query AND the path named the root, which the boot SETTLES onto `/acquisition` with a replace:
+the destination was right only by way of a redirect. `/acquisition` declares
+`SearchParams = { tab?: string }` and carries no `page` at all, which is what the address model has
+said all along. It now reads `to: "/acquisition", search: { tab: "now" }`.
+
+**The instrument — the ninth arm reaches NAVIGATIONS, not only declarations.** Everything it read
+before was `routes/`, where an address is DECLARED; D1 is broken just as easily where one is
+CONSTRUCTED. It reads the `search:` object of every `go(…)`/`navigate(…)` outside `routes/` and the
+dying engine — **22 of them** — and the count is printed, because a reader that finds none reports
+the same word as one that read the tree.
+
+**The arm was written and it matched NOTHING, and the run is what said so.** Its pattern held a
+literal **backspace character** where `\b` was meant: a heredoc turned the escape into `\x08`, so
+`\x08(?:go|navigate)` matched no text in any file. Every gate stayed green, the arm reported « 0
+violations » over 116 files, and the mutation passed. It was found by instrumenting the loop and
+reading the line back **as bytes** — `repr()` on the source, not a look at the diff, because a
+backspace is invisible in a diff. That is CLAUDE.md's « the tool is not the proof » with the tool
+being a heredoc.
+
+**A second instrument holds the other end**: R96 gained a hold on where the action LANDS, because
+the destination moved and a static arm cannot see a redirect.
+
+<sub>mutation — put `to: "/"` and `page: "acq"` back: the ARM falls naming
+`features/acquisition/add-screen.tsx:140`, and R96 falls with « it landed on
+'/?page=acq&tab=now' ». Both ends, from either side. Restored → `22 navigation(s) outside routes/,
+0 violation(s)` · `11 rules EXECUTED — no violation`</sub>
 **B-052 — a synthesised follow panel can label a film « Série ».**
 Found during the same review that produced B-045: an entry fabricated by `knownMedium`'s now-
 narrowed match can still carry the show-shaped label on a film-shaped title, when the synthesis

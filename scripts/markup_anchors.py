@@ -173,7 +173,11 @@ GENRE_SITES = {
         "checkbox — and the shape is what the class applies. Reading a "
         "`data-*` would answer what the option IS, which is the question "
         "the rule is not asking"),
-    ("audit2.py", 124, "note"): (
+    # ⚠ KEYED BY LINE, so a change ABOVE this one moves it. L10-bis's repair
+    # of R12 (B-057) added lines to `audit2.py` and this exemption stopped
+    # matching at 124; the guard said so immediately, which is the table
+    # working as designed rather than a cost of it.
+    ("audit2.py", 150, "note"): (
         "the media-sheet inventory skips the blocks drawn as a NOTE, "
         "which is a style genre and not a section of the sheet. A "
         "`data-*` would name the block; the rule needs to know how it is "

@@ -529,6 +529,47 @@ def arm_addressing(root: Path) -> int:
                 f"{module}: reads « {name} » inline in its validateSearch — "
                 f"a page is an identity, and identity travels in the path")
 
+    # AND THE NAVIGATIONS THEMSELVES, wherever they are written. Everything
+    # above reads `routes/`, which is where an address is DECLARED — and D1 is
+    # broken just as easily where one is CONSTRUCTED. `toFollows()` in
+    # `features/acquisition/add-screen.tsx` navigated with
+    # `search: { page: "acq", tab: "now" }`, carrying the page's identity in the
+    # query, inside a feature file no reader here reached: the rule was
+    # enforced by a human diff and by nothing else (B-051).
+    #
+    # WHAT IS READ: the `search:` object of any `go(…)` or `navigate(…)` call,
+    # anywhere under the tree except `routes/` (already covered above) and the
+    # dying engine (which has no router). The object is bounded to its own
+    # braces, so a key three properties later in an unrelated literal is not
+    # read as a search parameter.
+    #
+    # WHAT IS NOT READ: a search object built elsewhere and passed in by name.
+    # Following that needs the scopes, not the text, and the shape met in the
+    # field is the literal — which is also the shape somebody writes without
+    # thinking about D1.
+    navigation_calls = 0
+    for path in sorted(root.rglob("*")):
+        if not path.is_file() or path.suffix not in {".ts", ".tsx"}:
+            continue
+        relative = path.relative_to(root)
+        if relative.parts[0] in {"routes", "engine"}:
+            continue
+        body = path.read_text(encoding="utf-8")
+        for call in re.finditer(r"\b(?:go|navigate)\s*\(", body):
+            navigation_calls += 1
+            searched = re.search(r"search\s*:\s*\{([^{}]*)\}", body[call.end():call.end() + 400])
+            if not searched:
+                continue
+            keys = set(re.findall(r"(\w+)\s*:", searched.group(1)))
+            for name in sorted(keys & (pages | {"page"})):
+                line = body.count("\n", 0, call.start()) + 1
+                violations.append(
+                    f"{relative}:{line}: navigates with « {name} » in its "
+                    "search object — a page is an identity, and identity "
+                    "travels in the PATH (D1). The address model already "
+                    "declares the page's own path; use it, and leave the query "
+                    "for how the page is being looked at.")
+
     # A route that is neither a page's path nor the root is a SCREEN, and the
     # model has to say so — the two ends are compared, never merged.
     screen_routes = {path for path in served if path not in page_paths and path != "/"}
@@ -581,6 +622,7 @@ def arm_addressing(root: Path) -> int:
     print(f"  addressing: {len(files)} route file(s), {len(dials)} dial(s), "
           f"{len(pages)} page(s) against {len(engine_pages)} the engine draws, "
           f"{len(screen_paths)} screen(s), {bodies_read} validateSearch body(ies) read, "
+          f"{navigation_calls} navigation(s) outside routes/, "
           f"{len(violations)} violation(s)")
     for entry in violations:
         print("    " + entry, file=sys.stderr)

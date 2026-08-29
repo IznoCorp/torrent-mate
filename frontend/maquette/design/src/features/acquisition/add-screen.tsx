@@ -127,9 +127,19 @@ export function AddScreen() {
   function toFollows(): void {
     writeUiState({ page: "acq", acqTab: "now" });
     render();
+    // THE IDENTITY IS IN THE PATH AND THE STATE IS IN THE QUERY — D1, and this
+    // function was the counter-example (B-051). It navigated to `/` with
+    // `search: { page: "acq", tab: "now" }`: the page's identity travelling as
+    // a query parameter, and to an address that is not even the acquisition
+    // page — `/` is the root, which the boot SETTLES onto `/acquisition` with a
+    // replace. So the destination was right only by way of a redirect, and the
+    // key that named it was in the wrong half of the URL.
+    //
+    // `/acquisition` declares `SearchParams = { tab?: string }` and carries no
+    // `page` at all, which is what the address model has said all along.
     go({
-      to: "/",
-      search: { page: "acq", tab: "now" },
+      to: "/acquisition",
+      search: { tab: "now" },
       replace: true,
     });
   }

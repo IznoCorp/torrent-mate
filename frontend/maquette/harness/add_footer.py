@@ -298,6 +298,25 @@ async def hold(journal):
                 "at, never a boolean, because a boolean would swallow every "
                 "announcement after the first")
 
+            # WHERE THE ACTION LANDS, held last because it navigates away, and
+            # held at all because it MOVED. `toFollows()` went to `/` with
+            # `search: { page: "acq", tab: "now" }` — the page's identity in the
+            # query, which D1 forbids, and to an address that is not the
+            # acquisition page: `/` is the root, which the boot SETTLES onto
+            # `/acquisition`. The destination was right only by way of a
+            # redirect (B-051).
+            if again is not None:
+                await page.locator(ACTION).click()
+                await page.wait_for_timeout(700)
+                landed = await page.evaluate(
+                    "()=>location.pathname + location.search")
+                journal.check(
+                    "the action lands on the page's own address, state in the query",
+                    landed.startswith("/acquisition") and "tab=now" in landed
+                    and "page=" not in landed,
+                    f"it landed on {landed!r} — identity in the PATH, state in "
+                    "the QUERY, and no redirect standing in for either")
+
         await context.close()
         await browser.close()
     journal.summary(errors)
