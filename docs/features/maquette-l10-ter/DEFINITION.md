@@ -44,7 +44,11 @@ What is established and verifiable:
 | --- | --- | --- |
 | The side menu | `legacy.js` → `openDrawer()` | `<aside id="drawer">` is **empty** in `index.html` |
 | The bottom tab bar | `legacy.js` → `renderNav()` | `<nav id="nav">` is **empty** in `index.html` |
-| Nine other `innerHTML` writes | `legacy.js` | **unidentified — that is the first act** |
+| **Ten** other `innerHTML` writes | `legacy.js` | **unidentified — that is the first act** |
+
+**Twelve writes in all, two of them identified above.** The steward first published « nine »,
+from a grep narrower than the one below; re-derive the count rather than inherit it, and note
+that this figure moved once already inside the day it was written.
 
     grep -n "\.innerHTML = " frontend/maquette/design/src/engine/legacy.js
     grep -rn "#drawer\|#nav\b" frontend/maquette/design/src/app/
@@ -126,7 +130,7 @@ otherwise.**
   transition between two pages is an assertion about what PERSISTS between them.
 
 **Verify it rather than inherit it.** Two reasons to distrust it: the steward did not measure how
-many surfaces the engine still draws — nine unread `innerHTML` writes — and **that number can change
+many surfaces the engine still draws — ten unread `innerHTML` writes, re-derived — and **that number can change
 the answer**. And a scheduling decision taken from reading two lot entries is not a decision taken
 from a model. The agent will have the model; the steward did not.
 
