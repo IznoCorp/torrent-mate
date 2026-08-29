@@ -9,9 +9,32 @@ when the defect comes back.
 1. **Reported = written down.** No triage, no judgement first. An unwritten bug is a bug that
    comes back a third time.
 2. **One bug is closed at a time**, and the operator confirms the fix before the next one starts.
-3. **A fix is not a fix without a rule that bites.** The rule is mutation-tested: break the
-   behaviour on purpose, confirm the rule falls and names the right defect, restore. A closing
-   entry names the script and the mutation.
+3. **A fix is not a fix without a rule that bites, and the rule is RUN.** Mutation-tested: break
+   the behaviour on purpose, confirm the rule falls and names the right defect, restore. A closing
+   entry names the script, the mutation, and the run that passed — a command whose output nobody
+   has seen is a claim.
+
+   **When no instrument reaches the defect, building one is part of the work — never a reason to
+   leave the entry open.** Dictated by the operator on 2026-08-28, and the count is why. Forty-one
+   entries stood open that day and eight of them were closed in substance, held open by one
+   sentence wearing the same shape: « not fixed here, it needs its own X ». That sentence satisfies
+   the first half of this rule *perfectly* — a rule nobody wrote cannot fail its mutation — which is
+   how the rule written to force proof became the rule that licensed deferral. It is written into
+   B-036, B-041, B-055, B-057, B-058, B-061, B-100 and B-104, each time in good faith.
+
+   **So every entry a wave takes is closed by an instrument that RAN**: the oracle, a harness hold,
+   the accessibility tier, a guard arm, a test. The entry carries the command and its result.
+   Where the instrument did not exist, the wave built it, and the instrument is the deliverable as
+   much as the fix — B-139's own text says its defect « is measurable in twenty lines and nothing
+   measures it », which is the whole of this rule in one line.
+
+   **The one honest exception, and it is narrow.** Where no instrument can reach the defect, the
+   entry names WHICH instrument cannot, WHY, and what was done instead. Two shapes have been met so
+   far: prose in a document no guard greps (B-024 — a dead phase name cited as live), and a
+   continuous-integration condition provable only by making the pipeline red on purpose (B-151).
+   **An exception that is not named is indistinguishable from an instrument nobody built**, which
+   is B-085's sentence with the reader replaced by a wave.
+
 4. **The rule must cover the path the operator actually walks.** Several bugs below survived a
    green harness because the rule drove a named state instead of the real journey — a cold load,
    a real finger, a real browser menu.
