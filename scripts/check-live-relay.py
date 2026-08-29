@@ -66,10 +66,22 @@ EVENT_BASE = re.compile(r"^class (\w+)\(Event\)", re.MULTILINE)
 
 # The floor beneath `no-polling`'s corpus. It is the number of TypeScript files
 # the arm must have read for its answer to mean anything, and it is set well
-# under the count at the time of writing (measured: 118) so an ordinary deletion
-# does not trip it — while a scope that has silently become empty does. A floor
-# posted AT the current value would be pre-satisfied and would prove nothing,
-# which is one of the forms B-085 counts.
+# well under the corpus so an ordinary deletion does not trip it, while a scope
+# that has silently become empty does. A floor posted AT the current value would
+# be pre-satisfied and would prove nothing, which is one of the forms B-085
+# counts.
+#
+# NO NUMBER FOR THE CORPUS IS WRITTEN HERE, and that is the repair. Two comments
+# in this file used to state one, and they stated DIFFERENT ones; the tree moved
+# three times in three days while both sat still. The figures themselves are in
+# the register (A-2) and not here, because the `stale-figure` arm below refuses
+# this module to hold the count it prints. The arm PRINTS its corpus on every
+# run, so the command is the citation:
+#
+#     python3 scripts/check-live-relay.py --arm no-polling
+#
+# That is the plan's own rule applied to a guard's comment — no figure without
+# the command that produces it (A-2).
 POLLING_CORPUS_FLOOR = 60
 
 # And how many of them must DECLARE A READ. A poll lives beside a `useQuery`,
@@ -186,12 +198,15 @@ def arm_no_polling():
                   "with `setTimeout`. A delay happens once; a callback that "
                   "reschedules itself is a poll, and it is the shape a search "
                   "for `setInterval` can never find.")
-    # THE SUBJECT IS FLOORED, not only the sweep. 60 against 124 files is a real
-    # floor against total collapse and blind to targeted loss: a poll would be
-    # written in a `queries.ts`, in `lib/queue.ts` or in a component — 13 files
-    # of the 124. Deleting every one of them leaves 111, comfortably above 60,
-    # with the arm having lost its whole subject and printing a reassuring
-    # three-digit number.
+    # THE SUBJECT IS FLOORED, not only the sweep, and the posture is right even
+    # though the number beside it was not: this floor is a real defence against
+    # total collapse and blind to targeted loss. A poll would be written in a
+    # `queries.ts`, in `lib/queue.ts` or in a component — a small fraction of
+    # the corpus — so deleting every one of them leaves the count comfortably
+    # above the floor, with the arm having lost its whole subject and printing a
+    # reassuring three-digit number. That is why the READING files are floored
+    # separately below; both counts are printed, and neither is written down
+    # here to go stale (A-2).
     reads = [path for path in files if path.name.endswith("queries.ts")
              or path.name == "queue.ts"]
     print(f"check-live-relay[no-polling]: {len(files)} TypeScript file(s) read "
@@ -617,11 +632,71 @@ def arm_wired():
     return 1 if violations else 0
 
 
+def arm_stale_figure():
+    """Refuses this module to write down a corpus figure it also prints.
+
+    A-2. `POLLING_CORPUS_FLOOR` carried two comments stating the size of the
+    corpus it floors, and they stated DIFFERENT sizes; the tree moved three
+    times in three days while both sat still. A number frozen beside a guard is
+    the guard's own subject turned on itself — this file exists because a count
+    nobody recounts stops being true, and it held three such counts.
+
+    THE RULE IS THE PLAN'S OWN, applied to a comment: no figure without the
+    command that produces it. `no-polling` prints its corpus on every run, so
+    the command IS the citation and the literal has nothing left to do but rot.
+
+    HOW IT IS EXACT rather than a judgement about prose: it takes the counts the
+    arms actually measure NOW and refuses to find them written in this module's
+    source. A figure that agrees with the tree today is the dangerous one —
+    it is the state every stale figure was in on the day it was typed.
+
+    WHAT IT DOES NOT READ:
+
+      - ANY OTHER GUARD. This is one module holding one rule about itself. The
+        class is general and the arm is not, and saying so is worth more than an
+        arm that greps every comment in `scripts/` and learns to be ignored.
+      - THE FLOORS THEMSELVES. `60` and `8` are the guard's own constants, not
+        measurements of the tree, and they are meant to be written down. Only
+        the MEASURED counts are refused.
+      - A FIGURE WRITTEN ANY OTHER WAY. « one hundred and twenty-seven » passes,
+        as does a count split across a line break. It refuses the shape that
+        actually occurred, twice, in this file.
+
+    Returns:
+        1 when a measured count is also a literal in this module, 0 otherwise.
+    """
+    source = pathlib.Path(__file__).read_text(encoding="utf-8")
+    files = sources()
+    reads = [path for path in files if path.name.endswith("queries.ts")
+             or path.name == "queue.ts"]
+    measured = {"the TypeScript corpus": len(files),
+                "the files declaring a read": len(reads)}
+    violations = 0
+    for what, count in measured.items():
+        if count in (POLLING_CORPUS_FLOOR, READING_FILES_FLOOR):
+            continue
+        if re.search(rf"(?<![\d]){count}(?![\d])", source):
+            violations += 1
+            print(f"  scripts/check-live-relay.py: {count} — {what} as this run "
+                  "measures it — is also written as a literal in this module. A "
+                  "figure frozen beside a guard is the guard's own subject "
+                  "turned on itself: two comments here stated the corpus size, "
+                  "they disagreed, and the tree moved three times in three days "
+                  "while both sat still. Cite the command that prints it "
+                  "(`--arm no-polling`), or cite no number (A-2).",
+                  file=sys.stderr)
+    print(f"check-live-relay[stale-figure]: {len(measured)} measured count(s) "
+          "checked against this module's own source — a guard may print a "
+          "figure and may not write one down")
+    return 1 if violations else 0
+
+
 ARMS = {
     "no-polling": arm_no_polling,
     "wired": arm_wired,
     "named-invalidation": arm_named_invalidation,
     "map-completeness": arm_map_completeness,
+    "stale-figure": arm_stale_figure,
 }
 
 

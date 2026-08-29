@@ -45,11 +45,31 @@ if printf '%s' "$subject" | grep -qE '^v?[0-9]+\.[0-9]+\.[0-9]+ *[:—-]'; then
     fail "version prefix in the subject. Version traceability lives in IMPLEMENTATION.md."
 fi
 
-# AI attribution, in the whole message rather than the subject: it is a trailer.
+# AI attribution, in the whole message rather than the subject: it is a TRAILER,
+# and every alternative is anchored to a line start because of that.
 # `claude-session:` joined this pattern on 2026-08-24 — the sub-agent harness had been
 # writing it unmatched, 17 times across one wave's intermediate commits, because it names
 # neither Claude nor Anthropic in a shape the three earlier alternatives read.
-if printf '%s' "$message" | grep -qiE '^[[:space:]]*co-authored-by:.*(claude|anthropic)|generated with .*claude|🤖|^[[:space:]]*claude-session:'; then
+#
+# TWO OF THE FOUR WERE UNANCHORED UNTIL L10-bis, and they caught prose. A commit
+# explaining this very ban was refused by the hook it was explaining (B-058) —
+# `generated with .*claude` and a bare `🤖` matched anywhere in the message,
+# including inside a sentence describing what is forbidden. The two that were
+# already anchored did not have the problem, which is what proved the anchor is
+# the answer: a sentence quoting a `Co-Authored-By:` trailer mid-line has always
+# passed.
+#
+# BOTH were anchored, not one. Fixing `generated with` alone would have left the
+# emoji catching the same prose three characters later — a repair applied to one
+# branch of a condition and not the other, which is the shape this repository
+# has just paid for twice (B-208, A-1).
+#
+# WHAT IS NO LONGER CAUGHT, stated rather than discovered: an attribution buried
+# mid-line — « … co-authored with 🤖 Claude … » inside a paragraph. That is not
+# a trailer, no tool emits it, and refusing it is what made this hook refuse
+# English. The real footers all begin their line, and the mutations below hold
+# exactly that.
+if printf '%s' "$message" | grep -qiE '^[[:space:]]*co-authored-by:.*(claude|anthropic)|^[[:space:]]*🤖|^[[:space:]]*generated with .*claude|^[[:space:]]*claude-session:'; then
     fail "AI attribution trailer. CLAUDE.md forbids Co-Authored-By / Claude / Anthropic / Claude-Session."
 fi
 

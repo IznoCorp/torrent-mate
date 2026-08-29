@@ -281,6 +281,7 @@ when the defect comes back.
 | B-222 | The add screen is the only one of five measured by no oracle region at all | by audit | `open` |
 | B-223 | Three more typed variants were orphaned, and the arm for B-139 found them | by guard | `open` |
 | B-224 | The header's avatar rendered 20x30 in a 32x32 button, every class on it correct | by audit | `open` |
+| B-225 | A guard froze its own corpus size in a comment, and the figure drifted three times | by audit | `open` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
@@ -783,6 +784,30 @@ this one the same anchor needs its own mutation test to confirm it still catches
 footer while releasing a quoting sentence; a same-commit reflex fix on a compliance-relevant
 guard is exactly the haste this register exists to slow down.
 
+
+**CLOSED by L10-bis, and NOT as a reflex — the entry's own warning was the instruction.** Measured
+first: a real footer fell, a real `Co-Authored-By:` trailer fell, prose QUOTING that trailer passed,
+and prose describing the ban was REFUSED. The two alternatives that were already anchored never had
+the problem, which is what proves the anchor is the answer rather than a weaker pattern.
+
+**BOTH unanchored alternatives were anchored, not one.** `generated with .*claude` was the one the
+entry named; a bare `🤖` had exactly the same shape three characters later, and repairing one and
+leaving the other is the defect this repository paid for twice in the same week (B-208's `try`,
+A-1's import branch). Fixing only the named half would have left the emoji refusing the same
+paragraph.
+
+**What is no longer caught, stated rather than discovered**: an attribution buried mid-line inside a
+sentence. That is not a trailer, no tool emits it, and refusing it is what made this hook refuse
+English.
+
+**The instrument is a TEST, not the run that proved it.** `tests/scripts/test_commit_msg_hook.py`
+executes the hook as a process — the file git runs, not a Python transcription — over five refusals
+and three acceptances. The five refusals are the half a future loosening breaks first, and this
+pattern has been loosened once already.
+
+<sub>mutation, both ways and both seen red — restore the unanchored pattern: « prose describing the
+footer » fails, which is B-058 reproduced. Delete the `claude-session:` alternative: « a
+Claude-Session trailer » fails, which is the compliance half. Restored → `8 passed`</sub>
 **B-060 — the tool `CLAUDE.md` mandates for renames could not perform one, and said so as success.**
 `scripts/rename-identifiers.py` is the only sanctioned way to rename an identifier in this
 repository. Asked to move the CSS custom property `--card` to `--color-card` it touched **zero
@@ -1190,6 +1215,30 @@ them. None is reproduced on a device yet; each entry below records the walk that
   Settles with the ownership law when `data-go` itself migrates to the shell (SP4d): if a sixth
   producer, or a new path to the existing five, can ever reach a layer, the entry-count law
   (`__pont.regler(n)`, sketched but unapplied here) is owed then, not before.
+
+  **CLOSED by L10-bis, and the phase name above is dead.** SP4d ran — its two waves are recorded
+  in `IMPLEMENTATION.md` as #447 and #448 — and `data-go` did NOT migrate to the shell in it. The
+  phase that owns that migration today is **L13**, where the dying engine is subtracted. A
+  forward-looking sentence pointing at a phase that has already passed reads as pending to every
+  session after it, and this one has read that way since 2026-08-20.
+
+  **THIS IS ONE OF THE TWO CLOSURES WITH NO INSTRUMENT, and rule 3's amendment obliges naming
+  which one cannot and why.** No guard here greps prose. `check-no-french.py` reads names, not
+  citations; `check-bug-register.py` reads the index, not the bodies; the harness reads a browser.
+  A phase name inside a paragraph of English is text nothing in this repository parses. What was
+  done instead is this correction, written beside the original rather than over it (§ 7.1).
+
+  **The lead the entry offered was checked and is already spent.** « Five such sentences were found
+  in the plan » — `docs/reference/frontend-architecture.md` carries none today; a later wave
+  repaired them. The two survivors are in `product-intent.md` and are HISTORICAL (« ce qui a été
+  livré de SP5 avant cette règle — SP5a »), which is a record and not a forecast, and that document
+  is the operator's. An arm refusing a dead phase name would therefore have to tell a record from a
+  forecast, which is a judgement about a sentence's tense and not a thing to grep. Recorded as
+  measured rather than built, so the next wave inherits the measurement and not the suggestion.
+
+  ⚠ The citation `refonte.html ~17861` in the paragraph above is stale by the same species: that
+  file is **7 057 bytes** today and holds no such line. Left as written, because § 7.1 corrects
+  beside and never over — and named here so a reader does not go looking.
 - **B-025** — harness `bugs.py` check 10b stops at the landing (`10b. « Voir mes suivis » lands`)
   and never presses Back; only the sheet half (9b) is guarded. The `remplacer`-on-screen half of
   the fix — exactly what B-024 concerns — can regress without a single check falling.
@@ -3533,6 +3582,31 @@ region of the oracle, so nothing else could have seen it.
 
 <sub>measured `[32,32]` host against `[20,30]` image before · `[32,32]` against `[32,32]` after ·
 mutation: remove `p-0` → R97 falls naming the header alone</sub>
+
+**B-225 — a guard froze its own corpus size in a comment, and the figure drifted three times in
+three days.** Recorded by the steward's audit of L10 as A-2. `check-live-relay.py` carried
+`POLLING_CORPUS_FLOOR = 60` with one comment saying « measured: 118 » and another saying « 60
+against 124 files ». The tree read **120** when the pull request was written, **126** when it
+merged, and **127** two days later. Two comments in one file stating one fact, disagreeing with
+each other and with the tree, inside the guard whose whole subject is a count nobody recounts.
+
+**The floor's POSTURE is right and is not the defect.** « A real floor against total collapse and
+blind to targeted loss » is an honest thing for a floor to say about itself. What was wrong is the
+number frozen beside it.
+
+**The instrument, and it is exact rather than a judgement about prose.** A fifth arm,
+`stale-figure`: it takes the counts the arms actually measure NOW and refuses to find them written
+as literals in this module's own source. **A figure that agrees with the tree today is the
+dangerous one** — it is the state every stale figure was in on the day it was typed.
+
+**What it does not read**: any other guard. The class is general and the arm is not, and saying so
+is worth more than an arm that greps every comment in `scripts/` and learns to be ignored. Nor the
+floors themselves, which are the guard's own constants and are meant to be written down.
+
+<sub>mutation — write « 60 against 127 files » back into a comment: the arm falls naming 127 and
+what it measures. Write the reading-files count instead: it falls too, so it is not one number it
+knows. Restored → `check-live-relay[stale-figure]: 2 measured count(s) checked against this
+module's own source` · `--arm no-polling` prints 127 and the module holds no figure at all</sub>
 
 **B-139 — three variants exist, are exported, and are called by nothing.**
 Reported by the operator on 2026-08-26: after adding a media to follows, the bar at the bottom of
