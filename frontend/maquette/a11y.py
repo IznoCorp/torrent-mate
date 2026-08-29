@@ -522,7 +522,23 @@ def light_ceiling():
     """
     if not LIGHT_DEBT_FILE.exists():
         return None
-    return json.loads(LIGHT_DEBT_FILE.read_text(encoding="utf-8"))["counts"]["total"]
+    recorded = json.loads(LIGHT_DEBT_FILE.read_text(encoding="utf-8"))
+    # THE CEILING IS DERIVED FROM THE LIST, and `counts.total` is checked
+    # against it rather than trusted. Reading the summary alone made the whole
+    # ratchet one integer wide: editing `total` to 99999 raised the ceiling by
+    # 165 834 without touching a single recorded finding, and nothing anywhere
+    # compared the two. A ratchet whose bound can be moved without moving its
+    # subject is a tolerance with a ratchet's name.
+    listed = sum(len(finding["targets"])
+                 for findings in recorded["states"].values()
+                 for finding in findings)
+    summarised = recorded["counts"]["total"]
+    if listed != summarised:
+        raise RuntimeError(
+            f"{LIGHT_DEBT_FILE.name}: counts.total says {summarised} and the "
+            f"recorded states hold {listed}. The file is its own subject; "
+            "re-record it with `--record` rather than editing the summary.")
+    return listed
 
 
 def main(argv=None) -> int:
