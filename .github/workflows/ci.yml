@@ -75,6 +75,24 @@ jobs:
               - 'scripts/check-mock-seeds.py'
               - 'scripts/extract-maquette-fixtures.mjs'
               - 'scripts/build-mock-seeds.py'
+              # THE BUG REGISTER, for the same reason and it is a sharper one.
+              # `check-bug-register.py` reads `BUGS.md` and runs in exactly two
+              # places: `make check` (the `python` job) and `run.sh --contracts`
+              # (this one). Neither filter named `BUGS.md`, so a pull request
+              # filing or closing an entry — a register-only PR, precisely what
+              # the `no-version-bump` label exists for — ran the register's own
+              # guard in NO job at all. It is listed here rather than under
+              # `python` on purpose: this tier is minutes, and re-running the
+              # fourteen-minute suite over a register edit is the cost the
+              # filter exists to remove.
+              - 'BUGS.md'
+              # And the two this hold found that no reading had: the register's
+              # ARCHIVE, whose consistency with `BUGS.md` is one of the five
+              # arms, and `CLAUDE.md`, which `check-no-french.py` reads for its
+              # self-description arm — the arm that refuses the guard's own
+              # documentation drifting from the arms it documents.
+              - 'BUGS-CLOSED.md'
+              - 'CLAUDE.md'
             # design-gaps parses design-doc ANCHORS (audit_design_coverage.py):
             # a docs-only PR that renames a heading can flip its verdict.
             docs:
