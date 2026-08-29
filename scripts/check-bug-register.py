@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The bug register's own index, held by four arms, plus the tool that stops the recurrence.
+"""The bug register's own index, held by five arms, plus the tool that stops the recurrence.
 
 `BUGS.md` is the ground every figure about this work is drawn from, and until
 2026-08-29 nothing read it. Seven identifiers — B-079 to B-085 — carried TWO rows
@@ -84,8 +84,13 @@ NUMBERED_ITEM = re.compile(r"^(\d+)\.\s+\S")
 # the backticks dropped — not an ordinary deletion.
 INDEX_FLOOR = 150
 
-# And the same for the invariants: fourteen are written today, and an arm that
-# reads zero of them agrees with an arm that read all fourteen.
+# And the same for the invariants. This comment said « fourteen are written
+# today » and the file held FIFTEEN — wrong on the day it was typed, in the very
+# commit that renumbered them, because the author counted distinct NUMBERS on
+# `main` (where 10 appeared twice) while the arm counts ITEMS. It is B-225's own
+# class, shipped by the wave that closed B-225, and `stale-figure` could not see
+# it: that arm reads its own module and says so. The count is printed by the
+# corpus arm on every run; no number is written here.
 INVARIANT_FLOOR = 8
 
 
@@ -223,6 +228,54 @@ def arm_invariant_numbers(numbers):
     return violations
 
 
+# The historical table at the foot of the file: twelve rows whose last column is
+# a DATE and which carry no status at all. They are the only index rows
+# `INDEX_ROW` is meant not to take.
+HISTORICAL_ROWS = 12
+
+# Any row that OPENS with an identifier, whether or not the reader could finish
+# it. The difference between the two is the arm below.
+ANY_INDEX_ROW = re.compile(r"^\|\s*([BE]-\d{3})\s*\|", re.MULTILINE)
+
+
+def arm_unparsed_row(text, rows):
+    """Refuses an index row the status reader could not take.
+
+    THE BACKTICK IS A LOAD-BEARING PARSING TOKEN, and nothing read what it made
+    the reader miss. `INDEX_ROW` requires the last cell backticked; a row that
+    drops them is not reported, it simply DISAPPEARS, and the corpus count falls
+    by one with no word said.
+
+    That is not theoretical: re-injecting B-102's own defect — a second `open`
+    row for B-079 — with the backticks left off gave `214 index row(s) read` and
+    `clean`, exit 0. The same line WITH backticks gives one violation. The
+    defect this file was written for walks back in through the spelling of its
+    own status cell.
+
+    The corpus floor was supposed to cover it and cannot: at 150 against 214 it
+    takes SIXTY-FIVE rows breaking at once before it speaks, and sixty of them
+    stripped still read `154 … clean`.
+
+    Args:
+        text: The whole of `BUGS.md`.
+        rows: The rows `INDEX_ROW` did take.
+
+    Returns:
+        1 when more rows open with an identifier than the reader could finish.
+    """
+    opened = len(ANY_INDEX_ROW.findall(text))
+    unparsed = opened - len(rows) - HISTORICAL_ROWS
+    if unparsed > 0:
+        print(f"  BUGS.md: {opened} row(s) open with an identifier, {len(rows)} "
+              f"were read as index rows and {HISTORICAL_ROWS} are the historical "
+              f"table — {unparsed} could not be read at all. A row whose status "
+              "cell is not backticked is not refused, it is INVISIBLE: it leaves "
+              "no violation, no count and no trace, and B-102's duplicate walks "
+              "back in through it.", file=sys.stderr)
+        return 1
+    return 0
+
+
 def arm_corpus(rows, numbers):
     """Print what was read, and refuse a corpus that has silently emptied.
 
@@ -284,7 +337,8 @@ def print_next_identifier():
     return 0
 
 
-ARMS = ("duplicate-row", "status-vocabulary", "invariant-numbers", "corpus")
+ARMS = ("duplicate-row", "status-vocabulary", "invariant-numbers",
+        "unparsed-row", "corpus")
 
 
 def main():
@@ -303,7 +357,8 @@ def main():
     if arguments.next_identifier:
         return print_next_identifier()
 
-    rows = read_index_rows(REGISTER.read_text(encoding="utf-8"))
+    register = REGISTER.read_text(encoding="utf-8")
+    rows = read_index_rows(register)
     numbers = read_invariant_numbers(ARCHITECTURE.read_text(encoding="utf-8"))
     selected = (arguments.arm,) if arguments.arm else ARMS
 
@@ -315,6 +370,8 @@ def main():
             violations += arm_status_vocabulary(rows)
         elif arm == "invariant-numbers":
             violations += arm_invariant_numbers(numbers)
+        elif arm == "unparsed-row":
+            violations += arm_unparsed_row(register, rows)
         elif arm == "corpus":
             violations += arm_corpus(rows, numbers)
 

@@ -73,7 +73,12 @@ ORACLE_REFERENCE = MAQUETTE / "oracle-reference.json"
 # literal PREFIX and the words the template interpolates from the table beside
 # it; both halves are names someone chose.
 ENTRY_OVER_LINES = re.compile(r'\[\s*\n\s*"([A-Za-z][\w-]*)",\s*\n\s*[`"]')
-ENTRY_ON_ONE_LINE = re.compile(r'\[\s*"([A-Za-z][\w-]*)",\s*"[^"]*",\s*\(\)')
+# The third argument is a FUNCTION, whatever shape it takes. Requiring the
+# literal `, ()` read `["signin", "…", () => …]` and walked past
+# `async () =>`, a named reference, and `function () {}` — none of which the
+# over-lines reader sees either, so both spellings escaped both readers.
+ENTRY_ON_ONE_LINE = re.compile(
+    r'\[\s*"([A-Za-z][\w-]*)",\s*"[^"]*",\s*(?:async\s*)?(?:\(|function\b|\w)')
 ENTRY_FROM_TEMPLATE = re.compile(r'`([A-Za-z][\w-]*)-\$\{(\w+)\}`')
 TEMPLATE_MEMBER = re.compile(r'\["([A-Za-z][\w-]*)",\s*"')
 # `].map((` — the end of the array a generated family is built from. The members
@@ -169,7 +174,23 @@ def check_state_identifiers(violations: list[str]) -> None:
     Args:
         violations: The accumulator every arm appends to.
     """
-    words = vocabulary()
+    # THE DEBT WORDS ARE EXCLUDED, and without this the arm could not catch the
+    # very id it was written for. `vocabulary()` returns the WHOLE file, the
+    # section banner-marked « THE ENGINE'S LAST FRENCH WORDS » included — and
+    # that section holds `panne`. So `system-panne` would have passed in
+    # silence, along with `repos`, `courant`, `masquer` and twenty more.
+    #
+    # THE MUTATION THAT « PROVED » THIS ARM WAS MEASURED IN THE WRONG WORLD.
+    # Restoring `system-panne` did make the arm fall — on the CROSS-CHECK, which
+    # named `system-outage`, because the oracle reference still carried the old
+    # id. It never named `panne`. A mutation run against a stale second reader
+    # proves the cross-check works and says nothing about the vocabulary; it is
+    # the test agreeing with the fix, which this register refuses by name.
+    #
+    # The debt is owed to `legacy.js` alone (`check_french_debt`), and
+    # `states.js` is not `legacy.js`. Excluding it costs nothing: no current id
+    # fails.
+    words = vocabulary() - vocabulary(debt_only=True)
     source = read(STATES)
     declared = declared_state_identifiers(source)
     measured = measured_state_identifiers()

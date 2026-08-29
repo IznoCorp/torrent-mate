@@ -103,8 +103,16 @@ LIGHT_DEBT_FILE = ROOT / "a11y-light-debt.json"
 LIGHT_THEME = """(on) => {
   if (on) document.documentElement.setAttribute("data-theme", "light");
   else document.documentElement.removeAttribute("data-theme");
-  return document.documentElement.getAttribute("data-theme");
 }"""
+
+# AND A READER THAT WRITES NOTHING, which is the whole point of it being
+# separate. The check used to call the setter above and compare its return
+# value — it wrote the attribute and then read back its OWN write, so `applied`
+# was "light" unconditionally and the `RuntimeError` could never fire. A
+# self-referential getter is a page that reports itself alive; this repository
+# has paid for that shape before, and B-055's entry claimed the read-back as a
+# protection it did not have.
+READ_THEME = """() => document.documentElement.getAttribute("data-theme")"""
 
 # The rule `--record` keeps in a file of its own (D-L06-5). It is NOT carved out
 # of `--check`: the floor counts it like every other rule.
@@ -248,6 +256,17 @@ async def audit_state(page, state: str, recipe: dict,
     await oracle.neutralise(page, recipe)
     await oracle.settle(page)
 
+    # THE THEME IS READ, WITHOUT WRITING, AT THE MOMENT AXE RUNS. Once at the end
+    # of eighty-seven states would say nothing about the eighty-six before it,
+    # and reading through the setter said nothing at all.
+    if light:
+        seen = await page.evaluate(READ_THEME)
+        if seen != "light":
+            raise RuntimeError(
+                f"state {state!r} was audited with `data-theme` reading {seen!r}. "
+                "Measuring the dark theme and reporting it as the light one is "
+                "B-055 arriving by a new road.")
+
     run = dict(AXE_OPTIONS)
     if rules:
         run["runOnly"] = {"type": "rule", "values": rules}
@@ -297,13 +316,6 @@ async def audit_everything(rules: list | None, light: bool = False) -> tuple:
             per_state[state] = findings
             if modal:
                 modal_states.add(state)
-        if light:
-            applied = await page.evaluate(LIGHT_THEME, True)
-            if applied != "light":
-                raise RuntimeError(
-                    "the light theme was asked for and `data-theme` reads "
-                    f"{applied!r}. Measuring the dark theme twice and reporting "
-                    "it as two themes is B-055 arriving by a new road.")
         await context.close()
         await browser.close()
     return per_state, states, time.monotonic() - started, modal_states
@@ -460,9 +472,8 @@ async def check(rules: list | None, enforce: bool) -> int:
     print(f"a11y: {len(states) - len(modal)} state(s) asked "
           f"{'/'.join(DOCUMENT_RULES)}; {len(modal)} had a modal layer open, "
           "whose `inert` background is correct and makes those two unanswerable")
-    if total:
-        if enforce:
-            return 1
+    dark_failed = bool(total) and enforce
+    if total and not enforce:
         print("a11y: --record-only, so this run REPORTS and does not refuse. "
               "The floor is zero.")
 
@@ -482,18 +493,24 @@ async def check(rules: list | None, enforce: bool) -> int:
               "nothing, and a reported number nobody compares is a number "
               "nobody reads.", file=sys.stderr)
         return 1
-    if light_total > ceiling:
+    # BOTH VERDICTS ARE PRINTED, THEN THE RUN FAILS ON EITHER. This used to
+    # `return 1` on the dark theme BEFORE the light pass ran, under a comment
+    # saying the second theme « is measured whatever the first one said » — the
+    # comment described exactly the failure the code produced, in the only mode
+    # CI uses. B-055's own mutation broke the LIGHT palette, so it never walked
+    # this branch.
+    light_over = light_total > ceiling
+    if light_over:
         print(f"a11y[light]: {light_total} against a ceiling of {ceiling}. This "
               "is a RATCHET and only falls: the 154 findings L06 counted by "
               "hand are a campaign with its own design (B-055), and what is "
               "refused here is ADDING to them. Repair the new one, or lower "
               "nothing and explain.", file=sys.stderr)
-        return 1
-    if light_total < ceiling:
+    elif light_total < ceiling:
         print(f"a11y[light]: {light_total} is BELOW the ceiling of {ceiling} — "
               f"lower it, with `--record`. A ceiling nobody lowers becomes room "
               "for a defect nobody notices.")
-    return 0
+    return 1 if (dark_failed or light_over) else 0
 
 
 def light_ceiling():

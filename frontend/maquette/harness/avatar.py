@@ -27,9 +27,12 @@ subject. Both are held, and both are named in their detail lines.
 
 WHAT IT DOES NOT READ, said before what it does:
 
-  - IT DOES NOT READ THE PICTURE. Whether the right person is shown, whether the
-    crop is flattering, whether the image loaded at all beyond having a natural
-    size — none of that is here. It holds a BOX and how that box is filled.
+  - IT DOES NOT READ THE PICTURE. Whether the right person is shown and whether
+    the crop is flattering are not here. That the image LOADED is, since an
+    adversarial review: an absent image keeps the host's box exactly, because
+    the dimensions come from `w-full h-full` and not from the content, so every
+    other hold here passed over one. It holds a BOX, how that box is filled,
+    and that there is something in it.
   - IT DOES NOT READ EVERY AVATAR IN THE APPLICATION. Cast portraits carry their
     own anchor (`cast/avatar`) and their own rule in `bugs.py`. The corpus here
     is the two elements that carry `data-part="avatar"`, and the count is
@@ -138,6 +141,15 @@ async def hold(journal):
                 f"{reading['natural'][0]}x{reading['natural'][1]} — an "
                 "unconstrained image renders at its natural size whatever its "
                 "host says, and no region of the oracle can see it")
+            journal.check(
+                f"{label} has actually loaded",
+                reading["natural"][0] > 0 and reading["natural"][1] > 0,
+                f"its natural size is {reading['natural'][0]}x"
+                f"{reading['natural'][1]} — AN ABSENT IMAGE PASSES EVERY OTHER "
+                "hold here, because `w-full h-full` gives it the host's box "
+                "whatever the content is. This was read and printed and never "
+                "asserted, under a docstring that said the loading was « beyond "
+                "a natural size » — a sentence promising more than the code did")
             journal.check(
                 f"{label} is cropped rather than stretched",
                 reading["objectFit"] == "cover",

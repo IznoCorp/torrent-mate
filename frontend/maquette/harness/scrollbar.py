@@ -118,7 +118,14 @@ def thumb_matches(color: str, wanted: str) -> bool:
     Returns:
         True when the first colour of the pair is the token.
     """
-    return bool(color) and color.startswith(wanted)
+    # `wanted` MUST BE NON-EMPTY, and that is the whole of this line's history.
+    # It read `bool(color) and color.startswith(wanted)`, and `startswith("")`
+    # is ALWAYS true — so a token that resolved to nothing made the hold pass
+    # over any colour at all. Proved rather than reasoned: a red thumb against
+    # an empty token returned True. A comparison whose reference can be empty
+    # is a comparison that is pre-satisfied, which is the shape this register
+    # counts eighty-four times.
+    return bool(color) and bool(wanted) and color.startswith(wanted)
 
 
 def track_is_transparent(color: str) -> bool:
