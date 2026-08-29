@@ -68,6 +68,39 @@ def variant_reading_files() -> list[Path]:
                   and "engine" not in path.relative_to(SOURCES).parts)
 
 
+# An IMPORT of the name from a `variants` module. A raw word match was the first
+# reader here and nine of the 120 variants were already immune to it: `body`,
+# `section`, `screen`, `scrollport`, `segment`, `option`, `suggestions`,
+# `releaseName` and `panelField` each have an incidental word somewhere in the
+# tree that survives deleting every genuine usage. Four of those dress the
+# primary containers — the very ones whose loss IS the B-139 photograph — and
+# `releaseName` was laundered by `contract/types.d.ts`, a file GENERATED from
+# the backend's OpenAPI: a schema field name satisfying « something calls this
+# variant ».
+VARIANT_IMPORT = re.compile(
+    r"import\s*(?:type\s*)?\{([^}]*)\}\s*from\s*[\"']([^\"']*variants[^\"']*)[\"']")
+
+
+def names_variant(body: str, name: str) -> bool:
+    """Says whether a reader genuinely names one variant.
+
+    An IMPORT of the name from a `variants` module, or a CALL of it. A bare word
+    anywhere in the file is not enough, and the nine variants that were immune to
+    the first reader are why.
+
+    Args:
+        body: One reader file's text.
+        name: The variant's exported name.
+
+    Returns:
+        True when the file imports the name from a variants module, or calls it.
+    """
+    for names, _ in VARIANT_IMPORT.findall(body):
+        if re.search(rf"\b{re.escape(name)}\b", names):
+            return True
+    return bool(re.search(rf"\b{re.escape(name)}\s*\(", body))
+
+
 def check_orphan_variants() -> int:
     """ARM 5: refuses a typed variant that is declared and called by nobody.
 
@@ -122,7 +155,7 @@ def check_orphan_variants() -> int:
     for path in declaring:
         for name in DECLARED_VARIANT.findall(text_of[path]):
             declared += 1
-            called = any(re.search(rf"\b{re.escape(name)}\b", body)
+            called = any(names_variant(body, name)
                          for other, body in text_of.items() if other != path)
             if not called:
                 orphans.append((path, name))

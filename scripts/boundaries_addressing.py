@@ -380,6 +380,28 @@ def engine_page_ids(root: Path) -> list[str]:
     return []
 
 
+def balanced_object(source: str, opened: int) -> str | None:
+    """Returns the `{ … }` starting at `opened`, braces balanced.
+
+    Args:
+        source: The whole file's text, already stripped of comments and strings.
+        opened: The offset of the opening brace.
+
+    Returns:
+        The literal including both braces, or None when it never closes — which
+        the caller skips rather than handing to a walker that would raise.
+    """
+    depth = 0
+    for at in range(opened, len(source)):
+        if source[at] == "{":
+            depth += 1
+        elif source[at] == "}":
+            depth -= 1
+            if depth == 0:
+                return source[opened:at + 1]
+    return None
+
+
 def arm_addressing(root: Path) -> int:
     """Refuse a page identity in a query, a dial in a path, an undeclared screen, or a page table nothing serves.
 
@@ -547,20 +569,50 @@ def arm_addressing(root: Path) -> int:
     # Following that needs the scopes, not the text, and the shape met in the
     # field is the literal — which is also the shape somebody writes without
     # thinking about D1.
+    # THE TEXT IS STRIPPED FIRST, and the KEYS ARE READ BY THE BRACE WALKER —
+    # both tools this module already owned, and the first version of this reader
+    # used neither.
+    #
+    # Unstripped, `go(` matched NINE COMMENT LINES out of twenty-two, so the
+    # printed count was 2.2x the truth while the register cited it as the
+    # coverage proof; and the mirror defect was live — a doc comment mentioning
+    # `go()` within four hundred characters of an ordinary
+    # `fetchThings({ search: { page: 2 } })` turned pagination into a D1 breach.
+    #
+    # `[^{}]*` was worse: the comment claimed the object was « bounded to its own
+    # braces » and the class refuses ANY brace, so a NESTED value made the whole
+    # match fail and the navigation was skipped in silence —
+    # `search: { filters: { kind }, page: "acq" }` read clean.
+    #
+    # `routes/` is read here TOO. The first version skipped it saying « already
+    # covered above », and the routes half reads `path:` declarations and
+    # `validateSearch` bodies — never a `go()` call. A route file is exactly
+    # where someone composing an address is most likely to write one.
     navigation_calls = 0
     for path in sorted(root.rglob("*")):
         if not path.is_file() or path.suffix not in {".ts", ".tsx"}:
             continue
         relative = path.relative_to(root)
-        if relative.parts[0] in {"routes", "engine"}:
+        if relative.parts[0] == "engine":
             continue
-        body = path.read_text(encoding="utf-8")
+        body = _strip_noise(path.read_text(encoding="utf-8"))
         for call in re.finditer(r"\b(?:go|navigate)\s*\(", body):
             navigation_calls += 1
-            searched = re.search(r"search\s*:\s*\{([^{}]*)\}", body[call.end():call.end() + 400])
+            window = body[call.end():call.end() + 400]
+            searched = re.search(r"search\s*:\s*(\{)", window)
             if not searched:
                 continue
-            keys = set(re.findall(r"(\w+)\s*:", searched.group(1)))
+            # THE OBJECT IS TAKEN WHOLE, from the full body and not from the
+            # window. `literal_keys` walks braces and raises on a literal that
+            # never closes, which is what a 400-character slice hands it.
+            literal = balanced_object(body, call.end() + searched.start(1))
+            if literal is None:
+                continue
+            # WITHOUT ITS OWN BRACES, and with no second argument: the body is
+            # already stripped, and `source` must be the SAME text at the SAME
+            # length — a file name there is an IndexError, which is how this
+            # call announced itself.
+            keys = literal_keys(literal[1:-1])
             for name in sorted(keys & (pages | {"page"})):
                 line = body.count("\n", 0, call.start()) + 1
                 violations.append(
@@ -622,7 +674,7 @@ def arm_addressing(root: Path) -> int:
     print(f"  addressing: {len(files)} route file(s), {len(dials)} dial(s), "
           f"{len(pages)} page(s) against {len(engine_pages)} the engine draws, "
           f"{len(screen_paths)} screen(s), {bodies_read} validateSearch body(ies) read, "
-          f"{navigation_calls} navigation(s) outside routes/, "
+          f"{navigation_calls} navigation call site(s) read, "
           f"{len(violations)} violation(s)")
     for entry in violations:
         print("    " + entry, file=sys.stderr)
