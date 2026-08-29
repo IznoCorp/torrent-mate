@@ -258,6 +258,7 @@ when the defect comes back.
 | B-215 | `installRelayRecovery` declared its position as a constraint and no arm read it | by adversarial review | `fixed #513` |
 | B-216 | The mutation tool announced « no hold fell » under the falls it had just printed | by adversarial review | `fixed #513` |
 | B-217 | The cursor thaw was measured by nothing, and the tool's first use found it | by adversarial review | `fixed #513` |
+| B-218 | The « Before it » row stopped at L07 and still named a merged PR as « this pull request » | by design | `fixed #514` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
@@ -271,6 +272,32 @@ help if the file that keeps the state carries the same fact twice — a row and 
 wave updates one. The repair is the same repair: the paragraph now says what is IN HAND rather than
 re-deriving what is next, so it cannot disagree with the row above it about a lot's status.
 Repaired on `feat/maquette-l10`.
+
+**B-218 — B-152's shape a THIRD time, in the row that records the lots.**
+Found on 2026-08-29 while closing L10, in the same file and the same table as B-152 and its
+second instance. The **« Before it »** row named L07 as the most recent lot before the current
+one — three lots after that stopped being true — and it closed on « L05 … archived by **this
+pull request** », a phrase whose subject merged weeks earlier and which had been read as current
+ever since.
+
+**The mechanism is not staleness, it is a sentence built to accrete.** The archive fact was
+written as a growing list — « all three archived; L04 and L05 are archived beside them; L06 and
+L07 are archived beside them » — so recording a new lot meant appending a clause, and the wave
+that forgot to append left a row that reads as complete and is not. A fact that is true of
+EVERY item does not belong in a per-item list: it is now one sentence that no future wave has to
+touch.
+
+**And « this pull request » is the deeper defect.** A row that names the PR it was written in
+is correct exactly once, in the diff. Afterwards it is a pointer with no referent, and nothing
+can detect it, because the phrase stays grammatical. The row now names every lot by its number
+and its version and never by a deictic.
+
+**Why no arm guards it, stated rather than left implicit.** The three instances share a cause —
+one fact, two places, one wave updating one of them — and the answer L10 already took is
+structural: state exists ONCE, in « Landed, in order », which § 0 reads. « Before it » survives
+beside it only to carry what that row deliberately omits (the pull request and the version), and
+it now carries nothing else. An arm that compared the two rows would be comparing a row to its
+own subset. Repaired on `chore/close-l10`.
 
 **B-153 — the demands register cannot describe the thing L10 is about.**
 `scripts/compare-contracts.py` COMPUTES `docs/reference/frontend-backend-demands.md` by diffing
