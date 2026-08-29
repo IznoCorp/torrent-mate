@@ -148,20 +148,20 @@ def strip_comments(source: str) -> str:
     index, size = 0, len(source)
     quote = None
     while index < size:
-        char = source[index]
+        character = source[index]
         if quote:
-            out.append(char)
-            if char == "\\" and index + 1 < size:
+            out.append(character)
+            if character == "\\" and index + 1 < size:
                 out.append(source[index + 1])
                 index += 2
                 continue
-            if char == quote:
+            if character == quote:
                 quote = None
             index += 1
             continue
-        if char in "\"'`":
-            quote = char
-            out.append(char)
+        if character in "\"'`":
+            quote = character
+            out.append(character)
             index += 1
             continue
         if source.startswith("//", index):
@@ -172,7 +172,7 @@ def strip_comments(source: str) -> str:
             end = source.find("*/", index + 2)
             index = size if end == -1 else end + 2
             continue
-        out.append(char)
+        out.append(character)
         index += 1
     return "".join(out)
 

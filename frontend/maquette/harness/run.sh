@@ -33,7 +33,7 @@
 #   --oracle      a THIRD tier, and it duplicates neither: the rules say the
 #                 BEHAVIOUR still holds, the oracle says the RENDERING did not
 #                 move. `frontend/maquette/oracle.py --check`, ~25 s over 83
-#                 states x 33 regions, against a committed reference.
+#                 states x 34 regions, against a committed reference.
 #   --a11y        a FOURTH tier, and it duplicates none of the three: the rules
 #                 say the behaviour holds, the oracle says the rendering did not
 #                 move, this says the markup is USABLE — landmarks, accessible
@@ -122,7 +122,7 @@ CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.
 # `personalscraper/` and `tests/` and none of the cheap ones that read the CSS,
 # the markup and the resources a phase actually touches — `legacy.css`'s own
 # ceiling was absent from the tier of the very wave that edits `legacy.css`.
-# The six added below cost 6 s together — twelve invocations, 31 s in all,
+# The six added below cost 6 s together — nineteen invocations, ~31 s in all,
 # measured. `check-tailwind-confinement.py` is the one deliberately left out:
 # it needs a build of its own and costs 102 s.
 #

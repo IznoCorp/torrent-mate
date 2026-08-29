@@ -394,10 +394,11 @@ guard rather than sitting beside it, and its floor is a hard zero.
    it resolves — the mirror of the lesson above, and the same file. Anything here phrased as
    _right now_ is a claim to re-check before citing.
 
-4. **B-036 is open and belongs to a wave, not to a tidy-up**: `system-panne` and
-   `acq-follows-groupe` are still French state ids, and **no arm of `check-no-french.py` reads
-   the state table**. Fixing the two names without adding the arm repeats the reason they
-   survived.
+4. **B-036 is closed by L10-bis, and the arm is why.** `system-panne` and `acq-follows-groupe`
+   were French state ids that survived because **no arm of `check-no-french.py` read the state
+   table**; the entry said fixing the names without adding the arm would repeat the reason they
+   survived. Arm 15 (« Named-state ids ») reads that table now, cross-checked against the
+   oracle's reference, and the two names are gone.
 5. **The L06 spec is parked, not lost** — `docs/superpowers/roadmap/maquette-l06/specs/`. Its
    header names the three points on which the architecture file supersedes it, including a scale
    granularity the operator arbitrated on figures presented before #466 existed. **Re-arbitrate;

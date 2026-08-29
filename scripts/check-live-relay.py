@@ -701,7 +701,11 @@ def arm_stale_figure():
     for what, count in measured.items():
         if count in (POLLING_CORPUS_FLOOR, READING_FILES_FLOOR):
             continue
-        if re.search(rf"(?<![\d]){count}(?![\d])", source):
+        # THE BOUNDARY IS ALPHANUMERIC, not numeric. `(?<![\d])` only refuses a
+        # neighbouring DIGIT, so a corpus of 10 was found inside `L10` and one
+        # of 13 inside `L13` — wave names, of which this file holds several.
+        # Every count this arm can measure is small enough to collide with one.
+        if re.search(rf"(?<![\w]){count}(?![\w])", source):
             violations += 1
             print(f"  scripts/check-live-relay.py: {count} — {what} as this run "
                   "measures it — is also written as a literal in this module. A "

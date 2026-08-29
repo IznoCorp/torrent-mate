@@ -206,12 +206,20 @@ export function AddScreen() {
       </div>
       {/* THE ONLY SCREEN THE ORACLE DID NOT MEASURE. Four of the five overlay
           screens carry a body region of their own; this one carried none, so
-          its two named states were driven, captured and compared against zero
-          regions — which is how a button the browser painted white survived
-          every gate (B-139, B-222). The anchor rides the scrollport it already
-          has rather than a wrapper of its own: a new block element in a scroll
-          container is a layout change, and this is a measurement being added,
-          not a drawing being altered. */}
+          its THREE named states — `acq-add-empty`, `acq-add-results` and
+          `acq-identify` — were driven, captured and compared against zero
+          regions (B-222). The anchor rides the scrollport it already has rather
+          than a wrapper of its own: a new block element in a scroll container
+          is a layout change, and this is a measurement being added, not a
+          drawing being altered.
+
+          WHAT THIS DOES NOT DO IS CLOSE B-139. The oracle measures a region's
+          ROOT — this scrollport's box and computed style — not the elements
+          inside it, so a button painted white deeper in the tree is still
+          invisible to it. Writing that the region « is why B-139 survived » was
+          a claim the instrument does not support, in a comment that will be
+          read as current for years. What the region buys is that the screen is
+          measured at all. */}
       <div className={scrollport()} data-part="viewport" data-region="screen-add/body">
         {identify ? (
           <div style={{ padding: "12px 14px 0" }}>

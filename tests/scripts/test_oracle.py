@@ -297,9 +297,11 @@ def test_the_committed_reference_carries_a_platform():
     #
     # 34 REGIONS SINCE L10-bis, and this is the first time the pin moved on the REGION side.
     # `screen-add/body` is the add screen's, and the add screen was the ONLY one of the five
-    # overlay screens carrying no `data-region` at all: its two named states were driven,
-    # captured and compared against nothing, which is why a button the browser painted white
-    # on a dark ground survived every gate (B-139, B-222). The reference GREW again — 87
-    # entries added, 0 removed, and not one of the 2 871 existing measurements changed,
-    # verified by reading the diff rather than the tool's own success line.
+    # overlay screens carrying no `data-region` at all: its THREE named states —
+    # `acq-add-empty`, `acq-add-results`, `acq-identify` — were driven, captured and compared
+    # against nothing (B-222). It does NOT follow that the region closes B-139: the oracle
+    # measures a region's ROOT, so a button painted white deeper inside this scrollport stays
+    # invisible to it. The reference GREW again — 87 entries added (one per state), 0 removed,
+    # and not one of the 2 871 measurements that existed at 33 regions changed, verified by
+    # reading the diff rather than the tool's own success line. 87 x 34 = 2 958 today.
     assert reference["counts"] == {"states": 87, "regions": 34}
