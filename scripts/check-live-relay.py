@@ -294,14 +294,18 @@ def backend_events():
     both on one physical line, so an event subclassing another event or
     declaring a second base would be registered by the bus and invisible here.
 
-    The two are compared rather than one being trusted. They agree at 48 today;
-    the day they do not, the disagreement is the finding.
+    The two are compared rather than one being trusted, and BOTH failures are
+    findings: the day they disagree, and the day one of them cannot be reached.
+    The second used to print and pass, which meant continuous integration — where
+    the package is what is missing — ran this arm on the re-implementation alone
+    and reported clean, on every pull request touching the maquette (A-1).
 
     Returns:
-        (the class names, None) — or (None, why) when neither can answer.
+        (the class names, None) — or (None, why) when either oracle is missing.
     """
     if not PACKAGE.is_dir():
-        return None, str(PACKAGE)
+        return None, (f"{PACKAGE} is not there, so the backend's own event "
+                      "classes cannot be read at all")
     from_source = set()
     for path in sorted(PACKAGE.rglob("*.py")):
         from_source |= set(EVENT_BASE.findall(path.read_text(encoding="utf-8")))
@@ -311,14 +315,34 @@ def backend_events():
         importlib.import_module("personalscraper.events")
         registry = set(importlib.import_module(
             "personalscraper.core.event_bus")._EVENT_CLASS_REGISTRY)
-    except Exception:                      # noqa: BLE001 - any import failure
-        # The registry needs the package importable; a tree without its
-        # dependencies still gets the source answer, and says so.
-        print("check-live-relay[map-completeness]: the event registry could not "
-              "be imported — the corpus is the source scan alone, which is a "
-              "re-implementation nothing is cross-checking here.",
-              file=sys.stderr)
-        return from_source, None
+    except Exception as failure:           # noqa: BLE001 - any import failure
+        # THIS BRANCH PRINTED AND PASSED, and CI took it every single time.
+        # B-208 made the DISAGREEMENT below blocking — « printed and could fail
+        # nothing » was the shape that wave had just named two arms over — and
+        # left the same shape three lines above, on the import path. The
+        # docstring's « the two are compared rather than one being trusted » was
+        # false on the branch continuous integration actually walked, because
+        # `harness-contracts` installed playwright and jsonschema and never this
+        # package: `personalscraper/__init__.py` imports `dotenv`, so the
+        # registry was unreachable and the arm ran on the re-implementation
+        # alone, reporting clean, on every pull request touching the maquette.
+        #
+        # IT IS A VIOLATION NOW, and that was chosen over silently degrading.
+        # The alternative — keep printing and install the package in CI — fixes
+        # the runner and leaves the shape: any other environment without the
+        # package would go back to trusting one oracle with nothing to say so.
+        # This costs a red the day an environment is incomplete, which is what
+        # a red is for, and the job installs the package so the day is not
+        # today. It is the same posture the tier already takes for `jsonschema`,
+        # whose comment says a missing package must not read as « no violation ».
+        return None, (
+            f"the event registry could not be imported ({failure!r}). This arm "
+            "compares TWO oracles — the bus registry, which is what the wire "
+            "carries, against a regex re-implementation — and with one of them "
+            "gone it would be trusting a regex that cannot see a subclassed or "
+            "multi-base event. A cross-check with one side missing is not a "
+            "cross-check, and reporting « no violation » over it is the exact "
+            "shape B-208 repaired on the branch below")
     if registry != from_source:
         # THE DISAGREEMENT IS THE FINDING, and it used to be printed and thrown
         # away — the same shape as the unresolved-key count two arms over. It is
@@ -495,11 +519,13 @@ def arm_map_completeness():
     if emitted is not None and disagreement is not None:
         print(f"  {disagreement}")
         violations += 1
-    missing_source = disagreement if emitted is None else None
     if emitted is None:
-        print(f"check-live-relay[map-completeness]: {missing_source} is not "
-              "there — this arm compares against the backend's own event "
-              "classes, and cannot answer without them.", file=sys.stderr)
+        # ONE MESSAGE PER REASON. This branch used to append « is not there — »
+        # to whatever it was handed, which read correctly for the absent-package
+        # case it was written for and became a sentence-and-a-half once the
+        # unreachable-registry case started arriving here too (A-1).
+        print(f"check-live-relay[map-completeness]: {disagreement}.",
+              file=sys.stderr)
         return 1
     mapped, exempt_types, refreshed, exempt_keys, tables, unresolved = declared()
     addresses = read_addresses()

@@ -32,7 +32,6 @@
 // same discipline `go()`'s own doc comment states) so keystrokes never stack
 // history — R76's own rule, exercised here for the first time by a CONTROLLED
 // input rather than a one-shot navigation.
-import { useState } from "react";
 import { useSearch } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 // Circular with shell.tsx (it imports AddScreen from this file) and safe
@@ -45,10 +44,8 @@ import { useAcquisitionReference } from "../../features/acquisition/reference";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
 import { useProviderSearch } from "./search-queries";
 import { actionButton, backAction, emptyNote, resultCount, screen, screenBar, scrollport, searchField, searchInput, surfaceError } from "../../ui/variants";
+import { AddFooter } from "./add-footer";
 import {
-  addFooter,
-  addFooterAction,
-  addFooterDismiss,
   addForm,
   addRow,
   byIdentifier,
@@ -92,14 +89,6 @@ export function AddScreen() {
     render,
   } = useAcquisitionReference();
   const { t } = useTranslation();
-
-  // THE BAR IS A NOTIFICATION AND IS DISMISSED, not a state of the screen
-  // (operator, 2026-08-29). What is remembered is the count it was dismissed
-  // AT, never a bare boolean: adding a further medium is a new announcement and
-  // must be seen, and a boolean would swallow it. This is genuinely ephemeral
-  // interface state — nothing server-side is copied here, which is what
-  // invariant 4 refuses.
-  const [dismissedAtCount, setDismissedAtCount] = useState<number | null>(null);
 
   // Always invoked from INSIDE this screen — search() runs only while
   // AddScreen is mounted, which means the address already reads `/add`.
@@ -389,30 +378,7 @@ export function AddScreen() {
             </button>
           </div>
         </details>
-        {added.size > 0 && added.size !== dismissedAtCount ? (
-          <div className={addFooter()} data-part="add/foot">
-            <span>
-              <b>{added.size}</b>{" "}
-              {added.size > 1
-                ? t("screens.add.mediaPlural")
-                : t("screens.add.media")}{" "}
-              {added.size > 1
-                ? t("screens.add.addedPlural")
-                : t("screens.add.added")}
-            </span>
-            <button className={addFooterAction()} onClick={toFollows}>
-              {t("screens.add.seeFollows")}
-            </button>
-            <button
-              className={addFooterDismiss()}
-              data-part="add/foot-dismiss"
-              aria-label={t("screens.add.dismissAdded")}
-              onClick={() => setDismissedAtCount(added.size)}
-            >
-              <Icon paths={icons.x} />
-            </button>
-          </div>
-        ) : null}
+        <AddFooter added={added} icons={icons} toFollows={toFollows} />
       </div>
     </section>
   );

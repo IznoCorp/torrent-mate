@@ -231,6 +231,22 @@ jobs:
       # to every change under test.
       - run: pip install jsonschema
         if: needs.changes.outputs.maquette == 'true'
+      # AND THE PACKAGE ITSELF, for the same reason one step up and for a
+      # sharper one. `check-live-relay.py`'s `map-completeness` arm compares TWO
+      # oracles — the event bus's own `_EVENT_CLASS_REGISTRY`, which is what the
+      # wire carries, against a regex scan of the sources — and the registry
+      # needs `personalscraper` importable. This job installed playwright and
+      # jsonschema and never the package, so `personalscraper/__init__.py`'s
+      # `dotenv` import failed, the arm fell back to the regex alone AND
+      # REPORTED CLEAN, on every pull request touching the maquette. The
+      # cross-check existed only in `make check`, which is a wave gate (A-1).
+      #
+      # The arm refuses that fallback now rather than printing it, so this step
+      # is what keeps the tier green — and the day it is removed, the tier goes
+      # red instead of going quiet. Marginal beside the Chromium download this
+      # job already pays for.
+      - run: pip install -e .
+        if: needs.changes.outputs.maquette == 'true'
       - run: npm ci --prefix frontend/maquette/design
         if: needs.changes.outputs.maquette == 'true'
       # The CONTRACT subset only. The 56-rule suite is a wave gate, not a

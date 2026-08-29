@@ -282,6 +282,7 @@ when the defect comes back.
 | B-223 | Three more typed variants were orphaned, and the arm for B-139 found them | by guard | `open` |
 | B-224 | The header's avatar rendered 20x30 in a 32x32 button, every class on it correct | by audit | `open` |
 | B-225 | A guard froze its own corpus size in a comment, and the figure drifted three times | by audit | `open` |
+| B-226 | The cross-check B-208 built never ran in CI: the import branch printed and passed | by audit | `open` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
@@ -3607,6 +3608,44 @@ floors themselves, which are the guard's own constants and are meant to be writt
 what it measures. Write the reading-files count instead: it falls too, so it is not one number it
 knows. Restored → `check-live-relay[stale-figure]: 2 measured count(s) checked against this
 module's own source` · `--arm no-polling` prints 127 and the module holds no figure at all</sub>
+
+**B-226 — the cross-check B-208 built never ran in continuous integration.** Recorded by the
+steward's audit of L10 as A-1, and it is sharp. `check-live-relay.py`'s `backend_events()` compares
+TWO oracles: the bus registry (`_EVENT_CLASS_REGISTRY`, what the wire actually carries) against a
+regex scan of the sources. That is B-199, and it was the right repair. **B-208 then made the
+DISAGREEMENT blocking** — « printed and could fail nothing » was the shape that wave had just named
+two arms over — **and left the same shape three lines above**, on the import-failure path, where it
+printed and returned no reason.
+
+**And continuous integration took that branch every single time.** `harness-contracts` installs
+`playwright` and `jsonschema` and never this package; `personalscraper/__init__.py` imports
+`dotenv`; so on every pull request touching the maquette the arm ran on the re-implementation alone
+and reported clean. The docstring's « the two are compared rather than one being trusted » was
+false on the branch CI walked. The cross-check existed only in `make check`, which is a WAVE gate.
+
+**BOTH repairs were taken, and the reason is that they answer different questions.** Making the
+non-import a VIOLATION is the honest half: it costs a red the day an environment is incomplete,
+which is what a red is for, and it is the same posture the tier already takes for `jsonschema` —
+whose own comment says a missing package must not read as « no violation ». Installing the package
+in `harness-contracts` is what makes the cross-check actually RUN per pull request rather than
+merely stop lying. Installing alone would have fixed the runner and left the shape: any other
+environment without the package would go back to trusting one oracle with nothing to say so.
+
+**The cost was measured rather than assumed**: the registry import is 0.27 s and needs only
+`dotenv`, `structlog` and `rich` transitively, and `pip install -e .` is marginal beside the
+Chromium download this job already pays for. A hand-listed three-package install was the cheaper
+option and was refused — a corpus enumerated by hand is the shape this register counts, and the
+list would drift the first time `__init__.py` gained an import.
+
+**A second defect came out of the repair**: the caller appended « is not there — » to whatever
+reason it was handed, which read correctly for the absent-package case it was written for and
+became a sentence-and-a-half once the unreachable-registry case started arriving there too. One
+message per reason now.
+
+<sub>mutation — shadow `dotenv` with a module that raises, which is CI's environment exactly: the
+arm falls with « the event registry could not be imported … a cross-check with one side missing is
+not a cross-check », where it used to print and exit 0. Restored → `48 backend event(s), 48
+accounted for` · `check-live-relay: clean`</sub>
 
 **B-139 — three variants exist, are exported, and are called by nothing.**
 Reported by the operator on 2026-08-26: after adding a media to follows, the bar at the bottom of
