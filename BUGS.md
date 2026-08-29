@@ -1445,6 +1445,71 @@ L10-ter land with this entry.
   rows but is invisible, and a row that reads « A → Z » and answers Z → A is the opposite of
   showing what the machine will do.
 
+- **E-002 — the menu closes on a leftward swipe from its right edge** (2026-08-28, dictated by
+  the operator as a hand-drawn mark on a screenshot). **The band**: ~67 px measured, **72 px**
+  written as an arbitrary value — a grip zone is not a spacing step and the scale stops at 24 px.
+  It ends exactly on the drawer's right edge, and is measured FROM that edge rather than from the
+  viewport, because the drawer is `max-w-[86%]` and on a narrow frame its edge is not at 288.
+
+  **Zero lines were added to the dying engine, which is D5's whole point.**
+  `design/index.html` declares `<aside id="drawer">` EMPTY and the engine fills, opens and closes
+  it; writing the gesture there would be an ADDITION where only subtraction is allowed. So
+  `app/drawer-gesture.ts` installs against the node as it stands — the posture
+  `installFocusManager()` takes one line above it in `app/shell.tsx`. Closing goes through
+  `window.__closeLayers?.()`, the seam the sheet's scrim already calls: a second closing path
+  would be a second navigation history.
+
+  **AND THE FIRST IMPLEMENTATION WAS WRONG IN THE EXACT WAY THE PLAN PREDICTS.** Written with
+  pointer events alone, it **passed under a real mouse and did nothing at all under a real touch
+  stream**: `pointerdown`, ONE `pointermove`, then `pointercancel`, while the `touchmove` events
+  kept arriving for the same finger. Neither `touch-action: pan-y` nor `touch-none` on the drawer
+  changed it — measured both ways. `setPointerCapture` did not save it either.
+
+  **The engine had already paid for this and written it down**, in `legacy.js` about its own
+  pull-to-refresh: « a pointer-only implementation therefore works under synthetic events, which
+  are never cancelled, and does nothing at all under a real thumb ». The finger is read from TOUCH
+  events and everything else from pointer events, one implementation serving both. The touch
+  listeners are passive, like the engine's.
+
+  **This is the whole argument for exercise 1.** A synthetic mouse would have declared this
+  gesture working. Only a real touch stream over `Input.dispatchTouchEvent` saw it.
+
+- **E-003 — the sheet closes on a downward swipe from a widened top edge** (2026-08-28, same
+  mark). Drag-to-dismiss already worked, from the 22 px `#sheetgrab` alone; the operator asked for
+  four times that. **The band is 88 px and OVERLAYS the content rather than pushing it**:
+  `#sheetin` is capped at `max-h-[78%]` and 88 px in flow would cost the poster and the title
+  their scrolling. **What that costs was MEASURED, not assumed** — across all five sheet states
+  (`sheet-journey`, `sheet-more`, `sheet-user`, `followsheet-complete`, `followsheet-gaps`)
+  nothing interactive sits in the top 88 px, so no tap is swallowed.
+
+  **The band stops at the sheet's edge.** The 12 px overhang the mark suggested was put to the
+  operator before coding and arbitrated away on 2026-08-29: those pixels are the scrim, the scrim
+  closes on TAP, and a tap that becomes a failed drag closes nothing.
+
+  **One condition, not a gesture engine**: at `#sheetin.scrollTop === 0` a downward drag is a
+  dismissal; anywhere else it is a scroll. A sheet that opens is always at the top, so the first
+  gesture is always a dismissal and the content keeps its scrolling. The full press/drag/scroll
+  arbitration remains L12's. The band's `touch-action` and `pointer-events` ride that condition as
+  CLASSES, because the compositor reads them when the finger lands and not during the gesture.
+
+**The instrument for both — `harness/gestures.py` (R98), eleven holds.** It drives a REAL touch
+stream over the DevTools Protocol AND a real mouse on the same build, because they are not two
+spellings of one exercise: the drawer's first implementation passed one and failed the other.
+
+**The third exercise is the operator's, and it is NOT done.** A pass by hand, with a finger, on the
+device. No script can stand in for it — `pointercancel` is delivered by a compositor deciding it
+wants the gesture, and neither driver above is that compositor. **Both entries are `to confirm`
+until that pass**, with the date and the device recorded here.
+
+<sub>mutations, all seen red and restored — return both bands to their previous size (`BAND = 0`,
+`h-[22px]`): three holds fall, one per gesture plus the mouse. **Remove the TOUCH path and keep the
+pointer one: the touch hold falls and the MOUSE hold stays green**, which is the asymmetry the plan
+names and the best proof the two exercises are not two of the same. Close on `pointercancel`
+instead of restoring: the cancel hold falls alone. Restored → `11 rules EXECUTED — no violation`</sub>
+
+<sub>and what they cost the oracle: **nothing**, verified rather than believed — 87 states x 34
+regions, the only divergences being `screen-add/body`'s three, which are B-222's</sub>
+
 - **Ouvert opérateur — the 240 ms dead delay on `data-next`** (2026-08-16, SP4c; the attribute
   was named `data-suivante` when this was written and #455 renamed it): the
   "Passer à la suivante" action in the arbitration screen still carries a `setTimeout(240)`

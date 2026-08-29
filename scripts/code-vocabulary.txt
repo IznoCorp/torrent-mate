@@ -94,12 +94,14 @@ background
 backoff
 badge
 badges
+band
 bar
 base
 batch
 became
 before
 began
+begin
 beneath
 best
 block

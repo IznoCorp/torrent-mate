@@ -63,6 +63,7 @@ import "../features/settings/panel-field";
 import { createStore, type Store } from "./store";
 import { publishBarHeight } from "./bar-height";
 import { installFocusManager } from "./focus";
+import { installDrawerDismissGesture } from "./drawer-gesture";
 import { installMockNetwork } from "../mocks";
 import { router } from "./router-tree";
 import {
@@ -293,6 +294,12 @@ if (device && legacyScreen) device.insertBefore(mountNode, legacyScreen);
 // very first drawer an operator opens is already covered. It asks nothing of
 // the engine: it watches the `data-open` attribute both worlds already emit.
 installFocusManager();
+
+// E-002, mounted with the rest of the shell. It attaches to the `#drawer` the
+// engine owns and adds nothing to the engine — the same posture the focus
+// manager takes one line above, and the reason the gesture is feasible while
+// the drawer is still drawn by `legacy.js` (B-220).
+installDrawerDismissGesture();
 
 // The bottom bar's real height, published for everything that must sit above
 // it. Here rather than in the engine, which no longer carries a copy: the

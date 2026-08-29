@@ -16,11 +16,11 @@
 // not an absence — the CSS transition that carries the sheet in and out needs
 // both states on the same element, and the legacy `#sheetin` likewise kept its
 // content after closing.
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useUiState } from "../lib/store-access";
 import { PanelContent } from "../ui/panel";
 import type { PanelDescriptor } from "../ui/panel/contract";
-import { bottomSheet, sheetGrab, sheetScrim, sheetViewport } from "./variants";
+import { bottomSheet, sheetDragBand, sheetGrab, sheetScrim, sheetViewport } from "./variants";
 
 // How far the sheet must travel before the lift closes it — the legacy
 // `SEUIL_FERMETURE`, unchanged.
@@ -48,6 +48,17 @@ export function Sheet({
   const innerRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<Drag | null>(null);
 
+  // E-003's whole arbitration, in one condition: AT THE TOP of the content a
+  // downward drag is a dismissal; anywhere else it is a scroll. A sheet that
+  // opens is always at the top, so the first gesture is always a dismissal and
+  // the content keeps its scrolling.
+  //
+  // It is React state and not a ref because the band's `touch-action` and
+  // `pointer-events` are what it decides, and those are CLASSES — the browser
+  // has to be told before the gesture starts, not during it. `dragging` is the
+  // opposite case and stays a direct DOM write for the reason written below.
+  const [atTop, setAtTop] = useState(true);
+
   // A panel opens at its TOP. The legacy layer got that for free — replacing
   // `#sheetin`'s innerHTML reset its scroll — and the persistent node does
   // not: a long panel left scrolled down would hand its offset to the next
@@ -57,6 +68,11 @@ export function Sheet({
   // not after, so the offset is never briefly visible.
   useLayoutEffect(() => {
     if (innerRef.current) innerRef.current.scrollTop = 0;
+    // AND THE FLAG WITH IT. The offset is reset here, so a panel opened after
+    // a scrolled one would otherwise start with `atTop` false and its first
+    // gesture would scroll instead of dismissing — the sheet would open unable
+    // to be closed by the gesture that just closed the previous one.
+    setAtTop(true);
   }, [descriptor]);
 
   // The drag writes the DOM directly, through the ref, exactly as the legacy
@@ -137,7 +153,44 @@ export function Sheet({
           // rather than close it on a gesture the browser took away.
           onPointerCancel={() => endDrag(true)}
         />
-        <div ref={innerRef} id="sheetin" className={sheetViewport()} data-part="sheet/viewport">
+        {/* THE DRAG BAND, four times the handle (E-003). It overlays the top of
+            the content rather than pushing it: `#sheetin` is capped at 78% of
+            the frame and 88px in flow would cost the poster and the title
+            their scrolling. What that costs was measured across all five sheet
+            states — nothing interactive sits in the top 88px, so no tap is
+            swallowed. It stops at the sheet's edge; the 12px of scrim above it
+            keep their tap-to-close, arbitrated by the operator on 2026-08-29. */}
+        <div
+          data-part="sheet/drag-band"
+          data-at-top={atTop || undefined}
+          className={sheetDragBand({ atTop })}
+          aria-hidden="true"
+          onPointerDown={(event) => {
+            dragRef.current = { y: event.clientY, dy: 0 };
+            sheetRef.current?.classList.add("dragging");
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
+          onPointerMove={(event) => {
+            const current = dragRef.current;
+            if (!current) return;
+            current.dy = Math.max(0, event.clientY - current.y);
+            const node = sheetRef.current;
+            if (node) node.style.transform = `translateY(${current.dy}px)`;
+          }}
+          onPointerUp={() => endDrag(false)}
+          onPointerCancel={() => endDrag(true)}
+        />
+        <div
+          ref={innerRef}
+          id="sheetin"
+          className={sheetViewport()}
+          data-part="sheet/viewport"
+          // The band is armed and disarmed from here rather than from a
+          // measurement taken when the gesture starts: `touch-action` has to be
+          // in force BEFORE the finger lands, because the compositor reads it
+          // at that instant and not afterwards.
+          onScroll={(event) => setAtTop(event.currentTarget.scrollTop === 0)}
+        >
           {descriptor ? <PanelContent descriptor={descriptor} /> : null}
         </div>
       </div>
