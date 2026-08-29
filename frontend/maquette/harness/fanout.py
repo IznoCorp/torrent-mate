@@ -385,31 +385,61 @@ async def hold(journal):
             "an empty payload, the predicate would refuse, and the key would "
             "read as declared-and-unmoved")
 
-        by_type: dict[str, tuple[set[str], list, dict]] = {}
+        # ONE EMIT PER RULE, WITH THAT RULE'S OWN SAMPLE. Merging every rule's
+        # sample into one payload per type made the verdict depend on SOURCE
+        # ORDER — last writer wins — and it made a predicate's deletion
+        # invisible: one payload happening to satisfy two predicates covers both
+        # keys whether or not either predicate is still there.
+        by_rule = []
         for feature, types, keys, sample in rules:
             for event_type in types:
-                features, wanted, payload = by_type.setdefault(
-                    event_type, (set(), [], {}))
-                features.add(feature)
-                wanted.extend(keys)
-                if isinstance(sample, dict):
-                    payload.update(sample)
+                by_rule.append((feature, event_type, keys,
+                                sample if isinstance(sample, dict) else {}))
 
-        for event_type, (features, keys, payload) in sorted(by_type.items()):
-            named = "+".join(sorted(features))
+        for feature, event_type, keys, payload in sorted(
+                by_rule, key=lambda one: (one[1], one[0])):
+            named = feature
             seen = await moved_by(page, event_type, payload)
-            exact, complaint = covers(seen["moved"], keys)
+            # A RULE'S OWN KEYS ARE A SUBSET of what its event moves, because
+            # other rules on the same type fire too. What is held per rule is
+            # the direction that belongs to it: everything IT declares moved.
+            _, complaint = covers(seen["moved"], keys)
+            missing = [prefix for prefix in {
+                json.dumps(key, separators=(",", ":"), ensure_ascii=False)[:-1]
+                for key in keys}
+                if not any(entry == f"{prefix}]" or entry.startswith(f"{prefix},")
+                           for entry in seen["moved"])]
             journal.check(
-                f"{named}: {event_type} refreshes only what it declares",
-                exact,
-                complaint or f"moved {seen['moved']} against keys "
-                f"{[json.dumps(k) for k in keys]}")
+                f"{named}: {event_type} refreshes everything it declares",
+                not missing,
+                f"{missing} declared and nothing under them moved, out of "
+                f"{seen['moved']} — a rule that refreshes a SUBSET of what it "
+                "declares leaves the rest stale for the life of the process")
             journal.check(
                 f"{named}: {event_type} refreshes something",
                 len(seen["moved"]) > 0,
                 f"{len(seen['moved'])} of {seen['total']} cache entr(ies) "
                 "refreshed — a rule that refreshes nothing is a rule that is "
                 "not wired")
+
+        # AND « NOTHING ELSE », WHICH IS A QUESTION ABOUT THE TYPE. Per rule it
+        # cannot be asked — every other rule on the same type fires too, so a
+        # rule's own keys are a subset by construction. The union is where the
+        # over-wide direction lives, and losing it when the per-rule holds
+        # arrived would have left half the contract clause unmeasured.
+        union: dict[str, list] = {}
+        for _, event_type, keys, payload in by_rule:
+            wanted, sample = union.setdefault(event_type, [[], {}])
+            wanted.extend(keys)
+            sample.update(payload)
+        for event_type, (keys, payload) in sorted(union.items()):
+            seen = await moved_by(page, event_type, payload)
+            exact, complaint = covers(seen["moved"], keys)
+            journal.check(
+                f"{event_type} refreshes nothing beyond what its rules declare",
+                exact,
+                complaint or f"moved {seen['moved']} against "
+                f"{[json.dumps(k) for k in keys]}")
 
         # AN UNCLAIMED EVENT MOVES NOTHING, AND IS COUNTED.
         unclaimed = await page.evaluate(

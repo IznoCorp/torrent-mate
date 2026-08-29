@@ -131,6 +131,15 @@ TITLES = {                                  # french-ok: the app's rendered outp
     "refused": "Session expirée — reconnectez-vous pour revoir les mises à jour",
 }
 
+# WHAT THE TWO TOKENS MUST ACTUALLY BE. Resolving `--color-success` through the
+# same cascade that paints the dot proves the dot uses the token and nothing
+# more: exchange the two VALUES in `theme.css` and every comparison still holds
+# while a healthy connection draws red. The hue is pinned here — green for
+# success, red for danger — because a colour a reader recognises is the whole of
+# what this indicator has at phone width, and no other instrument reads it.
+# <sub>`grep -n "color-success\|color-danger" frontend/maquette/design/src/styles/theme.css`</sub>
+HUES = {"success": (100, 160), "danger": (0, 60)}
+
 # The dot and the notice, by their `data-*` anchors (D4).
 #
 # READ BY THEIR PART NAME, NEVER BY `[data-connection]` ON ITS OWN. A presence
@@ -352,6 +361,11 @@ async def hold(journal):
                    await new Promise((r) => setTimeout(r, 120));
                    const dot = document.querySelector(mark).firstElementChild;
                    const label = document.querySelector(mark).lastElementChild;
+                   const hue = (colour) => {
+                     const found = colour.match(
+                       /oklch[(]([0-9.]+)[ ]+([0-9.]+)[ ]+([0-9.]+)/);
+                     return found ? Number(found[3]) : null;
+                   };
                    out[condition] = {
                      colour: getComputedStyle(dot).backgroundColor,
                      // AGAINST THE TOKEN, not against the other conditions. A
@@ -366,6 +380,14 @@ async def hold(journal):
                      // saying nothing about the paint.
                      success: resolve("--color-success"),
                      danger: resolve("--color-danger"),
+                     // AND WHETHER THE DOT IS ON SCREEN AT ALL.
+                     // `getComputedStyle().backgroundColor` answers for a
+                     // `display: none` element exactly as for a painted one,
+                     // and the class that hides the label sits on its sibling.
+                     hue: hue(getComputedStyle(dot).backgroundColor),
+                     shown: getComputedStyle(dot).display !== "none"
+                       && getComputedStyle(dot).visibility !== "hidden"
+                       && dot.getBoundingClientRect().height > 0,
                      labelShown: getComputedStyle(label).display !== "none",
                    };
                  }
@@ -384,6 +406,22 @@ async def hold(journal):
             "something a reader sees, and this hold can go; while it is false "
             "they measure a `textContent` CSS has removed from the page")
         colours = {name: one["colour"] for name, one in painted.items()}
+        journal.check(
+            "the dot is on screen in every condition",
+            all(one["shown"] for one in painted.values()),
+            f"drawn: {({name: one['shown'] for name, one in painted.items()})} — "
+            "the colour holds below read a computed value, which answers for a "
+            "`display: none` element exactly as for a painted one, and the class "
+            "that hides the label sits on this dot's sibling")
+        journal.check(
+            "and the two tokens are the hues a reader recognises",
+            HUES["success"][0] <= painted["connected"]["hue"] <= HUES["success"][1]
+            and HUES["danger"][0] <= painted["lost"]["hue"] <= HUES["danger"][1],
+            f"connected sits at hue {painted['connected']['hue']} and lost at "
+            f"{painted['lost']['hue']} — resolving the token through the same "
+            "cascade that paints the dot proves it USES the token and nothing "
+            "more: exchange the two values in `theme.css` and every comparison "
+            "below still holds while a healthy connection draws red")
         journal.check(
             "a healthy connection is painted with the SUCCESS token",
             painted["connected"]["colour"] == painted["connected"]["success"],

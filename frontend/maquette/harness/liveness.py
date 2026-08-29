@@ -66,8 +66,12 @@ from playwright.async_api import async_playwright
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from common import PHONE, Journal, open_page
 
+# WHERE THE TWO CONSTANTS ARE DECLARED. They moved out of `relay.ts` when it
+# crossed invariant 6's ceiling, and this rule fell LOUDLY — `declares None` —
+# rather than reading a file that no longer holds them. A rule that reads a
+# source path is a two-ended contract like any other; this end is named once.
 RELAY_SOURCE = (pathlib.Path(__file__).resolve().parent.parent
-                / "design" / "src" / "lib" / "relay.ts")
+                / "design" / "src" / "lib" / "relay-limits.ts")
 
 # What the two limits must be in the shipped source. The server pings after
 # thirty seconds of client silence, so a silence limit at or below thirty would
@@ -104,12 +108,13 @@ async def hold(journal):
     journal.check(
         f"the shipped silence limit is {WANTED_SILENCE_MS} ms",
         silence == WANTED_SILENCE_MS,
-        f"`relay.ts` declares {silence} — the server pings after 30 s of client "
+        f"`relay-limits.ts` declares {silence} — the server pings after 30 s of "
+        "client "
         "silence, so a limit at or below that tears down healthy connections")
     journal.check(
         f"the shipped opening limit is {WANTED_OPENING_MS} ms",
         opening == WANTED_OPENING_MS,
-        f"`relay.ts` declares {opening}")
+        f"`relay-limits.ts` declares {opening}")
 
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel="chrome")
@@ -125,6 +130,9 @@ async def hold(journal):
         # SILENCE_LIMIT_MILLISECONDS / 45` leaves both green while a one-second
         # watchdog tears down every healthy connection, and so does a
         # `setLimits` call anywhere in the boot.
+        # AFTER the published-seam guard, not before it. Read first, this
+        # dereferenced `window.__relay` and died with a Playwright TypeError
+        # instead of reporting the guard red.
         running = await page.evaluate("()=>window.__relay.readLimits()")
         journal.check(
             "and they are the limits the relay is actually running on",
@@ -290,6 +298,56 @@ async def hold(journal):
             f"condition passed through {asked['seen']} — a retry that is also "
             "read as a loss connects immediately AND schedules a second connect, "
             "which is a two-socket storm on every manual retry")
+
+        # THE PATH THAT LEAKED, TWICE, AND WAS MEASURED BY NOTHING. Both
+        # existing clean-close holds retry from a LIVE socket. Every production
+        # caller of the retry does the opposite: the « réessayer » control and
+        # the sign-in recovery both fire from `lost` or `refused`, where the
+        # close handler has already nulled the socket — so a flag consumed by
+        # « the close we expect » was consumed by nothing, and the next
+        # unsolicited 1000 was swallowed for the life of the tab.
+        from_nothing = await page.evaluate(
+            """async ({ limit }) => {
+                 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+                 window.__relay.reset();
+                 window.__relay.limits({ silence: 60_000, opening: limit });
+                 // Climb to a state where the socket is gone.
+                 window.__mocks.stream.setUnreachable(true);
+                 window.__relay.reconnect();
+                 await wait(limit * 8);
+                 const stranded = window.__relay.condition().condition;
+                 window.__mocks.stream.setUnreachable(false);
+                 // The operator taps « réessayer » with no socket to close.
+                 window.__relay.reconnect();
+                 await wait(400);
+                 const back = window.__relay.condition().condition;
+                 // And the server is redeployed.
+                 window.__mocks.stream.drop(1000);
+                 await wait(60);
+                 const afterDeploy = window.__relay.condition().condition;
+                 await wait(900);
+                 return { stranded, back, afterDeploy,
+                          recovered: window.__relay.condition().condition,
+                          sockets: window.__mocks.stream.state().sockets };
+               }""",
+            {"limit": SHORT_OPENING_MS})
+        journal.check(
+            "a retry from a socket-less state reconnects",
+            from_nothing["stranded"] != "connected" and from_nothing["back"] == "connected",
+            f"stranded at {from_nothing['stranded']!r}, back at "
+            f"{from_nothing['back']!r}")
+        journal.check(
+            "and an unsolicited 1000 after it is STILL a loss",
+            from_nothing["afterDeploy"] != "connected"
+            and from_nothing["recovered"] == "connected"
+            and from_nothing["sockets"] >= 1,
+            f"after the server closed cleanly the condition was "
+            f"{from_nothing['afterDeploy']!r} and it recovered to "
+            f"{from_nothing['recovered']!r} over {from_nothing['sockets']} "
+            "socket(s) — a retry that leaves a « we asked for this » mark behind "
+            "swallows the next server shutdown, which is one per deploy, and "
+            "the interface then says « Connecté » over a dead link for the life "
+            "of the tab")
 
         # THE AGE OF THE DATA. Any frame proves the link is alive, so any frame
         # moves it — a ping as much as an event.

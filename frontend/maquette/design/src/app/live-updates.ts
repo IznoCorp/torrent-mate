@@ -95,19 +95,24 @@ export function installLiveUpdates(queryClient: QueryClient): void {
 
   subscribeToEvents((event: RelayEvent) => {
     const matched = byType.get(event.type);
-    if (matched === undefined) {
-      unmatchedTotal += 1;
-      unmatched.push(event.type);
-      if (unmatched.length > UNMATCHED_KEPT) unmatched.shift();
-      return;
-    }
-    for (const rule of matched) {
+    let claimed = false;
+    for (const rule of matched ?? []) {
       // A RULE MAY BE ABOUT SOME OF ITS TYPE'S EVENTS AND NOT ALL OF THEM.
       if (rule.when !== undefined && !rule.when(event.data)) continue;
+      claimed = true;
       for (const key of rule.keys) {
         void queryClient.invalidateQueries({ queryKey: key });
       }
     }
+    // AN EVENT EVERY PREDICATE REFUSED IS AS UNCLAIMED AS ONE NO RULE NAMES,
+    // and it used to be counted as neither. The count answered for the
+    // unknown-TYPE branch alone, so « an unclaimed event is a decision, not a
+    // silence » held for half its cases — and the half it missed is the one
+    // predicates created.
+    if (claimed) return;
+    unmatchedTotal += 1;
+    unmatched.push(event.type);
+    if (unmatched.length > UNMATCHED_KEPT) unmatched.shift();
   });
 }
 

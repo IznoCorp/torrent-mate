@@ -177,7 +177,19 @@ class MockSocket extends EventTarget {
     this.readyState = MockSocket.CLOSED;
     if (open.includes(this)) replaced = this;
     open = open.filter((socket) => socket !== this);
-    this.dispatchEvent(new CloseEvent("close", { code, reason, wasClean: code === 1000 }));
+    // THE CLOSE IS DELIVERED ONE TASK LATER, because a real one is. A browser
+    // never dispatches `close` synchronously from `close()`: the socket enters
+    // CLOSING and the event arrives afterwards, by which time a client that
+    // replaced it has already installed the replacement. That asynchrony IS the
+    // close-then-replace race, and dispatching synchronously here made it
+    // unrepresentable — so a client distinguishing a close it asked for from
+    // one it did not could be wrong in production and green in every rule.
+    // Measured: it was, twice, on this lot's own headline defect.
+    globalThis.setTimeout(() => {
+      this.dispatchEvent(
+        new CloseEvent("close", { code, reason, wasClean: code === 1000 }),
+      );
+    }, 0);
   }
 
   /**
@@ -234,6 +246,7 @@ function emit(type: string, data: Record<string, unknown> = {}): StreamEntry {
  * @param push What delivers the frames.
  */
 function deliver(push: () => void): void {
+  const settle = deliveries.ended;
   deliveries.began();
   try {
     push();
@@ -244,7 +257,9 @@ function deliver(push: () => void): void {
     // and the oracle silently burned its two-second budget on every remaining
     // state of that page, with no rule red anywhere. Total, silent, and
     // recoverable only by a reload.
-    globalThis.setTimeout(deliveries.ended, 0);
+    // THE RELEASE CAPTURED AT THE START, so a `reset()` between the two hands
+    // this delivery the hook of the world it began in.
+    globalThis.setTimeout(settle, 0);
   }
 }
 

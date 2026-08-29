@@ -36,7 +36,14 @@ WHAT IT HOLDS:
      delivery is counted, `quiet()` loses the race against a timer while one is
      dispatched, and a burst of N leaves the counter at zero rather than at
      N - 1 or -1.
-  6. The BUDGET is real and is named. `oracle.py` races the signal against
+  6. THE RESET IS A NEW WORLD. `reset()` runs between named states while the
+     application keeps going, so a request issued before it can land after it.
+     Leaving the counters alone stranded a desynchronised page for ever;
+     zeroing them let that landing take the count below zero, where `quiet()`
+     never resolves again; flooring it left the count SHORT, so a later stale
+     landing released the waiters over a request that was really running. A
+     generation token settles it, and this hold is what says so.
+  7. The BUDGET is real and is named. `oracle.py` races the signal against
      2 000 ms and goes on without it — so a request slower than that is measured
      mid-flight, by design, and this rule states the number rather than leaving
      it to be discovered.
@@ -302,7 +309,44 @@ async def hold(journal):
             "the refetch had not been issued yet and every measurement of a live "
             "surface would be taken mid-flight")
 
-        # (6) the budget is stated rather than discovered. A latency above it is
+        # A RESET WHILE A REQUEST IS IN FLIGHT. Three repairs have been tried
+        # here and the first two were each worse than the defect; what is held
+        # is the property all three were after — after a reset, the signal tells
+        # the truth about the world that exists now.
+        crossed = await page.evaluate(
+            """async ({ address, latency }) => {
+                window.__mocks.reset();
+                window.__mocks.setDefaultLatency(latency);
+                window.fetch(address);                 // deliberately not awaited
+                const during = window.__mocks.inFlight();
+                window.__mocks.reset();                // the old world ends here
+                const justAfter = window.__mocks.inFlight();
+                await new Promise((r) => setTimeout(r, latency * 2));
+                const settled = window.__mocks.inFlight();
+                let resolved = false;
+                await Promise.race([
+                    window.__mocks.quiet().then(() => { resolved = true; }),
+                    new Promise((r) => setTimeout(r, 400)),
+                ]);
+                return { during, justAfter, settled, resolved };
+            }""",
+            {"address": PROBE_ADDRESS, "latency": 150})
+        journal.check(
+            "a reset while a request is in flight leaves the count at zero",
+            crossed["during"] == 1 and crossed["justAfter"] == 0
+            and crossed["settled"] == 0,
+            f"inFlight() read {crossed['during']} in flight, "
+            f"{crossed['justAfter']} just after the reset and "
+            f"{crossed['settled']} once the stranded request landed — at -1 the "
+            "signal never resolves again; short, a later landing releases the "
+            "waiters over a request that is really running")
+        journal.check(
+            "and the signal still answers afterwards",
+            crossed["resolved"],
+            "`quiet()` did not resolve within 400 ms of a settled world — which "
+            "is the deadlock the first two repairs each produced in turn")
+
+        # (7) the budget is stated rather than discovered. A latency above it is
         # measured mid-flight BY DESIGN, and this hold is what makes that a
         # documented limit instead of a surprise at surface ten.
         # THE BUDGET, MEASURED RATHER THAN COMPARED. This hold used to be

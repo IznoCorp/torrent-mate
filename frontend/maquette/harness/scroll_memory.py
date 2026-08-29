@@ -268,10 +268,15 @@ async def hold(journal):
                  // get if the click and the back both did nothing, and the one
                  // property the whole behaviour keys on (`isLayer`, which reads
                  // the entry's `layer` stamp) went unread.
+                 // READ THROUGH A NULL CHECK. `getComputedStyle(null)` throws,
+                 // so a drawer that had been removed killed the rule instead of
+                 // reddening the hold that names it.
+                 const drawer = () => document.querySelector("#drawer");
+                 const visible = () => drawer() !== null
+                   && getComputedStyle(drawer()).visibility !== "hidden";
                  const layered = {
                    stamped: typeof history.state?.layer === "string",
-                   drawn: getComputedStyle(
-                     document.querySelector("#drawer")).visibility !== "hidden",
+                   drawn: visible(),
                  };
                  port().scrollTop = Math.min(
                    offset, port().scrollHeight - port().clientHeight);
@@ -281,8 +286,7 @@ async def hold(journal):
                  window.__bridge.back();
                  await wait(700);
                  return { whileOpen, layered, after: port().scrollTop,
-                          closed: getComputedStyle(
-                            document.querySelector("#drawer")).visibility === "hidden",
+                          closed: !visible(),
                           why: "" };
                }""",
             {"offset": OFFSET})
