@@ -156,13 +156,6 @@ when the defect comes back.
 | B-097 | Twenty seed renames never reached the index, and only a case-sensitive runner saw it | by CI | `fixed #503` |
 | B-098 | The build plugin raced its own output and failed three jobs on a fresh checkout | by CI | `fixed #503` |
 | B-099 | A test pass writes 13 GB of real zeroes into `/tmp` and pytest keeps three of them | by operator | `fixed #505` |
-| B-079 | The design host cannot say which commit it serves, and production's host can | by audit | `open` |
-| B-080 | The drawer shows a hard-coded version and build, and calls itself up to date | by operator | `open` |
-| B-081 | Design notes can no longer be hidden, and the oracle measures without them | by operator | `open` |
-| B-082 | `hidden` hides nothing on five elements, so an invisible button is still tappable | by operator | `open` |
-| B-083 | L08's design and plan were never archived, and every lot before it was | by audit | `open` |
-| B-084 | A wave that found twenty defects wrote none of them in this register | by audit | `open` |
-| B-085 | Guards green over what they do not read: 17 in three consecutive waves, counted by nobody | by audit | `open` |
 | B-100 | Invariant 10 is written and unarmed: no arm counts the frame's domain words | by audit | `open` |
 | B-101 | The steward's brief predicted an oracle movement that could not happen | by audit | `open` |
 | B-102 | Seven register rows are duplicated, once `fixed` and once `open` | by audit | `open` |
@@ -282,7 +275,9 @@ when the defect comes back.
 | B-216 | The mutation tool announced « no hold fell » under the falls it had just printed | by adversarial review | `fixed #513` |
 | B-217 | The cursor thaw was measured by nothing, and the tool's first use found it | by adversarial review | `fixed #513` |
 | B-218 | The « Before it » row stopped at L07 and still named a merged PR as « this pull request » | by design | `fixed #514` |
-| B-219 | A wave's brief existed only in a session scratch directory, and its agent could not read it | by agent | `fixed #NNN` |
+| B-219 | A wave's brief existed only in a session scratch directory, and its agent could not read it | by agent | `fixed #515` |
+| B-220 | The drawer and the bottom tab bar are converted by no lot of the plan | by audit | `open` |
+| B-221 | A wave merged leaving its own status as the literal placeholder `fixed #NNN` | by guard | `open` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
@@ -2623,6 +2618,39 @@ and B-085 is arguable, since what it asked for is a standing measurement rather 
 
 <sub>`grep -c '^| B-' BUGS.md` → 108 · `grep -oE '^\| B-[0-9]+' BUGS.md | sort -u | wc -l` → 101 · `grep -oE '^\| B-[0-9]+' BUGS.md | sort | uniq -d`</sub>
 
+**CLOSED by L10-bis, and the deliverable is the guard, not the deletion.** The seven `open` rows
+are gone; which status was true was decided by reading the tree rather than either row, and the
+entry above was right to say that decision belongs to whoever repairs it. **Two of the seven do not
+say « FIXED by #505 » in their bodies** — B-079 and B-085 — so the brief that set this wave going
+was wrong to say all seven did, and reading the tree is what settled them: `host_identity.py` was
+split out of `serve.py` by #505 and `with_served_identity()` is called at `serve.py:735`, which is
+B-079's fix landed; § *Guards green over what they do not read* exists, which is B-085's.
+
+**The instrument — `scripts/check-bug-register.py`, four arms and one tool.** `duplicate-row`
+refuses an identifier carrying more than one index row and NAMES it; `status-vocabulary` refuses a
+status outside § *Status vocabulary*; `invariant-numbers` is B-103; `corpus` PRINTS the number of
+rows read and refuses one below a floor of 150 — seeded well under the 214 rows standing when it
+was written, never at them, because a floor set where the count already sits is pre-satisfied and
+can never fall (B-075, met twice in two waves).
+
+**It found a defect nobody had recorded, on its first run**: B-219 carried the literal status
+`fixed #NNN`. That is B-221, filed rather than quietly corrected.
+
+**What it does not read is written into the module, at the top, before what it does read.** It
+reads the INDEX and never the bodies — so a row marked `open` over a body saying « FIXED by #505 »
+is invisible to it, which is exactly the state these seven were in; it reads `BUGS.md` alone;
+it cannot see another branch; and it does not hold rule 2's « exactly one `fixing` ».
+
+**The recurrence this entry's neighbour really names is not a duplicate row**, and no guard can
+hold it: two branches taking numbers from a register the other is writing. `--next` answers it by
+removing the guessing, and it fails nothing — it is a tool, and the module says so.
+
+<sub>mutation — duplicate a row with a different status: `duplicate-row` falls naming `B-101` and
+both its lines. Write `fixed` with no number: `status-vocabulary` falls. Strip every index row:
+`corpus` falls with « 0 index row(s) read, under the floor of 150 » instead of reporting clean.
+Restored, then `python3 scripts/check-bug-register.py` → `207 index row(s) read … for 207
+identifier(s)` · `check-bug-register: clean`</sub>
+
 **B-103 — § 3 of the architecture file has two invariants numbered 10.**
 #507 inserted « **The frame does not name the domain** » as item 10 and left « **No French in the
 code and no interface text in the code** » numbered 10 below it. Both are binding, both are
@@ -2636,6 +2664,34 @@ commit — those resolve correctly only if a reader stops at the first 10 they m
 
 **Recorded, not renumbered.** § 7.1: the operator arbitrates this file and an agent proposes.
 Renumbering it inside the wave that implements against it is the one moment it should not be done.
+
+**CLOSED by L10-bis, and the repair is NOT the one this entry proposed.** Renumbering the sequence
+— second 10 becomes 11, and 11 to 14 shift up — was measured before being taken, and it was the
+wrong repair. It moves **ten live citations** (`harness/residue.py`, `harness/relay_states.py`
+twice, `ui/variants/layout.ts` twice, `features/media/variants.ts`,
+`scripts/check-maquette-unit-tests.py`, this register, and the architecture file itself) and it
+**silently falsifies three archived documents**, which are frozen and must never be restyled —
+`maquette-l05/plan/INDEX.md` cites invariant 11, `maquette-l07/plan/phase-09-library.md` cites 12,
+`maquette-l10/DESIGN.md` cites 14.
+
+**So the item that MOVED is the one whose number was wrong.** Every citation of « invariant 10 »
+that exists — here, in the archive, in L09's DESIGN, in the three « Where it lives » lines — means
+*the frame does not name the domain*. That invariant owns the number. « No French in the code » is
+the one #507 left holding a number already taken, and it is now **15**, at the end of the list,
+with the reason written beside it. Nothing cites it by number, so nothing moved.
+
+**One sentence of the entry above is measurably false, and § 7.1 is why it is corrected here rather
+than edited there.** « items 11 to 14 now sit one place away from every citation of them written
+before » — they do not. The source numbers 11 to 14 were never shifted by the insertion, and all
+ten citations resolve correctly today. The defect was real; that particular consequence was not.
+
+**The instrument.** `scripts/check-bug-register.py --arm invariant-numbers` refuses a repeated
+number AND a gap in the sequence — a citation of a number nobody wrote points at nothing, which is
+the same defect seen from the other side.
+
+<sub>mutation — renumber invariant 15 back to 10: the arm falls with « invariant 10 is written 2
+times, at lines 497, 562 ». Number it 16 instead: the arm falls with « the sequence has a gap at
+15 ». Restored → `check-bug-register: clean`</sub>
 
 <sub>`grep -nE '^1?[0-9]+\. \*\*' docs/reference/frontend-architecture.md | sed -n '/^4[0-9][0-9]:/p'` · the two rows read `10.` </sub>
 
@@ -2654,6 +2710,52 @@ that file — with the reason written beside it: a `.d.ts` carries no runtime va
 is erased by the compiler, and the defect the arm exists to refuse is a module reading a SEED so
 that a fixture survives its own removal. Nothing can travel a type-only edge. A VALUE import of the
 same file is still refused, proved by mutation.
+
+**B-220 — the drawer and the bottom tab bar are converted by no lot of the plan.**
+`design/index.html:451` declares an **empty** `<aside id="drawer">`; the dying engine fills it,
+opens it, closes it, draws its entries (`#drawer a[data-navgo]`) and pushes its layer.
+`index.html:436` declares an **empty** `<nav id="nav">`, and `renderNav()` fills it. On the React
+side nothing renders either: `app/focus.ts` **watches** the drawer, `app/bar-height.ts`
+**measures** the bar. The plan names the drawer once, in D1's address table, as an example of
+screen state — and **L13's objective enumerates what survives subtraction** (the document-level
+delegation, the boot, `/login`, the splash). Neither the drawer nor the tab bar is there.
+
+**Why nobody saw it, and it matters more than the inventory.** Two instruments watch the engine and
+**both measure its SIZE, never its surfaces**: the boundaries guard counts its lines,
+`check-legacy-css-residue.py` counts its CSS rules. When L09 took `legacy.js` from 35 263 to 33 449
+lines everyone read progress. A file that shrinks looks like a file that is dying, even when a
+whole page never leaves it. It is **L14's class** — a surface whose conversion nobody owes — except
+that here it is the application's main navigation.
+
+**Its number changed three times before it was ever written down**: B-152, then B-160, then B-219,
+each taken by a wave writing the register from another branch. B-219 went to #515 while this wave
+was being briefed, which is the fourth. **Re-derived at the moment of writing** with
+`python3 scripts/check-bug-register.py --next`, the tool B-102's repair ships for this exact
+recurrence.
+
+**Deferred to L10-ter, whose subject it is.** L10-bis records it and touches neither surface: a
+correction wave opens no lot. **It changes nothing for E-002** — the React-side installer works
+against the node as it stands, which is what makes that gesture feasible today.
+
+<sub>`sed -n '448,454p' frontend/maquette/design/index.html` · `grep -rn '#drawer' frontend/maquette/design/src/app/` · `grep -in 'drawer' docs/reference/frontend-architecture.md`</sub>
+
+**B-221 — a wave merged leaving its own status as the literal placeholder `fixed #NNN`.**
+Found by `check-bug-register.py --arm status-vocabulary` on its first run, against `main` at
+`3316e550`. B-219's row read `` `fixed #NNN` `` — the placeholder from § *Status vocabulary*'s
+example, written when the pull request had no number yet and never filled in once #515 merged.
+
+**What it costs is every count that greps for a word.** `fixed #NNN` is neither `open` nor any
+real `fixed #`, so the row is invisible to a count of what is open and invisible to a count of what
+a given pull request closed. It is B-102's damage by another route: not a row saying two things,
+a row saying nothing.
+
+**It is the shape a correction wave produces most easily**, and this one is exposed to it: the
+register is written DURING the wave (B-084), so its own closing rows are written before its pull
+request has a number. The guard is what makes forgetting impossible rather than unlikely — the
+status is filled the moment the number exists, or the gate is red.
+
+<sub>repaired to `fixed #515` · mutation: write `` `fixed` `` with no number → the arm falls naming
+the row and its line</sub>
 
 **What stays open is the PLACEMENT.** Moving the file has five ends — the `package.json` script,
 `make check-contract-types`, `check-mock-seeds.py --arm generated`, the boundaries guard's

@@ -139,6 +139,12 @@ CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.
 # family over a 35 198-line file; the extractor answers `--all` in one pass now.
 # A tier nobody can afford to run is a tier nobody runs.
 #
+# `check-bug-register.py` joined at L10-bis and it belongs here for a reason
+# the others do not have: the register is written DURING a wave (B-084), so
+# `BUGS.md` is a file every maquette phase edits, and its index is where a
+# wave's own account of itself is kept. It costs 0.1 s, it reads two files and
+# it holds the shape that made a count of « 48 open » out of 42.
+#
 # NONE OF THEM READS A DATABASE, and that was checked rather than assumed. It
 # is the disqualifying property for this tier: `arrivals.py` holds R66 against
 # the operator's live `library.db`, a runner has none, and the rule failed
@@ -165,6 +171,7 @@ REPOSITORY_GUARDS=(
   "scripts/check-maquette-unit-tests.py"
   "scripts/check-state-ownership.py"
   "scripts/check-live-relay.py"
+  "scripts/check-bug-register.py"
   "scripts/compare-contracts.py --check"
 )
 REPOSITORY_ROOT="$(cd "$HERE/../../.." && pwd)"
