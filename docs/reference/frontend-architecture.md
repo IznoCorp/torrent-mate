@@ -64,6 +64,50 @@ This file covers items 2, 3 and 4 of `IMPLEMENTATION.md` § THE OBJECTIVE → RE
 language, the application itself, and the legacy engine — plus the safety net they all need and
 the method they all follow.
 
+**L10-ter — the application template** (operator, 2026-08-28). A design phase whose deliverable is
+this file rather than any code: an inventory, computed rather than kept by hand, of every surface
+the dying engine still draws; a model of the application's frame, part by part, each saying where it
+lives under invariant 10; the PWA's « as close to a mobile application as possible » restated as
+testable properties; and every lot from L11 to L14 re-read against that model and marked unchanged,
+re-cut or replaced. **It is not a lot**: it writes no code, nothing schedules it, and § 0's
+selection rule must not reach it. **Where and when its findings are converted is the phase's own to
+decide**, and it may amend this file's lots and their order under § 7.1. Invariant 10 has been
+binding since L09 and its subject — the frame — has never been modelled; that is the debt this
+phase pays. Its definition and its agent's brief are `docs/features/maquette-l10-ter/`.
+
+**THREE LOTS ARE OWED AND NOT YET DECLARED — §17, §18 and §19 of the constitution** (operator,
+2026-08-29). The operator dictated three sections on 2026-08-26 and **no lot of this file answers
+any of them**. They are recorded here so the debt has a named place, and they are **deliberately
+without a number, an order or a position**, so § 0's rule cannot reach them: a lot this file has not
+placed is not electable.
+
+| Section | What exists today | What it is asked for |
+| --- | --- | --- |
+| **§18 — the ratio is a resource, and it is steered** | `min_ratio` and `min_seed_time` per tracker, read at the grab and at the cross-seed; `obligations`, `stalled-grabs` and `downloads` all answering | **wire them** — nothing calls any of the three — plus one write, since setting a tracker's policy from the surface that shows its ratio exists in neither contract |
+| **§19 — cross-seed is seen and decided** | 797 lines of engine injecting at third parties, emitting `CrossSeedInjected` and `CrossSeedRejected` | **everything**: zero routes in either contract, no event relayed to the stream. D7's case — the interface declares what it requires and the backend follows (§15) |
+| **§17 — accounts, rights and Plex identity** | one role, one account, `GET /api/auth/me` saying nothing of rights | **a model, then surfaces.** None of the 53 declared operations concerns another user, a role or a permission. And one requirement on existing code: the read-only role must be ABSORBED by the rights model, never sit beside it — two authorisation paths is NE-DOIT-PAS-7 |
+
+**They wait for L10-ter, and the reason is not scheduling.** §17 and §19 need new screens, and
+L10-ter is redefining what a screen in this application IS. Placing them before the template exists
+is drawing them twice. §18 escapes that argument in part — it wires existing surfaces — and not
+entirely, since it also asks for a per-tracker policy screen. **L10-ter places all three**, in the
+order §18 → §19 → §17 unless it measures a reason to differ: cheapest first, largest last.
+
+**One thing that could not wait, and it is why this paragraph exists at all.**
+`frontend-backend-demands.md` § 4 lists `obligations` among the operations « the switchover MAY
+retire », and nothing in that list distinguishes an operation the new design outgrew from one it
+has not reached yet. **Retiring `obligations` would have retired §18's subject.** The case is real
+and it would have gone the wrong way, which is the verdict column B-142 asks for.
+
+**And B-142 is the reason all four were invisible.** Three instruments measure this interface —
+`IMPLEMENTATION.md` § THE OBJECTIVE, the demands register, `audit_design_coverage.py` — and **all
+three compare the interface to what already exists**: pages against pages, the maquette against the
+running backend, design documents against tests. **None reads `product-intent.md`**, the only
+document saying what the product must BE. A capability the constitution requires, that neither the
+maquette nor the backend has, is invisible to every gate here. Its instrument is owed now rather
+than with the lots, because without it the next section the operator dictates is invisible the same
+way — and three were dictated in one day.
+
 **Also named here and deliberately unscheduled — the SEMANTIC SCROLL INDEX** (operator,
 2026-08-26). A list would offer an index shaped by its own sort: letters when sorted
 alphabetically, month markers when sorted by date. It is **not a scrollbar** — D11 settles that

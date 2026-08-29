@@ -333,6 +333,16 @@ paths and operations between `frontend/maquette/contract/openapi.json` (50 paths
 `frontend/openapi.json` (61). **Neither declares the event stream**, and neither can: OpenAPI does
 not describe a WebSocket.
 
+
+> **ARBITRATED, 2026-08-29.** The three sections are recorded in `frontend-architecture.md` § 1 as
+> **lots that are OWED and not yet declared** — deliberately without a number, an order or a
+> position, so § 0's rule cannot reach them: a lot the file has not placed is not electable.
+> **L10-ter places all three**, in the order §18 → §19 → §17 unless it measures a reason to differ.
+> They wait for it because §17 and §19 need new screens and L10-ter is redefining what a screen in
+> this application IS — placing them before the template exists is drawing them twice. **B-142's
+> instrument is owed NOW rather than with the lots**: without it, the next section the operator
+> dictates is invisible the same way, and three were dictated in one day.
+
 <sub>`python3 -c "import json;d=json.load(open('frontend/maquette/contract/openapi.json'));print(len(d['paths']),[k for k in d['paths'] if 'ws' in k or 'event' in k])"` → `50 []`</sub>
 
 So every demand L10 raises about the stream must be filed BY HAND, and the computed register will
@@ -4272,6 +4282,16 @@ implements it reads them where the rule is: which roles and their exact rights, 
 replaces or joins the current sign-in, what becomes of a Plex user with no rights here, and what a
 Plex account sees by default. None is the steward's to answer.
 
+
+> **ARBITRATED, 2026-08-29.** The three sections are recorded in `frontend-architecture.md` § 1 as
+> **lots that are OWED and not yet declared** — deliberately without a number, an order or a
+> position, so § 0's rule cannot reach them: a lot the file has not placed is not electable.
+> **L10-ter places all three**, in the order §18 → §19 → §17 unless it measures a reason to differ.
+> They wait for it because §17 and §19 need new screens and L10-ter is redefining what a screen in
+> this application IS — placing them before the template exists is drawing them twice. **B-142's
+> instrument is owed NOW rather than with the lots**: without it, the next section the operator
+> dictates is invisible the same way, and three were dictated in one day.
+
 <sub>`grep -n 'WEB_ROLE\|require_not_staging' docs/reference/web-ui.md` · `python3 -c "import json;print([p for p in json.load(open('frontend/maquette/contract/openapi.json'))['paths'] if 'auth' in p])"`</sub>
 
 **B-144 — the engine measures the ratio, and the interface shows none of it.**
@@ -4300,6 +4320,16 @@ either contract does it — the policy is configuration, edited today as a file.
 **And one requirement that is a trap rather than a feature**: the displayed ratio must be the one
 the TRACKER recognises, not a locally computed figure that drifts. An obligation shown as met and
 still counted due by the tracker is NE-DOIT-PAS-1 with the account as the price.
+
+
+> **ARBITRATED, 2026-08-29.** The three sections are recorded in `frontend-architecture.md` § 1 as
+> **lots that are OWED and not yet declared** — deliberately without a number, an order or a
+> position, so § 0's rule cannot reach them: a lot the file has not placed is not electable.
+> **L10-ter places all three**, in the order §18 → §19 → §17 unless it measures a reason to differ.
+> They wait for it because §17 and §19 need new screens and L10-ter is redefining what a screen in
+> this application IS — placing them before the template exists is drawing them twice. **B-142's
+> instrument is owed NOW rather than with the lots**: without it, the next section the operator
+> dictates is invisible the same way, and three were dictated in one day.
 
 <sub>`grep -rn 'min_ratio\|min_seed_time' personalscraper/acquire/*.py` · `grep -n 'obligations' personalscraper/web/routes/acquisition.py` · `docs/reference/frontend-backend-demands.md` § 4</sub>
 
@@ -4332,6 +4362,16 @@ was written for, and the first one to arise since it was written.
 to nothing is `NE-DOIT-PAS-5` — silent failure — applied to a SUCCESS as much as to a failure. The
 events are emitted and dropped. Whatever §19 becomes, the cheapest half is already built and
 unplugged: two event types, already carrying their reason.
+
+
+> **ARBITRATED, 2026-08-29.** The three sections are recorded in `frontend-architecture.md` § 1 as
+> **lots that are OWED and not yet declared** — deliberately without a number, an order or a
+> position, so § 0's rule cannot reach them: a lot the file has not placed is not electable.
+> **L10-ter places all three**, in the order §18 → §19 → §17 unless it measures a reason to differ.
+> They wait for it because §17 and §19 need new screens and L10-ter is redefining what a screen in
+> this application IS — placing them before the template exists is drawing them twice. **B-142's
+> instrument is owed NOW rather than with the lots**: without it, the next section the operator
+> dictates is invisible the same way, and three were dictated in one day.
 
 <sub>`grep -rc 'cross.seed' frontend/openapi.json frontend/maquette/contract/openapi.json` · `grep -rn 'CrossSeed' personalscraper/web/` · `grep -c '[^[:space:]]' personalscraper/acquire/cross_seed.py`</sub>
 
