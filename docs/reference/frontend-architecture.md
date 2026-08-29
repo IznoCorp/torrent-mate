@@ -1181,14 +1181,29 @@ post-merge steps below, beside re-recording the references** — same moment, sa
 list that already says it is not optional.
 
 Recording it there is necessary and, on the evidence, not sufficient: that list has been skipped
-three times out of four as well. **What would settle it is a check rather than a sentence**, and
-the shape is cheap because the row already carries the wave's version: if `personalscraper/__init__.py`
-on `main` has reached the version the « In flight » row names, that wave has landed and the row is
-stale — offline, exact, and it stays green on the wave's own branch, where the two differ by
-construction. It would say nothing between waves, when no row names a version, and whoever builds
-it should make that silence legible rather than let a vacuous pass read as a verdict. It is written
-here as a diagnosis with its mechanism, **not built**: a guard is code, and the steward who found
-this does not carry code (§ 7.2).
+three times out of four as well, and the steward went on to measure a miss at the close of L09, of
+L10 and of L10-bis in a row. **What settles it is a check rather than a sentence**, and the shape is
+cheap because the row already carries the wave's version: if `personalscraper/__init__.py` on `main`
+has reached the version the « In flight » row names, that wave has landed and the row is stale —
+offline, exact, and green on the wave's own branch, where the two differ by construction. It says
+nothing between waves, when no row names a version, and it prints what it read there rather than
+letting a vacuous pass read as a verdict.
+
+**BUILT on 2026-08-29 as `scripts/check-implementation-state.py`, and building it corrected this
+paragraph twice.** « Has reached » is an ORDERING, not an equality: written as equality — the
+reading the sentence above invites, and the first one implemented — the arm reported clean over the
+very defect it was written for, because L10-bis's row named `0.98.51` while `main` carried `0.98.52`
+after a follow-up pull request re-anchored the oracle and bumped once more. **A wave that merges
+alongside any other change overshoots by construction.** And the guard is wired into the contracts
+tier with `IMPLEMENTATION.md` added to the workflow's `docs` filter, because
+`tests/scripts/test_ci_filter_covers_the_guards.py` refused it otherwise: a guard whose subject no
+filter names runs in no job, and a post-merge gesture is *precisely* a pull request touching that
+file alone.
+
+**The steward built it, and § 7.2's boundary moved to allow that — on the operator's instruction,
+2026-08-29.** The sentence this paragraph used to end on said a guard is code and the steward does
+not carry code. That held for four waves and produced four misses; the office now carries an
+instrument when the defect it measures is the office's own subject and no wave will take it.
 
 **The oracle is a LOCAL gate, and that changes who can close a wave.** Its measurements are bound
 to the machine that took them — the same unmodified tree reads differently on a Linux runner — so
