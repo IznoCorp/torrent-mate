@@ -1,8 +1,12 @@
-"""The design host is installable, from the FIRST document a phone reaches.
+"""The design host is installable, and the shell it caches really opens offline.
 
 R52 — every document the server hands out declares the manifest, the icons and
       the worker; the manifest satisfies the install criteria; the worker
       registers and answers a navigation with the network gone.
+R105 — P7: the application opens and reads with the network gone. The shell is
+      precached, the document is answered from the cache, and a named state
+      renders — measured against a server that has actually STOPPED, for the
+      reason written at the top of `offline_shell()`.
 
 The rule exists because the prompt had never appeared on a phone, and the
 reason was structural rather than a missing tag: the declarations sat on the
@@ -12,10 +16,15 @@ manifest of the page in front of it — never one waiting behind a cookie.
 
 The second half is the worker. Installability asks that a navigation still be
 answered offline; a fetch handler that does nothing satisfies the letter and
-fails the test. The worker here is network-first and caches ONE page, the one
-that says the prototype is not available — never the prototype itself, because
-a design reference that serves yesterday's copy is worse than one that is
-honestly absent.
+fails the test.
+
+WHAT THE WORKER NOW DOES, AND WHAT IT USED TO. It cached exactly one page — the
+notice saying the prototype was not available — and never the prototype, because
+a design reference that serves yesterday's copy is worse than one honestly
+absent. Since L11 it precaches the SHELL, and the reason that is safe is written
+in `design/sw.js`: a navigation goes to the network FIRST and falls back to the
+cache, so whoever can reach the host sees today's prototype, and the update
+discipline reloads once when the served build stops matching the running one.
 """
 import asyncio
 import json
@@ -23,6 +32,10 @@ import pathlib
 import sys
 
 from playwright.async_api import async_playwright
+from server import start_server
+
+# The built copy the harness serves, and the one R105 raises its own server on.
+SERVED = pathlib.Path("/tmp/tm-refonte")
 
 HOST = "https://tm-design.iznogoudatall.xyz"
 
@@ -34,6 +47,154 @@ APPLICATION = pathlib.Path(__file__).resolve().parents[2] / "public"
 # Chrome's install criteria, as facts about the manifest.
 REQUIRED_SIZES = {"192x192", "512x512"}
 INSTALLABLE_DISPLAYS = {"standalone", "fullscreen", "minimal-ui"}
+
+
+async def offline_shell(browser):
+    """P7 — the application opens and reads with the network gone.
+
+    WHY IT RAISES ITS OWN SERVER AND THEN KILLS IT, rather than using
+    `context.set_offline(True)` as the property was first written. Chromium's
+    offline emulation does not reach the requests a SERVICE WORKER makes: with
+    it on, the worker's own network-first `fetch` still succeeds, the navigation
+    is answered by the server, and the rule passes without the cache ever being
+    touched. It would be green for the wrong reason, which is the one outcome
+    an instrument must not have. The same paragraph is already written at R52's
+    last hold, where it was learned.
+
+    Stopping a real server is the only reading with nothing behind it. It is a
+    SCRATCH server on a port the kernel picks, never the shared host on 8899:
+    the suite runs eight rules at a time and killing what the others are reading
+    would fail seven rules for a reason having nothing to do with any of them.
+
+    Args:
+        browser: A launched Playwright browser.
+
+    Returns:
+        The `(executed, failures)` pair, folded into R52's own totals.
+    """
+    executed = 0
+    failures = []
+    context = await browser.new_context(
+        viewport={"width": 390, "height": 844}, device_scale_factor=2,
+        is_mobile=True, has_touch=True)
+    page = await context.new_page()
+
+    with start_server(SERVED) as port:
+        origin = f"http://127.0.0.1:{port}"
+        await page.goto(f"{origin}/", wait_until="load")
+        # Bounded, for the reason R52 states: `serviceWorker.ready` never
+        # rejects, so an unbounded await turns « no worker » into a hang.
+        ready = await page.evaluate(
+            """async()=>Promise.race([
+                 navigator.serviceWorker.ready.then(()=>true),
+                 new Promise(r=>setTimeout(()=>r(false), 8000))])""")
+        executed += 1
+        if not ready:
+            failures.append("R105 no worker installed on the served copy")
+            await context.close()
+            return executed, failures
+        # A worker does not control the document that registered it.
+        await page.reload(wait_until="load")
+        executed += 1
+        if not await page.evaluate("()=>navigator.serviceWorker.controller!==null"):
+            failures.append("R105 the worker does not control the page after a reload")
+            await context.close()
+            return executed, failures
+
+        # THE SHELL IS COMPLETED, AND THE COMPLETION IS AWAITED — never slept
+        # on. The application asks for this at boot too; asking again here is
+        # idempotent (`cache.add` over an entry that is already there is the
+        # same entry) and it is what makes the moment the shell became whole a
+        # fact this rule OBSERVED rather than one it hoped had happened by now.
+        report = await page.evaluate(
+            """async()=>new Promise((resolve)=>{
+                 const channel = new MessageChannel();
+                 channel.port1.onmessage = (event)=>resolve(event.data);
+                 navigator.serviceWorker.controller.postMessage(
+                   "cache-shell", [channel.port2]);
+                 setTimeout(()=>resolve({missing:["the worker never answered"]}), 8000);
+               })""")
+        executed += 1
+        if report["missing"]:
+            failures.append(
+                f"R105 the shell could not be completed: {report['missing'][:4]}")
+            await context.close()
+            return executed, failures
+
+        executed += 1
+        held = await page.evaluate(
+            """async()=>{const names=await caches.keys();
+                 const shell=names.find(n=>n.startsWith("tm-shell-"));
+                 if(!shell) return [];
+                 const c=await caches.open(shell);
+                 return (await c.keys()).map(r=>new URL(r.url).pathname);}""")
+        if not any(path.startswith("/vite/") for path in held):
+            failures.append(f"R105 the shell holds no bundle: {held[:6]}")
+            await context.close()
+            return executed, failures
+
+    # THE SERVER IS GONE from here. Any answer the page now gets came from the
+    # worker's cache and from nowhere else.
+    executed += 1
+    # THROUGH PLAYWRIGHT'S OWN REQUEST CONTEXT, never `fetch` from inside the
+    # page. The mock layer has replaced the page's `fetch` and ANSWERS every
+    # same-origin path — 404 « no mock route » for one it does not know — so an
+    # in-page probe would come back with a Response instead of throwing, and
+    # this hold would read « the host is still answering » forever. Measured:
+    # that is exactly what it did on the first run.
+    try:
+        await page.request.get(f"{origin}/build.json")
+        still_up = True
+    except Exception:
+        still_up = False
+    if still_up:
+        failures.append(
+            "R105 the host is still answering — this reading would prove nothing")
+        await context.close()
+        return executed, failures
+
+    await page.reload(wait_until="load")
+    executed += 1
+    # THE DOCUMENT CAME BACK AT ALL. A failed navigation leaves the browser's
+    # own error page, which has no `#view` and no state driver.
+    driver = await page.evaluate("()=>typeof window.__go==='function'")
+    if not driver:
+        failures.append("R105 the shell did not open offline — no state driver")
+        await context.close()
+        return executed, failures
+
+    executed += 1
+    # AND IT READS. « Opens » is not the property: a shell that renders an empty
+    # frame is a shell nobody can use. A named state is driven and the view must
+    # carry text, exactly as `states.py` reads it.
+    await page.evaluate("()=>window.__loadingDone?.()")
+    await page.evaluate("()=>document.querySelector('#toastx')?.click()")
+    # A state on a PAGE the shell owns, and one whose data comes from the mock
+    # layer — so what is being read is the shell rendering, never a cached
+    # response standing in for it.
+    await page.evaluate("(id)=>window.__go(id)", "lib-grid")
+    await page.wait_for_timeout(400)
+    rendered = await page.evaluate(
+        """()=>{const v=document.querySelector('#view');
+             return v ? (v.innerText||'').trim().length : 0;}""")
+    if rendered < 20:
+        failures.append(
+            f"R105 a named state renders nothing offline — {rendered} characters")
+
+    executed += 1
+    # AND THE MOCKED CONTRACT STILL ANSWERS, which is what makes the shell
+    # READABLE rather than merely present: the layer replaces `fetch` in the
+    # page, so the data a surface draws never depended on the network at all.
+    # This hold is what separates « the document loaded » from « the application
+    # works », and it is the half a document-only reading would miss.
+    answered = await page.evaluate(
+        """async()=>{const r=await fetch("/api/library/items");
+             return r.status;}""")
+    if answered != 200:
+        failures.append(f"R105 the contract does not answer offline — {answered}")
+
+    await context.close()
+    return executed, failures
 
 
 async def main():
@@ -174,24 +335,57 @@ async def main():
         if not controlling:
             failures.append("R52 the worker does not control the page after a reload")
 
-        # --- and the fallback a navigation would get is really there ---------
+        # --- and the shell a navigation would fall back to is really there ---
         #
-        # Measured through the CACHE rather than by cutting the network:
-        # `set_offline` does not reach requests a service worker makes in
-        # Chromium, so navigating with it on measures the network coming back,
-        # not the worker. What can be established here is the substantive
-        # fact — the worker installed, and the page it would answer with is in
-        # its cache and reads correctly. Whether Chrome then offers to install
-        # is Chrome's judgement, and only a real phone settles it.
-        fallback = await pg.evaluate(
-            """async()=>{const c=await caches.open("tm-design-offline");
-                 const r=await c.match("/offline.html");
-                 return r ? (r.ok ? await r.text() : `status ${r.status}`)
-                          : "absent from the cache";}"""
+        # Measured through the CACHE and not by cutting the network, on THIS
+        # host: `set_offline` does not reach the requests a service worker makes
+        # in Chromium, so navigating with it on measures the network coming
+        # back rather than the worker. R105 below settles the substantive
+        # question the honest way — against a server that has stopped — and what
+        # is established here is that the LIVE design host's own worker holds
+        # the shell. Whether Chrome then offers to install is Chrome's
+        # judgement, and only a real phone settles that.
+        cached = await pg.evaluate(
+            """async()=>{const names=await caches.keys();
+                 const shell=names.find(n=>n.startsWith("tm-shell-"));
+                 if(!shell) return {cache:null, held:[]};
+                 const c=await caches.open(shell);
+                 return {cache:shell,
+                         held:(await c.keys()).map(r=>new URL(r.url).pathname)};}"""
         )
         executed += 1
-        if "Hors ligne" not in fallback:
-            failures.append(f"R52 the offline fallback is not usable: {fallback[:90]}")
+        if not cached["cache"]:
+            failures.append("R52 no shell cache exists — the worker precached nothing")
+        else:
+            # WHAT THE GATE CAN HONESTLY PROMISE, and it is not the document.
+            # This runs unauthenticated, against the SIGN-IN GATE — the only
+            # document a phone reaches before signing in, and therefore the only
+            # one a worker can install from. There, `/` and `/vite/*` both
+            # answer 401: the prototype is what the password protects. So the
+            # gate's shell cache holds the manifest, the icons and the offline
+            # notice, and nothing else CAN be in it.
+            #
+            # The document and the bundles are R105's, where the application is
+            # actually running and everything is reachable. Holding them here
+            # would be holding the host to something its own auth model forbids.
+            executed += 1
+            # The notice is what an unsigned visitor gets with the network gone,
+            # and it is the one page this half of the worker exists to keep.
+            if "/offline.html" not in cached["held"]:
+                failures.append(
+                    f"R52 the gate cached no offline notice: {cached['held'][:6]}")
+            executed += 1
+            # NOTHING UNDER `/api/`, ever. A worker answering the contract from
+            # disk would make the interface say what the operator's machine had
+            # stopped saying — §8 read from the wrong end.
+            api = [p for p in cached["held"] if p.startswith("/api/")]
+            if api:
+                failures.append(f"R52 the shell cache holds server state: {api[:4]}")
+
+        # --- R105 (P7) — and it really opens with the network gone -----------
+        offline_executed, offline_failures = await offline_shell(b)
+        executed += offline_executed
+        failures.extend(offline_failures)
         await b.close()
 
     for line in failures:
@@ -206,4 +400,9 @@ async def main():
     return 1 if failures else 0
 
 
-sys.exit(asyncio.run(main()))
+# UNDER A GUARD so the holds above can be exercised one at a time while they are
+# being written. Importing this file used to run the whole rule and then exit
+# the interpreter, which meant the only way to try a single hold was to run all
+# thirty-four against the live design host.
+if __name__ == "__main__":
+    sys.exit(asyncio.run(main()))

@@ -86,6 +86,7 @@ import {
   setLimits,
 } from "../lib/relay";
 import { installRelayRecovery } from "./relay-recovery";
+import { installUpdateDiscipline } from "./worker-registration";
 import { readCursor, subscribeToEvents } from "../lib/relay-events";
 import { ConnectionMark, ConnectionNotice } from "./connection-notice";
 import { Frame } from "./frame";
@@ -360,6 +361,15 @@ installRelay();
 // history instance the scroll restoration does, so it inherits that step's own
 // ordering constraint.
 installRelayRecovery();
+// THE UPDATE DISCIPLINE, LAST AND OUTSIDE EVERYTHING ELSE. It answers « is the
+// build under this page still the build the host serves? », which no other step
+// asks and which none of them depends on — so it goes at the end, where a
+// failure to reach the host cannot take a single one of them with it.
+//
+// It does NOT register the worker. The envelope's inline script does, because
+// the sign-in gate borrows that block and is the only document a phone reaches
+// before signing in; a gate with no bundle must still be installable.
+installUpdateDiscipline();
 // Published for the harness beside the other seams, for the reason the query
 // cache is: a rule that has to reach inside a module to ask what the connection
 // is doing is a rule coupled to how the module is built.

@@ -103,6 +103,7 @@ BOOT_STEPS = (
     (r"^installLiveUpdates\(queryClient\);", "installLiveUpdates(queryClient)"),
     (r"^installRelay\(\);", "installRelay()"),
     (r"^installRelayRecovery\(\);", "installRelayRecovery()"),
+    (r"^installUpdateDiscipline\(\);", "installUpdateDiscipline()"),
 )
 
 

@@ -69,10 +69,11 @@ from host_identity import with_served_identity  # noqa: E402 — the path line a
 
 # What makes the served page installable — its own subject, its own file.
 from installable import (  # noqa: E402 — the path line above must run first
-    WORKER,
+    build_identity,
     manifest,
     offline_page,
     pwa_head,
+    worker,
 )
 
 
@@ -632,7 +633,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
                             "application/manifest+json")
             return
         if path_ == "/sw.js":
-            self._send(200, WORKER, content_type="text/javascript")
+            # Through `_send_page`, like the manifest and the offline notice:
+            # the build can be absent or broken, and a host that answered an
+            # empty worker there would install a worker that caches nothing and
+            # say nothing about it. The named build error is the honest answer.
+            self._send_page(200, lambda: worker(DESIGN_ROOT),
+                            "text/javascript")
+            return
+        # WHAT BUILD IS BEING SERVED — the update discipline's one question. It
+        # sits outside `/api/` deliberately: the mock layer replaces the page's
+        # `fetch`, so a poll under `/api/` would be answered by a fixture and
+        # could never fail. Outside the session like the manifest, because the
+        # worker asks for it before anyone has signed in.
+        if path_ == "/build.json":
+            self._send_page(200, lambda: build_identity(DESIGN_ROOT),
+                            "application/json")
             return
         # Outside the session, like the manifest: the worker caches this page at
         # install time, and that install happens before anyone has signed in.

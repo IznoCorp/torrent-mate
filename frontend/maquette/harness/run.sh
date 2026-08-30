@@ -270,6 +270,12 @@ cp "$DESIGN/dist/index.html" "$SERVED/wrapped.html"
 rm -rf "$SERVED/vite"
 [ -d "$DESIGN/dist/vite" ] && cp -R "$DESIGN/dist/vite" "$SERVED/vite"
 ln -sfn "$DESIGN/assets" "$SERVED/assets"
+# THE WORKER AND THE BUILD'S IDENTITY (L11). Without these two the harness host
+# has no `/sw.js` at all: its fallback handler folds any unknown path onto the
+# document, so registration would receive an HTML body, refuse it on the MIME
+# type, and P7 would be measuring a page with no worker while reporting nothing.
+cp "$DESIGN/dist/sw.js" "$SERVED/sw.js"
+cp "$DESIGN/dist/build.json" "$SERVED/build.json"
 
 # WHICH BUILD IS NOW IN THE COPY. Written after the copy and never before: a
 # stamp naming a build that is still being copied would be the very false

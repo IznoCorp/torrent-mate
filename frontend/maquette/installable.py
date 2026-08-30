@@ -72,29 +72,56 @@ MANIFEST = """{
 }
 """
 
-# Installability asks two things of a worker: that it handle fetches, and that
-# a navigation still get an answer with the network gone. An empty handler
-# satisfies the first and fails the second, so the prompt never came.
+# THE WORKER IS BUILT, NOT WRITTEN HERE (L11). It used to be a literal in this
+# file caching exactly one page — the offline notice — and never the prototype,
+# because a caching worker would have served yesterday's copy to someone judging
+# today's design. That decision is gone, and the failure it named is gone with
+# it rather than merely tolerated: a navigation goes to the NETWORK first and
+# falls back to the cache, so a reachable host always serves what it has now.
 #
-# The answer is NETWORK-FIRST, with one cached page as the only fallback, and
-# the prototype itself never cached. A caching worker would serve yesterday's
-# prototype to someone judging today's design — the exact failure a design
-# reference cannot afford. Being offline says so instead of lying quietly.
-WORKER = b"""const CACHE = "tm-design-offline";
-const OFFLINE = "/offline.html";
+# The source is `design/sw.js` and the build writes `design/dist/sw.js`,
+# substituting the bundle names it actually emitted. They carry content hashes,
+# so a list restated here would be wrong the moment anything changed — and wrong
+# in the silent direction, precaching a file that no longer exists while the one
+# that does goes uncached. Same reason `pwa_head` extracts rather than restates.
 
-self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.add(OFFLINE)));
-  self.skipWaiting();
-});
-self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
-self.addEventListener("fetch", (e) => {
-  if (e.request.mode !== "navigate") return;
-  e.respondWith(
-    fetch(e.request).catch(() => caches.match(OFFLINE))
-  );
-});
-"""
+
+def worker(design_root: Path) -> bytes:
+    """Returns the built service worker.
+
+    Args:
+        design_root: The design root, whose `dist/sw.js` the build wrote.
+
+    Returns:
+        The worker's bytes.
+
+    Raises:
+        FileNotFoundError: When the build has not run. It is NEVER answered
+            with an empty body or a stub: a worker that installs and caches
+            nothing is indistinguishable from a working one until the network
+            goes, which is the only moment anybody would find out.
+    """
+    return (design_root / "dist" / "sw.js").read_bytes()
+
+
+def build_identity(design_root: Path) -> bytes:
+    """Returns the identity of the build now in `dist/`.
+
+    WHY IT IS NOT UNDER `/api/`. The mock layer replaces `globalThis.fetch`, so
+    anything the page asks for under `/api/` is answered by a fixture and never
+    reaches this host — a freshness poll there could not fail, whatever the
+    server did. The endpoint is `/build.json` for that reason and no other.
+
+    Args:
+        design_root: The design root, whose `dist/build.json` the build wrote.
+
+    Returns:
+        The identity's bytes.
+
+    Raises:
+        FileNotFoundError: When the build has not run.
+    """
+    return (design_root / "dist" / "build.json").read_bytes()
 
 
 def manifest(texts: Callable[[], dict]) -> bytes:
