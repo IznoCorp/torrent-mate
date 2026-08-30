@@ -403,7 +403,7 @@ enforced by `scripts/check-no-french.py` (fifteen arms, in `make check` and in C
   language it comes from. **Adding a word is one line, and that is the point**: a French word
   can only enter by someone typing it into a file under review.
 - **A vocabulary SEEDED from the codebase certifies the status quo.** The first version of
-  that file was, so the twenty-five French words that twenty-nine names in
+  that file was, so the twenty-four French words that twenty-nine names in
   `design/src/engine/legacy.js` still needed came in with the rest and the gate went green
   over them — the exact failure the arm was written to end. They live below a banner in the
   file now, named as French on purpose, and `check_french_debt` refuses them to every file

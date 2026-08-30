@@ -15,13 +15,13 @@ plan does not say.
 
 1. `CLAUDE.md` — the repository's rules. They outrank everything here, this brief included.
 2. `docs/reference/frontend-architecture.md` — **BINDING**: § 0 (selection), § 2 (D1 to D11), § 3
-   (the ten invariants), **§ 4's L15 entry — your contract**, § 5 (method and gates), § 6 (the traps
+   (the fifteen invariants), **§ 4's L15 entry — your contract**, § 5 (method and gates), § 6 (the traps
    that cross lots), § 7.1 (how to amend).
 3. **`docs/features/maquette-l10-ter/MODEL.md`** — the frame in thirteen parts. **Parts 5, 6, 7 and
    9 are yours.** Each says what it is, where it lives under invariant 10, what it owns, what it
    must not know, and today → target.
-4. **`docs/features/maquette-l10-ter/SURVEY.md` § 1.2** — who owns each node of the frame today, and
-   the command that re-derives it.
+4. **`docs/features/maquette-l10-ter/SURVEY.md`** — § 1.1 the inventory command your « Done when »
+   re-runs, § 1.2 the nineteen sites by surface, § 2 every node of the frame and who owns it today.
 5. `docs/reference/product-intent.md` — the constitution. §8 (nothing in silence) and §20 (the
    tunnel per media) bear on the chrome; every web pull request cites the §§ it serves.
 6. `docs/reference/product-intent-map.md` — the 23 clauses, their surface and their verdict. **You
@@ -68,12 +68,15 @@ point: **facts cross the seam, markup stays the component's.**
 Reaching into the engine to move the ladder early would make L15 a subtraction wave as well as a
 conversion wave, which is exactly the mix § 5 refuses.
 
-### 3. Four files are at the ceiling and you may not extend them
+### 3. Six files are at the ceiling and you may not extend them
 
-`check-frontend-boundaries.py --arm size` names them. **L14 owes their reduction and runs after
-you.** A conversion that grows a grandfathered file turns a promise into a bigger promise.
+`check-frontend-boundaries.py --arm size` names six, and they are two debts, not one. L14's four
+surfaces — `features/acquisition/page.tsx`, `features/library/page.tsx`,
+`features/media/media-screen.tsx`, `features/arrivals/resolution-screen.tsx` — **L14 owes their
+reduction and runs after you.** The engine's two — `engine/legacy.js`, `engine/states.js` — L13
+removes, and you touch them only by subtraction (D5). A conversion that grows a grandfathered file turns a promise into a bigger promise.
 
-If a part of the frame has nowhere to go without extending one of the four, that is a finding for
+If a part of the frame has nowhere to go without extending one of the six, that is a finding for
 the register and a note for L14 — not a line added.
 
 ### 4. B-142's instrument is the deliverable, not the errand
@@ -85,7 +88,7 @@ clause naming no surface**, and it goes in the contracts tier.
 Two traps, both already paid for in this repository and both written in `MODEL.md`:
 
 - **Seeding the mapping from what exists today certifies the status quo.** The vocabulary file did
-  exactly that and let twenty-five French words in with the rest.
+  exactly that and let twenty-four French words in with the rest.
 - **A clause with no surface must be REFUSED with its reason readable**, not counted in a printed
   figure nobody compares. A number that is printed and not read is how a control drifted by seven
   inside the pull request that introduced it.
@@ -163,7 +166,7 @@ commit message; it took another wave to recover them.
 
 ## One last thing
 
-Every lot after you depends on this one. L11 caches the chrome — it must be the product's before it
+Every lot after you but L14 depends on this one. L11 caches the chrome — it must be the product's before it
 is cached. L12 animates between layers — they must be components before they can be animated. L19
 moves the producers into features — they need a host that is not the engine.
 
