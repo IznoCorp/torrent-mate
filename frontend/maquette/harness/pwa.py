@@ -79,6 +79,16 @@ async def offline_shell(browser):
         is_mobile=True, has_touch=True)
     page = await context.new_page()
 
+    # THE BROWSER'S OWN HTTP CACHE IS TURNED OFF, and this is the hold's whole
+    # validity. Found by mutation: with the document deliberately left OUT of
+    # the worker's precache, this rule reported no violation — the page had
+    # been loaded twice, so Chrome's disk cache answered the reload after the
+    # server was gone, and « the shell opened offline » was true of the wrong
+    # cache. An instrument that cannot tell which cache answered is measuring
+    # the browser, not the worker.
+    session = await context.new_cdp_session(page)
+    await session.send("Network.setCacheDisabled", {"cacheDisabled": True})
+
     with start_server(SERVED) as port:
         origin = f"http://127.0.0.1:{port}"
         await page.goto(f"{origin}/", wait_until="load")
@@ -133,6 +143,20 @@ async def offline_shell(browser):
             await context.close()
             return executed, failures
 
+        executed += 1
+        # THE DOCUMENT, HELD UNDER ITS OWN KEY, and held DIRECTLY rather than
+        # inferred from the reload below succeeding. Found by mutation: with the
+        # document deliberately dropped from the precache, the page still opened
+        # offline and this rule still passed — because on the harness host
+        # `/offline.html` has no file behind it and the fallback handler folds
+        # it onto the document, so the worker's LAST-RESORT entry is a full copy
+        # of the prototype. The consequence held while the mechanism was gone,
+        # which is the difference between a rule and a coincidence.
+        if "/" not in held:
+            failures.append(f"R105 the shell holds no document: {held[:6]}")
+            await context.close()
+            return executed, failures
+
     # THE SERVER IS GONE from here. Any answer the page now gets came from the
     # worker's cache and from nowhere else.
     executed += 1
@@ -153,7 +177,35 @@ async def offline_shell(browser):
         await context.close()
         return executed, failures
 
-    await page.reload(wait_until="load")
+    executed += 1
+    # A FAILED NAVIGATION IS A FINDING, NOT A CRASH. Found by mutation: with the
+    # cache fallback removed from the worker, `page.reload` raised
+    # `net::ERR_FAILED` and this rule died with a traceback. The suite counts
+    # that as a failure either way, but a rule that cannot say WHICH defect it
+    # found sends its reader to a stack trace instead of to the worker.
+    try:
+        await page.reload(wait_until="load")
+    except Exception as refused:
+        failures.append(
+            f"R105 the shell did not open offline — the navigation failed: "
+            f"{str(refused).splitlines()[0][:80]}")
+        await context.close()
+        return executed, failures
+
+    executed += 1
+    # AND IT WAS THE WORKER THAT ANSWERED IT. `workerStart` is set only when a
+    # service worker intercepted the navigation, so this separates « something
+    # answered » from « the thing this lot built answered » — the second reader
+    # the mutation above proved was needed.
+    from_worker = await page.evaluate(
+        """()=>{const n=performance.getEntriesByType("navigation")[0];
+             return n ? n.workerStart > 0 : false;}""")
+    if not from_worker:
+        failures.append(
+            "R105 the document offline came from something other than the worker")
+        await context.close()
+        return executed, failures
+
     executed += 1
     # THE DOCUMENT CAME BACK AT ALL. A failed navigation leaves the browser's
     # own error page, which has no `#view` and no state driver.
