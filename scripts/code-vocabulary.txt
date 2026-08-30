@@ -651,6 +651,7 @@ outgoing
 overflow
 overlay
 overview
+owed
 own
 owned
 owns
