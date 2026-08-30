@@ -19,6 +19,8 @@ import { BottomSlot } from "./bottom-slot";
 import { NavigationDrawer } from "./drawer";
 import { installAppearance } from "./appearance";
 import { installLayerRegistry } from "./layer-registry";
+import { DialogLayer } from "./dialog-layer";
+import { installDialogHost } from "./dialog-host";
 import { MessageLayer } from "./message-layer";
 import { installMessagePresence } from "./message-presence";
 import { installToastHost } from "./toast-host";
@@ -36,6 +38,7 @@ import { TabBar } from "./tab-bar";
 installMessagePresence();
 installToastHost();
 installLayerRegistry();
+installDialogHost();
 installAppearance();
 
 export function Frame(): ReactElement {
@@ -45,6 +48,7 @@ export function Frame(): ReactElement {
       <BottomSlot />
       <TabBar />
       <NavigationDrawer />
+      <DialogLayer />
       <MessageLayer />
     </>
   );

@@ -233,3 +233,83 @@ export const drawerIdentityPrimary = cva("vv text-7 font-bold mt-1");
 export const drawerIdentitySecondary = cva(
   "vc [font-family:ui-monospace,Menlo,monospace] text-2 text-muted-foreground mt-1",
 );
+
+/* ── The confirmation dialog ─────────────────────────────────────────
+   Its rules were `styles/legacy.css`'s because the engine wrote its markup:
+   the box, the two typographic rules, the action row, the three button tones,
+   the simulation notice, the manifest and the warning. They are here now.
+
+   THE RANK IS PART OF THE MOVE AND IS NOT CHANGED HERE. `z-48` is what it was,
+   under the tab bar's `z-50` — which is B-237, and B-237 lands in a commit of
+   its own with a rule that hit-tests rather than reads a number. */
+export const dialog = cva(
+  "dlg absolute left-[16px] right-[16px] top-1/2 z-[48] bg-popover "
+    + "border border-border rounded-4 p-7 [box-shadow:var(--mq-shadow-dlg)] "
+    + "transition-[opacity,transform] duration-200 ease-standard",
+  {
+    variants: {
+      open: {
+        true: "open opacity-100 visible [transform:translateY(-50%)_scale(1)]",
+        false: "opacity-0 invisible [transform:translateY(-50%)_scale(0.96)]",
+      },
+    },
+    defaultVariants: { open: false },
+  },
+);
+
+export const dialogHeading = cva("mt-0 mx-0 mb-4 text-5 font-bold");
+
+export const dialogParagraph = cva("mt-0 mx-0 mb-5 text-3 leading-[1.45]");
+
+export const dialogDryRun = cva(
+  "dryrun flex items-center gap-3 text-2 font-semibold text-info "
+    + "[border:1px_solid_color-mix(in_oklab,var(--color-info)_40%,transparent)] "
+    + "rounded-2 py-4 px-5 mb-5",
+);
+
+export const dialogDryRunDrawing = cva("w-[14px] h-[14px] flex-none");
+
+export const dialogManifest = cva(
+  "manifest list-none mt-0 mx-0 mb-5 p-0 text-3",
+);
+
+export const dialogManifestEntry = cva(
+  "flex gap-4 py-2 px-0 border-b border-border text-muted-foreground last:border-b-0",
+);
+
+export const dialogManifestValue = cva(
+  "text-foreground font-semibold ml-auto whitespace-nowrap",
+);
+
+export const dialogWarning = cva(
+  "warnbox "
+    + "[border:1px_solid_color-mix(in_oklab,var(--color-warning)_45%,transparent)] "
+    + "[background:color-mix(in_oklab,var(--color-warning)_8%,transparent)] "
+    + "rounded-2 py-4 px-5 text-3 leading-[1.45] mb-5 [&_b]:text-warning",
+);
+
+export const dialogActions = cva("dlgacts flex flex-col gap-3");
+
+/* THE UNION OF TWO RESIDUE RULES, resolved the way the cascade resolved them.
+   `.dlgbtn` was declared twice in `styles/legacy.css`: once on its own and once
+   as the fifth name of the action-button system the engine emits. Both were
+   unlayered, so the LATER rule won property by property — which is why the
+   padding here is `py-5 px-6` and not the `p-5` the first rule asked for. A
+   variant carrying only one of the two would have rendered identically (the
+   residue wins over utilities) and disagreed with it, which is exactly the
+   drift R80 exists to catch, and did. */
+export const dialogButton = cva(
+  "dlgbtn flex items-center justify-center gap-4 w-full min-h-[44px] py-5 px-6 "
+    + "rounded-3 text-4 font-semibold text-center border border-border "
+    + "bg-transparent text-foreground",
+  {
+    variants: {
+      tone: {
+        danger: "danger bg-danger-fill border-danger-fill text-white",
+        ghost: "ghost text-muted-foreground border-transparent",
+        neutral: "",
+      },
+    },
+    defaultVariants: { tone: "neutral" },
+  },
+);

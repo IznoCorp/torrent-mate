@@ -189,8 +189,8 @@ async def main():
                       opened["drawer"] and opened["layer"] == "drawer",
                       f"layer={opened['layer']}")
         # THE RUNG IS ON THE LADDER, and it is asked for by name. Since L15 the
-        # drawer is a component and the back handler no longer tests
-        # `#drawer.classList.contains("open")` — it asks a REGISTRATION
+        # drawer is a component and the back handler no longer reads the
+        # drawer's style class at all — it asks a REGISTRATION
         # (`app/layer-registry.ts`). A rung that stopped registering is
         # invisible to every hold shaped like « Back closed what was open »:
         # the drawer would simply never be the thing Back reached, and the pop

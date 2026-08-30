@@ -96,6 +96,12 @@ INTERFACE_STATE_KEYS = {
     # of its own task and the answer must be right at that instant, whatever
     # React has painted.
     "drawerOpen",
+    # AND THE CONFIRMATION'S TWO (L15), for the same reason `panelOpen` and
+    # `panelDescriptor` are here: a layer's open state and the FACTS it is
+    # drawn from are what the interface is doing, not what a server said. The
+    # descriptor carries a heading, blocks and actions — a producer's own
+    # words about what it is about to do — and never a server's answer.
+    "dialogOpen", "dialogDescriptor",
     # The add screen's two: which kind is being searched for, and which provider
     # the « identify by id » block names. Both are what the operator has chosen
     # on screen, and neither is anything a server told us. They were on NEITHER

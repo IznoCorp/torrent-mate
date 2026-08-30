@@ -8765,11 +8765,9 @@ import { icons } from "../app/icons";
     // what `close(true)` means, the same contract this function has always
     // had for every layer it resets.
     panel.close(true);
-    // The scrim stays cleared HERE too: it is shared ground, raised by the
-    // drawer and the dialog on their own, and the line above only clears it
-    // for a sheet that was actually open.
-    setOpen(select("#scrim"), false);
-    setOpen(select("#dlg"), false);
+    // The scrim is DERIVED now, not written: `ui/sheet.tsx` raises it while any
+    // scrim-backed layer is open, so clearing the layers clears it.
+    window.__layers?.close("dialog");
     closeHarness();
   }
 
@@ -8846,28 +8844,17 @@ import { icons } from "../app/icons";
   function closeSheet(pop) {
     panel.close(pop);
   }
-  /* The dialog raises the SHARED scrim itself, on an element the shell renders
-     — which is why the shell's own panel verbs commit synchronously: a caller
-     closing the sheet and opening a dialog on the next line (`data-del`) would
-     otherwise have its scrim cleared a frame later, by a close that already
-     returned. */
-  function openDlg(html) {
-    const element = select("#dlg");
-    element.innerHTML = html;
-    /* A dialog has to NAME itself, and it cannot take that name from its
-       content the way a section does. Every dialog this function opens starts
-       with its own heading, so the name is read from it here — once, where the
-       markup arrives — rather than through an `aria-labelledby` id that each
-       template string would have to keep in step with the shell. */
-    const heading = element.querySelector("h1, h2, h3");
-    if (heading) element.setAttribute("aria-label", heading.textContent.trim());
-    else element.removeAttribute("aria-label");
-    setOpen(element, true);
-    setOpen(select("#scrim"), true);
-  }
+  /* THE CONFIRMATION IS NOT DRAWN HERE ANY MORE. `openDlg(html)` took an HTML
+     STRING — several hundred characters of template with the escaping done by
+     hand at every interpolation — wrote it into `#dlg`, then read the heading
+     back out of what it had just written so the layer could name itself. The
+     layer is `ui/dialog/index.tsx` and its verbs are `app/dialog-host.ts`'s,
+     behind a DESCRIPTOR of facts: a heading, blocks, and actions carrying the
+     `data-*` this file's own delegation still reads.
+
+     `closeDlg` stays a VERB the producers say. */
   function closeDlg() {
-    setOpen(select("#dlg"), false);
-    setOpen(select("#scrim"), false);
+    window.__dialog?.close();
   }
 
   /* Re-rendering a screen must NEVER send the operator back to the top:
@@ -10466,13 +10453,32 @@ import { icons } from "../app/icons";
       // its single settlement needs, so this close is the follow branches'.
       panel.close();
       if (result.owned) {
-        openDlg(`<h2>Remplacer « ${escapeHtml(result.t)} » ?</h2>
-          <p>Ce ${result.k === "Film" ? "film est déjà" : "média est déjà"} en médiathèque. L'acquisition <b>remplacera</b> la version en place par celle qui sera récupérée.</p>
-          <div class="dlgacts">
-            <button class="dlgbtn danger" data-part="dialog/button" data-tone="danger" data-confirmadd="${index}">Remplacer</button>
-            <button class="dlgbtn ghost" data-part="dialog/button" id="dlgcancel">Annuler</button>
-          </div>`);
-        document.querySelector("#dlgcancel").onclick = closeDlg;
+        window.__dialog?.open({
+          heading: `Remplacer « ${result.t} » ?`,
+          body: [
+            {
+              type: "paragraph",
+              runs: [
+                {
+                  text:
+                    "Ce " +
+                    (result.k === "Film" ? "film est déjà" : "média est déjà") +
+                    " en médiathèque. L'acquisition ",
+                },
+                { text: "remplacera", strong: true },
+                { text: " la version en place par celle qui sera récupérée." },
+              ],
+            },
+          ],
+          actions: [
+            {
+              text: "Remplacer",
+              tone: "danger",
+              target: { "data-confirmadd": String(index) },
+            },
+            { text: "Annuler", tone: "ghost", dismiss: true },
+          ],
+        });
         return;
       }
       // The screen stays open, re-rendered in place with the "added" chip
@@ -10593,52 +10599,104 @@ import { icons } from "../app/icons";
     const head = multi
       ? `Supprimer ${titles.length} médias ?`
       : `Supprimer « ${escapeHtml(titles[0])} » ?`;
-    openDlg(`
-    <h2>${head}</h2>
-    <div class="dryrun" data-part="dialog/dry-run">${svgIcon(icons.eye)}Simulation — rien ne sera supprimé tant que vous n'aurez pas validé que cette liste dit vrai.</div>
-    ${
-      multi
-        ? `<ul class="manifest" data-part="dialog/manifest">${titles
-            .slice(0, 4)
-            .map(
-              (slice) =>
-                `<li>${escapeHtml(slice)}<b>${inc(slice) ? inc(slice).o : 1} fichier${(inc(slice) ? inc(slice).o : 1) > 1 ? "s" : ""}</b></li>`,
-            )
-            .join(
-              "",
-            )}${titles.length > 4 ? `<li>et ${titles.length - 4} autre${titles.length - 4 > 1 ? "s" : ""}<b></b></li>` : ""}</ul>`
-        : ""
-    }
-    <p>Voici exactement ce qui serait supprimé :</p>
-    <ul class="manifest" data-part="dialog/manifest">
-      <li>Fichiers vidéo <b>${files} · ${size}</b></li>
-      <li>Métadonnées (NFO, affiches, fanart) <b>${files * 3} fichiers</b></li>
-      <li>Lignes de la médiathèque <b>${titles.length} item${multi ? "s" : ""}</b></li>
-      <li>Entrée Plex <b>${titles.length} · à vérifier</b></li>
-    </ul>
-    ${
-      followed.length > 0
-        ? `<div class="warnbox"><b>${followed.length === 1 ? `« ${escapeHtml(followed[0])} » est suivi.` : `${followed.length} de ces médias sont suivis.`}</b> Sans action de votre part, ces épisodes seront re-téléchargés à la prochaine recherche.</div>`
-        : ""
-    }
-    <div class="dlgacts">
-      ${
-        followed.length > 0
-          ? `<button class="dlgbtn danger" data-part="dialog/button" data-tone="danger" data-toast="Simulation terminée — 0 fichier touché. Le suivi aurait été arrêté.">Supprimer et arrêter le suivi</button>
-      <button class="dlgbtn" data-part="dialog/button" data-toast="Simulation terminée — 0 fichier touché. Le suivi aurait été conservé.">Supprimer, garder le suivi</button>`
-          : `<button class="dlgbtn danger" data-part="dialog/button" data-tone="danger" data-toast="Simulation terminée — 0 fichier touché.">Supprimer</button>`
-      }
-      <button class="dlgbtn ghost" data-part="dialog/button" id="dlgcancel">Annuler</button>
-    </div>`);
-    select("#dlgcancel").onclick = closeDlg;
-    select("#dlg")
-      .querySelectorAll("[data-toast]")
-      .forEach((querySelectorAll) =>
-        querySelectorAll.addEventListener("click", () => {
-          closeDlg();
-          actionDelete(titles);
-        }),
-      );
+    window.__dialog?.open({
+      heading: head,
+      body: [
+        {
+          type: "dryRun",
+          text:
+            "Simulation — rien ne sera supprimé tant que vous n'aurez pas " +
+            "validé que cette liste dit vrai.",
+        },
+        ...(multi
+          ? [
+              {
+                type: "manifest",
+                entries: [
+                  ...titles.slice(0, 4).map((title2) => ({
+                    text: title2,
+                    value: `${inc(title2) ? inc(title2).o : 1} fichier${(inc(title2) ? inc(title2).o : 1) > 1 ? "s" : ""}`,
+                  })),
+                  ...(titles.length > 4
+                    ? [
+                        {
+                          text: `et ${titles.length - 4} autre${titles.length - 4 > 1 ? "s" : ""}`,
+                          value: "",
+                        },
+                      ]
+                    : []),
+                ],
+              },
+            ]
+          : []),
+        {
+          type: "paragraph",
+          runs: [{ text: "Voici exactement ce qui serait supprimé :" }],
+        },
+        {
+          type: "manifest",
+          entries: [
+            { text: "Fichiers vidéo", value: `${files} · ${size}` },
+            {
+              text: "Métadonnées (NFO, affiches, fanart)",
+              value: `${files * 3} fichiers`,
+            },
+            {
+              text: "Lignes de la médiathèque",
+              value: `${titles.length} item${multi ? "s" : ""}`,
+            },
+            { text: "Entrée Plex", value: `${titles.length} · à vérifier` },
+          ],
+        },
+        ...(followed.length > 0
+          ? [
+              {
+                type: "warning",
+                strong:
+                  followed.length === 1
+                    ? `« ${followed[0]} » est suivi.`
+                    : `${followed.length} de ces médias sont suivis.`,
+                text:
+                  "Sans action de votre part, ces épisodes seront " +
+                  "re-téléchargés à la prochaine recherche.",
+              },
+            ]
+          : []),
+      ],
+      actions: [
+        ...(followed.length > 0
+          ? [
+              {
+                text: "Supprimer et arrêter le suivi",
+                tone: "danger",
+                target: {
+                  "data-toast":
+                    "Simulation terminée — 0 fichier touché. Le suivi aurait été arrêté.",
+                },
+                run: () => actionDelete(titles),
+              },
+              {
+                text: "Supprimer, garder le suivi",
+                target: {
+                  "data-toast":
+                    "Simulation terminée — 0 fichier touché. Le suivi aurait été conservé.",
+                },
+                run: () => actionDelete(titles),
+              },
+            ]
+          : [
+              {
+                text: "Supprimer",
+                tone: "danger",
+                target: {
+                  "data-toast": "Simulation terminée — 0 fichier touché.",
+                },
+                run: () => actionDelete(titles),
+              },
+            ]),
+        { text: "Annuler", tone: "ghost", dismiss: true },
+      ],
+    });
   }
 
   /* Screens and sheets */
@@ -33080,7 +33138,7 @@ Object.assign(window, {
   libRowHTML, factsListHTML, loadMoreSug, hideSignIn,
   hideStartup, masquerInstallation, sameValue, changeSetting,
   mountDeck, mountLoaders, mountSearch, fileName, normalisedKey,
-  recordPath, openAddSheet, openDeleteDialog, openDetailSheet, openDlg,
+  recordPath, openAddSheet, openDeleteDialog, openDetailSheet,
   openFollowSheet, openHarness, openJourneySheet, openPanel, openMoreSheet,
   openSheet, openSugSheet, openUserSheet,
   openActionMaintenance, openPopEp, openSetting, openSecret,

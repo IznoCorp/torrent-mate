@@ -53,118 +53,14 @@
    identity classes stay at the front of every variant: `drawer`, `open`, `dh`,
    `sect`, `grp`, `ver`, `vt`, `vv`, `vc`, `count`. */
 
-/* ── Confirmation dialog ─────────────────────────────────────────── */
-/* The dialog is written by the ENGINE — `dlgbtn`, `dlgacts`, `warnbox`,
-   `manifest` and `dryrun` appear in no component. */
-.dlg {
-  position: absolute;
-  left: 16px;
-  right: 16px;
-  top: 50%;
-  z-index: 48;
-  background: var(--color-popover);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-4);
-  padding: var(--spacing-7);
-  box-shadow: var(--mq-shadow-dlg);
-  transform: translateY(-50%) scale(0.96);
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity var(--duration-2) var(--ease-standard),
-    transform var(--duration-2) var(--ease-standard);
-}
-.dlg.open {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(-50%) scale(1);
-}
-.dlg h2 {
-  margin: 0 0 var(--spacing-4);
-  font-size: var(--text-5);
-  font-weight: 700;
-}
-.dlg p {
-  margin: 0 0 var(--spacing-5);
-  font-size: var(--text-3);
-  line-height: 1.45;
-  color: var(--color-muted-foreground);
-}
-.dryrun {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-3);
-  font-size: var(--text-2);
-  font-weight: 600;
-  color: var(--color-info);
-  border: 1px solid color-mix(in oklab, var(--color-info) 40%, transparent);
-  border-radius: var(--radius-2);
-  padding: var(--spacing-4) var(--spacing-5);
-  margin-bottom: var(--spacing-5);
-}
-.dryrun svg {
-  width: 14px;
-  height: 14px;
-  flex: 0 0 auto;
-}
-.manifest {
-  list-style: none;
-  margin: 0 0 var(--spacing-5);
-  padding: 0;
-  font-size: var(--text-3);
-}
-.manifest li {
-  display: flex;
-  gap: var(--spacing-4);
-  padding: var(--spacing-2) 0;
-  border-bottom: 1px solid var(--color-border);
-  color: var(--color-muted-foreground);
-}
-.manifest li:last-child {
-  border-bottom: 0;
-}
-.manifest b {
-  color: var(--color-foreground);
-  font-weight: 600;
-  margin-left: auto;
-  white-space: nowrap;
-}
-.warnbox {
-  border: 1px solid color-mix(in oklab, var(--color-warning) 45%, transparent);
-  background: color-mix(in oklab, var(--color-warning) 8%, transparent);
-  border-radius: var(--radius-2);
-  padding: var(--spacing-4) var(--spacing-5);
-  font-size: var(--text-3);
-  line-height: 1.45;
-  margin-bottom: var(--spacing-5);
-}
-.warnbox b {
-  color: var(--color-warning);
-}
-.dlgacts {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-3);
-}
-.dlgbtn {
-  width: 100%;
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-foreground);
-  font-size: var(--text-4);
-  font-weight: 600;
-  padding: var(--spacing-5);
-  border-radius: var(--radius-3);
-}
-.dlgbtn.danger {
-  background: var(--color-danger-fill);
-  border-color: var(--color-danger-fill);
-  color: var(--color-white);
-}
-.dlgbtn.ghost {
-  color: var(--color-muted-foreground);
-  border-color: transparent;
-}
+/* ── Confirmation dialog ───────────────────────────────────────── */
+/* NOTHING. The dialog is `ui/dialog/index.tsx` since L15, drawn from a
+   DESCRIPTOR rather than from an HTML string, and its 16 rules — the box, the
+   two typographic rules, the simulation notice, the manifest, the warning, the
+   action row and the three button tones — are utilities behind typed variants
+   in `ui/variants/frame.ts`. The identity classes stay at the front of each:
+   `dlg`, `open`, `dryrun`, `manifest`, `warnbox`, `dlgacts`, `dlgbtn`,
+   `danger`, `ghost`. */
 
 /* ── Screen layer ────────────────────────────────────────────────── */
 /* `.screen.open` is engine-toggled. */
@@ -2299,11 +2195,15 @@ margin: 0;
    `sact` never appeared in a scan for literal `class="…"` strings. The oracle
    found it as 8.9px — exactly what a button loses when its `min-height: 44px`
    goes. */
+/* `.dlgbtn` LEFT THIS LIST AT L15, with the dialog it belonged to. It was one
+   of five names sharing the action-button system; the other four are still the
+   engine's markup, and the dialog's button carries the whole of what this rule
+   gave it inside `dialogButton()` — the union of this rule and the one below
+   it, resolved the way the cascade resolved them. */
 .sact,
 .cfoot,
 .mediaadd,
-.btnprimary,
-.dlgbtn {
+.btnprimary {
   display: flex;
   align-items: center;
   justify-content: center;
