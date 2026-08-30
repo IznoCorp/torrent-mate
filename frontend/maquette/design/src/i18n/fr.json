@@ -788,5 +788,9 @@
     },
     "barLabel": "Navigation principale",
     "actionButtonLabel": "Ajouter un média"
+  },
+  "message": {
+    "undo": "Annuler",
+    "close": "Fermer"
   }
 }

@@ -1,0 +1,149 @@
+// THE FRAME'S OWN VARIANTS — the chrome, and what sits above the bar.
+//
+// They arrived with L15, when the tab bar, the action button, the selection
+// bar and the message stopped being markup the engine wrote into. Their
+// declarations are the ones `styles/legacy.css` and `index.html` carried, term
+// for term, and the oracle's `shell/bottom-bar`, `shell/action-button` and
+// `shell/toast` regions are what say so.
+//
+// A FILE OF THEIR OWN because `variants/layout.ts` reached invariant 6's
+// ceiling when they landed in it, and because they are one family: everything
+// here is drawn by `app/frame.tsx` or into the slot it offers.
+//
+// THE IDENTITY CLASS STAYS AT THE FRONT of every string — `bottombar`, `fab`,
+// `selbar`, `toast`, `show`, `ic`, `lb`, `navbadge`, `danger`. Rules select on
+// them and `app/bar-height.ts` finds the bar by one; a name removed here would
+// break a reader while the styling moved cleanly.
+import { cva } from "../cva";
+
+/* ── The tab bar ─────────────────────────────────────────────────────
+   The bottom bar was an empty `<nav>` the engine filled on every render, and
+   its styling was seven rules of `styles/legacy.css`. Both moved here with the
+   component (L15): the rules are the same declarations written as utilities,
+   term for term, and the oracle's `shell/bottom-bar` region is what says so.
+
+   THE IDENTITY CLASSES STAY AT THE FRONT — `bottombar`, `ic`, `lb`,
+   `navbadge`. `app/bar-height.ts` finds the bar by `.bottombar` (R84's one
+   publisher) and rules select the badge by `.navbadge`; a name removed here
+   would break a reader while the styling moved cleanly. */
+export const tabBar = cva(
+  "bottombar fixed inset-x-0 bottom-0 z-50 flex border-t border-border "
+    + "bg-sidebar pb-[env(safe-area-inset-bottom)] md:hidden",
+  {
+    variants: {
+      // SELECTION MODE HIDES THE BAR, and it is read from the store rather
+      // than from `html.selecting` — the class the engine used to toggle for
+      // this one rule. A mode is state, and state lives in one place (D-L15-3).
+      selecting: { true: "hidden", false: "" },
+    },
+    defaultVariants: { selecting: false },
+  },
+);
+
+export const tabBarButton = cva(
+  "flex min-h-[44px] min-w-0 flex-1 basis-0 flex-col items-center justify-center "
+    + "gap-2 py-4 text-3 [border:0] bg-transparent text-muted-foreground "
+    + "transition-[color] duration-150 ease-standard",
+  {
+    variants: { current: { true: "text-primary-text", false: "" } },
+    defaultVariants: { current: false },
+  },
+);
+
+/* The icon's box, and it is `position: relative` for ONE reason: the badge is a
+   CORNER SUPERSCRIPT on it, never a third flow child, which would make the tab
+   taller. */
+export const tabBarIcon = cva("ic relative inline-flex");
+
+export const tabBarIconDrawing = cva("w-[20px] h-[20px] flex-none");
+
+export const tabBarLabel = cva("lb overflow-hidden text-ellipsis whitespace-nowrap max-w-full");
+
+/* PRIMARY, not danger: red is reserved for the « ? » of an unavailable
+   counter. The outline is the sidebar's colour so the badge reads as lifted off
+   the bar rather than punched into it. */
+export const tabBarBadge = cva(
+  "navbadge absolute right-[-10px] top-[-6px] inline-flex h-[18px] min-w-[18px] "
+    + "items-center justify-center px-2 rounded-full bg-primary text-primary-foreground "
+    + "text-2 font-semibold leading-none [font-variant-numeric:tabular-nums] "
+    + "[box-shadow:var(--mq-shadow-badge)] [outline:2px_solid_var(--color-sidebar)]",
+);
+
+/* ── The action button ───────────────────────────────────────────────
+   Anchored to the frame's bottom-right corner, ABOVE the published bar height
+   and never at a distance to an edge. Its classes came verbatim from
+   `index.html`, where the button was static markup the engine toggled.
+
+   NAMED FOR ITS `data-part`, `shell/add-action`, because `actionButton` was
+   already taken in `ui/variants/controls.ts` by the panel's own full-width
+   button — two different things, and the barrel re-exports both. */
+export const addAction = cva(
+  "fab absolute right-[16px] bottom-[calc(var(--tm-bottom-bar-h,0px)+16px)] "
+    + "w-[52px] h-[52px] rounded-full [border:0] bg-primary text-primary-foreground "
+    + "grid place-items-center [box-shadow:var(--mq-shadow-fab)] z-30",
+);
+
+export const addActionDrawing = cva("w-[23px] h-[23px]");
+
+/* ── The bottom slot's first occupant: the library's selection bar ───
+   Its five rules came from `styles/legacy.css`, where they lived because the
+   engine created the node. It is `position: absolute` against the phone frame
+   and z-51 — ABOVE the tab bar, which is z-50, because it replaces it for the
+   duration of a selection. */
+export const selectionBar = cva(
+  "selbar absolute left-0 right-0 bottom-0 z-[51] flex items-center gap-5 "
+    + "pt-5 px-7 pb-[calc(env(safe-area-inset-bottom)+var(--spacing-5))] "
+    + "bg-popover border-t border-border",
+);
+
+export const selectionCaption = cva("n text-3 font-semibold");
+
+export const selectionAction = cva(
+  "border border-border bg-transparent text-foreground text-3 font-semibold "
+    + "py-4 px-6 rounded-3",
+  {
+    variants: {
+      tone: {
+        // `danger` is the identity class the residue used and rules select on.
+        danger: "danger bg-danger-fill border-danger-fill text-white ml-auto "
+          + "disabled:opacity-45",
+        neutral: "",
+      },
+    },
+    defaultVariants: { tone: "neutral" },
+  },
+);
+
+/* ── The message ─────────────────────────────────────────────────────
+   Its box came verbatim from `index.html`, where the element was static markup
+   the engine wrote into. `show` is the identity class the residue's one rule
+   used and rules still select; what it MEANT — opaque, visible, at rest — is
+   here now, so the residue keeps nothing. */
+export const messageHost = cva(
+  "toast absolute left-[14px] right-[14px] "
+    + "bottom-[calc(var(--tm-bottom-bar-h,0px)+16px)] z-[49] flex items-center gap-5 "
+    + "bg-popover border border-border rounded-3 py-5 px-6 text-3 "
+    + "[box-shadow:var(--mq-shadow-toast)] transition-[opacity,transform] "
+    + "duration-200 ease-standard",
+  {
+    variants: {
+      shown: {
+        true: "show opacity-100 visible [transform:none]",
+        false: "opacity-0 invisible [transform:translateY(14px)]",
+      },
+    },
+    defaultVariants: { shown: false },
+  },
+);
+
+export const messageClose = cva(
+  "ml-auto [border:0] bg-transparent text-muted-foreground w-[24px] h-[24px] "
+    + "grid place-items-center flex-none",
+);
+
+/* THE UNDO WAS AN INLINE STYLE inside an `innerHTML` string — the one write of
+   the nineteen a formatter could have hidden from the inventory command. Its
+   five declarations are here, and the control is a real child. */
+export const messageUndo = cva(
+  "[border:0] bg-transparent text-primary font-bold pt-0 pr-0 pb-0 pl-[10px]",
+);

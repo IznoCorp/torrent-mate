@@ -8725,47 +8725,24 @@ import { icons } from "../app/icons";
      is also dismissed from a capture-phase `pointerdown`, which wrote the class
      alone and left the state saying a message was up. It goes through here now,
      and R86 drives that path. */
-  function setMessageShown(on) {
-    const host = select("#toast");
-    host.classList.toggle("show", on);
-    host.toggleAttribute("data-shown", on);
-    /* PUBLISHED RATHER THAN ACTED ON. The action button reads this and decides
-       for itself whether it may be shown — it is anchored to the same corner
-       and the message paints over it. A flag written here and a second one
-       written beside the button is the arrangement that let the button come
-       back on a page that never had one.
+  /* THE MESSAGE IS NOT DRAWN HERE ANY MORE. `setMessageShown` toggled a class
+     and an attribute on static markup, and `toast`/`toastUndo` wrote
+     `#toastmsg` — one of them with `innerHTML`, to inject an undo control as a
+     string. The layer is `ui/toast.tsx` and its verbs are
+     `app/toast-host.ts`'s, behind a DESCRIPTOR: what happened, and what undoes
+     it. `app/panel-host.ts` is the precedent — facts cross, markup is the
+     component's.
 
-       NOT THROUGH THE STORE, and that is B-247. This runs from a capture-phase
-       `pointerdown` when the boot hint is dismissed, which is BETWEEN a real
-       finger's press and the `click` that follows — and a store write
-       re-renders every page, which replaces the pressed node on a surface that
-       does not keep its identity. The click is then never dispatched at all. */
-    window.__messagePresent?.(on);
-  }
-
+     THE THIRTY-FOUR CALLERS BELOW KEEP SAYING `toast(…)` and `toastUndo(…)`,
+     because they are PRODUCERS and a producer moves to its feature at L19.
+     These two lines die with them. */
   function toast(msg) {
-    select("#toastmsg").textContent = msg;
-    setMessageShown(true);
-    clearTimeout(toast._t);
-    toast._t = setTimeout(() => setMessageShown(false), 5000);
+    window.__toast?.show({ message: msg });
   }
-  select("#toastx").onclick = () => setMessageShown(false);
-
   /* An action triggered by a GESTURE must be undoable: a sliding thumb is
      wrong more often than a pressing finger. */
   function toastUndo(msg, undo) {
-    select("#toastmsg").innerHTML =
-      `${escapeHtml(msg)} <button id="toastundo" style="border:0;background:transparent;color:var(--color-primary);font-weight:700;padding:0 0 0 10px">Annuler</button>`;
-    setMessageShown(true);
-    clearTimeout(toast._t);
-    toast._t = setTimeout(() => setMessageShown(false), 6000);
-    const undoButton = select("#toastundo");
-    if (undoButton)
-      undoButton.onclick = (event) => {
-        event.stopPropagation();
-        setMessageShown(false);
-        undo();
-      };
+    window.__toast?.show({ message: msg, undo });
   }
 
   /* The panel layer belongs to the shell now (`window.__panel`, rendered by
@@ -33082,10 +33059,16 @@ import { icons } from "../app/icons";
            and the action button's visibility now reads whether a message is up.
            Left as it was, the first tap of a session cleared the hint visually
            and stranded the action button until the pending timer fired. */
-        if (select("#toast").textContent.includes("notes de conception")) {
-          clearTimeout(toast._t);
-          setMessageShown(false);
-        }
+        /* Asked of the layer rather than read off the document: what is on
+           screen is the message host's fact, and a `textContent` read of a
+           node the layer keeps rendered after it closes would answer yes about
+           a message that had already gone. */
+        const onScreen = window.__toast?.read();
+        if (
+          onScreen?.shown &&
+          onScreen.message?.message?.includes("notes de conception")
+        )
+          window.__toast.hide();
       },
       { capture: true },
     );

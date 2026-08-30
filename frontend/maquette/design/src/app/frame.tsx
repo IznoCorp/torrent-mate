@@ -16,7 +16,9 @@ import type { ReactElement } from "react";
 
 import { ActionButton } from "./action-button";
 import { BottomSlot } from "./bottom-slot";
+import { MessageLayer } from "./message-layer";
 import { installMessagePresence } from "./message-presence";
+import { installToastHost } from "./toast-host";
 import { TabBar } from "./tab-bar";
 
 /**
@@ -29,6 +31,7 @@ import { TabBar } from "./tab-bar";
 // writes anything: the engine imports through `app/shell.tsx`, and the shell
 // imports this file with the rest of the frame.
 installMessagePresence();
+installToastHost();
 
 export function Frame(): ReactElement {
   return (
@@ -36,6 +39,7 @@ export function Frame(): ReactElement {
       <ActionButton />
       <BottomSlot />
       <TabBar />
+      <MessageLayer />
     </>
   );
 }

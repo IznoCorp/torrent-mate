@@ -42,11 +42,9 @@
    they are the same. */
 
 /* ── Toast ───────────────────────────────────────────────────────── */
-.toast.show {
-  opacity: 1;
-  visibility: visible;
-  transform: none;
-}
+/* NOTHING. `.toast.show` was the last declaration this stylesheet held for the
+   message; the layer is `ui/toast.tsx` since L15 and says what `show` MEANT in
+   its own variant. The class name stays, as an identity anchor rules select. */
 
 /* ── Navigation drawer ───────────────────────────────────────────── */
 /* The drawer is an empty `<aside>` in the document; the engine writes its

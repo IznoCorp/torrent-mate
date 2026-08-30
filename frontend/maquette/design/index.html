@@ -460,45 +460,13 @@
          to be kept in step by every template string that opens one. -->
     <div class="dlg" id="dlg" data-part="dialog" role="dialog"
       aria-modal="true"></div>
-    <!-- ANNOUNCED, not merely shown. This is the interface's one
-         general-purpose « something happened » channel, and a screen reader
-         said nothing about any of it. `role="status"` is polite: it waits
-         for a pause rather than cutting across what is being read, which is
-         right for a message that is informative and never blocking.
-
-         THE REGION EXISTS BEFORE THE TEXT DOES, and that ordering is the
-         whole mechanism: a live region inserted together with its content
-         announces nothing. This element is in the document from the first
-         parse and the engine writes only `#toastmsg` inside it. -->
-    <div
-      class="toast absolute left-[14px] right-[14px]
-             bottom-[calc(var(--tm-bottom-bar-h,0px)+16px)] z-[49] flex items-center gap-5
-             bg-popover border border-border rounded-3 py-5 px-6 text-3
-             [box-shadow:var(--mq-shadow-toast)] [transform:translateY(14px)] opacity-0 invisible
-             transition-[opacity,transform] duration-200 ease-standard"
-      id="toast"
-      role="status"
-      aria-live="polite"
-    >
-      <span id="toastmsg"></span
-      ><button
-        class="ml-auto [border:0] bg-transparent text-muted-foreground w-[24px] h-[24px]
-               grid place-items-center flex-none"
-        id="toastx"
-        aria-label="Fermer"
-      >
-        <svg
-          class="w-[14px] h-[14px]"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-        >
-          <path d="M18 6 6 18M6 6l12 12" />
-        </svg>
-      </button>
-    </div>
+    <!-- The message is rendered by the shell (`src/ui/toast.tsx`), at these
+         same ids, into `#shell`. ANNOUNCED, not merely shown: it is the
+         interface's one general-purpose « something happened » channel, and
+         `role="status"` with `aria-live="polite"` waits for a pause rather
+         than cutting across what is being read. The region is in the tree from
+         the first render and never inserted with its content — a live region
+         inserted together with what it says announces nothing. -->
   </div>
 </div>
   </body>

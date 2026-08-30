@@ -18,6 +18,7 @@ import { cva } from "./cva";
 // rule (invariant 8) precisely because a shared vocabulary is meant to be
 // imported widely — and re-exporting keeps 200-odd call sites reading one
 // name each instead of hunting three files for it.
+export * from "./variants/frame";
 export * from "./variants/layout";
 export * from "./variants/controls";
 export * from "./variants/surfaces";

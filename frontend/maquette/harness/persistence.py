@@ -168,6 +168,65 @@ async def main():
             kept["inBar"] and kept["page"] == focused and not kept["body"],
             f"active element: {kept}")
 
+        # (d-bis) THE MESSAGE'S LIVE REGION IS THE SAME NODE THROUGHOUT, and
+        # that is the mechanism rather than tidiness. `role="status"` announces
+        # what appears INSIDE a region already in the document; a live region
+        # inserted together with its content announces nothing at all. The
+        # engine's markup was in `index.html` from the first parse for exactly
+        # that reason, and only `#toastmsg` was ever written — a component that
+        # mounted the region with its first message would look identical and
+        # say nothing to a screen reader.
+        # ON A FRESH DOCUMENT, because that is the only place the question can
+        # be asked. This page has been open for the whole walk above and the
+        # boot hint has come and gone — and the layer keeps a message's text
+        # after it closes, deliberately, so the words do not vanish mid-exit.
+        # « The region was there before any text » is a fact about the first
+        # frames and about nothing else.
+        first = await browser.new_context()
+        first_page = await first.new_page()
+        await first_page.goto(PROTOTYPE, wait_until="load")
+        empty = await first_page.evaluate("""()=>{
+          const host = document.querySelector('#toast');
+          return {present: !!host,
+                  text: (document.querySelector('#toastmsg')||{}).textContent ?? null,
+                  live: host && host.getAttribute('aria-live'),
+                  role: host && host.getAttribute('role')};}""")
+        await first.close()
+        journal.check(
+            "the message's live region is in the document before any text is",
+            empty["present"] and empty["live"] == "polite"
+            and empty["role"] == "status" and not empty["text"],
+            f"region {empty['present']}, role {empty['role']!r}, "
+            f"aria-live {empty['live']!r}, text {empty['text']!r}")
+        await page.evaluate(
+            "()=>{window.__messageProbe = document.querySelector('#toast');}")
+        await page.evaluate("()=>window.__toast.show({message: 'probe'})")
+        await page.wait_for_timeout(200)
+        spoken = await page.evaluate("""()=>{
+          const host = document.querySelector('#toast');
+          return {same: window.__messageProbe.isSameNode(host),
+                  shown: host.hasAttribute('data-shown'),
+                  text: (document.querySelector('#toastmsg')||{}).textContent ?? null};}""")
+        journal.check(
+            "a message appears inside it without the region being replaced",
+            spoken["same"] and spoken["shown"] and "probe" in (spoken["text"] or ""),
+            f"same node: {spoken['same']}, shown: {spoken['shown']}, "
+            f"text {spoken['text']!r}")
+        await page.evaluate(
+            "()=>window.__toast.show({message: 'undoable', undo: () => {}})")
+        await page.wait_for_timeout(200)
+        undo = await page.evaluate("""()=>{
+          const control = document.querySelector('#toastundo');
+          return {present: !!control, tag: control && control.tagName,
+                  same: window.__messageProbe.isSameNode(
+                    document.querySelector('#toast'))};}""")
+        journal.check(
+            "the undo is a real control, in the same region",
+            undo["present"] and undo["tag"] == "BUTTON" and undo["same"],
+            str(undo))
+        await page.evaluate("()=>window.__toast.hide()")
+        await page.wait_for_timeout(200)
+
         # (e) THE POSITIVE CONTROL FOR (a), and it comes LAST because it
         # destroys the document every hold above measures. One real navigation:
         # the sentinel must be gone and the counter must have moved. Without it
