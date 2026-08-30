@@ -230,6 +230,33 @@ else
   label="full suite (${#scripts[@]} rules)"
 fi
 
+# THE SERVED COPY IS TAKEN BEFORE IT IS REBUILT (B-256). Until this line, two
+# sessions could each rebuild `$SERVED` while the other was reading it, and on
+# 2026-08-30 two rules fell over a build they were never started against. The
+# dangerous direction is the other one: a rule PASSES over the wrong prototype
+# just as silently. The lock refuses the second builder; the stamp written after
+# the copy is what catches a reader the lock cannot cover.
+#
+# The trap releases it whatever happens — an interrupt included. `$LOGS` does
+# not exist yet, and `cleanup` is written so that removing something absent is
+# not an error rather than so that two traps have to stay in step.
+cleanup() {
+  python3 "$HERE/served_copy.py" --release "$$"
+  [ -n "${LOGS:-}" ] && rm -rf "$LOGS"
+  return 0
+}
+# ACQUIRE FIRST, THEN ARM THE TRAP, and the order is the whole correctness of
+# it: armed first, a REFUSED acquisition would exit through `cleanup` and hand
+# away the lock of the session that is legitimately holding the copy. The
+# release also refuses to give back a lock recording another pid, so this is
+# belt and braces on a mistake that would be invisible.
+#
+# The pid the lock records is THIS SHELL's, never the helper's — the helper
+# exits a millisecond later, and a lock recording a dead process is a lock the
+# staleness check would break under a suite that is still running.
+python3 "$HERE/served_copy.py" --acquire "${label}" "$$"
+trap cleanup EXIT
+
 echo "Building the prototype — a stale copy measures the previous build…"
 (cd "$DESIGN" && npm run build >/dev/null)
 mkdir -p "$SERVED"
@@ -237,6 +264,12 @@ cp "$DESIGN/dist/index.html" "$SERVED/wrapped.html"
 rm -rf "$SERVED/vite"
 [ -d "$DESIGN/dist/vite" ] && cp -R "$DESIGN/dist/vite" "$SERVED/vite"
 ln -sfn "$DESIGN/assets" "$SERVED/assets"
+
+# WHICH BUILD IS NOW IN THE COPY. Written after the copy and never before: a
+# stamp naming a build that is still being copied would be the very false
+# reading this is here to end.
+python3 "$HERE/served_copy.py" --stamp >/dev/null
+STAMP_TOKEN="$(python3 "$HERE/served_copy.py" --token)"
 
 # The harness reads http://127.0.0.1:8899/ — `server.py --serve`, rooted on that
 # copy. Never `serve.py`, which is the password-protected design host on 8712:
@@ -276,7 +309,6 @@ fi
 # in the rule order — never the order they happened to finish. A report whose
 # order depends on scheduling cannot be diffed against the previous one.
 LOGS="$(mktemp -d)"
-trap 'rm -rf "$LOGS"' EXIT
 
 failed=0
 # The `--oracle` and `--a11y` tiers run no rule script, and an empty array is
@@ -293,13 +325,29 @@ else
   # this script runs under. The rule name arrives as `$1` — `$0` is the `_`
   # placeholder `bash -c` consumes — and the two paths through the environment.
   printf '%s\n' "${scripts[@]}" \
-    | HARNESS_DIR="$HERE" HARNESS_LOGS="$LOGS" xargs -P "$JOBS" -n 1 bash -c '
+    | HARNESS_DIR="$HERE" HARNESS_LOGS="$LOGS" STAMP_TOKEN="$STAMP_TOKEN" \
+      xargs -P "$JOBS" -n 1 bash -c '
         rule="$1"
         # No `else`: the `if` exits 0 whichever way the rule went, so a fallen
         # rule does not abort `xargs` and take the rules after it with it.
         # Absence of the `.ok` marker IS the failure, read back below.
         if python3 "$HARNESS_DIR/$rule" > "$HARNESS_LOGS/$rule.out" 2>&1; then
           : > "$HARNESS_LOGS/$rule.ok"
+        fi
+        # THE STAMP, AROUND EVERY RULE (B-256). This reading is what covers the
+        # twelve rules that import nothing from `common.py` — `audit2.py`, the
+        # rule that started the incident, among them. It runs whichever way the
+        # rule went: a rule that PASSED over a swapped copy is the case that
+        # matters, and it is the one a verdict-shaped check would skip.
+        after="$(python3 "$HARNESS_DIR/served_copy.py" --token)"
+        if [ "$after" != "$STAMP_TOKEN" ]; then
+          {
+            echo "SERVED COPY REPLACED MID-RUN — B-256."
+            echo "  started against: $STAMP_TOKEN"
+            echo "  now serving:     ${after:-no stamp at all}"
+            echo "  This reading spans two builds and means nothing either way."
+          } >> "$HARNESS_LOGS/$rule.out"
+          rm -f "$HARNESS_LOGS/$rule.ok"
         fi
       ' _
 

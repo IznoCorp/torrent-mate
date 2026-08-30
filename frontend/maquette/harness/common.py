@@ -20,9 +20,26 @@ transcribes, and a transcription drifts.
 import pathlib
 import re
 
+import served_copy
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 PROTOTYPE = "http://127.0.0.1:8899/"
 BAR = "─" * 62
+
+# WHICH BUILD THIS RULE STARTED AGAINST (B-256). Read once, at import, because
+# that is the earliest moment a rule can be said to have begun — a token taken
+# later would already have missed a swap that happened while Playwright was
+# starting, which is a second of every run.
+#
+# IT IS READ HERE AND CHECKED IN TWO PLACES: `open_page`, which is where a rule
+# first touches the served copy, and `Journal.summary`, which is where it stops.
+# Neither covers everything and that is stated rather than implied — 45 rules
+# open through `open_page`, 53 end through `Journal`, 63 import this file at
+# all, and 75 exist. The twelve that import nothing from here are covered by
+# `run.sh`, which reads the stamp around every rule it launches. This half
+# exists for the OTHER case: a rule run by hand from an editor, which `run.sh`
+# never sees, and which is how most of them are run while being written.
+STARTED_AGAINST = served_copy.token()
 
 # Beside THIS FILE, never in the current directory — the same reason `audit.py`
 # anchors `violations.json`, learned a second time and more expensively.
@@ -344,6 +361,10 @@ class Journal:
             errors: JS errors collected from the page, which are failures even
                 when every rule passed.
         """
+        # BEFORE the verdict is printed, never after: a suite that spanned two
+        # builds has no verdict to print, and printing one first is exactly the
+        # false reading B-256 is about.
+        served_copy.assert_unchanged(STARTED_AGAINST, f"finishing {self.title}")
         print()
         print(f"{BAR}\n{self.executed} rules EXECUTED — "
               + ("no violation" if not self.failures
@@ -370,6 +391,7 @@ async def open_page(browser, **kwargs):
     Returns:
         The (context, page) pair, on a page that has dismissed the design note.
     """
+    served_copy.assert_unchanged(STARTED_AGAINST, "opening the prototype")
     ctx = await browser.new_context(**{**PHONE, **kwargs})
     pg = await ctx.new_page()
     await pg.goto(PROTOTYPE, wait_until="load")
