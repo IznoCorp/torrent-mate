@@ -4097,6 +4097,9 @@ by the answer, and by L15 if the answer is a surface.
 
 <sub>`grep -n "md:hidden" frontend/maquette/design/index.html` · `grep -rln "sidebar\|Sidebar" frontend/maquette/design/src/{app,features,ui,lib}` → none</sub>
 
+> **ANSWERED, 2026-08-30 (Q1): the drawer alone, at every width — and not frozen.** Not a defect: a
+> decision, taken; a rail is drawn only if real use asks for it. Closes with L15's drawer.
+
 **B-236 — every bottom-panel producer is the engine's, and no lot owed them.**
 `grep -c "panel\.open(" legacy.js` → **10**; the same grep over `design/src/{features,app,lib,ui}`
 → **0**. The sheet is React (`ui/sheet.tsx`, since SP4b) and its every CONTENT — the follow sheet,

@@ -18,7 +18,9 @@
 > dictée par l'opérateur le 2026-07-31 ;
 > **v4** — §11 « Tout média est consultable » + DOIT-11 + NE-DOIT-PAS-9, dictée par
 > l'opérateur le 2026-08-04 (feature media-sheet, DESIGN §4) ; NE-DOIT-PAS-9 ajusté
-> le 2026-08-04 pour exiger un chemin atteignable, pas un lien sur la vignette.
+> le 2026-08-04 pour exiger un chemin atteignable, pas un lien sur la vignette ;
+> **v5** — §17 complété (rôles, options, demandeur, SSO) et **§20** « Un tunnel par média »,
+> dictés par l'opérateur le 2026-08-30 en réponse aux questions de la phase L10-ter.
 > **Seul l'opérateur amende ce document.**
 
 ---
@@ -516,17 +518,50 @@ mot de passe pour consulter la médiathèque : il se connecte avec son compte Pl
    d'autorisation, jamais deux —, faute de quoi c'est **NE-DOIT-PAS-7**, un second mécanisme
    parallèle.
 
-### Ce que cela ne tranche pas, et qui reste à dicter
+### Ce que cela tranche (dicté le 2026-08-30)
 
-Écrit ici comme ouvert pour que personne ne les décide en chemin :
+Les quatre points laissés ouverts le 2026-08-26 sont tranchés ; ils restent écrits ici, avec leur
+réponse, pour que personne ne les redécide en chemin.
 
-- **Quels rôles, et leurs droits exacts.** L'application en connaît un aujourd'hui (lecture seule),
-  et « profils » suggère davantage.
-- **Le SSO Plex remplace-t-il l'authentification actuelle ou s'y ajoute-t-il ?** Le compte
-  opérateur d'aujourd'hui repose sur `WEB_PASSWORD_HASH` et une session signée.
-- **Ce qu'il advient d'un utilisateur Plex qui n'a aucun droit ici** : refusé à la porte, ou admis
-  avec le minimum.
-- **Ce qu'un compte Plex voit par défaut.** Consulter la médiathèque n'est pas piloter le pipeline.
+**Trois rôles, et deux options par compte.**
+
+| Rôle | Ce qu'il peut |
+| --- | --- |
+| **Opérateur** | tout — c'est l'administrateur, et il **contourne les ACL** : aucune restriction ne s'applique à lui. Il gère et modifie les demandes de tous les demandeurs, et peut **réaffecter** une demande à un autre utilisateur |
+| **Membre du foyer** | consulter la médiathèque (aucune modification) ; suivre et **proposer des acquisitions** ; **piloter le tunnel des acquisitions dont il est le demandeur**, lecture seule sur les autres ; **régler le profil de qualité** de ses propres acquisitions ; ni visualisation ni modification de la configuration |
+| **Invité Plex** | médiathèque en lecture seule ; demande d'acquisition ; pilotage du tunnel de ses propres demandes uniquement ; pas de configuration |
+
+Deux **options** indépendantes du rôle, réglées par l'Opérateur compte par compte : *voir les
+acquisitions dont on n'est pas le demandeur* (oui/non) et *régler le profil de qualité de ses
+propres acquisitions* (toujours oui pour le Membre ; à activer pour l'Invité).
+
+**Le demandeur.** Toute acquisition a un **demandeur**. Une nouvelle demande porte automatiquement
+l'utilisateur connecté ; les demandes existantes, qui n'en ont pas, sont attribuées au **compte
+propriétaire du serveur Plex** (Izno). Un tunnel (§20) appartient au média, et le média a un
+demandeur : c'est ce qui rend « piloter ses acquisitions » naturel.
+
+**« Régler le profil de qualité d'une acquisition »** signifie choisir, pour CETTE acquisition, le
+profil qui s'applique — une **surcharge propre à l'acquisition**, jamais l'édition du profil
+lui-même, qui est de la configuration et reste à l'Opérateur. La maquette offre déjà ce geste sur
+l'acquisition ; le backend devra le porter.
+
+**Le SSO Plex s'ajoute, il ne remplace pas.** Seuls les comptes Opérateur peuvent avoir un mot de
+passe sans SSO — la porte de secours quand Plex est injoignable. Un compte créé hors Plex porte un
+**e-mail obligatoire** ; s'il est celui d'un compte Plex, les deux sont **liés** et l'utilisateur se
+connecte par l'un ou l'autre.
+
+**Un utilisateur Plex sans aucun droit ici est admis en lecture seule**, médiathèque uniquement.
+
+**Ce qu'un compte voit par défaut.** On ne voit pas les acquisitions qu'on n'a pas demandées. Un
+compte qui ne peut ni demander ni voir les demandes des autres **ne voit pas la section
+Acquisition** — et c'est l'**exception nommée** de la règle 2 ci-dessus : cacher ne trompe pas sur
+l'état du système quand rien ne concerne ce compte. Le pipeline et la configuration, eux, restent
+visibles et expliqués comme réservés, jamais absents en silence.
+
+**Le rôle « lecture seule » de l'instance staging n'est plus un rôle : c'est un plafond
+d'instance.** Sur cette instance, tout compte est ramené à la lecture seule quel que soit son
+rôle. C'est ce que « absorbé, jamais à côté » veut dire concrètement — un seul chemin
+d'autorisation, avec un plafond, et non deux mécanismes.
 
 ### Ce que cela impose à la preuve
 
@@ -623,6 +658,47 @@ Contrairement au §18, **ce § demande du backend qui n'existe pas** : il n'y a 
 n'est pas une raison de dessiner moins — §15 dit que le backend suit l'interface — mais c'en est
 une de l'écrire ici, pour que la demande parte de ce que l'expérience exige et non de ce que le
 moteur expose déjà.
+
+## §20 — Un tunnel par média (dicté par l'opérateur, 2026-08-30)
+
+**Aujourd'hui le pipeline est un traitement par lots** : une exécution prend toutes les arrivées
+non traitées de qBittorrent, les ingère en staging, puis traite toute la staging. **À terme, il
+traite une arrivée à la fois** : une exécution s'accroche à **un** média et le suit — c'est son
+**tunnel** — jusqu'à son assimilation et la **validation de son match dans Plex** (§4).
+
+### Ce que cela pose
+
+1. **Plusieurs tunnels en parallèle**, bornés par une **variable de configuration** réglable : le
+   nombre de tunnels qui peuvent tourner en même temps. Un média qui arrive quand la borne est
+   atteinte **s'enfile visiblement** (§6) : jamais « occupé ».
+2. **Un tunnel bloqué n'est pas un processus qui attend.** Un blocage — un match à confirmer par
+   l'opérateur (§3), par exemple — **termine** l'exécution en **enregistrant son état** ; le tunnel
+   **reprend là où il s'est arrêté** une fois débloqué, par l'opérateur ou par un traitement
+   automatique selon la raison du blocage.
+3. **Le suivi du pipeline se fait par média, à travers le tunnel d'acquisition.** La carte d'une
+   acquisition dit où est ce média dans son parcours ; les Arrivées disent ce qui est bloqué et
+   pourquoi. Il n'y a plus **un** pipeline à regarder : la vision globale est celle des **leviers** —
+   la borne de parallélisme, pause et reprise de l'ensemble, relancer la veille — et de
+   l'**historique** des passages.
+4. **Le tunnel appartient au média, et le média a un demandeur** (§17) : piloter « ses »
+   acquisitions, c'est piloter leurs tunnels.
+
+### Ce que cela ne tranche pas, et qui reste à dicter
+
+- **Quelles raisons de blocage sont reprises automatiquement**, et lesquelles attendent un geste.
+- **Ce que fait un tunnel dont le média disparaît** (torrent supprimé, fichier absent) : clos avec
+  sa raison, ou en attente.
+- **La granularité d'une série** : un tunnel par épisode, par saison ou par release.
+
+### Ce que cela impose
+
+**Ceci est de la constitution et ne concerne pas la maquette** — c'est le moteur qui change, et ce
+travail vient **après** le gel de l'interface (§15). Mais cela **impacte la maquette** : une page
+« Pipeline » qui montrerait *le* run global n'a plus de sujet ; ce qui se dessine, c'est le suivi
+par média (déjà dessiné) et les leviers globaux. Les décisions d'architecture et de design que le
+backend devra prendre pour cela sont consignées dans `docs/reference/backend-demands-architecture.md`,
+pour le brief backend qui s'écrira une fois la maquette terminée et validée ; **les décisions
+d'implémentation se prendront en temps voulu**.
 
 ## Ce que l'interface DOIT faire (DOIT-1 … DOIT-14)
 
