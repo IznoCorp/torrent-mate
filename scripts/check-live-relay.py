@@ -157,6 +157,32 @@ CACHE_WIDE = (
 )
 
 
+# A CLOCK WHERE NO EVENT EXISTS, declared one site at a time with its reason.
+#
+# THE ARM'S PREMISE IS « a poll where an EVENT exists », and that is the whole of
+# why an exemption can be legitimate at all: a clock beside an event is a second
+# answer to one question, and the two disagree the moment the network is slow.
+# Where there is no event, there is no second answer — and a rule with no way to
+# say so would be answered by deleting the rule.
+#
+# IT IS COUNTED AND PRINTED, never silently skipped. An exemption nobody counts
+# is indistinguishable from an oversight, which is how 842 French strings once
+# sat under a green gate. The summary prints how many were used, and an entry
+# that stops matching anything is a violation of its own: a reason kept for a
+# call site that no longer exists is a reason nobody will re-read.
+POLLING_EXEMPT = {
+    ("app/worker-registration.ts", "setInterval"):
+        "THE UPDATE DISCIPLINE, and there is no event for its question. A "
+        "service worker cannot be told by the server that a new build exists — "
+        "the stream carries the application's data, not the identity of the "
+        "bundle the page is running. Production proved this exact shape "
+        "(`web-ui.md` § PWA): a check on load, on visibilitychange and every 15 "
+        "minutes. The first two are events and are used; the third is what "
+        "covers an installed application left open on a phone for hours, which "
+        "is the case an offline shell creates and nothing else answers.",
+}
+
+
 def sources():
     """Every TypeScript file of the maquette outside the dying engine."""
     return [path for path in sorted(DESIGN.rglob("*"))
@@ -168,17 +194,30 @@ def arm_no_polling():
     """Refuses a poll where an event exists, and prints what it read."""
     files = sources()
     violations = 0
+    used = set()
     for path in files:
+        relative = str(path.relative_to(DESIGN))
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             if line.lstrip().startswith(("//", "*", "/*")):
                 continue
             for pattern, name in POLLING:
-                if pattern.search(line):
-                    violations += 1
-                    print(f"  {path.relative_to(ROOT)}:{number}: `{name}` — the "
-                          "live relay is what refreshes this. A clock beside an "
-                          "event is a second answer to one question, and the "
-                          "two disagree the moment the network is slow.")
+                if not pattern.search(line):
+                    continue
+                if (relative, name) in POLLING_EXEMPT:
+                    used.add((relative, name))
+                    continue
+                violations += 1
+                print(f"  {path.relative_to(ROOT)}:{number}: `{name}` — the "
+                      "live relay is what refreshes this. A clock beside an "
+                      "event is a second answer to one question, and the "
+                      "two disagree the moment the network is slow.")
+    # AN EXEMPTION THAT MATCHES NOTHING IS ITSELF A VIOLATION. A reason kept for
+    # a call site that no longer exists is a reason nobody will ever re-read,
+    # and it makes the count above look smaller than the tree deserves.
+    for entry in sorted(set(POLLING_EXEMPT) - used):
+        violations += 1
+        print(f"  {entry[0]}: an exemption for `{entry[1]}` matches nothing. "
+              "Remove it — a reason with no subject is a reason nobody re-reads.")
     for path in files:
         source = path.read_text(encoding="utf-8")
         for found in NAMED_BINDING.finditer(source):
@@ -212,7 +251,10 @@ def arm_no_polling():
     print(f"check-live-relay[no-polling]: {len(files)} TypeScript file(s) read "
           f"outside the dying engine (floor {POLLING_CORPUS_FLOOR}), of which "
           f"{len(reads)} declare reads (floor {READING_FILES_FLOOR}) — "
-          f"{violations} poll(s)")
+          f"{violations} poll(s), {len(used)} exempt and named")
+    for entry in sorted(used):
+        print(f"  exempt, counted, not refused: {entry[0]} `{entry[1]}` — "
+              f"{POLLING_EXEMPT[entry].split('.')[0]}.")
     if len(reads) < READING_FILES_FLOOR:
         print(f"check-live-relay[no-polling]: {len(reads)} file(s) declare a "
               f"read, under the floor of {READING_FILES_FLOOR}. A poll is "
