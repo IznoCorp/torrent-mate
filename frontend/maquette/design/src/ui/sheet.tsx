@@ -38,6 +38,13 @@ export function Sheet({
 }) {
   const state = useUiState();
   const open = state.panelOpen === true;
+  // THE SCRIM IS SHARED GROUND, and since L15 its React owner derives it from
+  // every scrim-backed layer it can see rather than from the sheet alone. The
+  // drawer is a component now and raises no attribute of its own; the DIALOG is
+  // still the engine's and still writes this element imperatively, which is the
+  // last of the three writers — it goes when the dialog converts, and L15's
+  // phase 12 is where the scrim gets one owner outright.
+  const scrimOpen = open || state.drawerOpen === true;
   // The last descriptor stays rendered while closed. The legacy layer kept
   // `#sheetin`'s markup after `closeSheet`, and the sheet slides out over
   // several frames — emptying it on close would blank the panel mid-exit.
@@ -101,8 +108,8 @@ export function Sheet({
         id="scrim"
         data-part="scrim"
         aria-hidden="true"
-        data-open={open || undefined}
-        className={sheetScrim({ open })}
+        data-open={scrimOpen || undefined}
+        className={sheetScrim({ open: scrimOpen })}
         // The scrim is shared ground: the drawer and the dialog raise it
         // themselves and a tap on it closes whichever of the three is up. The
         // engine still owns that decision — reproduced here by calling the

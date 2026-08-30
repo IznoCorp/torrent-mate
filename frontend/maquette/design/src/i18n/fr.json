@@ -787,7 +787,15 @@
       "configuration": "Configuration"
     },
     "barLabel": "Navigation principale",
-    "actionButtonLabel": "Ajouter un média"
+    "actionButtonLabel": "Ajouter un média",
+    "drawerLabel": "Menu",
+    "appearanceGroup": "Apparence",
+    "appearanceLabel": "Thème",
+    "appearance": {
+      "system": "Système",
+      "light": "Clair",
+      "dark": "Sombre"
+    }
   },
   "message": {
     "undo": "Annuler",

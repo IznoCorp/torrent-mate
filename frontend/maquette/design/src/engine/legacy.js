@@ -33,7 +33,6 @@
 */
 
 import { screens, panel, bridge } from "./seams.js";
-import { servedIdentityLines } from "../lib/served-identity";
 import { icons } from "../app/icons";
 
   /* TorrentMate — mobile-first redesign prototype
@@ -8758,7 +8757,9 @@ import { icons } from "../app/icons";
      made `history.back()` pop past our own entries and leave the page
      entirely. */
   function hideLayers() {
-    setOpen(select("#drawer"), false);
+    // The drawer is the shell's layer: closing it without touching history is
+    // what `close(true)` means, the same contract this function has always had.
+    window.__layers?.close("drawer", true);
     setOpen(select("#screen"), false);
     // The sheet is the shell's layer: closing it without touching history is
     // what `close(true)` means, the same contract this function has always
@@ -9265,7 +9266,11 @@ import { icons } from "../app/icons";
     }
 
     // A layer first: it is what sits on top, and it is what a back closes.
-    if (select("#drawer").classList.contains("open")) return closeDrawer(true);
+    /* THE REGISTRATION, NOT THE CLASS. The drawer is a component and its open
+       state is the store's; asking the DOM would answer whatever React last
+       painted rather than what is true at this instant. Same rank on the
+       ladder as before — drawer, then screen, then sheet. */
+    if (window.__layers?.isOpen("drawer")) return closeDrawer(true);
     if (select("#screen").classList.contains("open")) return closeScreen(true);
     // The sheet lives in the shell; it is asked, not inspected. Same rank in
     // the ladder as before — drawer, then screen, then sheet.
@@ -9759,80 +9764,23 @@ import { icons } from "../app/icons";
   };
 
 
+  /* THE DRAWER IS NOT DRAWN HERE ANY MORE. It was an empty `<aside>` this
+     engine filled on every open — the brand, the three titled groups from a
+     table of its own, the appearance control and the served identity. It is
+     `app/drawer.tsx` now, over `ui/drawer.tsx`, reading the ONE navigation
+     table; and it REGISTERS with the ladder rather than being found by it, so
+     the back handler below asks a registration instead of testing a class.
+
+     The verbs stay verbs. `openDrawer()` writes the store and pushes the
+     layer's own entry, exactly as it did — a conversion moves the drawing. */
   function openDrawer() {
-    /* GROUPED IN THE TABLE'S OWN ORDER, and that is what replaces the second
-       list this file used to keep. The order of the groups is the order in
-       which they first appear among the rows, and the order inside a group is
-       the rows' — so a page joins the drawer by joining the table, and an
-       entry naming an id no page carries has become impossible to write. */
-    const groups = new Map();
-    for (const row of navigationRows()) {
-      if (!row.group) continue;
-      const seen = groups.get(row.group);
-      if (seen) seen.items.push(row);
-      else groups.set(row.group, { title: row.groupLabel, items: [row] });
-    }
-    const element = select("#drawer");
-    element.innerHTML = `
-      <div class="dh">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;color:var(--color-primary)"><path d="M3 4h18l-7 8v7l-4 2v-9z"/></svg>
-        <span>Torrent<em style="font-style:normal;color:var(--color-primary)">Mate</em></span>
-      </div>
-      <nav>
-        ${[...groups.values()]
-          .map(
-            (group) => `<div class="grp">
-          <p class="sect">${escapeHtml(group.title)}</p>
-          ${group.items
-            .map(
-              (item) => `<a href="#" data-navgo="${item.id}" ${currentState().page === item.id ? 'aria-current="page"' : ""}>
-            ${svgIcon(item.icon)}<span>${escapeHtml(item.label)}</span>${item.badge ? `<span class="count">${item.badge}</span>` : ""}
-          </a>`,
-            )
-            .join("")}
-        </div>`,
-          )
-          .join("")}
-      </nav>
-      <div class="grp">
-        <p class="sect">Apparence</p>
-        <div class="segmini" data-part="segment-small" role="group" aria-label="Thème">
-          ${APPARENCES.map(
-            (mode) =>
-              `<button data-apparence="${mode}" aria-pressed="${apparenceCourante() === mode}">${mode === "system" ? "Système" : mode === "light" ? "Clair" : "Sombre"}</button>`,
-          ).join("")}
-        </div>
-      </div>
-      ${servedIdentityBlock()}`;
-    setOpen(element, true);
-    setOpen(select("#scrim"), true);
+    store.write({ drawerOpen: true });
     try {
       __bridge.pushLayer("drawer");
     } catch (error) {}
   }
-  /* WHAT THIS HOST IS SERVING — the drawer's footer, and it used to be a lie.
-     Three literals sat here: a version, a build sha and « à jour », none of
-     them computed and none of them checked, while the repository stood twenty
-     patch versions further on. The identity is the HOST's now, published per
-     request on the document it sends, and worded by `lib/served-identity.ts`,
-     which also owns the case where nothing published one. `known` is
-     forwarded as a `data-*` so a rule can tell the two apart without reading
-     the words — by PRESENCE, like every other boolean state attribute here:
-     `data-known="false"` would read as a state that is set. */
-  function servedIdentityBlock() {
-    const lines = servedIdentityLines();
-    return `<div class="ver" data-part="shell/served-identity"${lines.known ? " data-known" : ""}>
-        <p class="vt">${escapeHtml(lines.label)}</p>
-        <p class="vv">${escapeHtml(lines.primary)}</p>
-        <p class="vc">${escapeHtml(lines.secondary)}</p>
-      </div>`;
-  }
-
   function closeDrawer(pop) {
-    if (!select("#drawer").classList.contains("open")) return;
-    setOpen(select("#drawer"), false);
-    setOpen(select("#scrim"), false);
-    if (!pop) unwindLayer("drawer");
+    window.__layers?.close("drawer", pop);
   }
 
   function closeHarness() {
@@ -9875,31 +9823,13 @@ import { icons } from "../app/icons";
   select("#scenBtn").onclick = () => {
     openHarness();
   };
-  /* Appearance belongs to the interface, not the harness: the drawer offers
-     the three honest states. The default (no data-theme attribute) paints
-     dark; « clair » forces light; « systeme » follows the OS preference,
-     LIVE — the media listener acts only while that mode is chosen. The
-     choice persists under the key the envelope reads before the first
-     paint, so a reload opens in the chosen appearance without a flash. */
-  const APPARENCES = ["system", "light", "dark"];
-  function apparenceCourante() {
-    try {
-      const lu = localStorage.getItem("tm-apparence");
-      if (APPARENCES.includes(lu)) return lu;
-    } catch (error) {}
-    return "system";
-  }
-  function applyAppearance(mode) {
-    const light =
-      mode === "light" ||
-      (mode === "system" &&
-        matchMedia("(prefers-color-scheme: light)").matches);
-    if (light) document.documentElement.setAttribute("data-theme", "light");
-    else document.documentElement.removeAttribute("data-theme");
-  }
-  matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
-    if (apparenceCourante() === "system") applyAppearance("system");
-  });
+  /* THE APPEARANCE IS NOT THIS FILE'S ANY MORE. The three states, the stored
+     choice, the live media listener and the attribute they write are
+     `app/appearance.ts`'s — the frame's entry (`MODEL.md` § 2 Part 9), because
+     §17 redraws the sign-in gate beside them and cannot do so while the entry
+     is engine code. The drawer offers the control and calls that module
+     directly; the `data-apparence` branch of the delegation went with it, and
+     with it the last French `data-*` name this file wrote. */
 
   /* Global delegation */
   document.addEventListener("click", (event) => {
@@ -10357,24 +10287,6 @@ import { icons } from "../app/icons";
         console.error("data-navgo : écriture de navigation échouée", error);
         window.__navEchec = true;
       }
-      return;
-    }
-    if (closest.dataset.apparence) {
-      const mode = closest.dataset.apparence;
-      try {
-        localStorage.setItem("tm-apparence", mode);
-      } catch (error) {}
-      applyAppearance(mode);
-      // Reflect in place: the drawer stays open — choosing an appearance is
-      // not a navigation, and watching the theme change is the feedback.
-      closest.parentElement
-        .querySelectorAll("[data-apparence]")
-        .forEach((bouton) =>
-          bouton.setAttribute(
-            "aria-pressed",
-            String(bouton.dataset.apparence === mode),
-          ),
-        );
       return;
     }
     if (closest.dataset.hclose) {
@@ -33140,7 +33052,7 @@ export {
    destructuring on either side, and `for (name of …)`; all four were searched
    across all 254 names, and this is the only one. */
 Object.assign(window, {
-  CAST, POSTERS_HD, APPARENCES, PRESS_MS, PRESS_TOLERANCE, AUDIOS,
+  CAST, POSTERS_HD, PRESS_MS, PRESS_TOLERANCE, AUDIOS,
   TODAY, CADENCE_CRON, ACCOUNT,
   STARTUP_MS, DEPENDENCIES, DISKS,
   EP_LABEL, EP_ORDER, EP_SWATCH, ERRORS, DECISION_STATE,
@@ -33156,8 +33068,7 @@ Object.assign(window, {
   TRIS, URGENCY, VIA_LABEL, actionLeave, actionPause,
   actionTake, actionResolve, actionRetirer, actionFollow,
   actionDelete, addVerb, showSignIn, showStartup,
-  showInstallation, cancelPress, apparenceCourante,
-  applyAppearance, applyState, armPress, advanceDeck,
+  showInstallation, cancelPress, applyState, armPress, advanceDeck,
   advancePageGesture, baseTitle, beforeReset, cadenceFR, cardHTML, chipHTML,
   closeDlg, closeHarness, closeScreen, closeSheet, coverLoading,
   dateFR, startPageGesture, decisionPending, deckCardHTML, deckHTML,

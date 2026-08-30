@@ -89,6 +89,13 @@ INTERFACE_STATE_KEYS = {
     "relatedTitle", "addQ", "addMode", "panelDescriptor", "kind", "too",
     "notes", "libLens", "libCat", "libMode", "followMode", "maintTopic",
     "sortKey", "sortReversed",
+    # WHETHER THE DRAWER IS UP (L15). Its sibling `panelOpen` has been on this
+    # list since the sheet moved, and for the same reason: a layer's open state
+    # is what the operator has done on screen, and nothing a server told us. It
+    # is asked of the STORE and never of the DOM — a caller asks in the middle
+    # of its own task and the answer must be right at that instant, whatever
+    # React has painted.
+    "drawerOpen",
     # The add screen's two: which kind is being searched for, and which provider
     # the « identify by id » block names. Both are what the operator has chosen
     # on screen, and neither is anything a server told us. They were on NEITHER

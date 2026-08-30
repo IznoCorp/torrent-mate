@@ -26,7 +26,8 @@
     "APPARENCES": {
       "class": "interface",
       "why": "the three appearance settings the interface offers",
-      "seed": null
+      "seed": null,
+      "converted": "L15 phase 7 — the theme is the frame's entry (MODEL.md § 2 Part 9), so the three states moved OUT of the engine into `app/appearance.ts` rather than to a seed. Not `served`: an appearance is a choice this document keeps, never an answer a server sends"
     },
     "AUDIOS": {
       "class": "interface",

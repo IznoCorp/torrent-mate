@@ -433,17 +433,10 @@
          elements answering `#nav` is one of them being measured and the other
          being shown. -->
 
-    <!-- NOT « Navigation principale »: the tab bar already carries that name,
-         and two landmarks answering to one name make a screen reader's landmark
-         list a guessing game. This one is the panel the burger opens. -->
-    <aside
-      class="drawer absolute inset-y-0 left-0 right-auto w-[288px] max-w-[86%] z-[55]
-             bg-sidebar border-r border-border flex flex-col [transform:translateX(-100%)]
-             transition-[transform] duration-300 ease-standard invisible touch-pan-y
-             [&_a]:select-none [&_a]:[-webkit-user-drag:none]"
-      id="drawer"
-      aria-label="Menu"
-    ></aside>
+    <!-- The drawer is rendered by the shell (`src/app/drawer.tsx`, over
+         `src/ui/drawer.tsx`), at this same id and this same identity class,
+         into `#shell`. Absent here on purpose: two elements answering
+         `#drawer` is one of them being measured and the other being shown. -->
     <div class="screen" id="screen" data-part="screen"></div>
     <!-- The scrim and the bottom sheet are rendered by the shell
          (`src/components/sheet.tsx`), at these same ids and classes, into

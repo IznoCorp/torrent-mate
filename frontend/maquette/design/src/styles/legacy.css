@@ -47,111 +47,11 @@
    its own variant. The class name stays, as an identity anchor rules select. */
 
 /* ── Navigation drawer ───────────────────────────────────────────── */
-/* The drawer is an empty `<aside>` in the document; the engine writes its
-   header, its three titled sections and the version card. Mirrors
-   `NavSections`, and the mobile drawer is the ONLY place the version
-   reaches the phone. `.drawer.open` is engine-toggled. */
-.drawer.open {
-  transform: none;
-  visibility: visible;
-}
-.drawer .dh {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-4);
-  padding: calc(env(safe-area-inset-top) + var(--spacing-7)) var(--spacing-7) var(--spacing-7);
-  border-bottom: 1px solid var(--color-border);
-  font-size: var(--text-5);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-.drawer nav {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-2);
-  padding: var(--spacing-4);
-}
-.drawer .sect {
-  padding: var(--spacing-5) var(--spacing-6) var(--spacing-2);
-  font-size: var(--text-1);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-muted-foreground);
-}
-.drawer .sect + .sect,
-.drawer .grp + .grp {
-  border-top: 1px solid var(--color-border);
-  margin-top: var(--spacing-3);
-  padding-top: var(--spacing-5);
-}
-.drawer a {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-6);
-  min-height: 44px;
-  padding: var(--spacing-4) var(--spacing-6);
-  border-radius: var(--radius-3);
-  font-size: var(--text-4);
-  color: var(--color-foreground);
-}
-.drawer a[aria-current="page"] {
-  /* « You are here » is the brand colour on the label — the same mark the
-     bottom bar uses, so one interface has one way of saying it. The row also
-     carries a surface, because a list is scanned and its current row has to
-     be found without reading five labels; that surface is a TINT of the
-     mark, never the mark itself. Painting the mark as the background left
-     the label exactly the colour of what it sat on: contrast 1.00, a label
-     written in invisible ink. */
-  background: color-mix(in oklab, var(--color-primary) 14%, transparent);
-  color: var(--color-primary-text);
-  font-weight: 600;
-}
-.drawer a svg {
-  width: 20px;
-  height: 20px;
-  flex: 0 0 auto;
-}
-.drawer a .count {
-  margin-left: auto;
-  display: inline-flex;
-  height: 18px;
-  min-width: 18px;
-  align-items: center;
-  justify-content: center;
-  padding-inline: var(--spacing-2);
-  border-radius: var(--radius-full);
-  background: var(--color-primary);
-  color: var(--color-primary-foreground);
-  font-size: var(--text-2);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.drawer .ver {
-  border-top: 1px solid var(--color-border);
-  padding: var(--spacing-6) var(--spacing-7) calc(env(safe-area-inset-bottom) + var(--spacing-6));
-}
-.drawer .ver .vt {
-  font-size: var(--text-2);
-  color: var(--color-muted-foreground);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 600;
-}
-.drawer .ver .vv {
-  font-size: var(--text-7);
-  font-weight: 700;
-  margin-top: var(--spacing-1);
-}
-.drawer .ver .vc {
-  font-family: ui-monospace, Menlo, monospace;
-  font-size: var(--text-2);
-  color: var(--color-muted-foreground);
-  margin-top: var(--spacing-1);
-}
+/* NOTHING. The drawer is `app/drawer.tsx` since L15 — the `<aside>`'s box came
+   from `index.html` and its children's thirteen rules from here, so its styling
+   stood in two places and now stands in one (`ui/variants/frame.ts`). The
+   identity classes stay at the front of every variant: `drawer`, `open`, `dh`,
+   `sect`, `grp`, `ver`, `vt`, `vv`, `vc`, `count`. */
 
 /* ── Confirmation dialog ─────────────────────────────────────────── */
 /* The dialog is written by the ENGINE — `dlgbtn`, `dlgacts`, `warnbox`,

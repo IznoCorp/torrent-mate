@@ -16,6 +16,9 @@ import type { ReactElement } from "react";
 
 import { ActionButton } from "./action-button";
 import { BottomSlot } from "./bottom-slot";
+import { NavigationDrawer } from "./drawer";
+import { installAppearance } from "./appearance";
+import { installLayerRegistry } from "./layer-registry";
 import { MessageLayer } from "./message-layer";
 import { installMessagePresence } from "./message-presence";
 import { installToastHost } from "./toast-host";
@@ -32,6 +35,8 @@ import { TabBar } from "./tab-bar";
 // imports this file with the rest of the frame.
 installMessagePresence();
 installToastHost();
+installLayerRegistry();
+installAppearance();
 
 export function Frame(): ReactElement {
   return (
@@ -39,6 +44,7 @@ export function Frame(): ReactElement {
       <ActionButton />
       <BottomSlot />
       <TabBar />
+      <NavigationDrawer />
       <MessageLayer />
     </>
   );

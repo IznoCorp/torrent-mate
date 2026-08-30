@@ -69,6 +69,7 @@ answered
 any
 anywhere
 appearance
+appearances
 apply
 arm
 armed
@@ -155,6 +156,7 @@ check
 child
 chip
 choice
+choose
 claimed
 clean
 clear
@@ -166,6 +168,7 @@ clock
 close
 closed
 closest
+closing
 cls
 code
 cold
@@ -371,6 +374,7 @@ good
 grab
 grid
 group
+grouped
 groups
 guidance
 harness
@@ -733,6 +737,8 @@ refused
 refusing
 region
 register
+registration
+registry
 reglees
 regular
 relaxed
@@ -908,7 +914,9 @@ step
 steps
 sticky
 stopped
+storage
 store
+stored
 stranded
 stream
 strip

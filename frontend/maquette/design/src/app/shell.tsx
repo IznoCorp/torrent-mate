@@ -62,7 +62,6 @@ import "../features/media/panel-seasons";
 import "../features/settings/panel-field";
 import { createStore, type Store } from "./store";
 import { installFocusManager } from "./focus";
-import { installDrawerDismissGesture } from "./drawer-gesture";
 import { installMockNetwork } from "../mocks";
 import { router } from "./router-tree";
 import {
@@ -301,11 +300,12 @@ if (device && legacyScreen) device.insertBefore(mountNode, legacyScreen);
 // the engine: it watches the `data-open` attribute both worlds already emit.
 installFocusManager();
 
-// E-002, mounted with the rest of the shell. It attaches to the `#drawer` the
-// engine owns and adds nothing to the engine — the same posture the focus
-// manager takes one line above, and the reason the gesture is feasible while
-// the drawer is still drawn by `legacy.js` (B-220).
-installDrawerDismissGesture();
+// E-002 IS NOT INSTALLED HERE ANY MORE. It attached to the `#drawer` the
+// engine owned, which was static markup and existed at boot; the drawer is a
+// component now and its node does not exist until React commits, so the
+// gesture attaches from that component's own layout effect. It is unchanged
+// otherwise — still the frame's gesture, still closing through
+// `window.__closeLayers` so a swipe and a scrim tap share one path.
 
 // THE BOTTOM BAR'S HEIGHT IS NOT PUBLISHED FROM HERE ANY MORE. It was, and it
 // had to be: the bar was static markup the engine filled, so the boot was the

@@ -147,3 +147,89 @@ export const messageClose = cva(
 export const messageUndo = cva(
   "[border:0] bg-transparent text-primary font-bold pt-0 pr-0 pb-0 pl-[10px]",
 );
+
+/* ── The drawer ──────────────────────────────────────────────────────
+   Eleven rules of `styles/legacy.css` and the `<aside>`'s own utilities from
+   `index.html`, together at last: the engine wrote the drawer's children and
+   the document declared its box, so its styling stood in two places. */
+export const drawer = cva(
+  "drawer absolute inset-y-0 left-0 right-auto w-[288px] max-w-[86%] z-[55] "
+    + "bg-sidebar border-r border-border flex flex-col transition-[transform] "
+    + "duration-300 ease-standard touch-pan-y "
+    + "[&_a]:select-none [&_a]:[-webkit-user-drag:none]",
+  {
+    variants: {
+      open: {
+        true: "open [transform:none] visible",
+        false: "[transform:translateX(-100%)] invisible",
+      },
+    },
+    defaultVariants: { open: false },
+  },
+);
+
+export const drawerHead = cva(
+  "dh flex items-center gap-4 "
+    + "pt-[calc(env(safe-area-inset-top)+var(--spacing-7))] px-7 pb-7 "
+    + "border-b border-border text-5 font-semibold tracking-[-0.01em]",
+);
+
+export const drawerNavigation = cva(
+  "flex-1 min-h-0 overflow-y-auto flex flex-col gap-2 p-4",
+);
+
+/* THE SEPARATOR IS A SIBLING RULE, and it stays one. `.grp + .grp` is what
+   draws the line between two groups; expressing it per element would mean the
+   FIRST group carrying a line it must not have. */
+export const drawerGroup = cva(
+  "grp [.grp+&]:border-t [.grp+&]:border-border [.grp+&]:mt-3 [.grp+&]:pt-5",
+);
+
+export const drawerGroupTitle = cva(
+  "sect pt-5 px-6 pb-2 text-1 font-medium uppercase tracking-[0.08em] "
+    + "text-muted-foreground",
+);
+
+export const drawerEntry = cva(
+  "flex items-center gap-6 min-h-[44px] py-4 px-6 rounded-3 text-4 text-foreground",
+  {
+    variants: {
+      current: {
+        // « YOU ARE HERE » IS THE BRAND COLOUR ON THE LABEL — the same mark the
+        // bottom bar uses, so one interface has one way of saying it. The row
+        // also carries a surface, because a list is scanned and its current row
+        // has to be found without reading five labels; that surface is a TINT
+        // of the mark, never the mark itself. Painting the mark as the
+        // background left the label exactly the colour of what it sat on:
+        // contrast 1.00, a label written in invisible ink.
+        true: "[background:color-mix(in_oklab,var(--color-primary)_14%,transparent)] "
+          + "text-primary-text font-semibold",
+        false: "",
+      },
+    },
+    defaultVariants: { current: false },
+  },
+);
+
+export const drawerEntryDrawing = cva("w-[20px] h-[20px] flex-none");
+
+export const drawerEntryCount = cva(
+  "count ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center "
+    + "px-2 rounded-full bg-primary text-primary-foreground text-2 font-semibold "
+    + "[font-variant-numeric:tabular-nums]",
+);
+
+export const drawerIdentity = cva(
+  "ver border-t border-border pt-6 px-7 "
+    + "pb-[calc(env(safe-area-inset-bottom)+var(--spacing-6))]",
+);
+
+export const drawerIdentityLabel = cva(
+  "vt text-2 text-muted-foreground uppercase tracking-[0.06em] font-semibold",
+);
+
+export const drawerIdentityPrimary = cva("vv text-7 font-bold mt-1");
+
+export const drawerIdentitySecondary = cva(
+  "vc [font-family:ui-monospace,Menlo,monospace] text-2 text-muted-foreground mt-1",
+);
