@@ -118,6 +118,23 @@ async def main():
         journal.check("and nothing departed behind the rule's back",
                       still == 1, f"depth {still}")
 
+        # --- a departure that fails leaves the envelope where it was ---------
+        # THE CLIENT'S HALF OF « AT LEAST ONCE », and it is held here because
+        # nothing else in this rule can see it: with the network up, an envelope
+        # forgotten BEFORE its request answered and one forgotten after are
+        # indistinguishable. Found by mutation — moving the `forget` above the
+        # departure produced no failure at all, which made this rule silent
+        # about the one moment the property is about.
+        departed = await page.evaluate(
+            """async()=>{ await window.__outbox.depart(); }""")
+        del departed
+        left = await page.evaluate(
+            "async()=>(await window.__outbox.waiting()).length")
+        journal.check(
+            "a departure the network refuses leaves the envelope on disk",
+            left == 1,
+            f"{left} envelope(s) — forgotten first, it would be lost for good")
+
         # --- it survives the process -----------------------------------------
         # A RELOAD IS THE PROCESS ENDING, as far as this queue is concerned: the
         # module is evaluated again, every variable it held is gone, and the
