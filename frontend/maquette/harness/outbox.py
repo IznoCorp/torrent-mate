@@ -118,6 +118,24 @@ async def main():
         journal.check("and nothing departed behind the rule's back",
                       still == 1, f"depth {still}")
 
+        # --- and the interface SAYS what is waiting ---------------------------
+        # §8: a mutation that resolved and one that departed are not the same
+        # thing, and the operator has no other way of telling them apart. The
+        # count is read off the surface, not off the module — a module that
+        # counts correctly while nothing draws it is the omission this holds
+        # against.
+        said = await page.evaluate(
+            """()=>{const mark=document.querySelector('[data-part="shell/connection-mark"]');
+                 const notice=document.querySelector('[data-part="shell/connection-notice"]');
+                 return {mark: mark?.getAttribute("data-pending") ?? null,
+                         notice: notice?.getAttribute("data-pending") ?? null,
+                         words: (notice?.innerText ?? "").trim()};}""")
+        journal.check("the header's mark carries what is waiting",
+                      said["mark"] == "1", f"data-pending={said['mark']}")
+        journal.check("and the notice says so in words",
+                      said["notice"] == "1" and len(said["words"]) > 10,
+                      f"{said['words'][:70]!r}")
+
         # --- a departure that fails leaves the envelope where it was ---------
         # THE CLIENT'S HALF OF « AT LEAST ONCE », and it is held here because
         # nothing else in this rule can see it: with the network up, an envelope

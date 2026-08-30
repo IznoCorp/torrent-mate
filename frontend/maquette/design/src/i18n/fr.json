@@ -768,7 +768,9 @@
       "title": "Session expirée — reconnectez-vous pour revoir les mises à jour",
       "body": "Votre session n'est plus valide, cet écran ne se met plus à jour.",
       "action": "Se reconnecter"
-    }
+    },
+    "waiting_one": "Une action attend d'être envoyée au serveur.",
+    "waiting_other": "{{count}} actions attendent d'être envoyées au serveur."
   },
   "navigation": {
     "pages": {
