@@ -530,7 +530,15 @@
       "loadErrorLead": "Impossible de charger la suite.",
       "loadErrorRest": " La connexion a été perdue pendant la requête. Les {{count}} médias déjà affichés restent valides.",
       "retry": "Réessayer",
-      "errorSubject": "votre médiathèque"
+      "errorSubject": "votre médiathèque",
+      "selection": {
+        "barLabel": "Sélection en cours",
+        "hint": "Touchez les affiches à supprimer",
+        "count": "{{count}} sélectionné",
+        "countPlural": "{{count}} sélectionnés",
+        "cancel": "Annuler",
+        "delete": "Supprimer"
+      }
     },
     "acquisition": {
       "nowNoteLead": "Vue « En cours » — livrée, inchangée.",

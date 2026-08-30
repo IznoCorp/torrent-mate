@@ -15,6 +15,7 @@
 import type { ReactElement } from "react";
 
 import { ActionButton } from "./action-button";
+import { BottomSlot } from "./bottom-slot";
 import { installMessagePresence } from "./message-presence";
 import { TabBar } from "./tab-bar";
 
@@ -33,6 +34,7 @@ export function Frame(): ReactElement {
   return (
     <>
       <ActionButton />
+      <BottomSlot />
       <TabBar />
     </>
   );

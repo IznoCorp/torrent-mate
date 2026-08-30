@@ -8033,29 +8033,15 @@ import { icons } from "../app/icons";
      A simple tap still opens the sheet: the most frequent path is never
      sacrificed to a rare action. */
 
-  function paintSelBar() {
-    const old = document.querySelector(".selbar");
-    if (old) old.remove();
-    /* The `selecting` class is NOT written any more. It existed for one CSS
-       rule — `html.selecting .bottombar { display: none }` — and that rule
-       moved into the tab bar's own variant, read from the store's `selMode`
-       rather than from a class mirroring it. A class nobody reads is a class
-       nobody can be wrong about. */
-    if (!currentState().selMode) return;
-    const size = currentState().selected.size;
-    const bar = document.createElement("div");
-    bar.className = "selbar";
-    bar.dataset.part = "selection/bar";
-    /* A named region, so the caption and the two actions stop being page
-       content adrift outside every landmark. The bar exists only while a
-       selection does, which is exactly what the name says. */
-    bar.setAttribute("role", "region");
-    bar.setAttribute("aria-label", "Sélection en cours");
-    bar.innerHTML = `<span class="n" data-part="selection/caption">${size === 0 ? "Touchez les affiches à supprimer" : `${size} sélectionné${size > 1 ? "s" : ""}`}</span>
-      <button data-selmode="0">Annuler</button>
-      <button class="danger" data-tone="danger" data-delsel="1" ${size === 0 ? "disabled" : ""}>Supprimer</button>`;
-    document.querySelector("#device").appendChild(bar);
-  }
+  /* THE SELECTION BAR IS NOT DRAWN HERE ANY MORE. It was created per open and
+     appended to `#device`; it is `features/library/selection-bar.tsx` now,
+     rendered into the frame's bottom slot and reading the same store fields.
+     This function stayed a VERB the delegation and the drivers still say —
+     `paintSelBar()` after a tile toggles — so that moving the drawing did not
+     take away the vocabulary. It draws nothing: the store bump beside every
+     call site is what the component listens to. It goes with the library's
+     verbs at L19. */
+  function paintSelBar() {}
 
   /* Reads the panel an element addresses.
      Split on the FIRST colon only: titles carry their own — « Dexter:

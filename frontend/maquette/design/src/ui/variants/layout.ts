@@ -386,3 +386,32 @@ export const addAction = cva(
 );
 
 export const addActionDrawing = cva("w-[23px] h-[23px]");
+
+/* ── The bottom slot's first occupant: the library's selection bar ───
+   Its five rules came from `styles/legacy.css`, where they lived because the
+   engine created the node. It is `position: absolute` against the phone frame
+   and z-51 — ABOVE the tab bar, which is z-50, because it replaces it for the
+   duration of a selection. */
+export const selectionBar = cva(
+  "selbar absolute left-0 right-0 bottom-0 z-[51] flex items-center gap-5 "
+    + "pt-5 px-7 pb-[calc(env(safe-area-inset-bottom)+var(--spacing-5))] "
+    + "bg-popover border-t border-border",
+);
+
+export const selectionCaption = cva("n text-3 font-semibold");
+
+export const selectionAction = cva(
+  "border border-border bg-transparent text-foreground text-3 font-semibold "
+    + "py-4 px-6 rounded-3",
+  {
+    variants: {
+      tone: {
+        // `danger` is the identity class the residue used and rules select on.
+        danger: "danger bg-danger-fill border-danger-fill text-white ml-auto "
+          + "disabled:opacity-45",
+        neutral: "",
+      },
+    },
+    defaultVariants: { tone: "neutral" },
+  },
+);

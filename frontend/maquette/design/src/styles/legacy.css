@@ -1121,41 +1121,11 @@ border-radius: var(--radius-3);
 .selrow .csub {
   display: block;
 }
-.selbar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 51;
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-5);
-  padding: var(--spacing-5) var(--spacing-7) calc(env(safe-area-inset-bottom) + var(--spacing-5));
-  background: var(--color-popover);
-  border-top: 1px solid var(--color-border);
-}
-.selbar .n {
-  font-size: var(--text-3);
-  font-weight: 600;
-}
-.selbar button {
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-foreground);
-  font-size: var(--text-3);
-  font-weight: 600;
-  padding: var(--spacing-4) var(--spacing-6);
-  border-radius: var(--radius-3);
-}
-.selbar button.danger {
-  background: var(--color-danger-fill);
-  border-color: var(--color-danger-fill);
-  color: var(--color-white);
-  margin-left: auto;
-}
-.selbar button.danger:disabled {
-  opacity: 0.45;
-}
+/* THE SELECTION BAR'S FIVE RULES ARE GONE. The bar is
+   `features/library/selection-bar.tsx` since L15, drawn into the frame's
+   bottom slot, and its declarations are utilities behind typed variants —
+   term for term, with the oracle's `shell/library-list` and the
+   `lib-selection` state to say so. */
 .linkbtn {
   border: 0;
   background: transparent;
