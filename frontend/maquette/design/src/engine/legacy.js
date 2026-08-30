@@ -7635,7 +7635,6 @@ import { icons } from "../app/icons";
     else element.removeAttribute("data-open");
   }
   const view = select("#view"),
-    nav = select("#nav"),
     port = select("#port"),
     cadre = select("#device"),
     fab = select("#fab");
@@ -7680,19 +7679,6 @@ import { icons } from "../app/icons";
     }, 200);
   }
 
-  function renderNav() {
-    nav.innerHTML = navigationRows()
-      .filter((element) => element.inBar)
-      .map(
-        (
-          element,
-        ) => `<button data-page="${element.id}" ${currentState().page === element.id ? 'aria-current="page"' : ""}>
-      <span class="ic">${svgIcon(element.icon)}${element.badge ? `<span class="navbadge" data-part="shell/tab-badge">${element.badge}</span>` : ""}</span>
-      <span class="lb">${escapeHtml(element.label)}</span>
-    </button>`,
-      )
-      .join("");
-  }
   function render() {
     // Every action ends in render(): one bump here reaches React for every
     // simulated mutation, including the ones made in place on `world`
@@ -7734,7 +7720,6 @@ import { icons } from "../app/icons";
     pageWantsActionButton = found.actionButton;
     refreshActionButton();
     mountDeck();
-    renderNav();
     mountLoaders();
     mountSearch();
   }
@@ -8087,7 +8072,11 @@ import { icons } from "../app/icons";
   function paintSelBar() {
     const old = document.querySelector(".selbar");
     if (old) old.remove();
-    document.documentElement.classList.toggle("selecting", !!currentState().selMode);
+    /* The `selecting` class is NOT written any more. It existed for one CSS
+       rule — `html.selecting .bottombar { display: none }` — and that rule
+       moved into the tab bar's own variant, read from the store's `selMode`
+       rather than from a class mirroring it. A class nobody reads is a class
+       nobody can be wrong about. */
     if (!currentState().selMode) return;
     const size = currentState().selected.size;
     const bar = document.createElement("div");
@@ -33249,7 +33238,7 @@ Object.assign(window, {
   openDrawer, paintSelBar, panelUnderFinger, passerSug, screenStack,
   plages, ownedFor, posterBox, nextSearchFR,
   proposerInstallation, ptr, refPanel, collapseCard,
-  refreshDeck, settingId, resetSettings, render, renderNav,
+  refreshDeck, settingId, resetSettings, render,
   richText, seasonsOf, sheetSeasonsHTML, secHTML, secInner, seedWorld,
   select, sheetFor, titleForProviderId, addressIdsFor, skelCards, skelCardsInner, skelTiles, sortLabel,
   stFraction, stLabel, stripHTML, sugCardHTML, sugFoot,

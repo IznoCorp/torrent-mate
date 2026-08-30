@@ -61,7 +61,6 @@ import ReactDOM from "react-dom/client";
 import "../features/media/panel-seasons";
 import "../features/settings/panel-field";
 import { createStore, type Store } from "./store";
-import { publishBarHeight } from "./bar-height";
 import { installFocusManager } from "./focus";
 import { installDrawerDismissGesture } from "./drawer-gesture";
 import { installMockNetwork } from "../mocks";
@@ -90,6 +89,7 @@ import {
 import { installRelayRecovery } from "./relay-recovery";
 import { readCursor, subscribeToEvents } from "../lib/relay-events";
 import { ConnectionMark, ConnectionNotice } from "./connection-notice";
+import { Frame } from "./frame";
 import { installSeams } from "../engine/seams";
 import {
   addressOf,
@@ -307,18 +307,13 @@ installFocusManager();
 // the drawer is still drawn by `legacy.js` (B-220).
 installDrawerDismissGesture();
 
-// The bottom bar's real height, published for everything that must sit above
-// it. Here rather than in the engine, which no longer carries a copy: the
-// measurement has to outlive the engine, and the day it goes is the wrong day
-// to move it.
-//
-// AFTER the engine has started, and that ordering is the whole of the placement.
-// The bar's node is static markup, so it exists long before this line — but it
-// is EMPTY until `renderNav` fills it, and a measurement taken then publishes
-// the height of an empty bar. The `ResizeObserver` would correct it on the next
-// layout; publishing the right value the first time saves the frame in which
-// everything above the bar sits on `0px`.
-publishBarHeight();
+// THE BOTTOM BAR'S HEIGHT IS NOT PUBLISHED FROM HERE ANY MORE. It was, and it
+// had to be: the bar was static markup the engine filled, so the boot was the
+// first moment a real height existed. The bar is a component now
+// (`app/tab-bar.tsx`) and does not exist at all until React commits, so this
+// call would have measured nothing and attached its `ResizeObserver` to
+// nothing. It runs in that component's own layout effect instead. R84's
+// « exactly one publisher » is untouched — `app/bar-height.ts` is still it.
 
 // THE QUERY CACHE, created here and wrapped around the router (invariant 4).
 // Server state lives in it; the address lives in the router; only ephemeral
@@ -393,6 +388,10 @@ ReactDOM.createRoot(mountNode).render(
       <ConnectionMark />
       <ConnectionNotice />
       <RouterProvider router={router} />
+      {/* The frame LAST, so its layers sit after the router's screens in
+          document order — which is the order the stacking already assumed when
+          the engine drew them after `#shell`. */}
+      <Frame />
     </QueryClientProvider>
   </React.StrictMode>,
 );

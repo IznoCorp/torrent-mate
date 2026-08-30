@@ -13,12 +13,20 @@ import type { ReactElement } from "react";
 export function Icon({
   paths,
   strokeWidth,
+  className,
 }: {
   paths: string;
   strokeWidth?: number;
+  // The SIZE and anything else the drawing's context decides. The legacy
+  // stylesheet said it with a descendant selector — `.bottombar svg { width:
+  // 20px }` — which a converted component has no way to wear. It arrives as a
+  // class from the caller's own variant instead, which is D3: a component's
+  // styling lives in the component.
+  className?: string;
 }): ReactElement {
   return (
     <svg
+      className={className}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"

@@ -36,69 +36,10 @@
 }
 
 /* ── Bottom bar ──────────────────────────────────────────────────── */
-/* The bar is an empty `<nav>` in the document; the engine writes its tabs. */
-html.selecting .bottombar {
-  display: none;
-}
-.bottombar a,
-.bottombar button {
-  display: flex;
-  min-height: 44px;
-  min-width: 0;
-  flex: 1 1 0%;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-2);
-  padding-block: var(--spacing-4);
-  font-size: var(--text-3);
-  border: 0;
-  background: transparent;
-  color: var(--color-muted-foreground);
-  transition: color var(--duration-1) var(--ease-standard);
-}
-.bottombar button[aria-current="page"] {
-  color: var(--color-primary-text);
-}
-.bottombar svg {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-}
-.bottombar .lb {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
-}
-/* The badge is a CORNER SUPERSCRIPT on the icon — never a third flow child,
-   which would make the tab taller. */
-.bottombar .ic {
-  position: relative;
-  display: inline-flex;
-}
-.navbadge {
-  position: absolute;
-  right: -10px;
-  top: -6px;
-  display: inline-flex;
-  height: 18px;
-  min-width: 18px;
-  align-items: center;
-  justify-content: center;
-  padding-inline: var(--spacing-2);
-  border-radius: var(--radius-full);
-  /* PRIMARY, not danger: that is NavCountBadge's value. Red is reserved for
-     the « ? » of an unavailable counter. */
-  background: var(--color-primary);
-  color: var(--color-primary-foreground);
-  font-size: var(--text-2);
-  font-weight: 600;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  box-shadow: var(--mq-shadow-badge);
-  outline: 2px solid var(--color-sidebar);
-}
+/* NOTHING. The bar is `app/tab-bar.tsx` since L15, and its seven rules went
+   with it into `ui/variants/layout.ts` — the same declarations, term for term,
+   written as utilities. The oracle's `shell/bottom-bar` region is what says
+   they are the same. */
 
 /* ── Toast ───────────────────────────────────────────────────────── */
 .toast.show {

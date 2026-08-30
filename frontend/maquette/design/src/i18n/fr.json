@@ -777,6 +777,7 @@
       "supervision": "Supervision",
       "system": "Système",
       "configuration": "Configuration"
-    }
+    },
+    "barLabel": "Navigation principale"
   }
 }

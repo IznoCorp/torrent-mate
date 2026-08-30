@@ -317,3 +317,56 @@ export const connectionNotice = cva(
     defaultVariants: { condition: "lost" },
   },
 );
+
+/* ── The tab bar ─────────────────────────────────────────────────────
+   The bottom bar was an empty `<nav>` the engine filled on every render, and
+   its styling was seven rules of `styles/legacy.css`. Both moved here with the
+   component (L15): the rules are the same declarations written as utilities,
+   term for term, and the oracle's `shell/bottom-bar` region is what says so.
+
+   THE IDENTITY CLASSES STAY AT THE FRONT — `bottombar`, `ic`, `lb`,
+   `navbadge`. `app/bar-height.ts` finds the bar by `.bottombar` (R84's one
+   publisher) and rules select the badge by `.navbadge`; a name removed here
+   would break a reader while the styling moved cleanly. */
+export const tabBar = cva(
+  "bottombar fixed inset-x-0 bottom-0 z-50 flex border-t border-border "
+    + "bg-sidebar pb-[env(safe-area-inset-bottom)] md:hidden",
+  {
+    variants: {
+      // SELECTION MODE HIDES THE BAR, and it is read from the store rather
+      // than from `html.selecting` — the class the engine used to toggle for
+      // this one rule. A mode is state, and state lives in one place (D-L15-3).
+      selecting: { true: "hidden", false: "" },
+    },
+    defaultVariants: { selecting: false },
+  },
+);
+
+export const tabBarButton = cva(
+  "flex min-h-[44px] min-w-0 flex-1 basis-0 flex-col items-center justify-center "
+    + "gap-2 py-4 text-3 [border:0] bg-transparent text-muted-foreground "
+    + "transition-[color] duration-150 ease-standard",
+  {
+    variants: { current: { true: "text-primary-text", false: "" } },
+    defaultVariants: { current: false },
+  },
+);
+
+/* The icon's box, and it is `position: relative` for ONE reason: the badge is a
+   CORNER SUPERSCRIPT on it, never a third flow child, which would make the tab
+   taller. */
+export const tabBarIcon = cva("ic relative inline-flex");
+
+export const tabBarIconDrawing = cva("w-[20px] h-[20px] flex-none");
+
+export const tabBarLabel = cva("lb overflow-hidden text-ellipsis whitespace-nowrap max-w-full");
+
+/* PRIMARY, not danger: red is reserved for the « ? » of an unavailable
+   counter. The outline is the sidebar's colour so the badge reads as lifted off
+   the bar rather than punched into it. */
+export const tabBarBadge = cva(
+  "navbadge absolute right-[-10px] top-[-6px] inline-flex h-[18px] min-w-[18px] "
+    + "items-center justify-center px-2 rounded-full bg-primary text-primary-foreground "
+    + "text-2 font-semibold leading-none [font-variant-numeric:tabular-nums] "
+    + "[box-shadow:var(--mq-shadow-badge)] [outline:2px_solid_var(--color-sidebar)]",
+);

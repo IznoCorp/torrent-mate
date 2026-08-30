@@ -443,13 +443,11 @@
       </svg>
     </button>
 
-    <nav
-      class="bottombar fixed inset-x-0 bottom-0 z-50 flex border-t border-border
-             bg-sidebar pb-[env(safe-area-inset-bottom)] md:hidden"
-      id="nav"
-      data-part="shell/tab-bar"
-      aria-label="Navigation principale"
-    ></nav>
+    <!-- The tab bar is rendered by the shell (`src/app/tab-bar.tsx`), at this
+         same id and these same classes, into `#shell` — which sits inside this
+         frame, earlier in document order. It is absent here on purpose: two
+         elements answering `#nav` is one of them being measured and the other
+         being shown. -->
 
     <!-- NOT « Navigation principale »: the tab bar already carries that name,
          and two landmarks answering to one name make a screen reader's landmark
