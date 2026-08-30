@@ -194,7 +194,7 @@ def arm_no_polling():
     """Refuses a poll where an event exists, and prints what it read."""
     files = sources()
     violations = 0
-    used = set()
+    used = {}
     for path in files:
         relative = str(path.relative_to(DESIGN))
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
@@ -204,7 +204,12 @@ def arm_no_polling():
                 if not pattern.search(line):
                     continue
                 if (relative, name) in POLLING_EXEMPT:
-                    used.add((relative, name))
+                    # COUNTED PER OCCURRENCE, not per file. Keyed on the pair
+                    # alone, a second, third or tenth clock added to the same
+                    # file later would be silently exempt and the summary would
+                    # still print « 1 exempt ». The reason names ONE call site;
+                    # it does not license another.
+                    used[(relative, name)] = used.get((relative, name), 0) + 1
                     continue
                 violations += 1
                 print(f"  {path.relative_to(ROOT)}:{number}: `{name}` — the "
@@ -214,10 +219,16 @@ def arm_no_polling():
     # AN EXEMPTION THAT MATCHES NOTHING IS ITSELF A VIOLATION. A reason kept for
     # a call site that no longer exists is a reason nobody will ever re-read,
     # and it makes the count above look smaller than the tree deserves.
-    for entry in sorted(set(POLLING_EXEMPT) - used):
+    for entry in sorted(set(POLLING_EXEMPT) - set(used)):
         violations += 1
         print(f"  {entry[0]}: an exemption for `{entry[1]}` matches nothing. "
               "Remove it — a reason with no subject is a reason nobody re-reads.")
+    for entry, times in sorted(used.items()):
+        if times > 1:
+            violations += 1
+            print(f"  {entry[0]}: {times} `{entry[1]}` call sites under one "
+                  "exemption. The reason names one clock; a second needs its "
+                  "own reason, or it is a poll nobody argued for.")
     for path in files:
         source = path.read_text(encoding="utf-8")
         for found in NAMED_BINDING.finditer(source):

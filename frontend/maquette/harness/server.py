@@ -120,11 +120,28 @@ class FallbackHandler(http.server.SimpleHTTPRequestHandler):
     # Deciding this by a dot in the last segment is exactly what the class
     # docstring above refuses, and for a reason already paid for: a release
     # folder name carries dots and is not a file. So these are NAMED.
+    # EVERY ROOT-LEVEL RESOURCE THE DOCUMENT OR THE WORKER ASKS FOR BY NAME.
+    #
+    # The five the worker precaches were missing, and the consequence was not
+    # cosmetic: folded onto the document they answer 200 `text/html`, and
+    # `cache.add` accepts a 200 — so the worker stored a full copy of the
+    # prototype under `/offline.html` and under four icon URLs. R105 hit exactly
+    # that and worked around it inside the rule rather than fixing the host,
+    # which left the coincidence armed for every later hold about the offline
+    # notice. `/build.json` is here for the sharper version of the same: folded,
+    # `answer.json()` throws, the freshness poll reads « host unreachable », and
+    # the update discipline goes permanently quiet with nothing red.
     ASSET_PATHS = (
         "/sw.js",
+        "/build.json",
         "/manifest.webmanifest",
+        "/offline.html",
         "/favicon.svg",
         "/apple-touch-icon.png",
+        "/pwa-192.png",
+        "/pwa-512.png",
+        "/maskable-192.png",
+        "/maskable-512.png",
     )
 
     def translate_path(self, path: str) -> str:
@@ -410,9 +427,16 @@ if __name__ == "__main__":
         # measuring a page with no worker while every console stayed quiet —
         # which is the failure this whole block was written about, arriving
         # from the other side.
-        for named in FallbackHandler.ASSET_PATHS:
-            if named in absent:
-                continue
+        present = [named for named in FallbackHandler.ASSET_PATHS
+                   if named not in absent]
+        # ITS OWN CONTROL, because the loop below can otherwise run ZERO times
+        # and report nothing. The absent-side hold got one; this one did not,
+        # and on any copy assembled without the worker it silently executed no
+        # holds at all — which is precisely the state it was written to catch.
+        journal.check(
+            "the served-as-itself hold has a subject — some named resource exists",
+            bool(present), f"{len(present)} present: {present}")
+        for named in present:
             with urllib.request.urlopen(f"{base}{named}", timeout=5) as response:
                 kind = response.headers.get_content_type()
                 body = response.read()

@@ -261,27 +261,26 @@ cleanup() {
 # exits a millisecond later, and a lock recording a dead process is a lock the
 # staleness check would break under a suite that is still running.
 python3 "$HERE/served_copy.py" --acquire "${label}" "$$"
-trap cleanup EXIT
+# EXIT ALONE IS NOT ENOUGH. An untrapped SIGTERM or a Ctrl-C kills bash without
+# running the EXIT trap, and the lock then survives `STALE_AFTER_SECONDS` — a
+# whole hour during which the refusal message hands the next session
+# `rm -rf /tmp/tm-refonte/.lock`, which is what makes a lock worthless.
+trap cleanup EXIT INT TERM
 
 echo "Building the prototype — a stale copy measures the previous build…"
 (cd "$DESIGN" && npm run build >/dev/null)
-mkdir -p "$SERVED"
-cp "$DESIGN/dist/index.html" "$SERVED/wrapped.html"
-rm -rf "$SERVED/vite"
-[ -d "$DESIGN/dist/vite" ] && cp -R "$DESIGN/dist/vite" "$SERVED/vite"
-ln -sfn "$DESIGN/assets" "$SERVED/assets"
-# THE WORKER AND THE BUILD'S IDENTITY (L11). Without these two the harness host
-# has no `/sw.js` at all: its fallback handler folds any unknown path onto the
-# document, so registration would receive an HTML body, refuse it on the MIME
-# type, and P7 would be measuring a page with no worker while reporting nothing.
-cp "$DESIGN/dist/sw.js" "$SERVED/sw.js"
-cp "$DESIGN/dist/build.json" "$SERVED/build.json"
-
-# WHICH BUILD IS NOW IN THE COPY. Written after the copy and never before: a
-# stamp naming a build that is still being copied would be the very false
-# reading this is here to end.
-python3 "$HERE/served_copy.py" --stamp >/dev/null
+# THE COPY IS ASSEMBLED IN ONE PLACE, and stamped there. It used to be
+# assembled here, in `scripts/mutate.sh` and in `scripts/harness-hold-counts.py`
+# — three copies of one step, of which two wrote neither the lock nor the stamp,
+# so B-256 stayed open through the two tools most likely to run beside a suite.
+# The stamp is written by `--publish`, after the copy and never before: a stamp
+# naming a build that is still arriving is the false reading this exists to end.
+python3 "$HERE/served_copy.py" --publish >/dev/null
 STAMP_TOKEN="$(python3 "$HERE/served_copy.py" --token)"
+if [ -z "$STAMP_TOKEN" ]; then
+  echo "run.sh: the served copy carries no stamp after publishing it." >&2
+  exit 1
+fi
 
 # The harness reads http://127.0.0.1:8899/ — `server.py --serve`, rooted on that
 # copy. Never `serve.py`, which is the password-protected design host on 8712:

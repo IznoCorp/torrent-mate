@@ -82,11 +82,25 @@ if mutated == t:
 target.write_text(mutated, encoding="utf-8")
 PY
 
+# THE SERVED COPY IS TAKEN BEFORE IT IS REBUILT (B-256). This script rebuilds
+# and re-copies `/tmp/tm-refonte` twice — once with the mutation and once to
+# restore it — and it took neither the lock nor the stamp, so a suite running
+# beside it read a prototype carrying somebody else's deliberate defect and said
+# nothing. It is the tool this project's METHOD mandates, which makes it the one
+# most likely to be running beside a suite.
+python3 frontend/maquette/harness/served_copy.py --acquire "mutate.sh" "$$"
+release_the_copy() {
+  python3 frontend/maquette/harness/served_copy.py --release "$$"
+  return 0
+}
+# The trap already restores the source; it gives the copy back too, on every
+# path out — a mutation tool that kept the lock after a Ctrl-C would block every
+# later run for an hour.
+trap 'restore; release_the_copy' EXIT INT TERM
+
 echo "mutate: $TARGET mutated. Rebuilding the served copy…"
 (cd frontend/maquette/design && npm run build >/dev/null 2>&1)
-cp frontend/maquette/design/dist/index.html /tmp/tm-refonte/wrapped.html
-rm -rf /tmp/tm-refonte/vite
-cp -R frontend/maquette/design/dist/vite /tmp/tm-refonte/vite
+python3 frontend/maquette/harness/served_copy.py --publish >/dev/null
 
 FELL=0
 for RULE in "$@"; do
@@ -108,10 +122,11 @@ done
 # The restore runs from the trap, and the served copy is rebuilt after it.
 trap - EXIT INT TERM
 restore
+# Released at the very end instead, after the copy has been rebuilt clean: the
+# next session must never take a copy that still carries the mutation.
 (cd frontend/maquette/design && npm run build >/dev/null 2>&1)
-cp frontend/maquette/design/dist/index.html /tmp/tm-refonte/wrapped.html
-rm -rf /tmp/tm-refonte/vite
-cp -R frontend/maquette/design/dist/vite /tmp/tm-refonte/vite
+python3 frontend/maquette/harness/served_copy.py --publish >/dev/null
 
+release_the_copy
 [ "$FELL" -eq 1 ] || echo "mutate: NO RULE FELL. That is the finding."
 exit 0

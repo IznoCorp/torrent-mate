@@ -78,6 +78,16 @@ class TestTheLock:
         served_copy.release(os.getpid() + 1)
         assert (copy_at / ".lock").is_dir(), "the holder's lock was given away"
 
+    def test_a_release_against_an_unreadable_lock_does_nothing(self, copy_at):
+        """The refused session's trap must not destroy the holder's lock."""
+        served_copy.acquire("session A", os.getpid())
+        # The window between `mkdir` and the two writes, a truncated pid, or a
+        # `.lock` made by hand: `_held_by` answers None, and the first version
+        # fell through that case and deleted the lock.
+        (copy_at / ".lock" / "pid").unlink()
+        served_copy.release(os.getpid())
+        assert (copy_at / ".lock").is_dir(), "an unreadable lock was given away"
+
     def test_the_holder_may_release(self, copy_at):
         """And the copy is then free for the next suite."""
         served_copy.acquire("session A", os.getpid())

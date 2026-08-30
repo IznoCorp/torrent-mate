@@ -35,6 +35,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import shutil
 import subprocess
 import sys
 import time
@@ -52,6 +54,9 @@ LOCK = SERVED / ".lock"
 # process is confirmed absent. Both conditions, never either: a suite that runs
 # 25 minutes is normal, and an age alone would break the lock underneath it.
 STALE_AFTER_SECONDS = 60 * 60
+
+# The one docstring fence this repository writes; `ruff` refuses the other.
+FENCE = chr(34) * 3
 
 
 def _git(*arguments: str) -> str:
@@ -96,6 +101,59 @@ def source_stamp() -> int:
         if root.is_file():
             newest = max(newest, root.stat().st_mtime_ns)
     return newest
+
+
+def publish(design: Path | None = None) -> dict:
+    """Puts the freshly built prototype in the served copy, and stamps it.
+
+    THE ONE PLACE THE COPY IS ASSEMBLED, and it exists because there were three.
+    `run.sh`, `scripts/mutate.sh` and `scripts/harness-hold-counts.py` each had
+    their own version, and two of them wrote NEITHER the lock nor the stamp —
+    so B-256 stayed open through the two tools most likely to be running beside
+    a suite: the mutation tool this project's method mandates, and the very tool
+    that records the hold-count baseline.
+
+    They also fell behind in the other direction. `run.sh` learned to copy
+    `sw.js` and `build.json` at L11 and the other two did not, so a copy either
+    of them made served a worker and a build identity from a PREVIOUS build. A
+    build output is a third end, and three copies of an assembly step means
+    every new output has to be remembered three times. Now it is one.
+
+    Args:
+        design: The design root. Defaults to this file's own tree.
+
+    Returns:
+        The stamp written over the copy.
+
+    Raises:
+        SystemExit: When the build has produced nothing to publish — an empty
+            copy measures nothing and must not be mistaken for a fresh one.
+    """
+    design = design or (Path(__file__).resolve().parents[1] / "design")
+    dist = design / "dist"
+    if not (dist / "index.html").is_file():
+        raise SystemExit(
+            f"{dist}/index.html is absent — nothing was built to publish.")
+    SERVED.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(dist / "index.html", SERVED / "wrapped.html")
+    shutil.rmtree(SERVED / "vite", ignore_errors=True)
+    if (dist / "vite").is_dir():
+        shutil.copytree(dist / "vite", SERVED / "vite", dirs_exist_ok=True)
+    # THE WORKER AND THE BUILD'S IDENTITY. Without them the harness host has no
+    # `/sw.js` at all: its fallback handler folds any unknown path onto the
+    # document, so registration receives an HTML body and refuses it on the MIME
+    # type, with nothing said anywhere.
+    for name in ("sw.js", "build.json"):
+        if (dist / name).is_file():
+            shutil.copy2(dist / name, SERVED / name)
+    link = SERVED / "assets"
+    if link.is_symlink() or link.exists():
+        if link.is_dir() and not link.is_symlink():
+            shutil.rmtree(link)
+        else:
+            link.unlink()
+    link.symlink_to(design / "assets", target_is_directory=True)
+    return write_stamp()
 
 
 def write_stamp(token_value: str | None = None) -> dict:
@@ -295,7 +353,14 @@ def release(pid: int | None = None) -> None:
             different one belongs to somebody else and is left alone.
     """
     held = _held_by()
-    if held is not None and held["pid"] != (pid or os.getpid()):
+    # AN UNREADABLE LOCK IS NOT OURS EITHER. `_held_by` answers None for the
+    # window between `mkdir` and the two writes, for a truncated `pid`, and for
+    # a `.lock` made by hand — and the first version fell THROUGH that case and
+    # deleted the lock. `run.sh` releases from a trap that fires on every exit
+    # path INCLUDING the refused one, so a session that was correctly turned
+    # away would have destroyed the holder's lock on its way out. The victim
+    # would have been the session that did everything right.
+    if held is None or held["pid"] != (pid or os.getpid()):
         return
     _release_quietly()
 
@@ -312,13 +377,41 @@ def _code_of(path: Path) -> str:
     Args:
         path: The file to read.
 
+    IT STRIPS DOCSTRINGS TOO, and that is not tidiness. The first version
+    dropped `#` comments only, so `common.py`'s hundred-odd lines of docstring
+    survived into the "code" — and every hold below is a substring search.
+    Deleting `assert_unchanged(STARTED_AGAINST, "opening the prototype")` from
+    `open_page` and writing that same sentence into its DOCSTRING left all three
+    holds green with the assertion gone. That is the very defect this function's
+    header cites, one quoting style further along.
+
+    ONLY THE DOUBLE-QUOTED FENCE, because that is the only one this repository
+    writes: `ruff` enforces it, and a stripper that half-understood the other
+    would be a stripper nobody could reason about. A single-quoted docstring
+    would be a lint error long before it reached here.
+
     Returns:
-        The source with every `#` comment line dropped, and trailing comments
-        cut at the first `#` that is not inside a string.
+        The source with every `#` comment line dropped, every triple-quoted
+        block removed, and trailing comments cut at the first `#` that is not
+        inside a string.
     """
     kept = []
+    inside_docstring = False
     for line in path.read_text().splitlines():
         stripped = line.strip()
+        if inside_docstring:
+            if FENCE in line:
+                inside_docstring = False
+            continue
+        opened = line.find(FENCE)
+        if opened >= 0:
+            # A one-line docstring opens and closes on the same line; only an
+            # unclosed fence carries into the lines that follow.
+            inside_docstring = line.find(FENCE, opened + len(FENCE)) < 0
+            line = line[:opened]
+            stripped = line.strip()
+        if not stripped:
+            continue
         if stripped.startswith("#"):
             continue
         quote = None
@@ -350,8 +443,10 @@ def rules() -> int:
     """
     executed = 0
     failures = []
-    run_sh = _code_of(Path(__file__).resolve().parent / "run.sh")
-    common = _code_of(Path(__file__).resolve().parent / "common.py")
+    here = Path(__file__).resolve().parent
+    run_sh = _code_of(here / "run.sh")
+    common = _code_of(here / "common.py")
+    mine = _code_of(here / "served_copy.py")
 
     def hold(name, condition, detail=""):
         nonlocal executed
@@ -361,26 +456,58 @@ def rules() -> int:
         if not condition:
             failures.append(name)
 
-    # THE ORDER IS THE CORRECTNESS. A lock taken after the build has already
-    # let the second builder overwrite the copy, and a stamp written before the
-    # copy names a build that is still arriving.
-    acquire_at = run_sh.find("served_copy.py\" --acquire")
+    # THE ORDER IS THE CORRECTNESS. A lock taken after the build has already let
+    # the second builder overwrite the copy under a reader.
+    acquire_at = run_sh.find('served_copy.py" --acquire')
     build_at = run_sh.find("npm run build")
-    copy_at = run_sh.find("cp \"$DESIGN/dist/index.html\"")
-    stamp_at = run_sh.find("served_copy.py\" --stamp")
+    publish_at = run_sh.find('served_copy.py" --publish')
     hold("run.sh takes the copy BEFORE it rebuilds it",
          0 <= acquire_at < build_at, f"acquire@{acquire_at} build@{build_at}")
-    hold("run.sh stamps the copy AFTER it lands",
-         copy_at >= 0 and stamp_at > copy_at, f"copy@{copy_at} stamp@{stamp_at}")
-    hold("run.sh gives the copy back however it ended",
-         "trap cleanup EXIT" in run_sh and "--release" in run_sh)
+    hold("run.sh publishes the copy AFTER it builds it",
+         0 <= build_at < publish_at, f"build@{build_at} publish@{publish_at}")
+    hold("run.sh gives the copy back however it ended — a signal included",
+         "trap cleanup EXIT INT TERM" in run_sh and "--release" in run_sh)
 
-    # THE READING THAT COVERS EVERY RULE, including the twelve that import
-    # nothing from `common.py` — `audit2.py`, which started the incident, among
-    # them. It is the only one of the three that can make that claim.
-    hold("run.sh reads the stamp around every rule it launches",
-         "STAMP_TOKEN" in run_sh and 'served_copy.py\" --token' in run_sh
-         and 'rm -f \"$HARNESS_LOGS/$rule.ok\"' in run_sh)
+    # ONE ASSEMBLY, and this is the hold that keeps it one. Three copies of this
+    # step existed; two wrote neither the lock nor the stamp, and one of those
+    # is the tool that records the hold-count baseline while the other is the
+    # mutation tool this project's method mandates. They also fell behind on
+    # WHAT the copy contains: `sw.js` and `build.json` joined it at L11 in
+    # `run.sh` alone, so a copy either of them made served a worker from a
+    # previous build.
+    repository = here.parents[2]
+    for tool in ("scripts/mutate.sh", "scripts/harness-hold-counts.py"):
+        source = _code_of(repository / tool)
+        hold(f"{tool} publishes through the harness rather than copying by hand",
+             "served_copy" in source and "wrapped.html" not in source,
+             "copies wrapped.html itself" if "wrapped.html" in source
+             else "publishes")
+        hold(f"{tool} takes the copy before it rebuilds it",
+             "acquire" in source)
+    hold("and the publisher copies the worker and the build's identity",
+         '"sw.js", "build.json"' in mine)
+
+    # THE COMPARISON ITSELF, and not substrings that survive without it. Two of
+    # the three the first version searched for were satisfied by the assignment
+    # line alone, and nothing held that `$after` was compared to `$STAMP_TOKEN`,
+    # that the operator was `!=`, or that the block ran whichever way the rule
+    # went — which is the whole point, because a rule that PASSED over a swapped
+    # copy is the case that matters. Wrapping the block in a condition left all
+    # three present and the check dead for every rule.
+    compared = re.search(
+        r'after="\$\(python3 "\$HARNESS_DIR/served_copy\.py" --token\)"\s*\n'
+        r'\s*if \[ "\$after" != "\$STAMP_TOKEN" \]; then',
+        run_sh)
+    hold("run.sh COMPARES the stamp around every rule it launches",
+         compared is not None,
+         "the read, the comparison and its operator, in one block")
+    hold("and a rule that passed over a swapped copy is un-passed",
+         compared is not None
+         and 'rm -f "$HARNESS_LOGS/$rule.ok"' in run_sh[compared.end():])
+    # AND THE TOKEN IS NON-EMPTY BEFORE THE RUN. Empty, `"" != ""` is false for
+    # every rule and the wrapper passes seventy-nine times over nothing.
+    hold("run.sh refuses to start against a copy with no stamp",
+         'if [ -z "$STAMP_TOKEN" ]; then' in run_sh)
 
     # AND THE READING THAT COVERS A RULE RUN BY HAND, which `run.sh` never sees
     # and which is how a rule is run while it is being written.
@@ -392,9 +519,6 @@ def rules() -> int:
     hold("common.py asserts at the end, in Journal.summary",
          common.count("assert_unchanged(STARTED_AGAINST") >= 2)
 
-    # THE COPY AS IT STANDS. A stamp nobody can read is a stamp nobody checks —
-    # and this is the hold that would have gone red on a machine where `run.sh`
-    # ran the build but the stamp step was removed.
     stamp = read_stamp()
     hold("the served copy carries a readable stamp",
          stamp is not None and bool(stamp.get("token")),
@@ -423,6 +547,8 @@ def main() -> int:
                 int(sys.argv[3]) if len(sys.argv) > 3 else None)
     elif what == "--release":
         release(int(sys.argv[2]) if len(sys.argv) > 2 else None)
+    elif what == "--publish":
+        print(json.dumps(publish(), sort_keys=True))
     elif what == "--stamp":
         print(json.dumps(write_stamp(), sort_keys=True))
     elif what == "--token":

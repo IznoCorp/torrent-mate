@@ -185,11 +185,23 @@ async def main():
         # red the day it is written. The runtime half is device-only, exercised
         # and dated like the oracle's certification — MODEL § 3.1's precedent
         # for the interaction budget, and for the same reason.
-        design = pathlib.Path(__file__).resolve().parents[1] / "design" / "src"
+        design = pathlib.Path(__file__).resolve().parents[1] / "design"
+        # THE INLINE BOOT SCRIPT AND THE WORKER ARE READ TOO. The first version
+        # scanned `src/**` alone — and `index.html` is where this project
+        # already puts script that runs before anything else (the worker's own
+        # registration lives there), so the one file most likely to carry a
+        # `beforeunload` was the one file invisible to the rule.
+        sources = [design / "index.html", design / "sw.js"]
+        sources += [path for path in (design / "src").rglob("*")
+                    if path.is_file() and path.suffix in (".ts", ".tsx", ".js")]
+        sources = [path for path in sources if path.is_file()]
+        # A FILTER THAT CAN RETURN NOTHING MUST HAVE A FLOOR — `run.sh`'s own
+        # words. Empty, this hold is green forever, and `design/src` moving is
+        # on this project's roadmap.
+        journal.check("the eviction ratchet has a corpus to read",
+                      len(sources) >= 60, f"{len(sources)} file(s)")
         evictors = []
-        for source in design.rglob("*"):
-            if source.suffix not in (".ts", ".tsx", ".js") or not source.is_file():
-                continue
+        for source in sources:
             text = source.read_text(errors="ignore")
             for handler in ("beforeunload", '"unload"', "'unload'", "onunload"):
                 if handler in text:
