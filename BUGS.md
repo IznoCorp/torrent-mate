@@ -298,6 +298,7 @@ when the defect comes back.
 | B-236 | Every bottom-panel producer is the engine's — L19's since 2026-08-29 | by survey | `open` |
 | B-237 | The confirmation dialog paints under the tab bar | by review | `open` |
 | B-238 | A version-less « In flight » row is held by nothing | by review | `open` |
+| B-239 | `CLAUDE.md` announced 24 frame properties where the model it points at holds 30 | by audit | `fixing` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
@@ -4127,6 +4128,33 @@ one ranked list, in `MODEL.md` § 2 Part 6, and a rule that reads `elementFromPo
 while a dialog is open.
 
 <sub>`grep -n "z-index" frontend/maquette/design/src/styles/legacy.css` · `grep -n "z-\[\|z-[0-9]" frontend/maquette/design/index.html`</sub>
+
+**B-239 — the index announced twenty-four properties and the document it points at holds thirty.**
+`CLAUDE.md`'s reference table gained a row for `MODEL.md` on 2026-08-29 reading « the 24
+mobile-application properties ». `MODEL.md` § 3 holds **P1 to P30**.
+
+**It was not drift.** `MODEL.md` carried thirty in the same commit — `d3892d18`, #521 — that wrote
+the index row saying twenty-four. The figure was wrong the moment it was written, by the wave that
+wrote both files, and the session report to the operator said thirty correctly. **The error survived
+only where it would be read first**: the binding index every agent opens before anything else.
+
+**Two things it is NOT, and both were checked before this entry was written.** « Thirteen parts » in
+the same row is right — `MODEL.md` § 2 runs Part 1 to Part 13, plus one heading that says it is not
+a part, and counting `###` headings gives fourteen. And the suite's « 71 rules » was NOT touched:
+the hold-count baseline's top-level keys are metadata, so a count taken from it is a miscount, and
+the authoritative figure comes from running `run.sh` — which needs a browser this office does not
+have. **A figure that cannot be re-derived is left alone and said so**, which is the other half of
+the rule that produced this entry.
+
+<sub>`grep -c '^| P[0-9]' docs/features/maquette-l10-ter/MODEL.md` · `git show d3892d18:docs/features/maquette-l10-ter/MODEL.md | grep -c '^| P[0-9]'`</sub>
+
+> **Corrected with a second stale sentence found in the same sweep.** § 1 of the plan still read
+> « invariant 10 has been binding since L09 and its subject — the frame — has never been modelled »,
+> three lines above the paragraph recording that L10-ter modelled it in thirteen parts. True when
+> written on 2026-08-28, false since the 29th, and contradicted within the same section. Put in the
+> past tense: *that was the debt, and this phase paid it.*
+
+---
 
 **B-238 — a version-less « In flight » row is held by nothing.**
 `scripts/check-implementation-state.py` refuses an « In flight » row naming a version `main` has
