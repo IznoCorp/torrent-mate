@@ -44,7 +44,7 @@ import sys
 import pathlib
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import Journal, open_page
+from common import PROTOTYPE, Journal, open_page
 
 from playwright.async_api import async_playwright
 
@@ -78,22 +78,45 @@ async def main():
         page.on("pageerror", lambda error: errors.append(str(error)))
 
         # (a) ONE DOCUMENT, across every state the interface declares.
+        #
+        # NOT BY COUNTING `performance.getEntriesByType("navigation")`, and the
+        # first version of this hold did exactly that. That list holds ONE entry
+        # per document — so a full navigation produces a NEW document where the
+        # count is one again, and « it stayed at one » is true whether the
+        # property holds or not. A reading that cannot come out the other way is
+        # not a measurement.
+        #
+        # WHAT SEPARATES THE TWO IS THE DOCUMENT'S OWN LIFETIME. A sentinel
+        # planted on `window` survives every same-document navigation and
+        # nothing else, and a real document load raises `load` on the page.
+        # Both are read, and BOTH ARE PROVED ALIVE at the end by a navigation
+        # made on purpose — a hold asserting « none happened » is worth exactly
+        # what its detector is worth.
+        #
+        # NOT `framenavigated`, which was tried and reads the wrong thing: it
+        # fires for a `pushState` too, and the router issues one per arrival —
+        # measured at 63 over the 87 states, with the sentinel intact
+        # throughout. A counter that moves 63 times while the property holds
+        # perfectly is a counter that would have to be given a threshold, and a
+        # threshold on a signal that means two things is a number nobody can
+        # defend.
+        navigations = []
+        page.on("load", lambda _: navigations.append("load"))
         states = await page.evaluate("()=>window.__states()")
         journal.check(
             "the interface declares the states this walk covers",
             len(states) > 50,
             f"{len(states)} named state(s)")
-        entries = []
+        await page.evaluate("()=>{window.__oneDocument = 'planted';}")
+        before = len(navigations)
         for state in states:
             await page.evaluate("(id)=>window.__go(id)", state)
-            entries.append(await page.evaluate(
-                "()=>performance.getEntriesByType('navigation').length"))
+        survived = await page.evaluate("()=>window.__oneDocument ?? null")
         journal.check(
             "no full navigation between any two named states — one document",
-            entries and max(entries) == 1 and min(entries) == 1,
-            f"navigation entries over {len(entries)} state(s): "
-            f"min {min(entries) if entries else 'none'}, "
-            f"max {max(entries) if entries else 'none'}")
+            survived == "planted" and len(navigations) == before,
+            f"sentinel after {len(states)} state(s): {survived!r}; "
+            f"{len(navigations) - before} document load(s)")
 
         # (b) THE BAR'S BUTTONS KEEP THEIR IDENTITY across a page switch.
         await page.evaluate("()=>window.__go('acq-now-idle')")
@@ -144,6 +167,22 @@ async def main():
             "focus survives a page switch and a store bump (P28, B-231)",
             kept["inBar"] and kept["page"] == focused and not kept["body"],
             f"active element: {kept}")
+
+        # (e) THE POSITIVE CONTROL FOR (a), and it comes LAST because it
+        # destroys the document every hold above measures. One real navigation:
+        # the sentinel must be gone and the counter must have moved. Without it
+        # « none happened » reads the same whether the detectors are alive or
+        # dead — which is the shape this repository counts.
+        control_before = len(navigations)
+        await page.goto(PROTOTYPE, wait_until="load")
+        await page.wait_for_timeout(150)
+        gone = await page.evaluate("()=>window.__oneDocument ?? null")
+        journal.check(
+            "the one-document detectors are alive — a real navigation is seen "
+            "by both",
+            gone is None and len(navigations) > control_before,
+            f"sentinel after a real navigation: {gone!r}; "
+            f"{len(navigations) - control_before} document load(s) counted")
 
         await context.close()
         await browser.close()
