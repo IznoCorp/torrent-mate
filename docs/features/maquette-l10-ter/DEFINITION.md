@@ -48,7 +48,10 @@ What is established and verifiable:
 
 **Twelve writes in all, two of them identified above.** The steward first published « nine »,
 from a grep narrower than the one below; re-derive the count rather than inherit it, and note
-that this figure moved once already inside the day it was written.
+that this figure moved once already inside the day it was written. ⚠ **It moved again**: the phase
+read **thirteen** `innerHTML` writes and **nineteen** drawing sites with a command that reads every
+way a script draws (`SURVEY.md` § 1.1, B-228) — the grep below misses a write whose value sits on
+the next line.
 
     grep -n "\.innerHTML = " frontend/maquette/design/src/engine/legacy.js
     grep -rn "#drawer\|#nav\b" frontend/maquette/design/src/app/

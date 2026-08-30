@@ -640,10 +640,15 @@ class TestSizeArmReadsTheLabel:
         """A lot that will never run is a promise nobody can call in.
 
         Holding the label only against the LANDED set left this green for ever:
-        `L19` is not landed, so the spent check passed it, and the plan declares
-        L01 to L13 and nothing else. B-073's own defect wearing another face.
+        a lot that is not landed passed the spent check whether or not the plan
+        declared it. B-073's own defect wearing another face.
+
+        The number below is one no plan declares. It read `L19` until L10-ter
+        declared L19 on 2026-08-29 and this fixture became a real label — a
+        test that enumerates the plan's lots is a test the plan falsifies by
+        growing.
         """
-        monkeypatch.setitem(guard.GRANDFATHERED, "engine/legacy.js", "L19 — some lot that does not exist")
+        monkeypatch.setitem(guard.GRANDFATHERED, "engine/legacy.js", "L99 — some lot that does not exist")
         violations = guard.arm_size(DESIGN_SRC)
         captured = capsys.readouterr()
         assert violations == 1, captured.err

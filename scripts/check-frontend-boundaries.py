@@ -401,8 +401,8 @@ def declared_and_landed_lots() -> tuple[set[str], set[str]]:
     grandfather entries kept promising a lot that had already run.
 
     BOTH SETS, and the first one is not decoration. Holding a label only
-    against the landed set leaves « L19 — the data layer takes it » green for
-    ever: the plan declares L01 to L14 and nothing else, so a lot that will
+    against the landed set leaves « L99 — the data layer takes it » green for
+    ever: the plan declares a finite set of lots (read from its headings, never listed here), so a lot that will
     never run is a promise nobody can call in — B-073's own defect wearing a
     different disguise.
 
