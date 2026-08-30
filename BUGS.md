@@ -296,7 +296,7 @@ when the defect comes back.
 | B-234 | The viewport meta declares no `interactive-widget` | by survey | `open` |
 | B-235 | No desktop navigation exists beyond the drawer | by survey | `open` |
 | B-236 | Every bottom-panel producer is the engine's — L19's since 2026-08-29 | by survey | `open` |
-| B-237 | The confirmation dialog paints under the tab bar | by review | `open` |
+| B-237 | The confirmation dialog paints under the tab bar | by review | `fixed #528` |
 | B-238 | A version-less « In flight » row is held by nothing | by review | `fixed #527` |
 | B-239 | `CLAUDE.md` announced 24 frame properties where the model it points at holds 30 | by audit | `fixed #524` |
 | B-240 | `CLAUDE.md` announced 25 engine French words where the file it points at holds 24 | by audit | `fixed #524` |
@@ -307,6 +307,33 @@ when the defect comes back.
 | B-245 | The pre-paint appearance script compares against the French spellings the engine stopped writing | by L15 | `open` |
 | B-246 | The « In flight » row's version arm is defeated by markdown emphasis, in silence | by L15 | `fixed #528` |
 | B-247 | A store bump replaces a feature page's nodes, so a write between press and click destroys the click | by L15 | `open` |
+
+**B-237 — the confirmation is ranked above the chrome, and the ranked list exists.**
+Closed by L15's phase 10, alone, with R101 (`harness/stacking.py`). The dialog's rank moves
+48 → 56 — above the drawer it can be opened from, above the selection bar it usually is opened
+from, below the sign-in gate — and `ui/variants/frame.ts` opens with THE RANKED LIST, every rank
+the frame paints named once, each variant carrying its number with a pointer back to it. Part 6
+says the chrome owns the z-order and that today it is « not a decision but an accumulation »; this
+is the decision.
+
+**Half of this entry's own text was wrong, and the rule says so rather than repeating it.** It
+read « the bar's four buttons stay tappable over a modal that says `aria-modal="true"` ». They are
+not: `app/focus.ts` marks the whole background `inert` while a layer is open, `#nav` among the
+thirteen elements it names, and `inert` takes an element out of HIT-TESTING as well as out of the
+focus order. What was really wrong is the PAINT — the chrome drawn across a modal wherever the two
+met, which a reader sees and a finger cannot report.
+
+**And the rule had to be written three times before it measured anything**, which is this wave's
+sixth and seventh instance of B-085's shape. The named delete states raise dialogs of 184–660 and
+142–702 against a bar at 787–844: **they do not touch**, so a hold that opened one and hit-tested
+its own rectangle passed at 48 exactly as at 56. The overlap is PRODUCED now — a manifest long
+enough to reach past the bar, opened through the layer's own verb. And with the background `inert`,
+`elementFromPoint` answered the dialog either way; the bar's `inert` is lifted for the length of one
+reading and put back.
+
+<sub>`python3 frontend/maquette/harness/stacking.py` — 7 holds, no violation. Mutation: the rank restored to 48; the hold falls with « at: 'nav', dialogRank: '48', barRank: '50' ».</sub>
+
+---
 
 **B-229 — the confirmation dialog is on the ladder, and Back walks it.**
 Closed by L15's phase 9, in a commit of its own with its own rule — a BEHAVIOUR

@@ -16,6 +16,30 @@
 // break a reader while the styling moved cleanly.
 import { cva } from "../cva";
 
+/* ── THE RANKED LIST, AND IT IS ONE LIST ─────────────────────────────
+   `MODEL.md` § 2 Part 6 says the chrome owns the z-order, and that today it is
+   « not a decision but an accumulation ». This is the decision. Every rank the
+   frame paints is named here once, and each variant below carries its number
+   with a pointer back to this list — Tailwind cannot read a constant into a
+   class name, so the list is the record and the variants are the spelling.
+
+     30  the action button        `addAction`
+     46  the scrim               `sheetScrim` (ui/variants/layout.ts)
+     47  the bottom sheet        `bottomSheet` (ui/variants/layout.ts)
+     49  the message             `messageHost`
+     50  the tab bar             `tabBar`
+     51  the bottom slot's bar   `selectionBar`
+     55  the drawer              `drawer`
+     56  the confirmation        `dialog`
+     60  the popover, the harness panel, the sign-in gate
+     70  the splash
+
+   THE CONFIRMATION USED TO BE 48 — under the tab bar (B-237), so a delete
+   confirmation opened with four tappable tabs painted over its lower edge, on a
+   layer declaring `aria-modal="true"`. It is 56 now: above the drawer it can be
+   opened from, above the selection bar it is usually opened from, and below the
+   sign-in gate, which covers everything by definition. */
+
 /* ── The tab bar ─────────────────────────────────────────────────────
    The bottom bar was an empty `<nav>` the engine filled on every render, and
    its styling was seven rules of `styles/legacy.css`. Both moved here with the
@@ -239,11 +263,11 @@ export const drawerIdentitySecondary = cva(
    the box, the two typographic rules, the action row, the three button tones,
    the simulation notice, the manifest and the warning. They are here now.
 
-   THE RANK IS PART OF THE MOVE AND IS NOT CHANGED HERE. `z-48` is what it was,
-   under the tab bar's `z-50` — which is B-237, and B-237 lands in a commit of
-   its own with a rule that hit-tests rather than reads a number. */
+   THE RANK IS 56 SINCE B-237, and the ranked list at the top of this file is
+   where that is decided. It was 48 — under the tab bar's 50 — so a delete
+   confirmation opened with four tappable tabs painted over its lower edge. */
 export const dialog = cva(
-  "dlg absolute left-[16px] right-[16px] top-1/2 z-[48] bg-popover "
+  "dlg absolute left-[16px] right-[16px] top-1/2 z-[56] bg-popover "
     + "border border-border rounded-4 p-7 [box-shadow:var(--mq-shadow-dlg)] "
     + "transition-[opacity,transform] duration-200 ease-standard",
   {
