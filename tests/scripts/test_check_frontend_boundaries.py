@@ -171,8 +171,14 @@ class TestAddressingArm:
         assert violations == 1
         assert any("declares « page » as a search parameter" in line for line in captured.err.splitlines())
 
-    def test_e_a_page_the_engine_does_not_draw_is_a_violation(self, tmp_path, capsys) -> None:
-        """Refuse an address for a page `PAGES_OF()` never draws — a link leading nowhere."""
+    def test_e_a_page_the_table_does_not_carry_is_a_violation(self, tmp_path, capsys) -> None:
+        """Refuse an address for a page the navigation table never carries.
+
+        THE SUBJECT MOVED AT L15, and the hold moved with it. It used to read
+        `PAGES_OF()` in the dying engine; there is one table now
+        (`app/navigation.ts`) and the law is the same law — an address for a
+        page that does not exist is a link leading nowhere.
+        """
         root = copy_design_src(tmp_path)
         model = root / "lib" / "addresses.ts"
         model.write_text(
@@ -185,16 +191,24 @@ class TestAddressingArm:
         violations = guard.arm_addressing(root)
         captured = capsys.readouterr()
         assert violations >= 1
-        assert any("« ghost »" in line and "PAGES_OF() does not draw" in line for line in captured.err.splitlines())
+        assert any(
+            "« ghost »" in line and "the navigation table does not carry" in line for line in captured.err.splitlines()
+        )
 
     def test_f_a_page_with_no_address_is_a_violation(self, tmp_path, capsys) -> None:
-        """Refuse a page the engine draws and the model gives no address — nobody can link to it."""
+        """Refuse a page the TABLE carries and the model gives no address.
+
+        The other direction of test (e), and the same move at L15: the row is
+        added to `app/navigation.ts` rather than to the engine's `PAGES_OF()`,
+        because that is where a page is declared now. Nobody can link to a page
+        with no address, and nothing would say so.
+        """
         root = copy_design_src(tmp_path)
-        engine = root / "engine" / "legacy.js"
-        engine.write_text(
-            engine.read_text(encoding="utf-8").replace(
-                '      id: "acq",',
-                '      id: "phantom",\n      l: "Phantom",\n    },\n    {\n      id: "acq",',
+        table = root / "app" / "navigation.ts"
+        table.write_text(
+            table.read_text(encoding="utf-8").replace(
+                '    id: "acq",',
+                '    id: "phantom",\n  },\n  {\n    id: "acq",',
                 1,
             ),
             encoding="utf-8",
