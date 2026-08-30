@@ -113,6 +113,19 @@ oracle runs. And the steward may be auditing text it wrote itself; the anchor is
 repository and the re-run measurement, never remembered intent. A steward that checks the work
 against its own recollection of what it meant will find they agree.
 
+**The first limit fell on 2026-08-30, by the operator's decision, and the second did not.** The
+steward now runs **on the operator's machine — the one that owns the oracle's references — in the
+same conditions as the agents that execute the lots.** So it CAN run `make maquette-oracle`, the
+full rule suite and the accessibility tier, and certify a rendering itself rather than read a
+claim about it; a steward that still writes « cannot certify » is reading this file's history
+instead of its present. Re-recording the reference stays the post-merge gesture of § 5, performed
+once per squash, never as part of an audit. **The separation is untouched**: the steward analyses
+the work and produces none of it — it runs the instruments, it does not write the lot. And it can
+now **ask an executing agent for its report directly** (`SendMessage`, once that agent has
+finished) instead of reconstructing a wave from its squashed pull-request body — the body this
+office once measured to be wrong by a factor of five. A report received that way is a claim like
+any other: it is checked against the repository, never taken as the audit.
+
 
 **A brief that a wave will execute lives in the REPOSITORY before that wave is launched.** Under
 `docs/features/<codename>/`, on a pushed branch, in English like every other engineering document —
