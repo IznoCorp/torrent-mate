@@ -310,7 +310,60 @@ when the defect comes back.
 | B-248 | The bottom sheet rises behind the tab bar; the operator wants it to cover the bar | 1× | `fixed #528` |
 | B-249 | The screen flashes when a sheet action closes the sheet AND opens a page | 1× | `open` |
 | B-250 | `check-live-relay`'s stale-figure arm cannot tell a register citation from a frozen count | by L15 | `fixed #528` |
-| B-251 | A file under `docs/` that no commit force-added is invisible to `git add -A`, to `git status` and to every gate | 1× | `open` |
+| B-251 | A file under `docs/` that no commit force-added is invisible to `git add -A`, to `git status` and to every gate | 1× | `fixing` |
+| B-252 | The oracle reads a region's node and never its children; two L15 surfaces are held by no rule | by audit | `open` |
+| B-253 | B-247 was reassigned to L14 and L19 by the wave that left it, and the plan named it in neither | by audit | `fixing` |
+| B-254 | Two figures written by hand: the Makefile's « 83 states x 33 regions » and CLAUDE.md's guard count | by audit | `fixing` |
+| B-255 | `check-frontend-boundaries.py` is back at 952 lines, 48 from the hard ceiling it was cut away from | by audit | `open` |
+
+**B-255 — `check-frontend-boundaries.py` is back at 952 lines, 48 from the hard ceiling it was cut away from.**
+B-050 (#500) found it at 921 and L07-bis split three guards on a subject rather than a line count.
+`python3 scripts/check-module-size.py --root scripts` on `main` at `99a82a35` warns at **952** — it grew
+through L08 to L15 by an arm at a time, the shape B-050 named. The next arm added to it crosses 1 000
+and `make check` refuses the pull request that adds it, for a reason foreign to that pull request.
+Open, and the split is a wave's: the next lot that touches the file cuts it on a subject first.
+
+<sub>`python3 scripts/check-module-size.py --root scripts`</sub>
+
+---
+
+**B-254 — two figures written by hand, both wrong on the day they were read.**
+`Makefile`'s `maquette-oracle` target announced « 83 states x 33 regions » while the run beneath it
+printed 87 × 34; `CLAUDE.md` § 4 said the contracts tier runs « twenty » cheap guards after the
+steward had corrected « nineteen » the same day, and `run.sh` lists 23 with this entry's own guard.
+A number written in prose is right once. Both now say what the instrument prints and no number.
+
+<sub>`grep -c "states x" Makefile` → 0 · `frontend/maquette/harness/run.sh --contracts | grep "cheap guards"`</sub>
+
+---
+
+**B-253 — B-247 was reassigned to L14 and L19 by the wave that left it, and the plan named it in neither.**
+L15's report said B-247 (a store bump replaces a feature page's nodes, so a write between
+`pointerdown` and `click` destroys the tap) « is L14's and L19's ». `grep -n "B-247"
+docs/reference/frontend-architecture.md` returned nothing: a debt with no named owner, which the plan's
+own L14 entry calls « a debt nobody pays, and it reappears in the last lot ». Both entries name their
+half now, and L19 names B-249's producer half (the 260 ms wait R103 prints) in the same move.
+
+<sub>`grep -c "B-247" docs/reference/frontend-architecture.md` → 2 · `grep -c "B-249" docs/reference/frontend-architecture.md` → 2</sub>
+
+---
+
+**B-252 — the oracle reads a region's node and never its children; two L15 surfaces are held by no rule.**
+Measured by the steward on `main` at `212faf0a`: with `dialogParagraph` stripped of
+`text-muted-foreground`, and separately with `bg-transparent` restored to `selectionAction`'s base
+(the white-on-white destructive button of the light theme, contrast 1.00), `make maquette-oracle`
+reported **167 divergences before and 167 after**, every one on `shell/sheet-content` — the two
+defects the adversarial review of #528 found by eye are invisible to the instrument by its own
+contract, which D8 already stated for pseudo-elements and now states for descendants. **The two
+surfaces are repaired and held by nothing**: the light-theme ratchet stayed at 166 across the defect
+and its repair. D8's contract is that a child carrying a function is covered by a NAMED rule: one
+that reads `color` of `.dlg p` under both themes, one that reads the danger action's contrast under
+`data-theme="light"`. Open; proposed to **L12** (the next lot that redraws the layers' states) unless
+the operator places it — the steward proposes and does not arbitrate.
+
+<sub>`sed -i '' 's/ text-muted-foreground"/"/' frontend/maquette/design/src/ui/variants/frame.ts && make maquette-oracle; git checkout -- frontend/maquette/design/src/ui/variants/frame.ts` → 167 both ways</sub>
+
+---
 
 **B-251 — a document under `docs/` can be written, cited and never committed, with nothing red.**
 The operator's global `~/.gitignore` carries a `docs/` rule, so a NEW file under `docs/` is
@@ -318,7 +371,7 @@ ignored: `git add -A` skips it, `git status` does not list it, and no gate in th
 `check-bug-register`, `audit_design_coverage`, `check-implementation-state`, CI's `docs` filter —
 reads a path that is not in the index. A folder whose other files were force-added once looks
 entirely normal, because the tracked siblings are tracked. **Found on 2026-08-30 by the steward,
-measuring `origin/main` after L15 merged**: `docs/features/maquette-l15/REPORT.md` was cited in the
+measuring `origin/main` after L15 merged**: `docs/archive/features/maquette-l15/REPORT.md` was cited in the
 pull request body, in the wave's own account of its gates and in two cross-session reports, and it
 existed on one disk. `BRIEF.md`, `DESIGN.md` and `plan/` were there because the commit that created
 them used `git add -f`; every commit after that skipped the report in silence.
@@ -4538,7 +4591,7 @@ moved. Screens stay in its sweep — the bar does pass above them.
 **B-243 — three small drifts in the directives, found by re-running what they cite.**
 `CLAUDE.md` said the contracts tier runs « nineteen » cheap guards; `run.sh` prints **20** since
 `check-implementation-state.py` joined it on 2026-08-29. The plan's L01 entry cited
-`docs/features/maquette-l01/DESIGN.md`, archived under `docs/archive/features/` since L02. § 5 said
+`docs/archive/features/maquette-l01/DESIGN.md`, archived under `docs/archive/features/` since L02. § 5 said
 this file cites the survey « twenty times »; the count is **24**. None is a decision; all three are
 figures nobody re-ran. Each now carries its command or its living path.
 
