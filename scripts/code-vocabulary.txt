@@ -806,6 +806,7 @@ scrim
 scripted
 scroll
 scrollport
+seam
 seams
 search
 season

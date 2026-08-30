@@ -108,20 +108,25 @@ async def main():
                 and seen.get("elements", 0) >= floor,
                 f"{seen.get('elements')} elements, floor {floor}")
 
-        # (b) A page the fragment still owns is drawn exactly as before — and
-        # when there are none left, that is itself the thing to say.
+        # (b) EVERY PAGE THE TABLE DECLARES IS ONE THE HOST CAN DRAW, and the
+        # fragment draws none. It used to be two independent lists compared
+        # against each other; there is ONE table since L15, so what is read
+        # here is the table against what the interface can actually render —
+        # `window.__pages()` is the engine's own view of it, and
+        # `window.__shellPages` is the host's.
         # READ FROM THE APP, never from the list above: a check whose
         # condition is a constant declared in the same file cannot fail,
         # and would have counted toward this rule's total while measuring
         # nothing.
-        drawn_by_legacy = await page.evaluate(
-            "()=>window.__referentiel.PAGES_OF()"
-            ".filter((x) => !x.shellOwned).map((x) => x.id)")
+        both = await page.evaluate(
+            "()=>({engine: [...window.__pages()].sort(),"
+            " host: [...(window.__shellPages || [])].sort()})")
         journal.check(
             "every page in the table has an owner, and the fragment draws none",
-            not drawn_by_legacy,
-            f"the fragment still draws: {drawn_by_legacy}" if drawn_by_legacy
-            else f"{len(SHELL_OWNED)} shell-owned, none left to the fragment")
+            both["engine"] == both["host"] == sorted(SHELL_OWNED),
+            f"engine {both['engine']} vs host {both['host']}"
+            if both["engine"] != both["host"]
+            else f"{len(both['host'])} page(s), all drawn by the shell")
         for identifier in LEGACY_OWNED:
             await page.evaluate(f"()=>window.__store.write({{page: {identifier!r}}})")
             await page.evaluate("()=>window.__referentiel.render()")
@@ -836,83 +841,75 @@ async def main():
         # container React holds. THE LAW IS HELD TWICE, and the two halves ask
         # different questions.
         #
-        # The first is STRUCTURAL, and it is read from the engine's source —
-        # because the branch it guards is currently DEAD. Every page is
-        # shell-owned today, so the `else` never runs, and no runtime probe can
-        # reach it. It still has to be right for the day a page is handed back.
+        # The first is STRUCTURAL, and it is read from the engine's SOURCE —
+        # because what it holds is an ABSENCE, and no runtime probe can show
+        # one. A write that never happens on the states a rule drives is
+        # indistinguishable from a write that is not written at all, and only
+        # one of those is the law.
         # This used to read the served document instead, and the reason was
         # sound while the engine WAS the served document: a source read cannot
         # see a served copy a rule corrupted. That reason expired when the
-        # engine became a module — what the browser now runs is minified, where
-        # `if (found.shellOwned)` reads `if(e.shellOwned)`, and a structural
-        # assertion written against mangled names measures the minifier rather
-        # than the law. This rule already reads `design/src` from disk two holds
-        # above, for an invariant of exactly the same kind.
+        # engine became a module — what the browser runs is minified, where an
+        # identifier is a letter, and a structural assertion written against
+        # mangled names measures the minifier rather than the law. This rule
+        # already reads `design/src` from disk two holds above, for an
+        # invariant of exactly the same kind.
         #
-        # The second is BEHAVIOURAL and covers the live branch — see below.
+        # The second is BEHAVIOURAL and covers the live path — see below.
         # Read as a pattern rather than as a byte-exact line, because reflowing
         # the line changes nothing about the law; and counted, because the guard
         # says nothing about a SECOND, unguarded write elsewhere.
-        # (d-quater) THE TWO TABLES MUST AGREE. `PAGES` in the shell and the
-        # `shellOwned` flags in the fragment's `PAGES_OF()` are independent
-        # lists kept identical by hand. One direction crashes loudly — the
-        # fragment calls `found.render()` where there is none. The other draws
-        # the page in BOTH worlds at once, on every render, perfectly
-        # consistently — which is invisible to every hold shaped like « the
-        # page looks the same each time ». So they are compared.
-        tables = await page.evaluate("""()=>{
-          const shell = [...(window.__shellPages || [])].sort();
-          const table = window.__referentiel.PAGES_OF();
-          return {shell,
-                  owned: table.filter((x) => x.shellOwned).map((x) => x.id).sort(),
-                  ownedWithRenderer: table.filter((x) => x.shellOwned && x.render)
-                    .map((x) => x.id),
-                  legacyWithout: table.filter((x) => !x.shellOwned && !x.render)
-                    .map((x) => x.id)};}""")
+        # (d-quater) THERE IS ONE PAGE TABLE, AND IT IS NOT THE ENGINE'S.
+        # Two independent lists used to be kept identical by hand — `PAGES` in
+        # the shell and the `shellOwned` flags in the fragment's `PAGES_OF()`.
+        # One direction crashed loudly; the other drew the page in BOTH worlds
+        # at once, on every render, perfectly consistently, which is invisible
+        # to every hold shaped like « the page looks the same each time ». L15
+        # left ONE declaration, so what is held here is that no second one has
+        # come back: the engine declares no page table, and the one that exists
+        # carries every page the interface renders.
+        #
+        # READ FROM THE SOURCE, because a re-declaration is exactly the thing a
+        # running page cannot show — two tables that agree look like one.
+        source = pathlib.Path(__file__).resolve().parent.parent / "design" / "src"
+        engine = (source / "engine" / "legacy.js").read_text(encoding="utf-8")
+        table = (source / "app" / "navigation.ts").read_text(encoding="utf-8")
+        redeclared = re.findall(r"\bconst (PAGES_OF|NAVIGATION)\b", engine)
+        rows = len(re.findall(r"^    id: ", table, re.M))
         journal.check(
-            "the shell's page table and the fragment's flags name the same pages",
-            tables["shell"] == tables["owned"]
-            and not tables["ownedWithRenderer"] and not tables["legacyWithout"],
-            f"shell {tables['shell']} vs shellOwned {tables['owned']}"
-            + (f"; owned but still drawable: {tables['ownedWithRenderer']}"
-               if tables["ownedWithRenderer"] else "")
-            + (f"; legacy with no renderer: {tables['legacyWithout']}"
-               if tables["legacyWithout"] else ""))
+            "one page table: the engine declares none, and the one that exists "
+            "carries every page the interface renders",
+            not redeclared and rows == len(SHELL_OWNED),
+            f"engine re-declares {redeclared}" if redeclared
+            else f"{rows} row(s) in app/navigation.ts against "
+                 f"{len(SHELL_OWNED)} page(s) drawn")
 
-        engine = (pathlib.Path(__file__).resolve().parent.parent / "design"
-                  / "src" / "engine" / "legacy.js").read_text(encoding="utf-8")
         writes = re.findall(r"[^\n]*view\.innerHTML\s*=[^\n]*", engine)
-        # THE LAW, not one spelling of it. The guard was once a single line and
-        # is now a branch, and a hold that matched the line would have failed on
-        # the day the law was made STRONGER rather than weaker. What must be
-        # true: `#view` is written in one place, on the branch where the shell
-        # does NOT own the page, and the shell is asked to let go before that
-        # write happens.
-        # THE WRITE MUST BE ON THE NOT-OWNED BRANCH, which is the whole law —
-        # a first version of this hold asserted only that a branch and a
-        # release EXISTED somewhere in `render()`, and would have stayed green
-        # over a write hoisted out of the `else`, i.e. over a migrated page
-        # destroyed under React on every draw. The structure is read: the
-        # ownership test, then its `else`, then the write inside it, then the
-        # announcement before it.
-        law = re.search(
-            r"if \(found\.shellOwned\)\s*\{(?P<owned>[\s\S]*?)\}\s*else\s*\{"
-            r"(?P<legacy>[\s\S]*?)\n    \}",
-            engine)
-        owned = law.group("owned") if law else ""
-        legacy = law.group("legacy") if law else ""
+        # THE LAW, and L15 made it SHORTER by making it STRONGER. It used to
+        # read: `#view` is written in ONE place, on the branch where the shell
+        # does not own the page, and the shell is asked to let go before that
+        # write happens. That branch had already lost its subject — all eight
+        # rows of `PAGES_OF()` carried `shellOwned: true` and none carried a
+        # `render`, so it was unreachable and would have thrown if reached
+        # (B-232) — and it left the file with the table it read. What must be
+        # true now admits no branch to hoist a write out of: **the engine
+        # writes `#view` nowhere at all.**
+        #
+        # A HOLD ASSERTING A COUNT OF ZERO PASSES JUST AS HAPPILY WHEN ITS
+        # DETECTOR IS DEAD, so the same pattern is run over a line that WOULD
+        # count — spelled the way the deleted branch spelled it. Zero from a
+        # reader that cannot read is the shape this repository counts.
+        detector = len(re.findall(
+            r"[^\n]*view\.innerHTML\s*=[^\n]*",
+            "      view.innerHTML = found.render();\n"))
         journal.check(
-            "the fragment writes #view only on the branch where the shell does "
-            "NOT own the page, and announces the handover first",
-            law is not None
-            and len(writes) == 1
-            and "view.innerHTML" in legacy
-            and "view.innerHTML" not in owned
-            and legacy.index("window.__releasePage?.()")
-            < legacy.index("view.innerHTML"),
-            f"{len(writes)} write(s) to #view's innerHTML; branch found: "
-            f"{law is not None}; write on the not-owned branch: "
-            f"{'view.innerHTML' in legacy and 'view.innerHTML' not in owned}")
+            "the fragment writes #view nowhere — the page host is that "
+            "container's only owner",
+            not writes and detector == 1,
+            f"{len(writes)} write(s) to #view's innerHTML: {writes}"
+            if writes else
+            f"none, and the reader that found none counts {detector} in a "
+            f"line that carries one")
 
         # (d-sexies) AND THE LIVE BRANCH, measured rather than read. The half
         # above proves the shape of code that does not run; this one proves the

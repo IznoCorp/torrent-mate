@@ -34,6 +34,7 @@
 
 import { screens, panel, bridge } from "./seams.js";
 import { servedIdentityLines } from "../lib/served-identity";
+import { icons } from "../app/icons";
 
   /* TorrentMate — mobile-first redesign prototype
      Data: real library titles (1,861 items). */
@@ -49,44 +50,6 @@ import { servedIdentityLines } from "../lib/served-identity";
     document.head.appendChild(createElement);
   }
 
-  const icons = {
-    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
-    plus: '<path d="M12 5v14M5 12h14"/>',
-    more: '<circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/>',
-    group: '<path d="M3 5h18M3 12h12M3 19h7"/>',
-    grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
-    list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
-    folder:
-      '<path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
-    radar:
-      '<path d="M19.07 4.93A10 10 0 1 1 4.93 19.07"/><path d="M12 12 8 8"/><circle cx="12" cy="12" r="4"/>',
-    library: '<path d="M4 4h4v16H4zM10 4h4v16h-4z"/><path d="m17 5 3 15"/>',
-    inbox:
-      '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5 5h14l3 7v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z"/>',
-    wrench:
-      '<path d="M14.7 6.3a4 4 0 0 0 5 5L21 21H10L8.5 12.5a4 4 0 0 1-5-5z"/>',
-    left: '<path d="m15 18-6-6 6-6"/>',
-    right: '<path d="m9 18 6-6-6-6"/>',
-    trash: '<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>',
-    sort: '<path d="M11 5h10M11 12h7M11 19h4M3 8l3-3 3 3M6 5v14"/>',
-    eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
-    play: '<path d="m6 4 14 8-14 8z"/>',
-    check: '<path d="M20 6 9 17l-5-5"/>',
-    x: '<path d="M18 6 6 18M6 6l12 12"/>',
-    file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
-    star: '<path d="m12 3 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/>',
-    film: '<rect x="2" y="3" width="20" height="18" rx="2"/><path d="M7 3v18M17 3v18M2 9h5M2 15h5M17 9h5M17 15h5"/>',
-    tv: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="m17 2-5 5-5-5"/>',
-    clap: '<path d="M3 8h18v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="m3 8 2-5 16 2-2 3"/><path d="m8 3 1.5 4M14 4l1.5 4"/>',
-    cards:
-      '<rect x="3" y="7" width="13" height="14" rx="2"/><path d="M8 3h10a2 2 0 0 1 2 2v10"/>',
-    user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
-    logout:
-      '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
-    ext: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
-    refresh:
-      '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>',
-  };
   const svgIcon = (paths, strokeWidth) =>
     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth || 2}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
   const escapeHtml = (value) =>
@@ -7651,96 +7614,15 @@ import { servedIdentityLines } from "../lib/served-identity";
     });
   }
 
-  /* Navigation */
-  const PAGES_OF = () => [
-    {
-      id: "acq",
-      l: "Acquisition",
-      ic: icons.radar,
-      /* The nav badge and the tab badge read THE SAME derivation: what
-         awaits the operator = to grab + to resolve. Never a constant, never
-         a neighbouring counter. */
-      badge: queued().takeable.length + queued().blocked.length,
-      /* No `render`: the shell draws this page (`pages/acquisition.tsx`).
-         Clearing `shellOwned` without restoring a renderer therefore CRASHES
-         rather than quietly drawing a page nobody maintains any more. */
-      shellOwned: true,
-      fab: true,
-    },
-    {
-      id: "lib",
-      l: "Médiathèque",
-      ic: icons.library,
-      /* No `render`: the shell draws this page (`pages/library.tsx`), and it is
-         the first that emits SEVERAL roots rather than one. Clearing
-         `shellOwned` without restoring a renderer therefore CRASHES rather than
-         quietly drawing a page nobody maintains any more. */
-      shellOwned: true,
-    },
-    {
-      id: "arr",
-      l: "Arrivées",
-      ic: icons.inbox,
-      badge: queued().stuck.length,
-      /* No `render`: the shell draws this page (`pages/arrivals.tsx`). Clearing
-         `shellOwned` without restoring a renderer therefore CRASHES rather
-         than quietly drawing a page nobody maintains any more. */
-      shellOwned: true,
-    },
-    {
-      id: "sys",
-      l: "Système",
-      ic: icons.wrench,
-      /* No `render`: the shell draws this page (`pages/system.tsx`). Clearing
-         `shellOwned` without restoring a renderer therefore CRASHES rather
-         than quietly drawing a page nobody maintains any more. */
-      shellOwned: true,
-    },
-    /* Réglages is a PAGE, not a fifth tab. The bar holds the four places one
-       goes to see what is happening; settings are what one goes to change, and
-       that is a different kind of errand — read rarely, changed rarely. It is
-       reached from Système and from the drawer, and the back gesture walks out
-       of it like any other page. */
-    /* Maintenance is a PAGE and not a fifth tab, for the same reason as
-       Réglages: the bar holds the four places one goes to SEE what is
-       happening, and a maintenance command is something one goes to DO. It is
-       reached from Système and from the drawer. */
-    {
-      id: "profile",
-      l: "Profil et préférences",
-      ic: icons.user,
-      /* No `render`: the shell draws this page (`pages/account.tsx`). */
-      shellOwned: true,
-      offBar: true,
-    },
-    {
-      id: "404",
-      l: "Adresse introuvable",
-      ic: icons.wrench,
-      /* No `render`: the shell draws this page (`pages/not-found.tsx`). */
-      shellOwned: true,
-      offBar: true,
-    },
-    {
-      id: "maint",
-      l: "Maintenance",
-      ic: icons.wrench,
-      /* No `render`: the shell draws this page (`pages/maintenance.tsx`).
-         Clearing `shellOwned` without restoring a renderer therefore CRASHES
-         rather than quietly drawing a page nobody maintains any more. */
-      offBar: true,
-      shellOwned: true,
-    },
-    {
-      id: "cfg",
-      l: "Réglages",
-      ic: icons.wrench,
-      /* No `render`: the shell draws this page (`pages/settings.tsx`),
-         barre d'enregistrement comprise, par un second portail dans #device. */
-      offBar: true,
-      shellOwned: true,
-    },
-  ];
+  /* Navigation — THE PAGE TABLE IS NOT HERE ANY MORE.
+     `PAGES_OF()` declared eight pages beside three other copies of the same
+     fact (the drawer's own `NAVIGATION`, `PAGES` in the shell's page
+     host, `PAGE_PATHS` in the address model), and a fact that exists four
+     times is stale in three of them. There is one table, `app/navigation.ts`,
+     and this engine reads it through `window.__navigation`, exactly as it
+     reads `window.__address` for a path. The rows arrive already translated:
+     no French reaches this file and none has to. */
+  const navigationRows = () => window.__navigation?.rows() ?? [];
 
   const select = (selector) => document.querySelector(selector);
   /* The `open` class and the `data-open` attribute name ONE state, so one
@@ -7799,27 +7681,18 @@ import { servedIdentityLines } from "../lib/served-identity";
   }
 
   function renderNav() {
-    nav.innerHTML = PAGES_OF()
-      .filter((element) => !element.offBar)
+    nav.innerHTML = navigationRows()
+      .filter((element) => element.inBar)
       .map(
         (
           element,
         ) => `<button data-page="${element.id}" ${currentState().page === element.id ? 'aria-current="page"' : ""}>
-      <span class="ic">${svgIcon(element.ic)}${element.badge ? `<span class="navbadge" data-part="shell/tab-badge">${element.badge}</span>` : ""}</span>
-      <span class="lb">${element.l}</span>
+      <span class="ic">${svgIcon(element.icon)}${element.badge ? `<span class="navbadge" data-part="shell/tab-badge">${element.badge}</span>` : ""}</span>
+      <span class="lb">${escapeHtml(element.label)}</span>
     </button>`,
       )
       .join("");
   }
-  /* Whether the SHELL is currently drawing into `#view`. Read and written by
-     `render()` alone: it is what turns « empty the container » and « ask the
-     shell to let go » into transitions rather than something done on every
-     draw. */
-  let shellOwnsView = false;
-  /* The nodes THIS side put in `#view`, so that handing the container over
-     removes exactly them and nothing else. */
-  let legacyNodes = [];
-
   function render() {
     // Every action ends in render(): one bump here reaches React for every
     // simulated mutation, including the ones made in place on `world`
@@ -7828,41 +7701,37 @@ import { servedIdentityLines } from "../lib/served-identity";
     /* An id no page carries is not a crash: it is the `*` route. Looking one
        up and calling `.render()` on nothing stopped the whole interface on a
        TypeError, which is the worst possible answer to a stale bookmark. */
-    let found = PAGES_OF().find((element) => element.id === currentState().page);
+    let found = navigationRows().find(
+      (element) => element.id === currentState().page,
+    );
     if (!found) {
-      store.write({ notFound: "/" + currentState().page, page: "404" });
-      found = PAGES_OF().find((element) => element.id === "404");
+      store.write({
+        notFound: "/" + currentState().page,
+        page: window.__navigation?.notFoundPage,
+      });
+      found = navigationRows().find(
+        (element) => element.id === window.__navigation?.notFoundPage,
+      );
     }
-    /* A page the SHELL owns draws itself, through a React portal into this very
-       container, so the HANDOVER is announced in both directions — and this is
-       the one place that already knows which world owns the page. Taking:
-       empty the container once, on the transition, and let React draw into it.
-       Releasing: ask the shell to let go FIRST, synchronously, because writing
-       here while React still holds these nodes is what removes children it
-       believes it owns — measured once, on a save bar, and it tore the root
-       down. Everything below still runs either way: the bar, the nav and the
-       save bar are shared furniture, not the page's. */
-    if (found.shellOwned) {
-      if (!shellOwnsView) {
-        /* Only what THIS side wrote is removed. Emptying the container
-           outright looks equivalent and is not: the shell may already have
-           drawn into it — a store write and this call are not always the same
-           task — and clearing then would delete nodes React believes it still
-           holds, leaving a blank page nothing redraws. Measured, on a rule
-           that writes the state and renders in two steps. */
-        for (const node of legacyNodes) node.remove();
-        legacyNodes = [];
-        shellOwnsView = true;
-      }
-    } else {
-      if (shellOwnsView) {
-        window.__releasePage?.();
-        shellOwnsView = false;
-      }
-      view.innerHTML = found.render();
-      legacyNodes = [...view.childNodes];
-    }
-    pageWantsActionButton = Boolean(found.fab);
+    /* EVERY PAGE IS DRAWN BY THE SHELL, and this file writes `#view` nowhere.
+       It used to branch: a page the shell owned was portalled into this very
+       container, and a page the ENGINE owned had its markup written here from
+       the table's own `render()`. That second half had already lost its
+       subject before this lot opened — all eight rows of `PAGES_OF()` carried
+       `shellOwned: true` and none carried a `render`, so the branch was
+       unreachable and would have thrown if reached (B-232, and `SURVEY.md`
+       § 1.3 measured it). Its subject left the file with the table: a row of
+       `app/navigation.ts` carries a component and nothing else could draw it.
+       So the branch is subtracted, with `shellOwnsView` and `legacyNodes`,
+       which existed only to tell the two halves apart.
+
+       The HANDOVER machinery on the shell's side (`window.__releasePage`)
+       keeps its declaration and has no caller left here; it goes with the boot
+       handshake at L13, and the `#screen` layer B-232 also names is L13's.
+
+       Everything below still runs: the bar, the nav and the save bar are
+       shared furniture, not the page's. */
+    pageWantsActionButton = found.actionButton;
     refreshActionButton();
     mountDeck();
     renderNav();
@@ -7976,10 +7845,6 @@ import { servedIdentityLines } from "../lib/served-identity";
        animation is doing one frame later. */
     passerSug,
     advanceDeck,
-    /* The page table itself, published so a rule can compare it against the
-       shell's: two independent lists that must agree, and a disagreement in
-       one direction draws a page in both worlds at once. */
-    PAGES_OF,
     /* What the Médiathèque draws. `tileHTML` and `swipeHTML` are emitters a
        component calls VERBATIM, for the same reason as `cardHTML`: the rows
        they emit carry the `data-*` the document-level delegation reads.
@@ -9951,7 +9816,7 @@ import { servedIdentityLines } from "../lib/served-identity";
      else is a dead end however carefully it is drawn — a drawer entry pointed
      at one and answered a tap with a message. Reading the page table rather
      than a list written beside it is what makes that checkable at all. */
-  window.__pages = () => PAGES_OF().map((element) => element.id);
+  window.__pages = () => window.__navigation?.ids() ?? [];
 
   /* The media the pipeline is currently refusing. Exposed because the rule
      that keeps them OFF Système has to know their names, and a rule that
@@ -9967,35 +9832,20 @@ import { servedIdentityLines } from "../lib/served-identity";
     return enabled !== false;
   };
 
-  /* The navigation model, grouped by what one goes there FOR: Supervision,
-     Système, Configuration. Réglages is NOT in the bottom bar — the drawer is
-     its only path, which is precisely why the drawer must exist, and why
-     every id here must name a page that exists. An entry pointing at an id
-     `PAGES_OF` does not carry renders nothing and is a dead end; the entry
-     under Configuration was one, answering a tap with a message. */
-  const NAVIGATION = [
-    [
-      "Supervision",
-      [
-        ["acq", "Acquisition", icons.radar],
-        ["lib", "Médiathèque", icons.library],
-        ["arr", "Arrivées", icons.inbox],
-      ],
-    ],
-    [
-      "Système",
-      [
-        ["sys", "Système", icons.wrench],
-        ["maint", "Maintenance", icons.refresh],
-      ],
-    ],
-    ["Configuration", [["cfg", "Réglages", icons.sort]]],
-  ];
 
   function openDrawer() {
-    const badges = Object.fromEntries(
-      PAGES_OF().map((element2) => [element2.id, element2.badge]),
-    );
+    /* GROUPED IN THE TABLE'S OWN ORDER, and that is what replaces the second
+       list this file used to keep. The order of the groups is the order in
+       which they first appear among the rows, and the order inside a group is
+       the rows' — so a page joins the drawer by joining the table, and an
+       entry naming an id no page carries has become impossible to write. */
+    const groups = new Map();
+    for (const row of navigationRows()) {
+      if (!row.group) continue;
+      const seen = groups.get(row.group);
+      if (seen) seen.items.push(row);
+      else groups.set(row.group, { title: row.groupLabel, items: [row] });
+    }
     const element = select("#drawer");
     element.innerHTML = `
       <div class="dh">
@@ -10003,22 +9853,20 @@ import { servedIdentityLines } from "../lib/served-identity";
         <span>Torrent<em style="font-style:normal;color:var(--color-primary)">Mate</em></span>
       </div>
       <nav>
-        ${NAVIGATION.map(
-          ([title, items]) => `<div class="grp">
-          <p class="sect">${title}</p>
-          ${items
+        ${[...groups.values()]
+          .map(
+            (group) => `<div class="grp">
+          <p class="sect">${escapeHtml(group.title)}</p>
+          ${group.items
             .map(
-              ([
-                id,
-                lab,
-                iconPath,
-              ]) => `<a href="#" data-navgo="${id}" ${currentState().page === id ? 'aria-current="page"' : ""}>
-            ${svgIcon(iconPath)}<span>${lab}</span>${badges[id] ? `<span class="count">${badges[id]}</span>` : ""}
+              (item) => `<a href="#" data-navgo="${item.id}" ${currentState().page === item.id ? 'aria-current="page"' : ""}>
+            ${svgIcon(item.icon)}<span>${escapeHtml(item.label)}</span>${item.badge ? `<span class="count">${item.badge}</span>` : ""}
           </a>`,
             )
             .join("")}
         </div>`,
-        ).join("")}
+          )
+          .join("")}
       </nav>
       <div class="grp">
         <p class="sect">Apparence</p>
@@ -33372,8 +33220,8 @@ Object.assign(window, {
   DECISION_STATE_DETAIL, EXECUTIONS, SHEETS_IDX, SHEETS_OLD, SHEETS_RAW,
   GROUPS, HERO_IMAGES, INCOMPLETE, INDEX, JOURNAL, LIBRARY,
   LIB_PAGE, LIB_TOTAL, MAINT_ACTIONS, MAINT_TOPICS, MOIS, REASON_LABEL,
-  REASON_DETAIL, REASON_TONE, NAVIGATION,
-  PAGES_OF, SCHEDULERS, SCHEDULERS_DOWN, OWNED,
+  REASON_DETAIL, REASON_TONE,
+  SCHEDULERS, SCHEDULERS_DOWN, OWNED,
   POSTERS, SETTINGS, SETTINGS_STATE, RESOLUTIONS, BACK_WINDOW,
   RISQUES, SEASONS, SECRETS, SERVICES, SERVICES_PANNE,
   STRIP_LABELS, ST_LABEL,
@@ -33425,12 +33273,10 @@ Object.defineProperties(window, {
   loadingEnd: { get: () => loadingEnd, configurable: true },
   installEvent: { get: () => installEvent, configurable: true },
   installRefused: { get: () => installRefused, configurable: true },
-  legacyNodes: { get: () => legacyNodes, configurable: true },
   store: { get: () => store, configurable: true },
   pageDrag: { get: () => pageDrag, configurable: true },
   pilotage: { get: () => pilotage, configurable: true },
   currentRender: { get: () => currentRender, configurable: true },
-  shellOwnsView: { get: () => shellOwnsView, configurable: true },
   armedExit: { get: () => armedExit, configurable: true },
   STATES: { get: () => STATES, configurable: true },
   // A LIVE READ, not an alias. There is no cached `state` binding left to

@@ -761,5 +761,22 @@
       "body": "Votre session n'est plus valide, cet écran ne se met plus à jour.",
       "action": "Se reconnecter"
     }
+  },
+  "navigation": {
+    "pages": {
+      "acq": "Acquisition",
+      "lib": "Médiathèque",
+      "arr": "Arrivées",
+      "sys": "Système",
+      "maint": "Maintenance",
+      "cfg": "Réglages",
+      "profile": "Profil et préférences",
+      "404": "Adresse introuvable"
+    },
+    "groups": {
+      "supervision": "Supervision",
+      "system": "Système",
+      "configuration": "Configuration"
+    }
   }
 }

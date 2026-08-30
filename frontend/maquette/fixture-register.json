@@ -417,7 +417,8 @@
     "icons": {
       "class": "interface",
       "why": "the interface's own icon paths. A server never sends a drawing",
-      "seed": null
+      "seed": null,
+      "converted": "L15 phase 1 — the frame draws with them, so they moved OUT of the engine rather than to a seed: `app/icons.ts`, imported back by `legacy.js`. One copy, read by both worlds, and it loses an importer rather than a subject the day the engine goes. Not `served`: a server never sends a drawing"
     },
     "openJourneySheet.steps": {
       "class": "served",

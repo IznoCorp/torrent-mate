@@ -20,6 +20,7 @@ import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { read } from "../../lib/query-client";
 import { toEngineShape } from "../../engine/engine-shape";
 import type { QueueCard } from "../../lib/engine-queue";
+import { queueNow } from "../../lib/queue";
 import type { PendingDecision, Pipeline, SettledDecision } from "./reference";
 
 /** What the staging read answers with, once it wears the engine's names. */
@@ -121,4 +122,19 @@ declare global {
     /** The pending decisions, read synchronously by the dying engine. */
     __pendingDecisions?: () => PendingDecision[];
   }
+}
+
+/**
+ * What awaits the operator on this page — the navigation table's badge.
+ *
+ * WHAT IS STUCK, and only that. Arrivées carries the health of the pipeline:
+ * what is moving needs nobody, what is settled is done, and what is STUCK is
+ * the thing a badge exists to say. One derivation, read by the tab bar, by the
+ * drawer and — while it still draws them — by the engine through the seam.
+ *
+ * Returns:
+ *     How many items are stuck in staging.
+ */
+export function arrivalsBadge(): number {
+  return queueNow().stuck.length;
 }

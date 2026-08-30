@@ -106,6 +106,7 @@ import { installDecisionLookup } from "../features/arrivals/queries";
 import { installLibraryDelete, installLibraryPaging } from "../features/library/queries";
 import { installEngineRedraw } from "./engine-redraw";
 import { installEngineData } from "./engine-data";
+import { installNavigationSeam } from "./navigation-seam";
 import {
   installFollowActions,
   installSuggestionsLookup,
@@ -256,6 +257,11 @@ window.__address = {
 // value. `__MOCKS_BUILT_IN__` is replaced at build time, so the branch below is dead
 // code when it is false and the bundler drops the import with it.
 if (__MOCKS_BUILT_IN__) installMockNetwork();
+
+// THE NAVIGATION TABLE, PUBLISHED BEFORE THE ENGINE STARTS. The engine's own
+// first render draws the tab bar from it; a seam installed afterwards would
+// leave the interface opening with an empty bar until something moved.
+installNavigationSeam();
 
 const start = window.__startEngine;
 if (typeof start === "function") start({ store: store });

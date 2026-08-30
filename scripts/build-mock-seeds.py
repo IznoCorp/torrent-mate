@@ -303,14 +303,24 @@ def seeded_families() -> list[str]:
 
 
 def converted_families() -> list[str]:
-    """The families whose fixture the engine no longer declares, in order.
+    """The SEEDED families whose fixture the engine no longer declares, in order.
+
+    SEEDED, and the qualifier is the whole of it. `converted` records a decision
+    — the engine stopped declaring this family, and here is why — and that
+    decision can be taken about a family that never had a seed at all. L15 took
+    one: `icons` was `interface`, the frame draws with it, and it moved OUT of
+    the engine into `app/icons.ts` rather than into the mock layer. Both callers
+    of this function are about SEED FILES — what was not re-derived, and which
+    files to keep — so a family with no seed has no business in either, and
+    including it demanded a seed file for a drawing.
 
     Returns:
         Their names, so a caller can print what it did NOT compare rather than
         leaving the absence to be read as a pass.
     """
     families = json.loads(REGISTER.read_text(encoding="utf-8"))["families"]
-    return sorted(name for name, entry in families.items() if entry.get("converted"))
+    return sorted(name for name, entry in families.items()
+                  if entry["class"] in SEEDED_CLASSES and entry.get("converted"))
 
 
 def file_for(name: str) -> Path:

@@ -8,10 +8,10 @@
 // page's markup has to land inside `#view` — where the stylesheet, the harness
 // selectors and the document-level click delegation all expect it.
 //
-// So the shell PORTALS into the legacy `#view`, and the fragment stops writing
-// there for a page that has migrated (`shellOwned` on its `PAGES_OF` entry;
-// everything else `render()` does still runs, because the bar, the nav and the
-// save bar are shared furniture).
+// So the shell PORTALS into the legacy `#view`, and the fragment writes there
+// for no page at all: every page in `app/navigation.ts` carries a component and
+// none carries a renderer. Everything else `render()` does still runs, because
+// the bar, the nav and the save bar are shared furniture.
 //
 // THE HANDOVER IS ANNOUNCED, and that is the whole of the difficulty. Leaving a
 // migrated page for a legacy one, the legacy's own `view.innerHTML = …` runs
@@ -41,48 +41,15 @@
 import { useLayoutEffect, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
 import { createPortal, flushSync } from "react-dom";
+import { useTranslation } from "react-i18next";
 import { useUiState } from "../lib/store-access";
-import { AccountPage } from "../features/account/page";
-import { AcquisitionPage } from "../features/acquisition/page";
-import { ArrivalsPage } from "../features/arrivals/page";
-import { LibraryPage } from "../features/library/page";
-import { MaintenancePage } from "../features/maintenance/page";
-import { NotFoundPage } from "../app/not-found";
-import { SettingsPage } from "../features/settings/page";
-import { SystemPage } from "../features/system/page";
+import { NAVIGATION, rowFor } from "./navigation";
 import { body } from "../ui/variants";
 
-type MigratedPage = {
-  Body: () => ReactElement | null;
-  // The single root the legacy view emitted, when there is one. A page that
-  // emits SEVERAL roots (the Médiathèque draws four siblings) declares none and
-  // draws them itself. Either way the markup is what the legacy returned: this
-  // wrapper is rendered by React, not added by it.
-  root?: string;
-  // The recorded oracle's anchor for this page's body — `frontend/maquette/
-  // oracle.py`, whose region table is `regions.json`. A NAME, chosen here and
-  // written in English, rather than derived from the page id: an id like `cfg`
-  // or `404` is the value of `state.page` and an address, which is data. A page
-  // drawing its own roots carries its own anchors and declares none here.
-  region?: string;
-};
-
-// The ONE place a later wave adds a page. An id absent from this table is a
-// page the legacy still draws, and nothing here touches it.
-const PAGES: Record<string, MigratedPage> = {
-  acq: { Body: AcquisitionPage },
-  sys: { Body: SystemPage, root: "body", region: "system/body" },
-  arr: { Body: ArrivalsPage, root: "body", region: "arrivals/body" },
-  lib: { Body: LibraryPage },
-  maint: { Body: MaintenancePage, root: "body", region: "maintenance/body" },
-  cfg: { Body: SettingsPage, root: "body", region: "settings/body" },
-  // french-ok: this key IS the page ID — the value of `state.page` and the
-  // `?page=` address. It is data, not a property name: renaming it left
-  // the shell unable to find the page at all, and the account surface
-  // drew nothing.
-  profile: { Body: AccountPage, root: "body", region: "account/body" },
-  "404": { Body: NotFoundPage, root: "body", region: "not-found/body" },
-};
+// THE TABLE IS `app/navigation.ts`'s, and this file no longer keeps one.
+// `PAGES` lived here — id → component, root and oracle region — beside three
+// other copies of the same fact. What the host needs from a row is exactly
+// what the row already carries.
 
 // The release, as a value React can subscribe to. It lives outside React
 // because the FRAGMENT is what asks for it, and `useSyncExternalStore` is the
@@ -105,17 +72,16 @@ function setReleased(next: boolean): void {
 
 declare global {
   interface Window {
-    // The page table the fragment draws the tab bar from. Read here for ONE
-    // value — the page's name — and see `PageHeading` for why it is read
-    // rather than restated.
-    PAGES_OF?: () => { id: string; l: string }[];
     // Called by the fragment's `render()` immediately BEFORE it writes `#view`
     // for a page the shell does not own.
     __releasePage?: () => void;
-    // The pages this side claims, published so the two tables can be COMPARED.
-    // They are independent lists that must agree — an id here without
-    // `shellOwned` in `PAGES_OF()` draws in both worlds at once, consistently,
-    // which no drawing-shaped hold can see.
+    // The pages this side claims. It USED to be published so the two page
+    // tables could be compared — this file's and the engine's — because they
+    // were independent lists kept identical by hand, and a disagreement in one
+    // direction drew a page in both worlds at once, consistently, which no
+    // drawing-shaped hold can see. There is one table now, so what a rule
+    // compares is no longer two lists: it is this seam against the addresses
+    // and against what the interface can actually render.
     __shellPages?: string[];
   }
 }
@@ -124,7 +90,7 @@ window.__releasePage = () => {
   flushSync(() => setReleased(true));
 };
 
-window.__shellPages = Object.keys(PAGES);
+window.__shellPages = NAVIGATION.map((row) => row.id);
 
 /**
  * The page's name, as a heading no one sees and every screen reader reads.
@@ -140,23 +106,25 @@ window.__shellPages = Object.keys(PAGES);
  * the accessibility tree, and being out of flow it moves no rectangle the
  * oracle measures.
  *
- * WHY THE TEXT IS READ AND NOT RESTATED. The name already exists, once, in the
- * fragment's page table — the same string the tab bar prints. Copying it into
- * `fr.json` today would create a second source that drifts silently until
- * someone renames a tab. It moves there in ONE step when the tab bar migrates
- * and the fragment's table goes with it, which is D5's « dies by subtraction »
- * applied to a string.
+ * WHERE THE TEXT COMES FROM, and it moved in one step. It used to be read off
+ * the engine's own page table, because copying it into `fr.json` while the tab
+ * bar was still drawn from that table would have created a second source that
+ * drifts silently until someone renames a tab. The table left the engine and
+ * the string went with it: the row carries a KEY, `fr.json` carries the word,
+ * and the tab bar reads the same key. D5's « dies by subtraction », applied to
+ * a string.
  */
 function PageHeading({ page }: { page: string }): ReactElement | null {
-  const entry = window.PAGES_OF?.().find((candidate) => candidate.id === page);
-  if (!entry?.l) return null;
-  return <h1 className="visually-hidden" data-part="page/heading">{entry.l}</h1>;
+  const { t } = useTranslation();
+  const row = rowFor(page);
+  if (!row) return null;
+  return <h1 className="visually-hidden" data-part="page/heading">{t(row.labelKey)}</h1>;
 }
 
 export function PageHost(): ReactElement | null {
   const page = useUiState().page as string | undefined;
   const phase = useUiState().phase as string | undefined;
-  const migrated = page ? PAGES[page] : undefined;
+  const migrated = rowFor(page);
   const isReleased = useSyncExternalStore(subscribeRelease, () => released);
 
   // Ownership resumes the moment a migrated page is current again. The fragment
