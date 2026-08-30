@@ -60,6 +60,8 @@ WHERE = """() => ({
   sheet: document.querySelector('#sheet').hasAttribute('data-open'),
   screen: document.querySelector('#screen').hasAttribute('data-open'),
   drawer: document.querySelector('#drawer').hasAttribute('data-open'),
+  dialog: document.querySelector('#dlg').hasAttribute('data-open'),
+  entries: history.length,
   message: (document.querySelector('#toast')||{}).textContent || '',
   toastVisible: (document.querySelector('#toast')||{hasAttribute:()=>false})
                   .hasAttribute('data-shown'),
@@ -156,6 +158,65 @@ async def main():
         await pg.wait_for_timeout(600)
         check("a second back inside the window exhausts the history",
               not pg.url.startswith("http://127.0.0.1:8899"), pg.url[:60])
+
+        # ── B-229: THE DIALOG IS A RUNG, AND BACK WALKS IT ────────────────
+        # D1's third tier reads « Transient: no URL, but Back still closes it »
+        # and names a confirmation as its example. It was not implemented:
+        # `openDlg` pushed no entry and the back handler had no branch, so a
+        # hardware Back popped the entry UNDER the dialog — a page, or the exit
+        # guard — with the dialog still up. The dialog was never CLOSERLESS:
+        # Escape reached it and so did a scrim tap. Only Back did not.
+        #
+        # THE ADDRESS ALONE WOULD NOT SAY THIS, which is R69's own lesson: a
+        # hold that reads only where the interface IS passes over an entry
+        # spent twice. All three are read together — the dialog closed, the page
+        # underneath unchanged, and the history back to the length it had.
+        second = await b.new_context(viewport={"width": 390, "height": 844},
+                                     is_mobile=True, has_touch=True)
+        dialog_page = await second.new_page()
+        await dialog_page.goto("http://127.0.0.1:8899/", wait_until="load")
+        await dialog_page.evaluate("()=>window.__loadingDone?.()")
+        await dialog_page.evaluate("()=>window.__go('lib-delete')")
+        await dialog_page.wait_for_timeout(400)
+        raised = await dialog_page.evaluate(WHERE)
+        check("a confirmation really opens, so this hold has a subject",
+              raised["dialog"], str({k: raised[k] for k in ("dialog", "page")}))
+        # BACK TO A STATE WITH NO DIALOG, so the entry underneath is a PAGE's
+        # and not another confirmation's. Driving to `lib-delete` above proved
+        # the subject exists; measuring on top of it would measure two dialogs
+        # stacked, which is a real case and not this one.
+        await dialog_page.evaluate("()=>window.__go('lib-list')")
+        await dialog_page.wait_for_timeout(350)
+        raised = await dialog_page.evaluate(WHERE)
+
+        # THE ENTRY UNDERNEATH IS CAPTURED FIRST, verbatim. `history.length`
+        # cannot say this: it counts entries and a back MOVES the cursor
+        # without removing one, so it reads the same either way — a number that
+        # cannot come out the other way, which is the shape this wave has
+        # already met twice. What DOES separate « spent its own entry » from
+        # « spent one too many » is the entry the interface ends up standing on.
+        beneath = await dialog_page.evaluate("()=>JSON.stringify(history.state)")
+        floor = await dialog_page.evaluate("()=>history.length")
+        await dialog_page.evaluate(
+            "()=>window.__dialog.open({heading: 'probe', body: [], actions: []})")
+        await dialog_page.wait_for_timeout(250)
+        pushed = await dialog_page.evaluate(
+            "()=>({length: history.length, layer: history.state && history.state.layer})")
+        check("opening a confirmation stacks an entry of its own (B-229)",
+              pushed["length"] == floor + 1 and pushed["layer"] == "dialog",
+              f"{floor} → {pushed['length']}, layer={pushed['layer']!r}")
+        await dialog_page.go_back()
+        await dialog_page.wait_for_timeout(450)
+        after = await dialog_page.evaluate(WHERE)
+        check("a back closes the confirmation (B-229)",
+              not after["dialog"], str(after["dialog"]))
+        check("and leaves the page underneath exactly where it was",
+              after["page"] == raised["page"] and after["lens"] == raised["lens"],
+              f"{raised['page']}/{raised['lens']} → {after['page']}/{after['lens']}")
+        landed = await dialog_page.evaluate("()=>JSON.stringify(history.state)")
+        check("and lands on the entry the dialog was opened over, not the one under it",
+              landed == beneath, f"{beneath} → {landed}")
+        await second.close()
 
         check("no JS error", not errors, str(errors))
         await b.close()

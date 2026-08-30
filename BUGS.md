@@ -288,7 +288,7 @@ when the defect comes back.
 | B-226 | The cross-check B-208 built never ran in CI: the import branch printed and passed | by audit | `fixed #516` |
 | B-227 | The post-merge gesture was missed at the close of L09, L10 and L10-bis, and § 5’s guard for it stayed a sentence | by audit | `fixed #518` |
 | B-228 | The brief's inventory command reads twelve of thirteen writes | by survey | `open` |
-| B-229 | The confirmation dialog is not on the back ladder | by survey | `open` |
+| B-229 | The confirmation dialog is not on the back ladder | by survey | `fixed #528` |
 | B-230 | The engine re-adds `user-scalable=no` to any host without a viewport meta | by survey | `open` |
 | B-231 | The tab bar is rebuilt from scratch on every render | by survey | `open` |
 | B-232 | Two dead layers: the page-render branch and `#screen` | by survey | `open` |
@@ -307,6 +307,27 @@ when the defect comes back.
 | B-245 | The pre-paint appearance script compares against the French spellings the engine stopped writing | by L15 | `open` |
 | B-246 | The « In flight » row's version arm is defeated by markdown emphasis, in silence | by L15 | `fixed #528` |
 | B-247 | A store bump replaces a feature page's nodes, so a write between press and click destroys the click | by L15 | `open` |
+
+**B-229 — the confirmation dialog is on the ladder, and Back walks it.**
+Closed by L15's phase 9, in a commit of its own with its own rule — a BEHAVIOUR
+change, never inside a conversion. `app/dialog-host.ts`'s `open` pushes
+`pushLayer("dialog")` and its `close` unwinds that entry unless the close IS the
+pop; the engine's `onEngineBack` gains a `dialog` branch ABOVE the drawer, asked
+of the registration (`app/layer-registry.ts`) rather than of a class.
+
+**Held by R59** (`harness/back.py`), in four holds that read together because no
+one of them is the property: a confirmation really opens, so the hold has a
+subject; opening it stacks an entry of its own AND that entry carries
+`layer: "dialog"`; a back closes it; the page underneath is unchanged; and the
+entry the interface lands on is the one the dialog was opened OVER, compared
+verbatim. **`history.length` cannot say the last of those** and the first version
+of the hold used it: a back MOVES the cursor without removing an entry, so the
+number reads the same whether one entry was spent or two — a reading that cannot
+come out the other way, which is this wave's fourth instance of that shape.
+
+<sub>`python3 frontend/maquette/harness/back.py` — 17 holds, no violation. Mutation: the `pushLayer` removed; the hold falls naming the page that changed.</sub>
+
+---
 
 **B-247 — a store bump replaces a feature page's nodes, and a write between press and click destroys the click.**
 Found on 2026-08-30 during L15's phase 3, by a rule that fell for a reason that had nothing to do

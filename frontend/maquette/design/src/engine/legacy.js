@@ -8767,7 +8767,7 @@ import { icons } from "../app/icons";
     panel.close(true);
     // The scrim is DERIVED now, not written: `ui/sheet.tsx` raises it while any
     // scrim-backed layer is open, so clearing the layers clears it.
-    window.__layers?.close("dialog");
+    window.__layers?.close("dialog", true);
     closeHarness();
   }
 
@@ -9253,10 +9253,21 @@ import { icons } from "../app/icons";
     }
 
     // A layer first: it is what sits on top, and it is what a back closes.
+    /* THE DIALOG IS THE TOP RUNG (B-229), and it is the rung that was missing.
+       D1's third tier reads « Transient: no URL, but Back still closes it » and
+       names a confirmation as its example; `openDlg` pushed no entry and this
+       handler had no branch, so a hardware Back popped the entry UNDER the
+       dialog — a page, or the exit guard — with the dialog still up. It is not
+       that the dialog had no closer: Escape reached it and so did a scrim tap.
+       Only Back did not. */
+    if (window.__layers?.isOpen("dialog")) {
+      window.__layers.close("dialog", true);
+      return;
+    }
     /* THE REGISTRATION, NOT THE CLASS. The drawer is a component and its open
        state is the store's; asking the DOM would answer whatever React last
        painted rather than what is true at this instant. Same rank on the
-       ladder as before — drawer, then screen, then sheet. */
+       ladder as before — dialog, drawer, then screen, then sheet. */
     if (window.__layers?.isOpen("drawer")) return closeDrawer(true);
     if (select("#screen").classList.contains("open")) return closeScreen(true);
     // The sheet lives in the shell; it is asked, not inspected. Same rank in
