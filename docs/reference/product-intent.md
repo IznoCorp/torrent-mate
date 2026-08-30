@@ -20,7 +20,9 @@
 > l'opérateur le 2026-08-04 (feature media-sheet, DESIGN §4) ; NE-DOIT-PAS-9 ajusté
 > le 2026-08-04 pour exiger un chemin atteignable, pas un lien sur la vignette ;
 > **v5** — §17 complété (rôles, options, demandeur, SSO) et **§20** « Un tunnel par média »,
-> dictés par l'opérateur le 2026-08-30 en réponse aux questions de la phase L10-ter.
+> dictés par l'opérateur le 2026-08-30 en réponse aux questions de la phase L10-ter ;
+> **v6** — §18 et §19 complétés (« Ce que l'opérateur a tranché »), dictés par l'opérateur le
+> 2026-08-30 en réponse aux questions du steward, transcrits par lui.
 > **Seul l'opérateur amende ce document.**
 
 ---
@@ -601,12 +603,21 @@ l'interface n'utilise pas.
    **NE-DOIT-PAS-8** couvre déjà les rafales ; il est rappelé ici parce que c'est précisément le §
    où la tentation existe.
 
-### Ce que cela ne tranche pas, et qui reste à dicter
+### Ce que l'opérateur a tranché (dicté le 2026-08-30)
 
-- **Quelles actions** l'opérateur exerce sur un torrent au regard du ratio — forcer le seed,
-  libérer une obligation, refuser un grab qui coûterait trop.
-- **Ce qui est montré d'un tracker** au-delà du ratio : dette, marge, tendance, échéance.
-- **Si l'interface propose une décision** (« ce grab vous met en dette ») ou se borne à l'exposer.
+- **L'action retenue : libérer une obligation** — arrêter de semer avant l'échéance, en
+  connaissance de cause. Et l'arrêt peut se faire **par le retrait direct du torrent dans
+  qBittorrent** : l'opérateur y fait parfois le ménage à la main, et un retrait externe est un cas
+  **géré** — l'obligation se clôt en le disant — jamais une anomalie silencieuse.
+- **L'alerte de ratio.** Si le ratio d'un tracker descend trop bas, l'application le **signale**
+  par une alerte — et, à terme, par **notification push (FCM, iOS et Android)**, qui devient une
+  demande de plateforme.
+- **Le ranking suit le ratio.** Une release issue d'un tracker en faible ratio peut **perdre des
+  points** au classement : le coût en ratio entre dans le choix de la release.
+- **Ce qui est montré d'un tracker**, au-delà du ratio : les volumes **Download / Upload**, la
+  **tendance**, et, **par torrent actif** sur le tracker, son **échéance** et son **ratio**.
+- **Pas de décision proposée.** L'interface expose ; l'opérateur juge. Les points ci-dessus
+  suffisent pour l'instant.
 
 ### Ce que cela impose à la preuve
 
@@ -645,12 +656,14 @@ est **NE-DOIT-PAS-5**, échec silencieux, appliqué à un succès autant qu'à u
    trackers : c'est précisément le geste qui fait bannir s'il part en rafale. Le §18 le rappelait
    pour le ratio ; il est ici opposable à toute idée d'automatisation plus agressive.
 
-### Ce que cela ne tranche pas, et qui reste à dicter
+### Ce que l'opérateur a tranché (dicté le 2026-08-30)
 
-- **Automatique, proposé, ou manuel** : le moteur injecte-t-il seul, soumet-il des candidats, ou
-  attend-il un geste ?
-- **Ce qu'on voit d'un cross-seed** : le fil des injections, l'état par tracker, ou les deux.
-- **Où il vit** — une surface à lui, une part de la fiche média, ou une part du poste de contrôle.
+- **Automatique.** Le moteur cross-seed **seul**, **actif par défaut**, avec un **interrupteur par
+  tracker** pour le couper — le refus de NE-DOIT-PAS-6 devient ce réglage, tracker par tracker.
+- **Ce qu'on voit** : pour **chaque torrent**, l'état du cross-seed **tracker par tracker** —
+  « actif », « stoppé », « tracker sans cross-seed », « erreur de cross-seed ».
+- **Où il vit** : l'état par tracker dans la **page trackers**, et, dans la **fiche média**, un
+  bloc par tracker **réservé au profil administrateur** (§17 : le rôle Opérateur).
 
 ### Ce que cela impose à la preuve
 

@@ -69,6 +69,12 @@ brief can read the reason and not only the requirement.
   TRACKER recognises (NE-DOIT-PAS-1), never a locally computed figure.
 - `obligations`, `stalled-grabs`, `downloads` exist and are called by nothing yet; their shapes
   are the interface's to diverge from if the drawn surface needs more (D7).
+- **Dictated 2026-08-30 (§18 completed):** a verb to RELEASE an obligation early; reconciliation of
+  an EXTERNAL removal (a torrent taken out of qBittorrent by hand closes its obligation as
+  « released by removal », never a silent anomaly); a per-tracker ratio-alert threshold and a push
+  channel to carry it (**FCM, iOS and Android** — a platform demand); a ranking input that
+  subtracts points from releases on low-ratio trackers. Per-tracker Download / Upload volumes and
+  trend, and per-active-torrent deadline and ratio, must be readable.
 
 ## 5. Cross-seed is seen and decided — §19 (L17's demands)
 
@@ -76,6 +82,10 @@ brief can read the reason and not only the requirement.
   feed of injections and refusals with their reasons, the per-tracker state, the verbs to prevent
   and to provoke — and the engine's `CrossSeedInjected` / `CrossSeedRejected` events must reach
   the stream. NE-DOIT-PAS-8 is the hard limit on any automation the surface offers.
+- **Dictated 2026-08-30 (§19 completed):** cross-seed runs AUTOMATICALLY, on by default, with a
+  per-tracker off switch — a config WRITE per tracker; and a per-torrent, per-tracker state route
+  carrying four states (« actif », « stoppé », « tracker sans cross-seed », « erreur de
+  cross-seed »). The media-sheet block is admin-only, so the route's answer is role-aware (§17).
 
 ## 6. What the existing operation-level registers already ask, and this file does not repeat
 
