@@ -337,7 +337,11 @@ B-050 (#500) found it at 921 and L07-bis split three guards on a subject rather 
 `python3 scripts/check-module-size.py --root scripts` on `main` at `99a82a35` warns at **952** — it grew
 through L08 to L15 by an arm at a time, the shape B-050 named. The next arm added to it crosses 1 000
 and `make check` refuses the pull request that adds it, for a reason foreign to that pull request.
-Open, and the split is a wave's: the next lot that touches the file cuts it on a subject first.
+Open, and the split is a wave's: the next lot that touches the file cuts it on a subject first —
+the ADDRESSING arm is a whole one on its own (the executing agent's own reading, 2026-08-30, owning
+its share: L15 added twice to a file already at the soft warning, and « the change is small » is how
+a file reaches a ceiling nobody decided to approach). On a subject, not on a line count, or it is
+back at 900 in two waves with the arms interleaved differently.
 
 <sub>`python3 scripts/check-module-size.py --root scripts`</sub>
 
