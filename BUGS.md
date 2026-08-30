@@ -315,6 +315,22 @@ when the defect comes back.
 | B-253 | B-247 was reassigned to L14 and L19 by the wave that left it, and the plan named it in neither | by audit | `fixed #532` |
 | B-254 | Two figures written by hand: the Makefile's « 83 states x 33 regions » and CLAUDE.md's guard count | by audit | `fixed #532` |
 | B-255 | `check-frontend-boundaries.py` is back at 952 lines, 48 from the hard ceiling it was cut away from | by audit | `open` |
+| B-256 | The harness's served copy has no lock and no build stamp; a fresh copy arriving mid-run is a false reading either way | by audit | `open` |
+
+**B-256 — the harness's served copy has no lock and no build stamp; a fresh copy arriving mid-run is a false reading either way.**
+Found by collision on 2026-08-30: the steward's `make maquette-oracle` rebuilt and re-copied
+`/tmp/tm-refonte/wrapped.html` while the executing agent's suite was mid-run, and two of the agent's
+rules fell over a build they were not started against; both passed alone. The dangerous case is the
+other direction — a rule can PASS over the wrong prototype just as silently. `run.sh` re-copies
+unconditionally at every invocation; the harness README warns only that a STALE copy measures the
+previous build. **No instrument reaches this without a build stamp the rules read** (write the built
+commit into the copy, have every rule assert it at start), and no lot owns the harness's serving
+mechanism — the convention (two sessions coordinate by message first) is in `frontend-steward.md`,
+and the stamp is proposed to the operator to place.
+
+<sub>`grep -n "cp .*wrapped.html\|tm-refonte" frontend/maquette/harness/run.sh` · `grep -c "stale" frontend/maquette/README.md`</sub>
+
+---
 
 **B-255 — `check-frontend-boundaries.py` is back at 952 lines, 48 from the hard ceiling it was cut away from.**
 B-050 (#500) found it at 921 and L07-bis split three guards on a subject rather than a line count.

@@ -131,9 +131,15 @@ any other: it is checked against the repository, never taken as the audit.
 rebuilds and replaces that copy before it measures. The steward's first audit on the operator's machine
 ran the full suite and the oracle while the executing agent was running its own post-merge
 verification: two rules fell in the agent's run for no defect of theirs, and the served copy had been
-replaced under them. So the steward runs no instrument while an executing agent is running one —
-the two say so to each other first (`SendMessage`), and a rule that falls during an overlap is re-run
-alone before it is read as anything.
+replaced under them. **That second half is the dangerous one, and it is not a flake**: the served
+root is a fixed path with no lock and no build stamp, `run.sh` rebuilds and re-copies it
+unconditionally at every invocation, so a rule caught by the swap measures A DIFFERENT BUILD from
+the one it was started against — a false reading that can go either way, pass included. The
+harness's own README warns only that a STALE copy measures the previous build, never that a fresh
+one can arrive mid-run; no instrument reaches this without a stamp the rules read (B-256, open).
+So the steward runs no instrument while an executing agent is running one — the two say so to each
+other first (`SendMessage`), and a rule that falls during an overlap is re-run alone before it is
+read as anything.
 
 **And the steward works in a worktree, never in the checkout an agent executes in.** Measured the
 same day: a `git checkout` in the shared tree carried the agent's uncommitted files onto the steward's
