@@ -25,14 +25,20 @@ import { cva } from "../cva";
 
      30  the action button        `addAction`
      46  the scrim               `sheetScrim` (ui/variants/layout.ts)
-     47  the bottom sheet        `bottomSheet` (ui/variants/layout.ts)
      49  the message             `messageHost`
      50  the tab bar             `tabBar`
      51  the bottom slot's bar   `selectionBar`
+     52  the bottom sheet        `bottomSheet` (ui/variants/layout.ts)
      55  the drawer              `drawer`
      56  the confirmation        `dialog`
      60  the popover, the harness panel, the sign-in gate
      70  the splash
+
+   THE BOTTOM SHEET USED TO BE 47 — under the tab bar (B-248), so it rose BEHIND
+   the chrome and reserved the bar's height in its own body. It is 52: above the
+   bar and above the slot's own bar, below the drawer and the confirmation. The
+   anchoring is unchanged — it still rises from the screen's bottom edge — and
+   what went with the rank is the padding that compensated the overlap.
 
    THE CONFIRMATION USED TO BE 48 — under the tab bar (B-237), so a delete
    confirmation opened with four tappable tabs painted over its lower edge, on a

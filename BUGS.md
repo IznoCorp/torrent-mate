@@ -309,6 +309,36 @@ when the defect comes back.
 | B-247 | A store bump replaces a feature page's nodes, so a write between press and click destroys the click | by L15 | `open` |
 | B-250 | `check-live-relay`'s stale-figure arm cannot tell a register citation from a frozen count | by L15 | `fixed #528` |
 
+**B-248 — the bottom sheet paints over the tab bar.**
+Dictated by the operator on 2026-08-30 from a screenshot, filed by the steward, **and corrected by
+the operator before a line was written**: the first reading had the bar as the FLOOR, with every
+bottom layer anchored on its top edge. It is not. The sheet still rises from the screen's bottom
+edge; what changes is the RANK — 47 → 52, above the bar's 50 — and what goes is the padding that
+reserved the bar's height inside the sheet's own body. While a bottom layer is open the bar is not
+seen.
+
+**Interaction is unchanged, and saying so is half the entry.** `app/focus.ts` already marks the
+background `inert` while a layer is open, `#nav` among the thirteen elements it names, and `inert`
+takes an element out of hit-testing as well as out of the focus order. The bar was never tappable
+under a layer. It was VISIBLE.
+
+**The oracle moves, and every divergence is named.** 167 of them, all on ONE region —
+`shell/sheet-content` — and all of one cause: `padding: 2px 14px 76px` → `2px 14px 18px` on 86, and
+the height that follows from it on 81. No other region, no other property. They are accepted under
+this entry's name and the reference is re-recorded after the squash merge, with the two commands
+§ 5 names.
+
+**Held by R101** (`harness/stacking.py`): the sheet is anchored on the screen's bottom edge, so the
+overlap is there by construction and needs no producing — the one thing this hold has that the
+confirmation's did not; and it is PAINTED over the bar, read with the bar's `inert` lifted for the
+length of one reading, because a plain hit-test answers the sheet at 47 exactly as at 52. A third
+hold reads that nothing reserves the bar's height any more: left behind, that padding is a blank
+strip inside every sheet, which no hit-test sees.
+
+<sub>Mutation: the rank restored to 47; the hold falls with « at: 'nav', sheetRank: '47', barRank: '50' ».</sub>
+
+---
+
 **B-230 — the viewport fallback is deleted, and a guard refuses its pair anywhere.**
 Closed by L15, alone. `legacy.js:41–50` added a viewport meta — carrying a maximum scale and a
 user-scalable refusal — to any host that had none. **Deleted rather than corrected**: « a page that

@@ -210,6 +210,61 @@ async def main():
             message_hit.get("owner") == "toast",
             str(message_hit))
 
+        # (d-bis) THE BOTTOM SHEET PAINTS OVER THE TAB BAR (B-248, P31).
+        # Dictated by the operator on 2026-08-30 from a screenshot: while a
+        # bottom layer is open the bar is not seen. It used to be z-47 under the
+        # bar's z-50, so it rose BEHIND the chrome and reserved the bar's height
+        # in its own body so its last action stayed reachable.
+        #
+        # THE ANCHORING IS NOT WHAT MOVED, and the hold says so by reading it:
+        # the sheet still rises from the screen's bottom edge, so the overlap
+        # with the bar is there by construction and needs no producing — which
+        # is the one thing this hold has that the confirmation's did not. What
+        # it DOES need is the same `inert` lift: the bar is background while a
+        # layer is open, and `inert` takes an element out of hit-testing, so a
+        # plain reading answers the sheet at 47 exactly as at 52.
+        await page.evaluate("()=>window.__go('sheet-user')")
+        await page.wait_for_timeout(500)
+        over_bar = await page.evaluate("""()=>{
+          const sheet = document.querySelector('#sheet');
+          const bar = document.querySelector('#nav');
+          if (!sheet || !bar) return {absent: true};
+          const sheetBox = sheet.getBoundingClientRect();
+          const barBox = bar.getBoundingClientRect();
+          const was = bar.hasAttribute('inert');
+          bar.removeAttribute('inert');
+          const hit = document.elementFromPoint(
+            barBox.x + barBox.width / 2, barBox.y + 4);
+          if (was) bar.setAttribute('inert', '');
+          return {
+            anchored: Math.round(sheetBox.bottom) === Math.round(barBox.bottom),
+            overlap: sheetBox.bottom > barBox.top,
+            at: hit ? (hit.closest('#sheet') ? 'sheet'
+                       : hit.closest('#nav') ? 'nav' : hit.tagName) : null,
+            sheetRank: getComputedStyle(sheet).zIndex,
+            barRank: getComputedStyle(bar).zIndex};}""")
+        journal.check(
+            "the sheet is anchored on the screen's bottom edge, so it overlaps "
+            "the bar by construction",
+            over_bar.get("anchored") and over_bar.get("overlap"),
+            str({k: over_bar.get(k) for k in ("anchored", "overlap")}))
+        journal.check(
+            "and it is PAINTED over the tab bar (B-248, P31)",
+            over_bar.get("at") == "sheet",
+            str(over_bar))
+        # AND NOTHING RESERVES THE BAR'S HEIGHT ANY MORE. The padding that
+        # compensated the overlap goes with the rank; left behind it would be a
+        # blank strip inside every sheet, which is a defect no hit-test sees.
+        reserved = await page.evaluate("""()=>{
+          const inner = document.querySelector('#sheetin');
+          return inner ? getComputedStyle(inner).paddingBottom : null;}""")
+        journal.check(
+            "and the sheet's body reserves no bar height",
+            reserved is not None and float(reserved.replace("px", "")) < 40,
+            f"padding-bottom {reserved}")
+        await page.evaluate("()=>window.__closeLayers?.()")
+        await page.wait_for_timeout(300)
+
         # (e) THE POPOVER STAYS INSIDE THE FRAME, on both edges. That clamp is
         # the whole of what this layer does that a tooltip does not, and it is
         # measured against `#device` rather than against the window: a 390px

@@ -73,13 +73,26 @@ export const sheetScrim = cva(
 /**
  * The bottom sheet.
  *
- * THE TAB BAR SITS ABOVE THE LAYERS (z-50), so a sheet must reserve its height
- * or its last actions are unreachable — internal scrolling stops before them.
- * Same rule as for screens, extended to sheets and dialogs: one defect family
- * deserves one rule, not three.
+ * THE TAB BAR DOES NOT SIT ABOVE THIS LAYER ANY MORE (B-248, dictated by the
+ * operator on 2026-08-30 from a screenshot). It used to: the sheet was z-47
+ * under the bar's z-50, so it rose BEHIND the chrome and reserved the bar's
+ * height in its own body so its last action stayed reachable. The sheet paints
+ * OVER the bar now — while a bottom layer is open the bar is not seen.
+ *
+ * THE ANCHORING IS UNCHANGED and that is the correction the operator made to
+ * the first reading of this entry: the sheet still rises from the screen's
+ * bottom edge (`bottom-0`), NOT from the bar's top edge. What moves is the
+ * RANK; what goes is the padding that compensated the overlap. The
+ * confirmation at 56 is the precedent, and the ranked list in
+ * `ui/variants/frame.ts` is where both are written down.
+ *
+ * INTERACTION IS UNCHANGED: `app/focus.ts` already marks the background
+ * `inert` while a layer is open, `#nav` among the thirteen elements it names,
+ * and `inert` takes an element out of hit-testing as well as out of the focus
+ * order. The bar was never tappable under a layer. It was VISIBLE.
  */
 export const bottomSheet = cva(
-  "sheet absolute left-0 right-0 bottom-0 z-[47] bg-popover border-t border-border " +
+  "sheet absolute left-0 right-0 bottom-0 z-[52] bg-popover border-t border-border " +
     "rounded-t-4 rounded-b-none max-h-[78%] flex flex-col " +
     // The transition lives in the base because the state that CANCELS it is
     // not a prop: the drag handler writes `dragging` straight to the DOM
@@ -150,7 +163,10 @@ export const sheetDragBand = cva(
 
 /** The sheet's scrolling viewport. */
 export const sheetViewport = cva(
-  "sheetin overflow-y-auto pt-1 px-7 pb-[calc(var(--tm-bottom-bar-h,0px)+var(--spacing-8))]",
+  // NO BAR HEIGHT RESERVED SINCE B-248: the sheet paints over the tab bar, so
+  // there is nothing underneath for its last action to be stuck behind. The
+  // bottom padding is the sheet's own, and the safe area is the frame's.
+  "sheetin overflow-y-auto pt-1 px-7 pb-8",
 );
 
 /** The sheet's title. */
