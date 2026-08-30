@@ -86,6 +86,7 @@ import {
   setLimits,
 } from "../lib/relay";
 import { installRelayRecovery } from "./relay-recovery";
+import { installOutbox, publishOutboxSeam } from "./outbox";
 import { installUpdateDiscipline } from "./worker-registration";
 import { readCursor, subscribeToEvents } from "../lib/relay-events";
 import { ConnectionMark, ConnectionNotice } from "./connection-notice";
@@ -101,7 +102,7 @@ import {
 } from "../lib/addresses";
 import { installNavigation } from "../lib/navigate";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { createQueryClient } from "../lib/query-client";
+import { createQueryClient, send } from "../lib/query-client";
 import { installDecisionLookup } from "../features/arrivals/queries";
 import { installLibraryDelete, installLibraryPaging } from "../features/library/queries";
 import { installEngineRedraw } from "./engine-redraw";
@@ -361,15 +362,16 @@ installRelay();
 // history instance the scroll restoration does, so it inherits that step's own
 // ordering constraint.
 installRelayRecovery();
-// THE UPDATE DISCIPLINE, LAST AND OUTSIDE EVERYTHING ELSE. It answers « is the
-// build under this page still the build the host serves? », which no other step
-// asks and which none of them depends on — so it goes at the end, where a
-// failure to reach the host cannot take a single one of them with it.
-//
-// It does NOT register the worker. The envelope's inline script does, because
-// the sign-in gate borrows that block and is the only document a phone reaches
-// before signing in; a gate with no bundle must still be installable.
+// THE UPDATE DISCIPLINE, after everything it could disturb: nothing depends on
+// it, so a host it cannot reach takes no other step with it. It does not
+// REGISTER the worker — the envelope's inline script does, and why is written
+// where that is decided.
 installUpdateDiscipline();
+// THE OUTBOX, LAST. It reads what survived the previous run and sends it, so it
+// must come after everything a departure could touch.
+installOutbox();
+publishOutboxSeam((method, path, body) =>
+  send(method as "POST", path, body));
 // Published for the harness beside the other seams, for the reason the query
 // cache is: a rule that has to reach inside a module to ask what the connection
 // is doing is a rule coupled to how the module is built.

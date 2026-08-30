@@ -72,15 +72,37 @@ const BODILESS_STATUSES = new Set([204, 205, 304]);
 function asked(
   input: RequestInfo | URL,
   options?: RequestInit,
-): { href: string; method: string; body: BodyInit | null | undefined } {
+): { href: string; method: string; body: BodyInit | null | undefined; key: string | null } {
+  // READ THROUGH `Headers`, never off the object literal. A caller may pass an
+  // array of pairs or a `Headers` instance, and a layer that only understood
+  // one shape would silently see no key at all — which reads as « never sent
+  // before » and would turn the deduplicator off for that caller alone.
+  const key = new Headers(options?.headers ?? {}).get("idempotency-key");
   if (typeof input === "string") {
-    return { href: input, method: options?.method ?? "GET", body: options?.body };
+    return { href: input, method: options?.method ?? "GET", body: options?.body, key };
   }
   if (input instanceof URL) {
-    return { href: input.href, method: options?.method ?? "GET", body: options?.body };
+    return { href: input.href, method: options?.method ?? "GET", body: options?.body, key };
   }
-  return { href: input.url, method: options?.method ?? input.method, body: options?.body };
+  return { href: input.url, method: options?.method ?? input.method, body: options?.body, key };
 }
+
+// WHETHER THE NETWORK IS THERE AT ALL, which is a different question from
+// whether the server refuses. A scenario can already ask for any status; a
+// status is a DECISION the layer made and a surface must show it. This is the
+// other case: nothing answers, the request rejects the way a real one does, and
+// the mutation has neither succeeded nor failed. Nothing else in the layer can
+// express that, and P8 is entirely about it.
+let networkIsDown = false;
+
+// THE KEYS THIS LAYER HAS APPLIED, and the answer each produced.
+//
+// « Exactly once » is a property of the DATA, not of the wire: a client can
+// only promise at least once, because a request whose answer is lost is
+// indistinguishable from one that never arrived. What makes it exactly once is
+// this — a second arrival of a key already applied replays the first answer and
+// changes nothing.
+const applied = new Map<string, { status: number; payload: unknown; arrivals: number }>();
 
 /**
  * Answers one request from the routing table.
@@ -91,6 +113,14 @@ function asked(
  */
 async function answer(input: RequestInfo | URL, options?: RequestInit): Promise<Response> {
   const request = asked(input, options);
+  if (networkIsDown) {
+    // THE SHAPE A REAL OUTAGE HAS. `fetch` rejects with a TypeError when it
+    // cannot reach a host; it does not resolve with a status. A layer that
+    // answered 503 here would be testing a server that says no, which the
+    // scenario dial already covers and which a surface must handle in the
+    // opposite way.
+    throw new TypeError("Failed to fetch");
+  }
   const address = new URL(request.href, globalThis.location.origin);
   if (address.origin !== globalThis.location.origin) {
     // Matching a foreign address on its PATH alone would have this layer answer
@@ -147,12 +177,27 @@ async function answer(input: RequestInfo | URL, options?: RequestInit): Promise<
       );
     }
   }
+  // ALREADY APPLIED — the same answer, and the handler is not called again. The
+  // arrival is counted either way, because « the key arrived twice and changed
+  // the data once » is the fact P8 is about and a silent replay would hide it.
+  const seen = request.key === null ? undefined : applied.get(request.key);
+  if (seen) {
+    seen.arrivals += 1;
+    return json(seen.status, seen.payload);
+  }
   const payload = found.route.handle({
     path: address.pathname,
     parameters: found.parameters,
     query: address.searchParams,
     body,
   });
+  // Only a MUTATION is recorded. A read carries no key in this application, and
+  // recording reads would make the map grow without bound and would answer a
+  // refetch with a stale body — a cache nobody asked for, inside the layer that
+  // exists to be predictable.
+  if (request.key !== null && request.method.toUpperCase() !== "GET") {
+    applied.set(request.key, { status: outcome.status, payload, arrivals: 1 });
+  }
   return json(outcome.status, payload);
 }
 
@@ -252,6 +297,8 @@ export function installMockNetwork(): void {
       resetScenario();
       resetMockState();
       resetStream();
+      networkIsDown = false;
+      applied.clear();
       // AND THE COUNTERS, under a new generation. `reset()` used to leave them
       // exactly as they were, so a desynchronised page had no way back and
       // `quiet()` never resolved again. Zeroing them alone was worse: a request
@@ -264,6 +311,14 @@ export function installMockNetwork(): void {
       becameQuiet = [];
       for (const settle of stranded) settle();
     },
+    setOffline: (down: boolean) => {
+      networkIsDown = down;
+    },
+    isOffline: () => networkIsDown,
+    // What each key changed, and how many times it arrived. The pair is what
+    // makes « exactly once » readable rather than asserted.
+    arrivalsByKey: () =>
+      Object.fromEntries([...applied].map(([key, seen]) => [key, seen.arrivals])),
     inFlight: () => inFlight + delivering,
     quiet: () =>
       inFlight === 0 && delivering === 0
@@ -289,6 +344,11 @@ declare global {
       outcomeFor: typeof outcomeFor;
       setOperationOutcome: typeof setOperationOutcome;
       setDefaultLatency: typeof setDefaultLatency;
+      /** Whether the network answers at all — P8's dial, not a status. */
+      setOffline: (down: boolean) => void;
+      isOffline: () => boolean;
+      /** How many times each idempotency key arrived at the layer. */
+      arrivalsByKey: () => Record<string, number>;
       reset: () => void;
       /** Requests in flight PLUS deliveries whose fan-out is not yet issued. */
       inFlight: () => number;

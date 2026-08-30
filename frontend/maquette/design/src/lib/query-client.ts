@@ -20,6 +20,7 @@
 // proved, and all of it is code somebody else has.
 import { QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useSyncExternalStore } from "react";
+import { holdBack, setDeparture } from "../app/outbox";
 import type { paths } from "../contract/types";
 
 /**
@@ -61,6 +62,29 @@ export function createQueryClient(): QueryClient {
 
 /** Every address the maquette's own contract declares. */
 type ContractPath = keyof paths;
+
+/**
+ * A fresh identity for one mutation.
+ *
+ * @returns A key nothing else will produce. `randomUUID` needs a secure
+ *     context, which `localhost` and the design host both are; the fallback
+ *     exists so that a plain-HTTP preview degrades to a weaker key rather than
+ *     throwing where a mutation would otherwise have worked.
+ */
+function newIdempotencyKey(): string {
+  const source = globalThis.crypto;
+  if (source && typeof source.randomUUID === "function") return source.randomUUID();
+  return `k-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+// THE REPLAY CALLS THE SAME FUNCTION THE FIRST ATTEMPT DID, with the same key
+// and the same body — MODEL Part 13's « replay calls the same mutation
+// function ». It is injected rather than imported by the outbox, because the
+// outbox is imported HERE and a cycle between a queue and what it queues is the
+// kind that survives review: both halves read naturally on their own.
+setDeparture(async (envelope) => {
+  await dispatch(envelope.method, envelope.path, envelope.body, envelope.key);
+});
 
 /**
  * What a failed request carries: the layer's own problem shape.
@@ -128,14 +152,67 @@ export async function send<Result>(
   path: ContractPath | (string & {}),
   body?: unknown,
 ): Promise<Result | undefined> {
+  const key = newIdempotencyKey();
+  try {
+    return await dispatch<Result>(method, path, body, key);
+  } catch (refused) {
+    // A REFUSAL AND AN OUTAGE ARE NOT THE SAME EVENT, and telling them apart is
+    // the whole of this branch. A layer that ANSWERS — 404, 409, 500 — has made
+    // a decision the operator must see, and it is re-thrown untouched so the
+    // surface rolls back and says why. A network that does not answer at all
+    // has decided nothing: the mutation has not failed, it has not departed,
+    // and rolling it back would erase an action the operator made and that is
+    // still going to happen.
+    if (isRequestFailure(refused)) throw refused;
+    const held = await holdBack({
+      key, method, path, body, accepted: Date.now(),
+    });
+    // COULD NOT EVEN BE KEPT — no storage at all, a private window. Then the
+    // mutation really is lost, and the ONE thing that must not happen is
+    // reporting it as accepted. It is re-thrown as what it is.
+    if (!held) throw refused;
+    // Resolved with no body: the optimistic write stands, and the pending count
+    // the outbox publishes is what tells the operator it has not left yet.
+    return undefined;
+  }
+}
+
+/**
+ * Issues one mutation, with the identity a replay will re-use.
+ *
+ * SPLIT OUT OF `send()` BECAUSE THE REPLAY NEEDS EXACTLY THIS AND NOT THE REST.
+ * Re-issuing an envelope through `send()` would generate a NEW key and enqueue
+ * again on a second failure — a queue that grows a copy of itself every time
+ * the network flickers.
+ *
+ * @param method The method, upper case.
+ * @param path The contract address, parameters already substituted.
+ * @param body What to send, if anything.
+ * @param key The idempotency key the layer deduplicates on.
+ * @returns The parsed answer, or undefined for a status that carries no body.
+ * @throws RequestFailure When the layer refuses, carrying its real reason.
+ */
+async function dispatch<Result>(
+  method: string,
+  path: string,
+  body: unknown,
+  key: string,
+): Promise<Result | undefined> {
   const answer = await globalThis.fetch(path, {
     method,
     // A body is sent as a JSON STRING and nothing else: the mock layer refuses
     // a form, a blob or a stream by name rather than answering 200 over a
     // mutation that never happened, and the real server will read the same.
-    ...(body === undefined
-      ? {}
-      : { body: JSON.stringify(body), headers: { "content-type": "application/json" } }),
+    //
+    // THE KEY TRAVELS ON EVERY MUTATION, not only on a replay. A key added only
+    // when something is re-sent would be a key the layer had never seen the
+    // first time, and « exactly once » would hold for everything except the one
+    // case where a request departed and its answer was lost.
+    headers: {
+      "idempotency-key": key,
+      ...(body === undefined ? {} : { "content-type": "application/json" }),
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   // 204, 205 and 304 carry no body at all, and asking one for JSON throws —
   // which would turn a mutation that SUCCEEDED into a rollback.
