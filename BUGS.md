@@ -303,7 +303,7 @@ when the defect comes back.
 | B-241 | `IMPLEMENTATION.md`'s « Next » row said « once L10-ter merges » and « L14 stays last » after both had changed | by audit | `fixed #527` |
 | B-242 | `MODEL.md` P14 says 78 named states where 87 are driven | by audit | `fixed #527` |
 | B-243 | Three small drifts in the directives: nineteen guards for twenty, an archived path cited live, « twenty times » for twenty-four | by audit | `fixed #527` |
-| B-248 | The bottom sheet rises behind the tab bar; the operator wants the bar as the floor of every layer | 1× | `open` |
+| B-248 | The bottom sheet rises behind the tab bar; the operator wants it to cover the bar | 1× | `open` |
 | B-249 | The screen flashes when a sheet action closes the sheet AND opens a page | 1× | `open` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
@@ -4152,21 +4152,22 @@ sheet action that navigates — and read paints or replaced nodes, not the final
 
 ---
 
-**B-248 — the bottom sheet rises behind the tab bar; the operator wants the bar as the floor of every layer.**
+**B-248 — the bottom sheet rises behind the tab bar; the operator wants it to cover the bar.**
 Dictated by the operator on 2026-08-30 from a screenshot of the acquisition sheet. Today
 `bottomSheet` (`ui/variants/layout.ts`) is `absolute … bottom-0 z-[47]`: it is anchored at the
 screen's bottom edge, rises BEHIND the tab bar (z-50, `ui/variants/frame.ts`), and its body pads by
 `var(--tm-bottom-bar-h)` so the last action is reachable — the variant's own comment says the bar
-« sits above the layers, so a sheet must reserve its height ». **The decision reverses the
-anchoring, not the rank**: the bar is the FLOOR — every bottom layer is anchored on the bar's top
-edge and rises from there, nothing slides behind it, the bar stays visible — not tappable under a
-modal: `app/focus.ts` marks `#nav` `inert` while a layer is open, and B-237 measured that its
-buttons were never hit-testable over one, whatever their rank; this entry is about the paint. It is
-inherent to the template: `MODEL.md` Part 7 carries the paragraph and § 3 carries it as **P31**,
-with its instrument. L15's fifth behaviour change, in its own commit: the oracle WILL move on the
-sheet's open states, and each divergence is accepted under this entry's name. The padding that
-compensated the overlap goes with it; the selection bar in the bottom slot (rank 51) already sits
-above the bar and is the precedent.
+« sits above the layers, so a sheet must reserve its height ». **The decision reverses the RANK,
+not the anchoring**: the sheet keeps rising from the screen's bottom edge and paints OVER the bar —
+while a bottom layer is open the tab bar is not seen. The padding that reserved the bar's height
+goes with the overlap it compensated; the dialog, at 56 since B-237, is the precedent. Interaction
+does not change: `app/focus.ts` marks `#nav` `inert` while a layer is open, and B-237 measured
+that its buttons were never hit-testable over one. Inherent to the template: `MODEL.md` Part 7
+carries the paragraph and § 3 carries it as **P31**, with its instrument. L15's, in its own
+behaviour commit: the oracle WILL move on the sheet's open states, and each divergence is accepted
+under this entry's name. **The steward first wrote the opposite** — « the bar is the floor, the
+sheet anchored on its top edge » — from the operator's « par-dessus », merged it in #529, and the
+operator corrected it the same evening: the operator's words were read, not asked.
 
 <sub>`grep -n "bottom-0 z-\[47\]" frontend/maquette/design/src/ui/variants/layout.ts` · `grep -n "^ *50  the tab bar" frontend/maquette/design/src/ui/variants/frame.ts`</sub>
 

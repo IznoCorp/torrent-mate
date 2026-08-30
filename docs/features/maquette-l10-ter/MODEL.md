@@ -186,18 +186,20 @@ plus the appearance control plus the served identity — three things the frame 
 is the proof this is « one kind of change ». The ten panel PRODUCERS (the descriptors' authors)
 are not layers and not chrome: they are Part 12's subject.
 
-**THE TAB BAR IS THE FLOOR OF THE LAYERS — dictated by the operator on 2026-08-30, from a
-screenshot of the acquisition sheet.** Today the sheet is anchored at the screen's bottom edge
-(`bottomSheet`: `bottom-0 z-[47]`) and rises BEHIND the tab bar (z-50), reserving the bar's height
-by a padding so its last action stays reachable. The operator wants the opposite, and wants it
-inherent to the template rather than a property of one sheet: **every bottom layer is anchored
-on the bar's top edge and rises from there; nothing slides behind the bar; the bar stays visible.**
-Whether it is tappable under a layer is `app/focus.ts`'s — it marks the background `inert` while a
-modal layer is open, `#nav` included, and B-237 measured that the bar's buttons were never
-hit-testable over one, whatever their rank. This decision is about the PAINT and the anchoring. The sheet's bottom edge equals the bar's top edge
-in every frame of its transition, and the padding that reserved the bar's height goes with the
-overlap it compensated. P31 is the property; B-248 is the entry; L15 carries it as its fifth
-behaviour change. The reading of the operator's words is the steward's — the operator amends.
+**A BOTTOM LAYER COVERS THE TAB BAR — dictated by the operator on 2026-08-30, from a screenshot
+of the acquisition sheet, and corrected by the operator the same evening after the steward first
+wrote the opposite.** Today the sheet is anchored at the screen's bottom edge (`bottomSheet`:
+`bottom-0 z-[47]`) and rises BEHIND the tab bar (z-50), so the bar stays painted over the sheet's
+foot and the sheet's body reserves the bar's height by a padding to keep its last action reachable.
+The operator wants the sheet to rise from the screen's bottom edge **over** the bar: **while a
+bottom layer is open the tab bar is not seen** — the layer ranks above it, the padding that
+reserved the bar's height goes with the overlap it compensated, and the scrim and the bar are both
+under the layer. Inherent to the template, not a property of one sheet: every bottom layer (the
+sheet, the dialog already at 56) paints over the chrome. It changes nothing of interaction —
+`app/focus.ts` already marks `#nav` `inert` under a modal, and B-237 measured that the bar's
+buttons were never hit-testable over one. P31 is the property; B-248 is the entry; L15 carries it
+as a behaviour change in its own commit. The words are the operator's; the reading was the
+steward's, wrong once, and this is the corrected one.
 
 ### Part 8 — Focus, scroll and geometry
 
@@ -356,7 +358,7 @@ or dropped and named in § 3.1.
 | P27 | **Standalone hides browser-only chrome**: what exists only because a browser is around it is absent under `display-mode: standalone` | a rule under an emulated `display-mode` media | unmeasured — nothing reads it but the install offer | L11 |
 | P28 | **Focus survives a redraw**: `document.activeElement` is the same node across a page switch and a store bump | with P2's rule | **false** — B-231 | L15 |
 | P29 | **No layout shift when a poster loads**: every poster box declares its size (`aspect-ratio` or width/height) | static read of the gallery variants, and a CLS probe on a named state | to measure | L12 |
-| P31 | **The tab bar is the floor**: a bottom layer's box never overlaps the bar's box, at rest or mid-transition — `sheet.bottom === nav.top` in every frame — a hold that does not PRODUCE the overlap passes at `bottom-0` exactly as at the bar's edge (B-237's lesson) | the oracle's geometry for the sheet's open states, plus a rule that opens a sheet tall enough to reach the bar and samples `getBoundingClientRect` of both during the transition | **false** — the sheet is `bottom-0` and rises behind the bar (B-248) | L15 |
+| P31 | **A bottom layer covers the tab bar**: while the sheet is open the bar is not seen — the sheet's rank is above the bar's, its box starts at the screen's bottom edge, and `elementFromPoint` at the bar's centre answers the sheet, at rest and mid-transition — a hold that does not PRODUCE the overlap passes at 47 exactly as above 50 (B-237's lesson) | the oracle's geometry and z-order for the sheet's open states, plus a rule that opens a sheet and asks `elementFromPoint` over the bar during and after the transition | **false** — the sheet is z-47 under the bar's z-50 and pads by the bar's height (B-248) | L15 |
 | P30 | **Back-forward cache is not evicted**: `pageshow.persisted` is true after a walk out and back | a rule on a real navigation | to measure — the exit guard's handler is the kind of thing that evicts | L11 |
 
 ### 3.1 Discarded, and why
