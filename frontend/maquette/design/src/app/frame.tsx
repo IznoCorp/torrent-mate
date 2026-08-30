@@ -21,6 +21,7 @@ import { installAppearance } from "./appearance";
 import { installLayerRegistry } from "./layer-registry";
 import { DialogLayer } from "./dialog-layer";
 import { installDialogHost } from "./dialog-host";
+import { installEntry } from "./entry";
 import { MessageLayer } from "./message-layer";
 import { installPopoverHost } from "./popover-host";
 import { PopoverLayer } from "./popover-layer";
@@ -42,6 +43,7 @@ installToastHost();
 installLayerRegistry();
 installDialogHost();
 installPopoverHost();
+installEntry();
 installAppearance();
 
 export function Frame(): ReactElement {

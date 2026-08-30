@@ -307,6 +307,27 @@ when the defect comes back.
 | B-245 | The pre-paint appearance script compares against the French spellings the engine stopped writing | by L15 | `open` |
 | B-246 | The « In flight » row's version arm is defeated by markdown emphasis, in silence | by L15 | `fixed #528` |
 | B-247 | A store bump replaces a feature page's nodes, so a write between press and click destroys the click | by L15 | `open` |
+| B-250 | `check-live-relay`'s stale-figure arm cannot tell a register citation from a frozen count | by L15 | `fixed #528` |
+
+**B-250 — the stale-figure arm cannot tell a register citation from a frozen count.**
+Found on 2026-08-30 during L15's entry conversion, by the arm going red over a sentence that could
+never be wrong. `check-live-relay.py`'s `stale-figure` arm refuses any literal in its own source
+equal to a count it measures — a guard may PRINT a figure and may not write one down (A-2). Its
+boundary is `(?<![\w])N(?![\w])`, and a hyphen is not a word character, so **`B-154` is a match
+the day the TypeScript corpus reaches that size.** It did, when L15 added the frame's modules, and
+the arm reported this module as freezing its own corpus count over a sentence about a defect.
+
+**Fixed in #528**: register citations — `B-NNN`, `E-NNN`, `A-N`, `R-NN` — are struck out of the
+source before the search. They are struck rather than exempted one by one, because a list of
+numbers to ignore is the shape this arm exists to refuse.
+
+**And it caught the first draft of its own repair**: the comment explaining the fix said « the
+corpus reached 154 files », which is exactly the frozen figure the arm forbids. The comment names
+no size now, and says why.
+
+<sub>`python3 scripts/check-live-relay.py` — `stale-figure: 2 measured count(s) checked`</sub>
+
+---
 
 **B-237 — the confirmation is ranked above the chrome, and the ranked list exists.**
 Closed by L15's phase 10, alone, with R101 (`harness/stacking.py`). The dialog's rank moves

@@ -55,6 +55,7 @@ addressed
 advance
 after
 again
+agent
 air
 aired
 all
@@ -329,6 +330,7 @@ filtered
 filters
 find
 finger
+finish
 first
 fkind
 flight
@@ -362,6 +364,7 @@ frozen
 full
 future
 gaps
+gate
 gauche
 gauge
 generation
@@ -603,6 +606,7 @@ numeric
 nums
 observer
 of
+offer
 offered
 offset
 old

@@ -692,6 +692,19 @@ def arm_stale_figure():
         1 when a measured count is also a literal in this module, 0 otherwise.
     """
     source = pathlib.Path(__file__).read_text(encoding="utf-8")
+    # A REGISTER CITATION IS NOT A FROZEN FIGURE, and this arm could not tell
+    # the two apart. `B-154` is a bug's NAME, and the day the corpus reached the
+    # same size this arm reported this module as freezing its own count — over
+    # a sentence about a defect, which no re-measurement will ever make false.
+    # (The size is deliberately not written here: this arm's whole subject is
+    # that a guard prints a figure and does not write one down, and it caught
+    # the first draft of this very comment doing it.)
+    # The boundary below refuses a neighbouring word character and a hyphen is
+    # not one, so every `B-NNN`, `E-NNN`, `A-N`, `R-NN` in this file is a
+    # collision waiting for the tree to reach that size. They are struck out
+    # before the search rather than exempted one by one: a list of numbers to
+    # ignore is the shape this arm exists to refuse.
+    source = re.sub(r"\b[A-Z]-\d+\b", "", source)
     files = sources()
     reads = [path for path in files if path.name.endswith("queries.ts")
              or path.name == "queue.ts"]

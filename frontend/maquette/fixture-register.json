@@ -333,7 +333,8 @@
     "STARTUP_MS": {
       "class": "interface",
       "why": "how long the splash is held",
-      "seed": null
+      "seed": null,
+      "converted": "L15 phase 13 — the startup screen's PACE moved with the screen's verbs into `app/entry.ts`. It is a budget, not a floor: how long a full load is allowed for, so a bar half full means half way. Not `served`: no server has an opinion about how long its own document takes to arrive"
     },
     "STRIP_LABELS": {
       "class": "interface",

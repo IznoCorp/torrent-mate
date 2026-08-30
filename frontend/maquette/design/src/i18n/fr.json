@@ -799,6 +799,10 @@
   },
   "message": {
     "undo": "Annuler",
-    "close": "Fermer"
+    "close": "Fermer",
+    "installRequested": "Installation demandée — le navigateur prend la main.",
+    "installing": "Installation en cours — l'icône arrive sur votre écran d'accueil.",
+    "installRefused": "Installation refusée — le bandeau reviendra à la prochaine visite.",
+    "installed": "TorrentMate est installé."
   }
 }

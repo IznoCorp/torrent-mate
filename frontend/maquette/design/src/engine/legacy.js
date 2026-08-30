@@ -9010,6 +9010,10 @@ import { icons } from "../app/icons";
      the whole of the list: a dial left off is one a back cannot put back, so
      the address loses it while the interface keeps showing it — measured on
      `maintTopic`, which was the one missing. */
+  /* PUBLISHED FOR THE ENTRY, which is `app/entry.ts`'s since L15: the sign-in
+     gate writes its own address and the SHAPE of a navigation entry is still
+     this file's, so it crosses rather than being restated. It dies with the
+     rest of the navigation logic at L13. */
   function navigationState() {
     return {
       tm: "nav",
@@ -9451,266 +9455,39 @@ import { icons } from "../app/icons";
     render();
   }
 
-  /* Shows or hides the unauthenticated entry screen.
+  /* THE ENTRY IS NOT THIS FILE'S ANY MORE — the splash, the sign-in gate and
+     the install proposal are `app/entry.ts`'s (`MODEL.md` § 2 Part 9). It was
+     LOGIC over static markup, and it is the logic that had to move: §17
+     redraws the gate for Plex SSO and cannot do so while the gate is engine
+     code, because D5 allows no addition here.
 
-     The prototype holds NO credentials. The screen exists to be judged as a
-     surface; who may see it is decided by the server that serves this file. A
-     password written into a page is readable by everyone the page reaches,
-     which is the opposite of what a password is for. */
-  /* The sign-in screen sits on a real path (D1). It is not a page — it is a
-     layer covering everything — but it is what one SEES, and every screen owes
-     an address. The refusal is a STATE of that address, not a second one: it is
-     not a place anyone links to.
+     The MARKUP stays in `index.html`, for two reasons that are not the same
+     one: the splash is on screen from the first painted frame, which a
+     component cannot be; and the gate is EXTRACTED by `serve.py` and served as
+     the design host's own password page, so a component would leave that host
+     a second copy to keep in step.
 
-     Written through the same single writer every other address goes through, in
-     REPLACE: signing in is not a step of the walk one goes back through, and a
-     back out of the gate onto the page it guards would be a lie.
-
-     Never under `pilotage`: `__go` drives a named state without touching
-     history, which R74 holds, and the harness reaching the sign-in state must
-     not move the address. */
-  function showSignIn(avecErreur) {
-    document.querySelector("#login").hidden = false;
-    document.querySelector("#loginerr").hidden = !avecErreur;
-    if (avecErreur) document.querySelector("#loginform").reset();
-    if (!pilotage)
-      try {
-        __bridge.replace(navigationState(), window.__address.signInPath);
-      } catch (error) {
-        console.error("sign-in gate: navigation write failed", error);
-        window.__navEchec = true;
-      }
-  }
-
-  function hideSignIn() {
-    const wasShown = !document.querySelector("#login").hidden;
-    document.querySelector("#login").hidden = true;
-    document.querySelector("#loginerr").hidden = true;
-    /* The address follows the screen off, so the gate does not stay in the bar
-       over the application it has just let through. */
-    if (wasShown && !pilotage)
-      try {
-        __bridge.replace(navigationState(), window.__address.compose(currentState()));
-      } catch (error) {
-        console.error("sign-in release: navigation write failed", error);
-        window.__navEchec = true;
-      }
-  }
-
-  /* Signing out ends the session and lands on the entry screen.
-
-     The session is the cookie, and the cookie belongs to the server, so the
-     server is asked to drop it FIRST and the screen only reflects what has
-     already happened. Showing the entry form over a session that is still
-     valid would be a lie the next reload exposes.
-
-     A failure is swallowed on purpose: served from a plain static server there
-     is no such route, and a design reference that dead-ends on a 404 teaches
-     nothing about the design. Nothing else here depends on the answer. */
-  async function signOut() {
-    panel.close();
-    try {
-      await fetch("/logout", { redirect: "manual" });
-    } catch (error) {}
-    showSignIn(false);
-  }
-
-  /* The startup screen, shown for as long as there is no interface to show.
-
-     It is on screen from the first painted frame — the markup is the first
-     thing in the frame — and comes off once the first render has run. Driving
-     to its named state puts it back, so it can be judged like any other
-     surface. */
-  function showStartup() {
-    const screen = document.querySelector("#splash");
-    screen.hidden = false;
-    /* Restarted from zero every time the screen is shown, so driving to its
-       named state twice does not measure a bar left where the previous visit
-       stopped it. */
-    const barNode = screen.querySelector(".splashbar i");
-    if (barNode) {
-      barNode.style.animation = "none";
-      void barNode.offsetWidth;
-      barNode.style.animation = "";
-    }
-  }
-
-  function hideStartup() {
-    document.querySelector("#splash").hidden = true;
-  }
-
-  /* What the startup screen covers, and what ends it.
-
-     It covers ONE wait: the gap between asking for the application and having
-     an interface. That gap is the document — several megabytes, seconds on a
-     phone — and it spans two pages: the gate paints the screen when the form is
-     submitted, the new document paints it again from its own markup, and the
-     operator sees one continuous screen across a navigation.
-
-     What ends it is the interface being there. Not a timer: held on one, the
-     bar filled once while the document downloaded and then RESTARTED from zero
-     in a document that was already rendered. A screen that covers nothing is
-     not a startup screen, it is a delay.
-
-     The bar's five seconds are its PACE, not a floor — how long a full load is
-     budgeted, so a bar half full means half way. A load that ends sooner ends
-     the screen sooner, and that is not a second path: it is the same promise
-     resolving. */
-  const STARTUP_MS = 5000;
-  let loadingEnd = null;
-
-  /* Shows the screen and leaves it up until the wait it covers resolves.
-
-     `window.__loadingDone()` is the seam: whatever really knows the
-     interface is ready calls it. A duration is passed only where the wait is
-     PLAYED rather than observed — the sign-in inside the prototype, which
-     fetches nothing and has to show what the real one looks like. */
-  window.__loadingDone = () => {
-    loadingEnd?.();
-    loadingEnd = null;
-    hideStartup();
-  };
-
-  function coverLoading(duree = STARTUP_MS) {
-    showStartup();
-    new Promise((resoudre) => {
-      loadingEnd = resoudre;
-    }).then(hideStartup);
-    window.setTimeout(() => window.__loadingDone(), duree);
-  }
-
-  document
-    .querySelector("#loginform")
-    .addEventListener("submit", (evenement) => {
-      evenement.preventDefault();
-      const fields = new FormData(evenement.currentTarget);
-      const username = String(fields.get("username") || "").trim();
-      const password = String(fields.get("password") || "");
-      // An empty field shows the refusal state; anything filled in walks
-      // through, because this surface demonstrates the SCREEN and not the
-      // check — the check lives where the file is served from.
-      if (!username || !password) {
-        document.querySelector("#loginerr").hidden = false;
-        return;
-      }
-      hideSignIn();
-      /* What actually follows a sign-in: the interface is not there yet, and
-         the wait is covered rather than left blank — by the same screen, ended
-         the same way, as the one a cold load puts up. */
-      coverLoading();
-    });
-
-  /* Install proposal — two platforms, two paths.
-
-     Android and desktop fire `beforeinstallprompt`, which a page may capture
-     and replay on a gesture. iOS Safari fires nothing: there is no event to
-     wait for and no API to call, so the only honest thing a page can do is
-     explain the manual route. A single banner that said « installez-moi » on
-     both would be a dead end on one of them. */
-  function showInstallation(plateforme) {
-    const barNode = document.querySelector("#installbar");
-    const onIOS = plateforme === "ios";
-    barNode.hidden = false;
-    document.querySelector("#installsub").hidden = onIOS;
-    document.querySelector("#installsteps").hidden = !onIOS;
-    document.querySelector("#installgo").hidden = onIOS;
-  }
-
-  function masquerInstallation() {
-    document.querySelector("#installbar").hidden = true;
-  }
-
-  document.querySelector("#installclose").addEventListener("click", () => {
-    masquerInstallation();
-    // Refused: not asked again this session. The next visit may ask again —
-    // a banner that never returns after one dismissal is a feature nobody
-    // finds twice.
-    installRefused = true;
-  });
-  document.querySelector("#installgo").addEventListener("click", async () => {
-    masquerInstallation();
-    if (!installEvent) {
-      toast("Installation demandée — le navigateur prend la main.");
-      return;
-    }
-    /* The captured event is REPLAYED here, on a gesture, which is the only
-       moment a browser accepts it. It can be used exactly once. */
-    installEvent.prompt();
-    const choice = await installEvent.userChoice.catch(() => null);
-    installEvent = null;
-    toast(
-      choice && choice.outcome === "accepted"
-        ? "Installation en cours — l'icône arrive sur votre écran d'accueil."
-        : "Installation refusée — le bandeau reviendra à la prochaine visite.",
-    );
-  });
-
-  /* WHO GETS ASKED, AND WHEN — the half that was missing.
-
-     The banner existed and nothing ever showed it: it was reachable only by
-     driving to its named state, so on a real phone it never appeared at all.
-     Two platforms, two entirely different mechanisms, and neither is optional:
-
-     · Android and desktop fire `beforeinstallprompt`. The event must be
-       captured and its default prevented, or the browser shows its own
-       proposal in its own place and ours never gets a turn. It is then
-       replayed on a gesture — that is the only moment a prompt is accepted.
-
-     · iOS Safari fires NOTHING, and offers no API. There is no event to await,
-       so the page cannot know whether it is installable; what it can know is
-       that it is Safari on iOS and not already standalone. There the banner IS
-       the guide, and it walks the actual steps.
-
-     Nobody is asked while already installed: `display-mode: standalone` means
-     the icon is already on the home screen, and a banner there is noise about
-     something already done. */
-  let installEvent = null;
-  let installRefused = false;
-
-  function alreadyInstalled() {
-    return (
-      window.matchMedia("(display-mode: standalone)").matches ||
-      window.navigator.standalone === true
-    );
-  }
-
-  function onIOSSafari() {
-    const ua = navigator.userAgent;
-    const ios =
-      /iPad|iPhone|iPod/.test(ua) ||
-      // iPadOS 13+ reports itself as a Mac; the touch points give it away.
-      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    // Every browser on iOS is Safari underneath, but only Safari can install.
-    const safari = !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
-    return ios && safari;
-  }
-
-  function proposerInstallation(plateforme) {
-    if (installRefused || alreadyInstalled()) return;
-    // Never over the entry screen: there is nothing to install yet, and the
-    // banner would cover the only field on it.
-    if (!document.querySelector("#login").hidden) return;
-    showInstallation(plateforme);
-  }
-
-  window.addEventListener("beforeinstallprompt", (evenement) => {
-    // Without this the browser posts its own proposal and ours never runs.
-    evenement.preventDefault();
-    installEvent = evenement;
-    proposerInstallation("android");
-  });
-
-  window.addEventListener("appinstalled", () => {
-    installEvent = null;
-    masquerInstallation();
-    toast("TorrentMate est installé.");
-  });
-
-  /* iOS has no event to wait for, so the offer is made once the interface is
-     there — after the startup screen, not over it. */
-  if (onIOSSafari()) {
-    window.setTimeout(() => proposerInstallation("ios"), 1200);
-  }
+     What is left below is the vocabulary the drivers still say, one line each,
+     pointing at the seam. They go with the boot handshake at L13. */
+  /* `pilotage` IS THE ENGINE'S AND CROSSES AS AN ARGUMENT. `__go` drives a
+     named state without touching history (R74 holds it), and this latch is how
+     this file knows. It used to be read from INSIDE `showSignIn`, which is a
+     private flag read by a function that is no longer here — so it is passed.
+     Left out, driving the `signin` state replaced the address with `/login`
+     and every state measured after it inherited that route: caught by the
+     oracle as a divergence in `relay-refused`, eighty states later, which is
+     what a leaked address looks like from the outside. */
+  const showSignIn = (withError, silent) =>
+    window.__entry?.showSignIn(withError, silent === true || pilotage);
+  const hideSignIn = (silent) =>
+    window.__entry?.hideSignIn(silent === true || pilotage);
+  const signOut = () => window.__entry?.signOut();
+  const showStartup = () => window.__entry?.showStartup();
+  const hideStartup = () => window.__entry?.hideStartup();
+  const coverLoading = () => window.__entry?.showStartup();
+  const showInstallation = (platform) => window.__entry?.showInstall(platform);
+  const masquerInstallation = () => window.__entry?.hideInstall();
+  const alreadyInstalled = () => window.__entry?.alreadyInstalled() === true;
 
   window.__go = (stateId, opts) => {
     const found = STATES.find((STATES2) => STATES2[0] === stateId);
@@ -9720,7 +9497,7 @@ import { icons } from "../app/icons";
           ? "état inconnu : " + stateId
           : "aucun état enregistré — src/states.js n'a pas été chargé");
     closeHarness();
-    if (!stateId.startsWith("signin")) hideSignIn();
+    if (!stateId.startsWith("signin")) window.__entry?.hideSignIn(true);
     if (stateId !== "startup") hideStartup();
     if (!stateId.startsWith("pwa-")) masquerInstallation();
     // Reset to seed by DEFAULT: a measurement must never inherit the
@@ -33116,7 +32893,7 @@ export {
 Object.assign(window, {
   CAST, POSTERS_HD, PRESS_MS, PRESS_TOLERANCE, AUDIOS,
   TODAY, CADENCE_CRON, ACCOUNT,
-  STARTUP_MS, DEPENDENCIES, DISKS,
+  DEPENDENCIES, DISKS,
   EP_LABEL, EP_ORDER, EP_SWATCH, ERRORS, DECISION_STATE,
   DECISION_STATE_DETAIL, EXECUTIONS, SHEETS_IDX, SHEETS_OLD, SHEETS_RAW,
   GROUPS, HERO_IMAGES, INCOMPLETE, INDEX, JOURNAL, LIBRARY,
@@ -33148,12 +32925,12 @@ Object.assign(window, {
   openActionMaintenance, openPopEp, openSetting, openSecret,
   openDrawer, paintSelBar, panelUnderFinger, passerSug, screenStack,
   plages, ownedFor, posterBox, nextSearchFR,
-  proposerInstallation, ptr, refPanel, collapseCard,
+  ptr, refPanel, collapseCard,
   refreshDeck, settingId, resetSettings, render,
   richText, seasonsOf, sheetSeasonsHTML, secHTML, secInner, seedWorld,
   select, sheetFor, titleForProviderId, addressIdsFor, skelCards, skelCardsInner, skelTiles, sortLabel,
   stFraction, stLabel, stripHTML, sugCardHTML, sugFoot,
-  sugTileHTML, sugVerb, followPress, onIOSSafari, onEngineBack,
+  sugTileHTML, sugVerb, followPress, onEngineBack,
   surfErr, surfErrInner, svgIcon, swipeHTML, tileHTML, toast, toastUndo,
   allSettings, trailerIds, displayedValue,
   rawValue, typedValue, view,
@@ -33170,9 +32947,6 @@ Object.defineProperties(window, {
   deckDrag: { get: () => deckDrag, configurable: true },
   unwinding: { get: () => unwinding, configurable: true },
   unwindInProgress: { get: () => unwindInProgress, configurable: true },
-  loadingEnd: { get: () => loadingEnd, configurable: true },
-  installEvent: { get: () => installEvent, configurable: true },
-  installRefused: { get: () => installRefused, configurable: true },
   store: { get: () => store, configurable: true },
   pageDrag: { get: () => pageDrag, configurable: true },
   pilotage: { get: () => pilotage, configurable: true },
