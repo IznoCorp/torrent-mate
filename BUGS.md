@@ -290,7 +290,7 @@ when the defect comes back.
 | B-228 | The brief's inventory command reads twelve of thirteen writes | by survey | `open` |
 | B-229 | The confirmation dialog is not on the back ladder | by survey | `fixed #528` |
 | B-230 | The engine re-adds a viewport refusal to any host without a viewport meta | by survey | `fixed #528` |
-| B-231 | The tab bar is rebuilt from scratch on every render | by survey | `open` |
+| B-231 | The tab bar is rebuilt from scratch on every render | by survey | `fixed #528` |
 | B-232 | Two dead layers: the page-render branch and `#screen` | by survey | `open` |
 | B-233 | `theme-color` is a constant while the document paints light | by survey | `fixed #528` |
 | B-234 | The viewport meta declares no `interactive-widget` | by survey | `open` |
@@ -310,6 +310,27 @@ when the defect comes back.
 | B-248 | The bottom sheet rises behind the tab bar; the operator wants it to cover the bar | 1× | `fixed #528` |
 | B-249 | The screen flashes when a sheet action closes the sheet AND opens a page | 1× | `open` |
 | B-250 | `check-live-relay`'s stale-figure arm cannot tell a register citation from a frozen count | by L15 | `fixed #528` |
+| B-251 | A file under `docs/` that no commit force-added is invisible to `git add -A`, to `git status` and to every gate | 1× | `open` |
+
+**B-251 — a document under `docs/` can be written, cited and never committed, with nothing red.**
+The operator's global `~/.gitignore` carries a `docs/` rule, so a NEW file under `docs/` is
+ignored: `git add -A` skips it, `git status` does not list it, and no gate in this repository —
+`check-bug-register`, `audit_design_coverage`, `check-implementation-state`, CI's `docs` filter —
+reads a path that is not in the index. A folder whose other files were force-added once looks
+entirely normal, because the tracked siblings are tracked. **Found on 2026-08-30 by the steward,
+measuring `origin/main` after L15 merged**: `docs/features/maquette-l15/REPORT.md` was cited in the
+pull request body, in the wave's own account of its gates and in two cross-session reports, and it
+existed on one disk. `BRIEF.md`, `DESIGN.md` and `plan/` were there because the commit that created
+them used `git add -f`; every commit after that skipped the report in silence.
+
+**This is B-219's shape with a worse mechanism.** B-219 is a document that says something untrue;
+this is a document that is not there at all, and the difference is that a reader who greps for it
+locally FINDS it. The check is cheap and does not exist: after any commit that was meant to add a
+file under `docs/`, `git ls-files <path>` answers whether it landed — `git status` does not.
+Filed open rather than repaired, because the guard belongs with whoever owns the archive gesture
+(§ 5's fourth step) and this pull request is that gesture, not its instrument.
+
+<sub>`git check-ignore -v docs/features/<any-new>.md` → `/Users/izno/.gitignore:10:docs/` · `git ls-files docs/features/maquette-l15` listed 22 files and not the report</sub>
 
 **B-142 — the constitution has an instrument, and B-244 is worse than it was filed as.**
 Closed by L15's phase 18. `scripts/check-intent-map.py` holds every DOIT and NE-DOIT-PAS clause
@@ -4340,7 +4361,19 @@ elements disappear and four appear. Invisible to the oracle by construction — 
 nineteen properties do not carry node identity. **L15's**; the rule holds `isSameNode` across a
 page switch and a bump.
 
+**FIXED by #528, and the rule is R100** (`frontend/maquette/harness/persistence.py`). The bar is
+a component (`app/tab-bar.tsx`), `renderNav` and its `nav.innerHTML` are gone from the engine, and
+three holds keep it that way: « a page switch keeps the tab bar's button nodes », « a store bump
+keeps them too » — both `isSameNode` over `#nav button`, asked in the page and compared position by
+position — and « focus survives a page switch and a store bump, on the SAME node ». **That third
+hold was itself the defect once**: it read `dataset.page`, a `closest('#nav')` and « not body »,
+every one of which a REPLACEMENT node satisfies, so the rule written to catch replaced nodes could
+be passed by one. An adversarial reader found it after the wave's gates were green; it asks
+`isSameNode` now, which its own header had named as the only separating question from the day it
+was written.
+
 <sub>`grep -n "renderNav()" legacy.js` → 7801 (definition), 7868 (the one call, inside `render()`)</sub>
+<sub>`grep -c "isSameNode" frontend/maquette/harness/persistence.py` → the three holds above, plus the message host's</sub>
 
 **B-232 — two dead layers: the page-render branch and `#screen`.**
 `PAGES_OF()` has eight entries, all `shellOwned: true`, none with a `render` — so the `else`
