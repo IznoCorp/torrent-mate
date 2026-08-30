@@ -32,13 +32,15 @@ records good news is worth having and is worth nobody's turn ahead of the work.
 | 1 | B-256 — the lock and the stamp | `phase-01-the-lock-and-the-stamp.md` | instrument |
 | 2 | The worker precaches the shell | `phase-02-the-shell-is-cached.md` | behaviour |
 | 3 | `/build.json` and the update discipline | `phase-03-freshness.md` | behaviour |
-| 4 | The outbox store | `phase-04-the-outbox-store.md` | behaviour |
-| 5 | The outbox, and its replay | `phase-05-the-outbox.md` | behaviour |
-| 6 | What is waiting is said | `phase-06-the-pending-count.md` | behaviour |
-| 7 | The three entry points | `phase-07-the-entry-points.md` | behaviour |
-| 8 | P27 — standalone hides the install offer | `phase-08-standalone.md` | rule |
-| 9 | P30 — the back-forward cache ratchet | `phase-09-bfcache.md` | rule |
-| 10 | The close | `phase-10-the-close.md` | prose |
+| 4–5 | The outbox, its store and its replay | `phase-04-and-05-the-outbox.md` | behaviour |
+| 6 | What is waiting is said | *(with 4–5 above)* | behaviour |
+| 7 | The three entry points | *(with 8–9 below)* | behaviour |
+| 8–9 | P27 and P30 | `phase-08-and-09-standalone-and-bfcache.md` | rule |
+| 10 | The close, and the review's repairs | `REPORT.md` | prose |
+
+**The phases that share a file share it because they landed in one commit each and one
+subject between them.** This row used to name six files that were never written, and no guard
+could see it: `check-docs-cited-paths.py` reads six named directives and never `docs/features/**`.
 
 ---
 
@@ -49,26 +51,26 @@ that cannot be run is not a criterion.
 
 | # | Criterion | Command | Expected |
 | --- | --- | --- | --- |
-| ACC-01 | The served copy carries a build stamp | `cat /tmp/tm-refonte/build-stamp.json` | JSON with `commit`, `dirty`, `source_stamp`, `token` |
-| ACC-02 | A stamp that moves mid-run is a named failure, not a silent pass | `frontend/maquette/harness/mutate-stamp.sh` (phase 1) | the rule FAILS naming « served copy replaced mid-run » |
-| ACC-03 | Two suites cannot interleave | run `run.sh --oracle` twice at once | the second reports the lock's holder and exits, never measures |
-| ACC-04 | The contract tier's announced figure matches what it runs | `make harness-contracts \| head -3` and `grep -c . <(grep -o "[a-z_0-9]*\.py" <<<"$(grep '^CONTRACTS=' frontend/maquette/harness/run.sh)")` | the same number, 12 |
-| ACC-05 | **P7** — the shell opens offline | `python3 frontend/maquette/harness/pwa.py` | PASS « offline, a named state renders » |
-| ACC-06 | `/api/*` is never cached | inspect the worker's route table (phase 2) | `/api/` and the stream are NetworkOnly |
-| ACC-07 | `/build.json` answers without a session | `curl --connect-timeout 10 --max-time 30 -s https://tm-design.iznogoudatall.xyz/build.json` | JSON with `source_stamp`, HTTP 200, no redirect to the gate |
-| ACC-08 | The poll sees a moved stamp and reloads exactly once | phase 3's rule | PASS, reload count 1 |
-| ACC-09 | The freshness signal survives a dirty tree | edit a source, rebuild, re-read `/build.json` | `source_stamp` moved while `commit` did not |
-| ACC-10 | The outbox store survives a restart | phase 4's rule | the envelope is present after a reload |
-| ACC-11 | **P8** — a mutation issued offline departs on reconnection | phase 5's rule | PASS, the mock applied it once |
-| ACC-12 | …and exactly once, proved on the mock's side | phase 5's rule | the idempotency key was seen twice, applied once |
-| ACC-13 | An offline mutation does not roll back | phase 5's rule | the optimistic cache write survives |
-| ACC-14 | What is waiting is visible | phase 6's rule | the connection mark carries the pending count |
-| ACC-15 | **P9** — the manifest declares all three entry points | `curl --connect-timeout 10 --max-time 30 -s https://tm-design.iznogoudatall.xyz/manifest.webmanifest \| python3 -m json.tool` | `share_target`, `launch_handler`, `handle_links` all present |
-| ACC-16 | The address `share_target` names actually pre-fills | phase 7's rule | `/add?q=Silo` opens the add screen with « Silo » in the field |
-| ACC-17 | **P27** — standalone hides the install offer | phase 8's rule | PASS under emulated `display-mode: standalone` |
-| ACC-18 | **P30** — the back-forward cache is not evicted | phase 9's rule | `pageshow.persisted` true after a walk out and back |
-| ACC-19 | Push is declined in writing, not forgotten | `grep -n "L16" BUGS.md` | a register entry naming L16 as the consumer |
-| ACC-20 | The wave's gate | `run.sh` · `run.sh --a11y` · `oracle.py --check` · `make check` | no violation · 0 violations · green or named · exit 0 |
+| ACC-01 | The served copy carries a build stamp | `python3 frontend/maquette/harness/served_copy.py --token` | a non-empty token |
+| ACC-02 | The lock and the stamp behave | `python3 -m pytest tests/scripts/test_served_copy.py -q` | 13 passed |
+| ACC-03 | …and the WIRING that calls them is in place | `python3 frontend/maquette/harness/served_copy.py` | 15 rules EXECUTED — no violation |
+| ACC-04 | The contract tier announces no figure it cannot keep | `grep -c "rules)" Makefile` | `0` |
+| ACC-05 | **P7** — the shell opens offline, and **P9**'s manifest half | `python3 frontend/maquette/harness/pwa.py` | 0 failures |
+| ACC-06 | `/api/*` and the stream are never cached | `grep -n "const NEVER" frontend/maquette/design/sw.js` | `/api/` and `/ws` by prefix |
+| ACC-07 | `/build.json` answers without a session | `python3 -c "import urllib.request as u,json; print(json.load(u.urlopen('https://tm-design.iznogoudatall.xyz/build.json', timeout=15)))"` | `{'build': '<12 hex>'}` |
+| ACC-08 | The bundle, the worker and `/build.json` carry ONE identity | `cd frontend/maquette/design && grep -o 'const BUILD = "[a-f0-9]*"' dist/sw.js && cat dist/build.json` | the same value |
+| ACC-09 | The identity moves when a source does, and not when it does not | `touch frontend/maquette/design/src/app/outbox.ts && cd frontend/maquette/design && npm run build && cat dist/build.json` | unchanged — it is a CONTENT hash |
+| ACC-10 | **P8** — held, persisted, departed once, and said | `python3 frontend/maquette/harness/outbox.py` | 16 rules EXECUTED — no violation |
+| ACC-11 | A refused replay leaves the queue rather than jamming it | the same rule | PASS on that hold |
+| ACC-12 | The update discipline reloads once and never loops | `python3 frontend/maquette/harness/freshness.py` | 5 rules EXECUTED — no violation |
+| ACC-13 | **P27** and **P30** | `python3 frontend/maquette/harness/installed.py` | 8 rules EXECUTED — no violation |
+| ACC-14 | Signing out takes the cached shell with it | `python3 frontend/maquette/harness/logout.py` | 0 violations, the shell-teardown hold among them |
+| ACC-15 | **P9** — the three entry points are declared | `python3 -c "import urllib.request as u,json; m=json.load(u.urlopen('https://tm-design.iznogoudatall.xyz/manifest.webmanifest', timeout=15)); print(sorted(k for k in m if k in ('share_target','launch_handler','handle_links')))"` | all three listed |
+| ACC-16 | …and the address one of them names really pre-fills | `python3 frontend/maquette/harness/pwa.py` | PASS on R108's pre-fill hold |
+| ACC-17 | Push is declined in writing, with its consumer named | `grep -n "B-257" BUGS.md` | an entry naming L16 |
+| ACC-18 | The queue's clock is the only one, and it is argued for | `python3 scripts/check-live-relay.py` | `0 poll(s), 1 exempt and named` |
+| ACC-19 | No rule lost a hold | `python3 scripts/harness-hold-counts.py --compare frontend/maquette/hold-counts-baseline.json` | no rule falls |
+| ACC-20 | The wave's gate | `frontend/maquette/harness/run.sh` · `--a11y` · `oracle.py --check` · `make check` | no violation · 0 violations · no divergence · exit 0 |
 
 ---
 

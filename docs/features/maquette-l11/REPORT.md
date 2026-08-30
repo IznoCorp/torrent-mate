@@ -36,8 +36,8 @@ holds.
 | 1 | B-256 — the lock and the stamp | **R104** (8 holds) + 12 unit tests | M1–M5, and M1b/M2b on the ORDER rather than on presence |
 | 2 | The shell is cached (P7) | **R105** (via `pwa.py`) | M6 no cache · M7 no fallback · M8 no document |
 | 3 | `/build.json` and the discipline | **R106** (5 holds) | M9 latch · M10 offline · M11 no comparison |
-| 4–5 | The outbox and its replay (P8) | **R107** (14 holds) | M12 rollback · M13 memory-only · M14 no dedup · M15 forget-first |
-| 6 | What is waiting is said | R107 +2 holds | — |
+| 4–5 | The outbox and its replay (P8) | **R107** (11 holds at the phase gate) | M12 rollback · M13 memory-only · M14 no dedup · M15 forget-first |
+| 6 | What is waiting is said | R107 → 14 holds | — |
 | 7 | The three entry points (P9) | **R108** (via `pwa.py`) | — |
 | 8–9 | P27 and P30 | **R109 / R110** (7 holds) | M16/M18 the standalone guard · M17 a `beforeunload` |
 
@@ -57,7 +57,7 @@ smoke tests failed with `AttributeError: module 'platform' has no attribute
 'python_implementation'`, raised inside `attr/_compat.py`, which none of them mentions. Invisible to
 `ruff`, to the harness suite, to the boundaries guard and to the abbreviation guard; only the full
 test suite saw it. **A directory that lands on `sys.path` may not hold a file named after anything
-in the standard library, and the harness is 79 such files.**
+in the standard library, and the harness is 80 such files.**
 
 **The design host answers 401 for `/` itself** (B-259). A browser reads the manifest of the page in
 front of it, so the only document a phone can install from is the sign-in gate — where `/vite/*` is

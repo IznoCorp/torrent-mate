@@ -33,12 +33,19 @@ BAR = "─" * 62
 #
 # IT IS READ HERE AND CHECKED IN TWO PLACES: `open_page`, which is where a rule
 # first touches the served copy, and `Journal.summary`, which is where it stops.
-# Neither covers everything and that is stated rather than implied — 45 rules
-# open through `open_page`, 53 end through `Journal`, 63 import this file at
-# all, and 75 exist. The twelve that import nothing from here are covered by
-# `run.sh`, which reads the stamp around every rule it launches. This half
-# exists for the OTHER case: a rule run by hand from an editor, which `run.sh`
-# never sees, and which is how most of them are run while being written.
+# NEITHER COVERS EVERYTHING, and the figures are given with the commands that
+# produce them because the first version of this comment carried four that were
+# already stale on the day it was written — the wave had added four rules:
+#
+#   ls harness/*.py | grep -v common.py | wc -l            → the rules
+#   grep -l "open_page" harness/*.py | wc -l               → open through here
+#   grep -l "Journal(" harness/*.py | wc -l                → end through here
+#
+# The rules that import nothing from this file — `audit2.py`, the one that
+# started the incident, among them — are covered by `run.sh`, which reads the
+# stamp around EVERY rule it launches. This half exists for the other case: a
+# rule run by hand from an editor, which `run.sh` never sees, and which is how
+# most of them are run while being written.
 STARTED_AGAINST = served_copy.token()
 
 # Beside THIS FILE, never in the current directory — the same reason `audit.py`

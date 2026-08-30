@@ -6,6 +6,11 @@ R52 — every document the server hands out declares the manifest, the icons and
 R108 — P9: every entry point the platform offers an installed application is
       declared, and the address each one names really behaves. Q4, answered by
       the operator on 2026-08-30: all three.
+R111 — signing out takes the cached shell with it. The worker caches the
+      DOCUMENT and every bundle, from an authenticated context, and a cache
+      outlives a cookie: without this, signing out on a phone and handing it
+      over leaves the whole password-protected prototype one airplane-mode
+      toggle away. Found by adversarial review, on this wave's own change.
 R105 — P7: the application opens and reads with the network gone. The shell is
       precached, the document is answered from the cache, and a named state
       renders — measured against a server that has actually STOPPED, for the
@@ -92,6 +97,87 @@ async def share_target_lands(browser):
         if shared not in filled:
             failures.append(
                 f"R108 a share lands on /add without pre-filling it: {filled[:4]}")
+    await context.close()
+    return executed, failures
+
+
+async def signing_out_empties_the_shell(browser):
+    """R111 — the cached shell does not outlive the session that filled it.
+
+    IT IS MEASURED ON THE SERVED COPY, where a worker really installs and the
+    shell really completes. `/logout` has no file behind it there, so the host
+    folds it onto the document and `signOut`'s own request succeeds harmlessly —
+    what is being read is the TEARDOWN, which is the half that was missing.
+
+    Args:
+        browser: A launched Playwright browser.
+
+    Returns:
+        The `(executed, failures)` pair.
+    """
+    executed = 0
+    failures = []
+    context = await browser.new_context(
+        viewport={"width": 390, "height": 844}, device_scale_factor=2,
+        is_mobile=True, has_touch=True)
+    page = await context.new_page()
+    with start_server(SERVED) as port:
+        await page.goto(f"http://127.0.0.1:{port}/", wait_until="load")
+        ready = await page.evaluate(
+            """async()=>Promise.race([
+                 navigator.serviceWorker.ready.then(()=>true),
+                 new Promise(r=>setTimeout(()=>r(false), 8000))])""")
+        if not ready:
+            await context.close()
+            return 1, ["R111 no worker installed, so nothing could be torn down"]
+        await page.reload(wait_until="load")
+        await page.evaluate("()=>window.__loadingDone?.()")
+        await page.evaluate(
+            """async()=>new Promise((resolve)=>{
+                 const channel = new MessageChannel();
+                 channel.port1.onmessage = ()=>resolve(null);
+                 navigator.serviceWorker.controller.postMessage(
+                   "cache-shell", [channel.port2]);
+                 setTimeout(()=>resolve(null), 8000);
+               })""")
+
+        # THE CONTROL. Without it « nothing cached after signing out » is also
+        # true of a browser that never cached anything, and this rule would pass
+        # over a worker that had done nothing at all.
+        executed += 1
+        before = await page.evaluate(
+            """async()=>{const names=await caches.keys();
+                 const shell=names.find(n=>n.startsWith("tm-shell-"));
+                 if(!shell) return [];
+                 return (await caches.open(shell)).keys()
+                   .then(k=>k.map(r=>new URL(r.url).pathname));}""")
+        if "/" not in before:
+            failures.append(
+                f"R111 nothing was cached before signing out: {before[:5]} — "
+                "the hold below would pass over an empty browser")
+            await context.close()
+            return executed, failures
+
+        await page.evaluate("async()=>{ await window.__entry.signOut(); }")
+        await page.wait_for_timeout(600)
+
+        executed += 1
+        after = await page.evaluate("async()=>(await caches.keys())")
+        left = [name for name in after if name.startswith("tm-shell-")]
+        if left:
+            failures.append(
+                f"R111 the shell outlived the session: {left} — the whole "
+                "password-protected prototype is one airplane-mode toggle away")
+
+        executed += 1
+        # AND THE WORKER GOES TOO. Left registered it re-caches the shell the
+        # moment anyone signs in again, and what is on this device must belong
+        # to the session that put it there.
+        registered = await page.evaluate(
+            """async()=>(await navigator.serviceWorker.getRegistrations()).length""")
+        if registered != 0:
+            failures.append(
+                f"R111 {registered} worker(s) still registered after signing out")
     await context.close()
     return executed, failures
 
@@ -520,6 +606,11 @@ async def main():
             api = [p for p in cached["held"] if p.startswith("/api/")]
             if api:
                 failures.append(f"R52 the shell cache holds server state: {api[:4]}")
+
+        # --- R111 — signing out takes the cached shell with it ---------------
+        out_executed, out_failures = await signing_out_empties_the_shell(b)
+        executed += out_executed
+        failures.extend(out_failures)
 
         # --- R108 (P9) — and the address a share names really behaves --------
         share_executed, share_failures = await share_target_lands(b)

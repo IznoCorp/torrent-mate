@@ -177,9 +177,15 @@ self.addEventListener("fetch", (event) => {
       try {
         return await fetch(event.request);
       } catch (unreachable) {
-        const cache = await caches.open(CACHE);
-        return (await cache.match(DOCUMENT))
-          || (await cache.match(OFFLINE))
+        // `caches.match` WITH A CACHE NAME, never `caches.open`. `open` CREATES
+        // the cache when it is absent — so a worker still controlling the page
+        // after a sign-out re-made the shell cache on the next request, and the
+        // teardown that had just deleted it looked like it had never run. The
+        // scoped `match` reads without creating, and it is the same guarantee
+        // `open(CACHE).match` gave: this build's cache and no other.
+        const options = { cacheName: CACHE };
+        return (await caches.match(DOCUMENT, options))
+          || (await caches.match(OFFLINE, options))
           || Response.error();
       }
     })());
@@ -203,8 +209,7 @@ self.addEventListener("fetch", (event) => {
     // Nothing in the shell is range-requested today — the document, the
     // bundles, the icons — and this line is where that stops being true if
     // media ever enters it.
-    const cache = await caches.open(CACHE);
-    const hit = await cache.match(event.request);
+    const hit = await caches.match(event.request, { cacheName: CACHE });
     if (hit) return hit;
     try {
       return await fetch(event.request);

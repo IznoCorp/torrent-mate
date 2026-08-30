@@ -77,6 +77,17 @@ which is what the update discipline is for. **Arbitrated by the operator on 2026
 expensive lesson applies literally — the directive changes in the same move as the decision, never
 in a later tidy-up.
 
+> **WHAT THE IMPLEMENTATION OVERTURNED, recorded here rather than left to rot.** This file was
+> written before the code and three of its decisions did not survive contact with the hosts. **D-2's
+> DECISION stands and its MECHANISM does not**: the signal is not `mtime_sources()` but a CONTENT
+> hash over every source, and `/build.json` carries that alone — a timestamp moves when a file is
+> merely touched and would reload every client for nothing. **D-5's precache tiering is gone**: `/`
+> itself answers 401 on the sign-in gate, so nothing is required-cacheable at install and the
+> running application completes the shell (B-259). **D-10 said R110 would RECORD that the
+> back-forward cache survives**; it cannot — Chrome refuses that cache whenever a DevTools client is
+> attached — so it is a static ratchet and the runtime half is device-only. The wave's account of
+> what actually shipped is `REPORT.md`; this file is what was decided on the day it was written.
+
 **D-2 — The freshness signal is the SOURCE STAMP, not the commit.** Production compares
 `/api/version`'s `build_commit` to a baked `__BUILD_COMMIT__`, and that is right for production,
 where every deploy is a commit. The design host is the machine the operator is *editing on*: a
