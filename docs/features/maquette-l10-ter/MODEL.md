@@ -312,36 +312,44 @@ reads it** (exists · to build · device-only), whether it holds today, and the 
 **A property with no conceivable instrument is not on the list** — it was restated until one was,
 or dropped and named in § 3.1.
 
+**Seven rows were refreshed by L15, in the wave that made them move** — § 7.1's duty, not an
+amendment: what the phase DECIDED is untouched and only the measurement under it changed. P1, P2,
+P3, P14, P21 and P28 read `true` with the rule that says so; P10 says it survived the two bars
+becoming components. **And P1's instrument is not the one this table specified**: the column read
+« `performance.getEntriesByType("navigation").length` stays 1 », which holds ONE ENTRY PER DOCUMENT
+— so a full navigation makes a new document where the count is one again, and the reading cannot
+come out the other way. A sentinel on `window` and the `load` event are what separate the two.
+
 | # | Property | Instrument | Today | Lot |
 | --- | --- | --- | --- | --- |
-| P1 | **One document.** No full navigation between any two named states: `performance.getEntriesByType("navigation").length` stays 1 across a walk of every state | to build — contracts tier, cheap | true by construction, unmeasured | L15 |
-| P2 | **A persistent chrome.** The tab bar's button nodes keep identity across a page switch and a store bump (`isSameNode`) | to build | **false** — B-231 | L15 |
-| P3 | **Back walks the ladder**, every rung: drawer, sheet, dialog, page, exit guard — each layer closes on Back and nothing else pops | R59, R65, R69, R82, R94 exist; **the dialog rung is missing** | false for the dialog — B-229 | L15 |
+| P1 | **One document.** No full navigation between any two named states: a sentinel planted on `window` survives the walk, and no `load` event fires | R100 — and NOT `performance.getEntriesByType("navigation").length`, which holds one entry PER DOCUMENT and reads 1 either way | **true, and measured** (L15) | — |
+| P2 | **A persistent chrome.** The tab bar's button nodes keep identity across a page switch and a store bump (`isSameNode`) | R100 | **true** since L15 — the bar is a component (B-231's cause removed) | — |
+| P3 | **Back walks the ladder**, every rung: drawer, sheet, dialog, page, exit guard — each layer closes on Back and nothing else pops | R59 (four holds for the dialog since L15), R65, R69, R82, R94 | **true** — B-229 closed by L15 | — |
 | P4 | **Opening pushes, adjusting replaces** (D1b) | R69 | true | — |
 | P5 | **A declared transition between sibling surfaces**: a page switch runs inside `document.startViewTransition`, the rules are `::view-transition-*` in `base.css`, none is a script (D9) | to build — a rule reads `document.getAnimations()` mid-switch under `no-preference`, and reads NONE under `reduce` (invariant 14) | false — `grep -rn "view-transition" design/src` → 0 | L12 |
 | P6 | **A shared element survives navigation**: the poster carries a `view-transition-name` on the card and on the sheet | to build | false | L12 |
 | P7 | **The shell opens offline**: `context.set_offline(True)`, reload `/`, a named state renders | to build — `harness/pwa.py` is where it goes | false by design (the design host's worker caches nothing) | L11 |
 | P8 | **A mutation issued offline departs exactly once** on reconnection | to build on L10's fake transport | false | L11 |
 | P9 | **Installable, and the handler of its own links**: manifest `display`, `id`, icons (R52), and the entry points L11 names | R51, R52 exist for the first half; the second half is a decision (`QUESTIONS.md` Q4) | half | L11 |
-| P10 | **Safe areas**: the two bars pad by `env(safe-area-inset-*)` and nothing else positions by a distance to an edge | static read of the bars' classes (the compositor guard's shape); the rendered check is device-only | true in the markup | L15 keeps it as the bars move |
+| P10 | **Safe areas**: the two bars pad by `env(safe-area-inset-*)` and nothing else positions by a distance to an edge | static read of the bars' classes (the compositor guard's shape); the rendered check is device-only | true in the markup, and still true after L15 moved both bars into components | — |
 | P11 | **Dynamic viewport**: the frame is `100dvh`, no `100vh` anywhere | `check-css-tokens.py`-shaped static read | **false** — no `dvh` in the tree; `base.css:54` is `height: 100%`; the only `100svh` is `harness.css`, which ships nowhere | L12 |
 | P12 | **Contained overscroll** on `#port` | the compositor-CSS guard | true | — |
 | P13 | **No zoom on focus**: every field ≥ 16 px | R83 | true | — |
-| P14 | **Pinch-zoom allowed**: no `maximum-scale`, no `user-scalable=no` | axe 1.4.4 on every named state (`window.__states()`, 87 on 2026-08-30 — `oracle-reference.json`'s `measurements` has one key per state; the previous « 78 » was a citation, not a count) | true on this host; **a landmine on any other** — B-230 | L15 removes the fallback |
+| P14 | **Pinch-zoom allowed**: neither directive, on any host | axe 1.4.4 on every named state (`window.__states()`, 87 on 2026-08-30) **and `scripts/check-viewport-directives.py`**, which reads markup, script AND stylesheet — axe can only see a directive PRESENT on the document it audits, and B-230's was written into a branch that never fired here | **true, and no longer a landmine** — B-230 closed by L15 | — |
 | P15 | **Touch targets at the floor** (WCAG 2.5.8) | axe `target-size` | true, 0 violations | — |
 | P16 | **Gestures survive the compositor**: every gesture proved under a real touch stream AND a real mouse | R55, R98, `deck.py`, `drag.py`, `mouse.py` | true for the gestures measured | L12 extends |
 | P17 | **The keyboard resizes the content, not the viewport**: `interactive-widget=resizes-content` | static read of the meta | **false** — B-234 | L12 |
 | P18 | **Scroll restored per history entry**, pages included | R94 | true | — |
 | P19 | **An action answers the finger before the network**: every mutation optimistic with a rollback | L09's rules | true where wired | — |
 | P20 | **Reduced motion is a designed state** for every transition and gesture | R80 under both preferences; extended per transition | true for what exists | L12 |
-| P21 | **The status bar follows the theme**: `theme-color` differs under `data-theme="light"` | a rule reads the meta under both themes | **false** — B-233 | L15 |
+| P21 | **The status bar follows the theme**: `theme-color` differs under `data-theme="light"` | R102, which compares the meta against the PAINTED ground through a canvas | **true** — B-233 closed by L15 | — |
 | P22 | **Never « connected » over a dead link** | R95 | true | — |
 | P23 | **No chrome flash at boot**: splash first, bar height published before first paint | R53, R84 | true | — |
 | P24 | **No unvirtualised long list** (1 861 titles) | to build — a rule counts rendered rows against the data length | **false** — `features/library/page.tsx:371` is infinite scroll by `IntersectionObserver`, not virtualisation | L12 |
 | P25 | **No tap flash**: `-webkit-tap-highlight-color: transparent` on every interactive element | the compositor-CSS guard | **false** — `grep -rn "tap-highlight" design/src design/index.html` → 0 | L12 (base layer) |
 | P26 | **A long press selects no text** on a tile or a card (`user-select: none`) | the compositor-CSS guard, and the real-touch long press `selection.py` already drives | partly — `legacy.css` and one `select-none` on the drawer | L12 |
 | P27 | **Standalone hides browser-only chrome**: what exists only because a browser is around it is absent under `display-mode: standalone` | a rule under an emulated `display-mode` media | unmeasured — nothing reads it but the install offer | L11 |
-| P28 | **Focus survives a redraw**: `document.activeElement` is the same node across a page switch and a store bump | with P2's rule | **false** — B-231 | L15 |
+| P28 | **Focus survives a redraw**: `document.activeElement` is the same node across a page switch and a store bump | R100, with P2's | **true** since L15 | — |
 | P29 | **No layout shift when a poster loads**: every poster box declares its size (`aspect-ratio` or width/height) | static read of the gallery variants, and a CLS probe on a named state | to measure | L12 |
 | P30 | **Back-forward cache is not evicted**: `pageshow.persisted` is true after a walk out and back | a rule on a real navigation | to measure — the exit guard's handler is the kind of thing that evicts | L11 |
 
