@@ -96,6 +96,12 @@ SERVED="/tmp/tm-refonte"
 #                    instrument but `isSameNode`, and the defect it closes
 #                    (B-231) survived ten lots under every green gate. It joined
 #                    at L15, with the tab bar's conversion. ~9 s, measured.
+#   served_copy      the lock and the stamp themselves (B-256). It is on this
+#                    tier by the argument that put `settle` here: it is not a
+#                    NAME that moved, it is the instrument every later phase's
+#                    proof rests on, and a phase that unwires it must be the
+#                    phase that hears about it. Its holds are a static read of
+#                    this file and of `common.py`, so it costs no browser.
 #   relay_states     the connection's four conditions, read the same way and on
 #                    the same test: `data-part="shell/connection-mark"`, three
 #                    state ids and a `data-connection` value are NAMES, and the
@@ -112,7 +118,7 @@ SERVED="/tmp/tm-refonte"
 # by run_uid. That database is the operator's and a CI runner has none, so the
 # rule would fail there for a reason that has nothing to do with the change
 # under test. It runs in the full suite, on the machine that has the data.
-CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.py boot_order.py settle.py state_surfaces.py relay_states.py scroll_memory.py persistence.py)
+CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.py boot_order.py settle.py state_surfaces.py relay_states.py scroll_memory.py persistence.py served_copy.py)
 
 # THE REPOSITORY'S CHEAP GUARDS, run beside the rules (B-063, arbitrated by the
 # operator on 2026-08-25). They read the tree in seconds and they read exactly

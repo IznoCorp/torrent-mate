@@ -300,12 +300,122 @@ def release(pid: int | None = None) -> None:
     _release_quietly()
 
 
+def _code_of(path: Path) -> str:
+    """Returns a file's lines with its comments removed.
+
+    WHY IT IS NOT OPTIONAL HERE. This rule reads `run.sh` and `common.py` for
+    the wiring, and both files DESCRIBE that wiring at length in their comments.
+    A rule that searched the raw text would be satisfied by the paragraph
+    explaining the mechanism after somebody deleted the mechanism — which is
+    the defect L07's compositor guard shipped, counting its own prose.
+
+    Args:
+        path: The file to read.
+
+    Returns:
+        The source with every `#` comment line dropped, and trailing comments
+        cut at the first `#` that is not inside a string.
+    """
+    kept = []
+    for line in path.read_text().splitlines():
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            continue
+        quote = None
+        for index, character in enumerate(line):
+            if quote:
+                if character == quote:
+                    quote = None
+            elif character in "\"'":
+                quote = character
+            elif character == "#":
+                line = line[:index]
+                break
+        kept.append(line)
+    return "\n".join(kept)
+
+
+def rules() -> int:
+    """R104 — the served copy is held while it is rebuilt, and stamped after.
+
+    THE ARM EXISTS BECAUSE THE TESTS CANNOT SEE THE WIRING.
+    `tests/scripts/test_served_copy.py` proves the lock and the stamp BEHAVE;
+    it cannot prove that `run.sh` still calls them, and a mechanism nothing
+    calls is a mechanism that is not there. That gap is how B-256 existed in the
+    first place — every part of the harness worked, and no part of it asked
+    whether the copy had moved.
+
+    Returns:
+        0 when the wiring holds, 1 otherwise.
+    """
+    executed = 0
+    failures = []
+    run_sh = _code_of(Path(__file__).resolve().parent / "run.sh")
+    common = _code_of(Path(__file__).resolve().parent / "common.py")
+
+    def hold(name, condition, detail=""):
+        nonlocal executed
+        executed += 1
+        print(("  PASS" if condition else "  FAIL") + f" {name}"
+              + (f" — {detail}" if detail else ""))
+        if not condition:
+            failures.append(name)
+
+    # THE ORDER IS THE CORRECTNESS. A lock taken after the build has already
+    # let the second builder overwrite the copy, and a stamp written before the
+    # copy names a build that is still arriving.
+    acquire_at = run_sh.find("served_copy.py\" --acquire")
+    build_at = run_sh.find("npm run build")
+    copy_at = run_sh.find("cp \"$DESIGN/dist/index.html\"")
+    stamp_at = run_sh.find("served_copy.py\" --stamp")
+    hold("run.sh takes the copy BEFORE it rebuilds it",
+         0 <= acquire_at < build_at, f"acquire@{acquire_at} build@{build_at}")
+    hold("run.sh stamps the copy AFTER it lands",
+         copy_at >= 0 and stamp_at > copy_at, f"copy@{copy_at} stamp@{stamp_at}")
+    hold("run.sh gives the copy back however it ended",
+         "trap cleanup EXIT" in run_sh and "--release" in run_sh)
+
+    # THE READING THAT COVERS EVERY RULE, including the twelve that import
+    # nothing from `common.py` — `audit2.py`, which started the incident, among
+    # them. It is the only one of the three that can make that claim.
+    hold("run.sh reads the stamp around every rule it launches",
+         "STAMP_TOKEN" in run_sh and 'served_copy.py\" --token' in run_sh
+         and 'rm -f \"$HARNESS_LOGS/$rule.ok\"' in run_sh)
+
+    # AND THE READING THAT COVERS A RULE RUN BY HAND, which `run.sh` never sees
+    # and which is how a rule is run while it is being written.
+    hold("common.py reads the token at import",
+         "STARTED_AGAINST = served_copy.token()" in common)
+    hold("common.py asserts at the start, in open_page",
+         common.find("assert_unchanged(STARTED_AGAINST") > 0
+         and "opening the prototype" in common)
+    hold("common.py asserts at the end, in Journal.summary",
+         common.count("assert_unchanged(STARTED_AGAINST") >= 2)
+
+    # THE COPY AS IT STANDS. A stamp nobody can read is a stamp nobody checks —
+    # and this is the hold that would have gone red on a machine where `run.sh`
+    # ran the build but the stamp step was removed.
+    stamp = read_stamp()
+    hold("the served copy carries a readable stamp",
+         stamp is not None and bool(stamp.get("token")),
+         "no copy built yet" if stamp is None else str(stamp.get("token")))
+
+    print()
+    print(f"{executed} rules EXECUTED — "
+          + ("no violation" if not failures
+             else f"{len(failures)} violation(s): {', '.join(failures)}"))
+    return 1 if failures else 0
+
+
 def main() -> int:
     """The command line `run.sh` drives this module through.
 
+    WITH NO ARGUMENT IT IS A RULE, exactly as `server.py` is: the full suite
+    launches every `.py` in this directory, so a file here that exits non-zero
+    when asked nothing is a rule the suite reports as FAILED forever.
+
     Returns:
-        0, or 1 when asked for nothing it knows — `acquire` raises with its own
-        message rather than returning a code nobody reads.
+        0, or 1 when a hold falls.
     """
     what = sys.argv[1] if len(sys.argv) > 1 else ""
     if what == "--acquire":
@@ -318,8 +428,11 @@ def main() -> int:
     elif what == "--token":
         print(token() or "")
     else:
-        print(__doc__)
-        return 1
+        print("─" * 62)
+        print("served_copy.py — the copy is held while it is rebuilt, "
+              "and stamped after")
+        print("─" * 62)
+        return rules()
     return 0
 
 
