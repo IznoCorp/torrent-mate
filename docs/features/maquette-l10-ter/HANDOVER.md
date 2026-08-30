@@ -54,9 +54,13 @@ duty is to finish what the office left open before auditing anything new.
 > figures it cites re-derived on the day, and the two blocking notes that are NOT its (§18's and
 > §19's open points) left where they are.
 >
-> **The office's two limits apply to you as they applied to your predecessor**: you cannot certify
-> that a rendering did not move — only the oracle says that, on the machine that owns the references
-> — and your anchor is the repository, never a remembered intent. And the lesson L10-ter paid for,
+> **One of the office's two limits no longer applies to you, and the other does.** You run on the
+> operator's machine, in the same conditions as the agents that execute the lots: you CAN run the
+> oracle, the full suite and the accessibility tier, and certify a rendering yourself — do it rather
+> than read a claim. You can ask an executing agent for its report directly (`SendMessage`, once it
+> has finished); treat what it says as a claim to check against the repository, never as the audit.
+> **You still produce nothing**: you analyse the work, you run the instruments, you correct the
+> directives, you do not write the lot. Your anchor is the repository, never a remembered intent. And the lesson L10-ter paid for,
 > twice, in one day: **open every proof you cite, subtract the definition from a caller count, and
 > re-grep every line number last.** Where you find the plan wrong rather than the work, the burden
 > of proof is yours and it is measured.
@@ -80,6 +84,9 @@ duty is to finish what the office left open before auditing anything new.
 - **The register's next free identifier is taken by `python3 scripts/check-bug-register.py --next`**
   on the branch it runs on, after `git remote update`. B-239 is #524's; the next is whatever the
   tool says, not B-240 from memory.
+- **The steward runs on the machine now** (`frontend-steward.md`, the paragraph dated 2026-08-30):
+  the oracle is yours to run, the reference is re-recorded only as the post-merge gesture, and an
+  agent's report is requested, not reconstructed.
 - **The backend has a demands file that schedules nothing**:
   `docs/reference/backend-demands-architecture.md`. The letter L is the maquette's; the backend's
   phases are decided in their time, by a brief written after the maquette is validated. A steward
