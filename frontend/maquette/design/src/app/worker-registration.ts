@@ -39,6 +39,22 @@ const EVERY = 15 * 60 * 1000;
 
 let reloading = false;
 
+// WHICH SERVED BUILD THIS SESSION HAS ALREADY RELOADED FOR.
+//
+// `reloading` alone is not a latch and cannot be one: a reload REPLACES the
+// document, so the module is evaluated again and the flag is false again. The
+// page then boots, checks, still sees a served build different from its own,
+// and reloads — forever. Measured, not imagined: R106 read FIFTEEN loads where
+// it expected two, which is why that hold is « and it does not reload again »
+// rather than « it reloads ».
+//
+// A reload loop is the one failure this discipline can produce that is worse
+// than staleness: on a design host it is indistinguishable from a host that is
+// down. So the latch outlives the document. One reload per served build — if
+// the page comes back still not matching, the convergence has failed and that
+// needs a person, not another reload.
+const RELOADED_FOR = "tm-reloaded-for";
+
 /**
  * Asks the worker to finish caching the shell.
  *
@@ -96,8 +112,26 @@ async function servedBuild(): Promise<string | null> {
  *     to take over. Absent when no worker ever installed, in which case the
  *     reload alone is the whole of it.
  */
-function reloadOnce(registration: ServiceWorkerRegistration | null): void {
+function reloadOnce(
+  registration: ServiceWorkerRegistration | null,
+  servedBuildIdentity: string | null,
+): void {
   if (reloading) return;
+  try {
+    // Session storage and not local: the latch is about THIS run of the
+    // application. A new tab, or the same one opened tomorrow, is entitled to
+    // try converging again.
+    if (servedBuildIdentity !== null) {
+      if (globalThis.sessionStorage.getItem(RELOADED_FOR) === servedBuildIdentity) {
+        return;
+      }
+      globalThis.sessionStorage.setItem(RELOADED_FOR, servedBuildIdentity);
+    }
+  } catch (unavailable) {
+    // Private browsing, or storage refused. Fall through: one reload that may
+    // repeat is a worse outcome than staleness, but refusing to update at all
+    // because a storage call threw is worse than both.
+  }
   reloading = true;
   // The page asks; the worker never takes it by itself. That is what
   // `registerType: 'prompt'` means, and `sw.js` holds the other half.
@@ -123,7 +157,7 @@ async function checkForUpdate(
   // is the ordinary offline case, and treating it as a change would reload the
   // application every fifteen minutes on a phone with no signal.
   if (served === null || served === __BUILD_ID__) return;
-  reloadOnce(registration);
+  reloadOnce(registration, served);
 }
 
 /**
@@ -170,7 +204,9 @@ export function installUpdateDiscipline(): void {
     const hadController = Boolean(container?.controller);
     container?.addEventListener("controllerchange", () => {
       if (!hadController) return;
-      reloadOnce(registration);
+      // No served build to latch on: a swap under a live page is a one-off
+      // event and not a state that could repeat on the next boot.
+      reloadOnce(registration, null);
     });
   });
 }
