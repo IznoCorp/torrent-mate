@@ -3,8 +3,26 @@
 //
 // THE DISCIPLINE IS PRODUCTION'S, AND IT IS PROVED (`web-ui.md` § PWA): a check
 // on load, on `visibilitychange` and every 15 minutes; the served build compared
-// against the built one; a new worker asked to take over, and ONE reload. What
-// changes here is the signal, and only the signal — see `SERVED_BUILD` below.
+// against the built one; a new worker asked to take over, and ONE reload. Two
+// things change here, and the second was got WRONG the first time.
+//
+//   THE SIGNAL — `/build.json` and not `/api/version`, for the reason written
+//       at `SERVED_BUILD` below.
+//   THE ORDER — and this is the correction. The first version read
+//       `registration.waiting` straight after `await registration.update()` and
+//       reloaded. `update()` resolves as soon as the new worker begins
+//       INSTALLING — before its `install` handler has fetched the document and
+//       every bundle — so `waiting` was null, the optional chain swallowed it,
+//       and the page reloaded with no swap. After that reload the served build
+//       EQUALS the running build, so the comparison returns early and
+//       `skip-waiting` is never sent again for the session: the page runs the
+//       new build while the OLD worker still controls it, and the new one is
+//       parked until every tab closes.
+//
+//       Production never had that bug because it does not drive the swap from
+//       the poll: `updatefound` → `statechange` → `installed` is when a worker
+//       is really waiting, and `controllerchange` is when it has really taken
+//       over. The reload follows the swap; it does not race it.
 //
 // WHY THIS FILE EXISTS AT ALL, GIVEN `index.html` ALREADY REGISTERS. The
 // envelope's inline script registers the worker and does nothing else, and it
@@ -39,6 +57,17 @@ const EVERY = 15 * 60 * 1000;
 
 let reloading = false;
 
+// WHETHER THIS DOCUMENT EVER HAD A CONTROLLER, read SYNCHRONOUSLY at module
+// evaluation and not after an await. `clients.claim()` gives a first worker
+// control of a page that loaded without one, which fires `controllerchange` on
+// the very first visit of every visitor — so the reload-on-swap must know
+// whether this is a first claim or a real swap. Reading it inside a `.then`
+// happens to hold today only because `getRegistration()` resolves long before a
+// worker finishes installing, and the correctness of the whole guard would rest
+// on that race.
+const HAD_CONTROLLER_AT_BOOT =
+  Boolean(globalThis.navigator?.serviceWorker?.controller);
+
 // WHICH SERVED BUILD THIS SESSION HAS ALREADY RELOADED FOR.
 //
 // `reloading` alone is not a latch and cannot be one: a reload REPLACES the
@@ -54,6 +83,49 @@ let reloading = false;
 // the page comes back still not matching, the convergence has failed and that
 // needs a person, not another reload.
 const RELOADED_FOR = "tm-reloaded-for";
+
+/**
+ * Reads which served build this session has already reloaded for.
+ *
+ * TWO PLACES, AND THE SECOND IS NOT A NICETY. `sessionStorage` is the right
+ * home and it THROWS where a browser has site data blocked for the origin — the
+ * exact profile on which the first version fell through to an unguarded reload
+ * and produced the unbounded loop it excuses itself for. `window.name` survives
+ * a same-origin reload, is not gated by storage permissions, and is the
+ * standard fallback for precisely this.
+ *
+ * @returns The remembered build, or null.
+ */
+function rememberedReload(): string | null {
+  try {
+    const stored = globalThis.sessionStorage.getItem(RELOADED_FOR);
+    if (stored !== null) return stored;
+  } catch (unavailable) {
+    void unavailable;
+  }
+  const named = globalThis.window.name;
+  return named.startsWith(`${RELOADED_FOR}:`)
+    ? named.slice(RELOADED_FOR.length + 1)
+    : null;
+}
+
+/**
+ * Remembers that this session has reloaded for one served build.
+ *
+ * @param servedBuildIdentity What the host was serving.
+ */
+function rememberReload(servedBuildIdentity: string): void {
+  try {
+    globalThis.sessionStorage.setItem(RELOADED_FOR, servedBuildIdentity);
+  } catch (unavailable) {
+    void unavailable;
+  }
+  // WRITTEN IN BOTH PLACES, ALWAYS. `window.name` is the only latch that
+  // survives where storage throws, and a browser can start refusing storage
+  // mid-session — so the fallback is kept current rather than written only once
+  // the first write has been seen to fail.
+  globalThis.window.name = `${RELOADED_FOR}:${servedBuildIdentity}`;
+}
 
 /**
  * Asks the worker to finish caching the shell.
@@ -112,30 +184,29 @@ async function servedBuild(): Promise<string | null> {
  *     to take over. Absent when no worker ever installed, in which case the
  *     reload alone is the whole of it.
  */
+function askTheWaitingWorkerToTakeOver(
+  registration: ServiceWorkerRegistration | null,
+): boolean {
+  const waiting = registration?.waiting;
+  if (!waiting) return false;
+  // The page asks; the worker never takes it by itself. That is what
+  // `registerType: 'prompt'` means, and `sw.js` holds the other half. The
+  // reload then arrives on `controllerchange`, once the swap has HAPPENED.
+  waiting.postMessage("skip-waiting");
+  return true;
+}
+
+
 function reloadOnce(
   registration: ServiceWorkerRegistration | null,
   servedBuildIdentity: string | null,
 ): void {
   if (reloading) return;
-  try {
-    // Session storage and not local: the latch is about THIS run of the
-    // application. A new tab, or the same one opened tomorrow, is entitled to
-    // try converging again.
-    if (servedBuildIdentity !== null) {
-      if (globalThis.sessionStorage.getItem(RELOADED_FOR) === servedBuildIdentity) {
-        return;
-      }
-      globalThis.sessionStorage.setItem(RELOADED_FOR, servedBuildIdentity);
-    }
-  } catch (unavailable) {
-    // Private browsing, or storage refused. Fall through: one reload that may
-    // repeat is a worse outcome than staleness, but refusing to update at all
-    // because a storage call threw is worse than both.
+  if (servedBuildIdentity !== null) {
+    if (rememberedReload() === servedBuildIdentity) return;
+    rememberReload(servedBuildIdentity);
   }
   reloading = true;
-  // The page asks; the worker never takes it by itself. That is what
-  // `registerType: 'prompt'` means, and `sw.js` holds the other half.
-  registration?.waiting?.postMessage("skip-waiting");
   globalThis.location.reload();
 }
 
@@ -150,13 +221,21 @@ async function checkForUpdate(
   if (reloading) return;
   // Ask the worker to look for a new script REGARDLESS of the comparison
   // below: the two are different questions, and a worker that has quietly
-  // stopped updating is the failure this half exists to prevent.
+  // stopped updating is the failure this half exists to prevent. A worker that
+  // is ALREADY waiting is asked to take over here — `updatefound` fired while
+  // this page was in the background, or before the listener was installed.
   await registration?.update().catch(() => undefined);
+  if (askTheWaitingWorkerToTakeOver(registration)) return;
   const served = await servedBuild();
   // Unreachable, or serving what is already running: nothing to do. The first
   // is the ordinary offline case, and treating it as a change would reload the
   // application every fifteen minutes on a phone with no signal.
   if (served === null || served === __BUILD_ID__) return;
+  // THE BUILD MOVED AND NO WORKER IS WAITING — which happens when there is no
+  // worker at all (a plain preview, a browser without support) or when its
+  // install is still running. Reloading is right in the first case and harmless
+  // in the second: the reload fetches the new document from the network, and
+  // the swap arrives on `controllerchange` when the install finishes.
   reloadOnce(registration, served);
 }
 
@@ -190,6 +269,21 @@ export function installUpdateDiscipline(): void {
       if (globalThis.document.visibilityState === "visible") check();
     });
     globalThis.setInterval(check, EVERY);
+
+    // A WORKER THAT BECOMES WAITING WHILE THIS PAGE IS OPEN. This is the event
+    // production drives the swap from, and the one the first version of this
+    // file did without: `update()` resolves when a worker starts INSTALLING,
+    // and only `statechange` says when it is really waiting.
+    registration?.addEventListener("updatefound", () => {
+      const arriving = registration.installing;
+      arriving?.addEventListener("statechange", () => {
+        if (arriving.state !== "installed") return;
+        // No controller means this is the FIRST worker, not a replacement:
+        // nothing to swap, and `clients.claim()` will take it from here.
+        if (!globalThis.navigator.serviceWorker.controller) return;
+        askTheWaitingWorkerToTakeOver(registration);
+      });
+    });
     // A worker that took over while the page was open — another client asked
     // for the swap — means the shell under this page has changed.
     //
@@ -201,9 +295,16 @@ export function installUpdateDiscipline(): void {
     // rule opens a fresh context per run, that is a reload in the middle of
     // every measurement in the suite. A first claim is not an update; only a
     // swap under a page that already HAD a controller is.
-    const hadController = Boolean(container?.controller);
     container?.addEventListener("controllerchange", () => {
-      if (!hadController) return;
+      if (!HAD_CONTROLLER_AT_BOOT) {
+        // A FIRST CLAIM, NOT AN UPDATE — and the moment the shell can finally
+        // be completed. `completeShell` returns silently when there is no
+        // controller, so on a load where the worker activates after the boot
+        // (a fresh profile, and every harness context) nothing would ever have
+        // asked it to cache anything for the whole session.
+        completeShell(container);
+        return;
+      }
       // No served build to latch on: a swap under a live page is a one-off
       // event and not a state that could repeat on the next boot.
       reloadOnce(registration, null);

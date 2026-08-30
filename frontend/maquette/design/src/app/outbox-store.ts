@@ -27,6 +27,16 @@ export type Envelope = {
   body: unknown;
   /** When it was accepted, so the oldest departs first. */
   accepted: number;
+  /**
+   * A number that only ever rises, breaking ties in `accepted`.
+   *
+   * `Date.now()` has millisecond resolution and two mutations CAN land in one
+   * millisecond — a multi-select delete, an undo re-issuing a verb, the
+   * delegation firing two. Sorted on `accepted` alone their order then comes
+   * from `getAll()`, which is key order, which is a UUID: `pause` then
+   * `resume` replays backwards and leaves the wrong final state.
+   */
+  order: number;
 };
 
 const DATABASE = "tm-outbox";
@@ -44,7 +54,7 @@ let opening: Promise<IDBDatabase | null> | null = null;
  */
 function database(): Promise<IDBDatabase | null> {
   if (opening) return opening;
-  opening = new Promise((resolve) => {
+  const attempt: Promise<IDBDatabase | null> = new Promise((resolve) => {
     let request: IDBOpenDBRequest;
     try {
       request = globalThis.indexedDB.open(DATABASE, 1);
@@ -65,6 +75,15 @@ function database(): Promise<IDBDatabase | null> {
     // settles there would leave the surface waiting forever on a network that
     // is already known to be gone.
     request.onblocked = () => resolve(null);
+  });
+  // A FAILURE IS NOT MEMOISED. Holding a rejected open for the life of the
+  // document turns one transient error — a blocked upgrade from another tab, a
+  // momentary quota refusal — into an outbox that is off until the page is
+  // reloaded, silently, with every later mutation rolling back instead of
+  // waiting. The next call tries again.
+  opening = attempt.then((database_) => {
+    if (database_ === null) opening = null;
+    return database_;
   });
   return opening;
 }
@@ -89,6 +108,9 @@ async function transact<Result>(
   return new Promise((resolve) => {
     let outcome: Result | null = null;
     try {
+      // A CONNECTION THE BROWSER CLOSED under us — an eviction, a version
+      // change from another tab — throws here. The handle is dropped so the
+      // next call opens a fresh one rather than asking a dead one forever.
       const transaction = database_.transaction(STORE, mode);
       const request = work(transaction.objectStore(STORE));
       request.onsuccess = () => {
@@ -98,6 +120,7 @@ async function transact<Result>(
       transaction.onerror = () => resolve(null);
       transaction.onabort = () => resolve(null);
     } catch (refused) {
+      opening = null;
       resolve(null);
     }
   });
@@ -121,7 +144,8 @@ export async function keep(envelope: Envelope): Promise<boolean> {
  */
 export async function waiting(): Promise<Envelope[]> {
   const found = await transact<Envelope[]>("readonly", (store) => store.getAll());
-  return (found ?? []).sort((a, b) => a.accepted - b.accepted);
+  return (found ?? []).sort(
+    (a, b) => a.accepted - b.accepted || (a.order ?? 0) - (b.order ?? 0));
 }
 
 /**

@@ -86,7 +86,7 @@ import {
   setLimits,
 } from "../lib/relay";
 import { installRelayRecovery } from "./relay-recovery";
-import { installOutbox, publishOutboxSeam } from "./outbox";
+import { installOutboxWiring } from "./outbox-wiring";
 import { installUpdateDiscipline } from "./worker-registration";
 import { readCursor, subscribeToEvents } from "../lib/relay-events";
 import { ConnectionMark, ConnectionNotice } from "./connection-notice";
@@ -102,7 +102,7 @@ import {
 } from "../lib/addresses";
 import { installNavigation } from "../lib/navigate";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { createQueryClient, send } from "../lib/query-client";
+import { createQueryClient } from "../lib/query-client";
 import { installDecisionLookup } from "../features/arrivals/queries";
 import { installLibraryDelete, installLibraryPaging } from "../features/library/queries";
 import { installEngineRedraw } from "./engine-redraw";
@@ -369,9 +369,11 @@ installRelayRecovery();
 installUpdateDiscipline();
 // THE OUTBOX, LAST. It reads what survived the previous run and sends it, so it
 // must come after everything a departure could touch.
-installOutbox();
-publishOutboxSeam((method, path, body) =>
-  send(method as "POST", path, body));
+// THE OUTBOX'S FOUR JOINS — the cache, the relay, the harness seam and the mock
+// layer's reset. Each names something the queue is forbidden to know, and the
+// boot is where facts cross; `outbox-wiring.ts` owns WHAT crosses, this file
+// owns WHEN.
+installOutboxWiring(queryClient);
 // Published for the harness beside the other seams, for the reason the query
 // cache is: a rule that has to reach inside a module to ask what the connection
 // is doing is a rule coupled to how the module is built.

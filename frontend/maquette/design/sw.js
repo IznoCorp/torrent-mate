@@ -64,7 +64,14 @@ const CACHE = `tm-shell-${BUILD}`;
 const OFFLINE = "/offline.html";
 
 // Never cached, in any mode. The stream is a connection, not a document.
-const NEVER = (url) => url.pathname.startsWith("/api/") || url.pathname === "/ws";
+//
+// `startsWith` AND NOT `===`. The relay's address is `/ws/events`
+// (`mocks/stream.ts`), so an equality against `/ws` never fired — and it went
+// unnoticed because a WebSocket handshake is not a `fetch` event and never
+// reaches this handler at all. The clause was dead both ways while the file's
+// headline promise read as enforced. It becomes live the day the stream is
+// served as SSE, because an `EventSource` DOES come through here.
+const NEVER = (url) => url.pathname.startsWith("/api/") || url.pathname.startsWith("/ws");
 
 // The document is `SHELL[0]` by the build's own contract, and it is the entry a
 // navigation falls back to. The rest of the shell is the bundles.
@@ -73,7 +80,17 @@ const BUNDLES = SHELL.slice(1);
 
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
-    const cache = await caches.open(CACHE);
+    // A REFUSED CACHE API FAILS THE INSTALL, and the worker is then retried in
+    // full every fifteen minutes — each attempt re-fetching the whole shell.
+    // Where storage is denied or the quota is gone there is nothing to cache
+    // and nothing to report; the worker still installs, and its fetch handler
+    // still passes everything through to the network.
+    let cache;
+    try {
+      cache = await caches.open(CACHE);
+    } catch (refused) {
+      return;
+    }
     // ATTEMPTED, ALL OF IT. `allSettled` and not `all`, and not `addAll`: both
     // of those fail the install as a whole, and on the sign-in gate — the only
     // document a phone reaches before signing in, and therefore the only one a
@@ -92,7 +109,12 @@ self.addEventListener("install", (event) => {
  * that silently failed to complete is a shell that works until the network goes.
  */
 async function completeShell() {
-  const cache = await caches.open(CACHE);
+  let cache;
+  try {
+    cache = await caches.open(CACHE);
+  } catch (refused) {
+    return { build: BUILD, missing: [...SHELL] };
+  }
   const missing = [];
   for (const asset of [DOCUMENT, ...BUNDLES]) {
     try {
@@ -125,9 +147,13 @@ self.addEventListener("message", (event) => {
   }
   if (event.data === "cache-shell") {
     // The reply goes back down the port the caller opened, so a caller that
-    // wants to know can wait and one that does not can ignore it.
+    // wants to know can wait and one that does not can ignore it. A rejection
+    // here would be an unhandled one inside `waitUntil`, reported nowhere —
+    // which is the silence this whole function exists to break.
     event.waitUntil(
-      completeShell().then((report) => event.ports[0]?.postMessage(report)),
+      completeShell()
+        .catch(() => ({ build: BUILD, missing: ["the shell could not be read"] }))
+        .then((report) => event.ports[0]?.postMessage(report)),
     );
   }
 });
@@ -135,6 +161,13 @@ self.addEventListener("message", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (NEVER(url) || url.origin !== self.location.origin) return;
+  // ONLY GET IS ANSWERED FROM DISK. `Cache.match` returns nothing for a non-GET
+  // request, so a POST already fell through to the network — but it fell
+  // through from INSIDE `respondWith`, which turns any network error into this
+  // worker's error rather than the page's. Mutations are the one thing that
+  // must reach the page's own failure path untouched, because that is what
+  // tells a refusal from an outage (`lib/query-client.ts`).
+  if (event.request.method !== "GET") return;
 
   // A NAVIGATION GOES TO THE NETWORK FIRST. This is the line that keeps a
   // design host honest: whoever can reach the server sees today's prototype,
@@ -158,7 +191,20 @@ self.addEventListener("fetch", (event) => {
   // it has always been, so there is nothing to revalidate. A build that changes
   // them changes their names, and the new names miss and go to the network.
   event.respondWith((async () => {
-    const hit = await caches.match(event.request);
+    // SCOPED TO THIS BUILD'S CACHE, never the origin-wide `caches.match`. The
+    // global form can answer from ANOTHER build's cache — a bundle whose name
+    // happens to still be there — so a page could run half one build and half
+    // another with nothing able to tell. It also silently rescued a shell that
+    // was genuinely broken, which is worse than the breakage: it made the
+    // defect unobservable.
+    //
+    // RANGE REQUESTS: `Cache.match` ignores `Range` entirely, so a ranged
+    // request that hits a precached entry gets the whole 200 rather than a 206.
+    // Nothing in the shell is range-requested today — the document, the
+    // bundles, the icons — and this line is where that stops being true if
+    // media ever enters it.
+    const cache = await caches.open(CACHE);
+    const hit = await cache.match(event.request);
     if (hit) return hit;
     try {
       return await fetch(event.request);

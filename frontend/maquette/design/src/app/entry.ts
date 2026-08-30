@@ -182,7 +182,50 @@ export async function signOut(): Promise<void> {
   } catch (error) {
     void error;
   }
+  // AND THE CACHED SHELL GOES WITH THE SESSION. Before L11 the worker cached
+  // one page — the offline notice — and signing out left nothing behind. It now
+  // caches the DOCUMENT and every bundle, taken from an AUTHENTICATED context,
+  // and a cache outlives a cookie: sign in on a phone, sign out, hand it over,
+  // turn the radio off, and the whole password-protected prototype renders from
+  // disk with no session at all. Online it still answers 401, so the bypass
+  // would cost exactly one toggle of airplane mode.
+  //
+  // The worker is unregistered as well as emptied. A worker left registered
+  // re-caches the shell the moment anyone signs in again, and the point is that
+  // what is on this device belongs to the session that put it there.
+  await forgetTheCachedShell();
   showSignIn(false);
+}
+
+/**
+ * Empties the offline shell and unregisters the worker that fills it.
+ *
+ * Every step is best-effort and independent: a browser that refuses the Cache
+ * API must still get the unregister, and a failure here must never stop a
+ * sign-out — refusing to sign out because a cache would not clear is the worse
+ * of the two failures.
+ */
+async function forgetTheCachedShell(): Promise<void> {
+  try {
+    if ("caches" in globalThis) {
+      const names = await caches.keys();
+      await Promise.allSettled(
+        names.filter((name) => name.startsWith("tm-shell-"))
+          .map((name) => caches.delete(name)),
+      );
+    }
+  } catch (refused) {
+    void refused;
+  }
+  try {
+    const registrations =
+      (await globalThis.navigator?.serviceWorker?.getRegistrations()) ?? [];
+    await Promise.allSettled(
+      registrations.map((registration) => registration.unregister()),
+    );
+  } catch (refused) {
+    void refused;
+  }
 }
 
 /* ── The install proposal — two platforms, two paths ─────────────────

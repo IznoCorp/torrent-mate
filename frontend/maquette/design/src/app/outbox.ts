@@ -31,8 +31,42 @@ import {
 /** What re-issues an envelope. Set once, by the boot, to `send()`'s own core. */
 type Departure = (envelope: Envelope) => Promise<void>;
 
+/**
+ * What refreshes the reads an envelope's ADDRESS belongs to, after it departs.
+ *
+ * WHY A REPLAY MUST INVALIDATE. The optimistic write that made the mutation
+ * visible lived in the PREVIOUS document's cache and did not survive the
+ * reload; the cache this document booted with holds pre-mutation server state,
+ * with `staleTime: Infinity`, no refetch on focus and none on reconnect. So
+ * without this the queue empties, the notice says everything has been sent, and
+ * the screen goes on showing the opposite of what the server holds for the life
+ * of the process.
+ *
+ * IT IS THE ADDRESS AND NOT A DOMAIN. The queue still knows nothing about what
+ * a mutation MEANS: an envelope carries a path, query keys in this tree ARE
+ * addresses (`queryKey: ["/api/acquisition/followed"]`), and matching one
+ * against the other is a string comparison, not a subject.
+ */
+type Refresh = (path: string) => void;
+
+/**
+ * Tells whether a failed departure was a DECISION or an outage.
+ *
+ * The queue must not know what a mutation means, and it does not: this asks
+ * only whether the layer ANSWERED. Injected with the departure, from the module
+ * that owns the failure shape.
+ */
+type WasAnswered = (failure: unknown) => boolean;
+
 let depart: Departure | null = null;
+let wasAnswered: WasAnswered = () => false;
+let refreshFor: Refresh = () => undefined;
 let departing = false;
+// A DEPARTURE ASKED FOR WHILE ONE IS RUNNING is not dropped, it is remembered.
+// A mutation held DURING a run is not in that run's snapshot, and the event
+// that would have sent it was swallowed by the guard — so it would wait for a
+// page reload. Found by adversarial review.
+let departureWanted = false;
 let pendingCount = 0;
 const listeners = new Set<() => void>();
 
@@ -92,8 +126,49 @@ export async function holdBack(envelope: Envelope): Promise<boolean> {
  *
  * @param departure What re-issues an envelope.
  */
-export function setDeparture(departure: Departure): void {
+export function setDeparture(departure: Departure, answered: WasAnswered): void {
   depart = departure;
+  wasAnswered = answered;
+}
+
+/**
+ * Sets what refreshes the reads an address belongs to. Called once, by the boot.
+ *
+ * It is injected for the same reason the departure is: the module that owns the
+ * query cache imports THIS one, so importing it back would be a cycle.
+ *
+ * @param refresh Refreshes every read whose key is the given address.
+ */
+export function setRefresh(refresh: Refresh): void {
+  refreshFor = refresh;
+}
+
+/**
+ * What a mutation that will never depart leaves behind, oldest first.
+ *
+ * A replay the layer REFUSES can never succeed, however many times it is sent:
+ * the session expired, the item is already gone, the server said 409. Keeping
+ * it in the queue jams every envelope behind it forever and leaves the
+ * operator's optimistic write standing over an action the server rejected —
+ * which is NE-DOIT-PAS-1, the defect this queue exists to prevent, arriving
+ * from the other side. So it leaves the queue and lands here, where the
+ * interface can say it happened.
+ */
+const refusedOnReplay: Envelope[] = [];
+
+/**
+ * The mutations that were refused when they were finally sent.
+ *
+ * @returns Them, oldest first. The caller decides what to say about it.
+ */
+export function refusedDepartures(): readonly Envelope[] {
+  return refusedOnReplay;
+}
+
+/** Forgets the refusals, once the operator has been told. */
+export function clearRefusedDepartures(): void {
+  refusedOnReplay.length = 0;
+  announce();
 }
 
 /**
@@ -114,22 +189,44 @@ export function setDeparture(departure: Departure): void {
  * a queue with no ordering at all.
  */
 export async function departAll(): Promise<void> {
-  if (departing || !depart) return;
+  if (!depart) return;
+  if (departing) {
+    // Remembered, not dropped: whatever asked for this run has a reason the
+    // run in progress may already have walked past.
+    departureWanted = true;
+    return;
+  }
   departing = true;
   try {
-    for (const envelope of await waiting()) {
-      try {
-        await depart(envelope);
-      } catch (refused) {
-        // STILL UNREACHABLE, OR REFUSED OUTRIGHT — and this stops the run
-        // either way. Going on would send later envelopes before an earlier
-        // one, and the operator's actions have an order they were made in.
-        break;
+    do {
+      departureWanted = false;
+      for (const envelope of await waiting()) {
+        try {
+          await depart(envelope);
+        } catch (failure) {
+          if (!wasAnswered(failure)) {
+            // STILL UNREACHABLE. The run stops: going on would send later
+            // envelopes before an earlier one, and the operator's actions have
+            // an order they were made in.
+            departureWanted = false;
+            return;
+          }
+          // REFUSED — the layer answered, and that answer will not change on
+          // the tenth attempt. Left in the queue it would jam every envelope
+          // behind it forever, and the interface would go on showing the
+          // operator's action as applied. It leaves, and it is remembered so
+          // something can say so.
+          refusedOnReplay.push(envelope);
+        }
+        await forget(envelope.key);
+        pendingCount = Math.max(0, pendingCount - 1);
+        // WHAT THE ENVELOPE CHANGED IS NOW STALE IN THE CACHE, and nothing else
+        // will notice: the optimistic write died with the previous document.
+        refreshFor(envelope.path);
+        announce();
       }
-      await forget(envelope.key);
-      pendingCount = Math.max(0, pendingCount - 1);
-      announce();
-    }
+      // Anything held DURING the run above is not in the snapshot it read.
+    } while (departureWanted);
   } finally {
     departing = false;
   }
@@ -146,13 +243,49 @@ export async function departAll(): Promise<void> {
  */
 export function installOutbox(): void {
   void waiting().then((held) => {
-    pendingCount = held.length;
+    // ADJUSTED, NEVER ASSIGNED. A `holdBack` that lands between the read above
+    // and this line would be erased from the count by an assignment, leaving an
+    // envelope on disk that nothing counts.
+    pendingCount += held.length;
     announce();
     // What was on disk when the application started is, by definition, a
     // mutation from a previous run that never departed.
     if (held.length) void departAll();
   });
+  // `online` IS NOT ENOUGH ON ITS OWN, and this is the correction an adversarial
+  // review returned. The browser fires it when the network INTERFACE comes up,
+  // not when the server becomes reachable — and the failure this queue exists
+  // for is most often the second: a backend restarting behind perfectly good
+  // wifi. `navigator.onLine` never moves, so nothing departs until the next
+  // full reload, which on an installed application kept open can be never.
   globalThis.addEventListener("online", () => void departAll());
+}
+
+/**
+ * Sends what is waiting whenever the live connection comes back.
+ *
+ * SEPARATE FROM `installOutbox` because it needs the relay, and the outbox may
+ * not import it: a queue that knew about a socket would be a queue with a
+ * second subject. The boot wires the two together, which is what the boot is
+ * for.
+ *
+ * @param subscribe The relay's own subscription.
+ * @param condition Reads what the connection is doing.
+ * @returns The unsubscribe.
+ */
+export function departOnReconnection(
+  subscribe: (listener: () => void) => () => void,
+  condition: () => { condition: string },
+): () => void {
+  let wasConnected = condition().condition === "connected";
+  return subscribe(() => {
+    const connected = condition().condition === "connected";
+    // ON THE EDGE, not on the state: a subscription that fired on every read of
+    // « connected » would ask for a departure on every event the relay
+    // delivers.
+    if (connected && !wasConnected) void departAll();
+    wasConnected = connected;
+  });
 }
 
 /**
@@ -161,6 +294,7 @@ export function installOutbox(): void {
 export async function forgetOutbox(): Promise<void> {
   await forgetEverything();
   pendingCount = 0;
+  refusedOnReplay.length = 0;
   announce();
 }
 

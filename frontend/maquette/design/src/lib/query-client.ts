@@ -64,6 +64,29 @@ export function createQueryClient(): QueryClient {
 type ContractPath = keyof paths;
 
 /**
+ * What `send()` answers when a mutation was HELD rather than sent.
+ *
+ * WHY THE CALLER MUST BE ABLE TO TELL. Every mutation in this tree refreshes
+ * its query when it settles, so the surface shows what the server holds. On the
+ * held path there is nothing new to show and the refetch is actively harmful:
+ * reads can work while a mutation's request does not — an aborted request, a
+ * verb a proxy blocks — and the refetch then replaces the OPTIMISTIC write with
+ * server state that does not contain the mutation. The operator's action snaps
+ * back with no explanation, minutes before it actually applies. That is the
+ * rollback-without-a-failure this lot exists to prevent, arriving through the
+ * refresh instead of through the rejection.
+ *
+ * A SENTINEL AND NOT `undefined`, because `undefined` already means « a status
+ * that carries no body » (204, 205, 304), and a caller cannot act on an answer
+ * that means two things.
+ */
+export const HELD = Symbol("held");
+
+// A NUMBER THAT ONLY RISES, so two envelopes accepted inside one millisecond
+// still replay in the order the operator made them.
+let accepted = 0;
+
+/**
  * A fresh identity for one mutation.
  *
  * @returns A key nothing else will produce. `randomUUID` needs a secure
@@ -82,9 +105,15 @@ function newIdempotencyKey(): string {
 // function ». It is injected rather than imported by the outbox, because the
 // outbox is imported HERE and a cycle between a queue and what it queues is the
 // kind that survives review: both halves read naturally on their own.
-setDeparture(async (envelope) => {
-  await dispatch(envelope.method, envelope.path, envelope.body, envelope.key);
-});
+setDeparture(
+  async (envelope) => {
+    await dispatch(envelope.method, envelope.path, envelope.body, envelope.key);
+  },
+  // WHETHER THE LAYER ANSWERED, which is the only thing the queue needs to know
+  // and the only thing it may know. A refusal will not change on the tenth
+  // attempt; an outage will.
+  isRequestFailure,
+);
 
 /**
  * What a failed request carries: the layer's own problem shape.
@@ -151,7 +180,7 @@ export async function send<Result>(
   method: "POST" | "PUT" | "PATCH" | "DELETE",
   path: ContractPath | (string & {}),
   body?: unknown,
-): Promise<Result | undefined> {
+): Promise<Result | undefined | typeof HELD> {
   const key = newIdempotencyKey();
   try {
     return await dispatch<Result>(method, path, body, key);
@@ -159,21 +188,28 @@ export async function send<Result>(
     // A REFUSAL AND AN OUTAGE ARE NOT THE SAME EVENT, and telling them apart is
     // the whole of this branch. A layer that ANSWERS — 404, 409, 500 — has made
     // a decision the operator must see, and it is re-thrown untouched so the
-    // surface rolls back and says why. A network that does not answer at all
+    // surface ROLLS BACK. Saying why is the surface's half and it is not built:
+    // every call site rethrows into a `void`ed promise nobody handles, so a
+    // refusal today is a row that snaps back with no reason given. Recorded
+    // rather than claimed — this comment said « and says why », and that half
+    // of the sentence had no implementation anywhere in the tree.
+    // A network that does not answer at all
     // has decided nothing: the mutation has not failed, it has not departed,
     // and rolling it back would erase an action the operator made and that is
     // still going to happen.
     if (isRequestFailure(refused)) throw refused;
+    accepted += 1;
     const held = await holdBack({
-      key, method, path, body, accepted: Date.now(),
+      key, method, path, body, accepted: Date.now(), order: accepted,
     });
     // COULD NOT EVEN BE KEPT — no storage at all, a private window. Then the
     // mutation really is lost, and the ONE thing that must not happen is
     // reporting it as accepted. It is re-thrown as what it is.
     if (!held) throw refused;
-    // Resolved with no body: the optimistic write stands, and the pending count
-    // the outbox publishes is what tells the operator it has not left yet.
-    return undefined;
+    // HELD, and said so. The optimistic write stands, the pending count the
+    // outbox publishes tells the operator it has not left yet, and the caller
+    // knows not to refetch over the top of its own optimistic write.
+    return HELD;
   }
 }
 
@@ -219,7 +255,23 @@ async function dispatch<Result>(
   if (answer.status === 204 || answer.status === 205 || answer.status === 304) {
     return undefined;
   }
-  const parsed = await answer.json();
+  // A BODY THAT IS NOT JSON IS STILL AN ANSWER. `answer.json()` throws on an
+  // HTML 502 from a proxy, on an auth redirect page, on an empty 200 — and a
+  // `SyntaxError` carries no `status`, so the caller would read it as an
+  // OUTAGE and queue a request the layer has already decided about, which jams
+  // the queue behind it. The layer answered; what it answered is unreadable,
+  // and that is what gets said.
+  let parsed: unknown;
+  try {
+    parsed = await answer.json();
+  } catch (unreadable) {
+    const failure: RequestFailure = {
+      status: answer.status,
+      title: "an answer this layer could not read",
+      detail: `${method} ${path} answered ${answer.status} with a body that is not JSON`,
+    };
+    throw failure;
+  }
   if (!answer.ok) throw parsed as RequestFailure;
   return parsed as Result;
 }

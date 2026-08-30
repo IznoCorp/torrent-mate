@@ -86,16 +86,20 @@ async def main():
         await page.evaluate("()=>window.__mocks.setOffline(true)")
         held = await page.evaluate(
             """async(title)=>{
-                 try { await window.__outbox.issue(
+                 try { return await window.__outbox.issue(
                          "POST", "/api/acquisition/followed",
-                         {title, kind: "tv"});
-                       return "resolved"; }
+                         {title, kind: "tv"}); }
                  catch(refusal){ return "threw: " + (refusal?.title ?? refusal); }}""",
             TITLE)
+        # IT RESOLVES, AND IT SAYS WHY IT RESOLVED. A rejection is what triggers
+        # L09's rollback and the mutation has not failed — but answering the way
+        # a 204 does would be as bad: a caller that cannot tell « held » from
+        # « no body » refreshes its query over the top of its own optimistic
+        # write, and the operator's action snaps back minutes before it applies.
         journal.check(
-            "a mutation the network will not take RESOLVES rather than failing",
-            held == "resolved",
-            f"{held} — a rejection is what triggers L09's rollback, and it has not failed")
+            "a mutation the network will not take is HELD rather than failing",
+            held == "held",
+            f"{held!r} — neither a rejection nor a silent empty success")
 
         depth = await page.evaluate("()=>window.__outbox.depth()")
         journal.check("and it is waiting in the outbox", depth == 1, f"depth {depth}")
@@ -218,6 +222,36 @@ async def main():
             "a layer that ANSWERS is a decision the operator must see, never a queue",
             refused == "threw" and depth == 0,
             f"{refused}, depth {depth}")
+
+        # --- a REFUSED replay leaves the queue instead of jamming it ---------
+        # THE DEFECT THIS HOLDS AGAINST, found by adversarial review: the run
+        # stopped on ANY failed departure, outage or refusal alike. A refusal
+        # will not change on the tenth attempt, so the envelope stayed forever,
+        # every envelope behind it stayed with it, and the interface went on
+        # showing the operator's action as applied over something the server had
+        # rejected — NE-DOIT-PAS-1, the defect this queue exists to prevent,
+        # arriving from the other side.
+        await page.evaluate("()=>window.__mocks.reset()")
+        await page.evaluate("()=>window.__mocks.setOffline(true)")
+        await page.evaluate(
+            """async(title)=>{ await window.__outbox.issue(
+                 "POST", "/api/acquisition/followed",
+                 {title: title + " (jam)", kind: "tv"}); }""", TITLE)
+        depth = await page.evaluate("()=>window.__outbox.depth()")
+        journal.check("an envelope is waiting before the refusal is armed",
+                      depth == 1, f"depth {depth}")
+        await page.evaluate("()=>window.__mocks.setOffline(false)")
+        await page.evaluate(
+            """()=>window.__mocks.setOperationOutcome("createFollow", {status: 409})""")
+        await page.evaluate("async()=>{ await window.__outbox.depart(); }")
+        depth = await page.evaluate("()=>window.__outbox.depth()")
+        left = await page.evaluate(
+            "async()=>(await window.__outbox.waiting()).length")
+        journal.check(
+            "a replay the layer REFUSES leaves the queue rather than jamming it",
+            depth == 0 and left == 0,
+            f"depth {depth}, {left} on disk — kept, it would block every "
+            "envelope behind it forever")
 
         await context.close()
         await browser.close()

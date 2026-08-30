@@ -770,7 +770,8 @@
       "action": "Se reconnecter"
     },
     "waiting_one": "Une action attend d'être envoyée au serveur.",
-    "waiting_other": "{{count}} actions attendent d'être envoyées au serveur."
+    "waiting_other": "{{count}} actions attendent d'être envoyées au serveur.",
+    "send": "Envoyer maintenant"
   },
   "navigation": {
     "pages": {

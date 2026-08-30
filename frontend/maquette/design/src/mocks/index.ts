@@ -143,6 +143,15 @@ async function answer(input: RequestInfo | URL, options?: RequestInit): Promise<
     );
   }
 
+  // ALREADY APPLIED — BEFORE the scenario's injected failure is consulted. A key
+  // the layer has already acted on gets the answer it gave, whatever a scenario
+  // has since armed: replaying an applied key is not a new attempt at the
+  // operation, it is the same one arriving twice.
+  const seenBefore = request.key === null ? undefined : applied.get(request.key);
+  if (seenBefore) {
+    seenBefore.arrivals += 1;
+    return json(seenBefore.status, seenBefore.payload);
+  }
   const outcome = outcomeFor(found.route.operationId);
   if (outcome.latencyMilliseconds > 0) {
     await new Promise((settle) => {
@@ -176,14 +185,6 @@ async function answer(input: RequestInfo | URL, options?: RequestInit): Promise<
         `${found.route.operationId} was sent a body that does not parse`,
       );
     }
-  }
-  // ALREADY APPLIED — the same answer, and the handler is not called again. The
-  // arrival is counted either way, because « the key arrived twice and changed
-  // the data once » is the fact P8 is about and a silent replay would hide it.
-  const seen = request.key === null ? undefined : applied.get(request.key);
-  if (seen) {
-    seen.arrivals += 1;
-    return json(seen.status, seen.payload);
   }
   const payload = found.route.handle({
     path: address.pathname,

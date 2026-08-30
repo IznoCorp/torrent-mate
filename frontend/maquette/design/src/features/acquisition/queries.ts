@@ -4,7 +4,7 @@
 // forbids one feature importing another. What is here is this surface's alone:
 // the reserve of suggestions its deck draws, and the follows it lists.
 import { useQuery, type QueryClient } from "@tanstack/react-query";
-import { read, send } from "../../lib/query-client";
+import { HELD, read, send } from "../../lib/query-client";
 import { toEngineShape } from "../../engine/engine-shape";
 import type { Follow } from "./reference";
 import { queueNow } from "../../lib/queue";
@@ -113,14 +113,14 @@ export function installFollowActions(queryClient: QueryClient): void {
       void send("PATCH", `/api/acquisition/followed/${encodeURIComponent(title)}`,
                 { status })
         .catch((refusal) => { write(before); throw refusal; })
-        .finally(refresh);
+        .then((outcome) => { if (outcome !== HELD) refresh(); });
     },
     remove: (title) => {
       const before = held();
       write(before.filter((follow) => follow.t !== title));
       void send("DELETE", `/api/acquisition/followed/${encodeURIComponent(title)}`)
         .catch((refusal) => { write(before); throw refusal; })
-        .finally(refresh);
+        .then((outcome) => { if (outcome !== HELD) refresh(); });
     },
     add: (follow) => {
       const before = held();
@@ -129,7 +129,7 @@ export function installFollowActions(queryClient: QueryClient): void {
         title: follow.t, kind: follow.k,
       })
         .catch((refusal) => { write(before); throw refusal; })
-        .finally(refresh);
+        .then((outcome) => { if (outcome !== HELD) refresh(); });
     },
     all: () => held(),
   };

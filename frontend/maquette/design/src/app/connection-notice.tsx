@@ -30,7 +30,7 @@ import {
 } from "../lib/relay-condition";
 import { reconnectNow } from "../lib/relay";
 import { connectionDot, connectionMark, connectionNotice } from "../ui/variants";
-import { outboxDepth, subscribeToOutbox } from "./outbox";
+import { departAll, outboxDepth, subscribeToOutbox } from "./outbox";
 
 /** Where the header keeps its indicator. `display: contents`, so it adds no box. */
 const HEADER_ANCHOR = "connection";
@@ -146,13 +146,21 @@ export function ConnectionNotice(): ReactElement | null {
       <button
         type="button"
         className="underline underline-offset-2 font-semibold"
-        data-connection-action={condition === "refused" ? "signin" : "retry"}
+        data-connection-action={
+          condition === "refused" ? "signin" : (owed ? "retry" : "send")}
         onClick={() => {
           if (condition === "refused") go({ to: SIGN_IN_PATH });
+          // THE BUTTON DOES WHAT THE SENTENCE ABOVE IT SAYS. When the only
+          // thing wrong is a mutation waiting to depart, the connection is
+          // healthy — and the first version offered « Réessayer maintenant »,
+          // which tore down a perfectly good live socket and moved the queued
+          // action not at all. It was the operator's ONLY affordance, and it
+          // was a lie by suggestion: §8 read from the other end.
+          else if (!owed) void departAll();
           else reconnectNow();
         }}
       >
-        {t(`connection.${owed ? condition : "lost"}.action`)}
+        {t(owed ? `connection.${condition}.action` : "connection.send")}
       </button>
     </div>
   );

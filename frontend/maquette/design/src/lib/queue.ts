@@ -26,7 +26,7 @@
 // page, and no amount of animation later repairs it. Each one writes the cache
 // first, remembers what it wrote over, and puts it back if the layer refuses.
 import { useQuery, type QueryClient } from "@tanstack/react-query";
-import { read, send } from "./query-client";
+import { HELD, read, send } from "./query-client";
 import { toEngineShape } from "../engine/engine-shape";
 import type { QueueCard } from "./engine-queue";
 
@@ -226,16 +226,24 @@ export function installQueueActions(queryClient: QueryClient): void {
   const settle = async (title: string, outcome: string, choice?: string) => {
     const scenario = scenarioNow();
     const held = takeOutOfQueue(queryClient, scenario, title);
+    let answer: unknown;
     try {
-      await send("POST", `/api/staging/media/${encodeURIComponent(title)}/continue`,
-                 { outcome, ...(choice === undefined ? {} : { choice }) });
+      answer = await send("POST", `/api/staging/media/${encodeURIComponent(title)}/continue`,
+                          { outcome, ...(choice === undefined ? {} : { choice }) });
     } catch (refusal) {
       putBack(queryClient, scenario, held);
-      throw refusal;
-    } finally {
       void queryClient.invalidateQueries({ queryKey: stagingKey(scenario) });
       void queryClient.invalidateQueries({ queryKey: queueKey(scenario) });
+      throw refusal;
     }
+    // NOT ON THE HELD PATH. `send` answers `HELD` when the network would not
+    // take the mutation: the optimistic write is the truth the operator is
+    // looking at, and refreshing over it replaces it with server state that
+    // does not contain the mutation — the action snapping back with no
+    // explanation, minutes before it actually applies.
+    if (answer === HELD) return;
+    void queryClient.invalidateQueries({ queryKey: stagingKey(scenario) });
+    void queryClient.invalidateQueries({ queryKey: queueKey(scenario) });
   };
 
   window.__queueActions = {
@@ -264,7 +272,13 @@ export function installQueueActions(queryClient: QueryClient): void {
           putBack(queryClient, scenario, held);
           throw refusal;
         })
-        .finally(() => {
+        .then((outcome) => {
+        // NOT ON THE HELD PATH. `send` answers `HELD` when the network would not
+        // take the mutation: the optimistic write is the truth the operator is
+        // looking at, and refreshing over it replaces it with server state that
+        // does not contain the mutation — the action snapping back with no
+        // explanation, minutes before it actually applies.
+          if (outcome === HELD) return;
           void queryClient.invalidateQueries({ queryKey: queueKey(scenario) });
         });
     },
