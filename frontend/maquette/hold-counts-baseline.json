@@ -1,8 +1,8 @@
 {
-  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 55 of 67 rule(s) report a hold count; the other 12 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
-  "taken_at_commit": "ab19694030ffad53292a9d56df12259fc0d105fe",
-  "taken_on": "2026-08-29",
-  "suite": "67 of 67 rule(s)",
+  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 63 of 75 rule(s) report a hold count; the other 12 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
+  "taken_at_commit": "58e0e66b9414580c4b5ccd5c70b5dd168b2f1ced",
+  "taken_on": "2026-08-30",
+  "suite": "75 of 75 rule(s)",
   "host": "http://127.0.0.1:8899/",
   "rules": {
     "actions.py": {
@@ -10,9 +10,19 @@
       "count": null,
       "reason": "no recognized executed-count line in its output"
     },
+    "add_footer.py": {
+      "exit": 0,
+      "count": 11,
+      "source": "common.Journal summary"
+    },
     "address.py": {
       "exit": 0,
       "count": 15,
+      "source": "common.Journal summary"
+    },
+    "appearance.py": {
+      "exit": 0,
+      "count": 10,
       "source": "common.Journal summary"
     },
     "arrivals.py": {
@@ -35,9 +45,14 @@
       "count": 13,
       "source": "audit rules-executed line"
     },
+    "avatar.py": {
+      "exit": 0,
+      "count": 9,
+      "source": "common.Journal summary"
+    },
     "back.py": {
       "exit": 0,
-      "count": 12,
+      "count": 17,
       "source": "common.Journal summary"
     },
     "boot_order.py": {
@@ -92,12 +107,17 @@
     },
     "drawer.py": {
       "exit": 0,
-      "count": 26,
+      "count": 28,
       "source": "common.Journal summary"
     },
     "entry.py": {
       "exit": 0,
       "count": 10,
+      "source": "common.Journal summary"
+    },
+    "exits.py": {
+      "exit": 0,
+      "count": 15,
       "source": "common.Journal summary"
     },
     "fanout.py": {
@@ -125,9 +145,14 @@
       "count": null,
       "reason": "no recognized executed-count line in its output"
     },
+    "gestures.py": {
+      "exit": 0,
+      "count": 14,
+      "source": "common.Journal summary"
+    },
     "hiding.py": {
       "exit": 0,
-      "count": 26,
+      "count": 27,
       "source": "common.Journal summary"
     },
     "ident.py": {
@@ -215,6 +240,11 @@
       "count": 50,
       "source": "common.Journal summary"
     },
+    "persistence.py": {
+      "exit": 0,
+      "count": 11,
+      "source": "common.Journal summary"
+    },
     "pop.py": {
       "exit": 0,
       "count": null,
@@ -270,6 +300,11 @@
       "count": 9,
       "source": "common.Journal summary"
     },
+    "scrollbar.py": {
+      "exit": 0,
+      "count": 10,
+      "source": "common.Journal summary"
+    },
     "selection.py": {
       "exit": 0,
       "count": null,
@@ -293,6 +328,11 @@
     "shell.py": {
       "exit": 0,
       "count": 4,
+      "source": "common.Journal summary"
+    },
+    "stacking.py": {
+      "exit": 0,
+      "count": 12,
       "source": "common.Journal summary"
     },
     "startup.py": {
@@ -342,10 +382,10 @@
     }
   },
   "totals": {
-    "rules": 67,
-    "parseable": 55,
+    "rules": 75,
+    "parseable": 63,
     "unparseable": 12,
-    "holds": 1633,
+    "holds": 1733,
     "failed": 0
   }
 }

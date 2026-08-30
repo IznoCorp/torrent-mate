@@ -208,6 +208,13 @@ BARE_ALLOWED = {
            "`.segmini button` (legacy.css:1553). The engine emits `.segmini` "
            "too, which is why its rules were left in `legacy.css` with a date "
            "of death rather than converted (D-L07-5)"),
+    ("app/drawer.tsx", "button"): (
+        1, "the `.segmini` appearance control — one SITE, drawn once per "
+           "appearance — painted by "
+           "`.segmini button` and `.segmini button[aria-pressed=\"true\"]`, "
+           "exactly as `add-screen.tsx`'s two are. The engine emits `.segmini` "
+           "too, which is why its rules stayed in `legacy.css` with a date of "
+           "death rather than converting with the drawer (D-L07-5)"),
     ("ui/panel/index.tsx", "img"): (
         1, "the panel's poster, painted by `.sheetposter img` "
            "(legacy.css:1929) until L13"),

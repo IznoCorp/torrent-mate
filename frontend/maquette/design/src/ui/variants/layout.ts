@@ -64,31 +64,75 @@ export const scrollport = cva(
 );
 
 /** The scrim behind a sheet. */
+/* THE EXIT IS SEEN, and it was not (B-249). `visibility` is not an animatable
+   property in the way `opacity` is: declared in the transition list it SWAPS at
+   one end of the duration rather than interpolating, and left OUT of it — which
+   it was — it swaps on the first frame. So the scrim went `hidden` immediately
+   while its opacity spent 200 ms fading behind a curtain nobody could see: the
+   dimmed page snapped to full brightness in ONE frame, and the producers that
+   wait 260 ms for the layer to « finish leaving » were waiting for something
+   already over. Measured frame by frame, on the operator's own path.
+
+   The idiom is the standard one and it reads oddly until it is said out loud:
+   `visibility` transitions with a DELAY equal to the fade, so it holds
+   `visible` for the whole exit and flips at the end. Nothing at REST changes —
+   closed is still `hidden` at `opacity: 0` — which is why the oracle, which
+   settles, has nothing to say about it.
+
+   AND IT IS ON THE CLOSED STATE ONLY, which is not decoration. Putting
+   `visibility` in the transition list on BOTH states broke focus entry into the
+   sheet: `app/focus.ts` focuses into a layer the instant `data-open` appears,
+   synchronously, and an element whose `visibility` is still resolving is not
+   focusable — `focus()` on it does nothing, silently, with no error and no
+   return value to check. R81 caught it, and it is the one hold in this suite
+   that reads that instant. Entering, the layer is `visible` with no transition
+   at all; leaving, the delay holds it. */
 export const sheetScrim = cva(
-  "scrim absolute inset-0 bg-scrim z-[46] transition-[opacity] duration-200 ease-standard",
-  { variants: { open: { true: "open opacity-100 visible", false: "opacity-0 invisible" } },
+  "scrim absolute inset-0 bg-scrim z-[46] duration-200 ease-standard",
+  { variants: { open: { true: "open opacity-100 visible transition-[opacity]",
+                        false: "opacity-0 invisible transition-[opacity,visibility] "
+                               + "[transition-delay:0s,200ms]" } },
     defaultVariants: { open: false } },
 );
 
 /**
  * The bottom sheet.
  *
- * THE TAB BAR SITS ABOVE THE LAYERS (z-50), so a sheet must reserve its height
- * or its last actions are unreachable — internal scrolling stops before them.
- * Same rule as for screens, extended to sheets and dialogs: one defect family
- * deserves one rule, not three.
+ * THE TAB BAR DOES NOT SIT ABOVE THIS LAYER ANY MORE (B-248, dictated by the
+ * operator on 2026-08-30 from a screenshot). It used to: the sheet was z-47
+ * under the bar's z-50, so it rose BEHIND the chrome and reserved the bar's
+ * height in its own body so its last action stayed reachable. The sheet paints
+ * OVER the bar now — while a bottom layer is open the bar is not seen.
+ *
+ * THE ANCHORING IS UNCHANGED and that is the correction the operator made to
+ * the first reading of this entry: the sheet still rises from the screen's
+ * bottom edge (`bottom-0`), NOT from the bar's top edge. What moves is the
+ * RANK; what goes is the padding that compensated the overlap. The
+ * confirmation at 56 is the precedent, and the ranked list in
+ * `ui/variants/frame.ts` is where both are written down.
+ *
+ * INTERACTION IS UNCHANGED: `app/focus.ts` already marks the background
+ * `inert` while a layer is open, `#nav` among the thirteen elements it names,
+ * and `inert` takes an element out of hit-testing as well as out of the focus
+ * order. The bar was never tappable under a layer. It was VISIBLE.
  */
 export const bottomSheet = cva(
-  "sheet absolute left-0 right-0 bottom-0 z-[47] bg-popover border-t border-border " +
+  "sheet absolute left-0 right-0 bottom-0 z-[52] bg-popover border-t border-border " +
     "rounded-t-4 rounded-b-none max-h-[78%] flex flex-col " +
     // The transition lives in the base because the state that CANCELS it is
     // not a prop: the drag handler writes `dragging` straight to the DOM
     // through a ref, exactly as the legacy one did, so `.sheet.dragging`
     // stays a rule in the residue. A variant here would never be told.
-    "transition-[transform] duration-300 ease-standard",
+    // `visibility` joins the transition on the CLOSED state for B-249's reason
+    // — see `sheetScrim` above, including why it is the closed state ONLY.
+    "duration-300 ease-standard",
   {
     variants: {
-      open: { true: "open [transform:none] visible", false: "[transform:translateY(100%)] invisible" },
+      open: {
+        true: "open [transform:none] visible transition-[transform]",
+        false: "[transform:translateY(100%)] invisible "
+          + "transition-[transform,visibility] [transition-delay:0s,300ms]",
+      },
     },
     defaultVariants: { open: false },
   },
@@ -150,7 +194,10 @@ export const sheetDragBand = cva(
 
 /** The sheet's scrolling viewport. */
 export const sheetViewport = cva(
-  "sheetin overflow-y-auto pt-1 px-7 pb-[calc(var(--tm-bottom-bar-h,0px)+var(--spacing-8))]",
+  // NO BAR HEIGHT RESERVED SINCE B-248: the sheet paints over the tab bar, so
+  // there is nothing underneath for its last action to be stuck behind. The
+  // bottom padding is the sheet's own, and the safe area is the frame's.
+  "sheetin overflow-y-auto pt-1 px-7 pb-8",
 );
 
 /** The sheet's title. */
@@ -317,3 +364,4 @@ export const connectionNotice = cva(
     defaultVariants: { condition: "lost" },
   },
 );
+

@@ -18,7 +18,8 @@
 // snapshot a failed mutation departed from — across concurrent mutations on one
 // key — is the first kind. None of it is an arbitration this repository has
 // proved, and all of it is code somebody else has.
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, useQueryClient } from "@tanstack/react-query";
+import { useSyncExternalStore } from "react";
 import type { paths } from "../contract/types";
 
 /**
@@ -144,4 +145,38 @@ export async function send<Result>(
   const parsed = await answer.json();
   if (!answer.ok) throw parsed as RequestFailure;
   return parsed as Result;
+}
+
+/**
+ * A number that changes whenever any server state does.
+ *
+ * WHY THE FRAME NEEDS ONE. A badge in the chrome is DERIVED from server state —
+ * what is waiting to be taken, what is stuck — and a component that reads that
+ * derivation synchronously is not subscribed to it. The tab bar re-rendered on
+ * every store write and on nothing else, so a badge went on showing the
+ * previous scenario's count until an unrelated interface change happened to
+ * redraw it. The engine did not have this problem for the wrong reason: its bar
+ * was rebuilt by `render()`, which the cache's own redraw hook calls — the same
+ * mechanism that made the chrome's nodes disposable (B-231).
+ *
+ * IT NAMES NOTHING. The frame does not know WHICH query moved, and must not:
+ * it re-derives its badges and lets React reconcile. What a badge counts is the
+ * feature's, through the function the navigation table points at.
+ *
+ * The snapshot is a SUM OF INSTANTS rather than a counter, so it needs no
+ * installer and no module state: two renders of an unchanged cache read the
+ * same number, which is what `useSyncExternalStore` requires.
+ *
+ * @returns A value that differs after any query's data has been updated.
+ */
+export function useServerStateVersion(): number {
+  const client = useQueryClient();
+  return useSyncExternalStore(
+    (onChange) => client.getQueryCache().subscribe(() => onChange()),
+    () =>
+      client
+        .getQueryCache()
+        .getAll()
+        .reduce((total, query) => total + query.state.dataUpdatedAt, 0),
+  );
 }

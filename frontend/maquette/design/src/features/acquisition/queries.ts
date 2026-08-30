@@ -7,6 +7,7 @@ import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { read, send } from "../../lib/query-client";
 import { toEngineShape } from "../../engine/engine-shape";
 import type { Follow } from "./reference";
+import { queueNow } from "../../lib/queue";
 
 /**
  * The suggestions the discover deck draws, as a query definition.
@@ -146,4 +147,25 @@ declare global {
     /** The discover deck's cards, read synchronously by the dying engine. */
     __suggestions?: () => unknown[];
   }
+}
+
+/**
+ * What awaits the operator on this page — the navigation table's badge.
+ *
+ * TO GRAB PLUS TO RESOLVE, and never a neighbouring counter. The engine's own
+ * table said so in a comment beside the same sum; it is one derivation now,
+ * read by the tab bar, by the drawer and — while it still draws them — by the
+ * engine, through the seam. §13: one derivation per question.
+ *
+ * SYNCHRONOUS, over the query cache, because the engine asks in the middle of
+ * its own task and cannot await a hook. `queueNow()` answers what the cache
+ * holds and an empty queue where it holds nothing, which is the honest answer
+ * before anything has been fetched.
+ *
+ * Returns:
+ *     How many items are waiting to be taken or to be resolved.
+ */
+export function acquisitionBadge(): number {
+  const now = queueNow();
+  return now.takeable.length + now.blocked.length;
 }

@@ -33,60 +33,25 @@
 */
 
 import { screens, panel, bridge } from "./seams.js";
-import { servedIdentityLines } from "../lib/served-identity";
+import { icons } from "../app/icons";
 
   /* TorrentMate — mobile-first redesign prototype
      Data: real library titles (1,861 items). */
 
-  /* This page does not own its <head>. Without a viewport meta a phone falls
-     back to the legacy 980px layout viewport and scales the whole frame down
-     to ~40% — measured, not feared. Add one only if the host did not. */
-  if (!document.querySelector('meta[name="viewport"]')) {
-    const createElement = document.createElement("meta");
-    createElement.name = "viewport";
-    createElement.content =
-      "width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no";
-    document.head.appendChild(createElement);
-  }
+  /* THE VIEWPORT FALLBACK IS GONE (B-230), and it is deleted rather than
+     corrected. It added a viewport meta carrying a maximum scale and a
+     user-scalable refusal to any host that had none — the exact pair L03
+     removed for WCAG 1.4.4, restored by a branch nobody reads. Dead on this
+     host, which has one; live on any host that does not, which is what makes
+     it a landmine rather than a defect: axe reports the violation when the
+     directive is PRESENT on the served document, and it never was here.
 
-  const icons = {
-    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
-    plus: '<path d="M12 5v14M5 12h14"/>',
-    more: '<circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/>',
-    group: '<path d="M3 5h18M3 12h12M3 19h7"/>',
-    grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
-    list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
-    folder:
-      '<path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
-    radar:
-      '<path d="M19.07 4.93A10 10 0 1 1 4.93 19.07"/><path d="M12 12 8 8"/><circle cx="12" cy="12" r="4"/>',
-    library: '<path d="M4 4h4v16H4zM10 4h4v16h-4z"/><path d="m17 5 3 15"/>',
-    inbox:
-      '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5 5h14l3 7v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z"/>',
-    wrench:
-      '<path d="M14.7 6.3a4 4 0 0 0 5 5L21 21H10L8.5 12.5a4 4 0 0 1-5-5z"/>',
-    left: '<path d="m15 18-6-6 6-6"/>',
-    right: '<path d="m9 18 6-6-6-6"/>',
-    trash: '<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>',
-    sort: '<path d="M11 5h10M11 12h7M11 19h4M3 8l3-3 3 3M6 5v14"/>',
-    eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
-    play: '<path d="m6 4 14 8-14 8z"/>',
-    check: '<path d="M20 6 9 17l-5-5"/>',
-    x: '<path d="M18 6 6 18M6 6l12 12"/>',
-    file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
-    star: '<path d="m12 3 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/>',
-    film: '<rect x="2" y="3" width="20" height="18" rx="2"/><path d="M7 3v18M17 3v18M2 9h5M2 15h5M17 9h5M17 15h5"/>',
-    tv: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="m17 2-5 5-5-5"/>',
-    clap: '<path d="M3 8h18v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="m3 8 2-5 16 2-2 3"/><path d="m8 3 1.5 4M14 4l1.5 4"/>',
-    cards:
-      '<rect x="3" y="7" width="13" height="14" rx="2"/><path d="M8 3h10a2 2 0 0 1 2 2v10"/>',
-    user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
-    logout:
-      '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
-    ext: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
-    refresh:
-      '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>',
-  };
+     « A page that does not own its <head> » is not a case this prototype has:
+     `index.html` IS the document and `serve.py` serves it. A fallback for a
+     host nobody serves is machinery nobody can justify, which is D5's own
+     shape, and `scripts/check-viewport-directives.py` now refuses the pair
+     anywhere under `design/`. */
+
   const svgIcon = (paths, strokeWidth) =>
     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth || 2}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
   const escapeHtml = (value) =>
@@ -7651,96 +7616,15 @@ import { servedIdentityLines } from "../lib/served-identity";
     });
   }
 
-  /* Navigation */
-  const PAGES_OF = () => [
-    {
-      id: "acq",
-      l: "Acquisition",
-      ic: icons.radar,
-      /* The nav badge and the tab badge read THE SAME derivation: what
-         awaits the operator = to grab + to resolve. Never a constant, never
-         a neighbouring counter. */
-      badge: queued().takeable.length + queued().blocked.length,
-      /* No `render`: the shell draws this page (`pages/acquisition.tsx`).
-         Clearing `shellOwned` without restoring a renderer therefore CRASHES
-         rather than quietly drawing a page nobody maintains any more. */
-      shellOwned: true,
-      fab: true,
-    },
-    {
-      id: "lib",
-      l: "Médiathèque",
-      ic: icons.library,
-      /* No `render`: the shell draws this page (`pages/library.tsx`), and it is
-         the first that emits SEVERAL roots rather than one. Clearing
-         `shellOwned` without restoring a renderer therefore CRASHES rather than
-         quietly drawing a page nobody maintains any more. */
-      shellOwned: true,
-    },
-    {
-      id: "arr",
-      l: "Arrivées",
-      ic: icons.inbox,
-      badge: queued().stuck.length,
-      /* No `render`: the shell draws this page (`pages/arrivals.tsx`). Clearing
-         `shellOwned` without restoring a renderer therefore CRASHES rather
-         than quietly drawing a page nobody maintains any more. */
-      shellOwned: true,
-    },
-    {
-      id: "sys",
-      l: "Système",
-      ic: icons.wrench,
-      /* No `render`: the shell draws this page (`pages/system.tsx`). Clearing
-         `shellOwned` without restoring a renderer therefore CRASHES rather
-         than quietly drawing a page nobody maintains any more. */
-      shellOwned: true,
-    },
-    /* Réglages is a PAGE, not a fifth tab. The bar holds the four places one
-       goes to see what is happening; settings are what one goes to change, and
-       that is a different kind of errand — read rarely, changed rarely. It is
-       reached from Système and from the drawer, and the back gesture walks out
-       of it like any other page. */
-    /* Maintenance is a PAGE and not a fifth tab, for the same reason as
-       Réglages: the bar holds the four places one goes to SEE what is
-       happening, and a maintenance command is something one goes to DO. It is
-       reached from Système and from the drawer. */
-    {
-      id: "profile",
-      l: "Profil et préférences",
-      ic: icons.user,
-      /* No `render`: the shell draws this page (`pages/account.tsx`). */
-      shellOwned: true,
-      offBar: true,
-    },
-    {
-      id: "404",
-      l: "Adresse introuvable",
-      ic: icons.wrench,
-      /* No `render`: the shell draws this page (`pages/not-found.tsx`). */
-      shellOwned: true,
-      offBar: true,
-    },
-    {
-      id: "maint",
-      l: "Maintenance",
-      ic: icons.wrench,
-      /* No `render`: the shell draws this page (`pages/maintenance.tsx`).
-         Clearing `shellOwned` without restoring a renderer therefore CRASHES
-         rather than quietly drawing a page nobody maintains any more. */
-      offBar: true,
-      shellOwned: true,
-    },
-    {
-      id: "cfg",
-      l: "Réglages",
-      ic: icons.wrench,
-      /* No `render`: the shell draws this page (`pages/settings.tsx`),
-         barre d'enregistrement comprise, par un second portail dans #device. */
-      offBar: true,
-      shellOwned: true,
-    },
-  ];
+  /* Navigation — THE PAGE TABLE IS NOT HERE ANY MORE.
+     `PAGES_OF()` declared eight pages beside three other copies of the same
+     fact (the drawer's own `NAVIGATION`, `PAGES` in the shell's page
+     host, `PAGE_PATHS` in the address model), and a fact that exists four
+     times is stale in three of them. There is one table, `app/navigation.ts`,
+     and this engine reads it through `window.__navigation`, exactly as it
+     reads `window.__address` for a path. The rows arrive already translated:
+     no French reaches this file and none has to. */
+  const navigationRows = () => window.__navigation?.rows() ?? [];
 
   const select = (selector) => document.querySelector(selector);
   /* The `open` class and the `data-open` attribute name ONE state, so one
@@ -7753,72 +7637,15 @@ import { servedIdentityLines } from "../lib/served-identity";
     else element.removeAttribute("data-open");
   }
   const view = select("#view"),
-    nav = select("#nav"),
     port = select("#port"),
-    cadre = select("#device"),
-    fab = select("#fab");
+    cadre = select("#device");
 
-  /* THE FLOATING ACTION BUTTON HAS ONE DECISION POINT, and it reads TWO facts.
-     A page says whether it has a primary action at all; a message on screen
-     says whether that action may be shown right now. Written in two places,
-     the second writer would erase the first — the page's own answer — and the
-     button would come back on a page that never had one.
-
-     WHY A MESSAGE HIDES IT. The message and the button are anchored to the same
-     bottom-right corner by construction, and the message paints over it: the
-     close target measures 24 by 24 and lands INSIDE the button's 52 by 52 box,
-     so the reader aiming at « close » is aiming at « add ». Measured on the
-     served copy, not deduced: `elementFromPoint` at the close button's centre
-     answers the action button. */
-  let pageWantsActionButton = false;
-  let messageIsOnScreen = false;
-  let actionButtonReturn = null;
-
-  function refreshActionButton(afterAMessage) {
-    clearTimeout(actionButtonReturn);
-    if (!pageWantsActionButton || messageIsOnScreen) {
-      fab.hidden = true;
-      return;
-    }
-    /* IT COMES BACK WHEN THE MESSAGE HAS FINISHED LEAVING, not when it starts —
-       and ONLY on that path. The message fades out over its own transition; a
-       button restored on the first frame of that fade is a target appearing
-       under a finger still travelling towards the close it was aiming at. The
-       wait is the message's exit duration and nothing else.
-
-       A page arriving with an action of its own waits for nothing: delaying
-       THAT would make the button late on every navigation, which is a
-       rendering change with no defect behind it. */
-    if (!afterAMessage) {
-      fab.hidden = false;
-      return;
-    }
-    actionButtonReturn = setTimeout(() => {
-      fab.hidden = false;
-    }, 200);
-  }
-
-  function renderNav() {
-    nav.innerHTML = PAGES_OF()
-      .filter((element) => !element.offBar)
-      .map(
-        (
-          element,
-        ) => `<button data-page="${element.id}" ${currentState().page === element.id ? 'aria-current="page"' : ""}>
-      <span class="ic">${svgIcon(element.ic)}${element.badge ? `<span class="navbadge" data-part="shell/tab-badge">${element.badge}</span>` : ""}</span>
-      <span class="lb">${element.l}</span>
-    </button>`,
-      )
-      .join("");
-  }
-  /* Whether the SHELL is currently drawing into `#view`. Read and written by
-     `render()` alone: it is what turns « empty the container » and « ask the
-     shell to let go » into transitions rather than something done on every
-     draw. */
-  let shellOwnsView = false;
-  /* The nodes THIS side put in `#view`, so that handing the container over
-     removes exactly them and nothing else. */
-  let legacyNodes = [];
+  /* THE FLOATING ACTION BUTTON IS NOT THIS FILE'S ANY MORE.
+     It was static markup this engine showed and hid, from two flags kept in
+     step by hand — a page's own answer and whether a message was on screen.
+     Both are store state now and the button reads them itself
+     (`app/action-button.tsx`), which is the whole of what « one decision point »
+     asked for: written in two places, the second writer erases the first. */
 
   function render() {
     // Every action ends in render(): one bump here reaches React for every
@@ -7827,45 +7654,41 @@ import { servedIdentityLines } from "../lib/served-identity";
     store?.touch();
     /* An id no page carries is not a crash: it is the `*` route. Looking one
        up and calling `.render()` on nothing stopped the whole interface on a
-       TypeError, which is the worst possible answer to a stale bookmark. */
-    let found = PAGES_OF().find((element) => element.id === currentState().page);
-    if (!found) {
-      store.write({ notFound: "/" + currentState().page, page: "404" });
-      found = PAGES_OF().find((element) => element.id === "404");
+       TypeError, which is the worst possible answer to a stale bookmark.
+       The row itself is not read here any more — nothing below consumes it —
+       so only the redirection is made.
+
+       AND IT IS REFUSED RATHER THAN MADE WITH `undefined` where the table
+       cannot answer. That only happens with the seam absent, and the seam is
+       installed before this engine starts; written the other way it would blank
+       the interface with nothing in the console, which is a worse answer than
+       the TypeError this branch was written against. */
+    const notFound = window.__navigation?.notFoundPage;
+    if (!navigationRows().some((element) => element.id === currentState().page)) {
+      if (notFound === undefined)
+        // ENGLISH, and not in `fr.json`: a console message is a tool message.
+        console.error("render: the navigation table answered nothing");
+      else store.write({ notFound: "/" + currentState().page, page: notFound });
     }
-    /* A page the SHELL owns draws itself, through a React portal into this very
-       container, so the HANDOVER is announced in both directions — and this is
-       the one place that already knows which world owns the page. Taking:
-       empty the container once, on the transition, and let React draw into it.
-       Releasing: ask the shell to let go FIRST, synchronously, because writing
-       here while React still holds these nodes is what removes children it
-       believes it owns — measured once, on a save bar, and it tore the root
-       down. Everything below still runs either way: the bar, the nav and the
-       save bar are shared furniture, not the page's. */
-    if (found.shellOwned) {
-      if (!shellOwnsView) {
-        /* Only what THIS side wrote is removed. Emptying the container
-           outright looks equivalent and is not: the shell may already have
-           drawn into it — a store write and this call are not always the same
-           task — and clearing then would delete nodes React believes it still
-           holds, leaving a blank page nothing redraws. Measured, on a rule
-           that writes the state and renders in two steps. */
-        for (const node of legacyNodes) node.remove();
-        legacyNodes = [];
-        shellOwnsView = true;
-      }
-    } else {
-      if (shellOwnsView) {
-        window.__releasePage?.();
-        shellOwnsView = false;
-      }
-      view.innerHTML = found.render();
-      legacyNodes = [...view.childNodes];
-    }
-    pageWantsActionButton = Boolean(found.fab);
-    refreshActionButton();
+    /* EVERY PAGE IS DRAWN BY THE SHELL, and this file writes `#view` nowhere.
+       It used to branch: a page the shell owned was portalled into this very
+       container, and a page the ENGINE owned had its markup written here from
+       the table's own `render()`. That second half had already lost its
+       subject before this lot opened — all eight rows of `PAGES_OF()` carried
+       `shellOwned: true` and none carried a `render`, so the branch was
+       unreachable and would have thrown if reached (B-232, and `SURVEY.md`
+       § 1.3 measured it). Its subject left the file with the table: a row of
+       `app/navigation.ts` carries a component and nothing else could draw it.
+       So the branch is subtracted, with `shellOwnsView` and `legacyNodes`,
+       which existed only to tell the two halves apart.
+
+       The HANDOVER machinery on the shell's side (`window.__releasePage`)
+       keeps its declaration and has no caller left here; it goes with the boot
+       handshake at L13, and the `#screen` layer B-232 also names is L13's.
+
+       Everything below still runs: the bar, the nav and the save bar are
+       shared furniture, not the page's. */
     mountDeck();
-    renderNav();
     mountLoaders();
     mountSearch();
   }
@@ -7976,10 +7799,6 @@ import { servedIdentityLines } from "../lib/served-identity";
        animation is doing one frame later. */
     passerSug,
     advanceDeck,
-    /* The page table itself, published so a rule can compare it against the
-       shell's: two independent lists that must agree, and a disagreement in
-       one direction draws a page in both worlds at once. */
-    PAGES_OF,
     /* What the Médiathèque draws. `tileHTML` and `swipeHTML` are emitters a
        component calls VERBATIM, for the same reason as `cardHTML`: the rows
        they emit carry the `data-*` the document-level delegation reads.
@@ -8219,25 +8038,15 @@ import { servedIdentityLines } from "../lib/served-identity";
      A simple tap still opens the sheet: the most frequent path is never
      sacrificed to a rare action. */
 
-  function paintSelBar() {
-    const old = document.querySelector(".selbar");
-    if (old) old.remove();
-    document.documentElement.classList.toggle("selecting", !!currentState().selMode);
-    if (!currentState().selMode) return;
-    const size = currentState().selected.size;
-    const bar = document.createElement("div");
-    bar.className = "selbar";
-    bar.dataset.part = "selection/bar";
-    /* A named region, so the caption and the two actions stop being page
-       content adrift outside every landmark. The bar exists only while a
-       selection does, which is exactly what the name says. */
-    bar.setAttribute("role", "region");
-    bar.setAttribute("aria-label", "Sélection en cours");
-    bar.innerHTML = `<span class="n" data-part="selection/caption">${size === 0 ? "Touchez les affiches à supprimer" : `${size} sélectionné${size > 1 ? "s" : ""}`}</span>
-      <button data-selmode="0">Annuler</button>
-      <button class="danger" data-tone="danger" data-delsel="1" ${size === 0 ? "disabled" : ""}>Supprimer</button>`;
-    document.querySelector("#device").appendChild(bar);
-  }
+  /* THE SELECTION BAR IS NOT DRAWN HERE ANY MORE. It was created per open and
+     appended to `#device`; it is `features/library/selection-bar.tsx` now,
+     rendered into the frame's bottom slot and reading the same store fields.
+     This function stayed a VERB the delegation and the drivers still say —
+     `paintSelBar()` after a tile toggles — so that moving the drawing did not
+     take away the vocabulary. It draws nothing: the store bump beside every
+     call site is what the component listens to. It goes with the library's
+     verbs at L19. */
+  function paintSelBar() {}
 
   /* Reads the panel an element addresses.
      Split on the FIRST colon only: titles carry their own — « Dexter:
@@ -8921,37 +8730,24 @@ import { servedIdentityLines } from "../lib/served-identity";
      is also dismissed from a capture-phase `pointerdown`, which wrote the class
      alone and left the state saying a message was up. It goes through here now,
      and R86 drives that path. */
-  function setMessageShown(on) {
-    const host = select("#toast");
-    host.classList.toggle("show", on);
-    host.toggleAttribute("data-shown", on);
-    messageIsOnScreen = on;
-    refreshActionButton(!on);
-  }
+  /* THE MESSAGE IS NOT DRAWN HERE ANY MORE. `setMessageShown` toggled a class
+     and an attribute on static markup, and `toast`/`toastUndo` wrote
+     `#toastmsg` — one of them with `innerHTML`, to inject an undo control as a
+     string. The layer is `ui/toast.tsx` and its verbs are
+     `app/toast-host.ts`'s, behind a DESCRIPTOR: what happened, and what undoes
+     it. `app/panel-host.ts` is the precedent — facts cross, markup is the
+     component's.
 
+     THE THIRTY-FOUR CALLERS BELOW KEEP SAYING `toast(…)` and `toastUndo(…)`,
+     because they are PRODUCERS and a producer moves to its feature at L19.
+     These two lines die with them. */
   function toast(msg) {
-    select("#toastmsg").textContent = msg;
-    setMessageShown(true);
-    clearTimeout(toast._t);
-    toast._t = setTimeout(() => setMessageShown(false), 5000);
+    window.__toast?.show({ message: msg });
   }
-  select("#toastx").onclick = () => setMessageShown(false);
-
   /* An action triggered by a GESTURE must be undoable: a sliding thumb is
      wrong more often than a pressing finger. */
   function toastUndo(msg, undo) {
-    select("#toastmsg").innerHTML =
-      `${escapeHtml(msg)} <button id="toastundo" style="border:0;background:transparent;color:var(--color-primary);font-weight:700;padding:0 0 0 10px">Annuler</button>`;
-    setMessageShown(true);
-    clearTimeout(toast._t);
-    toast._t = setTimeout(() => setMessageShown(false), 6000);
-    const undoButton = select("#toastundo");
-    if (undoButton)
-      undoButton.onclick = (event) => {
-        event.stopPropagation();
-        setMessageShown(false);
-        undo();
-      };
+    window.__toast?.show({ message: msg, undo });
   }
 
   /* The panel layer belongs to the shell now (`window.__panel`, rendered by
@@ -8967,17 +8763,17 @@ import { servedIdentityLines } from "../lib/served-identity";
      made `history.back()` pop past our own entries and leave the page
      entirely. */
   function hideLayers() {
-    setOpen(select("#drawer"), false);
+    // The drawer is the shell's layer: closing it without touching history is
+    // what `close(true)` means, the same contract this function has always had.
+    window.__layers?.close("drawer", true);
     setOpen(select("#screen"), false);
     // The sheet is the shell's layer: closing it without touching history is
     // what `close(true)` means, the same contract this function has always
     // had for every layer it resets.
     panel.close(true);
-    // The scrim stays cleared HERE too: it is shared ground, raised by the
-    // drawer and the dialog on their own, and the line above only clears it
-    // for a sheet that was actually open.
-    setOpen(select("#scrim"), false);
-    setOpen(select("#dlg"), false);
+    // The scrim is DERIVED now, not written: `ui/sheet.tsx` raises it while any
+    // scrim-backed layer is open, so clearing the layers clears it.
+    window.__layers?.close("dialog", true);
     closeHarness();
   }
 
@@ -9015,6 +8811,11 @@ import { servedIdentityLines } from "../lib/served-identity";
      below them, so they stay here, with the reader, and the shell borrows the
      verb rather than a copy of the bookkeeping. */
   window.__derouler = unwindLayer;
+
+  /* The shape of a navigation entry, for the entry screen — see
+     `navigationState` above, including why this LINE and not only its
+     paragraph. */
+  window.__navigationState = navigationState;
 
   /* A settlement of SEVERAL entries at once (`__bridge.reculer`) announces itself
      through the same latch — and raises it by ONE, never by the number of
@@ -9054,28 +8855,17 @@ import { servedIdentityLines } from "../lib/served-identity";
   function closeSheet(pop) {
     panel.close(pop);
   }
-  /* The dialog raises the SHARED scrim itself, on an element the shell renders
-     — which is why the shell's own panel verbs commit synchronously: a caller
-     closing the sheet and opening a dialog on the next line (`data-del`) would
-     otherwise have its scrim cleared a frame later, by a close that already
-     returned. */
-  function openDlg(html) {
-    const element = select("#dlg");
-    element.innerHTML = html;
-    /* A dialog has to NAME itself, and it cannot take that name from its
-       content the way a section does. Every dialog this function opens starts
-       with its own heading, so the name is read from it here — once, where the
-       markup arrives — rather than through an `aria-labelledby` id that each
-       template string would have to keep in step with the shell. */
-    const heading = element.querySelector("h1, h2, h3");
-    if (heading) element.setAttribute("aria-label", heading.textContent.trim());
-    else element.removeAttribute("aria-label");
-    setOpen(element, true);
-    setOpen(select("#scrim"), true);
-  }
+  /* THE CONFIRMATION IS NOT DRAWN HERE ANY MORE. `openDlg(html)` took an HTML
+     STRING — several hundred characters of template with the escaping done by
+     hand at every interpolation — wrote it into `#dlg`, then read the heading
+     back out of what it had just written so the layer could name itself. The
+     layer is `ui/dialog/index.tsx` and its verbs are `app/dialog-host.ts`'s,
+     behind a DESCRIPTOR of facts: a heading, blocks, and actions carrying the
+     `data-*` this file's own delegation still reads.
+
+     `closeDlg` stays a VERB the producers say. */
   function closeDlg() {
-    setOpen(select("#dlg"), false);
-    setOpen(select("#scrim"), false);
+    window.__dialog?.close();
   }
 
   /* Re-rendering a screen must NEVER send the operator back to the top:
@@ -9231,6 +9021,17 @@ import { servedIdentityLines } from "../lib/served-identity";
      the whole of the list: a dial left off is one a back cannot put back, so
      the address loses it while the interface keeps showing it — measured on
      `maintTopic`, which was the one missing. */
+  /* PUBLISHED FOR THE ENTRY, which is `app/entry.ts`'s since L15: the sign-in
+     gate writes its own address and the SHAPE of a navigation entry is still
+     this file's, so it crosses rather than being restated. It dies with the
+     rest of the navigation logic at L13.
+
+     ⚠ THE ASSIGNMENT IS THE PUBLICATION, and for one commit this paragraph WAS
+     the publication: it was written and the line below was not, so the gate
+     stamped `null` on the entry it replaced and a Back onto that entry matched
+     none of the handler's branches. `?? null` made it a no-throw, and no rule
+     walks the gate's history, so nothing said so. Found by a reader of the
+     seam, not by a gate — a comment describing a repair is not the repair. */
   function navigationState() {
     return {
       tm: "nav",
@@ -9474,7 +9275,22 @@ import { servedIdentityLines } from "../lib/served-identity";
     }
 
     // A layer first: it is what sits on top, and it is what a back closes.
-    if (select("#drawer").classList.contains("open")) return closeDrawer(true);
+    /* THE DIALOG IS THE TOP RUNG (B-229), and it is the rung that was missing.
+       D1's third tier reads « Transient: no URL, but Back still closes it » and
+       names a confirmation as its example; `openDlg` pushed no entry and this
+       handler had no branch, so a hardware Back popped the entry UNDER the
+       dialog — a page, or the exit guard — with the dialog still up. It is not
+       that the dialog had no closer: Escape reached it and so did a scrim tap.
+       Only Back did not. */
+    if (window.__layers?.isOpen("dialog")) {
+      window.__layers.close("dialog", true);
+      return;
+    }
+    /* THE REGISTRATION, NOT THE CLASS. The drawer is a component and its open
+       state is the store's; asking the DOM would answer whatever React last
+       painted rather than what is true at this instant. Same rank on the
+       ladder as before — dialog, drawer, then screen, then sheet. */
+    if (window.__layers?.isOpen("drawer")) return closeDrawer(true);
     if (select("#screen").classList.contains("open")) return closeScreen(true);
     // The sheet lives in the shell; it is asked, not inspected. Same rank in
     // the ladder as before — drawer, then screen, then sheet.
@@ -9657,266 +9473,44 @@ import { servedIdentityLines } from "../lib/served-identity";
     render();
   }
 
-  /* Shows or hides the unauthenticated entry screen.
+  /* THE ENTRY IS NOT THIS FILE'S ANY MORE — the splash, the sign-in gate and
+     the install proposal are `app/entry.ts`'s (`MODEL.md` § 2 Part 9). It was
+     LOGIC over static markup, and it is the logic that had to move: §17
+     redraws the gate for Plex SSO and cannot do so while the gate is engine
+     code, because D5 allows no addition here.
 
-     The prototype holds NO credentials. The screen exists to be judged as a
-     surface; who may see it is decided by the server that serves this file. A
-     password written into a page is readable by everyone the page reaches,
-     which is the opposite of what a password is for. */
-  /* The sign-in screen sits on a real path (D1). It is not a page — it is a
-     layer covering everything — but it is what one SEES, and every screen owes
-     an address. The refusal is a STATE of that address, not a second one: it is
-     not a place anyone links to.
+     The MARKUP stays in `index.html`, for two reasons that are not the same
+     one: the splash is on screen from the first painted frame, which a
+     component cannot be; and the gate is EXTRACTED by `serve.py` and served as
+     the design host's own password page, so a component would leave that host
+     a second copy to keep in step.
 
-     Written through the same single writer every other address goes through, in
-     REPLACE: signing in is not a step of the walk one goes back through, and a
-     back out of the gate onto the page it guards would be a lie.
-
-     Never under `pilotage`: `__go` drives a named state without touching
-     history, which R74 holds, and the harness reaching the sign-in state must
-     not move the address. */
-  function showSignIn(avecErreur) {
-    document.querySelector("#login").hidden = false;
-    document.querySelector("#loginerr").hidden = !avecErreur;
-    if (avecErreur) document.querySelector("#loginform").reset();
-    if (!pilotage)
-      try {
-        __bridge.replace(navigationState(), window.__address.signInPath);
-      } catch (error) {
-        console.error("sign-in gate: navigation write failed", error);
-        window.__navEchec = true;
-      }
-  }
-
-  function hideSignIn() {
-    const wasShown = !document.querySelector("#login").hidden;
-    document.querySelector("#login").hidden = true;
-    document.querySelector("#loginerr").hidden = true;
-    /* The address follows the screen off, so the gate does not stay in the bar
-       over the application it has just let through. */
-    if (wasShown && !pilotage)
-      try {
-        __bridge.replace(navigationState(), window.__address.compose(currentState()));
-      } catch (error) {
-        console.error("sign-in release: navigation write failed", error);
-        window.__navEchec = true;
-      }
-  }
-
-  /* Signing out ends the session and lands on the entry screen.
-
-     The session is the cookie, and the cookie belongs to the server, so the
-     server is asked to drop it FIRST and the screen only reflects what has
-     already happened. Showing the entry form over a session that is still
-     valid would be a lie the next reload exposes.
-
-     A failure is swallowed on purpose: served from a plain static server there
-     is no such route, and a design reference that dead-ends on a 404 teaches
-     nothing about the design. Nothing else here depends on the answer. */
-  async function signOut() {
-    panel.close();
-    try {
-      await fetch("/logout", { redirect: "manual" });
-    } catch (error) {}
-    showSignIn(false);
-  }
-
-  /* The startup screen, shown for as long as there is no interface to show.
-
-     It is on screen from the first painted frame — the markup is the first
-     thing in the frame — and comes off once the first render has run. Driving
-     to its named state puts it back, so it can be judged like any other
-     surface. */
-  function showStartup() {
-    const screen = document.querySelector("#splash");
-    screen.hidden = false;
-    /* Restarted from zero every time the screen is shown, so driving to its
-       named state twice does not measure a bar left where the previous visit
-       stopped it. */
-    const barNode = screen.querySelector(".splashbar i");
-    if (barNode) {
-      barNode.style.animation = "none";
-      void barNode.offsetWidth;
-      barNode.style.animation = "";
-    }
-  }
-
-  function hideStartup() {
-    document.querySelector("#splash").hidden = true;
-  }
-
-  /* What the startup screen covers, and what ends it.
-
-     It covers ONE wait: the gap between asking for the application and having
-     an interface. That gap is the document — several megabytes, seconds on a
-     phone — and it spans two pages: the gate paints the screen when the form is
-     submitted, the new document paints it again from its own markup, and the
-     operator sees one continuous screen across a navigation.
-
-     What ends it is the interface being there. Not a timer: held on one, the
-     bar filled once while the document downloaded and then RESTARTED from zero
-     in a document that was already rendered. A screen that covers nothing is
-     not a startup screen, it is a delay.
-
-     The bar's five seconds are its PACE, not a floor — how long a full load is
-     budgeted, so a bar half full means half way. A load that ends sooner ends
-     the screen sooner, and that is not a second path: it is the same promise
-     resolving. */
-  const STARTUP_MS = 5000;
-  let loadingEnd = null;
-
-  /* Shows the screen and leaves it up until the wait it covers resolves.
-
-     `window.__loadingDone()` is the seam: whatever really knows the
-     interface is ready calls it. A duration is passed only where the wait is
-     PLAYED rather than observed — the sign-in inside the prototype, which
-     fetches nothing and has to show what the real one looks like. */
-  window.__loadingDone = () => {
-    loadingEnd?.();
-    loadingEnd = null;
-    hideStartup();
-  };
-
-  function coverLoading(duree = STARTUP_MS) {
-    showStartup();
-    new Promise((resoudre) => {
-      loadingEnd = resoudre;
-    }).then(hideStartup);
-    window.setTimeout(() => window.__loadingDone(), duree);
-  }
-
-  document
-    .querySelector("#loginform")
-    .addEventListener("submit", (evenement) => {
-      evenement.preventDefault();
-      const fields = new FormData(evenement.currentTarget);
-      const username = String(fields.get("username") || "").trim();
-      const password = String(fields.get("password") || "");
-      // An empty field shows the refusal state; anything filled in walks
-      // through, because this surface demonstrates the SCREEN and not the
-      // check — the check lives where the file is served from.
-      if (!username || !password) {
-        document.querySelector("#loginerr").hidden = false;
-        return;
-      }
-      hideSignIn();
-      /* What actually follows a sign-in: the interface is not there yet, and
-         the wait is covered rather than left blank — by the same screen, ended
-         the same way, as the one a cold load puts up. */
-      coverLoading();
-    });
-
-  /* Install proposal — two platforms, two paths.
-
-     Android and desktop fire `beforeinstallprompt`, which a page may capture
-     and replay on a gesture. iOS Safari fires nothing: there is no event to
-     wait for and no API to call, so the only honest thing a page can do is
-     explain the manual route. A single banner that said « installez-moi » on
-     both would be a dead end on one of them. */
-  function showInstallation(plateforme) {
-    const barNode = document.querySelector("#installbar");
-    const onIOS = plateforme === "ios";
-    barNode.hidden = false;
-    document.querySelector("#installsub").hidden = onIOS;
-    document.querySelector("#installsteps").hidden = !onIOS;
-    document.querySelector("#installgo").hidden = onIOS;
-  }
-
-  function masquerInstallation() {
-    document.querySelector("#installbar").hidden = true;
-  }
-
-  document.querySelector("#installclose").addEventListener("click", () => {
-    masquerInstallation();
-    // Refused: not asked again this session. The next visit may ask again —
-    // a banner that never returns after one dismissal is a feature nobody
-    // finds twice.
-    installRefused = true;
-  });
-  document.querySelector("#installgo").addEventListener("click", async () => {
-    masquerInstallation();
-    if (!installEvent) {
-      toast("Installation demandée — le navigateur prend la main.");
-      return;
-    }
-    /* The captured event is REPLAYED here, on a gesture, which is the only
-       moment a browser accepts it. It can be used exactly once. */
-    installEvent.prompt();
-    const choice = await installEvent.userChoice.catch(() => null);
-    installEvent = null;
-    toast(
-      choice && choice.outcome === "accepted"
-        ? "Installation en cours — l'icône arrive sur votre écran d'accueil."
-        : "Installation refusée — le bandeau reviendra à la prochaine visite.",
-    );
-  });
-
-  /* WHO GETS ASKED, AND WHEN — the half that was missing.
-
-     The banner existed and nothing ever showed it: it was reachable only by
-     driving to its named state, so on a real phone it never appeared at all.
-     Two platforms, two entirely different mechanisms, and neither is optional:
-
-     · Android and desktop fire `beforeinstallprompt`. The event must be
-       captured and its default prevented, or the browser shows its own
-       proposal in its own place and ours never gets a turn. It is then
-       replayed on a gesture — that is the only moment a prompt is accepted.
-
-     · iOS Safari fires NOTHING, and offers no API. There is no event to await,
-       so the page cannot know whether it is installable; what it can know is
-       that it is Safari on iOS and not already standalone. There the banner IS
-       the guide, and it walks the actual steps.
-
-     Nobody is asked while already installed: `display-mode: standalone` means
-     the icon is already on the home screen, and a banner there is noise about
-     something already done. */
-  let installEvent = null;
-  let installRefused = false;
-
-  function alreadyInstalled() {
-    return (
-      window.matchMedia("(display-mode: standalone)").matches ||
-      window.navigator.standalone === true
-    );
-  }
-
-  function onIOSSafari() {
-    const ua = navigator.userAgent;
-    const ios =
-      /iPad|iPhone|iPod/.test(ua) ||
-      // iPadOS 13+ reports itself as a Mac; the touch points give it away.
-      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    // Every browser on iOS is Safari underneath, but only Safari can install.
-    const safari = !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
-    return ios && safari;
-  }
-
-  function proposerInstallation(plateforme) {
-    if (installRefused || alreadyInstalled()) return;
-    // Never over the entry screen: there is nothing to install yet, and the
-    // banner would cover the only field on it.
-    if (!document.querySelector("#login").hidden) return;
-    showInstallation(plateforme);
-  }
-
-  window.addEventListener("beforeinstallprompt", (evenement) => {
-    // Without this the browser posts its own proposal and ours never runs.
-    evenement.preventDefault();
-    installEvent = evenement;
-    proposerInstallation("android");
-  });
-
-  window.addEventListener("appinstalled", () => {
-    installEvent = null;
-    masquerInstallation();
-    toast("TorrentMate est installé.");
-  });
-
-  /* iOS has no event to wait for, so the offer is made once the interface is
-     there — after the startup screen, not over it. */
-  if (onIOSSafari()) {
-    window.setTimeout(() => proposerInstallation("ios"), 1200);
-  }
+     What is left below is the vocabulary the drivers still say, one line each,
+     pointing at the seam. They go with the boot handshake at L13. */
+  /* `pilotage` IS THE ENGINE'S AND CROSSES AS AN ARGUMENT. `__go` drives a
+     named state without touching history (R74 holds it), and this latch is how
+     this file knows. It used to be read from INSIDE `showSignIn`, which is a
+     private flag read by a function that is no longer here — so it is passed.
+     Left out, driving the `signin` state replaced the address with `/login`
+     and every state measured after it inherited that route: caught by the
+     oracle as a divergence in `relay-refused`, eighty states later, which is
+     what a leaked address looks like from the outside. */
+  const showSignIn = (withError, silent) =>
+    window.__entry?.showSignIn(withError, silent === true || pilotage);
+  const hideSignIn = (silent) =>
+    window.__entry?.hideSignIn(silent === true || pilotage);
+  const signOut = () => window.__entry?.signOut();
+  const showStartup = () => window.__entry?.showStartup();
+  const hideStartup = () => window.__entry?.hideStartup();
+  /* THE WHOLE VERB, not half of it. This forwarder took `showStartup()` alone
+     for one commit — so the splash went up and nothing was scheduled to take it
+     down, and a duration a caller passed was discarded. No caller is left
+     today, which is exactly what would have made it invisible on the day one
+     came back. */
+  const coverLoading = (duration) => window.__entry?.coverLoading(duration);
+  const showInstallation = (platform) => window.__entry?.showInstall(platform);
+  const masquerInstallation = () => window.__entry?.hideInstall();
+  const alreadyInstalled = () => window.__entry?.alreadyInstalled() === true;
 
   window.__go = (stateId, opts) => {
     const found = STATES.find((STATES2) => STATES2[0] === stateId);
@@ -9926,7 +9520,7 @@ import { servedIdentityLines } from "../lib/served-identity";
           ? "état inconnu : " + stateId
           : "aucun état enregistré — src/states.js n'a pas été chargé");
     closeHarness();
-    if (!stateId.startsWith("signin")) hideSignIn();
+    if (!stateId.startsWith("signin")) window.__entry?.hideSignIn(true);
     if (stateId !== "startup") hideStartup();
     if (!stateId.startsWith("pwa-")) masquerInstallation();
     // Reset to seed by DEFAULT: a measurement must never inherit the
@@ -9951,7 +9545,7 @@ import { servedIdentityLines } from "../lib/served-identity";
      else is a dead end however carefully it is drawn — a drawer entry pointed
      at one and answered a tap with a message. Reading the page table rather
      than a list written beside it is what makes that checkable at all. */
-  window.__pages = () => PAGES_OF().map((element) => element.id);
+  window.__pages = () => window.__navigation?.ids() ?? [];
 
   /* The media the pipeline is currently refusing. Exposed because the rule
      that keeps them OFF Système has to know their names, and a rule that
@@ -9967,98 +9561,24 @@ import { servedIdentityLines } from "../lib/served-identity";
     return enabled !== false;
   };
 
-  /* The navigation model, grouped by what one goes there FOR: Supervision,
-     Système, Configuration. Réglages is NOT in the bottom bar — the drawer is
-     its only path, which is precisely why the drawer must exist, and why
-     every id here must name a page that exists. An entry pointing at an id
-     `PAGES_OF` does not carry renders nothing and is a dead end; the entry
-     under Configuration was one, answering a tap with a message. */
-  const NAVIGATION = [
-    [
-      "Supervision",
-      [
-        ["acq", "Acquisition", icons.radar],
-        ["lib", "Médiathèque", icons.library],
-        ["arr", "Arrivées", icons.inbox],
-      ],
-    ],
-    [
-      "Système",
-      [
-        ["sys", "Système", icons.wrench],
-        ["maint", "Maintenance", icons.refresh],
-      ],
-    ],
-    ["Configuration", [["cfg", "Réglages", icons.sort]]],
-  ];
 
+  /* THE DRAWER IS NOT DRAWN HERE ANY MORE. It was an empty `<aside>` this
+     engine filled on every open — the brand, the three titled groups from a
+     table of its own, the appearance control and the served identity. It is
+     `app/drawer.tsx` now, over `ui/drawer.tsx`, reading the ONE navigation
+     table; and it REGISTERS with the ladder rather than being found by it, so
+     the back handler below asks a registration instead of testing a class.
+
+     The verbs stay verbs. `openDrawer()` writes the store and pushes the
+     layer's own entry, exactly as it did — a conversion moves the drawing. */
   function openDrawer() {
-    const badges = Object.fromEntries(
-      PAGES_OF().map((element2) => [element2.id, element2.badge]),
-    );
-    const element = select("#drawer");
-    element.innerHTML = `
-      <div class="dh">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;color:var(--color-primary)"><path d="M3 4h18l-7 8v7l-4 2v-9z"/></svg>
-        <span>Torrent<em style="font-style:normal;color:var(--color-primary)">Mate</em></span>
-      </div>
-      <nav>
-        ${NAVIGATION.map(
-          ([title, items]) => `<div class="grp">
-          <p class="sect">${title}</p>
-          ${items
-            .map(
-              ([
-                id,
-                lab,
-                iconPath,
-              ]) => `<a href="#" data-navgo="${id}" ${currentState().page === id ? 'aria-current="page"' : ""}>
-            ${svgIcon(iconPath)}<span>${lab}</span>${badges[id] ? `<span class="count">${badges[id]}</span>` : ""}
-          </a>`,
-            )
-            .join("")}
-        </div>`,
-        ).join("")}
-      </nav>
-      <div class="grp">
-        <p class="sect">Apparence</p>
-        <div class="segmini" data-part="segment-small" role="group" aria-label="Thème">
-          ${APPARENCES.map(
-            (mode) =>
-              `<button data-apparence="${mode}" aria-pressed="${apparenceCourante() === mode}">${mode === "system" ? "Système" : mode === "light" ? "Clair" : "Sombre"}</button>`,
-          ).join("")}
-        </div>
-      </div>
-      ${servedIdentityBlock()}`;
-    setOpen(element, true);
-    setOpen(select("#scrim"), true);
+    store.write({ drawerOpen: true });
     try {
       __bridge.pushLayer("drawer");
     } catch (error) {}
   }
-  /* WHAT THIS HOST IS SERVING — the drawer's footer, and it used to be a lie.
-     Three literals sat here: a version, a build sha and « à jour », none of
-     them computed and none of them checked, while the repository stood twenty
-     patch versions further on. The identity is the HOST's now, published per
-     request on the document it sends, and worded by `lib/served-identity.ts`,
-     which also owns the case where nothing published one. `known` is
-     forwarded as a `data-*` so a rule can tell the two apart without reading
-     the words — by PRESENCE, like every other boolean state attribute here:
-     `data-known="false"` would read as a state that is set. */
-  function servedIdentityBlock() {
-    const lines = servedIdentityLines();
-    return `<div class="ver" data-part="shell/served-identity"${lines.known ? " data-known" : ""}>
-        <p class="vt">${escapeHtml(lines.label)}</p>
-        <p class="vv">${escapeHtml(lines.primary)}</p>
-        <p class="vc">${escapeHtml(lines.secondary)}</p>
-      </div>`;
-  }
-
   function closeDrawer(pop) {
-    if (!select("#drawer").classList.contains("open")) return;
-    setOpen(select("#drawer"), false);
-    setOpen(select("#scrim"), false);
-    if (!pop) unwindLayer("drawer");
+    window.__layers?.close("drawer", pop);
   }
 
   function closeHarness() {
@@ -10098,39 +9618,16 @@ import { servedIdentityLines } from "../lib/served-identity";
     document.querySelector("#device").appendChild(createElement);
   }
 
-  select("#fab").onclick = () => {
-    // The « + » ALWAYS means « follow »: the mode must never stay
-    // stuck from a previous resolution.
-    screens.add(currentState().addQ, "follow");
-  };
   select("#scenBtn").onclick = () => {
     openHarness();
   };
-  /* Appearance belongs to the interface, not the harness: the drawer offers
-     the three honest states. The default (no data-theme attribute) paints
-     dark; « clair » forces light; « systeme » follows the OS preference,
-     LIVE — the media listener acts only while that mode is chosen. The
-     choice persists under the key the envelope reads before the first
-     paint, so a reload opens in the chosen appearance without a flash. */
-  const APPARENCES = ["system", "light", "dark"];
-  function apparenceCourante() {
-    try {
-      const lu = localStorage.getItem("tm-apparence");
-      if (APPARENCES.includes(lu)) return lu;
-    } catch (error) {}
-    return "system";
-  }
-  function applyAppearance(mode) {
-    const light =
-      mode === "light" ||
-      (mode === "system" &&
-        matchMedia("(prefers-color-scheme: light)").matches);
-    if (light) document.documentElement.setAttribute("data-theme", "light");
-    else document.documentElement.removeAttribute("data-theme");
-  }
-  matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
-    if (apparenceCourante() === "system") applyAppearance("system");
-  });
+  /* THE APPEARANCE IS NOT THIS FILE'S ANY MORE. The three states, the stored
+     choice, the live media listener and the attribute they write are
+     `app/appearance.ts`'s — the frame's entry (`MODEL.md` § 2 Part 9), because
+     §17 redraws the sign-in gate beside them and cannot do so while the entry
+     is engine code. The drawer offers the control and calls that module
+     directly; the `data-apparence` branch of the delegation went with it, and
+     with it the last French `data-*` name this file wrote. */
 
   /* Global delegation */
   document.addEventListener("click", (event) => {
@@ -10590,24 +10087,6 @@ import { servedIdentityLines } from "../lib/served-identity";
       }
       return;
     }
-    if (closest.dataset.apparence) {
-      const mode = closest.dataset.apparence;
-      try {
-        localStorage.setItem("tm-apparence", mode);
-      } catch (error) {}
-      applyAppearance(mode);
-      // Reflect in place: the drawer stays open — choosing an appearance is
-      // not a navigation, and watching the theme change is the feedback.
-      closest.parentElement
-        .querySelectorAll("[data-apparence]")
-        .forEach((bouton) =>
-          bouton.setAttribute(
-            "aria-pressed",
-            String(bouton.dataset.apparence === mode),
-          ),
-        );
-      return;
-    }
     if (closest.dataset.hclose) {
       closeHarness();
       return;
@@ -10785,13 +10264,32 @@ import { servedIdentityLines } from "../lib/served-identity";
       // its single settlement needs, so this close is the follow branches'.
       panel.close();
       if (result.owned) {
-        openDlg(`<h2>Remplacer « ${escapeHtml(result.t)} » ?</h2>
-          <p>Ce ${result.k === "Film" ? "film est déjà" : "média est déjà"} en médiathèque. L'acquisition <b>remplacera</b> la version en place par celle qui sera récupérée.</p>
-          <div class="dlgacts">
-            <button class="dlgbtn danger" data-part="dialog/button" data-tone="danger" data-confirmadd="${index}">Remplacer</button>
-            <button class="dlgbtn ghost" data-part="dialog/button" id="dlgcancel">Annuler</button>
-          </div>`);
-        document.querySelector("#dlgcancel").onclick = closeDlg;
+        window.__dialog?.open({
+          heading: `Remplacer « ${result.t} » ?`,
+          body: [
+            {
+              type: "paragraph",
+              runs: [
+                {
+                  text:
+                    "Ce " +
+                    (result.k === "Film" ? "film est déjà" : "média est déjà") +
+                    " en médiathèque. L'acquisition ",
+                },
+                { text: "remplacera", strong: true },
+                { text: " la version en place par celle qui sera récupérée." },
+              ],
+            },
+          ],
+          actions: [
+            {
+              text: "Remplacer",
+              tone: "danger",
+              target: { "data-confirmadd": String(index) },
+            },
+            { text: "Annuler", tone: "ghost", dismiss: true },
+          ],
+        });
         return;
       }
       // The screen stays open, re-rendered in place with the "added" chip
@@ -10909,55 +10407,113 @@ import { servedIdentityLines } from "../lib/served-identity";
       0,
     );
     const size = (files * 0.41).toFixed(1).replace(".", ",") + " Go";
+    /* NOT ESCAPED, and it is the one `escapeHtml` site in this file that must
+       not be: the heading crosses as a DESCRIPTOR field and is rendered as a
+       React text node, which escapes it itself. Escaped here it was escaped
+       twice — « Supprimer « Lilo &amp; Stitch » ? » on every title carrying an
+       ampersand, and the seeds carry five. The other thirty-five sites still
+       feed `innerHTML` and still need it. */
     const head = multi
       ? `Supprimer ${titles.length} médias ?`
-      : `Supprimer « ${escapeHtml(titles[0])} » ?`;
-    openDlg(`
-    <h2>${head}</h2>
-    <div class="dryrun" data-part="dialog/dry-run">${svgIcon(icons.eye)}Simulation — rien ne sera supprimé tant que vous n'aurez pas validé que cette liste dit vrai.</div>
-    ${
-      multi
-        ? `<ul class="manifest" data-part="dialog/manifest">${titles
-            .slice(0, 4)
-            .map(
-              (slice) =>
-                `<li>${escapeHtml(slice)}<b>${inc(slice) ? inc(slice).o : 1} fichier${(inc(slice) ? inc(slice).o : 1) > 1 ? "s" : ""}</b></li>`,
-            )
-            .join(
-              "",
-            )}${titles.length > 4 ? `<li>et ${titles.length - 4} autre${titles.length - 4 > 1 ? "s" : ""}<b></b></li>` : ""}</ul>`
-        : ""
-    }
-    <p>Voici exactement ce qui serait supprimé :</p>
-    <ul class="manifest" data-part="dialog/manifest">
-      <li>Fichiers vidéo <b>${files} · ${size}</b></li>
-      <li>Métadonnées (NFO, affiches, fanart) <b>${files * 3} fichiers</b></li>
-      <li>Lignes de la médiathèque <b>${titles.length} item${multi ? "s" : ""}</b></li>
-      <li>Entrée Plex <b>${titles.length} · à vérifier</b></li>
-    </ul>
-    ${
-      followed.length > 0
-        ? `<div class="warnbox"><b>${followed.length === 1 ? `« ${escapeHtml(followed[0])} » est suivi.` : `${followed.length} de ces médias sont suivis.`}</b> Sans action de votre part, ces épisodes seront re-téléchargés à la prochaine recherche.</div>`
-        : ""
-    }
-    <div class="dlgacts">
-      ${
-        followed.length > 0
-          ? `<button class="dlgbtn danger" data-part="dialog/button" data-tone="danger" data-toast="Simulation terminée — 0 fichier touché. Le suivi aurait été arrêté.">Supprimer et arrêter le suivi</button>
-      <button class="dlgbtn" data-part="dialog/button" data-toast="Simulation terminée — 0 fichier touché. Le suivi aurait été conservé.">Supprimer, garder le suivi</button>`
-          : `<button class="dlgbtn danger" data-part="dialog/button" data-tone="danger" data-toast="Simulation terminée — 0 fichier touché.">Supprimer</button>`
-      }
-      <button class="dlgbtn ghost" data-part="dialog/button" id="dlgcancel">Annuler</button>
-    </div>`);
-    select("#dlgcancel").onclick = closeDlg;
-    select("#dlg")
-      .querySelectorAll("[data-toast]")
-      .forEach((querySelectorAll) =>
-        querySelectorAll.addEventListener("click", () => {
-          closeDlg();
-          actionDelete(titles);
-        }),
-      );
+      : `Supprimer « ${titles[0]} » ?`;
+    window.__dialog?.open({
+      heading: head,
+      body: [
+        {
+          type: "dryRun",
+          text:
+            "Simulation — rien ne sera supprimé tant que vous n'aurez pas " +
+            "validé que cette liste dit vrai.",
+        },
+        ...(multi
+          ? [
+              {
+                type: "manifest",
+                entries: [
+                  ...titles.slice(0, 4).map((title2) => ({
+                    text: title2,
+                    value: `${inc(title2) ? inc(title2).o : 1} fichier${(inc(title2) ? inc(title2).o : 1) > 1 ? "s" : ""}`,
+                  })),
+                  ...(titles.length > 4
+                    ? [
+                        {
+                          text: `et ${titles.length - 4} autre${titles.length - 4 > 1 ? "s" : ""}`,
+                          value: "",
+                        },
+                      ]
+                    : []),
+                ],
+              },
+            ]
+          : []),
+        {
+          type: "paragraph",
+          runs: [{ text: "Voici exactement ce qui serait supprimé :" }],
+        },
+        {
+          type: "manifest",
+          entries: [
+            { text: "Fichiers vidéo", value: `${files} · ${size}` },
+            {
+              text: "Métadonnées (NFO, affiches, fanart)",
+              value: `${files * 3} fichiers`,
+            },
+            {
+              text: "Lignes de la médiathèque",
+              value: `${titles.length} item${multi ? "s" : ""}`,
+            },
+            { text: "Entrée Plex", value: `${titles.length} · à vérifier` },
+          ],
+        },
+        ...(followed.length > 0
+          ? [
+              {
+                type: "warning",
+                strong:
+                  followed.length === 1
+                    ? `« ${followed[0]} » est suivi.`
+                    : `${followed.length} de ces médias sont suivis.`,
+                text:
+                  "Sans action de votre part, ces épisodes seront " +
+                  "re-téléchargés à la prochaine recherche.",
+              },
+            ]
+          : []),
+      ],
+      actions: [
+        ...(followed.length > 0
+          ? [
+              {
+                text: "Supprimer et arrêter le suivi",
+                tone: "danger",
+                target: {
+                  "data-toast":
+                    "Simulation terminée — 0 fichier touché. Le suivi aurait été arrêté.",
+                },
+                run: () => actionDelete(titles),
+              },
+              {
+                text: "Supprimer, garder le suivi",
+                target: {
+                  "data-toast":
+                    "Simulation terminée — 0 fichier touché. Le suivi aurait été conservé.",
+                },
+                run: () => actionDelete(titles),
+              },
+            ]
+          : [
+              {
+                text: "Supprimer",
+                tone: "danger",
+                target: {
+                  "data-toast": "Simulation terminée — 0 fichier touché.",
+                },
+                run: () => actionDelete(titles),
+              },
+            ]),
+        { text: "Annuler", tone: "ghost", dismiss: true },
+      ],
+    });
   }
 
   /* Screens and sheets */
@@ -32034,13 +31590,17 @@ import { servedIdentityLines } from "../lib/served-identity";
   /* Tapping a cell: its air date, in French. The sentence follows the state
      — « Sortie prévue » for an announced episode, « Diffusé » otherwise —
      and a missing date is stated, not invented. */
+  /* THE POPOVER'S LAYER IS NOT THIS FILE'S ANY MORE — but its SENTENCE still
+     is. `openPopEp` built the node, placed it against the phone frame, wrote
+     what it says and armed its dismissal, all in one function. Only the first,
+     second and fourth are the frame's: `ui/popover.tsx` over
+     `app/popover-host.ts`, behind `{ anchor, content }`. What is left here is
+     the PRODUCER — the five lines that turn an episode into three facts — and
+     a producer moves to its feature with L19 (Part 12). */
   function closePopEp() {
-    document
-      .querySelectorAll(".eppop")
-      .forEach((querySelectorAll) => querySelectorAll.remove());
+    window.__popover?.close();
   }
   function openPopEp(btn) {
-    closePopEp();
     const [title, season, episodeNumber, state] = btn.dataset.ep.split("|");
     const sheetFound = sheetFor(title);
     const list = sheetFound?.eps?.[season] ?? null;
@@ -32048,32 +31608,21 @@ import { servedIdentityLines } from "../lib/served-identity";
       list?.find((liste2) => String(liste2.n) === episodeNumber) ?? null;
     const airDate = episode?.air ? dateFR(episode.air) : null;
     const future = episode?.air && episode.air > TODAY;
-    const phrase =
-      airDate == null
-        ? "Date de diffusion inconnue."
-        : future || state === "announced"
-          ? `Sortie prévue le ${airDate}`
-          : `Diffusé le ${airDate}`;
-    const createElement = document.createElement("div");
-    createElement.className = "eppop";
-    createElement.dataset.part = "episode/popover";
-    createElement.innerHTML = `<b>S${String(season).padStart(2, "0")}E${String(episodeNumber).padStart(2, "0")}${episode?.t ? " · " + escapeHtml(episode.t) : ""}</b>${escapeHtml(phrase)}<br><span style="color:var(--color-muted-foreground)">${escapeHtml(EP_LABEL[state] ?? "")}</span>`;
-    document.querySelector("#device").appendChild(createElement);
-    const rect = btn.getBoundingClientRect();
-    const dev = document.querySelector("#device").getBoundingClientRect();
-    const popoverWidth = 220;
-    let left = rect.left + rect.width / 2 - popoverWidth / 2;
-    left = Math.max(dev.left + 8, Math.min(left, dev.right - popoverWidth - 8));
-    const top = rect.top - dev.top > 120;
-    createElement.style.left = `${left}px`;
-    createElement.style.top = top
-      ? `${rect.top - createElement.offsetHeight - 8}px`
-      : `${rect.bottom + 8}px`;
-    setTimeout(
-      () =>
-        document.addEventListener("pointerdown", closePopEp, { once: true }),
-      0,
-    );
+    window.__popover?.open(btn, {
+      title:
+        "S" +
+        String(season).padStart(2, "0") +
+        "E" +
+        String(episodeNumber).padStart(2, "0") +
+        (episode?.t ? " · " + episode.t : ""),
+      text:
+        airDate == null
+          ? "Date de diffusion inconnue."
+          : future || state === "announced"
+            ? `Sortie prévue le ${airDate}`
+            : `Diffusé le ${airDate}`,
+      note: EP_LABEL[state] ?? "",
+    });
   }
 
   /* Does this interface HOLD a medium by that title?
@@ -33290,10 +32839,16 @@ import { servedIdentityLines } from "../lib/served-identity";
            and the action button's visibility now reads whether a message is up.
            Left as it was, the first tap of a session cleared the hint visually
            and stranded the action button until the pending timer fired. */
-        if (select("#toast").textContent.includes("notes de conception")) {
-          clearTimeout(toast._t);
-          setMessageShown(false);
-        }
+        /* Asked of the layer rather than read off the document: what is on
+           screen is the message host's fact, and a `textContent` read of a
+           node the layer keeps rendered after it closes would answer yes about
+           a message that had already gone. */
+        const onScreen = window.__toast?.read();
+        if (
+          onScreen?.shown &&
+          onScreen.message?.message?.includes("notes de conception")
+        )
+          window.__toast.hide();
       },
       { capture: true },
     );
@@ -33365,15 +32920,15 @@ export {
    destructuring on either side, and `for (name of …)`; all four were searched
    across all 254 names, and this is the only one. */
 Object.assign(window, {
-  CAST, POSTERS_HD, APPARENCES, PRESS_MS, PRESS_TOLERANCE, AUDIOS,
+  CAST, POSTERS_HD, PRESS_MS, PRESS_TOLERANCE, AUDIOS,
   TODAY, CADENCE_CRON, ACCOUNT,
-  STARTUP_MS, DEPENDENCIES, DISKS,
+  DEPENDENCIES, DISKS,
   EP_LABEL, EP_ORDER, EP_SWATCH, ERRORS, DECISION_STATE,
   DECISION_STATE_DETAIL, EXECUTIONS, SHEETS_IDX, SHEETS_OLD, SHEETS_RAW,
   GROUPS, HERO_IMAGES, INCOMPLETE, INDEX, JOURNAL, LIBRARY,
   LIB_PAGE, LIB_TOTAL, MAINT_ACTIONS, MAINT_TOPICS, MOIS, REASON_LABEL,
-  REASON_DETAIL, REASON_TONE, NAVIGATION,
-  PAGES_OF, SCHEDULERS, SCHEDULERS_DOWN, OWNED,
+  REASON_DETAIL, REASON_TONE,
+  SCHEDULERS, SCHEDULERS_DOWN, OWNED,
   POSTERS, SETTINGS, SETTINGS_STATE, RESOLUTIONS, BACK_WINDOW,
   RISQUES, SEASONS, SECRETS, SERVICES, SERVICES_PANNE,
   STRIP_LABELS, ST_LABEL,
@@ -33381,8 +32936,7 @@ Object.assign(window, {
   TRIS, URGENCY, VIA_LABEL, actionLeave, actionPause,
   actionTake, actionResolve, actionRetirer, actionFollow,
   actionDelete, addVerb, showSignIn, showStartup,
-  showInstallation, cancelPress, apparenceCourante,
-  applyAppearance, applyState, armPress, advanceDeck,
+  showInstallation, cancelPress, applyState, armPress, advanceDeck,
   advancePageGesture, baseTitle, beforeReset, cadenceFR, cardHTML, chipHTML,
   closeDlg, closeHarness, closeScreen, closeSheet, coverLoading,
   dateFR, startPageGesture, decisionPending, deckCardHTML, deckHTML,
@@ -33394,18 +32948,18 @@ Object.assign(window, {
   libRowHTML, factsListHTML, loadMoreSug, hideSignIn,
   hideStartup, masquerInstallation, sameValue, changeSetting,
   mountDeck, mountLoaders, mountSearch, fileName, normalisedKey,
-  recordPath, openAddSheet, openDeleteDialog, openDetailSheet, openDlg,
+  recordPath, openAddSheet, openDeleteDialog, openDetailSheet,
   openFollowSheet, openHarness, openJourneySheet, openPanel, openMoreSheet,
   openSheet, openSugSheet, openUserSheet,
   openActionMaintenance, openPopEp, openSetting, openSecret,
   openDrawer, paintSelBar, panelUnderFinger, passerSug, screenStack,
   plages, ownedFor, posterBox, nextSearchFR,
-  proposerInstallation, ptr, refPanel, collapseCard,
-  refreshDeck, settingId, resetSettings, render, renderNav,
+  ptr, refPanel, collapseCard,
+  refreshDeck, settingId, resetSettings, render,
   richText, seasonsOf, sheetSeasonsHTML, secHTML, secInner, seedWorld,
   select, sheetFor, titleForProviderId, addressIdsFor, skelCards, skelCardsInner, skelTiles, sortLabel,
   stFraction, stLabel, stripHTML, sugCardHTML, sugFoot,
-  sugTileHTML, sugVerb, followPress, onIOSSafari, onEngineBack,
+  sugTileHTML, sugVerb, followPress, onEngineBack,
   surfErr, surfErrInner, svgIcon, swipeHTML, tileHTML, toast, toastUndo,
   allSettings, trailerIds, displayedValue,
   rawValue, typedValue, view,
@@ -33422,15 +32976,10 @@ Object.defineProperties(window, {
   deckDrag: { get: () => deckDrag, configurable: true },
   unwinding: { get: () => unwinding, configurable: true },
   unwindInProgress: { get: () => unwindInProgress, configurable: true },
-  loadingEnd: { get: () => loadingEnd, configurable: true },
-  installEvent: { get: () => installEvent, configurable: true },
-  installRefused: { get: () => installRefused, configurable: true },
-  legacyNodes: { get: () => legacyNodes, configurable: true },
   store: { get: () => store, configurable: true },
   pageDrag: { get: () => pageDrag, configurable: true },
   pilotage: { get: () => pilotage, configurable: true },
   currentRender: { get: () => currentRender, configurable: true },
-  shellOwnsView: { get: () => shellOwnsView, configurable: true },
   armedExit: { get: () => armedExit, configurable: true },
   STATES: { get: () => STATES, configurable: true },
   // A LIVE READ, not an alias. There is no cached `state` binding left to

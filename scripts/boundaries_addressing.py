@@ -344,31 +344,45 @@ def validate_search_bodies(text: str) -> tuple[list[tuple[str, str, str]], list[
     return readings, unreadable
 
 
-def engine_page_ids(root: Path) -> list[str]:
-    """Read the page ids the engine's own `PAGES_OF()` declares.
+def navigation_page_ids(root: Path) -> list[str]:
+    """Read the page ids the navigation table declares.
+
+    IT USED TO READ THE ENGINE. `PAGES_OF()` in `engine/legacy.js` was one of
+    four copies of the page list, and this reader held it against the address
+    model. L15 left one table — `app/navigation.ts` — so the subject moved with
+    it, and the hold is the same hold: an address with no page is an address
+    leading nowhere, a page with no address is a surface nobody can link to.
 
     The array is extracted by counting brackets before its entries are read:
     a bare `id: "…"` pattern over the whole module would collect every other
-    identifier in thirty thousand lines, and a line-anchored one would depend
-    on an indentation the formatter owns.
+    identifier in it, and a line-anchored one would depend on an indentation
+    the formatter owns.
 
     Args:
         root: The directory to read.
 
     Returns:
-        The ids, in declaration order; an empty list when the engine or the
+        The ids, in declaration order; an empty list when the table or the
         declaration is absent.
     """
-    engine = root / "engine" / "legacy.js"
-    if not engine.is_file():
+    table = root / "app" / "navigation.ts"
+    if not table.is_file():
         return []
-    text = engine.read_text(encoding="utf-8")
-    declaration = text.find("const PAGES_OF")
+    text = table.read_text(encoding="utf-8")
+    declaration = text.find("export const NAVIGATION")
     if declaration == -1:
         return []
-    opening = text.find("[", declaration)
-    if opening == -1:
+    # THE ARRAY'S OWN BRACKET, and it is not the first one after the name. The
+    # declaration is typed — `export const NAVIGATION: readonly NavigationRow[]
+    # = [` — so a plain search for "[" finds the type's empty pair, balances it
+    # on the very next character and reads an empty array. The reader then
+    # answers « no pages » about a table that has eight, which the caller
+    # reports as « reads to nothing »: loud, and it was, but only because that
+    # branch exists at all.
+    assigned = re.search(r"=\s*\[", text[declaration:])
+    if assigned is None:
         return []
+    opening = declaration + assigned.end() - 1
     depth = 0
     for offset, character in enumerate(text[opening:], opening):
         if character == "[":
@@ -646,33 +660,43 @@ def arm_addressing(root: Path) -> int:
                 f"which no route file serves — the address the table promises reaches the "
                 f"not-found page instead")
 
-    # And the PAGES themselves, against the engine that draws them. The table
-    # says which path names a page; `PAGES_OF()` says which pages exist. A page
-    # in one and not the other is an address leading nowhere or a surface
-    # nobody can link to — invisible either way until someone types the
-    # address, which is the case an offline reader is for. The not-found page
-    # is the one id that is the engine's alone: it names a surface rather than
-    # a place, so it has no path by design — it composes the address it was
-    # asked for.
+    # And the PAGES themselves, against the table that declares them. The
+    # address model says which path names a page; `app/navigation.ts` says
+    # which pages exist. A page in one and not the other is an address leading
+    # nowhere or a surface nobody can link to — invisible either way until
+    # someone types the address, which is the case an offline reader is for.
+    # The not-found page is the one id that is the table's alone: it names a
+    # surface rather than a place, so it has no path by design — it composes
+    # the address it was asked for.
     declared_not_found = set(re.findall(r'NOT_FOUND_PAGE = "([^"]+)"', declaration))
-    engine_pages = set(engine_page_ids(root))
-    if engine_pages:
-        for page in sorted(engine_pages - pages - declared_not_found):
+    table_pages = set(navigation_page_ids(root))
+    if table_pages:
+        for page in sorted(table_pages - pages - declared_not_found):
             violations.append(
-                f'engine/legacy.js: PAGES_OF() declares the page « {page} », which '
+                f'app/navigation.ts: the table declares the page « {page} », which '
                 f"PAGE_PATHS gives no address — a surface nobody can link to")
-        for page in sorted(pages - engine_pages):
+        for page in sorted(pages - table_pages):
             violations.append(
                 f'lib/addresses.ts: PAGE_PATHS declares an address for « {page} », which '
-                f"PAGES_OF() does not draw — an address leading nowhere")
-    elif (root / "engine" / "legacy.js").is_file():
+                f"the navigation table does not carry — an address leading nowhere")
+    else:
+        # LOUD EITHER WAY, and the `elif` this replaces was not. It asked
+        # whether the file exists and said nothing when it does not — so moving
+        # the table to `app/navigation/index.ts`, an ordinary refactor, took
+        # both directions of this hold away in silence and printed « 0 the table
+        # declares ». The old shape was carried across from the engine's own
+        # branch unchanged, which is how it survived the move.
+        present = (root / "app" / "navigation.ts").is_file()
         violations.append(
-            "engine/legacy.js: PAGES_OF() reads to nothing — the page tables cannot be "
-            "held against each other, and a reader that stays green over a declaration "
-            "it cannot read is the failure `check-frontend-boundaries.py`'s `arm_cycles` names")
+            "app/navigation.ts: the table reads to nothing — "
+            + ("the file is there and declares no `NAVIGATION`"
+               if present else "the file is not where this reader looks")
+            + ". The page list cannot be held against the address model, and a "
+            "reader that stays green over a declaration it cannot read is the "
+            "failure `check-frontend-boundaries.py`'s `arm_cycles` names")
 
     print(f"  addressing: {len(files)} route file(s), {len(dials)} dial(s), "
-          f"{len(pages)} page(s) against {len(engine_pages)} the engine draws, "
+          f"{len(pages)} page(s) against {len(table_pages)} the table declares, "
           f"{len(screen_paths)} screen(s), {bodies_read} validateSearch body(ies) read, "
           f"{navigation_calls} navigation call site(s) read, "
           f"{len(violations)} violation(s)")

@@ -49,7 +49,7 @@ async def main():
     await pg.click("#sheet [data-act='add:0']"); await pg.wait_for_timeout(450)
     print("  adding an ALREADY owned title:", await pg.evaluate("()=>{const g=document.querySelector('#dlg');return {open:g.hasAttribute('data-open'),title:g.querySelector('h1,h2,h3')?.textContent};}"))
     await shot(pg, "surfaces-replace")
-    await pg.evaluate("()=>document.querySelector('#dlgcancel').click()"); await pg.wait_for_timeout(300)
+    await pg.evaluate("""()=>document.querySelector('[data-part="dialog/button"][data-dialog-dismiss]').click()"""); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>__close('screen')"); await pg.wait_for_timeout(400)
 
     print("── season matrix ──")

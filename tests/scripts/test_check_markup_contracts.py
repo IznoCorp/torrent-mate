@@ -737,12 +737,20 @@ class TestImperativeEmission:
     def test_the_repository_emits_a_part_imperatively(self) -> None:
         """Non-vacuity: this reading finds something on the real sources.
 
-        A pass that reads nothing anywhere is a pass whose green says
-        nothing, and the engine builds the episode popover in script.
+        A pass that reads nothing anywhere is a pass whose green says nothing.
+
+        IT NAMED `episode/popover` UNTIL L15, and the popover's LAYER became a
+        component in that wave — so the value it looked for stopped being
+        emitted imperatively at all, and the test failed for the best possible
+        reason. What is left is the harness panel, which the engine still
+        builds in script and which dies at switchover rather than converting.
+        The day THAT goes, this reading has no subject in this repository and
+        the honest move is to say so here rather than to widen the search until
+        something matches.
         """
         engine = guard.SOURCES / "engine" / "legacy.js"
 
-        assert "episode/popover" in guard.emitted_named_values(engine)["data-part"]
+        assert "harness/panel" in guard.emitted_named_values(engine)["data-part"]
 
 
 class TestHeldSelectors:

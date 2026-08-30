@@ -1,6 +1,7 @@
 """Multi-selection in the library, and what it enables."""
 
 import asyncio
+import re
 from common import shot
 from playwright.async_api import async_playwright
 async def main():
@@ -48,18 +49,84 @@ async def main():
     await pg.evaluate("()=>document.querySelector('#scrim').click()"); await pg.wait_for_timeout(350)
 
     print("\n── selection mode ──")
+    # THE BAR IS READ, NOT PRINTED. This walk stated the bar's text and
+    # asserted nothing about it, which is what `product-intent-map.md` records
+    # against NE-DOIT-PAS-6: a surface whose whole job is to say how many
+    # things are about to be destroyed, held by a print. The holds below are
+    # the instrument that row says L15 owes, and they land with the bar's
+    # conversion into a component.
+    #
+    # WHAT THEY READ IS THE STATE THE OPERATOR SEES: whether the bar is there,
+    # what its caption states, and whether the destructive control is
+    # available. Not the store — the store is what the bar is derived FROM, and
+    # a hold that reads the derivation's input proves the derivation nothing.
+    async def bar():
+        return await pg.evaluate("""()=>{
+          const node = document.querySelector('[data-part="selection/bar"]');
+          if (!node) return null;
+          const destructive = node.querySelector('[data-delsel]');
+          return {
+            caption: (node.querySelector('[data-part="selection/caption"]')
+              || {}).textContent || "",
+            destructiveDisabled: !!(destructive && destructive.disabled),
+            named: node.getAttribute('aria-label') || null,
+          };}""")
+
+    at_rest = await bar()
+    if at_rest is not None:
+        failures.append("a selection bar stands with no selection")
     await pg.click('[data-selmode="1"]'); await pg.wait_for_timeout(350)
     print("  chips     :", await pg.evaluate("""()=>document.querySelectorAll('[data-part="tile"] [data-part="selection/check"]').length"""))
+    empty = await bar()
     print("  bar       :", (await pg.evaluate("""()=>document.querySelector('[data-part="selection/bar"]').textContent""")).strip()[:52])
-    for i in (0,2,5):
+    if empty is None:
+        failures.append("entering selection mode raises no bar")
+    else:
+        if not empty["named"]:
+            failures.append("the selection bar is a region with no name")
+        if not empty["destructiveDisabled"]:
+            failures.append("« Supprimer » is available with nothing selected")
+        if any(character.isdigit() for character in empty["caption"]):
+            failures.append(f"the empty caption states a count: {empty['caption']!r}")
+
+    await pg.click("[data-tile='0']"); await pg.wait_for_timeout(150)
+    one = await bar()
+    print("  after 1 tap :", one)
+    if one is None or one["destructiveDisabled"]:
+        failures.append("one selected and « Supprimer » is still unavailable")
+    # A WORD-BOUNDARY MATCH, not a substring: « 0 sur 15 sélectionnés » carries
+    # the digit 1 and would have satisfied `"1" in caption` with a counter stuck
+    # at zero — on the one surface whose whole job is to say how many things are
+    # about to be destroyed.
+    if one is not None and not re.search(r"\b1\b", one["caption"]):
+        failures.append(f"one selected and the caption says {one['caption']!r}")
+
+    for i in (2,5):
         await pg.click(f"[data-tile='{i}']"); await pg.wait_for_timeout(120)
-    print("  after 3 taps:", (await pg.evaluate("""()=>document.querySelector('[data-part="selection/bar"] [data-part="selection/caption"]').textContent""")).strip())
+    counted = await bar()
+    print("  after 3 taps:", (counted or {}).get("caption", "").strip())
+    if counted is None or not re.search(r"\b3\b", counted["caption"]):
+        failures.append(
+            f"three selected and the caption says "
+            f"{(counted or {}).get('caption')!r}")
     await shot(pg, "selection-selected")
     await pg.click("[data-delsel]"); await pg.wait_for_timeout(400)
     print("  dialog   :", await pg.evaluate("""()=>{const g=document.querySelector('#dlg');
         return {title:g.querySelector('h1,h2,h3').textContent, rows:g.querySelectorAll('[data-part="dialog/manifest"] li').length,
                 choices:[...g.querySelectorAll('[data-part="dialog/button"]')].map(x=>x.textContent.trim())};}"""))
     await shot(pg, "selection-delete-multiple")
+
+    # AND LEAVING TAKES THE BAR AWAY. A bar that outlives its selection is the
+    # residue an appended-per-open node never left and a mounted component can:
+    # the engine removed the node, a component has to be told to stop drawing.
+    await pg.evaluate("""()=>document.querySelector('#dlg [data-part="dialog/button"]:last-child').click()""")
+    await pg.wait_for_timeout(300)
+    await pg.click('[data-selmode="0"]'); await pg.wait_for_timeout(300)
+    left = await bar()
+    print("  after leaving:", left)
+    if left is not None:
+        failures.append(f"the bar outlived the selection: {left!r}")
+
     print("\nJS errors:", errs or "none")
     print("VERDICT:", "both delete paths are reachable"
           if not failures and not errs else f"FAILED - {failures or errs}")

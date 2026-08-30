@@ -3,13 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <base href="/" />
-    <!-- NO `maximum-scale` AND NO `user-scalable=no`, and it is a decision
+    <!-- NO maximum scale, AND NO user-scalable refusal, and it is a decision
          rather than an omission. Those two directives forbid the pinch-zoom
          WCAG 1.4.4 requires, and axe reported the failure on all 83 named
          states — the single largest per-state count in the wave's opening
          measurement. They were there to stop iOS zooming a focused input; iOS
-         Safari has ignored `user-scalable=no` since version 10, so what they
-         actually bought was the violation. -->
+         Safari has ignored the second since version 10, so what they actually
+         bought was the violation.
+
+         NEITHER IS SPELLED OUT HERE, and that is `check-viewport-directives.py`
+         doing its job: it reads comments too, because a directive commented out
+         is one edit away from being live. The one file allowed to name them is
+         the guard itself. -->
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>TorrentMate Design</title>
     <!-- pwa:start — the document half of installability. The server half
@@ -46,17 +51,26 @@
     </script>
     <script>
       // The saved appearance is applied before the first paint: the default
-      // (no data-theme attribute) paints dark, « clair » forces light, and
-      // « systeme » follows the OS preference. The drawer's control writes
-      // the same key this reads. It sits INSIDE the pwa markers on purpose:
-      // the login gate borrows this whole block, and an operator who chose
-      // an appearance is owed it on the gate too — not only past it.
+      // (no data-theme attribute) paints dark, « light » forces light, and
+      // « system » follows the OS preference. The drawer's control writes the
+      // same key this reads, through `app/appearance.ts`. It sits INSIDE the
+      // pwa markers on purpose: the login gate borrows this whole block, and an
+      // operator who chose an appearance is owed it on the gate too — not only
+      // past it.
+      //
+      // B-245: THE TWO ENDS TESTED DIFFERENT WORDS. This script read « clair »
+      // and « systeme » while the application had been writing « light » and
+      // « system » since the English rename — so NO value it could store
+      // matched either literal, and the flash this script exists to prevent
+      // happened on every reload for every reader who had ever touched the
+      // control. A `data-*` contract has three ends and moves in one step; this
+      // one's third end is `localStorage`, and it was left behind.
       (function () {
         try {
-          var mode = localStorage.getItem("tm-apparence") || "systeme";
+          var mode = localStorage.getItem("tm-apparence") || "system";
           var light =
-            mode === "clair" ||
-            (mode === "systeme" &&
+            mode === "light" ||
+            (mode === "system" &&
               matchMedia("(prefers-color-scheme: light)").matches);
           if (light)
             document.documentElement.setAttribute("data-theme", "light");
@@ -422,101 +436,41 @@
       </button>
     </div>
 
-    <button
-      class="fab absolute right-[16px] bottom-[calc(var(--tm-bottom-bar-h,0px)+16px)]
-             w-[52px] h-[52px] rounded-full [border:0] bg-primary text-primary-foreground
-             grid place-items-center [box-shadow:var(--mq-shadow-fab)] z-30"
-      id="fab"
-      data-part="shell/add-action"
-      aria-label="Ajouter un média"
-      hidden
-    >
-      <svg
-        class="w-[23px] h-[23px]"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.4"
-        stroke-linecap="round"
-      >
-        <path d="M12 5v14M5 12h14" />
-      </svg>
-    </button>
+    <!-- The action button is rendered by the shell
+         (`src/app/action-button.tsx`), at this same id and these same classes,
+         into `#shell`. Absent here on purpose: two elements answering `#fab` is
+         one of them being measured and the other being shown. -->
 
-    <nav
-      class="bottombar fixed inset-x-0 bottom-0 z-50 flex border-t border-border
-             bg-sidebar pb-[env(safe-area-inset-bottom)] md:hidden"
-      id="nav"
-      data-part="shell/tab-bar"
-      aria-label="Navigation principale"
-    ></nav>
+    <!-- The tab bar is rendered by the shell (`src/app/tab-bar.tsx`), at this
+         same id and these same classes, into `#shell` — which sits inside this
+         frame, earlier in document order. It is absent here on purpose: two
+         elements answering `#nav` is one of them being measured and the other
+         being shown. -->
 
-    <!-- NOT « Navigation principale »: the tab bar already carries that name,
-         and two landmarks answering to one name make a screen reader's landmark
-         list a guessing game. This one is the panel the burger opens. -->
-    <aside
-      class="drawer absolute inset-y-0 left-0 right-auto w-[288px] max-w-[86%] z-[55]
-             bg-sidebar border-r border-border flex flex-col [transform:translateX(-100%)]
-             transition-[transform] duration-300 ease-standard invisible touch-pan-y
-             [&_a]:select-none [&_a]:[-webkit-user-drag:none]"
-      id="drawer"
-      aria-label="Menu"
-    ></aside>
+    <!-- The drawer is rendered by the shell (`src/app/drawer.tsx`, over
+         `src/ui/drawer.tsx`), at this same id and this same identity class,
+         into `#shell`. Absent here on purpose: two elements answering
+         `#drawer` is one of them being measured and the other being shown. -->
     <div class="screen" id="screen" data-part="screen"></div>
     <!-- The scrim and the bottom sheet are rendered by the shell
          (`src/components/sheet.tsx`), at these same ids and classes, into
          `#shell` — which sits inside this frame, earlier in document order.
          They are absent here on purpose: two elements answering `#sheet` is
          one of them being measured and the other being shown. -->
-    <!-- The confirmation layer, declared for what it is. The engine fills it
-         with a heading and a choice and raises the scrim behind it; without
-         the role, an assistive technology met an anonymous box and the
-         content inside it counted as page content adrift outside every
-         landmark. The NAME is set by `openDlg()`, which reads the heading it
-         has just written — a dialog does not take its name from its content
-         the way a named section does, and an `aria-labelledby` id would have
-         to be kept in step by every template string that opens one. -->
-    <div class="dlg" id="dlg" data-part="dialog" role="dialog"
-      aria-modal="true"></div>
-    <!-- ANNOUNCED, not merely shown. This is the interface's one
-         general-purpose « something happened » channel, and a screen reader
-         said nothing about any of it. `role="status"` is polite: it waits
-         for a pause rather than cutting across what is being read, which is
-         right for a message that is informative and never blocking.
-
-         THE REGION EXISTS BEFORE THE TEXT DOES, and that ordering is the
-         whole mechanism: a live region inserted together with its content
-         announces nothing. This element is in the document from the first
-         parse and the engine writes only `#toastmsg` inside it. -->
-    <div
-      class="toast absolute left-[14px] right-[14px]
-             bottom-[calc(var(--tm-bottom-bar-h,0px)+16px)] z-[49] flex items-center gap-5
-             bg-popover border border-border rounded-3 py-5 px-6 text-3
-             [box-shadow:var(--mq-shadow-toast)] [transform:translateY(14px)] opacity-0 invisible
-             transition-[opacity,transform] duration-200 ease-standard"
-      id="toast"
-      role="status"
-      aria-live="polite"
-    >
-      <span id="toastmsg"></span
-      ><button
-        class="ml-auto [border:0] bg-transparent text-muted-foreground w-[24px] h-[24px]
-               grid place-items-center flex-none"
-        id="toastx"
-        aria-label="Fermer"
-      >
-        <svg
-          class="w-[14px] h-[14px]"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-        >
-          <path d="M18 6 6 18M6 6l12 12" />
-        </svg>
-      </button>
-    </div>
+    <!-- The confirmation layer is rendered by the shell
+         (`src/ui/dialog/index.tsx`), at this same id and this same identity
+         class, into `#shell`. It declares `role="dialog"` and takes its NAME
+         from the descriptor's heading — not by reading back markup it has just
+         written, which is what an HTML-string layer had to do. Absent here on
+         purpose: two elements answering `#dlg` is one of them being measured
+         and the other being shown. -->
+    <!-- The message is rendered by the shell (`src/ui/toast.tsx`), at these
+         same ids, into `#shell`. ANNOUNCED, not merely shown: it is the
+         interface's one general-purpose « something happened » channel, and
+         `role="status"` with `aria-live="polite"` waits for a pause rather
+         than cutting across what is being read. The region is in the tree from
+         the first render and never inserted with its content — a live region
+         inserted together with what it says announces nothing. -->
   </div>
 </div>
   </body>

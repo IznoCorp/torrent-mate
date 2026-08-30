@@ -190,9 +190,20 @@ async def main():
               .map(e=>e.textContent.trim()).filter(t=>t && !expected.test(t)).slice(0,5);
           }
 
-          // R8 — EVERY layer reserves the height of the tab bar that passes
-          // above it: screen, sheet and dialog. The rule once covered screens
-          // only, and the defect came back through sheets.
+          // R8 — EVERY layer THE TAB BAR PASSES ABOVE reserves its height, so
+          // its last action is not stuck underneath. The rule once covered
+          // screens only and the defect came back through sheets, which is why
+          // it is generic.
+          //
+          // THE SHEET LEFT THIS SWEEP AT L15 (B-248), and it is a renegotiation
+          // rather than a hole. The bar does not pass above the bottom sheet
+          // any more: the sheet is z-52 against the bar's z-50 and paints OVER
+          // it, so there is nothing underneath for its last action to be stuck
+          // behind — and the padding that reserved the bar's height went with
+          // the rank. A rule holding « reserve the height of a bar you cover »
+          // would refuse the decision the operator took. What holds the sheet
+          // now is R101 (`harness/stacking.py`): it is PAINTED over the bar,
+          // and its body reserves nothing.
           R.screenReserve = null;
           const bar = document.querySelector('[data-part="shell/tab-bar"]').getBoundingClientRect().height;
           // Every screen migrated off `#screen` onto a real route is a LAYER
@@ -206,7 +217,7 @@ async def main():
           // would leave every state that opens a route inspecting nothing at
           // all: its `[data-part="viewport"]` padding and the reachability of its last action
           // are exactly what this rule holds on it.
-          const layers = [['#screen','[data-part="viewport"]'],['#sheet','[data-part="sheet/viewport"]'],
+          const layers = [['#screen','[data-part="viewport"]'],
                           ['[data-part="screen"][data-open][data-key]','[data-part="viewport"]']];
           for (const [sel, inner] of layers) {
             const el = document.querySelector(sel);

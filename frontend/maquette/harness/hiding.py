@@ -83,6 +83,21 @@ READ_MESSAGE = """()=>{
 }"""
 
 
+async def settled(page, predicate, budget=3000):
+    """Poll `predicate` until it holds, and return how long it took.
+
+    Returns the elapsed milliseconds, or None if the budget ran out — so a
+    caller can tell « it happened, here is when » from « it never happened »
+    and hold each of them separately.
+    """
+    started = time.monotonic()
+    while (time.monotonic() - started) * 1000 < budget:
+        if await page.evaluate(predicate):
+            return round((time.monotonic() - started) * 1000)
+        await page.wait_for_timeout(25)
+    return None
+
+
 async def main():
     global _journal
     _journal = Journal("R86 — what is declared invisible is invisible")
@@ -199,7 +214,22 @@ async def main():
         #    cancelled long before this line and is not what is being waited on.
         await page.wait_for_timeout(2600)
         await page.evaluate("()=>document.getElementById('toastx').click()")
-        await page.wait_for_timeout(400)
+        # WAIT FOR THE MESSAGE TO BE GONE, DO NOT SLEEP FOR IT. A flat 400 ms
+        # against a 200 ms leave is a wide margin on an idle machine and a coin
+        # toss when eight browsers share four cores: the message was still
+        # hit-testable, `elementFromPoint` answered « the message », and the
+        # collision hold below went red for the machine's load rather than for
+        # anything about the frame. Its own subject is the QUIET state, so
+        # reaching that state is a precondition, not the measurement — and a
+        # message that never leaves fails here, loudly, instead of failing the
+        # hold that comes after it.
+        left = await settled(
+            page,
+            "()=>{const m=document.getElementById('toast');"
+            " return !m.hasAttribute('data-shown')"
+            " && getComputedStyle(m).visibility === 'hidden';}")
+        check("the message this rule raised actually leaves", left is not None,
+              "still on screen after 3 s" if left is None else f"{left} ms")
         quiet = await page.evaluate(READ_MESSAGE)
         check("with no message, the page's action button is on screen",
               not quiet["buttonHidden"] and quiet["buttonDisplay"] != "none", str(quiet))

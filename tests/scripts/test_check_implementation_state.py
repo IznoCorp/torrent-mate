@@ -116,3 +116,36 @@ def test_squash_subject_is_matched_by_its_number_only(guard) -> None:
     assert module.pull_request_landed(521, ["x (#52)", "y (#5210)"]) is False
     assert module.pull_request_landed(521, ["z (#521)"]) is True
     assert module.pull_request_landed(521, ["Merge pull request #521 from a/b"]) is True
+
+
+# B-246 — the version arm read `version 0.98.55` and not `version **0.98.55**`,
+# while every row of that table writes its pull request in bold. The row was
+# then held by ONE of the two arms, and the guard said so about neither: the
+# no-version branch exited 0 in silence, which in a log is indistinguishable
+# from a `no-version-bump` wave legitimately declaring none.
+#
+# Both tests below fail against the guard as it stood before the fix: the first
+# because a bold version was not parsed at all (exit 0 over a version `main`
+# has passed), the second because nothing was printed to compare.
+
+
+@pytest.mark.parametrize(
+    "cell",
+    [
+        "L10-bis, version 0.98.51, PR #999",
+        "L10-bis, version **0.98.51**, PR #999",
+        "L10-bis, version *0.98.51*, PR #999",
+        "L10-bis, version `0.98.51`, PR #999",
+    ],
+)
+def test_emphasis_is_part_of_the_versions_spelling(guard, cell: str) -> None:
+    """A version `main` has passed is refused however the row emphasises it."""
+    module, tmp_path = guard
+    assert _run(module, _state(tmp_path, cell)) == 1
+
+
+def test_a_row_naming_no_version_says_so_rather_than_passing_mutely(guard, capsys) -> None:
+    """« declares no version » and « I could not parse one » must not be one silence."""
+    module, tmp_path = guard
+    assert _run(module, _state(tmp_path, "L15, PR #999, prose only")) == 0
+    assert "no version" in capsys.readouterr().out

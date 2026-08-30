@@ -36,296 +36,31 @@
 }
 
 /* ── Bottom bar ──────────────────────────────────────────────────── */
-/* The bar is an empty `<nav>` in the document; the engine writes its tabs. */
-html.selecting .bottombar {
-  display: none;
-}
-.bottombar a,
-.bottombar button {
-  display: flex;
-  min-height: 44px;
-  min-width: 0;
-  flex: 1 1 0%;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-2);
-  padding-block: var(--spacing-4);
-  font-size: var(--text-3);
-  border: 0;
-  background: transparent;
-  color: var(--color-muted-foreground);
-  transition: color var(--duration-1) var(--ease-standard);
-}
-.bottombar button[aria-current="page"] {
-  color: var(--color-primary-text);
-}
-.bottombar svg {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-}
-.bottombar .lb {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
-}
-/* The badge is a CORNER SUPERSCRIPT on the icon — never a third flow child,
-   which would make the tab taller. */
-.bottombar .ic {
-  position: relative;
-  display: inline-flex;
-}
-.navbadge {
-  position: absolute;
-  right: -10px;
-  top: -6px;
-  display: inline-flex;
-  height: 18px;
-  min-width: 18px;
-  align-items: center;
-  justify-content: center;
-  padding-inline: var(--spacing-2);
-  border-radius: var(--radius-full);
-  /* PRIMARY, not danger: that is NavCountBadge's value. Red is reserved for
-     the « ? » of an unavailable counter. */
-  background: var(--color-primary);
-  color: var(--color-primary-foreground);
-  font-size: var(--text-2);
-  font-weight: 600;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  box-shadow: var(--mq-shadow-badge);
-  outline: 2px solid var(--color-sidebar);
-}
+/* NOTHING. The bar is `app/tab-bar.tsx` since L15, and its seven rules went
+   with it into `ui/variants/layout.ts` — the same declarations, term for term,
+   written as utilities. The oracle's `shell/bottom-bar` region is what says
+   they are the same. */
 
 /* ── Toast ───────────────────────────────────────────────────────── */
-.toast.show {
-  opacity: 1;
-  visibility: visible;
-  transform: none;
-}
+/* NOTHING. `.toast.show` was the last declaration this stylesheet held for the
+   message; the layer is `ui/toast.tsx` since L15 and says what `show` MEANT in
+   its own variant. The class name stays, as an identity anchor rules select. */
 
 /* ── Navigation drawer ───────────────────────────────────────────── */
-/* The drawer is an empty `<aside>` in the document; the engine writes its
-   header, its three titled sections and the version card. Mirrors
-   `NavSections`, and the mobile drawer is the ONLY place the version
-   reaches the phone. `.drawer.open` is engine-toggled. */
-.drawer.open {
-  transform: none;
-  visibility: visible;
-}
-.drawer .dh {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-4);
-  padding: calc(env(safe-area-inset-top) + var(--spacing-7)) var(--spacing-7) var(--spacing-7);
-  border-bottom: 1px solid var(--color-border);
-  font-size: var(--text-5);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-.drawer nav {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-2);
-  padding: var(--spacing-4);
-}
-.drawer .sect {
-  padding: var(--spacing-5) var(--spacing-6) var(--spacing-2);
-  font-size: var(--text-1);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-muted-foreground);
-}
-.drawer .sect + .sect,
-.drawer .grp + .grp {
-  border-top: 1px solid var(--color-border);
-  margin-top: var(--spacing-3);
-  padding-top: var(--spacing-5);
-}
-.drawer a {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-6);
-  min-height: 44px;
-  padding: var(--spacing-4) var(--spacing-6);
-  border-radius: var(--radius-3);
-  font-size: var(--text-4);
-  color: var(--color-foreground);
-}
-.drawer a[aria-current="page"] {
-  /* « You are here » is the brand colour on the label — the same mark the
-     bottom bar uses, so one interface has one way of saying it. The row also
-     carries a surface, because a list is scanned and its current row has to
-     be found without reading five labels; that surface is a TINT of the
-     mark, never the mark itself. Painting the mark as the background left
-     the label exactly the colour of what it sat on: contrast 1.00, a label
-     written in invisible ink. */
-  background: color-mix(in oklab, var(--color-primary) 14%, transparent);
-  color: var(--color-primary-text);
-  font-weight: 600;
-}
-.drawer a svg {
-  width: 20px;
-  height: 20px;
-  flex: 0 0 auto;
-}
-.drawer a .count {
-  margin-left: auto;
-  display: inline-flex;
-  height: 18px;
-  min-width: 18px;
-  align-items: center;
-  justify-content: center;
-  padding-inline: var(--spacing-2);
-  border-radius: var(--radius-full);
-  background: var(--color-primary);
-  color: var(--color-primary-foreground);
-  font-size: var(--text-2);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.drawer .ver {
-  border-top: 1px solid var(--color-border);
-  padding: var(--spacing-6) var(--spacing-7) calc(env(safe-area-inset-bottom) + var(--spacing-6));
-}
-.drawer .ver .vt {
-  font-size: var(--text-2);
-  color: var(--color-muted-foreground);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 600;
-}
-.drawer .ver .vv {
-  font-size: var(--text-7);
-  font-weight: 700;
-  margin-top: var(--spacing-1);
-}
-.drawer .ver .vc {
-  font-family: ui-monospace, Menlo, monospace;
-  font-size: var(--text-2);
-  color: var(--color-muted-foreground);
-  margin-top: var(--spacing-1);
-}
+/* NOTHING. The drawer is `app/drawer.tsx` since L15 — the `<aside>`'s box came
+   from `index.html` and its children's thirteen rules from here, so its styling
+   stood in two places and now stands in one (`ui/variants/frame.ts`). The
+   identity classes stay at the front of every variant: `drawer`, `open`, `dh`,
+   `sect`, `grp`, `ver`, `vt`, `vv`, `vc`, `count`. */
 
-/* ── Confirmation dialog ─────────────────────────────────────────── */
-/* The dialog is written by the ENGINE — `dlgbtn`, `dlgacts`, `warnbox`,
-   `manifest` and `dryrun` appear in no component. */
-.dlg {
-  position: absolute;
-  left: 16px;
-  right: 16px;
-  top: 50%;
-  z-index: 48;
-  background: var(--color-popover);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-4);
-  padding: var(--spacing-7);
-  box-shadow: var(--mq-shadow-dlg);
-  transform: translateY(-50%) scale(0.96);
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity var(--duration-2) var(--ease-standard),
-    transform var(--duration-2) var(--ease-standard);
-}
-.dlg.open {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(-50%) scale(1);
-}
-.dlg h2 {
-  margin: 0 0 var(--spacing-4);
-  font-size: var(--text-5);
-  font-weight: 700;
-}
-.dlg p {
-  margin: 0 0 var(--spacing-5);
-  font-size: var(--text-3);
-  line-height: 1.45;
-  color: var(--color-muted-foreground);
-}
-.dryrun {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-3);
-  font-size: var(--text-2);
-  font-weight: 600;
-  color: var(--color-info);
-  border: 1px solid color-mix(in oklab, var(--color-info) 40%, transparent);
-  border-radius: var(--radius-2);
-  padding: var(--spacing-4) var(--spacing-5);
-  margin-bottom: var(--spacing-5);
-}
-.dryrun svg {
-  width: 14px;
-  height: 14px;
-  flex: 0 0 auto;
-}
-.manifest {
-  list-style: none;
-  margin: 0 0 var(--spacing-5);
-  padding: 0;
-  font-size: var(--text-3);
-}
-.manifest li {
-  display: flex;
-  gap: var(--spacing-4);
-  padding: var(--spacing-2) 0;
-  border-bottom: 1px solid var(--color-border);
-  color: var(--color-muted-foreground);
-}
-.manifest li:last-child {
-  border-bottom: 0;
-}
-.manifest b {
-  color: var(--color-foreground);
-  font-weight: 600;
-  margin-left: auto;
-  white-space: nowrap;
-}
-.warnbox {
-  border: 1px solid color-mix(in oklab, var(--color-warning) 45%, transparent);
-  background: color-mix(in oklab, var(--color-warning) 8%, transparent);
-  border-radius: var(--radius-2);
-  padding: var(--spacing-4) var(--spacing-5);
-  font-size: var(--text-3);
-  line-height: 1.45;
-  margin-bottom: var(--spacing-5);
-}
-.warnbox b {
-  color: var(--color-warning);
-}
-.dlgacts {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-3);
-}
-.dlgbtn {
-  width: 100%;
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-foreground);
-  font-size: var(--text-4);
-  font-weight: 600;
-  padding: var(--spacing-5);
-  border-radius: var(--radius-3);
-}
-.dlgbtn.danger {
-  background: var(--color-danger-fill);
-  border-color: var(--color-danger-fill);
-  color: var(--color-white);
-}
-.dlgbtn.ghost {
-  color: var(--color-muted-foreground);
-  border-color: transparent;
-}
+/* ── Confirmation dialog ───────────────────────────────────────── */
+/* NOTHING. The dialog is `ui/dialog/index.tsx` since L15, drawn from a
+   DESCRIPTOR rather than from an HTML string, and its 16 rules — the box, the
+   two typographic rules, the simulation notice, the manifest, the warning, the
+   action row and the three button tones — are utilities behind typed variants
+   in `ui/variants/frame.ts`. The identity classes stay at the front of each:
+   `dlg`, `open`, `dryrun`, `manifest`, `warnbox`, `dlgacts`, `dlgbtn`,
+   `danger`, `ghost`. */
 
 /* ── Screen layer ────────────────────────────────────────────────── */
 /* `.screen.open` is engine-toggled. */
@@ -1180,41 +915,11 @@ border-radius: var(--radius-3);
 .selrow .csub {
   display: block;
 }
-.selbar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 51;
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-5);
-  padding: var(--spacing-5) var(--spacing-7) calc(env(safe-area-inset-bottom) + var(--spacing-5));
-  background: var(--color-popover);
-  border-top: 1px solid var(--color-border);
-}
-.selbar .n {
-  font-size: var(--text-3);
-  font-weight: 600;
-}
-.selbar button {
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-foreground);
-  font-size: var(--text-3);
-  font-weight: 600;
-  padding: var(--spacing-4) var(--spacing-6);
-  border-radius: var(--radius-3);
-}
-.selbar button.danger {
-  background: var(--color-danger-fill);
-  border-color: var(--color-danger-fill);
-  color: var(--color-white);
-  margin-left: auto;
-}
-.selbar button.danger:disabled {
-  opacity: 0.45;
-}
+/* THE SELECTION BAR'S FIVE RULES ARE GONE. The bar is
+   `features/library/selection-bar.tsx` since L15, drawn into the frame's
+   bottom slot, and its declarations are utilities behind typed variants —
+   term for term, with the oracle's `shell/library-list` and the
+   `lib-selection` state to say so. */
 .linkbtn {
   border: 0;
   background: transparent;
@@ -1893,26 +1598,10 @@ border-radius: var(--radius-3);
    background: its edges could not be found, so it read as text hovering in
    mid-air rather than as a thing with limits. The accent is the only colour
    in the palette that separates from everything the app draws behind it. */
-.eppop {
-  position: fixed;
-  z-index: 60;
-  width: 220px;
-  border-radius: var(--radius-2);
-  border: 1px solid var(--color-primary);
-  background: var(--color-popover);
-  padding: var(--spacing-4) var(--spacing-6);
-  font-size: var(--text-3);
-  line-height: 1.45;
-  color: var(--color-foreground);
-  box-shadow: var(--mq-shadow-toast);
-}
-.eppop b {
-  display: block;
-  font-size: var(--text-2);
-  color: var(--color-muted-foreground);
-  font-weight: 600;
-  margin-bottom: var(--spacing-1);
-}
+/* THE EPISODE POPOVER'S TWO RULES ARE GONE. The layer is `ui/popover.tsx`
+   since L15 and its declarations are utilities behind typed variants; the
+   identity class `eppop` stays at the front of the variant, because rules
+   select it. */
 .ep {
   cursor: pointer;
 }
@@ -2490,11 +2179,15 @@ margin: 0;
    `sact` never appeared in a scan for literal `class="…"` strings. The oracle
    found it as 8.9px — exactly what a button loses when its `min-height: 44px`
    goes. */
+/* `.dlgbtn` LEFT THIS LIST AT L15, with the dialog it belonged to. It was one
+   of five names sharing the action-button system; the other four are still the
+   engine's markup, and the dialog's button carries the whole of what this rule
+   gave it inside `dialogButton()` — the union of this rule and the one below
+   it, resolved the way the cascade resolved them. */
 .sact,
 .cfoot,
 .mediaadd,
-.btnprimary,
-.dlgbtn {
+.btnprimary {
   display: flex;
   align-items: center;
   justify-content: center;
