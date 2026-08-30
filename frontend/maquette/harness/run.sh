@@ -146,6 +146,14 @@ CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.
 # family over a 35 198-line file; the extractor answers `--all` in one pass now.
 # A tier nobody can afford to run is a tier nobody runs.
 #
+# `check-viewport-directives.py` joined at L15 with B-230, and it belongs here
+# for a reason the accessibility tier makes plain: axe reports `meta-viewport`
+# when the directive is PRESENT on the document it audits, and B-230 was never
+# present on THIS document — the dying engine added it only to a host that had
+# none. So the branch was dead here and live on every other host the file could
+# be served from, and the tier written to catch exactly that violation could not
+# see it. It reads FILES, in 0.1 s, comments included.
+#
 # `check-bug-register.py` joined at L10-bis and it belongs here for a reason
 # the others do not have: the register is written DURING a wave (B-084), so
 # `BUGS.md` is a file every maquette phase edits, and its index is where a
@@ -181,6 +189,7 @@ REPOSITORY_GUARDS=(
   "scripts/check-implementation-state.py"
   "scripts/check-bug-register.py"
   "scripts/check-frame-domain.py"
+  "scripts/check-viewport-directives.py"
   "scripts/compare-contracts.py --check"
 )
 REPOSITORY_ROOT="$(cd "$HERE/../../.." && pwd)"

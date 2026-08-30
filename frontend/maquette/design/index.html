@@ -3,13 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <base href="/" />
-    <!-- NO `maximum-scale` AND NO `user-scalable=no`, and it is a decision
+    <!-- NO maximum scale, AND NO user-scalable refusal, and it is a decision
          rather than an omission. Those two directives forbid the pinch-zoom
          WCAG 1.4.4 requires, and axe reported the failure on all 83 named
          states — the single largest per-state count in the wave's opening
          measurement. They were there to stop iOS zooming a focused input; iOS
-         Safari has ignored `user-scalable=no` since version 10, so what they
-         actually bought was the violation. -->
+         Safari has ignored the second since version 10, so what they actually
+         bought was the violation.
+
+         NEITHER IS SPELLED OUT HERE, and that is `check-viewport-directives.py`
+         doing its job: it reads comments too, because a directive commented out
+         is one edit away from being live. The one file allowed to name them is
+         the guard itself. -->
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>TorrentMate Design</title>
     <!-- pwa:start — the document half of installability. The server half

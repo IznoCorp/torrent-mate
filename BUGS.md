@@ -289,7 +289,7 @@ when the defect comes back.
 | B-227 | The post-merge gesture was missed at the close of L09, L10 and L10-bis, and § 5’s guard for it stayed a sentence | by audit | `fixed #518` |
 | B-228 | The brief's inventory command reads twelve of thirteen writes | by survey | `open` |
 | B-229 | The confirmation dialog is not on the back ladder | by survey | `fixed #528` |
-| B-230 | The engine re-adds `user-scalable=no` to any host without a viewport meta | by survey | `open` |
+| B-230 | The engine re-adds a viewport refusal to any host without a viewport meta | by survey | `fixed #528` |
 | B-231 | The tab bar is rebuilt from scratch on every render | by survey | `open` |
 | B-232 | Two dead layers: the page-render branch and `#screen` | by survey | `open` |
 | B-233 | `theme-color` is a constant while the document paints light | by survey | `fixed #528` |
@@ -308,6 +308,37 @@ when the defect comes back.
 | B-246 | The « In flight » row's version arm is defeated by markdown emphasis, in silence | by L15 | `fixed #528` |
 | B-247 | A store bump replaces a feature page's nodes, so a write between press and click destroys the click | by L15 | `open` |
 | B-250 | `check-live-relay`'s stale-figure arm cannot tell a register citation from a frozen count | by L15 | `fixed #528` |
+
+**B-230 — the viewport fallback is deleted, and a guard refuses its pair anywhere.**
+Closed by L15, alone. `legacy.js:41–50` added a viewport meta — carrying a maximum scale and a
+user-scalable refusal — to any host that had none. **Deleted rather than corrected**: « a page that
+does not own its `<head>` » is not a case this prototype has (`index.html` IS the document and
+`serve.py` serves it), so a fallback for a host nobody serves is machinery nobody can justify, which
+is D5's own shape.
+
+**Why the accessibility tier could not see it, and why the answer is a file guard.** axe reports
+`meta-viewport` when the directive is PRESENT on the document it audits, and this one never was:
+the branch fired only on a host that had no meta, and the maquette's has one. Dead here, live on
+every other host the file could be served from — a landmine is not a defect, it is a defect waiting
+for a different reader. `scripts/check-viewport-directives.py` reads every source under `design/` —
+markup, script AND stylesheet, because the defect was a STRING built in JavaScript — comments
+included, because a directive commented out is one edit away from being live. The only file allowed
+to spell either of them is the guard itself, which is why `index.html`'s own comment now names them
+without spelling them.
+
+**Its first version had the split-literal blind spot**, found by the mutation that restored the
+directive as `"maximum" + "-scale=1"`: a reader of raw text saw neither half. Adjacent string
+literals are folded before the search now. What it still cannot see is stated in its own docstring
+rather than left to be discovered: a value composed at RUNTIME. No reader of source text can, and a
+guard claiming otherwise would claim more than it does.
+
+**The inventory this closes.** `SURVEY.md` § 1.1's command listed nineteen sites when this wave
+opened, one of which « draws nothing at all » — this one. It lists **nine** now: seven of the
+Découvrir feed (L19's) and two of the harness panel, which ships nowhere.
+
+<sub>`python3 scripts/check-viewport-directives.py` — 165 source file(s), floor 50, 0 violation(s). In the contracts tier as the twenty-first cheap guard.</sub>
+
+---
 
 **B-245 and B-233 — the appearance survives a reload, and the status bar follows it.**
 Both closed by L15, in one commit because they are one surface and one rule (R102,

@@ -38,16 +38,19 @@ import { icons } from "../app/icons";
   /* TorrentMate — mobile-first redesign prototype
      Data: real library titles (1,861 items). */
 
-  /* This page does not own its <head>. Without a viewport meta a phone falls
-     back to the legacy 980px layout viewport and scales the whole frame down
-     to ~40% — measured, not feared. Add one only if the host did not. */
-  if (!document.querySelector('meta[name="viewport"]')) {
-    const createElement = document.createElement("meta");
-    createElement.name = "viewport";
-    createElement.content =
-      "width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no";
-    document.head.appendChild(createElement);
-  }
+  /* THE VIEWPORT FALLBACK IS GONE (B-230), and it is deleted rather than
+     corrected. It added a viewport meta carrying a maximum scale and a
+     user-scalable refusal to any host that had none — the exact pair L03
+     removed for WCAG 1.4.4, restored by a branch nobody reads. Dead on this
+     host, which has one; live on any host that does not, which is what makes
+     it a landmine rather than a defect: axe reports the violation when the
+     directive is PRESENT on the served document, and it never was here.
+
+     « A page that does not own its <head> » is not a case this prototype has:
+     `index.html` IS the document and `serve.py` serves it. A fallback for a
+     host nobody serves is machinery nobody can justify, which is D5's own
+     shape, and `scripts/check-viewport-directives.py` now refuses the pair
+     anywhere under `design/`. */
 
   const svgIcon = (paths, strokeWidth) =>
     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth || 2}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
