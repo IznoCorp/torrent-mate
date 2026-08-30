@@ -325,8 +325,9 @@ other direction — a rule can PASS over the wrong prototype just as silently. `
 unconditionally at every invocation; the harness README warns only that a STALE copy measures the
 previous build. **No instrument reaches this without a build stamp the rules read** (write the built
 commit into the copy, have every rule assert it at start), and no lot owns the harness's serving
-mechanism — the convention (two sessions coordinate by message first) is in `frontend-steward.md`,
-and the stamp is proposed to the operator to place.
+mechanism — the convention (two sessions coordinate by message first) is in `frontend-steward.md`.
+**Placed by the operator on 2026-08-30: the stamp rides the next wave — L11, in flight — and its
+agent is told.**
 
 <sub>`grep -n "cp .*wrapped.html\|tm-refonte" frontend/maquette/harness/run.sh` · `grep -c "stale" frontend/maquette/README.md`</sub>
 
@@ -378,8 +379,7 @@ contract, which D8 already stated for pseudo-elements and now states for descend
 surfaces are repaired and held by nothing**: the light-theme ratchet stayed at 166 across the defect
 and its repair. D8's contract is that a child carrying a function is covered by a NAMED rule: one
 that reads `color` of `.dlg p` under both themes, one that reads the danger action's contrast under
-`data-theme="light"`. Open; proposed to **L12** (the next lot that redraws the layers' states) unless
-the operator places it — the steward proposes and does not arbitrate.
+`data-theme="light"`. **Placed by the operator on 2026-08-30: L12's**, written into its entry in the plan.
 
 <sub>`sed -i '' 's/ text-muted-foreground"/"/' frontend/maquette/design/src/ui/variants/frame.ts && make maquette-oracle; git checkout -- frontend/maquette/design/src/ui/variants/frame.ts` → 167 both ways</sub>
 

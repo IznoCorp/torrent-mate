@@ -1264,6 +1264,10 @@ shared-element transition tear.
 
 **Where it lives (invariant 10).** A gesture arbitration is vocabulary: it belongs to `ui/` or `lib/`. What stays feature-local is which gesture a given surface offers, never how a press, a drag and a scroll are told apart.
 
+**It also owes B-252's two rules (operator, 2026-08-30)**: one reading `color` of the dialog's
+paragraph under both themes, one reading the danger action's contrast under `data-theme="light"`
+— the two child-node defects D8's descendants clause records.
+
 **Re-read against the model by L10-ter (2026-08-29): UNCHANGED in objective, RE-CUT in what it
 may assume.** It depends on L15 now: a view transition between the drawer, a dialog and a page
 needs each of them to be a component, and they are engine markup until L15. The arbitration moves
@@ -1400,9 +1404,6 @@ surfaces as new.
 
 #### L16 — §18, the ratio · *depends on L15, L19, L10*
 
-**§18's open points are still to dictate** (which actions, what is shown of a tracker beyond the
-ratio, whether the interface proposes a decision) — its blocking note stands.
-
 **Objective.** DOIT-13: the ratio is read PER TRACKER, obligations are a « rien » with their
 reason, and a tracker's policy is set from the surface that shows it. Three operations answer and
 nothing calls them (`GET /api/acquisition/obligations`, `/stalled-grabs`, `/downloads`); one
@@ -1410,9 +1411,15 @@ write — the policy — exists in neither contract and will be recorded as a de
 `RatioMeasured` and `SeedObligation*` events reach the browser and no surface claims them
 (`frontend-backend-demands-stream.md` § 3); this lot's `live.ts` does.
 
-**Blocking note.** §18's « Ce que cela ne tranche pas » — which actions, what is shown of a
-tracker beyond the ratio, whether the interface proposes a decision — is dictated before the wave
-opens. § 0's rule then takes the next eligible lot.
+**Dictated (operator, 2026-08-30) — the blocking note is lifted.** One action: RELEASE an
+obligation early — including when the stop happens by removing the torrent in qBittorrent by hand,
+a HANDLED case the obligation closes by saying so, never a silent anomaly (the reconciliation is a
+backend demand). A per-tracker ratio ALERT with a threshold — later a push notification (FCM, iOS
+and Android; a platform demand that plugs into L11's entry points). Ranking may subtract points
+from releases on low-ratio trackers (a scoring demand). Shown beyond the ratio: Download / Upload
+volumes, the trend, and per ACTIVE torrent its deadline and its ratio. **No proposed decision**:
+the interface exposes, the operator judges. The backend's share is recorded in
+`backend-demands-architecture.md` § 4.
 
 **Where it lives (invariant 10).** `features/trackers/` — a tracker is a domain of its own, read
 by the acquisition and the media sheet, and invariant 7 forbids either from importing the other.
@@ -1433,8 +1440,13 @@ them, the mocks are INVENTED because no fixture exists (L08's « seeded from the
 replaces » does not apply, and the oracle records the new surfaces as new rather than proving
 them unchanged). `CrossSeedInjected` and `CrossSeedRejected` are claimed by its `live.ts`.
 
-**Blocking note.** §19's three open points — automatic, proposed or manual; the feed, the
-per-tracker state, or both; where it lives — are dictated before the wave opens.
+**Dictated (operator, 2026-08-30) — the blocking note is lifted.** AUTOMATIC: the engine
+cross-seeds alone, on by default, with a PER-TRACKER off switch (a config write, NE-DOIT-PAS-6
+made into a setting). Seen: for EACH torrent, the cross-seed state per tracker — « actif »,
+« stoppé », « tracker sans cross-seed », « erreur de cross-seed ». Lives: the per-tracker state in
+the trackers page, plus a per-tracker block in the media sheet **visible to the administrator
+profile only** — which reads §17's role model: if this lot runs before L18, the block lands behind
+the served role the backend already exposes, and L18 redraws it on the full model.
 
 **Where it lives (invariant 10).** `features/trackers/` extended (the per-tracker state), a block
 in the media sheet's descriptor (a title seeds elsewhere — the media feature's `panel-seasons`
