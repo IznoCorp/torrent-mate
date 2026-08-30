@@ -1149,7 +1149,8 @@ a line added to the engine that is neither is the defect.
 
 **What it must not do.** Extend a grandfathered file — `features/acquisition/page.tsx` and
 `features/library/page.tsx` are two of L14's four, and the selection bar and the Découvrir
-containers live beside them in new files. Move a producer (L19). Move the handler (L13). Draw a
+containers live beside them in new files. Draw a desktop rail: **Q1 was answered on 2026-08-30 —
+the drawer alone, at every width, and not frozen**; a rail is drawn only if real use asks for it. Move a producer (L19). Move the handler (L13). Draw a
 pixel differently: the rendering of every part is validated (mission of 2026-08-19).
 
 **It builds B-142's instrument.** The map is `docs/reference/product-intent-map.md`; the arm is
@@ -1191,7 +1192,11 @@ landing on `/add`, `launch_handler`, `handle_links` — recommended all three, d
 **Done when.** The application opens and reads offline (P7, a rule under `context.set_offline`);
 a mutation issued offline departs on reconnection, exactly once (P8, on L10's fake transport);
 installation and its entry points are exercised on a real device, and the entry points Q4
-selects are declared in the manifest and reached by a rule.
+selects are declared in the manifest and reached by a rule. **Q4 was answered on 2026-08-30: all
+three** — `share_target` landing on `/add` pre-filled, `launch_handler`, `handle_links` — and a
+principle with it: **every entry point the platform offers an installed application is declared,
+unless a written reason says why not.** « La meilleure intégration possible » is the operator's
+phrase and the lot's bar.
 
 ### Phase 4 — Native interaction
 
@@ -1261,9 +1266,48 @@ a headless browser.
 
 ### Phase 5 — The producers, and what the constitution owes
 
-Declared by L10-ter on 2026-08-29. The first lot is D5 applied to the sheets — the pass « surface
-by surface » never made; the four after it are the constitution's, each blocked on a dictated
-answer until the operator gives it, and each drawn in the maquette first like every surface.
+Declared by L10-ter on 2026-08-29, ordered by the operator's answers of 2026-08-30. L14 first
+(pulled forward, Q3); then D5 applied to the sheets — the pass « surface by surface » never made;
+then the global levers; then the constitution's three, each drawn in the maquette first like every
+surface — L16 and L17 still blocked on a dictated answer, L18 no longer.
+
+#### L14 — The surfaces that outgrew their file · *depends on L07, L09*
+
+**Objective.** The four feature surfaces that sit over the 400-line hard ceiling come back under
+it, by decomposition: `features/acquisition/page.tsx` (756), `features/media/media-screen.tsx`
+(796), `features/library/page.tsx` (613), `features/arrivals/resolution-screen.tsx` (430).
+
+**Why it exists as a lot rather than as a line in someone else's.** It was one, and the promise
+expired unpaid. Those four files carried the label « L09 — the data layer takes it » in
+`check-frontend-boundaries.py`'s grandfather list, and L09 landed having reduced the largest of
+them by **thirteen lines out of the three hundred and fifty-six it owed**. The premise was simply
+wrong: what makes those files long is not the fetching L09 moved out, it is markup and variants —
+`page.tsx` holds four whole tabs, `media-screen.tsx` holds a season list and an icon set, and the
+same `Icon` component is written out twice in two different files.
+
+**Why nobody noticed.** The label was held against the plan's own per-lot status, and that status
+said `NOT STARTED` for L09 for a full wave after L09 merged. A guard reading a stale word reported
+a promise that had already expired. The status left the plan on 2026-08-28 for that reason among
+others; this lot is the debt the stale word was hiding.
+
+**Where it lives (invariant 10).** Each extracted component stays inside its own feature folder
+unless a second feature already reads it. The duplicated `Icon` is the one exception in sight: a
+component two features draw is vocabulary, and vocabulary lives in `ui/`.
+
+**Its position in this file was last, deliberately, and the operator pulled it forward on
+2026-08-30** (Q3): nothing depends on it, but L19 — the lot that moves the producers out of two of
+these four files — works far better in files already cut. It sits at the head of Phase 5 now.
+
+**Re-read against the model by L10-ter (2026-08-29): UNCHANGED in objective; the sentence above
+was refreshed** (it named « L10 to L13 » as the lots worked in oversized files, and the list has
+grown). Two lots now write beside its four files before it runs — L15 (the selection bar, the Découvrir containers) and L19 (the
+producers) — and neither may extend them; each creates its files beside the page. **Q3 was answered on 2026-08-30: before L19** — this lot now sits at the head of Phase 5, so the
+producers move into files already cut.
+
+**Done when.** No file under `frontend/maquette/design/src` is at or over 400 non-blank lines with
+the sole exception of the dying engine's two, `engine/legacy.js` and `engine/states.js`, which
+L13 removes; no component is written out twice; every extraction is proved by the oracle, whose
+whole subject is that nothing moved on the screen.
 
 #### L19 — The producers · *depends on L15, L09, L12*
 
@@ -1300,27 +1344,38 @@ harness panel; the fixture families that fed the producers are gone (D5's bracke
 reads the difference); the delegation handles only the frame's verbs; the four map rows above
 read `served` with a rule that bit; the oracle is green or its divergences accepted with reasons.
 
-#### L20 — The control station · *depends on L15, L19, L10*
+#### L20 — The global levers and the history · *depends on L15, L19, L10*
 
-**Objective.** The two pages the mission re-opened — `/control` (8 panels) and `/pipeline`
-(10 panels) — drawn where the operator's UX arbitration lands them, and the halves of DOIT-1,
-DOIT-3, DOIT-5 and DOIT-6 only they serve: the pipeline's own states in plain French, « relancer
-le watcher » (`POST /api/pipeline/watcher`), progress to the library (`GET /api/pipeline/stages`),
-a run's figures (`GET /api/pipeline/history/{run_uid}`). The tab-bar badge for a running pipeline
-is one row in the navigation table, if **Q6** says yes.
+**Objective.** What remains of « the control station » once §20 is dictated: the **global
+levers** — the parallelism bound (how many tunnels run at once), pause and resume of everything,
+« relancer la veille » (`POST /api/pipeline/watcher`) — and the **history** of passages with a
+run's figures (`GET /api/pipeline/history/{run_uid}`, DOIT-6). It was declared on 2026-08-29 as
+« `/control` (8 panels) and `/pipeline` (10 panels) »; **on 2026-08-30 the operator dictated §20
+— a tunnel per media — and a page showing THE run lost its subject**: the pipeline is followed
+per media, through the acquisition tunnel the maquette already draws (a card's progress, the
+journey sheet, the Arrivées' blocked queue with its reasons). What those two production pages
+carried is therefore split: the per-media half is **L19's** (the producers of exactly those
+surfaces), the global half is this lot's, and there is **no Pipeline tab and no pipeline badge**
+(the operator's Q6 answer) — the chrome shows what awaits the operator, and the Acquisition and
+Arrivées badges already do.
 
-**Blocking note.** Where the panels land — Arrivées / Système / Maintenance / Configuration, or
-pages of their own — is the operator's open UX question in `IMPLEMENTATION.md`, and it is answered
-before the wave opens.
+**Blocking note.** Where the levers land — a page of their own, or a section of Système — is the
+operator's UX question, answered in the wave's design before it opens; the per-media half is no
+longer a question, §20 answers it.
 
-**Where it lives (invariant 10).** `features/pipeline/` and `features/control/`, or the four
-features the panels are redistributed into — the arbitration decides, the design says.
+**Where it lives (invariant 10).** `features/pipeline/` for the levers and the history, or the
+Système feature if the design puts them there; the bound is a setting and reads through the
+settings feature's contract.
 
-**Done when.** The four map rows read `served` with a rule; the three operations are called and
-mocked; every named state of the two pages renders at 390 px with no overflow; the oracle records
-them as new.
+**Done when.** DOIT-3's « relancer le watcher », DOIT-5's progress to the library and DOIT-6's
+figures read `served` in the map with a rule; the bound, the pause and the watcher are called and
+mocked; the history renders every named state at 390 px with no overflow; the oracle records the
+surfaces as new.
 
 #### L16 — §18, the ratio · *depends on L15, L19, L10*
+
+**§18's open points are still to dictate** (which actions, what is shown of a tracker beyond the
+ratio, whether the interface proposes a decision) — its blocking note stands.
 
 **Objective.** DOIT-13: the ratio is read PER TRACKER, obligations are a « rien » with their
 reason, and a tracker's policy is set from the surface that shows it. Three operations answer and
@@ -1370,10 +1425,14 @@ visible and explained where hiding it would mislead. A rights MODEL first, then 
 sign-in gate redrawn for Plex SSO; the read-only role ABSORBED by the model — one authorisation
 path (NE-DOIT-PAS-7). `GET /api/auth/me` diverges to carry rights (D7, a demand).
 
-**Blocking note.** §17's four open points — which roles and rights; whether Plex SSO replaces or
-joins; a Plex user with no rights; what a Plex account sees by default — are dictated before the
-wave opens. The lot is last of the three because it is the largest and because it is the one
-that edits the FRAME after L15 (the gate, the drawer's identity block), by design.
+**Its four open points were dictated on 2026-08-30** — §17 « Ce que cela tranche »: three roles
+(Operator bypasses ACLs; Household member; Plex guest) and two per-account options; a requester
+on every acquisition; SSO added, not substituted, with e-mail linking; a rights-less Plex user
+admitted read-only on the library; the Acquisition section absent for an account that can neither
+request nor see others' requests, as the named exception to §17 rule 2. **No blocking note
+remains.** The lot is last of the three because it is the largest and because it is the one
+that edits the FRAME after L15 (the gate, the drawer's identity block), by design. The backend's
+share is `docs/reference/backend-demands-architecture.md` § 2–3.
 
 **Where it lives (invariant 10).** `features/account/` for the model and the surfaces; the gate
 stays `app/sign-in.tsx` and is redrawn here — the only lot after L15 that edits frame CODE (L16
@@ -1429,47 +1488,6 @@ path. **Done when** the fragment is gone, R72 is renegotiated with its two survi
 mutation-tested, and the ledger has a home that outlives it. **Any earlier wave may take it** —
 nothing depends on waiting — provided it carries both, and folds neither into a conversion commit.
 
-#### L14 — The surfaces that outgrew their file · *depends on L07, L09*
-
-**Objective.** The four feature surfaces that sit over the 400-line hard ceiling come back under
-it, by decomposition: `features/acquisition/page.tsx` (756), `features/media/media-screen.tsx`
-(796), `features/library/page.tsx` (613), `features/arrivals/resolution-screen.tsx` (430).
-
-**Why it exists as a lot rather than as a line in someone else's.** It was one, and the promise
-expired unpaid. Those four files carried the label « L09 — the data layer takes it » in
-`check-frontend-boundaries.py`'s grandfather list, and L09 landed having reduced the largest of
-them by **thirteen lines out of the three hundred and fifty-six it owed**. The premise was simply
-wrong: what makes those files long is not the fetching L09 moved out, it is markup and variants —
-`page.tsx` holds four whole tabs, `media-screen.tsx` holds a season list and an icon set, and the
-same `Icon` component is written out twice in two different files.
-
-**Why nobody noticed.** The label was held against the plan's own per-lot status, and that status
-said `NOT STARTED` for L09 for a full wave after L09 merged. A guard reading a stale word reported
-a promise that had already expired. The status left the plan on 2026-08-28 for that reason among
-others; this lot is the debt the stale word was hiding.
-
-**Where it lives (invariant 10).** Each extracted component stays inside its own feature folder
-unless a second feature already reads it. The duplicated `Icon` is the one exception in sight: a
-component two features draw is vocabulary, and vocabulary lives in `ui/`.
-
-**Its position in this file is deliberate, and so is what that position costs.** Nothing depends
-on it, so it sits last and § 0's rule will elect it last — which means every lot before it is
-worked inside 600-to-800-line files, and invariant 6's reason (« an agent modifying a component
-opens one file ») is not served for them. It depends on nothing that is not already behind it, so
-the operator may pull it forward between any two lots at any time, and that is a real option
-rather than a formality.
-
-**Re-read against the model by L10-ter (2026-08-29): UNCHANGED in objective; the sentence above
-was refreshed** (it named « L10 to L13 » as the lots worked in oversized files, and the list has
-grown). Two lots now write beside its four files before it runs — L15 (the selection bar, the Découvrir containers) and L19 (the
-producers) — and neither may extend them; each creates its files beside the page. Whether to pull
-this lot forward before L19 is the operator's **Q3** (`QUESTIONS.md`); the recommendation is
-before L19, and it stays last until the answer.
-
-**Done when.** No file under `frontend/maquette/design/src` is at or over 400 non-blank lines with
-the sole exception of the dying engine's two, `engine/legacy.js` and `engine/states.js`, which
-L13 removes; no component is written out twice; every extraction is proved by the oracle, whose
-whole subject is that nothing moved on the screen.
 
 ---
 
