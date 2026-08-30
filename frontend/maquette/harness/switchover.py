@@ -51,7 +51,15 @@ def prepare_scratch() -> None:
         shutil.rmtree(SCRATCH_HOME)
     SCRATCH.mkdir(parents=True)
     design = ROOT / "design"
-    for name in ("refonte.html", "index.html", "vite.config.mjs", "package.json"):
+    # `sw.js` JOINED THIS LIST AT L11 AND HAD TO. The build reads it twice —
+    # once for the identity hash over every source, once to substitute the
+    # bundle names into it — so a scratch tree without it fails the build
+    # outright, and this rule reported « dist never emitted » and four 503s
+    # about a host that was perfectly fine. A build INPUT is a third end: adding
+    # one means every place that assembles a build tree learns about it in the
+    # same move.
+    for name in ("refonte.html", "index.html", "vite.config.mjs", "package.json",
+                 "sw.js"):
         shutil.copy(design / name, SCRATCH / name)
     # The envelope names a module entry: without its source the scratch build
     # cannot resolve it, and the rule would report a broken host where there is

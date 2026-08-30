@@ -376,8 +376,22 @@ if __name__ == "__main__":
         # by name. Folded onto the document they answer 200 `text/html`, the
         # browser logs an unsupported MIME type, and every rule counting console
         # errors fails somewhere that looks nothing like a host setting.
+        #
+        # WHAT IS PRESENT IS EXCLUDED, and that exclusion is measured rather
+        # than assumed. Since L11 the served copy really holds `/sw.js`: the
+        # offline shell needs a worker on this host, so `run.sh` copies the
+        # built one in. Asking a file that EXISTS to 404 was this hold reading
+        # its own premise out of date — the promise is about a MISSING
+        # resource — and the file that exists gets the hold it actually needs,
+        # below.
+        absent = [named for named in FallbackHandler.ASSET_PATHS
+                  if not (PROOF_ROOT / named.lstrip("/")).exists()]
+        journal.check(
+            "the fold hold still has a subject — some named resource is absent",
+            bool(absent),
+            f"{len(absent)} of {len(FallbackHandler.ASSET_PATHS)} absent: {absent}")
         folded = []
-        for named in FallbackHandler.ASSET_PATHS:
+        for named in absent:
             try:
                 with urllib.request.urlopen(f"{base}{named}", timeout=5) as response:
                     if response.status == 200:
@@ -389,6 +403,23 @@ if __name__ == "__main__":
             "a missing root-level resource the document NAMES 404s "
             "instead of folding to the document",
             not folded, f"folded: {folded or 'none'}")
+
+        # AND A NAMED RESOURCE THAT IS PRESENT COMES BACK AS ITSELF. `/sw.js`
+        # folded onto the document would answer 200 `text/html`, the browser
+        # would refuse the registration on the MIME type, and P7 would be
+        # measuring a page with no worker while every console stayed quiet —
+        # which is the failure this whole block was written about, arriving
+        # from the other side.
+        for named in FallbackHandler.ASSET_PATHS:
+            if named in absent:
+                continue
+            with urllib.request.urlopen(f"{base}{named}", timeout=5) as response:
+                kind = response.headers.get_content_type()
+                body = response.read()
+            journal.check(
+                f"a named resource that EXISTS is served as itself, not folded ({named})",
+                body != expected and kind != "text/html",
+                f"{kind}, {len(body)} bytes")
 
         # The regression this fold exists to close: a route-shaped address
         # whose deepest segment carries dots of its own — a release folder
