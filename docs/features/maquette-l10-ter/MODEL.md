@@ -186,6 +186,19 @@ plus the appearance control plus the served identity — three things the frame 
 is the proof this is « one kind of change ». The ten panel PRODUCERS (the descriptors' authors)
 are not layers and not chrome: they are Part 12's subject.
 
+**THE TAB BAR IS THE FLOOR OF THE LAYERS — dictated by the operator on 2026-08-30, from a
+screenshot of the acquisition sheet.** Today the sheet is anchored at the screen's bottom edge
+(`bottomSheet`: `bottom-0 z-[47]`) and rises BEHIND the tab bar (z-50), reserving the bar's height
+by a padding so its last action stays reachable. The operator wants the opposite, and wants it
+inherent to the template rather than a property of one sheet: **every bottom layer is anchored
+on the bar's top edge and rises from there; nothing slides behind the bar; the bar stays visible.**
+Whether it is tappable under a layer is `app/focus.ts`'s — it marks the background `inert` while a
+modal layer is open, `#nav` included, and B-237 measured that the bar's buttons were never
+hit-testable over one, whatever their rank. This decision is about the PAINT and the anchoring. The sheet's bottom edge equals the bar's top edge
+in every frame of its transition, and the padding that reserved the bar's height goes with the
+overlap it compensated. P31 is the property; B-248 is the entry; L15 carries it as its fifth
+behaviour change. The reading of the operator's words is the steward's — the operator amends.
+
 ### Part 8 — Focus, scroll and geometry
 
 *What it is.* `app/focus.ts` (focus enters a layer and returns), `app/scroll-restoration.ts`
@@ -343,6 +356,7 @@ or dropped and named in § 3.1.
 | P27 | **Standalone hides browser-only chrome**: what exists only because a browser is around it is absent under `display-mode: standalone` | a rule under an emulated `display-mode` media | unmeasured — nothing reads it but the install offer | L11 |
 | P28 | **Focus survives a redraw**: `document.activeElement` is the same node across a page switch and a store bump | with P2's rule | **false** — B-231 | L15 |
 | P29 | **No layout shift when a poster loads**: every poster box declares its size (`aspect-ratio` or width/height) | static read of the gallery variants, and a CLS probe on a named state | to measure | L12 |
+| P31 | **The tab bar is the floor**: a bottom layer's box never overlaps the bar's box, at rest or mid-transition — `sheet.bottom === nav.top` in every frame — a hold that does not PRODUCE the overlap passes at `bottom-0` exactly as at the bar's edge (B-237's lesson) | the oracle's geometry for the sheet's open states, plus a rule that opens a sheet tall enough to reach the bar and samples `getBoundingClientRect` of both during the transition | **false** — the sheet is `bottom-0` and rises behind the bar (B-248) | L15 |
 | P30 | **Back-forward cache is not evicted**: `pageshow.persisted` is true after a walk out and back | a rule on a real navigation | to measure — the exit guard's handler is the kind of thing that evicts | L11 |
 
 ### 3.1 Discarded, and why

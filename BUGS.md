@@ -303,6 +303,8 @@ when the defect comes back.
 | B-241 | `IMPLEMENTATION.md`'s « Next » row said « once L10-ter merges » and « L14 stays last » after both had changed | by audit | `fixed #527` |
 | B-242 | `MODEL.md` P14 says 78 named states where 87 are driven | by audit | `fixed #527` |
 | B-243 | Three small drifts in the directives: nineteen guards for twenty, an archived path cited live, « twenty times » for twenty-four | by audit | `fixed #527` |
+| B-248 | The bottom sheet rises behind the tab bar; the operator wants the bar as the floor of every layer | 1× | `open` |
+| B-249 | The screen flashes when a sheet action closes the sheet AND opens a page | 1× | `open` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
@@ -4132,6 +4134,43 @@ one ranked list, in `MODEL.md` § 2 Part 6, and a rule that reads `elementFromPo
 while a dialog is open.
 
 <sub>`grep -n "z-index" frontend/maquette/design/src/styles/legacy.css` · `grep -n "z-\[\|z-[0-9]" frontend/maquette/design/index.html`</sub>
+
+**B-249 — the screen flashes when a sheet action closes the sheet AND opens a page.**
+Reported by the operator on 2026-08-30, on a phone: tapping an action of the acquisition sheet that
+navigates — « Voir la fiche », « Voir le parcours », « Chercher une autre release » — produces a
+visible flash of the whole interface, too fast to capture; closing the sheet alone (handle, scrim,
+Back) does not. Not diagnosed here; two candidates are readable in the code and both are the
+frame's. The engine's `applyState` (`legacy.js:9446`) runs `hideLayers()`, then a store write, then
+`port.scrollTop = 0`, then a full `render()` — a whole-page repaint with a scroll reset sits between
+the close and the open. And B-247 (L15's, filed on its branch) records that a store bump REPLACES a
+feature page's nodes, which is a paint of nothing between two paints of the page. **L15's**: it is
+converting the layers and their hosts now, and P1 (« one document, no full navigation ») is the
+property the flash violates in spirit. The rule must walk the operator's path — a real tap on a
+sheet action that navigates — and read paints or replaced nodes, not the final state.
+
+<sub>`sed -n '9446,9456p' frontend/maquette/design/src/engine/legacy.js` · `grep -n "panel.close(" frontend/maquette/design/src/engine/legacy.js`</sub>
+
+---
+
+**B-248 — the bottom sheet rises behind the tab bar; the operator wants the bar as the floor of every layer.**
+Dictated by the operator on 2026-08-30 from a screenshot of the acquisition sheet. Today
+`bottomSheet` (`ui/variants/layout.ts`) is `absolute … bottom-0 z-[47]`: it is anchored at the
+screen's bottom edge, rises BEHIND the tab bar (z-50, `ui/variants/frame.ts`), and its body pads by
+`var(--tm-bottom-bar-h)` so the last action is reachable — the variant's own comment says the bar
+« sits above the layers, so a sheet must reserve its height ». **The decision reverses the
+anchoring, not the rank**: the bar is the FLOOR — every bottom layer is anchored on the bar's top
+edge and rises from there, nothing slides behind it, the bar stays visible — not tappable under a
+modal: `app/focus.ts` marks `#nav` `inert` while a layer is open, and B-237 measured that its
+buttons were never hit-testable over one, whatever their rank; this entry is about the paint. It is
+inherent to the template: `MODEL.md` Part 7 carries the paragraph and § 3 carries it as **P31**,
+with its instrument. L15's fifth behaviour change, in its own commit: the oracle WILL move on the
+sheet's open states, and each divergence is accepted under this entry's name. The padding that
+compensated the overlap goes with it; the selection bar in the bottom slot (rank 51) already sits
+above the bar and is the precedent.
+
+<sub>`grep -n "bottom-0 z-\[47\]" frontend/maquette/design/src/ui/variants/layout.ts` · `grep -n "^ *50  the tab bar" frontend/maquette/design/src/ui/variants/frame.ts`</sub>
+
+---
 
 **B-243 — three small drifts in the directives, found by re-running what they cite.**
 `CLAUDE.md` said the contracts tier runs « nineteen » cheap guards; `run.sh` prints **20** since
