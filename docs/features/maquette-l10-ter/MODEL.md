@@ -327,7 +327,7 @@ or dropped and named in § 3.1.
 | P11 | **Dynamic viewport**: the frame is `100dvh`, no `100vh` anywhere | `check-css-tokens.py`-shaped static read | **false** — no `dvh` in the tree; `base.css:54` is `height: 100%`; the only `100svh` is `harness.css`, which ships nowhere | L12 |
 | P12 | **Contained overscroll** on `#port` | the compositor-CSS guard | true | — |
 | P13 | **No zoom on focus**: every field ≥ 16 px | R83 | true | — |
-| P14 | **Pinch-zoom allowed**: no `maximum-scale`, no `user-scalable=no` | axe 1.4.4 on every named state (`window.__states()`, 78 today) | true on this host; **a landmine on any other** — B-230 | L15 removes the fallback |
+| P14 | **Pinch-zoom allowed**: no `maximum-scale`, no `user-scalable=no` | axe 1.4.4 on every named state (`window.__states()`, 87 on 2026-08-30 — `oracle-reference.json`'s `measurements` has one key per state; the previous « 78 » was a citation, not a count) | true on this host; **a landmine on any other** — B-230 | L15 removes the fallback |
 | P15 | **Touch targets at the floor** (WCAG 2.5.8) | axe `target-size` | true, 0 violations | — |
 | P16 | **Gestures survive the compositor**: every gesture proved under a real touch stream AND a real mouse | R55, R98, `deck.py`, `drag.py`, `mouse.py` | true for the gestures measured | L12 extends |
 | P17 | **The keyboard resizes the content, not the viewport**: `interactive-widget=resizes-content` | static read of the meta | **false** — B-234 | L12 |

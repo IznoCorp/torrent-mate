@@ -37,8 +37,25 @@ same arithmetic.
 
 WHAT IT DOES NOT READ, and saying so is the point:
 
-  - It reads the VERSION, never the pull request number or the branch name. A
-    row naming a merged PR while its version still lags is invisible here.
+  - It reads the VERSION and the PULL REQUEST NUMBER, never the branch name.
+    The second was added for B-238: a prose-only wave carries the
+    `no-version-bump` label, so its row names no version and the version
+    arm had nothing to hold — L10-ter's row stayed « in flight » after #521
+    merged and the guard printed « nothing is in flight to check ». A
+    squash merge writes the pull request's number into the subject `main`
+    carries — `… (#521)` — so a row whose pull request `main` already holds
+    in a subject has landed, offline and exactly like the version.
+  - The wave's pull request is the FIRST `#NNN` in the cell. A row may cite
+    an older pull request as context after its own; a row that cites one
+    BEFORE its own is read as that older one, and the convention (« PR
+    **#516** » first, as every row since L07 has written it) is what holds.
+  - A pull request merged without its number in a subject — a rebase merge,
+    a hand-written subject — is invisible to the second hold, and this
+    repository squash-merges every wave (§ 5).
+  - A row in flight that names NEITHER a version nor a pull request is
+    refused: nothing can hold it, and « held by nothing » is B-238's own
+    title. § 5 says the row is written when the pull request opens, so the
+    number exists the moment the row does.
   - It cannot see whether the other two post-merge gestures were performed —
     the archive of `docs/features/<codename>/` and the wave's trace row. Those
     are a different subject and this guard would report clean over both.
@@ -69,6 +86,10 @@ PACKAGE_VERSION = "personalscraper/__init__.py"
 # in a column of its own.
 IN_FLIGHT_ROW = re.compile(r"^\|\s*\*\*In flight\*\*\s*\|([^|]*)\|", re.M)
 VERSION_IN_ROW = re.compile(r"\bversion\s+(\d+\.\d+\.\d+)")
+# The wave's pull request: the first `#NNN` in the cell, bold or not.
+PULL_REQUEST_IN_ROW = re.compile(r"#(\d+)\b")
+# Between waves the cell begins with *none* — the legible silence of § 5.
+NONE_ROW = re.compile(r"^\W*none\b", re.I)
 VERSION_IN_PACKAGE = re.compile(r"^__version__\s*=\s*[\"'](\d+\.\d+\.\d+)[\"']", re.M)
 
 
@@ -100,6 +121,47 @@ def version_on_main() -> tuple[str | None, str | None]:
     # a small lie, and the same species as a guard reporting a corpus it did
     # not read.
     return None, f"none of {', '.join(tried)} is reachable from this clone"
+
+
+def subjects_on_main() -> tuple[list[str] | None, str | None]:
+    """Read every commit subject `main` carries.
+
+    A squash merge writes `(#NNN)` at the end of its subject, so the history
+    of `main` is an offline, exact record of which pull requests have landed.
+    The whole history is read — the harness-contracts job checks out with
+    `fetch-depth: 0` for the register's closure arm, and this hold rides on the
+    same depth. A shallow clone would read one subject and miss every merge
+    but the last, which is why the count read is printed with the verdict.
+
+    Returns:
+        A `(subjects, failure)` pair. Exactly one is not None.
+    """
+    tried = ("origin/main", "main")
+    for base in tried:
+        log = subprocess.run(["git", "log", base, "--format=%s"],
+                             capture_output=True, text=True, check=False,
+                             cwd=ROOT)
+        if log.returncode == 0:
+            return log.stdout.splitlines(), None
+    return None, f"none of {', '.join(tried)} is reachable from this clone"
+
+
+def pull_request_landed(number: int, subjects: list[str]) -> bool:
+    """Say whether `main`'s subjects record pull request `number` as merged.
+
+    Matched on the number as a whole token — `(#52)` is not #521 and `#5210`
+    is not either — in the two shapes GitHub writes: the squash subject's
+    trailing `(#NNN)` and a merge commit's `Merge pull request #NNN`.
+
+    Args:
+        number: The pull request number the row names.
+        subjects: The subjects `main` carries, newest first.
+
+    Returns:
+        True when one subject records that pull request.
+    """
+    landed = re.compile(rf"\(#{number}\)\s*$|^Merge pull request #{number}\b")
+    return any(landed.search(subject) for subject in subjects)
 
 
 def as_ordered(version: str) -> tuple[int, ...]:
@@ -136,13 +198,46 @@ def arm_in_flight() -> int:
 
     cell = " ".join(row.group(1).split())
     named = VERSION_IN_ROW.search(cell)
+    pull_request = PULL_REQUEST_IN_ROW.search(cell)
+    if named is None and pull_request is None:
+        if NONE_ROW.match(cell):
+            # THE LEGIBLE SILENCE § 5 asks for. Between waves the row says
+            # *none* and there is nothing to compare; printing what was read
+            # keeps a vacuous pass from reading as a verdict.
+            print(f"check-implementation-state[in-flight]: the row reads "
+                  f"*none*, so nothing is in flight to check — read: "
+                  f"« {cell[:72]} »")
+            return 0
+        print(f"    IMPLEMENTATION.md: the « In flight » row is in flight and "
+              f"names neither a version nor a pull request — read: "
+              f"« {cell[:72]} ». Nothing can hold such a row (B-238): write "
+              f"the pull request's number the moment it opens, and the "
+              f"version unless the pull request carries `no-version-bump`.",
+              file=sys.stderr)
+        return 1
+
+    if pull_request is not None:
+        number = int(pull_request.group(1))
+        subjects, failure = subjects_on_main()
+        if failure is not None:
+            print(f"check-implementation-state[in-flight]: {failure}. This "
+                  f"arm looks for the row's pull request in the subjects "
+                  f"`main` carries, and with `main` out of reach it would "
+                  f"be reporting « no violation » over a history it never "
+                  f"read", file=sys.stderr)
+            return 1
+        print(f"check-implementation-state[in-flight]: the row names pull "
+              f"request #{number}; {len(subjects)} subject(s) read on `main`")
+        if pull_request_landed(number, subjects):
+            print(f"    IMPLEMENTATION.md: the « In flight » row names pull "
+                  f"request #{number}, and a subject on `main` already "
+                  f"records it as merged, so that wave has landed and the row "
+                  f"is stale. Move it back to *none* and write the wave's "
+                  f"trace into its own row — the first post-merge gesture of "
+                  f"§ 5 (B-238).", file=sys.stderr)
+            return 1
+
     if named is None:
-        # THE LEGIBLE SILENCE § 5 asks for. Between waves the row says *none*
-        # and there is nothing to compare; printing what was read keeps a
-        # vacuous pass from reading as a verdict.
-        print(f"check-implementation-state[in-flight]: the row names no "
-              f"version, so nothing is in flight to check — read: "
-              f"« {cell[:72]} »")
         return 0
 
     main_version, failure = version_on_main()

@@ -707,7 +707,7 @@ known-good commit.
 > measure if the viewport is not really that), `computedStyleSubset` (**17 properties**;
 > amended to **19** by L01 — `opacity` and `visibility` — because `#scrim` opening changes
 > neither the other 17 nor its rectangle, so an overlay could stop appearing and the oracle
-> would stay green. Evidence in `docs/features/maquette-l01/DESIGN.md`),
+> would stay green. Evidence in `docs/archive/features/maquette-l01/DESIGN.md`),
 > `knownAbsent`, `neutralise` (what to switch off before reading — this is friction
 > counter-measure 1, already solved once), and `allowlist` (justified divergences).
 >
@@ -1533,8 +1533,12 @@ has reached the version the « In flight » row names, that wave has landed and 
 offline, exact, and green on the wave's own branch, where the two differ by construction. It says
 nothing between waves, when no row names a version, and it prints what it read there rather than
 letting a vacuous pass read as a verdict. **And it says nothing about a prose-only wave either**:
-a `no-version-bump` pull request names no version, so its « In flight » row is cleared by hand and
-held by nothing — B-238, found by the first such row (L10-ter's).
+a `no-version-bump` pull request names no version, so its « In flight » row was cleared by hand and
+held by nothing — B-238, found by the first such row (L10-ter's). **Closed by the steward on
+2026-08-30**: the row also names its pull request, and a squash merge writes that number into the
+subject `main` carries — `… (#521)` — so a row whose pull request `main` already holds in a
+subject has landed, offline and exactly like the version. A row in flight that names neither is
+refused outright: nothing could hold it. The wave's pull request is the FIRST `#NNN` in the cell.
 
 **BUILT on 2026-08-29 as `scripts/check-implementation-state.py`, and building it corrected this
 paragraph twice.** « Has reached » is an ORDERING, not an equality: written as equality — the
@@ -1583,7 +1587,7 @@ gives — it is the only step of the three that cannot be done from the wave's o
 **And a fourth: ARCHIVE the wave's design and plan** — `docs/features/<codename>/` moves under
 `docs/archive/features/`, and every cross-reference to it moves in the same step. **One folder is
 exempt, by name: `docs/features/maquette-l10-ter/`.** It is not a wave's design — it is the frame's
-model and the survey this file cites twenty times, L15's, L11's, L12's and L13's design starts
+model and the survey this file cites twenty-four times (`grep -o "maquette-l10-ter\|MODEL\.md\|SURVEY\.md" docs/reference/frontend-architecture.md | wc -l`, 2026-08-30), L15's, L11's, L12's and L13's design starts
 from it, and `docs/archive/` is frozen history that a lot may not amend. It archives when L13
 lands, with the engine whose death it measured; until then a lot that finds the model wrong
 amends it under § 7.1 like this file. Added on
