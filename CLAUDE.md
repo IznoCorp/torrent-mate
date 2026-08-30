@@ -403,7 +403,7 @@ enforced by `scripts/check-no-french.py` (fifteen arms, in `make check` and in C
   language it comes from. **Adding a word is one line, and that is the point**: a French word
   can only enter by someone typing it into a file under review.
 - **A vocabulary SEEDED from the codebase certifies the status quo.** The first version of
-  that file was, so the twenty-five French words that twenty-nine names in
+  that file was, so the twenty-four French words that twenty-nine names in
   `design/src/engine/legacy.js` still needed came in with the rest and the gate went green
   over them — the exact failure the arm was written to end. They live below a banner in the
   file now, named as French on purpose, and `check_french_debt` refuses them to every file
@@ -452,7 +452,7 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 | **Product intent — the product constitution (BINDING): §1–§15 + DOIT/NE-DOIT-PAS + §méthode** | `docs/reference/product-intent.md` |
 | **Maquette — the VISUAL reference of the web UI (BINDING): it is modified BEFORE the code** | `frontend/maquette/README.md` |
 | **Frontend architecture — what the maquette must BECOME, and in what order (BINDING)** | `docs/reference/frontend-architecture.md` |
-| The frame's model — its thirteen parts under invariant 10, the 24 mobile-application properties, the survey of what the engine still draws | `docs/features/maquette-l10-ter/MODEL.md` · `SURVEY.md` |
+| The frame's model — its thirteen parts under invariant 10, the 30 mobile-application properties, the survey of what the engine still draws | `docs/features/maquette-l10-ter/MODEL.md` · `SURVEY.md` |
 | Product intent → surface map — every DOIT / NE-DOIT-PAS clause, the surface serving it, its verdict and owner (the operator amends it) | `docs/reference/product-intent-map.md` |
 | Backend demands of ARCHITECTURE — the tunnel per media (§20), the requester and rights (§17), the ratio write, cross-seed — inputs of the future backend brief, unscheduled by design | `docs/reference/backend-demands-architecture.md` |
 | Frontend steward — the standing audit of that plan. **NOT for the agent implementing a lot**: it is the operator's and the steward's | `docs/reference/frontend-steward.md` |

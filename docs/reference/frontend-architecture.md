@@ -71,9 +71,10 @@ lives under invariant 10; the PWA's « as close to a mobile application as possi
 testable properties; and every lot from L11 to L14 re-read against that model and marked unchanged,
 re-cut or replaced. **It is not a lot**: it writes no code, nothing schedules it, and § 0's
 selection rule must not reach it. **Where and when its findings are converted is the phase's own to
-decide**, and it may amend this file's lots and their order under § 7.1. Invariant 10 has been
-binding since L09 and its subject — the frame — has never been modelled; that is the debt this
-phase pays. Its definition and its agent's brief are `docs/features/maquette-l10-ter/`.
+decide**, and it may amend this file's lots and their order under § 7.1. Invariant 10 had been
+binding since L09 with its subject — the frame — never modelled; **that was the debt, and this
+phase paid it**: the frame is modelled in thirteen parts in `MODEL.md` § 2, as the paragraph below
+records. Its definition and its agent's brief are `docs/features/maquette-l10-ter/`.
 
 **It RAN on 2026-08-29, and this is what it decided** — its products are `SURVEY.md`, `MODEL.md`,
 `QUESTIONS.md` under that folder and `docs/reference/product-intent-map.md`; the lots below are
