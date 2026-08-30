@@ -315,11 +315,11 @@ when the defect comes back.
 | B-253 | B-247 was reassigned to L14 and L19 by the wave that left it, and the plan named it in neither | by audit | `fixed #532` |
 | B-254 | Two figures written by hand: the Makefile's « 83 states x 33 regions » and CLAUDE.md's guard count | by audit | `fixed #532` |
 | B-255 | `check-frontend-boundaries.py` is back at 952 lines, 48 from the hard ceiling it was cut away from | by audit | `open` |
-| B-256 | The harness's served copy has no lock and no build stamp; a fresh copy arriving mid-run is a false reading either way | by audit | `fixing` |
+| B-256 | The harness's served copy has no lock and no build stamp; a fresh copy arriving mid-run is a false reading either way | by audit | `fixed #534` |
 | B-257 | Push notifications are declined for L11 and their consumer is §18's ratio alert, which is L16 | 1× | `open` |
-| B-258 | `Makefile`'s contract tier announced « 9 rules » where `run.sh` held 12 | by L11 | `fixing` |
-| B-259 | The design host answers **401 for `/` itself**, so a worker installing from the gate can require nothing | by L11 | `fixing` |
-| B-260 | A harness rule named after a STANDARD LIBRARY module shadows it for everything downstream | by L11 | `fixing` |
+| B-258 | `Makefile`'s contract tier announced « 9 rules » where `run.sh` held 12 | by L11 | `fixed #534` |
+| B-259 | The design host answers **401 for `/` itself**, so a worker installing from the gate can require nothing | by L11 | `fixed #534` |
+| B-260 | A harness rule named after a STANDARD LIBRARY module shadows it for everything downstream | by L11 | `fixed #534` |
 
 **B-260 — a harness rule named after a standard library module shadows it for everything downstream.**
 Found by `make check` on 2026-08-31, and the symptom names nothing that would lead you to it: four
