@@ -1142,10 +1142,10 @@ layers needs both layers to be components; the drawer and the dialog are engine 
 the oracle at zero divergence — the sheet's own conversion (SP4b) is the precedent. **Six things
 in this lot are BEHAVIOUR changes, and each lands in its own commit with its own rule, never inside
 a conversion commit**: the dialog's rung on the ladder (B-229), the dialog's z-order (B-237),
-`theme-color` following the theme (B-233), the removal of the viewport fallback (B-230), **the tab
-bar becoming the floor of the layers (B-248, P31 — dictated by the operator on 2026-08-30: the
-sheet rises from the bar's top edge, never behind it; the oracle WILL diverge on the sheet's open
-states and every divergence is named as this decision's)**, and **the flash between a sheet
+`theme-color` following the theme (B-233), the removal of the viewport fallback (B-230), **the sheet
+covering the tab bar (B-248, P31 — dictated by the operator on 2026-08-30: a bottom layer rises
+from the screen's bottom edge OVER the bar, which is not seen while the layer is open; the oracle
+WILL diverge on the sheet's open states and every divergence is named as this decision's)**, and **the flash between a sheet
 action and the page it opens (B-249, reported by the operator the same day)**. The
 ladder's HANDLER (`onEngineBack`, `unwindLayer`, `hideLayers`, `__closeLayers`) stays in the
 engine until L13 — the drawer and the dialog REGISTER with it through the seam, exactly as the
