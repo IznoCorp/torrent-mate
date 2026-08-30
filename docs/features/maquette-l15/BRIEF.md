@@ -153,9 +153,10 @@ hand the gesture back and say so in the pull request.
 One branch, one pull request, **title and body in English**, adversarial review before merging,
 squash merge. The version bumps.
 
-**Write your « In flight » row when the pull request opens**, not after the merge — and put the
-version in it: `scripts/check-implementation-state.py` refuses a row naming a version `main` has
-reached, and **cannot see a row that names none** (B-238).
+**Write your « In flight » row when the pull request opens**, not after the merge — with the
+version AND the pull request number in it, the number first: `scripts/check-implementation-state.py`
+refuses a row naming a version `main` has reached or a pull request `main`'s history already
+holds, and refuses a row naming neither (B-238, closed 2026-08-30).
 
 **Cite the constitution's §§ your work serves.**
 

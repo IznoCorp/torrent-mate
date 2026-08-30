@@ -297,9 +297,12 @@ when the defect comes back.
 | B-235 | No desktop navigation exists beyond the drawer | by survey | `open` |
 | B-236 | Every bottom-panel producer is the engine's — L19's since 2026-08-29 | by survey | `open` |
 | B-237 | The confirmation dialog paints under the tab bar | by review | `open` |
-| B-238 | A version-less « In flight » row is held by nothing | by review | `open` |
+| B-238 | A version-less « In flight » row is held by nothing | by review | `fixed #527` |
 | B-239 | `CLAUDE.md` announced 24 frame properties where the model it points at holds 30 | by audit | `fixed #524` |
 | B-240 | `CLAUDE.md` announced 25 engine French words where the file it points at holds 24 | by audit | `fixed #524` |
+| B-241 | `IMPLEMENTATION.md`'s « Next » row said « once L10-ter merges » and « L14 stays last » after both had changed | by audit | `fixed #527` |
+| B-242 | `MODEL.md` P14 says 78 named states where 87 are driven | by audit | `fixed #527` |
+| B-243 | Three small drifts in the directives: nineteen guards for twenty, an archived path cited live, « twenty times » for twenty-four | by audit | `fixed #527` |
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
@@ -4130,6 +4133,40 @@ while a dialog is open.
 
 <sub>`grep -n "z-index" frontend/maquette/design/src/styles/legacy.css` · `grep -n "z-\[\|z-[0-9]" frontend/maquette/design/index.html`</sub>
 
+**B-243 — three small drifts in the directives, found by re-running what they cite.**
+`CLAUDE.md` said the contracts tier runs « nineteen » cheap guards; `run.sh` prints **20** since
+`check-implementation-state.py` joined it on 2026-08-29. The plan's L01 entry cited
+`docs/features/maquette-l01/DESIGN.md`, archived under `docs/archive/features/` since L02. § 5 said
+this file cites the survey « twenty times »; the count is **24**. None is a decision; all three are
+figures nobody re-ran. Each now carries its command or its living path.
+
+<sub>`frontend/maquette/harness/run.sh --contracts | grep "cheap guards"` · `ls docs/features/maquette-l01/DESIGN.md` (absent) · `grep -o "maquette-l10-ter\|MODEL\.md\|SURVEY\.md" docs/reference/frontend-architecture.md | wc -l`</sub>
+
+---
+
+**B-242 — `MODEL.md` P14 says 78 named states where 87 are driven.**
+P14's instrument column reads « axe 1.4.4 on every named state (`window.__states()`, 78 today) ».
+`oracle-reference.json` holds one `measurements` key per state — **87** — and the accessibility
+tier prints « 87 states » in every run recorded in this register since L10. The figure was cited
+from an older count and never re-derived; the property's verdict does not depend on it, its
+instrument's coverage does.
+
+<sub>`python3 -c "import json;print(len(json.load(open('frontend/maquette/oracle-reference.json'))['measurements']))"` → 87</sub>
+
+---
+
+**B-241 — the « Next » row said « once L10-ter merges » and « L14 stays last » after both had changed.**
+One cell of `IMPLEMENTATION.md`'s state table carried, on 2026-08-30, « L15 — The frame, once
+L10-ter merges » (L10-ter merged that morning, #521) and « L14 … stays last unless the operator
+pulls it forward » — while the SAME cell ended « L14 pulled forward by the operator on 2026-08-30 ».
+A sentence contradicted inside its own cell: B-152's shape, in the one table § 0 reads for the
+state. The check-implementation-state arm reads the « In flight » row and not this one, which is
+why it stayed.
+
+<sub>`grep -c "once L10-ter merges\|stays last unless" IMPLEMENTATION.md` → 0 after this entry</sub>
+
+---
+
 **B-240 — the index announced twenty-five French words and the file it points at holds twenty-four.**
 `CLAUDE.md` § Language says the vocabulary's seeded first version let « the twenty-five French words
 that twenty-nine names in `design/src/engine/legacy.js` still needed » in with the rest.
@@ -4187,6 +4224,20 @@ avoid). **The office's** under § 7.2's exception — the instrument measures th
 next wave's post-merge gesture, by hand, with this entry as the reason it is not automatic.
 
 <sub>`python3 scripts/check-implementation-state.py` on this branch → « names no version » · `grep -n "VERSION_IN_ROW" scripts/check-implementation-state.py`</sub>
+
+> **Closed by the steward on 2026-08-30, under § 7.2's exception, by a third shape neither of the
+> two above.** A squash merge writes the pull request's number into the subject `main` carries —
+> `… (#521)` — so the guard now reads the row's FIRST `#NNN` and refuses it when a subject in
+> `git log origin/main` records it, offline and exactly like the version; the harness-contracts
+> job checks out with `fetch-depth: 0` for the register's closure arm, so the history is whole
+> there. A row in flight that names neither a version nor a pull request is refused outright. The
+> guard had no committed test (B-041's shape); `tests/scripts/test_check_implementation_state.py`
+> holds nine, seen red before the arm existed (1 failed, 8 errors) and green after. **Mutated on
+> the real file**, three ways, restored each time: the row rewritten as L10-ter's with `PR #521`
+> → exit 1, « a subject on `main` already records it as merged », 815 subjects read; `#99999` →
+> exit 0; the number removed → exit 1, « names neither a version nor a pull request ». What it
+> still does not read: a pull request merged without its number in a subject (this repository
+> squash-merges every wave), and a row that cites an older pull request BEFORE its own.
 
 **B-226 — the cross-check B-208 built never ran in continuous integration.** Recorded by the
 steward's audit of L10 as A-1, and it is sharp. `check-live-relay.py`'s `backend_events()` compares
