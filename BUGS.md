@@ -307,6 +307,8 @@ when the defect comes back.
 | B-245 | The pre-paint appearance script compares against the French spellings the engine stopped writing | by L15 | `fixed #528` |
 | B-246 | The « In flight » row's version arm is defeated by markdown emphasis, in silence | by L15 | `fixed #528` |
 | B-247 | A store bump replaces a feature page's nodes, so a write between press and click destroys the click | by L15 | `open` |
+| B-248 | The bottom sheet rises behind the tab bar; the operator wants it to cover the bar | 1× | `fixed #528` |
+| B-249 | The screen flashes when a sheet action closes the sheet AND opens a page | 1× | `open` |
 | B-250 | `check-live-relay`'s stale-figure arm cannot tell a register citation from a frozen count | by L15 | `fixed #528` |
 
 **B-142 — the constitution has an instrument, and B-244 is worse than it was filed as.**
@@ -339,70 +341,6 @@ job for a pull request touching only its own subject. The `maquette` filter name
 and the hold asks both questions.
 
 <sub>`python3 scripts/check-intent-map.py` — 23 clauses against 23 rows, 0 violations. Three mutations: a clause's row deleted; a lot the plan does not declare; a `served` row pointed at a route that does not exist.</sub>
-
----
-
-**B-249 — a layer's exit is seen, and the flash is diagnosed.**
-The operator reported it on a phone: tapping a sheet action that NAVIGATES flashes the whole
-interface, and closing the sheet alone does not. Filed by the steward as « not diagnosed here »,
-with two candidates. Neither was it.
-
-**Sampled frame by frame on the operator's own path** — a long press on a library tile, then the
-first action of the sheet it raises:
-
-    frame  0   the scrim is up, the sheet is in place
-    frame  2   `visibility: hidden` on BOTH — while opacity and transform
-               still have 200 and 300 ms to run
-    frame 18   the destination screen appears, already in place
-
-**`visibility` is not animatable the way `opacity` is.** Left out of the transition list it swaps on
-the first frame, so the dimmed page snapped to full brightness in ONE frame and stayed bare for
-sixteen — and the exit every producer waits for was already over before the wait began:
-`data-mediasheet` closes the panel and calls `setTimeout(…, 260)` « to let the sheet finish
-leaving ».
-
-**The frame's half is repaired**: `visibility` transitions with a delay equal to the fade, so it
-holds `visible` for the whole exit and flips at the end. The bare gap goes from sixteen frames to
-three. Nothing at REST changes — closed is still `hidden` at zero opacity — which is why the oracle,
-which settles, reports not one divergence beyond B-248's accepted set.
-
-**The other half is NOT L15's, and the rule says so rather than refusing it.** The 260 ms wait
-belongs to the producer, and a producer is Part 12's — **L19's**. R103 measures the remaining gap
-and PRINTS it: a rule that refused a number nobody in this wave may change would be a rule against
-the wrong subject, and a number nobody prints is a number nobody acts on. **Left `open` for that
-half.**
-
-<sub>`python3 frontend/maquette/harness/exits.py` — 5 holds, no violation, and the gap printed. Mutation: `visibility` taken back out of the transition; both exit holds fall.</sub>
-
----
-
-**B-248 — the bottom sheet paints over the tab bar.**
-Dictated by the operator on 2026-08-30 from a screenshot, filed by the steward, **and corrected by
-the operator before a line was written**: the first reading had the bar as the FLOOR, with every
-bottom layer anchored on its top edge. It is not. The sheet still rises from the screen's bottom
-edge; what changes is the RANK — 47 → 52, above the bar's 50 — and what goes is the padding that
-reserved the bar's height inside the sheet's own body. While a bottom layer is open the bar is not
-seen.
-
-**Interaction is unchanged, and saying so is half the entry.** `app/focus.ts` already marks the
-background `inert` while a layer is open, `#nav` among the thirteen elements it names, and `inert`
-takes an element out of hit-testing as well as out of the focus order. The bar was never tappable
-under a layer. It was VISIBLE.
-
-**The oracle moves, and every divergence is named.** 167 of them, all on ONE region —
-`shell/sheet-content` — and all of one cause: `padding: 2px 14px 76px` → `2px 14px 18px` on 86, and
-the height that follows from it on 81. No other region, no other property. They are accepted under
-this entry's name and the reference is re-recorded after the squash merge, with the two commands
-§ 5 names.
-
-**Held by R101** (`harness/stacking.py`): the sheet is anchored on the screen's bottom edge, so the
-overlap is there by construction and needs no producing — the one thing this hold has that the
-confirmation's did not; and it is PAINTED over the bar, read with the bar's `inert` lifted for the
-length of one reading, because a plain hit-test answers the sheet at 47 exactly as at 52. A third
-hold reads that nothing reserves the bar's height any more: left behind, that padding is a blank
-strip inside every sheet, which no hit-test sees.
-
-<sub>Mutation: the rank restored to 47; the hold falls with « at: 'nav', sheetRank: '47', barRank: '50' ».</sub>
 
 ---
 
@@ -4475,6 +4413,93 @@ one ranked list, in `MODEL.md` § 2 Part 6, and a rule that reads `elementFromPo
 while a dialog is open.
 
 <sub>`grep -n "z-index" frontend/maquette/design/src/styles/legacy.css` · `grep -n "z-\[\|z-[0-9]" frontend/maquette/design/index.html`</sub>
+
+**B-249 — the screen flashes when a sheet action closes the sheet AND opens a page.**
+Reported by the operator on 2026-08-30, on a phone: tapping an action of the acquisition sheet that
+navigates — « Voir la fiche », « Voir le parcours », « Chercher une autre release » — produces a
+visible flash of the whole interface, too fast to capture; closing the sheet alone (handle, scrim,
+Back) does not. Not diagnosed here; two candidates are readable in the code and both are the
+frame's. The engine's `applyState` (`legacy.js:9446`) runs `hideLayers()`, then a store write, then
+`port.scrollTop = 0`, then a full `render()` — a whole-page repaint with a scroll reset sits between
+the close and the open. And B-247 (L15's, filed on its branch) records that a store bump REPLACES a
+feature page's nodes, which is a paint of nothing between two paints of the page. **L15's**: it is
+converting the layers and their hosts now, and P1 (« one document, no full navigation ») is the
+property the flash violates in spirit. The rule must walk the operator's path — a real tap on a
+sheet action that navigates — and read paints or replaced nodes, not the final state.
+
+<sub>`sed -n '9446,9456p' frontend/maquette/design/src/engine/legacy.js` · `grep -n "panel.close(" frontend/maquette/design/src/engine/legacy.js`</sub>
+
+**DIAGNOSED AND HALF CLOSED BY L15, and neither candidate was it.** Sampled frame by frame on the
+operator's own path — a long press on a library tile, then the first action of the sheet it raises:
+
+    frame  0   the scrim is up, the sheet is in place
+    frame  2   `visibility: hidden` on BOTH — while opacity and transform
+               still have 200 and 300 ms to run
+    frame 18   the destination screen appears, already in place
+
+**`visibility` is not animatable the way `opacity` is.** Left out of the transition list it swaps on
+the first frame, so the dimmed page snapped to full brightness in ONE frame and stayed bare for
+sixteen — and the exit every producer waits for was already over before the wait began:
+`data-mediasheet` closes the panel and calls `setTimeout(…, 260)` « to let the sheet finish
+leaving ».
+
+**The frame's half is repaired**: `visibility` transitions with a delay equal to the fade, on the
+CLOSED state only. The bare gap goes from sixteen frames to three. **On the closed state only is
+not decoration** — putting it on both broke focus ENTRY into the sheet, because `app/focus.ts`
+focuses into a layer the instant `data-open` appears and an element whose `visibility` is still
+resolving is not focusable. R81 caught it; it is the one hold in the suite that reads that instant.
+
+**The other half is not L15's**: the 260 ms wait belongs to the producer, and a producer is Part
+12's — **L19's**. R103 (`harness/exits.py`) measures the remaining gap and PRINTS it. A rule that
+refused a number nobody in this wave may change would be a rule against the wrong subject, and a
+number nobody prints is a number nobody acts on. **Left `open` for that half.**
+
+<sub>`python3 frontend/maquette/harness/exits.py` — 5 holds, no violation, and the gap printed. Mutation: `visibility` taken back out; both exit holds fall.</sub>
+
+---
+
+**B-248 — the bottom sheet rises behind the tab bar; the operator wants it to cover the bar.**
+Dictated by the operator on 2026-08-30 from a screenshot of the acquisition sheet. Today
+`bottomSheet` (`ui/variants/layout.ts`) is `absolute … bottom-0 z-[47]`: it is anchored at the
+screen's bottom edge, rises BEHIND the tab bar (z-50, `ui/variants/frame.ts`), and its body pads by
+`var(--tm-bottom-bar-h)` so the last action is reachable — the variant's own comment says the bar
+« sits above the layers, so a sheet must reserve its height ». **The decision reverses the RANK,
+not the anchoring**: the sheet keeps rising from the screen's bottom edge and paints OVER the bar —
+while a bottom layer is open the tab bar is not seen. The padding that reserved the bar's height
+goes with the overlap it compensated; the dialog, at 56 since B-237, is the precedent. Interaction
+does not change: `app/focus.ts` marks `#nav` `inert` while a layer is open, and B-237 measured
+that its buttons were never hit-testable over one. Inherent to the template: `MODEL.md` Part 7
+carries the paragraph and § 3 carries it as **P31**, with its instrument. L15's, in its own
+behaviour commit: the oracle WILL move on the sheet's open states, and each divergence is accepted
+under this entry's name. **The steward first wrote the opposite** — « the bar is the floor, the
+sheet anchored on its top edge » — from the operator's « par-dessus », merged it in #529, and the
+operator corrected it the same evening: the operator's words were read, not asked.
+
+<sub>`grep -n "bottom-0 z-\[47\]" frontend/maquette/design/src/ui/variants/layout.ts` · `grep -n "^ *50  the tab bar" frontend/maquette/design/src/ui/variants/frame.ts`</sub>
+
+**Closed by L15, alone, and the oracle moved exactly where this entry said it would.** The rank goes
+47 → 52 — above the bar and above the slot's own bar, below the drawer and the confirmation — the
+anchoring is untouched, and the padding that reserved the bar's height goes with the overlap it
+compensated. **167 divergences, all on ONE region** (`shell/sheet-content`) and all of one cause:
+`padding: 2px 14px 76px` → `2px 14px 18px` on 86 states, and the height that follows from it on 81.
+No other region and no other property, checked by grouping the whole report; every later phase of
+the wave diffed its own oracle report against that set line for line rather than against a count.
+
+**Held by R101** (`harness/stacking.py`): the sheet is anchored on the screen's bottom edge, so the
+overlap is there by construction and needs no producing — the one thing this hold has that the
+confirmation's did not; and it is PAINTED over the bar, read with the bar's `inert` lifted for the
+length of one reading, because a plain hit-test answers the sheet at 47 exactly as at 52. A third
+hold reads that nothing reserves the bar's height any more: left behind, that padding is a blank
+strip inside every sheet, which no hit-test sees.
+
+**And R8 leaves the sheet, which is a renegotiation rather than a hole.** `audit.py`'s « every layer
+reserves the height of the tab bar that passes above it » was right about a law this entry reverses;
+it would now refuse the decision the operator took. Sixteen states reported it before the rule was
+moved. Screens stay in its sweep — the bar does pass above them.
+
+<sub>Mutation: the rank restored to 47; the hold falls with « at: 'nav', sheetRank: '47', barRank: '50' ».</sub>
+
+---
 
 **B-243 — three small drifts in the directives, found by re-running what they cite.**
 `CLAUDE.md` said the contracts tier runs « nineteen » cheap guards; `run.sh` prints **20** since

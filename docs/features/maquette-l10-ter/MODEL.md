@@ -186,6 +186,21 @@ plus the appearance control plus the served identity — three things the frame 
 is the proof this is « one kind of change ». The ten panel PRODUCERS (the descriptors' authors)
 are not layers and not chrome: they are Part 12's subject.
 
+**A BOTTOM LAYER COVERS THE TAB BAR — dictated by the operator on 2026-08-30, from a screenshot
+of the acquisition sheet, and corrected by the operator the same evening after the steward first
+wrote the opposite.** Today the sheet is anchored at the screen's bottom edge (`bottomSheet`:
+`bottom-0 z-[47]`) and rises BEHIND the tab bar (z-50), so the bar stays painted over the sheet's
+foot and the sheet's body reserves the bar's height by a padding to keep its last action reachable.
+The operator wants the sheet to rise from the screen's bottom edge **over** the bar: **while a
+bottom layer is open the tab bar is not seen** — the layer ranks above it, the padding that
+reserved the bar's height goes with the overlap it compensated, and the scrim and the bar are both
+under the layer. Inherent to the template, not a property of one sheet: every bottom layer (the
+sheet, the dialog already at 56) paints over the chrome. It changes nothing of interaction —
+`app/focus.ts` already marks `#nav` `inert` under a modal, and B-237 measured that the bar's
+buttons were never hit-testable over one. P31 is the property; B-248 is the entry; L15 carries it
+as a behaviour change in its own commit. The words are the operator's; the reading was the
+steward's, wrong once, and this is the corrected one.
+
 ### Part 8 — Focus, scroll and geometry
 
 *What it is.* `app/focus.ts` (focus enters a layer and returns), `app/scroll-restoration.ts`
@@ -314,7 +329,7 @@ or dropped and named in § 3.1.
 
 **Seven rows were refreshed by L15, in the wave that made them move** — § 7.1's duty, not an
 amendment: what the phase DECIDED is untouched and only the measurement under it changed. P1, P2,
-P3, P14, P21 and P28 read `true` with the rule that says so; P10 says it survived the two bars
+P3, P14, P21, P28 and P31 read `true` with the rule that says so; P10 says it survived the two bars
 becoming components. **And P1's instrument is not the one this table specified**: the column read
 « `performance.getEntriesByType("navigation").length` stays 1 », which holds ONE ENTRY PER DOCUMENT
 — so a full navigation makes a new document where the count is one again, and the reading cannot
@@ -351,6 +366,7 @@ come out the other way. A sentinel on `window` and the `load` event are what sep
 | P27 | **Standalone hides browser-only chrome**: what exists only because a browser is around it is absent under `display-mode: standalone` | a rule under an emulated `display-mode` media | unmeasured — nothing reads it but the install offer | L11 |
 | P28 | **Focus survives a redraw**: `document.activeElement` is the same node across a page switch and a store bump | R100, with P2's | **true** since L15 | — |
 | P29 | **No layout shift when a poster loads**: every poster box declares its size (`aspect-ratio` or width/height) | static read of the gallery variants, and a CLS probe on a named state | to measure | L12 |
+| P31 | **A bottom layer covers the tab bar**: while the sheet is open the bar is not seen — the sheet's rank is above the bar's, its box starts at the screen's bottom edge, and `elementFromPoint` at the bar's centre answers the sheet | R101, with the bar's `inert` LIFTED for the length of one reading: `inert` takes an element out of hit-testing as well as out of the focus order, so a plain reading answers the sheet at 47 exactly as at 52 — the overlap needs no producing here, because the sheet is anchored on the screen's bottom edge | **true** — the sheet is z-52 and reserves nothing (B-248 closed by L15) | — |
 | P30 | **Back-forward cache is not evicted**: `pageshow.persisted` is true after a walk out and back | a rule on a real navigation | to measure — the exit guard's handler is the kind of thing that evicts | L11 |
 
 ### 3.1 Discarded, and why

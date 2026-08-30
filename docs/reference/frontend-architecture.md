@@ -1139,10 +1139,14 @@ layers needs both layers to be components; the drawer and the dialog are engine 
 | 9 — the entry | splash, login gate, install proposal, appearance (`legacy.js:9678–9915`, `10116`) | engine logic over static markup | `app/splash.ts`, `app/sign-in.tsx`, `app/install.ts`, `app/appearance.ts`; `theme-color` follows the theme (B-233); the viewport fallback that re-adds `user-scalable=no` is removed (B-230) |
 
 **One kind of change, and how it stays one.** The conversions above are DRAWING moves, proved by
-the oracle at zero divergence — the sheet's own conversion (SP4b) is the precedent. **Four things
+the oracle at zero divergence — the sheet's own conversion (SP4b) is the precedent. **Six things
 in this lot are BEHAVIOUR changes, and each lands in its own commit with its own rule, never inside
 a conversion commit**: the dialog's rung on the ladder (B-229), the dialog's z-order (B-237),
-`theme-color` following the theme (B-233), and the removal of the viewport fallback (B-230). The
+`theme-color` following the theme (B-233), the removal of the viewport fallback (B-230), **the sheet
+covering the tab bar (B-248, P31 — dictated by the operator on 2026-08-30: a bottom layer rises
+from the screen's bottom edge OVER the bar, which is not seen while the layer is open; the oracle
+WILL diverge on the sheet's open states and every divergence is named as this decision's)**, and **the flash between a sheet
+action and the page it opens (B-249, reported by the operator the same day)**. The
 ladder's HANDLER (`onEngineBack`, `unwindLayer`, `hideLayers`, `__closeLayers`) stays in the
 engine until L13 — the drawer and the dialog REGISTER with it through the seam, exactly as the
 sheet does through `window.__panel`. Every engine edit is a subtraction or a call through a seam;
