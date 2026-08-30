@@ -118,15 +118,23 @@ async def main():
         # condition is a constant declared in the same file cannot fail,
         # and would have counted toward this rule's total while measuring
         # nothing.
-        both = await page.evaluate(
-            "()=>({engine: [...window.__pages()].sort(),"
-            " host: [...(window.__shellPages || [])].sort()})")
+        # EVERY PAGE THE TABLE DECLARES IS ONE THE HOST REALLY DRAWS, and this
+        # hold used to compare `window.__pages()` against `window.__shellPages`
+        # — two expressions over the SAME array, a tautology that could only
+        # fail by the seam being absent. What it reads now is the table against
+        # what is actually PORTALLED: each page is driven and `#view` is asked
+        # whether the host put anything in it.
+        drawn = []
+        for identifier in await page.evaluate("()=>[...window.__pages()]"):
+            await page.evaluate(f"()=>window.__store.write({{page: {identifier!r}}})")
+            await page.wait_for_timeout(200)
+            if await page.evaluate(
+                    "()=>document.querySelector('#view').children.length > 0"):
+                drawn.append(identifier)
         journal.check(
-            "every page in the table has an owner, and the fragment draws none",
-            both["engine"] == both["host"] == sorted(SHELL_OWNED),
-            f"engine {both['engine']} vs host {both['host']}"
-            if both["engine"] != both["host"]
-            else f"{len(both['host'])} page(s), all drawn by the shell")
+            "every page the table declares is one the host really draws",
+            sorted(drawn) == sorted(SHELL_OWNED),
+            f"drawn {sorted(drawn)} against {sorted(SHELL_OWNED)}")
         for identifier in LEGACY_OWNED:
             await page.evaluate(f"()=>window.__store.write({{page: {identifier!r}}})")
             await page.evaluate("()=>window.__referentiel.render()")
@@ -884,7 +892,20 @@ async def main():
             else f"{rows} row(s) in app/navigation.ts against "
                  f"{len(SHELL_OWNED)} page(s) drawn")
 
-        writes = re.findall(r"[^\n]*view\.innerHTML\s*=[^\n]*", engine)
+        # EVERY WAY A SCRIPT PUTS MARKUP IN A CONTAINER, not one spelling of
+        # one of them. The first version read `view\.innerHTML\s*=` and nothing
+        # else, so `document.getElementById("view").innerHTML = …`,
+        # `view.replaceChildren(…)`, `view.append(…)`, `view.insertAdjacentHTML(…)`
+        # and a local alias all passed it. This is `SURVEY.md` § 1.1's own
+        # command, narrowed to the container: the survey learned the same
+        # lesson about the same file, and a count that depends on a spelling is
+        # a count that changes when a formatter runs.
+        WRITE = (r"[^\n]*(?:\bview\b|getElementById\(\s*[\"']view[\"']\s*\)"
+                 r"|querySelector\(\s*[\"']#view[\"']\s*\))\s*"
+                 r"(?:\.\s*(?:innerHTML|outerHTML|textContent)\s*="
+                 r"|\.\s*(?:append|appendChild|prepend|replaceChildren"
+                 r"|insertAdjacentHTML)\()[^\n]*")
+        writes = re.findall(WRITE, engine)
         # THE LAW, and L15 made it SHORTER by making it STRONGER. It used to
         # read: `#view` is written in ONE place, on the branch where the shell
         # does not own the page, and the shell is asked to let go before that
@@ -899,17 +920,24 @@ async def main():
         # DETECTOR IS DEAD, so the same pattern is run over a line that WOULD
         # count — spelled the way the deleted branch spelled it. Zero from a
         # reader that cannot read is the shape this repository counts.
+        # THE CONTROL RUNS OVER THE ENGINE'S OWN TEXT, not over a literal
+        # written in this file to match this file's pattern. That is a constant
+        # expression — it proves the regex compiles and matches its own example
+        # — and this very file warns against exactly that shape two hundred
+        # lines above. The line is spliced into a COPY of the engine and the
+        # same search is re-run: what it proves is coverage of the corpus.
         detector = len(re.findall(
-            r"[^\n]*view\.innerHTML\s*=[^\n]*",
-            "      view.innerHTML = found.render();\n"))
+            WRITE,
+            engine + "\n      view.innerHTML = found.render();\n"
+            + "\n      document.querySelector('#view').replaceChildren(node);\n"))
         journal.check(
             "the fragment writes #view nowhere — the page host is that "
             "container's only owner",
-            not writes and detector == 1,
-            f"{len(writes)} write(s) to #view's innerHTML: {writes}"
+            not writes and detector == 2,
+            f"{len(writes)} write(s) to #view: {writes}"
             if writes else
-            f"none, and the reader that found none counts {detector} in a "
-            f"line that carries one")
+            f"none, and the same reader finds {detector} when two are spliced "
+            f"into the engine's own text")
 
         # (d-sexies) AND THE LIVE BRANCH, measured rather than read. The half
         # above proves the shape of code that does not run; this one proves the

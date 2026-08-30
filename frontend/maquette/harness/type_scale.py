@@ -4,9 +4,13 @@ Two things a static reading of the stylesheet cannot say.
 
 THE FIELDS. Safari auto-zooms a focused input whose computed size is under
 16 px, and the zoom is not undone when the field is left: the page stays
-magnified and the operator pinches it back by hand. Removing
-`maximum-scale=1, user-scalable=no` was right — those directives forbade the
-pinch a low-vision reader depends on — and it made the auto-zoom visible. The
+magnified and the operator pinches it back by hand. Removing the viewport's
+maximum scale and its user-scalable refusal was right — those two directives
+forbade the pinch a low-vision reader depends on — and it made the auto-zoom
+visible. (They are named and not spelled here:
+`scripts/check-viewport-directives.py` reads comments too, because a directive
+commented out is one edit away from being live, and the one file allowed to
+spell them is that guard.) The
 repair is the field's size. A grep proves the declaration names a token; only
 the browser proves what the token resolves to under the cascade, and a later
 rule overriding the size is exactly the shape a grep reads as green.

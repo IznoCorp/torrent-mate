@@ -128,16 +128,32 @@ export const selectionBar = cva(
 
 export const selectionCaption = cva("n text-3 font-semibold");
 
+/* A PROPERTY A VARIANT MAY CHANGE DOES NOT BELONG IN THE BASE, and this variant
+   is where that rule was learned the hard way (`ui/cva.ts` says it; an
+   adversarial reader found it said here too, and false). The base carried
+   `bg-transparent` and the `danger` branch `bg-danger-fill`: two utilities of
+   the SAME specificity, so the one the generator emits LAST wins — and Tailwind
+   emits colour utilities alphabetically, so `transparent` always follows
+   `danger-fill`. The destructive button rendered TRANSPARENT with white text:
+   legible on the dark ground, white on white under `data-theme="light"`, which
+   is contrast 1.00 — the « invisible ink » failure the drawer's own comment
+   records, arrived at from the other end.
+
+   The residue's two rules did not have this problem: `.selbar button.danger`
+   (0,2,1) beat `.selbar button` (0,1,1) by specificity, always.
+
+   So the three properties a tone decides — background, border colour, text
+   colour — are declared per TONE and never in the base. Nothing then depends on
+   the order two utilities happen to be emitted in. */
 export const selectionAction = cva(
-  "border border-border bg-transparent text-foreground text-3 font-semibold "
-    + "py-4 px-6 rounded-3",
+  "border text-3 font-semibold py-4 px-6 rounded-3",
   {
     variants: {
       tone: {
         // `danger` is the identity class the residue used and rules select on.
         danger: "danger bg-danger-fill border-danger-fill text-white ml-auto "
           + "disabled:opacity-45",
-        neutral: "",
+        neutral: "bg-transparent border-border text-foreground",
       },
     },
     defaultVariants: { tone: "neutral" },
@@ -153,13 +169,16 @@ export const messageHost = cva(
   "toast absolute left-[14px] right-[14px] "
     + "bottom-[calc(var(--tm-bottom-bar-h,0px)+16px)] z-[49] flex items-center gap-5 "
     + "bg-popover border border-border rounded-3 py-5 px-6 text-3 "
-    + "[box-shadow:var(--mq-shadow-toast)] transition-[opacity,transform] "
-    + "duration-200 ease-standard",
+    + "[box-shadow:var(--mq-shadow-toast)] duration-200 ease-standard",
   {
     variants: {
       shown: {
-        true: "show opacity-100 visible [transform:none]",
-        false: "opacity-0 invisible [transform:translateY(14px)]",
+        true: "show opacity-100 visible transition-[opacity,transform]",
+        // B-249's idiom, on the CLOSED state only — see `sheetScrim` in
+        // `ui/variants/layout.ts` for both halves of the reason.
+        false: "opacity-0 invisible [transform:translateY(14px)] "
+          + "transition-[opacity,transform,visibility] "
+          + "[transition-delay:0s,0s,200ms]",
       },
     },
     defaultVariants: { shown: false },
@@ -184,14 +203,16 @@ export const messageUndo = cva(
    the document declared its box, so its styling stood in two places. */
 export const drawer = cva(
   "drawer absolute inset-y-0 left-0 right-auto w-[288px] max-w-[86%] z-[55] "
-    + "bg-sidebar border-r border-border flex flex-col transition-[transform] "
+    + "bg-sidebar border-r border-border flex flex-col "
     + "duration-300 ease-standard touch-pan-y "
     + "[&_a]:select-none [&_a]:[-webkit-user-drag:none]",
   {
     variants: {
       open: {
-        true: "open [transform:none] visible",
-        false: "[transform:translateX(-100%)] invisible",
+        true: "open [transform:none] visible transition-[transform]",
+        // B-249's idiom, on the CLOSED state only.
+        false: "[transform:translateX(-100%)] invisible "
+          + "transition-[transform,visibility] [transition-delay:0s,300ms]",
       },
     },
     defaultVariants: { open: false },
@@ -275,12 +296,16 @@ export const drawerIdentitySecondary = cva(
 export const dialog = cva(
   "dlg absolute left-[16px] right-[16px] top-1/2 z-[56] bg-popover "
     + "border border-border rounded-4 p-7 [box-shadow:var(--mq-shadow-dlg)] "
-    + "transition-[opacity,transform] duration-200 ease-standard",
+    + "duration-200 ease-standard",
   {
     variants: {
       open: {
-        true: "open opacity-100 visible [transform:translateY(-50%)_scale(1)]",
-        false: "opacity-0 invisible [transform:translateY(-50%)_scale(0.96)]",
+        true: "open opacity-100 visible [transform:translateY(-50%)_scale(1)] "
+          + "transition-[opacity,transform]",
+        // B-249's idiom, on the CLOSED state only.
+        false: "opacity-0 invisible [transform:translateY(-50%)_scale(0.96)] "
+          + "transition-[opacity,transform,visibility] "
+          + "[transition-delay:0s,0s,200ms]",
       },
     },
     defaultVariants: { open: false },
@@ -289,7 +314,15 @@ export const dialog = cva(
 
 export const dialogHeading = cva("mt-0 mx-0 mb-4 text-5 font-bold");
 
-export const dialogParagraph = cva("mt-0 mx-0 mb-5 text-3 leading-[1.45]");
+/* `color` WAS THE FOURTH DECLARATION and it was dropped in the move: the residue
+   read `.dlg p { margin; font-size; line-height; color: var(--color-muted-foreground) }`
+   and three of the four were restated. The oracle measures `color` — but on
+   `#dlg` itself, never on its children — so a confirmation's explanatory
+   sentence read at full foreground weight, the same weight as its heading, and
+   nothing said so. */
+export const dialogParagraph = cva(
+  "mt-0 mx-0 mb-5 text-3 leading-[1.45] text-muted-foreground",
+);
 
 export const dialogDryRun = cva(
   "dryrun flex items-center gap-3 text-2 font-semibold text-info "
@@ -330,14 +363,19 @@ export const dialogActions = cva("dlgacts flex flex-col gap-3");
    drift R80 exists to catch, and did. */
 export const dialogButton = cva(
   "dlgbtn flex items-center justify-center gap-4 w-full min-h-[44px] py-5 px-6 "
-    + "rounded-3 text-4 font-semibold text-center border border-border "
-    + "bg-transparent text-foreground",
+    + "rounded-3 text-4 font-semibold text-center border",
   {
     variants: {
+      // THE SAME RULE AS `selectionAction` ABOVE, for the same measured reason:
+      // background, border colour and text colour are what a tone DECIDES, so
+      // none of them sits in the base. Two of the three happened to fall the
+      // right way here by alphabet — `text-muted-foreground` after
+      // `text-foreground`, `border-transparent` after `border-border` — which
+      // is luck, not a rule, and the third did not.
       tone: {
         danger: "danger bg-danger-fill border-danger-fill text-white",
-        ghost: "ghost text-muted-foreground border-transparent",
-        neutral: "",
+        ghost: "ghost bg-transparent border-transparent text-muted-foreground",
+        neutral: "bg-transparent border-border text-foreground",
       },
     },
     defaultVariants: { tone: "neutral" },

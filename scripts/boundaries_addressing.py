@@ -679,12 +679,21 @@ def arm_addressing(root: Path) -> int:
             violations.append(
                 f'lib/addresses.ts: PAGE_PATHS declares an address for « {page} », which '
                 f"the navigation table does not carry — an address leading nowhere")
-    elif (root / "app" / "navigation.ts").is_file():
+    else:
+        # LOUD EITHER WAY, and the `elif` this replaces was not. It asked
+        # whether the file exists and said nothing when it does not — so moving
+        # the table to `app/navigation/index.ts`, an ordinary refactor, took
+        # both directions of this hold away in silence and printed « 0 the table
+        # declares ». The old shape was carried across from the engine's own
+        # branch unchanged, which is how it survived the move.
+        present = (root / "app" / "navigation.ts").is_file()
         violations.append(
-            "app/navigation.ts: the table reads to nothing — the page list cannot be "
-            "held against the address model, and a reader that stays green over a "
-            "declaration it cannot read is the failure `check-frontend-boundaries.py`'s "
-            "`arm_cycles` names")
+            "app/navigation.ts: the table reads to nothing — "
+            + ("the file is there and declares no `NAVIGATION`"
+               if present else "the file is not where this reader looks")
+            + ". The page list cannot be held against the address model, and a "
+            "reader that stays green over a declaration it cannot read is the "
+            "failure `check-frontend-boundaries.py`'s `arm_cycles` names")
 
     print(f"  addressing: {len(files)} route file(s), {len(dials)} dial(s), "
           f"{len(pages)} page(s) against {len(table_pages)} the table declares, "

@@ -76,8 +76,11 @@ export function Popover({
         left: `${placement?.left ?? 0}px`,
         top: `${placement?.top ?? 0}px`,
         // Hidden until it has been placed, so it is never painted at 0,0 for a
-        // frame. The engine got this for free: it positioned the node before
-        // appending it.
+        // frame. THE ENGINE DID NOT DO THIS — it appended the node and THEN
+        // read `offsetHeight` to place it, so it painted once unplaced. This is
+        // a rendering change inside a conversion, small and deliberate, and it
+        // is written down rather than left resting on a false sentence about
+        // the code it replaced.
         visibility: placement ? undefined : "hidden",
       }}
     >

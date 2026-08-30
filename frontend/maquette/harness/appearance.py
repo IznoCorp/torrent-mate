@@ -107,27 +107,43 @@ async def main():
             offered == ["system", "light", "dark"],
             str(offered))
 
+        # (b) EVERY ONE OF THE THREE, CHOSEN AND RELOADED. B-245 was a
+        # two-value mismatch, and a walk that chooses ONE appearance and
+        # reloads once would pass with the other two branches of the pre-paint
+        # script still testing words nothing writes — the « repair applied to
+        # one branch of an `if` » shape, at the level of the walk. `system` is
+        # read against the device's own preference, which is what that mode
+        # means; the harness runs light-preference-unset, so it resolves dark.
+        wanted = {"light": "light", "dark": None, "system": None}
+        for mode, expected in wanted.items():
+            await page.evaluate("()=>window.__go('drawer-navigation')")
+            await page.wait_for_timeout(350)
+            await page.evaluate(
+                "(mode)=>document.querySelector(`[data-appearance=\"${mode}\"]`).click()",
+                mode)
+            await page.wait_for_timeout(300)
+            chosen = await read(page)
+            journal.check(
+                f"choosing « {mode} » records what it painted",
+                chosen["stored"] == mode,
+                f"stored {chosen['stored']!r}, painted {chosen['theme']!r}")
+            await page.reload(wait_until="load")
+            await page.wait_for_timeout(300)
+            reloaded = await read(page)
+            journal.check(
+                f"and a reload opens « {mode} » in its FIRST frames, not after "
+                "the module runs (B-245)",
+                reloaded["firstFrame"] == expected
+                and reloaded["stored"] == mode,
+                f"first frame {reloaded['firstFrame']!r}, "
+                f"after load {reloaded['theme']!r}, stored {reloaded['stored']!r}")
+
+        # Back to light for the two theme-colour holds below.
+        await page.evaluate("()=>window.__go('drawer-navigation')")
+        await page.wait_for_timeout(350)
         await page.evaluate(
             """()=>document.querySelector('[data-appearance="light"]').click()""")
         await page.wait_for_timeout(300)
-        chosen = await read(page)
-        journal.check(
-            "choosing « light » paints light and records what it painted",
-            chosen["theme"] == "light" and chosen["stored"] == "light",
-            str({k: chosen[k] for k in ("theme", "stored")}))
-
-        # (b) AND IT SURVIVES A RELOAD BEFORE THE FIRST PAINT (B-245). Read
-        # from the init script, not after load: after load the module has long
-        # since corrected whatever the pre-paint script did.
-        await page.reload(wait_until="load")
-        await page.wait_for_timeout(300)
-        reloaded = await read(page)
-        journal.check(
-            "and the reload opens light in its FIRST frames, not after the "
-            "module runs (B-245)",
-            reloaded["firstFrame"] == "light",
-            f"first frame {reloaded['firstFrame']!r}, "
-            f"after load {reloaded['theme']!r}, stored {reloaded['stored']!r}")
 
         # (c) THE STATUS BAR FOLLOWS (B-233): the two themes declare DIFFERENT
         # colours, and each is the one the document really paints.

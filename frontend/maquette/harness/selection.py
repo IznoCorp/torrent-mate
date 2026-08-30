@@ -1,6 +1,7 @@
 """Multi-selection in the library, and what it enables."""
 
 import asyncio
+import re
 from common import shot
 from playwright.async_api import async_playwright
 async def main():
@@ -93,14 +94,18 @@ async def main():
     print("  after 1 tap :", one)
     if one is None or one["destructiveDisabled"]:
         failures.append("one selected and « Supprimer » is still unavailable")
-    if one is not None and "1" not in one["caption"]:
+    # A WORD-BOUNDARY MATCH, not a substring: « 0 sur 15 sélectionnés » carries
+    # the digit 1 and would have satisfied `"1" in caption` with a counter stuck
+    # at zero — on the one surface whose whole job is to say how many things are
+    # about to be destroyed.
+    if one is not None and not re.search(r"\b1\b", one["caption"]):
         failures.append(f"one selected and the caption says {one['caption']!r}")
 
     for i in (2,5):
         await pg.click(f"[data-tile='{i}']"); await pg.wait_for_timeout(120)
     counted = await bar()
     print("  after 3 taps:", (counted or {}).get("caption", "").strip())
-    if counted is None or "3" not in counted["caption"]:
+    if counted is None or not re.search(r"\b3\b", counted["caption"]):
         failures.append(
             f"three selected and the caption says "
             f"{(counted or {}).get('caption')!r}")

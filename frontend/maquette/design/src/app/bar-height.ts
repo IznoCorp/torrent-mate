@@ -32,8 +32,10 @@
  * observer fires on every layout that touches the bar, and a write per fire
  * would invalidate style for the whole document each time.
  *
- * Called once from the shell's boot, after the engine has drawn the bar, so the
- * first value published is the real one rather than an empty bar's.
+ * Called once from the TAB BAR's own layout effect, so the first value
+ * published is a drawn bar's rather than an empty one's — and so that it is
+ * published at all: the bar is a component since L15 and does not exist when
+ * the boot runs, where this used to be called.
  */
 export function publishBarHeight(): void {
   const bar = document.querySelector<HTMLElement>(".bottombar");

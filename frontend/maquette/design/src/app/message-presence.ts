@@ -51,14 +51,10 @@ export function useMessagePresent(): boolean {
   );
 }
 
-declare global {
-  interface Window {
-    /** What the dying engine calls when it shows or hides a message. */
-    __messagePresent?: (on: boolean) => void;
-  }
-}
-
-/** Publishes the setter on the seam the engine speaks. Dies with the engine. */
-export function installMessagePresence(): void {
-  window.__messagePresent = setMessagePresent;
-}
+// NO SEAM IS PUBLISHED HERE, and it is a subtraction rather than an omission.
+// One was — `window.__messagePresent` — written for an engine that would call
+// it, and by the time the message layer landed the engine called
+// `window.__toast.show`/`hide` instead and `app/toast-host.ts` called the
+// setter above BY IMPORT. Nothing read it, in `design/src` or in the harness:
+// new machinery with no subject, which is the shape D5 names and which this
+// wave's own comments cite twice. Found by a reader of the seams.

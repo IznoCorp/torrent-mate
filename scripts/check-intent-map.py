@@ -77,14 +77,33 @@ VERDICTS = {"served", "served, unproved", "partly", "to draw", "outside the inte
 MUST_NAME_A_SURFACE = {"served", "served, unproved", "partly"}
 
 # The verdicts that owe a lot: the half of the work nobody has done yet.
-MUST_NAME_A_LOT = {"to draw", "partly"}
+#
+# `served, unproved` IS ONE OF THEM, and leaving it out made it the only verdict
+# of the five with NO obligation at all — no proof, no lot — one word away from
+# every other. Fourteen of the twenty-three rows say `partly` today; rewriting
+# them all to `served, unproved` emptied the ledger of what is owed and this
+# guard printed « 0 violation(s) ». Found by a reader of the arms. What it owes
+# is the LOT that will prove it: the surface exists, the instrument does not.
+MUST_NAME_A_LOT = {"to draw", "partly", "served, unproved"}
 
 FEATURE = re.compile(r"`?features/([a-z-]+)")
 ROUTE = re.compile(r"`(/[\w$/-]*)`")
 LOT = re.compile(r"\bL(\d{2})\b")
+# The escape a row must SAY to owe no lot — see the block that reads it.
+HELD_BY_REVIEW = re.compile(r"held by review", re.IGNORECASE)
 # A proof is a numbered rule, a harness script, or a repository guard. Prose is
 # not a proof, and neither is a lot: a lot is what is OWED.
-PROOF = re.compile(r"\bR\d+\b|harness/[\w.]+\.py|scripts/[\w.-]+\.py")
+PROOF = re.compile(r"\bR\d+\b|(harness/[\w.]+\.py|scripts/[\w.-]+\.py)")
+
+# A NAMED FILE MUST EXIST. `harness/imaginary.py` satisfied the pattern above
+# and named nothing — and a rule file is renamed by an ordinary refactor, which
+# would leave a `served` row pointing at a file that is gone while this guard
+# stayed green. The rule NUMBERS (`R69`) are not checked the same way: they live
+# in `regions.json`'s review block and in a docstring, and holding them here
+# would be a second copy of an inventory that file already owns.
+def named_files(cell: str) -> list[str]:
+    """The harness scripts and repository guards a Proof cell names."""
+    return re.findall(r"(?:harness|scripts)/[\w.-]+\.py", cell)
 
 # Floors. A reading that finds fewer has stopped reading, and « no violation »
 # over nothing read is the shape this repository counts.
@@ -206,6 +225,16 @@ def main() -> int:
                 )
         if verdict in MUST_NAME_A_LOT:
             owed = {f"L{number}" for number in LOT.findall(proof)}
+            # THE ONE HONEST EXCEPTION, and it is named rather than inferred.
+            # NE-DOIT-PAS-4 is « message obscur », and its row says out loud
+            # that NO instrument reads obscurity: the clause is held by a
+            # reader of `fr.json`, and no lot will ever owe an instrument for
+            # it. A row may say so — in those words — instead of naming a lot,
+            # and saying so is the whole of the exception: an exception that is
+            # not named is indistinguishable from an instrument nobody built,
+            # which is B-085's sentence with the reader replaced by a wave.
+            if not owed and HELD_BY_REVIEW.search(proof):
+                continue
             if not owed:
                 violations += 1
                 print(
@@ -222,6 +251,26 @@ def main() -> int:
                     "exist owes nothing.",
                     file=sys.stderr,
                 )
+        # `cited`, not `named` — the loop variable in the first version of this
+        # block shadowed the list of CLAUSES the function is iterating, so after
+        # the first row naming a file the extras check compared the map against
+        # the characters of a path. It reported eighteen clauses where there are
+        # twenty-three and refused fourteen rows that are perfectly good.
+        for cited in named_files(proof):
+            path = (
+                ROOT / "frontend" / "maquette" / cited
+                if cited.startswith("harness/")
+                else ROOT / cited
+            )
+            if path.exists():
+                continue
+            violations += 1
+            print(
+                f"  {name}: names « {cited} » as proof, and no such file "
+                "exists. A proof that is not there proves nothing, and the row "
+                "reads as though it did.",
+                file=sys.stderr,
+            )
         if verdict == "served" and not PROOF.search(proof):
             violations += 1
             print(

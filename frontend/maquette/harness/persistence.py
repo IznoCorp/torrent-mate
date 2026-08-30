@@ -102,6 +102,14 @@ async def main():
         # defend.
         document_loads = []
         page.on("load", lambda _: document_loads.append("load"))
+        # AND A RESTORE FROM THE BACK-FORWARD CACHE, which neither of the two
+        # above sees: it brings back the SAME `window` — sentinel intact — and
+        # fires `pageshow` rather than `load`. A walk out and back is a full
+        # navigation this rule would otherwise report clean. It is counted here
+        # and read with them.
+        await context.add_init_script(
+            "window.addEventListener('pageshow', (event) => {"
+            " if (event.persisted) window.__restored = (window.__restored || 0) + 1; });")
         states = await page.evaluate("()=>window.__states()")
         journal.check(
             "the interface declares the states this walk covers",
@@ -114,9 +122,11 @@ async def main():
         survived = await page.evaluate("()=>window.__oneDocument ?? null")
         journal.check(
             "no full navigation between any two named states — one document",
-            survived == "planted" and len(document_loads) == before,
+            survived == "planted" and len(document_loads) == before
+            and await page.evaluate("()=>window.__restored ?? 0") == 0,
             f"sentinel after {len(states)} state(s): {survived!r}; "
-            f"{len(document_loads) - before} document load(s)")
+            f"{len(document_loads) - before} document load(s), "
+            f"{await page.evaluate('()=>window.__restored ?? 0')} bfcache restore(s)")
 
         # (b) THE BAR'S BUTTONS KEEP THEIR IDENTITY across a page switch.
         await page.evaluate("()=>window.__go('acq-now-idle')")
@@ -156,16 +166,25 @@ async def main():
         await page.evaluate("()=>window.__store.write({page: 'arr'})")
         await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(200)
+        # `isSameNode`, NOT the dataset. This hold read `dataset.page`, a
+        # `closest('#nav')` and « not body » — every one of which a REPLACEMENT
+        # node satisfies, so a bar that re-created its buttons and then focused
+        # the equal-looking new one passed it. The rule's own header says
+        # `isSameNode` is the only question that separates them; this is that
+        # question, asked here too.
         kept = await page.evaluate("""()=>{
           const active = document.activeElement;
+          const before = (window.__persistenceProbe || [])[0] || null;
           return {
+            same: !!(before && active && before.isSameNode(active)),
             page: active && active.dataset ? active.dataset.page ?? null : null,
             inBar: !!(active && active.closest && active.closest('#nav')),
             body: active === document.body,
           };}""")
         journal.check(
-            "focus survives a page switch and a store bump (P28, B-231)",
-            kept["inBar"] and kept["page"] == focused and not kept["body"],
+            "focus survives a page switch and a store bump, on the SAME node "
+            "(P28, B-231)",
+            kept["same"] and kept["inBar"] and not kept["body"],
             f"active element: {kept}")
 
         # (d-bis) THE MESSAGE'S LIVE REGION IS THE SAME NODE THROUGHOUT, and

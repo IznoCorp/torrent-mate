@@ -25,7 +25,6 @@ import { installEntry } from "./entry";
 import { MessageLayer } from "./message-layer";
 import { installPopoverHost } from "./popover-host";
 import { PopoverLayer } from "./popover-layer";
-import { installMessagePresence } from "./message-presence";
 import { installToastHost } from "./toast-host";
 import { TabBar } from "./tab-bar";
 
@@ -38,7 +37,6 @@ import { TabBar } from "./tab-bar";
 // Published as this module evaluates, which is before the engine's own boot
 // writes anything: the engine imports through `app/shell.tsx`, and the shell
 // imports this file with the rest of the frame.
-installMessagePresence();
 installToastHost();
 installLayerRegistry();
 installDialogHost();

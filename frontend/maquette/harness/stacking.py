@@ -136,10 +136,17 @@ async def main():
                   barRank: getComputedStyle(bar).zIndex,
                   sameParent: bar.parentElement
                     === document.querySelector('#dlg').parentElement};}""")
+        # AND THE NUMBERS ARE COMPARED, not only printed. The hit-test below
+        # reads what is REACHABLE, which is paint order confounded by
+        # `pointer-events`: a `pointer-events-none` on the bar would let it
+        # paint over a modal and still answer `dlg`. The two readings together
+        # are what the property is — the ranks say what is drawn on top, and
+        # the shared parent is what makes the two numbers comparable at all.
         journal.check(
-            "the two are ranked in ONE stacking context, so their numbers are "
-            "comparable at all",
-            painted["sameParent"],
+            "the two are ranked in ONE stacking context, and the confirmation's "
+            "rank is the higher (B-237)",
+            painted["sameParent"]
+            and int(painted["dialogRank"]) > int(painted["barRank"]),
             f"dialog {painted['dialogRank']}, bar {painted['barRank']}, "
             f"same parent: {painted['sameParent']}")
         journal.check(
@@ -204,11 +211,22 @@ async def main():
         await page.evaluate("()=>window.__go('lib-list')")
         await page.evaluate("()=>window.__toast.show({message: 'probe'})")
         await page.wait_for_timeout(350)
-        message_hit = await page.evaluate(AT, ['#toast', 0.5])
+        # THE RELATION, NOT THE MESSAGE'S OWN CENTRE. The first version of this
+        # hold hit-tested inside the toast and asserted the toast answered —
+        # which is true by construction, because nothing paints over it there.
+        # Moving the message to `bottom-0` and `z-[60]`, squarely over the bar,
+        # would have passed it. What the property says is that the two do not
+        # meet, and that is a comparison of two boxes.
+        cleared = await page.evaluate("""()=>{
+          const message = document.querySelector('#toast').getBoundingClientRect();
+          const bar = document.querySelector('#nav').getBoundingClientRect();
+          return {clears: message.bottom <= bar.top + 1,
+                  message: [Math.round(message.top), Math.round(message.bottom)],
+                  bar: Math.round(bar.top)};}""")
         journal.check(
             "the message clears the bar rather than painting over it",
-            message_hit.get("owner") == "toast",
-            str(message_hit))
+            cleared["clears"],
+            str(cleared))
 
         # (d-bis) THE BOTTOM SHEET PAINTS OVER THE TAB BAR (B-248, P31).
         # Dictated by the operator on 2026-08-30 from a screenshot: while a

@@ -100,18 +100,26 @@ export function Dialog({
             <Block key={at} block={block} />
           ))}
           <div className={dialogActions()}>
-            {/* THE WAY OUT IS NAMED, and `data-dismiss` is that name. It was
-                `id="dlgcancel"` — an id the engine's producer invented and two
-                rules selected — and an id on a control a DESCRIPTOR may repeat
-                is a contract that breaks the second time a dialog offers two
-                ways out. It is written so a false state omits the attribute,
-                which is what every boolean state attribute here does. */}
+            {/* THE WAY OUT IS NAMED, and `data-dialog-dismiss` is that name. It
+                was `id="dlgcancel"` — an id the engine's producer invented and
+                two rules selected — and an id on a control a DESCRIPTOR may
+                repeat is a contract that breaks the second time a dialog offers
+                two ways out. It is written so a false state omits the
+                attribute, which is what every boolean state attribute here
+                does.
+
+                IT IS NOT `data-dismiss`, and the qualifier is not decoration:
+                the engine's own delegation reads `closest.dataset.dismiss` and
+                calls `dismissSug(Number(…))` on it. An empty value is falsy so
+                the collision was inert — and would have become `dismissSug(0)`
+                the first time anyone gave this attribute a value. Found by a
+                reader of the seams. */}
             {descriptor.actions.map((action, at) => (
               <button
                 key={at}
                 data-part="dialog/button"
                 {...(action.tone === "danger" ? { "data-tone": "danger" } : {})}
-                {...(action.dismiss ? { "data-dismiss": "" } : {})}
+                {...(action.dismiss ? { "data-dialog-dismiss": "" } : {})}
                 {...(action.target ?? {})}
                 className={dialogButton({ tone: action.tone ?? "neutral" })}
                 onClick={() => {

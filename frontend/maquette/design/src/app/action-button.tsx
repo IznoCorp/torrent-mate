@@ -22,7 +22,7 @@
 // message's exit duration and nothing else. A page arriving with an action of
 // its own waits for nothing: delaying THAT would make the button late on every
 // navigation, which is a rendering change with no defect behind it.
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -49,7 +49,14 @@ export function ActionButton(): ReactElement {
   // render is not what should tell it.
   const [heldBack, setHeldBack] = useState(false);
   const wasShown = useRef(messageShown);
-  useEffect(() => {
+  // A LAYOUT EFFECT, and the difference is a painted frame. `useEffect` runs
+  // AFTER the browser has painted, so the render that first sees `messageShown`
+  // false committed `hidden={false}` — the button came back for one frame,
+  // vanished for 200 ms and came back again. That frame is the target appearing
+  // under a finger still travelling towards the close it was aiming at, which
+  // is the whole reason the wait exists. The engine never had that window: its
+  // `fab.hidden` stayed true until the timer fired.
+  useLayoutEffect(() => {
     const leaving = wasShown.current && !messageShown;
     wasShown.current = messageShown;
     if (!leaving) return;

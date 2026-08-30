@@ -7654,18 +7654,21 @@ import { icons } from "../app/icons";
     store?.touch();
     /* An id no page carries is not a crash: it is the `*` route. Looking one
        up and calling `.render()` on nothing stopped the whole interface on a
-       TypeError, which is the worst possible answer to a stale bookmark. */
-    let found = navigationRows().find(
-      (element) => element.id === currentState().page,
-    );
-    if (!found) {
-      store.write({
-        notFound: "/" + currentState().page,
-        page: window.__navigation?.notFoundPage,
-      });
-      found = navigationRows().find(
-        (element) => element.id === window.__navigation?.notFoundPage,
-      );
+       TypeError, which is the worst possible answer to a stale bookmark.
+       The row itself is not read here any more — nothing below consumes it —
+       so only the redirection is made.
+
+       AND IT IS REFUSED RATHER THAN MADE WITH `undefined` where the table
+       cannot answer. That only happens with the seam absent, and the seam is
+       installed before this engine starts; written the other way it would blank
+       the interface with nothing in the console, which is a worse answer than
+       the TypeError this branch was written against. */
+    const notFound = window.__navigation?.notFoundPage;
+    if (!navigationRows().some((element) => element.id === currentState().page)) {
+      if (notFound === undefined)
+        // ENGLISH, and not in `fr.json`: a console message is a tool message.
+        console.error("render: the navigation table answered nothing");
+      else store.write({ notFound: "/" + currentState().page, page: notFound });
     }
     /* EVERY PAGE IS DRAWN BY THE SHELL, and this file writes `#view` nowhere.
        It used to branch: a page the shell owned was portalled into this very
@@ -8809,6 +8812,11 @@ import { icons } from "../app/icons";
      verb rather than a copy of the bookkeeping. */
   window.__derouler = unwindLayer;
 
+  /* The shape of a navigation entry, for the entry screen — see
+     `navigationState` above, including why this LINE and not only its
+     paragraph. */
+  window.__navigationState = navigationState;
+
   /* A settlement of SEVERAL entries at once (`__bridge.reculer`) announces itself
      through the same latch — and raises it by ONE, never by the number of
      entries: the browser coalesces a multi-entry traversal into a SINGLE
@@ -9016,7 +9024,14 @@ import { icons } from "../app/icons";
   /* PUBLISHED FOR THE ENTRY, which is `app/entry.ts`'s since L15: the sign-in
      gate writes its own address and the SHAPE of a navigation entry is still
      this file's, so it crosses rather than being restated. It dies with the
-     rest of the navigation logic at L13. */
+     rest of the navigation logic at L13.
+
+     ⚠ THE ASSIGNMENT IS THE PUBLICATION, and for one commit this paragraph WAS
+     the publication: it was written and the line below was not, so the gate
+     stamped `null` on the entry it replaced and a Back onto that entry matched
+     none of the handler's branches. `?? null` made it a no-throw, and no rule
+     walks the gate's history, so nothing said so. Found by a reader of the
+     seam, not by a gate — a comment describing a repair is not the repair. */
   function navigationState() {
     return {
       tm: "nav",
@@ -9487,7 +9502,12 @@ import { icons } from "../app/icons";
   const signOut = () => window.__entry?.signOut();
   const showStartup = () => window.__entry?.showStartup();
   const hideStartup = () => window.__entry?.hideStartup();
-  const coverLoading = () => window.__entry?.showStartup();
+  /* THE WHOLE VERB, not half of it. This forwarder took `showStartup()` alone
+     for one commit — so the splash went up and nothing was scheduled to take it
+     down, and a duration a caller passed was discarded. No caller is left
+     today, which is exactly what would have made it invisible on the day one
+     came back. */
+  const coverLoading = (duration) => window.__entry?.coverLoading(duration);
   const showInstallation = (platform) => window.__entry?.showInstall(platform);
   const masquerInstallation = () => window.__entry?.hideInstall();
   const alreadyInstalled = () => window.__entry?.alreadyInstalled() === true;
@@ -10387,9 +10407,15 @@ import { icons } from "../app/icons";
       0,
     );
     const size = (files * 0.41).toFixed(1).replace(".", ",") + " Go";
+    /* NOT ESCAPED, and it is the one `escapeHtml` site in this file that must
+       not be: the heading crosses as a DESCRIPTOR field and is rendered as a
+       React text node, which escapes it itself. Escaped here it was escaped
+       twice — « Supprimer « Lilo &amp; Stitch » ? » on every title carrying an
+       ampersand, and the seeds carry five. The other thirty-five sites still
+       feed `innerHTML` and still need it. */
     const head = multi
       ? `Supprimer ${titles.length} médias ?`
-      : `Supprimer « ${escapeHtml(titles[0])} » ?`;
+      : `Supprimer « ${titles[0]} » ?`;
     window.__dialog?.open({
       heading: head,
       body: [

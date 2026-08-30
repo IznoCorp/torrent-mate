@@ -90,8 +90,9 @@ declare global {
     /** The entry's verbs, as the dying engine and the harness say them. */
     __entry?: {
       showSignIn: (withError: boolean, silent?: boolean) => void;
-      hideSignIn: () => void;
+      hideSignIn: (silent?: boolean) => void;
       signOut: () => Promise<void>;
+      coverLoading: (duration?: number) => void;
       showStartup: () => void;
       hideStartup: () => void;
       showInstall: (platform: "ios" | "android") => void;
@@ -333,6 +334,7 @@ export function installEntry(): void {
     showSignIn,
     hideSignIn,
     signOut,
+    coverLoading,
     showStartup,
     hideStartup,
     showInstall,

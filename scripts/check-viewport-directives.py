@@ -31,19 +31,29 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DESIGN = ROOT / "frontend" / "maquette" / "design"
+# THE WHOLE MAQUETTE, NOT ONLY THE PROTOTYPE'S TREE. The first version read
+# `design/` alone — and B-230's own story is a directive added to a host that
+# had no viewport meta, so the HOSTS are where the next one lands.
+# `frontend/maquette/serve.py` emits four viewport metas and
+# `frontend/maquette/installable.py` a fifth, and every one of them was outside
+# this guard while its docstring told the story of a host.
+MAQUETTE = ROOT / "frontend" / "maquette"
 
 # The two directives, in the spellings a browser accepts: whitespace around the
 # separator is legal and `USER-SCALABLE` is case-insensitive, so neither is
 # matched as a bare literal.
 FORBIDDEN = (
     ("maximum-scale", re.compile(r"maximum\s*-\s*scale", re.IGNORECASE)),
-    ("user-scalable=no", re.compile(r"user\s*-\s*scalable\s*=\s*(no|0)", re.IGNORECASE)),
+    # `false` too: Blink's viewport parser reads it as a refusal, and the
+    # first version accepted only `no` and `0`.
+    ("user-scalable refused",
+     re.compile(r"user\s*-\s*scalable\s*=\s*(no|0|false)", re.IGNORECASE)),
 )
 
 # What this guard reads. `dist/` is a build of the same sources and would
 # double every finding; `node_modules/` is nobody's to fix.
-SUFFIXES = {".html", ".js", ".jsx", ".ts", ".tsx", ".css"}
+# `.py` is here because the hosts are Python and they emit the meta.
+SUFFIXES = {".html", ".js", ".jsx", ".ts", ".tsx", ".css", ".py"}
 SKIP = {"node_modules", "dist", "__pycache__"}
 
 # THE ONE PLACE THE WORDS MAY APPEAR, and it is this file. A guard that cannot
@@ -52,7 +62,11 @@ SKIP = {"node_modules", "dist", "__pycache__"}
 ALLOWED = {Path(__file__).resolve()}
 
 # A reading that finds fewer than this has stopped reading, whatever it says
-# about the directives. The design tree holds several hundred of these files.
+# about the directives. Re-run `--help` on the printed figure rather than
+# trusting this comment for the size: the guard prints its corpus on every
+# run, and a comment that states the number is the thing this repository
+# keeps having to correct. The floor is set low enough that an ordinary
+# deletion does not trip it and high enough that a broken glob does.
 CORPUS_FLOOR = 50
 
 
@@ -89,7 +103,7 @@ def sources() -> list[Path]:
         The paths, sorted.
     """
     found = []
-    for path in sorted(DESIGN.rglob("*")):
+    for path in sorted(MAQUETTE.rglob("*")):
         if not path.is_file() or path.suffix not in SUFFIXES:
             continue
         if any(part in SKIP for part in path.parts):
@@ -109,7 +123,7 @@ def main() -> int:
     if len(files) < CORPUS_FLOOR:
         print(
             f"  check-viewport-directives: {len(files)} file(s) read under "
-            f"{DESIGN.relative_to(ROOT)} — under the floor of {CORPUS_FLOOR}. "
+            f"{MAQUETTE.relative_to(ROOT)} — under the floor of {CORPUS_FLOOR}. "
             "A reader that has stopped reading refuses nothing and says so as "
             "« no violation ».",
             file=sys.stderr,
@@ -135,7 +149,7 @@ def main() -> int:
             )
     print(
         f"check-viewport-directives: {len(files)} source file(s) read under "
-        f"{DESIGN.relative_to(ROOT)} (floor {CORPUS_FLOOR}), {violations} "
+        f"{MAQUETTE.relative_to(ROOT)} (floor {CORPUS_FLOOR}), {violations} "
         "violation(s) — neither `maximum-scale` nor a `user-scalable` refusal, "
         "in markup, in script or in a stylesheet"
     )
