@@ -16,10 +16,13 @@
 // flash. The storage key is a CONTRACT with that script and is not renamed:
 // renaming it would orphan every choice already saved.
 //
-// ⚠ THE VALUES AND THAT SCRIPT DISAGREE TODAY (B-245): it tests « clair » and
-// « systeme », and nothing written here has matched either since the English
-// rename. That is a BEHAVIOUR defect and it is repaired in its own commit,
-// never inside this move — a conversion proves the rendering did not change.
+// THE VALUES AND THAT SCRIPT AGREE SINCE B-245, and they did not before: the
+// script tested « clair » and « systeme » while this module and its predecessor
+// wrote « light » and « system », so no value it could store matched either
+// literal — and the pre-paint script is the ONLY reader of the stored choice at
+// boot, so a saved « light » was not applied at all until the control was
+// touched again. A `data-*` contract has three ends and moves in one step; this
+// one's third end is `localStorage`, and the English rename left it behind.
 
 /** The three states the drawer offers, in the order it offers them. */
 export const APPEARANCES = ["system", "light", "dark"] as const;
@@ -59,6 +62,35 @@ export function applyAppearance(mode: Appearance): void {
     (mode === "system" && matchMedia("(prefers-color-scheme: light)").matches);
   if (light) document.documentElement.setAttribute("data-theme", "light");
   else document.documentElement.removeAttribute("data-theme");
+  followTheme();
+}
+
+/**
+ * Puts the status bar's colour where the document's ground is (B-233).
+ *
+ * `theme-color` was a CONSTANT — `#0b0b0d` — while the document paints light
+ * under `data-theme="light"`, so an installed application in the light theme
+ * wore a dark status bar. P21 of `MODEL.md` § 3 was false.
+ *
+ * THE VALUE IS READ FROM WHAT IS PAINTED, never retyped beside it. A second
+ * copy of a colour is a colour that drifts, and this repository has the
+ * measurement: the brand colour was renamed and a retyped copy went on
+ * rendering correctly while the reference was broken. `getComputedStyle` on the
+ * body answers what the ground really is under whichever theme is in force, in
+ * whatever colour space the token declares — and the meta accepts that string,
+ * because it is the same value the page paints.
+ *
+ * THE DOCUMENT KEEPS ITS OWN DECLARATION and this does not replace it: the
+ * static meta is the DARK value, which is what the default paints, and it is
+ * there for the frames before any module runs.
+ */
+function followTheme(): void {
+  const meta = document.querySelector<HTMLMetaElement>(
+    'meta[name="theme-color"]',
+  );
+  if (!meta) return;
+  const ground = getComputedStyle(document.body).backgroundColor;
+  if (ground) meta.setAttribute("content", ground);
 }
 
 /**
@@ -87,4 +119,10 @@ export function installAppearance(): void {
   matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
     if (currentAppearance() === "system") applyAppearance("system");
   });
+  // AND ONCE AT BOOT, because the pre-paint script in `index.html` writes the
+  // ATTRIBUTE and knows nothing of the meta: it runs before any stylesheet is
+  // parsed, so it could not read a painted colour even if it wanted to. The
+  // document's static `theme-color` covers those first frames; this is the
+  // first moment the real ground exists to be read.
+  followTheme();
 }

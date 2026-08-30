@@ -292,7 +292,7 @@ when the defect comes back.
 | B-230 | The engine re-adds `user-scalable=no` to any host without a viewport meta | by survey | `open` |
 | B-231 | The tab bar is rebuilt from scratch on every render | by survey | `open` |
 | B-232 | Two dead layers: the page-render branch and `#screen` | by survey | `open` |
-| B-233 | `theme-color` is a constant while the document paints light | by survey | `open` |
+| B-233 | `theme-color` is a constant while the document paints light | by survey | `fixed #528` |
 | B-234 | The viewport meta declares no `interactive-widget` | by survey | `open` |
 | B-235 | No desktop navigation exists beyond the drawer | by survey | `open` |
 | B-236 | Every bottom-panel producer is the engine's — L19's since 2026-08-29 | by survey | `open` |
@@ -304,10 +304,39 @@ when the defect comes back.
 | B-242 | `MODEL.md` P14 says 78 named states where 87 are driven | by audit | `fixed #527` |
 | B-243 | Three small drifts in the directives: nineteen guards for twenty, an archived path cited live, « twenty times » for twenty-four | by audit | `fixed #527` |
 | B-244 | A contracts-tier guard whose subject only the `docs` filter names runs in no job | by L15 | `open` |
-| B-245 | The pre-paint appearance script compares against the French spellings the engine stopped writing | by L15 | `open` |
+| B-245 | The pre-paint appearance script compares against the French spellings the engine stopped writing | by L15 | `fixed #528` |
 | B-246 | The « In flight » row's version arm is defeated by markdown emphasis, in silence | by L15 | `fixed #528` |
 | B-247 | A store bump replaces a feature page's nodes, so a write between press and click destroys the click | by L15 | `open` |
 | B-250 | `check-live-relay`'s stale-figure arm cannot tell a register citation from a frozen count | by L15 | `fixed #528` |
+
+**B-245 and B-233 — the appearance survives a reload, and the status bar follows it.**
+Both closed by L15, in one commit because they are one surface and one rule (R102,
+`harness/appearance.py`) — and both are BEHAVIOUR, so they land outside every conversion.
+
+**B-245 is worse than a flash, and the mutation is what said so.** The entry says the pre-paint
+script's mismatch cost « a flash on every reload ». Measured, by restoring the mismatch and
+reloading: the attribute is not set AT ALL, before or after load. That script is the ONLY reader of
+the stored choice at boot — nothing else applies it — so a saved « light » was not applied until the
+operator touched the control again. The two ends say the same words now.
+
+**B-233's value is READ, never retyped.** `app/appearance.ts` writes the meta from
+`getComputedStyle(document.body).backgroundColor` whenever it writes the attribute — the ground the
+document really paints, in whatever colour space the token declares. A second copy of a colour is a
+colour that drifts, and this repository has the measurement: the brand colour was renamed and a
+retyped copy went on rendering correctly while the reference was broken. The document keeps its own
+static `theme-color`, the DARK value, for the frames before any module runs.
+
+**Why nothing saw either.** The oracle runs under the default theme, so a light-theme defect is
+outside it by construction; a `<meta>` has no rectangle and no computed style, so it is outside it
+twice. The accessibility tier reads the rendered markup and not the head. And the flash is a
+property of the FIRST FRAMES of a reload — a state nothing here drove, because every rule opens a
+page and then measures it. R102 reloads, drives the interface's own control, and reads the attribute
+from an INIT SCRIPT: read after load, the module has long since corrected whatever the pre-paint
+script did.
+
+<sub>`python3 frontend/maquette/harness/appearance.py` — 6 holds, no violation. Mutations: the French spellings restored (« first frame None, after load None, stored 'light' »); the meta write removed (« light 11,11,13 against dark 11,11,13 »).</sub>
+
+---
 
 **B-250 — the stale-figure arm cannot tell a register citation from a frozen count.**
 Found on 2026-08-30 during L15's entry conversion, by the arm going red over a sentence that could
