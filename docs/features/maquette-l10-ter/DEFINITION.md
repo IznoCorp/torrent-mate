@@ -122,7 +122,7 @@ modelling what a surface is; the mapping is a by-product of that subject rather 
 beside it.
 
 **Two traps, both already paid for here.** Seeding the mapping from what exists today certifies the
-status quo — the vocabulary file did exactly that and let twenty-five French words in with the rest.
+status quo — the vocabulary file did exactly that and let twenty-four French words in with the rest.
 And a clause that names no surface must be REFUSED with its reason readable, not counted in a
 printed figure nobody compares: a number that is printed and not read is how a control drifted by
 seven inside the pull request that introduced it.

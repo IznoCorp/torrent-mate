@@ -4141,7 +4141,7 @@ file already held twenty-four words while its own banner said twenty-five — of
 both were written. `05522b12` (2026-08-19) corrected the banner to twenty-four and left `CLAUDE.md`
 saying twenty-five: the correction reached the file nobody opens for the figure and missed the
 index every agent opens first. B-239's shape exactly, in the same index, found by re-running the
-L15 brief's citation of the figure before the brief merged. The brief and the index both read
+L15 brief's citation of the figure before the brief merged. The brief, the index and L10-ter's `DEFINITION.md` § 2.b — a third copy — all read
 twenty-four now.
 
 <sub>`awk '/LAST FRENCH/{f=1} f&&/^[a-z]/{n++} END{print n}' scripts/code-vocabulary.txt` · `git show 71e50163:scripts/code-vocabulary.txt | awk '/LAST FRENCH/{f=1} f&&/^[a-z]/{n++} END{print n}'` · `git show 05522b12 -- scripts/code-vocabulary.txt | grep -E '^[-+].*twenty'`</sub>

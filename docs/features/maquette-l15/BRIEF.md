@@ -123,7 +123,7 @@ subtract the definition; re-grep every line number last.**
   above: you leave it.
 - **No backend work.** What is missing is a demand (D7);
   `docs/reference/backend-demands-architecture.md` already holds the §17/§18/§19/§20 inputs.
-- **You do not relitigate settled arbitrations** — D1 to D11, invariants 1 to 10, the operator's
+- **You do not relitigate settled arbitrations** — D1 to D11, invariants 1 to 15, the operator's
   nine answers in `QUESTIONS.md`. § 7.1 allows amendment and the burden of proof is measured.
 - **`docs/features/maquette-l10-ter/` does not archive with you.** § 5 names it exempt: it is the
   frame's model, not a wave's design, and it archives with L13.
