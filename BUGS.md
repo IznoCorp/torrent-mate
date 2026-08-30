@@ -303,6 +303,60 @@ when the defect comes back.
 | B-241 | `IMPLEMENTATION.md`'s « Next » row said « once L10-ter merges » and « L14 stays last » after both had changed | by audit | `fixed #527` |
 | B-242 | `MODEL.md` P14 says 78 named states where 87 are driven | by audit | `fixed #527` |
 | B-243 | Three small drifts in the directives: nineteen guards for twenty, an archived path cited live, « twenty times » for twenty-four | by audit | `fixed #527` |
+| B-244 | A contracts-tier guard whose subject only the `docs` filter names runs in no job | by L15 | `open` |
+| B-245 | The pre-paint appearance script compares against the French spellings the engine stopped writing | by L15 | `open` |
+
+**B-244 — a contracts-tier guard whose subject only the `docs` filter names runs in no job.**
+Found on 2026-08-30 while placing B-142's arm, by reading the workflow the arm was to be placed in.
+`frontend/maquette/harness/run.sh`'s contracts tier runs `scripts/check-implementation-state.py`,
+which reads `IMPLEMENTATION.md`. That path is named by the **`docs`** filter of
+`.github/workflows/ci.yml`. The job that runs the tier — `harness-contracts` — gates every one of
+its steps on the **`maquette`** filter, which does not name it. So a pull request touching
+`IMPLEMENTATION.md` alone runs that guard **in no job at all** — and a pull request touching that
+file alone is exactly what the post-merge gesture IS, which is the gesture the guard was written
+to hold.
+
+**And the hold that exists for this shape cannot see it.**
+`tests/scripts/test_ci_filter_covers_the_guards.py` asks « is every path this guard declares
+matched by at least one filter pattern? ». `docs/**` matches, so it passes. The question it never
+asks is « by the filter that gates the job that runs the guard? ». It was written after
+`check-mock-seeds.py` and `check-bug-register.py` shipped with the first shape, and both of those
+were fixed by adding the path to the **`maquette`** filter — so the hold has only ever been
+exercised on cases where the two questions had the same answer. B-085's species: a guard green
+because of what it does not read, and it is the ninety-ninth counted.
+
+<sub>`grep -n "IMPLEMENTATION.md" .github/workflows/ci.yml` (under `docs:`) · `sed -n '231,250p' .github/workflows/ci.yml` (every step `if: needs.changes.outputs.maquette == 'true'`)</sub>
+
+---
+
+**B-245 — the pre-paint appearance script compares against the French spellings the engine stopped writing.**
+Found on 2026-08-30 while planning L15's Part 9 conversion, by reading both ends of the contract
+rather than either alone. `index.html`'s inline script — the one that exists so a chosen appearance
+survives a reload **without a flash** — reads:
+
+    var mode = localStorage.getItem("tm-apparence") || "systeme";
+    var light = mode === "clair" || (mode === "systeme" && matchMedia(...).matches);
+
+The engine writes `"system"`, `"light"` or `"dark"` to that key (`legacy.js:10596`, from
+`data-apparence`, whose values are `APPARENCES = ["system", "light", "dark"]`). **No value the
+engine can write matches either literal the script tests.** So a stored « light » paints dark until
+the module runs and `applyAppearance` corrects it, and a stored « system » on a light-preference
+device does the same — the flash the script exists to prevent, on every reload, for every reader
+who has ever touched the control.
+
+**Why nothing caught it.** The two ends are in different files and different languages; a `data-*`
+contract's three ends move in one step or the interface half-works in a way no single file reveals
+(D4), and this is that, with `localStorage` as the third end. The French literals survived the
+English rename because they are compared VALUES, and « it is a value » was accepted as an answer —
+the reading `CLAUDE.md` § Language now refuses by name: an appearance mode is a name someone chose.
+`check-no-french.py`'s vocabulary arm does not read `index.html`'s inline scripts.
+
+**L15's**, with Part 9's conversion: the two spellings become one, in the engine's, and a rule
+reads the attribute in an init script — before the first paint — after a reload.
+
+<sub>`grep -n "tm-apparence" frontend/maquette/design/index.html frontend/maquette/design/src/engine/legacy.js`</sub>
+
+---
 
 **B-152 — the one file § 0 was pointed at was itself stale.**
 Found on 2026-08-28 while opening L10. `frontend-architecture.md` lost its per-lot status that same
