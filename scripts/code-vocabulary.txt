@@ -675,6 +675,7 @@ poster
 posters
 precision
 present
+presence
 press
 previous
 primary
@@ -824,6 +825,7 @@ segment
 segments
 select
 selected
+selecting
 selection
 selector
 selmode

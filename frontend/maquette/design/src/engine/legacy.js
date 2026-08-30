@@ -7636,48 +7636,14 @@ import { icons } from "../app/icons";
   }
   const view = select("#view"),
     port = select("#port"),
-    cadre = select("#device"),
-    fab = select("#fab");
+    cadre = select("#device");
 
-  /* THE FLOATING ACTION BUTTON HAS ONE DECISION POINT, and it reads TWO facts.
-     A page says whether it has a primary action at all; a message on screen
-     says whether that action may be shown right now. Written in two places,
-     the second writer would erase the first — the page's own answer — and the
-     button would come back on a page that never had one.
-
-     WHY A MESSAGE HIDES IT. The message and the button are anchored to the same
-     bottom-right corner by construction, and the message paints over it: the
-     close target measures 24 by 24 and lands INSIDE the button's 52 by 52 box,
-     so the reader aiming at « close » is aiming at « add ». Measured on the
-     served copy, not deduced: `elementFromPoint` at the close button's centre
-     answers the action button. */
-  let pageWantsActionButton = false;
-  let messageIsOnScreen = false;
-  let actionButtonReturn = null;
-
-  function refreshActionButton(afterAMessage) {
-    clearTimeout(actionButtonReturn);
-    if (!pageWantsActionButton || messageIsOnScreen) {
-      fab.hidden = true;
-      return;
-    }
-    /* IT COMES BACK WHEN THE MESSAGE HAS FINISHED LEAVING, not when it starts —
-       and ONLY on that path. The message fades out over its own transition; a
-       button restored on the first frame of that fade is a target appearing
-       under a finger still travelling towards the close it was aiming at. The
-       wait is the message's exit duration and nothing else.
-
-       A page arriving with an action of its own waits for nothing: delaying
-       THAT would make the button late on every navigation, which is a
-       rendering change with no defect behind it. */
-    if (!afterAMessage) {
-      fab.hidden = false;
-      return;
-    }
-    actionButtonReturn = setTimeout(() => {
-      fab.hidden = false;
-    }, 200);
-  }
+  /* THE FLOATING ACTION BUTTON IS NOT THIS FILE'S ANY MORE.
+     It was static markup this engine showed and hid, from two flags kept in
+     step by hand — a page's own answer and whether a message was on screen.
+     Both are store state now and the button reads them itself
+     (`app/action-button.tsx`), which is the whole of what « one decision point »
+     asked for: written in two places, the second writer erases the first. */
 
   function render() {
     // Every action ends in render(): one bump here reaches React for every
@@ -7717,8 +7683,6 @@ import { icons } from "../app/icons";
 
        Everything below still runs: the bar, the nav and the save bar are
        shared furniture, not the page's. */
-    pageWantsActionButton = found.actionButton;
-    refreshActionButton();
     mountDeck();
     mountLoaders();
     mountSearch();
@@ -8779,8 +8743,18 @@ import { icons } from "../app/icons";
     const host = select("#toast");
     host.classList.toggle("show", on);
     host.toggleAttribute("data-shown", on);
-    messageIsOnScreen = on;
-    refreshActionButton(!on);
+    /* PUBLISHED RATHER THAN ACTED ON. The action button reads this and decides
+       for itself whether it may be shown — it is anchored to the same corner
+       and the message paints over it. A flag written here and a second one
+       written beside the button is the arrangement that let the button come
+       back on a page that never had one.
+
+       NOT THROUGH THE STORE, and that is B-247. This runs from a capture-phase
+       `pointerdown` when the boot hint is dismissed, which is BETWEEN a real
+       finger's press and the `click` that follows — and a store write
+       re-renders every page, which replaces the pressed node on a surface that
+       does not keep its identity. The click is then never dispatched at all. */
+    window.__messagePresent?.(on);
   }
 
   function toast(msg) {
@@ -9935,11 +9909,6 @@ import { icons } from "../app/icons";
     document.querySelector("#device").appendChild(createElement);
   }
 
-  select("#fab").onclick = () => {
-    // The « + » ALWAYS means « follow »: the mode must never stay
-    // stuck from a previous resolution.
-    screens.add(currentState().addQ, "follow");
-  };
   select("#scenBtn").onclick = () => {
     openHarness();
   };

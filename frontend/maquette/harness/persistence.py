@@ -100,23 +100,23 @@ async def main():
         # perfectly is a counter that would have to be given a threshold, and a
         # threshold on a signal that means two things is a number nobody can
         # defend.
-        navigations = []
-        page.on("load", lambda _: navigations.append("load"))
+        document_loads = []
+        page.on("load", lambda _: document_loads.append("load"))
         states = await page.evaluate("()=>window.__states()")
         journal.check(
             "the interface declares the states this walk covers",
             len(states) > 50,
             f"{len(states)} named state(s)")
         await page.evaluate("()=>{window.__oneDocument = 'planted';}")
-        before = len(navigations)
+        before = len(document_loads)
         for state in states:
             await page.evaluate("(id)=>window.__go(id)", state)
         survived = await page.evaluate("()=>window.__oneDocument ?? null")
         journal.check(
             "no full navigation between any two named states — one document",
-            survived == "planted" and len(navigations) == before,
+            survived == "planted" and len(document_loads) == before,
             f"sentinel after {len(states)} state(s): {survived!r}; "
-            f"{len(navigations) - before} document load(s)")
+            f"{len(document_loads) - before} document load(s)")
 
         # (b) THE BAR'S BUTTONS KEEP THEIR IDENTITY across a page switch.
         await page.evaluate("()=>window.__go('acq-now-idle')")
@@ -173,16 +173,16 @@ async def main():
         # the sentinel must be gone and the counter must have moved. Without it
         # « none happened » reads the same whether the detectors are alive or
         # dead — which is the shape this repository counts.
-        control_before = len(navigations)
+        control_before = len(document_loads)
         await page.goto(PROTOTYPE, wait_until="load")
         await page.wait_for_timeout(150)
         gone = await page.evaluate("()=>window.__oneDocument ?? null")
         journal.check(
             "the one-document detectors are alive — a real navigation is seen "
             "by both",
-            gone is None and len(navigations) > control_before,
+            gone is None and len(document_loads) > control_before,
             f"sentinel after a real navigation: {gone!r}; "
-            f"{len(navigations) - control_before} document load(s) counted")
+            f"{len(document_loads) - control_before} document load(s) counted")
 
         await context.close()
         await browser.close()

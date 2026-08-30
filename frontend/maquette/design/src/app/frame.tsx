@@ -14,6 +14,8 @@
 // markup does, and paints in the document order the stacking already assumes.
 import type { ReactElement } from "react";
 
+import { ActionButton } from "./action-button";
+import { installMessagePresence } from "./message-presence";
 import { TabBar } from "./tab-bar";
 
 /**
@@ -22,9 +24,15 @@ import { TabBar } from "./tab-bar";
  * Rendered once, with the shell, never with a route: the chrome outlives every
  * navigation and a bar mounted per route is a bar that is rebuilt by one.
  */
+// Published as this module evaluates, which is before the engine's own boot
+// writes anything: the engine imports through `app/shell.tsx`, and the shell
+// imports this file with the rest of the frame.
+installMessagePresence();
+
 export function Frame(): ReactElement {
   return (
     <>
+      <ActionButton />
       <TabBar />
     </>
   );

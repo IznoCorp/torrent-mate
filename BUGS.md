@@ -306,6 +306,43 @@ when the defect comes back.
 | B-244 | A contracts-tier guard whose subject only the `docs` filter names runs in no job | by L15 | `open` |
 | B-245 | The pre-paint appearance script compares against the French spellings the engine stopped writing | by L15 | `open` |
 | B-246 | The « In flight » row's version arm is defeated by markdown emphasis, in silence | by L15 | `fixed #528` |
+| B-247 | A store bump replaces a feature page's nodes, so a write between press and click destroys the click | by L15 | `open` |
+
+**B-247 — a store bump replaces a feature page's nodes, and a write between press and click destroys the click.**
+Found on 2026-08-30 during L15's phase 3, by a rule that fell for a reason that had nothing to do
+with what it was written for: `page_host.py`'s « a real tap on a command row opens THAT command's
+panel » went red while a programmatic `.click()` on the same node opened it perfectly.
+
+**What is really happening.** A store write re-renders every page, and `features/maintenance/page.tsx`
+does not keep its DOM nodes across one — measured directly:
+
+    const before = document.querySelector(row);
+    window.__store.write({ … });          // any write at all
+    // 60 ms later
+    before.isSameNode(document.querySelector(row))   // false
+    before.isConnected                                // false
+
+A real finger's tap is `pointerdown`, then `pointerup`, then `click`, and the browser dispatches
+`click` on a node that is still in the tree. **So any store write in that gap loses the tap
+entirely** — no error, no event, the interface simply does nothing. The engine dismisses its boot
+hint from a **capture-phase `pointerdown`** handler, which is exactly that gap, so the FIRST tap of
+a session on a React page was already being lost while the hint was up. L15 found it because phase
+3 briefly routed the message's presence through the store and made the window wider.
+
+**This is B-231's shape one layer down.** L15's P2 holds the CHROME's node identity — the tab bar's
+buttons across a page switch and a store bump — and it is scoped to the chrome by name. A PAGE's
+rows have the same property and nothing reads it. `harness/persistence.py` is where the equivalent
+hold goes, and it is not L15's to write: the repair is in the surfaces, and the surfaces are L14's
+(their reduction) and L19's (their producers).
+
+**What L15 did about it, and what it did NOT do.** It stopped depending on it: the message's
+presence is `app/message-presence.ts`, its own subscription with its own subscribers — today
+exactly one, the action button — so a message no longer re-renders every page. **The defect itself
+is untouched and open**: any other store write in that gap still loses a tap.
+
+<sub>`page_host.py` (c-bis) · the identity measurement above, run against `features/maintenance/page.tsx`</sub>
+
+---
 
 **B-246 — the « In flight » row's version arm is defeated by markdown emphasis, in silence.**
 Found on 2026-08-30 by writing the row this guard exists to hold, and reading what the guard said

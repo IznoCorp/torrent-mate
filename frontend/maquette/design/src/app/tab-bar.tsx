@@ -24,6 +24,7 @@ import { useTranslation } from "react-i18next";
 import { publishBarHeight } from "./bar-height";
 import { NAVIGATION } from "./navigation";
 import { Icon } from "../ui/icon";
+import { useServerStateVersion } from "../lib/query-client";
 import { useUiState } from "../lib/store-access";
 import {
   tabBar,
@@ -39,6 +40,11 @@ export function TabBar(): ReactElement {
   const state = useUiState();
   const current = state.page as string | undefined;
   const selecting = state.selMode === true;
+  // SUBSCRIBED TO SERVER STATE, because the badges are derived from it. A
+  // synchronous read is not a subscription: without this the bar re-rendered on
+  // store writes alone and a badge showed the previous scenario's count until
+  // something unrelated redrew it. The value is not used — the subscription is.
+  useServerStateVersion();
 
   // THE BAR'S HEIGHT IS PUBLISHED FROM HERE, and the move is not cosmetic.
   // `publishBarHeight()` used to run in the boot, after the engine had drawn

@@ -370,3 +370,19 @@ export const tabBarBadge = cva(
     + "text-2 font-semibold leading-none [font-variant-numeric:tabular-nums] "
     + "[box-shadow:var(--mq-shadow-badge)] [outline:2px_solid_var(--color-sidebar)]",
 );
+
+/* ── The action button ───────────────────────────────────────────────
+   Anchored to the frame's bottom-right corner, ABOVE the published bar height
+   and never at a distance to an edge. Its classes came verbatim from
+   `index.html`, where the button was static markup the engine toggled.
+
+   NAMED FOR ITS `data-part`, `shell/add-action`, because `actionButton` was
+   already taken in `ui/variants/controls.ts` by the panel's own full-width
+   button — two different things, and the barrel re-exports both. */
+export const addAction = cva(
+  "fab absolute right-[16px] bottom-[calc(var(--tm-bottom-bar-h,0px)+16px)] "
+    + "w-[52px] h-[52px] rounded-full [border:0] bg-primary text-primary-foreground "
+    + "grid place-items-center [box-shadow:var(--mq-shadow-fab)] z-30",
+);
+
+export const addActionDrawing = cva("w-[23px] h-[23px]");

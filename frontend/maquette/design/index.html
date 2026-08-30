@@ -422,26 +422,10 @@
       </button>
     </div>
 
-    <button
-      class="fab absolute right-[16px] bottom-[calc(var(--tm-bottom-bar-h,0px)+16px)]
-             w-[52px] h-[52px] rounded-full [border:0] bg-primary text-primary-foreground
-             grid place-items-center [box-shadow:var(--mq-shadow-fab)] z-30"
-      id="fab"
-      data-part="shell/add-action"
-      aria-label="Ajouter un média"
-      hidden
-    >
-      <svg
-        class="w-[23px] h-[23px]"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.4"
-        stroke-linecap="round"
-      >
-        <path d="M12 5v14M5 12h14" />
-      </svg>
-    </button>
+    <!-- The action button is rendered by the shell
+         (`src/app/action-button.tsx`), at this same id and these same classes,
+         into `#shell`. Absent here on purpose: two elements answering `#fab` is
+         one of them being measured and the other being shown. -->
 
     <!-- The tab bar is rendered by the shell (`src/app/tab-bar.tsx`), at this
          same id and these same classes, into `#shell` — which sits inside this
