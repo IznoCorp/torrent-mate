@@ -310,10 +310,10 @@ when the defect comes back.
 | B-248 | The bottom sheet rises behind the tab bar; the operator wants it to cover the bar | 1× | `fixed #528` |
 | B-249 | The screen flashes when a sheet action closes the sheet AND opens a page | 1× | `open` |
 | B-250 | `check-live-relay`'s stale-figure arm cannot tell a register citation from a frozen count | by L15 | `fixed #528` |
-| B-251 | A file under `docs/` that no commit force-added is invisible to `git add -A`, to `git status` and to every gate | 1× | `fixing` |
+| B-251 | A file under `docs/` that no commit force-added is invisible to `git add -A`, to `git status` and to every gate | 1× | `fixed #532` |
 | B-252 | The oracle reads a region's node and never its children; two L15 surfaces are held by no rule | by audit | `open` |
-| B-253 | B-247 was reassigned to L14 and L19 by the wave that left it, and the plan named it in neither | by audit | `fixing` |
-| B-254 | Two figures written by hand: the Makefile's « 83 states x 33 regions » and CLAUDE.md's guard count | by audit | `fixing` |
+| B-253 | B-247 was reassigned to L14 and L19 by the wave that left it, and the plan named it in neither | by audit | `fixed #532` |
+| B-254 | Two figures written by hand: the Makefile's « 83 states x 33 regions » and CLAUDE.md's guard count | by audit | `fixed #532` |
 | B-255 | `check-frontend-boundaries.py` is back at 952 lines, 48 from the hard ceiling it was cut away from | by audit | `open` |
 
 **B-255 — `check-frontend-boundaries.py` is back at 952 lines, 48 from the hard ceiling it was cut away from.**

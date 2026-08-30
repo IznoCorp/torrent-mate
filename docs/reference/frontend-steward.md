@@ -126,6 +126,20 @@ finished) instead of reconstructing a wave from its squashed pull-request body �
 office once measured to be wrong by a factor of five. A report received that way is a claim like
 any other: it is checked against the repository, never taken as the audit.
 
+**One machine, one harness at a time (2026-08-30).** The harness reads ONE served copy
+(`/tmp/tm-refonte/wrapped.html`) and ONE server (8899) per machine, and `make maquette-oracle`
+rebuilds and replaces that copy before it measures. The steward's first audit on the operator's machine
+ran the full suite and the oracle while the executing agent was running its own post-merge
+verification: two rules fell in the agent's run for no defect of theirs, and the served copy had been
+replaced under them. So the steward runs no instrument while an executing agent is running one —
+the two say so to each other first (`SendMessage`), and a rule that falls during an overlap is re-run
+alone before it is read as anything.
+
+**And the steward works in a worktree, never in the checkout an agent executes in.** Measured the
+same day: a `git checkout` in the shared tree carried the agent's uncommitted files onto the steward's
+branch and recreated one as a stray. `git worktree add` gives the office its own tree; the
+pre-push hook's test suite needs `npm ci` in both `frontend/` and `frontend/maquette/design/` there.
+
 
 **A brief that a wave will execute lives in the REPOSITORY before that wave is launched.** Under
 `docs/features/<codename>/`, on a pushed branch, in English like every other engineering document —
