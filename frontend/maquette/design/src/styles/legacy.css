@@ -1598,26 +1598,10 @@ border-radius: var(--radius-3);
    background: its edges could not be found, so it read as text hovering in
    mid-air rather than as a thing with limits. The accent is the only colour
    in the palette that separates from everything the app draws behind it. */
-.eppop {
-  position: fixed;
-  z-index: 60;
-  width: 220px;
-  border-radius: var(--radius-2);
-  border: 1px solid var(--color-primary);
-  background: var(--color-popover);
-  padding: var(--spacing-4) var(--spacing-6);
-  font-size: var(--text-3);
-  line-height: 1.45;
-  color: var(--color-foreground);
-  box-shadow: var(--mq-shadow-toast);
-}
-.eppop b {
-  display: block;
-  font-size: var(--text-2);
-  color: var(--color-muted-foreground);
-  font-weight: 600;
-  margin-bottom: var(--spacing-1);
-}
+/* THE EPISODE POPOVER'S TWO RULES ARE GONE. The layer is `ui/popover.tsx`
+   since L15 and its declarations are utilities behind typed variants; the
+   identity class `eppop` stays at the front of the variant, because rules
+   select it. */
 .ep {
   cursor: pointer;
 }

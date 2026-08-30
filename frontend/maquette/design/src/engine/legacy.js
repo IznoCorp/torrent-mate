@@ -31784,13 +31784,17 @@ import { icons } from "../app/icons";
   /* Tapping a cell: its air date, in French. The sentence follows the state
      — « Sortie prévue » for an announced episode, « Diffusé » otherwise —
      and a missing date is stated, not invented. */
+  /* THE POPOVER'S LAYER IS NOT THIS FILE'S ANY MORE — but its SENTENCE still
+     is. `openPopEp` built the node, placed it against the phone frame, wrote
+     what it says and armed its dismissal, all in one function. Only the first,
+     second and fourth are the frame's: `ui/popover.tsx` over
+     `app/popover-host.ts`, behind `{ anchor, content }`. What is left here is
+     the PRODUCER — the five lines that turn an episode into three facts — and
+     a producer moves to its feature with L19 (Part 12). */
   function closePopEp() {
-    document
-      .querySelectorAll(".eppop")
-      .forEach((querySelectorAll) => querySelectorAll.remove());
+    window.__popover?.close();
   }
   function openPopEp(btn) {
-    closePopEp();
     const [title, season, episodeNumber, state] = btn.dataset.ep.split("|");
     const sheetFound = sheetFor(title);
     const list = sheetFound?.eps?.[season] ?? null;
@@ -31798,32 +31802,21 @@ import { icons } from "../app/icons";
       list?.find((liste2) => String(liste2.n) === episodeNumber) ?? null;
     const airDate = episode?.air ? dateFR(episode.air) : null;
     const future = episode?.air && episode.air > TODAY;
-    const phrase =
-      airDate == null
-        ? "Date de diffusion inconnue."
-        : future || state === "announced"
-          ? `Sortie prévue le ${airDate}`
-          : `Diffusé le ${airDate}`;
-    const createElement = document.createElement("div");
-    createElement.className = "eppop";
-    createElement.dataset.part = "episode/popover";
-    createElement.innerHTML = `<b>S${String(season).padStart(2, "0")}E${String(episodeNumber).padStart(2, "0")}${episode?.t ? " · " + escapeHtml(episode.t) : ""}</b>${escapeHtml(phrase)}<br><span style="color:var(--color-muted-foreground)">${escapeHtml(EP_LABEL[state] ?? "")}</span>`;
-    document.querySelector("#device").appendChild(createElement);
-    const rect = btn.getBoundingClientRect();
-    const dev = document.querySelector("#device").getBoundingClientRect();
-    const popoverWidth = 220;
-    let left = rect.left + rect.width / 2 - popoverWidth / 2;
-    left = Math.max(dev.left + 8, Math.min(left, dev.right - popoverWidth - 8));
-    const top = rect.top - dev.top > 120;
-    createElement.style.left = `${left}px`;
-    createElement.style.top = top
-      ? `${rect.top - createElement.offsetHeight - 8}px`
-      : `${rect.bottom + 8}px`;
-    setTimeout(
-      () =>
-        document.addEventListener("pointerdown", closePopEp, { once: true }),
-      0,
-    );
+    window.__popover?.open(btn, {
+      title:
+        "S" +
+        String(season).padStart(2, "0") +
+        "E" +
+        String(episodeNumber).padStart(2, "0") +
+        (episode?.t ? " · " + episode.t : ""),
+      text:
+        airDate == null
+          ? "Date de diffusion inconnue."
+          : future || state === "announced"
+            ? `Sortie prévue le ${airDate}`
+            : `Diffusé le ${airDate}`,
+      note: EP_LABEL[state] ?? "",
+    });
   }
 
   /* Does this interface HOLD a medium by that title?

@@ -527,6 +527,7 @@ manque
 manual
 map
 maquette
+margin
 mark
 match
 matched
@@ -781,6 +782,7 @@ rich
 right
 ring
 risk
+room
 root
 route
 router

@@ -337,3 +337,18 @@ export const dialogButton = cva(
     defaultVariants: { tone: "neutral" },
   },
 );
+
+/* ── The episode popover ─────────────────────────────────────────────
+   `position: fixed` and rank 60 — see the ranked list at the top of this file.
+   Its two rules were `styles/legacy.css`'s because the engine created the node
+   per open; the LAYER is a component now and its CONTENT is still a producer's
+   (Part 12, L19), handed over as facts. */
+export const popover = cva(
+  "eppop fixed z-[60] w-[220px] rounded-2 border border-primary bg-popover "
+    + "py-4 px-6 text-3 leading-[1.45] text-foreground "
+    + "[box-shadow:var(--mq-shadow-toast)]",
+);
+
+export const popoverTitle = cva(
+  "block text-2 text-muted-foreground font-semibold mb-1",
+);

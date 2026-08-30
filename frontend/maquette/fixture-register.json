@@ -429,7 +429,8 @@
     "openPopEp.popoverWidth": {
       "class": "unserved",
       "why": "a measurement openPopEp works with, not data",
-      "seed": null
+      "seed": null,
+      "converted": "L15 phase 11 — the popover's WIDTH is a placement fact and placement is the layer's, so it left the engine with it: `WIDTH` in `ui/popover.tsx`, beside the margin and the flip threshold it is only meaningful next to. Not `served`: no server has an opinion about how wide a popover is"
     },
     "plages.out": {
       "class": "unserved",

@@ -22,6 +22,8 @@ import { installLayerRegistry } from "./layer-registry";
 import { DialogLayer } from "./dialog-layer";
 import { installDialogHost } from "./dialog-host";
 import { MessageLayer } from "./message-layer";
+import { installPopoverHost } from "./popover-host";
+import { PopoverLayer } from "./popover-layer";
 import { installMessagePresence } from "./message-presence";
 import { installToastHost } from "./toast-host";
 import { TabBar } from "./tab-bar";
@@ -39,6 +41,7 @@ installMessagePresence();
 installToastHost();
 installLayerRegistry();
 installDialogHost();
+installPopoverHost();
 installAppearance();
 
 export function Frame(): ReactElement {
@@ -50,6 +53,7 @@ export function Frame(): ReactElement {
       <NavigationDrawer />
       <DialogLayer />
       <MessageLayer />
+      <PopoverLayer />
     </>
   );
 }

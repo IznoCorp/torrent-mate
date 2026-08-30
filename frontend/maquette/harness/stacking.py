@@ -210,6 +210,46 @@ async def main():
             message_hit.get("owner") == "toast",
             str(message_hit))
 
+        # (e) THE POPOVER STAYS INSIDE THE FRAME, on both edges. That clamp is
+        # the whole of what this layer does that a tooltip does not, and it is
+        # measured against `#device` rather than against the window: a 390px
+        # frame on a desktop is CENTRED, so a clamp written against the viewport
+        # would let the popover leave the device on the left and still pass.
+        await page.evaluate("()=>window.__go('followsheet-gaps')")
+        await page.wait_for_timeout(500)
+        cells = await page.evaluate(
+            """()=>document.querySelectorAll('[data-part="episode"]').length""")
+        journal.check(
+            "an episode matrix is on screen, so the clamp has a subject",
+            cells > 2, f"{cells} episode cell(s)")
+        # THE LEFTMOST AND THE RIGHTMOST CELL, not the first and the last: a
+        # matrix wraps, so its last cell can sit in the left column and both
+        # readings would exercise the same clamp. Chosen by x, so each edge is
+        # really met — which the first version of this hold did not do, and it
+        # reported the same placement twice.
+        placements = []
+        for edge in ("left", "right"):
+            await page.evaluate(
+                """(edge)=>{const cells=[...document.querySelectorAll('[data-part="episode"]')];
+                   const sorted = cells.slice().sort((a, b) =>
+                     a.getBoundingClientRect().left - b.getBoundingClientRect().left);
+                   (edge === 'left' ? sorted[0] : sorted[sorted.length - 1]).click();}""",
+                edge)
+            await page.wait_for_timeout(300)
+            placements.append(await page.evaluate("""()=>{
+              const layer = document.querySelector('[data-part="episode/popover"]');
+              if (!layer) return {absent: true};
+              const box = layer.getBoundingClientRect();
+              const frame = document.querySelector('#device').getBoundingClientRect();
+              return {left: Math.round(box.left - frame.left),
+                      right: Math.round(frame.right - box.right),
+                      shown: getComputedStyle(layer).visibility};}"""))
+        journal.check(
+            "a popover opened at either end of the matrix stays inside the frame",
+            all(not p.get("absent") and p["left"] >= 0 and p["right"] >= 0
+                and p["shown"] == "visible" for p in placements),
+            str(placements))
+
         await context.close()
         await browser.close()
     journal.summary(errors)
