@@ -75,15 +75,23 @@ export const scrollport = cva(
 
    The idiom is the standard one and it reads oddly until it is said out loud:
    `visibility` transitions with a DELAY equal to the fade, so it holds
-   `visible` for the whole exit and flips at the end; entering, the delay is
-   zero so it flips at once. Nothing at REST changes — closed is still
-   `hidden` at `opacity: 0` — which is why the oracle, which settles, has
-   nothing to say about it. */
+   `visible` for the whole exit and flips at the end. Nothing at REST changes —
+   closed is still `hidden` at `opacity: 0` — which is why the oracle, which
+   settles, has nothing to say about it.
+
+   AND IT IS ON THE CLOSED STATE ONLY, which is not decoration. Putting
+   `visibility` in the transition list on BOTH states broke focus entry into the
+   sheet: `app/focus.ts` focuses into a layer the instant `data-open` appears,
+   synchronously, and an element whose `visibility` is still resolving is not
+   focusable — `focus()` on it does nothing, silently, with no error and no
+   return value to check. R81 caught it, and it is the one hold in this suite
+   that reads that instant. Entering, the layer is `visible` with no transition
+   at all; leaving, the delay holds it. */
 export const sheetScrim = cva(
-  "scrim absolute inset-0 bg-scrim z-[46] transition-[opacity,visibility] "
-    + "duration-200 ease-standard",
-  { variants: { open: { true: "open opacity-100 visible [transition-delay:0s,0s]",
-                        false: "opacity-0 invisible [transition-delay:0s,200ms]" } },
+  "scrim absolute inset-0 bg-scrim z-[46] duration-200 ease-standard",
+  { variants: { open: { true: "open opacity-100 visible transition-[opacity]",
+                        false: "opacity-0 invisible transition-[opacity,visibility] "
+                               + "[transition-delay:0s,200ms]" } },
     defaultVariants: { open: false } },
 );
 
@@ -115,15 +123,15 @@ export const bottomSheet = cva(
     // not a prop: the drag handler writes `dragging` straight to the DOM
     // through a ref, exactly as the legacy one did, so `.sheet.dragging`
     // stays a rule in the residue. A variant here would never be told.
-    // `visibility` joins the transition for B-249's reason — see `sheetScrim`
-    // above: left out of it, it swaps on the first frame and the slide-out
-    // plays behind a curtain. The delay is the slide's own duration.
-    "transition-[transform,visibility] duration-300 ease-standard",
+    // `visibility` joins the transition on the CLOSED state for B-249's reason
+    // — see `sheetScrim` above, including why it is the closed state ONLY.
+    "duration-300 ease-standard",
   {
     variants: {
       open: {
-        true: "open [transform:none] visible [transition-delay:0s,0s]",
-        false: "[transform:translateY(100%)] invisible [transition-delay:0s,300ms]",
+        true: "open [transform:none] visible transition-[transform]",
+        false: "[transform:translateY(100%)] invisible "
+          + "transition-[transform,visibility] [transition-delay:0s,300ms]",
       },
     },
     defaultVariants: { open: false },

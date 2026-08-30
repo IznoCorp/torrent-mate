@@ -100,11 +100,18 @@ export function Dialog({
             <Block key={at} block={block} />
           ))}
           <div className={dialogActions()}>
+            {/* THE WAY OUT IS NAMED, and `data-dismiss` is that name. It was
+                `id="dlgcancel"` — an id the engine's producer invented and two
+                rules selected — and an id on a control a DESCRIPTOR may repeat
+                is a contract that breaks the second time a dialog offers two
+                ways out. It is written so a false state omits the attribute,
+                which is what every boolean state attribute here does. */}
             {descriptor.actions.map((action, at) => (
               <button
                 key={at}
                 data-part="dialog/button"
                 {...(action.tone === "danger" ? { "data-tone": "danger" } : {})}
+                {...(action.dismiss ? { "data-dismiss": "" } : {})}
                 {...(action.target ?? {})}
                 className={dialogButton({ tone: action.tone ?? "neutral" })}
                 onClick={() => {

@@ -63,7 +63,7 @@ async def main():
     await shot(pg, "inter-delete")
 
     print("── Découvrir: batch, panel, drag, undo ──")
-    await pg.evaluate("()=>document.querySelector('#dlgcancel').click()"); await pg.wait_for_timeout(300)
+    await pg.evaluate("""()=>document.querySelector('[data-part="dialog/button"][data-dismiss]').click()"""); await pg.wait_for_timeout(300)
     await pg.click('[data-page="acq"]'); await pg.click('[data-acqtab="discover"]'); await pg.wait_for_timeout(450)
     print("  initial batch   :", await pg.evaluate("""()=>document.querySelectorAll('[data-part="suggestion/wrap"]').length"""))
     await pg.evaluate(SW, ["[data-dismissable='0']", 1, 9])
