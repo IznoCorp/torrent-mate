@@ -64,9 +64,26 @@ export const scrollport = cva(
 );
 
 /** The scrim behind a sheet. */
+/* THE EXIT IS SEEN, and it was not (B-249). `visibility` is not an animatable
+   property in the way `opacity` is: declared in the transition list it SWAPS at
+   one end of the duration rather than interpolating, and left OUT of it — which
+   it was — it swaps on the first frame. So the scrim went `hidden` immediately
+   while its opacity spent 200 ms fading behind a curtain nobody could see: the
+   dimmed page snapped to full brightness in ONE frame, and the producers that
+   wait 260 ms for the layer to « finish leaving » were waiting for something
+   already over. Measured frame by frame, on the operator's own path.
+
+   The idiom is the standard one and it reads oddly until it is said out loud:
+   `visibility` transitions with a DELAY equal to the fade, so it holds
+   `visible` for the whole exit and flips at the end; entering, the delay is
+   zero so it flips at once. Nothing at REST changes — closed is still
+   `hidden` at `opacity: 0` — which is why the oracle, which settles, has
+   nothing to say about it. */
 export const sheetScrim = cva(
-  "scrim absolute inset-0 bg-scrim z-[46] transition-[opacity] duration-200 ease-standard",
-  { variants: { open: { true: "open opacity-100 visible", false: "opacity-0 invisible" } },
+  "scrim absolute inset-0 bg-scrim z-[46] transition-[opacity,visibility] "
+    + "duration-200 ease-standard",
+  { variants: { open: { true: "open opacity-100 visible [transition-delay:0s,0s]",
+                        false: "opacity-0 invisible [transition-delay:0s,200ms]" } },
     defaultVariants: { open: false } },
 );
 
@@ -98,10 +115,16 @@ export const bottomSheet = cva(
     // not a prop: the drag handler writes `dragging` straight to the DOM
     // through a ref, exactly as the legacy one did, so `.sheet.dragging`
     // stays a rule in the residue. A variant here would never be told.
-    "transition-[transform] duration-300 ease-standard",
+    // `visibility` joins the transition for B-249's reason — see `sheetScrim`
+    // above: left out of it, it swaps on the first frame and the slide-out
+    // plays behind a curtain. The delay is the slide's own duration.
+    "transition-[transform,visibility] duration-300 ease-standard",
   {
     variants: {
-      open: { true: "open [transform:none] visible", false: "[transform:translateY(100%)] invisible" },
+      open: {
+        true: "open [transform:none] visible [transition-delay:0s,0s]",
+        false: "[transform:translateY(100%)] invisible [transition-delay:0s,300ms]",
+      },
     },
     defaultVariants: { open: false },
   },

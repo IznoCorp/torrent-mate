@@ -309,6 +309,40 @@ when the defect comes back.
 | B-247 | A store bump replaces a feature page's nodes, so a write between press and click destroys the click | by L15 | `open` |
 | B-250 | `check-live-relay`'s stale-figure arm cannot tell a register citation from a frozen count | by L15 | `fixed #528` |
 
+**B-249 — a layer's exit is seen, and the flash is diagnosed.**
+The operator reported it on a phone: tapping a sheet action that NAVIGATES flashes the whole
+interface, and closing the sheet alone does not. Filed by the steward as « not diagnosed here »,
+with two candidates. Neither was it.
+
+**Sampled frame by frame on the operator's own path** — a long press on a library tile, then the
+first action of the sheet it raises:
+
+    frame  0   the scrim is up, the sheet is in place
+    frame  2   `visibility: hidden` on BOTH — while opacity and transform
+               still have 200 and 300 ms to run
+    frame 18   the destination screen appears, already in place
+
+**`visibility` is not animatable the way `opacity` is.** Left out of the transition list it swaps on
+the first frame, so the dimmed page snapped to full brightness in ONE frame and stayed bare for
+sixteen — and the exit every producer waits for was already over before the wait began:
+`data-mediasheet` closes the panel and calls `setTimeout(…, 260)` « to let the sheet finish
+leaving ».
+
+**The frame's half is repaired**: `visibility` transitions with a delay equal to the fade, so it
+holds `visible` for the whole exit and flips at the end. The bare gap goes from sixteen frames to
+three. Nothing at REST changes — closed is still `hidden` at zero opacity — which is why the oracle,
+which settles, reports not one divergence beyond B-248's accepted set.
+
+**The other half is NOT L15's, and the rule says so rather than refusing it.** The 260 ms wait
+belongs to the producer, and a producer is Part 12's — **L19's**. R103 measures the remaining gap
+and PRINTS it: a rule that refused a number nobody in this wave may change would be a rule against
+the wrong subject, and a number nobody prints is a number nobody acts on. **Left `open` for that
+half.**
+
+<sub>`python3 frontend/maquette/harness/exits.py` — 5 holds, no violation, and the gap printed. Mutation: `visibility` taken back out of the transition; both exit holds fall.</sub>
+
+---
+
 **B-248 — the bottom sheet paints over the tab bar.**
 Dictated by the operator on 2026-08-30 from a screenshot, filed by the steward, **and corrected by
 the operator before a line was written**: the first reading had the bar as the FLOOR, with every

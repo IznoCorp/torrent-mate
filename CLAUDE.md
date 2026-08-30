@@ -90,7 +90,7 @@ implementation directives change IN THE SAME MOVE. What loses its subject is rem
      breach is attributable to the phase that commits it and not to a fifteen-phase
      interval. `make check` entire is NOT among them: its fourteen minutes of tests stay a
      wave gate.
-   - no flag (73 rules since L15; `run.sh` prints the count, 20-25 min) is the **gate before
+   - no flag (75 rules since L15; `run.sh` prints the count, 20-25 min) is the **gate before
      a wave is merged**, and it is not
      optional. It ran nowhere automatically until 2026-08-20, and on that day a rename that
      looked contained broke SIX contracts — four of them visible to nothing else, including a
