@@ -11,6 +11,17 @@ R110 — P30: the back-forward cache is not evicted. Walking out of the
       application and back must restore the page rather than rebuild it —
       `pageshow.persisted` is what says which happened.
 
+WHY THIS FILE IS NOT CALLED `platform.py`, and it is worth a paragraph because it
+cost a full `make check`. It was, for about an hour. A rule is run as
+`python3 <harness>/<rule>.py`, which puts the harness directory at `sys.path[0]`,
+and `tests/scripts/` puts it on the path too — so a module named after a
+STANDARD LIBRARY module shadows it for everything downstream. `attr/_compat.py`
+does `import platform` and asks it for `python_implementation`; it got this file
+instead, and four subprocess smoke tests failed with an `AttributeError` naming
+a module none of them mentions. The lesson generalises past this name: a
+directory that lands on `sys.path` may not hold a file named after anything in
+the standard library.
+
 WHY R110 IS A RATCHET AND NOT A REPAIR. Nothing in the tree registers
 `beforeunload` or `unload` today (`grep -rn "beforeunload\\|'unload'"
 design/src` → 0), which are the two handlers that make a browser refuse to keep

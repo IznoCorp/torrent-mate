@@ -319,6 +319,26 @@ when the defect comes back.
 | B-257 | Push notifications are declined for L11 and their consumer is §18's ratio alert, which is L16 | 1× | `open` |
 | B-258 | `Makefile`'s contract tier announced « 9 rules » where `run.sh` held 12 | by L11 | `fixing` |
 | B-259 | The design host answers **401 for `/` itself**, so a worker installing from the gate can require nothing | by L11 | `fixing` |
+| B-260 | A harness rule named after a STANDARD LIBRARY module shadows it for everything downstream | by L11 | `fixing` |
+
+**B-260 — a harness rule named after a standard library module shadows it for everything downstream.**
+Found by `make check` on 2026-08-31, and the symptom names nothing that would lead you to it: four
+subprocess smoke tests failed with `AttributeError: module 'platform' has no attribute
+'python_implementation'`, raised inside `attr/_compat.py`, which none of them mentions. The new
+rule was called `platform.py`. A rule is run as `python3 <harness>/<rule>.py`, which puts the
+harness directory at `sys.path[0]`, and `tests/scripts/` puts that directory on the path too — so
+every `import platform` downstream got the rule.
+
+**What makes it worth an entry rather than a rename.** It was invisible to every gate that had run:
+`ruff`, the harness suite, the boundaries guard and the abbreviation guard all passed, and the rule
+itself was green. Only the full test suite saw it, and only through four tests in a different
+subsystem. The general form is the part to keep: **a directory that lands on `sys.path` may not
+hold a file named after anything in the standard library**, and the harness is 79 such files.
+Renamed to `installed.py`, with the reason written in its own header.
+
+<sub>`python3 -c "import platform, pathlib; print(pathlib.Path(platform.__file__).parent)"` from `frontend/maquette/harness`</sub>
+
+---
 
 **B-259 — the design host answers 401 for `/` itself, so a worker installing from the gate can require nothing.**
 Found by L11 on 2026-08-30, by a symptom that names nothing: « the service worker never became
