@@ -3,6 +3,9 @@
 R52 — every document the server hands out declares the manifest, the icons and
       the worker; the manifest satisfies the install criteria; the worker
       registers and answers a navigation with the network gone.
+R108 — P9: every entry point the platform offers an installed application is
+      declared, and the address each one names really behaves. Q4, answered by
+      the operator on 2026-08-30: all three.
 R105 — P7: the application opens and reads with the network gone. The shell is
       precached, the document is answered from the cache, and a named state
       renders — measured against a server that has actually STOPPED, for the
@@ -47,6 +50,50 @@ APPLICATION = pathlib.Path(__file__).resolve().parents[2] / "public"
 # Chrome's install criteria, as facts about the manifest.
 REQUIRED_SIZES = {"192x192", "512x512"}
 INSTALLABLE_DISPLAYS = {"standalone", "fullscreen", "minimal-ui"}
+
+
+async def share_target_lands(browser):
+    """R108's other half — the address `share_target` names really pre-fills.
+
+    A DECLARATION AND A BEHAVIOUR ARE TWO THINGS. The manifest saying a share
+    lands on `/add?q=` is checked against the manifest; whether `/add?q=` then
+    puts the shared text in front of the operator is checked here, and nothing
+    else in this file would notice if it stopped.
+
+    It runs against the served copy rather than the live host, because that is
+    where every other behavioural rule runs and because the design host would
+    need a session for it.
+
+    Args:
+        browser: A launched Playwright browser.
+
+    Returns:
+        The `(executed, failures)` pair.
+    """
+    executed = 0
+    failures = []
+    context = await browser.new_context(
+        viewport={"width": 390, "height": 844}, device_scale_factor=2,
+        is_mobile=True, has_touch=True)
+    page = await context.new_page()
+    shared = "Silo"
+    with start_server(SERVED) as port:
+        await page.goto(f"http://127.0.0.1:{port}/add?q={shared}", wait_until="load")
+        await page.evaluate("()=>window.__loadingDone?.()")
+        await page.evaluate("()=>document.querySelector('#toastx')?.click()")
+        await page.wait_for_timeout(600)
+        executed += 1
+        # THE FIELD, not the address. An address carrying `?q=` proves only that
+        # the browser kept the query string; what a share is FOR is the text
+        # being in front of the operator when the screen opens.
+        filled = await page.evaluate(
+            """()=>{const fields=[...document.querySelectorAll("input")];
+                 return fields.map((field)=>field.value).filter(Boolean);}""")
+        if shared not in filled:
+            failures.append(
+                f"R108 a share lands on /add without pre-filling it: {filled[:4]}")
+    await context.close()
+    return executed, failures
 
 
 async def offline_shell(browser):
@@ -365,6 +412,46 @@ async def main():
             if not m.get("id"):
                 failures.append("R52 the manifest declares no id — identity falls back to start_url")
 
+            # --- R108 (P9) — the entry points, and what each one promises ----
+            #
+            # NO RULE CAN MAKE AN OPERATING SYSTEM SHARE INTO AN APPLICATION,
+            # and this does not pretend to. What is proved is the PAIR: the
+            # manifest declares it, and the address it names behaves. The half
+            # that needs a device is exercised on a device and written down with
+            # its date, like the oracle's certification.
+            share = m.get("share_target") or {}
+            executed += 1
+            if share.get("action") != "/add":
+                failures.append(
+                    f"R108 share_target lands nowhere useful: {share.get('action')!r}")
+            executed += 1
+            # ALL THREE PARAMETERS ONTO ONE NAME. A share arrives as a title
+            # from one application, as text from another and as a URL from a
+            # third; mapping only one of them makes the entry point work for
+            # whichever application the author happened to test with.
+            parameters = share.get("params") or {}
+            mapped = {parameters.get(name) for name in ("title", "text", "url")}
+            if mapped != {"q"}:
+                failures.append(
+                    f"R108 share_target does not carry every shape onto q: {parameters!r}")
+            executed += 1
+            if (m.get("launch_handler") or {}).get("client_mode") != "navigate-existing":
+                failures.append(
+                    "R108 launch_handler would open a second window rather than reuse one")
+            executed += 1
+            if m.get("handle_links") != "preferred":
+                failures.append(
+                    f"R108 handle_links is not declared: {m.get('handle_links')!r}")
+            executed += 1
+            # DECLINED IN WRITING, AND STILL DECLINED. A permission prompt with
+            # nothing to send trains the operator to refuse it, and a browser
+            # remembers that refusal far longer than a wave. The consumer is
+            # §18's ratio alert (L16), and this hold is what keeps the decision
+            # from being reversed by accident rather than on purpose.
+            if "gcm_sender_id" in m or "push" in json.dumps(m).lower():
+                failures.append(
+                    "R108 the manifest declares push, which L11 declined in writing")
+
         # --- the worker registers and takes control --------------------------
         # Bounded on purpose. `serviceWorker.ready` never rejects — a document
         # that registers no worker leaves it pending forever, so an unbounded
@@ -433,6 +520,11 @@ async def main():
             api = [p for p in cached["held"] if p.startswith("/api/")]
             if api:
                 failures.append(f"R52 the shell cache holds server state: {api[:4]}")
+
+        # --- R108 (P9) — and the address a share names really behaves --------
+        share_executed, share_failures = await share_target_lands(b)
+        executed += share_executed
+        failures.extend(share_failures)
 
         # --- R105 (P7) — and it really opens with the network gone -----------
         offline_executed, offline_failures = await offline_shell(b)

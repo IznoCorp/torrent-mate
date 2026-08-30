@@ -33,6 +33,25 @@ import json
 from collections.abc import Callable
 from pathlib import Path
 
+# THE THREE ENTRY POINTS THE PLATFORM OFFERS AN INSTALLED APPLICATION, and the
+# operator's principle behind them (Q4, 2026-08-30): every one is declared,
+# unless a written reason says why not. « La meilleure intégration possible. »
+#
+#   `share_target` — another application shares a title, a note or a link into
+#       TorrentMate. All three land on `/add` as `q`, which the add screen
+#       already reads: sharing a series name from a browser opens the search
+#       with that name in it, and nothing had to be written for it to.
+#   `launch_handler` — an installed application reopens the window it already
+#       has instead of a second one. « navigate-existing » so a share into a
+#       running application navigates it rather than stacking a copy.
+#   `handle_links` — the system opens this origin's links in the application.
+#
+# WHAT IS DELIBERATELY NOT HERE: push notifications. The principle demands a
+# written reason, and this is it — a permission prompt with nothing to send
+# trains the operator to refuse it, and a browser remembers a refusal far longer
+# than this wave. The consumer exists and is named: §18's ratio alert, which is
+# L16. Recorded in the register so it is declined rather than forgotten.
+#
 # The prototype is a SEPARATE application, and it has to say so everywhere the
 # system reads a name.
 #
@@ -68,7 +87,14 @@ MANIFEST = """{
     { "src": "/pwa-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
     { "src": "/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-  ]
+  ],
+  "share_target": {
+    "action": "/add",
+    "method": "GET",
+    "params": { "title": "q", "text": "q", "url": "q" }
+  },
+  "launch_handler": { "client_mode": "navigate-existing" },
+  "handle_links": "preferred"
 }
 """
 
