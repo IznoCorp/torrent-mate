@@ -4159,7 +4159,9 @@ screen's bottom edge, rises BEHIND the tab bar (z-50, `ui/variants/frame.ts`), a
 `var(--tm-bottom-bar-h)` so the last action is reachable — the variant's own comment says the bar
 « sits above the layers, so a sheet must reserve its height ». **The decision reverses the
 anchoring, not the rank**: the bar is the FLOOR — every bottom layer is anchored on the bar's top
-edge and rises from there, nothing slides behind it, the bar stays visible and tappable. It is
+edge and rises from there, nothing slides behind it, the bar stays visible — not tappable under a
+modal: `app/focus.ts` marks `#nav` `inert` while a layer is open, and B-237 measured that its
+buttons were never hit-testable over one, whatever their rank; this entry is about the paint. It is
 inherent to the template: `MODEL.md` Part 7 carries the paragraph and § 3 carries it as **P31**,
 with its instrument. L15's fifth behaviour change, in its own commit: the oracle WILL move on the
 sheet's open states, and each divergence is accepted under this entry's name. The padding that
