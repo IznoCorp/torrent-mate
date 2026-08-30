@@ -38,8 +38,7 @@ HARNESS = Path(__file__).resolve().parents[2] / "frontend" / "maquette" / "harne
 def load():
     """Imports the module without running its command line."""
     sys.path.insert(0, str(HARNESS))
-    spec = importlib.util.spec_from_file_location("served_copy",
-                                                  HARNESS / "served_copy.py")
+    spec = importlib.util.spec_from_file_location("served_copy", HARNESS / "served_copy.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -64,6 +63,7 @@ def copy_at(tmp_path, monkeypatch):
 
 class TestTheLock:
     """Who is allowed to rebuild the served copy."""
+
     def test_a_second_holder_is_refused(self, copy_at):
         """A suite may not rebuild the copy another suite is reading."""
         served_copy.acquire("session A", os.getpid())
@@ -117,6 +117,7 @@ class TestTheLock:
 
 class TestTheStamp:
     """Which build is in the copy, and whether it moved."""
+
     def test_two_builds_of_one_tree_are_two_tokens(self, copy_at):
         """Same commit and same sources are still two copies, and a reader spanning them read two files."""
         first = served_copy.write_stamp()["token"]
