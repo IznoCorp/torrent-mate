@@ -465,6 +465,16 @@ they are. **A pseudo-element that carries a function is covered by a named rule 
 is the contract, and a surface that relies on one without such a rule is the defect, not the
 oracle.
 
+**The same clause covers DESCENDANTS, and L15 produced the lived examples (2026-08-30).** A region
+resolves to the nodes its selector names and the 19 properties are read on those nodes — never on a
+child. Two defects the adversarial review of #528 found by eye were replayed by the steward with the
+oracle green over both: `dialogParagraph` stripped of its colour, and `selectionAction` carrying
+`bg-transparent` in its base (white on white under the light theme, contrast 1.00) — 167 divergences
+before, 167 after, all on `shell/sheet-content`, in both cases
+(`sed -i '' 's/ text-muted-foreground\"/\"/' frontend/maquette/design/src/ui/variants/frame.ts && make maquette-oracle`).
+The oracle is still not widened: **a child node that carries a function is covered by a named rule**,
+exactly as a pseudo-element is, and the two surfaces above are held by none today (B-252).
+
 ### D9 — What a library is adopted for, and where motion lives
 
 **Two rules, and between them they settle every "should we use library X" question without
@@ -1309,6 +1319,11 @@ grown). Two lots now write beside its four files before it runs — L15 (the sel
 producers) — and neither may extend them; each creates its files beside the page. **Q3 was answered on 2026-08-30: before L19** — this lot now sits at the head of Phase 5, so the
 producers move into files already cut.
 
+**It also owns half of B-247** (2026-08-30, from L15's review): a store bump replaces a feature
+page's DOM nodes, so a write between `pointerdown` and `click` destroys the tap. The repair is in the
+surfaces — a page whose nodes keep identity across a store write — and the four files this lot
+decomposes are where two of them live; L19 owes the same for the producers it moves.
+
 **Done when.** No file under `frontend/maquette/design/src` is at or over 400 non-blank lines with
 the sole exception of the dying engine's two, `engine/legacy.js` and `engine/states.js`, which
 L13 removes; no component is written out twice; every extraction is proved by the oracle, whose
@@ -1343,6 +1358,12 @@ the rule that held it before, unchanged in count.
 beside its page. Add a feature: DOIT-4, DOIT-8, NE-DOIT-PAS-3 and NE-DOIT-PAS-9's missing
 INSTRUMENTS are built here because these are the producers that draw those surfaces, but no
 surface changes.
+
+**Two debts named here so they have an owner (2026-08-30).** The other half of **B-247**: a producer
+moved into its feature keeps its nodes across a store write, so a tap between `pointerdown` and
+`click` survives — held by R100's `isSameNode` shape on the producer's surface. And the producer half
+of **B-249**: the 260 ms `setTimeout` beside `data-mediasheet` that R103 measures and PRINTS is
+removed with the producer that carries it, and R103 then REFUSES the gap instead of printing it.
 
 **Done when.** `grep -c "panel\.open(" legacy.js` reads 0; the inventory command lists only the
 harness panel; the fixture families that fed the producers are gone (D5's bracket-match method

@@ -112,6 +112,8 @@ jobs:
               - 'docs/reference/product-intent.md'
               - 'docs/reference/product-intent-map.md'
               - 'docs/reference/frontend-architecture.md'
+              # `check-docs-cited-paths.py` reads the office file too.
+              - 'docs/reference/frontend-steward.md'
               - 'docs/reference/frontend-backend-demands.md'
               - 'frontend/openapi.json'
               # The lists and baselines three of the cheap guards are held

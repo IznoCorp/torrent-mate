@@ -85,8 +85,9 @@ implementation directives change IN THE SAME MOVE. What loses its subject is rem
      are the rules that fall when a NAME moves without all of its ends. A rule that reads
      the operator's live databases cannot be among them — `arrivals.py` was, and failed on
      the runner for want of `library.db`, which says nothing about the change under test.
-     **Since 2026-08-25 this tier also runs the repository's CHEAP guards** — twenty
-     invocations (`run.sh` prints the count; it was nineteen until `check-implementation-state.py` joined on 2026-08-29), ~31 s, the ones that read what a maquette phase edits — so an invariant
+     **Since 2026-08-25 this tier also runs the repository's CHEAP guards** — as many
+     as `run.sh` lists and prints (« Running the repository's cheap guards (N) »; a number written
+     here went stale twice in two days), ~31 s, the ones that read what a maquette phase edits — so an invariant
      breach is attributable to the phase that commits it and not to a fifteen-phase
      interval. `make check` entire is NOT among them: its fourteen minutes of tests stay a
      wave gate.

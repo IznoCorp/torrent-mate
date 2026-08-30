@@ -92,6 +92,7 @@ check: lint test-cov
 	python3 scripts/check-state-ownership.py
 	python3 scripts/check-live-relay.py
 	python3 scripts/check-bug-register.py
+	python3 scripts/check-docs-cited-paths.py
 	python3 scripts/check-frame-domain.py
 	python3 frontend/maquette/oracle.py --contracts
 	python3 scripts/check-i18n-placeholders.py
@@ -200,7 +201,7 @@ harness-contracts:
 	frontend/maquette/harness/run.sh --contracts
 
 maquette-oracle:
-	@echo "Running the recorded oracle — 83 states x 33 regions against the committed reference..."
+	@echo "Running the recorded oracle against the committed reference (it prints the states and regions it measured)..."
 	frontend/maquette/harness/run.sh --oracle
 
 maquette-a11y:

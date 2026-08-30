@@ -199,6 +199,7 @@ REPOSITORY_GUARDS=(
   "scripts/check-frame-domain.py"
   "scripts/check-viewport-directives.py"
   "scripts/check-intent-map.py"
+  "scripts/check-docs-cited-paths.py"
   "scripts/compare-contracts.py --check"
 )
 REPOSITORY_ROOT="$(cd "$HERE/../../.." && pwd)"
