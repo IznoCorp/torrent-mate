@@ -201,7 +201,7 @@ when the defect comes back.
 | B-139 | Three typed variants were written and never wired; one leaves a bare button unreadable | by operator | `fixed #516` |
 | B-140 | Back returns to the top of a page: the scroll memory only knows overlay screens | by operator | `fixed #512` |
 | B-141 | Ten elements carry no class at all, in a prototype that imports no preflight | by audit | `fixed #516` |
-| B-142 | Nothing measures the interface against the constitution: three DOIT clauses have no surface | by audit | `open` |
+| B-142 | Nothing measures the interface against the constitution: three DOIT clauses have no surface | by audit | `fixed #528` |
 | B-143 | §17 (accounts, rights, Plex SSO) has no surface, no contract operation and no lot | by audit | `open` |
 | B-144 | §18 (ratio per tracker) needs three operations the backend already answers and nothing calls | by audit | `open` |
 | B-145 | §19 (cross-seed) has no route in either contract, and its events reach no stream | by audit | `open` |
@@ -303,11 +303,44 @@ when the defect comes back.
 | B-241 | `IMPLEMENTATION.md`'s « Next » row said « once L10-ter merges » and « L14 stays last » after both had changed | by audit | `fixed #527` |
 | B-242 | `MODEL.md` P14 says 78 named states where 87 are driven | by audit | `fixed #527` |
 | B-243 | Three small drifts in the directives: nineteen guards for twenty, an archived path cited live, « twenty times » for twenty-four | by audit | `fixed #527` |
-| B-244 | A contracts-tier guard whose subject only the `docs` filter names runs in no job | by L15 | `open` |
+| B-244 | A contracts-tier guard whose subject only the `docs` filter names runs in no job | by L15 | `fixed #528` |
 | B-245 | The pre-paint appearance script compares against the French spellings the engine stopped writing | by L15 | `fixed #528` |
 | B-246 | The « In flight » row's version arm is defeated by markdown emphasis, in silence | by L15 | `fixed #528` |
 | B-247 | A store bump replaces a feature page's nodes, so a write between press and click destroys the click | by L15 | `open` |
 | B-250 | `check-live-relay`'s stale-figure arm cannot tell a register citation from a frozen count | by L15 | `fixed #528` |
+
+**B-142 — the constitution has an instrument, and B-244 is worse than it was filed as.**
+Closed by L15's phase 18. `scripts/check-intent-map.py` holds every DOIT and NE-DOIT-PAS clause
+against the surface `product-intent-map.md` says serves it, and refuses: a clause with no row; a
+verdict outside the five words the map declares; a NAMED surface the tree does not have (a route
+path no route file serves, a feature directory that is not there); an owed half naming no lot, or a
+lot § 4 does not declare; a « served » naming no rule, harness script or guard; and a row for a
+clause that does not exist. It prints ONE LINE PER CLAUSE and never a count alone.
+
+**What it cannot do is the first thing its own header says.** It cannot tell whether a named proof
+READS the clause — two rows of the first map named a print statement and a rule about PM2 processes,
+and only a reader found them. So it prints the verdict beside every clause, and its summary line
+ends by saying whose job that is.
+
+**Its own first version refused all twenty-three rows**, because the map writes a verdict as code —
+`` `partly` `` — and the vocabulary is the five bare words. And its second refused every row whose
+Surface cell says « every surface »: several clauses bind all of them, which is right and is nothing
+a guard could check. What it refuses is a surface NAMED and absent.
+
+**B-244 is closed with it, and the number is seven, not one.** The hold in
+`tests/scripts/test_ci_filter_covers_the_guards.py` asked « is this path named by ANY filter? »; the
+job that runs the contracts tier gates every step on `maquette`. Asked the second question — « by
+the filter that gates the job that runs the guard? » — the hold goes red over **seven** guards:
+`check-implementation-state` (`IMPLEMENTATION.md`), `check-intent-map` (the constitution, the map
+and the plan), `check-bug-register` (`frontend-architecture.md`), `check-code-abbreviations` (its
+three lists), `check-frame-domain` (its baseline), `check-live-relay` (`personalscraper/`) and
+`compare-contracts` (`openapi.json` and the demands register). Every one of them was running in no
+job for a pull request touching only its own subject. The `maquette` filter names all of them now,
+and the hold asks both questions.
+
+<sub>`python3 scripts/check-intent-map.py` — 23 clauses against 23 rows, 0 violations. Three mutations: a clause's row deleted; a lot the plan does not declare; a `served` row pointed at a route that does not exist.</sub>
+
+---
 
 **B-249 — a layer's exit is seen, and the flash is diagnosed.**
 The operator reported it on a phone: tapping a sheet action that NAVIGATES flashes the whole

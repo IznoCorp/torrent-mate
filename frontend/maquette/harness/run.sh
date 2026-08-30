@@ -146,6 +146,14 @@ CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.
 # family over a 35 198-line file; the extractor answers `--all` in one pass now.
 # A tier nobody can afford to run is a tier nobody runs.
 #
+# `check-intent-map.py` joined at L15 as B-142's instrument, and it is the one
+# guard here whose subject is the CONSTITUTION rather than the tree: it holds
+# every DOIT and NE-DOIT-PAS clause against the surface `product-intent-map.md`
+# says serves it, and refuses a clause with no row, a named surface the tree
+# does not have, an owed half with no lot, and a « served » with no proof. It
+# reads FILES, in 0.1 s. It is on this tier because a clause map is amended by
+# prose pull requests, which are exactly the ones the wave gate never sees.
+#
 # `check-viewport-directives.py` joined at L15 with B-230, and it belongs here
 # for a reason the accessibility tier makes plain: axe reports `meta-viewport`
 # when the directive is PRESENT on the document it audits, and B-230 was never
@@ -190,6 +198,7 @@ REPOSITORY_GUARDS=(
   "scripts/check-bug-register.py"
   "scripts/check-frame-domain.py"
   "scripts/check-viewport-directives.py"
+  "scripts/check-intent-map.py"
   "scripts/compare-contracts.py --check"
 )
 REPOSITORY_ROOT="$(cd "$HERE/../../.." && pwd)"

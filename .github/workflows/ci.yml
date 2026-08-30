@@ -93,6 +93,37 @@ jobs:
               # documentation drifting from the arms it documents.
               - 'BUGS-CLOSED.md'
               - 'CLAUDE.md'
+              # AND SEVEN MORE, FOUND BY ASKING THE SECOND QUESTION (B-244).
+              # `tests/scripts/test_ci_filter_covers_the_guards.py` asked « is
+              # this path named by ANY filter? »; the job that runs the
+              # contracts tier gates every step on THIS filter, so a path named
+              # only by `docs` or only by `python` ran its guard in NO job. Its
+              # two earlier cases were both fixed by adding to `maquette`, so
+              # the two questions had never yet had different answers — and
+              # seven guards were already relying on the difference.
+              #
+              # A post-merge gesture IS a pull request touching
+              # `IMPLEMENTATION.md` alone, and that is the guard written to
+              # hold the post-merge gesture.
+              - 'IMPLEMENTATION.md'
+              # B-142's arm reads the constitution, the clause map and the
+              # plan; all three are amended by PROSE pull requests, which are
+              # exactly the ones the wave gate never sees.
+              - 'docs/reference/product-intent.md'
+              - 'docs/reference/product-intent-map.md'
+              - 'docs/reference/frontend-architecture.md'
+              - 'docs/reference/frontend-backend-demands.md'
+              - 'frontend/openapi.json'
+              # The lists and baselines three of the cheap guards are held
+              # against. A baseline raised on its own is precisely the change
+              # nobody wants running unguarded.
+              - 'scripts/code-abbreviations.txt'
+              - 'scripts/code-abbreviations-allowed.txt'
+              - 'scripts/code-abbreviations-baseline.json'
+              - 'scripts/frame-domain-baseline.json'
+              # `check-live-relay.py`'s map-completeness arm reads the event
+              # bus's own registry, which is Python.
+              - 'personalscraper/**'
             # design-gaps parses design-doc ANCHORS (audit_design_coverage.py):
             # a docs-only PR that renames a heading can flip its verdict.
             docs:
