@@ -85,7 +85,15 @@ PACKAGE_VERSION = "personalscraper/__init__.py"
 # wave writes it in prose (« branch `x`, version 0.98.51, PR #516 ») rather than
 # in a column of its own.
 IN_FLIGHT_ROW = re.compile(r"^\|\s*\*\*In flight\*\*\s*\|([^|]*)\|", re.M)
-VERSION_IN_ROW = re.compile(r"\bversion\s+(\d+\.\d+\.\d+)")
+# EMPHASIS IS PART OF THE SPELLING, and leaving it out cost this arm its
+# subject. Every row of that table writes its pull request in bold — « PR
+# **#528** » — so a wave writing the version the same way (« version
+# **0.98.55** ») produced a cell the pull-request arm read and this one did
+# not, and the guard exited 0 saying so about neither. A row held by one of
+# two arms is B-085's species inside the instrument written against it. The
+# markers are skipped rather than matched, so `version 0.98.55`,
+# `version **0.98.55**` and `version *0.98.55*` are one spelling.
+VERSION_IN_ROW = re.compile(r"\bversion\s+[*_`]*(\d+\.\d+\.\d+)")
 # The wave's pull request: the first `#NNN` in the cell, bold or not.
 PULL_REQUEST_IN_ROW = re.compile(r"#(\d+)\b")
 # Between waves the cell begins with *none* — the legible silence of § 5.
@@ -238,6 +246,16 @@ def arm_in_flight() -> int:
             return 1
 
     if named is None:
+        # SAID OUT LOUD, never by exiting 0 in silence. A row carrying a pull
+        # request and no version is legitimate exactly once — a prose-only wave
+        # under `no-version-bump` — and indistinguishable, in a log, from a
+        # version this arm failed to parse. Printing what was read is what
+        # separates the two, and it is § 5's own instruction for the *none*
+        # case applied to this one.
+        print(f"check-implementation-state[in-flight]: the row names no "
+              f"version, so only the pull-request arm holds it — legitimate "
+              f"for a `no-version-bump` wave, and nothing else. Read: "
+              f"« {cell[:72]} »")
         return 0
 
     main_version, failure = version_on_main()

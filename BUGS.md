@@ -305,6 +305,31 @@ when the defect comes back.
 | B-243 | Three small drifts in the directives: nineteen guards for twenty, an archived path cited live, « twenty times » for twenty-four | by audit | `fixed #527` |
 | B-244 | A contracts-tier guard whose subject only the `docs` filter names runs in no job | by L15 | `open` |
 | B-245 | The pre-paint appearance script compares against the French spellings the engine stopped writing | by L15 | `open` |
+| B-246 | The « In flight » row's version arm is defeated by markdown emphasis, in silence | by L15 | `fixed #528` |
+
+**B-246 — the « In flight » row's version arm is defeated by markdown emphasis, in silence.**
+Found on 2026-08-30 by writing the row this guard exists to hold, and reading what the guard said
+about it. `VERSION_IN_ROW` was `\bversion\s+(\d+\.\d+\.\d+)`. Every row of that table writes
+its pull request in bold — « PR **#528** » — so a wave writing the version the same way
+(« version **0.98.55** ») produced a cell the pull-request arm read and the version arm did not.
+
+**And the guard exited 0 saying so about neither.** The `named is None` branch returned zero with
+no output at all, because a row carrying a pull request and no version is legitimate for a
+`no-version-bump` wave. In a log, « this wave declares no version » and « I could not parse the
+version » are the same line: none. So the row was held by ONE of two arms and every gate was
+green — B-085's species inside the instrument written against B-238, which is itself B-085's
+species. **The ninety-ninth and the hundredth of that count belong to this wave** (B-244 is the
+other).
+
+**Fixed in #528**: the emphasis markers are skipped rather than matched, so `version 0.98.55`,
+`version **0.98.55**` and `version *0.98.55*` are one spelling; and the no-version branch prints
+what it read and names the one case in which it is legitimate. Three mutations, each seen and
+restored: a bold version is read; a version-less row says so instead of passing mutely; a row
+naming a version below `main`'s is still refused.
+
+<sub>`python3 scripts/check-implementation-state.py` — two `[in-flight]` lines where there was one</sub>
+
+---
 
 **B-244 — a contracts-tier guard whose subject only the `docs` filter names runs in no job.**
 Found on 2026-08-30 while placing B-142's arm, by reading the workflow the arm was to be placed in.
