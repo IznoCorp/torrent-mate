@@ -101,7 +101,7 @@ re-grep every cited line number last.
 - **B-235** — answered by Q1 (not a defect); closes concretely with L15's drawer.
 - **#524** — the steward's pull request (`claude/steward-l15-brief`), stopped in flight after its
   agent's session ended. Its state on 2026-08-30 evening: one commit, five files, up to date with
-  `main`; **the L15 brief is written** (`docs/features/maquette-l15/BRIEF.md`, 173 lines); B-239
+  `main`; **the L15 brief is written** (`docs/archive/features/maquette-l15/BRIEF.md`, 173 lines — archived with the wave on 2026-08-30); B-239
   filed (`CLAUDE.md` announced 24 properties where the model holds 30) and repaired; the plan's § 1
   sentence « has never been modelled » put in the past tense; version bumped to 0.98.54 rather than
   labelled. **Unfinished**: B-239's status still reads `fixing` (must read `fixed #524` — B-221's

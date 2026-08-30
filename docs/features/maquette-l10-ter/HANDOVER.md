@@ -18,7 +18,7 @@ duty is to finish what the office left open before auditing anything new.
 >
 > **1. Finish #524 — the office's own unfinished work — before anything else.**
 > Read the pull request body and its diff against `main` (`git diff main...origin/claude/steward-l15-brief`).
-> What it holds: the L15 brief (`docs/features/maquette-l15/BRIEF.md`), B-239 with its repair in
+> What it holds: the L15 brief (`docs/archive/features/maquette-l15/BRIEF.md`, archived with the wave on 2026-08-30), B-239 with its repair in
 > `CLAUDE.md`, one corrected sentence in `frontend-architecture.md` § 1, and a version bump. What is
 > unfinished, measured on 2026-08-30 evening — re-measure before acting:
 >

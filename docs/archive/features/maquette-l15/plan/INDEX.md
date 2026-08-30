@@ -36,7 +36,7 @@ it needs is settled by the phase that found the hole in it.
 | 9 | **B-229** — the dialog's rung on the ladder | **behaviour** | `phase-09-b229-the-rung.md` |
 | 10 | **B-237** — the dialog's z-order | **behaviour** | `phase-10-b237-the-z-order.md` |
 | 11 | The popover layer | conversion | `phase-11-the-popover.md` |
-| 12 | The scrim gets one owner | conversion | `phase-12-the-scrim.md` |
+| 12 | The scrim gets one owner | **folded into phase 8** | `phase-12-the-scrim.md` — **this phase did not run on its own.** The confirmation and the drawer raise the SAME scrim, so converting the dialog meant deciding its owner in the same edit: separating them would have left one layer's scrim in the engine and one in a component, which is the half-converted state the wave exists to end. Its subject landed in phase 8's commit, `ee0500f2`, and its file is kept as written so the fold can be read rather than inferred |
 | 13 | The splash | conversion | `phase-13-the-splash.md` |
 | 14 | The sign-in gate | conversion | `phase-14-the-sign-in-gate.md` |
 | 15 | The install proposal, and the appearance | conversion | `phase-15-install-and-appearance.md` |
