@@ -52,6 +52,7 @@ addfield
 addq
 address
 addressed
+addresses
 advance
 after
 again
@@ -587,6 +588,7 @@ more
 motif
 motion
 mount
+move
 movie
 moving
 mq
@@ -1014,6 +1016,7 @@ template
 term
 testid
 text
+that
 thawed
 the
 theme
