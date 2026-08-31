@@ -329,6 +329,20 @@ when the defect comes back.
 | B-267 | The real backend answers `{detail}`, which the queue's failure shape does not match — every refusal would be QUEUED at switchover | by review | `open` |
 | B-268 | R104 lives in the file it measures, and has been defeated twice by exactly that | by audit | `open` |
 | B-269 | Five corpus floors in `served_copy.py` are calibrated by hand, one figure per corpus | by audit | `open` |
+| B-270 | Two harness journals are labelled « R80 » — `attrs.py`'s has no number of its own | by audit | `open` |
+
+**B-270 — two harness journals are labelled « R80 », and `attrs.py`'s has no number of its own.**
+`harness/residue.py` is R80 (a typed variant and the residue rule shadowing it agree; the README's rule
+table says so). `harness/attrs.py` — how React renders a boolean into an attribute — opens no rule
+number and labels its journal `Journal("R80 — how React renders a boolean into an attribute")`. Any
+reader that keys on the label merges two rules; the hold-count baseline keys on the FILE, which is
+why no count is wrong today, and why nothing said so. Found while re-deriving the L12 brief's rule
+citations. One line to fix, with the next free number — the harness's, in the same visit as B-268 and
+B-269.
+
+<sub>`grep -n "R80" frontend/maquette/harness/attrs.py frontend/maquette/harness/residue.py`</sub>
+
+---
 
 **B-269 — five corpus floors in `served_copy.py` are calibrated by hand, one figure per corpus.**
 `served_copy.py:619` floors five filtered corpora, each floor « set near its own corpus » — which is
