@@ -483,8 +483,16 @@ re-opening the argument.**
 1. **What is declarative lives in the stylesheet** — therefore in the design reference, therefore
    under the oracle. Motion written in JavaScript leaves the field of measurement, and a design
    decision nobody can measure is a design decision nobody can defend.
-2. **A library is adopted for maths nobody has written. Never for an arbitration already
-   proved.**
+2. **A reliable library that solves EXACTLY our problem is preferred to re-coding it; code is
+   written by hand only for maths nobody has written.** Dictated by the operator on 2026-08-31,
+   and it REVERSES the rule that stood here (« a library is adopted for maths nobody has written,
+   never for an arbitration already proved »). The question is asked first and in this order: does
+   a library exist that solves exactly this problem, is maintained and followed, is proven and
+   has standing? **If yes, the wave PROPOSES THE CANDIDATES** — each with the criteria it meets —
+   and the operator chooses; if none exists, or none solves exactly the problem, the code is
+   written here. « Exactly » is the whole test: a library that solves the plumbing and not the
+   hard part (the gesture row below) does not qualify, and that is a measured answer, not a
+   preference for our own code.
 
 **Applied, with the verdicts they produce.** These were argued against real alternatives; the
 reasoning is kept so the alternatives are not proposed again as if new.
@@ -494,8 +502,9 @@ reasoning is kept so the alternatives are not proposed again as if new.
 | **View Transitions API** for page and layer transitions | **adopt** | native, compositor-driven, zero bytes, declarative — so it is measurable. Same-document transitions are supported on the target platform |
 | A JS animation library for **page transitions** | **refuse** | it buys what the platform gives, costs tens of kilobytes, and moves motion out of the stylesheet (rule 1) |
 | A JS animation library for **one interruptible spring** that follows a finger and settles | **allowed, scoped** | CSS cannot express interruptible pointer-driven physics. One component, never a transition strategy |
-| A gesture library **replacing** the press/drag/scroll arbitration | **refuse** | that arbitration is written and proved here; the library solves the plumbing, not the hard part (rule 2) |
-| A gesture library for a **new** gesture needing velocity, inertia or multi-pointer maths | **allowed, scoped** | maths nobody has written (rule 2) |
+| A gesture library **replacing** the press/drag/scroll arbitration | **refuse — unless a candidate meets rule 2's « exactly »** | the hard part is two things a general library does not know: a long press and a drag are opposite cases for the compositor, and the click a long press causes is swallowed by its POINT (§ 4, L12). A library that carries both, maintained and proven, is a candidate to propose; one that solves the plumbing only does not meet « exactly » (rule 2, as reversed 2026-08-31) |
+| A gesture library for a **new** gesture needing velocity, inertia or multi-pointer maths | **preferred, scoped** | a proven library beats writing that maths here (rule 2, as reversed) — candidates proposed, the operator chooses |
+| A **list virtualiser** for the library's 1 861 titles (P24, L12) | **candidates to propose** | rule 2 asks first whether a reliable, maintained, proven library windows a list exactly as this one needs it; L12 surveys the candidates (their criteria written beside each) and adopts the one the operator names — hand-written windowing only if none qualifies |
 | **Haptics** | **refuse the capability, build the seam** | the target platform exposes no public API; the workarounds ride an implementation detail that has already been tightened once. One `feedback()` call site all gestures pass through, visual today — so adopting it later changes one file |
 | **`onTouchStart` for pressed states** | **refuse** | it lights the pressed state when the finger is starting a SCROLL, so a list flickers as it is scrolled. `:active` is cancelled by the browser when the gesture becomes a scroll, which is the wanted behaviour, for free |
 | **`@media (hover: hover)`** to keep hover off touch | **adopt** | the sticky-hover problem is real; this is its declarative remedy |
