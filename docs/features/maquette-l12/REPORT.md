@@ -131,28 +131,64 @@ The stop-and-report was armed at each one and would have fired.
 
 ---
 
-## 6. What is blocked, and why it is the operator's
+## 6. The operator's four decisions, and the defect they uncovered
 
-**Phase 10 builds nothing.** P6 asks for a shared element carrying a poster from a card into its
-sheet. Measured:
+**Phase 10 was declared blocked on a premise that was FALSE, and the operator corrected it.**
 
-- `/media/$provider/$id` renders `MediaScreen`, whose hero is a **wide background-image banner**, by
-  a decision already taken and written down (« the banner prefers the wide visual; the vertical
-  poster is only a fallback »);
-- the surface that *does* carry a vertical poster is the long-press panel, reached by **no
-  navigation**, so no view transition is involved.
+This wave reasoned that P6's shared element had no destination: the media screen leads with a wide
+fanart, and the surface carrying a vertical poster — the long-press panel — is reached by no
+navigation. Two errors:
 
-The two further constraints — engine-drawn source, L14-owned destination — are **both soluble inside
-this lot** and are not the blocker. **The blocker is product: there is no poster at the destination
-to carry a poster to.** Three options are written out in the phase file; **deferral to L19 is
-recommended**, because the alternatives either reinterpret the contract's word « poster » or redraw a
-surface the operator has validated.
+1. **The media page keeps its fanart definitively.** « Defer to L19, when the surface is redrawn »
+   rested on a redraw that will never come, so it abandoned P6 in silence.
+2. **`startViewTransition` animates any DOM change, not only a navigation.** Ruling the panel out
+   « because it does not go through `go()` » confused the mechanism with the possible. The panel
+   already pushes a history entry and is already addressable.
 
-**And the decode half is blocked with it**, correcting what this plan said earlier in the same day:
-nothing is carried, so no image's decode can tear anything — and the destination is a CSS
-`background-image`, which `decode()` has no handle on.
+**P6 is built and true.** The poster travels from the tile into the panel. `app/shared-poster.ts`
+marks exactly one poster at the moment the gesture picks it — `view-transition-name` must be unique,
+so no class rule can place it — and the name lives in the stylesheet (rule 1). The proof is
+`::view-transition-old(carried-poster)` **and nothing else**: a `group` and a `new` exist for any
+newly named element, so every weaker reading is green over a poster that does not travel.
 
----
+**Transitions A and A-extended** land with it: the fanart fades up while the content block rises, no
+shared element (there is nothing honest to share between a 2:3 poster and a banner); and the panel
+carries its own name so its old snapshot slides down while A plays underneath, Back playing the
+mirror — which §16 requires anyway. All three names are keyed on attributes the surfaces already
+emit, so **not one line is added to `media-screen.tsx`**, one of L14's four.
+
+**D9's virtualiser row is written as DECIDED**, citing the operator's naming. There is nothing left
+to ask.
+
+### And building them exposed the wave's sharpest defect
+
+**The page transition was DEGENERATE, and every gate was green over it.**
+
+Phase 9 kept `go()` synchronous by asking for the capture and committing immediately after. It kept
+the synchrony and animated **nothing**: the browser captures the old state after the current task, so
+the commit had already run and the « old » snapshot *was the new page*.
+
+**What proved it is a name that exists on one side only.** Transition A names the media screen's
+hero, and `::view-transition-old(screen-banner)` was present — while the library page it leaves
+carries **zero** `[data-part="hero"]`. An old snapshot for a name the old state does not contain can
+only mean the new screen was already mounted when the snapshot was taken.
+
+**R115 was green throughout, and correctly by its own words**: animations ran, and it counted them.
+*« A view transition is running »* and *« a view transition is showing the previous state »* are
+different claims, and only the first was ever held. The oracle could not see it either — it measures
+settled states, and both ends were right.
+
+The commit runs inside the callback now. **`go()` is asynchronous again**, said plainly: the flush
+still keeps « one call, one entry » (that was always about the router batching two writes in ONE
+task), and the ladder was re-read rather than assumed. `boot_order` read the address in the same
+evaluate as the screen call — its hold is about the seams being filled, not about synchrony, so the
+call and the read are two steps now.
+
+**A probe that truncated its own evidence nearly cost a re-architecture.** While building P6, a
+reading sliced the pseudo-element list to eight rows while ten were running, cutting off the two
+`old(carried-poster)` rows — and the conclusion drawn was that the shared element did not work.
+It did. *A rule that truncates its evidence reports a defect that is not there, which is the mirror
+of the guard that reports none that is.*
 
 ## 7. Device-only protocols — written and dated, never claimed as passed
 
@@ -171,7 +207,7 @@ Neither was exercised, and `MODEL.md` § 3.1 is explicit that they are protocols
 | --- | --- |
 | `run.sh` full suite | **85 rules + 25 guards, no violation** |
 | `run.sh --a11y` | 87 states, 0 violations; light-theme debt **at its ceiling**, unmoved |
-| `harness-hold-counts.py --compare` | **0 changed, 6 new (37 holds), none lost** |
+| `harness-hold-counts.py --compare` | **6 new rules; 3 later ROSE (press +1, transition +12, virtual +1). Nothing ever lost a hold** |
 | `make check` | **10 961 passed, 4 skipped, 2 xfailed, 0 failed, 0 errors** |
 | oracle | **2 958 measurements, no divergence** |
 
