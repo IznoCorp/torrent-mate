@@ -173,59 +173,59 @@ async def settle(page):
 
 async def hold_the_tolerance(journal, browser):
     """A press that drifts past the tolerance must NOT open the panel."""
-    ctx, pg = await open_page(browser)
-    await pg.evaluate("(s)=>window.__go(s)", STATE)
-    await pg.wait_for_timeout(420)
-    box = await pg.evaluate(
+    context, page = await open_page(browser)
+    await page.evaluate("(s)=>window.__go(s)", STATE)
+    await page.wait_for_timeout(420)
+    box = await page.evaluate(
         "(sel)=>{const e=document.querySelector(sel); if(!e) return null;"
         "const r=e.getBoundingClientRect();"
         "return {x:r.x+r.width/2, y:r.y+r.height/2};}", TILE)
     journal.check("a tile is drawn to press", bool(box), str(box))
     if not box:
-        await ctx.close()
+        await context.close()
         return
 
     hold = 480 + PRESS_HOLD_MARGIN
     # The control: a thumb's own drift, well inside the tolerance. This must
     # OPEN — without it the negative below would pass on a broken press.
-    await drive_press(pg, box["x"], box["y"], 5, hold)
-    await pg.wait_for_timeout(160)
+    await drive_press(page, box["x"], box["y"], 5, hold)
+    await page.wait_for_timeout(160)
     journal.check("a press drifting 5px still opens the panel",
-                  await panel_is_open(pg), "the control for the hold below")
-    await settle(pg)
+                  await panel_is_open(page), "the control for the hold below")
+    await settle(page)
 
-    await drive_press(pg, box["x"], box["y"], CANCELLING_DRIFT, hold)
-    await pg.wait_for_timeout(160)
-    opened = await panel_is_open(pg)
+    await drive_press(page, box["x"], box["y"], CANCELLING_DRIFT, hold)
+    await page.wait_for_timeout(160)
+    opened = await panel_is_open(page)
     journal.check(
         f"under a finger, a press drifting {CANCELLING_DRIFT}px opens nothing "
         "(the compositor's cancel AND the tolerance — this does not isolate "
         "either)",
         not opened,
         "a scroll begun on a tile opens a panel")
-    await settle(pg)
-    await ctx.close()
+    await settle(page)
+    await context.close()
 
 
 async def hold_the_swallow_is_by_point(journal, browser):
     """A click nobody pointed at must survive the swallow. See the docstring."""
-    ctx, pg = await open_page(browser)
-    await pg.evaluate("(s)=>window.__go(s)", STATE)
-    await pg.wait_for_timeout(420)
-    box = await pg.evaluate(
+    context, page = await open_page(browser)
+    await page.evaluate("(s)=>window.__go(s)", STATE)
+    await page.wait_for_timeout(420)
+    box = await page.evaluate(
         "(sel)=>{const e=document.querySelector(sel); if(!e) return null;"
         "const r=e.getBoundingClientRect();"
         "return {x:r.x+r.width/2, y:r.y+r.height/2};}", TILE)
     if not box:
         journal.check("a tile is drawn to press", False, "absent")
-        await ctx.close()
+        await context.close()
         return
 
     # A button of the interface's own, and a counter on it. Its click is fired
     # PROGRAMMATICALLY — no pointerdown, so the arbitration's mark is still set
     # when it arrives, which is the only situation in which the point check
     # decides anything.
-    await pg.evaluate("""()=>{
+    await page.evaluate("""()=>{
       const target = document.createElement('button');
       target.id = '__clickProbe';
       target.style.cssText = 'position:fixed;left:4px;top:4px;width:24px;height:24px';
@@ -240,24 +240,24 @@ async def hold_the_swallow_is_by_point(journal, browser):
     # already gone, so a probe fired then decides nothing. Holding the finger
     # down is the only moment at which the mark is set and unclaimed, and it is
     # how R55 reaches the same instant.
-    await drive_press(pg, box["x"], box["y"], 5, 480 + PRESS_HOLD_MARGIN,
+    await drive_press(page, box["x"], box["y"], 5, 480 + PRESS_HOLD_MARGIN,
                       lift=False)
-    await pg.wait_for_timeout(120)
-    marked = await pg.evaluate("()=>!!window.swallowClick")
+    await page.wait_for_timeout(120)
+    marked = await page.evaluate("()=>!!window.swallowClick")
     journal.check("the press left its swallow mark set",
                   marked,
                   "without the mark the hold below decides nothing")
-    await pg.evaluate("()=>document.getElementById('__clickProbe').click()")
-    await pg.wait_for_timeout(120)
-    fired = await pg.evaluate("()=>window.__probeFired")
+    await page.evaluate("()=>document.getElementById('__clickProbe').click()")
+    await page.wait_for_timeout(120)
+    fired = await page.evaluate("()=>window.__probeFired")
     journal.check(
         "a click nobody pointed at is NOT swallowed by the press's mark",
         fired == 1,
         "the swallow is keyed on the press rather than on its POINT, so the "
         "first programmatic or keyboard-fired click after any long press is "
         "eaten")
-    await settle(pg)
-    await ctx.close()
+    await settle(page)
+    await context.close()
 
 
 async def open_mouse_page(browser):
@@ -277,62 +277,62 @@ async def open_mouse_page(browser):
     Returns:
         The (context, page, box) triple, box being the tile's centre.
     """
-    ctx = await browser.new_context(**{**PHONE, "has_touch": False})
-    pg = await ctx.new_page()
-    await pg.goto(PROTOTYPE, wait_until="load")
-    await pg.evaluate("()=>window.__loadingDone?.()")
-    await pg.evaluate("()=>document.querySelector('#toastx')?.click()")
-    await pg.wait_for_timeout(250)
-    await pg.evaluate("(s)=>window.__go(s)", STATE)
-    await pg.wait_for_timeout(420)
-    box = await pg.evaluate(
+    context = await browser.new_context(**{**PHONE, "has_touch": False})
+    page = await context.new_page()
+    await page.goto(PROTOTYPE, wait_until="load")
+    await page.evaluate("()=>window.__loadingDone?.()")
+    await page.evaluate("()=>document.querySelector('#toastx')?.click()")
+    await page.wait_for_timeout(250)
+    await page.evaluate("(s)=>window.__go(s)", STATE)
+    await page.wait_for_timeout(420)
+    box = await page.evaluate(
         "(sel)=>{const e=document.querySelector(sel); if(!e) return null;"
         "const r=e.getBoundingClientRect();"
         "return {x:r.x+r.width/2, y:r.y+r.height/2};}", TILE)
-    return ctx, pg, box
+    return context, page, box
 
 
 async def hold_the_mouse_press(journal, browser):
     """A mouse holds perfectly still, so this is where the timer always fires."""
-    ctx, pg, box = await open_mouse_page(browser)
+    context, page, box = await open_mouse_page(browser)
     if not box:
         journal.check("a tile is drawn to press, under a mouse", False, "absent")
-        await ctx.close()
+        await context.close()
         return
-    await pg.mouse.move(box["x"], box["y"])
-    await pg.mouse.down()
-    await pg.wait_for_timeout(480 + PRESS_HOLD_MARGIN)
-    await pg.mouse.up()
-    await pg.wait_for_timeout(160)
+    await page.mouse.move(box["x"], box["y"])
+    await page.mouse.down()
+    await page.wait_for_timeout(480 + PRESS_HOLD_MARGIN)
+    await page.mouse.up()
+    await page.wait_for_timeout(160)
     journal.check("under a real mouse, a held press opens the panel",
-                  await panel_is_open(pg),
+                  await panel_is_open(page),
                   "the press path a mouse walks is the one where the timer "
                   "always fires")
-    await ctx.close()
+    await context.close()
 
 
 async def hold_the_mouse_tolerance(journal, browser):
     """THE ONE EXERCISE THAT ISOLATES THE TOLERANCE. See the docstring."""
-    ctx, pg, box = await open_mouse_page(browser)
+    context, page, box = await open_mouse_page(browser)
     if not box:
         journal.check("a tile is drawn to drag, under a mouse", False, "absent")
-        await ctx.close()
+        await context.close()
         return
-    await pg.evaluate("()=>{window.__pointerCancels=0;"
+    await page.evaluate("()=>{window.__pointerCancels=0;"
                       "document.addEventListener('pointercancel',"
                       "()=>{window.__pointerCancels+=1;});}")
-    await pg.mouse.move(box["x"], box["y"])
-    await pg.mouse.down()
+    await page.mouse.move(box["x"], box["y"])
+    await page.mouse.down()
     # The drift arrives EARLY, for the reason the touch driver gives.
     for step in range(1, 5):
-        await pg.mouse.move(box["x"] + MOUSE_DRIFT * step / 4,
+        await page.mouse.move(box["x"] + MOUSE_DRIFT * step / 4,
                             box["y"] + MOUSE_DRIFT * step / 4)
-        await pg.wait_for_timeout(30)
-    await pg.wait_for_timeout(620)
-    await pg.mouse.up()
-    await pg.wait_for_timeout(160)
-    opened = await panel_is_open(pg)
-    cancels = await pg.evaluate("()=>window.__pointerCancels")
+        await page.wait_for_timeout(30)
+    await page.wait_for_timeout(620)
+    await page.mouse.up()
+    await page.wait_for_timeout(160)
+    opened = await panel_is_open(page)
+    cancels = await page.evaluate("()=>window.__pointerCancels")
     # THE TWO ASSERTIONS ARE ONE PROOF. That the panel stayed shut says the
     # press died; that `pointercancel` never fired says the COMPOSITOR did not
     # kill it — so the tolerance did. Without the second, this hold proves
@@ -345,7 +345,7 @@ async def hold_the_mouse_tolerance(journal, browser):
         "and the compositor never cancelled it, so it was the TOLERANCE",
         cancels == 0,
         f"pointercancel fired {cancels}x — this hold would prove nothing")
-    await ctx.close()
+    await context.close()
 
 
 async def hold(journal):
