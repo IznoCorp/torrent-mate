@@ -72,6 +72,33 @@ POLL_MILLISECONDS = 16
 POLL_ATTEMPTS = 40
 
 
+WATCH_VIEW_TRANSITIONS = """()=>{
+  window.__peak = 0;
+  window.__called = 0;
+  window.__names = [];
+  const native = document.startViewTransition;
+  if (native) {
+    document.startViewTransition = function (callback) {
+      window.__called += 1;
+      return native.call(this, callback);
+    };
+  }
+  window.__watch = setInterval(() => {
+    const running = document.getAnimations().filter((animation) => {
+      const pseudo = animation.effect && animation.effect.pseudoElement;
+      return !!pseudo && pseudo.includes('view-transition');
+    });
+    if (running.length > window.__peak) {
+      window.__peak = running.length;
+      // EVERY name, never a slice. A truncated list once cut the two
+      // `old(carried-poster)` rows off a ten-row reading and produced a defect
+      // report about code that was correct.
+      window.__names = running.map((a) => a.effect.pseudoElement);
+    }
+  }, 8);
+}"""
+
+
 async def open_page_with(browser, motion):
     """Opens the prototype under a motion preference.
 
@@ -105,28 +132,7 @@ async def switch_and_watch(page):
         A dict carrying the peak count of view-transition animations seen and
         whether the API was called at all.
     """
-    await page.evaluate("""()=>{
-      window.__peak = 0;
-      window.__called = 0;
-      const native = document.startViewTransition;
-      if (native) {
-        document.startViewTransition = function (callback) {
-          window.__called += 1;
-          return native.call(this, callback);
-        };
-      }
-      window.__watch = setInterval(() => {
-        // NAMED PSEUDO-ELEMENTS ONLY. The interface runs a pulse and a skeleton
-        // shimmer at all times, so a count of ALL animations is above zero on
-        // every page and would prove nothing.
-        const running = document.getAnimations().filter((animation) => {
-          const target = animation.effect && animation.effect.target;
-          const pseudo = animation.effect && animation.effect.pseudoElement;
-          return !!pseudo && pseudo.includes('view-transition');
-        }).length;
-        if (running > window.__peak) window.__peak = running;
-      }, 8);
-    }""")
+    await page.evaluate(WATCH_VIEW_TRANSITIONS)
     await page.click(TILE)
     for _ in range(POLL_ATTEMPTS):
         await page.wait_for_timeout(POLL_MILLISECONDS)
@@ -175,6 +181,100 @@ async def hold_under(journal, browser, motion):
     await context.close()
 
 
+
+
+# ── P6: the poster travels from the tile into the panel ─────────────────────
+# The long press opens the panel, and the panel shows the same poster. A shared
+# element makes it ONE picture moving; without it the poster vanishes on the
+# card and reappears, a different size, in a layer sliding up.
+#
+# THE PROOF IS `::view-transition-old(carried-poster)`, and only that. Every
+# other reading is satisfied by an element that merely APPEARS: a `group` and a
+# `new` exist for any newly named element, so a rule reading those is green over
+# a poster that does not travel at all. The OLD snapshot exists only when
+# something carried that name in the state before.
+#
+# WRITTEN AFTER THE PROBE THAT NEARLY COST A RE-ARCHITECTURE. A first reading
+# sliced the pseudo-element list to eight entries while ten were running, so
+# the two `old(carried-poster)` rows were cut off — and the conclusion drawn
+# was that the shared element did not work and that phase 9's ordering was
+# wrong. Both were false. A rule that truncates its own evidence reports a
+# defect that is not there, which is the mirror of the guard that reports none
+# that is.
+CARRYING_STATE = "lib-grid"
+CARRYING_TILE = '[data-part="tile"]'
+PRESS_HOLD_MILLISECONDS = 660
+
+
+async def hold_the_carried_poster(journal, browser, motion):
+    """Long-presses a tile and reads whether the poster travelled."""
+    context, page = await open_page_with(browser, motion)
+    await page.evaluate("(s)=>window.__go(s)", CARRYING_STATE)
+    await page.wait_for_timeout(600)
+    await page.evaluate(WATCH_VIEW_TRANSITIONS)
+
+    box = await page.evaluate(
+        "(sel)=>{const e=document.querySelector(sel); if(!e) return null;"
+        "const r=e.getBoundingClientRect();"
+        "return {x:r.x+r.width/2, y:r.y+r.height/2};}", CARRYING_TILE)
+    journal.check(f"a tile is drawn to press ({motion})", bool(box), str(box))
+    if not box:
+        await context.close()
+        return
+
+    session = await page.context.new_cdp_session(page)
+    await session.send("Input.dispatchTouchEvent", {
+        "type": "touchStart", "touchPoints": [{"x": box["x"], "y": box["y"], "id": 1}]})
+    marked = False
+    for step in range(int(PRESS_HOLD_MILLISECONDS / 60)):
+        await session.send("Input.dispatchTouchEvent", {
+            "type": "touchMove",
+            "touchPoints": [{"x": box["x"] + 2, "y": box["y"] + 2, "id": 1}]})
+        await page.wait_for_timeout(60)
+        if step == 3:
+            marked = await page.evaluate(
+                "()=>!!document.querySelector('[data-carrying]')")
+    await session.send("Input.dispatchTouchEvent",
+                       {"type": "touchEnd", "touchPoints": []})
+    await page.wait_for_timeout(600)
+
+    reading = await page.evaluate(
+        "()=>{clearInterval(window.__watch);"
+        " return {names: window.__names || [], called: window.__called || 0,"
+        "  open: !!document.querySelector('#sheet')?.hasAttribute('data-open'),"
+        "  left: !!document.querySelector('[data-carrying]')};}")
+
+    journal.check(f"under `{motion}`, the press opens the panel",
+                  reading["open"],
+                  "no panel — nothing below decides anything")
+    journal.check(
+        f"under `{motion}`, exactly one tile is marked while the finger is down",
+        marked,
+        "no `[data-carrying]` mid-press — the poster has no name to travel under")
+    journal.check(
+        f"and under `{motion}` the mark LEAVES the tile once the panel is up",
+        not reading["left"],
+        "the tile still carries the name, so two elements answer to it and the "
+        "browser drops the transition")
+
+    old = [name for name in reading["names"] if "old(carried-poster)" in name]
+    if motion == "reduce":
+        journal.check(
+            "under `reduce`, the poster does NOT travel",
+            not old,
+            f"{old} — naming the element under this preference makes the "
+            "browser animate it, and a reader who asked for no motion gets a "
+            "journey anyway")
+    else:
+        journal.check(
+            "under `no-preference`, the poster TRAVELS — an old snapshot exists",
+            bool(old),
+            f"names seen: {reading['names']} — a `group` and a `new` exist for "
+            "any newly named element; only an OLD snapshot proves something "
+            "carried the name in the state before")
+    await context.close()
+
+
 async def hold(journal):
     """Drives the page switch under both motion preferences."""
     errors = []
@@ -182,6 +282,8 @@ async def hold(journal):
         browser = await play.chromium.launch(channel="chrome")
         await hold_under(journal, browser, "no-preference")
         await hold_under(journal, browser, "reduce")
+        await hold_the_carried_poster(journal, browser, "no-preference")
+        await hold_the_carried_poster(journal, browser, "reduce")
         await browser.close()
     journal.summary(errors)
 

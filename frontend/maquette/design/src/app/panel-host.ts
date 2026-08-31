@@ -7,6 +7,7 @@
 import { flushSync } from "react-dom";
 import { refuseBlock, type PanelDescriptor } from "../ui/panel/contract";
 import { addressOf, isScreenPath, withPanel } from "../lib/addresses";
+import { installSharedPoster, releaseCarriedPoster } from "./shared-poster";
 import type { Store } from "./store";
 
 declare global {
@@ -88,13 +89,48 @@ function openPanelOnCurrentEntry(open: () => void): void {
  *     store: The single owner of the mutable state.
  */
 export function installPanelHost(store: Store): void {
+  // INSTALLED FROM HERE RATHER THAN FROM THE SHELL, and the reason is a line
+  // count that would have been a defect: `app/shell.tsx` stands at 398 of the
+  // 400-line hard ceiling, and an import plus a call would put it AT it. The
+  // carried poster is the panel's own concern anyway — it exists so that the
+  // panel's arrival can be a shared element — so it belongs to the panel's
+  // installer and not to the frame's.
+  installSharedPoster();
 function openPanel(descriptor: PanelDescriptor): void {
   // Same order as the legacy `openSheet`: the layer first, the history entry
   // second. This file is SHELL code — the seam itself — so it writes the store
   // directly rather than through data.ts's `writeUiState` component door.
-  flushSync(() =>
-    store.write({ panelDescriptor: descriptor, panelOpen: true }),
-  );
+  const commit = () => {
+    flushSync(() =>
+      store.write({ panelDescriptor: descriptor, panelOpen: true }),
+    );
+    // THE MARK LEAVES THE TILE AS THE PANEL ARRIVES (P6). A shared element is
+    // one name on the old state and the SAME name on the new one; if the tile
+    // still carried it now, two elements would answer to it in this frame and
+    // the browser would skip the transition outright.
+    releaseCarriedPoster();
+  };
+
+  // P5/P6 — THE PANEL'S ARRIVAL IS A DECLARED TRANSITION, and the poster the
+  // press addressed travels into it. `startViewTransition` animates any DOM
+  // change, not only a navigation: the panel pushes its own history entry and
+  // is addressable (`?panel=…`), so nothing about the routes changes here.
+  //
+  // THE CAPTURE IS ASKED FOR FIRST AND THE COMMIT STILL RUNS SYNCHRONOUSLY,
+  // for the reason this file already gives at length: the legacy callers were
+  // written against a DOM that was already updated when `openSheet` returned —
+  // `data-del` closes the sheet and opens a dialog on the next line. Passing
+  // `commit` as the callback would defer it past a frame and break that
+  // ordering, which is the same trap `lib/navigate.ts` fell into and measured.
+  if (!document.startViewTransition) {
+    commit();
+  } else {
+    const transition = document.startViewTransition(() => undefined);
+    commit();
+    // A superseded transition rejects; that is a fast thumb, not an error.
+    transition.ready.catch(() => undefined);
+    transition.finished.catch(() => undefined);
+  }
   if (onCurrentEntry) return;
   try {
     // D1's second tier: a panel whose subject is stable travels in the query,

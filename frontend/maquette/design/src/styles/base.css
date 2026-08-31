@@ -436,6 +436,40 @@
   }
 }
 
+/* P6 — THE POSTER TRAVELS FROM THE TILE INTO THE PANEL.
+
+   `app/shared-poster.ts` marks exactly one poster at the moment a press picks
+   it, and the panel's own commit releases the mark as the layer arrives. The
+   NAME lives here rather than in that module (D9 rule 1): a name assigned in
+   JavaScript would take a drawing decision out of the design reference.
+
+   Both ends carry the same name, which is what makes it one picture moving
+   rather than two pictures drawn — and they are never both present in one
+   frame, because the mark leaves the tile inside the transition's own commit. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-carrying],
+  /* SCOPED TO THE OPEN SHEET, and this is not tidiness — it is what makes the
+     shared element work at all.
+
+     The panel's markup is mounted ALWAYS: closed is a class, not an unmount, so
+     `.sheetposter` is in the document before the press begins. Named
+     unconditionally, it and the marked tile both answer to `carried-poster` at
+     the moment the snapshot is taken — two elements, one name — and the browser
+     drops the name rather than choosing. Measured: the transition ran, and
+     `::view-transition-old(carried-poster)` was simply absent, so the poster
+     appeared instead of travelling. */
+  #sheet[data-open] .sheetposter {
+    view-transition-name: carried-poster;
+  }
+}
+
+/* REDUCED MOTION: the poster does not travel, and nothing else changes about
+   the gesture — the panel still opens, still on the same history entry, still
+   showing the same picture. Naming the element under `reduce` would make the
+   browser animate it, so under this preference it simply is not named
+   (invariant 14: the reduced state is DRAWN, and here what is drawn is the
+   absence of a journey). */
+
 /* THE PRESSED STATE — `:active`, and NO JAVASCRIPT (D9).
 
    `onTouchStart` is REFUSED, and the reason is measured rather than stylistic:
