@@ -116,6 +116,55 @@ function useRefused(): number {
   return useSyncExternalStore(subscribeToOutbox, () => refusedDepartures().length);
 }
 
+/**
+ * What the notice's one button is, decided ONCE.
+ *
+ * THE NAME, THE WORDS AND THE ACTION CAME FROM THREE SEPARATE LADDERS, and two
+ * of them tested their conditions in a different order. On a lost connection
+ * with a refusal recorded and nothing waiting, the button said « Réessayer
+ * maintenant » and CLEARED the refusal instead of reconnecting: pressing the
+ * reconnect button did not reconnect, and silently discarded the record the
+ * repair exists to show. That is the same « lie by suggestion » the previous
+ * repair was written for, reintroduced by writing the decision three times.
+ *
+ * @param condition What the connection is doing.
+ * @param owed Whether the condition itself owes the reader an explanation.
+ * @param waiting How many mutations are queued.
+ * @param refused How many were refused when they finally left.
+ * @returns The button's name, its words, and what it does — one decision.
+ */
+function whatToOffer(
+  condition: RelayCondition,
+  owed: boolean,
+  waiting: number,
+  refused: number,
+): { name: string; words: string; act: () => void } {
+  if (condition === "refused") {
+    return {
+      name: "signin",
+      words: "connection.refused.action",
+      act: () => go({ to: SIGN_IN_PATH }),
+    };
+  }
+  // THE CONNECTION FIRST, because a dead socket is what the operator can act on
+  // and a queued mutation cannot depart over it anyway.
+  if (owed) {
+    return {
+      name: "retry",
+      words: `connection.${condition}.action`,
+      act: () => reconnectNow(),
+    };
+  }
+  if (waiting > 0) {
+    return { name: "send", words: "connection.send", act: () => void departAll() };
+  }
+  return {
+    name: "acknowledge",
+    words: "connection.acknowledge",
+    act: () => clearRefusedDepartures(),
+  };
+}
+
 /** The conditions that owe the reader more than a word. */
 const NOTICE_CONDITIONS: readonly RelayCondition[] = ["lost", "refused"];
 
@@ -153,6 +202,7 @@ export function ConnectionNotice(): ReactElement | null {
         hour: "2-digit",
         minute: "2-digit",
       });
+  const offer = whatToOffer(condition, owed, waiting, refused);
   return (
     <div
       className={connectionNotice({ condition })}
@@ -167,29 +217,16 @@ export function ConnectionNotice(): ReactElement | null {
         {owed ? t(`connection.${condition}.body`) : ""}
         {owed && since !== null ? ` ${t("connection.since", { time: since })}` : ""}
         {waiting === 0 ? "" : `${owed ? " " : ""}${t("connection.waiting", { count: waiting })}`}
-        {refused === 0 ? "" : ` ${t("connection.refusedOnSending", { count: refused })}`}
+        {refused === 0 ? ""
+          : `${owed || waiting > 0 ? " " : ""}${t("connection.refusedOnSending", { count: refused })}`}
       </span>
       <button
         type="button"
         className="underline underline-offset-2 font-semibold"
-        data-connection-action={
-          condition === "refused" ? "signin"
-            : (owed ? "retry" : (refused > 0 && waiting === 0 ? "acknowledge" : "send"))}
-        onClick={() => {
-          if (condition === "refused") go({ to: SIGN_IN_PATH });
-          // THE BUTTON DOES WHAT THE SENTENCE ABOVE IT SAYS. When the only
-          // thing wrong is a mutation waiting to depart, the connection is
-          // healthy — and the first version offered « Réessayer maintenant »,
-          // which tore down a perfectly good live socket and moved the queued
-          // action not at all. It was the operator's ONLY affordance, and it
-          // was a lie by suggestion: §8 read from the other end.
-          else if (refused > 0 && waiting === 0) clearRefusedDepartures();
-          else if (!owed) void departAll();
-          else reconnectNow();
-        }}
+        data-connection-action={offer.name}
+        onClick={offer.act}
       >
-        {t(owed ? `connection.${condition}.action`
-                 : (refused > 0 && waiting === 0 ? "connection.acknowledge" : "connection.send"))}
+        {t(offer.words)}
       </button>
     </div>
   );

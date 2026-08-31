@@ -120,15 +120,19 @@ for RULE in "$@"; do
 done
 
 # The restore runs from the trap, and the served copy is rebuilt after it.
-# ONLY THE EXIT TRAP IS CLEARED, and the release stays armed. Clearing all
-# three here left the lock held through a `restore`, a full rebuild and a
-# publish — thirty to sixty seconds during which a failure under `set -e`, or a
-# Ctrl-C, exited with no trap and no release, and the lock survived the whole
-# staleness hour. That is the outcome the comment above this block says it is
-# preventing.
-trap - EXIT
-trap 'release_the_copy; exit 130' INT
-trap 'release_the_copy; exit 143' TERM
+# NOTHING IS DISARMED HERE. The first version cleared the EXIT trap before a
+# `restore`, a full rebuild and a publish — thirty to sixty seconds during which
+# a failure under `set -e` exited with no release at all, and the lock survived
+# the whole staleness hour. Only the Ctrl-C half of that was repaired; the
+# `set -e` half, which the comment claimed to cover, was not.
+#
+# The trap stays armed to the end and both halves of it are IDEMPOTENT: `restore`
+# writes the saved source back, and `release_the_copy` gives back a lock this
+# process no longer holds, which `served_copy.release` refuses by pid. So it may
+# run twice — once here and once from the trap — and the second run does nothing.
+trap 'restore; release_the_copy' EXIT
+trap 'restore; release_the_copy; exit 130' INT
+trap 'restore; release_the_copy; exit 143' TERM
 restore
 (cd frontend/maquette/design && npm run build >/dev/null 2>&1)
 python3 frontend/maquette/harness/served_copy.py --publish >/dev/null

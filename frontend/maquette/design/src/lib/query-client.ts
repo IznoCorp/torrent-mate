@@ -92,6 +92,33 @@ export const HELD = Symbol("held");
  */
 const UNREADABLE = "an answer this layer could not read";
 
+/**
+ * The answers that will not change however often the request is repeated.
+ *
+ * IT IS A LIST OF WHAT IS FINAL, NOT OF WHAT IS NOT, and that inversion is the
+ * repair. The first version excluded 408, 429 and the 5xx and treated
+ * everything else at or above 400 as settled — which made **401 final**, so an
+ * expired session destroyed every queued mutation on the next `online` edge,
+ * one after another, when a re-login would have made all of them succeed. That
+ * is the exact harm the change was written to remove, surviving in the half of
+ * the range nobody enumerated.
+ *
+ * A deny-list is wrong here by construction: the safe direction is to KEEP the
+ * operator's action, so anything unlisted must be kept. Only a status that says
+ * something about the REQUEST — its shape, its target, its conflict with the
+ * world — belongs here. Nothing about the caller's identity does: 401 and 403
+ * change when a session or a right changes, and 423 unlocks.
+ */
+const FINAL_STATUSES = new Set([
+  400, // malformed — sending it again sends the same malformed thing
+  404, // the target does not exist
+  405, // the method is not one this address takes
+  409, // a conflict with the world as it now is
+  410, // gone, and stated as permanent
+  415, // a body shape the layer will never read
+  422, // understood, and refused on its content
+]);
+
 // A NUMBER THAT ONLY RISES, so two envelopes accepted inside one millisecond
 // still replay in the order the operator made them.
 let accepted = 0;
@@ -141,13 +168,10 @@ setDeparture(
  */
 function isFinalAnswer(failure: unknown): boolean {
   if (!isRequestFailure(failure)) return false;
-  const { status } = failure;
   // A body this layer could not read is not a decision it can act on: the
   // status may be a proxy's, not the application's.
   if (failure.title === UNREADABLE) return false;
-  // 408 request timeout, 429 too many requests, and every 5xx: all say « later ».
-  if (status === 408 || status === 429 || status >= 500) return false;
-  return status >= 400;
+  return FINAL_STATUSES.has(failure.status);
 }
 
 /**

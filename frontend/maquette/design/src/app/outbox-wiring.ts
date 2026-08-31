@@ -52,8 +52,12 @@ export function installOutboxWiring(queryClient: QueryClient): void {
     // write (`lib/queue.ts`), because those are domain addresses and invariant
     // 10 refuses them in the frame; this reads the list without knowing what is
     // in it, and the queue still knows nothing at all.
+    // MATCHED ON EITHER END. `find(([one]) => …)` read only the pair's FIRST
+    // address, so a replayed `/api/acquisition/to-handle/…/take` never reached
+    // staging — the same defect the pairing was written to fix, in the other
+    // direction.
     const also = ADDRESSES_THAT_MOVE_TOGETHER.find(
-      ([one]) => path.startsWith(one));
+      (pair) => pair.some((one) => path.startsWith(one)));
     void queryClient.invalidateQueries({
       predicate: (query) => {
         const key = query.queryKey[0];

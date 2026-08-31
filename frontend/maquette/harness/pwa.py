@@ -168,6 +168,26 @@ async def signing_out_empties_the_shell(browser):
             await context.close()
             return executed, failures
 
+        # AND SOMETHING IN THE QUEUE, for the same reason. The first version
+        # read the queue without ever putting a mutation in it, so it read 0
+        # before and 0 after and stayed green with the teardown removed — the
+        # identical missing control this rule documents ten lines above.
+        executed += 1
+        queued = await page.evaluate(
+            """async()=>{ window.__mocks.setOffline(true);
+                 await window.__outbox.issue(
+                   "POST", "/api/acquisition/followed",
+                   {title: "R111 queued before signing out", kind: "tv"});
+                 window.__mocks.setOffline(false);
+                 return (await window.__outbox.waiting()).length; }""")
+        if queued != 1:
+            failures.append(
+                f"R111 nothing could be queued before signing out ({queued}) — "
+                "the queue hold below would pass over an empty queue")
+            await context.close()
+            return executed, failures
+
+        # THE SIGN-OUT, once, with the shell AND the queue populated.
         await page.evaluate("async()=>{ await window.__entry.signOut(); }")
         await page.wait_for_timeout(600)
 
@@ -189,11 +209,11 @@ async def signing_out_empties_the_shell(browser):
             failures.append(
                 f"R111 {registered} worker(s) still registered after signing out")
 
-        executed += 1
         # AND THE QUEUE GOES WITH THEM. A MUTATION that outlives a cookie is the
         # same finding as a cache that does, one artefact along: queued offline
         # by one operator, it would otherwise depart under the next one's
         # session.
+        executed += 1
         left_queued = await page.evaluate(
             "async()=>(await window.__outbox.waiting()).length")
         if left_queued != 0:
@@ -209,8 +229,10 @@ async def signing_out_empties_the_shell(browser):
     try:
         await page.reload(wait_until="load")
         rendered = await page.evaluate("()=>typeof window.__go==='function'")
-    except Exception as refused:
-        void = str(refused)
+    except Exception as unreachable:
+        # A navigation that fails outright is the property holding: there is
+        # nothing cached to render it from.
+        del unreachable
         rendered = False
     if rendered:
         failures.append(

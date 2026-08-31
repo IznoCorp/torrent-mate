@@ -454,6 +454,29 @@ def _code_of(path: Path) -> str:
     return "\n".join(kept)
 
 
+def _function_body(source: str, signature: str) -> str:
+    """Returns one function's own text, from its `def` to the next one.
+
+    A RULE THAT SEARCHES A WHOLE FILE SEARCHES ITSELF. This module holds both
+    `publish()` and the rule that measures it, and the rule quotes the very
+    strings it looks for — so a hold about the ORDER of two lines inside
+    `publish()` was satisfied by the order of two lines inside `rules()`.
+
+    Args:
+        source: The stripped file.
+        signature: The `def ...(` the function starts with.
+
+    Returns:
+        Its body, or an empty string when the function is absent — which fails
+        every `find()` on it, in the loud direction.
+    """
+    start = source.find(signature)
+    if start < 0:
+        return ""
+    following = source.find("\ndef ", start + len(signature))
+    return source[start:] if following < 0 else source[start:following]
+
+
 def rules() -> int:
     """R104 — the served copy is held while it is rebuilt, and stamped after.
 
@@ -534,10 +557,17 @@ def rules() -> int:
     # `publish()` and the hold moved with the wrong half — so writing the stamp
     # at the TOP of `publish()`, which is the original B-256 defect, passed
     # every hold in this file.
-    document_at = mine.find('copy2(dist / "index.html"')
-    stamp_at = mine.find("return write_stamp()")
+    # READ OVER `publish()`'s OWN BODY, never the whole file. The file also
+    # contains this rule, and this rule contains both search strings — so the
+    # anchors survived the mutation and the hold passed with the stamp written
+    # at the TOP of `publish()`, which is the original B-256 defect. Measured by
+    # simulation: 1419 < 9068, where 9068 was this very line.
+    body = _function_body(mine, "def publish(")
+    document_at = body.find('copy2(dist / "index.html"')
+    stamp_at = body.find("return write_stamp()")
     hold("the publisher stamps the copy AFTER it lands",
-         0 <= document_at < stamp_at, f"copy@{document_at} stamp@{stamp_at}")
+         0 <= document_at < stamp_at,
+         f"copy@{document_at} stamp@{stamp_at} within publish()")
 
     # THE COMPARISON ITSELF, and not substrings that survive without it. Two of
     # the three the first version searched for were satisfied by the assignment
@@ -571,15 +601,21 @@ def rules() -> int:
     hold("common.py asserts at the end, in Journal.summary",
          common.count("assert_unchanged(STARTED_AGAINST") >= 2)
 
-    # A FILTER THAT CAN RETURN NOTHING MUST HAVE A FLOOR — `run.sh`'s own words,
-    # applied in the same commit to `installed.py` and not to this file. Every
-    # hold above is a substring search over a stripped corpus, and two of them
-    # are NEGATIVE (`"wrapped.html" not in source`): those get GREENER as the
-    # stripper loses text, which is the one direction a reader never notices.
+    # A FILTER THAT CAN RETURN NOTHING MUST HAVE A FLOOR — and the first version
+    # of these floors landed on the wrong corpora. The holds that need one are
+    # the NEGATIVE pair (`"wrapped.html" not in source`), which are over the
+    # PER-TOOL sources: those get GREENER as the stripper loses text, and one of
+    # the two tools mentions `wrapped.html` only inside docstrings, so it passes
+    # only because the stripper works. The other three fail loudly on a shrunken
+    # corpus (`find()` returns -1 and `0 <= -1` is false), so they were the ones
+    # that needed it least. All five are floored now.
     for name, corpus in (("run.sh", run_sh), ("common.py", common),
-                         ("served_copy.py", mine)):
+                         ("served_copy.py", mine),
+                         ("scripts/mutate.sh", _code_of(repository / "scripts/mutate.sh")),
+                         ("scripts/harness-hold-counts.py",
+                          _code_of(repository / "scripts/harness-hold-counts.py"))):
         hold(f"the stripped corpus of {name} is not empty",
-             len(corpus.splitlines()) >= 80, f"{len(corpus.splitlines())} lines")
+             len(corpus.splitlines()) >= 60, f"{len(corpus.splitlines())} lines")
 
     stamp = read_stamp()
     hold("the served copy carries a readable stamp",

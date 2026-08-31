@@ -200,31 +200,18 @@ function putBack(
   if (held.queue) queryClient.setQueryData(queueKey(scenario), held.queue);
 }
 
-/**
- * Installs the queue's three actions, for the dying engine to call.
- *
- * WHY A SEAM RATHER THAN A HOOK. The engine's document-level delegation is what
- * a tap on a card reaches — that delegation is cross-cutting and belongs to L13
- * — so the verbs have to be reachable from outside React. It is the same
- * arrangement `window.__panel` and `window.__screens` already use, and it goes
- * the same way.
- *
- * THE ENGINE KEEPS ITS TOAST AND LOSES ITS WORLD. What each action DID — move a
- * card from one list to another — is the layer's now, and the cache is what the
- * surfaces read. Leaving the engine's own mutation in place beside this one
- * would be two truths about one queue.
- *
- * @param queryClient The cache the surfaces read.
- */
 // THE TWO ADDRESSES THIS MODULE'S OPTIMISTIC WRITE SPANS.
 //
-// `takeOutOfQueue` removes the card from WHICHEVER of the two lists holds it,
-// and every online path here invalidates both. A replay out of the offline
-// queue must do the same — and the pairing is declared HERE, where the two keys
-// are built and where the two-key write is made, rather than in the frame:
-// `/api/staging/media` and `/api/acquisition/to-handle` are domain addresses,
-// and invariant 10 refuses those in `app/`. The frame reads this list; it does
-// not know what is in it.
+// `takeOutOfQueue` removes the card from WHICHEVER of the two lists holds it
+// and `putBack` restores both, so every path here — online or replayed —
+// invalidates the pair. The list is declared HERE, where the two keys are built
+// and where the two-key write is made, and not in the frame: these are domain
+// addresses, and invariant 10 refuses those in `app/`. The frame reads the list
+// without knowing what is in it.
+//
+// A PAIR IS SYMMETRIC. Its reader matches on EITHER end — reading only the
+// first left a replayed `/api/acquisition/to-handle/…/take` never reaching
+// staging, which is this constant's own defect in the other direction.
 export const ADDRESSES_THAT_MOVE_TOGETHER: readonly (readonly string[])[] = [
   ["/api/staging/media", "/api/acquisition/to-handle"],
 ];
@@ -292,9 +279,15 @@ export function installQueueActions(queryClient: QueryClient): void {
         // does not contain the mutation — the action snapping back with no
         // explanation, minutes before it actually applies.
           if (outcome === HELD) return;
+          // BOTH KEYS, because `takeOutOfQueue` writes to both. Invalidating
+          // only the queue left staging holding the optimistic removal — the
+          // asymmetry `ADDRESSES_THAT_MOVE_TOGETHER` names, present in the
+          // ONLINE path that constant was written to mirror.
+          void queryClient.invalidateQueries({ queryKey: stagingKey(scenario) });
           void queryClient.invalidateQueries({ queryKey: queueKey(scenario) });
         }, () => {
           // AND ON A REFUSAL, which the `.finally` this replaced also covered.
+          void queryClient.invalidateQueries({ queryKey: stagingKey(scenario) });
           void queryClient.invalidateQueries({ queryKey: queueKey(scenario) });
         });
     },
