@@ -1259,14 +1259,14 @@ remedy is one empty listener, never a per-component JavaScript state.
 today. It is what makes haptics a one-file change if the platform ever allows them (D9).
 
 **Mobile geometry.** Safe areas, dynamic viewport units, contained overscroll, no accidental zoom
-on focus — **and that one is now LIVE rather than theoretical**: L03 removed `maximum-scale=1,
-user-scalable=no` from the viewport meta, rightly, since they forbid the pinch-zoom WCAG 1.4.4
-requires and iOS Safari has ignored `user-scalable=no` since version 10. But they also masked a
-defect nobody fixed: the maquette's fields are **13 px (`.search input`), 14 px (`.fieldinput`)
-and 12 px (`.fieldinput.mono`)**, all under the 16 px threshold at which iOS zooms a focused
-input. The removal did not create that; it stopped hiding it. The fix is the 16 px this lot
-already owes, not the meta coming back.
-<sub>`awk '/(input\|textarea\|select)[^{}]*\{/{r=$0} /font-size/{print r" → "$0}' frontend/maquette/design/refonte.html`</sub>
+on focus. **The focus-zoom half is PAID and held — measured on 2026-08-31, not read.** L07 (#494,
+2026-08-25) put every field on `text-6` = 16 px, and R83 (`harness/type_scale.py`) refuses a focused
+field under 16 px: `MODEL.md` P13 reads true. This paragraph carried, until the steward's L11 audit,
+three field sizes (13, 14 and 12 px) and a command reading `refonte.html` — which has held no style
+rule since L07 — so it was stale six days before L11 opened, and the wave that paid the debt did not
+correct the plan that still charged it (§ 7.1's duty). What the episode taught still stands:
+`maximum-scale=1, user-scalable=no` had MASKED the defect rather than fixed it, L03 was right to
+remove them, and `scripts/check-viewport-directives.py` keeps both out of the tree.
 Then: contained overscroll, the virtual keyboard resizing content rather than the viewport, scroll restored per
 history entry.
 
