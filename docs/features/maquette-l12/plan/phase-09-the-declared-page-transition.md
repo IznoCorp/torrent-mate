@@ -49,3 +49,30 @@ Remove the `reduce` branch → the second half falls naming reduced motion. Remo
 
 P5 reads true; P20 reads true for this transition; the transition is declared, not scripted; the
 ladder's rules are green; both halves of the rule bit.
+
+---
+
+## The skeletons captured — a design option, with its cost (for the operator)
+
+**The defect.** The transition arrives on PLACEHOLDERS. The data lands when it lands, so a 300–450 ms
+transition finishes over skeletons and the real content then snaps in with **no transition of its
+own**. The steward measured three shimmers live through the capture; silencing them during the
+transition removed one competing animation and none of the snap. **It gets worse as the transitions
+become more visible**, which the 2026-08-31 re-tuning has just made them.
+
+**Three ways out, and none is free.**
+
+| Option | What it does | What it costs |
+| --- | --- | --- |
+| **A — transition on the CONTENT's arrival** | keep the navigation instant; start the view transition when the query lands, so the thing that animates is the real content replacing the skeleton | the address changes before anything moves, so a slow query looks like a dead tap. Needs a floor — if the data is already cached, this is indistinguishable from today |
+| **B — hold the navigation until the data is there** | wait for the query (with a ceiling, say 200 ms) before starting the transition, so the transition carries real content | a tap that does nothing for up to 200 ms, which is the very sensation §12 is against. Above the ceiling it degrades to today's behaviour, so it is A with extra machinery |
+| **C — transition twice** | the navigation transitions to the skeleton; the content's arrival gets a second, quieter one | two movements per tap. Honest about the two events, and the risk is exactly the defect this lot has already paid for once: two systems animating one surface |
+
+**The recommendation is A**, and it rests on what the interface already promises: §19's optimistic
+discipline says an action answers the finger before the network. A is the same idea for an arrival —
+the *address* answers instantly, the *picture* animates when there is a picture. B buys a smoother
+first frame with the one thing §12 will not spend, and C re-introduces the shape that produced the
+hero's flash.
+
+**Not this lot's to take.** It changes what a tap feels like on every screen, which is a design
+decision and the operator's. Recorded here so it is arbitrated rather than inherited.
