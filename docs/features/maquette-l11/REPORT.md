@@ -146,6 +146,31 @@ nobody can trust; five properties `MODEL` § 3 recorded as `false` had been made
 with § 7.1's refresh duty written two paragraphs above the table; and eleven of twenty ACCEPTANCE
 criteria named no command, under a heading saying a criterion that cannot be run is not a criterion.
 
+### And a fourth, which is the one that let this merge
+
+**Round four found no product defect.** It verified all four of round three's product repairs as
+sound — `FINAL_STATUSES` over every refusal the mock layer can emit, `whatToOffer` over all twenty
+reachable cells, the address pairing over all six `send(` call sites, R111's ordering — and
+`_function_body` by execution. That is the first half of the criterion met.
+
+**The second half it did not find met, and one finding was the tool the next round would have
+used.** `mutate.sh`'s `restore` was not idempotent, under a comment written in the same commit
+asserting that it was: it deleted its own saved copy, so the trap's second call ran `cp` on a
+missing file and — under `set -e` — **aborted the trap before the release**. Every successful run
+exited 1, and a `SIGTERM` during the final rebuild leaked the served-copy lock for the whole
+staleness hour, which is the exact harm the comment claims to remove.
+
+**And both of round three's product repairs shipped with no regression hold** — in the commit whose
+subject is instruments that did not measure what they said. The 503 hold was green under the old
+deny-list too (`status >= 500` was already excluded), so it never moved across the repair; and three
+rules read `data-connection-action`, all reading the *name*, none in a state where anything was
+refused. Both holds exist now and both were **seen red** against the code as it stood before the
+fix, which is what CLAUDE.md asks of a bug fix and what round three's repairs skipped.
+
+**B-267 records what is not this wave's**: the real backend answers `{detail}`, which the queue's
+failure shape does not match — so at switchover *every* refusal would be queued rather than shown.
+Latent, because the mocks emit the right shape, and written where the binding lot will find it.
+
 ### And a third, because round two still found product defects
 
 **The stopping criterion is not « no findings ».** It is *no undiscovered product defect, and the
@@ -203,7 +228,7 @@ code**, on a line in `common.py` that closes a fence and then calls `.replace()`
 of R104's holds being *negative*, which get **greener** as the stripper loses text, and no floor
 under any of them.
 
-**The reading that survives both rounds** is the one L09 first wrote down and every wave since has
+**The reading that survives all four rounds** is the one L09 first wrote down and every wave since has
 re-paid: an instrument written by the person whose work it measures inherits that person's blind
 spots, and a repair written in answer to a review inherits them twice.
 
@@ -215,9 +240,9 @@ spots, and a repair written in answer to a review inherits them twice.
 | `harness/run.sh --a11y` | **87 states, 0 violations**; light-theme ratchet 166 against a ceiling of 166 |
 | `oracle.py --check` | **no divergence**, 2 958 measurements over 87 states × 34 regions, reference at `212faf0a` |
 | `make check` | **exit 0** — 10 957 passed, 4 skipped, 2 xfailed |
-| `scripts/harness-hold-counts.py --compare` | after **all three** rounds: `served_copy` 8 → 22, `pwa` 47 → 54, `outbox` 14 → 18, `server` 14 → 16, `installed` 7 → 8; **no rule ever lost a hold** |
+| `scripts/harness-hold-counts.py --compare` | after **all four** rounds: `served_copy` 8 → 22, `pwa` 47 → 54, `outbox` 14 → 21, `server` 14 → 16, `installed` 7 → 8; **no rule ever lost a hold** |
 
-Re-run in full after EACH round's repairs, not before them — three times.
+Re-run in full after EACH round's repairs, not before them — four times.
 
 The oracle is green because nothing in this lot draws a pixel differently: the worker changes what
 is fetched, not what is painted, and the pending count lands in a mark L10 already drew.
