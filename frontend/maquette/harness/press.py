@@ -348,12 +348,84 @@ async def hold_the_mouse_tolerance(journal, browser):
     await context.close()
 
 
+# ── THE PULL, and the halves R55 does not read ───────────────────────────────
+# R55 proves the pull ARMS and SPINS on seven surfaces. It never drives a pull
+# SHORT of the arming distance, so it never proves that one refreshes nothing —
+# and a gesture with no threshold at all passes every hold it has, refreshing on
+# every downward flick the scrollport ever sees.
+
+# Comfortably short of the 44px arming distance once the 0.45 damping is applied
+# (60 * 0.45 = 27), and long enough to claim the vertical axis at 8px.
+SHORT_PULL = 60
+
+# Past it: 160 * 0.45 = 72, the cap, which is above 44.
+LONG_PULL = 160
+
+
+async def drive_pull(page, port, distance):
+    """Pulls DOWN from the top of the scrollport with a real touch stream.
+
+    Args:
+        page: The Playwright page.
+        port: The scrollport's bounding box.
+        distance: How far the finger travels downward.
+    """
+    session = await page.context.new_cdp_session(page)
+    x = port["x"] + port["width"] / 2
+    y = port["y"] + 60
+    await session.send("Input.dispatchTouchEvent", {
+        "type": "touchStart", "touchPoints": [{"x": x, "y": y, "id": 1}]})
+    for step in range(1, 13):
+        await session.send("Input.dispatchTouchEvent", {
+            "type": "touchMove",
+            "touchPoints": [{"x": x, "y": y + distance * step / 12, "id": 1}]})
+        await page.wait_for_timeout(16)
+    await session.send("Input.dispatchTouchEvent",
+                       {"type": "touchEnd", "touchPoints": []})
+
+
+async def hold_the_pull_threshold(journal, browser):
+    """A pull short of the arming distance must refresh NOTHING."""
+    context, page = await open_page(browser)
+    await page.evaluate("(s)=>window.__go(s)", "lib-grid")
+    await page.wait_for_timeout(420)
+    port = await page.evaluate(
+        "()=>{const e=document.querySelector('#port');"
+        "const r=e.getBoundingClientRect();"
+        "return {x:r.x, y:r.y, width:r.width};}")
+
+    # THE CONTROL FIRST. Without it the negative below passes just as well over
+    # a pull-to-refresh that is simply broken.
+    await drive_pull(page, port, LONG_PULL)
+    await page.wait_for_timeout(220)
+    spun = await page.evaluate(
+        "()=>document.querySelector('#ptr').className.includes('loading')")
+    journal.check("a pull past the arming distance refreshes",
+                  spun, "the control for the hold below")
+    await page.evaluate("()=>window.__reposPTR()")
+    await page.wait_for_timeout(120)
+
+    await drive_pull(page, port, SHORT_PULL)
+    await page.wait_for_timeout(220)
+    reading = await page.evaluate(
+        "()=>document.querySelector('#ptr').className")
+    journal.check(
+        f"a pull of {SHORT_PULL}px — short of the arming distance — refreshes "
+        "NOTHING",
+        "loading" not in reading and "armed" not in reading,
+        f"the indicator reads `{reading}`: the threshold is not applied, so "
+        "every downward flick the scrollport sees refreshes")
+    await page.evaluate("()=>window.__reposPTR()")
+    await context.close()
+
+
 async def hold(journal):
     """Drives the two halves under a real finger and a real mouse."""
     errors = []
     async with async_playwright() as play:
         browser = await play.chromium.launch(channel="chrome")
         await hold_the_tolerance(journal, browser)
+        await hold_the_pull_threshold(journal, browser)
         await hold_the_swallow_is_by_point(journal, browser)
         await hold_the_mouse_press(journal, browser)
         await hold_the_mouse_tolerance(journal, browser)
