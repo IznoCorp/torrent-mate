@@ -1,6 +1,6 @@
 {
   "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 67 of 79 rule(s) report a hold count; the other 12 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
-  "taken_at_commit": "775232c4f241de3b04dc231744cbf5cf07d5dfc5",
+  "taken_at_commit": "38ccbc9b4646fe883ce63c8723951edb170eb7d2",
   "taken_on": "2026-08-31",
   "suite": "79 of 79 rule(s)",
   "host": "http://127.0.0.1:8899/",
@@ -267,7 +267,7 @@
     },
     "pwa.py": {
       "exit": 0,
-      "count": 53,
+      "count": 54,
       "source": "own EXECUTED count line"
     },
     "relay_states.py": {
@@ -327,7 +327,7 @@
     },
     "served_copy.py": {
       "exit": 0,
-      "count": 20,
+      "count": 22,
       "source": "common.Journal summary"
     },
     "server.py": {
@@ -405,7 +405,7 @@
     "rules": 79,
     "parseable": 67,
     "unparseable": 12,
-    "holds": 1813,
+    "holds": 1816,
     "failed": 0
   }
 }

@@ -146,6 +146,37 @@ nobody can trust; five properties `MODEL` § 3 recorded as `false` had been made
 with § 7.1's refresh duty written two paragraphs above the table; and eleven of twenty ACCEPTANCE
 criteria named no command, under a heading saying a criterion that cannot be run is not a criterion.
 
+### And a third, because round two still found product defects
+
+**The stopping criterion is not « no findings ».** It is *no undiscovered product defect, and the
+procedural failure mode eliminated* — so round two's two product defects bought a third round,
+aimed at round two's repairs. It found **two more, both inside them, both the exact harm those
+repairs claim to have removed.**
+
+**401 was treated as final** (B-265). The repair that replaced « did the layer answer? » with « will
+re-sending ever produce a different answer? » implemented it as a *deny-list*: 408, 429 and the 5xx
+kept, everything else at or above 400 final. **401 fell through it.** Radio off, N mutations queued,
+session expires, radio returns: the first replay answers 401, the envelope is destroyed, the loop
+continues, and all N are destroyed the same way — when a re-login would have saved every one. A
+deny-list is wrong here by construction, because the safe direction is to KEEP the operator's
+action; `FINAL_STATUSES` names what is final instead.
+
+**A button said one thing and did another** (B-266). Its name, its words and its action were three
+ladders testing their conditions in different orders. On a lost connection with a refusal recorded
+and nothing waiting, it read « Réessayer maintenant » and *cleared the refusal* instead of
+reconnecting — the same lie by suggestion round two was repairing, reintroduced by writing the
+decision three times.
+
+**And five of round two's instruments did not measure what they said.** R104's ordering hold was
+satisfied by its **own source** — the rule quotes both strings it searches for, so the original
+B-256 defect passed at `1419 < 9068`, where 9068 was that very line. R111's queue hold never queued
+anything. The corpus floors landed on the three corpora that already fail *loudly* and not on the
+two whose holds are *negative*. `mutate.sh` still leaked the lock on the `set -e` path its own
+comment claimed to cover. And the address pairing matched one end of a pair.
+
+**Each round's worst finding was in the previous round's repair, and none of the three was found by
+a gate.**
+
 ### And a second round, on the repairs
 
 **Two readers on the repairs alone**, because this repository's own record says that is where the
@@ -184,9 +215,9 @@ spots, and a repair written in answer to a review inherits them twice.
 | `harness/run.sh --a11y` | **87 states, 0 violations**; light-theme ratchet 166 against a ceiling of 166 |
 | `oracle.py --check` | **no divergence**, 2 958 measurements over 87 states × 34 regions, reference at `212faf0a` |
 | `make check` | **exit 0** — 10 957 passed, 4 skipped, 2 xfailed |
-| `scripts/harness-hold-counts.py --compare` | after **both** review rounds: `served_copy` 8 → 20, `pwa` 47 → 53, `outbox` 14 → 18, `server` 14 → 16, `installed` 7 → 8; **no rule ever lost a hold** |
+| `scripts/harness-hold-counts.py --compare` | after **all three** rounds: `served_copy` 8 → 22, `pwa` 47 → 54, `outbox` 14 → 18, `server` 14 → 16, `installed` 7 → 8; **no rule ever lost a hold** |
 
-Re-run in full after EACH round's repairs, not before them.
+Re-run in full after EACH round's repairs, not before them — three times.
 
 The oracle is green because nothing in this lot draws a pixel differently: the worker changes what
 is fetched, not what is painted, and the pending count lands in a mark L10 already drew.
