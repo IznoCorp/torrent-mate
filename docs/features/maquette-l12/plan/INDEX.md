@@ -14,6 +14,19 @@ counted and printed by the script), and **every rule of that phase mutation-test
 naming the right defect, restored**. `scripts/mutate.sh` refuses a dirty tree and restores from the
 index, so the phase's fix is committed before its mutation runs.
 
+**PHASES CHAIN WITHOUT PAUSE — a global constraint, and it outranks the urge to
+report.** After a phase's gate is green and its work committed, **start the next phase in the same
+turn**. Never end a turn to announce that a phase is complete, and never end one asking whether to
+continue. **The only stops this wave has are the ones this plan NAMES**: phase 8's operator-named
+choice of virtualiser, the `≤ 613` ceiling on an L14 file, an anomaly that would require deviating
+from the plan (deviation only on anomaly plus sign-off), and a red gate that cannot be repaired
+within the plan. The operator arbitrates the PERIMETER, never the cadence.
+
+**The self-check, because this rule has been broken repeatedly**: before ending a turn, read the
+last paragraph written. If it announces a phase finished, or asks whether to go on, then the next
+phase should have started in that same turn. Rigour per phase is unchanged — each still lands as a
+green commit with its proof; it is the chaining that changes, not the method.
+
 **Announce on the harness before every run** — `run.sh`, the oracle, `mutate.sh`,
 `harness-hold-counts.py`. One machine, one harness; the steward may be auditing here.
 
