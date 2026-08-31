@@ -5,6 +5,54 @@
 
 **Depends on phase 9.**
 
+## ⚠ BLOCKED — an anomaly, measured 2026-08-31, awaiting the operator
+
+**P6 as the contract words it cannot be built in this lot, and the reason is a design decision
+somebody already took deliberately — not an oversight this phase can repair.**
+
+The contract asks for « the shared element that carries a poster from a card into its sheet ». Four
+measurements, each with its command:
+
+1. **The tap destination is not a sheet and shows no poster.** `/media/$provider/$id` renders
+   `MediaScreen` (`routes/media-sheet.tsx`), whose hero is a **wide** background-image banner —
+   `data-part="hero/background"`, a `div` with `backgroundImage`, not an `<img>`. Its own comment
+   says why: « The banner prefers the wide visual; the vertical poster is only a fallback »
+   (`media-screen.tsx:347`). A 2:3 poster carried into a wide banner is not a shared element; it is
+   a morph between two different pictures.
+2. **The surface that DOES carry a vertical poster is not reached by a navigation.**
+   `ui/panel/index.tsx:217` emits `.sheetposter` — the long-press panel — and a long press opens it
+   without going through `go()`, so no view transition is involved at all.
+3. **The source cannot be marked in its markup.** The tile is drawn by the engine
+   (`legacy.js:7996`, `tileHTML`), and `view-transition-name` must be unique per element, so it
+   cannot be applied to `.tile` by a class rule — every tile would carry the same name and the
+   browser would ignore all of them.
+4. **The destination cannot be extended.** `features/media/media-screen.tsx` is one of L14's four
+   grandfathered files, which this lot may not extend.
+
+**What is NOT the blocker**: (3) and (4) are both soluble inside this lot — a single tile can be
+marked from `app/` at navigation time, exactly as the feedback seam marks a node, with the NAME
+itself declared in the stylesheet so rule 1 holds. **(1) is the blocker**, and it is a product
+question rather than a technical one: there is no poster at the destination to carry a poster to.
+
+### The options, for the operator
+
+- **A — defer P6 to L19**, when the tile stops being engine markup and the media surface is redrawn.
+  Nothing is built here and P6's row says « L19 » rather than « L12 ». Cheapest, and it changes no
+  design decision.
+- **B — carry the WIDE visual instead**, tile → hero banner, accepting that the shared element is
+  the artwork rather than the poster. Buildable now within every boundary. It reinterprets the
+  contract's word « poster ».
+- **C — redraw the media surface to lead with a vertical poster**, which makes P6's literal reading
+  true. That is a design change to a validated surface and is not this lot's to take (the mission
+  forbids relitigating what the maquette already holds).
+
+**Recommended: A.** B changes what the contract asked for on a technicality, and C changes a surface
+the operator has validated. Deferring names the lot that can do it properly and costs nothing now.
+
+**Until this is answered, phase 10 builds nothing** and the wave continues past it. The rest of P6 —
+« images a transition carries are decoded before they are needed » — is NOT blocked and lands
+below.
+
 ## What it does
 
 The poster that a tap carries from a card into its sheet is one element across the transition. The
