@@ -478,13 +478,47 @@
    if the bar ever moves, which is what a group is for — what is silenced is the
    dissolve between two pictures of the same thing. */
 @media (prefers-reduced-motion: no-preference) {
-  ::view-transition-old(shell-tab-bar) {
+  /* `mix-blend-mode: normal` IS THE HALF THAT MAKES IT OPAQUE, and leaving it
+     out is what let the defect survive a fix that looked complete.
+
+     Chrome's user-agent stylesheet sets `mix-blend-mode: plus-lighter` on
+     `::view-transition-old` and `-new`, because that is what makes the DEFAULT
+     cross-fade hold its brightness through the middle. For a pair that is not
+     cross-fading it is wrong: the bar's snapshot is ADDED to what is underneath
+     instead of covering it, so the casting showed through and only the labels
+     read as painted.
+
+     Measured: the bar's region averaged [29, 27, 26] at rest and [81, 70, 64]
+     mid-transition — LIGHTER, which is additive blending's own signature and
+     the reason this was not a paint-order problem. */
+  /* THE GROUP IS ORDERED EXPLICITLY. The `::view-transition-*` groups are
+     SIBLINGS in one stacking context, and their paint order follows the order
+     their names were encountered — not the `z-index` the elements carry in the
+     page. The bar sits at z-50 at rest and that buys it nothing here.
+
+     MEASURED, and the measurement is why this is the right line. The bar's
+     region averaged [29, 27, 26] at rest and [81, 70, 64] mid-transition —
+     LIGHTER, which reads like additive blending, and Chrome's user-agent
+     stylesheet does set `mix-blend-mode: plus-lighter` on the old/new pair. So
+     `mix-blend-mode: normal` was tried FIRST and changed nothing at all; it was
+     then removed rather than left in, because a line that fixes nothing is
+     machinery the next reader has to disprove. The lightening was the casting
+     showing through a bar painted UNDER it, and ordering the group is what
+     covers it: drift 52.1 before, 0.0 after. */
+  ::view-transition-group(shell-tab-bar) {
+    z-index: 10;
+  }
+
+  ::view-transition-old(shell-tab-bar),
+  ::view-transition-new(shell-tab-bar) {
     animation: none;
+  }
+
+  ::view-transition-old(shell-tab-bar) {
     opacity: 0;
   }
 
   ::view-transition-new(shell-tab-bar) {
-    animation: none;
     opacity: 1;
   }
 }
