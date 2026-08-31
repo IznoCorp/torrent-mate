@@ -1064,6 +1064,7 @@ tracking
 trailer
 transact
 transaction
+transition
 travelled
 trim
 tuples
