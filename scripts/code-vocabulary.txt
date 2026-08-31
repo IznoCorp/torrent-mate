@@ -872,6 +872,7 @@ screenshots
 scrim
 scripted
 scroll
+scroller
 scrollport
 seam
 seams
