@@ -156,8 +156,14 @@ async def hold_the_danger_action(journal, browser):
     await page.wait_for_timeout(420)
 
     reading = await page.evaluate("""()=>{
-      const action = document.querySelector('.selbar .danger, [data-part$="selection/bar"] .danger')
-        || [...document.querySelectorAll('button')].find(b => b.className.includes('danger'));
+      // ANCHORED ON `data-tone`, NOT ON THE CLASS. D4: a rule selects on a
+      // naming attribute, never on a style class — a class token in a rule dies
+      // the day the class is renamed, and nothing can then say whether the
+      // anchor or the style was at fault. `selection-bar.tsx` emits
+      // `data-tone="danger"` beside the variant that paints it, which is
+      // exactly the pair this rule needs: the NAME to find it by, and the
+      // painting to judge.
+      const action = document.querySelector('[data-tone="danger"]');
       if (!action) return null;
       const style = getComputedStyle(action);
       // The painted ground, walked up until something is not transparent — a
