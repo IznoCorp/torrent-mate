@@ -67,7 +67,14 @@ export function useLibraryReference(): LibraryReference {
 // variable-height mode for a spread no rendered list ever contains. The gaps
 // are the scale's own steps: `--spacing-5` for the gallery, `--spacing-4` for
 // the list.
+//
+// THE TILE'S HEIGHT IS WRITTEN TO THE PIXEL IT MEASURES, 203.34375 and not
+// 203.34, and the three thousandths matter. The spacers derive the container's
+// height from this number, so a truncation accumulates once per line — eight
+// lines put the gallery 0.28px short, which the oracle read as eight
+// divergences of 0.1px. A measurement rounded for a comment is a measurement
+// wrong for arithmetic.
 export const LIBRARY_WINDOW = {
-  gallery: { rowHeight: 203.34, gap: 10, lanes: 3 },
+  gallery: { rowHeight: 203.34375, gap: 10, lanes: 3 },
   list: { rowHeight: 126, gap: 8, lanes: 1 },
 } as const;
