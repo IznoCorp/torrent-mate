@@ -1,8 +1,8 @@
 {
-  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 67 of 79 rule(s) report a hold count; the other 12 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
-  "taken_at_commit": "39363e1da470ae4b03082d63116f5a387852e0af",
+  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 73 of 85 rule(s) report a hold count; the other 12 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
+  "taken_at_commit": "61c9134fdc6aca67e2947c0563dd54bce4216002",
   "taken_on": "2026-08-31",
-  "suite": "79 of 79 rule(s)",
+  "suite": "85 of 85 rule(s)",
   "host": "http://127.0.0.1:8899/",
   "rules": {
     "actions.py": {
@@ -75,6 +75,11 @@
       "count": 65,
       "source": "own EXECUTED count line"
     },
+    "child_nodes.py": {
+      "exit": 0,
+      "count": 6,
+      "source": "common.Journal summary"
+    },
     "chrome.py": {
       "exit": 0,
       "count": 174,
@@ -123,6 +128,11 @@
     "fanout.py": {
       "exit": 0,
       "count": 142,
+      "source": "common.Journal summary"
+    },
+    "feedback.py": {
+      "exit": 0,
+      "count": 6,
       "source": "common.Journal summary"
     },
     "filters.py": {
@@ -265,6 +275,16 @@
       "count": null,
       "reason": "no recognized executed-count line in its output"
     },
+    "poster.py": {
+      "exit": 0,
+      "count": 4,
+      "source": "common.Journal summary"
+    },
+    "press.py": {
+      "exit": 0,
+      "count": 10,
+      "source": "common.Journal summary"
+    },
     "pwa.py": {
       "exit": 0,
       "count": 54,
@@ -390,6 +410,11 @@
       "count": 25,
       "source": "common.Journal summary"
     },
+    "transition.py": {
+      "exit": 0,
+      "count": 6,
+      "source": "common.Journal summary"
+    },
     "type_scale.py": {
       "exit": 0,
       "count": 9,
@@ -399,13 +424,18 @@
       "exit": 0,
       "count": 99,
       "source": "common.Journal summary"
+    },
+    "virtual.py": {
+      "exit": 0,
+      "count": 5,
+      "source": "common.Journal summary"
     }
   },
   "totals": {
-    "rules": 79,
-    "parseable": 67,
+    "rules": 85,
+    "parseable": 73,
     "unparseable": 12,
-    "holds": 1819,
+    "holds": 1856,
     "failed": 0
   }
 }
