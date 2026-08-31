@@ -254,6 +254,66 @@ origin/main` was REFUSED because a source file was still modified, so the « com
 branch under test. *A checkout that aborts is not a checkout*, and it nearly produced a false
 attribution.
 
+## 6e. The operator's late decisions, and what building them cost
+
+After the first close the operator judged the wave **in the running application**
+on his own phone, and four rounds followed. Each is written where it belongs; the
+pattern is what this section is for.
+
+| He said | What it turned out to be |
+| --- | --- |
+| « je vois pas vraiment de transition, ça a l'air toujours brut » | 200 ms of flat cross-fade is **below the threshold at which an eye registers a transition**. Re-tuned to 300/450 ms, body-rise 12 → 24 px. *A transition nobody perceives is not a subtle transition; it is a cut with a cost.* |
+| « la transition poster … très dérangeante » | P6, built and proved, **withdrawn** — and its rule withdrawn with it. Replaced by the press acknowledgement, which he validated. |
+| « l'arrivée … reste un peu trop brute » | Not the screen and not the query: the **paint** of the fanart when the JPEG landed, after the transition, with no rule animating it. |
+| « la bottom barre passe par une phase transparente » | Not transparency: the bar was painted **under** the arriving screen's named group. |
+
+**Three of those four were invisible to every gate**, and the fourth — the bar —
+was invisible to a rule written for it.
+
+### The bar, and the sharpest instrument failure of the wave
+
+My first fix gave the bar a `::view-transition-group` of its own, and my rule
+held that the group existed. **Both were true and the defect was still there.**
+The steward re-measured on the corrected build and the labels still painted over
+the casting.
+
+**The rule's own stated principle was what blinded it** — « the hold is the
+GROUP, not a pixel », written as a virtue one commit earlier, for this exact
+defect. The group's existence is a fact about the transition tree; the defect
+lives in the pixels that tree paints.
+
+The cause was **paint order**: the groups are siblings in one stacking context
+and their order follows the order their names were encountered, not the `z-index`
+the elements carry. `mix-blend-mode: normal` was tried first, because the region
+read *lighter* mid-flight and that is additive blending's signature — it changed
+nothing and was **removed rather than left in**.
+
+**R118 is the instrument that was missing.** It reads the bar's own box
+mid-transition against the same box settled, and the mutation removing the fix
+reproduces the filmed defect at **drift 51.9 of 255** against the steward's 52.1.
+
+**It is not a screenshot oracle, and the distinction is D8's own** — accepted by
+the steward for the audit. D8 refuses screenshots as the *general* non-regression
+instrument because two captures of the same unmodified page diverge on 8 to 15
+states: that comparison is *between two runs*. R118 compares one region against
+itself, *between two moments of one run*, with a control requiring the bar to
+read the same before and after.
+
+### What the wave turned out to be
+
+**B-085 recounted at fourteen**, from six at the first close. Every one of the
+eight added came out of the operator's late rounds, and none was found by
+reading. Alongside the sharpest above: a transition **degenerate for six phases**
+under a rule that counted animations rather than what they showed; a fix that
+could not work because its selector no longer matched by the time it was needed;
+a comparison whose two arms were identical; a hold driven against a read that was
+never slow; a discriminator that answered the same on both sides; a probe that
+truncated its own evidence; and **B-269's species in an instrument, twice in one
+rule** — hand-set delays outlived by durations that were later redrawn.
+
+**The wave's subject was transitions. Its output was an inventory of how
+instruments fail.**
+
 ## 7. Device-only protocols — written and dated, never claimed as passed
 
 Neither was exercised, and `MODEL.md` § 3.1 is explicit that they are protocols rather than gates.
