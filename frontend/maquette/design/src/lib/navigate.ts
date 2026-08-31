@@ -109,5 +109,37 @@ export function go(target: {
     commit();
     return;
   }
-  document.startViewTransition(commit);
+  // THE CAPTURE IS ASKED FOR FIRST, THE COMMIT STILL RUNS SYNCHRONOUSLY.
+  //
+  // Passing `commit` as the callback DEFERS it — measured: the address had not
+  // moved after a microtask, nor after a `requestAnimationFrame`, only some
+  // 120ms later. That breaks this function's whole reason for existing (the
+  // flush above keeps « one call, one entry », and the dying engine's unwinding
+  // COUNTS entries), and `harness/boot_order.py` fell on it by reading the
+  // address immediately after a screen call.
+  //
+  // So the browser is asked to snapshot the old state, and the commit is made
+  // NOW rather than inside the callback. The callback is left empty: the DOM
+  // has already changed by the time it runs, which is what the transition
+  // compares its snapshot against.
+  const transition = document.startViewTransition(() => undefined);
+  commit();
+
+  // A SUPERSEDED TRANSITION REJECTS, AND THAT IS NORMAL RATHER THAN AN ERROR.
+  //
+  // Starting a second view transition while one is running SKIPS the first, and
+  // the skipped one rejects `ready` (and `finished`) with « Transition was
+  // skipped ». Nothing is wrong: the reader navigated again before the first
+  // animation finished, which is what a fast thumb does all day.
+  //
+  // Unhandled, those rejections reach the console as errors — measured, and it
+  // is how this was found: `harness/navigation.py` drives two navigations in a
+  // row and holds « no JS error during the two calls », which fell on exactly
+  // this. A rejection nobody handles is also a rejection that would drown a
+  // real one in the same log.
+  //
+  // They are swallowed HERE rather than by a global handler, because a global
+  // one would swallow every other unhandled rejection with them.
+  transition.ready.catch(() => undefined);
+  transition.finished.catch(() => undefined);
 }
