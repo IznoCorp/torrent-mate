@@ -136,7 +136,10 @@ root is a fixed path with no lock and no build stamp, `run.sh` rebuilds and re-c
 unconditionally at every invocation, so a rule caught by the swap measures A DIFFERENT BUILD from
 the one it was started against — a false reading that can go either way, pass included. The
 harness's own README warns only that a STALE copy measures the previous build, never that a fresh
-one can arrive mid-run; no instrument reaches this without a stamp the rules read (B-256, open).
+one can arrive mid-run. B-256 closed at L11 (#534): `served_copy.py` is the lock and the stamp,
+all three rebuilders call it, and every rule asserts the stamp at start and at end — the
+convention below still stands, because a lock held by one machine's tools does not reach a rule
+started before the lock existed.
 So the steward runs no instrument while an executing agent is running one — the two say so to each
 other first (`SendMessage`), and a rule that falls during an overlap is re-run alone before it is
 read as anything.

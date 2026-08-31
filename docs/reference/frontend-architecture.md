@@ -1715,6 +1715,13 @@ met before it fires rather than after.
 | A failed command is not a no-op | **all** | it is an edit that did not happen, and the next read is evidence rather than scenery |
 | A derivation must not read back its own output | **L06** | a size computed against the median of what it sets returns its own answer |
 
+**The oracle's silence over a BEHAVIOUR wave is evidence of nothing — a wave that writes
+behaviour is held by rules or by nobody.** Measured at L11: no divergence over 2 958 measurements
+while four adversarial rounds found ~40, 13, 7 and 0 product defects under a permanently green
+gate — correct on the oracle's part (nothing drew a pixel differently), and exactly why its green
+says nothing about such a lot. D8 states what the oracle proves; this trap is the converse, and
+it bit a wave whose every tier was green.
+
 **And one that has not gone off yet, named because its shape is known**: a `var()` naming a token
 nobody declared renders as nothing rather than failing. It is a landmine, not a crash, and it sat
 in this codebase undetected across 449 `var()` calls. `scripts/check-css-tokens.py` refuses it
