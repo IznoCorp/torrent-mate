@@ -34,6 +34,7 @@
 
 import { screens, panel, bridge } from "./seams.js";
 import { installPressArbitration } from "../lib/press-arbitration";
+import { installPullGesture } from "../lib/pull-gesture";
 import { icons } from "../app/icons";
 
   /* TorrentMate — mobile-first redesign prototype
@@ -32186,8 +32187,7 @@ import { icons } from "../app/icons";
      scroller under a `pan-y` ancestor pans on neither axis. The gestures that
      CAN claim their axis — a swipeable row, a deck card — keep the pointer
      path, and their stream is never cancelled. */
-  let pageDrag = null,
-    refreshing = false,
+  let refreshing = false,
     minuteurRefresh = null;
   const ptr = select("#ptr");
 
@@ -32204,110 +32204,43 @@ import { icons } from "../app/icons";
       minuteurRefresh = null;
     }
     refreshing = false;
-    pageDrag = null;
+    pullGesture.reset();
     ptr.className = "ptr";
     ptr.style.height = "0px";
     ptr.style.transition = "";
     return true;
   };
 
-  function startPageGesture(point, target) {
-    if (
-      target.closest?.(".swipe") ||
-      target.closest?.(".sugwrap") ||
-      // A drag born on a deck card belongs to the card: without this the
-      // page-swipe handler also fires and navigates away mid-gesture.
-      target.closest?.(".deck") ||
-      target.closest?.(".pillscroll")
-    ) {
-      pageDrag = null;
-      return;
-    }
-    if (point.clientX - port.getBoundingClientRect().left < 30) {
-      pageDrag = null;
-      return;
-    } /* zone morte iOS */
-    pageDrag = {
-      x: point.clientX,
-      y: point.clientY,
-      axis: null,
-      dx: 0,
-      dy: 0,
-      atTop: port.scrollTop <= 0,
-    };
-  }
+  /* THE PULL — arbitrated in `lib/pull-gesture.ts`.
 
-  function advancePageGesture(point) {
-    if (!pageDrag) return;
-    const deltaX = point.clientX - pageDrag.x,
-      deltaY = point.clientY - pageDrag.y;
-    if (pageDrag.axis === null) {
-      if (Math.abs(deltaX) < 8 && Math.abs(deltaY) < 8) return;
-      pageDrag.axis = Math.abs(deltaX) > Math.abs(deltaY) ? "x" : "y";
-    }
-    pageDrag.dx = deltaX;
-    pageDrag.dy = deltaY;
-    if (pageDrag.axis === "y" && pageDrag.atTop && deltaY > 0 && !refreshing) {
-      const min = Math.min(72, deltaY * 0.45);
-      ptr.style.height = min + "px";
+     The GESTURE moved there (L12): the axis decision, the edge dead zone, the
+     damping and the arming distance are vocabulary, and vocabulary is not the
+     engine's (invariant 10). `MODEL.md` Part 8 places it exactly — « a gesture
+     on `#port` that knows nothing of what refreshes ».
+
+     What stays here is what a completed pull MEANS: drawing the indicator and
+     saying « Actualisé ». Nothing was added to the engine to do it — the block
+     left and an import took its place, which is the only shape D5 allows. */
+  const pullGesture = installPullGesture({
+    port,
+    isExcluded: (target) =>
+      !!(
+        target.closest?.(".swipe") ||
+        target.closest?.(".sugwrap") ||
+        // A drag born on a deck card belongs to the card: without this the
+        // page handler also fires and navigates away mid-gesture.
+        target.closest?.(".deck") ||
+        target.closest?.(".pillscroll")
+      ),
+    onPull: (pulled, armed) => {
+      if (refreshing) return;
+      ptr.style.height = pulled + "px";
       ptr.style.transition = "none";
-      ptr.classList.toggle("armed", min >= 44);
-    }
-  }
-
-  port.addEventListener(
-    "touchstart",
-    (event) => {
-      if (event.touches.length !== 1) {
-        pageDrag = null;
-        return;
-      }
-      startPageGesture(event.touches[0], event.target);
+      ptr.classList.toggle("armed", armed);
     },
-    { passive: true },
-  );
-  port.addEventListener(
-    "touchmove",
-    (event) => {
-      if (event.touches.length !== 1) return;
-      advancePageGesture(event.touches[0]);
-    },
-    { passive: true },
-  );
-  port.addEventListener(
-    "pointerdown",
-    (event) => {
-      // The same finger also arrives as a pointer event. Reading it twice
-      // would double every delta.
-      if (event.pointerType === "touch") return;
-      if (!event.isPrimary) {
-        pageDrag = null;
-        return;
-      }
-      startPageGesture(event, event.target);
-    },
-    { passive: true },
-  );
-  port.addEventListener(
-    "pointermove",
-    (event) => {
-      if (event.pointerType === "touch") return;
-      advancePageGesture(event);
-    },
-    { passive: true },
-  );
-  function endPageDrag() {
-    if (!pageDrag) return;
-    const drag = pageDrag;
-    pageDrag = null;
-    ptr.style.transition = "";
-    if (drag.axis === "y") {
-      if (
-        drag.atTop &&
-        drag.dy > 0 &&
-        ptr.classList.contains("armed") &&
-        !refreshing
-      ) {
+    onRelease: (armed) => {
+      ptr.style.transition = "";
+      if (armed && !refreshing) {
         refreshing = true;
         ptr.classList.add("loading");
         ptr.style.height = "44px";
@@ -32322,17 +32255,9 @@ import { icons } from "../app/icons";
         ptr.style.height = "0px";
         ptr.classList.remove("armed");
       }
-      return;
-    }
-    /* THERE IS NO HORIZONTAL PAGE GESTURE, and its absence is the decision.
+    },
+  });
 
-       Swiping the scrollport used to change tab or lens. It fired by accident
-       constantly — every horizontal component of a vertical scroll, every
-       aborted row swipe — and it competed with the two gestures that ARE
-       useful there: the swipeable row and the deck card. A gesture that
-       triggers what nobody asked for costs more than the taps it saves, and
-       the tabs are one tap away at the top of the screen. */
-  }
   /* The END is listened for on the window, because a mouse released outside
      the frame never reaches a listener bound to the scrollport and the gesture
      would hang half-done.
@@ -32341,14 +32266,6 @@ import { icons } from "../app/icons";
      arrives as soon as the browser claims the pan — one move in — while the
      touch stream carrying the gesture keeps running. Ending on it would undo
      the fix one line further down. */
-  window.addEventListener("pointerup", (event) => {
-    if (event.pointerType !== "touch") endPageDrag();
-  });
-  window.addEventListener("pointercancel", (event) => {
-    if (event.pointerType !== "touch") endPageDrag();
-  });
-  window.addEventListener("touchend", endPageDrag);
-  window.addEventListener("touchcancel", endPageDrag);
 
   /* 4) Sheet: dragging the handle to close moved to the shell with the layer
      itself — `src/components/sheet.tsx` owns the handle, the pointer capture
@@ -32816,11 +32733,11 @@ Object.assign(window, {
   actionTake, actionResolve, actionRetirer, actionFollow,
   actionDelete, addVerb, showSignIn, showStartup,
   showInstallation, cancelPress, applyState, advanceDeck,
-  advancePageGesture, baseTitle, beforeReset, cadenceFR, cardHTML, chipHTML,
+  baseTitle, beforeReset, cadenceFR, cardHTML, chipHTML,
   closeDlg, closeHarness, closeScreen, closeSheet, coverLoading,
-  dateFR, startPageGesture, decisionPending, deckCardHTML, deckHTML,
+  dateFR, decisionPending, deckCardHTML, deckHTML,
   deckOrder, signOut, alreadyInstalled, unwindLayer,
-  dismissSug, emptyInner, endCardDrag, endDeckDrag, endPageDrag,
+  dismissSug, emptyInner, endCardDrag, endDeckDrag,
   endSugDrag, epState, escapeHtml, navigationState,
   factRowsHTML, closePopEp, closeDrawer, changedFiles, fillSug,
   gridBadge, hideLayers, icons, initials, initialsOf, drawerWidth,
@@ -32856,7 +32773,6 @@ Object.defineProperties(window, {
   unwinding: { get: () => unwinding, configurable: true },
   unwindInProgress: { get: () => unwindInProgress, configurable: true },
   store: { get: () => store, configurable: true },
-  pageDrag: { get: () => pageDrag, configurable: true },
   pilotage: { get: () => pilotage, configurable: true },
   currentRender: { get: () => currentRender, configurable: true },
   armedExit: { get: () => armedExit, configurable: true },
