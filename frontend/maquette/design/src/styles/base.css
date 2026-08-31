@@ -406,9 +406,15 @@
    wanted is the same fade with this interface's own timing, so the durations
    read the motion scale rather than the platform's default. */
 @media (prefers-reduced-motion: no-preference) {
+  /* RE-TUNED 2026-08-31 after the operator watched it on his own phone: « je
+     vois pas vraiment de transition, ça a l'air toujours brut ». It was
+     `--duration-2`, and 200ms of a flat cross-fade while the finger is still
+     leaving the glass is below the threshold at which an eye registers a
+     transition at all. A transition nobody perceives is not a subtle
+     transition; it is a cut with a cost. */
   ::view-transition-old(root),
   ::view-transition-new(root) {
-    animation-duration: var(--duration-2);
+    animation-duration: var(--duration-3);
     animation-timing-function: var(--ease-standard);
   }
 }
@@ -510,12 +516,12 @@
    be given different curves; the root keeps the plain cross-fade above. */
 @media (prefers-reduced-motion: no-preference) {
   ::view-transition-new(screen-banner) {
-    animation: banner-in var(--duration-3) var(--ease-standard);
+    animation: banner-in var(--duration-4) var(--ease-standard);
   }
 
 
   ::view-transition-new(screen-body) {
-    animation: body-rise var(--duration-3) var(--ease-emphasized);
+    animation: body-rise var(--duration-4) var(--ease-emphasized);
   }
 }
 
@@ -525,10 +531,51 @@
   }
 }
 
+/* 24px, not 12 (operator, 2026-08-31). Twelve pixels over 300ms is a movement
+   that exists on a timeline and not in the eye; the point of the rise is that
+   the body ARRIVES rather than that it was technically animated. */
 @keyframes body-rise {
   from {
     opacity: 0;
-    transform: translate3d(0, 12px, 0);
+    transform: translate3d(0, 24px, 0);
+  }
+}
+
+/* THE OPTION, FOR FILMING — NOT A SECOND DESIGN, AND NOT ON BY DEFAULT.
+
+   The steward asked for a variant giving the media arrival more presence
+   without a shared element, so both can be filmed and the operator can choose.
+   It is held behind an attribute rather than shipped alongside: two designs
+   live at once only in a comparison, never in a product.
+
+   To film it: `document.documentElement.dataset.transitionOption = "scale"`.
+   Whatever the operator picks becomes the rule and this block goes — an option
+   nobody chose is machinery with no reader.
+
+   WHAT IT ADDS: the arriving screen comes up from 0.98 under the same curve, so
+   the page has depth rather than only opacity. It is deliberately small — a
+   scale an eye can name as a zoom is a different interface, not a more present
+   one. */
+:root[data-transition-option="scale"] {
+  --transition-option-scale: 0.98;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* NO DESCENDANT COMBINATOR. The view-transition pseudo-elements hang off the
+     ROOT element itself, so `:root[…] ::view-transition-new(root)` — with a
+     space — matches nothing. Written that way first and measured: the option
+     produced timings identical to the default, which reads exactly like an
+     option nobody needs rather than an option that never applied. */
+  :root[data-transition-option="scale"]::view-transition-new(root) {
+    animation:
+      option-screen-in var(--duration-4) var(--ease-emphasized);
+  }
+}
+
+@keyframes option-screen-in {
+  from {
+    opacity: 0;
+    scale: var(--transition-option-scale, 1);
   }
 }
 
@@ -545,11 +592,11 @@
    reverse of the departure rather than a second, unrelated animation. */
 @media (prefers-reduced-motion: no-preference) {
   ::view-transition-old(leaving-panel) {
-    animation: panel-down var(--duration-3) var(--ease-standard);
+    animation: panel-down var(--duration-4) var(--ease-standard);
   }
 
   ::view-transition-new(leaving-panel) {
-    animation: panel-down var(--duration-3) var(--ease-standard) reverse;
+    animation: panel-down var(--duration-4) var(--ease-standard) reverse;
   }
 }
 
