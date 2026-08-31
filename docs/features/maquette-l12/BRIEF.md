@@ -86,13 +86,18 @@ shell, **split `shell.tsx` on a SUBJECT first, as a conversion phase of its own*
 divergence — the way L15's D-L15-1 kept it under. L14's four files and the engine's two are not
 yours either (the standing rule of every brief).
 
-### 4. D9 has no verdict row for a list virtualiser — write it before adopting anything
+### 4. D9's rule 2 was REVERSED by the operator on 2026-08-31 — propose candidates, do not re-code
 
-P24 says no long list renders unvirtualised (1 861 titles). D9's table settles page transitions,
-springs, gesture libraries, haptics and pressed states; it says nothing about windowing a list. Its
-rule 2 — _a library is adopted for maths nobody has written_ — is the test; **you apply it, write the
-verdict row under § 7.1 with the reasoning, and only then adopt or write**. An argument left in a
-pull request body is the argument the next wave re-opens as if new.
+P24 says no long list renders unvirtualised (1 861 titles). D9's rule 2 now reads: a reliable,
+maintained, proven library that solves EXACTLY the problem is preferred to writing it; code is
+written by hand only for maths nobody has written. D9's table carries the virtualiser row as
+« candidates to propose ». **So phase 8 is a SURVEY first**: name the candidates, write beside each
+the criteria it meets — solves exactly this list's needs (variable heights, the gallery's container
+queries, scroll restoration per history entry); maintained and followed; proven; standing; and
+**HEADLESS**, because rule 1 is untouched: a library that ships its own markup or CSS moves drawing
+out of the stylesheet and out of the design reference, and rule 1 refuses it whatever rule 2 says.
+Adopt the one the operator names; hand-written windowing only if none qualifies, and the row says
+why.
 
 ### 5. This is a BEHAVIOUR wave, and the oracle will be green over everything you get wrong
 
@@ -132,7 +137,8 @@ counts including the function's own definition.
 
 - **You do not move a producer or its engine-side gesture callers** (L19), nor the ladder's handler
   (L13), nor extend L14's four files, the engine's two, or `shell.tsx` (§ 3 above).
-- **You do not adopt a library outside D9's table** without its verdict row under § 7.1.
+- **You do not adopt a library without its D9 row** — and, since 2026-08-31, you do not RE-CODE what
+  a reliable library already does: rule 2 reversed; candidates are proposed, the operator chooses.
 - **You do not move a pixel** outside a named behaviour change: every part's rendering is validated
   (mission of 2026-08-19). A transition's END state is the oracle's; the transition itself is the
   rule's.
