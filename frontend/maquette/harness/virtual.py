@@ -44,6 +44,11 @@ ROW = '[data-part="card"]'
 # window has certainly moved.
 SCROLL_DISTANCE = 900
 
+# One row plus its gap. The two margins are compared against it rather than
+# against a fixed pixel count: what makes a shift a DEFECT is that it costs a
+# whole row of safety, and the row's height is the list's own number.
+ONE_LINE = 134
+
 
 async def rendered(page):
     """What is on screen, and what the surface says it has.
@@ -129,6 +134,38 @@ async def hold(journal):
             second["first"] != first["first"] and second["first"] != "",
             f"the first rendered row is still « {second['first']} » — the "
             "window renders correctly at rest and does not follow the finger")
+        # THE WINDOW IS CENTRED ON THE VIEWPORT, and this is what catches a
+        # virtualiser told the wrong origin.
+        #
+        # `#libitems` does not start at the top of `#port` — the filters and
+        # the tabs are above it in the same scrollport, 179px of them. A
+        # virtualiser that assumes the list begins at the scroller's origin
+        # computes every offset short by that distance and renders a window
+        # SHIFTED down the list: measured before the fix, 485px of margin
+        # above the viewport and 742 below, where the overscan asks for the
+        # same on each side.
+        #
+        # The visible rows were still covered, which is why nothing else
+        # caught it — the oracle measures at rest at scrollTop 0, where the
+        # shift is zero by construction. What was lost is two thirds of the
+        # safety margin ABOVE, and it is the top a scroll-up eats first.
+        margins = await page.evaluate(
+            "(row)=>{"
+            "const port = document.querySelector('#port');"
+            "const rows = [...port.querySelectorAll(row)];"
+            "if (rows.length < 2) return null;"
+            "const box = port.getBoundingClientRect();"
+            "return {above: box.top - rows[0].getBoundingClientRect().top,"
+            "        below: rows[rows.length - 1].getBoundingClientRect().bottom - box.bottom};}",
+            ROW)
+        journal.check(
+            "the window is CENTRED on the viewport, not shifted down the list",
+            margins is not None
+            and abs(margins["above"] - margins["below"]) < ONE_LINE,
+            f"{margins} — a difference of more than one row means the "
+            "virtualiser was told the wrong origin, and the smaller side is "
+            "margin the reader loses on a fast scroll")
+
         journal.check(
             "and it is still a window, not the whole list",
             second["rendered"] < second["declared"],

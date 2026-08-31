@@ -39,7 +39,7 @@
 // the flex column lay the visible rows out exactly as they always did, so the
 // end state is the one the oracle recorded, and the node count is constant.
 import { useVirtualizer } from "@tanstack/react-virtual";
-import type { ReactElement } from "react";
+import { useLayoutEffect, useRef, useState, type ReactElement } from "react";
 
 /** What the surface tells the window, and none of it names a domain. */
 export type VirtualRowsProperties = {
@@ -91,10 +91,39 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
   // 621 lines, and it is lines that have a height.
   const lineCount = Math.ceil(count / lanes);
   const lineHeight = rowHeight + gap;
+
+  // THE LIST DOES NOT START AT THE SCROLLER'S ORIGIN, and a virtualiser that
+  // assumes it does renders the wrong window.
+  //
+  // `#libitems` sits 179px below the top of `#port` — the filters and the tabs
+  // are above it, inside the same scrollport. Without telling the virtualiser
+  // so, every offset it computes is short by that distance: measured at
+  // scrollTop 1200, the rendered window ran from -485px to +1517px around a
+  // 775px viewport, which is 485 of margin above and 742 below where the
+  // overscan asks for the same on each side. The visible rows were still
+  // covered HERE — but the safety margin at the top was two thirds of what it
+  // was meant to be, and it is the top that a scroll-up eats first.
+  //
+  // Measured rather than passed in: a caller told to hand over a distance would
+  // be told to hand over a number that changes with the surface above it.
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [scrollMargin, setScrollMargin] = useState(0);
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const scroller = scrollElement();
+    if (!container || !scroller) return;
+    setScrollMargin(
+      container.getBoundingClientRect().top
+        - scroller.getBoundingClientRect().top
+        + scroller.scrollTop,
+    );
+  });
+
   const virtualizer = useVirtualizer({
     count: lineCount,
     getScrollElement: scrollElement,
     estimateSize: () => lineHeight,
+    scrollMargin,
     // Enough rendered beyond the viewport that a fast flick never shows a gap,
     // and few enough that the node count stays a small constant.
     overscan: 4,
@@ -149,6 +178,7 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
   return (
     <div
       key={properties.drawKey}
+      ref={containerRef}
       id="libitems"
       className={properties.className}
       data-part={properties.part}
