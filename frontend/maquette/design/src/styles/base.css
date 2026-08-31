@@ -51,7 +51,20 @@
   body {
     margin: 0;
     padding: 0;
-    height: 100%;
+    /* P11 — the frame tracks the DYNAMIC viewport.
+
+       `height: 100%` resolves against the initial containing block, which on a
+       phone is the LARGE viewport: the one that assumes the browser's own bars
+       are retracted. So the document was always as tall as the page is with no
+       toolbar, and the last row of a list sat under the toolbar whenever there
+       was one. `100dvh` is the same number when nothing is overlaying and the
+       right one when something is.
+
+       `100vh` is the trap this replaces and it is refused everywhere: it is
+       the LARGE viewport by definition, which is the bug with a shorter name.
+       The only `100svh` in the tree is `styles/harness.css` — the phone frame
+       the oracle measures inside, which ships nowhere. */
+    height: 100dvh;
     overscroll-behavior-y: none;
   }
   /* P25 — no tap flash. Chrome paints a grey wash over whatever a tap lands
