@@ -53,7 +53,22 @@ rest are independent and run in the order written.
   the brief's conditional does not fire. They stay for whoever next touches it.
 - **It skips no lot.** § 0's selection rule elects L12 and `IMPLEMENTATION.md` records it as Next.
 
-## One thing the operator must rule on
+## One thing the operator must rule on — ANSWERED 2026-08-31, and it went the other way
+
+**⚠ Everything in this section below the rule is VOID.** It asked whether writing a D9 verdict row
+in the wave that implements it breaches § 7.1, and reasoned that a **refusal** would dissolve the
+question. **The operator answered a different question and reversed the rule the whole section rests
+on**: a reliable, maintained, proven, widely used library that solves exactly the problem is
+**preferred** to re-coding it, and the candidates are proposed for the operator to choose.
+
+So there is no refusal to dissolve anything: phase 8 **surveys candidates and waits for the
+operator's choice** before adopting. DESIGN.md § 2 and `phase-08-the-windowing.md` carry the new
+shape. The paragraphs below are kept, struck, because § 7.1 amends by naming what is void rather
+than by quietly editing — and so that « it is only arithmetic » is not proposed again as if new.
+
+---
+
+## ~~One thing the operator must rule on~~ (VOID — see above)
 
 **The D9 verdict row is written in phase 8 as a PROPOSAL, not as a settled decision.** The brief
 directs this wave to write it (« you write it under § 7.1 before adopting anything »), and § 7.1

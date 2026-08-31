@@ -49,48 +49,57 @@ an amendment:
 
 ---
 
-## 2. The library question — D9 has no row for a virtualiser, and this is the row
+## 2. The library question — REVERSED by the operator on 2026-08-31, and this section is rewritten
 
-P24 says no long list renders unvirtualised (1 861 titles). D9's table settles page transitions,
-springs, gesture libraries, haptics and pressed states and says **nothing** about windowing a list.
-Its rule 2 is the test: *a library is adopted for maths nobody has written, never for an
-arbitration already proved*. The argument is settled **here**, in the design, and lands as a verdict
-row under § 7.1 — an argument left in a pull request body is the argument the next wave re-opens as
-if new.
+**⚠ THIS SECTION ARGUED THE OPPOSITE UNTIL 2026-08-31, and the argument is void.** It read D9's
+rule 2 — *a library is adopted for maths nobody has written* — as a presumption against adopting,
+concluded that windowing a uniform list is « arithmetic, not maths nobody has written », and
+proposed a **refusal**. **The operator reversed rule 2 the same day**:
 
-**The maths a virtualiser does is not one maths, and the split is the whole answer.**
+> Hand-written code is for maths NOBODY has written. When a reliable, maintained, proven, widely
+> used library solves EXACTLY our problem, it is **preferred** to re-coding it. The question to ask
+> first is « does such a library exist? » — and if yes, **propose the candidates** with the criteria
+> each meets, so the operator chooses.
 
-- For items of **uniform, declared height**, windowing is `floor(scrollTop / rowHeight)` plus two
-  spacers and an overscan constant. That is a dozen lines. It is not maths nobody has written; it is
-  arithmetic, and rule 2 refuses a library for it. Rule 1 pushes the same way: a virtualiser
-  measures geometry in JavaScript every frame, which moves the item's height *out* of the stylesheet
-  and out of the oracle's field — precisely what rule 1 exists to prevent.
-- For items of **variable height**, the library earns its bytes: a measurement cache, scroll
-  anchoring so a resize above the viewport does not jump the reader, and correct behaviour when an
-  item's height changes after paint. Nobody here has written that, and writing it badly is a defect
-  that only shows on a real thumb.
+The steward is transcribing the amendment into D9 itself (rule 2, its table's « because » cells, and
+a row for the list virtualiser as « candidates to propose »). **Rule 1 is UNCHANGED** — what is
+declarative lives in the stylesheet — so the page-transition and spring verdicts stand exactly as
+they are, and this lot adopts the View Transitions API and refuses a JavaScript animation library
+for page transitions on rule 1's authority, which was never in question.
 
-**So the verdict is conditional, and P29 is what decides it.** P29 requires every poster box to
-declare its size — and the posters already do (`aspect-ratio: 2/3`, five declarations above). **P29
-is therefore not a neighbour of P24; it is its precondition**: a declared item box is exactly what
-makes the uniform case true, and this design orders them so — P29 is measured and made true
-*before* P24 is built on it.
+**The old argument is kept above rather than deleted** because § 7.1's rule is that a decision is
+amended by naming what it makes void, never by quietly editing the old text — and because the next
+wave should be able to see that « it is only arithmetic » was tried and overruled, rather than
+proposing it again as if new.
 
-**The proposed row, for § 7.1** (an agent proposes; the operator arbitrates):
+### What replaces it
 
-| Candidate | Verdict | Because |
-| --- | --- | --- |
-| A **list virtualiser** for a list whose item box is **uniform and declared** | **refuse** | windowing a uniform list is `floor(scrollTop / rowHeight)` and two spacers — arithmetic, not maths nobody has written (rule 2). A library would also measure the item's height in JavaScript, moving geometry out of the stylesheet and out of the oracle's field (rule 1). P29's declared box is what makes this case true, so the two properties are ordered: the box is declared first |
-| A **list virtualiser** for a list of **variable, content-dependent height** | **allowed, scoped** | a measurement cache and scroll anchoring across a post-paint height change are maths nobody here has written, and getting them wrong shows only on a real thumb (rule 2). Scoped to the list that is actually variable, never adopted as the tree's list strategy |
+**Question one is now « does such a library exist? », and for a list virtualiser the answer is
+plainly yes** — several mature ones. So this lot **surveys and proposes; it does not write the
+windowing by default and it does not decide the adoption.** Phase 8 puts the candidates to the
+operator with the criteria each meets, and adopts the one the operator names.
 
-**Which arm applies is a MEASUREMENT, and this design does not guess it.** The library page draws
-two modes: `grid` (tiles, `aspect-ratio: 2/3` — uniform by construction) and list (`.card`,
+**The criteria, from the operator's own words plus rule 1, which still binds:**
+
+| Criterion | Where it comes from |
+| --- | --- |
+| **Solves exactly our problem** — windows a long list, in BOTH the grid and the list mode | the operator |
+| **Maintained** — releasing, answering issues, not in archive | the operator |
+| **Proven / reputation** — widely used, not a promising newcomer | the operator |
+| **Headless** — imposes no markup and no styling | **rule 1**, which is unchanged: a virtualiser that ships its own CSS moves drawing out of the stylesheet and out of the design reference. This is the criterion the operator's list does not name and this lot must not drop |
+| **Handles both fixed and measured item heights** | § 3's measurement below — the two modes differ |
+
+**The two-arm split this section used to propose has COLLAPSED, and that is the amendment's doing.**
+It existed only to weigh « write it » against « adopt it » on either side of item geometry. Under the
+new rule one library covers both modes, so geometry no longer decides *whether* to adopt — it
+decides only which MODE of the adopted library each surface uses (fixed size, or measured).
+
+**The measurement is still owed, and phase 8 still takes it.** The library page draws two modes:
+`grid` (tiles, `aspect-ratio: 2/3` — uniform by construction) and list (`.card`,
 `grid-template-columns: auto 1fr` — height follows the text, and §12 requires a long title to take
-the whole line and wrap rather than truncate, so a two-line title is a taller card). **Phase 5
-measures the rendered heights of both modes over the 1 861-title fixture before a line of
-virtualiser is written**, and the measurement decides which arm of the row applies to which mode.
-Recorded as a decision procedure rather than a guess because assuming uniformity and being wrong
-produces a list that jumps under the reader — the exact defect no green gate would show.
+the whole line and **wrap rather than truncate**, so a two-line title is a taller card). Which mode
+is configured fixed and which measured follows from that reading, and getting it wrong produces a
+list that jumps under the reader — the exact defect no green gate would show.
 
 ---
 
@@ -192,10 +201,10 @@ repair shipped with no regression hold, a cited line number past the end of the 
 
 | # | Decision | Because |
 | --- | --- | --- |
-| **D-L12-1** | The D9 verdict row for a list virtualiser is **conditional on item geometry**, and the geometry is **measured in phase 5** before anything is adopted or written | Rule 2 cuts differently for uniform and variable items, and asserting uniformity without measuring it produces a list that jumps under the reader |
-| **D-L12-2** | **P29 is ordered before P24** and treated as its precondition, not its neighbour | A declared item box is what makes the uniform arm of D-L12-1 true |
+| **D-L12-1** | ~~The D9 verdict row is conditional on item geometry~~ **VOID since 2026-08-31.** The row **surveys CANDIDATES and proposes them to the operator**, who chooses; this lot does not write the windowing by default | The operator reversed D9's rule 2: a reliable, maintained, proven, widely used library that solves exactly the problem is **preferred** to re-coding it. § 2 carries the reversal, the criteria and what it makes void |
+| **D-L12-2** | **P29 is ordered before P24** and treated as its precondition, not its neighbour | **The reason changed with D-L12-1 and the ORDER survives it.** It used to be « a declared box makes the uniform arm true »; it is now that a virtualiser measuring an undeclared box measures a box that is still growing, so the declaration must land first either way |
 | **D-L12-3** | `app/shell.tsx` is **not opened**, and no subject-split is done | The transition host is `app/navigation.ts`; the split the contract held in reserve has no subject (§ 1) |
-| **D-L12-4** | The windowing is a **`ui/` primitive**, and `features/library/page.tsx` must leave phase 5 at **≤ 613** non-blank lines | Invariant 10 makes windowing vocabulary; the count is what keeps § 3's promise checkable rather than asserted |
+| **D-L12-4** | The windowing is a **`ui/` primitive**, and `features/library/page.tsx` must leave phase **8** at **≤ 613** non-blank lines | Invariant 10 makes windowing vocabulary — **and it survives D-L12-1 unchanged**: an adopted library is wrapped in the `ui/` primitive rather than imported by the page, so the page still uses a component and the dependency has one call site. The count keeps § 3's promise checkable rather than asserted. (« phase 5 » here was a slip for phase 8 — the phase table has always said 8) |
 | **D-L12-5** | The arbitration is **moved** to `lib/press-arbitration.ts`, its engine-side callers left where they are | D9 rule 2 and D5 — subtraction, not editing; the callers are L19's |
 | **D-L12-6** | Conversion and behaviour split **per phase and per commit**, not per wave | § 0's rule, on L15's and L11's precedent (§ 5) |
 | **D-L12-7** | B-268, B-269 and B-270 are **left for whoever next touches `served_copy.py`** | The brief assigns them conditionally; this plan has no phase that opens that file, so it does not claim them |

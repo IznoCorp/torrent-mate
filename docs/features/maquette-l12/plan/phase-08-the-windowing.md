@@ -18,18 +18,35 @@ The library page draws two modes:
 which arm of the D9 row applies to which mode. This design refuses to guess it: assuming uniformity
 and being wrong produces a list that **jumps under the reader**, which no green gate would show.
 
-## Step 2 — The D9 verdict row
+## Step 2 — SURVEY the candidates and put them to the operator
 
-Write it under § 7.1 with its full reasoning, **as a proposal flagged in the pull request** — see
-INDEX.md, « One thing the operator must rule on ». Its two arms:
+**⚠ This step said the opposite until 2026-08-31.** It proposed a two-armed verdict whose first arm
+was a **refusal** — « windowing a uniform list is arithmetic, so write it ». **The operator reversed
+D9's rule 2** that day: hand-written code is for maths NOBODY has written, and a reliable,
+maintained, proven, widely used library that solves EXACTLY the problem is **preferred** to
+re-coding it. The first question is « does such a library exist? », and if it does the candidates
+are **proposed with their criteria** so the operator chooses. DESIGN.md § 2 carries the reversal in
+full and names what it makes void.
 
-- **uniform, declared box → refuse a library.** Windowing a uniform list is
-  `floor(scrollTop / rowHeight)` and two spacers: arithmetic, not maths nobody has written
-  (rule 2). A library would also measure item height in JavaScript, moving geometry out of the
-  stylesheet and out of the oracle's field (rule 1).
-- **variable, content-dependent height → allowed, scoped.** A measurement cache and scroll
-  anchoring across a post-paint height change are maths nobody here has written (rule 2). Scoped to
-  the list that is actually variable — never adopted as the tree's list strategy.
+**So this step does not decide. It surveys, and it reports.**
+
+Survey the field — TanStack Virtual, react-virtuoso, react-window, and whatever else the survey
+turns up; the list is not closed by this plan. For each candidate, record:
+
+| Criterion | What to establish |
+| --- | --- |
+| **Solves exactly our problem** | windows a long list in BOTH modes — the uniform grid and the content-height card list |
+| **Maintained** | last release, issue response, not archived — with the date the survey read it |
+| **Proven / reputation** | adoption, not promise |
+| **Headless** | **rule 1 is UNCHANGED and this is its criterion**: a virtualiser shipping its own markup or CSS moves drawing out of the stylesheet and out of the design reference. The operator's list does not name this one and this lot must not drop it |
+| **Fixed AND measured heights** | step 1's measurement says which mode each surface needs |
+
+**Adopt the one the operator names. Nothing is installed before that.** The row lands in D9's table
+as « candidates to propose » — the steward is transcribing the amendment itself.
+
+**What this does NOT reopen**: rule 1 stands, so the View Transitions API is still adopted for
+transitions (phase 9) and a JavaScript animation library for page transitions is still refused. That
+verdict never rested on rule 2.
 
 ## Step 3 — Build it as VOCABULARY
 
@@ -49,6 +66,10 @@ pay it.
 
 **If the count cannot be held, the phase STOPS and reports** rather than extending an L14 file
 quietly (§ 0's third rule).
+
+**The adopted library is wrapped by the `ui/` primitive, never imported by the page.** That keeps
+invariant 10's placement true and gives the dependency exactly one call site — the same reason the
+feedback seam has one (phase 4).
 
 ## The rule
 
