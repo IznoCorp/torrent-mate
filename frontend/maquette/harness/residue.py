@@ -98,7 +98,17 @@ VARIANT_SOURCES = sorted(
 # went up from B-067's seven the moment this rule read the tree properly, and
 # it goes down only when someone has read what stopped being compared and says
 # why. L13 takes it to nothing by removing the residue and this rule with it.
-PAIRS_FLOOR = 16
+# LOWERED TO 15 ON 2026-08-31 (L12), and what stopped being compared is named
+# because that is this floor's own condition: `.herobg`'s entry animation. It
+# declared `animation: heroin …` here AND `motion-safe:animate-hero-in` on the
+# same element through the typed variant — which is precisely the pairing this
+# rule exists to compare — and BOTH were removed rather than reconciled.
+#
+# An entry has one owner, and on a surface reached by a view transition that
+# owner is the transition: measured, the transition drew the hero full for
+# 315ms, the element went to opacity 0 in one frame when it ended, and `heroin`
+# replayed its 450ms entry. The pair is gone because the defect was the pair.
+PAIRS_FLOOR = 15
 
 # A rule head, once comments are stripped: everything up to `{`, then the body.
 RULE = re.compile(r"([^{}]+)\{([^{}]*)\}", re.S)

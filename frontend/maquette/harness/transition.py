@@ -236,7 +236,10 @@ async def hold_under(journal, browser, motion):
 # would have missed this one twice over: `heroin` was declared BOTH as a
 # Tailwind utility and as a rule in the dying stylesheet, and removing only the
 # utility left it running.
-ARRIVING_BACKGROUND = ".herobg"
+# ANCHORED ON `data-part`, NEVER ON THE CLASS (D4). A selector held in a
+# variable dies the day the class is removed exactly like one written in a
+# call, and `check-markup-contracts` refuses both at a hard zero.
+ARRIVING_BACKGROUND = '[data-part="hero/background"]'
 
 
 async def hold_one_entry_one_owner(journal, browser):
