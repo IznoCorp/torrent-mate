@@ -335,7 +335,18 @@ async def main():
         # surface a tap opens it too, so anything measured after the lift cannot
         # tell a press from a tap.
         await pg.evaluate("()=>closeSheet()")
-        await pg.wait_for_timeout(340)
+        # LONG ENOUGH FOR THE SCRIM TO GO, which is 450ms since L12 drew the
+        # panel's rise on `--duration-4` — and the scrim's `visibility` is
+        # transitioned with that DELAY, so at 340ms it was still visible and
+        # still hit-testable OVER the poster this hold then presses. The press
+        # never reached the poster and the panel never opened.
+        #
+        # SECOND INSTANCE OF ONE SPECIES in this rule alone: a delay set by hand
+        # against a duration that later changed. The other was the 420ms between
+        # press surfaces. Neither was wrong when written; both outlived the
+        # number they were written against, which is B-269's shape in an
+        # instrument.
+        await pg.wait_for_timeout(700)
         check("the panel starts closed", not await pg.evaluate(
             "()=>document.querySelector('#sheet').hasAttribute('data-open')"))
         target = await pg.evaluate("""()=>{

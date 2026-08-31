@@ -93,12 +93,27 @@ function follow(node: HTMLElement): void {
  * which is what the symptom's independence from the origin already said.
  */
 export function installArtworkArrival(): void {
-  const follow_all = () => {
-    document.querySelectorAll<HTMLElement>(HERO_BACKGROUND).forEach(follow);
-  };
-  follow_all();
-  new MutationObserver(follow_all).observe(document.documentElement, {
-    subtree: true,
-    childList: true,
-  });
+  document.querySelectorAll<HTMLElement>(HERO_BACKGROUND).forEach(follow);
+
+  // ONLY WHAT WAS ADDED IS SCANNED, and that is a correction rather than a
+  // refinement. The first version re-queried the WHOLE DOCUMENT on every
+  // mutation anywhere — and this interface mutates constantly: a press that
+  // opens a panel produces a burst of them, each one paying for a full-document
+  // `querySelectorAll`. R55 fell on it, on the press above the scrollport, with
+  // nothing wrong in the press at all.
+  //
+  // In a lot whose subject is the PERFORMANCE FLOOR, an unthrottled
+  // whole-document observer is the defect rather than the instrument.
+  new MutationObserver((records) => {
+    for (const record of records) {
+      for (const added of record.addedNodes) {
+        if (!(added instanceof Element)) continue;
+        if (added.matches(HERO_BACKGROUND)) {
+          follow(added as HTMLElement);
+          continue;
+        }
+        added.querySelectorAll<HTMLElement>(HERO_BACKGROUND).forEach(follow);
+      }
+    }
+  }).observe(document.documentElement, { subtree: true, childList: true });
 }
