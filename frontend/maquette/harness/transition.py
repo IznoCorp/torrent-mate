@@ -139,6 +139,7 @@ async def switch_and_watch(page):
     return await page.evaluate(
         "()=>{clearInterval(window.__watch); "
         "return {peak: window.__peak, called: window.__called, "
+        "names: window.__names || [], "
         "page: document.documentElement.dataset.page || ''};}")
 
 
@@ -164,6 +165,34 @@ async def hold_under(journal, browser, motion):
         reading["called"] >= 1,
         f"called {reading['called']}x — the transition must be DECLARED "
         "through the platform's API, not scripted (D9 rule 1)")
+
+    # THE TRANSITION SHOWS THE PREVIOUS STATE, which is a different claim
+    # from « a transition is running » and the one this rule used to miss.
+    #
+    # Phase 9 asked for the capture and then committed synchronously, to
+    # keep `go()` synchronous. The browser captures AFTER the current task,
+    # so the commit had already run and the « old » snapshot was the new
+    # page: the transition animated nothing, and this rule was green because
+    # animations were running the whole time.
+    #
+    # WHAT CATCHES IT IS A NAME THAT EXISTS ON ONE SIDE ONLY. The media
+    # screen's hero is `screen-banner`; the library page it leaves carries no
+    # `[data-part="hero"]` at all. So `new(screen-banner)` must appear and
+    # `old(screen-banner)` must NOT — an old snapshot for a name the old
+    # state does not contain can only mean the new page was already mounted
+    # when the snapshot was taken.
+    names = reading["names"] if isinstance(reading, dict) else []
+    if motion != "reduce":
+        journal.check(
+            "the arriving screen's banner is captured as NEW",
+            any("new(screen-banner)" in name for name in names),
+            f"names seen: {names}")
+        journal.check(
+            "and NOT as old — the snapshot is the page being left",
+            not any("old(screen-banner)" in name for name in names),
+            "an old snapshot exists for a name the previous page does not "
+            "carry, so the commit ran before the capture and the transition "
+            "animates the new page against itself")
 
     if motion == "reduce":
         journal.check(
