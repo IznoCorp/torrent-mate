@@ -216,6 +216,22 @@ export const ADDRESSES_THAT_MOVE_TOGETHER: readonly (readonly string[])[] = [
   ["/api/staging/media", "/api/acquisition/to-handle"],
 ];
 
+/**
+ * Installs the queue's three actions, for the dying engine to call.
+ *
+ * WHY A SEAM RATHER THAN A HOOK. The engine's document-level delegation is what
+ * a tap on a card reaches — that delegation is cross-cutting and belongs to L13
+ * — so the verbs have to be reachable from outside React. It is the same
+ * arrangement `window.__panel` and `window.__screens` already use, and it goes
+ * the same way.
+ *
+ * THE ENGINE KEEPS ITS TOAST AND LOSES ITS WORLD. What each action DID — move a
+ * card from one list to another — is the layer's now, and the cache is what the
+ * surfaces read. Leaving the engine's own mutation in place beside this one
+ * would be two truths about one queue.
+ *
+ * @param queryClient The cache the surfaces read.
+ */
 export function installQueueActions(queryClient: QueryClient): void {
   heldClient = queryClient;
   window.__queue = queueNow;

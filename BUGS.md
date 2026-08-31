@@ -326,6 +326,27 @@ when the defect comes back.
 | B-264 | `caches.open` CREATES, so a controlling worker re-made the cache a sign-out had just deleted | by L11 | `fixed #534` |
 | B-265 | The queue's drop-decision treated **401 as final**, destroying every queued mutation an expired session met | by review | `fixed #534` |
 | B-266 | A notice button's name, words and action were three ladders in different orders, so it said one thing and did another | by review | `fixed #534` |
+| B-267 | The real backend answers `{detail}`, which the queue's failure shape does not match — every refusal would be QUEUED at switchover | by review | `open` |
+
+**B-267 — the real backend's failure shape does not match the one the queue reads, and at switchover every refusal becomes a queued mutation.**
+Found by the fourth adversarial round, and it is LATENT rather than live: the mock layer emits the
+right shape, so nothing in the maquette is wrong today. `isRequestFailure` requires
+`{status, title, detail}`. `personalscraper/web/deps.py` raises `HTTPException(403, detail="…")`
+and FastAPI serialises `{"detail": "…"}` — no `status`, no `title`, and there is no
+`exception_handler` reshaping it. On the day `send()` points at that server, **every** refusal —
+403 read-only, 401, a 400 for a missing `X-Requested-With`, a 409 — fails the shape test, takes the
+OUTAGE branch, and is queued: the optimistic write stands over an action the server refused, and
+the replay meets the same answer forever. NE-DOIT-PAS-1 from both ends at once.
+
+**It belongs to the lot that binds the maquette to the backend**, and it is written here so that
+lot finds it rather than discovering it in production. The fix is one of two: a FastAPI exception
+handler that emits the problem shape the interface already reads, or a reader on this side that
+accepts `{detail}` — and the first is the one §15 asks for, since the interface declares what it
+requires and the backend follows.
+
+<sub>`grep -rn "HTTPException(" personalscraper/web/deps.py | head -3` · `grep -n "isRequestFailure" frontend/maquette/design/src/lib/query-client.ts`</sub>
+
+---
 
 **B-266 — a notice button's name, words and action were three ladders in different orders.**
 Found by the third adversarial round. The label and `data-connection-action` tested « does the

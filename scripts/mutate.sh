@@ -61,12 +61,27 @@ fi
 
 BEFORE="$(mktemp)"
 cp "$TARGET" "$BEFORE"
+# IDEMPOTENT, AND IT WAS NOT. It deleted `$BEFORE` on the way out, so the second
+# call — the trap's, after the explicit one at the end — ran `cp` on a missing
+# file, and under `set -e` that ABORTED THE TRAP BEFORE THE RELEASE. Measured:
+# every successful run exited 1 instead of 0, and a SIGTERM during the final
+# rebuild leaked the served-copy lock for the whole staleness hour, which is the
+# exact harm the comment at the end of this file claims to have removed.
+#
+# The saved copy is kept until the process ends; `mktemp` put it in a directory
+# the system clears, and a stale one is a file, not a lock.
 restore() {
+  [ -f "$BEFORE" ] || return 0
   cp "$BEFORE" "$TARGET"
-  rm -f "$BEFORE"
   echo "mutate: $TARGET restored."
 }
-trap restore EXIT INT TERM
+# A SIGNAL TRAP MUST EXIT. `trap restore EXIT INT TERM` let a Ctrl-C restore the
+# source and then RESUME the script — the shape R104 refuses in `run.sh`, in the
+# file that had it. The lock is not held yet at this point, so these only need to
+# stop the run.
+trap restore EXIT
+trap 'restore; exit 130' INT
+trap 'restore; exit 143' TERM
 
 python3 - "$TARGET" "$EXPRESSION" <<'PY'
 import pathlib
@@ -126,10 +141,11 @@ done
 # the whole staleness hour. Only the Ctrl-C half of that was repaired; the
 # `set -e` half, which the comment claimed to cover, was not.
 #
-# The trap stays armed to the end and both halves of it are IDEMPOTENT: `restore`
-# writes the saved source back, and `release_the_copy` gives back a lock this
-# process no longer holds, which `served_copy.release` refuses by pid. So it may
-# run twice — once here and once from the trap — and the second run does nothing.
+# The trap stays armed to the end and both halves of it are IDEMPOTENT — which
+# had to be MADE true rather than asserted: `restore` deleted its own saved copy,
+# so its second call failed under `set -e` and took the release with it. It
+# returns early on a missing copy now, and `release_the_copy` gives back a lock
+# this process no longer holds, which `served_copy.release` refuses by pid.
 trap 'restore; release_the_copy' EXIT
 trap 'restore; release_the_copy; exit 130' INT
 trap 'restore; release_the_copy; exit 143' TERM

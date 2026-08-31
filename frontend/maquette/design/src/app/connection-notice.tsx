@@ -146,8 +146,12 @@ function whatToOffer(
       act: () => go({ to: SIGN_IN_PATH }),
     };
   }
-  // THE CONNECTION FIRST, because a dead socket is what the operator can act on
-  // and a queued mutation cannot depart over it anyway.
+  // THE CONNECTION FIRST — and NOT because a queued mutation cannot depart over
+  // a dead socket, which is false: a departure goes over `fetch`, and this same
+  // file says so forty lines down («  A mutation can be held while the stream is
+  // perfectly healthy »). The reason is that a dead relay is the thing the
+  // operator can act on, and reconnecting reaches the queue anyway — the
+  // connected edge is what `departOnReconnection` waits for.
   if (owed) {
     return {
       name: "retry",

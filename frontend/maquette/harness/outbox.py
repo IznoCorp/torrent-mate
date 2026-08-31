@@ -289,6 +289,81 @@ async def main():
             f"{still} on disk — dropped, the operator's action is destroyed by "
             "the very outage this queue exists for")
 
+        # --- the button's ACT matches its NAME (B-266) ----------------------
+        # THE OTHER REGRESSION HOLD THE REPAIR SHIPPED WITHOUT. Three rules read
+        # `data-connection-action`, all in states where nothing is queued and
+        # nothing was refused, and all of them read the NAME. Nothing anywhere
+        # asserted that pressing it does what it says — which is the entire
+        # content of the defect: on a lost connection with a refusal recorded
+        # and an empty queue, the button read « Réessayer maintenant » and
+        # CLEARED the refusal instead of reconnecting.
+        await page.evaluate("()=>window.__mocks.reset()")
+        await page.evaluate("()=>window.__outbox.forget()")
+        await page.evaluate("()=>window.__mocks.setOffline(true)")
+        await page.evaluate(
+            """async(title)=>{ await window.__outbox.issue(
+                 "POST", "/api/acquisition/followed",
+                 {title: title + " (bouton)", kind: "tv"}); }""", TITLE)
+        await page.evaluate("()=>window.__mocks.setOffline(false)")
+        await page.evaluate(
+            """()=>window.__mocks.setOperationOutcome("createFollow", {status: 409})""")
+        await page.evaluate("async()=>{ await window.__outbox.depart(); }")
+        # A refusal recorded, nothing waiting, and the socket driven to `lost` —
+        # the exact cell the two ladders disagreed on.
+        await page.evaluate("""()=>window.__relay.force("lost")""")
+        await page.wait_for_timeout(200)
+        named = await page.evaluate(
+            """()=>document.querySelector("[data-connection-action]")
+                 ?.getAttribute("data-connection-action")""")
+        journal.check(
+            "on a lost connection with a refusal, the button offers to RETRY",
+            named == "retry", f"data-connection-action={named!r}")
+        before_click = await page.evaluate(
+            """()=>({refused: document.querySelector('[data-part="shell/connection-notice"]')
+                       ?.getAttribute("data-refused"),
+                     condition: window.__relay.condition().condition})""")
+        await page.evaluate(
+            """()=>document.querySelector("[data-connection-action]").click()""")
+        await page.wait_for_timeout(400)
+        after_click = await page.evaluate(
+            """()=>({refused: document.querySelector('[data-part="shell/connection-notice"]')
+                       ?.getAttribute("data-refused"),
+                     condition: window.__relay.condition().condition})""")
+        # RETRY MUST RECONNECT AND MUST NOT DISCARD THE RECORD. Reading the name
+        # alone would pass over a button that cleared the refusal instead.
+        journal.check(
+            "and pressing it reconnects rather than discarding the refusal",
+            after_click["condition"] != "lost"
+            and after_click["refused"] == before_click["refused"],
+            f"{before_click} → {after_click}")
+
+        # --- and a 401 is not final either (B-265) --------------------------
+        # THE REGRESSION HOLD THE REPAIR SHIPPED WITHOUT. The 503 hold above was
+        # green under the deny-list too — `status >= 500` was already excluded —
+        # so it did not move across the repair and proves nothing about it. 401
+        # is the status that DID fall through: an installed application with the
+        # radio off queues N mutations, the session expires, the radio returns,
+        # and every one of them is destroyed in turn when a re-login would have
+        # saved them all.
+        await page.evaluate("()=>window.__mocks.reset()")
+        await page.evaluate("()=>window.__outbox.forget()")
+        await page.evaluate("()=>window.__mocks.setOffline(true)")
+        await page.evaluate(
+            """async(title)=>{ await window.__outbox.issue(
+                 "POST", "/api/acquisition/followed",
+                 {title: title + " (401)", kind: "tv"}); }""", TITLE)
+        await page.evaluate("()=>window.__mocks.setOffline(false)")
+        await page.evaluate(
+            """()=>window.__mocks.setOperationOutcome("createFollow", {status: 401})""")
+        await page.evaluate("async()=>{ await window.__outbox.depart(); }")
+        survived = await page.evaluate(
+            "async()=>(await window.__outbox.waiting()).length")
+        journal.check(
+            "an expired session does not destroy what a re-login would save",
+            survived == 1,
+            f"{survived} on disk — dropped, every queued mutation goes with the "
+            "session one after another")
+
         await context.close()
         await browser.close()
     journal.summary(errors)

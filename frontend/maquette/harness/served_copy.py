@@ -609,13 +609,23 @@ def rules() -> int:
     # only because the stripper works. The other three fail loudly on a shrunken
     # corpus (`find()` returns -1 and `0 <= -1` is false), so they were the ones
     # that needed it least. All five are floored now.
-    for name, corpus in (("run.sh", run_sh), ("common.py", common),
-                         ("served_copy.py", mine),
-                         ("scripts/mutate.sh", _code_of(repository / "scripts/mutate.sh")),
-                         ("scripts/harness-hold-counts.py",
-                          _code_of(repository / "scripts/harness-hold-counts.py"))):
-        hold(f"the stripped corpus of {name} is not empty",
-             len(corpus.splitlines()) >= 60, f"{len(corpus.splitlines())} lines")
+    # EACH FLOOR IS SET NEAR ITS OWN CORPUS, not one number applied to five. A
+    # floor of 60 against a 378-line corpus leaves 318 lines of slack: that file
+    # could lose 84 % of itself and the floor would still pass while the
+    # NEGATIVE hold over it — `"wrapped.html" not in source`, which is only true
+    # because the stripper removes the docstrings that mention it — went
+    # silently green. A floor calibrated to the smallest corpus does not bite on
+    # the one it was written for.
+    for name, corpus, floor in (
+            ("run.sh", run_sh, 120),
+            ("common.py", common, 200),
+            ("served_copy.py", mine, 250),
+            ("scripts/mutate.sh", _code_of(repository / "scripts/mutate.sh"), 60),
+            ("scripts/harness-hold-counts.py",
+             _code_of(repository / "scripts/harness-hold-counts.py"), 330)):
+        hold(f"the stripped corpus of {name} is whole",
+             len(corpus.splitlines()) >= floor,
+             f"{len(corpus.splitlines())} lines against a floor of {floor}")
 
     stamp = read_stamp()
     hold("the served copy carries a readable stamp",
