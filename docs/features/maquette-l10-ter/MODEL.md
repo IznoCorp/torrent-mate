@@ -217,7 +217,7 @@ scrolling has one path » (plan § 1, the semantic index's door) is NOT paid —
 it; the sheet resetting ITS OWN port is not a second path (a layer's port is not `#port`) and is
 written down as such. The engine's writes go with **L13** (or with the producer that owns each, in
 **L19**); the skip link's goes when the index is scheduled, and not before — churn with no defect
-is churn. **Pull-to-refresh** (`#ptr`, engine-driven, `index.html:241`) is this part's: a gesture on
+is churn. **Pull-to-refresh** (`#ptr`, engine-driven — `index.html:255`, driven from `legacy.js:32313`) is this part's: a gesture on
 `#port` that knows nothing of what refreshes — it moves with the gesture vocabulary in **L12**.
 
 ### Part 9 — The entry
