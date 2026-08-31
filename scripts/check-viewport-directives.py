@@ -272,15 +272,14 @@ def main() -> int:
                 "row of a list sits under one. Use `dvh`.",
                 file=sys.stderr,
             )
-    print(
-        f"check-viewport-directives: {len(files)} source file(s) read under "
-        f"{MAQUETTE.relative_to(ROOT)} (floor {CORPUS_FLOOR}), {violations} "
-        "violation(s) — neither `maximum-scale` nor a `user-scalable` refusal, "
-        f"in markup, in script or in a stylesheet; and {metas_held} viewport "
-        f"meta(s) declaring « {REQUIRED[0]} » (floor {META_FLOOR}). A positive "
-        "arm that matched NOTHING reads exactly like one that passed, so the "
-        "count is printed and floored rather than left to be inferred."
-    )
+    # THE FLOORS ARE COUNTED BEFORE THE SUMMARY IS PRINTED, and the ordering is
+    # the whole point. Written the other way round first, both floors fired on
+    # stderr and set the exit code correctly while the summary line — the line a
+    # human and a log actually read — still said « 0 violation(s) ». A guard
+    # whose own report contradicts its verdict is B-085's shape inside a rule
+    # written the same hour, and it was found by mutation rather than by
+    # reading: the mutation removing the sizing looked like a rule that had not
+    # bitten.
     if metas_held < META_FLOOR:
         print(
             f"  only {metas_held} viewport meta(s) found at all, under the "
@@ -298,6 +297,15 @@ def main() -> int:
             file=sys.stderr,
         )
         violations += 1
+    print(
+        f"check-viewport-directives: {len(files)} source file(s) read under "
+        f"{MAQUETTE.relative_to(ROOT)} (floor {CORPUS_FLOOR}), {violations} "
+        "violation(s) — neither `maximum-scale` nor a `user-scalable` refusal, "
+        f"in markup, in script or in a stylesheet; and {metas_held} viewport "
+        f"meta(s) declaring « {REQUIRED[0]} » (floor {META_FLOOR}). A positive "
+        "arm that matched NOTHING reads exactly like one that passed, so the "
+        "count is printed and floored rather than left to be inferred."
+    )
     return 1 if violations else 0
 
 
