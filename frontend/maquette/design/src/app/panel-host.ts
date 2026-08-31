@@ -104,10 +104,23 @@ function openPanel(descriptor: PanelDescriptor): void {
     flushSync(() =>
       store.write({ panelDescriptor: descriptor, panelOpen: true }),
     );
-    // THE MARK LEAVES THE TILE AS THE PANEL ARRIVES (P6). A shared element is
-    // one name on the old state and the SAME name on the new one; if the tile
-    // still carried it now, two elements would answer to it in this frame and
-    // the browser would skip the transition outright.
+    // THE MODULE'S REFERENCE IS DROPPED HERE, and that is ALL this line does
+    // today — measured, rather than the stronger thing its first comment
+    // claimed.
+    //
+    // The claim was: the tile must lose the name as the panel arrives, or two
+    // elements answer to it in one frame and the browser skips the transition.
+    // The rule is right and the line is not what enforces it: the engine
+    // RE-RENDERS the surface when the panel opens, so the marked tile is
+    // detached anyway — the same node replacement R113 measured, `isConnected`
+    // false with the attribute still on it. Removing this line changes nothing
+    // observable, and the mutation proving that is why the comment now says
+    // what it does instead of what it was meant to.
+    //
+    // It stays because a module holding a reference to a detached node is a
+    // leak with no upside, and because a surface that does NOT re-render would
+    // need exactly this. What it is not is the guarantee — that belongs to the
+    // stylesheet scoping `.sheetposter`'s name to the OPEN sheet.
     releaseCarriedPoster();
   };
 

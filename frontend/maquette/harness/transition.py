@@ -251,10 +251,16 @@ async def hold_the_carried_poster(journal, browser, motion):
         f"under `{motion}`, exactly one tile is marked while the finger is down",
         marked,
         "no `[data-carrying]` mid-press — the poster has no name to travel under")
+    # SATISFIED BY THE ENGINE'S RE-RENDER, and saying so is the honest form.
+    # The surface is redrawn when the panel opens, so the marked tile is
+    # detached whatever `panel-host` does — measured by removing its
+    # `releaseCarriedPoster()` call and watching nothing change. This hold is
+    # worth keeping (a tile that KEPT the name would break the transition) and
+    # it does not isolate that call.
     journal.check(
-        f"and under `{motion}` the mark LEAVES the tile once the panel is up",
+        f"and under `{motion}` no tile still carries the name once the panel is up",
         not reading["left"],
-        "the tile still carries the name, so two elements answer to it and the "
+        "a tile still carries it, so two elements answer to one name and the "
         "browser drops the transition")
 
     old = [name for name in reading["names"] if "old(carried-poster)" in name]
