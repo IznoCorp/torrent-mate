@@ -459,6 +459,36 @@
   }
 }
 
+/* NOTHING ELSE ANIMATES WHILE A VIEW TRANSITION IS RUNNING — measured at the
+   bench by the steward on 2026-08-31, and both findings are defects rather than
+   tuning.
+
+   1. THE HERO WAS FADED TWICE, BY TWO SYSTEMS, AT TWO DURATIONS. The legacy
+      entry animation `heroin` (450ms, `--animate-hero-in`) ran at the same time
+      as `banner-in` (300ms) on the same element — read 150ms after the tap. The
+      snapshot the transition animates already contains a fade of its own, so
+      the two compose into something neither was drawn to be.
+
+   2. THE SHIMMER RAN THROUGH THE CAPTURE. Three skeleton shimmers (1 400ms
+      loops) were live while the 300ms transition played, so the arrival was
+      animated over placeholders that were themselves moving.
+
+   `:active-view-transition` is the platform's own answer — a state on the root
+   for exactly the span a transition owns — so this is a declared rule and not a
+   script reaching in to pause things.
+
+   WHAT THIS DOES NOT FIX, and it is recorded rather than papered over: the real
+   content still arrives AFTER the transition has ended, and snaps in with no
+   transition of its own, because the data lands when it lands. Transitioning on
+   the arrival instead of on the navigation is a design decision, not a tuning,
+   and it belongs to the operator. */
+:root:active-view-transition [data-part="hero"],
+:root:active-view-transition [data-part="hero/background"],
+:root:active-view-transition .sk,
+:root:active-view-transition .sh {
+  animation: none;
+}
+
 /* TRANSITION « A » — THE LIST OPENS ONTO A MEDIA SCREEN (operator, 2026-08-31).
 
    NO SHARED ELEMENT HERE, and that is the decision rather than a shortfall.
@@ -475,6 +505,16 @@
 @media (prefers-reduced-motion: no-preference) {
   ::view-transition-new(screen-banner) {
     animation: banner-in var(--duration-3) var(--ease-standard);
+  }
+
+  /* THE POSTER'S FLIGHT IS DRAWN, and until now it was not: the group carried
+     no rule at all, so the most visible gesture of this lot ran on the user
+     agent's own 250ms default curve. A NAMED group with no rule is a hole
+     rather than a setting — the name says the interface means to own that
+     movement, and owning it is what the design reference is for. */
+  ::view-transition-group(carried-poster) {
+    animation-duration: var(--duration-3);
+    animation-timing-function: var(--ease-emphasized);
   }
 
   ::view-transition-new(screen-body) {
@@ -529,6 +569,7 @@
    transition paid for, where `-old` and `-new` were silenced and the GROUP went
    on animating. */
 @media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(carried-poster),
   ::view-transition-group(screen-banner),
   ::view-transition-group(screen-body),
   ::view-transition-group(leaving-panel),
