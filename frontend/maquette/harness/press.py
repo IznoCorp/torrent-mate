@@ -31,13 +31,27 @@ places where a WRONG implementation passes every hold R55 has.
      This is why the touch hold is kept but honestly labelled: it proves the
      press dies, not WHAT killed it.
 
-  2. THE SWALLOW THAT MUST NOT SWALLOW EVERYTHING. R55 holds « the lift does not
-     fire the panel that has just appeared », which is the click AT the press's
-     own point. An implementation that swallowed the next click WHEREVER it
-     landed satisfies that hold completely — and breaks every deliberate tap
-     that follows a press anywhere on the interface. The design's answer is that
-     the click is identified BY ITS POINT, and the negative half of that claim
-     is the half nothing measured: a tap far from the press must go through.
+  2. THE SWALLOW MUST NOT EAT A CLICK NOBODY POINTED — and the case is narrower
+     than it first looks, which is worth writing down because the first version
+     of this rule got it wrong and mutation said so.
+
+     R55 holds « the lift does not fire the panel that has just appeared », the
+     click AT the press's own point. The design's other half is that the click
+     is identified BY ITS POINT so « a deliberate tap somewhere else never
+     does ».
+
+     MEASURED: a deliberate tap cannot be swallowed WHATEVER the point check
+     does, because the arbitration clears its mark on every `pointerdown`, and a
+     tap begins with one. So a rule that presses and then taps elsewhere passes
+     with the point check deleted — it is measuring the pointerdown reset, not
+     the point.
+
+     What the point check actually protects is a click that arrives with NO
+     pointerdown before it: a programmatic `.click()`, and a keyboard
+     activation, both of which fire a click no finger pointed at. Those carry
+     coordinates far from the press — `.click()` reports 0,0 — so the distance
+     check lets them through, and without it the first one after any long press
+     is eaten. That is the hold below.
 
 BOTH ARE DRIVEN TWICE — a real touch stream over the DevTools Protocol, and a
 REAL MOUSE on a context with no touch at all. The plan's constraint governs
@@ -100,7 +114,7 @@ STATE = "lib-grid"
 TILE = '[data-part="tile"]'
 
 
-async def drive_press(page, x, y, drift, hold_ms):
+async def drive_press(page, x, y, drift, hold_ms, lift=True):
     """Presses with a real touch stream, drifting by `drift` while held.
 
     Args:
@@ -109,6 +123,9 @@ async def drive_press(page, x, y, drift, hold_ms):
         y: Where the finger lands, vertically.
         drift: How far it travels while held, in pixels, on both axes.
         hold_ms: How long it stays down.
+        lift: End with `touchEnd`. False leaves the finger DOWN, which is how a
+            caller reaches the moment after the press has fired and before the
+            lift's own click has consumed the swallow mark.
     """
     session = await page.context.new_cdp_session(page)
     await session.send("Input.dispatchTouchEvent", {
@@ -130,8 +147,9 @@ async def drive_press(page, x, y, drift, hold_ms):
             "type": "touchMove",
             "touchPoints": [{"x": x + drift, "y": y + drift, "id": 1}]})
         await page.wait_for_timeout(60)
-    await session.send("Input.dispatchTouchEvent",
-                       {"type": "touchEnd", "touchPoints": []})
+    if lift:
+        await session.send("Input.dispatchTouchEvent",
+                           {"type": "touchEnd", "touchPoints": []})
 
 
 async def panel_is_open(page):
@@ -190,19 +208,10 @@ async def hold_the_tolerance(journal, browser):
 
 
 async def hold_the_swallow_is_by_point(journal, browser):
-    """The click a press causes is swallowed; a distant tap is NOT."""
+    """A click nobody pointed at must survive the swallow. See the docstring."""
     ctx, pg = await open_page(browser)
     await pg.evaluate("(s)=>window.__go(s)", STATE)
     await pg.wait_for_timeout(420)
-
-    # A counter on the capture phase, so what is measured is whether the click
-    # SURVIVES the arbitration's own capture-phase swallow — not whether some
-    # handler downstream happened to act on it.
-    await pg.evaluate("""()=>{
-      window.__clicksSeen = 0;
-      document.addEventListener('click', () => { window.__clicksSeen += 1; },
-                                {capture: false});
-    }""")
     box = await pg.evaluate(
         "(sel)=>{const e=document.querySelector(sel); if(!e) return null;"
         "const r=e.getBoundingClientRect();"
@@ -212,19 +221,41 @@ async def hold_the_swallow_is_by_point(journal, browser):
         await ctx.close()
         return
 
-    # A press, then a click at a DISTANT point — the case an implementation
-    # swallowing everything gets wrong.
-    await drive_press(pg, box["x"], box["y"], 5, 480 + PRESS_HOLD_MARGIN)
+    # A button of the interface's own, and a counter on it. Its click is fired
+    # PROGRAMMATICALLY — no pointerdown, so the arbitration's mark is still set
+    # when it arrives, which is the only situation in which the point check
+    # decides anything.
+    await pg.evaluate("""()=>{
+      const target = document.createElement('button');
+      target.id = '__clickProbe';
+      target.style.cssText = 'position:fixed;left:4px;top:4px;width:24px;height:24px';
+      window.__probeFired = 0;
+      target.addEventListener('click', () => { window.__probeFired += 1; });
+      document.body.appendChild(target);
+    }""")
+
+    # THE FINGER STAYS DOWN. The mark is set when the timer fires and consumed
+    # by the very next click — and for a lifted press that click is the lift's
+    # own, arriving 1ms later. Measured: after a normal press the mark is
+    # already gone, so a probe fired then decides nothing. Holding the finger
+    # down is the only moment at which the mark is set and unclaimed, and it is
+    # how R55 reaches the same instant.
+    await drive_press(pg, box["x"], box["y"], 5, 480 + PRESS_HOLD_MARGIN,
+                      lift=False)
     await pg.wait_for_timeout(120)
-    before = await pg.evaluate("()=>window.__clicksSeen")
-    await pg.mouse.click(box["x"], box["y"] - DISTANT_TAP_OFFSET)
-    await pg.wait_for_timeout(160)
-    after = await pg.evaluate("()=>window.__clicksSeen")
+    marked = await pg.evaluate("()=>!!window.swallowClick")
+    journal.check("the press left its swallow mark set",
+                  marked,
+                  "without the mark the hold below decides nothing")
+    await pg.evaluate("()=>document.getElementById('__clickProbe').click()")
+    await pg.wait_for_timeout(120)
+    fired = await pg.evaluate("()=>window.__probeFired")
     journal.check(
-        f"a tap {DISTANT_TAP_OFFSET}px away from the press is NOT swallowed",
-        after > before,
-        "the swallow is keyed on the press rather than on its POINT, so every "
-        "deliberate tap after a long press is eaten")
+        "a click nobody pointed at is NOT swallowed by the press's mark",
+        fired == 1,
+        "the swallow is keyed on the press rather than on its POINT, so the "
+        "first programmatic or keyboard-fired click after any long press is "
+        "eaten")
     await settle(pg)
     await ctx.close()
 
