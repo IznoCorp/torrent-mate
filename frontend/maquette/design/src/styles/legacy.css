@@ -1305,17 +1305,19 @@ border-radius: var(--radius-3);
    is missing. A muted field holds the place. */
 
 
-@media (prefers-reduced-motion: no-preference) {
-  .herobg {
-    animation: heroin var(--duration-4) var(--ease-standard) both;
-  }
-}
-@keyframes heroin {
-  from {
-    opacity: 0;
-    transform: translate3d(0, -10px, 0);
-  }
-}
+/* THE HERO'S ENTRY ANIMATION IS GONE (L12, 2026-08-31). It lived here AND as
+   `motion-safe:animate-hero-in` on the same element, and both had to go: an
+   entry has ONE OWNER, and on a surface reached by a view transition that owner
+   is the transition.
+
+   Measured by the steward at 25ms intervals: the transition drew the hero full
+   for 315ms, the element went to opacity 0 in ONE FRAME when the transition
+   ended, and `heroin` replayed its 450ms entry from zero. Appear, flash,
+   reappear — read by the operator as a bug, and he was right.
+
+   Removing only the utility left this one running, which is why the fix was
+   measured again rather than assumed: a duplicated declaration is a defect that
+   survives half a repair. */
 /* Media-sheet add button: solid while the action is offered, then OUTLINE
    + « Ajouté » once done — the same toggle as a search result's button,
    so one gesture always gets the same answer. Content centred: left-

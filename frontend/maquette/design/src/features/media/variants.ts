@@ -37,7 +37,26 @@ export const heroImage = cva(
   // against invariant 14. Found by widening R80 to measure both motion
   // preferences; under `no-preference` the two sides agreed exactly, which is
   // why nothing else saw it.
-  "herobg relative bg-cover bg-muted [background-position:center_16%] motion-safe:animate-hero-in " +
+  // THE ENTRY HAS ONE OWNER, AND IT IS THE VIEW TRANSITION (steward's bench,
+  // 2026-08-31). `animate-hero-in` was here as well, and the two produced a
+  // flash the operator read as a bug: the transition drew the hero full for
+  // 315ms, then it ENDED and the real element resumed with `heroin` at
+  // currentTime 0 — opacity to zero in one frame — and replayed the entry
+  // over 450ms. Appear, flash, reappear.
+  //
+  // The mechanism is general and it is why this is a class of defect rather
+  // than one bug: CSS animations on a tree mounted under
+  // `startViewTransition` do not START until the transition finishes —
+  // rendering is frozen for the capture — so ANY element-side entry
+  // animation on a surface reached by transition replays afterwards, over a
+  // snapshot that already showed the final state. `:active-view-transition`
+  // cannot guard it either: by the time the animation starts, the transition
+  // is over and the selector no longer matches.
+  //
+  // On a cold load there is no transition and the hero simply appears, as
+  // every other element on a cold load does. An entry conditioned on that
+  // arrival would be new design and is not invented here.
+  "herobg relative bg-cover bg-muted [background-position:center_16%] " +
     // THE MELT: the image gives itself fully at the top, then dissolves into
     // the body colour. No edge, no seam — that is the whole effect.
     //

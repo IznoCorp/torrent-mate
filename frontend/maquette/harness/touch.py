@@ -197,7 +197,15 @@ async def main():
         without_panel, with_selection, fired = [], [], []
         for name, state_, sel in press_surfaces:
             await pg.evaluate("(s)=>window.__go(s)", state_)
-            await pg.wait_for_timeout(420)
+            # LONG ENOUGH FOR THE SHEET'S OWN CLOSE, which is 450ms since L12
+            # drew the panel's rise on `--duration-4` (operator, 2026-08-31).
+            # This waited 420 — calibrated by hand to the 200/300ms the layer
+            # used to take — so the next surface's press landed while the
+            # previous sheet was still closing and was swallowed. Two of the
+            # five surfaces failed, and in isolation both opened perfectly:
+            # a hand-set delay that outlives the duration it was set against is
+            # B-269's species in an instrument rather than in a guard.
+            await pg.wait_for_timeout(700)
             # The recorded act carries the ANCHOR beside the class: the
             # assertion below asks whether a sheet action fired, and a class
             # name is not what identifies one any more.

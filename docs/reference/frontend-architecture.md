@@ -1723,6 +1723,7 @@ met before it fires rather than after.
 | Renaming needs a parser, not a regex | **L02, L07** | the same short name means different things in different scopes; a global replace preserves behaviour while lying about meaning |
 | A failed command is not a no-op | **all** | it is an edit that did not happen, and the next read is evidence rather than scenery |
 | A derivation must not read back its own output | **L06** | a size computed against the median of what it sets returns its own answer |
+| An entry animation replays AFTER the transition that already drew it | **L12** | CSS animations on a tree mounted under `startViewTransition` do not START until it ENDS — rendering is frozen for the capture — so an element-side entry replays over a snapshot showing the final state. Appear, flash, reappear. `:active-view-transition` cannot guard it: by the time the animation starts the transition is over and the selector no longer matches. **An entry has ONE OWNER**, and on a surface reached by a transition that owner is the transition |
 
 **The oracle's silence over a BEHAVIOUR wave is evidence of nothing — a wave that writes
 behaviour is held by rules or by nobody.** Measured at L11: no divergence over 2 958 measurements

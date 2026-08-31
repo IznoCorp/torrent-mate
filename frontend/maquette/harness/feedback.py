@@ -248,12 +248,17 @@ async def hold_the_pressed_state(journal, browser):
 # that says nothing.
 ARMING_STATE = "lib-grid"
 ARMING_TILE = '[data-part="tile"]'
-READ_TILE = (
-    "()=>{const tile = document.querySelector('[data-part=\"tile\"]');"
-    " const style = getComputedStyle(tile);"
-    " return {mark: tile.hasAttribute('data-pressing'),"
-    "         scale: style.scale, filter: style.filter};}"
-)
+# HOSTED IN A TRIPLE-QUOTED STRING so the selector needs no escaping.
+# `check-markup-contracts` reads the harness as RAW TEXT, and a backslash where
+# a quote is expected makes the selection invisible to it — the arm would count
+# one fewer and say nothing about it.
+READ_TILE = """()=>{
+  const tile = document.querySelector('[data-part="tile"]');
+  const style = getComputedStyle(tile);
+  return {mark: tile.hasAttribute('data-pressing'),
+          scale: style.scale, filter: style.filter};
+}"""
+
 
 
 async def hold_the_press_acknowledgement(journal, browser, motion):

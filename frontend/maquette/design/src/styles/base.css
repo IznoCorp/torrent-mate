@@ -463,11 +463,19 @@
    bench by the steward on 2026-08-31, and both findings are defects rather than
    tuning.
 
-   1. THE HERO WAS FADED TWICE, BY TWO SYSTEMS, AT TWO DURATIONS. The legacy
-      entry animation `heroin` (450ms, `--animate-hero-in`) ran at the same time
-      as `banner-in` (300ms) on the same element — read 150ms after the tap. The
-      snapshot the transition animates already contains a fade of its own, so
-      the two compose into something neither was drawn to be.
+   1. THE HERO'S DOUBLE ENTRY IS NOT FIXED HERE, AND THIS SELECTOR CANNOT FIX
+      IT — the honest correction of what this block first claimed.
+
+      A CSS animation on a tree mounted under `startViewTransition` does not
+      START until the transition ENDS: rendering is frozen for the capture. So
+      by the moment `heroin` began, `:active-view-transition` no longer matched,
+      and listing the hero here silenced nothing. Measured by the steward at
+      25ms intervals: the transition drew the hero full for 315ms, it went to
+      opacity 0 in ONE FRAME when the transition ended, then replayed its 450ms
+      entry — appear, flash, reappear.
+
+      The fix is that an entry has ONE OWNER: `features/media/variants.ts` no
+      longer carries `animate-hero-in`, and the transition is the entry.
 
    2. THE SHIMMER RAN THROUGH THE CAPTURE. Three skeleton shimmers (1 400ms
       loops) were live while the 300ms transition played, so the arrival was
@@ -482,8 +490,6 @@
    transition of its own, because the data lands when it lands. Transitioning on
    the arrival instead of on the navigation is a design decision, not a tuning,
    and it belongs to the operator. */
-:root:active-view-transition [data-part="hero"],
-:root:active-view-transition [data-part="hero/background"],
 :root:active-view-transition .sk,
 :root:active-view-transition .sh {
   animation: none;

@@ -212,6 +212,65 @@ async def hold_under(journal, browser, motion):
 
 
 
+
+
+# ── ONE ENTRY, ONE OWNER ────────────────────────────────────────────────────
+# A CSS animation on a tree mounted under `startViewTransition` does not START
+# until the transition ENDS — rendering is frozen for the capture. So any
+# element-side entry animation on a surface reached by a transition REPLAYS
+# afterwards, over a snapshot that already showed the final state.
+#
+# Measured by the steward at 25ms intervals: the transition drew the media
+# screen's hero full for 315ms; the element went to opacity 0 in ONE FRAME when
+# the transition ended; `heroin` then replayed its 450ms entry from zero.
+# Appear, flash, reappear — the operator read it as a bug and he was right.
+#
+# `:active-view-transition` CANNOT GUARD THIS, and that is worth keeping: by the
+# moment the animation starts, the transition is over and the selector no longer
+# matches. The remedy is not a guard but an ownership rule — an entry has one
+# owner, and on a surface reached by transition that owner is the transition.
+#
+# THE HOLD IS THE SYMPTOM, NOT THE CAUSE, deliberately. It samples the arriving
+# element's opacity through the whole arrival and refuses a DIP. A static rule
+# grepping for `animate-*` would have to know every spelling of an entry, and
+# would have missed this one twice over: `heroin` was declared BOTH as a
+# Tailwind utility and as a rule in the dying stylesheet, and removing only the
+# utility left it running.
+ARRIVING_BACKGROUND = ".herobg"
+
+
+async def hold_one_entry_one_owner(journal, browser):
+    """Samples the arriving hero's opacity and refuses a dip."""
+    context, page = await open_page_with(browser, "no-preference")
+    await page.evaluate("(s)=>window.__go(s)", FROM_STATE)
+    await page.wait_for_timeout(600)
+    await page.evaluate(
+        "(sel)=>{window.__samples=[];window.__sampler=setInterval(()=>{"
+        " const node=document.querySelector(sel);"
+        " if(node) window.__samples.push(Number(getComputedStyle(node).opacity));"
+        "},25);}", ARRIVING_BACKGROUND)
+    await page.click(TILE)
+    await page.wait_for_timeout(1400)
+    samples = await page.evaluate(
+        "()=>{clearInterval(window.__sampler);return window.__samples;}")
+
+    journal.check(
+        "the arriving background is sampled at all",
+        len(samples) > 10,
+        f"{len(samples)} sample(s) — with too few, the hold below decides "
+        "nothing")
+    if len(samples) <= 10:
+        await context.close()
+        return
+    journal.check(
+        "the arriving background never dips — one entry has one owner",
+        min(samples) >= 1.0,
+        f"opacity fell to {min(samples)} after the transition had drawn it "
+        "full: an element-side entry animation replayed over the transition's "
+        "own, which reads as a flash")
+    await context.close()
+
+
 async def hold(journal):
     """Drives the page switch under both motion preferences."""
     errors = []
@@ -219,6 +278,7 @@ async def hold(journal):
         browser = await play.chromium.launch(channel="chrome")
         await hold_under(journal, browser, "no-preference")
         await hold_under(journal, browser, "reduce")
+        await hold_one_entry_one_owner(journal, browser)
         await browser.close()
     journal.summary(errors)
 
