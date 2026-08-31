@@ -72,11 +72,42 @@ export function go(target: {
 }): void {
   if (!router || !history)
     throw new Error("navigate: go() called before installNavigation()");
-  void router.navigate({
-    to: target.to,
-    params: target.params,
-    search: target.search,
-    replace: target.replace ?? false,
-  });
-  history.flush();
+  const commit = () => {
+    void router!.navigate({
+      to: target.to,
+      params: target.params,
+      search: target.search,
+      replace: target.replace ?? false,
+    });
+    history!.flush();
+  };
+
+  // P5 — THE PAGE SWITCH IS A DECLARED TRANSITION, through the platform's own
+  // View Transitions API. D9 adopts it: native, compositor-driven, zero bytes,
+  // declarative — so it is measurable. A JavaScript animation library is
+  // refused for this, because it buys what the platform gives and moves motion
+  // out of the stylesheet (rule 1).
+  //
+  // THE COMMIT RUNS SYNCHRONOUSLY EITHER WAY, and that is not a detail. The
+  // flush above exists because the router batches its commits into a microtask,
+  // so two writes in one task would merge into ONE history entry — and the
+  // dying engine's unwinding logic COUNTS entries. `startViewTransition` calls
+  // its callback before yielding to the event loop, so « one call, one entry »
+  // survives; the ladder's rules (R59, R65, R69, R82, R94) are read as this
+  // phase's gate rather than assumed, for exactly that reason.
+  //
+  // NOTHING BRANCHES ON THE MOTION PREFERENCE HERE. Reduced motion is a
+  // DESIGNED state and it is drawn in `styles/base.css`, where the
+  // `::view-transition-*` rules live (invariant 13: motion is declared, not
+  // scripted; invariant 14: the reduced state is drawn like any other). A
+  // JavaScript branch on `prefers-reduced-motion` would move that decision out
+  // of the stylesheet and out of the oracle's field.
+  //
+  // The capability check is a capability check and nothing more: a browser
+  // without the API navigates exactly as before.
+  if (!document.startViewTransition) {
+    commit();
+    return;
+  }
+  document.startViewTransition(commit);
 }

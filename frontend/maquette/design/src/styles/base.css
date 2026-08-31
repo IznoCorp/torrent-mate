@@ -397,6 +397,45 @@
   background: transparent;
 }
 
+/* P5 / P20 — THE PAGE TRANSITION, drawn here because motion is DECLARED and
+   never scripted (invariant 13, D9 rule 1). `lib/navigate.ts` decides WHEN a
+   page switch is a transition; these rules are what it looks like, which keeps
+   the decision in the design reference and under the oracle.
+
+   The default the browser gives is a cross-fade of the whole document. What is
+   wanted is the same fade with this interface's own timing, so the durations
+   read the motion scale rather than the platform's default. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: var(--duration-2);
+    animation-timing-function: var(--ease-standard);
+  }
+}
+
+/* REDUCED MOTION IS A DESIGNED STATE, NOT AN ABSENCE (invariant 14).
+
+   The transition still HAPPENS — the switch is still a switch, and the URL, the
+   focus and the ladder behave identically — it simply does not animate. Without
+   this the browser applies its own cross-fade regardless of the preference,
+   because `startViewTransition` animates by default and a reader who asked for
+   no motion would get one anyway. That is the defect this block exists for, and
+   it is invisible to anything that only reads the `no-preference` case. */
+@media (prefers-reduced-motion: reduce) {
+  /* ALL FOUR PSEUDO-ELEMENTS, not the two obvious ones. A view transition is
+     drawn as a GROUP containing an image PAIR of the old and new snapshots, and
+     the browser animates the group as well — its size and position morph — so
+     silencing `-old` and `-new` alone leaves one animation running. Measured:
+     R115 read exactly 1 under `reduce` with the two-selector version, which is
+     how this block came to have four. */
+  ::view-transition-group(*),
+  ::view-transition-image-pair(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none;
+  }
+}
+
 /* THE PRESSED STATE — `:active`, and NO JAVASCRIPT (D9).
 
    `onTouchStart` is REFUSED, and the reason is measured rather than stylistic:
