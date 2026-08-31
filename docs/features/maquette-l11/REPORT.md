@@ -100,6 +100,52 @@ that was fine.
 
 ---
 
+## The adversarial review, and what it changed
+
+**Four readers on the green gate, one lens each — the worker, the queue, the instruments, the
+prose — and they returned some forty findings.** The wave's own gates were honest and every headline
+figure re-derived; what they found is that the gates were **sound instruments over an unsound
+subject**, which is the L15 curve arriving on a wave that wrote BEHAVIOUR rather than conversions.
+
+**Three would not have been mergeable.**
+
+**A security regression this wave introduced** (B-261). Before L11 the worker cached one page; it
+now caches the document and every bundle from an *authenticated* context, and nothing cleared them
+on sign-out. A cache outlives a cookie: sign in on a phone, sign out, hand it over, turn the radio
+off, and the whole password-protected prototype renders from disk. Online it still answers 401, so
+the bypass cost one toggle of airplane mode.
+
+**The update discipline never swapped the worker** (B-262). `registration.update()` resolves when a
+worker begins *installing*, so `waiting` was null, the optional chain swallowed `skip-waiting`, and
+the page reloaded anyway — after which the served build equals the running build and the message is
+never sent again for the session. The page runs the new build; the old worker still controls it.
+This file's own claim that « only the signal » had changed was false: the *order* had.
+
+**A refused replay jammed the queue forever** (B-263), leaving the operator's optimistic write
+standing over an action the server had rejected — NE-DOIT-PAS-1, arriving from the other side, with
+no way out but clearing storage by hand.
+
+**And B-256 was still open.** `scripts/mutate.sh` and `scripts/harness-hold-counts.py` both rebuild
+the served copy and took neither the lock nor the stamp — one of them the tool that recorded this
+wave's own baseline, the other the mutation tool the method mandates. The assembly is one function
+now and all three call it.
+
+**Two of the wave's own instruments were satisfiable without their subject.** R104 read three
+substrings and never the comparison — two survived on the assignment line alone, so wrapping the
+check in a condition left it green and dead for every rule. And `_code_of` stripped `#` and not
+docstrings, so its own arm passed with an assertion deleted and its sentence moved into a docstring:
+the defect that function's header cites, one quoting style further along.
+
+**One repair produced a defect its own new rule caught a minute later** (B-264): `caches.open`
+*creates*, so the worker still controlling the page re-made the shell cache the sign-out had just
+deleted. The teardown ran perfectly and left no trace. That is the argument for a rule over a
+reading, in one line.
+
+**And the ledger was wrong.** « 75 of 75 » was 79, in the entry closing the finding about readings
+nobody can trust; five properties `MODEL` § 3 recorded as `false` had been made true by this wave,
+with § 7.1's refresh duty written two paragraphs above the table; and eleven of twenty ACCEPTANCE
+criteria named no command, under a heading saying a criterion that cannot be run is not a criterion.
+
 ## The wave's gates, at the close
 
 | Gate | Result |
@@ -107,8 +153,10 @@ that was fine.
 | `harness/run.sh` (79 rules) + the 23 cheap guards | **no violation** |
 | `harness/run.sh --a11y` | **87 states, 0 violations**; light-theme ratchet 166 against a ceiling of 166 |
 | `oracle.py --check` | **no divergence**, 2 958 measurements over 87 states × 34 regions, reference at `212faf0a` |
-| `make check` | **exit 0** — 10 956 passed, 4 skipped, 2 xfailed |
-| `scripts/harness-hold-counts.py --compare` | `pwa.py` 28 → 47, `server.py` 12 → 14, four rules new; **no rule lost a hold** |
+| `make check` | **exit 0** — 10 957 passed, 4 skipped, 2 xfailed |
+| `scripts/harness-hold-counts.py --compare` | after the repairs: `served_copy` 8 → 15, `pwa` 47 → 50, `outbox` 14 → 16, `server` 14 → 16, `installed` 7 → 8; **no rule lost a hold**, and five rose |
+
+Re-run in full after the review's repairs, not before them.
 
 The oracle is green because nothing in this lot draws a pixel differently: the worker changes what
 is fetched, not what is painted, and the pending count lands in a mark L10 already drew.
