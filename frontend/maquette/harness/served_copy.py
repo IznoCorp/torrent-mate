@@ -254,7 +254,7 @@ def _held_by() -> dict | None:
         return None
 
 
-def _is_stale(held: dict) -> bool:
+def _is_stale(held: dict | None) -> bool:
     """Tells whether a lock's holder is really gone.
 
     BOTH conditions, never either. An age alone would break the lock under a
@@ -263,7 +263,14 @@ def _is_stale(held: dict) -> bool:
     the signal is the process.
 
     Args:
-        held: What `_held_by` returned.
+        held: What `_held_by` returned, or None for a lock whose holder files
+            are missing or unreadable — the window between `mkdir` and the two
+            writes, a `SIGKILL` inside it, a full disk. That case had NO exit
+            at all: `acquire` refused it, `release` refused to remove it, and
+            the staleness path never considered it, so the only way out was the
+            `rm -rf` the refusal prints — which is what makes a lock worthless.
+            An unreadable lock is broken on AGE alone, because there is no pid
+            to ask about.
 
     Returns:
         True when the lock may be broken.
@@ -274,6 +281,8 @@ def _is_stale(held: dict) -> bool:
         return False
     if age < STALE_AFTER_SECONDS:
         return False
+    if held is None:
+        return True
     try:
         os.kill(held["pid"], 0)
     except ProcessLookupError:
@@ -317,9 +326,10 @@ def acquire(holder: str, pid: int | None = None) -> None:
             LOCK.mkdir()
         except FileExistsError:
             held = _held_by()
-            if held is not None and attempt == 0 and _is_stale(held):
-                print(f"Breaking a stale lock left by {held['holder']} "
-                      f"(pid {held['pid']}, gone).", file=sys.stderr)
+            if attempt == 0 and _is_stale(held):
+                who = ("an unreadable holder" if held is None
+                       else f"{held['holder']} (pid {held['pid']}, gone)")
+                print(f"Breaking a stale lock left by {who}.", file=sys.stderr)
                 _release_quietly()
                 continue
             described = "an unreadable lock" if held is None else (
@@ -400,8 +410,24 @@ def _code_of(path: Path) -> str:
     for line in path.read_text().splitlines():
         stripped = line.strip()
         if inside_docstring:
-            if FENCE in line:
+            closes = line.find(FENCE)
+            if closes >= 0:
                 inside_docstring = False
+                # WHAT FOLLOWS THE CLOSING FENCE IS CODE. Dropping the whole
+                # line loses it — `common.py` has a `"""` that closes and then
+                # calls `.replace(...)` twice on the same line, and the first
+                # version discarded both calls. A stripper that eats real code
+                # makes every negative hold above greener.
+                line = line[closes + len(FENCE):]
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#"):
+                    continue
+                kept.append(line)
+            continue
+        # THE COMMENT TEST RUNS FIRST. A `#` line containing a fence — `# the
+        # fence is """` — would otherwise open a phantom docstring and swallow
+        # every line after it until the next fence.
+        if stripped.startswith("#"):
             continue
         opened = line.find(FENCE)
         if opened >= 0:
@@ -465,8 +491,16 @@ def rules() -> int:
          0 <= acquire_at < build_at, f"acquire@{acquire_at} build@{build_at}")
     hold("run.sh publishes the copy AFTER it builds it",
          0 <= build_at < publish_at, f"build@{build_at} publish@{publish_at}")
-    hold("run.sh gives the copy back however it ended — a signal included",
-         "trap cleanup EXIT INT TERM" in run_sh and "--release" in run_sh)
+    # A SIGNAL TRAP THAT DOES NOT EXIT IS NOT A CLEANUP. Bash runs an INT
+    # handler and then RESUMES the script, so the first version of this hold
+    # certified a string under which Ctrl-C released the lock, deleted the log
+    # directory, and carried on running the remaining rules unlocked. The hold
+    # reads that each signal trap ends in an `exit`.
+    hold("run.sh gives the copy back on every path out",
+         "trap cleanup EXIT" in run_sh and "--release" in run_sh)
+    hold("and a signal EXITS rather than resuming the run unlocked",
+         "trap 'cleanup; exit 130' INT" in run_sh
+         and "trap 'cleanup; exit 143' TERM" in run_sh)
 
     # ONE ASSEMBLY, and this is the hold that keeps it one. Three copies of this
     # step existed; two wrote neither the lock nor the stamp, and one of those
@@ -482,10 +516,28 @@ def rules() -> int:
              "served_copy" in source and "wrapped.html" not in source,
              "copies wrapped.html itself" if "wrapped.html" in source
              else "publishes")
-        hold(f"{tool} takes the copy before it rebuilds it",
-             "acquire" in source)
+        # THE ORDER, not the presence. The name asserts one and the first
+        # version asserted the other: swapping the two calls left the hold green
+        # while B-256 re-opened through the tool this wave called its worst
+        # carrier. It is the same lesson the `run.sh` hold three lines above
+        # already applied, and it was applied to one file and not the others.
+        acquire_at = source.find("acquire")
+        build_at = min([at for at in (source.find("npm run build"),
+                                      source.find("npm\", \"run"))
+                        if at >= 0] or [-1])
+        hold(f"{tool} takes the copy BEFORE it rebuilds it",
+             0 <= acquire_at < build_at, f"acquire@{acquire_at} build@{build_at}")
     hold("and the publisher copies the worker and the build's identity",
          '"sw.js", "build.json"' in mine)
+    # THE INVARIANT R104 EXISTS FOR, held where it now lives. It used to read
+    # `run.sh`'s own `cp` and `--stamp` lines; the assembly moved into
+    # `publish()` and the hold moved with the wrong half — so writing the stamp
+    # at the TOP of `publish()`, which is the original B-256 defect, passed
+    # every hold in this file.
+    document_at = mine.find('copy2(dist / "index.html"')
+    stamp_at = mine.find("return write_stamp()")
+    hold("the publisher stamps the copy AFTER it lands",
+         0 <= document_at < stamp_at, f"copy@{document_at} stamp@{stamp_at}")
 
     # THE COMPARISON ITSELF, and not substrings that survive without it. Two of
     # the three the first version searched for were satisfied by the assignment
@@ -518,6 +570,16 @@ def rules() -> int:
          and "opening the prototype" in common)
     hold("common.py asserts at the end, in Journal.summary",
          common.count("assert_unchanged(STARTED_AGAINST") >= 2)
+
+    # A FILTER THAT CAN RETURN NOTHING MUST HAVE A FLOOR — `run.sh`'s own words,
+    # applied in the same commit to `installed.py` and not to this file. Every
+    # hold above is a substring search over a stripped corpus, and two of them
+    # are NEGATIVE (`"wrapped.html" not in source`): those get GREENER as the
+    # stripper loses text, which is the one direction a reader never notices.
+    for name, corpus in (("run.sh", run_sh), ("common.py", common),
+                         ("served_copy.py", mine)):
+        hold(f"the stripped corpus of {name} is not empty",
+             len(corpus.splitlines()) >= 80, f"{len(corpus.splitlines())} lines")
 
     stamp = read_stamp()
     hold("the served copy carries a readable stamp",

@@ -25,6 +25,7 @@
 // is the one that can move at any time, and moving it is forty lines of copy
 // into `fr.json` for no property this lot owes.
 import i18next from "../i18n";
+import { forgetOutbox } from "./outbox";
 
 /** How long a full load is BUDGETED for — the bar's pace, never a floor. */
 const STARTUP_MS = 5000;
@@ -194,6 +195,10 @@ export async function signOut(): Promise<void> {
   // re-caches the shell the moment anyone signs in again, and the point is that
   // what is on this device belongs to the session that put it there.
   await forgetTheCachedShell();
+  // AND THE QUEUE. A mutation that outlives a cookie is the same finding as a
+  // cache that does, one artefact along: queued offline by one operator, it
+  // would otherwise depart under the next one's session.
+  await forgetOutbox();
   showSignIn(false);
 }
 

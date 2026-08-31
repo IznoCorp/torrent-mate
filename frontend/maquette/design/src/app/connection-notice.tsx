@@ -30,7 +30,13 @@ import {
 } from "../lib/relay-condition";
 import { reconnectNow } from "../lib/relay";
 import { connectionDot, connectionMark, connectionNotice } from "../ui/variants";
-import { departAll, outboxDepth, subscribeToOutbox } from "./outbox";
+import {
+  clearRefusedDepartures,
+  departAll,
+  outboxDepth,
+  refusedDepartures,
+  subscribeToOutbox,
+} from "./outbox";
 
 /** Where the header keeps its indicator. `display: contents`, so it adds no box. */
 const HEADER_ANCHOR = "connection";
@@ -93,6 +99,23 @@ function useWaiting(): number {
   return useSyncExternalStore(subscribeToOutbox, outboxDepth);
 }
 
+/**
+ * Reads how many queued mutations the server refused when they finally left.
+ *
+ * WHY THIS IS DRAWN AND NOT MERELY RECORDED. A mutation held offline resolved,
+ * so the operator watched their action land; if the server then refuses it on
+ * the replay, the queue empties and the notice disappears EXACTLY as it does on
+ * success. The action is gone and nothing ever said so — which is the same
+ * defect as the queue jamming, with the visibility removed instead of the
+ * progress. §8: « un "rien ne se passe" sans raison visible est un mensonge par
+ * omission. »
+ *
+ * @returns How many were refused.
+ */
+function useRefused(): number {
+  return useSyncExternalStore(subscribeToOutbox, () => refusedDepartures().length);
+}
+
 /** The conditions that owe the reader more than a word. */
 const NOTICE_CONDITIONS: readonly RelayCondition[] = ["lost", "refused"];
 
@@ -117,12 +140,13 @@ export function ConnectionNotice(): ReactElement | null {
   const { t } = useTranslation();
   const { condition, currentSince } = useConnection();
   const waiting = useWaiting();
+  const refused = useRefused();
   const owed = NOTICE_CONDITIONS.includes(condition);
   // SOMETHING WAITING IS ENOUGH ON ITS OWN. A mutation can be held while the
   // stream is perfectly healthy — a request refused by a network the socket
   // survived — and that is the case where saying nothing is worst: the screen
   // looks entirely current and one of the operator's actions has not left.
-  if (!owed && waiting === 0) return null;
+  if (!owed && waiting === 0 && refused === 0) return null;
   const since = currentSince === null
     ? null
     : new Date(currentSince).toLocaleTimeString("fr-FR", {
@@ -136,18 +160,21 @@ export function ConnectionNotice(): ReactElement | null {
       data-part="shell/connection-notice"
       data-connection={condition}
       {...(waiting === 0 ? {} : { "data-pending": String(waiting) })}
+      {...(refused === 0 ? {} : { "data-refused": String(refused) })}
       {...(currentSince === null ? {} : { "data-since": String(currentSince) })}
     >
       <span>
         {owed ? t(`connection.${condition}.body`) : ""}
         {owed && since !== null ? ` ${t("connection.since", { time: since })}` : ""}
         {waiting === 0 ? "" : `${owed ? " " : ""}${t("connection.waiting", { count: waiting })}`}
+        {refused === 0 ? "" : ` ${t("connection.refusedOnSending", { count: refused })}`}
       </span>
       <button
         type="button"
         className="underline underline-offset-2 font-semibold"
         data-connection-action={
-          condition === "refused" ? "signin" : (owed ? "retry" : "send")}
+          condition === "refused" ? "signin"
+            : (owed ? "retry" : (refused > 0 && waiting === 0 ? "acknowledge" : "send"))}
         onClick={() => {
           if (condition === "refused") go({ to: SIGN_IN_PATH });
           // THE BUTTON DOES WHAT THE SENTENCE ABOVE IT SAYS. When the only
@@ -156,11 +183,13 @@ export function ConnectionNotice(): ReactElement | null {
           // which tore down a perfectly good live socket and moved the queued
           // action not at all. It was the operator's ONLY affordance, and it
           // was a lie by suggestion: §8 read from the other end.
+          else if (refused > 0 && waiting === 0) clearRefusedDepartures();
           else if (!owed) void departAll();
           else reconnectNow();
         }}
       >
-        {t(owed ? `connection.${condition}.action` : "connection.send")}
+        {t(owed ? `connection.${condition}.action`
+                 : (refused > 0 && waiting === 0 ? "connection.acknowledge" : "connection.send"))}
       </button>
     </div>
   );

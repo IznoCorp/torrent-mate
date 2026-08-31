@@ -253,6 +253,42 @@ async def main():
             f"depth {depth}, {left} on disk — kept, it would block every "
             "envelope behind it forever")
 
+        # --- and the drop is SAID, not silent -------------------------------
+        # THE FIRST REPAIR MOVED THE DEFECT RATHER THAN FIXING IT. A jammed
+        # queue is visible; an envelope silently destroyed is not, and the
+        # notice disappeared exactly as it does on success — under the finger of
+        # an operator who had just pressed « Envoyer maintenant ».
+        said = await page.evaluate(
+            """()=>{const n=document.querySelector('[data-part="shell/connection-notice"]');
+                 return {refused: n?.getAttribute("data-refused") ?? null,
+                         words: (n?.innerText ?? "").trim()};}""")
+        journal.check("a refused departure is SAID, not silently dropped",
+                      said["refused"] == "1" and len(said["words"]) > 10,
+                      f"data-refused={said['refused']}, {said['words'][:60]!r}")
+
+        # --- a refusal that WILL change keeps its envelope -------------------
+        # « DID THE LAYER ANSWER? » WAS TOO WIDE. A 503 from a restarting
+        # backend is an answer, and dropping the envelope on it destroys the
+        # operator's action in the one case the queue exists for. So is a 429,
+        # and so is a 401 after a session expires.
+        await page.evaluate("()=>window.__mocks.reset()")
+        await page.evaluate("()=>window.__mocks.setOffline(true)")
+        await page.evaluate(
+            """async(title)=>{ await window.__outbox.issue(
+                 "POST", "/api/acquisition/followed",
+                 {title: title + " (503)", kind: "tv"}); }""", TITLE)
+        await page.evaluate("()=>window.__mocks.setOffline(false)")
+        await page.evaluate(
+            """()=>window.__mocks.setOperationOutcome("createFollow", {status: 503})""")
+        await page.evaluate("async()=>{ await window.__outbox.depart(); }")
+        still = await page.evaluate(
+            "async()=>(await window.__outbox.waiting()).length")
+        journal.check(
+            "a 503 is an answer that will CHANGE, so its envelope stays",
+            still == 1,
+            f"{still} on disk — dropped, the operator's action is destroyed by "
+            "the very outage this queue exists for")
+
         await context.close()
         await browser.close()
     journal.summary(errors)

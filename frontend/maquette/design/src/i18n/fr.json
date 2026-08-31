@@ -771,7 +771,10 @@
     },
     "waiting_one": "Une action attend d'être envoyée au serveur.",
     "waiting_other": "{{count}} actions attendent d'être envoyées au serveur.",
-    "send": "Envoyer maintenant"
+    "send": "Envoyer maintenant",
+    "refusedOnSending_one": "Une action a été refusée par le serveur à l'envoi.",
+    "refusedOnSending_other": "{{count}} actions ont été refusées par le serveur à l'envoi.",
+    "acknowledge": "J'ai compris"
   },
   "navigation": {
     "pages": {

@@ -216,6 +216,19 @@ function putBack(
  *
  * @param queryClient The cache the surfaces read.
  */
+// THE TWO ADDRESSES THIS MODULE'S OPTIMISTIC WRITE SPANS.
+//
+// `takeOutOfQueue` removes the card from WHICHEVER of the two lists holds it,
+// and every online path here invalidates both. A replay out of the offline
+// queue must do the same — and the pairing is declared HERE, where the two keys
+// are built and where the two-key write is made, rather than in the frame:
+// `/api/staging/media` and `/api/acquisition/to-handle` are domain addresses,
+// and invariant 10 refuses those in `app/`. The frame reads this list; it does
+// not know what is in it.
+export const ADDRESSES_THAT_MOVE_TOGETHER: readonly (readonly string[])[] = [
+  ["/api/staging/media", "/api/acquisition/to-handle"],
+];
+
 export function installQueueActions(queryClient: QueryClient): void {
   heldClient = queryClient;
   window.__queue = queueNow;
@@ -279,6 +292,9 @@ export function installQueueActions(queryClient: QueryClient): void {
         // does not contain the mutation — the action snapping back with no
         // explanation, minutes before it actually applies.
           if (outcome === HELD) return;
+          void queryClient.invalidateQueries({ queryKey: queueKey(scenario) });
+        }, () => {
+          // AND ON A REFUSAL, which the `.finally` this replaced also covered.
           void queryClient.invalidateQueries({ queryKey: queueKey(scenario) });
         });
     },

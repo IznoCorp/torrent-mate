@@ -57,15 +57,20 @@ const EVERY = 15 * 60 * 1000;
 
 let reloading = false;
 
-// WHETHER THIS DOCUMENT EVER HAD A CONTROLLER, read SYNCHRONOUSLY at module
-// evaluation and not after an await. `clients.claim()` gives a first worker
+// WHETHER THIS DOCUMENT HAS EVER HAD A CONTROLLER. Read SYNCHRONOUSLY at module
+// evaluation, and UPDATED on the first claim — a constant would say « no » for
+// the document's whole life, so a page that booted uncontrolled (a first visit,
+// a harness context, or any load after a sign-out unregistered the worker)
+// would read every LATER swap as a first claim too, complete the shell, and
+// never reload. It self-heals on the next check, which is why this is a `let`
+// and not an alarm. `clients.claim()` gives a first worker
 // control of a page that loaded without one, which fires `controllerchange` on
 // the very first visit of every visitor — so the reload-on-swap must know
 // whether this is a first claim or a real swap. Reading it inside a `.then`
 // happens to hold today only because `getRegistration()` resolves long before a
 // worker finishes installing, and the correctness of the whole guard would rest
 // on that race.
-const HAD_CONTROLLER_AT_BOOT =
+let hasEverHadController =
   Boolean(globalThis.navigator?.serviceWorker?.controller);
 
 // WHICH SERVED BUILD THIS SESSION HAS ALREADY RELOADED FOR.
@@ -225,7 +230,12 @@ async function checkForUpdate(
   // is ALREADY waiting is asked to take over here — `updatefound` fired while
   // this page was in the background, or before the listener was installed.
   await registration?.update().catch(() => undefined);
-  if (askTheWaitingWorkerToTakeOver(registration)) return;
+  // ASKED, AND THE COMPARISON STILL RUNS. Returning here would mean that a
+  // waiting worker which never activates — a broken `message` handler, storage
+  // refusing `skipWaiting` — makes every later check return at this same line,
+  // and the build comparison never runs again for the page. That is the « never
+  // converges for the session » failure this file was repaired for, relocated.
+  askTheWaitingWorkerToTakeOver(registration);
   const served = await servedBuild();
   // Unreachable, or serving what is already running: nothing to do. The first
   // is the ordinary offline case, and treating it as a change would reload the
@@ -296,13 +306,14 @@ export function installUpdateDiscipline(): void {
     // every measurement in the suite. A first claim is not an update; only a
     // swap under a page that already HAD a controller is.
     container?.addEventListener("controllerchange", () => {
-      if (!HAD_CONTROLLER_AT_BOOT) {
+      if (!hasEverHadController) {
         // A FIRST CLAIM, NOT AN UPDATE — and the moment the shell can finally
         // be completed. `completeShell` returns silently when there is no
         // controller, so on a load where the worker activates after the boot
         // (a fresh profile, and every harness context) nothing would ever have
         // asked it to cache anything for the whole session.
         completeShell(container);
+        hasEverHadController = true;
         return;
       }
       // No served build to latch on: a swap under a live page is a one-off

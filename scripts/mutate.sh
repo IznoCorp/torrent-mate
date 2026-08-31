@@ -120,10 +120,16 @@ for RULE in "$@"; do
 done
 
 # The restore runs from the trap, and the served copy is rebuilt after it.
-trap - EXIT INT TERM
+# ONLY THE EXIT TRAP IS CLEARED, and the release stays armed. Clearing all
+# three here left the lock held through a `restore`, a full rebuild and a
+# publish — thirty to sixty seconds during which a failure under `set -e`, or a
+# Ctrl-C, exited with no trap and no release, and the lock survived the whole
+# staleness hour. That is the outcome the comment above this block says it is
+# preventing.
+trap - EXIT
+trap 'release_the_copy; exit 130' INT
+trap 'release_the_copy; exit 143' TERM
 restore
-# Released at the very end instead, after the copy has been rebuilt clean: the
-# next session must never take a copy that still carries the mutation.
 (cd frontend/maquette/design && npm run build >/dev/null 2>&1)
 python3 frontend/maquette/harness/served_copy.py --publish >/dev/null
 

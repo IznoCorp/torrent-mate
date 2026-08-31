@@ -126,7 +126,7 @@ CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.
 # instead of on a fifteen-phase interval — which is the state L07 ran in, where
 # `make check` was a wave gate and nothing between phases read an invariant.
 #
-# NOT `make check` ENTIRE. Its 10 786 tests cost fourteen minutes, and the
+# NOT `make check` ENTIRE. Its whole test suite costs fourteen minutes, and the
 # operator's cadence ruling of 2026-08-24 stands for that half. What joins is
 # what costs seconds.
 #
@@ -135,7 +135,7 @@ CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.
 # `personalscraper/` and `tests/` and none of the cheap ones that read the CSS,
 # the markup and the resources a phase actually touches — `legacy.css`'s own
 # ceiling was absent from the tier of the very wave that edits `legacy.css`.
-# The six added below cost 6 s together — nineteen invocations, ~31 s in all,
+# The six added below cost 6 s together — the invocations listed below, ~31 s in all,
 # measured. `check-tailwind-confinement.py` is the one deliberately left out:
 # it needs a build of its own and costs 102 s.
 #
@@ -261,11 +261,20 @@ cleanup() {
 # exits a millisecond later, and a lock recording a dead process is a lock the
 # staleness check would break under a suite that is still running.
 python3 "$HERE/served_copy.py" --acquire "${label}" "$$"
-# EXIT ALONE IS NOT ENOUGH. An untrapped SIGTERM or a Ctrl-C kills bash without
-# running the EXIT trap, and the lock then survives `STALE_AFTER_SECONDS` — a
-# whole hour during which the refusal message hands the next session
-# `rm -rf /tmp/tm-refonte/.lock`, which is what makes a lock worthless.
-trap cleanup EXIT INT TERM
+# EXIT ALONE IS NOT ENOUGH: an untrapped signal kills bash without running the
+# EXIT trap, and the lock then survives `STALE_AFTER_SECONDS` — an hour during
+# which the refusal message hands the next session `rm -rf`, which is what makes
+# a lock worthless.
+#
+# BUT A SIGNAL TRAP MUST EXIT, and the first version of this line did not. Bash
+# runs an INT handler and then RESUMES the script: Ctrl-C during rule 30 of 79
+# released the lock, deleted the log directory, and carried on running the
+# remaining rules unlocked, writing into a directory that no longer existed,
+# with another session free to rebuild the copy underneath them. That is B-256
+# re-opened by the repair for B-256.
+trap cleanup EXIT
+trap 'cleanup; exit 130' INT
+trap 'cleanup; exit 143' TERM
 
 echo "Building the prototype — a stale copy measures the previous build…"
 (cd "$DESIGN" && npm run build >/dev/null)

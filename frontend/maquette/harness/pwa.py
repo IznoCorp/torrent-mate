@@ -132,14 +132,24 @@ async def signing_out_empties_the_shell(browser):
             return 1, ["R111 no worker installed, so nothing could be torn down"]
         await page.reload(wait_until="load")
         await page.evaluate("()=>window.__loadingDone?.()")
-        await page.evaluate(
-            """async()=>new Promise((resolve)=>{
-                 const channel = new MessageChannel();
-                 channel.port1.onmessage = ()=>resolve(null);
-                 navigator.serviceWorker.controller.postMessage(
-                   "cache-shell", [channel.port2]);
-                 setTimeout(()=>resolve(null), 8000);
-               })""")
+        # GUARDED. An unguarded `controller.postMessage` raises out of
+        # `page.evaluate` when the controller is null, and the rule dies
+        # red-by-crash — which sends its reader to a stack trace instead of to
+        # the defect, the very thing this wave criticised R105 for.
+        completed = await page.evaluate(
+            """async()=>{const worker = navigator.serviceWorker.controller;
+                 if(!worker) return "no controller after the reload";
+                 return new Promise((resolve)=>{
+                   const channel = new MessageChannel();
+                   channel.port1.onmessage = ()=>resolve("done");
+                   worker.postMessage("cache-shell", [channel.port2]);
+                   setTimeout(()=>resolve("the worker never answered"), 8000);
+                 });}""")
+        executed += 1
+        if completed != "done":
+            failures.append(f"R111 the shell could not be filled: {completed}")
+            await context.close()
+            return executed, failures
 
         # THE CONTROL. Without it « nothing cached after signing out » is also
         # true of a browser that never cached anything, and this rule would pass
@@ -178,6 +188,34 @@ async def signing_out_empties_the_shell(browser):
         if registered != 0:
             failures.append(
                 f"R111 {registered} worker(s) still registered after signing out")
+
+        executed += 1
+        # AND THE QUEUE GOES WITH THEM. A MUTATION that outlives a cookie is the
+        # same finding as a cache that does, one artefact along: queued offline
+        # by one operator, it would otherwise depart under the next one's
+        # session.
+        left_queued = await page.evaluate(
+            "async()=>(await window.__outbox.waiting()).length")
+        if left_queued != 0:
+            failures.append(
+                f"R111 {left_queued} queued mutation(s) survived the sign-out")
+
+    # --- AND THE PROPERTY, not only the mechanism ---------------------------
+    # THE HOLDS ABOVE READ THE MECHANISM — no caches, no registration. The
+    # property is that the prototype is NOT READABLE offline afterwards, and
+    # only a navigation with the server gone says that. Measured outside the
+    # `with`, so the host is genuinely down.
+    executed += 1
+    try:
+        await page.reload(wait_until="load")
+        rendered = await page.evaluate("()=>typeof window.__go==='function'")
+    except Exception as refused:
+        void = str(refused)
+        rendered = False
+    if rendered:
+        failures.append(
+            "R111 the prototype still renders offline after signing out — the "
+            "mechanism holds above are green over a shell that still works")
     await context.close()
     return executed, failures
 

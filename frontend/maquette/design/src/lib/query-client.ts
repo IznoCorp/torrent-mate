@@ -82,6 +82,16 @@ type ContractPath = keyof paths;
  */
 export const HELD = Symbol("held");
 
+/**
+ * The title a failure carries when the layer answered something unreadable.
+ *
+ * It is a NAMED constant because two places must agree on it: the branch that
+ * manufactures the failure, and the one that decides whether an answer is final
+ * enough to drop a queued mutation over. A proxy's HTML 502 arrives here, and
+ * discarding the operator's action over it would be the worst outcome of all.
+ */
+const UNREADABLE = "an answer this layer could not read";
+
 // A NUMBER THAT ONLY RISES, so two envelopes accepted inside one millisecond
 // still replay in the order the operator made them.
 let accepted = 0;
@@ -109,11 +119,36 @@ setDeparture(
   async (envelope) => {
     await dispatch(envelope.method, envelope.path, envelope.body, envelope.key);
   },
-  // WHETHER THE LAYER ANSWERED, which is the only thing the queue needs to know
-  // and the only thing it may know. A refusal will not change on the tenth
-  // attempt; an outage will.
-  isRequestFailure,
+  // WHETHER THE ANSWER IS FINAL — the only thing the queue needs to know, and
+  // the only thing it may know.
+  //
+  // « DID THE LAYER ANSWER? » WAS TOO WIDE, and it destroyed the operator's
+  // action in the very case the queue exists for: a 503 from a restarting
+  // backend is an answer, and so is the named failure this module manufactures
+  // for a body it could not read — which is what a proxy's HTML 502 looks like.
+  // A 401 after a session expires would have taken every queued mutation with
+  // it on the next `online` edge.
+  isFinalAnswer,
 );
+
+/**
+ * Tells whether re-sending would ever produce a different answer.
+ *
+ * @param failure What the departure threw.
+ * @returns True only for a decision that is settled — a 4xx the client cannot
+ *     retry its way out of. Anything unread, unreachable, overloaded or
+ *     temporary is NOT final, and its envelope stays in the queue.
+ */
+function isFinalAnswer(failure: unknown): boolean {
+  if (!isRequestFailure(failure)) return false;
+  const { status } = failure;
+  // A body this layer could not read is not a decision it can act on: the
+  // status may be a proxy's, not the application's.
+  if (failure.title === UNREADABLE) return false;
+  // 408 request timeout, 429 too many requests, and every 5xx: all say « later ».
+  if (status === 408 || status === 429 || status >= 500) return false;
+  return status >= 400;
+}
 
 /**
  * What a failed request carries: the layer's own problem shape.
@@ -267,7 +302,7 @@ async function dispatch<Result>(
   } catch (unreadable) {
     const failure: RequestFailure = {
       status: answer.status,
-      title: "an answer this layer could not read",
+      title: UNREADABLE,
       detail: `${method} ${path} answered ${answer.status} with a body that is not JSON`,
     };
     throw failure;

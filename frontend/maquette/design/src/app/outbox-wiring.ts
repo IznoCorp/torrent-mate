@@ -18,6 +18,7 @@
 //   THE MOCK LAYER'S RESET — because the outbox is IndexedDB and survives it.
 import { readCondition, subscribeToCondition } from "../lib/relay-condition";
 import { HELD, send } from "../lib/query-client";
+import { ADDRESSES_THAT_MOVE_TOGETHER } from "../lib/queue";
 import type { QueryClient } from "@tanstack/react-query";
 import {
   departOnReconnection,
@@ -41,11 +42,24 @@ export function installOutboxWiring(queryClient: QueryClient): void {
   // everything has been sent, and the screen goes on showing the opposite of
   // what the server holds for the life of the process.
   setRefresh((path) => {
+    // EVERY KEY THE PATH'S OWN SURFACE FANS OUT TO, and not only its own. A
+    // staging decision writes optimistically into the staging list OR the
+    // acquisition queue — the card can be in either — and the online path
+    // invalidates BOTH. Matching the envelope's address alone reached one of
+    // them, so a decision taken offline on a blocked acquisition card departed
+    // and left that queue showing the optimistic removal for the life of the
+    // process. The pairing is declared by the module that MAKES the two-key
+    // write (`lib/queue.ts`), because those are domain addresses and invariant
+    // 10 refuses them in the frame; this reads the list without knowing what is
+    // in it, and the queue still knows nothing at all.
+    const also = ADDRESSES_THAT_MOVE_TOGETHER.find(
+      ([one]) => path.startsWith(one));
     void queryClient.invalidateQueries({
       predicate: (query) => {
         const key = query.queryKey[0];
-        return typeof key === "string"
-          && (path === key || path.startsWith(`${key}/`));
+        if (typeof key !== "string") return false;
+        if (path === key || path.startsWith(`${key}/`)) return true;
+        return also !== undefined && also.includes(key);
       },
     });
   });

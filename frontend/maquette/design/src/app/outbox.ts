@@ -50,16 +50,27 @@ type Departure = (envelope: Envelope) => Promise<void>;
 type Refresh = (path: string) => void;
 
 /**
- * Tells whether a failed departure was a DECISION or an outage.
+ * Tells whether a failed departure is FINAL — an answer that will not change.
  *
- * The queue must not know what a mutation means, and it does not: this asks
- * only whether the layer ANSWERED. Injected with the departure, from the module
- * that owns the failure shape.
+ * THE FIRST VERSION ASKED « did the layer answer? », AND THAT IS TOO WIDE. A
+ * 503 from a restarting backend is an answer; so is a 429, so is a 502 whose
+ * HTML body this layer turns into a named failure. Dropping the envelope on any
+ * of them destroys the operator's action in exactly the case
+ * `departOnReconnection` exists for — a server coming back behind perfectly
+ * good wifi. And a 401 after a session expires would destroy every queued
+ * mutation the moment the page next thinks it is online.
+ *
+ * So the question is narrower: will sending this again ever produce a different
+ * answer? A 409, a 404, a 422 — no. A 5xx, a 429, a 408, and anything whose
+ * body could not even be read — yes, and those stay.
+ *
+ * The queue still knows no domain: it asks a predicate injected with the
+ * departure, from the module that owns the failure shape.
  */
-type WasAnswered = (failure: unknown) => boolean;
+type IsFinal = (failure: unknown) => boolean;
 
 let depart: Departure | null = null;
-let wasAnswered: WasAnswered = () => false;
+let isFinal: IsFinal = () => false;
 let refreshFor: Refresh = () => undefined;
 let departing = false;
 // A DEPARTURE ASKED FOR WHILE ONE IS RUNNING is not dropped, it is remembered.
@@ -126,9 +137,9 @@ export async function holdBack(envelope: Envelope): Promise<boolean> {
  *
  * @param departure What re-issues an envelope.
  */
-export function setDeparture(departure: Departure, answered: WasAnswered): void {
+export function setDeparture(departure: Departure, final: IsFinal): void {
   depart = departure;
-  wasAnswered = answered;
+  isFinal = final;
 }
 
 /**
@@ -204,18 +215,21 @@ export async function departAll(): Promise<void> {
         try {
           await depart(envelope);
         } catch (failure) {
-          if (!wasAnswered(failure)) {
-            // STILL UNREACHABLE. The run stops: going on would send later
-            // envelopes before an earlier one, and the operator's actions have
-            // an order they were made in.
+          if (!isFinal(failure)) {
+            // UNREACHABLE, OR AN ANSWER THAT WILL CHANGE — a 503 from a
+            // restarting backend, a 429, a body that could not be read. The run
+            // stops and the envelope stays: going on would send later envelopes
+            // before an earlier one, and the operator's actions have an order
+            // they were made in.
             departureWanted = false;
             return;
           }
-          // REFUSED — the layer answered, and that answer will not change on
-          // the tenth attempt. Left in the queue it would jam every envelope
-          // behind it forever, and the interface would go on showing the
-          // operator's action as applied. It leaves, and it is remembered so
-          // something can say so.
+          // FINAL — a 409, a 404, a 422. Sending it again produces the same
+          // answer forever, so left in the queue it would jam every envelope
+          // behind it and the interface would go on showing the operator's
+          // action as applied. It leaves the queue, and it is REMEMBERED,
+          // because a mutation that silently disappeared is the same defect as
+          // one that silently stayed.
           refusedOnReplay.push(envelope);
         }
         await forget(envelope.key);
@@ -243,11 +257,15 @@ export async function departAll(): Promise<void> {
  */
 export function installOutbox(): void {
   void waiting().then((held) => {
-    // ADJUSTED, NEVER ASSIGNED. A `holdBack` that lands between the read above
-    // and this line would be erased from the count by an assignment, leaving an
-    // envelope on disk that nothing counts.
-    pendingCount += held.length;
-    announce();
+    // RE-READ RATHER THAN ADJUSTED. An assignment erases a `holdBack` that
+    // landed while this read was in flight; an addition strands the count when
+    // an `online` edge in the same window has already drained what was read.
+    // The store is the only thing that knows, so it is asked again — and the
+    // count is set from a value that is current by construction.
+    void waiting().then((stillHeld) => {
+      pendingCount = stillHeld.length;
+      announce();
+    });
     // What was on disk when the application started is, by definition, a
     // mutation from a previous run that never departed.
     if (held.length) void departAll();
@@ -292,6 +310,9 @@ export function departOnReconnection(
  * Empties the outbox. For the harness, which drives one scenario after another.
  */
 export async function forgetOutbox(): Promise<void> {
+  // Also what `signOut` calls: a MUTATION that outlives a cookie is the same
+  // finding as a cache that does, one artefact along. Queued offline by one
+  // operator, it would otherwise depart under the next one's session.
   await forgetEverything();
   pendingCount = 0;
   refusedOnReplay.length = 0;

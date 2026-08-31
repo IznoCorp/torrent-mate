@@ -208,6 +208,9 @@ export function installLibraryDelete(queryClient: QueryClient): void {
         // explanation, minutes before it actually applies.
         if (outcome === HELD) return;
         void queryClient.invalidateQueries({ queryKey: ["/api/library/items"] });
+      }, () => {
+        // AND ON A REFUSAL, which the `.finally` this replaced also covered.
+        void queryClient.invalidateQueries({ queryKey: ["/api/library/items"] });
       });
   };
 }

@@ -100,6 +100,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import urllib.error
@@ -203,6 +204,17 @@ def hold_the_served_copy():
     """
     served_copy.acquire(f"harness-hold-counts, pid {os.getpid()}", os.getpid())
     atexit.register(served_copy.release, os.getpid())
+    # AND ON A SIGNAL. `atexit` does not run when the default disposition kills
+    # the process, so a `kill` of a twenty-minute run leaked the lock for the
+    # whole staleness hour. Re-raised with the default handler so the exit
+    # status still says what killed it.
+    def give_it_back(number, frame):
+        served_copy.release(os.getpid())
+        signal.signal(number, signal.SIG_DFL)
+        os.kill(os.getpid(), number)
+
+    for number in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(number, give_it_back)
 
 
 def ensure_fresh_prototype():
