@@ -48,6 +48,66 @@ as « candidates to propose » — the steward is transcribing the amendment its
 transitions (phase 9) and a JavaScript animation library for page transitions is still refused. That
 verdict never rested on rule 2.
 
+## The survey, run 2026-08-31 — and the measurement that preceded it
+
+**Step 1's measurement, and it corrected the design in BOTH directions.** Driven on the served
+prototype at 390 × 844:
+
+| Mode | Items | Distinct heights | Reading |
+| --- | ---: | ---: | --- |
+| grid — `[data-part="tile"]`, raw | 27 | **2** (171 · 203.34) | looked variable |
+| grid — real tiles only (`.tile`, excluding `.sk`) | 24 | **1** (203.34) | **uniform** |
+| list — `[data-part="card"]` | 24 | **1** (126) | **uniform** |
+
+**The two heights were SKELETONS.** `[data-part="tile"]` selects `.sk.tile` — the loading
+placeholder — as well as the real tile, and a skeleton is 171 px against a tile's 203.34. A
+virtualiser configured from the first reading would have been put in variable-height mode, paying
+measurement cost per row, for a spread that no rendered list ever contains.
+
+**And the design's other guess was wrong too.** It reasoned that the card list would be VARIABLE
+because §12 requires a long title to wrap rather than truncate. Measured, every card is exactly
+126 px: the title's box is fixed and the wrap happens inside it. **Both modes are fixed-height**, so
+whatever is adopted runs in its fixed-size mode, and the measurement — not the reasoning — is what
+says so.
+
+<sub>method: `window.__go(state)`, then `getBoundingClientRect().height` over every item, rounded to
+2 decimals and counted distinct.</sub>
+
+### The candidates
+
+Facts from `https://registry.npmjs.org/<package>` on 2026-08-31; the description column is the
+registry's own, not a summary of it.
+
+| Candidate | Latest | Published | Releases | Unpacked | Runtime deps | Headless? |
+| --- | --- | --- | ---: | ---: | --- | --- |
+| **`@tanstack/react-virtual`** | 3.14.10 | 2026-08-18 | 135 | **55.2 KB** | `@tanstack/virtual-core` | **yes** — the registry description is literally « **Headless** UI for virtualizing scrollable elements in React » |
+| `react-virtuoso` | 4.18.12 | 2026-08-17 | 313 | 237.0 KB | none | **no** — « a virtual scroll React **component** »: it renders the scroller and the items' wrappers itself |
+| `react-window` | 2.3.0 | 2026-07-20 | 77 | 211.3 KB | none | **no** — renders `<List>` and writes inline styles onto each child |
+
+All three are MIT and all three are actively maintained — none is archived, and the three latest
+releases are within six weeks of each other. **Maintenance does not separate them; rule 1 does.**
+
+### Against the criteria
+
+| Criterion | `@tanstack/react-virtual` | `react-virtuoso` | `react-window` |
+| --- | --- | --- | --- |
+| Solves exactly our problem (both modes, fixed height) | yes | yes | yes |
+| Maintained | yes | yes | yes |
+| Proven / reputation | yes | yes | yes |
+| **Headless (rule 1)** | **yes** | no | no |
+| Fixed **and** measured heights | yes | yes | yes |
+| Already trusted in this tree | **three TanStack packages ship here today** — `react-query`, `react-router`, `store` | no | no |
+
+**The recommendation, and the reasoning is rule 1's rather than a preference.** A virtualiser that
+renders the scroller and writes inline styles onto its children moves drawing out of the stylesheet
+and out of the design reference — which is what rule 1 exists to prevent, and it is refused
+*whatever rule 2 says*. `@tanstack/react-virtual` returns measurements and renders nothing, so every
+drawing decision stays in the variants where the oracle can read it. It is also a quarter of the
+size and its family is already three packages deep in this tree.
+
+**THE OPERATOR NAMES THE ADOPTED CANDIDATE. Nothing is installed before that** — this is the one
+stop the plan reserves by name.
+
 ## Step 3 — Build it as VOCABULARY
 
 The windowing is a **`ui/` primitive** (invariant 10). The page does not learn to virtualise; it
