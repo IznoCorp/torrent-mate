@@ -95,6 +95,7 @@ audio
 audios
 authentication
 avatar
+axis
 back
 background
 backoff
@@ -139,6 +140,7 @@ calls
 cancel
 candidate
 candidates
+cap
 caps
 caption
 card
@@ -219,10 +221,12 @@ cur
 current
 cursor
 cutoff
+damping
 danger
 data
 database
 date
+dead
 deadline
 decision
 decisions
@@ -296,6 +300,7 @@ duration
 dx
 each
 ease
+edge
 edited
 element
 emit
@@ -353,6 +358,7 @@ final
 find
 finger
 finish
+finished
 first
 fkind
 flight
@@ -735,6 +741,7 @@ prov
 provider
 ptr
 publish
+pull
 push
 put
 pwa
@@ -774,6 +781,7 @@ ref
 reference
 refill
 refresh
+refreshing
 refusal
 refuse
 refused

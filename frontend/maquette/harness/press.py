@@ -361,6 +361,9 @@ SHORT_PULL = 60
 # Past it: 160 * 0.45 = 72, the cap, which is above 44.
 LONG_PULL = 160
 
+# The gesture's own arming distance, read here as geometry.
+PULL_ARM_PIXELS = 44
+
 
 async def drive_pull(page, port, distance):
     """Pulls DOWN from the top of the scrollport with a real touch stream.
@@ -398,23 +401,31 @@ async def hold_the_pull_threshold(journal, browser):
     # a pull-to-refresh that is simply broken.
     await drive_pull(page, port, LONG_PULL)
     await page.wait_for_timeout(220)
+    # READ AS GEOMETRY, NOT AS A CLASS NAME. D4: a rule anchors on `data-*` or
+    # on what the element measurably IS, never on a style class — a class-name
+    # read dies the day the class is renamed, and nothing can then say whether
+    # the read or the style was at fault. The indicator's HEIGHT is the fact
+    # the gesture produces; `loading` is one styling of it.
     spun = await page.evaluate(
-        "()=>document.querySelector('#ptr').className.includes('loading')")
+        "()=>document.querySelector('#ptr').getBoundingClientRect().height")
     journal.check("a pull past the arming distance refreshes",
-                  spun, "the control for the hold below")
+                  spun >= PULL_ARM_PIXELS,
+                  f"the indicator stood at {spun}px — the control for the hold "
+                  "below")
     await page.evaluate("()=>window.__reposPTR()")
     await page.wait_for_timeout(120)
 
     await drive_pull(page, port, SHORT_PULL)
     await page.wait_for_timeout(220)
     reading = await page.evaluate(
-        "()=>document.querySelector('#ptr').className")
+        "()=>document.querySelector('#ptr').getBoundingClientRect().height")
     journal.check(
         f"a pull of {SHORT_PULL}px — short of the arming distance — refreshes "
         "NOTHING",
-        "loading" not in reading and "armed" not in reading,
-        f"the indicator reads `{reading}`: the threshold is not applied, so "
-        "every downward flick the scrollport sees refreshes")
+        reading < PULL_ARM_PIXELS,
+        f"the indicator stood at {reading}px, at or past the {PULL_ARM_PIXELS}px "
+        "arming distance: the threshold is not applied, so every downward flick "
+        "the scrollport sees refreshes")
     await page.evaluate("()=>window.__reposPTR()")
     await context.close()
 
