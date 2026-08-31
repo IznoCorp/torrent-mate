@@ -501,6 +501,61 @@
   animation: none;
 }
 
+/* THE CONTENT'S OWN ENTRY — the second half of « A généralisé ».
+
+   A query already served arrives WITH the transition and nothing extra plays.
+   A slow one used to snap its blocks in after the transition had finished over
+   skeletons; they enter as they arrive now.
+
+   `@starting-style` IS THE WHOLE MECHANISM, and it is why this needs no module
+   and no line in `features/media/media-screen.tsx` — one of L14's four. It
+   declares the style an element has for the frame it is INSERTED in, so the
+   transition beside it runs from there to the resting value. An element that was
+   already present when the screen mounted never had a starting style, so nothing
+   animates for it: the two cases are exclusive by construction, which is the
+   « one entry, one owner » rule holding without anything having to choose.
+
+   SCOPED TO THE BODY'S DIRECT CHILDREN, deliberately. Deeper, every re-render
+   would animate a leaf; shallower, the whole screen would move and that is the
+   view transition's job. The blocks are the pieces a reader watches for. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-region="screen-media/body"] > * {
+    opacity: 1;
+    translate: 0 0;
+    transition:
+      opacity var(--duration-3) var(--ease-standard),
+      translate var(--duration-3) var(--ease-emphasized);
+
+    @starting-style {
+      opacity: 0;
+      translate: 0 16px;
+    }
+  }
+}
+
+/* THE FANART'S OWN ENTRY — « A généralisé » (operator, 2026-08-31).
+
+   The arrival animates its pieces WHEN THEY ARRIVE. The fanart is a
+   `background-image` with no load event, so `app/artwork-arrival.ts` decodes the
+   file and marks the element with how it got here; this decides what that looks
+   like.
+
+   ONE ENTRY, ONE OWNER, and the two cases are exclusive by construction:
+   `immediate` means the file was cached and decoded before the first frame, so
+   the view transition already carried the picture and nothing else may animate
+   it — queueing a fade there is the `heroin` flash exactly. `faded` means the
+   transition finished over a hero with no picture in it, and this fade IS that
+   picture's entry.
+
+   It is a TRANSITION rather than an animation on purpose: a transition has no
+   effect on an element that never changes state, so a hero marked `immediate`
+   is left alone without needing a rule to say so. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-part="hero/background"][data-arrival="faded"] {
+    animation: banner-in var(--duration-4) var(--ease-standard);
+  }
+}
+
 /* TRANSITION « A » — THE LIST OPENS ONTO A MEDIA SCREEN (operator, 2026-08-31).
 
    NO SHARED ELEMENT HERE, and that is the decision rather than a shortfall.

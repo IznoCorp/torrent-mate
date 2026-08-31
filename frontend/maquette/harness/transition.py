@@ -265,12 +265,120 @@ async def hold_one_entry_one_owner(journal, browser):
     if len(samples) <= 10:
         await context.close()
         return
+    # THE SUBJECT OF THIS HOLD CHANGED WITH « A GÉNÉRALISÉE », and it is
+    # re-scoped rather than deleted.
+    #
+    # It was written when the hero had no entry of its own, and « never dips »
+    # was simply right. The operator has since decided that the fanart FADES IN
+    # when its file decodes — so a dip is now the design when the picture
+    # arrives late, and refusing one outright would refuse the feature.
+    #
+    # What survives is the rule that produced it: ONE ENTRY, ONE OWNER. A hero
+    # marked `immediate` was already carried by the transition and must not dip;
+    # one marked `faded` owns its own entry and must. The mark is read rather
+    # than assumed, and a hero carrying NEITHER mark is a failure of its own —
+    # that is the module having stopped running, which would make both branches
+    # unreachable.
+    arrival = await page.evaluate(
+        "(sel)=>{const node=document.querySelector(sel);"
+        " return node ? (node.dataset.arrival || '') : '';}",
+        ARRIVING_BACKGROUND)
     journal.check(
-        "the arriving background never dips — one entry has one owner",
-        min(samples) >= 1.0,
-        f"opacity fell to {min(samples)} after the transition had drawn it "
-        "full: an element-side entry animation replayed over the transition's "
-        "own, which reads as a flash")
+        "the arriving background says how it got here",
+        arrival in ("immediate", "faded"),
+        f"data-arrival is {arrival!r} — the module that marks it is not running, "
+        "and the hold below would decide nothing")
+    if arrival == "immediate":
+        journal.check(
+            "a hero the transition already carried does NOT dip — one owner",
+            min(samples) >= 1.0,
+            f"opacity fell to {min(samples)} on a picture that was already "
+            "there: a second entry replayed over the transition's own, which is "
+            "the flash")
+    else:
+        journal.check(
+            "a hero whose file arrived LATE fades in rather than snapping",
+            min(samples) < 1.0,
+            f"opacity never left {min(samples)} on a picture that arrived after "
+            "the transition: it appeared in one frame, which is the pop « A "
+            "généralisée » exists to remove")
+    await context.close()
+
+
+
+
+# ── OPTIMISTIC PRIMING — a dead tap is impossible by construction ────────────
+# « A généralisée + amorçage optimiste » (operator, 2026-08-31): §19's
+# discipline applied to an ARRIVAL. The media screen opens with what the tap
+# already knows — title, year, type, poster — in real content, on the first
+# frame. The wait is only ever for what is genuinely unknown.
+#
+# THE HOLD MUST SEPARATE PRIMED FROM SERVED, and the operator named that trap
+# before it was built: a rule that only asks « was there content on the first
+# frame? » is GREEN ON A SCREEN THAT NEVER ENRICHES — priming alone would
+# satisfy it forever. So this reads both ends: the content is there while the
+# query is still `isPlaceholderData`, AND the query later stops being
+# placeholder. Either half alone proves the wrong thing.
+#
+# `placeholderData` rather than `initialData` is what makes that observable at
+# all: initial data is written INTO the cache and is indistinguishable from a
+# served answer afterwards.
+#
+# DRIVEN AGAINST A DELIBERATELY SLOW READ, because priming has no subject when
+# the answer is instant — a fixture that resolves at once produces content on
+# the first frame whether or not anything primed it.
+PRIMING_DELAY_MILLISECONDS = 1200
+MEDIA_TITLE = '[data-part="hero/title"]'
+
+READ_PRIMING = """()=>{
+  const sheet = window.__queries.getQueryCache().getAll()
+    .find((query) => query.queryKey[0] === '/api/media');
+  const heading = document.querySelector('[data-part="hero/title"]');
+  return {
+    title: ((heading && heading.textContent) || '').trim(),
+    placeholder: !!(sheet && sheet.state.status === 'pending'),
+    fetched: !!(sheet && sheet.state.data !== undefined),
+  };
+}"""
+
+
+async def hold_the_priming(journal, browser):
+    """Opens a media screen against a slow read and reads both ends."""
+    context = await browser.new_context(**PHONE)
+    page = await context.new_page()
+    await page.goto(PROTOTYPE, wait_until="load")
+    await page.evaluate("()=>window.__loadingDone?.()")
+    await page.evaluate("()=>document.querySelector('#toastx')?.click()")
+    await page.wait_for_timeout(250)
+    await page.evaluate("(s)=>window.__go(s)", FROM_STATE)
+    await page.wait_for_timeout(600)
+    # THE READ IS SLOWED THROUGH THE MOCK LAYER'S OWN KNOB, not through
+    # `page.route`. The mocks answer IN THE PAGE, so no request leaves it and a
+    # network interception matches NOTHING — measured, zero routes intercepted,
+    # which means an earlier version of this hold ran against a read that was
+    # never slow and proved nothing about priming at all.
+    await page.evaluate("(ms)=>window.__mocks.setDefaultLatency(ms)",
+                        PRIMING_DELAY_MILLISECONDS)
+    await page.click(TILE)
+    await page.wait_for_timeout(140)
+
+    early = await page.evaluate(READ_PRIMING)
+    journal.check(
+        "the media screen opens with REAL content while its read is in flight",
+        len(early["title"]) > 2 and early["placeholder"],
+        f"read {early} — the tap lands on nothing until the network answers, "
+        "which is the dead tap §12 refuses")
+
+    await page.wait_for_timeout(PRIMING_DELAY_MILLISECONDS + 900)
+    late = await page.evaluate(READ_PRIMING)
+    await page.evaluate("()=>window.__mocks.setDefaultLatency(0)")
+    # THE OTHER END. Without this the hold above is satisfied forever by a
+    # screen that primes and never enriches.
+    journal.check(
+        "and the read LANDS afterwards — primed is not the end state",
+        late["fetched"] and not late["placeholder"],
+        f"read {late} — the screen shows primed content and never replaces it, "
+        "which this hold would otherwise call success")
     await context.close()
 
 
@@ -282,6 +390,7 @@ async def hold(journal):
         await hold_under(journal, browser, "no-preference")
         await hold_under(journal, browser, "reduce")
         await hold_one_entry_one_owner(journal, browser)
+        await hold_the_priming(journal, browser)
         await browser.close()
     journal.summary(errors)
 

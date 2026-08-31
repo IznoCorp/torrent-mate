@@ -4,6 +4,7 @@
 // module is what a producer's `open` runs through, so the thing it writes is
 // the thing the boot handed it, and no reader has to work out which of the two
 // doors was meant.
+import { installArtworkArrival } from "./artwork-arrival";
 import { flushSync } from "react-dom";
 import { refuseBlock, type PanelDescriptor } from "../ui/panel/contract";
 import { addressOf, isScreenPath, withPanel } from "../lib/addresses";
@@ -88,6 +89,10 @@ function openPanelOnCurrentEntry(open: () => void): void {
  *     store: The single owner of the mutable state.
  */
 export function installPanelHost(store: Store): void {
+  // INSTALLED FROM HERE FOR THE REASON THE CARRIED POSTER WAS: `app/shell.tsx`
+  // stands at 398 of a 400-line hard ceiling and an import plus a call would put
+  // it AT it. This is the nearest installer that boots once and is not L14's.
+  installArtworkArrival();
 function openPanel(descriptor: PanelDescriptor): void {
   // Same order as the legacy `openSheet`: the layer first, the history entry
   // second. This file is SHELL code — the seam itself — so it writes the store
