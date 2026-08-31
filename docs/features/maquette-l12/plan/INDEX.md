@@ -67,6 +67,15 @@ The row lands with its full reasoning in the file rather than in a pull request 
 the brief is protecting against — and it is **flagged in the pull request for arbitration**. If the
 operator reads it as an amendment instead, the row comes out and phase 8's adoption waits.
 
+**The steward confirmed this reading on 2026-08-31 and routed the question to the operator — and
+added the observation that may dissolve it entirely.** § 7.1's guard is about deciding AND
+implementing in one breath. **It only bites if this wave ADOPTS something.** Rule 2 asks whether the
+maths has been written; windowing a fixed-height list is a few lines of arithmetic. **So if phase 8's
+measurement lands on « write it, no library », the row records a REFUSAL, nothing is adopted, and
+nothing waits.** Only the variable-height arm — a scoped adoption — needs the operator's word.
+Phase 8 therefore proceeds to its measurement and to the uniform arm without blocking; it blocks
+only at the point of adopting a library, and only if the measurement demands one.
+
 ## The close (phase 12) owes five things, and the fifth is a measurement
 
 1. The « In flight » row in `IMPLEMENTATION.md` — **written when the pull request opens**, pull
