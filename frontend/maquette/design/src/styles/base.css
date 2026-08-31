@@ -556,10 +556,6 @@
    the page has depth rather than only opacity. It is deliberately small — a
    scale an eye can name as a zoom is a different interface, not a more present
    one. */
-:root[data-transition-option="scale"] {
-  --transition-option-scale: 0.98;
-}
-
 @media (prefers-reduced-motion: no-preference) {
   /* NO DESCENDANT COMBINATOR. The view-transition pseudo-elements hang off the
      ROOT element itself, so `:root[…] ::view-transition-new(root)` — with a
@@ -572,10 +568,17 @@
   }
 }
 
+/* THE SCALE IS WRITTEN HERE, NOT HELD IN A TOKEN. It was
+   `--transition-option-scale`, declared only under
+   `:root[data-transition-option="scale"]` — and `check-css-tokens` refused it,
+   correctly and by the rule it documents: a token declared ONLY under a
+   conditional scope and used unconditionally renders in the one state somebody
+   looked at and as nothing everywhere else. The keyframe is reachable only
+   through the option's own selector, so it needs no token to be conditional. */
 @keyframes option-screen-in {
   from {
     opacity: 0;
-    scale: var(--transition-option-scale, 1);
+    scale: 0.98;
   }
 }
 
