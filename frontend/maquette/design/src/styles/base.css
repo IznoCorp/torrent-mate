@@ -397,6 +397,38 @@
   background: transparent;
 }
 
+/* THE GESTURE ACKNOWLEDGEMENT — what `lib/feedback.ts` marks, drawn here.
+
+   The seam decides WHEN a gesture is acknowledged; this decides what that
+   looks like. Rule 1: what is declarative lives in the stylesheet, therefore in
+   the design reference, therefore under the oracle. Motion written in
+   JavaScript leaves the field of measurement.
+
+   REDUCED MOTION IS A DESIGNED STATE HERE, not a fallback and not a branch in
+   the module (invariant 14). Under `reduce` the acknowledgement is still MADE —
+   the mark still lands and the surface still answers — it simply does not
+   move: the opacity step remains, the scale does not. A gesture that went
+   unacknowledged under a motion preference would be a different interface, not
+   a calmer one. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-feedback] {
+    animation: feedback-pulse var(--duration-1) var(--ease-standard);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-feedback] {
+    opacity: 0.82;
+  }
+}
+
+@keyframes feedback-pulse {
+  50% {
+    opacity: 0.82;
+    transform: scale(0.985);
+  }
+}
+
 /* P26 — A LONG PRESS SELECTS NO TEXT, and the selector is derived from the
    arbitration rather than from a list of class names.
 

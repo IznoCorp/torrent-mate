@@ -73,6 +73,8 @@
 // operator's mark; 72 is the round number, written as an arbitrary value
 // because a grip zone is not a spacing step and the scale stops at 24px
 // (`styles/theme.css`). A finger confirms it or moves it.
+import { feedback } from "../lib/feedback";
+
 const BAND = 72;
 
 // How far the drawer must travel before the lift closes it. The sheet uses 70
@@ -159,7 +161,11 @@ export function installDrawerDismissGesture(): void {
     // published by the engine and called by `ui/sheet.tsx`'s scrim; the ladder
     // is drawer → screen → sheet, so with the drawer open it closes the drawer.
     // A second closing path would be a second navigation history.
-    if (!cancelled && current.dx > CLOSE_THRESHOLD) window.__closeLayers?.();
+    if (!cancelled && current.dx > CLOSE_THRESHOLD) {
+      // Through the seam, like every other gesture — one call site (D9).
+      feedback("commit", drawer);
+      window.__closeLayers?.();
+    }
   }
 
   // THE FINGER. Passive, like the engine's own page gestures.

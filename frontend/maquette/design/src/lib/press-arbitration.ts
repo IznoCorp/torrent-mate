@@ -51,6 +51,8 @@
 //    that swallowed every click after a press would satisfy « the lift does not
 //    fire the panel » and break every deliberate tap. It is held separately.
 
+import { feedback } from "./feedback";
+
 /** How long the finger must stay down before a press is a press. */
 const PRESS_MILLISECONDS = 480;
 
@@ -150,6 +152,10 @@ export function installPressArbitration(
       pollTimer: window.setTimeout(() => {
         press = null;
         swallowClick = { x: point.x, y: point.y };
+        // THROUGH THE SEAM, before the surface acts. Every gesture in the
+        // interface passes through `feedback()` — one call site, so haptics
+        // are one file's change the day the platform allows them (D9).
+        feedback("commit", element);
         options.onPress(element);
       }, PRESS_MILLISECONDS),
     };
