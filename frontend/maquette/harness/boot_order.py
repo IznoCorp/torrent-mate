@@ -216,9 +216,24 @@ async def hold_the_browser(journal):
                 const seams = window.__seamsInstalledProbe;
                 return seams === undefined ? "no probe" : seams;
             }""")
+        # THE CALL AND THE READ ARE TWO STEPS SINCE L12, and the reason is a
+        # deliberate behaviour change rather than a flake.
+        #
+        # `lib/navigate.ts` runs its commit INSIDE `startViewTransition`
+        # (P5), so the address settles when the browser has taken its
+        # snapshot rather than before the next statement. Reading
+        # `location.pathname` in the same evaluate as the call therefore
+        # reads the address the screen was opened FROM.
+        #
+        # What this hold is about is unchanged: that the engine's imported
+        # seams are filled, proved by a screen opening at all. Synchrony is
+        # a different property and it is now deliberately not one — the
+        # shortcut that kept it produced a transition whose « old » snapshot
+        # was the new page.
+        await page.evaluate("() => { window.__screens.profile('Silo'); }")
+        await page.wait_for_timeout(400)
         opened = (await page.evaluate(
-            """() => { window.__screens.profile("Silo");
-                       return location.pathname; }""")).startswith("/quality/")
+            "() => location.pathname")).startswith("/quality/")
         journal.check("the engine's imported seams are filled",
                       # The engine drives every screen through them; a screen
                       # opening at all is that proof, and it is cheaper and

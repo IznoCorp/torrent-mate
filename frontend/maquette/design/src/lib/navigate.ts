@@ -109,21 +109,27 @@ export function go(target: {
     commit();
     return;
   }
-  // THE CAPTURE IS ASKED FOR FIRST, THE COMMIT STILL RUNS SYNCHRONOUSLY.
+  // THE COMMIT RUNS INSIDE THE CALLBACK, WHICH IS WHAT THE API IS FOR — and
+  // the shortcut that avoided it was measured and thrown away.
   //
-  // Passing `commit` as the callback DEFERS it — measured: the address had not
-  // moved after a microtask, nor after a `requestAnimationFrame`, only some
-  // 120ms later. That breaks this function's whole reason for existing (the
-  // flush above keeps « one call, one entry », and the dying engine's unwinding
-  // COUNTS entries), and `harness/boot_order.py` fell on it by reading the
-  // address immediately after a screen call.
+  // « Ask for the capture, then commit synchronously » looked like a way to keep
+  // `go()` synchronous AND get a transition. It kept the synchrony and produced
+  // a DEGENERATE transition: the browser captures the old state after the
+  // current task, so the commit had already run and the « old » snapshot was
+  // the new page. Proved by a name that exists on ONE side —
+  // `::view-transition-old(screen-banner)` was present while the library page
+  // it left carries no `[data-part="hero"]` at all, which can only happen if
+  // the media screen was already mounted when the snapshot was taken.
   //
-  // So the browser is asked to snapshot the old state, and the commit is made
-  // NOW rather than inside the callback. The callback is left empty: the DOM
-  // has already changed by the time it runs, which is what the transition
-  // compares its snapshot against.
-  const transition = document.startViewTransition(() => undefined);
-  commit();
+  // Animations ran the whole time, so every reading that counted them was
+  // green over a transition showing nothing.
+  //
+  // WHAT THIS COSTS, said plainly: `go()` is asynchronous again. The address
+  // settles when the callback runs rather than before the next statement. The
+  // flush inside it still keeps « one call, one entry » — that was always about
+  // the router batching two writes in ONE task, and the callback is one task —
+  // and the ladder's rules are read as this lot's gate rather than assumed.
+  const transition = document.startViewTransition(commit);
 
   // A SUPERSEDED TRANSITION REJECTS, AND THAT IS NORMAL RATHER THAN AN ERROR.
   //

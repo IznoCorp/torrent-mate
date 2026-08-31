@@ -436,6 +436,110 @@
   }
 }
 
+/* THE THREE NAMES THE TRANSITIONS BELOW ANIMATE, declared here and nowhere
+   else (D9 rule 1). No source file is touched to place them: each is keyed on a
+   naming attribute the surface already emits, which is also how the media
+   screen keeps its name without a line being added to
+   `features/media/media-screen.tsx` — one of L14's four files this lot may not
+   extend.
+
+   A NAME MUST BE UNIQUE IN THE DOCUMENT, and each of these resolves to at most
+   one element: one hero, one media body, one open sheet. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-part="hero"] {
+    view-transition-name: screen-banner;
+  }
+
+  [data-region="screen-media/body"] {
+    view-transition-name: screen-body;
+  }
+
+  #sheet[data-open] {
+    view-transition-name: leaving-panel;
+  }
+}
+
+/* TRANSITION « A » — THE LIST OPENS ONTO A MEDIA SCREEN (operator, 2026-08-31).
+
+   NO SHARED ELEMENT HERE, and that is the decision rather than a shortfall.
+   The media screen leads with a WIDE fanart and keeps it definitively; there is
+   nothing honest to share between a 2:3 poster and a wide banner, and morphing
+   one into the other would be an animation pretending two pictures are one.
+
+   What the surface already says is a fade — the fanart's own language — so the
+   arrival says it too: the banner fades up while the content block rises a
+   little under it. Two properties, both declared, neither scripted.
+
+   The screen is named separately from the root so the fanart and the body can
+   be given different curves; the root keeps the plain cross-fade above. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-new(screen-banner) {
+    animation: banner-in var(--duration-3) var(--ease-standard);
+  }
+
+  ::view-transition-new(screen-body) {
+    animation: body-rise var(--duration-3) var(--ease-emphasized);
+  }
+}
+
+@keyframes banner-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes body-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+}
+
+/* TRANSITION « A-EXTENDED » — ARRIVING FROM THE PANEL (operator, 2026-08-31).
+
+   « Voir la fiche » opens the media screen from the panel, so the panel is what
+   the reader is leaving. It carries its own name and its OLD snapshot slides
+   DOWN — its natural closing gesture — while transition A plays underneath.
+
+   AND BACK PLAYS THE MIRROR, which §16 requires anyway: Back returns to the
+   previous arrival, so it reopens the panel over the list. The same rule reads
+   both directions because the old snapshot on the way out is the new one on the
+   way back, and the pair of keyframes below is what makes the return the
+   reverse of the departure rather than a second, unrelated animation. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(leaving-panel) {
+    animation: panel-down var(--duration-3) var(--ease-standard);
+  }
+
+  ::view-transition-new(leaving-panel) {
+    animation: panel-down var(--duration-3) var(--ease-standard) reverse;
+  }
+}
+
+@keyframes panel-down {
+  to {
+    opacity: 0;
+    transform: translate3d(0, 100%, 0);
+  }
+}
+
+/* REDUCED MOTION, for all three: the arrivals still HAPPEN and nothing moves.
+   Silencing the named parts as well as the root, because a name the stylesheet
+   gives is a name the browser animates by default — the same lesson the root
+   transition paid for, where `-old` and `-new` were silenced and the GROUP went
+   on animating. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(screen-banner),
+  ::view-transition-group(screen-body),
+  ::view-transition-group(leaving-panel),
+  ::view-transition-old(leaving-panel),
+  ::view-transition-new(leaving-panel),
+  ::view-transition-new(screen-banner),
+  ::view-transition-new(screen-body) {
+    animation: none;
+  }
+}
+
 /* P6 — THE POSTER TRAVELS FROM THE TILE INTO THE PANEL.
 
    `app/shared-poster.ts` marks exactly one poster at the moment a press picks
