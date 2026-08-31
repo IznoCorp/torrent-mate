@@ -397,6 +397,40 @@
   background: transparent;
 }
 
+/* THE PRESSED STATE — `:active`, and NO JAVASCRIPT (D9).
+
+   `onTouchStart` is REFUSED, and the reason is measured rather than stylistic:
+   it lights the pressed state when the finger is starting a SCROLL, so a list
+   flickers as it is scrolled past. `:active` is cancelled by the browser the
+   moment the gesture becomes a scroll — which is the wanted behaviour, for
+   free, and no listener reproduces it without re-implementing the compositor's
+   own decision.
+
+   It reaches what the interface says is interactive rather than a list of
+   class names, for the reason the `:has()` rules above give: the rule follows
+   STRUCTURE, so nobody has to remember to add a modifier. A pressable surface
+   that answers a long press is included by `[data-panel]` — the same anchor the
+   arbitration resolves on, so the pressed state and the press agree by
+   construction rather than by two lists kept in step.
+
+   IT IS SEPARATE FROM THE ACKNOWLEDGEMENT ABOVE, and the two are not the same
+   moment: `:active` is WHILE the finger is down, `data-feedback` is AFTER a
+   gesture committed. A press shows both, in that order. */
+:where(button, a, [role="button"], [data-panel], summary):active {
+  opacity: 0.7;
+}
+
+/* HOVER IS BEHIND `@media (hover: hover)` — D9 adopts this, and the sticky-hover
+   problem is why. A touch device with no hover reports the LAST tapped element
+   as hovered until something else is tapped, so a hover style applied without
+   this query leaves a phantom highlight behind every tap. This is its
+   declarative remedy, and there is no scripted alternative worth having. */
+@media (hover: hover) {
+  :where(button, a, [role="button"], summary):hover {
+    opacity: 0.85;
+  }
+}
+
 /* THE GESTURE ACKNOWLEDGEMENT — what `lib/feedback.ts` marks, drawn here.
 
    The seam decides WHEN a gesture is acknowledged; this decides what that

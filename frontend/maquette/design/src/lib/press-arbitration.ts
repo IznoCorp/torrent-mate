@@ -155,6 +155,22 @@ export function installPressArbitration(
         // THROUGH THE SEAM, before the surface acts. Every gesture in the
         // interface passes through `feedback()` — one call site, so haptics
         // are one file's change the day the platform allows them (D9).
+        //
+        // ITS VISUAL HALF DOES NOT LAND HERE, AND THAT IS CORRECT. `onPress`
+        // opens the panel, which re-renders the pressed surface: the marked
+        // node is detached within the same frame — measured, `isConnected`
+        // false while the mark still reads `commit`. So the mark is written and
+        // never seen.
+        //
+        // It is not moved to a surviving ancestor, because THE PANEL APPEARING
+        // UNDER THE FINGER IS THIS GESTURE'S ACKNOWLEDGEMENT. A pulse on top of
+        // it would be a second answer to one gesture. What the call is FOR here
+        // is the haptic half: this is exactly the gesture that should buzz, and
+        // D9's whole point is that the day it can, one file changes.
+        //
+        // The rule holds it accordingly — that the seam is CALLED on a real
+        // press, observed as the mark being set, rather than that a pulse is
+        // visible where nothing should pulse.
         feedback("commit", element);
         options.onPress(element);
       }, PRESS_MILLISECONDS),
