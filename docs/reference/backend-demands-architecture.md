@@ -87,7 +87,17 @@ brief can read the reason and not only the requirement.
   carrying four states (« actif », « stoppé », « tracker sans cross-seed », « erreur de
   cross-seed »). The media-sheet block is admin-only, so the route's answer is role-aware (§17).
 
-## 6. What the existing operation-level registers already ask, and this file does not repeat
+## 6. The failure SHAPE the binding lot must reconcile first — B-267
+
+Latent today, fatal at switchover: `personalscraper/web` raises `HTTPException(detail=…)` and
+FastAPI serialises `{"detail": …}`, while the maquette's `isRequestFailure` requires
+`{status, title, detail}` — so against the real backend EVERY refusal (403 read-only, 401, 400,
+409) fails the shape test, takes the outage branch and is QUEUED over an action the server
+refused. The fix is one side's reshaping, and it is the binding lot's first gesture; the full
+entry is `BUGS.md` B-267. The mocks emit the right shape, which is why nothing is wrong today
+and why nothing will warn tomorrow.
+
+## 7. What the existing operation-level registers already ask, and this file does not repeat
 
 `frontend-backend-demands.md` § 1–3 (operations the interface requires and the backend lacks,
 renamed properties, pre-formatted fields) and `frontend-backend-demands-stream.md` § 1–6 (the
