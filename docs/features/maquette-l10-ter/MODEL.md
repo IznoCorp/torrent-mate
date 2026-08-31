@@ -302,7 +302,7 @@ rule forbids; the ratchet (`check-frame-domain.py`) holds the count from rising;
 second shared domain module (a tracker is read by the acquisition and by the media sheet), which is
 the day a `domain/` bucket has two members and a reason. L16's design takes it up.
 
-### Part 13 — Offline and the worker (not built; modelled so L11 builds the right thing)
+### Part 13 — Offline and the worker (BUILT by L11; this is the model it was built from)
 
 *What it is.* The service worker, the offline shell, the queue of mutations issued offline, the
 platform entry points (share target, link handling).
@@ -310,13 +310,24 @@ platform entry points (share target, link handling).
 beside `index.html`; the manifest and the worker route in `serve.py` until switchover.
 *What it owns.* The cached SHELL — the document, the bundles, the icons, the fonts — and nothing
 under `/api/` or the stream (`NetworkOnly`, as `web-ui.md` § PWA has it); the update discipline
-(`registerType: 'prompt'`, check on load / visibility / 15 min, `/api/version` compared to the
-baked commit, one reload); the queue's exactly-once departure.
-*What it never knows.* What a mutation IS. The queue holds `{ key, request }` opaque envelopes a
-feature's `queries.ts` enqueues; replay calls the same mutation function.
-*Today → target.* The design host's worker caches nothing, deliberately (README). **L11**, after
-L15 — an offline shell caches the chrome, and the chrome must be the product's before it is
-cached.
+(`registerType: 'prompt'`, check on load / visibility / 15 min, one reload). **L11 changed the
+SIGNAL and the ORDER, and both are recorded where they were decided**: the comparison is
+`/build.json` against a build identity baked into the bundle, never `/api/version` — the mock layer
+replaces the page's network call and answers only the contract, so a poll there could not fail; and
+the reload follows `controllerchange` rather than the poll, because `registration.update()` resolves
+when a worker begins INSTALLING and reading `waiting` straight after it swaps nothing. The queue's
+exactly-once departure.
+*What it never knows.* What a mutation IS. The queue holds `{ key, request }` opaque envelopes and
+replay calls the same mutation function. **L11 kept the intent and moved the writer**: `send()` is
+the one seam all six mutation call sites already pass through, so enqueuing there is the same
+behaviour with one writer instead of six — a rule re-applied at every call site is a rule that will
+be missing from the seventh.
+*Today → target.* **Done by L11.** The sentence this cell used to carry — « the design host's
+worker caches nothing, deliberately » — was amended in the README by the wave that overturned it:
+a navigation goes to the NETWORK first and falls back to the cache, so the failure that decision
+named is removed rather than tolerated. And the shell is completed by the RUNNING application
+rather than at install, because the only document a phone can install from is the sign-in gate,
+where `/` itself answers 401 (B-259).
 
 ---
 
@@ -327,7 +338,7 @@ reads it** (exists · to build · device-only), whether it holds today, and the 
 **A property with no conceivable instrument is not on the list** — it was restated until one was,
 or dropped and named in § 3.1.
 
-**Seven rows were refreshed by L15, in the wave that made them move** — § 7.1's duty, not an
+**Seven rows were refreshed by L15 and five by L11, each in the wave that made them move** — § 7.1's duty, not an
 amendment: what the phase DECIDED is untouched and only the measurement under it changed. P1, P2,
 P3, P14, P21, P28 and P31 read `true` with the rule that says so; P10 says it survived the two bars
 becoming components. **And P1's instrument is not the one this table specified**: the column read
@@ -343,9 +354,9 @@ come out the other way. A sentinel on `window` and the `load` event are what sep
 | P4 | **Opening pushes, adjusting replaces** (D1b) | R69 | true | — |
 | P5 | **A declared transition between sibling surfaces**: a page switch runs inside `document.startViewTransition`, the rules are `::view-transition-*` in `base.css`, none is a script (D9) | to build — a rule reads `document.getAnimations()` mid-switch under `no-preference`, and reads NONE under `reduce` (invariant 14) | false — `grep -rn "view-transition" design/src` → 0 | L12 |
 | P6 | **A shared element survives navigation**: the poster carries a `view-transition-name` on the card and on the sheet | to build | false | L12 |
-| P7 | **The shell opens offline**: `context.set_offline(True)`, reload `/`, a named state renders | to build — `harness/pwa.py` is where it goes | false by design (the design host's worker caches nothing) | L11 |
-| P8 | **A mutation issued offline departs exactly once** on reconnection | to build on L10's fake transport | false | L11 |
-| P9 | **Installable, and the handler of its own links**: manifest `display`, `id`, icons (R52), and the entry points L11 names | R51, R52 exist for the first half; the second half is a decision (`QUESTIONS.md` Q4) | half | L11 |
+| P7 | **The shell opens offline**: the worker precaches the document and the bundles, and a named state renders with the server gone | **R105** — and NOT `context.set_offline`, which does not reach the requests a service worker makes in Chromium: measured that way the rule is green because the NETWORK answered. R105 raises its own scratch server and STOPS it | **true** since L11 | — |
+| P8 | **A mutation issued offline departs exactly once** on reconnection | **R107**, 16 holds — on the mock layer's `setOffline`, which REJECTS the way an outage does rather than answering a status | **true** since L11 | — |
+| P9 | **Installable, and the handler of its own links**: manifest `display`, `id`, icons, and the entry points L11 names | R51, R52, and **R108** for the three Q4 elected — declared in the manifest, and `/add?q=` proved to pre-fill. The half only a device settles is DECLARED as device-only and NOT yet exercised — `REPORT.md` says so, and no dated device record exists | **true** in the manifest; the operating-system half is device-only | — |
 | P10 | **Safe areas**: the two bars pad by `env(safe-area-inset-*)` and nothing else positions by a distance to an edge | static read of the bars' classes (the compositor guard's shape); the rendered check is device-only | true in the markup, and still true after L15 moved both bars into components | — |
 | P11 | **Dynamic viewport**: the frame is `100dvh`, no `100vh` anywhere | `check-css-tokens.py`-shaped static read | **false** — no `dvh` in the tree; `base.css:54` is `height: 100%`; the only `100svh` is `harness.css`, which ships nowhere | L12 |
 | P12 | **Contained overscroll** on `#port` | the compositor-CSS guard | true | — |
@@ -363,11 +374,11 @@ come out the other way. A sentinel on `window` and the `load` event are what sep
 | P24 | **No unvirtualised long list** (1 861 titles) | to build — a rule counts rendered rows against the data length | **false** — `features/library/page.tsx:371` is infinite scroll by `IntersectionObserver`, not virtualisation | L12 |
 | P25 | **No tap flash**: `-webkit-tap-highlight-color: transparent` on every interactive element | the compositor-CSS guard | **false** — `grep -rn "tap-highlight" design/src design/index.html` → 0 | L12 (base layer) |
 | P26 | **A long press selects no text** on a tile or a card (`user-select: none`) | the compositor-CSS guard, and the real-touch long press `selection.py` already drives | partly — `legacy.css` and one `select-none` on the drawer | L12 |
-| P27 | **Standalone hides browser-only chrome**: what exists only because a browser is around it is absent under `display-mode: standalone` | a rule under an emulated `display-mode` media | unmeasured — nothing reads it but the install offer | L11 |
+| P27 | **Standalone hides browser-only chrome**: what exists only because a browser is around it is absent under `display-mode: standalone` | **R109**, a controlled PAIR — an iPhone user agent WITHOUT standalone must be offered the banner, WITH it must not. `Emulation.setEmulatedMedia` carries no `display-mode` in this Chrome, so the query is answered in the page: it proves the application's branch, not Chrome's | **true** since L11 | — |
 | P28 | **Focus survives a redraw**: `document.activeElement` is the same node across a page switch and a store bump | R100, with P2's | **true** since L15 | — |
 | P29 | **No layout shift when a poster loads**: every poster box declares its size (`aspect-ratio` or width/height) | static read of the gallery variants, and a CLS probe on a named state | to measure | L12 |
 | P31 | **A bottom layer covers the tab bar**: while the sheet is open the bar is not seen — the sheet's rank is above the bar's, its box starts at the screen's bottom edge, and `elementFromPoint` at the bar's centre answers the sheet | R101, with the bar's `inert` LIFTED for the length of one reading: `inert` takes an element out of hit-testing as well as out of the focus order, so a plain reading answers the sheet at 47 exactly as at 52 — the overlap needs no producing here, because the sheet is anchored on the screen's bottom edge | **true** — the sheet is z-52 and reserves nothing (B-248 closed by L15) | — |
-| P30 | **Back-forward cache is not evicted**: `pageshow.persisted` is true after a walk out and back | a rule on a real navigation | to measure — the exit guard's handler is the kind of thing that evicts | L11 |
+| P30 | **Back-forward cache is not evicted**: `pageshow.persisted` is true after a walk out and back | **R110**, and it is a STATIC ratchet by necessity — Chrome refuses the cache whenever a DevTools client is attached, and Playwright is always one, so a runtime reading cannot tell « the page was rebuilt » from « this browser never keeps pages ». It reads that nothing registers `beforeunload` or `unload`; the runtime half is device-only | **true** in the tree, unmeasured at runtime | — |
 
 ### 3.1 Discarded, and why
 

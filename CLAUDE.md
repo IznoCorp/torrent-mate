@@ -80,7 +80,7 @@ implementation directives change IN THE SAME MOVE. What loses its subject is rem
 3. The **harness is the proof**: a change lands with its rule, and the rule is mutation-tested —
    break the behaviour on purpose, confirm the rule falls and names the right defect, restore.
 4. **The rule suite runs on a schedule, not on a hunch** — `frontend/maquette/harness/run.sh`:
-   - `--contracts` (12 rules since L15, minutes; `run.sh` prints the count) runs **in CI on
+   - `--contracts` (13 rules since L11, minutes; `run.sh` prints the count) runs **in CI on
      every PR touching the maquette**. These
      are the rules that fall when a NAME moves without all of its ends. A rule that reads
      the operator's live databases cannot be among them — `arrivals.py` was, and failed on
@@ -91,7 +91,7 @@ implementation directives change IN THE SAME MOVE. What loses its subject is rem
      breach is attributable to the phase that commits it and not to a fifteen-phase
      interval. `make check` entire is NOT among them: its fourteen minutes of tests stay a
      wave gate.
-   - no flag (75 rules since L15; `run.sh` prints the count, 20-25 min) is the **gate before
+   - no flag (79 rules since L11; `run.sh` prints the count, 20-25 min) is the **gate before
      a wave is merged**, and it is not
      optional. It ran nowhere automatically until 2026-08-20, and on that day a rename that
      looked contained broke SIX contracts — four of them visible to nothing else, including a

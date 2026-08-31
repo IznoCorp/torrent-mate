@@ -695,9 +695,57 @@ window.
 ## It installs, and the invitation depends on the platform
 
 `serve.py` serves a manifest, the brand icons and a service worker, so the prototype installs
-to a home screen like the app does. **The worker caches nothing.** Its only job is to satisfy
-the installability criterion; a caching worker would serve yesterday's prototype to someone
-judging today's design, which is the single failure a design reference cannot afford.
+to a home screen like the app does. **Since L11 the worker precaches the SHELL** — the document,
+the bundles and the icons — and nothing under `/api/` or the stream.
+
+**This line used to read « the worker caches nothing », and that was a real decision with a real
+reason**: a caching worker would serve yesterday's prototype to someone judging today's design,
+which is the single failure a design reference cannot afford. It was not overturned by ignoring
+it. It was overturned by removing the failure it names, and there are two halves to that:
+
+- **A navigation goes to the NETWORK first** and falls back to the cache. Whoever can reach the
+  host sees what the host has now; the cache answers only when the network does not. Assets are
+  cache-first, and that is safe because they carry content hashes — a name in the cache is bytes
+  that have never changed, and a build that changes them changes their names.
+- **The update discipline reloads once** when the served build stops matching the running one
+  (`app/worker-registration.ts`): a check on load, on `visibilitychange` and every 15 minutes.
+  The signal is `/build.json` and **not** the commit — the design host is the machine the
+  prototype is edited on, and a dirty tree keeps one commit across a whole session of edits.
+  It is not under `/api/` either, and that is not tidiness: the mock layer replaces the page's
+  `fetch` and answers only the maquette's contract, so a poll there would be satisfied by a
+  fixture and could never fail.
+
+**The worker is BUILT, not written in `serve.py`.** The source is `design/sw.js`; the build
+writes `design/dist/sw.js` with the bundle names it actually emitted, because those names carry
+content hashes and a list restated by hand would be wrong in the silent direction — precaching a
+file that no longer exists while the one that does goes uncached. `run.sh` copies it into the
+served copy, without which the harness host has no `/sw.js` at all: its fallback handler folds
+any unknown path onto the document, so registration would receive an HTML body and refuse it on
+the MIME type, with nothing said.
+
+**The precache happens in TWO MOMENTS, and the host is what forces it.** A worker installs from
+whichever document a browser has in front of it, and here that is the SIGN-IN GATE — a browser
+reads the manifest of the page it is on, never one waiting behind a cookie. On the gate, `/`
+itself answers **401** (the login page is served with that status) and so does `/vite/*`: the
+prototype is what the password protects. So the install ATTEMPTS everything and requires nothing
+— on the gate it gets the manifest, the icons and the offline notice — and the running
+application asks for the shell to be completed (`cache-shell`), which is the first moment the
+document and the bundles are reachable, because the page is running from them. What guarantees
+the shell is whole is therefore a RULE and not an install: **R105 reads the cache after boot and
+refuses a shell with no bundle in it.** The application asks on every boot, so a completion that
+failed once repairs itself the next time.
+
+The obvious design — require the document, attempt the rest — was tried and produces exactly one
+symptom: « the service worker never became ready », a 401 in the console, and no registration
+left behind. `cache.addAll` and `Promise.all` both fail the install as a whole; `allSettled` is
+the difference.
+
+**Two more traps, both silent.** `clients.claim()` fires `controllerchange` on the very first
+visit of every visitor, so an unguarded reload-on-swap would reload the application once on first
+load — in the harness, in the middle of every measurement in the suite. And `set_offline` does
+not reach the requests a service worker makes in Chromium, so P7 measured that way would be green
+because the NETWORK answered: R105 raises its own scratch server and stops it, which is the only
+reading with nothing behind it.
 
 **And it is actually offered**, which is the half that was missing: the banner existed and nothing
 ever showed it — it was reachable only by driving to its named state, so on a real phone it never

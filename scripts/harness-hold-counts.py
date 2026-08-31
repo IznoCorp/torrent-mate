@@ -93,12 +93,14 @@ The baseline recorded at commit c78c9d66 (2026-08-21) lives at
 from __future__ import annotations
 
 import argparse
+import atexit
 import concurrent.futures
 import datetime
 import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import urllib.error
@@ -109,6 +111,11 @@ ROOT = Path(__file__).resolve().parent.parent
 HARNESS = ROOT / "frontend" / "maquette" / "harness"
 DESIGN = ROOT / "frontend" / "maquette" / "design"
 SERVED = Path("/tmp/tm-refonte")
+
+# The harness owns the served copy: its lock, its stamp, and how it is assembled.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent
+                       / "frontend" / "maquette" / "harness"))
+import served_copy  # noqa: E402 — the path line above must run first
 PROTOTYPE_URL = "http://127.0.0.1:8899/"
 RULE_TIMEOUT_SECONDS = 600
 
@@ -183,6 +190,33 @@ def select_rules(spec, allowed):
     return selected, sorted(set(selected) - known)
 
 
+def hold_the_served_copy():
+    """Takes the served copy for this whole run, and gives it back at exit.
+
+    THE COPY IS HELD FOR THE WHOLE RUN and not only for the rebuild. This tool
+    rebuilds the prototype and then reads 79 rules against it, which is exactly
+    the shape B-256 describes: without the lock a suite can start beside it, and
+    without the stamp neither would ever know they had swapped prototypes.
+
+    `atexit` rather than a `try`/`finally` around the body: the release must
+    happen on an unhandled exception and on a `SystemExit` alike, and wrapping
+    two hundred lines to say so would bury what they do.
+    """
+    served_copy.acquire(f"harness-hold-counts, pid {os.getpid()}", os.getpid())
+    atexit.register(served_copy.release, os.getpid())
+    # AND ON A SIGNAL. `atexit` does not run when the default disposition kills
+    # the process, so a `kill` of a twenty-minute run leaked the lock for the
+    # whole staleness hour. Re-raised with the default handler so the exit
+    # status still says what killed it.
+    def give_it_back(number, frame):
+        served_copy.release(os.getpid())
+        signal.signal(number, signal.SIG_DFL)
+        os.kill(os.getpid(), number)
+
+    for number in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(number, give_it_back)
+
+
 def ensure_fresh_prototype():
     """Builds the prototype and copies it where the harness reads it.
 
@@ -199,18 +233,14 @@ def ensure_fresh_prototype():
     if build.returncode != 0:
         print(f"npm run build failed:\n{build.stderr[-800:]}", file=sys.stderr)
         raise SystemExit(2)
-    shutil.copy2(DESIGN / "dist" / "index.html", SERVED / "wrapped.html")
-    shutil.rmtree(SERVED / "vite", ignore_errors=True)
-    if (DESIGN / "dist" / "vite").exists():
-        shutil.copytree(DESIGN / "dist" / "vite", SERVED / "vite",
-                        dirs_exist_ok=True)
-    link = SERVED / "assets"
-    if link.is_symlink() or link.exists():
-        if link.is_dir() and not link.is_symlink():
-            shutil.rmtree(link)
-        else:
-            link.unlink()
-    link.symlink_to(DESIGN / "assets", target_is_directory=True)
+    # PUBLISHED THROUGH THE HARNESS'S OWN FUNCTION, which also writes the
+    # stamp (B-256). This step used to be a third copy of the same assembly —
+    # `run.sh` and `scripts/mutate.sh` had the other two — and it took neither
+    # the lock nor the stamp, so a suite running beside THIS tool read its
+    # prototype and said nothing. It had also fallen behind: `sw.js` and
+    # `build.json` joined the copy at L11 here and nowhere else, so a copy this
+    # tool made served a worker from a previous build.
+    served_copy.publish(DESIGN)
 
 
 def host_serves_prototype():
@@ -457,6 +487,7 @@ def cmd_record(target, only=None, jobs=None):
                   file=sys.stderr)
             return 2
         only = selected
+    hold_the_served_copy()
     ensure_fresh_prototype()
     if not host_serves_prototype():
         _print_host_hint()
@@ -588,6 +619,7 @@ def cmd_compare(baseline_path, only=None, jobs=None):
         base_rules = {name: entry for name, entry in base_rules.items()
                       if name in only}
 
+    hold_the_served_copy()
     ensure_fresh_prototype()
     if not host_serves_prototype():
         _print_host_hint()

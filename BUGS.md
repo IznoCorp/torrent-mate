@@ -315,7 +315,183 @@ when the defect comes back.
 | B-253 | B-247 was reassigned to L14 and L19 by the wave that left it, and the plan named it in neither | by audit | `fixed #532` |
 | B-254 | Two figures written by hand: the Makefile's « 83 states x 33 regions » and CLAUDE.md's guard count | by audit | `fixed #532` |
 | B-255 | `check-frontend-boundaries.py` is back at 952 lines, 48 from the hard ceiling it was cut away from | by audit | `open` |
-| B-256 | The harness's served copy has no lock and no build stamp; a fresh copy arriving mid-run is a false reading either way | by audit | `open` |
+| B-256 | The harness's served copy has no lock and no build stamp; a fresh copy arriving mid-run is a false reading either way | by audit | `fixed #534` |
+| B-257 | Push notifications are declined for L11 and their consumer is §18's ratio alert, which is L16 | by L11 | `fixed #534` |
+| B-258 | `Makefile`'s contract tier announced « 9 rules » where `run.sh` held 12 | by L11 | `fixed #534` |
+| B-259 | The design host answers **401 for `/` itself**, so a worker installing from the gate can require nothing | by L11 | `fixed #534` |
+| B-260 | A harness rule named after a STANDARD LIBRARY module shadows it for everything downstream | by L11 | `fixed #534` |
+| B-261 | The cached shell outlived the session that filled it — the prototype readable offline after sign-out | by review | `fixed #534` |
+| B-262 | The update discipline reloaded without ever swapping the worker, and then never swapped again | by review | `fixed #534` |
+| B-263 | A refused replay jammed the queue forever, over an optimistic write the server had rejected | by review | `fixed #534` |
+| B-264 | `caches.open` CREATES, so a controlling worker re-made the cache a sign-out had just deleted | by L11 | `fixed #534` |
+| B-265 | The queue's drop-decision treated **401 as final**, destroying every queued mutation an expired session met | by review | `fixed #534` |
+| B-266 | A notice button's name, words and action were three ladders in different orders, so it said one thing and did another | by review | `fixed #534` |
+| B-267 | The real backend answers `{detail}`, which the queue's failure shape does not match — every refusal would be QUEUED at switchover | by review | `open` |
+
+**B-267 — the real backend's failure shape does not match the one the queue reads, and at switchover every refusal becomes a queued mutation.**
+Found by the fourth adversarial round, and it is LATENT rather than live: the mock layer emits the
+right shape, so nothing in the maquette is wrong today. `isRequestFailure` requires
+`{status, title, detail}`. `personalscraper/web/deps.py` raises `HTTPException(403, detail="…")`
+and FastAPI serialises `{"detail": "…"}` — no `status`, no `title`, and there is no
+`exception_handler` reshaping it. On the day `send()` points at that server, **every** refusal —
+403 read-only, 401, a 400 for a missing `X-Requested-With`, a 409 — fails the shape test, takes the
+OUTAGE branch, and is queued: the optimistic write stands over an action the server refused, and
+the replay meets the same answer forever. NE-DOIT-PAS-1 from both ends at once.
+
+**It belongs to the lot that binds the maquette to the backend**, and it is written here so that
+lot finds it rather than discovering it in production. The fix is one of two: a FastAPI exception
+handler that emits the problem shape the interface already reads, or a reader on this side that
+accepts `{detail}` — and the first is the one §15 asks for, since the interface declares what it
+requires and the backend follows.
+
+<sub>`grep -rn "HTTPException(" personalscraper/web/deps.py | head -3` · `grep -n "isRequestFailure" frontend/maquette/design/src/lib/query-client.ts`</sub>
+
+---
+
+**B-266 — a notice button's name, words and action were three ladders in different orders.**
+Found by the third adversarial round. The label and `data-connection-action` tested « does the
+condition owe an explanation? » first; the click tested « is a refusal recorded and nothing
+waiting? » first. On a lost connection with a refusal and an empty queue they disagreed: the button
+said « Réessayer maintenant » and CLEARED the refusal instead of reconnecting — so pressing the
+reconnect button did not reconnect, and silently discarded the record the round-two repair exists
+to show. It is the same « lie by suggestion » that repair was written for, reintroduced by writing
+the decision three times. One function decides all three now.
+
+<sub>`grep -n "whatToOffer" frontend/maquette/design/src/app/connection-notice.tsx`</sub>
+
+---
+
+**B-265 — the queue's drop-decision treated 401 as final, destroying every queued mutation an expired session met.**
+Found by the third adversarial round, inside the second round's repair for exactly this. That repair
+replaced « did the layer answer? » with « will re-sending ever produce a different answer? » and
+implemented it as a DENY-list: 408, 429 and the 5xx were kept, everything else at or above 400 was
+final. **401 fell through it.** An installed application with the radio off queues N mutations; the
+session expires; the radio returns; the first replay answers 401, the envelope is destroyed, the
+loop continues, and all N are destroyed the same way — when a re-login would have made every one of
+them succeed. The commit that introduced it names that case as fixed.
+
+**A deny-list is wrong here by construction**, and that is the repair: the safe direction is to KEEP
+the operator's action, so anything unlisted must be kept. `FINAL_STATUSES` names the seven that say
+something about the REQUEST — 400, 404, 405, 409, 410, 415, 422 — and nothing about the caller's
+identity is among them, because 401 and 403 change when a session or a right changes and 423
+unlocks.
+
+<sub>`grep -n "FINAL_STATUSES" frontend/maquette/design/src/lib/query-client.ts`</sub>
+
+---
+
+**B-264 — `caches.open` creates, so a controlling worker re-made the cache a sign-out had just deleted.**
+Found by R111 on 2026-08-31, one minute after that rule was written to prove B-261's repair — and it
+is the reason a repair needs a rule rather than a reading. `signOut` deleted every `tm-shell-*`
+cache and the cache was still there afterwards. The worker still CONTROLS the page until it
+unloads, its fetch handler opened the cache by name on the next request, and `caches.open` creates
+one when it is absent. The teardown had run perfectly and left no trace.
+`caches.match(request, {cacheName})` reads without creating, and it gives the same guarantee the
+scoped `open().match()` gave: this build's cache and no other.
+
+<sub>`grep -n "caches.match" frontend/maquette/design/sw.js`</sub>
+
+---
+
+**B-263 — a refused replay jammed the queue forever, over an optimistic write the server had rejected.**
+Found by adversarial review of L11's own change. `departAll` stopped on ANY failed departure, and
+a refusal is not an outage: 401 on an expired session, 404 on an item already gone, 409 from a
+second operator. The envelope was never forgotten, every envelope behind it was blocked with it,
+the pending count never fell, and the interface went on showing the operator's action as applied
+over something the server had refused. That is NE-DOIT-PAS-1 — the defect the queue exists to
+prevent — arriving from the other side, with no path out of it but clearing storage by hand.
+The queue asks whether the layer ANSWERED, through a predicate injected with the departure so it
+still knows no domain; a refused envelope leaves the queue and is remembered.
+
+<sub>`python3 frontend/maquette/harness/outbox.py` → « a replay the layer REFUSES leaves the queue rather than jamming it »</sub>
+
+---
+
+**B-262 — the update discipline reloaded without ever swapping the worker, and then never swapped again.**
+Found by adversarial review. `registration.update()` resolves when a worker begins INSTALLING, not
+when it is waiting — so `registration.waiting` was null, the optional chain swallowed the
+`skip-waiting` message, and the page reloaded anyway. After that reload the served build EQUALS the
+running build, so the comparison returns early and the message is never sent again for the session:
+the page runs the new build while the OLD worker controls it, and the new one is parked until every
+tab closes. The file's own comment said « what changes here is the signal, and only the signal » —
+what had changed was the reload's ORDER against the swap. Driven from `updatefound` →
+`statechange` → `installed` now, with the reload following `controllerchange`.
+
+<sub>`grep -n "updatefound\|controllerchange" frontend/maquette/design/src/app/worker-registration.ts`</sub>
+
+---
+
+**B-261 — the cached shell outlived the session that filled it.**
+Found by adversarial review, and it is a security regression L11 introduced. Before this wave the
+worker cached one page — the offline notice. It now caches the document and every bundle, taken
+from an AUTHENTICATED context, and **nothing cleared them on sign-out**: a cache outlives a cookie.
+Sign in on a phone, sign out, hand it over, turn the radio off, and the whole password-protected
+prototype renders from disk with no session. Online it still answers 401, so the bypass cost exactly
+one toggle of airplane mode. `signOut` deletes every `tm-shell-*` cache and unregisters the worker,
+each step independent and best-effort — refusing to sign out because a cache would not clear is the
+worse of the two failures. **R111 holds it, with a control**: « nothing is cached after signing
+out » is also true of a browser that never cached anything.
+
+<sub>`python3 frontend/maquette/harness/pwa.py` → R111's three holds</sub>
+
+---
+
+**B-260 — a harness rule named after a standard library module shadows it for everything downstream.**
+Found by `make check` on 2026-08-31, and the symptom names nothing that would lead you to it: four
+subprocess smoke tests failed with `AttributeError: module 'platform' has no attribute
+'python_implementation'`, raised inside `attr/_compat.py`, which none of them mentions. The new
+rule was called `platform.py`. A rule is run as `python3 <harness>/<rule>.py`, which puts the
+harness directory at `sys.path[0]`, and `tests/scripts/` puts that directory on the path too — so
+every `import platform` downstream got the rule.
+
+**What makes it worth an entry rather than a rename.** It was invisible to every gate that had run:
+`ruff`, the harness suite, the boundaries guard and the abbreviation guard all passed, and the rule
+itself was green. Only the full test suite saw it, and only through four tests in a different
+subsystem. The general form is the part to keep: **a directory that lands on `sys.path` may not
+hold a file named after anything in the standard library**, and the harness is 80 such files.
+Renamed to `installed.py`, with the reason written in its own header.
+
+<sub>`python3 -c "import platform, pathlib; print(pathlib.Path(platform.__file__).parent)"` from `frontend/maquette/harness`</sub>
+
+---
+
+**B-259 — the design host answers 401 for `/` itself, so a worker installing from the gate can require nothing.**
+Found by L11 on 2026-08-30, by a symptom that names nothing: « the service worker never became
+ready », a 401 in the console, and no registration left behind. A browser reads the manifest of the
+page in front of it and never one waiting behind a cookie, so the only document a phone can install
+from here is the SIGN-IN GATE — and there `/vite/*` answers 401 because the bundles are the
+prototype, which is what the password protects, and `/` answers 401 too because the login page is
+served WITH that status. `cache.addAll` and `Promise.all` both fail the install as a whole. The
+install attempts everything and requires nothing; the running application completes the shell,
+which is the first moment anything is reachable; and what guarantees the shell is whole is R105
+reading the cache after boot rather than a promise made at install.
+
+<sub>`python3 -c "import urllib.request as u" -c "import urllib.error as e"` — or, as one line that PRINTS: `python3 -c "exec('import urllib.error as e, urllib.request as u\\ntry: u.urlopen(\\'https://tm-design.iznogoudatall.xyz/\\', timeout=15)\\nexcept e.HTTPError as x: print(x.code)')"` → `401`. Written CAUGHT because `urlopen` RAISES on a 4xx and never reaches `.status` — and written as one runnable line because the first repair of this line was prose about a command, which is the same defect one step further along.</sub>
+
+---
+
+**B-258 — the Makefile's contract tier announced « 9 rules » where `run.sh` held 12.**
+B-254's species in a line B-254's own repair did not reach: a hand-written figure beside a script
+that prints the real one. Fixed by REMOVING the figure rather than correcting it, so the class of
+defect goes with it — `run.sh` prints the count and always has.
+
+<sub>`grep -n "contract subset" Makefile`</sub>
+
+---
+
+**B-257 — push notifications are declined, and the reason is written here so it is a decision.**
+The operator's principle (Q4, 2026-08-30) is that every entry point the platform offers an
+installed application is declared *unless a written reason says why not*. This is that reason: a
+permission prompt with nothing to send trains the operator to refuse it, and a browser remembers a
+refusal far longer than a wave. **The consumer exists and is named** — a ratio alert arriving by
+FCM, which is §18, which is **L16**. R108 holds the manifest to declaring no push, so reversing
+this is a deliberate act rather than an accident.
+
+**It closes, and its third column reads `by L11`.** Both were wrong on the register's own rules: `1×` counts the times the OPERATOR has had to say a thing again, and nobody reported this — it is the wave's decision record. And `open` means « diagnosed, not yet fixed » while the instrument that holds the decision exists and bites, which is rule 3's closing condition. Left open on the sentence « the consumer is L16 », it would be the deferral shape rule 3 was dictated to end.
+
+<sub>`python3 -c "import urllib.request as u,json; print('push' in u.urlopen('https://tm-design.iznogoudatall.xyz/manifest.webmanifest').read().decode().lower())"` → False</sub>
+
+---
 
 **B-256 — the harness's served copy has no lock and no build stamp; a fresh copy arriving mid-run is a false reading either way.**
 Found by collision on 2026-08-30: the steward's `make maquette-oracle` rebuilt and re-copied
@@ -329,7 +505,34 @@ mechanism — the convention (two sessions coordinate by message first) is in `f
 **Placed by the operator on 2026-08-30: the stamp rides the next wave — L11, in flight — and its
 agent is told.**
 
-<sub>`grep -n "cp .*wrapped.html\|tm-refonte" frontend/maquette/harness/run.sh` · `grep -c "stale" frontend/maquette/README.md`</sub>
+**Placed on L11 by the operator on 2026-08-30, and closed there.** A lock PREVENTS and a stamp
+DETECTS, and neither is enough alone: the lock covers the builders that take it and cannot cover a
+reader started before it existed or a rule launched by hand from an editor. `harness/served_copy.py`
+holds both. The stamp is read in three places and the coverage of each is given WITH ITS COMMAND,
+because the first version of this paragraph published four figures that were stale on the day they
+were written — the wave had added four rules, and « 75 of 75 » was 79.
+
+<sub>`ls frontend/maquette/harness/*.py | grep -v common.py | wc -l` (every rule, covered by
+`run.sh`'s per-rule wrapper — the only reading that reaches `audit2.py`, which uses no
+`common.Journal` and is the rule that started the incident) · `grep -l "open_page" frontend/maquette/harness/*.py | grep -vc common.py` · `grep -l "Journal("
+frontend/maquette/harness/*.py | grep -vc common.py` (the two ends `common.py` asserts at — and
+`common.py` is EXCLUDED from both, because it is the file doing the asserting and not a rule being
+protected; counting it was this paragraph's second wrong figure in two rounds)</sub>
+
+**AND IT WAS STILL OPEN AFTER THE FIRST REPAIR.** `scripts/mutate.sh` and
+`scripts/harness-hold-counts.py` each rebuilt and re-copied the served copy with neither the lock
+nor the stamp — the tool that recorded this wave's own baseline, and the mutation tool the method
+mandates. The assembly is `served_copy.publish()` now and all three call it, which also ends the
+other half: `sw.js` and `build.json` had joined the copy in `run.sh` alone, so a copy either tool
+made served a worker from a previous build.
+
+R104 holds the WIRING, because the unit tests prove the lock and the stamp behave and cannot prove
+`run.sh` still calls them — a mechanism nothing calls is a mechanism that is not there, which is how
+B-256 existed at all. It reads the COMPARISON and not three substrings that survive without it, and
+`_code_of` strips docstrings as well as `#`: leaving them, the arm was satisfiable by moving an
+assertion's sentence into a docstring and deleting the assertion.
+
+<sub>`grep -n "cp .*wrapped.html\|tm-refonte" frontend/maquette/harness/run.sh` · `python3 frontend/maquette/harness/served_copy.py`</sub>
 
 ---
 
@@ -3195,7 +3398,8 @@ absence of a row can mean either.
 | L10-ter (the survey) | **5** | **1 found by the phase, 4 by its adversarial review — the L10 curve again, on a phase that wrote no instrument.** **B-228** — the brief's own inventory command, a spelling of one write out of the ways a script draws: it read twelve of thirteen and its figure had moved twice in a day; the survey's command reads every way and says what it does NOT read (descriptors, toggles) — which is how B-236 was found: ten producers no `innerHTML` grep can see. Then three readers on the finished phase: **the seams command** printed in the survey (`grep -on … \| sort -u`) could not count distinct names — it deduped line-prefixed matches and read 90 or 231 where the answer is 43, and the prose beside it said « twelve » and « 41 » in one clause; **two `served` rows of the clause map** rested on proofs that do not read their clause — `selection.py`, which PRINTS the delete dialog and asserts only that a sheet opens, and R67, a rule about PM2 processes, named for the pipeline controls that live in `arrivals.py`; and **the B-142 arm's specified regex** matched 24 clauses for 23, because §19's fourth point begins with a clause name. Seven verdicts moved from `served` to `partly` in the same pass |
 | L15 (the frame) | **12** | **All twelve found by asking the question, none by a gate going red** — and eleven of them are in instruments this wave was writing, which is L09's reading arriving a fifth time. **B-246**, the version arm of the guard that holds the « In flight » row, defeated by markdown emphasis while every row of that table writes its pull request in bold — and its no-version branch exited 0 in SILENCE, so « this wave declares no version » and « I could not parse one » were the same line: none. **B-244**, the CI-filter hold asking « is this path named by ANY filter? » where the question is « by the filter that GATES THE JOB »; its two earlier cases were both fixed by adding to `maquette`, so the two questions had never yet had different answers — asked properly it goes red over **seven** guards, every one of them running in no job for a pull request touching only its own subject. **`boundaries_addressing`'s bracket search**, which found the empty pair of a TYPED declaration (`readonly NavigationRow[]`) and read an empty array — loud only because the caller has a « reads to nothing » branch at all. **R100's P1 hold, twice**: `performance.getEntriesByType("navigation").length` holds one entry PER DOCUMENT, so a full navigation makes a new document where the count is one again and the assertion cannot come out the other way; its replacement counted `framenavigated`, which fires for a `pushState` too — 63 over the 87 states with the property holding perfectly. **The tab bar's badge subscribed to NOTHING**: `acquisitionBadge()` reads the query cache synchronously and a synchronous read is not a subscription, so a badge showed the previous scenario's count until an unrelated store write redrew it — caught by `audit2.py`'s R16, an existing rule, and the reason it never bit before is that the engine's bar was rebuilt by `render()`, which the cache's redraw hook calls. **R101's B-237 hold, three times**: the named delete states raise dialogs of 184–660 and 142–702 against a bar at 787–844, so they DO NOT TOUCH and a hit-test of the dialog's own rectangle passed at 48 exactly as at 56; `inert` takes an element out of hit-testing as well as out of the focus order, so with the background inert `elementFromPoint` answered the dialog either way; and its selection-bar hold asserted over a bar that `lib-delete-multiple` does not put on screen. **R101's popover clamp** read the FIRST and LAST cell of a matrix that wraps, so both readings exercised the same edge and it reported the same placement twice. **B-250**, the stale-figure arm treating a hyphen as a separator, so `B-154` is a match the day the corpus reaches that size — and it then caught the first draft of its own repair saying « the corpus reached 154 files ». **`check-viewport-directives`'s split-literal blind spot**, found by the mutation that wrote `"maximum" + "-scale=1"`: the shape L07's split-class hold had. |
 | L15, after the three adversarial reviews | **15** | Three reviewers on a wave whose every tier was green — the full suite at 75 rules, `--a11y` at 0, `make check` at 0, and the oracle at its 167 enumerated divergences. **Thirteen of the fifteen are in the wave's own instruments, and two are the ORACLE's blind spot read from the product side.** `page_host.py` held « every page in the table has an owner » by comparing `window.__pages()` against `window.__shellPages` — TWO EXPRESSIONS OVER THE SAME ARRAY, a tautology that could only fail by the seam being absent; it now drives every page and asks `#view` whether the host put anything in it. `page_host.py` again: its `#view` write detector read `view\.innerHTML\s*=` and nothing else, so `getElementById("view").innerHTML =`, `replaceChildren`, `append`, `insertAdjacentHTML` and any local alias passed — **and its own control was a literal written in the same file to match its own pattern**, a constant expression this very file warns against two hundred lines above; the control now splices two lines into a COPY of the engine and re-runs the same search. `stacking.py` PRINTED the confirmation's rank and the bar's and compared neither, holding only that they share a parent; and its message hold hit-tested inside the toast's own centre, which is true by construction — a message moved to `bottom-0 z-[60]`, squarely over the bar, would have passed it. `appearance.py` chose ONE appearance and reloaded once, leaving the pre-paint script's other two branches testing words nothing writes: the « repair applied to one branch of an `if` » shape, at the level of the walk. `exits.py` (R103) measured TWO layers of five, and the three it did not read — the message, the drawer, the confirmation — all still had B-249's defect. `boundaries_addressing.py`'s page hold said NOTHING when the navigation table's file is absent, so moving it to `app/navigation/index.ts` would have taken both directions away in silence. `persistence.py`'s focus hold read `dataset.page`, a `closest('#nav')` and « not body » — every one of which a REPLACEMENT node satisfies, in the rule written to catch replaced nodes, whose own header names `isSameNode` as the only question that separates them; and its one-document hold counted `load` events while a bfcache restore brings the sentinel back intact and fires `pageshow`. `selection.py` held its caption by digit SUBSTRING: « 0 sur 15 sélectionnés » satisfies a hold on « 1 », on the one surface whose job is to say how many things are about to be destroyed. `check-intent-map.py` gave `served, unproved` no obligation — the only verdict of five owing nothing — so rewriting fourteen `partly` rows to it empties the ledger and the guard prints « 0 violation »; and a named proof FILE was never checked to exist. `check-viewport-directives.py` read `frontend/maquette` without its `.py` files, leaving every harness rule outside the guard written to keep those two directives out of the tree. **And the two on the product side are the oracle's own limit, which is that it measures REGION ROOTS**: `.dlg p`'s `color` was one of four declarations and three were restated, so a confirmation's explanatory sentence read at full heading weight and the oracle — which does measure `color`, on `#dlg` — saw nothing; and `selectionAction` carried `bg-transparent` in its BASE with `bg-danger-fill` on the `danger` branch, two utilities of equal specificity where Tailwind emits colour alphabetically, so `transparent` always follows `danger-fill` and the destructive button rendered transparent with white text — **white on white under `data-theme="light"`, contrast 1.00** — while the light-theme audit stayed at exactly 166 before the repair and after it, which says the ratchet was not what was holding that surface |
-| **Total** | **125** | at 2026-08-30, after L10-bis, its review, L10-ter's survey and its review, and **L15 with its own review**. **L15's review is the L10 curve arriving on a conversion wave, and the ratio is the sharpest yet: 12 found by the wave, 15 more by three readers of the finished gate — and thirteen of those fifteen are in instruments the wave had already mutation-tested.** The two that are not say something the other tables do not: **the oracle's guarantee is region ROOTS**, so a conversion can drop a child's `color` or invert a button's fill and be proved at zero divergence, truthfully, over a defect a reader sees at a glance. A wave that rests on the oracle rests on that sentence, and it is now written where the next wave will read it. **L15's twelve are all in INSTRUMENTS and none in a surface**, which is what a conversion wave looks like from this table: the rendering is held by the oracle at zero divergence, so what can go wrong is what MEASURES. Eleven of the twelve are in instruments the wave was writing at the time, and the twelfth — the badge subscribed to nothing — was caught by a rule that already existed, which is the case for keeping old rules running over converted code rather than re-writing them. **And the sharpest of them is B-244**: a hold written against « a guard that runs in no job », green for four waves, asking a question one word away from the right one — and seven guards were already relying on the difference. **L10-ter's own one was the smallest entry in this table and the one that changed a plan the most**: the count it corrected was the brief's own premise, and asking what the corrected instrument still did not read is what surfaced ten engine producers and a lot nobody owed (L19). **Its review then found four more in a phase that wrote no code** — a map whose purpose is to end « green over what it does not read » shipped two rows that were exactly that, and only a reader of the named proofs saw it. The rest of this cell is as it read before the survey: **The wave that built the most instruments found the most blind ones**, and that is the reading: nine of L09's fourteen were found by adversarial reviewers reading the gate AFTER it went green. **And a guard can be blind to a document rather than to code** — B-150's arm was correct in every line and read a file that had stopped being true. **L10 adds a fourth reading, and it is the sharpest in this table**: the wave reported **4**, found by its own mutations in the phases that wrote the instruments, and was wrong by **9**. Seven adversarial reviewers reading the same green gate found nine more — six of them in rules that had each already been mutation-tested. **Mutation proves a rule catches the defect you thought of**; every one of the nine is a defect the author did not think of, and they are all the same species: a word the CSS removes, a key that disappears rather than changes, a socket that is not there. The two methods are not substitutes, and the ratio is the argument — 4 to 9. **AND THEN THE REPAIRS WERE REVIEWED, AND HELD ELEVEN MORE.** Six of those eleven are in instruments the author had just written in response to a review, mutation-tested, and believed. The reading that survives all three rounds is not « review harder » — it is that **an instrument written by the person whose work it measures inherits that person's blind spots, whatever the discipline**, and only a second pair of eyes on the instrument finds them. 4 by mutation, 9 by review, 11 by reviewing the repairs, 8 by reviewing THOSE. **AND THE CURVE IS THE ARGUMENT FOR STOPPING**: five production defects in round one, six in round two, and in round three **none** — its two criticals were an ABSENT repair and a DISCARDED count, both procedural, and both now impossible rather than improbable (`scripts/mutate.sh`, and a fake that closes asynchronously like a real browser). A fourth round would read its own corrections. The criterion for ending is not « no findings »; it is **no undiscovered product defect, and the procedural failure mode eliminated**. **L10-bis's reading was written before its own review, and the review refuted it.** At the wave's close this cell read: ten of eleven found by the wave itself, at the moment of mutating what it had just written, and therefore « the half that does not need a second reader, because a mutation aimed at the instrument you just wrote is a second reader you can be yourself ». An adversarial review of the finished wave then returned roughly fifty confirmed defects, and **NINE MORE OF THIS SPECIES** came out of repairing them — which is why the count above is 20 and not 11. So the sentence stands exactly reversed: **a mutation aimed at your own instrument is not a second reader, it is the same reader with a sharper tool.** It finds what you thought to break. The nine are what nobody thought to break: **the invariant-10 arm's vocabulary held the nine feature names and none of the seven page ALIASES the frame actually writes**, so `app/page-host.tsx`'s entire table of pages was outside it; **its comment stripper blanked the code after a `//` inside a string**, live on `lib/relay.ts`; **its corpus floor was one SUM across three directories**, so `ui/`, whose ceiling is ZERO, was satisfied by reading nothing at all. **`check-bug-register.py` ran in NO CI job** on a register-only pull request — the guard this wave built to make the register checkable was unreachable by the change it checks — and the hold written to catch that immediately found `BUGS-CLOSED.md` and `CLAUDE.md` in the same state. **The conformity hook accepted `> 🤖 Generated with Claude Code`, `- 🤖 …` and `* Generated with Claude`**, all three refused on `main`, because anchoring its alternatives to column one anchored them to a message nobody writes. **A hold monkeypatched four arms while `main` calls six**, so two ran for real inside a test that believed it had mocked everything. **The light-theme ratchet read `counts.total` and nothing else**: 99999 raised the ceiling by 165 834 without touching one recorded finding. **And the B-049 guard read a rule's own text and not its import closure**, so one `sqlite3.connect` moved into a helper would have let B-049 back into the tier through the front door. Every one of the nine is an instrument, and every one was found by someone reading the instrument rather than running it |
+| L11 (offline and the PWA) | **5 by the wave, 40+ by four readers** | **The wave's own five were all found by MUTATING its rules, and two are the same rule going green twice over a shell that was not there.** R105 passed with the document deliberately dropped from the precache — the page had been loaded twice, so Chrome's DISK cache answered the reload after the server was gone. With the browser cache turned off it passed AGAIN: on the harness host `/offline.html` has no file behind it, the fallback folds it onto the document, and the worker's LAST-RESORT entry was a full copy of the prototype. **The consequence held while the mechanism was gone**, which is the difference between a rule and a coincidence. **R107 was silent about the client's half of « at least once »**: with the network up, an envelope forgotten BEFORE its request answered and one forgotten after are indistinguishable, so a client promising at MOST once passed eleven green holds. **R109 passed with the standalone check deleted from the application**, because in a desktop context the banner never appears anyway — « not offered » was « never offered ». And **B-258**, a Makefile announcing nine rules where `run.sh` held twelve. *(The wave first counted six here and included R105 CRASHING rather than naming its defect. A crash is RED; B-085 is « green because of what it does not read », so counting it inflated the figure in the flattering direction. It is repaired below instead.)* **THEN FOUR ADVERSARIAL READERS ON THE GREEN GATE RETURNED SOME FORTY MORE**, and the shape is L15's arriving on a wave that wrote BEHAVIOUR rather than conversions: the instruments were sound and the SUBJECT was not. A security regression — the cached shell outlived the session (B-261). An update discipline that reloaded without ever swapping the worker, and then never swapped again (B-262). A queue a refused replay jammed forever, over an optimistic write the server had rejected (B-263). **B-256 still open** through the two tools most likely to run beside a suite, one of them the tool that recorded this wave's own baseline. **R104 reading three substrings and never the comparison** — two survived on the assignment line alone. **`_code_of` stripping `#` and not docstrings**, so its own arm was satisfiable by moving an assertion's sentence into a docstring. **Five properties recorded as `false` that the wave had made true**, § 7.1's duty skipped. And **the coverage figures the register published as B-256's proof were stale the day they were written** — « 75 of 75 » was 79, in the entry that closes the finding about readings nobody can trust. |
+| **Total** | **130 by the waves, plus L11's review** | at 2026-08-31, after L10-bis, its review, L10-ter's survey and its review, **L15 with its own review**, and **L11 with FOUR readers**. **L11's FIVE are the mutation half of the curve, and they say what mutation IS good for**: every one was found by breaking the wave's own rules on purpose, and two of them are the same rule going green twice over a shell that was not there. A rule can hold a CONSEQUENCE while the mechanism it names is gone, and only a mutation asks. **What mutation could not reach is the other forty**: four readers on that same green gate found a security regression, an update discipline that never swapped the worker, and a queue a refused replay jammed forever — none of them a defect the author had thought to break. The ratio is this table's oldest argument, arriving on a wave that wrote BEHAVIOUR rather than conversions: 5 by mutation, some 40 by reading. **And a second round on the REPAIRS found thirteen more, then a third found seven** — the two later rounds are where the sharpest findings are, not the first. Round two: the repair for a jammed queue had made a refused mutation vanish SILENTLY instead, and its classifier destroyed the operator's action on a 503, a 429 and a 401 — the very outage the queue exists for. Round three: that repair's own replacement still treated **401 as final**, so an expired session destroyed every queued mutation one after another when a re-login would have saved them all; and the notice's button said « Réessayer maintenant » while doing something else, because its name, its words and its action were written as three ladders that tested their conditions in different orders. **Each round's worst finding was in the previous round's repair**, and none of the three was found by a gate. |
 
 **The nine the correction wave found, since a wave that counts itself has to name its own.** The
 figure is large because the count is honest, not because the wave was worse: four of the nine are

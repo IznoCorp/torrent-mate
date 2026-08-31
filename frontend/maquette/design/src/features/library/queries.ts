@@ -12,7 +12,7 @@
 // remembered whether the simulated failure had already fired. All four lived in
 // the interface's own store; the cache owns every one of them now.
 import { useInfiniteQuery, useQuery, type QueryClient } from "@tanstack/react-query";
-import { read, send } from "../../lib/query-client";
+import { HELD, read, send } from "../../lib/query-client";
 import { toEngineShape } from "../../engine/engine-shape";
 import type { IncompleteShow, LibraryCategory, LibraryRow } from "./reference";
 
@@ -200,7 +200,16 @@ export function installLibraryDelete(queryClient: QueryClient): void {
         for (const [key, data] of before) queryClient.setQueryData(key, data);
         throw refusal;
       })
-      .finally(() => {
+      .then((outcome) => {
+        // NOT ON THE HELD PATH. `send` answers `HELD` when the network would not
+        // take the mutation: the optimistic write is the truth the operator is
+        // looking at, and refreshing over it replaces it with server state that
+        // does not contain the mutation — the action snapping back with no
+        // explanation, minutes before it actually applies.
+        if (outcome === HELD) return;
+        void queryClient.invalidateQueries({ queryKey: ["/api/library/items"] });
+      }, () => {
+        // AND ON A REFUSAL, which the `.finally` this replaced also covered.
         void queryClient.invalidateQueries({ queryKey: ["/api/library/items"] });
       });
   };

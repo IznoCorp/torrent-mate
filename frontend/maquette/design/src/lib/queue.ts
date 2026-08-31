@@ -26,7 +26,7 @@
 // page, and no amount of animation later repairs it. Each one writes the cache
 // first, remembers what it wrote over, and puts it back if the layer refuses.
 import { useQuery, type QueryClient } from "@tanstack/react-query";
-import { read, send } from "./query-client";
+import { HELD, read, send } from "./query-client";
 import { toEngineShape } from "../engine/engine-shape";
 import type { QueueCard } from "./engine-queue";
 
@@ -200,6 +200,22 @@ function putBack(
   if (held.queue) queryClient.setQueryData(queueKey(scenario), held.queue);
 }
 
+// THE TWO ADDRESSES THIS MODULE'S OPTIMISTIC WRITE SPANS.
+//
+// `takeOutOfQueue` removes the card from WHICHEVER of the two lists holds it
+// and `putBack` restores both, so every path here — online or replayed —
+// invalidates the pair. The list is declared HERE, where the two keys are built
+// and where the two-key write is made, and not in the frame: these are domain
+// addresses, and invariant 10 refuses those in `app/`. The frame reads the list
+// without knowing what is in it.
+//
+// A PAIR IS SYMMETRIC. Its reader matches on EITHER end — reading only the
+// first left a replayed `/api/acquisition/to-handle/…/take` never reaching
+// staging, which is this constant's own defect in the other direction.
+export const ADDRESSES_THAT_MOVE_TOGETHER: readonly (readonly string[])[] = [
+  ["/api/staging/media", "/api/acquisition/to-handle"],
+];
+
 /**
  * Installs the queue's three actions, for the dying engine to call.
  *
@@ -226,16 +242,24 @@ export function installQueueActions(queryClient: QueryClient): void {
   const settle = async (title: string, outcome: string, choice?: string) => {
     const scenario = scenarioNow();
     const held = takeOutOfQueue(queryClient, scenario, title);
+    let answer: unknown;
     try {
-      await send("POST", `/api/staging/media/${encodeURIComponent(title)}/continue`,
-                 { outcome, ...(choice === undefined ? {} : { choice }) });
+      answer = await send("POST", `/api/staging/media/${encodeURIComponent(title)}/continue`,
+                          { outcome, ...(choice === undefined ? {} : { choice }) });
     } catch (refusal) {
       putBack(queryClient, scenario, held);
-      throw refusal;
-    } finally {
       void queryClient.invalidateQueries({ queryKey: stagingKey(scenario) });
       void queryClient.invalidateQueries({ queryKey: queueKey(scenario) });
+      throw refusal;
     }
+    // NOT ON THE HELD PATH. `send` answers `HELD` when the network would not
+    // take the mutation: the optimistic write is the truth the operator is
+    // looking at, and refreshing over it replaces it with server state that
+    // does not contain the mutation — the action snapping back with no
+    // explanation, minutes before it actually applies.
+    if (answer === HELD) return;
+    void queryClient.invalidateQueries({ queryKey: stagingKey(scenario) });
+    void queryClient.invalidateQueries({ queryKey: queueKey(scenario) });
   };
 
   window.__queueActions = {
@@ -264,7 +288,22 @@ export function installQueueActions(queryClient: QueryClient): void {
           putBack(queryClient, scenario, held);
           throw refusal;
         })
-        .finally(() => {
+        .then((outcome) => {
+        // NOT ON THE HELD PATH. `send` answers `HELD` when the network would not
+        // take the mutation: the optimistic write is the truth the operator is
+        // looking at, and refreshing over it replaces it with server state that
+        // does not contain the mutation — the action snapping back with no
+        // explanation, minutes before it actually applies.
+          if (outcome === HELD) return;
+          // BOTH KEYS, because `takeOutOfQueue` writes to both. Invalidating
+          // only the queue left staging holding the optimistic removal — the
+          // asymmetry `ADDRESSES_THAT_MOVE_TOGETHER` names, present in the
+          // ONLINE path that constant was written to mirror.
+          void queryClient.invalidateQueries({ queryKey: stagingKey(scenario) });
+          void queryClient.invalidateQueries({ queryKey: queueKey(scenario) });
+        }, () => {
+          // AND ON A REFUSAL, which the `.finally` this replaced also covered.
+          void queryClient.invalidateQueries({ queryKey: stagingKey(scenario) });
           void queryClient.invalidateQueries({ queryKey: queueKey(scenario) });
         });
     },

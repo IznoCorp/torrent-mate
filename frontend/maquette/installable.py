@@ -33,6 +33,25 @@ import json
 from collections.abc import Callable
 from pathlib import Path
 
+# THE THREE ENTRY POINTS THE PLATFORM OFFERS AN INSTALLED APPLICATION, and the
+# operator's principle behind them (Q4, 2026-08-30): every one is declared,
+# unless a written reason says why not. « La meilleure intégration possible. »
+#
+#   `share_target` — another application shares a title, a note or a link into
+#       TorrentMate. All three land on `/add` as `q`, which the add screen
+#       already reads: sharing a series name from a browser opens the search
+#       with that name in it, and nothing had to be written for it to.
+#   `launch_handler` — an installed application reopens the window it already
+#       has instead of a second one. « navigate-existing » so a share into a
+#       running application navigates it rather than stacking a copy.
+#   `handle_links` — the system opens this origin's links in the application.
+#
+# WHAT IS DELIBERATELY NOT HERE: push notifications. The principle demands a
+# written reason, and this is it — a permission prompt with nothing to send
+# trains the operator to refuse it, and a browser remembers a refusal far longer
+# than this wave. The consumer exists and is named: §18's ratio alert, which is
+# L16. Recorded in the register so it is declined rather than forgotten.
+#
 # The prototype is a SEPARATE application, and it has to say so everywhere the
 # system reads a name.
 #
@@ -68,33 +87,67 @@ MANIFEST = """{
     { "src": "/pwa-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
     { "src": "/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-  ]
+  ],
+  "share_target": {
+    "action": "/add",
+    "method": "GET",
+    "params": { "title": "q", "text": "q", "url": "q" }
+  },
+  "launch_handler": { "client_mode": "navigate-existing" },
+  "handle_links": "preferred"
 }
 """
 
-# Installability asks two things of a worker: that it handle fetches, and that
-# a navigation still get an answer with the network gone. An empty handler
-# satisfies the first and fails the second, so the prompt never came.
+# THE WORKER IS BUILT, NOT WRITTEN HERE (L11). It used to be a literal in this
+# file caching exactly one page — the offline notice — and never the prototype,
+# because a caching worker would have served yesterday's copy to someone judging
+# today's design. That decision is gone, and the failure it named is gone with
+# it rather than merely tolerated: a navigation goes to the NETWORK first and
+# falls back to the cache, so a reachable host always serves what it has now.
 #
-# The answer is NETWORK-FIRST, with one cached page as the only fallback, and
-# the prototype itself never cached. A caching worker would serve yesterday's
-# prototype to someone judging today's design — the exact failure a design
-# reference cannot afford. Being offline says so instead of lying quietly.
-WORKER = b"""const CACHE = "tm-design-offline";
-const OFFLINE = "/offline.html";
+# The source is `design/sw.js` and the build writes `design/dist/sw.js`,
+# substituting the bundle names it actually emitted. They carry content hashes,
+# so a list restated here would be wrong the moment anything changed — and wrong
+# in the silent direction, precaching a file that no longer exists while the one
+# that does goes uncached. Same reason `pwa_head` extracts rather than restates.
 
-self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.add(OFFLINE)));
-  self.skipWaiting();
-});
-self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
-self.addEventListener("fetch", (e) => {
-  if (e.request.mode !== "navigate") return;
-  e.respondWith(
-    fetch(e.request).catch(() => caches.match(OFFLINE))
-  );
-});
-"""
+
+def worker(design_root: Path) -> bytes:
+    """Returns the built service worker.
+
+    Args:
+        design_root: The design root, whose `dist/sw.js` the build wrote.
+
+    Returns:
+        The worker's bytes.
+
+    Raises:
+        FileNotFoundError: When the build has not run. It is NEVER answered
+            with an empty body or a stub: a worker that installs and caches
+            nothing is indistinguishable from a working one until the network
+            goes, which is the only moment anybody would find out.
+    """
+    return (design_root / "dist" / "sw.js").read_bytes()
+
+
+def build_identity(design_root: Path) -> bytes:
+    """Returns the identity of the build now in `dist/`.
+
+    WHY IT IS NOT UNDER `/api/`. The mock layer replaces `globalThis.fetch`, so
+    anything the page asks for under `/api/` is answered by a fixture and never
+    reaches this host — a freshness poll there could not fail, whatever the
+    server did. The endpoint is `/build.json` for that reason and no other.
+
+    Args:
+        design_root: The design root, whose `dist/build.json` the build wrote.
+
+    Returns:
+        The identity's bytes.
+
+    Raises:
+        FileNotFoundError: When the build has not run.
+    """
+    return (design_root / "dist" / "build.json").read_bytes()
 
 
 def manifest(texts: Callable[[], dict]) -> bytes:

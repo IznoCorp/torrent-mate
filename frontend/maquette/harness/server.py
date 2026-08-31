@@ -120,11 +120,28 @@ class FallbackHandler(http.server.SimpleHTTPRequestHandler):
     # Deciding this by a dot in the last segment is exactly what the class
     # docstring above refuses, and for a reason already paid for: a release
     # folder name carries dots and is not a file. So these are NAMED.
+    # EVERY ROOT-LEVEL RESOURCE THE DOCUMENT OR THE WORKER ASKS FOR BY NAME.
+    #
+    # The five the worker precaches were missing, and the consequence was not
+    # cosmetic: folded onto the document they answer 200 `text/html`, and
+    # `cache.add` accepts a 200 — so the worker stored a full copy of the
+    # prototype under `/offline.html` and under four icon URLs. R105 hit exactly
+    # that and worked around it inside the rule rather than fixing the host,
+    # which left the coincidence armed for every later hold about the offline
+    # notice. `/build.json` is here for the sharper version of the same: folded,
+    # `answer.json()` throws, the freshness poll reads « host unreachable », and
+    # the update discipline goes permanently quiet with nothing red.
     ASSET_PATHS = (
         "/sw.js",
+        "/build.json",
         "/manifest.webmanifest",
+        "/offline.html",
         "/favicon.svg",
         "/apple-touch-icon.png",
+        "/pwa-192.png",
+        "/pwa-512.png",
+        "/maskable-192.png",
+        "/maskable-512.png",
     )
 
     def translate_path(self, path: str) -> str:
@@ -376,8 +393,22 @@ if __name__ == "__main__":
         # by name. Folded onto the document they answer 200 `text/html`, the
         # browser logs an unsupported MIME type, and every rule counting console
         # errors fails somewhere that looks nothing like a host setting.
+        #
+        # WHAT IS PRESENT IS EXCLUDED, and that exclusion is measured rather
+        # than assumed. Since L11 the served copy really holds `/sw.js`: the
+        # offline shell needs a worker on this host, so `run.sh` copies the
+        # built one in. Asking a file that EXISTS to 404 was this hold reading
+        # its own premise out of date — the promise is about a MISSING
+        # resource — and the file that exists gets the hold it actually needs,
+        # below.
+        absent = [named for named in FallbackHandler.ASSET_PATHS
+                  if not (PROOF_ROOT / named.lstrip("/")).exists()]
+        journal.check(
+            "the fold hold still has a subject — some named resource is absent",
+            bool(absent),
+            f"{len(absent)} of {len(FallbackHandler.ASSET_PATHS)} absent: {absent}")
         folded = []
-        for named in FallbackHandler.ASSET_PATHS:
+        for named in absent:
             try:
                 with urllib.request.urlopen(f"{base}{named}", timeout=5) as response:
                     if response.status == 200:
@@ -389,6 +420,30 @@ if __name__ == "__main__":
             "a missing root-level resource the document NAMES 404s "
             "instead of folding to the document",
             not folded, f"folded: {folded or 'none'}")
+
+        # AND A NAMED RESOURCE THAT IS PRESENT COMES BACK AS ITSELF. `/sw.js`
+        # folded onto the document would answer 200 `text/html`, the browser
+        # would refuse the registration on the MIME type, and P7 would be
+        # measuring a page with no worker while every console stayed quiet —
+        # which is the failure this whole block was written about, arriving
+        # from the other side.
+        present = [named for named in FallbackHandler.ASSET_PATHS
+                   if named not in absent]
+        # ITS OWN CONTROL, because the loop below can otherwise run ZERO times
+        # and report nothing. The absent-side hold got one; this one did not,
+        # and on any copy assembled without the worker it silently executed no
+        # holds at all — which is precisely the state it was written to catch.
+        journal.check(
+            "the served-as-itself hold has a subject — some named resource exists",
+            bool(present), f"{len(present)} present: {present}")
+        for named in present:
+            with urllib.request.urlopen(f"{base}{named}", timeout=5) as response:
+                kind = response.headers.get_content_type()
+                body = response.read()
+            journal.check(
+                f"a named resource that EXISTS is served as itself, not folded ({named})",
+                body != expected and kind != "text/html",
+                f"{kind}, {len(body)} bytes")
 
         # The regression this fold exists to close: a route-shaped address
         # whose deepest segment carries dots of its own — a release folder

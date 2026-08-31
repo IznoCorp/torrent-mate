@@ -96,6 +96,12 @@ SERVED="/tmp/tm-refonte"
 #                    instrument but `isSameNode`, and the defect it closes
 #                    (B-231) survived ten lots under every green gate. It joined
 #                    at L15, with the tab bar's conversion. ~9 s, measured.
+#   served_copy      the lock and the stamp themselves (B-256). It is on this
+#                    tier by the argument that put `settle` here: it is not a
+#                    NAME that moved, it is the instrument every later phase's
+#                    proof rests on, and a phase that unwires it must be the
+#                    phase that hears about it. Its holds are a static read of
+#                    this file and of `common.py`, so it costs no browser.
 #   relay_states     the connection's four conditions, read the same way and on
 #                    the same test: `data-part="shell/connection-mark"`, three
 #                    state ids and a `data-connection` value are NAMES, and the
@@ -112,7 +118,7 @@ SERVED="/tmp/tm-refonte"
 # by run_uid. That database is the operator's and a CI runner has none, so the
 # rule would fail there for a reason that has nothing to do with the change
 # under test. It runs in the full suite, on the machine that has the data.
-CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.py boot_order.py settle.py state_surfaces.py relay_states.py scroll_memory.py persistence.py)
+CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.py boot_order.py settle.py state_surfaces.py relay_states.py scroll_memory.py persistence.py served_copy.py)
 
 # THE REPOSITORY'S CHEAP GUARDS, run beside the rules (B-063, arbitrated by the
 # operator on 2026-08-25). They read the tree in seconds and they read exactly
@@ -120,7 +126,7 @@ CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.
 # instead of on a fifteen-phase interval — which is the state L07 ran in, where
 # `make check` was a wave gate and nothing between phases read an invariant.
 #
-# NOT `make check` ENTIRE. Its 10 786 tests cost fourteen minutes, and the
+# NOT `make check` ENTIRE. Its whole test suite costs fourteen minutes, and the
 # operator's cadence ruling of 2026-08-24 stands for that half. What joins is
 # what costs seconds.
 #
@@ -129,7 +135,7 @@ CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.
 # `personalscraper/` and `tests/` and none of the cheap ones that read the CSS,
 # the markup and the resources a phase actually touches — `legacy.css`'s own
 # ceiling was absent from the tier of the very wave that edits `legacy.css`.
-# The six added below cost 6 s together — nineteen invocations, ~31 s in all,
+# The six added below cost 6 s together — the invocations listed below, ~31 s in all,
 # measured. `check-tailwind-confinement.py` is the one deliberately left out:
 # it needs a build of its own and costs 102 s.
 #
@@ -230,13 +236,60 @@ else
   label="full suite (${#scripts[@]} rules)"
 fi
 
+# THE SERVED COPY IS TAKEN BEFORE IT IS REBUILT (B-256). Until this line, two
+# sessions could each rebuild `$SERVED` while the other was reading it, and on
+# 2026-08-30 two rules fell over a build they were never started against. The
+# dangerous direction is the other one: a rule PASSES over the wrong prototype
+# just as silently. The lock refuses the second builder; the stamp written after
+# the copy is what catches a reader the lock cannot cover.
+#
+# The trap releases it whatever happens — an interrupt included. `$LOGS` does
+# not exist yet, and `cleanup` is written so that removing something absent is
+# not an error rather than so that two traps have to stay in step.
+cleanup() {
+  python3 "$HERE/served_copy.py" --release "$$"
+  [ -n "${LOGS:-}" ] && rm -rf "$LOGS"
+  return 0
+}
+# ACQUIRE FIRST, THEN ARM THE TRAP, and the order is the whole correctness of
+# it: armed first, a REFUSED acquisition would exit through `cleanup` and hand
+# away the lock of the session that is legitimately holding the copy. The
+# release also refuses to give back a lock recording another pid, so this is
+# belt and braces on a mistake that would be invisible.
+#
+# The pid the lock records is THIS SHELL's, never the helper's — the helper
+# exits a millisecond later, and a lock recording a dead process is a lock the
+# staleness check would break under a suite that is still running.
+python3 "$HERE/served_copy.py" --acquire "${label}" "$$"
+# EXIT ALONE IS NOT ENOUGH: an untrapped signal kills bash without running the
+# EXIT trap, and the lock then survives `STALE_AFTER_SECONDS` — an hour during
+# which the refusal message hands the next session `rm -rf`, which is what makes
+# a lock worthless.
+#
+# BUT A SIGNAL TRAP MUST EXIT, and the first version of this line did not. Bash
+# runs an INT handler and then RESUMES the script: Ctrl-C during rule 30 of 79
+# released the lock, deleted the log directory, and carried on running the
+# remaining rules unlocked, writing into a directory that no longer existed,
+# with another session free to rebuild the copy underneath them. That is B-256
+# re-opened by the repair for B-256.
+trap cleanup EXIT
+trap 'cleanup; exit 130' INT
+trap 'cleanup; exit 143' TERM
+
 echo "Building the prototype — a stale copy measures the previous build…"
 (cd "$DESIGN" && npm run build >/dev/null)
-mkdir -p "$SERVED"
-cp "$DESIGN/dist/index.html" "$SERVED/wrapped.html"
-rm -rf "$SERVED/vite"
-[ -d "$DESIGN/dist/vite" ] && cp -R "$DESIGN/dist/vite" "$SERVED/vite"
-ln -sfn "$DESIGN/assets" "$SERVED/assets"
+# THE COPY IS ASSEMBLED IN ONE PLACE, and stamped there. It used to be
+# assembled here, in `scripts/mutate.sh` and in `scripts/harness-hold-counts.py`
+# — three copies of one step, of which two wrote neither the lock nor the stamp,
+# so B-256 stayed open through the two tools most likely to run beside a suite.
+# The stamp is written by `--publish`, after the copy and never before: a stamp
+# naming a build that is still arriving is the false reading this exists to end.
+python3 "$HERE/served_copy.py" --publish >/dev/null
+STAMP_TOKEN="$(python3 "$HERE/served_copy.py" --token)"
+if [ -z "$STAMP_TOKEN" ]; then
+  echo "run.sh: the served copy carries no stamp after publishing it." >&2
+  exit 1
+fi
 
 # The harness reads http://127.0.0.1:8899/ — `server.py --serve`, rooted on that
 # copy. Never `serve.py`, which is the password-protected design host on 8712:
@@ -276,7 +329,6 @@ fi
 # in the rule order — never the order they happened to finish. A report whose
 # order depends on scheduling cannot be diffed against the previous one.
 LOGS="$(mktemp -d)"
-trap 'rm -rf "$LOGS"' EXIT
 
 failed=0
 # The `--oracle` and `--a11y` tiers run no rule script, and an empty array is
@@ -293,13 +345,29 @@ else
   # this script runs under. The rule name arrives as `$1` — `$0` is the `_`
   # placeholder `bash -c` consumes — and the two paths through the environment.
   printf '%s\n' "${scripts[@]}" \
-    | HARNESS_DIR="$HERE" HARNESS_LOGS="$LOGS" xargs -P "$JOBS" -n 1 bash -c '
+    | HARNESS_DIR="$HERE" HARNESS_LOGS="$LOGS" STAMP_TOKEN="$STAMP_TOKEN" \
+      xargs -P "$JOBS" -n 1 bash -c '
         rule="$1"
         # No `else`: the `if` exits 0 whichever way the rule went, so a fallen
         # rule does not abort `xargs` and take the rules after it with it.
         # Absence of the `.ok` marker IS the failure, read back below.
         if python3 "$HARNESS_DIR/$rule" > "$HARNESS_LOGS/$rule.out" 2>&1; then
           : > "$HARNESS_LOGS/$rule.ok"
+        fi
+        # THE STAMP, AROUND EVERY RULE (B-256). This reading is what covers the
+        # twelve rules that import nothing from `common.py` — `audit2.py`, the
+        # rule that started the incident, among them. It runs whichever way the
+        # rule went: a rule that PASSED over a swapped copy is the case that
+        # matters, and it is the one a verdict-shaped check would skip.
+        after="$(python3 "$HARNESS_DIR/served_copy.py" --token)"
+        if [ "$after" != "$STAMP_TOKEN" ]; then
+          {
+            echo "SERVED COPY REPLACED MID-RUN — B-256."
+            echo "  started against: $STAMP_TOKEN"
+            echo "  now serving:     ${after:-no stamp at all}"
+            echo "  This reading spans two builds and means nothing either way."
+          } >> "$HARNESS_LOGS/$rule.out"
+          rm -f "$HARNESS_LOGS/$rule.ok"
         fi
       ' _
 

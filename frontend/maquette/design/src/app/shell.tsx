@@ -86,6 +86,8 @@ import {
   setLimits,
 } from "../lib/relay";
 import { installRelayRecovery } from "./relay-recovery";
+import { installOutboxWiring } from "./outbox-wiring";
+import { installUpdateDiscipline } from "./worker-registration";
 import { readCursor, subscribeToEvents } from "../lib/relay-events";
 import { ConnectionMark, ConnectionNotice } from "./connection-notice";
 import { Frame } from "./frame";
@@ -360,6 +362,18 @@ installRelay();
 // history instance the scroll restoration does, so it inherits that step's own
 // ordering constraint.
 installRelayRecovery();
+// THE UPDATE DISCIPLINE, after everything it could disturb: nothing depends on
+// it, so a host it cannot reach takes no other step with it. It does not
+// REGISTER the worker — the envelope's inline script does, and why is written
+// where that is decided.
+installUpdateDiscipline();
+// THE OUTBOX, LAST. It reads what survived the previous run and sends it, so it
+// must come after everything a departure could touch.
+// THE OUTBOX'S FOUR JOINS — the cache, the relay, the harness seam and the mock
+// layer's reset. Each names something the queue is forbidden to know, and the
+// boot is where facts cross; `outbox-wiring.ts` owns WHAT crosses, this file
+// owns WHEN.
+installOutboxWiring(queryClient);
 // Published for the harness beside the other seams, for the reason the query
 // cache is: a rule that has to reach inside a module to ask what the connection
 // is doing is a rule coupled to how the module is built.

@@ -1199,15 +1199,29 @@ handler its links deserve.
 dependencies and its proof.** It now depends on L15, for the reason written there. Its design is
 `MODEL.md` § 2 Part 13 — what the worker caches (the shell: document, bundles, icons, fonts; never
 `/api/*` nor the stream), the update discipline production already proved (`web-ui.md` § PWA:
-`registerType: 'prompt'`, a check on load, on visibility and every 15 minutes, `/api/version`
-against the baked commit, one reload), and a queue that holds opaque envelopes a feature's
+`registerType: 'prompt'`, a check on load, on visibility and every 15 minutes, one reload) — **with
+the signal and the ORDER changed by L11**: `/build.json` against a build identity baked into the
+bundle, never `/api/version`, because the mock layer answers only the contract and a poll there
+could not fail; and the reload following `controllerchange` rather than the poll, because
+`registration.update()` resolves when a worker begins installing and reading `waiting` straight
+after it swaps nothing (B-262), and a queue that holds opaque envelopes a feature's
 `queries.ts` enqueues. Its « Done when » is made measurable by **P7, P8 and P9** of `MODEL.md`
 § 3, and the entry points it names are the operator's **Q4** (`QUESTIONS.md`): `share_target`
 landing on `/add`, `launch_handler`, `handle_links` — recommended all three, decided by nobody yet.
-**Done when.** The application opens and reads offline (P7, a rule under `context.set_offline`);
-a mutation issued offline departs on reconnection, exactly once (P8, on L10's fake transport);
-installation and its entry points are exercised on a real device, and the entry points Q4
-selects are declared in the manifest and reached by a rule. **Q4 was answered on 2026-08-30: all
+**Done when.** The application opens and reads offline (P7); a mutation issued offline departs on
+reconnection, exactly once (P8); the entry points Q4 selects are declared in the manifest and
+reached by a rule; and installation and its entry points are exercised on a real device.
+
+**Two of those clauses were written naming an instrument, and L11 disproved one and could not use
+the other — recorded here because a plan that keeps prescribing a disproved instrument sends the
+next reader to it.** `context.set_offline` does NOT reach the requests a service worker makes in
+Chromium, so P7 measured that way is green because the NETWORK answered; R105 raises its own scratch
+server and stops it. « L10's fake transport » is the relay's, and a mutation is not a relay event —
+P8 runs on the mock layer's own `setOffline`, which rejects the way an outage does rather than
+answering a status. **And the device clause is the one L11 did NOT satisfy**: the operating-system
+half of `share_target`, the standalone reading and P30's runtime half are all device-only,
+written down and dated rather than claimed (`REPORT.md`). It is L11's declared deferral, not a
+clause quietly dropped. **Q4 was answered on 2026-08-30: all
 three** — `share_target` landing on `/add` pre-filled, `launch_handler`, `handle_links` — and a
 principle with it: **every entry point the platform offers an installed application is declared,
 unless a written reason says why not.** « La meilleure intégration possible » is the operator's
