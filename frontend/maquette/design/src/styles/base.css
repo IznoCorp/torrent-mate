@@ -54,6 +54,22 @@
     height: 100%;
     overscroll-behavior-y: none;
   }
+  /* P25 — no tap flash. Chrome paints a grey wash over whatever a tap lands
+     on, which reads as a browser rendering a document rather than as an
+     application answering a finger.
+
+     DECLARED ONCE, ON THE ROOT, because `-webkit-tap-highlight-color` is an
+     INHERITED property: one declaration reaches every interactive element that
+     will ever exist, and no component has to remember to carry it. A per
+     component spelling would be the modifier class the `:has()` note below
+     refuses for the same reason.
+
+     It replaces nothing — the prototype has never declared this property, and
+     the compositor manifest floored it at ZERO on purpose so the day one
+     appeared would be noticeable. This is that day. */
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
   body {
     background: oklch(0.12 0.004 286);
     color: var(--color-foreground);
@@ -366,4 +382,34 @@
    ground is a light square in the angle of two bars. */
 ::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* P26 — A LONG PRESS SELECTS NO TEXT, and the selector is derived from the
+   arbitration rather than from a list of class names.
+
+   A long press opens the panel. The browser's own answer to the same gesture
+   is to start selecting text, and the two run at once: the selection swallows
+   the gesture, and on iOS the callout menu appears over the panel that press
+   was opening.
+
+   WHERE IT APPLIES IS EXACTLY WHERE A PRESS IS ARMED. `armPress` resolves its
+   target through `panelUnderFinger`, which answers `[data-panel]`, or the
+   `[data-panel]` inside the `.card` or `.sugwrap` the finger is in. So the
+   refusal follows that structure — `:has()` makes the rule follow STRUCTURE,
+   the reason the icon rule above gives — and a card that answers no press
+   keeps its text selectable.
+
+   THAT LAST CLAUSE IS THE POINT, not a detail. `compositor-css.json` records
+   why `user-select` is declared « on the pressable surfaces only, NEVER on the
+   scrollport: it must stay possible to select the text of a synopsis or a
+   release name ». A resolution card IS a `.card` and carries `data-nonmedia`,
+   not `data-panel` — it arms no press, so a rule written on `.card` alone
+   would have made every release name unselectable to satisfy a property about
+   long press. Measured before it was written. */
+[data-panel],
+.card:has([data-panel]),
+.sugwrap:has([data-panel]) {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
