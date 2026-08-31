@@ -162,19 +162,35 @@ async def hold_the_acknowledgement(journal, browser, motion):
     # node and the answer read there. This is not « checking a choice against
     # itself »: the choice under test is the stylesheet's, and it is read
     # through the browser's own animation timeline rather than from the source.
-    animations = await page.evaluate("""()=>{
+    reading = await page.evaluate("""()=>{
       const node = document.querySelector('#port') || document.body;
+      const before = getComputedStyle(node).opacity;
       node.setAttribute('data-feedback', 'commit');
       const running = node.getAnimations().length;
+      const during = getComputedStyle(node).opacity;
       node.removeAttribute('data-feedback');
-      return running;
+      return {running, before, during};
     }""")
+    animations = reading["running"]
     if motion == "reduce":
+        # TWO ASSERTIONS, AND THE SECOND IS THE ONE THAT BITES. « Nothing
+        # animates » is satisfied just as well by a stylesheet that says nothing
+        # about `[data-feedback]` at all — measured: deleting the whole `reduce`
+        # block left this hold green. Reduced motion is a DESIGNED state, so the
+        # marked node must LOOK different; that it does not move is the other
+        # half, not the whole.
         journal.check(
             "under `reduce`, the acknowledgement does NOT move",
             animations == 0,
             f"{animations} animation(s) — reduced motion is a designed state, "
             "and this one moves anyway")
+        journal.check(
+            "and under `reduce` it is still DRAWN — a designed state, not an "
+            "absence",
+            reading["before"] != reading["during"],
+            f"opacity {reading['before']} unmarked and {reading['during']} "
+            "marked — the mark changes nothing, so a reader who asked for no "
+            "motion is given no acknowledgement at all")
     else:
         journal.check(
             "under `no-preference`, the acknowledgement RUNS",
