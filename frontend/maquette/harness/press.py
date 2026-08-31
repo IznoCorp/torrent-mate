@@ -229,8 +229,23 @@ async def hold_the_swallow_is_by_point(journal, browser):
     await ctx.close()
 
 
-async def hold_under_a_real_mouse(journal, browser):
-    """Both halves again, on a context with no touch at all."""
+async def open_mouse_page(browser):
+    """Opens the prototype on a context with NO TOUCH AT ALL, at the state.
+
+    A fresh context per exercise, deliberately. The two mouse exercises ran on
+    one page at first — the held press, then the drag — and the drag then
+    measured a page a panel had already opened and closed on. It reported the
+    tolerance holding while the tolerance was DELETED, which is the vacuity this
+    rule was rewritten to remove, arrived at a second time from a different
+    direction: state left behind by one hold is a second reason the next one can
+    pass.
+
+    Args:
+        browser: A launched Playwright browser.
+
+    Returns:
+        The (context, page, box) triple, box being the tile's centre.
+    """
     ctx = await browser.new_context(**{**PHONE, "has_touch": False})
     pg = await ctx.new_page()
     await pg.goto(PROTOTYPE, wait_until="load")
@@ -239,18 +254,20 @@ async def hold_under_a_real_mouse(journal, browser):
     await pg.wait_for_timeout(250)
     await pg.evaluate("(s)=>window.__go(s)", STATE)
     await pg.wait_for_timeout(420)
-
     box = await pg.evaluate(
         "(sel)=>{const e=document.querySelector(sel); if(!e) return null;"
         "const r=e.getBoundingClientRect();"
         "return {x:r.x+r.width/2, y:r.y+r.height/2};}", TILE)
+    return ctx, pg, box
+
+
+async def hold_the_mouse_press(journal, browser):
+    """A mouse holds perfectly still, so this is where the timer always fires."""
+    ctx, pg, box = await open_mouse_page(browser)
     if not box:
         journal.check("a tile is drawn to press, under a mouse", False, "absent")
         await ctx.close()
         return
-
-    # A mouse holds perfectly still, so this is the path on which the timer
-    # always fires.
     await pg.mouse.move(box["x"], box["y"])
     await pg.mouse.down()
     await pg.wait_for_timeout(480 + PRESS_HOLD_MARGIN)
@@ -260,15 +277,22 @@ async def hold_under_a_real_mouse(journal, browser):
                   await panel_is_open(pg),
                   "the press path a mouse walks is the one where the timer "
                   "always fires")
-    await settle(pg)
+    await ctx.close()
 
-    # And the drift half: a mouse that travels past the tolerance while down.
-    # MOUSE_DRIFT rather than CANCELLING_DRIFT — see that constant's note.
+
+async def hold_the_mouse_tolerance(journal, browser):
+    """THE ONE EXERCISE THAT ISOLATES THE TOLERANCE. See the docstring."""
+    ctx, pg, box = await open_mouse_page(browser)
+    if not box:
+        journal.check("a tile is drawn to drag, under a mouse", False, "absent")
+        await ctx.close()
+        return
     await pg.evaluate("()=>{window.__pointerCancels=0;"
                       "document.addEventListener('pointercancel',"
                       "()=>{window.__pointerCancels+=1;});}")
     await pg.mouse.move(box["x"], box["y"])
     await pg.mouse.down()
+    # The drift arrives EARLY, for the reason the touch driver gives.
     for step in range(1, 5):
         await pg.mouse.move(box["x"] + MOUSE_DRIFT * step / 4,
                             box["y"] + MOUSE_DRIFT * step / 4)
@@ -281,7 +305,7 @@ async def hold_under_a_real_mouse(journal, browser):
     # THE TWO ASSERTIONS ARE ONE PROOF. That the panel stayed shut says the
     # press died; that `pointercancel` never fired says the COMPOSITOR did not
     # kill it — so the tolerance did. Without the second, this hold proves
-    # exactly what the touch hold above proves, which is less than it claims.
+    # exactly what the touch hold proves, which is less than it claims.
     journal.check(
         f"under a real mouse, a drag of {MOUSE_DRIFT}px opens nothing",
         not opened,
@@ -300,7 +324,8 @@ async def hold(journal):
         browser = await play.chromium.launch(channel="chrome")
         await hold_the_tolerance(journal, browser)
         await hold_the_swallow_is_by_point(journal, browser)
-        await hold_under_a_real_mouse(journal, browser)
+        await hold_the_mouse_press(journal, browser)
+        await hold_the_mouse_tolerance(journal, browser)
         await browser.close()
     journal.summary(errors)
 
