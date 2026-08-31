@@ -39,7 +39,7 @@
 // the flex column lay the visible rows out exactly as they always did, so the
 // end state is the one the oracle recorded, and the node count is constant.
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useRef, type ReactElement } from "react";
+import type { ReactElement } from "react";
 
 /** What the surface tells the window, and none of it names a domain. */
 export type VirtualRowsProperties = {
@@ -86,7 +86,6 @@ export type VirtualRowsProperties = {
  */
 export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
   const { count, rowHeight, gap, lanes, scrollElement, renderRow } = properties;
-  const containerRef = useRef<HTMLDivElement | null>(null);
 
   // The virtualiser counts LINES, not rows: with three lanes, 1 861 titles are
   // 621 lines, and it is lines that have a height.
@@ -125,38 +124,38 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
   const start = firstLine * lanes;
   const end = Math.min(count, (lastLine + 1) * lanes);
 
+  // THE SPACERS ARE PART OF THE SAME MARKUP STRING, and that is not a
+  // shortcut — it is what keeps the DOM the shape the rest of the interface
+  // expects.
+  //
+  // A React wrapper holding the rows (`display: contents`) was tried first and
+  // the layout was correct — the oracle stayed green, because `contents` makes
+  // the tiles participate in the grid exactly as before. But a tile's
+  // `parentElement` was then the WRAPPER rather than `.gallery`, and
+  // `harness/cards.py`'s R50 reads a tile's parent to compare one gallery
+  // against another: three states failed with « columns (1, 3) » on a layout
+  // that was pixel-perfect. React refuses `dangerouslySetInnerHTML` beside
+  // children, so the way to have no wrapper is to have no children.
+  const spacer = (height: number) =>
+    height > 0
+      ? `<div aria-hidden="true" data-part="window/spacer" `
+        + `style="grid-column:1/-1;height:${height}px"></div>`
+      : "";
+  const window_ = Array.from(
+    { length: Math.max(0, end - start) },
+    (_unused, offset) => renderRow(start + offset),
+  ).join("");
+
   return (
     <div
       key={properties.drawKey}
-      ref={containerRef}
       id="libitems"
       className={properties.className}
       data-part={properties.part}
       data-virtualised={String(count)}
-    >
-      {/* A spacer spans every lane, so it displaces whole lines rather than
-          taking a cell of its own and pushing the window sideways. */}
-      {before > 0 ? (
-        <div
-          aria-hidden="true"
-          data-part="window/spacer"
-          style={{ gridColumn: "1 / -1", height: `${before}px` }}
-        />
-      ) : null}
-      <div
-        style={{ display: "contents" }}
-        dangerouslySetInnerHTML={{
-          __html: Array.from({ length: Math.max(0, end - start) },
-                             (_unused, offset) => renderRow(start + offset)).join(""),
-        }}
-      />
-      {after > 0 ? (
-        <div
-          aria-hidden="true"
-          data-part="window/spacer"
-          style={{ gridColumn: "1 / -1", height: `${after}px` }}
-        />
-      ) : null}
-    </div>
+      dangerouslySetInnerHTML={{
+        __html: spacer(before) + window_ + spacer(after),
+      }}
+    />
   );
 }

@@ -42,7 +42,16 @@ READ = """()=>{
   return {
     foot: (document.querySelector('#libload')||{}).textContent || '',
     retry: !!document.querySelector('#libretry'),
-    rows: document.querySelectorAll('#libitems [data-part="card"], #libitems [data-part="tile"]').length,
+    // WHAT THE LIST HOLDS, NOT WHAT IT DRAWS — since L12 they are different.
+    // The list is WINDOWED (P24): it renders a window and stands spacers in for
+    // the rest, so counting rendered nodes answers « how many fit on screen »
+    // and no longer « how many have loaded ». Every hold below is about
+    // LOADING, so it reads the count the surface declares.
+    // Rendered nodes are kept beside it, because « the window is not empty » is
+    // still worth knowing and a windowed list drawing NOTHING would otherwise
+    // pass every hold here.
+    rows: Number((document.querySelector('#libitems')||{}).dataset?.virtualised) || 0,
+    drawn: document.querySelectorAll('#libitems [data-part="card"], #libitems [data-part="tile"]').length,
     count: pages.reduce((held, page) => held + page.items.length, 0),
     err: listing?.state.status === 'error'
          || listing?.state.fetchStatus === 'idle' && !!listing?.state.error,
@@ -75,8 +84,9 @@ async def main():
             f"{failed['count']} shown — {failed['foot'][:110]}")
         journal.check(
             "the rows already loaded are STILL THERE under the failure",
-            failed["rows"] == failed["count"],
-            f"{failed['rows']} drawn for {failed['count']} loaded")
+            failed["rows"] == failed["count"] and failed["drawn"] > 0,
+            f"{failed['rows']} held and {failed['drawn']} drawn for "
+            f"{failed['count']} loaded")
         journal.check("and it offers to try again", failed["retry"])
 
         # THE ONE CONTROL A COMPONENT OWNS, so the one whose handler nothing
@@ -100,8 +110,9 @@ async def main():
         journal.check(
             "trying again really loads the next page",
             tapped and not after["err"] and after["count"] > failed["count"]
-            and after["rows"] == after["count"],
-            f"{failed['count']} → {after['count']}, {after['rows']} drawn"
+            and after["rows"] == after["count"] and after["drawn"] > 0,
+            f"{failed['count']} → {after['count']}, {after['rows']} held, "
+            f"{after['drawn']} drawn"
             if tapped else "no control carries #libretry")
 
         # ── the end of the sample says it is the end of the SAMPLE ─────────
@@ -137,8 +148,10 @@ async def main():
             f"{ended['carried']} carried — {ended['foot'][:90]}")
         journal.check(
             "which is the number it really has, not the library's own total",
-            ended["carried"] == ended["rows"] and ended["carried"] < ended["total"],
-            f"{ended['carried']} carried, {ended['rows']} drawn, "
+            ended["carried"] == ended["rows"] and ended["carried"] < ended["total"]
+            and ended["drawn"] > 0,
+            f"{ended['carried']} carried, {ended['rows']} held, "
+            f"{ended['drawn']} drawn, "
             f"{ended['total']} claimed by the library")
 
         await browser.close()
