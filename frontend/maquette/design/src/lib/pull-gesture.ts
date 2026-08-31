@@ -103,6 +103,10 @@ export function installPullGesture(options: PullGestureOptions): PullGesture {
   // it rather than recomputing from the finger: one arithmetic, one place.
   let travelled = 0;
 
+  // Where the finger stands NOW, on the vertical axis. `travelled` is a
+  // high-water mark; this is a direction, and the release needs both.
+  let lastDeltaY = 0;
+
   function start(point: { clientX: number; clientY: number }, target: Element): void {
     if (options.isExcluded(target)) {
       pull = null;
@@ -114,6 +118,7 @@ export function installPullGesture(options: PullGestureOptions): PullGesture {
       return;
     }
     travelled = 0;
+    lastDeltaY = 0;
     pull = {
       x: point.clientX,
       y: point.clientY,
@@ -138,6 +143,17 @@ export function installPullGesture(options: PullGestureOptions): PullGesture {
       }
       pull.axis = Math.abs(deltaX) > Math.abs(deltaY) ? "x" : "y";
     }
+    // THE FINGER'S CURRENT DIRECTION IS REMEMBERED, not just its furthest
+    // travel. A pull that goes down and comes back UP past where it started is
+    // not a pull any more, and releasing it must refresh nothing.
+    //
+    // The engine checked exactly this at the release — `drag.dy > 0` on the
+    // FINAL delta, beside the armed class — and the first version of this
+    // module dropped it: `travelled` kept whatever the deepest point had set,
+    // because the guard below returns early without touching it, so a pull
+    // dragged back up still released armed. Caught by reading the code this
+    // replaced against the code that replaced it.
+    lastDeltaY = deltaY;
     if (pull.axis !== "y" || !pull.atTop || deltaY <= 0) return;
     travelled = Math.min(PULL_CAP_PIXELS, deltaY * PULL_DAMPING);
     options.onPull(travelled, travelled >= PULL_ARM_PIXELS);
@@ -152,8 +168,9 @@ export function installPullGesture(options: PullGestureOptions): PullGesture {
     // change tab or lens and fired by accident constantly — every horizontal
     // component of a vertical scroll, every aborted row swipe.
     if (finished.axis !== "y") return;
-    options.onRelease(travelled >= PULL_ARM_PIXELS);
+    options.onRelease(lastDeltaY > 0 && travelled >= PULL_ARM_PIXELS);
     travelled = 0;
+    lastDeltaY = 0;
   }
 
   port.addEventListener(
@@ -222,6 +239,7 @@ export function installPullGesture(options: PullGestureOptions): PullGesture {
     if (event.pointerType !== "touch") {
       pull = null;
       travelled = 0;
+      lastDeltaY = 0;
     }
   });
 
@@ -229,6 +247,7 @@ export function installPullGesture(options: PullGestureOptions): PullGesture {
     reset: () => {
       pull = null;
       travelled = 0;
+      lastDeltaY = 0;
     },
   };
 }

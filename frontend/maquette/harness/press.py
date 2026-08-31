@@ -387,6 +387,39 @@ async def drive_pull(page, port, distance):
                        {"type": "touchEnd", "touchPoints": []})
 
 
+async def drive_pull_and_back(page, port, distance):
+    """Pulls DOWN past the threshold, then back UP past where it started.
+
+    A pull dragged back up is not a pull. The engine checked the finger's FINAL
+    direction at the release, beside the armed state, and a high-water mark
+    alone would refresh anyway.
+
+    Args:
+        page: The Playwright page.
+        port: The scrollport's bounding box.
+        distance: How far down the finger goes before returning.
+    """
+    session = await page.context.new_cdp_session(page)
+    x = port["x"] + port["width"] / 2
+    y = port["y"] + 60
+    await session.send("Input.dispatchTouchEvent", {
+        "type": "touchStart", "touchPoints": [{"x": x, "y": y, "id": 1}]})
+    for step in range(1, 13):
+        await session.send("Input.dispatchTouchEvent", {
+            "type": "touchMove",
+            "touchPoints": [{"x": x, "y": y + distance * step / 12, "id": 1}]})
+        await page.wait_for_timeout(16)
+    # And back up, finishing ABOVE where the finger landed.
+    for step in range(1, 13):
+        travelled = distance - (distance + 40) * step / 12
+        await session.send("Input.dispatchTouchEvent", {
+            "type": "touchMove",
+            "touchPoints": [{"x": x, "y": y + travelled, "id": 1}]})
+        await page.wait_for_timeout(16)
+    await session.send("Input.dispatchTouchEvent",
+                       {"type": "touchEnd", "touchPoints": []})
+
+
 async def hold_the_pull_threshold(journal, browser):
     """A pull short of the arming distance must refresh NOTHING."""
     context, page = await open_page(browser)
@@ -426,6 +459,24 @@ async def hold_the_pull_threshold(journal, browser):
         f"the indicator stood at {reading}px, at or past the {PULL_ARM_PIXELS}px "
         "arming distance: the threshold is not applied, so every downward flick "
         "the scrollport sees refreshes")
+    await page.evaluate("()=>window.__reposPTR()")
+    await page.wait_for_timeout(120)
+
+    # A PULL DRAGGED BACK UP IS NOT A PULL, and the high-water mark alone would
+    # say it was. `travelled` keeps the deepest point the finger reached,
+    # because the guard that stops updating it returns early rather than
+    # clearing it — so a release read on that number alone refreshes after a
+    # pull the reader visibly abandoned. The engine checked the FINAL direction
+    # beside the armed state; this holds that it still does.
+    await drive_pull_and_back(page, port, LONG_PULL)
+    await page.wait_for_timeout(220)
+    reading = await page.evaluate(
+        "()=>document.querySelector('#ptr').getBoundingClientRect().height")
+    journal.check(
+        "a pull dragged back UP past its start refreshes NOTHING",
+        reading < PULL_ARM_PIXELS,
+        f"the indicator stood at {reading}px — the release read the deepest "
+        "point the finger reached and not where it ended")
     await page.evaluate("()=>window.__reposPTR()")
     await context.close()
 
