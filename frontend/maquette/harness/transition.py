@@ -382,6 +382,85 @@ async def hold_the_priming(journal, browser):
     await context.close()
 
 
+
+
+# ── THE PERSISTENT CHROME STAYS IN FRONT ────────────────────────────────────
+# The operator saw it and the steward reproduced it in frames: « la bottom barre
+# passe par une phase transparente » — the entering screen's cast row showed
+# THROUGH the bar for the whole crossing, ghost icons over faces.
+#
+# NOTHING WAS TRANSPARENT. Un-named, the bar is baked into the ROOT group's
+# snapshots; `screen-body` is a NAMED group extracted from that same snapshot,
+# and named groups paint ABOVE the root group in the `::view-transition` tree.
+# The body rose over the bar. The tab change was healthy because it runs the root
+# pair ALONE, with no named group to paint over anything — which is the
+# observation that identified the mechanism, and the reason this defect could not
+# exist before transition A introduced a named group.
+#
+# WHAT THIS HOLDS, and why it is the group rather than a pixel. A screenshot
+# comparison is not an oracle here (D8's own reason), and the pseudo-element tree
+# is not hit-testable, so `elementFromPoint` answers about the real DOM and would
+# be green either way. What IS observable and decisive is that the bar has a
+# group of its own during the crossing: un-name it and the group disappears,
+# which is exactly the state that produced the defect.
+#
+# The second half refuses a fix that trades one defect for another: the bar
+# exists at both ends with the same content, so its pairing must be STABLE — a
+# group of its own that cross-fades would be a bar that blinks instead of a bar
+# that is covered.
+BAR = "#nav"
+
+
+async def hold_the_chrome_stays_in_front(journal, browser):
+    """Drives a page arrival and reads the bar's own group."""
+    context, page = await open_page_with(browser, "no-preference")
+    await page.evaluate("(s)=>window.__go(s)", FROM_STATE)
+    await page.wait_for_timeout(600)
+
+    named = await page.evaluate(
+        "(sel)=>getComputedStyle(document.querySelector(sel)).viewTransitionName",
+        BAR)
+    journal.check(
+        "the persistent bar carries a transition name of its own",
+        named not in ("none", "", None),
+        f"view-transition-name is {named!r} — un-named, the bar is baked into "
+        "the ROOT snapshot and every NAMED group paints above it")
+
+    await page.evaluate("""()=>{
+      window.__groups = [];
+      window.__fades = [];
+      window.__watch = setInterval(() => {
+        for (const animation of document.getAnimations()) {
+          const pseudo = animation.effect && animation.effect.pseudoElement;
+          if (!pseudo || !pseudo.includes('view-transition')) continue;
+          window.__groups.push(pseudo);
+          if (pseudo.includes('shell-tab-bar')
+              && (pseudo.includes('old(') || pseudo.includes('new('))) {
+            window.__fades.push(pseudo);
+          }
+        }
+      }, 8);
+    }""")
+    await page.click(TILE)
+    await page.wait_for_timeout(1200)
+    reading = await page.evaluate(
+        "()=>{clearInterval(window.__watch);"
+        " return {groups:[...new Set(window.__groups)], fades:[...new Set(window.__fades)]};}")
+
+    journal.check(
+        "and it is its OWN group while the arrival crosses",
+        any("group(shell-tab-bar)" in name for name in reading["groups"]),
+        f"groups seen: {reading['groups']} — with no group of its own the bar "
+        "is inside the root snapshot, underneath every named group, and the "
+        "arriving content rises over it")
+    journal.check(
+        "and its pairing is STABLE — the bar does not fade of its own accord",
+        not reading["fades"],
+        f"{reading['fades']} — a bar with its own cross-fade blinks instead of "
+        "being covered, which trades one defect for another")
+    await context.close()
+
+
 async def hold(journal):
     """Drives the page switch under both motion preferences."""
     errors = []
@@ -391,6 +470,7 @@ async def hold(journal):
         await hold_under(journal, browser, "reduce")
         await hold_one_entry_one_owner(journal, browser)
         await hold_the_priming(journal, browser)
+        await hold_the_chrome_stays_in_front(journal, browser)
         await browser.close()
     journal.summary(errors)
 

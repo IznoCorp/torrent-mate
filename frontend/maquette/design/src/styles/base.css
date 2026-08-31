@@ -442,6 +442,53 @@
   }
 }
 
+/* THE PERSISTENT CHROME IS ITS OWN GROUP — the standard shape, and the fix for
+   a defect the operator saw and the steward reproduced in frames: « la bottom
+   barre passe par une phase transparente ». The entering screen's cast row
+   showed THROUGH the bar for the whole crossing, ghost icons over faces.
+
+   THE MECHANISM. Un-named, the bar is baked into the ROOT group's snapshots.
+   `screen-body` is a NAMED group, extracted from that same snapshot, and named
+   groups paint ABOVE the root group in the `::view-transition` tree — so the
+   body literally rises over the bar while the root pair cross-fades beneath it.
+   Nothing was transparent; the bar was simply underneath.
+
+   NAMING IT MAKES IT A GROUP OF ITS OWN, and it exists at BOTH ends of every
+   page switch, so the browser pairs it: same content, stable group, no
+   cross-fade of its own. Its paint order then puts it above the body group and
+   it stays opaque and in front for the whole transition.
+
+   WHY THE TAB CHANGE WAS ALREADY HEALTHY, which is the observation that
+   identified the mechanism: a tab switch runs the ROOT pair alone, with no
+   named group to paint over anything, so the bar was stable there. The defect
+   needed a named group to exist, and transition A is what introduced one. */
+@media (prefers-reduced-motion: no-preference) {
+  #nav {
+    view-transition-name: shell-tab-bar;
+  }
+}
+
+/* AND ITS PAIRING DOES NOT CROSS-FADE. Giving the bar a group of its own fixes
+   the covering and introduces a second defect if left there: the browser pairs
+   old and new and cross-fades them by default, so a bar that WAS covered becomes
+   a bar that BLINKS. Its own rule caught that the moment it was written.
+
+   The bar is identical at both ends, so there is nothing to fade between: the
+   old snapshot is hidden and the new one painted flat. The GROUP still morphs
+   if the bar ever moves, which is what a group is for — what is silenced is the
+   dissolve between two pictures of the same thing. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(shell-tab-bar) {
+    animation: none;
+    opacity: 0;
+  }
+
+  ::view-transition-new(shell-tab-bar) {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 /* THE THREE NAMES THE TRANSITIONS BELOW ANIMATE, declared here and nowhere
    else (D9 rule 1). No source file is touched to place them: each is keyed on a
    naming attribute the surface already emits, which is also how the media
