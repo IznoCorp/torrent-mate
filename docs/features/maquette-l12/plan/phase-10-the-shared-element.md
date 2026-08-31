@@ -49,9 +49,16 @@ question rather than a technical one: there is no poster at the destination to c
 **Recommended: A.** B changes what the contract asked for on a technicality, and C changes a surface
 the operator has validated. Deferring names the lot that can do it properly and costs nothing now.
 
-**Until this is answered, phase 10 builds nothing** and the wave continues past it. The rest of P6 —
-« images a transition carries are decoded before they are needed » — is NOT blocked and lands
-below.
+**Until this is answered, phase 10 builds nothing** and the wave continues past it.
+
+**AND THE OTHER HALF IS BLOCKED WITH IT, correcting what this file said an hour ago.** « Images that
+a transition carries are decoded before they are needed » was written here as « not blocked, lands
+below ». It has no subject once the carry is deferred: **nothing is carried**, so there is no image
+whose decode could tear a shared-element transition. Worse, the destination's artwork is a CSS
+`background-image` rather than an `<img>`, and `decode()` is a method on `HTMLImageElement` — there
+is no handle to decode even if there were something to carry. Implementing a decode here would be
+machinery with no reader, which is the exact disease § 7.1 exists to fight. It goes to L19 with the
+carry.
 
 ## What it does
 

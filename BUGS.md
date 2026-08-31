@@ -311,7 +311,7 @@ when the defect comes back.
 | B-249 | The screen flashes when a sheet action closes the sheet AND opens a page | 1× | `open` |
 | B-250 | `check-live-relay`'s stale-figure arm cannot tell a register citation from a frozen count | by L15 | `fixed #528` |
 | B-251 | A file under `docs/` that no commit force-added is invisible to `git add -A`, to `git status` and to every gate | 1× | `fixed #532` |
-| B-252 | The oracle reads a region's node and never its children; two L15 surfaces are held by no rule | by audit | `open` |
+| B-252 | The oracle reads a region's node and never its children; two L15 surfaces are held by no rule | by audit | `fixing` |
 | B-253 | B-247 was reassigned to L14 and L19 by the wave that left it, and the plan named it in neither | by audit | `fixed #532` |
 | B-254 | Two figures written by hand: the Makefile's « 83 states x 33 regions » and CLAUDE.md's guard count | by audit | `fixed #532` |
 | B-255 | `check-frontend-boundaries.py` is back at 952 lines, 48 from the hard ceiling it was cut away from | by audit | `open` |
@@ -708,6 +708,20 @@ half now, and L19 names B-249's producer half (the 260 ms wait R103 prints) in t
 ---
 
 **B-252 — the oracle reads a region's node and never its children; two L15 surfaces are held by no rule.**
+
+**CLOSED BY L12 phase 11 — `harness/child_nodes.py` (R116).** Both nodes are read where the
+oracle cannot: the dialog's paragraph under BOTH themes, and the danger action's contrast under
+`data-theme="light"`. The mutations reproduce the original defects exactly — the paragraph reading
+`oklch(0.96 0.003 286)` against a heading of the same value, and the danger action at **1.00:1**,
+white on white, which is the figure the steward recorded — **and the oracle stayed green over both,
+2 958 measurements, no divergence**, which is D8's prediction confirmed rather than a surprise.
+
+Two things the rule had to be taught, and both are worth keeping: the assertion on the paragraph is a
+DIFFERENCE against its heading rather than a literal colour, so a legitimate retune of the palette
+does not fell it; and the contrast is computed IN THE PAGE through a 1×1 canvas, because
+`getComputedStyle` answers in the syntax the stylesheet used — this palette is `oklch()`, and a
+parser expecting `rgb(r, g, b)` reads « 0.58 0.215 25 » and raises, which it did on the rule's first
+run.
 Measured by the steward on `main` at `212faf0a`: with `dialogParagraph` stripped of
 `text-muted-foreground`, and separately with `bg-transparent` restored to `selectionAction`'s base
 (the white-on-white destructive button of the light theme, contrast 1.00), `make maquette-oracle`
