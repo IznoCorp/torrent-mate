@@ -190,6 +190,70 @@ reading sliced the pseudo-element list to eight rows while ten were running, cut
 It did. *A rule that truncates its evidence reports a defect that is not there, which is the mirror
 of the guard that reports none that is.*
 
+## 6b. P6 was built, then WITHDRAWN — and what replaced it
+
+**The operator watched the real slow-motion and withdrew the gesture**: « la transition poster entre
+liste et panneau n'est vraiment pas fluide du tout, elle est même très dérangeante, je préfère qu'on
+la retire et qu'on trouve autre chose. »
+
+Withdrawn entirely, **including its rule** — a rule measuring a withdrawn gesture is a rule with no
+subject, which is the disease § 7.1 exists to fight. `app/shared-poster.ts` deleted, both
+`carried-poster` ends and the group rule gone, R115's eight holds removed. **The view transition
+around the panel's opening went with it**, and that was a judgement rather than rote: the sheet
+already slides in its own stylesheet, so wrapping it without the carry would have been the same
+two-systems-one-element defect the hero was about to pay for.
+
+**What replaced it — « l'accusé de presse me plaît »**: the panel rises over `--duration-4` on
+`--ease-emphasized` with the scrim darkening on the same step, and the tile **sinks and darkens while
+the press ARMS**, releasing as the panel arrives. It plays what the carry was for — binding the panel
+to the card that summoned it — in place, moving nothing across the screen.
+
+**Three moments, held apart because they are easy to conflate**: `:active` is the finger being down
+at all, `[data-feedback]` is the acknowledgement *after* a gesture commits, `[data-pressing]` is the
+span between. A hold reading only « something changed while the finger was down » is satisfied by
+`:active` alone.
+
+**The durations and curves are DRAWINGS and are not treated as validated.** The steward re-films at
+0.25 playback; the operator has the last word.
+
+## 6c. The hero's flash — a CLASS of defect, and my own « fix » could not work
+
+The steward's bench sampled at 25 ms: the transition drew the hero full for 315 ms, the element went
+to **opacity 0 in one frame** when the transition ended, and `heroin` replayed its 450 ms entry.
+Appear, flash, reappear — the operator read it as a bug and was right.
+
+**The mechanism is general.** A CSS animation on a tree mounted under `startViewTransition` does not
+START until the transition ENDS — rendering is frozen for the capture — so **any element-side entry
+animation on a surface reached by a transition replays afterwards**, over a snapshot that already
+showed the final state.
+
+**And `:active-view-transition` cannot guard it**, which is the correction of what I had shipped one
+commit earlier: by the moment the animation starts, the transition is over and the selector no longer
+matches. My guard silenced nothing.
+
+**The fix is ownership**: an entry has ONE owner, and on a surface reached by a transition that owner
+is the transition. **Removing only the Tailwind utility left it running** — `heroin` was declared
+twice, as a utility and as a residue rule — so the repair was re-measured rather than assumed. *A
+duplicated declaration is a defect that survives half a repair.*
+
+The audit found no other instance. **The trap has its line in § 6**, named against L12, and the rule
+holds the **symptom** rather than the cause: the arriving background's opacity is sampled through the
+whole arrival and a dip is refused. A static grep for `animate-*` would have to know every spelling
+of an entry, and would have missed this one twice over.
+
+## 6d. §16's mirror — verified, and PRE-EXISTING
+
+Back from a media screen opened via « Voir la fiche » lands on `/` with the panel not reopened.
+**Identical on `origin/main` (5322c2fa)**, same flow, same 1.3 s. Filed as **B-275**. The cause is the
+ladder — `switchPageFromLayer` REPLACES the layer's entry rather than pushing over it — and that
+handler is **L13's**, which this lot may not touch. The mirror rule is written, correct, and has no
+subject today; it is kept.
+
+**The first attempt at that comparison was worthless and the entry says so**: `git checkout
+origin/main` was REFUSED because a source file was still modified, so the « comparison » ran on the
+branch under test. *A checkout that aborts is not a checkout*, and it nearly produced a false
+attribution.
+
 ## 7. Device-only protocols — written and dated, never claimed as passed
 
 Neither was exercised, and `MODEL.md` § 3.1 is explicit that they are protocols rather than gates.
