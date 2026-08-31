@@ -229,6 +229,89 @@ async def hold_the_pressed_state(journal, browser):
     await context.close()
 
 
+
+
+# ── THE PRESS ACKNOWLEDGEMENT — a third moment, and the one nothing said ────
+# A long press arms for 480ms before anything happens, and until L12 the
+# interface was silent for that whole span. The tile now sinks and darkens while
+# the press arms, and releases as the panel arrives.
+#
+# IT REPLACES THE POSTER'S FLIGHT, which the operator withdrew after watching it
+# in slow motion. What the carry was FOR survives — binding the panel to the card
+# that summoned it — played in place, moving nothing across the screen.
+#
+# THE THREE MOMENTS ARE HELD APART HERE BECAUSE THEY ARE EASY TO CONFLATE:
+# `:active` is the finger being down at all, `[data-feedback]` is the
+# acknowledgement AFTER a gesture commits, and `[data-pressing]` is the span
+# between them. A rule that read only « something changed while the finger was
+# down » would be satisfied by `:active` alone and would be green over an arming
+# that says nothing.
+ARMING_STATE = "lib-grid"
+ARMING_TILE = '[data-part="tile"]'
+READ_TILE = (
+    "()=>{const tile = document.querySelector('[data-part=\"tile\"]');"
+    " const style = getComputedStyle(tile);"
+    " return {mark: tile.hasAttribute('data-pressing'),"
+    "         scale: style.scale, filter: style.filter};}"
+)
+
+
+async def hold_the_press_acknowledgement(journal, browser, motion):
+    """Reads the tile before, during and after the arming of a long press."""
+    context, page, box = await open_at_state(browser, motion)
+    if not box:
+        journal.check(f"a tile is drawn to press ({motion})", False, "absent")
+        await context.close()
+        return
+
+    at_rest = await page.evaluate(READ_TILE)
+    session = await page.context.new_cdp_session(page)
+    x, y = box["x"], box["y"]
+    await session.send("Input.dispatchTouchEvent", {
+        "type": "touchStart", "touchPoints": [{"x": x, "y": y, "id": 1}]})
+    arming = None
+    for step in range(11):
+        await session.send("Input.dispatchTouchEvent", {
+            "type": "touchMove", "touchPoints": [{"x": x + 2, "y": y + 2, "id": 1}]})
+        await page.wait_for_timeout(60)
+        if step == 4:
+            arming = await page.evaluate(READ_TILE)
+    await session.send("Input.dispatchTouchEvent",
+                       {"type": "touchEnd", "touchPoints": []})
+    await page.wait_for_timeout(600)
+    after = await page.evaluate(READ_TILE)
+
+    journal.check(
+        f"under `{motion}`, the tile is marked WHILE the press arms",
+        bool(arming and arming["mark"]),
+        f"read {arming} — the interface says nothing for the 480ms a press "
+        "takes to arm")
+    journal.check(
+        f"and under `{motion}` it DARKENS — the acknowledgement is drawn",
+        bool(arming) and arming["filter"] != at_rest["filter"],
+        f"filter {at_rest['filter']} at rest and {arming['filter'] if arming else None} "
+        "while arming — the mark lands and the stylesheet answers with nothing")
+    journal.check(
+        f"and under `{motion}` it releases once the panel arrives",
+        not after["mark"] and after["filter"] == at_rest["filter"],
+        f"read {after} — the tile stays pressed after the gesture it "
+        "acknowledged has finished")
+
+    if motion == "reduce":
+        journal.check(
+            "under `reduce`, the tile does NOT move — only the darkening",
+            bool(arming) and arming["scale"] in ("none", "1"),
+            f"scale {arming['scale'] if arming else None} — reduced motion is a "
+            "designed state and this one moves anyway")
+    else:
+        journal.check(
+            "under `no-preference`, the tile SINKS as well as darkening",
+            bool(arming) and arming["scale"] not in ("none", "1"),
+            f"scale {arming['scale'] if arming else None} — the acknowledgement "
+            "is a darkening alone, which is the reduced state played to everyone")
+    await context.close()
+
+
 async def hold(journal):
     """Drives the acknowledgement under both preferences, and the pressed state."""
     errors = []
@@ -237,6 +320,8 @@ async def hold(journal):
         await hold_the_acknowledgement(journal, browser, "no-preference")
         await hold_the_acknowledgement(journal, browser, "reduce")
         await hold_the_pressed_state(journal, browser)
+        await hold_the_press_acknowledgement(journal, browser, "no-preference")
+        await hold_the_press_acknowledgement(journal, browser, "reduce")
         await browser.close()
     journal.summary(errors)
 

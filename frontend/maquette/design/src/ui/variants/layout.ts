@@ -88,10 +88,12 @@ export const scrollport = cva(
    that reads that instant. Entering, the layer is `visible` with no transition
    at all; leaving, the delay holds it. */
 export const sheetScrim = cva(
-  "scrim absolute inset-0 bg-scrim z-[46] duration-200 ease-standard",
+  // The scrim darkens WITH the rise rather than ahead of it — same step, so the
+  // ground and the layer are one gesture (operator, 2026-08-31).
+  "scrim absolute inset-0 bg-scrim z-[46] duration-450 ease-emphasized",
   { variants: { open: { true: "open opacity-100 visible transition-[opacity]",
                         false: "opacity-0 invisible transition-[opacity,visibility] "
-                               + "[transition-delay:0s,200ms]" } },
+                               + "[transition-delay:0s,450ms]" } },
     defaultVariants: { open: false } },
 );
 
@@ -125,7 +127,17 @@ export const bottomSheet = cva(
     // stays a rule in the residue. A variant here would never be told.
     // `visibility` joins the transition on the CLOSED state for B-249's reason
     // — see `sheetScrim` above, including why it is the closed state ONLY.
-    "duration-300 ease-standard",
+    // THE DRAWN RISE (operator, 2026-08-31). The panel comes up over ~0.45s on
+    // a wide decelerating curve, its content already composed — poster
+    // included — so the whole layer is ONE movement rather than a slide with
+    // pieces arriving inside it. It replaces the poster's flight from tile to
+    // panel, which the operator withdrew after watching it in slow motion:
+    // « pas fluide du tout, même très dérangeante ».
+    //
+    // The step is `--duration-4` and the curve `--ease-emphasized`; both are
+    // the scale's own, and the exact pair is a DRAWING that the operator
+    // validates on video, not a constant with a proof.
+    "duration-450 ease-emphasized",
   {
     variants: {
       open: {

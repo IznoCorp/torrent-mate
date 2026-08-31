@@ -7,7 +7,6 @@
 import { flushSync } from "react-dom";
 import { refuseBlock, type PanelDescriptor } from "../ui/panel/contract";
 import { addressOf, isScreenPath, withPanel } from "../lib/addresses";
-import { installSharedPoster, releaseCarriedPoster } from "./shared-poster";
 import type { Store } from "./store";
 
 declare global {
@@ -89,61 +88,24 @@ function openPanelOnCurrentEntry(open: () => void): void {
  *     store: The single owner of the mutable state.
  */
 export function installPanelHost(store: Store): void {
-  // INSTALLED FROM HERE RATHER THAN FROM THE SHELL, and the reason is a line
-  // count that would have been a defect: `app/shell.tsx` stands at 398 of the
-  // 400-line hard ceiling, and an import plus a call would put it AT it. The
-  // carried poster is the panel's own concern anyway — it exists so that the
-  // panel's arrival can be a shared element — so it belongs to the panel's
-  // installer and not to the frame's.
-  installSharedPoster();
 function openPanel(descriptor: PanelDescriptor): void {
   // Same order as the legacy `openSheet`: the layer first, the history entry
   // second. This file is SHELL code — the seam itself — so it writes the store
   // directly rather than through data.ts's `writeUiState` component door.
-  const commit = () => {
-    flushSync(() =>
-      store.write({ panelDescriptor: descriptor, panelOpen: true }),
-    );
-    // THE MODULE'S REFERENCE IS DROPPED HERE, and that is ALL this line does
-    // today — measured, rather than the stronger thing its first comment
-    // claimed.
-    //
-    // The claim was: the tile must lose the name as the panel arrives, or two
-    // elements answer to it in one frame and the browser skips the transition.
-    // The rule is right and the line is not what enforces it: the engine
-    // RE-RENDERS the surface when the panel opens, so the marked tile is
-    // detached anyway — the same node replacement R113 measured, `isConnected`
-    // false with the attribute still on it. Removing this line changes nothing
-    // observable, and the mutation proving that is why the comment now says
-    // what it does instead of what it was meant to.
-    //
-    // It stays because a module holding a reference to a detached node is a
-    // leak with no upside, and because a surface that does NOT re-render would
-    // need exactly this. What it is not is the guarantee — that belongs to the
-    // stylesheet scoping `.sheetposter`'s name to the OPEN sheet.
-    releaseCarriedPoster();
-  };
-
-  // P5/P6 — THE PANEL'S ARRIVAL IS A DECLARED TRANSITION, and the poster the
-  // press addressed travels into it. `startViewTransition` animates any DOM
-  // change, not only a navigation: the panel pushes its own history entry and
-  // is addressable (`?panel=…`), so nothing about the routes changes here.
+  // THE PANEL OPENS BY ITS OWN SLIDE, and the view transition that briefly
+  // wrapped this is GONE (operator, 2026-08-31). It existed to carry the
+  // poster from the tile into the panel; the operator watched the real
+  // slow-motion and withdrew the gesture — « la transition poster entre liste
+  // et panneau n'est vraiment pas fluide du tout, elle est même très
+  // dérangeante ». What replaces it is being arbitrated; nothing is drawn here
+  // until it is named.
   //
-  // THE CAPTURE IS ASKED FOR FIRST AND THE COMMIT STILL RUNS SYNCHRONOUSLY,
-  // for the reason this file already gives at length: the legacy callers were
-  // written against a DOM that was already updated when `openSheet` returned —
-  // `data-del` closes the sheet and opens a dialog on the next line. Passing
-  // `commit` as the callback would defer it past a frame and break that
-  // ordering, which is the same trap `lib/navigate.ts` fell into and measured.
-  if (!document.startViewTransition) {
-    commit();
-  } else {
-    const transition = document.startViewTransition(() => undefined);
-    commit();
-    // A superseded transition rejects; that is a fast thumb, not an error.
-    transition.ready.catch(() => undefined);
-    transition.finished.catch(() => undefined);
-  }
+  // Wrapping the opening WITHOUT the carry would have been worse than nothing:
+  // the sheet already slides up in its own stylesheet, and a view transition
+  // over it is the same two-systems-one-element defect the hero paid for.
+  flushSync(() =>
+    store.write({ panelDescriptor: descriptor, panelOpen: true }),
+  );
   if (onCurrentEntry) return;
   try {
     // D1's second tier: a panel whose subject is stable travels in the query,

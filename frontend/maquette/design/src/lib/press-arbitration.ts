@@ -53,6 +53,9 @@
 
 import { feedback } from "./feedback";
 
+/** The mark a press being ARMED writes. Read by `styles/base.css`. */
+const PRESSING_ATTRIBUTE = "data-pressing";
+
 /** How long the finger must stay down before a press is a press. */
 const PRESS_MILLISECONDS = 480;
 
@@ -138,6 +141,7 @@ export function installPressArbitration(
   function cancelPress(): void {
     if (!press) return;
     clearTimeout(press.pollTimer);
+    press.element.removeAttribute(PRESSING_ATTRIBUTE);
     press = null;
   }
 
@@ -145,11 +149,29 @@ export function installPressArbitration(
     const element = options.resolveTarget(target);
     if (!element) return;
     cancelPress();
+    // THE PRESS ACKNOWLEDGEMENT'S STATE (operator, 2026-08-31). A long press
+    // arms for 480ms before anything happens, and until now the interface said
+    // nothing for that whole time. The element it armed on is marked, and the
+    // stylesheet decides what that looks like — the name lives there, as every
+    // drawing decision does (D9 rule 1).
+    //
+    // IT IS A THIRD MOMENT, and the three do not overlap: `:active` is the
+    // finger being down at all (phase 5, CSS, no JavaScript), `data-feedback`
+    // is the acknowledgement AFTER a gesture commits, and this is the span
+    // between them — the press being armed. It is written by the arbitration
+    // because the arbitration is the only thing that knows a press is arming;
+    // that is a fact about the GESTURE, not about the surface, so it stays
+    // vocabulary.
+    element.setAttribute(PRESSING_ATTRIBUTE, "");
     press = {
       element,
       x: point.x,
       y: point.y,
       pollTimer: window.setTimeout(() => {
+        // RELEASED AS THE PANEL ARRIVES, which is the gesture's own shape: the
+        // tile is held down while the press arms and lets go the moment the
+        // layer answers.
+        element.removeAttribute(PRESSING_ATTRIBUTE);
         press = null;
         swallowClick = { x: point.x, y: point.y };
         // THROUGH THE SEAM, before the surface acts. Every gesture in the

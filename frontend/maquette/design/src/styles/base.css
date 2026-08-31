@@ -507,15 +507,6 @@
     animation: banner-in var(--duration-3) var(--ease-standard);
   }
 
-  /* THE POSTER'S FLIGHT IS DRAWN, and until now it was not: the group carried
-     no rule at all, so the most visible gesture of this lot ran on the user
-     agent's own 250ms default curve. A NAMED group with no rule is a hole
-     rather than a setting — the name says the interface means to own that
-     movement, and owning it is what the design reference is for. */
-  ::view-transition-group(carried-poster) {
-    animation-duration: var(--duration-3);
-    animation-timing-function: var(--ease-emphasized);
-  }
 
   ::view-transition-new(screen-body) {
     animation: body-rise var(--duration-3) var(--ease-emphasized);
@@ -569,7 +560,6 @@
    transition paid for, where `-old` and `-new` were silenced and the GROUP went
    on animating. */
 @media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(carried-poster),
   ::view-transition-group(screen-banner),
   ::view-transition-group(screen-body),
   ::view-transition-group(leaving-panel),
@@ -581,39 +571,42 @@
   }
 }
 
-/* P6 — THE POSTER TRAVELS FROM THE TILE INTO THE PANEL.
+/* THE PRESS ACKNOWLEDGEMENT — the tile answers while the press arms (operator,
+   2026-08-31).
 
-   `app/shared-poster.ts` marks exactly one poster at the moment a press picks
-   it, and the panel's own commit releases the mark as the layer arrives. The
-   NAME lives here rather than in that module (D9 rule 1): a name assigned in
-   JavaScript would take a drawing decision out of the design reference.
+   IT REPLACES THE POSTER'S FLIGHT. The carry from tile to panel was withdrawn
+   after the operator watched it in slow motion — « pas fluide du tout, même
+   très dérangeante » — and what it was FOR survives: binding the panel to the
+   card that summoned it. Played in place, over 480ms of arming, moving nothing
+   across the screen.
 
-   Both ends carry the same name, which is what makes it one picture moving
-   rather than two pictures drawn — and they are never both present in one
-   frame, because the mark leaves the tile inside the transition's own commit. */
+   THREE MOMENTS, AND THEY DO NOT OVERLAP. `:active` below is the finger being
+   down at all; `[data-feedback]` is the acknowledgement AFTER a gesture
+   commits; this is the span between them — a press ARMING, marked by
+   `lib/press-arbitration.ts`, which is the only thing that knows one is.
+
+   The sink runs over the arming's own duration so the tile is still settling as
+   the panel begins to rise: two halves of one gesture rather than two gestures.
+   `--duration-4` is the step nearest 480ms and it is a DRAWING the operator
+   validates on video, not a constant with a proof. */
 @media (prefers-reduced-motion: no-preference) {
-  [data-carrying],
-  /* SCOPED TO THE OPEN SHEET, and this is not tidiness — it is what makes the
-     shared element work at all.
-
-     The panel's markup is mounted ALWAYS: closed is a class, not an unmount, so
-     `.sheetposter` is in the document before the press begins. Named
-     unconditionally, it and the marked tile both answer to `carried-poster` at
-     the moment the snapshot is taken — two elements, one name — and the browser
-     drops the name rather than choosing. Measured: the transition ran, and
-     `::view-transition-old(carried-poster)` was simply absent, so the poster
-     appeared instead of travelling. */
-  #sheet[data-open] .sheetposter {
-    view-transition-name: carried-poster;
+  [data-pressing] {
+    transition:
+      scale var(--duration-4) var(--ease-standard),
+      filter var(--duration-4) var(--ease-standard);
+    scale: 0.97;
+    filter: brightness(0.88);
   }
 }
 
-/* REDUCED MOTION: the poster does not travel, and nothing else changes about
-   the gesture — the panel still opens, still on the same history entry, still
-   showing the same picture. Naming the element under `reduce` would make the
-   browser animate it, so under this preference it simply is not named
-   (invariant 14: the reduced state is DRAWN, and here what is drawn is the
-   absence of a journey). */
+/* REDUCED MOTION: the acknowledgement is still MADE and it does not move — the
+   darkening stays, the scale does not (invariant 14). A press that said nothing
+   under this preference would be a different interface, not a calmer one. */
+@media (prefers-reduced-motion: reduce) {
+  [data-pressing] {
+    filter: brightness(0.88);
+  }
+}
 
 /* THE PRESSED STATE — `:active`, and NO JAVASCRIPT (D9).
 
