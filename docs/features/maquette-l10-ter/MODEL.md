@@ -338,7 +338,7 @@ reads it** (exists · to build · device-only), whether it holds today, and the 
 **A property with no conceivable instrument is not on the list** — it was restated until one was,
 or dropped and named in § 3.1.
 
-**Seven rows were refreshed by L15, in the wave that made them move** — § 7.1's duty, not an
+**Seven rows were refreshed by L15 and five by L11, each in the wave that made them move** — § 7.1's duty, not an
 amendment: what the phase DECIDED is untouched and only the measurement under it changed. P1, P2,
 P3, P14, P21, P28 and P31 read `true` with the rule that says so; P10 says it survived the two bars
 becoming components. **And P1's instrument is not the one this table specified**: the column read
@@ -356,7 +356,7 @@ come out the other way. A sentinel on `window` and the `load` event are what sep
 | P6 | **A shared element survives navigation**: the poster carries a `view-transition-name` on the card and on the sheet | to build | false | L12 |
 | P7 | **The shell opens offline**: the worker precaches the document and the bundles, and a named state renders with the server gone | **R105** — and NOT `context.set_offline`, which does not reach the requests a service worker makes in Chromium: measured that way the rule is green because the NETWORK answered. R105 raises its own scratch server and STOPS it | **true** since L11 | — |
 | P8 | **A mutation issued offline departs exactly once** on reconnection | **R107**, 16 holds — on the mock layer's `setOffline`, which REJECTS the way an outage does rather than answering a status | **true** since L11 | — |
-| P9 | **Installable, and the handler of its own links**: manifest `display`, `id`, icons, and the entry points L11 names | R51, R52, and **R108** for the three Q4 elected — declared in the manifest, and `/add?q=` proved to pre-fill. The half only a device settles is written down and dated | **true** in the manifest; the operating-system half is device-only | — |
+| P9 | **Installable, and the handler of its own links**: manifest `display`, `id`, icons, and the entry points L11 names | R51, R52, and **R108** for the three Q4 elected — declared in the manifest, and `/add?q=` proved to pre-fill. The half only a device settles is DECLARED as device-only and NOT yet exercised — `REPORT.md` says so, and no dated device record exists | **true** in the manifest; the operating-system half is device-only | — |
 | P10 | **Safe areas**: the two bars pad by `env(safe-area-inset-*)` and nothing else positions by a distance to an edge | static read of the bars' classes (the compositor guard's shape); the rendered check is device-only | true in the markup, and still true after L15 moved both bars into components | — |
 | P11 | **Dynamic viewport**: the frame is `100dvh`, no `100vh` anywhere | `check-css-tokens.py`-shaped static read | **false** — no `dvh` in the tree; `base.css:54` is `height: 100%`; the only `100svh` is `harness.css`, which ships nowhere | L12 |
 | P12 | **Contained overscroll** on `#port` | the compositor-CSS guard | true | — |

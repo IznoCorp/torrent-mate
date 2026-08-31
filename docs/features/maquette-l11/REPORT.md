@@ -146,6 +146,36 @@ nobody can trust; five properties `MODEL` § 3 recorded as `false` had been made
 with § 7.1's refresh duty written two paragraphs above the table; and eleven of twenty ACCEPTANCE
 criteria named no command, under a heading saying a criterion that cannot be run is not a criterion.
 
+### And a second round, on the repairs
+
+**Two readers on the repairs alone**, because this repository's own record says that is where the
+next findings live — L10 reviewed its fixes and found eleven more, six of them in instruments that
+had just been mutation-tested and believed. They found **thirteen**, and two of them matter more
+than anything in round one:
+
+**The first repair had MOVED two defects rather than fixing them.** A refused replay no longer
+jammed the queue — it was *destroyed silently*, and the notice vanished exactly as it does on
+success, under the finger of an operator who had just pressed « Envoyer maintenant ».
+`refusedDepartures()` was exported and read by nobody. And the classifier that decided what to drop
+asked « did the layer answer? », which is true of a 503 from a restarting backend, a 429, a 401
+after a session expires, and the failure this layer *manufactures* for a proxy's unreadable HTML —
+so the operator's action was destroyed in the exact case `departOnReconnection` exists for.
+
+**And my own trap fix re-opened B-256.** Bash runs an `INT` handler and then *resumes* the script,
+so Ctrl-C during rule 30 of 79 released the lock, deleted the log directory, and carried on running
+the remaining rules unlocked, into a directory that no longer existed.
+
+Two more of the same family: **R104 lost the invariant it exists for** — the stamp's *order* moved
+into `publish()` and the hold moved with the wrong half, so writing the stamp at the top of
+`publish()`, the original B-256 defect, passed every hold in the file. And **`_code_of` ate real
+code**, on a line in `common.py` that closes a fence and then calls `.replace()` twice — with two
+of R104's holds being *negative*, which get **greener** as the stripper loses text, and no floor
+under any of them.
+
+**The reading that survives both rounds** is the one L09 first wrote down and every wave since has
+re-paid: an instrument written by the person whose work it measures inherits that person's blind
+spots, and a repair written in answer to a review inherits them twice.
+
 ## The wave's gates, at the close
 
 | Gate | Result |
@@ -154,9 +184,9 @@ criteria named no command, under a heading saying a criterion that cannot be run
 | `harness/run.sh --a11y` | **87 states, 0 violations**; light-theme ratchet 166 against a ceiling of 166 |
 | `oracle.py --check` | **no divergence**, 2 958 measurements over 87 states × 34 regions, reference at `212faf0a` |
 | `make check` | **exit 0** — 10 957 passed, 4 skipped, 2 xfailed |
-| `scripts/harness-hold-counts.py --compare` | after the repairs: `served_copy` 8 → 15, `pwa` 47 → 50, `outbox` 14 → 16, `server` 14 → 16, `installed` 7 → 8; **no rule lost a hold**, and five rose |
+| `scripts/harness-hold-counts.py --compare` | after **both** review rounds: `served_copy` 8 → 20, `pwa` 47 → 53, `outbox` 14 → 18, `server` 14 → 16, `installed` 7 → 8; **no rule ever lost a hold** |
 
-Re-run in full after the review's repairs, not before them.
+Re-run in full after EACH round's repairs, not before them.
 
 The oracle is green because nothing in this lot draws a pixel differently: the worker changes what
 is fetched, not what is painted, and the pending count lands in a mark L10 already drew.

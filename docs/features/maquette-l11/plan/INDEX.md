@@ -59,12 +59,12 @@ that cannot be run is not a criterion.
 | ACC-06 | `/api/*` and the stream are never cached | `grep -n "const NEVER" frontend/maquette/design/sw.js` | `/api/` and `/ws` by prefix |
 | ACC-07 | `/build.json` answers without a session | `python3 -c "import urllib.request as u,json; print(json.load(u.urlopen('https://tm-design.iznogoudatall.xyz/build.json', timeout=15)))"` | `{'build': '<12 hex>'}` |
 | ACC-08 | The bundle, the worker and `/build.json` carry ONE identity | `cd frontend/maquette/design && grep -o 'const BUILD = "[a-f0-9]*"' dist/sw.js && cat dist/build.json` | the same value |
-| ACC-09 | The identity moves when a source does, and not when it does not | `touch frontend/maquette/design/src/app/outbox.ts && cd frontend/maquette/design && npm run build && cat dist/build.json` | unchanged — it is a CONTENT hash |
+| ACC-09 | A touched source does NOT move the identity — it is a content hash, not a timestamp | `touch frontend/maquette/design/src/app/outbox.ts && cd frontend/maquette/design && npm run build && cat dist/build.json` | unchanged. *(The other half — a real edit DOES move it — is read by ACC-12, which makes the build move and holds the reload.)* |
 | ACC-10 | **P8** — held, persisted, departed once, and said | `python3 frontend/maquette/harness/outbox.py` | 16 rules EXECUTED — no violation |
 | ACC-11 | A refused replay leaves the queue rather than jamming it | the same rule | PASS on that hold |
 | ACC-12 | The update discipline reloads once and never loops | `python3 frontend/maquette/harness/freshness.py` | 5 rules EXECUTED — no violation |
 | ACC-13 | **P27** and **P30** | `python3 frontend/maquette/harness/installed.py` | 8 rules EXECUTED — no violation |
-| ACC-14 | Signing out takes the cached shell with it | `python3 frontend/maquette/harness/logout.py` | 0 violations, the shell-teardown hold among them |
+| ACC-14 | Signing out takes the cached shell, the worker and the queue with it | `python3 frontend/maquette/harness/pwa.py` | 0 failures, R111's holds among them — `logout.py` is R54, the cookie, and holds none of this |
 | ACC-15 | **P9** — the three entry points are declared | `python3 -c "import urllib.request as u,json; m=json.load(u.urlopen('https://tm-design.iznogoudatall.xyz/manifest.webmanifest', timeout=15)); print(sorted(k for k in m if k in ('share_target','launch_handler','handle_links')))"` | all three listed |
 | ACC-16 | …and the address one of them names really pre-fills | `python3 frontend/maquette/harness/pwa.py` | PASS on R108's pre-fill hold |
 | ACC-17 | Push is declined in writing, with its consumer named | `grep -n "B-257" BUGS.md` | an entry naming L16 |

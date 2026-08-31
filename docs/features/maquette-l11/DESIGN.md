@@ -54,7 +54,7 @@ until switchover.*
 | File | What it owns |
 | --- | --- |
 | `design/src/app/worker-registration.ts` | Registering the worker, and the update discipline: a check on load, on `visibilitychange` and every 15 minutes; one reload |
-| `design/src/app/build-stamp.ts` | The stamp this build was made with, baked at build time, and the poll that compares it to what the host serves |
+| ~~`design/src/app/build-stamp.ts`~~ — **never created**. The identity is baked by `vite.config.mjs` and compared in `app/worker-registration.ts`; `app/outbox-wiring.ts`, which the table does not name, is what actually landed |
 | `design/src/app/outbox.ts` | The queue of mutations issued offline: opaque `{ key, request }` envelopes, its persistence, its replay, and the count it publishes |
 | `design/src/app/outbox-store.ts` | The IndexedDB store alone — open, put, list, delete. It knows nothing about mutations |
 | `design/sw.js` | The worker source, beside `index.html` as Part 13 places it |
@@ -81,7 +81,7 @@ in a later tidy-up.
 > written before the code and three of its decisions did not survive contact with the hosts. **D-2's
 > DECISION stands and its MECHANISM does not**: the signal is not `mtime_sources()` but a CONTENT
 > hash over every source, and `/build.json` carries that alone — a timestamp moves when a file is
-> merely touched and would reload every client for nothing. **D-5's precache tiering is gone**: `/`
+> merely touched and would reload every client for nothing. **D-1's precache tiering is gone**: `/`
 > itself answers 401 on the sign-in gate, so nothing is required-cacheable at install and the
 > running application completes the shell (B-259). **D-10 said R110 would RECORD that the
 > back-forward cache survives**; it cannot — Chrome refuses that cache whenever a DevTools client is
