@@ -56,3 +56,18 @@ export type LibraryReference = EngineDrawing & {
 export function useLibraryReference(): LibraryReference {
   return window.__referentiel;
 }
+
+// THE WINDOW'S GEOMETRY (P24), MEASURED on the served prototype at 390x844
+// rather than read off a stylesheet: tiles 203.34px and cards 126px, both
+// uniform across every rendered item.
+//
+// The two heights the first measurement showed in the gallery were SKELETONS
+// (`.sk.tile`, 171px), which `[data-part="tile"]` selects as well as the real
+// tile — a virtualiser configured from that reading would have run in
+// variable-height mode for a spread no rendered list ever contains. The gaps
+// are the scale's own steps: `--spacing-5` for the gallery, `--spacing-4` for
+// the list.
+export const LIBRARY_WINDOW = {
+  gallery: { rowHeight: 203.34, gap: 10, lanes: 3 },
+  list: { rowHeight: 126, gap: 8, lanes: 1 },
+} as const;

@@ -22,8 +22,9 @@ import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Icon } from "../../ui/icon";
+import { VirtualRows } from "../../ui/virtual-rows";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
-import { useLibraryReference, type IncompleteShow, type LibraryRow } from "../../features/library/reference";
+import { LIBRARY_WINDOW, useLibraryReference, type IncompleteShow, type LibraryRow } from "../../features/library/reference";
 import {
   registerListingPaging,
   useLibraryCategories,
@@ -414,21 +415,20 @@ function LibraryList(): ReactElement {
     // whose generated string is unchanged, so an open swipe would survive a
     // repaint that used to snap it shut. A key that moves with the store's own
     // version makes each draw a new node, which is what the legacy did.
+    // WINDOWED (P24) — `ui/virtual-rows.tsx` carries the whole reasoning.
     items = (
-      <div
-        key={version}
-        id="libitems"
-        className={grid ? "gallery" : "sec"} data-part={grid ? "grid" : "section"}
-        dangerouslySetInnerHTML={{
-          __html: rows
-            .slice(0, count)
-            .map((row, index) =>
-              grid
-                ? tileHTML(row, (row as LibraryRow).f, { index })
-                : libRowHTML(row, index),
-            )
-            .join(""),
-        }}
+      <VirtualRows
+        drawKey={version}
+        count={count}
+        {...(grid ? LIBRARY_WINDOW.gallery : LIBRARY_WINDOW.list)}
+        scrollElement={() => document.querySelector("#port")}
+        className={grid ? "gallery" : "sec"}
+        part={grid ? "grid" : "section"}
+        renderRow={(index) =>
+          grid
+            ? tileHTML(rows[index], (rows[index] as LibraryRow).f, { index })
+            : libRowHTML(rows[index], index)
+        }
       />
     );
   }
