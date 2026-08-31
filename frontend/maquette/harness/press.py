@@ -9,14 +9,27 @@ stays its.
 WHAT IT DOES NOT READ, which is what this rule exists for. Both halves are
 places where a WRONG implementation passes every hold R55 has.
 
-  1. THE DRIFT THAT CANCELS. R55 drifts the finger ±5px through the press —
-     deliberately, because « a real thumb drifts several pixels over half a
-     second » and below one pixel Chrome delivers no `touchmove` at all. So it
-     proves the press SURVIVES a small drift. It never drives a drift PAST the
-     12px tolerance, so it never proves the press DIES of a large one. An
-     arbitration with no tolerance check at all — one that opens the panel
-     however far the finger travels — passes every hold R55 has, and turns
-     every scroll that starts on a tile into a panel.
+  1. THE DRIFT THAT CANCELS — AND IT IS ONLY MEASURABLE UNDER A MOUSE. R55
+     drifts the finger ±5px through the press, deliberately, because a real
+     thumb drifts. So it proves the press SURVIVES a small drift and never that
+     it DIES of a large one.
+
+     MEASURED BEFORE THIS RULE WAS WRITTEN, and it inverts the usual lesson.
+     Under a real touch stream the tolerance is NOT OBSERVABLE AT ALL: Chrome's
+     compositor fires `pointercancel` at every drift of 14px or more, which
+     cancels the press through the cancel handler whether or not the tolerance
+     exists. Removing the tolerance entirely changes nothing a touch stream can
+     see — measured at 5, 14, 16, 18, 22, 30 and 40px, identical both ways.
+
+     A REAL MOUSE IS THE ONLY INSTRUMENT THAT ISOLATES IT, because the
+     compositor never claims a mouse gesture: with the tolerance, a 16px drag
+     opens nothing; without it, the same drag opens the panel, and
+     `pointercancel` never fires in either run. So the mouse hold below asserts
+     THAT COUNT IS ZERO — which is what makes it a proof about the arbitration
+     rather than about the browser.
+
+     This is why the touch hold is kept but honestly labelled: it proves the
+     press dies, not WHAT killed it.
 
   2. THE SWALLOW THAT MUST NOT SWALLOW EVERYTHING. R55 holds « the lift does not
      fire the panel that has just appeared », which is the click AT the press's
@@ -66,9 +79,16 @@ from common import PHONE, PROTOTYPE, Journal, open_page
 # note on a rule that hard-copies a number.
 PRESS_HOLD_MARGIN = 260
 
-# Far past the 12px tolerance, and far enough that no rounding argument can be
-# made about it. Short enough to stay on the same surface.
+# Far past the 12px tolerance, for the TOUCH exercise. At this distance the
+# compositor claims the gesture as a scroll, so the touch hold proves the press
+# dies without isolating what killed it — which is what that hold says.
 CANCELLING_DRIFT = 40
+
+# For the MOUSE exercise, where the compositor claims nothing. Past the 12px
+# tolerance and deliberately modest: this is the distance at which, measured
+# both ways, the tolerance alone decides — with it the panel stays shut, without
+# it the same drag opens it, and `pointercancel` never fires either way.
+MOUSE_DRIFT = 16
 
 # Where a deliberate tap lands relative to the press: well beyond the tolerance,
 # so a swallow keyed on the POINT must let it through.
@@ -93,12 +113,22 @@ async def drive_press(page, x, y, drift, hold_ms):
     session = await page.context.new_cdp_session(page)
     await session.send("Input.dispatchTouchEvent", {
         "type": "touchStart", "touchPoints": [{"x": x, "y": y, "id": 1}]})
-    steps = max(1, int(hold_ms / 60))
-    for step in range(1, steps + 1):
-        travelled = drift * step / steps
+    # THE DRIFT ARRIVES EARLY, and this is the whole difference between a rule
+    # that measures the tolerance and one that cannot. Ramped across the hold —
+    # the first version of this driver — the press timer fires long before the
+    # drift has accumulated past 12px, so the tolerance is never consulted and
+    # the hold passes over an arbitration that has none. Found by mutation: the
+    # rule stayed green with the tolerance deleted.
+    for step in range(1, 5):
+        travelled = drift * step / 4
         await session.send("Input.dispatchTouchEvent", {
             "type": "touchMove",
             "touchPoints": [{"x": x + travelled, "y": y + travelled, "id": 1}]})
+        await page.wait_for_timeout(30)
+    for _ in range(max(1, int(max(0, hold_ms - 120) / 60))):
+        await session.send("Input.dispatchTouchEvent", {
+            "type": "touchMove",
+            "touchPoints": [{"x": x + drift, "y": y + drift, "id": 1}]})
         await page.wait_for_timeout(60)
     await session.send("Input.dispatchTouchEvent",
                        {"type": "touchEnd", "touchPoints": []})
@@ -150,9 +180,11 @@ async def hold_the_tolerance(journal, browser):
     await pg.wait_for_timeout(160)
     opened = await panel_is_open(pg)
     journal.check(
-        f"a press drifting {CANCELLING_DRIFT}px does NOT open the panel",
+        f"under a finger, a press drifting {CANCELLING_DRIFT}px opens nothing "
+        "(the compositor's cancel AND the tolerance — this does not isolate "
+        "either)",
         not opened,
-        "the tolerance is not applied: a scroll begun on a tile opens a panel")
+        "a scroll begun on a tile opens a panel")
     await settle(pg)
     await ctx.close()
 
@@ -231,19 +263,33 @@ async def hold_under_a_real_mouse(journal, browser):
     await settle(pg)
 
     # And the drift half: a mouse that travels past the tolerance while down.
+    # MOUSE_DRIFT rather than CANCELLING_DRIFT — see that constant's note.
+    await pg.evaluate("()=>{window.__pointerCancels=0;"
+                      "document.addEventListener('pointercancel',"
+                      "()=>{window.__pointerCancels+=1;});}")
     await pg.mouse.move(box["x"], box["y"])
     await pg.mouse.down()
-    for step in range(1, 7):
-        await pg.mouse.move(box["x"] + CANCELLING_DRIFT * step / 6,
-                            box["y"] + CANCELLING_DRIFT * step / 6)
-        await pg.wait_for_timeout(60)
-    await pg.wait_for_timeout(480)
+    for step in range(1, 5):
+        await pg.mouse.move(box["x"] + MOUSE_DRIFT * step / 4,
+                            box["y"] + MOUSE_DRIFT * step / 4)
+        await pg.wait_for_timeout(30)
+    await pg.wait_for_timeout(620)
     await pg.mouse.up()
     await pg.wait_for_timeout(160)
+    opened = await panel_is_open(pg)
+    cancels = await pg.evaluate("()=>window.__pointerCancels")
+    # THE TWO ASSERTIONS ARE ONE PROOF. That the panel stayed shut says the
+    # press died; that `pointercancel` never fired says the COMPOSITOR did not
+    # kill it — so the tolerance did. Without the second, this hold proves
+    # exactly what the touch hold above proves, which is less than it claims.
     journal.check(
-        f"under a real mouse, a drag of {CANCELLING_DRIFT}px opens nothing",
-        not await panel_is_open(pg),
-        "a mouse drag across a tile opens a panel")
+        f"under a real mouse, a drag of {MOUSE_DRIFT}px opens nothing",
+        not opened,
+        "the tolerance is not applied: a mouse drag across a tile opens a panel")
+    journal.check(
+        "and the compositor never cancelled it, so it was the TOLERANCE",
+        cancels == 0,
+        f"pointercancel fired {cancels}x — this hold would prove nothing")
     await ctx.close()
 
 
