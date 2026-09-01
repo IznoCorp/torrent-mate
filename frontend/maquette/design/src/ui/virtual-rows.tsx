@@ -20,24 +20,35 @@
 // registry's own description is « Headless UI for virtualizing scrollable
 // elements in React » — so it returns measurements and renders nothing, and
 // every drawing decision stays in the stylesheet where the oracle can read it.
-// The two alternatives render their own scroller and write inline styles onto
-// each child, which moves drawing out of the design reference and is refused
-// whatever rule 2 says.
 //
 // ─────────────────────────────────────────────────────────────────────────────
 // SPACERS, NOT ABSOLUTE POSITIONING, and this is the decision that keeps the
-// rendering still.
+// rendering still. The usual shape puts every item at computed coordinates
+// inside a relative container, which would re-derive `.gallery`'s CSS grid and
+// `.sec`'s flex column in JavaScript and take that layout out of the oracle's
+// field. Instead the window is rendered in place and two spacers stand in for
+// what is not, so the grid lays the visible rows out exactly as it always did.
 //
-// The usual shape for a virtualiser is `position: absolute` on every item inside
-// a relative container. That would replace `.gallery`'s CSS grid and `.sec`'s
-// flex column with hand-computed coordinates — re-deriving, in JavaScript, a
-// layout the stylesheet already expresses, and moving it out of the oracle's
-// field in the process.
+// ─────────────────────────────────────────────────────────────────────────────
+// AND THE WINDOW MOVES BY ADDING AND REMOVING ROWS, NEVER BY REWRITING ITSELF.
 //
-// Instead the window is rendered in place and two SPACERS stand in for what is
-// not: one before, one after, each sized to the rows it replaces. The grid and
-// the flex column lay the visible rows out exactly as they always did, so the
-// end state is the one the oracle recorded, and the node count is constant.
+// A first version set the whole window as one `dangerouslySetInnerHTML` string
+// and re-applied it whenever the range moved — every row crossing, so about
+// every 213px of gallery or 134px of list. That destroyed and recreated every
+// visible node, and three things went with them:
+//
+//   * a row opened by a swipe was replaced by a closed one mid-gesture, and the
+//     dying engine kept the detached node as its `openCard`;
+//   * `:active` and `data-pressing` vanished from a tile under the finger;
+//   * every `<img>` in the window was re-created and re-decoded — about forty
+//     per crossing, in the lot whose subject is the PERFORMANCE FLOOR. Before
+//     this lot, scrolling re-rendered nothing at all.
+//
+// So the rows are kept in a map by index and the DOM is updated at the EDGES:
+// what left is removed, what arrived is inserted, and what stayed is the same
+// node it was. The container therefore has no React children — it is written
+// imperatively, which is what preserving identity across a scroll requires when
+// the rows are strings somebody else composed.
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useLayoutEffect, useRef, useState, type ReactElement } from "react";
 
@@ -46,27 +57,18 @@ export type VirtualRowsProperties = {
   /** How many rows exist in total. */
   readonly count: number;
   /**
-   * One row's height in pixels, gap excluded.
-   *
-   * MEASURED, never guessed. Both of this application's list modes are
-   * fixed-height — tiles at 203.34px, cards at 126px — which is what the survey
-   * established before anything was adopted, and it is why this takes a number
-   * rather than a measuring callback.
+   * One row's height in pixels, gap excluded — the ESTIMATE for the first
+   * frame only. The real height is measured from the rendered grid, because it
+   * moves with the column count.
    */
   readonly rowHeight: number;
   /** The gap between rows, so a spacer stands in for the space too. */
   readonly gap: number;
-  /** How many rows share a line. 1 for a list, 3 or 4 for a gallery. */
+  /** How many rows share a line, as an estimate. Measured once drawn. */
   readonly lanes: number;
   /** The scrolling ancestor. Windowing needs to know what is scrolling. */
   readonly scrollElement: () => HTMLElement | null;
-  /**
-   * Turns ONE index into markup. The surface's own, and only that.
-   *
-   * A range renderer was tried first and made every caller write the same
-   * slice-map-join — which is this module's job, not the surface's, and it cost
-   * the calling file eight lines it did not have to spend.
-   */
+  /** Turns ONE index into markup. The surface's own, and only that. */
   readonly renderRow: (index: number) => string;
   /** The container's class and naming attribute — the surface's, unchanged. */
   readonly className: string;
@@ -74,6 +76,23 @@ export type VirtualRowsProperties = {
   /** Remounts the container when the surface says the draw is a new one. */
   readonly drawKey: number | string;
 };
+
+/** Builds one row's element from the markup the surface composed. */
+function elementFor(markup: string): Element | null {
+  const template = document.createElement("template");
+  template.innerHTML = markup.trim();
+  return template.content.firstElementChild;
+}
+
+/** A spacer that displaces whole lines rather than taking a cell of its own. */
+function spacerElement(height: number): HTMLElement {
+  const node = document.createElement("div");
+  node.setAttribute("aria-hidden", "true");
+  node.setAttribute("data-part", "window/spacer");
+  node.style.gridColumn = "1 / -1";
+  node.style.height = `${height}px`;
+  return node;
+}
 
 /**
  * Renders only the rows near the viewport, with spacers standing in for the rest.
@@ -87,49 +106,43 @@ export type VirtualRowsProperties = {
 export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
   const { count, rowHeight, gap, lanes, scrollElement, renderRow } = properties;
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const liveRows = useRef(new Map<number, Element>());
+  const spacers = useRef<{ before: HTMLElement | null; after: HTMLElement | null }>(
+    { before: null, after: null });
 
   // THE GEOMETRY IS MEASURED FROM THE RENDERED GRID, and the props are only the
   // estimate the first frame needs before anything exists to measure.
   //
   // The lane count was a PROP, typed 3. `.gallery` is a CONTAINER QUERY:
   // `repeat(3)` below 460px of port, then 4, then 5 at 620 and 6 at 820 — and
-  // nothing caps the port to a phone's width in production. The only 390px
-  // frame is `styles/harness.css`, which ships nowhere. At five columns the
-  // virtualiser believed in 621 lines where the grid draws 373, sized its
-  // spacers for three per line, and put the wrong rows under the finger.
-  //
-  // The row height moves with it for the same reason: a narrower column makes a
-  // shorter 2:3 poster, so 203.34375 is the height at THREE columns and at no
-  // other width.
-  //
-  // A container query is a DESIGNED state. The window reads it rather than being
-  // told about it — which is also the only form that survives the next
-  // breakpoint somebody adds to the stylesheet.
-  const [measured, setMeasured] = useState<{ lanes: number; lineHeight: number } | null>(null);
+  // nothing caps the port to a phone's width in production. At five columns the
+  // virtualiser believed in 621 lines where the grid draws 373. The row height
+  // moves with it: a narrower column makes a shorter 2:3 poster.
+  const [measured, setMeasured] =
+    useState<{ lanes: number; lineHeight: number } | null>(null);
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) return undefined;
     const read = () => {
       const style = getComputedStyle(container);
-      // One track per column, as the grid resolves it. A flex column (the list
-      // mode) resolves to `none`, which is one lane.
       const tracks = style.gridTemplateColumns;
       const columns = tracks && tracks !== "none" ? tracks.split(/\s+/).length : 1;
-      const item = container.querySelector(":scope > *:not([data-part='window/spacer'])");
+      const item = container.querySelector(
+        ":scope > *:not([data-part='window/spacer'])");
       const height = item ? (item as HTMLElement).getBoundingClientRect().height : 0;
       const rowGap = parseFloat(style.rowGap || style.gap) || 0;
       if (!height) return;
       setMeasured((held) =>
-        held && held.lanes === columns && Math.abs(held.lineHeight - (height + rowGap)) < 0.5
+        held && held.lanes === columns
+        && Math.abs(held.lineHeight - (height + rowGap)) < 0.5
           ? held
           : { lanes: columns, lineHeight: height + rowGap });
     };
     read();
     // AND AGAIN ON THE NEXT FRAME. The container is keyed by the draw, so React
     // replaces the node on every redraw; an effect that measured only at commit
-    // read a computed style of empty strings — measured, `gridTemplateColumns`
-    // came back '' and the window silently kept the props' estimate of three
-    // lanes at every width.
+    // read a computed style of empty strings — measured — and the window
+    // silently kept the props' estimate of three lanes at every width.
     const retry = requestAnimationFrame(read);
     const watcher = new ResizeObserver(read);
     watcher.observe(container);
@@ -141,30 +154,17 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
 
   const activeLanes = measured ? measured.lanes : lanes;
   const lineHeight = measured ? measured.lineHeight : rowHeight + gap;
-
-  // The virtualiser counts LINES, not rows: at three lanes 1 861 titles are 621
-  // lines, and it is lines that have a height.
   const lineCount = Math.ceil(count / activeLanes);
 
-  // THE LIST DOES NOT START AT THE SCROLLER'S ORIGIN, and a virtualiser that
-  // assumes it does renders the wrong window.
-  //
-  // `#libitems` sits 179px below the top of `#port` — the filters and the tabs
-  // are above it, inside the same scrollport. Without telling the virtualiser
-  // so, every offset it computes is short by that distance: measured at
-  // scrollTop 1200, the rendered window ran from -485px to +1517px around a
-  // 775px viewport, which is 485 of margin above and 742 below where the
-  // overscan asks for the same on each side. The visible rows were still
-  // covered HERE — but the safety margin at the top was two thirds of what it
-  // was meant to be, and it is the top that a scroll-up eats first.
-  //
-  // Measured rather than passed in: a caller told to hand over a distance would
-  // be told to hand over a number that changes with the surface above it.
+  // THE LIST DOES NOT START AT THE SCROLLER'S ORIGIN. `#libitems` sits below the
+  // filters and the tabs inside the same scrollport; without telling the
+  // virtualiser, every offset is short by that distance and the window sits
+  // shifted down the list — measured at 485px of margin above against 742 below
+  // where the overscan asks for the same on each side.
   const [scrollMargin, setScrollMargin] = useState(0);
-  // MEASURED ONCE PER DRAW, not on every render. Without a dependency list this
-  // forced a `getBoundingClientRect` and a `setState` on every render the
-  // virtualiser causes while scrolling — a layout read per frame, in the lot
-  // whose subject is the performance floor.
+  // MEASURED ONCE PER DRAW, not on every render: without a dependency list this
+  // forced a layout read and a setState on every render the virtualiser causes
+  // while scrolling.
   useLayoutEffect(() => {
     const container = containerRef.current;
     const scroller = scrollElement();
@@ -190,17 +190,10 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
   const lastLine = lines.length ? lines[lines.length - 1].index : -1;
 
   // THE SPACERS ARE THEMSELVES ITEMS, AND THE CONTAINER PUTS A GAP BESIDE EACH.
-  //
-  // Measured, and it cost 33 oracle divergences of exactly +16px — two gaps of
-  // 8. The container is a flex column or a grid with its own `gap`, and the
-  // spacers sit in it as ordinary children, so one gap appears between the
-  // leading spacer and the first visible row and another between the last and
-  // the trailing spacer. The un-windowed list has N rows and N-1 gaps; three
-  // children make it N+1.
-  //
-  // So each spacer gives ONE gap back, and a spacer with nothing to displace is
-  // not rendered at all rather than rendered at zero height — a zero-height
-  // child still brings its gap with it, which is the whole of the +16.
+  // Measured, at 33 oracle divergences of exactly +16px: the un-windowed list
+  // has N rows and N-1 gaps, three children make it N+1. Each spacer gives one
+  // gap back, and a spacer with nothing to displace is not rendered at all —
+  // a zero-height child still brings its gap with it.
   const linesBefore = firstLine;
   const linesAfter = Math.max(0, lineCount - 1 - lastLine);
   const before = linesBefore ? linesBefore * lineHeight - gap : 0;
@@ -209,27 +202,59 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
   const start = firstLine * activeLanes;
   const end = Math.min(count, (lastLine + 1) * activeLanes);
 
-  // THE SPACERS ARE PART OF THE SAME MARKUP STRING, and that is not a
-  // shortcut — it is what keeps the DOM the shape the rest of the interface
-  // expects.
-  //
-  // A React wrapper holding the rows (`display: contents`) was tried first and
-  // the layout was correct — the oracle stayed green, because `contents` makes
-  // the tiles participate in the grid exactly as before. But a tile's
-  // `parentElement` was then the WRAPPER rather than `.gallery`, and
-  // `harness/cards.py`'s R50 reads a tile's parent to compare one gallery
-  // against another: three states failed with « columns (1, 3) » on a layout
-  // that was pixel-perfect. React refuses `dangerouslySetInnerHTML` beside
-  // children, so the way to have no wrapper is to have no children.
-  const spacer = (height: number) =>
-    height > 0
-      ? `<div aria-hidden="true" data-part="window/spacer" `
-        + `style="grid-column:1/-1;height:${height}px"></div>`
-      : "";
-  const window_ = Array.from(
-    { length: Math.max(0, end - start) },
-    (_unused, offset) => renderRow(start + offset),
-  ).join("");
+  // THE WINDOW MOVES AT ITS EDGES. Rows that stay in range keep the very nodes
+  // they had, so an open swipe, a pressed state and a decoded image survive a
+  // scroll.
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const live = liveRows.current;
+
+    for (const [index, node] of [...live]) {
+      if (index < start || index >= end) {
+        node.remove();
+        live.delete(index);
+      }
+    }
+
+    if (!spacers.current.before || !spacers.current.before.isConnected) {
+      spacers.current.before = spacerElement(0);
+      container.prepend(spacers.current.before);
+    }
+    if (!spacers.current.after || !spacers.current.after.isConnected) {
+      spacers.current.after = spacerElement(0);
+      container.append(spacers.current.after);
+    }
+
+    for (let index = start; index < end; index += 1) {
+      if (live.has(index)) continue;
+      const node = elementFor(renderRow(index));
+      if (!node) continue;
+      live.set(index, node);
+      // Placed before the row that follows it, so order holds however the
+      // window moved — a jump inserts in the middle exactly as a step does.
+      const following = live.get(index + 1);
+      if (following && following.isConnected) {
+        container.insertBefore(node, following);
+      } else {
+        container.insertBefore(node, spacers.current.after);
+      }
+    }
+
+    spacers.current.before.style.height = `${before}px`;
+    spacers.current.before.style.display = before > 0 ? "" : "none";
+    spacers.current.after.style.height = `${after}px`;
+    spacers.current.after.style.display = after > 0 ? "" : "none";
+  });
+
+  // The container is emptied when the surface says the draw is a new one, so a
+  // fresh draw starts from nothing rather than from the previous window.
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    liveRows.current = new Map();
+    spacers.current = { before: null, after: null };
+    if (container) container.replaceChildren();
+  }, [properties.drawKey]);
 
   return (
     <div
@@ -240,9 +265,6 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
       data-part={properties.part}
       data-virtualised={String(count)}
       data-lanes={String(activeLanes)}
-      dangerouslySetInnerHTML={{
-        __html: spacer(before) + window_ + spacer(after),
-      }}
     />
   );
 }

@@ -133,12 +133,105 @@ async def hold_the_lanes_are_measured(journal, browser):
     await context.close()
 
 
+
+
+# ── NODES THAT STAY IN THE WINDOW ARE THE SAME NODES ────────────────────────
+# The window used to be one `dangerouslySetInnerHTML` string, re-applied
+# whenever the range moved — every row crossing, so about every 134px of list.
+# That destroyed and recreated every visible node, and three things went with
+# them: a row opened by a swipe was replaced by a closed one mid-gesture and the
+# dying engine kept the detached node as its `openCard`; `:active` and
+# `data-pressing` vanished from a tile under the finger; and every `<img>` in
+# the window was re-created and re-decoded, about forty per crossing, in the lot
+# whose subject is the PERFORMANCE FLOOR.
+#
+# The rules that existed could not see it: R117 measured geometry at rest, and
+# geometry is exactly what a faithful re-render preserves.
+#
+# WHAT THIS HOLDS is identity — a mark written onto a live row survives a scroll
+# that keeps that row in the window. A mark is used rather than the node itself
+# because a node reference cannot cross the page boundary; an attribute written
+# by hand is the same node's, or it is gone.
+IDENTITY_MARK = "data-identity-probe"
+
+
+async def hold_rows_keep_their_identity(journal, browser):
+    """Marks a live row, scrolls a little, and asks whether the mark survived."""
+    context = await browser.new_context(**PHONE)
+    page = await context.new_page()
+    await page.goto(PROTOTYPE, wait_until="load")
+    await page.evaluate("()=>window.__loadingDone?.()")
+    await page.evaluate("()=>document.querySelector('#toastx')?.click()")
+    await page.wait_for_timeout(250)
+    await page.evaluate("(s)=>window.__go(s)", STATE)
+    await page.wait_for_timeout(700)
+
+    marked = await page.evaluate("""(row)=>{
+      const rows = [...document.querySelectorAll(row)];
+      if (rows.length < 4) return null;
+      // A row in the MIDDLE of the window, so a small scroll keeps it in range.
+      const target = rows[Math.floor(rows.length / 2)];
+      target.setAttribute('data-identity-probe', 'kept');
+      return {index: Math.floor(rows.length / 2), total: rows.length,
+              text: (target.textContent || '').trim().slice(0, 30)};
+    }""", ROW)
+    journal.check(
+        "a live row can be marked, so identity has something to carry",
+        marked is not None,
+        f"read {marked} — with too few rows drawn the scroll below cannot keep "
+        "one in the window")
+    if not marked:
+        await context.close()
+        return
+
+    # A SMALL scroll: far enough to move the window's edges, near enough that
+    # the marked row is still inside it. A scroll that evicted the row would
+    # make the hold pass for the wrong reason, so the row's presence is checked
+    # too.
+    session = await page.context.new_cdp_session(page)
+    box = await page.evaluate(
+        "()=>{const r=document.querySelector('#port').getBoundingClientRect();"
+        "return {x:r.x+r.width/2, y:r.y+r.height*0.7};}")
+    await session.send("Input.dispatchTouchEvent", {
+        "type": "touchStart",
+        "touchPoints": [{"x": box["x"], "y": box["y"], "id": 1}]})
+    for step in range(1, 9):
+        await session.send("Input.dispatchTouchEvent", {
+            "type": "touchMove",
+            "touchPoints": [{"x": box["x"], "y": box["y"] - 200 * step / 8, "id": 1}]})
+        await page.wait_for_timeout(16)
+    await session.send("Input.dispatchTouchEvent",
+                       {"type": "touchEnd", "touchPoints": []})
+    await page.wait_for_timeout(600)
+
+    after = await page.evaluate("""(row)=>{
+      const still = document.querySelector('[data-identity-probe="kept"]');
+      return {survived: !!(still && still.isConnected),
+              drawn: document.querySelectorAll(row).length,
+              scrolled: document.querySelector('#port').scrollTop};
+    }""", ROW)
+
+    journal.check(
+        "the scroll actually moved the window",
+        after["scrolled"] > 0,
+        f"scrollTop {after['scrolled']} — nothing moved, so nothing was asked "
+        "of identity")
+    journal.check(
+        "and a row still in the window is the SAME node it was",
+        after["survived"],
+        f"read {after} — the marked row was rebuilt: the window rewrote itself "
+        "rather than moving at its edges, which takes an open swipe, a pressed "
+        "state and every decoded image with it")
+    await context.close()
+
+
 async def hold(journal):
     """Counts the window, then scrolls it with a real finger and counts again."""
     errors = []
     async with async_playwright() as play:
         browser = await play.chromium.launch(channel="chrome")
         await hold_the_lanes_are_measured(journal, browser)
+        await hold_rows_keep_their_identity(journal, browser)
         context = await browser.new_context(**PHONE)
         page = await context.new_page()
         await page.goto(PROTOTYPE, wait_until="load")
