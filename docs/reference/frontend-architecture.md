@@ -1611,6 +1611,9 @@ its report.
 - **B-277** — `exits.py`'s frame-count control flakes under the suite's parallel load.
 - **B-278** — the drawer's dismiss acknowledges itself twice, unexplained, with the decisive
   experiment written down in the entry.
+- **B-287** — 266 maquette/harness comments name a date, a lot or a phase, against the rule in
+  `CLAUDE.md` § Language, and nothing counts them. The arm's shape is already in this repository
+  twice: a per-file baseline that refuses the count going up.
 
 **The gate.** Before every wave's closing commit: `make lint` at zero errors, `make test` with no
 failure and **no error** (an error means collection crashed and everything after it was skipped),

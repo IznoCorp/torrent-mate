@@ -346,6 +346,8 @@ when the defect comes back.
 | B-284 | A pull cancelled by a mouse or a stylus was FORGOTTEN rather than released — the indicator hung open, armed | by L12 review | `fixed #540` |
 | B-285 | `go()` discarded the router's promise, so the NEW snapshot is captured before the route has committed | by L12 review | `fixed #540` |
 | B-286 | A hero whose picture changes UNDER it — media to media — was never followed again, and the new fanart snapped in | by L12 review | `fixed #540` |
+| B-287 | 266 maquette/harness comments name a date, a lot or a phase — the rule against it has no arm, so nothing counts them | by L12 review | `open` |
+| B-288 | The media screen's priming matches a title by PREFIX, so a medium whose title prefixes another opens with the other one's poster and year | by L12 review | `open` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -374,6 +376,42 @@ nobody can name or a mark nobody can account for. Both matter the day haptics ma
 something. **The remaining candidate I did not test is a node REPLACED between the two marks** — a
 re-render giving a fresh `#drawer` that is also marked — which would explain both `null` oldValues
 and the single node count.
+
+**B-287 — the rule that maquette comments carry no date, lot or phase has no arm.**
+`CLAUDE.md` § Language: « Maquette/harness comments carry no reference to a session, a phase or a
+dated decision — they must still read years from now, out of context. » Measured 2026-09-01 over
+`frontend/maquette`'s `.py`, `.ts`, `.tsx` and `.css` comments alone (the engine's fixture DATES are
+data, not prose, and are excluded): **266 occurrences across 85 files**, the largest being
+`styles/legacy.css` at 64 and `contract/types.d.ts` at 26. This wave added roughly thirty-five of
+them and repaired the ones an adversarial reader named.
+
+**Why it is filed rather than fixed.** The debt is eight waves deep and the corpus is not this lot's;
+a partial pass leaves the corpus inconsistent without achieving the rule. The shape of the arm is
+already in this repository, twice: a per-file baseline that refuses the count going UP, exactly like
+`scripts/french-exemption-baseline.json` and `scripts/code-abbreviations-baseline.json`. That freezes
+the debt on the day it is armed and lets it drain wave by wave.
+
+**Owner: the instruments' debts block of `frontend-architecture.md` § 5** — it is a repository guard,
+belonging to no lot, and the rule there decides it.
+
+<sub>comment-only scan over `frontend/maquette/**/*.{py,ts,tsx,css}` for `20\d\d-\d\d-\d\d`,
+`\bL\d\d\b`, `\bphase \d` → 266 in 85 files</sub>
+
+**B-288 — the media screen's priming matches a title by prefix.**
+`useMediaSheet` primes from `reference.sheetFor(title)`; the engine's lookup falls back to a
+normalised key and then to a PREFIX match (`startsWith(key + " ") && length > 6`). So a medium whose
+title is a prefix of another's opens with **the other medium's poster and year** for as long as the
+read is in flight, then corrects itself when the answer lands. On this fixture the family « Lucky »,
+« Lucky (2026) », « Lucky Chances » is exactly that shape.
+
+**Not a defect of the priming**, which is why it is filed against the lookup rather than the screen:
+an absent title answers `null` and the screen shows its skeleton, which is correct. What is wrong is
+a resolver that answers « close enough » to a question about identity. The placeholder is never
+written into the cache — verified — so nothing durable is corrupted; what the reader sees for a few
+hundred milliseconds is another film.
+
+<sub>`grep -n "startsWith" frontend/maquette/design/src/engine/legacy.js` around `normalisedKey`;
+prime `/media` for a title that prefixes another and read the hero before the answer lands</sub>
 
 **B-279 — twelve contracts-tier guards run in no CI job when a pull request edits only the guard.**
 `harness-contracts` is the only job that runs them, and it gates every step on the `maquette`
@@ -570,12 +608,20 @@ engine's own comment explains why (letting the close unwind and the arrival push
 that is the ladder's handler, which **L12 is forbidden to touch by name** (it is L13's).
 
 **Consequence for this lot, stated plainly**: the operator's decision 3 asks the return to play the
-mirror of the departure, and the rule that would draw it is written and correct —
-`::view-transition-new(leaving-panel)` runs `panel-down` in reverse. **It has no subject today**,
-because the panel is never the thing being returned to. The rule costs nothing and is kept; what is
-missing is the ladder behaviour beneath it.
+mirror of the departure, and the rule that would draw it has **no subject**, because the panel is
+never the thing being returned to.
 
-<sub>`/tmp/mirror.py` in this wave's session — long press, « Voir la fiche », `page.go_back()`, read `location.pathname` and `#sheet[data-open]`; run on the branch and on `origin/main`</sub>
+**The rule was REMOVED rather than kept (2026-09-01).** The entry above said « it costs nothing and
+is kept », and that is the sentence this repository has paid for twice: machinery nobody can justify
+becomes machinery nobody dares delete. `::view-transition-new(leaving-panel)` is written the day the
+return exists, which is also the day its shape can be verified. **L13 owns both**, and the plan says
+so at that lot rather than only here.
+
+**What DID land is the departure**, which had no subject either and now has one (B-280): the panel is
+captured leaving, `::view-transition-old(leaving-panel)` runs `panel-down`, and R115 falls if it
+does not.
+
+<sub>`frontend/maquette/harness/transition.py` — `hold_the_panel_departs` drives the whole flow (long press, « Voir la fiche ») and reads the pseudo-elements; add `page.go_back()` after it and read `location.pathname` and `#sheet[data-open]`. The original proof was a script in `/tmp`, which cannot be replayed from the tree — the same lesson as the report that was never committed.</sub>
 
 ---
 
