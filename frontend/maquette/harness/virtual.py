@@ -72,11 +72,73 @@ async def rendered(page):
     }""", ROW)
 
 
+
+
+# ── THE WINDOW FOLLOWS THE CONTAINER QUERY ──────────────────────────────────
+# `.gallery` is `repeat(3)` below 460px of PORT and becomes 4, then 5 at 620 and
+# 6 at 820. Nothing caps the port to a phone's width in production: the only
+# 390px frame is `styles/harness.css`, which ships nowhere.
+#
+# The lane count was a PROP typed 3. At five columns the virtualiser believed in
+# 621 lines where the grid draws 373, sized its spacers for three per line, and
+# put the wrong rows under the finger.
+#
+# HELD AT A WIDTH WHERE IT DIFFERS FROM THREE, which is the only width that can
+# fail: every earlier rule ran at 390 and the oracle measures there, so a
+# container query was a designed state with no reader at any other width.
+#
+# The frame is widened for the reading because the harness pins `#device` to a
+# phone — that pin is the instrument, not the product.
+WIDE_PORT = 700
+WIDEN = ("#device{width:%dpx !important;max-width:none !important;}"
+         "#port{width:auto !important;}" % (WIDE_PORT - 10))
+
+
+async def hold_the_lanes_are_measured(journal, browser):
+    """Opens the gallery wide enough to change its column count, and reads both."""
+    context = await browser.new_context(
+        **{**PHONE, "viewport": {"width": WIDE_PORT, "height": 844}})
+    page = await context.new_page()
+    await page.goto(PROTOTYPE, wait_until="load")
+    await page.evaluate("()=>window.__loadingDone?.()")
+    await page.evaluate("()=>document.querySelector('#toastx')?.click()")
+    await page.wait_for_timeout(250)
+    await page.add_style_tag(content=WIDEN)
+    await page.evaluate("()=>window.__go('lib-grid')")
+    await page.wait_for_timeout(900)
+
+    reading = await page.evaluate("""()=>{
+      const box = document.querySelector('#libitems');
+      const style = getComputedStyle(box);
+      const tracks = style.gridTemplateColumns;
+      return {
+        columns: tracks && tracks !== 'none' ? tracks.split(/\\s+/).length : 1,
+        lanes: Number(box.dataset.lanes) || 0,
+      };
+    }""")
+
+    # THE CONTROL: without a width that actually changes the grid, the hold
+    # below compares three against three and proves nothing.
+    journal.check(
+        f"at {WIDE_PORT}px the gallery draws MORE than three columns",
+        reading["columns"] > 3,
+        f"{reading['columns']} column(s) — the container query did not fire, so "
+        "the hold below is the 390px case wearing another width")
+    journal.check(
+        "and the window's lane count is the grid's, not a typed three",
+        reading["lanes"] == reading["columns"],
+        f"the grid draws {reading['columns']} columns and the window windows "
+        f"{reading['lanes']} — it believes in the wrong number of lines, sizes "
+        "its spacers for the wrong row, and puts the wrong rows under the finger")
+    await context.close()
+
+
 async def hold(journal):
     """Counts the window, then scrolls it with a real finger and counts again."""
     errors = []
     async with async_playwright() as play:
         browser = await play.chromium.launch(channel="chrome")
+        await hold_the_lanes_are_measured(journal, browser)
         context = await browser.new_context(**PHONE)
         page = await context.new_page()
         await page.goto(PROTOTYPE, wait_until="load")

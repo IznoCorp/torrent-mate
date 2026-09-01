@@ -86,11 +86,65 @@ export type VirtualRowsProperties = {
  */
 export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
   const { count, rowHeight, gap, lanes, scrollElement, renderRow } = properties;
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // The virtualiser counts LINES, not rows: with three lanes, 1 861 titles are
-  // 621 lines, and it is lines that have a height.
-  const lineCount = Math.ceil(count / lanes);
-  const lineHeight = rowHeight + gap;
+  // THE GEOMETRY IS MEASURED FROM THE RENDERED GRID, and the props are only the
+  // estimate the first frame needs before anything exists to measure.
+  //
+  // The lane count was a PROP, typed 3. `.gallery` is a CONTAINER QUERY:
+  // `repeat(3)` below 460px of port, then 4, then 5 at 620 and 6 at 820 — and
+  // nothing caps the port to a phone's width in production. The only 390px
+  // frame is `styles/harness.css`, which ships nowhere. At five columns the
+  // virtualiser believed in 621 lines where the grid draws 373, sized its
+  // spacers for three per line, and put the wrong rows under the finger.
+  //
+  // The row height moves with it for the same reason: a narrower column makes a
+  // shorter 2:3 poster, so 203.34375 is the height at THREE columns and at no
+  // other width.
+  //
+  // A container query is a DESIGNED state. The window reads it rather than being
+  // told about it — which is also the only form that survives the next
+  // breakpoint somebody adds to the stylesheet.
+  const [measured, setMeasured] = useState<{ lanes: number; lineHeight: number } | null>(null);
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return undefined;
+    const read = () => {
+      const style = getComputedStyle(container);
+      // One track per column, as the grid resolves it. A flex column (the list
+      // mode) resolves to `none`, which is one lane.
+      const tracks = style.gridTemplateColumns;
+      const columns = tracks && tracks !== "none" ? tracks.split(/\s+/).length : 1;
+      const item = container.querySelector(":scope > *:not([data-part='window/spacer'])");
+      const height = item ? (item as HTMLElement).getBoundingClientRect().height : 0;
+      const rowGap = parseFloat(style.rowGap || style.gap) || 0;
+      if (!height) return;
+      setMeasured((held) =>
+        held && held.lanes === columns && Math.abs(held.lineHeight - (height + rowGap)) < 0.5
+          ? held
+          : { lanes: columns, lineHeight: height + rowGap });
+    };
+    read();
+    // AND AGAIN ON THE NEXT FRAME. The container is keyed by the draw, so React
+    // replaces the node on every redraw; an effect that measured only at commit
+    // read a computed style of empty strings — measured, `gridTemplateColumns`
+    // came back '' and the window silently kept the props' estimate of three
+    // lanes at every width.
+    const retry = requestAnimationFrame(read);
+    const watcher = new ResizeObserver(read);
+    watcher.observe(container);
+    return () => {
+      cancelAnimationFrame(retry);
+      watcher.disconnect();
+    };
+  }, [count, properties.drawKey]);
+
+  const activeLanes = measured ? measured.lanes : lanes;
+  const lineHeight = measured ? measured.lineHeight : rowHeight + gap;
+
+  // The virtualiser counts LINES, not rows: at three lanes 1 861 titles are 621
+  // lines, and it is lines that have a height.
+  const lineCount = Math.ceil(count / activeLanes);
 
   // THE LIST DOES NOT START AT THE SCROLLER'S ORIGIN, and a virtualiser that
   // assumes it does renders the wrong window.
@@ -106,18 +160,20 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
   //
   // Measured rather than passed in: a caller told to hand over a distance would
   // be told to hand over a number that changes with the surface above it.
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
+  // MEASURED ONCE PER DRAW, not on every render. Without a dependency list this
+  // forced a `getBoundingClientRect` and a `setState` on every render the
+  // virtualiser causes while scrolling — a layout read per frame, in the lot
+  // whose subject is the performance floor.
   useLayoutEffect(() => {
     const container = containerRef.current;
     const scroller = scrollElement();
     if (!container || !scroller) return;
-    setScrollMargin(
-      container.getBoundingClientRect().top
-        - scroller.getBoundingClientRect().top
-        + scroller.scrollTop,
-    );
-  });
+    const distance = container.getBoundingClientRect().top
+      - scroller.getBoundingClientRect().top
+      + scroller.scrollTop;
+    setScrollMargin((held) => (Math.abs(held - distance) < 0.5 ? held : distance));
+  }, [count, properties.drawKey]);
 
   const virtualizer = useVirtualizer({
     count: lineCount,
@@ -150,8 +206,8 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
   const before = linesBefore ? linesBefore * lineHeight - gap : 0;
   const after = linesAfter ? linesAfter * lineHeight - gap : 0;
 
-  const start = firstLine * lanes;
-  const end = Math.min(count, (lastLine + 1) * lanes);
+  const start = firstLine * activeLanes;
+  const end = Math.min(count, (lastLine + 1) * activeLanes);
 
   // THE SPACERS ARE PART OF THE SAME MARKUP STRING, and that is not a
   // shortcut — it is what keeps the DOM the shape the rest of the interface
@@ -183,6 +239,7 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
       className={properties.className}
       data-part={properties.part}
       data-virtualised={String(count)}
+      data-lanes={String(activeLanes)}
       dangerouslySetInnerHTML={{
         __html: spacer(before) + window_ + spacer(after),
       }}
