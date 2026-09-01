@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Refuses a directive that cites a repository path the tree does not hold.
+"""Holds the documentation model (`docs/reference/documentation-model.md`), in three arms.
+
+  1. Cited paths: every backticked repository path in the directives answers
+     `git ls-files`; a path cited as `path@sha` is held by that commit; the
+     empty read is refused.
+  2. No history in the tree: nothing tracked under docs/archive/,
+     docs/superpowers/, docs/analysis/ — git is the history.
+  3. No birth in production: `git ls-files docs/production` equals
+     `scripts/production-docs-manifest.json`.
 
 THE DEFECT THIS ENDS is B-251, and it is the shape B-219 named from the other
 side. The operator's global `.gitignore` ignores `docs/`, so a NEW file under
@@ -27,8 +35,7 @@ WHAT IT DOES NOT READ, and saying so is the point:
   - Paths outside backticks, and paths with no extension (a directory cited as
     `docs/features/x/`). A directory that exists in git is a set of files, and
     the file in it that matters is cited on its own line.
-  - Any file not in the list below. `docs/archive/` is frozen history and cites
-    what existed then, on purpose.
+  - Any file not in the list below.
 
 THE EMPTY READ IS REFUSED. A directive with zero citations is not clean, it is
 unread — a regex that stopped matching would pass every file in silence, which
