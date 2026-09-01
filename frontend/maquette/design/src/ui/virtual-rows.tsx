@@ -109,6 +109,7 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
   const liveRows = useRef(new Map<number, Element>());
   const spacers = useRef<{ before: HTMLElement | null; after: HTMLElement | null }>(
     { before: null, after: null });
+  const lastDraw = useRef<number | string | null>(null);
 
   // THE GEOMETRY IS MEASURED FROM THE RENDERED GRID, and the props are only the
   // estimate the first frame needs before anything exists to measure.
@@ -208,6 +209,18 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+
+    // THE RESET LIVES HERE, NOT IN AN EFFECT OF ITS OWN, and that is not
+    // tidiness. It WAS its own effect, declared after this one — so on mount
+    // React ran them in order, this one filled the container and the reset then
+    // emptied it. Measured: 17 oracle divergences and a page 310px tall where it
+    // is 3 557. Two effects that must happen in an order are one effect.
+    if (lastDraw.current !== properties.drawKey) {
+      lastDraw.current = properties.drawKey;
+      liveRows.current = new Map();
+      spacers.current = { before: null, after: null };
+      container.replaceChildren();
+    }
     const live = liveRows.current;
 
     for (const [index, node] of [...live]) {
@@ -247,18 +260,20 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
     spacers.current.after.style.display = after > 0 ? "" : "none";
   });
 
-  // The container is emptied when the surface says the draw is a new one, so a
-  // fresh draw starts from nothing rather than from the previous window.
-  useLayoutEffect(() => {
-    const container = containerRef.current;
-    liveRows.current = new Map();
-    spacers.current = { before: null, after: null };
-    if (container) container.replaceChildren();
-  }, [properties.drawKey]);
 
+
+  // NO `key` ON THE CONTAINER, and removing it is what put the scroll position
+  // back. The key existed so a new draw got a NEW node, discarding the inline
+  // transforms the engine writes onto rows — and that job belongs to the reset
+  // above now, which empties the same node instead of replacing it.
+  //
+  // Keyed, React swapped in an EMPTY div at commit and filled it in the layout
+  // effect afterwards: `#port`'s scrollHeight collapsed for that moment, the
+  // browser clamped scrollTop to 0, and R94 fell — « scrolled to 300 with a
+  // layer open and came back to 0 ». The old whole-innerHTML form never showed
+  // it because React created the node WITH its content in one commit.
   return (
     <div
-      key={properties.drawKey}
       ref={containerRef}
       id="libitems"
       className={properties.className}

@@ -187,6 +187,7 @@ cold
 collapse
 collation
 color
+columns
 coming
 commit
 common
@@ -293,6 +294,7 @@ door
 dot
 down
 drag
+draw
 drawer
 drawing
 draws
@@ -372,6 +374,7 @@ focus
 folder
 follow
 followed
+following
 follows
 followsheet
 follq
@@ -395,6 +398,7 @@ from
 frozen
 full
 future
+gap
 gaps
 gate
 gauche
@@ -505,6 +509,7 @@ lab
 label
 labels
 landed
+lanes
 large
 last
 latency
@@ -960,6 +965,7 @@ sorted
 source
 space
 spacer
+spacers
 spacing
 splash
 src
@@ -991,6 +997,7 @@ strip
 strong
 structure
 stuck
+style
 subject
 subjects
 submit
@@ -1071,6 +1078,7 @@ topic
 topics
 total
 tracking
+tracks
 trailer
 transact
 transaction
