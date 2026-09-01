@@ -704,8 +704,17 @@ def check_named_attributes_have_all_their_ends() -> int:
         for attribute in NAMING_ATTRIBUTES:
             property_name = re.sub(r"-(\w)", lambda m: m.group(1).upper(),
                                    attribute.removeprefix("data-"))
-            for match in re.finditer(r"dataset(?:\?)?\.\b" + property_name + r"\b",
-                                     body):
+            # BY LITERAL AS WELL AS BY PROPERTY. A rule reaches these names
+            # through `hasAttribute('data-pressing')`, `querySelector(
+            # '[data-pressing]')` and `record.attributeName === 'data-feedback'`
+            # far more often than through `dataset.x` — reading only the
+            # property left `data-pressing` and `data-feedback` with no end this
+            # arm could see, in the two names it was added for.
+            reads = re.finditer(
+                r"dataset(?:\?)?\.\b" + property_name + r"\b"
+                + r"|" + re.escape(attribute) + r"\b",
+                body)
+            for match in reads:
                 checked += 1
                 if named_in_sources(attribute):
                     continue
@@ -724,8 +733,15 @@ def check_named_attributes_have_all_their_ends() -> int:
     for attribute in NAMING_ATTRIBUTES:
         property_name = re.sub(r"-(\w)", lambda m: m.group(1).upper(),
                                attribute.removeprefix("data-"))
+        # WRITTEN THROUGH A CONSTANT COUNTS AS WRITTEN. Both gesture modules
+        # hold the attribute in a `const … = "data-pressing"` and call
+        # `setAttribute(PRESSING_ATTRIBUTE, "")`, so neither `dataset.x =` nor
+        # `data-x=` appears anywhere and this direction was SKIPPED for the two
+        # names it was written for — measured by deleting their stylesheet ends,
+        # which produced no violation.
         writes = (re.search(r"\bdataset\.\b" + property_name + r"\s*=", written)
-                  or re.search(re.escape(attribute) + r"\s*=", written))
+                  or re.search(re.escape(attribute) + r"\s*=", written)
+                  or re.search(r"[\"']" + re.escape(attribute) + r"[\"']", written))
         if not writes:
             continue
         checked += 1
