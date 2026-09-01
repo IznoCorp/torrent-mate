@@ -429,11 +429,22 @@ Three of the eight are defects a reader would SEE.
    « It fades ONCE » counted descents on the ELEMENT's opacity, which the cover repair had made a
    tautology: the hold above it establishes the element never leaves 1.0, so no index can satisfy
    the descent test and the count was 0 whenever that hold passed. Counted on the COVER, it went red
-   at once: `@keyframes banner-cover` left its `from` implicit, so Chrome took the pseudo-element's
-   UNDERLYING opacity and re-evaluated it mid-flight — measured at 16 ms on a cold arrival, the
-   cover ran 1 → 0.002 at 167 ms → 0.996 at 300 ms → 0 at 450, **inside one run of one animation**.
-   The picture appeared, was covered again, and appeared once more. With `from` declared the same run
-   reads 0.896, 0.701, 0.456, 0.239 — the standard curve exactly, and monotone.
+   at once — measured at 16 ms on a cold arrival, the cover ran 1 → 0.002 at 167 ms → **back to
+   0.996 at 300 ms** → 0 at 450, inside ONE run of ONE animation with `currentTime` monotone
+   throughout. The picture appeared, was covered again, and appeared once more.
+
+   **What fixed it is recorded honestly, and it is less than it first read.** Declaring the
+   keyframe's `from` — it had been implicit, which means « whatever the underlying value happens to
+   be » — made the same run read 0.896, 0.701, 0.456, 0.239, the standard curve exactly, twice over.
+   Hours later, removing the `from` again did NOT bring the rebound back. Other things had changed in
+   between, so the A/B that convinced twice cannot be re-run against the same page: **the rebound is
+   real and on record; its cause is not settled.** The declaration stays because an implicit `from`
+   is not a drawing anybody chose, and the rule holds the SHAPE — a cover that ever comes back over
+   the picture — whatever makes it.
+
+   *A hold reading the declared keyframe was written for this and removed the same hour:
+   `getKeyframes()` synthesises the implicit keyframe from the computed value and answers « 1 »
+   either way, so it could not fail.*
 
 **And the instruments.** R115's departure hold read the pseudo-element's PRESENCE, which the
 browser's own cross-fade satisfies with `panel-down` deleted — the sentence this wave had written

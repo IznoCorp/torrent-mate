@@ -712,14 +712,25 @@
   }
 }
 
-/* THE `from` IS DECLARED, and leaving it implicit was a defect rather than a
-   shorthand. An implicit `from` takes the element's UNDERLYING value, which
-   Chrome re-evaluates while the animation runs: measured at 16ms on a cold
-   arrival, the cover went 1 → 0.002 by 167ms, back to 0.996 by 300ms and to 0
-   at 450 — the picture appeared, was covered again, and appeared once more,
-   inside ONE run of one animation. That is the operator's flash, in the rule
-   written to remove it. With `from` declared, the same run reads 0.896, 0.701,
-   0.456, 0.239 … — the standard curve exactly, and monotone. */
+/* THE `from` IS DECLARED, and what that is and is not known to have fixed is
+   written out, because a cause that stops reproducing is not a cause.
+
+   MEASURED, AND ON RECORD: at 16ms on a cold arrival, this cover ran 1 → 0.002
+   by 167ms, BACK to 0.996 by 300ms, and to 0 at 450 — inside ONE run of ONE
+   animation, `currentTime` monotone throughout. The picture appeared, was
+   covered again, and appeared once more: the operator's flash, in the rule
+   written to remove it. Declaring `from` was tried and the same run then read
+   0.896, 0.701, 0.456, 0.239 — the standard curve exactly.
+
+   NOT ESTABLISHED: removing the `from` again, hours later, did NOT bring the
+   rebound back — the curve stayed monotone. Other things had changed in
+   between, so the A/B that convinced twice cannot be re-run against the same
+   page. The rebound is real and recorded; its cause is not settled.
+
+   The declaration stays because an implicit `from` means « whatever the value
+   happens to be at the time », which is not a drawing anybody chose — and
+   because the shape is what the rule holds: `harness/transition.py` refuses a
+   cover that ever comes back over the picture, whatever makes it. */
 @keyframes banner-cover {
   from {
     opacity: 1;

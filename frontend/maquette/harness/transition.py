@@ -325,7 +325,7 @@ async def hold_one_entry_one_owner(journal, browser, warmed):
     # is the picture's entry — a `::before` the placeholder's colour, fading
     # out, revealing the file underneath.
     await page.evaluate(
-        "(sel)=>{window.__samples=[];window.__cover=[];window.__coverFrom=null;"
+        "(sel)=>{window.__samples=[];window.__cover=[];"
         "window.__sampler=setInterval(()=>{"
         " const node=document.querySelector(sel);"
         " if(!node) return;"
@@ -333,12 +333,6 @@ async def hold_one_entry_one_owner(journal, browser, warmed):
         " const cover=getComputedStyle(node, '::before');"
         " window.__cover.push(cover.content === 'none'"
         "   ? null : Number(cover.opacity));"
-        " for (const animation of node.getAnimations({subtree:true})) {"
-        "   const frames = animation.effect && animation.effect.getKeyframes"
-        "     ? animation.effect.getKeyframes() : [];"
-        "   if (frames.length && frames[0].opacity !== undefined)"
-        "     window.__coverFrom = String(frames[0].opacity);"
-        " }"
         "},16);}", ARRIVING_BACKGROUND)
     await page.click(TILE)
     await page.wait_for_timeout(1600)
@@ -346,7 +340,6 @@ async def hold_one_entry_one_owner(journal, browser, warmed):
         "()=>{clearInterval(window.__sampler);return window.__samples;}")
     cover = [value for value in await page.evaluate("()=>window.__cover")
              if value is not None]
-    cover_from = await page.evaluate("()=>window.__coverFrom")
 
     journal.check(
         f"the arriving background is sampled at all ({'warm' if warmed else 'cold'})",
@@ -440,12 +433,14 @@ async def hold_one_entry_one_owner(journal, browser, warmed):
         # green over it. A 450ms fade sampled at 16ms lands in the middle band
         # about twenty times; a snap never does.
         #
-        # AND THE START IS READ FROM THE DECLARED KEYFRAME rather than from the
-        # first sample. `cover[0] > 0.9` demanded that the first read land
-        # within about 90ms of the start on this curve — a loaded runner that
-        # reaches the mark later reads 0.896 and the hold falls for the
-        # machine's reasons. What A1 actually repaired is the `from` being
-        # DECLARED, so that is what is asserted.
+        # THE FIRST SAMPLE IS NOT ASSERTED ON. `cover[0] > 0.9` demanded that
+        # the first read land within about 90ms of the start on this curve — a
+        # loaded runner reaching the mark later reads 0.896 and the hold falls
+        # for the machine's reasons. Reading the DECLARED keyframe instead was
+        # tried and removed the same hour: `getKeyframes()` synthesises the
+        # implicit keyframe from the computed value and answers « 1 » either
+        # way, so the hold could not fail. What the middle band and the rise
+        # count below hold between them is the SHAPE, which is the subject.
         middle = [value for value in cover if 0.15 < value < 0.85]
         journal.check(
             "a hero whose file arrived LATE fades in rather than snapping",
@@ -455,14 +450,6 @@ async def hold_one_entry_one_owner(journal, browser, warmed):
             f"{len(middle)} of them between 0.15 and 0.85 — a picture that "
             "arrived after the transition appeared in one frame, or the cover "
             "ran the wrong way")
-        journal.check(
-            "and its entry DECLARES where it starts",
-            cover_from == "1",
-            f"the cover's first keyframe declares opacity {cover_from!r} — left "
-            "implicit, the browser takes the pseudo-element's underlying value "
-            "and re-evaluates it mid-flight: measured, the cover ran 1 → 0.002 "
-            "→ 0.996 → 0 inside ONE run, which is the flash this rule exists "
-            "to refuse")
         journal.check(
             "and the ELEMENT itself never dips — the placeholder and the melt "
             "stay",
