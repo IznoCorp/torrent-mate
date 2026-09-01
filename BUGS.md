@@ -1173,7 +1173,7 @@ ignored: `git add -A` skips it, `git status` does not list it, and no gate in th
 `check-bug-register`, `audit_design_coverage`, `check-implementation-state`, CI's `docs` filter —
 reads a path that is not in the index. A folder whose other files were force-added once looks
 entirely normal, because the tracked siblings are tracked. **Found on 2026-08-30 by the steward,
-measuring `origin/main` after L15 merged**: `docs/archive/features/maquette-l15/REPORT.md` was cited in the
+measuring `origin/main` after L15 merged**: `docs/archive/features/maquette-l15/REPORT.md@79ccebe2` was cited in the
 pull request body, in the wave's own account of its gates and in two cross-session reports, and it
 existed on one disk. `BRIEF.md`, `DESIGN.md` and `plan/` were there because the commit that created
 them used `git add -f`; every commit after that skipped the report in silence.
@@ -1867,7 +1867,7 @@ down, and writing it down is what made it checkable three waves later.
 **B-043 to B-048 — what L05 left on `main`, and why they are here rather than only in a phase file.**
 All six were found by an adversarial review that did not write the code, and reproduced by the L05
 wave itself before it stopped. Each is written up in full — with the command that establishes it and
-what its repair must hold — in `docs/archive/features/maquette-l05/plan/phase-08-pr-fixes-cycle-1.md`, which
+what its repair must hold — in `docs/archive/features/maquette-l05/plan/phase-08-pr-fixes-cycle-1.md@79ccebe2`, which
 is on `main`. **That file is the source of truth and these entries are the index into it**; a phase
 plan is archived with its wave, and a defect that outlives the wave has to be findable after that.
 The four blocking ones (B-043 to B-046) were known before the merge and merged anyway, so they are
@@ -2052,7 +2052,7 @@ on three sites), a full light-theme sweep still reads **154 occurrences over 115
 states** — dominated by `--primary` used as a label colour on a light surface (~40 sites),
 the `warning`/`success`/`info` tones repeating the same fill-versus-label confusion, and one
 `.tsx` inline re-skin (`add-screen.tsx:185-191`). A remediation campaign, not a call-site fix;
-needs its own design and plan (`docs/archive/features/maquette-l06/drafts/a11y-floor-measures-one-theme.md`
+needs its own design and plan (`docs/archive/features/maquette-l06/drafts/a11y-floor-measures-one-theme.md@79ccebe2`
 carries the full inventory). Not decided here: whether the audit runs both themes (doubling
 its runtime) or a lighter arm audits palette pairs alone in light.
 
@@ -2308,8 +2308,8 @@ removed in the same move as the decision that makes it necessary.
 An adversarial doc-accuracy review over #494 re-measured every figure the wave asserts. **Most
 are right** — 2 739 measurements, 530 rules, 4 136 lines, 30 colours, 8 shadows, 55 rules, 936
 bytes leaked, and D-L07-1's six line ranges are exact. What is not right is written up, item by
-item, in `docs/archive/features/maquette-l07/drafts/documentation-drift-inventory.md`, which travels with
-the wave into `docs/archive/features/`. **That file is the source and this entry is the index**,
+item, in `docs/archive/features/maquette-l07/drafts/documentation-drift-inventory.md@79ccebe2`, which travels with
+the wave into the archive — git history since 2026-09-01. **That file is the source and this entry is the index**,
 the same arrangement B-043 to B-048 use.
 
 Three families, and they fail differently. **Counts** that no longer measure what they say (nine,
@@ -2326,9 +2326,9 @@ current and a phase number is only noise.
 
 **B-069 — the residue's licence to exist points at a document about to be archived.**
 `src/styles/legacy.css` justifies itself with « D-L07-5, arbitrated by the operator on
-2026-08-24 », and D-L07-5 is defined in `docs/archive/features/maquette-l07/DESIGN.md` and nowhere else.
+2026-08-24 », and D-L07-5 is defined in `docs/archive/features/maquette-l07/DESIGN.md@79ccebe2` and nowhere else.
 That directory was archived when #494 landed, so **the only definition of the decision keeping a
-2 470-line stylesheet alive is now in frozen history** — and `docs/archive/` is never revised. Its sibling deferral (the
+2 470-line stylesheet alive is now in frozen history** — and history is never revised. Its sibling deferral (the
 prototype fragment, ACC-14/ACC-19) already has a durable home in
 `docs/reference/frontend-architecture.md` § L13. This one needs the same: the decision moves
 there, and the stylesheet's header cites the durable address.
@@ -2370,7 +2370,7 @@ inside the dying engine, where an edit is L13's to make; it is written down so L
 rediscover it as a live feature.
 
 **B-072 — the command that proves the surface partition no longer runs.**
-`docs/archive/features/maquette-l07/DESIGN.md:281` names `build-surface-manifest.py` as the builder that
+`docs/archive/features/maquette-l07/DESIGN.md@79ccebe2` (line 281) names `build-surface-manifest.py` as the builder that
 asserts the partition of BLOCK 2's 530 rules into 38 surfaces is TOTAL. Run today it raises
 `IndexError` at line 79: it reads `refonte.html`, which is 120 lines and holds no rule. The
 committed `plan/surface-manifest.json` is correct — it was built when the fragment still carried
@@ -3353,10 +3353,10 @@ decision's terms changed. The archive keeps its record of where the decision was
 
 **B-072 — retired, not repaired, and the distinction is the finding.** ⚠ **It leaves a dangling
 citation in FROZEN history, and that is said here because the archive cannot say it.**
-`docs/archive/features/maquette-l07/DESIGN.md` § 248 and § 253 still name
-`plan/build-surface-manifest.py`, and `docs/archive/` is never revised — so this entry is the only
+`docs/archive/features/maquette-l07/DESIGN.md@79ccebe2` § 248 and § 253 still name
+`plan/build-surface-manifest.py`, and history is never revised — so this entry is the only
 place a reader can be told the file was removed on the operator's instruction and why. The
-recording it produced survives at `docs/archive/features/maquette-l07/plan/surface-manifest.json`.
+recording it produced survives at `docs/archive/features/maquette-l07/plan/surface-manifest.json@79ccebe2`.
 `build-surface-manifest.py` read a 4 136-line stylesheet inside `refonte.html`. That file is 120
 lines of conversion ledger. There is nothing left to re-derive from, so the proof is CLOSED and
 the recording it produced (`plan/surface-manifest.json`, correct) stays. What loses its subject is
@@ -3720,16 +3720,16 @@ tap at its coordinates reaches nothing.
 > writing the class alone (falls, naming the tap that leaves the state behind).
 
 **B-083 — L08 landed and its design and plan stayed under `docs/features/`.**
-Every lot from L01 to L07 sits under `docs/archive/features/`; `docs/features/` holds
+Every lot from L01 to L07 was archived (git history since 2026-09-01: `git show 79ccebe2:docs/archive/features/maquette-l07/DESIGN.md`); `docs/features/` holds
 `maquette-l08` and `tech-debt-2` and nothing else. The closing pull request (#504) did the other
 two post-merge gestures — both references re-recorded at `ce1d7b5a`, verified ancestors of `HEAD`,
 on `Darwin/arm64` — and left this one. **Third wave out of eight where archiving is the gesture
 that slips**: the L06 audit had to do it retroactively, L07 did it in the move, L08 did not. A
 gesture that is remembered two times out of three is a gesture that needs a check, not a reminder.
 
-<sub>`ls docs/features/` · `ls docs/archive/features/ | tr ' ' '\n' | grep maquette`</sub>
+<sub>`ls docs/features/` · `git ls-tree --name-only 79ccebe2 docs/archive/features/ | grep maquette`</sub>
 
-> **FIXED by #505, the correction wave between L08 and L09** — `docs/archive/features/maquette-l08/`,
+> **FIXED by #505, the correction wave between L08 and L09** — `docs/archive/features/maquette-l08/DESIGN.md@79ccebe2`,
 > with the three references that named the old path answered in the same step: two moved
 > (`frontend-architecture.md` § L08, `IMPLEMENTATION.md` § Next action) and one REPLACED — B-084's
 > own `<sub>` command, which pointed at a directory this entry had just emptied.
@@ -5524,7 +5524,7 @@ moved. Screens stay in its sweep — the bar does pass above them.
 **B-243 — three small drifts in the directives, found by re-running what they cite.**
 `CLAUDE.md` said the contracts tier runs « nineteen » cheap guards; `run.sh` prints **20** since
 `check-implementation-state.py` joined it on 2026-08-29. The plan's L01 entry cited
-`docs/archive/features/maquette-l01/DESIGN.md`, archived under `docs/archive/features/` since L02. § 5 said
+`docs/archive/features/maquette-l01/DESIGN.md@79ccebe2`, archived since L02 (git history since 2026-09-01). § 5 said
 this file cites the survey « twenty times »; the count is **24**. None is a decision; all three are
 figures nobody re-ran. Each now carries its command or its living path.
 

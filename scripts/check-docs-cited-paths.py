@@ -290,7 +290,7 @@ def main() -> int:
     Returns:
         1 when anything was refused, 0 otherwise.
     """
-    violations = arm_cited_paths() + arm_production_manifest()
+    violations = arm_cited_paths() + arm_no_history_in_tree() + arm_production_manifest()
     print(f"check-docs-cited-paths: "
           f"{'clean' if not violations else f'{violations} violation(s)'}")
     return 1 if violations else 0

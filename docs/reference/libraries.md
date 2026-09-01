@@ -45,4 +45,4 @@ Used by the sorter matcher and dispatch media_index.
 ## guessit (filename parsing)
 
 Used by the sorter for media filename parsing. Reference:
-`docs/archive/legacy-alpha/guessit-evaluation.md`.
+`docs/archive/legacy-alpha/guessit-evaluation.md@79ccebe2`.

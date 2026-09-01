@@ -29,7 +29,7 @@ production keeps running the shipped SPA untouched, the merged waves change only
 prototype track (`frontend/maquette/`, its CI gates and docs), and nothing derives app
 code until the operator's judgement (step 2 above). Non-negotiable.
 
-**Spec:** `docs/superpowers/specs/2026-08-10-refonte-mobile-quatre-pages-design.md`
+**Spec:** `docs/superpowers/specs/2026-08-10-refonte-mobile-quatre-pages-design.md@79ccebe2`
 **The prototype:** `frontend/maquette/design/` — §15 of `docs/reference/product-intent.md`. **Since
 L07 the visual reference is the TOKENS and the COMPONENT CATALOGUE**, not one file: `src/styles/theme.css`
 (the scale and the palette), `src/styles/base.css` (the base layer), and the `variants.ts` of `src/ui/`
@@ -55,7 +55,7 @@ stale table read as current for three days.
 | **Between L10 and L11**    | **L10-bis — the correction wave**, merged 2026-08-29, squash `e16887eb`, version 0.98.51, PR **#516**, with `#517` re-anchoring the oracle after the squash. **NOT A LOT**, and it took nobody's turn: L10-ter then L11 still follow. It closed the **nineteen** entries the operator arbitrated plus the steward's two audit findings (A-1, A-2), and its FIRST commit was the amendment to `BUGS.md`'s rule 3 — *the absent instrument is the work*. **Group 0 came second and found a defect nobody had filed.** The per-commit split held: over 36 commits, **zero** mix `design/src` with tooling. **What it learned reverses what it had written**: a mutation aimed at one's own instrument does not stand in for a second reader — ten of its first eleven findings were its own mutations, and an adversarial review then returned some fifty defects, nine more of B-085's species coming out of repairing them. **B-085 stands at 93** |
 | **Between L07 and L08**    | **L07-bis — the tidy-up**, merged 2026-08-25, squash `ec38ff49`, version 0.98.40. **NOT A LOT**, and it did not take L08's turn: a correction wave arbitrated by the operator immediately after L07, clearing the ground L08 lands on. It executed the seven arbitrations recorded in **#498** and closed thirteen register entries. The three guards that were nearing the hard ceiling are all well under the soft one now — 584, 742, 575 — after three splits taken on a SUBJECT rather than on a line count, and `check-module-size --root scripts` reports clean where it carried four warnings. The no-abbreviation rule is armed: `check-code-abbreviations.py`, its two lists and a per-file baseline. **Three L07 findings stay open on purpose** — B-061 (the oracle is arbitrated NOT widened), B-068 (the prose inventory) and B-071 (the design-notes toggle, which lives in the dying engine and belongs to L13). **What it found is the part that mattered**: B-075 — five guards green over the very defect they were written for, two of them inside the reader of the rule the wave was building; B-076 — the hero animating for a reader who asked for no motion; B-077 — a browser-free test that could not be collected without a browser, caught by CI and by no local gate |
 | **Next**                   | **L14 — The surfaces that outgrew their file**, since L12 merged on 2026-09-01. § 0's rule elects it: it is the first lot in the file's order that « Landed, in order » does not record as landed and whose dependencies — **L07 and L09** — it does. The order from here: L14 · L19 · L20 · L16 · L17 · L18 · L13 — the file's order, never the numbers. **L14 owns B-247's surface half and B-283** (the media screen asserts about data in flight, §13 — filed by L12, whose lot may not extend the four files L14 decomposes), and **L16 and L17 are unblocked** since §18 and §19 were dictated |
-| **Before it**              | L11 — PR **#534**, version 0.98.57 · L15 — PR **#528**, version 0.98.55 · L10 — PR **#512** and **#513**, version 0.98.48 · L09 — PR **#509**, version 0.98.45 · L08-bis — PR **#505**, version 0.98.43 · L08 — PR **#503**, version 0.98.42 · L07-bis — PR **#500**, version 0.98.40 · L07 — PR **#494**, version 0.98.37 · L06 — PR **#490**, version 0.98.32 · L05 — PR **#482** · L04 — PR **#478** · L03 — PR **#475**, version 0.98.18 · L02 — PR **#470**, version 0.98.13 · L01 — PR **#467**, version 0.98.10. **Every one of them is archived under `docs/archive/features/`** — a fact stated once, because the sentence it replaces was a LIST that grew a clause per wave (« all three archived; L04 and L05 are archived beside them; L06 and L07 are archived beside them ») and had stopped at L07 while three more lots landed. This row exists beside « Landed, in order » to carry what that row does not: the pull request and the version. It carries nothing else, and it names no wave as « this pull request » — that phrase sat here for weeks pointing at a PR merged long before, which is B-152's shape and the reason this row was re-read at all |
+| **Before it**              | L11 — PR **#534**, version 0.98.57 · L15 — PR **#528**, version 0.98.55 · L10 — PR **#512** and **#513**, version 0.98.48 · L09 — PR **#509**, version 0.98.45 · L08-bis — PR **#505**, version 0.98.43 · L08 — PR **#503**, version 0.98.42 · L07-bis — PR **#500**, version 0.98.40 · L07 — PR **#494**, version 0.98.37 · L06 — PR **#490**, version 0.98.32 · L05 — PR **#482** · L04 — PR **#478** · L03 — PR **#475**, version 0.98.18 · L02 — PR **#470**, version 0.98.13 · L01 — PR **#467**, version 0.98.10. **Every one of them is in git history** — `git show 79ccebe2:docs/archive/features/<lot>/DESIGN.md` reads a lot's design, the tree holds no archive since 2026-09-01 — a fact stated once, because the sentence it replaces was a LIST that grew a clause per wave (« all three archived; L04 and L05 are archived beside them; L06 and L07 are archived beside them ») and had stopped at L07 while three more lots landed. This row exists beside « Landed, in order » to carry what that row does not: the pull request and the version. It carries nothing else, and it names no wave as « this pull request » — that phrase sat here for weeks pointing at a PR merged long before, which is B-152's shape and the reason this row was re-read at all |
 | **Landed, in order**       | L01 · L02 · L03 · L04 · L05 · L06 · L07 · L08 · L09 · L10 · L15 · L11 · L12, plus the correction waves L07-bis and L08-bis, and the design phase L10-ter. **This row is a HISTORY — the order things LANDED, which is not the plan's order; that is `frontend-architecture.md`'s alone.** And it names no lot that has not landed, not even to say so: `check-frontend-boundaries.py`'s size arm reads this cell for its list of landed lots and refuses a ceiling label naming one of them, so a lot mentioned here in passing is a lot the guard reports as gone. Written after that arm went red over four labels for exactly that reason, in the pull request that added a clarifying sentence to this cell. **This row is the state the plan's § 0 reads** — since 2026-08-28 `frontend-architecture.md` carries the order and the dependencies and no status at all, so a lot's progress exists once and cannot go stale in a second copy |
 | **What decides the order** | `docs/reference/frontend-architecture.md`, never this table. This table says only where the work STANDS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
@@ -81,7 +81,7 @@ their own waves.
 **Next action**: **L15 — The frame** is the next lot, and nothing is open on it: no design, no
 plan, no branch. A wave opens with both — its design starts from `docs/reference/frame-model.md`
 § 2 (Parts 5, 6, 7, 9) and its inventory from `docs/reference/frame-survey.md` § 1.2. L10's design and plan are ARCHIVED —
-`docs/archive/features/maquette-l10/` — in the post-merge move, which is where B-083 put it.
+`docs/archive/features/maquette-l10/DESIGN.md@79ccebe2` — in the post-merge move, which is where B-083 put it.
 ⚠ **This paragraph named L10 while L10 was landing, which is B-152's own shape a second time.** The
 entry it carries says a fact that exists twice goes stale in one of the two copies; this file holds
 the state in a table AND in this sentence, and the sentence is the copy that rots. It is written as
@@ -97,7 +97,7 @@ written by the person whose work it measures inherits that person's blind spots*
 mutation, 28 by three rounds of adversarial review, and six of the last eleven inside instruments
 that had each been mutation-tested and believed.
 
-**Phases of L07** — the plan is `docs/archive/features/maquette-l07/plan/INDEX.md`, which owns the
+**Phases of L07** — the plan is `docs/archive/features/maquette-l07/plan/INDEX.md@79ccebe2`, which owns the
 reasoning and the 20 ACCEPTANCE criteria. This table owns only the status.
 
 | #   | Phase                                                | File                                        | Status |
@@ -183,7 +183,7 @@ violation** · a11y **83 states, 0 violations** · oracle **0 divergence over 2 
 baseline reports exactly **one** movement across the whole wave, `bridge.py` 9 → 10, which is
 the named R74 split.
 
-**Phases of L06** — the plan is `docs/archive/features/maquette-l06/plan/INDEX.md`, which owns the
+**Phases of L06** — the plan is `docs/archive/features/maquette-l06/plan/INDEX.md@79ccebe2`, which owns the
 reasoning and the 24 ACCEPTANCE criteria. This table owns only the status.
 
 | #   | Phase                             | File                                           | Status |
@@ -247,7 +247,7 @@ fix past MAX_CYCLES = 5**, taken rather than merging over a known critical or st
 bounded to a single condition, specified by the reviewer, verified on the reviewer's own walk.
 The excess is recorded here for the operator rather than smoothed over.
 
-**Phases of L05** — the plan is `docs/archive/features/maquette-l05/plan/INDEX.md`, which owns the
+**Phases of L05** — the plan is `docs/archive/features/maquette-l05/plan/INDEX.md@79ccebe2`, which owns the
 reasoning and the 21 ACCEPTANCE criteria. This table owns only the status.
 
 | #   | Phase                                                            | File                                             | Status |
@@ -292,7 +292,7 @@ tag substitutions neutralised in CSS rather than accepted; and colour contrast i
 recorded and handed to L06 rather than enforced here. Touch-target size and B-036 are named as
 out of scope in § 6.
 
-**Phases of L03** — the plan is `docs/archive/features/maquette-l03/plan/INDEX.md`, which owns the
+**Phases of L03** — the plan is `docs/archive/features/maquette-l03/plan/INDEX.md@79ccebe2`, which owns the
 reasoning and the 18 ACCEPTANCE criteria. This table owns only the status.
 
 | #   | Phase                                 | File                                       | Status |
@@ -366,7 +366,7 @@ guard rather than sitting beside it, and its floor is a hard zero.
 > « baseline 834 → 0 » and « baseline burn-down 342 → 0 » of the same thing. The end state is
 > measured above and is not in doubt; the starting figure is, and guessing which is right would
 > put a third number into circulation. Whoever knows should say so in
-> `docs/archive/features/maquette-l02/plan/INDEX.md`; until then neither is cited.
+> `docs/archive/features/maquette-l02/plan/INDEX.md@79ccebe2`; until then neither is cited.
 
 ### What the next session needs to know before touching anything
 
@@ -402,10 +402,13 @@ guard rather than sitting beside it, and its floor is a hard zero.
    table**; the entry said fixing the names without adding the arm would repeat the reason they
    survived. Arm 15 (« Named-state ids ») reads that table now, cross-checked against the
    oracle's reference, and the two names are gone.
-5. **The L06 spec is parked, not lost** — `docs/superpowers/roadmap/maquette-l06/specs/`. Its
-   header names the three points on which the architecture file supersedes it, including a scale
-   granularity the operator arbitrated on figures presented before #466 existed. **Re-arbitrate;
-   do not silently pick one.**
+5. **The L06 spec was never committed anywhere this repository can show** — this item used to
+   name `docs/superpowers/roadmap/maquette-l06/specs/`, a directory no commit on any branch has
+   ever held (B-292, found by the docs-cleanup inventory). What it settled survives in
+   `docs/archive/features/maquette-l06/DESIGN.md@79ccebe2` and in this file's L06 paragraphs: the
+   three points on which the architecture file supersedes it, including a scale granularity the
+   operator arbitrated on figures presented before #466 existed, are re-read there.
+   **Re-arbitrate; do not silently pick one.**
 
 **What it delivers.** `frontend/maquette/oracle.py`, three modes (`--record`, `--check`,
 `--accept`) plus `--contracts` and `--coverage`, measuring **83 named states × 33 regions =
@@ -514,7 +517,7 @@ to their own work: none of these waves changed behaviour, by construction.
 | **Values, routes and parameters**                     | `fix/design-restart`        | #456 | The operator lifts the freeze that had been protecting a French address: a route and a parameter are NAMES, not data. The state vocabulary goes English from the backend to the stylesheet (nothing was persisted, so no migration), and the routes follow in the prototype AND in production — the three French addresses answering as redirects, because a rename that 404s the very address it renames is breakage in disguise. The renaming tool paid three defects of one kind — a UTF-16 offset, `regions()` which is a JavaScript scanner, and a values mode so wide it rewrote 429 lines of prose before being rebuilt on the right criterion: the whole string, never the word. The design host now restarts when its code changes, the asymmetry that had locked the operator out.                                                                                                                                                                                                                                                                                         |
 
 The full record of each wave, in the words written when it landed, is in
-`docs/superpowers/shell-mobile-wave-log.md`; the per-wave plans are in `docs/superpowers/plans/`.
+`docs/superpowers/shell-mobile-wave-log.md@79ccebe2`; the per-wave plans are beside it in that commit — `git show 79ccebe2:docs/superpowers/plans/<file>`.
 
 ### The latest wave, in full
 
@@ -598,7 +601,7 @@ Read, in this order:
 
 1. `frontend/maquette/README.md` — the prototype's contract, its named states, the rule set,
    and the traps already paid for. It is short and it saves days.
-2. `docs/superpowers/specs/2026-08-10-refonte-mobile-quatre-pages-design.md` — §7 carries the
+2. `docs/superpowers/specs/2026-08-10-refonte-mobile-quatre-pages-design.md@79ccebe2` — §7 carries the
    method. Its §8 phases describe deriving the app surface by surface, which is the order the
    mission reversed: read them as history, not as instructions.
 3. `BUGS.md` — what is reported and not yet confirmed.

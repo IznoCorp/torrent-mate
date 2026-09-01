@@ -114,7 +114,7 @@ comment:
 
 ```markdown
 **Status**: 🟡 DEFERRED — acceptance-check backfill deferred to 0.17+
-(see docs/archive/features/tech-debt/audit/11-global-synthesis.md §out-of-scope)
+(see `docs/archive/features/tech-debt/audit/11-global-synthesis.md@79ccebe2` §out-of-scope)
 ```
 
 Undocumented deferrals are treated as ❌ at merge time.
@@ -161,20 +161,12 @@ done by version X.Y.Z". Examples seen in tech-debt audit:
 
 ---
 
-## 6. Cross-Feature DESIGN Drift
+## 6. A superseded design is history
 
-When a refactor or new feature invalidates a claim in a previously archived
-DESIGN.md, the archived file must be updated with a banner:
-
-```markdown
-> **STATUS**: superseded by `feat/{new-codename}` (merged {date}).
-> See `docs/reference/{relevant-ref}.md` for the current authoritative state.
-> Symbols renamed/removed: `OldClass` → `NewClass` (see {new-codename} §NN).
-```
-
-Reference docs under `docs/reference/` are the authoritative source for the
-current codebase. Archived docs under `docs/archive/features/` are historical
-snapshots — never authoritative for the present state.
+A design that a later feature invalidates is not annotated: it left the tree when its wave
+merged, and `docs/reference/` is the only authority on the present. What a reader must know
+about the change is in the reference document the later feature updated. Reading an old design
+is `git show <sha>:<path>`; the citation form is `docs/reference/documentation-model.md` § 2.
 
 ---
 
@@ -183,7 +175,7 @@ snapshots — never authoritative for the present state.
 12 `implement:*` skills manage the full feature lifecycle, with per-skill model
 allocation (see each skill's description; **Sonnet is forbidden as a dispatch
 target**). Original design (archived):
-`docs/archive/superpowers/specs/2026-04-22-implement-skills-refactor-design.md`.
+`docs/archive/superpowers/specs/2026-04-22-implement-skills-refactor-design.md@79ccebe2`.
 
 **Entry point**: `/implement:feature` — archive prev, brainstorm, derive codename
 + SemVer type, create branch, generate plan.
@@ -254,5 +246,5 @@ See also:
 - `docs/features/{codename}/ACCEPTANCE.md` — per-feature criteria list
 - `docs/reference/testing.md` — test taxonomy and runtime budgets
 - `docs/reference/commands.md` — CLI reference (all commands with --help)
-- `docs/archive/superpowers/specs/2026-04-22-implement-skills-refactor-design.md` —
+- `docs/archive/superpowers/specs/2026-04-22-implement-skills-refactor-design.md@79ccebe2` —
   implement:\* skill architecture and phase flow

@@ -443,12 +443,12 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 | Cross-provider IDs flow, ratings JSON, backfill mode, capability protocols | `docs/production/external-ids-flow.md` |
 | Any provider or client — TMDB/TVDB/OMDB/Trakt, qBittorrent/Transmission, C411/Tr4ker + Torznab, Telegram/healthchecks | `docs/reference/<provider>-api.md` |
 | Plex refresh after dispatch (X-Plex-Token, partial scan, longest-prefix section, fail-soft) | `docs/reference/plex-api.md` |
-| Provider naming — `ProviderName` Enum (transport) vs `RegistryProviderName` NewType (registry) | `docs/archive/features/registry/DESIGN.md` §5.3 |
+| Provider naming — `ProviderName` Enum (transport) vs `RegistryProviderName` NewType (registry) | `docs/archive/features/registry/DESIGN.md@79ccebe2` §5.3 |
 | Insights layer — analytics, reporting, recommendations over the indexer DB | `docs/production/insights.md` |
 | Maintenance ops — disk cleaning, targeted re-scrape repairs, web-UI action catalog + runner | `docs/production/maintenance.md` |
 | ffprobe stream extraction, codec/language → Kodi NFO mapping | `docs/reference/ffprobe-api.md` |
 | Config split layout, JSON5 overlay composition, per-file key ownership | `docs/production/config-overlay-layout.md` |
-| Config home relocation — canonical location, migration runbook | `docs/archive/features/config-home/DESIGN.md` |
+| Config home relocation — canonical location, migration runbook | `docs/archive/features/config-home/DESIGN.md@79ccebe2` |
 | Feature lifecycle — ACCEPTANCE format, phase gates, implement:\* flow, KanbanMate claim | `docs/reference/feature-lifecycle.md` |
 | Module-size budget tracking, BLOCK-threshold promise status | `docs/production/promises.md` |
 | Post-merge operator checklist (DB schema, config/CLI migrations, ACC re-exercise) | `docs/production/runbook-post-merge.md` |

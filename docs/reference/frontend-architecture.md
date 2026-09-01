@@ -216,7 +216,7 @@ that lands D1, with the reason written down — never left to contradict this.
 ### D1b — Back pops a stack of deliberate arrivals; the parent is only the floor
 
 **Decision, dictated by the operator on 2026-08-23 and completed on 2026-08-24. DELIVERED** by
-the L05 repair wave's phase 11 (`docs/archive/features/maquette-l05/plan/phase-11-navigation-path.md`),
+the L05 repair wave's phase 11 (`docs/archive/features/maquette-l05/plan/phase-11-navigation-path.md@79ccebe2`),
 merged in PR #484. The constitution's `product-intent.md` § 16 is the authority; this entry says
 what the implementation owes and records what was built. Three rules stand; a fourth was
 considered and rejected — see rule 4 below.
@@ -529,7 +529,7 @@ one file, `design/src/styles/legacy.css`, deliberately **unlayered** so it wins 
 
 **Arbitrated by the operator on 2026-08-24**, during L07, under the name **D-L07-5**. Promoted
 here on 2026-08-25 by the steward's audit, because the only definition of it lived in
-`docs/archive/features/maquette-l07/DESIGN.md` — and `docs/archive/` is frozen history that is
+`docs/archive/features/maquette-l07/DESIGN.md@79ccebe2` — and history is frozen, and it is
 never revised, so the sole justification for keeping a 2 470-line stylesheet alive could no
 longer be corrected if its terms changed. `legacy.css`'s header cites **this** address.
 
@@ -737,7 +737,7 @@ known-good commit.
 > measure if the viewport is not really that), `computedStyleSubset` (**17 properties**;
 > amended to **19** by L01 — `opacity` and `visibility` — because `#scrim` opening changes
 > neither the other 17 nor its rectangle, so an overlay could stop appearing and the oracle
-> would stay green. Evidence in `docs/archive/features/maquette-l01/DESIGN.md`),
+> would stay green. Evidence in `docs/archive/features/maquette-l01/DESIGN.md@79ccebe2`),
 > `knownAbsent`, `neutralise` (what to switch off before reading — this is friction
 > counter-measure 1, already solved once), and `allowlist` (justified divergences).
 >
@@ -812,7 +812,7 @@ layer traps and restores focus; the whole application is reachable by keyboard; 
 audit runs in the gate; and the oracle is green — the non-visual part of this lot must move
 nothing.
 
-**Landed** — branch `feat/maquette-l03`, design and plan in `docs/archive/features/maquette-l03/`.
+**Landed** — branch `feat/maquette-l03`, design `docs/archive/features/maquette-l03/DESIGN.md@79ccebe2`, its plan beside it in that commit.
 `axe-core` over the 83 named states went from **744 violations over 7 rules to 0**, with the
 oracle at **0 divergence over 2 739 measurements**: the non-visual part moved nothing, measured
 rather than asserted. The gate is `frontend/maquette/harness/run.sh --a11y` — a fourth tier, in
@@ -1076,7 +1076,7 @@ failure and latency; divergences from the existing backend contract are recorded
 determinism is sufficient for the oracle to depend on it.
 
 **Landed** — PR **#503**, merged 2026-08-26, version 0.98.42, squash `ce1d7b5a`. Design and plan
-in `docs/archive/features/maquette-l08/`. The
+in `docs/archive/features/maquette-l08/DESIGN.md@79ccebe2`. The
 contract is `frontend/maquette/contract/openapi.json`: 49 paths, 53 operations, 43 schemas, its
 TypeScript types generated and held against drift two ways. 46 seeds, built from `legacy.js` by a declared
 projection and held by `scripts/check-mock-seeds.py` — seven arms, each of which says what it
