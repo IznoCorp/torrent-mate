@@ -452,7 +452,8 @@
    it stays opaque and in front for the whole transition.
 
    WHY THE TAB CHANGE WAS ALREADY HEALTHY, which is the observation that
-   identified the mechanism: a tab switch runs the ROOT pair alone, with no
+   identified the mechanism: a tab switch runs no view transition at all —
+   measured, zero calls — so what plays is the root pair or nothing, with no
    named group to paint over anything, so the bar was stable there. The defect
    needed a named group to exist, and transition A is what introduced one. */
 @media (prefers-reduced-motion: no-preference) {
@@ -565,11 +566,12 @@
    for exactly the span a transition owns — so this is a declared rule and not a
    script reaching in to pause things.
 
-   WHAT THIS DOES NOT FIX, and it is recorded rather than papered over: the real
-   content still arrives AFTER the transition has ended, and snaps in with no
+   WHAT THIS ALONE DOES NOT FIX — and the answer is two blocks below rather than
+   pending. Content arriving AFTER the transition has ended would snap in with no
    transition of its own, because the data lands when it lands. Transitioning on
-   the arrival instead of on the navigation is a design decision, not a tuning,
-   and it belongs to the operator. */
+   the ARRIVAL instead of on the navigation was a design decision rather than a
+   tuning; it was taken, and it is what the fanart's entry and the content's
+   entry below are. */
 :root:active-view-transition .sk,
 :root:active-view-transition .sh {
   animation: none;

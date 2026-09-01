@@ -124,7 +124,9 @@ export function go(
   // refused for this, because it buys what the platform gives and moves motion
   // out of the stylesheet (rule 1).
   //
-  // THE COMMIT RUNS SYNCHRONOUSLY EITHER WAY, and that is not a detail. The
+  // THE COMMIT IS ONE TASK, and that is what « one call, one entry » rests on
+  // — not on `go()` being synchronous, which it is not (see the callback
+  // below, and the paragraph that says why). The
   // flush above exists because the router batches its commits into a microtask,
   // so two writes in one task would merge into ONE history entry — and the
   // dying engine's unwinding logic COUNTS entries. `startViewTransition` calls

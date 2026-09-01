@@ -102,8 +102,11 @@ function openPanel(descriptor: PanelDescriptor): void {
   // poster from the tile into the panel; the operator watched the real
   // slow-motion and withdrew the gesture — « la transition poster entre liste
   // et panneau n'est vraiment pas fluide du tout, elle est même très
-  // dérangeante ». What replaces it is being arbitrated; nothing is drawn here
-  // until it is named.
+  // dérangeante ». What replaced it is drawn and named: the panel keeps the
+  // slide its own stylesheet gives it on the way IN, and on the way OUT — when
+  // « Voir la fiche » leaves it for the media screen — it is captured leaving
+  // by the navigation's own transition, under the name `leaving-panel`. Nothing
+  // is wrapped HERE, and that is still the decision.
   //
   // Wrapping the opening WITHOUT the carry would have been worse than nothing:
   // the sheet already slides up in its own stylesheet, and a view transition

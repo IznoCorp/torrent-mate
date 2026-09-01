@@ -106,7 +106,7 @@ WATCH_VIEW_TRANSITIONS = """()=>{
     if (running.length > window.__peak) {
       window.__peak = running.length;
       // EVERY name, never a slice. A truncated list once cut the two
-      // `old(carried-poster)` rows off a ten-row reading and produced a defect
+      // two `old(…)` rows off a ten-row reading and produced a defect
       // report about code that was correct.
       window.__names = running.map((a) => a.effect.pseudoElement);
     }
@@ -402,7 +402,7 @@ async def hold_one_entry_one_owner(journal, browser, warmed):
 
 
 # ── OPTIMISTIC PRIMING — a dead tap is impossible by construction ────────────
-# « A généralisée + amorçage optimiste » (operator, 2026-08-31): §19's
+# « A généralisée + amorçage optimiste » (operator, 2026-08-31): the optimistic-answer property's
 # discipline applied to an ARRIVAL. The media screen opens with what the tap
 # already knows — title, year, type, poster — in real content, on the first
 # frame. The wait is only ever for what is genuinely unknown.

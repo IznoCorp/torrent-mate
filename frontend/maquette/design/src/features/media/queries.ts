@@ -33,7 +33,7 @@ export type MediaSeasons = {
  */
 export function useMediaSheet(provider: string, identifier: string) {
   // OPTIMISTIC PRIMING — « A généralisée + amorçage optimiste » (operator,
-  // 2026-08-31), which is §19's discipline applied to an ARRIVAL: the screen
+  // 2026-08-31), which is the optimistic-answer property's discipline applied to an ARRIVAL: the screen
   // opens with what the tap already knows, in real content, on the first frame.
   // A dead tap becomes impossible by construction rather than by being fast.
   //

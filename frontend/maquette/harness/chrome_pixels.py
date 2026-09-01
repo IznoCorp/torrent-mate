@@ -46,8 +46,8 @@ TILE = '[data-part="tile"]'
 DRIFT_CEILING = 6.0
 
 # Where in the transition to look. The arrival runs 450ms; 200 is inside it with
-# room either side, and the read is taken twice so a single unlucky frame cannot
-# decide the verdict.
+# room either side. The flight is established on BOTH sides of the capture, so a
+# sample taken after the transition ended cannot decide the verdict.
 MID_TRANSITION_MILLISECONDS = 200
 
 
