@@ -175,6 +175,12 @@ def grab(
                         # then dropped — invisible to the operator (§5 « résultat
                         # chiffré »: a run states its numbers, all of them).
                         "confirmed_grabbed": reconcile.confirmed_grabbed,
+                        # A season whose pack landed incomplete is a real state
+                        # change this run made: the season row went terminal and
+                        # its gaps were re-queued. Same reason as above — a
+                        # transition absent from the row is a transition nobody
+                        # can see happened.
+                        "fell_back_to_episodes": reconcile.fell_back_to_episodes,
                     }
                 )
         finally:
@@ -241,6 +247,12 @@ def _reconcile_before_run(acquire: AcquireContext, event_bus: "EventBus", consol
             f"[cyan]Réconciliation:[/cyan] {summary.closed_owned} clos (en médiathèque), "
             f"{summary.requeued_missing} remis en file (torrent disparu), "
             f"{summary.confirmed_grabbed} confirmés (récupérés après interruption)."
+        )
+    # Its own line, and only when it happened — see the twin site in search.py.
+    if summary.fell_back_to_episodes:
+        console.print(
+            f"[cyan]Réconciliation:[/cyan] {summary.fell_back_to_episodes} "
+            "saison(s) repassée(s) en épisodes (pack incomplet)."
         )
     return summary
 

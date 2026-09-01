@@ -134,6 +134,7 @@ def search(
                         "abandoned": summary.abandoned,
                         "skipped": summary.skipped,
                         "closed_owned": reconcile.closed_owned,
+                        "fell_back_to_episodes": reconcile.fell_back_to_episodes,
                     }
                 )
         finally:
@@ -273,6 +274,14 @@ def _reconcile_before_search(acquire: "AcquireContext", event_bus: "EventBus", c
         return ReconcileSummary()
     if summary.closed_owned:
         console.print(f"[cyan]Réconciliation:[/cyan] {summary.closed_owned} clos (déjà en médiathèque).")
+    # Announced on its OWN line, and only when it happened: appending « 0 saisons »
+    # to the line above would have printed a zero on every ordinary run — a number
+    # nobody reads, which is how a number nobody compares gets there in the first place.
+    if summary.fell_back_to_episodes:
+        console.print(
+            f"[cyan]Réconciliation:[/cyan] {summary.fell_back_to_episodes} "
+            "saison(s) repassée(s) en épisodes (pack incomplet)."
+        )
     return summary
 
 
