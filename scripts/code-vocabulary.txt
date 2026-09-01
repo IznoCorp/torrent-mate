@@ -1124,6 +1124,9 @@ via
 view
 viewport
 virtual
+# TWO SPELLINGS ON PURPOSE, and neither is a slip: `virtualised` is ours and
+# `virtualizer` is `@tanstack/react-virtual`'s own export (`useVirtualizer`),
+# which cannot be renamed. A reader tidying one of them away breaks a build.
 virtualised
 virtualizer
 visible
