@@ -77,3 +77,53 @@ def test_git_unreachable_is_refused(tmp_path: Path) -> None:
     module = _load()
     directive = _directive(tmp_path, "See `docs/x/a.md`.\n")
     assert _run(module, directive, None) == 1
+
+
+def _run_history(module, directive: Path, tracked: set[str] | None, verdicts: dict) -> int:
+    """Like `_run`, with `held_by_commit` answering from `verdicts` — None for an unknown commit."""
+    with (
+        patch.object(module, "DIRECTIVES", (directive,)),
+        patch.object(module, "ROOT", directive.parent),
+        patch.object(module, "tracked_paths", return_value=tracked),
+        patch.object(module, "held_by_commit", side_effect=lambda sha, path: verdicts.get((sha, path))),
+    ):
+        return module.arm_cited_paths()
+
+
+def test_a_history_citation_the_commit_holds_is_clean(tmp_path: Path) -> None:
+    """`docs/archive/x/DESIGN.md@5322c2fa` — the commit holds the path → 0, and the read is not empty."""
+    module = _load()
+    directive = _directive(tmp_path, "Design: `docs/archive/features/x/DESIGN.md@5322c2fa`.\n")
+    assert module.cited_history(directive) == [("docs/archive/features/x/DESIGN.md", "5322c2fa")]
+    assert module.cited_paths(directive) == []
+    assert _run_history(module, directive, set(), {("5322c2fa", "docs/archive/features/x/DESIGN.md"): True}) == 0
+
+
+def test_a_history_citation_the_commit_does_not_hold_is_refused(tmp_path: Path, capsys) -> None:
+    """The sha is a commit, the path was never in it → refused, naming the citation."""
+    module = _load()
+    directive = _directive(tmp_path, "See `docs/archive/features/x/DESIGN.md@5322c2fa`.\n")
+    assert _run_history(module, directive, set(), {("5322c2fa", "docs/archive/features/x/DESIGN.md"): False}) == 1
+    assert "does not hold" in capsys.readouterr().err
+
+
+def test_a_history_citation_with_an_unknown_commit_is_refused(tmp_path: Path, capsys) -> None:
+    """A sha that is not one unambiguous commit → refused, not passed."""
+    module = _load()
+    directive = _directive(tmp_path, "See `docs/archive/features/x/DESIGN.md@abcdef12`.\n")
+    assert _run_history(module, directive, set(), {}) == 1
+    assert "not one commit" in capsys.readouterr().err
+
+
+def test_history_citations_count_as_a_read(tmp_path: Path) -> None:
+    """A directive whose only citations are `@sha` ones is read, not empty."""
+    module = _load()
+    directive = _directive(tmp_path, "Only `docs/archive/a.md@5322c2fa` here.\n")
+    assert _run_history(module, directive, set(), {("5322c2fa", "docs/archive/a.md"): True}) == 0
+
+
+def test_a_bare_citation_still_needs_the_index(tmp_path: Path) -> None:
+    """The `@sha` form does not loosen the bare form: an untracked bare path is still refused."""
+    module = _load()
+    directive = _directive(tmp_path, "`docs/archive/a.md@5322c2fa` and `docs/x/b.md`.\n")
+    assert _run_history(module, directive, set(), {("5322c2fa", "docs/archive/a.md"): True}) == 1

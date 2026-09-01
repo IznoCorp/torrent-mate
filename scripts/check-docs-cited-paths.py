@@ -16,7 +16,9 @@ WHAT IT READS. The directive files below — the ones every agent opens before
 acting — and, in each, every repository path written in backticks with a file
 extension. Each path must answer `git ls-files`. Not `Path.exists()`: a file on
 this disk that no commit holds is precisely the case this guard exists for, and
-`exists()` would pass it.
+`exists()` would pass it. A path cited as `path@sha` is read from the commit
+instead: it must name exactly one commit, and that commit must hold the path
+(`documentation-model.md` § 2).
 
 WHAT IT DOES NOT READ, and saying so is the point:
   - Bare names (`MODEL.md`, `SURVEY.md`) and relative citations. They mean
@@ -59,6 +61,50 @@ CITED_PATH = re.compile(
     r"`((?:docs|scripts|tests|frontend|personalscraper|\.github)/"
     r"[A-Za-z0-9_./-]+\.(?:md|json|json5|py|txt|sh|mjs|ts|tsx|js|css|html|yml|yaml))`"
 )
+
+# The same path, cited WITH the commit that holds it: `docs/archive/x/DESIGN.md@5322c2fa`.
+# `docs/reference/documentation-model.md` § 2 — git is the history, and a path that left the
+# tree is cited by a commit that held it, never by an archive file.
+CITED_HISTORY = re.compile(
+    r"`((?:docs|scripts|tests|frontend|personalscraper|\.github)/"
+    r"[A-Za-z0-9_./-]+\.(?:md|json|json5|py|txt|sh|mjs|ts|tsx|js|css|html|yml|yaml))"
+    r"@([0-9a-f]{7,40})`"
+)
+
+
+def cited_history(directive: Path) -> list[tuple[str, str]]:
+    """The distinct `(path, sha)` pairs a directive cites in the `@sha` form.
+
+    Args:
+        directive: One of `DIRECTIVES`.
+
+    Returns:
+        The pairs, in order of first appearance, each once.
+    """
+    seen: dict[tuple[str, str], None] = {}
+    for path, sha in CITED_HISTORY.findall(directive.read_text(encoding="utf-8")):
+        seen.setdefault((path, sha), None)
+    return list(seen)
+
+
+def held_by_commit(sha: str, path: str) -> bool | None:
+    """Says whether one unambiguous commit holds a path.
+
+    Args:
+        sha: A commit, abbreviated or full.
+        path: A repository-relative path.
+
+    Returns:
+        True when `git cat-file -e sha:path` succeeds, False when the commit exists and
+        the path is not in it, None when `sha` does not name exactly one commit.
+    """
+    resolved = subprocess.run(["git", "rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}"],
+                              capture_output=True, text=True, check=False, cwd=ROOT)
+    if resolved.returncode != 0:
+        return None
+    probe = subprocess.run(["git", "cat-file", "-e", f"{sha}:{path}"],
+                           capture_output=True, text=True, check=False, cwd=ROOT)
+    return probe.returncode == 0
 
 
 def tracked_paths() -> set[str] | None:
@@ -111,10 +157,11 @@ def arm_cited_paths() -> int:
             violations += 1
             continue
         cited = cited_paths(directive)
+        history = cited_history(directive)
         missing = [path for path in cited if path not in tracked]
-        print(f"check-docs-cited-paths: {name} cites {len(cited)} path(s), "
-              f"{len(missing)} not in `git ls-files`")
-        if not cited:
+        print(f"check-docs-cited-paths: {name} cites {len(cited)} path(s) and "
+              f"{len(history)} by commit, {len(missing)} not in `git ls-files`")
+        if not cited and not history:
             print(f"    {name}: zero citations read — the pattern matched "
                   f"nothing, and nothing is not clean", file=sys.stderr)
             violations += 1
@@ -124,6 +171,18 @@ def arm_cited_paths() -> int:
                   f"it, `docs/` is ignored globally) or it moved and the "
                   f"citation did not", file=sys.stderr)
             violations += 1
+        for path, sha in history:
+            verdict = held_by_commit(sha, path)
+            if verdict is None:
+                print(f"    {name}: cites `{path}@{sha}`, and `{sha}` is not one "
+                      f"commit of this repository — abbreviated too short, or never "
+                      f"here", file=sys.stderr)
+                violations += 1
+            elif not verdict:
+                print(f"    {name}: cites `{path}@{sha}`, and that commit does not "
+                      f"hold the path — cite a commit that did (`git log --all "
+                      f"--oneline -- {path}`)", file=sys.stderr)
+                violations += 1
     return violations
 
 
