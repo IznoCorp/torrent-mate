@@ -270,6 +270,17 @@ async def hold_the_press_acknowledgement(journal, browser, motion):
         return
 
     at_rest = await page.evaluate(READ_TILE)
+    # THE PRESSED NODE IS CAPTURED BY REFERENCE, because the panel's arrival
+    # REPLACES it. The library's draw is keyed on the store version, the panel
+    # bumps it, and this very rule measured `isConnected === false` on the
+    # pressed node one phase earlier. Re-querying `[data-part="tile"]` after
+    # the lift therefore asked a BRAND NEW tile whether it was still pressed,
+    # and a new tile never is: deleting the release left this hold green while
+    # the detached node kept `data-pressing`, and on any surface React does not
+    # redraw the tile would simply stay pressed.
+    await page.evaluate(
+        "(row)=>{window.__pressedNode = document.querySelector(row);}",
+        ARMING_TILE)
     session = await page.context.new_cdp_session(page)
     x, y = box["x"], box["y"]
     await session.send("Input.dispatchTouchEvent", {
@@ -284,7 +295,14 @@ async def hold_the_press_acknowledgement(journal, browser, motion):
     await session.send("Input.dispatchTouchEvent",
                        {"type": "touchEnd", "touchPoints": []})
     await page.wait_for_timeout(600)
-    after = await page.evaluate(READ_TILE)
+    after = await page.evaluate("""()=>{
+      const node = window.__pressedNode;
+      if (!node) return {mark: null, filter: null, replaced: null};
+      const style = getComputedStyle(node);
+      return {mark: node.hasAttribute('data-pressing'),
+              filter: style.filter,
+              replaced: !node.isConnected};
+    }""")
 
     journal.check(
         f"under `{motion}`, the tile is marked WHILE the press arms",
@@ -297,10 +315,13 @@ async def hold_the_press_acknowledgement(journal, browser, motion):
         f"filter {at_rest['filter']} at rest and {arming['filter'] if arming else None} "
         "while arming — the mark lands and the stylesheet answers with nothing")
     journal.check(
-        f"and under `{motion}` it releases once the panel arrives",
-        not after["mark"] and after["filter"] == at_rest["filter"],
-        f"read {after} — the tile stays pressed after the gesture it "
-        "acknowledged has finished")
+        f"and under `{motion}` the PRESSED NODE ITSELF is released",
+        after["mark"] is False,
+        f"read {after} — the node that was pressed still carries the mark. It "
+        "is read by reference rather than re-queried, because the panel's "
+        "arrival replaces the tile and a fresh one is never pressed: "
+        "re-querying asked the wrong node and answered « released » whatever "
+        "the gesture did")
 
     if motion == "reduce":
         journal.check(

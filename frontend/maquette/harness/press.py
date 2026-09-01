@@ -332,11 +332,19 @@ async def hold_the_mouse_tolerance(journal, browser):
     await page.mouse.move(box["x"], box["y"])
     await page.mouse.down()
     # The drift arrives EARLY, for the reason the touch driver gives.
+    press_milliseconds = await page.evaluate(
+        "()=>window.__gestures.press.milliseconds")
     for step in range(1, 5):
         await page.mouse.move(box["x"] + MOUSE_DRIFT * step / 4,
                             box["y"] + MOUSE_DRIFT * step / 4)
         await page.wait_for_timeout(30)
-    await page.wait_for_timeout(620)
+    # HELD PAST THE PRESS DELAY, READ RATHER THAN TYPED. This was 620 after
+    # four moves of 30 — 740ms laid by hand against a delay the design draws.
+    # Push the press delay past that and the lift precedes the timer: the
+    # panel stays shut for the WRONG reason, and this hold goes green with the
+    # tolerance deleted, because a mouse gets no `pointercancel` either way.
+    # B-276, in the file whose docstring says it removed that species.
+    await page.wait_for_timeout(press_milliseconds + PRESS_HOLD_MARGIN - 120)
     await page.mouse.up()
     await page.wait_for_timeout(160)
     opened = await panel_is_open(page)
