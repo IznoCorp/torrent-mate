@@ -336,15 +336,17 @@ Invariants enforced by tests (do not regress; details in `docs/production/web-ui
 
 The operator communicates in French or English — respond in French when they write in French.
 Everything durable is **English only**: code comments, docstrings, maquette/harness sources, and
-all engineering documentation (`docs/`, `BUGS.md`, `CHANGELOG.md`, `ROADMAP.md`,
+all engineering documentation (`docs/`, `BUGS.md`, `CHANGELOG.md`,
 `IMPLEMENTATION.md`, this file). **Never mix languages within a document.** Exceptions:
 
-- **Operator-facing docs stay French**: `README.md`, `MANUAL.md`, `INSTALLATION.md`,
-  `CONFIGURATION.md`, `docs/reference/product-intent.md` (the constitution, dictated by the
-  operator).
+- **One document stays French, by name**: `docs/reference/product-intent.md`, the constitution,
+  dictated by the operator and amended by the operator alone. The documents describing the
+  version in production (`docs/production/`, `README.md`) keep the language they were written
+  in — they are frozen and die at the switchover; the next version's operator documents are born
+  in English. The rule, the three families and their fates:
+  `docs/reference/documentation-model.md`.
 - French inside an English document is allowed **only** to quote UI copy / app screens and
   sections named in French (in « guillemets »), media titles, or the operator verbatim.
-- `docs/archive/` is frozen history — never translated, never restyled.
 - Maquette/harness comments carry no reference to a session, a phase or a dated decision —
   they must still read years from now, out of context.
 
@@ -424,8 +426,14 @@ enforced by `scripts/check-no-french.py` (fifteen arms, in `make check` and in C
 
 Load these docs on-demand based on your task — they are **not** auto-loaded:
 
+**Three families, one rule** — `docs/reference/documentation-model.md`: a row pointing into
+`docs/production/` describes the version IN PRODUCTION, frozen, dying at the switchover; a row
+pointing into `docs/reference/` describes the next version or what is true whatever the version.
+History is not in the tree: a path cited as `` `path@sha` `` is read with `git show sha:path`.
+
 | When working on... | Read |
 | --- | --- |
+| **The documentation model — which version a document may describe, where it lives, how history is cited (BINDING)** | `docs/reference/documentation-model.md` |
 | CLI commands, pipeline invocation, scheduling (PM2 crons), make targets | `docs/production/commands.md` |
 | Disks, NTFS/macFUSE, rsync flags, disk space rules, move rules details | `docs/production/storage.md` |
 | Directory layout, module map, shared utilities, dependencies, api/ contracts (HttpTransport, Protocols) | `docs/production/architecture.md` |
@@ -461,7 +469,8 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 | Backend demands of ARCHITECTURE — the tunnel per media (§20), the requester and rights (§17), the ratio write, cross-seed — inputs of the future backend brief, unscheduled by design | `docs/reference/backend-demands-architecture.md` |
 | Frontend steward — the standing audit of that plan. **NOT for the agent implementing a lot**: it is the operator's and the steward's | `docs/reference/frontend-steward.md` |
 
-Also check archived alpha versions under `docs/archive/legacy-alpha/` and archived features under `docs/archive/features/`.
+Everything a merged wave wrote is in git, not in the tree: `git log --all --oneline -- <path>`
+finds the commit, `git show <sha>:<path>` reads it.
 
 ## Current Feature
 

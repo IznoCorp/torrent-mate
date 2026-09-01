@@ -34,7 +34,7 @@ is the plan for it.
    or to go asking where to start — this file is where to start.
 3. Read that lot's **Done when**. It is the contract. A lot is not finished because its code
    exists; it is finished when every line of that list is true.
-4. Write the wave's plan under `docs/superpowers/plans/`, on its own branch, as every wave here
+4. Write the wave's plan under `docs/features/<codename>/plan/`, on its own branch, as every wave here
    has been done.
 
 **Three rules bind everything below.**
@@ -57,7 +57,7 @@ is the plan for it.
 | `docs/reference/product-intent.md` | what the product must BE (constitution, binding, dictated by the operator) |
 | **this file** | what the frontend must BECOME technically, and in what order |
 | `IMPLEMENTATION.md` | where the work stands — the only state, with its commands |
-| `docs/superpowers/specs/` · `plans/` | the scope and the steps of ONE wave |
+| `docs/features/<codename>/DESIGN.md` · `plan/` | the scope and the steps of ONE wave — deleted at merge, cited by commit |
 | `frontend/maquette/README.md` | how the prototype runs, its named states, the traps already paid for |
 
 This file covers items 2, 3 and 4 of `IMPLEMENTATION.md` § THE OBJECTIVE → REMAINS — the visual
@@ -1734,18 +1734,19 @@ in a file about *where things stand* is a step the next wave never reads.
 and name the next lot. It sits here, with the two commands, for the reason the paragraph above
 gives — it is the only step of the three that cannot be done from the wave's own branch.
 
-**And a fourth: ARCHIVE the wave's design and plan** — `docs/features/<codename>/` moves under
-`docs/archive/features/`, and every cross-reference to it moves in the same step. **One folder is
-exempt, by name: `docs/features/maquette-l10-ter/`.** It is not a wave's design — it is the frame's
-model and the survey this file cites twenty-four times (`grep -o "maquette-l10-ter\|MODEL\.md\|SURVEY\.md" docs/reference/frontend-architecture.md | wc -l`, 2026-08-30), L15's, L11's, L12's and L13's design starts
-from it, and `docs/archive/` is frozen history that a lot may not amend. It archives when L13
-lands, with the engine whose death it measured; until then a lot that finds the model wrong
-amends it under § 7.1 like this file. Added on
-2026-08-26 by B-083, after the third wave out of eight where this gesture slipped: the L06 audit
-had to do it retroactively, L07 did it in the move, L08 did not and the correction wave did it a
-wave late. The operator arbitrated a step here rather than a guard — the check is cheap to
-imagine and this list is not, on the evidence, cheap to remember, so whoever finds it skipped a
-fourth time has the count above to argue with.
+**And a fourth: DELETE the wave's folder and cite it by commit** — `docs/features/<codename>/`
+leaves the tree (`git rm -r`), and every citation of a file in it that a living document still
+needs is rewritten to `` `path@sha` `` in the same step, `sha` being `origin/main` at that moment
+(`docs/reference/documentation-model.md` § 2; the guard's history arm refuses the folder coming
+back under `docs/archive/`). A file the wave wrote that has become a durable reference — a model,
+a survey, a rule — is not left in the folder as an exception: it moves to `docs/reference/` under
+a name that says what it is, with its citations (the frame's model and survey did, on
+2026-09-01: `docs/reference/frame-model.md`, `docs/reference/frame-survey.md`). Added on
+2026-08-26 by B-083 as an ARCHIVE step, after the third wave out of eight where the gesture
+slipped; turned into a deletion on 2026-09-01 when `docs/archive/` left the tree, because a
+second copy of history in the tree was 224 000 lines a reader could open by mistake. The
+operator arbitrated a step here rather than a guard — the check is cheap to imagine and this
+list is not, on the evidence, cheap to remember.
 
 **And a fifth, and it is a measurement rather than a gesture: recount « guards green over what
 they do not read »** in `BUGS.md` § Guards green over what they do not read, adding the wave's own

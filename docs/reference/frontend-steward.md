@@ -194,3 +194,8 @@ consequences the office keeps: a review round is a fresh reader, not a fresh len
 a repair reads the repair; and a defect found in the wave's OWN instruments during its gesture
 (B-291, a dangling pointer one file over from the paragraph that names the species) is filed with
 an owner in the plan's instruments' debts block, not repaired by the steward.
+
+**The documentation model is the steward's to hold.** `docs/reference/documentation-model.md`
+says which version a document may describe and where it lives; the steward's audit reads a
+landed wave against it — its folder deleted, its citations by commit, nothing born in
+`docs/production/` — and `scripts/check-docs-cited-paths.py`'s three arms are the instrument.
