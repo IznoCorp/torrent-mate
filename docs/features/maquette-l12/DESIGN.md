@@ -140,7 +140,7 @@ Invariant 10 governs every placement: an arbitration is **vocabulary**; what sta
 | **P6** shared element (poster card → sheet) | the poster's variants + the sheet's | behaviour |
 | **P20** reduced motion per transition | `styles/base.css`, beside each transition it governs | behaviour |
 | **the press/drag/scroll arbitration** | `lib/press-arbitration.ts` — **moved**, not replaced (D9 rule 2) | conversion |
-| **pull-to-refresh** (`#ptr`, engine-driven, `index.html:241`) | the gesture vocabulary in `lib/` (`MODEL.md` Part 8 assigns it here) | conversion |
+| **pull-to-refresh** (`#ptr`, engine-driven at the time this table was written; `index.html:258` — the line was cited as `:241`, which is the skip link's comment, and that is **B-271**) | the gesture vocabulary in `lib/` (`MODEL.md` Part 8 assigns it here) | conversion |
 | **the feedback seam** | `lib/feedback.ts` — one `feedback(kind)` call site, visual today (D9) | conversion |
 | **P29** declared poster box | the gallery variants | behaviour |
 | **P24** windowing | `ui/` primitive, used by `features/library/page.tsx` (§ 3) | behaviour |

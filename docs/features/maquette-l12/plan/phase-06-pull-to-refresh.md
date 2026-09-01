@@ -3,7 +3,7 @@
 **Kind: CONVERSION.**
 
 `MODEL.md` Part 8 assigns it: *`#ptr` is a gesture on `#port` that knows nothing of what refreshes —
-it moves with the gesture vocabulary in L12.* It is engine-driven today — the node is `index.html:255`, driven from `legacy.js:32313`, where the engine writes `height` and `transition` as INLINE styles.
+it moves with the gesture vocabulary in L12.* It is engine-driven at the time this phase is written — the node is `index.html:258` and the driver `legacy.js:32182`, where the engine writes `height` and `transition` as INLINE styles. **Both numbers moved inside this very pull request**, which is why they are re-derived here rather than copied: a corrected citation goes stale exactly as fast as the one it corrected.
 
 **`MODEL.md` cited `index.html:241` for it and that line holds the skip link's comment.** The citation had drifted; it is corrected in this wave and filed as **B-271**. Re-derive a citation against the tree rather than copying it from the model — that is how this one was found.
 
