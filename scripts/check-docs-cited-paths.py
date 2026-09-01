@@ -36,6 +36,10 @@ WHAT IT DOES NOT READ, and saying so is the point:
     `docs/features/x/`). A directory that exists in git is a set of files, and
     the file in it that matters is cited on its own line.
   - Any file not in the list below.
+  - A shallow clone's missing history. Where `git rev-parse --is-shallow-repository`
+    is true, a `path@sha` the checkout cannot resolve is refused for THAT reason,
+    named — never reported as a dead citation. The job that runs this guard in CI
+    checks out with `fetch-depth: 0`.
 
 THE EMPTY READ IS REFUSED. A directive with zero citations is not clean, it is
 unread — a regex that stopped matching would pass every file in silence, which
@@ -93,6 +97,18 @@ def cited_history(directive: Path) -> list[tuple[str, str]]:
     for path, sha in CITED_HISTORY.findall(directive.read_text(encoding="utf-8")):
         seen.setdefault((path, sha), None)
     return list(seen)
+
+
+def is_shallow() -> bool:
+    """Says whether this checkout's history is truncated.
+
+    Returns:
+        True when `git rev-parse --is-shallow-repository` prints `true` — a sha that
+        does not resolve there is the checkout's fault, not the citation's.
+    """
+    probe = subprocess.run(["git", "rev-parse", "--is-shallow-repository"],
+                           capture_output=True, text=True, check=False, cwd=ROOT)
+    return probe.returncode == 0 and probe.stdout.strip() == "true"
 
 
 def held_by_commit(sha: str, path: str) -> bool | None:
@@ -271,7 +287,16 @@ def arm_cited_paths() -> int:
             violations += 1
         for path, sha in history:
             verdict = held_by_commit(sha, path)
-            if verdict is None:
+            if verdict is None and is_shallow():
+                # Two causes behind one `rev-parse` failure, and they must not read
+                # alike: a dead citation, or a checkout whose history is truncated.
+                # The second is refused too — a guard that cannot read its subject is
+                # not clean — but it names the checkout, not the citation.
+                print(f"    {name}: cites `{path}@{sha}`, and this checkout's history is "
+                      f"truncated (shallow clone) — this arm cannot decide here; run it "
+                      f"where the checkout has `fetch-depth: 0`", file=sys.stderr)
+                violations += 1
+            elif verdict is None:
                 print(f"    {name}: cites `{path}@{sha}`, and `{sha}` is not one "
                       f"commit of this repository — abbreviated too short, or never "
                       f"here", file=sys.stderr)

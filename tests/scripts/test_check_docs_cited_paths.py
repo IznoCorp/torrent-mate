@@ -212,3 +212,23 @@ def test_an_unreadable_manifest_is_refused(tmp_path: Path) -> None:
     assert _run_manifest(module, _manifest(tmp_path, "{not json"), {"docs/production/a.md"}) == 1
     assert _run_manifest(module, tmp_path / "absent.json", {"docs/production/a.md"}) == 1
     assert _run_manifest(module, _manifest(tmp_path, '{"files": "a"}'), {"docs/production/a.md"}) == 1
+
+
+def test_a_shallow_clone_is_named_not_accused(tmp_path: Path, capsys) -> None:
+    """An unresolvable sha in a shallow clone is the checkout's fault, said so, and still refused."""
+    module = _load()
+    directive = _directive(tmp_path, "See `docs/archive/x/DESIGN.md@5322c2fa`.\n")
+    with patch.object(module, "is_shallow", return_value=True):
+        assert _run_history(module, directive, set(), {}) == 1
+    err = capsys.readouterr().err
+    assert "truncated" in err
+    assert "not one commit" not in err
+
+
+def test_a_full_clone_accuses_the_citation(tmp_path: Path, capsys) -> None:
+    """The same unresolvable sha in a full clone is the citation's fault."""
+    module = _load()
+    directive = _directive(tmp_path, "See `docs/archive/x/DESIGN.md@5322c2fa`.\n")
+    with patch.object(module, "is_shallow", return_value=False):
+        assert _run_history(module, directive, set(), {}) == 1
+    assert "not one commit" in capsys.readouterr().err
