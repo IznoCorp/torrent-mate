@@ -677,20 +677,27 @@ def check_named_attributes_have_all_their_ends() -> int:
         if str(path).endswith("harness.css"):
             continue
         body = CSS_COMMENT.sub(" ", path.read_text(encoding="utf-8"))
-        for attribute in NAMING_ATTRIBUTES:
-            for match in re.finditer(r"\[" + re.escape(attribute) + r"[\]=~^$*|]",
-                                     body):
-                checked += 1
-                if named_in_sources(attribute):
-                    continue
-                line = body.count("\n", 0, match.start()) + 1
-                violations += 1
-                print(f"  {path.relative_to(ROOT)}:{line}: the stylesheet draws "
-                      f"on `{attribute}` and no design source writes that name. "
-                      "A drawing keyed on a name nothing emits draws nothing, "
-                      "and no other arm can see it: arm 3 holds selections by "
-                      "VALUE, and a state attribute's contract is its NAME.",
-                      file=sys.stderr)
+        # EVERY `data-*` A STYLESHEET DRAWS ON, not only the naming ones — and
+        # this is the direction that catches a rename. Renaming
+        # `[data-arrival="faded"]` to `[data-arrived="faded"]` simply takes the
+        # attribute out of the naming list's view, so an arm iterating the LIST
+        # checks nothing and passes; measured. Iterating what the STYLESHEET
+        # actually selects asks the question the other way round: is there a
+        # source that writes this name at all? The corpus answers 0 today, so
+        # the floor is a hard zero and no exemption list is needed.
+        for match in re.finditer(r"\[(data-[a-z0-9-]+)[\]=~^$*|]", body):
+            attribute = match.group(1)
+            checked += 1
+            if named_in_sources(attribute):
+                continue
+            line = body.count("\n", 0, match.start()) + 1
+            violations += 1
+            print(f"  {path.relative_to(ROOT)}:{line}: the stylesheet draws "
+                  f"on `{attribute}` and no design source writes that name. "
+                  "A drawing keyed on a name nothing emits draws nothing, "
+                  "and no other arm can see it: arm 3 holds selections by "
+                  "VALUE, and a state attribute's contract is its NAME.",
+                  file=sys.stderr)
 
     for path in rules:
         body = COMMENT.sub(" ", path.read_text(encoding="utf-8"))
