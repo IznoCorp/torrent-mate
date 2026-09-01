@@ -448,7 +448,15 @@ instruments' debts block of the plan's § 5, so the next wave that touches
 `scripts/harness-hold-counts.py` takes it. The form: refuse a pointer that is not an ancestor of
 `main`, as `oracle.py --check` refuses a dangling one, and refuse to write when `failed > 0`. The
 steward's audit re-recorded the baseline at `b4b75a67a` — 0 movement on 86 rules, 1 928 holds,
-`failed 0` — and the gesture paragraph now names both pointers and the hand check.
+`failed 0` — and the gesture paragraph now names both pointers and the hand check. **The same
+question reaches the cited-paths guard, twice** (docs-cleanup, 2026-09-01): its arm 1 resolves
+`path@sha` citations, so (a) a sha that is not an ancestor of `main` — a branch head the squash
+erased — reads like a live one until `git show` is asked, and (b) the guard must run where the
+checkout holds the history: a fourth hold of `tests/scripts/test_ci_filter_covers_the_guards.py`
+— « a guard that resolves shas is launched only by a job whose checkout has `fetch-depth: 0` »
+— falls the day somebody moves it out of `harness-contracts`. Both belong to whoever next
+touches the guard; the guard already names a truncated checkout rather than accusing the
+citation.
 
 <sub>`git merge-base --is-ancestor a4cfc3b18 origin/main; echo $?` → 1 before the audit; `python3 -c "import json;d=json.load(open('frontend/maquette/hold-counts-baseline.json'));print(d['taken_at_commit'][:9],d['totals'])"` → `b4b75a67a {'rules': 86, 'parseable': 74, 'unparseable': 12, 'holds': 1928, 'failed': 0}` after</sub>
 
