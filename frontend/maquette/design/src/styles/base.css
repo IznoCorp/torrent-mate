@@ -677,47 +677,6 @@
   }
 }
 
-/* THE OPTION, FOR FILMING — NOT A SECOND DESIGN, AND NOT ON BY DEFAULT.
-
-   The steward asked for a variant giving the media arrival more presence
-   without a shared element, so both can be filmed and the operator can choose.
-   It is held behind an attribute rather than shipped alongside: two designs
-   live at once only in a comparison, never in a product.
-
-   To film it: `document.documentElement.dataset.transitionOption = "scale"`.
-   Whatever the operator picks becomes the rule and this block goes — an option
-   nobody chose is machinery with no reader.
-
-   WHAT IT ADDS: the arriving screen comes up from 0.98 under the same curve, so
-   the page has depth rather than only opacity. It is deliberately small — a
-   scale an eye can name as a zoom is a different interface, not a more present
-   one. */
-@media (prefers-reduced-motion: no-preference) {
-  /* NO DESCENDANT COMBINATOR. The view-transition pseudo-elements hang off the
-     ROOT element itself, so `:root[…] ::view-transition-new(root)` — with a
-     space — matches nothing. Written that way first and measured: the option
-     produced timings identical to the default, which reads exactly like an
-     option nobody needs rather than an option that never applied. */
-  :root[data-transition-option="scale"]::view-transition-new(root) {
-    animation:
-      option-screen-in var(--duration-4) var(--ease-emphasized);
-  }
-}
-
-/* THE SCALE IS WRITTEN HERE, NOT HELD IN A TOKEN. It was
-   `--transition-option-scale`, declared only under
-   `:root[data-transition-option="scale"]` — and `check-css-tokens` refused it,
-   correctly and by the rule it documents: a token declared ONLY under a
-   conditional scope and used unconditionally renders in the one state somebody
-   looked at and as nothing everywhere else. The keyframe is reachable only
-   through the option's own selector, so it needs no token to be conditional. */
-@keyframes option-screen-in {
-  from {
-    opacity: 0;
-    scale: 0.98;
-  }
-}
-
 /* TRANSITION « A-EXTENDED » — ARRIVING FROM THE PANEL (operator, 2026-08-31).
 
    « Voir la fiche » opens the media screen from the panel, so the panel is what
