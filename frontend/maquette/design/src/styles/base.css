@@ -170,13 +170,6 @@
 }
 
 /* The hero's entrance. */
-@keyframes heroin {
-  from {
-    opacity: 0;
-    transform: translate3d(0, -10px, 0);
-  }
-}
-
 @keyframes pulse {
   50% {
     opacity: 0.3;
@@ -640,6 +633,20 @@
   :root:active-view-transition [data-region="screen-media/body"] > * {
     transition: none;
   }
+}
+
+/* THE WINDOW'S SPACERS — the rows it is not drawing.
+
+   A windowed list renders what is near the viewport and stands spacers in for
+   the rest, so the scrollbar and the scroll position are those of the whole
+   list. A spacer displaces LINES, not cells: it spans every column, whatever
+   the container's container query has resolved to.
+
+   Its HEIGHT is written inline by `ui/virtual-rows.tsx` and cannot be here — it
+   is recomputed on every range change. Its SPAN is a drawing decision and was
+   inline beside it, which is a rule the stylesheet did not have. */
+[data-part="window/spacer"] {
+  grid-column: 1 / -1;
 }
 
 /* THE FANART'S OWN ENTRY — « A généralisé » (operator, 2026-08-31).

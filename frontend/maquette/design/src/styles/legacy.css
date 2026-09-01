@@ -1871,7 +1871,9 @@ margin: 0;
    TEMPLATE FOR EVERY MEDIUM is kept as the decision it is — a variant per
    medium would be a redesign. The EPISODE machinery and its six states are
    written and toggled by the engine, so they are in `src/styles/legacy.css`.
-   The hero's entrance is `--animate-hero-in` and its keyframe is in the base
+   The hero's entrance was `--animate-hero-in`; the token and its keyframe were
+   removed with the entry itself — the arrival is the view transition's, and
+   nothing else may animate it. The base
    layer: `animation` is one of the nineteen properties the oracle reads, so
    a name is easier to keep identical than a four-part shorthand. */
 

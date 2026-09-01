@@ -24,12 +24,18 @@
 /**
  * What a gesture did, as far as the acknowledgement is concerned.
  *
- * The kinds are deliberately few and describe the GESTURE's outcome rather than
- * the surface it happened on: a seam that needed a new kind per surface would
- * be a seam in name only. `commit` is a gesture that completed and changed
- * something; `refuse` is one the interface declined.
+ * The kind describes the GESTURE's outcome rather than the surface it happened
+ * on: a seam that needed a new kind per surface would be a seam in name only.
+ * `commit` is a gesture that completed and changed something.
+ *
+ * IT SHIPPED WITH A SECOND KIND, `refuse`, THAT NOTHING EMITTED. No gesture in
+ * the interface declines one today, and the stylesheet reads `[data-feedback]`
+ * without looking at its value — so the kind was a name with one end, and a
+ * union of two where one is unreachable reads as a choice somebody makes. It
+ * comes back the day a gesture is actually refused, which is when its drawing
+ * has to be decided anyway.
  */
-export type FeedbackKind = "commit" | "refuse";
+export type FeedbackKind = "commit";
 
 /** How long the acknowledgement stays marked, in milliseconds. */
 const FEEDBACK_MILLISECONDS = 200;

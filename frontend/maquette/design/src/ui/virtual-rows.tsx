@@ -84,12 +84,20 @@ function elementFor(markup: string): Element | null {
   return template.content.firstElementChild;
 }
 
-/** A spacer that displaces whole lines rather than taking a cell of its own. */
+/**
+ * A spacer that displaces whole lines rather than taking a cell of its own.
+ *
+ * ONLY THE HEIGHT IS WRITTEN HERE, and it has to be: it is the measurement the
+ * window computes on every range change, and no stylesheet can hold a number
+ * that changes as the reader scrolls. `grid-column: 1 / -1` is not a
+ * measurement — it is a DRAWING decision, that a spacer spans the whole row
+ * rather than taking a cell — so it lives in `styles/base.css`, keyed on the
+ * part this emits. Written inline it was a rule the stylesheet did not have.
+ */
 function spacerElement(height: number): HTMLElement {
   const node = document.createElement("div");
   node.setAttribute("aria-hidden", "true");
   node.setAttribute("data-part", "window/spacer");
-  node.style.gridColumn = "1 / -1";
   node.style.height = `${height}px`;
   return node;
 }
