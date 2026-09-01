@@ -8,6 +8,8 @@ the single reconciliation pass, pure over the acquire ports:
 - ``grabbed``/``pending``/``searching`` + the library owns the work → ``done``
   (an owned work must never be searched or re-fetched — covers the
   resurrected-then-indexed shape);
+- a SEASON row whose pack reached the library incomplete → ``fallback_episodes``
+  + the missing episodes queued individually (R6, see below);
 - ``grabbed`` + torrent vanished + NOT owned     → back to ``pending``
   (the grab never landed; cadence/cutoff pacing takes over again);
 - ``grabbed`` + torrent still present            → left alone (downloading /
@@ -18,12 +20,27 @@ answer cannot come from the per-file ``ownership.owns`` port (it has no
 season-level notion), so it is derived from the aired catalog instead: a season
 row is « owned » iff its follow's cached catalog lists at least one aired
 episode for that season AND every one of them is owned. Any blind spot — no
-``followed_id``, an unreadable or empty catalog, partial ownership — answers
-« not owned », so the row falls through to the hash paths (vanished → requeue,
-intent → confirm, else in flight) rather than being mis-closed. Skipping season
-rows wholesale was the original bug: a ``grabbed`` season could never close
-``done``, a vanished season torrent was never requeued, and a crash-window
-``searching`` season was never confirmed.
+``followed_id``, an unreadable or empty catalog, an ownership lookup that raised
+— answers « no answer », so the row falls through to the hash paths (vanished →
+requeue, intent → confirm, else in flight) rather than being mis-closed.
+Skipping season rows wholesale was the original bug: a ``grabbed`` season could
+never close ``done``, a vanished season torrent was never requeued, and a
+crash-window ``searching`` season was never confirmed.
+
+Closing on FULL ownership alone left a second hole, and it took four days of
+« en vol » on media already shelved to find it. A season is a bet on one release
+carrying the whole thing; when that release lands and turns out incomplete — the
+« Les Groos » S01 pack carried 12 of the 13 episodes TVDB declares aired — the
+bet is over and lost, but the row was frozen: never fully owned, so never
+closed; its torrent still seeding, so never requeued; and walked by neither
+pass, so never aged out by a cutoff. The missing episode was wanted by nobody.
+So a season row whose journey reached ``dispatched``/``reconciled`` while
+episodes are still missing now takes the R6 exit — ``fallback_episodes``, with
+exactly the missing episodes re-queued individually
+(:func:`~personalscraper.acquire._season_fallback.fall_back_to_episodes`, shared
+with the cutoff trigger). The journey status is the signal, never the torrent's
+progress: a complete download still has ingest, sort, scrape and dispatch ahead
+of it.
 
 Download events (O4, seed-caps D6-D9): the same sweep is the single truthful
 observation point for download progress, so it also emits ``DownloadStarted``
@@ -43,9 +60,12 @@ layer), and its counts land in their observable run rows
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from personalscraper.acquire._provenance_store import LANDED_JOURNEY_STATUSES
+from personalscraper.acquire._season_fallback import fall_back_to_episodes
 from personalscraper.acquire.events import DownloadCompleted, DownloadProgressed, DownloadStarted
 from personalscraper.logger import get_logger
 
@@ -87,20 +107,31 @@ def _list_open_rows(store: "AcquireStore") -> "list[WantedItem]":
     ]
 
 
-def _season_fully_owned(
+def _season_missing_episodes(
     store: "AcquireStore",
     ownership: "OwnershipChecker",
     row: "WantedItem",
-) -> bool:
+) -> "tuple[int, ...] | None":
     """Answer ownership for a SEASON wanted row from the aired catalog.
 
-    The per-file ownership port has no season-level answer, so a season is
-    « owned » iff the follow's cached aired catalog lists at least one episode
-    for ``row.season`` AND :meth:`ownership.owns` holds for every one of them.
-    Every blind spot answers ``False`` — a missing ``followed_id``, an
-    unreadable or empty catalog, or partial ownership — so the caller never
-    mis-closes a season row on missing knowledge; the row simply falls through
-    to the hash-based paths.
+    The per-file ownership port has no season-level answer, so a season's
+    ownership is derived episode by episode from the follow's cached aired
+    catalog. THREE answers, and the distinction between the last two is what
+    makes the landed-incomplete fallback safe:
+
+    - ``None`` — **no answer**. A missing ``followed_id``, an unreadable or
+      empty catalog, or an ownership lookup that raised: the caller knows
+      nothing and must neither close the row nor declare its season finished.
+    - ``()`` — every aired episode of the season is owned.
+    - a non-empty tuple — the aired episodes the library does NOT have, in
+      order. Reading « not fully owned » was enough while the only decision was
+      close-or-not; naming WHICH episodes are missing is what lets a landed
+      pack re-queue exactly its gaps instead of the whole season.
+
+    A single un-owned episode used to short-circuit the walk. It no longer can:
+    the caller needs the complete gap list, so every aired episode is asked.
+    The cost is one ownership lookup per episode of one season, on a pass that
+    already does one per open row.
 
     Args:
         store: The acquire store (``aired`` catalog-cache sub-store).
@@ -108,24 +139,25 @@ def _season_fully_owned(
         row: The ``kind == "season"`` wanted row.
 
     Returns:
-        ``True`` iff the catalog is non-empty for the season and every aired
-        episode of it is owned.
+        ``None`` on any blind spot, else the missing episode numbers (empty
+        when the season is complete).
     """
     if row.followed_id is None or row.season is None:
-        return False
+        return None
     try:
         aired = store.aired.list_for_followed(row.followed_id)
     except Exception as exc:  # noqa: BLE001 — fail-soft: no catalog is no answer
         log.warning("acquire.reconcile.season_catalog_error", wanted_id=row.id, error=str(exc))
-        return False
-    episodes = [r.episode for r in aired if r.season == row.season]
+        return None
+    episodes = sorted({int(r.episode) for r in aired if r.season == row.season})
     if not episodes:
-        return False
+        return None
+    missing: list[int] = []
     for episode in episodes:
         try:
             if not ownership.owns(row.media_ref, kind="episode", season=row.season, episode=episode):
-                return False
-        except Exception as exc:  # noqa: BLE001 — fail-soft: treat as not owned
+                missing.append(episode)
+        except Exception as exc:  # noqa: BLE001 — fail-soft: a raise is no answer at all
             log.warning(
                 "acquire.reconcile.ownership_error",
                 wanted_id=row.id,
@@ -133,8 +165,40 @@ def _season_fully_owned(
                 episode=episode,
                 error=str(exc),
             )
-            return False
-    return True
+            return None
+    return tuple(missing)
+
+
+def _journey_reached_the_library(store: "AcquireStore", row_hash: str) -> bool:
+    """Answer whether this grab's journey actually got shelved (fail-soft ``False``).
+
+    The one signal that ends a season's bet on a single pack. « The torrent is
+    complete » is NOT that signal — a finished download still has ingest, sort,
+    scrape and dispatch ahead of it, and dispatch alone runs ~50 min — so
+    reading progress would declare a season finished while the pipeline is
+    mid-way through shelving it, and re-queue episodes the next step is about
+    to deliver. The provenance journey reaching ``dispatched`` / ``reconciled``
+    is the pipeline SAYING it shelved this hash; it is also the same signal the
+    stalled-grab surface reads, so the two cannot disagree about what landed.
+
+    Absence of a journey answers ``False``: an untracked grab (manual, or one
+    predating the provenance spine) is missing knowledge, never a licence to
+    declare a season over.
+
+    Args:
+        store: The acquire store (``provenance`` sub-store).
+        row_hash: Lowercase info-hash of the grabbed release.
+
+    Returns:
+        ``True`` iff a provenance row exists for the hash and its status is
+        terminal-successful.
+    """
+    try:
+        journey = store.provenance.by_hash(row_hash)
+    except Exception as exc:  # noqa: BLE001 — fail-soft: advisory read
+        log.warning("acquire.reconcile.journey_lookup_failed", info_hash=row_hash, error=str(exc))
+        return False
+    return journey is not None and journey.status in LANDED_JOURNEY_STATUSES
 
 
 def _resolve_provider(store: "AcquireStore", row_hash: str) -> str:
@@ -306,6 +370,10 @@ class ReconcileSummary:
             vanished from the client and the work is not owned.
         still_in_flight: Rows left ``grabbed`` (torrent still known to the
             client, work not owned yet — download/seed in progress).
+        fell_back_to_episodes: Season rows closed ``fallback_episodes`` because
+            their pack REACHED the library without carrying every aired
+            episode — the season attempt is over, the remainder is queued
+            episode by episode.
         closed_movie_followed_ids: ``followed_id`` of every ``kind == "movie"``
             row this pass ACTUALLY transitioned to ``done`` (mark_done returned
             ``True``). The D2-A retirement rule — a followed film leaves the
@@ -321,6 +389,7 @@ class ReconcileSummary:
     requeued_missing: int = 0
     confirmed_grabbed: int = 0
     still_in_flight: int = 0
+    fell_back_to_episodes: int = 0
     closed_movie_followed_ids: tuple[int, ...] = ()
 
 
@@ -369,7 +438,10 @@ def reconcile_wanted(
     # mapping's values only feed the download-event emission pass.
     client_hashes = set(client_items) if client_items is not None else None
 
-    checked = closed = requeued = confirmed = in_flight = 0
+    checked = closed = requeued = confirmed = in_flight = fell_back = 0
+    # ONE clock for the whole sweep: every episode re-queued by this pass shares
+    # an ``enqueued_at``, so their cadence stays comparable row to row.
+    now = int(time.time())
     closed_movie_followed_ids: list[int] = []
     # EVERY open status (OPEN_WANTED_STATUSES), because ownership — the file is
     # ON DISK — outranks whatever the queue thinks, whichever state the row is in:
@@ -389,14 +461,16 @@ def reconcile_wanted(
         if row.id is None:  # pragma: no cover — SELECT always carries the id
             continue
         checked += 1
+        missing_episodes: tuple[int, ...] | None = None
         if row.kind == "season":
             # Per-file ownership has no season-level answer, so a season row's
             # ownership is derived from the aired catalog: non-empty for the
             # season AND every aired episode owned. Any blind spot (no
-            # followed_id, empty/unreadable catalog, partial ownership) reads
-            # « not owned » and the row falls through to the hash paths — a
-            # season is never mis-closed on missing knowledge.
-            owned = _season_fully_owned(store, ownership, row)
+            # followed_id, empty/unreadable catalog, a lookup that raised) reads
+            # ``None`` and the row falls through to the hash paths — a season is
+            # never mis-closed, nor declared finished, on missing knowledge.
+            missing_episodes = _season_missing_episodes(store, ownership, row)
+            owned = missing_episodes == ()
         else:
             try:
                 owned = ownership.owns(
@@ -434,6 +508,36 @@ def reconcile_wanted(
             # Keyed on the HASH, not on ``status == 'grabbed'``: the hash is what
             # says « a torrent was added for this row », and it outlives the
             # status (crash window, legacy rows).
+            continue
+
+        # A season pack that REACHED the library without carrying every aired
+        # episode has given everything it will ever give. Its row has no other
+        # exit: a grabbed row is walked by neither pass, so it holds no cutoff
+        # and no cadence, and the only two hash paths below need the torrent to
+        # have vanished. « Les Groos » S01 sat here for four days reading
+        # « en vol » with its twelve episodes already on the disk, while the
+        # thirteenth was never searched for by anything.
+        #
+        # BEFORE the vanished-torrent requeue on purpose: once the pack is
+        # shelved, sending the season back to 'pending' would go looking for
+        # ANOTHER whole-season release to obtain the one episode missing.
+        if row.kind == "season" and missing_episodes and _journey_reached_the_library(store, row_hash):
+            reenqueued = fall_back_to_episodes(
+                store,
+                row,
+                now=now,
+                event_bus=event_bus,
+                episodes=missing_episodes,
+            )
+            fell_back += 1
+            log.info(
+                "acquire.reconcile.season_landed_incomplete",
+                wanted_id=row.id,
+                season=row.season,
+                info_hash=row_hash,
+                missing=list(missing_episodes),
+                reenqueued=reenqueued,
+            )
             continue
 
         if client_hashes is not None and row_hash not in client_hashes:
@@ -496,6 +600,7 @@ def reconcile_wanted(
         requeued_missing=requeued,
         confirmed_grabbed=confirmed,
         still_in_flight=in_flight,
+        fell_back_to_episodes=fell_back,
         closed_movie_followed_ids=tuple(closed_movie_followed_ids),
     )
     log.info(
@@ -505,6 +610,7 @@ def reconcile_wanted(
         requeued_missing=summary.requeued_missing,
         confirmed_grabbed=summary.confirmed_grabbed,
         still_in_flight=summary.still_in_flight,
+        fell_back_to_episodes=summary.fell_back_to_episodes,
     )
     return summary
 

@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from personalscraper.acquire.domain import FollowedSeries, WantedItem
+from personalscraper.acquire.events import SeasonFellBackToEpisodes
 from personalscraper.acquire.reconcile import reconcile_wanted
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.api.torrent._base import TorrentItem
@@ -631,3 +632,288 @@ def test_season_with_empty_aired_catalog_is_never_closed(store: ConcreteAcquireS
     assert summary.still_in_flight == 1
     row = store.wanted.get(wanted_id)
     assert row is not None and row.status == "grabbed"
+
+
+# ---------------------------------------------------------------------------
+# A landed-but-incomplete season pack — the « Les Groos » shape
+# ---------------------------------------------------------------------------
+#
+# wanted 184 (Les Groos S01) sat at ``grabbed`` from 2026-08-28 to 2026-09-01
+# reading « En vol » while its media had been on the disk the whole time. The
+# pack (``Les.Groos.2026.S01…LOLOPC``) carried 12 of the 13 episodes TVDB
+# declares aired, so ``_season_fully_owned`` answered False forever, and the
+# torrent was still seeding under its c411 obligation, so neither the requeue
+# nor the confirm path applied. A grabbed season has no cutoff and no cadence —
+# the search pass walks ``pending`` and the grab pass ``available`` — which left
+# the row with NO exit at all, and the missing episode was never searched for.
+
+
+def _dispatched_journey(
+    store: ConcreteAcquireStore,
+    *,
+    info_hash: str,
+    followed_id: int,
+    season: int,
+    now: int = 1_750_000_000,
+) -> None:
+    """Record a journey that reached the library for *info_hash*."""
+    store.provenance.upsert_grab(
+        info_hash,
+        followed_id=followed_id,
+        media_ref=MediaRef(tvdb_id=403245),
+        kind="season",
+        grabbed_at=now,
+        season=season,
+    )
+    store.provenance.set_ingest(info_hash, ingest_path="/staging/097-TEMP/pack", ingested_at=now + 60)
+    store.provenance.set_dispatch(info_hash, dispatch_path="/disk/series/Silo", dispatched_at=now + 120)
+
+
+def _capture(bus: EventBus, event_type: type) -> list:
+    """Subscribe a sink to *bus* and return the list it fills."""
+    seen: list = []
+    bus.subscribe(event_type, seen.append)
+    return seen
+
+
+def test_landed_season_pack_missing_an_episode_falls_back_to_episodes(
+    store: ConcreteAcquireStore,
+) -> None:
+    """A dispatched season pack that did not carry every aired episode is FINISHED.
+
+    The season attempt got everything that release will ever give: the row must
+    leave « en vol » for the terminal ``fallback_episodes``, and the episode the
+    pack did not carry must be re-enqueued so it is searched for on its own.
+    """
+    followed_id = _followed_show(store)
+    store.aired.replace_for_followed(
+        followed_id,
+        [(3, 1, None, "2026-01-01"), (3, 2, None, "2026-01-08"), (3, 3, None, "2026-01-15")],
+        now=1_750_000_000,
+    )
+    wanted_id = _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e10")
+    _dispatched_journey(store, info_hash="5ea50e10", followed_id=followed_id, season=3)
+
+    summary = reconcile_wanted(
+        store,
+        _StubOwnership({(3, 1), (3, 2)}),
+        client_items=_items("5ea50e10", progress=1.0),
+        event_bus=_BUS,
+    )
+
+    assert summary.still_in_flight == 0
+    assert summary.fell_back_to_episodes == 1
+    row = store.wanted.get(wanted_id)
+    assert row is not None and row.status == "fallback_episodes"
+
+
+def test_the_fallback_re_enqueues_ONLY_the_episodes_the_pack_did_not_carry(
+    store: ConcreteAcquireStore,
+) -> None:
+    """The owned episodes get no row — only the missing one is queued again."""
+    followed_id = _followed_show(store)
+    store.aired.replace_for_followed(
+        followed_id,
+        [(3, 1, None, "2026-01-01"), (3, 2, None, "2026-01-08"), (3, 3, None, "2026-01-15")],
+        now=1_750_000_000,
+    )
+    _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e11")
+    _dispatched_journey(store, info_hash="5ea50e11", followed_id=followed_id, season=3)
+
+    reconcile_wanted(
+        store,
+        _StubOwnership({(3, 1), (3, 2)}),
+        client_items=_items("5ea50e11", progress=1.0),
+        event_bus=_BUS,
+    )
+
+    queued = [(row.season, row.episode) for row in store.wanted.list_pending() if row.kind == "episode"]
+    assert queued == [(3, 3)]
+
+
+def test_the_fallback_announces_itself(store: ConcreteAcquireStore) -> None:
+    """§8 — the transition is a visible event, never a silent status flip."""
+    bus = EventBus()
+    seen = _capture(bus, SeasonFellBackToEpisodes)
+    followed_id = _followed_show(store)
+    store.aired.replace_for_followed(
+        followed_id,
+        [(3, 1, None, "2026-01-01"), (3, 2, None, "2026-01-08")],
+        now=1_750_000_000,
+    )
+    wanted_id = _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e12")
+    _dispatched_journey(store, info_hash="5ea50e12", followed_id=followed_id, season=3)
+
+    reconcile_wanted(
+        store,
+        _StubOwnership({(3, 1)}),
+        client_items=_items("5ea50e12", progress=1.0),
+        event_bus=bus,
+    )
+
+    assert len(seen) == 1
+    assert seen[0].season_wanted_id == wanted_id
+    assert seen[0].season == 3
+    assert seen[0].reenqueued_count == 1
+
+
+def test_a_season_still_in_the_pipeline_is_left_alone(store: ConcreteAcquireStore) -> None:
+    """LOAD-BEARING: only a journey that REACHED the library ends the attempt.
+
+    Ingested-not-yet-dispatched means the pipeline is still working on it —
+    declaring the season finished there would re-enqueue episodes the very next
+    dispatch is about to shelve.
+    """
+    followed_id = _followed_show(store)
+    store.aired.replace_for_followed(
+        followed_id,
+        [(3, 1, None, "2026-01-01"), (3, 2, None, "2026-01-08")],
+        now=1_750_000_000,
+    )
+    wanted_id = _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e13")
+    store.provenance.upsert_grab(
+        "5ea50e13",
+        followed_id=followed_id,
+        media_ref=MediaRef(tvdb_id=403245),
+        kind="season",
+        grabbed_at=1_750_000_000,
+        season=3,
+    )
+    store.provenance.set_ingest("5ea50e13", ingest_path="/staging/097-TEMP/pack", ingested_at=1_750_000_060)
+
+    summary = reconcile_wanted(
+        store,
+        _StubOwnership({(3, 1)}),
+        client_items=_items("5ea50e13", progress=1.0),
+        event_bus=_BUS,
+    )
+
+    assert summary.fell_back_to_episodes == 0
+    assert summary.still_in_flight == 1
+    row = store.wanted.get(wanted_id)
+    assert row is not None and row.status == "grabbed"
+
+
+def test_a_landed_season_with_no_journey_at_all_is_left_alone(store: ConcreteAcquireStore) -> None:
+    """A missing provenance row is absence of knowledge — never a licence to close."""
+    followed_id = _followed_show(store)
+    store.aired.replace_for_followed(
+        followed_id,
+        [(3, 1, None, "2026-01-01"), (3, 2, None, "2026-01-08")],
+        now=1_750_000_000,
+    )
+    wanted_id = _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e14")
+
+    summary = reconcile_wanted(
+        store,
+        _StubOwnership({(3, 1)}),
+        client_items=_items("5ea50e14", progress=1.0),
+        event_bus=_BUS,
+    )
+
+    assert summary.fell_back_to_episodes == 0
+    assert summary.still_in_flight == 1
+    row = store.wanted.get(wanted_id)
+    assert row is not None and row.status == "grabbed"
+
+
+def test_a_landed_season_with_an_empty_catalog_is_left_alone(store: ConcreteAcquireStore) -> None:
+    """Blind-spot guard, second end: no catalog means no « missing » list to act on."""
+    followed_id = _followed_show(store)  # no aired catalog written
+    wanted_id = _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e15")
+    _dispatched_journey(store, info_hash="5ea50e15", followed_id=followed_id, season=3)
+
+    summary = reconcile_wanted(
+        store,
+        _StubOwnership(set()),
+        client_items=_items("5ea50e15", progress=1.0),
+        event_bus=_BUS,
+    )
+
+    assert summary.fell_back_to_episodes == 0
+    assert summary.still_in_flight == 1
+    row = store.wanted.get(wanted_id)
+    assert row is not None and row.status == "grabbed"
+
+
+def test_a_fully_owned_landed_season_still_closes_done(store: ConcreteAcquireStore) -> None:
+    """Ownership outranks the fallback: a complete pack closes, it does not fall back."""
+    followed_id = _followed_show(store)
+    store.aired.replace_for_followed(
+        followed_id,
+        [(3, 1, None, "2026-01-01"), (3, 2, None, "2026-01-08")],
+        now=1_750_000_000,
+    )
+    wanted_id = _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e16")
+    _dispatched_journey(store, info_hash="5ea50e16", followed_id=followed_id, season=3)
+
+    summary = reconcile_wanted(
+        store,
+        _StubOwnership({(3, 1), (3, 2)}),
+        client_items=_items("5ea50e16", progress=1.0),
+        event_bus=_BUS,
+    )
+
+    assert summary.closed_owned == 1
+    assert summary.fell_back_to_episodes == 0
+    row = store.wanted.get(wanted_id)
+    assert row is not None and row.status == "done"
+
+
+def test_the_fallback_never_duplicates_an_episode_row_that_is_already_open(
+    store: ConcreteAcquireStore,
+) -> None:
+    """A live episode row is reused as-is — a duplicate would double-search and double-grab."""
+    followed_id = _followed_show(store)
+    store.aired.replace_for_followed(
+        followed_id,
+        [(3, 1, None, "2026-01-01"), (3, 2, None, "2026-01-08")],
+        now=1_750_000_000,
+    )
+    store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=403245),
+            kind="episode",
+            status="pending",
+            enqueued_at=1_750_000_000,
+            followed_id=followed_id,
+            season=3,
+            episode=2,
+        )
+    )
+    season_wanted_id = _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e17")
+    _dispatched_journey(store, info_hash="5ea50e17", followed_id=followed_id, season=3)
+
+    summary = reconcile_wanted(
+        store,
+        _StubOwnership({(3, 1)}),
+        client_items=_items("5ea50e17", progress=1.0),
+        event_bus=_BUS,
+    )
+
+    assert summary.fell_back_to_episodes == 1
+    row = store.wanted.get(season_wanted_id)
+    assert row is not None and row.status == "fallback_episodes"
+    queued = [(row.season, row.episode) for row in store.wanted.list_pending() if row.kind == "episode"]
+    assert queued == [(3, 2)]
+
+
+def test_the_landed_season_leaves_the_sweep_for_good(store: ConcreteAcquireStore) -> None:
+    """Idempotence: a second pass finds a terminal row and queues nothing more."""
+    followed_id = _followed_show(store)
+    store.aired.replace_for_followed(
+        followed_id,
+        [(3, 1, None, "2026-01-01"), (3, 2, None, "2026-01-08")],
+        now=1_750_000_000,
+    )
+    _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e18")
+    _dispatched_journey(store, info_hash="5ea50e18", followed_id=followed_id, season=3)
+    ownership = _StubOwnership({(3, 1)})
+    items = _items("5ea50e18", progress=1.0)
+
+    reconcile_wanted(store, ownership, client_items=items, event_bus=_BUS)
+    second = reconcile_wanted(store, ownership, client_items=items, event_bus=_BUS)
+
+    assert second.fell_back_to_episodes == 0
+    queued = [(row.season, row.episode) for row in store.wanted.list_pending() if row.kind == "episode"]
+    assert queued == [(3, 2)]

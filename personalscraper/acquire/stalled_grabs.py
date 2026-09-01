@@ -19,6 +19,17 @@ The detector deliberately keys on the JOURNEY to tell a finished download from a
 one: ``ingested_at`` is proof the torrent completed (the pipeline only ingests completed
 torrents), which is what makes a short horizon honest. Without that proof a grab may
 legitimately still be downloading for hours, so only a long safety net applies.
+
+A THIRD shape hid behind that same journey reading, and it hid for as long as it was
+looked at: an acquisition that DID reach the library while its ``wanted`` row stayed
+open. A landed journey was excluded from the check unconditionally — « a success awaiting
+reconciliation » — which is true for a pass or two and false forever after. « Les Groos »
+S01 was dispatched on 2026-08-28 and still read ``grabbed`` four days later, because the
+pack carried 12 of the 13 aired episodes and ownership-based closure is all-or-nothing.
+The row had no other reader: neither pass walks ``grabbed``. That exemption is now
+bounded by a horizon like every other, so the case is audible even when the closure
+itself is repaired elsewhere (``reconcile``) — a rule that cannot fire is a rule that
+tells you nothing about the day it was needed.
 """
 
 from __future__ import annotations
@@ -26,6 +37,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from personalscraper.acquire._provenance_store import LANDED_JOURNEY_STATUSES
 from personalscraper.acquire._store_rows import _media_ref_to_json
 
 if TYPE_CHECKING:
@@ -44,12 +56,17 @@ STALLED_AFTER_INGEST_SECONDS = 7200
 #: it exists so a grab that never lands is caught eventually rather than never.
 STALLED_WITHOUT_INGEST_SECONDS = 86400
 
-#: Journey statuses that mean the acquisition DID reach the library — never stalled.
-_TERMINAL_JOURNEY_STATUSES = frozenset({"dispatched", "reconciled"})
+#: Horizon for a journey that reached the library while its ``wanted`` row stayed open.
+#: Reconciliation runs on every detect/grab pass, so a row still ``grabbed`` two hours
+#: after its media was shelved is not « awaiting reconciliation »: it is a closure that
+#: is not coming. Same two hours as the ingested horizon, for the same reason — far
+#: longer than the passes that should have closed it, far shorter than a day of silence.
+STALLED_AFTER_DISPATCH_SECONDS = 7200
 
 _REASON_RUN_LEFT_BEHIND = "un run s'est terminé depuis l'ingestion sans la ranger"
 _REASON_NEVER_SHELVED = "ingéré mais jamais rangé en médiathèque"
 _REASON_NOTHING_FOLLOWED = "récupéré, rien n'a suivi depuis"
+_REASON_LANDED_NEVER_CLOSED = "rangé en médiathèque, mais l'acquisition ne s'est jamais refermée"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -87,6 +104,11 @@ def _latest_step_at(wanted: "WantedItem", row: "ProvenanceRow | None") -> int:
     what stalls); falls back to the wanted row's clock for a grab with no journey —
     a row predating the provenance spine must not become invisible for lack of it.
 
+    ``dispatched_at`` leads the preference order. It used to be absent entirely, which
+    was coherent while a dispatched journey could never be stalled; now that one can
+    be, omitting it would date a landed stall from its SCRAPE and tell the operator it
+    has been waiting since a step it left behind.
+
     Args:
         wanted: The parked ``wanted`` row.
         row: Its journey, or ``None`` when no provenance row exists.
@@ -95,7 +117,7 @@ def _latest_step_at(wanted: "WantedItem", row: "ProvenanceRow | None") -> int:
         Epoch seconds of the latest known step.
     """
     if row is not None:
-        stage = row.scraped_at or row.ingested_at or row.grabbed_at
+        stage = row.dispatched_at or row.scraped_at or row.ingested_at or row.grabbed_at
         if stage is not None:
             return stage
     return wanted.last_search_at or wanted.enqueued_at
@@ -111,10 +133,16 @@ def stalled_grab_reason(
     """Return why this grab is stalled, or ``None`` when it is progressing normally.
 
     Only a ``grabbed`` wanted qualifies — that is the parked state §14.1 calls out.
-    A journey that already reached ``dispatched`` / ``reconciled`` is a success awaiting
-    reconciliation, never a stall.
 
-    Three triggers, most decisive first:
+    Four triggers, most decisive first:
+
+    0. **The media landed and the row never closed** — decided first because it
+       overrides everything below: the item is not « ingested and idle », it is
+       SHELVED, and the only thing owed is the reconciliation that closes its row.
+       That wait is bounded (:data:`STALLED_AFTER_DISPATCH_SECONDS`), where it used
+       to be an unconditional exemption — which is how « Les Groos » S01 read
+       « en vol » for four days with its episodes on the disk, silent to this
+       function because its journey said ``dispatched``.
 
     1. **A run finished and left it behind** — no clock involved. If a pipeline run
        completed AFTER this item was ingested and the item is still not shelved, the
@@ -140,8 +168,23 @@ def stalled_grab_reason(
     """
     if wanted.status != "grabbed":
         return None
-    if row is not None and row.status in _TERMINAL_JOURNEY_STATUSES:
-        return None
+
+    # The media IS on the shelf. Reconciliation is what closes the row now, and it
+    # runs on every detect/grab pass — so this is a SHORT, bounded wait, not a
+    # permanent exemption. Excluding a landed journey outright is what made the
+    # « Les Groos » stall mute for four days: the pack was one episode short of the
+    # aired catalog, so ownership could never close the season row, and this
+    # function answered « merely awaiting reconciliation » every time it was asked.
+    # A row still open long after its media landed is the anomaly, whichever of the
+    # two terminal names the journey carries.
+    if row is not None and row.status in LANDED_JOURNEY_STATUSES:
+        if row.dispatched_at is None:
+            # A RECONSTRUCTED journey (§14.3) carries the stage but not its instant:
+            # « unknown », never « long ago ». Absence of a date must not manufacture
+            # an alert.
+            return None
+        idle_since_landing = now - row.dispatched_at
+        return _REASON_LANDED_NEVER_CLOSED if idle_since_landing > STALLED_AFTER_DISPATCH_SECONDS else None
 
     if (
         row is not None
@@ -210,6 +253,7 @@ def list_stalled_grabs(
 
 
 __all__ = [
+    "STALLED_AFTER_DISPATCH_SECONDS",
     "STALLED_AFTER_INGEST_SECONDS",
     "STALLED_WITHOUT_INGEST_SECONDS",
     "StalledGrab",

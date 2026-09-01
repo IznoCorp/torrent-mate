@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from personalscraper.acquire._season_fallback import fall_back_to_episodes
 from personalscraper.acquire.cadence import is_due_by_cadence, is_past_cutoff
 from personalscraper.acquire.desired import (
     QualityProfile,
@@ -27,8 +28,8 @@ from personalscraper.acquire.desired import (
     quality_profile_from_json,
     source_criteria_from_json,
 )
-from personalscraper.acquire.domain import OPEN_WANTED_STATUSES, WantedItem
-from personalscraper.acquire.events import SeasonFellBackToEpisodes, WantedAbandoned
+from personalscraper.acquire.domain import WantedItem
+from personalscraper.acquire.events import WantedAbandoned
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -133,6 +134,10 @@ class PassGatesMixin:
         — never duplicated), transitions the season row to
         ``fallback_episodes``, and emits :class:`SeasonFellBackToEpisodes`
         whose ``reenqueued_count`` is the number of rows actually created.
+        The transition itself lives in
+        :func:`~personalscraper.acquire._season_fallback.fall_back_to_episodes`
+        — shared with the landed-but-incomplete trigger in ``reconcile``, which
+        is the same transition reached by a different route.
 
         Ownership is NOT checked here (Option B from the plan): the detect
         pass already skips owned episodes, so re-enqueuing all aired
@@ -153,61 +158,14 @@ class PassGatesMixin:
             maps to abandoned for the caller's counter.
         """
         assert item.id is not None  # noqa: S101
-        assert item.followed_id is not None  # noqa: S101
         assert item.season is not None  # noqa: S101
-        season_wanted_id = item.id
-        followed_id = item.followed_id
-        season_num = item.season
-
-        # List aired episodes for this season from the catalog cache.
-        aired_rows = self._store.aired.list_for_followed(followed_id)
-        episode_numbers = sorted(int(r.episode) for r in aired_rows if r.season == season_num)
-
-        # Re-enqueue the aired episodes as fresh individual wanteds — skipping
-        # any episode that already holds an OPEN row (review F11: a duplicate
-        # (follow, season, episode) row would double-search and double-grab).
-        # A row that exists only in a terminal/absorbed status DOES get a fresh
-        # one: absorption is irreversible by design, so the fallback re-mints.
-        # The detect pass skips owned ones, so over-enqueueing is harmless.
-        reenqueued = 0
-        for ep_num in episode_numbers:
-            existing = self._store.wanted.find(
-                followed_id=followed_id,
-                kind="episode",
-                season=season_num,
-                episode=ep_num,
-                statuses=tuple(sorted(OPEN_WANTED_STATUSES)),
-            )
-            if existing is not None:
-                continue
-            self._store.wanted.add(
-                WantedItem(
-                    media_ref=item.media_ref,
-                    kind="episode",
-                    status="pending",
-                    enqueued_at=now,
-                    followed_id=followed_id,
-                    season=season_num,
-                    episode=ep_num,
-                ),
-            )
-            reenqueued += 1
-
-        # Transition the season row.
-        self._store.wanted.fallback_season(season_wanted_id)
-
-        self._event_bus.emit(
-            SeasonFellBackToEpisodes(
-                season_wanted_id=season_wanted_id,
-                media_ref=item.media_ref,
-                season=season_num,
-                reenqueued_count=reenqueued,
-            ),
-        )
+        # Episodes left implicit: the cutoff path re-enqueues the WHOLE aired
+        # season, ownership unchecked (Option B above).
+        reenqueued = fall_back_to_episodes(self._store, item, now=now, event_bus=self._event_bus)
         log.info(
             "acquire.service.season_fallback",
-            wanted_id=season_wanted_id,
-            season=season_num,
+            wanted_id=item.id,
+            season=item.season,
             reenqueued=reenqueued,
         )
         return "abandoned"

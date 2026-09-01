@@ -134,6 +134,7 @@ def search(
                         "abandoned": summary.abandoned,
                         "skipped": summary.skipped,
                         "closed_owned": reconcile.closed_owned,
+                        "fell_back_to_episodes": reconcile.fell_back_to_episodes,
                     }
                 )
         finally:
@@ -271,8 +272,11 @@ def _reconcile_before_search(acquire: "AcquireContext", event_bus: "EventBus", c
     except Exception as exc:  # noqa: BLE001 — reconciliation must never abort the search
         log.warning("cli.search.reconcile_failed", error=str(exc))
         return ReconcileSummary()
-    if summary.closed_owned:
-        console.print(f"[cyan]Réconciliation:[/cyan] {summary.closed_owned} clos (déjà en médiathèque).")
+    if summary.closed_owned or summary.fell_back_to_episodes:
+        console.print(
+            f"[cyan]Réconciliation:[/cyan] {summary.closed_owned} clos (déjà en médiathèque), "
+            f"{summary.fell_back_to_episodes} saisons repassées en épisodes (pack incomplet)."
+        )
     return summary
 
 

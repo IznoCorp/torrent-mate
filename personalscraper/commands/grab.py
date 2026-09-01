@@ -175,6 +175,12 @@ def grab(
                         # then dropped — invisible to the operator (§5 « résultat
                         # chiffré »: a run states its numbers, all of them).
                         "confirmed_grabbed": reconcile.confirmed_grabbed,
+                        # A season whose pack landed incomplete is a real state
+                        # change this run made: the season row went terminal and
+                        # its gaps were re-queued. Same reason as above — a
+                        # transition absent from the row is a transition nobody
+                        # can see happened.
+                        "fell_back_to_episodes": reconcile.fell_back_to_episodes,
                     }
                 )
         finally:
@@ -236,11 +242,12 @@ def _reconcile_before_run(acquire: AcquireContext, event_bus: "EventBus", consol
     except Exception as exc:  # noqa: BLE001 — reconciliation must never abort the grab
         log.warning("cli.grab.reconcile_failed", error=str(exc))
         return ReconcileSummary()
-    if summary.closed_owned or summary.requeued_missing or summary.confirmed_grabbed:
+    if summary.closed_owned or summary.requeued_missing or summary.confirmed_grabbed or summary.fell_back_to_episodes:
         console.print(
             f"[cyan]Réconciliation:[/cyan] {summary.closed_owned} clos (en médiathèque), "
             f"{summary.requeued_missing} remis en file (torrent disparu), "
-            f"{summary.confirmed_grabbed} confirmés (récupérés après interruption)."
+            f"{summary.confirmed_grabbed} confirmés (récupérés après interruption), "
+            f"{summary.fell_back_to_episodes} saisons repassées en épisodes (pack incomplet)."
         )
     return summary
 

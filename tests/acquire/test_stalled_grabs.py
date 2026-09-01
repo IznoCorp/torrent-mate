@@ -17,8 +17,10 @@ from __future__ import annotations
 from personalscraper.acquire._provenance_store import ProvenanceRow
 from personalscraper.acquire.domain import WantedItem
 from personalscraper.acquire.stalled_grabs import (
+    STALLED_AFTER_DISPATCH_SECONDS,
     STALLED_AFTER_INGEST_SECONDS,
     STALLED_WITHOUT_INGEST_SECONDS,
+    list_stalled_grabs,
     stalled_grab_reason,
 )
 from personalscraper.core.identity import MediaRef
@@ -142,15 +144,13 @@ class TestStillDownloading:
 class TestNotApplicable:
     """Only a parked « récupéré » qualifies — never a row that did its job."""
 
-    def test_dispatched_journey_is_never_stalled(self) -> None:
-        """The media reached the library: the wanted is merely awaiting reconcile."""
-        row = _prov(status="dispatched", ingested_at=NOW - 90_000, dispatched_at=NOW - 80_000)
+    def test_a_journey_that_just_reached_the_library_is_not_stalled(self) -> None:
+        """The media reached the library: the wanted is legitimately awaiting reconcile.
 
-        assert stalled_grab_reason(_wanted(), row, now=NOW) is None
-
-    def test_reconciled_journey_is_never_stalled(self) -> None:
-        """A closed journey is the terminal success state."""
-        row = _prov(status="reconciled", ingested_at=NOW - 90_000, dispatched_at=NOW - 80_000)
+        « Legitimately » is bounded — see :class:`TestLandedButNeverClosed` for what
+        happens when that wait never ends.
+        """
+        row = _prov(status="dispatched", ingested_at=NOW - 900, dispatched_at=NOW - 600)
 
         assert stalled_grab_reason(_wanted(), row, now=NOW) is None
 
@@ -208,3 +208,72 @@ class TestRunFinishedWithoutShelving:
         row = _prov(status="grabbed", grabbed_at=NOW - 600, ingested_at=None)
 
         assert stalled_grab_reason(_wanted(), row, now=NOW, last_run_finished_at=NOW - 30) is None
+
+
+class TestLandedButNeverClosed:
+    """The « Les Groos » shape: the media IS shelved and the acquisition never closed.
+
+    Excluding a dispatched journey outright made this class of stall MUTE by
+    construction. wanted 184 (Les Groos S01) was dispatched on 2026-08-28 11:08 and
+    still read ``grabbed`` four days later: the reconciliation could not close it (the
+    pack was one episode short of the aired catalog) and this detector answered « a
+    success awaiting reconciliation » for as long as it was asked. Nothing else looks
+    at that row — the search pass walks ``pending``, the grab pass ``available``.
+
+    §14.1 admits two resting states, « pas encore diffusé » and « cherché, rien
+    trouvé ». « Rangé, mais l'acquisition est restée ouverte » is neither.
+    """
+
+    def test_a_landed_acquisition_still_open_a_day_later_is_flagged(self) -> None:
+        """Dispatched 22 h ago, wanted still 'grabbed' → the closure will never come."""
+        row = _prov(status="dispatched", ingested_at=NOW - 90_000, dispatched_at=NOW - 80_000)
+
+        reason = stalled_grab_reason(_wanted(), row, now=NOW)
+
+        assert reason == "rangé en médiathèque, mais l'acquisition ne s'est jamais refermée"
+
+    def test_a_reconciled_journey_still_open_is_flagged_too(self) -> None:
+        """Either terminal name: an open row long after the media landed is the anomaly."""
+        row = _prov(status="reconciled", ingested_at=NOW - 90_000, dispatched_at=NOW - 80_000)
+
+        assert stalled_grab_reason(_wanted(), row, now=NOW) is not None
+
+    def test_a_freshly_dispatched_acquisition_is_left_alone(self) -> None:
+        """LOAD-BEARING: reconciliation runs on the NEXT pass, not the same instant."""
+        row = _prov(status="dispatched", ingested_at=NOW - 600, dispatched_at=NOW - 60)
+
+        assert stalled_grab_reason(_wanted(), row, now=NOW) is None
+
+    def test_the_horizon_is_not_reached_at_the_horizon(self) -> None:
+        """Boundary: strictly past the horizon fires, exactly at it does not."""
+        at_horizon = _prov(status="dispatched", dispatched_at=NOW - STALLED_AFTER_DISPATCH_SECONDS)
+        past_horizon = _prov(status="dispatched", dispatched_at=NOW - STALLED_AFTER_DISPATCH_SECONDS - 1)
+
+        assert stalled_grab_reason(_wanted(), at_horizon, now=NOW) is None
+        assert stalled_grab_reason(_wanted(), past_horizon, now=NOW) is not None
+
+    def test_a_landed_journey_with_no_dispatch_instant_never_fires(self) -> None:
+        """A RECONSTRUCTED journey (§14.3) dates nothing — absence is not evidence."""
+        row = _prov(status="dispatched", ingested_at=NOW - 90_000, dispatched_at=None)
+
+        assert stalled_grab_reason(_wanted(), row, now=NOW) is None
+
+    def test_a_closed_wanted_over_a_landed_journey_is_the_normal_ending(self) -> None:
+        """The whole point: once the row closes, nothing is flagged any more."""
+        row = _prov(status="dispatched", ingested_at=NOW - 90_000, dispatched_at=NOW - 80_000)
+
+        assert stalled_grab_reason(_wanted(status="done"), row, now=NOW) is None
+
+    def test_the_alert_dates_the_stall_from_the_dispatch(self) -> None:
+        """« Depuis quand » must read the LAST step, which for a landed journey is dispatch."""
+        row = _prov(status="dispatched", ingested_at=NOW - 90_000, dispatched_at=NOW - 80_000)
+
+        stalled = list_stalled_grabs(
+            [_wanted()],
+            lambda _hash: row,
+            now=NOW,
+            release_name_for=lambda _row: "Les.Groos.2026.S01…LOLOPC",
+        )
+
+        assert len(stalled) == 1
+        assert stalled[0].since == NOW - 80_000
