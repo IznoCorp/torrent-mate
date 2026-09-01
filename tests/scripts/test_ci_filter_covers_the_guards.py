@@ -200,8 +200,7 @@ def jobs_invoking(guard: str) -> list[tuple[str, list[str]]]:
         if re.search(re.escape(guard) + r"\b", body):
             gates = set()
             for step in job.get("steps", []):
-                gates.update(
-                    re.findall(r"needs\.changes\.outputs\.(\w+)", str(step.get("if", ""))))
+                gates.update(re.findall(r"needs\.changes\.outputs\.(\w+)", str(step.get("if", ""))))
             found.append((key, sorted(gates)))
     found.append(("harness-contracts", [gating_filter("harness-contracts")]))
     return found
@@ -225,10 +224,7 @@ def test_the_guards_own_file_is_named_by_a_filter_that_gates_a_job_running_it(gu
         guard: One `scripts/…py` from the contracts tier.
     """
     homes = jobs_invoking(guard)
-    reachable = [
-        key for key, gates in homes
-        if not gates or covered(guard, filters()[gates[0]])
-    ]
+    reachable = [key for key, gates in homes if not gates or covered(guard, filters()[gates[0]])]
     assert reachable, (
         f"{guard} is run by {[key for key, _ in homes]}, and not one of those "
         f"jobs is either ungated or gated on a filter naming {guard} itself. A "
