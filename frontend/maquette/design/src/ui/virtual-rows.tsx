@@ -138,7 +138,10 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
       const columns = tracks && tracks !== "none" ? tracks.split(/\s+/).length : 1;
       const item = container.querySelector(
         ":scope > *:not([data-part='window/spacer'])");
-      const height = item ? (item as HTMLElement).getBoundingClientRect().height : 0;
+      // `offsetHeight`, NOT the bounding rectangle: the rectangle includes the
+      // 0.97 scale a tile wears while a press arms, so a measurement taken
+      // under a finger would size every line 3% short.
+      const height = item ? (item as HTMLElement).offsetHeight : 0;
       const rowGap = parseFloat(style.rowGap || style.gap) || 0;
       if (!height) return;
       setMeasured((held) =>
@@ -148,7 +151,7 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
           : { lanes: columns, lineHeight: height + rowGap });
     };
     read();
-    // AND AGAIN ON THE NEXT FRAME. The container is keyed by the draw, so React
+    // AND AGAIN ON THE NEXT FRAME. The DRAW changes under the same container, so React
     // replaces the node on every redraw; an effect that measured only at commit
     // read a computed style of empty strings — measured — and the window
     // silently kept the props' estimate of three lanes at every width.

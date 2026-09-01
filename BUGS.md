@@ -621,6 +621,28 @@ reader will meet it as a red line in a suite and has to know which way it can be
 **Left open**: the fix is to sample against the clock, or to make the frame budget follow the
 duration it watches, and that is the harness's tooling rather than this lot's.
 
+**TWO MORE OF THIS SPECIES, both in L12's own repairs, both closed and named (2026-09-01).** Neither
+is left open: each is repaired, and each is written here because the SHAPE recurs and the next
+reader needs to know which way each instrument can still be wrong.
+
+- **R113's arming sample.** It read a FIXED step of a fixed cadence, and a settle read added 60 ms of
+  dead time in front of it: under parallel load the step drifted past the press delay, the mark had
+  already gone, and the rule fell announcing « the mark is placed on `pointerdown` after all » — a
+  FALSE DIAGNOSIS of the defect it names, in the repair for a flake of this very species. Repaired
+  by sampling every step and choosing both readings by the moment each one landed, **stamped in the
+  PAGE**: a stamp taken in Python before the call is the moment the round trip BEGAN, so every
+  reading executes later than the moment recorded against it, by one CDP hop. Both boundaries carry
+  a 20 ms margin now, where the settle had none and the arming window had 40. **Which way it can
+  still be wrong**: a reading whose page moment falls within 20 ms of a boundary is discarded, so a
+  settle moved to within a frame of the sampling cadence would leave nothing to classify — the
+  « was the arming window sampled at all » hold beside it exists to refuse that silently passing.
+- **R118's mid-flight capture.** A screenshot is not instantaneous and can outlast the 450 ms
+  crossing on a loaded runner, so the flight flag read true before the capture and false after.
+  Repaired by retrying three arrivals rather than by dropping the second read — a sample taken after
+  the end is exactly the vacuity that hold exists to refuse. **Which way it can still be wrong**:
+  three straddles in a row on a very slow runner report a violation where the page is correct, which
+  is loud and in the safe direction.
+
 <sub>`frontend/maquette/harness/run.sh` (2 falls in 3) against `python3 frontend/maquette/harness/exits.py` (green, twice)</sub>
 
 ---

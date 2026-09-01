@@ -134,7 +134,10 @@ META_FLOOR = 6
 # height this refuses — passed, and a `h-screen` in a `variants.ts` was outside
 # the corpus entirely. Neither is in the tree today; a guard that only refuses
 # the spelling somebody happened to use is a guard for one spelling.
-FORBIDDEN_UNIT = re.compile(r"\b\d+(?:vh|lvh)\b|\bh-screen\b")
+FORBIDDEN_UNIT = re.compile(
+    r"\b\d+(?:vh|lvh)\b"                       # a length, either spelling
+    r"|\bh-screen\b"                            # Tailwind's name for 100vh
+    r"|\b(?:min-|max-)?h-(?:vh|lvh)\b")          # and its bare unit utilities
 DYNAMIC_UNIT = re.compile(r"\b100dvh\b")
 
 # `styles/harness.css` is the phone frame the oracle measures INSIDE. It is in

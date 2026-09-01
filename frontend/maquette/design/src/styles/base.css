@@ -813,12 +813,21 @@
    repaired under twice. The live sheet's transition is silenced for the length
    of the crossing; `panel-down` is the departure. */
 :root:active-view-transition #sheet {
-  /* ONLY THE MOVEMENT IS SILENCED — the visibility delay stays, and cutting it
-     is a regression this caught the same hour it was written. `transition: none`
-     took `visibility` with `transform`, and B-249's idiom IS the visibility
-     delay: the layer must stay hit-testable until it has finished leaving or
-     the screen behind it flashes. `exits.py` read `hidden` on every sample of a
-     leaving sheet within minutes of the shorthand landing. */
+  /* ONLY THE MOVEMENT IS SILENCED — the visibility stays, and cutting it is a
+     regression this caught the same hour it was written. `transition: none`
+     took `visibility` with `transform`, and B-249's idiom IS the delayed
+     visibility: the layer must stay hit-testable until it has finished leaving
+     or the screen behind it flashes. `exits.py` read `hidden` on every sample
+     of a leaving sheet within minutes of the shorthand landing.
+
+     HOW IT HOLDS HERE, precisely, because the obvious reading is wrong: the
+     surface's `[transition-delay:0s,450ms]` is a list of TWO, and with one
+     property left in the list it truncates to `0s` — the delay is gone. What
+     keeps the layer visible is that `visibility` interpolates DISCRETELY: it
+     holds its old value for the whole duration and flips at the end. It comes
+     to the same 450ms only because `--duration-4` is both numbers. Under
+     `reduce` this path snaps, where the other closings still take their
+     450ms — not measured, and named here rather than left to be discovered. */
   transition-property: visibility;
 }
 

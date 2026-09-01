@@ -521,7 +521,7 @@ count** — the ones in the pull request's body and in `IMPLEMENTATION.md` say t
 | --- | --- |
 | `run.sh` full suite | **86 rules + 25 guards, no violation** |
 | `run.sh --a11y` | 87 states, 0 violations; light-theme debt **at its ceiling of 166**, unmoved |
-| `harness-hold-counts.py --compare` | **10 rule FILES rose across the two rounds and none fell**, +33 holds then +13 (1 880 → 1 913 → 1 926) — round one: `chrome_pixels` 3→4, `feedback` 14→18, `poster` 4→5, `press` 12→14, `transition` 16→36, `virtual` 7→12; round two: `feedback` 18→22, `press` 14→15, `transition` 36→39, `virtual` 12→17 |
+| `harness-hold-counts.py --compare` | **SIX rule files rose, four of them twice — ten movements across the two rounds, and not one fall**: +33 holds then +13, 1 880 → 1 913 → 1 926 — round one: `chrome_pixels` 3→4, `feedback` 14→18, `poster` 4→5, `press` 12→14, `transition` 16→36, `virtual` 7→12; round two: `feedback` 18→22, `press` 14→15, `transition` 36→39, `virtual` 12→17 |
 | `make check` | **10 983 passed, 4 skipped, 2 xfailed, 0 failed, 0 errors** |
 | oracle | **2 958 measurements, no divergence**, reference at `39363e1d` |
 

@@ -32,7 +32,6 @@ it is declared rather than scripted, and that it has a defined appearance under
 both preferences.
 """
 import asyncio
-import time
 import pathlib
 import sys
 
@@ -269,7 +268,18 @@ READ_TILE = """()=>{
   const tile = document.querySelector('[data-part="tile"]');
   const style = getComputedStyle(tile);
   return {mark: tile.hasAttribute('data-pressing'),
-          scale: style.scale, filter: style.filter};
+          scale: style.scale, filter: style.filter,
+          // THE MOMENT IS STAMPED IN THE PAGE, at the instant the mark is read
+          // and on the same clock the mark is placed by. Stamped in Python
+          // before the call, it was the moment the ROUND TRIP began: every
+          // reading executed later than the moment recorded against it, by a
+          // CDP hop. A sample recorded at 105ms of a 120ms settle then ran at
+          // 118ms or past it under the suite's load, read a mark that was
+          // legitimately there, and the rule fell announcing « the mark is
+          // placed on pointerdown after all » — a false diagnosis of the very
+          // defect it names, in the repair for a flake of the same species.
+          at: window.__pressedAt
+            ? performance.now() - window.__pressedAt : null};
 }"""
 
 
@@ -303,6 +313,15 @@ async def hold_the_press_acknowledgement(journal, browser, motion):
     # marked before the settle has passed.
     settle = await page.evaluate(
         "()=>window.__gestures.press.settleMilliseconds")
+    # THE PAGE'S OWN CLOCK STARTS ON THE PAGE'S OWN `pointerdown`, which is the
+    # same event the settle timer is armed by. Nothing in the harness can time
+    # against that event from outside it.
+    await page.evaluate("""()=>{
+      window.__pressedAt = null;
+      window.addEventListener('pointerdown', () => {
+        if (window.__pressedAt === null) window.__pressedAt = performance.now();
+      }, {capture: true});
+    }""")
     await session.send("Input.dispatchTouchEvent", {
         "type": "touchStart", "touchPoints": [{"x": x, "y": y, "id": 1}]})
     # SAMPLED ON EVERY STEP, and the two readings are CHOSEN from the series by
@@ -315,30 +334,38 @@ async def hold_the_press_acknowledgement(journal, browser, motion):
     # rule this repair touched. A moment cannot drift out of a series that
     # records its own moments.
     samples = []
-    began = time.monotonic()
     for _ in range(13):
         await session.send("Input.dispatchTouchEvent", {
             "type": "touchMove", "touchPoints": [{"x": x + 2, "y": y + 2, "id": 1}]})
         await page.wait_for_timeout(50)
-        samples.append(((time.monotonic() - began) * 1000,
-                        await page.evaluate(READ_TILE)))
-    before_settle = [reading for elapsed, reading in samples if elapsed < settle]
+        samples.append(await page.evaluate(READ_TILE))
     press_delay = await page.evaluate(
         "()=>window.__gestures.press.milliseconds")
-    arming_window = [reading for elapsed, reading in samples
-                     if settle + 40 < elapsed < press_delay - 40]
+    # A MARGIN ON BOTH BOUNDARIES, and the asymmetry that had one on the arming
+    # window and none on the settle is what made this rule fall in the suite and
+    # pass alone. A reading whose own moment sits within a frame of a boundary
+    # decides nothing about which side of it the mark belongs to, so it is
+    # discarded rather than classified.
+    boundary = 20
+    before_settle = [reading for reading in samples
+                     if reading["at"] is not None
+                     and reading["at"] < settle - boundary]
+    arming_window = [reading for reading in samples
+                     if reading["at"] is not None
+                     and settle + 40 < reading["at"] < press_delay - 40]
     journal.check(
         f"under `{motion}`, the tile is NOT marked before the settle passes",
         bool(before_settle) and not any(r["mark"] for r in before_settle),
-        f"read {before_settle} inside a {settle}ms settle — the mark is placed "
+        f"read {before_settle} strictly inside a {settle}ms settle — the mark "
+        "is placed "
         "on `pointerdown` after all, which lights every flick that begins on a "
         "tile")
     journal.check(
         f"under `{motion}`, the arming window WAS sampled",
         bool(arming_window),
         f"no sample landed between {settle}ms and {press_delay}ms over "
-        f"{[round(elapsed) for elapsed, _ in samples]} — the two holds below "
-        "would then read an absence")
+        f"{[None if r['at'] is None else round(r['at']) for r in samples]} — "
+        "the two holds below would then read an absence")
     arming = arming_window[-1] if arming_window else None
     await session.send("Input.dispatchTouchEvent",
                        {"type": "touchEnd", "touchPoints": []})

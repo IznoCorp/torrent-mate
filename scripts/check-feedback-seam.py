@@ -60,8 +60,8 @@ SEAM = "lib/feedback.ts"
 # one, so a second seam written in the other spelling would have satisfied « one
 # call site » by being invisible to the arm that counts declarations.
 DECLARATION = re.compile(
-    r"^\s*(?:export\s+)?(?:async\s+)?function\s+feedback\s*\("
-    r"|^\s*(?:export\s+)?(?:const|let|var)\s+feedback\s*=",
+    r"^\s*(?:export\s+)?(?:async\s+)?function\s+feedback\s*[(<]"
+    r"|^\s*(?:export\s+)?(?:const|let|var)\s+feedback\s*(?::[^=\n]+)?=",
     re.MULTILINE)
 
 # Every gesture in the interface, and the file that arbitrates it. NAMED, not

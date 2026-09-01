@@ -325,7 +325,7 @@ async def hold_one_entry_one_owner(journal, browser, warmed):
     # is the picture's entry — a `::before` the placeholder's colour, fading
     # out, revealing the file underneath.
     await page.evaluate(
-        "(sel)=>{window.__samples=[];window.__cover=[];"
+        "(sel)=>{window.__samples=[];window.__cover=[];window.__coverFrom=null;"
         "window.__sampler=setInterval(()=>{"
         " const node=document.querySelector(sel);"
         " if(!node) return;"
@@ -333,6 +333,12 @@ async def hold_one_entry_one_owner(journal, browser, warmed):
         " const cover=getComputedStyle(node, '::before');"
         " window.__cover.push(cover.content === 'none'"
         "   ? null : Number(cover.opacity));"
+        " for (const animation of node.getAnimations({subtree:true})) {"
+        "   const frames = animation.effect && animation.effect.getKeyframes"
+        "     ? animation.effect.getKeyframes() : [];"
+        "   if (frames.length && frames[0].opacity !== undefined)"
+        "     window.__coverFrom = String(frames[0].opacity);"
+        " }"
         "},16);}", ARRIVING_BACKGROUND)
     await page.click(TILE)
     await page.wait_for_timeout(1600)
@@ -340,6 +346,7 @@ async def hold_one_entry_one_owner(journal, browser, warmed):
         "()=>{clearInterval(window.__sampler);return window.__samples;}")
     cover = [value for value in await page.evaluate("()=>window.__cover")
              if value is not None]
+    cover_from = await page.evaluate("()=>window.__coverFrom")
 
     journal.check(
         f"the arriving background is sampled at all ({'warm' if warmed else 'cold'})",
@@ -372,8 +379,14 @@ async def hold_one_entry_one_owner(journal, browser, warmed):
     # was 0 whenever the hold above passed and could only fall after it already
     # had. A second entry replaying now replays on the COVER, and nothing was
     # watching it.
-    def recoveries_of(series):
-        """How many times a retreating cover comes BACK over the picture.
+    def rises_in(series):
+        """How many upward STEPS a retreating cover takes back over the picture.
+
+        It counts steps of 0.15 rather than whole rises — a single 0 → 1 return
+        is several of them — so the number is a magnitude and not a count of
+        replays. What the hold reads is whether it is ZERO, and for that the
+        distinction does not matter; the name says so rather than implying a
+        precision the arithmetic does not have.
 
         A COVER ONLY EVER RETREATS. « How many times does it fall from full »
         cannot say that: an entry replayed a second time passes through full
@@ -397,7 +410,7 @@ async def hold_one_entry_one_owner(journal, browser, warmed):
             lowest = min(lowest, value)
         return recoveries
 
-    descents = recoveries_of(cover)
+    descents = rises_in(cover)
     if arrival == "immediate":
         journal.check(
             "a hero the transition already carried does NOT dip — one owner",
@@ -419,15 +432,37 @@ async def hold_one_entry_one_owner(journal, browser, warmed):
             f"to {min(cover) if cover else None}: the transition already showed "
             "this picture, so anything revealing it a second time is the flash")
     else:
-        # ORDERED, not merely « it held both values ». `min < 0.5 and max > 0.9`
-        # is true of a cover going 0 → 1, which is the opposite animation.
+        # IT PASSES THROUGH THE MIDDLE, which is what separates a fade from a
+        # snap — and « first high, last low » does not: a `steps(1, end)` on the
+        # same animation gives [1, 1, 1, 1, 0, 0, 0, 0], first high, last low,
+        # no rise and no descent, and the picture appears in ONE FRAME. That is
+        # the sentence in this hold's own failure message, and the hold was
+        # green over it. A 450ms fade sampled at 16ms lands in the middle band
+        # about twenty times; a snap never does.
+        #
+        # AND THE START IS READ FROM THE DECLARED KEYFRAME rather than from the
+        # first sample. `cover[0] > 0.9` demanded that the first read land
+        # within about 90ms of the start on this curve — a loaded runner that
+        # reaches the mark later reads 0.896 and the hold falls for the
+        # machine's reasons. What A1 actually repaired is the `from` being
+        # DECLARED, so that is what is asserted.
+        middle = [value for value in cover if 0.15 < value < 0.85]
         journal.check(
             "a hero whose file arrived LATE fades in rather than snapping",
-            len(cover) > 4 and cover[0] > 0.9 and cover[-1] < 0.5,
+            len(cover) > 4 and len(middle) >= 3 and cover[-1] < 0.5,
             f"the cover ran {cover[0] if cover else None} to "
-            f"{cover[-1] if cover else None} over {len(cover)} sample(s) — "
-            "a picture that arrived after the transition appeared in one frame, "
-            "or the cover ran the wrong way")
+            f"{cover[-1] if cover else None} over {len(cover)} sample(s), "
+            f"{len(middle)} of them between 0.15 and 0.85 — a picture that "
+            "arrived after the transition appeared in one frame, or the cover "
+            "ran the wrong way")
+        journal.check(
+            "and its entry DECLARES where it starts",
+            cover_from == "1",
+            f"the cover's first keyframe declares opacity {cover_from!r} — left "
+            "implicit, the browser takes the pseudo-element's underlying value "
+            "and re-evaluates it mid-flight: measured, the cover ran 1 → 0.002 "
+            "→ 0.996 → 0 inside ONE run, which is the flash this rule exists "
+            "to refuse")
         journal.check(
             "and the ELEMENT itself never dips — the placeholder and the melt "
             "stay",
