@@ -37,6 +37,7 @@ is the failure mode this repository counts most often.
 
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 import sys
@@ -131,6 +132,70 @@ def arm_no_history_in_tree() -> int:
     print(f"check-docs-cited-paths[history]: {len(reborn)} tracked path(s) under "
           f"{', '.join(tree.rstrip('/') for tree in HISTORY_TREES)}")
     return len(reborn)
+
+
+# The present — the version in production — is frozen: it receives no new file
+# (`documentation-model.md` § 1). The manifest pins the directory's exact contents; a file
+# added is a birth, a file missing is a manifest that lies, and both are refused. A number
+# nobody compares is a number nobody reads, which is why this is a file and not a count.
+PRODUCTION = ROOT / "docs" / "production"
+MANIFEST = ROOT / "scripts" / "production-docs-manifest.json"
+
+
+def manifest_paths() -> list[str] | None:
+    """The paths the production manifest names, or None when it cannot be read.
+
+    Returns:
+        The `files` list, or None for a missing, malformed or mis-shaped manifest.
+    """
+    try:
+        data = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    files = data.get("files") if isinstance(data, dict) else None
+    if not isinstance(files, list) or not all(isinstance(item, str) for item in files):
+        return None
+    return files
+
+
+def arm_production_manifest() -> int:
+    """Refuse a production directory that differs from its manifest, either way.
+
+    Returns:
+        The number of violations.
+    """
+    tracked = tracked_paths()
+    if tracked is None:
+        print("check-docs-cited-paths[production]: `git ls-files` failed — refused rather "
+              "than passed", file=sys.stderr)
+        return 1
+    manifest = manifest_paths()
+    if manifest is None:
+        # Named as written, not relative to ROOT: a test patches MANIFEST to a path outside
+        # the repository, and a message that raises is a refusal nobody reads.
+        print(f"check-docs-cited-paths[production]: {MANIFEST.as_posix()} "
+              f"is missing or not `{{\"why\": …, \"files\": [\"docs/production/…\"]}}` — "
+              f"refused", file=sys.stderr)
+        return 1
+    prefix = "docs/production/"
+    actual = sorted(path for path in tracked if path.startswith(prefix))
+    born = sorted(set(actual) - set(manifest))
+    gone = sorted(set(manifest) - set(actual))
+    for path in born:
+        print(f"    {path}: not in the manifest — production receives no new file; a "
+              f"document about the version in production was frozen on 2026-08-31, and a "
+              f"document about the next version lives in docs/reference/", file=sys.stderr)
+    for path in gone:
+        print(f"    {path}: named by the manifest and not tracked — shrink the manifest in "
+              f"the same change that removed the file", file=sys.stderr)
+    violations = len(born) + len(gone)
+    if not actual:
+        print("    docs/production/ holds no tracked file — the switchover deletes this arm "
+              "with the directory; until then an empty read is a misread", file=sys.stderr)
+        violations += 1
+    print(f"check-docs-cited-paths[production]: {len(actual)} file(s), manifest names "
+          f"{len(manifest)}, {len(born)} born, {len(gone)} gone")
+    return violations
 
 
 def tracked_paths() -> set[str] | None:
