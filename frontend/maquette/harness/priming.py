@@ -129,7 +129,7 @@ async def cold_load(browser, address, thin):
     await page.evaluate("()=>document.querySelector('#toastx')?.click()")
     waited = 0
     while waited < MOUNT_DEADLINE_MILLISECONDS:
-        if await page.evaluate("()=>!!document.querySelector('[data-part=\"screen\"][data-open]')"):
+        if await page.evaluate("""()=>!!document.querySelector('[data-part="screen"][data-open]')"""):
             break
         await page.wait_for_timeout(50)
         waited += 50

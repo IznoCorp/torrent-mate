@@ -43,11 +43,14 @@ export const emptyNote = cva(
 
 /**
  * One line of a skeleton, standing where a sentence will go while its read is
- * in flight. The shimmer is the residue's `sk`, with its reduced-motion guard,
- * as every skeleton here wears it; the box — a text line's height, a width
- * that says roughly how long the sentence will be — is the variant's.
+ * in flight. The BOX is the variant's — a text line's height, a width that says
+ * roughly how long the sentence will be. The shimmer is the residue's `sk`,
+ * with its reduced-motion guard, worn as a literal class beside this exactly
+ * as `Skeletons` wears `sk tile`: the anchor is deliberately NOT in this
+ * string, because a variant wearing a residue anchor owes the residue's every
+ * term (R80), and the shimmer moves here the day the residue dies.
  */
-export const skeletonLine = cva("sk block h-4 rounded-2", {
+export const skeletonLine = cva("block h-4 rounded-2", {
   variants: {
     width: { full: "w-full", wide: "w-4/5", half: "w-1/2", short: "w-1/3" },
   },

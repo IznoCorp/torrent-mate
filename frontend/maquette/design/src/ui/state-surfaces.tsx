@@ -70,7 +70,7 @@ export function SkeletonLine({
   /** Roughly how long the sentence will be. */
   width?: "full" | "wide" | "half" | "short";
 }): ReactElement {
-  return <span className={skeletonLine({ width })} data-skeleton="" aria-hidden="true" />;
+  return <span className={`sk ${skeletonLine({ width })}`} data-skeleton="" aria-hidden="true" />;
 }
 
 /**
