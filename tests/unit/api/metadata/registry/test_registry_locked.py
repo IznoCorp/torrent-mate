@@ -32,8 +32,8 @@ from .conftest import FakeMultiCapability, FakeSearchable
 def test_locked_match_provider_path(build_registry: object) -> None:
     """If match's provider already implements the capability, ``locked()`` returns it directly.
 
-    Design: docs/reference/architecture.md#three-operations
-    Design: docs/reference/scraping.md#three-semantics-provider-registry
+    Design: docs/production/architecture.md#three-operations
+    Design: docs/production/scraping.md#three-semantics-provider-registry
     Contract: locked operation respects capability boundaries, validating the three operation modes.
     """
     multi = FakeMultiCapability(provider_name="multi", circuit_state=CircuitState.CLOSED)

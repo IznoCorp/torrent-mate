@@ -1,6 +1,6 @@
 """AST-based layering guard: core/ and conf/ must not import upward (arch-cleanup-2 Phase 2).
 
-Enforces the architecture invariant from docs/reference/architecture.md:
+Enforces the architecture invariant from docs/production/architecture.md:
 core/ and conf/ are the lowest layers and must not import from api/, scraper/,
 pipeline/, dispatch/, verify/, library/, indexer/, or trailers/.
 

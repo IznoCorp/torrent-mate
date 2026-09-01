@@ -599,7 +599,7 @@ class TestDecisionWriterResolve:
     def test_resolve_sets_status_and_resolution_json(self, tmp_path: Path) -> None:
         """After ``resolve()`` the row has status resolved and resolution_json populated.
 
-        Design: docs/reference/indexer-json-shapes.md#scrape_decisionresolution_json
+        Design: docs/production/indexer-json-shapes.md#scrape_decisionresolution_json
         Contract: Calling resolve() on a pending decision row sets status to
         'resolved', populates resolution_json with a dict containing provider,
         provider_id, and via, and sets resolved_at to a positive epoch timestamp.

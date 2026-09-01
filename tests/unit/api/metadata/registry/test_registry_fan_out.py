@@ -97,8 +97,8 @@ def test_fan_out_empty_when_all_capability_filtered(build_registry: object) -> N
 def test_fan_out_wrong_semantic_raises(build_registry: object) -> None:
     """``fan_out(Searchable)`` must raise ``WrongSemanticBug`` (Searchable is chain, not fan_out).
 
-    Design: docs/reference/architecture.md#three-operations
-    Design: docs/reference/scraping.md#three-semantics-provider-registry
+    Design: docs/production/architecture.md#three-operations
+    Design: docs/production/scraping.md#three-semantics-provider-registry
     Contract: fan_out with wrong semantic raises WrongSemanticBug, validating the three operation modes.
     """
     fakes = {"x": FakeSearchable(provider_name="x")}

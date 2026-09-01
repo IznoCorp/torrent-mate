@@ -11,7 +11,7 @@ from personalscraper.core.app_context import AppContext
 def test_torrent_client_field_exists() -> None:
     """AppContext declares a torrent_client field.
 
-    Design: docs/reference/architecture.md#appcontext-field-table
+    Design: docs/production/architecture.md#appcontext-field-table
     Contract: AppContext exposes a torrent_client field (typed
     QBitClient | TransmissionClient | None) alongside config, settings,
     event_bus and provider_registry, per the documented field table.

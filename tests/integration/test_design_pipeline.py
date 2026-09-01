@@ -1,6 +1,6 @@
 """Design-contract tests for pipeline-wide invariants (codename: ``pipeline``).
 
-Pin points for ``docs/reference/pipeline-internals.md``.
+Pin points for ``docs/production/pipeline-internals.md``.
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ class TestScrapeFastSkipContract:
     def test_complete_nfo_short_circuits_scrape_step(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         """run_scrape returns without contacting any provider when nothing needs work.
 
-        Design: docs/reference/pipeline-internals.md#scrape-fast-skip
+        Design: docs/production/pipeline-internals.md#scrape-fast-skip
         Contract: When every staged item already has a complete NFO and
         all required artwork, the scrape step's fast-skip path returns
         an empty StepReport without instantiating the Scraper, so no
@@ -117,7 +117,7 @@ class TestCleanFastSkipContract:
     ) -> None:
         """Reclean is skipped when no release-group tokens remain in folder names.
 
-        Design: docs/reference/pipeline-internals.md#clean-fast-skip
+        Design: docs/production/pipeline-internals.md#clean-fast-skip
         Contract: When ``_has_polluted_folders()`` returns False for both
         movies and TV-shows staging dirs, the reclean sub-step is skipped
         (no reclean_folders calls), and dedup runs alone. The clean step
@@ -157,7 +157,7 @@ class TestCleanFastSkipContract:
     def test_clean_runs_reclean_when_junk_detected(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         """Reclean runs when polluted folder names are found.
 
-        Design: docs/reference/pipeline-internals.md#clean-fast-skip
+        Design: docs/production/pipeline-internals.md#clean-fast-skip
         Contract: When ``_has_polluted_folders()`` returns True (a folder
         name still contains release-group tokens), the clean step does
         NOT skip reclean — it runs reclean_folders which renames the
@@ -205,7 +205,7 @@ class TestIdempotenceContract:
     def test_scrape_step_idempotent_across_two_runs(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         """Two consecutive scrape runs on unchanged input produce the same result.
 
-        Design: docs/reference/pipeline-internals.md#fast-skip-idempotence
+        Design: docs/production/pipeline-internals.md#fast-skip-idempotence
         Contract: Re-running a pipeline step on already-processed input
         is a no-op — the second run produces the same StepReport (zero
         changes) as the fast-skip of the first run.
@@ -254,7 +254,7 @@ class TestStepContracts:
     def test_all_default_steps_accept_step_context(self) -> None:
         """Every step in DEFAULT_STEPS can be called with a StepContext.
 
-        Design: docs/reference/pipeline-internals.md#step-contracts
+        Design: docs/production/pipeline-internals.md#step-contracts
         Contract: Each of the 9 pipeline steps registered in
         ``DEFAULT_STEPS`` implements the ``PipelineStep`` protocol —
         accepting a ``StepContext`` and returning a result. The 9 keys
@@ -287,7 +287,7 @@ class TestStepContracts:
     def test_step_names_match_documented_pipeline_order(self) -> None:
         """Step execution order matches the documented 9-step sequence.
 
-        Design: docs/reference/architecture.md#workflow-pipeline
+        Design: docs/production/architecture.md#workflow-pipeline
         Contract: The ordered keys of ``DEFAULT_STEPS`` (as iterated by
         the pipeline orchestrator) match the documented sequence:
         INGEST→SORT→CLEAN→SCRAPE→CLEANUP→ENFORCE→VERIFY→TRAILERS→DISPATCH.

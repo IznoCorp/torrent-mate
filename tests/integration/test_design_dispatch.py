@@ -1,7 +1,7 @@
 """Design-contract tests for the dispatch + verify subsystem.
 
-Pin points for ``docs/reference/storage.md`` (codename: ``dispatch``) and
-``docs/reference/pipeline-internals.md`` (codename: ``pipeline``).
+Pin points for ``docs/production/storage.md`` (codename: ``dispatch``) and
+``docs/production/pipeline-internals.md`` (codename: ``pipeline``).
 """
 
 from __future__ import annotations
@@ -52,8 +52,8 @@ class TestMovieReplaceContract:
     def test_replace_swaps_destination_atomically(self, tmp_path: Path) -> None:
         """Movie replace performs a transfer + atomic swap.
 
-        Design: docs/reference/storage.md#move-rules-dispatch
-        Design: docs/reference/pipeline-internals.md#dispatch
+        Design: docs/production/storage.md#move-rules-dispatch
+        Design: docs/production/pipeline-internals.md#dispatch
         Contract: For a movie whose destination folder already exists on
         the target disk, ``replace`` transfers ``source`` into a temporary
         sibling and atomically swaps it for the existing destination.
@@ -78,7 +78,7 @@ class TestMovieReplaceContract:
     def test_replace_rolls_back_when_rsync_transfer_fails(self, tmp_path: Path) -> None:
         """Rsync failure leaves source + destination untouched.
 
-        Design: docs/reference/storage.md#move-rules-dispatch
+        Design: docs/production/storage.md#move-rules-dispatch
         Contract: When Phase 1 (rsync transfer) fails, ``replace`` returns
         ``False`` and rolls back: the original destination keeps its
         content, the source is NOT consumed, and no ``.new.tmp`` /
@@ -113,7 +113,7 @@ class TestMovieReplaceContract:
     def test_replace_restores_original_when_swap_fails_mid_way(self, tmp_path: Path) -> None:
         """Mid-swap failure restores the original destination from backup.
 
-        Design: docs/reference/storage.md#move-rules-dispatch
+        Design: docs/production/storage.md#move-rules-dispatch
         Contract: If Phase 2 fails AFTER the original ``dest`` was
         renamed to ``dest.old.tmp`` but BEFORE ``dest.new.tmp`` was
         renamed to ``dest``, ``replace`` rolls the backup back to
@@ -166,8 +166,8 @@ class TestTvShowMergeContract:
     def test_purge_resolves_episode_conflicts_on_season_episode_key(self, tmp_path: Path) -> None:
         """Existing episode files matching the (season, episode) key are purged.
 
-        Design: docs/reference/storage.md#move-rules-dispatch
-        Design: docs/reference/pipeline-internals.md#dispatch
+        Design: docs/production/storage.md#move-rules-dispatch
+        Design: docs/production/pipeline-internals.md#dispatch
         Contract: TV-show merge keys episode files on the (season,
         episode) tuple, NOT the full filename. When the source carries
         a re-titled re-scrape of the same episode (e.g. EN
@@ -201,7 +201,7 @@ class TestTvShowMergeContract:
     def test_existing_folder_matched_by_provider_id_when_name_differs(self, tmp_path: Path) -> None:
         """A title already on disk under a different folder name is matched by id.
 
-        Design: docs/reference/storage.md#move-rules-dispatch
+        Design: docs/production/storage.md#move-rules-dispatch
         Contract: "already exists" for the merge / replace rule is resolved by
         the canonical provider id, not only the folder name. A show on disk
         under a localized title and wrong year (``Rick et Morty (2006)``, TVDB
@@ -252,7 +252,7 @@ class TestStagingCommitContract:
     def test_move_new_writes_to_tmp_then_atomic_rename(self, tmp_path: Path) -> None:
         """Rsync to ``_tmp_dispatch_{name}``, then atomic ``os.rename``.
 
-        Design: docs/reference/pipeline-internals.md#stagingcommit-pattern
+        Design: docs/production/pipeline-internals.md#stagingcommit-pattern
         Contract: ``_move_new`` rsyncs the source into a temporary directory
         ``_tmp_dispatch_{name}`` alongside the destination parent, then
         atomically renames it to the destination. After a successful call,
@@ -292,7 +292,7 @@ class TestStagingCommitContract:
     def test_move_new_cleans_orphan_tmp_from_previous_crash(self, tmp_path: Path) -> None:
         """Leftover ``_tmp_dispatch_*`` from a previous crash is cleaned first.
 
-        Design: docs/reference/pipeline-internals.md#stagingcommit-pattern
+        Design: docs/production/pipeline-internals.md#stagingcommit-pattern
         Contract: When ``_move_new`` finds an existing
         ``_tmp_dispatch_{name}`` directory before starting the transfer,
         it removes it first (crash residue), then proceeds with the fresh
@@ -329,7 +329,7 @@ class TestStagingCommitContract:
     def test_move_new_rolls_back_tmp_when_rsync_fails(self, tmp_path: Path) -> None:
         """Failed rsync leaves no tmp residue and preserves the source.
 
-        Design: docs/reference/pipeline-internals.md#stagingcommit-pattern
+        Design: docs/production/pipeline-internals.md#stagingcommit-pattern
         Contract: If rsync to the tmp staging directory fails,
         ``_move_new`` removes the incomplete tmp directory, leaves the
         source intact, and returns ``False``. The disk is left in a
@@ -363,8 +363,8 @@ class TestNewMediaDiskSelectionContract:
     def test_pick_disk_for_returns_most_free_eligible(self, tmp_path: Path) -> None:
         """New media targets the eligible disk with the most free space.
 
-        Design: docs/reference/storage.md#move-rules-dispatch
-        Design: docs/reference/pipeline-internals.md#disk-selection
+        Design: docs/production/storage.md#move-rules-dispatch
+        Design: docs/production/pipeline-internals.md#disk-selection
         Contract: For a media item whose folder does not already exist
         on any storage disk, dispatch resolves the target via
         ``pick_disk_for`` which (a) filters disks accepting the
@@ -415,8 +415,8 @@ class TestNewMediaDiskSelectionContract:
     def test_pick_disk_for_returns_none_when_no_disk_eligible(self, tmp_path: Path) -> None:
         """No eligible disk → ``None``; caller skips the dispatch.
 
-        Design: docs/reference/storage.md#move-rules-dispatch
-        Design: docs/reference/pipeline-internals.md#disk-selection
+        Design: docs/production/storage.md#move-rules-dispatch
+        Design: docs/production/pipeline-internals.md#disk-selection
         Contract: When no disk has enough free space (or none accept
         the category), ``pick_disk_for`` returns ``None`` and the
         dispatch step records a ``skipped`` outcome rather than picking

@@ -26,8 +26,8 @@ from .conftest import FakeSearchable
 def test_chain_ordering_is_stable_across_calls(build_registry: object) -> None:
     """``chain()`` must return the same order across repeated calls (DESIGN §5.2).
 
-    Design: docs/reference/architecture.md#provider-registry
-    Design: docs/reference/architecture.md#module-layout
+    Design: docs/production/architecture.md#provider-registry
+    Design: docs/production/architecture.md#module-layout
     Contract: provider registry chain ordering is stable across calls and reflects module layout.
     """
     fakes = {
@@ -83,8 +83,8 @@ def test_chain_includes_half_open_providers(build_registry: object) -> None:
 def test_chain_wrong_semantic_raises(build_registry: object) -> None:
     """``chain(RatingProvider)`` must raise ``WrongSemanticBug`` (RatingProvider is fan_out).
 
-    Design: docs/reference/architecture.md#three-operations
-    Design: docs/reference/scraping.md#three-semantics-provider-registry
+    Design: docs/production/architecture.md#three-operations
+    Design: docs/production/scraping.md#three-semantics-provider-registry
     Contract: chain with wrong semantic raises WrongSemanticBug, validating the three operation modes.
     """
     fakes = {"x": FakeSearchable(provider_name="x")}

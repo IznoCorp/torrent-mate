@@ -59,7 +59,7 @@ def test_rich_repr_masks_secrets(monkeypatch):
 def test_repr_masks_secret_fields(monkeypatch):
     """``__repr__`` masks secret fields to prevent accidental traceback leaks.
 
-    Design: docs/reference/architecture.md#directory-structure
+    Design: docs/production/architecture.md#directory-structure
     Contract: ``repr(Settings(...))`` renders secret fields as
     ``<masked>`` while non-secret fields appear with their actual
     values. This is the minimal safety net — even where rich is not

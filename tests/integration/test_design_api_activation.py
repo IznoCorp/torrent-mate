@@ -25,7 +25,7 @@ class TestProviderActivationContract:
     def test_enabled_with_creds_is_active(self) -> None:
         """Provider listed only when ``enabled=True`` AND env carries the key.
 
-        Design: docs/archive/features/api-unify/DESIGN.md#87-api_activationpy--provider-activation
+        Design: docs/production/api-unify-design.md#87-api_activationpy--provider-activation
         Contract: ``resolve_active`` returns the codenames of providers that
         are both ``enabled=True`` in config AND have their required
         environment credentials set. Other providers are silently dropped.
@@ -40,7 +40,7 @@ class TestProviderActivationContract:
     def test_enabled_missing_creds_emits_warning(self, caplog: pytest.LogCaptureFixture) -> None:
         """Missing creds drop the provider and log a WARNING.
 
-        Design: docs/archive/features/api-unify/DESIGN.md#87-api_activationpy--provider-activation
+        Design: docs/production/api-unify-design.md#87-api_activationpy--provider-activation
         Contract: ``enabled=True`` plus missing env credentials excludes the
         provider from the active list and emits a single WARNING log so the
         operator notices the misconfiguration on startup.

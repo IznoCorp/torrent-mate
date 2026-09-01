@@ -1,7 +1,7 @@
 """Design-contract tests for the media indexer (codename: ``indexer``).
 
-Pin points for ``docs/reference/indexer.md`` — schema versioning contract —
-and ``docs/reference/indexer-json-shapes.md`` — JSON column shape invariants.
+Pin points for ``docs/production/indexer.md`` — schema versioning contract —
+and ``docs/production/indexer-json-shapes.md`` — JSON column shape invariants.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ class TestIndexerSchemaContract:
     def test_each_migration_registers_in_schema_version_table(self, tmp_path: Path) -> None:
         """Every migration inserts a row into the ``schema_version`` audit table.
 
-        Design: docs/reference/indexer.md#schema-overview
+        Design: docs/production/indexer.md#schema-overview
         Contract: Each migration script that bumps ``PRAGMA user_version``
         must also insert a row into the ``schema_version`` table so
         ``library-status`` and downgrade tooling can reason about the
@@ -54,7 +54,7 @@ class TestArtworkInventoryShapeContract:
     def test_artwork_inventory_defaults_all_false_and_rejects_unknown_keys(self) -> None:
         """ArtworkInventory has 8 boolean fields defaulting to False; extras forbidden.
 
-        Design: docs/reference/indexer-json-shapes.md#media_itemartwork_json
+        Design: docs/production/indexer-json-shapes.md#media_itemartwork_json
         Contract: Per the documented schema, a freshly-indexed item is
         written with every artwork flag at False (the model can be
         instantiated with no arguments). The schema is closed
@@ -82,7 +82,7 @@ class TestOutboxPayloadShapeContract:
     def test_outbox_payload_envelope_requires_op_and_allows_per_op_extras(self) -> None:
         """OutboxPayload pins ``op`` as required and tolerates op-specific keys.
 
-        Design: docs/reference/indexer-json-shapes.md#index_outboxpayload_json
+        Design: docs/production/indexer-json-shapes.md#index_outboxpayload_json
         Contract: The payload-envelope model documents ``op`` as the
         required discriminator (parent row's ``op`` column must match)
         with optional ``source_path`` / ``dest_path`` / ``item_id``
@@ -116,7 +116,7 @@ class TestScanStatsShapeContract:
     def test_scan_stats_defaults_zero_and_forbids_unknown_keys(self) -> None:
         """ScanStats counters default to 0 and the schema is closed.
 
-        Design: docs/reference/indexer-json-shapes.md#scan_runstats_json
+        Design: docs/production/indexer-json-shapes.md#scan_runstats_json
         Contract: A scan run that completes without surfacing any
         items can persist ``ScanStats()`` directly — every counter
         defaults to 0 and ``budget_exhausted`` to False. The schema is

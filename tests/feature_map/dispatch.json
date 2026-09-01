@@ -1,6 +1,6 @@
 {
   "feature": "dispatch",
-  "design": "docs/reference/storage.md",
+  "design": "docs/production/storage.md",
   "sections": {
     "move-rules-dispatch": {
       "tests": [

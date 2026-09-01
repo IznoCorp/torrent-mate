@@ -22,7 +22,7 @@ from .conftest import FakeSearchable
 def test_get_known_name_returns_provider(build_registry: object) -> None:
     """``get('tmdb')`` returns the TMDB provider instance.
 
-    Design: docs/reference/architecture.md#provider-registry
+    Design: docs/production/architecture.md#provider-registry
     Contract: provider registry get() resolves known names to provider instances.
     """
     fakes = {"tmdb": FakeSearchable(provider_name="tmdb")}

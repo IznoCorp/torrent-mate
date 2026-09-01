@@ -54,7 +54,7 @@ class TestPolicyContract:
     def test_policy_is_frozen(self) -> None:
         """``TransportPolicy`` is frozen — mutation must raise.
 
-        Design: docs/archive/features/api-unify/DESIGN.md#33-apitransport_policypy--transport-contract
+        Design: docs/production/api-unify-design.md#33-apitransport_policypy--transport-contract
         Contract: ``TransportPolicy`` is immutable. Reassigning any field
         on an existing instance raises ``FrozenInstanceError`` so accidental
         in-flight mutation cannot drift a long-lived transport's behavior.
@@ -71,7 +71,7 @@ class TestAuthContract:
     def test_api_key_auth_attaches_key_to_query(self) -> None:
         """``ApiKeyAuth(location='query')`` adds the key to every request URL.
 
-        Design: docs/archive/features/api-unify/DESIGN.md#34-apitransport_authpy
+        Design: docs/production/api-unify-design.md#34-apitransport_authpy
         Contract: When the policy carries ``ApiKeyAuth(location='query')``,
         every outbound request URL contains the configured key as a query
         parameter — observable on the recorded request.
@@ -93,7 +93,7 @@ class TestCircuitBreakerContract:
     def test_circuit_opens_after_threshold_final_failures(self) -> None:
         """Circuit transitions to OPEN after ``failure_threshold`` final failures.
 
-        Design: docs/archive/features/api-unify/DESIGN.md#35-corecircuitpy
+        Design: docs/production/api-unify-design.md#35-corecircuitpy
         Contract: After ``CircuitPolicy.failure_threshold`` final (post-retry)
         failures the circuit transitions from CLOSED to OPEN. Requests issued
         within the cooldown window short-circuit with ``CircuitOpenError``
@@ -128,7 +128,7 @@ class TestHttpTransportContract:
     def test_get_retries_until_success(self) -> None:
         """``GET`` retries on transient 5xx until success.
 
-        Design: docs/archive/features/api-unify/DESIGN.md#37-apitransport_httppy--httptransport
+        Design: docs/production/api-unify-design.md#37-apitransport_httppy--httptransport
         Contract: HttpTransport.get() honours the policy's retry budget for
         idempotent verbs. After two 503 responses followed by a 200 response,
         the call returns the success body and three HTTP requests are

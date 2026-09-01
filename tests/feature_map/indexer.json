@@ -1,6 +1,6 @@
 {
   "feature": "indexer",
-  "design": "docs/reference/indexer.md",
+  "design": "docs/production/indexer.md",
   "sections": {
     "schema-overview": {
       "tests": [
