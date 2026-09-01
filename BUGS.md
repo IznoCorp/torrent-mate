@@ -641,10 +641,20 @@ reader needs to know which way each instrument can still be wrong.
   by sampling every step and choosing both readings by the moment each one landed, **stamped in the
   PAGE**: a stamp taken in Python before the call is the moment the round trip BEGAN, so every
   reading executes later than the moment recorded against it, by one CDP hop. Both boundaries carry
-  a 20 ms margin now, where the settle had none and the arming window had 40. **Which way it can
-  still be wrong**: a reading whose page moment falls within 20 ms of a boundary is discarded, so a
-  settle moved to within a frame of the sampling cadence would leave nothing to classify — the
-  « was the arming window sampled at all » hold beside it exists to refuse that silently passing.
+  a 20 ms margin now, where the settle had none and the arming window had 40.
+
+  **AND THE CADENCE STOPPED BEING A BET.** The first repair sampled a fixed number of times at a
+  fixed interval, which is a wager on how fast the machine is — and it lost twice, both times in a
+  post-merge recording run that launches eight rules at once: at a flat 50 ms cadence no reading
+  landed inside the 120 ms settle, and a denser opening then put none inside the arming window
+  instead. Neither was a defect in the page, and the first of them was reported as « the mark is
+  placed on `pointerdown` after all », which is a different finding entirely. It samples every
+  16 ms until the gesture's OWN clock passes the press delay, so both windows are covered at
+  whatever speed the machine runs; and each window's precondition is its own hold, so an empty one
+  says so rather than accusing the code. **Which way it can still be wrong**: a reading whose page
+  moment falls within 20 ms of a boundary is discarded, so a settle moved to within a frame of the
+  sampling interval would leave nothing to classify — which the two precondition holds report as
+  themselves.
 - **R118's mid-flight capture.** A screenshot is not instantaneous and can outlast the 450 ms
   crossing on a loaded runner, so the flight flag read true before the capture and false after.
   Repaired by retrying rather than by dropping the second read — a sample taken after the end is
