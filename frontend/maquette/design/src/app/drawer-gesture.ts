@@ -92,9 +92,9 @@ type Drag = { x: number; dx: number };
  * an inline transition and an inline transform, both removed when the gesture
  * ends.
  */
-export function installDrawerDismissGesture(): void {
+export function installDrawerDismissGesture(): () => void {
   const drawer = document.querySelector<HTMLElement>("#drawer");
-  if (!drawer) return;
+  if (!drawer) return () => undefined;
 
   let drag: Drag | null = null;
 
@@ -169,18 +169,36 @@ export function installDrawerDismissGesture(): void {
   }
 
   // THE FINGER. Passive, like the engine's own page gestures.
+  // ONE CONTROLLER FOR EVERY LISTENER, AND THE INSTALLER HANDS BACK ITS ABORT.
+  //
+  // This returned `void` and the effect that calls it had no cleanup, so under
+  // `React.StrictMode` — which is on, `shell.tsx` — the effect ran TWICE and
+  // installed the gesture twice. Two independent `drag` states, so one dismiss
+  // called `window.__closeLayers()` twice and acknowledged itself twice.
+  //
+  // ⚠ AND IT IS NOT WHAT EXPLAINS B-278. The double `data-feedback` mark that
+  // led here SURVIVED this cleanup, measured — so StrictMode's double-invoke is
+  // ruled out as its cause and the entry stays open. This disposer is kept on
+  // its own merits, which are enough: an effect that installs listeners and
+  // returns nothing leaks a set on every remount, whatever else is true.
+  //
+  // The accumulation is the durable half: every mount of the drawer added a set
+  // of listeners that nothing removed.
+  const listeners = new AbortController();
+  const attached = { passive: true, signal: listeners.signal };
+
   drawer.addEventListener("touchstart", (event: TouchEvent) => {
     // Two fingers are not this gesture, and reading the first of them would
     // make a pinch look like a swipe.
     if (event.touches.length !== 1) { end(true); return; }
     begin(event.touches[0].clientX);
-  }, { passive: true });
+  }, attached);
   drawer.addEventListener("touchmove", (event: TouchEvent) => {
     if (event.touches.length !== 1) return;
     advance(event.touches[0].clientX);
-  }, { passive: true });
-  drawer.addEventListener("touchend", () => end(false), { passive: true });
-  drawer.addEventListener("touchcancel", () => end(true), { passive: true });
+  }, attached);
+  drawer.addEventListener("touchend", () => end(false), attached);
+  drawer.addEventListener("touchcancel", () => end(true), attached);
 
   // EVERYTHING ELSE. A mouse and a pen are never cancelled by a compositor
   // deciding it wants to scroll, so the pointer path serves them unchanged —
@@ -194,17 +212,19 @@ export function installDrawerDismissGesture(): void {
     if (event.button !== 0) return;
     begin(event.clientX);
     if (drag) drawer.setPointerCapture(event.pointerId);
-  });
+  }, attached);
   drawer.addEventListener("pointermove", (event: PointerEvent) => {
     if (event.pointerType === "touch") return;
     advance(event.clientX);
-  });
+  }, attached);
   drawer.addEventListener("pointerup", (event: PointerEvent) => {
     if (event.pointerType === "touch") return;
     end(false);
-  });
+  }, attached);
   drawer.addEventListener("pointercancel", (event: PointerEvent) => {
     if (event.pointerType === "touch") return;
     end(true);
-  });
+  }, attached);
+
+  return () => listeners.abort();
 }
