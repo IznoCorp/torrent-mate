@@ -4,6 +4,7 @@
 // module is what a producer's `open` runs through, so the thing it writes is
 // the thing the boot handed it, and no reader has to work out which of the two
 // doors was meant.
+import { installArtworkArrival } from "./artwork-arrival";
 import { flushSync } from "react-dom";
 import { refuseBlock, type PanelDescriptor } from "../ui/panel/contract";
 import { addressOf, isScreenPath, withPanel } from "../lib/addresses";
@@ -88,10 +89,28 @@ function openPanelOnCurrentEntry(open: () => void): void {
  *     store: The single owner of the mutable state.
  */
 export function installPanelHost(store: Store): void {
+  // INSTALLED FROM HERE FOR THE REASON THE CARRIED POSTER WAS: `app/shell.tsx`
+  // stands at 398 of a 400-line hard ceiling and an import plus a call would put
+  // it AT it. This is the nearest installer that boots once and is not L14's.
+  installArtworkArrival();
 function openPanel(descriptor: PanelDescriptor): void {
   // Same order as the legacy `openSheet`: the layer first, the history entry
   // second. This file is SHELL code — the seam itself — so it writes the store
   // directly rather than through data.ts's `writeUiState` component door.
+  // THE PANEL OPENS BY ITS OWN SLIDE, and the view transition that briefly
+  // wrapped this is GONE (operator, 2026-08-31). It existed to carry the
+  // poster from the tile into the panel; the operator watched the real
+  // slow-motion and withdrew the gesture — « la transition poster entre liste
+  // et panneau n'est vraiment pas fluide du tout, elle est même très
+  // dérangeante ». What replaced it is drawn and named: the panel keeps the
+  // slide its own stylesheet gives it on the way IN, and on the way OUT — when
+  // « Voir la fiche » leaves it for the media screen — it is captured leaving
+  // by the navigation's own transition, under the name `leaving-panel`. Nothing
+  // is wrapped HERE, and that is still the decision.
+  //
+  // Wrapping the opening WITHOUT the carry would have been worse than nothing:
+  // the sheet already slides up in its own stylesheet, and a view transition
+  // over it is the same two-systems-one-element defect the hero paid for.
   flushSync(() =>
     store.write({ panelDescriptor: descriptor, panelOpen: true }),
   );

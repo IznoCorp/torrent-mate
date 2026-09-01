@@ -176,3 +176,58 @@ def test_every_path_is_named_by_the_filter_that_gates_the_job(guard):
         "A pull request touching only those runs this guard in NO job, however "
         "many other filters name them (B-244)."
     )
+
+
+def jobs_invoking(guard: str) -> list[tuple[str, list[str]]]:
+    """The jobs whose steps actually run a guard, with what gates them.
+
+    `make check` is NOT one of them: CI never runs that target — it splits into
+    `lint`, `test` and `guards`, so a guard being in the Makefile says nothing
+    about any job running it. This reads the workflow's own `run:` text.
+
+    Args:
+        guard: One `scripts/…py`.
+
+    Returns:
+        `[(job key, [gating filter names])]`, plus `harness-contracts` for every
+        guard, because that job runs the whole contracts tier through `run.sh`
+        rather than naming its members.
+    """
+    workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+    found = []
+    for key, job in workflow["jobs"].items():
+        body = " ".join(str(step.get("run", "")) for step in job.get("steps", []))
+        if re.search(re.escape(guard) + r"\b", body):
+            gates = set()
+            for step in job.get("steps", []):
+                gates.update(re.findall(r"needs\.changes\.outputs\.(\w+)", str(step.get("if", ""))))
+            found.append((key, sorted(gates)))
+    found.append(("harness-contracts", [gating_filter("harness-contracts")]))
+    return found
+
+
+@pytest.mark.parametrize("guard", contract_guards())
+def test_the_guards_own_file_is_named_by_a_filter_that_gates_a_job_running_it(guard):
+    """A guard whose OWN file no filter names is not run when it is repaired.
+
+    THE THIRD QUESTION, and nothing had asked it. The two holds above are about
+    a guard's SUBJECT — the files it reads. This one is about the guard itself.
+    Twelve of the twenty-two the contracts tier runs are invoked in no other
+    job, so `harness-contracts` is their only home; it gates every step on
+    `maquette`, and the glob that names `scripts/` belongs to `python`, whose
+    jobs do not run them. A pull request editing nothing but one of those
+    guards — which is the shape a repair to a guard takes — ran it in no job at
+    all, and both holds above stayed green because both were reading its
+    subject.
+
+    Args:
+        guard: One `scripts/…py` from the contracts tier.
+    """
+    homes = jobs_invoking(guard)
+    reachable = [key for key, gates in homes if not gates or covered(guard, filters()[gates[0]])]
+    assert reachable, (
+        f"{guard} is run by {[key for key, _ in homes]}, and not one of those "
+        f"jobs is either ungated or gated on a filter naming {guard} itself. A "
+        "pull request that edits only this guard runs it NOWHERE — the shape "
+        "every repair to a guard takes."
+    )

@@ -13,6 +13,7 @@ when it takes ownership, the fragment stops writing there for a page it no
 longer owns, and handing back needs nothing because the fragment's own write
 removes what React left.
 """
+import ast
 import asyncio
 import pathlib
 import re
@@ -795,6 +796,48 @@ async def main():
         # comments dropped, quotes and backslashes removed (a driver is a STRING
         # here, split at the author's convenience), whitespace collapsed.
         scripts = sorted(pathlib.Path(__file__).resolve().parent.glob("*.py"))
+
+        def without_docstrings(source):
+            """Blanks DOCSTRINGS only, leaving driver strings intact.
+
+            The flattening below removes quote characters on purpose — a driver
+            is a string here, split at the author's convenience — and that turns
+            English prose into something that reads like code. A docstring
+            ending « ... the pressed state. » immediately before `errors = []`
+            flattens to `state. errors =` and matches the first shape exactly.
+            Measured: it did, on a rule that mutates nothing at all.
+
+            Driver strings may NOT be blanked with them, because a rule that
+            really drove `state.page = 1` would do it inside one. `ast` is what
+            tells the two apart — a docstring is the first statement of a
+            module, class or function, and nothing else is.
+
+            Args:
+                source: A rule script's text.
+
+            Returns:
+                The same text with docstring bodies replaced by blanks, so line
+                numbers and every other string survive.
+            """
+            try:
+                tree = ast.parse(source)
+            except SyntaxError:
+                return source
+            lines = source.split("\n")
+            for node in ast.walk(tree):
+                if not isinstance(node, (ast.Module, ast.ClassDef,
+                                         ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                body = getattr(node, "body", None)
+                if not body or not isinstance(body[0], ast.Expr):
+                    continue
+                literal = body[0].value
+                if not isinstance(literal, ast.Constant) or not isinstance(
+                        literal.value, str):
+                    continue
+                for index in range(literal.lineno - 1, literal.end_lineno):
+                    lines[index] = ""
+            return "\n".join(lines)
         shapes = (
             r"(?<![.\w])state\s*\.\s*\w+\s*(?:\+|-|\*|\?\?|\|\|)?=(?!=)",
             r"(?<![.\w])state\s*\[[^\]]*\]\s*=(?!=)",
@@ -802,9 +845,9 @@ async def main():
         )
         writers = []
         for script in scripts:
-            source = "\n".join(
+            source = without_docstrings("\n".join(
                 line for line in script.read_text(encoding="utf-8").split("\n")
-                if not line.lstrip().startswith("#"))
+                if not line.lstrip().startswith("#")))
             flat = re.sub(r"\s+", " ", re.sub(r"[\"'\\]", "", source))
             hit = [shape for shape in shapes if re.search(shape, flat)]
             if hit:

@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Refuses `maximum-scale` and `user-scalable=no` anywhere in the maquette.
+"""Holds the viewport: the two directives refused, the one required, and the unit.
+
+THE SUBJECT IS THE VIEWPORT, not one directive, and it widened twice. It began
+as « refuses `maximum-scale` and `user-scalable=no` »; L12 added the directive
+that is REQUIRED (`interactive-widget=resizes-content`, P17/B-234) and the
+viewport UNIT the frame is sized in (`100dvh`, never `100vh`, P11). All three
+are the same question — does this interface describe the viewport a phone
+actually has — and splitting them across three files would have put the
+answer in three places, which is how one of them goes stale unnoticed.
 
 WHY A GUARD AND NOT THE ACCESSIBILITY TIER. `axe` reports `meta-viewport` when
 the directive is PRESENT on the document it audits, and B-230 was never present
@@ -69,6 +77,93 @@ ALLOWED = {Path(__file__).resolve()}
 # deletion does not trip it and high enough that a broken glob does.
 CORPUS_FLOOR = 50
 
+# P17 / B-234 — THE POSITIVE HALF. The two directives above are refused; this
+# one is REQUIRED, and it is required of EVERY viewport meta rather than of one
+# document.
+#
+# Without it a phone shrinks the VIEWPORT when the virtual keyboard opens, so a
+# frame sized to the viewport is re-laid out under the finger while a field is
+# focused: the layout jumps, and anything anchored to the bottom edge lands
+# behind the keyboard. `resizes-content` leaves the viewport alone and resizes
+# the content instead, which is what a native application does.
+#
+# WHY EVERY META AND NOT `index.html` ALONE, and this is B-230's lesson read
+# forwards rather than backwards. That defect WAS a host with a different meta
+# from the prototype's, and the tier that should have caught it could not,
+# because it audits one document at a time. Fixing the prototype and leaving
+# five hosts on the old spelling would make P17 half-true in a way no single
+# file reveals — and the host that matters most is the SIGN-IN page, which is
+# the one surface here that is nothing but a focused field.
+REQUIRED = (
+    "interactive-widget=resizes-content",
+    re.compile(r"interactive\s*-\s*widget\s*=\s*resizes-content", re.IGNORECASE),
+)
+
+# A viewport meta, wherever it is written — in markup or in a Python host's
+# string. Anything matching this must satisfy REQUIRED.
+VIEWPORT_META = re.compile(r"""name\s*=\s*["']viewport["']""", re.IGNORECASE)
+
+# How far past the meta's own position to look for the directive. The metas in
+# this tree are written on one line in the hosts and across four in the
+# prototype's markup, so a window rather than a line.
+META_WINDOW = 400
+
+# Six metas exist today — one in the prototype's markup, four in `serve.py`,
+# one in `installable.py`. The floor refuses a reader that has stopped
+# finding them: zero metas found would otherwise satisfy the arm above
+# vacuously, which is B-085's shape written into a brand-new rule.
+META_FLOOR = 6
+
+# P11 — THE UNIT THE FRAME IS SIZED IN.
+#
+# `100vh` is the LARGE viewport by definition: the height the page has when the
+# browser's own bars are retracted. A frame sized in it is taller than the space
+# it actually has whenever a toolbar is showing, so the last row of a list sits
+# underneath one. `100dvh` is the same number when nothing overlays and the
+# right one when something does.
+#
+# `height: 100%` on the root has the same defect for the same reason — it
+# resolves against the initial containing block, which is the large viewport —
+# but it is not refused here: `100%` is a legitimate value everywhere else in a
+# stylesheet, and a rule refusing it would refuse hundreds of correct uses to
+# reach one. What is held instead is the POSITIVE: the frame declares `100dvh`,
+# and if that declaration is ever removed this arm falls.
+# `lvh` IS THE SAME DEFECT UNDER ANOTHER NAME, and `h-screen` is `100vh` spelled
+# as a utility. The first version read `\b\d+vh\b` over `.css` files alone, so
+# `100lvh` — which is `vh` renamed by the spec, the large viewport, exactly the
+# height this refuses — passed, and a `h-screen` in a `variants.ts` was outside
+# the corpus entirely. Neither is in the tree today; a guard that only refuses
+# the spelling somebody happened to use is a guard for one spelling.
+FORBIDDEN_UNIT = re.compile(
+    r"\b\d+(?:vh|lvh)\b"                       # a length, either spelling
+    r"|\bh-screen\b"                            # Tailwind's name for 100vh
+    r"|\b(?:min-|max-)?h-(?:vh|lvh)\b")          # and its bare unit utilities
+DYNAMIC_UNIT = re.compile(r"\b100dvh\b")
+
+# `styles/harness.css` is the phone frame the oracle measures INSIDE. It is in
+# the maquette's own build and in no production build, so its `100svh` is the
+# apparatus and not the product — the same exemption the compositor guard makes
+# for the same file, and for the same reason: an instrument may not satisfy, or
+# violate, a property of the thing it measures.
+UNIT_EXEMPT = {"styles/harness.css"}
+
+# The frame declares it once, in `styles/base.css`. The floor is what makes the
+# arm positive rather than merely absent-of-`vh`.
+DVH_FLOOR = 1
+
+# COMMENTS ARE BLANKED FOR THE UNIT ARM AND READ FOR THE DIRECTIVE ONE, and the
+# asymmetry is deliberate rather than an oversight.
+#
+# A commented-out `maximum-scale` is one uncomment away from being live and
+# nothing else explains it being written down, so the directive arm reads prose
+# on purpose. A `vh` in a comment is almost always the OPPOSITE: a sentence
+# explaining why the unit is refused. This arm caught its own explanation the
+# first time it ran — the note in `base.css` saying « `100vh` is the trap this
+# replaces » — which is exactly the shape the compositor guard paid for, where
+# five of thirteen `touch-action` sites turned out to be prose, two of them the
+# sentence naming that guard.
+CSS_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
+
 
 # `"maximum" + "-scale=1"` is the same directive with a plus sign in the middle,
 # and a reader of raw text sees neither half. Written as the mutation that found
@@ -120,6 +215,8 @@ def main() -> int:
     """
     files = sources()
     violations = 0
+    metas_held = 0
+    dynamic_units = 0
     if len(files) < CORPUS_FLOOR:
         print(
             f"  check-viewport-directives: {len(files)} file(s) read under "
@@ -147,11 +244,80 @@ def main() -> int:
                 "it where it is written into a string a branch may never take.",
                 file=sys.stderr,
             )
+        for meta in VIEWPORT_META.finditer(body):
+            window = body[meta.start():meta.start() + META_WINDOW]
+            if REQUIRED[1].search(window):
+                metas_held += 1
+                continue
+            line = body.count("\n", 0, meta.start()) + 1
+            violations += 1
+            print(
+                f"  {path.relative_to(ROOT)}:{line}: a viewport meta that does "
+                f"not declare « {REQUIRED[0]} » (P17, B-234). Without it the "
+                "virtual keyboard shrinks the VIEWPORT, so a frame sized to it "
+                "is re-laid out while a field is focused and anything anchored "
+                "to the bottom edge lands behind the keyboard. Required of "
+                "EVERY meta, not of one document: B-230 was a HOST whose meta "
+                "differed from the prototype's, and a per-document audit could "
+                "not see it.",
+                file=sys.stderr,
+            )
+        # STYLESHEETS AND THE FILES THAT WRITE CLASSES. A Tailwind utility is a
+        # declaration in another spelling, and `variants.ts` is where this
+        # codebase writes them — reading `.css` alone left the whole typed-variant
+        # layer outside a guard whose subject is a unit.
+        if path.suffix not in (".css", ".ts", ".tsx") or any(
+            str(path).endswith(name) for name in UNIT_EXEMPT
+        ):
+            continue
+        # Blanked rather than removed, so a reported line number still points
+        # at the line the declaration is actually on.
+        code = CSS_COMMENT.sub(lambda m: re.sub(r"[^\n]", " ", m.group(0)), body)
+        dynamic_units += len(DYNAMIC_UNIT.findall(code))
+        for found in FORBIDDEN_UNIT.finditer(code):
+            line = code.count("\n", 0, found.start()) + 1
+            violations += 1
+            print(
+                f"  {path.relative_to(ROOT)}:{line}: sizes in `vh` (P11). That "
+                "is the LARGE viewport — the height the page has with the "
+                "browser's bars retracted — so a frame sized in it is taller "
+                "than the space it has whenever a toolbar shows, and the last "
+                "row of a list sits under one. Use `dvh`.",
+                file=sys.stderr,
+            )
+    # THE FLOORS ARE COUNTED BEFORE THE SUMMARY IS PRINTED, and the ordering is
+    # the whole point. Written the other way round first, both floors fired on
+    # stderr and set the exit code correctly while the summary line — the line a
+    # human and a log actually read — still said « 0 violation(s) ». A guard
+    # whose own report contradicts its verdict is B-085's shape inside a rule
+    # written the same hour, and it was found by mutation rather than by
+    # reading: the mutation removing the sizing looked like a rule that had not
+    # bitten.
+    if metas_held < META_FLOOR:
+        print(
+            f"  only {metas_held} viewport meta(s) found at all, under the "
+            f"floor of {META_FLOOR} — the reader has stopped finding them, "
+            "which is not the same as their being correct.",
+            file=sys.stderr,
+        )
+        violations += 1
+    if dynamic_units < DVH_FLOOR:
+        print(
+            f"  {dynamic_units} `100dvh` declaration(s), under the floor of "
+            f"{DVH_FLOOR} — the frame has stopped declaring the dynamic "
+            "viewport (P11). Refusing `vh` says nothing on its own: a "
+            "stylesheet that sizes in nothing at all passes that half.",
+            file=sys.stderr,
+        )
+        violations += 1
     print(
         f"check-viewport-directives: {len(files)} source file(s) read under "
         f"{MAQUETTE.relative_to(ROOT)} (floor {CORPUS_FLOOR}), {violations} "
         "violation(s) — neither `maximum-scale` nor a `user-scalable` refusal, "
-        "in markup, in script or in a stylesheet"
+        f"in markup, in script or in a stylesheet; and {metas_held} viewport "
+        f"meta(s) declaring « {REQUIRED[0]} » (floor {META_FLOOR}). A positive "
+        "arm that matched NOTHING reads exactly like one that passed, so the "
+        "count is printed and floored rather than left to be inferred."
     )
     return 1 if violations else 0
 

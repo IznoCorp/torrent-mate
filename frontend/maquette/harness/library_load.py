@@ -42,7 +42,28 @@ READ = """()=>{
   return {
     foot: (document.querySelector('#libload')||{}).textContent || '',
     retry: !!document.querySelector('#libretry'),
-    rows: document.querySelectorAll('#libitems [data-part="card"], #libitems [data-part="tile"]').length,
+    // WHAT THE LIST HOLDS, NOT WHAT IT DRAWS — since L12 they are different.
+    // The list is WINDOWED (P24): it renders a window and stands spacers in for
+    // the rest, so counting rendered nodes answers « how many fit on screen »
+    // and no longer « how many have loaded ». Every hold below is about
+    // LOADING, so it reads the count the surface declares.
+    // Rendered nodes are kept beside it, because « the window is not empty » is
+    // still worth knowing and a windowed list drawing NOTHING would otherwise
+    // pass every hold here.
+    rows: Number((document.querySelector('#libitems')||{}).dataset?.virtualised) || 0,
+    drawn: document.querySelectorAll('#libitems [data-part="card"], #libitems [data-part="tile"]').length,
+    // THE WINDOW'S OWN GEOMETRY, which nothing below derives from the cache.
+    // `rows` is the count the surface declares and it is computed from the very
+    // pages the hold sums into `count`: comparing them is data against itself,
+    // and it passed by construction. What the spacers SPAN is produced by the
+    // virtualiser and by nothing else, so it is evidence.
+    lanes: Number((document.querySelector('#libitems')||{}).dataset?.lanes) || 1,
+    spanned: (document.querySelector('#libitems')||{getBoundingClientRect:()=>({height:0})})
+      .getBoundingClientRect().height,
+    lineHeight: (() => {
+      const first = document.querySelector('#libitems [data-part="card"], #libitems [data-part="tile"]');
+      return first ? first.getBoundingClientRect().height : 0;
+    })(),
     count: pages.reduce((held, page) => held + page.items.length, 0),
     err: listing?.state.status === 'error'
          || listing?.state.fetchStatus === 'idle' && !!listing?.state.error,
@@ -73,10 +94,23 @@ async def main():
             str(failed["count"]) in failed["foot"]
             and "restent valides" in failed["foot"],
             f"{failed['count']} shown — {failed['foot'][:110]}")
+        # MEASURED, NOT RE-DERIVED. « rows == count » was two expressions over
+        # ONE array — `data-virtualised` is the prop the page computes from the
+        # same pages this hold sums — so it could only fail by the attribute
+        # being absent. What the window SPANS is the virtualiser's own output:
+        # its spacers stand in for the rows it is not drawing, so a window that
+        # forgot the loaded rows is short by their height.
+        lines = -(-failed["count"] // max(failed["lanes"], 1))
+        expected = (lines - 1) * failed["lineHeight"]
         journal.check(
             "the rows already loaded are STILL THERE under the failure",
-            failed["rows"] == failed["count"],
-            f"{failed['rows']} drawn for {failed['count']} loaded")
+            failed["drawn"] > 0 and failed["lineHeight"] > 0
+            and failed["spanned"] >= expected,
+            f"{failed['drawn']} drawn and the window spans "
+            f"{failed['spanned']:.0f}px for {failed['count']} loaded row(s) over "
+            f"{failed['lanes']} lane(s) — {lines} line(s) of "
+            f"{failed['lineHeight']:.0f}px need at least {expected:.0f}px, so "
+            "the window has dropped what was already loaded")
         journal.check("and it offers to try again", failed["retry"])
 
         # THE ONE CONTROL A COMPONENT OWNS, so the one whose handler nothing
@@ -100,8 +134,9 @@ async def main():
         journal.check(
             "trying again really loads the next page",
             tapped and not after["err"] and after["count"] > failed["count"]
-            and after["rows"] == after["count"],
-            f"{failed['count']} → {after['count']}, {after['rows']} drawn"
+            and after["rows"] == after["count"] and after["drawn"] > 0,
+            f"{failed['count']} → {after['count']}, {after['rows']} held, "
+            f"{after['drawn']} drawn"
             if tapped else "no control carries #libretry")
 
         # ── the end of the sample says it is the end of the SAMPLE ─────────
@@ -137,8 +172,10 @@ async def main():
             f"{ended['carried']} carried — {ended['foot'][:90]}")
         journal.check(
             "which is the number it really has, not the library's own total",
-            ended["carried"] == ended["rows"] and ended["carried"] < ended["total"],
-            f"{ended['carried']} carried, {ended['rows']} drawn, "
+            ended["carried"] == ended["rows"] and ended["carried"] < ended["total"]
+            and ended["drawn"] > 0,
+            f"{ended['carried']} carried, {ended['rows']} held, "
+            f"{ended['drawn']} drawn, "
             f"{ended['total']} claimed by the library")
 
         await browser.close()

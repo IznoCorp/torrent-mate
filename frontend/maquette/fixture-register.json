@@ -233,12 +233,14 @@
     "PRESS_MS": {
       "class": "interface",
       "why": "how long a press must last to be a long press",
-      "seed": null
+      "seed": null,
+      "converted": "L12 phase 3 — the press arbitration is VOCABULARY (invariant 10), so it moved OUT of the engine into `lib/press-arbitration.ts` rather than to a seed, and the constant went with it as `PRESS_MILLISECONDS`. Not `served`: how long a finger must hold is a decision this interface makes, never an answer a server sends"
     },
     "PRESS_TOLERANCE": {
       "class": "interface",
       "why": "how far a finger may travel and still be a press",
-      "seed": null
+      "seed": null,
+      "converted": "L12 phase 3 — moved with the arbitration into `lib/press-arbitration.ts` as `PRESS_TOLERANCE_PIXELS`. R112 measures it under a real mouse, which is the only instrument that can: under touch the compositor cancels the press at the same distances whether or not the tolerance exists"
     },
     "REASON_DETAIL": {
       "class": "interface",

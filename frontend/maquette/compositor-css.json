@@ -1,15 +1,15 @@
 {
   "what": "The declarations the COMPOSITOR reads, and which are therefore load-bearing rather than cosmetic. `scripts/check-compositor-css.py` holds them. This is a RECORD, not a ratchet: the floors only come down through a diff line somebody justifies in review, and every required entry carries the reason it exists.",
   "why": "Deleting one selector from a group once took the whole `user-drag: none` block with it. Native image drag came back and swallowed the pointer stream — one pointerdown, two pointermove, never a pointerup — and three gesture holds failed for a reason that looked nothing like a CSS deletion. L07 converts 530 hand-written rules into utilities, which is precisely the operation that does this again.",
-  "taken_at": "2026-08-24, at the opening of L07, against the stylesheet before a single surface converted. RE-TAKEN 2026-08-25, at the close of L07, for two reasons and both raise the floors rather than lower them: the guard was counting its own PROSE (five of thirteen `touch-action` sites were sentences explaining the guard, so the floor could be met by documentation alone), and it was reading `styles/harness.css` — the instrument, not the product. Comments are stripped and the harness sheet is out; the figures below are the real sites, so a deletion has no slack to hide in.",
+  "taken_at": "2026-08-24, at the opening of L07, against the stylesheet before a single surface converted. RE-TAKEN 2026-08-25, at the close of L07, for two reasons and both raise the floors rather than lower them: the guard was counting its own PROSE (five of thirteen `touch-action` sites were sentences explaining the guard, so the floor could be met by documentation alone), and it was reading `styles/harness.css` — the instrument, not the product. Comments are stripped and the harness sheet is out; the figures below are the real sites, so a deletion has no slack to hide in. RE-TAKEN AGAIN 2026-08-31, during L12, and this time the re-take is a CORRECTION rather than a refinement (B-272). The sentence before this one claimed « the figures below are the real sites, so a deletion has no slack to hide in », and that had stopped being true: measured by raising each floor until it bit, `touch-action` stood at 8 against 11 real sites, `user-drag` at 3 against 4, `user-select` at 4 against 5. THREE `touch-action` SITES COULD HAVE BEEN DELETED UNDER A GREEN GUARD — which is the exact incident this file exists to prevent, sitting inside the instrument written to prevent it. The floors were right when they were taken and drifted as L08 to L11 added surfaces; nobody re-took them, because nothing asked. The figures are now the measured counts, and the measurement is a command rather than a reading: raise a floor until the guard falls, and the last value that passed is the true count.",
   "floors": {
-    "touch-action": 8,
-    "user-select": 4,
-    "user-drag": 3,
+    "touch-action": 11,
+    "user-select": 7,
+    "user-drag": 4,
     "overscroll-behavior": 3,
-    "touch-callout": 2,
+    "touch-callout": 3,
     "will-change": 1,
-    "tap-highlight-color": 0
+    "tap-highlight-color": 1
   },
   "required": [
     {
@@ -46,7 +46,12 @@
       "property": "will-change",
       "value": "transform",
       "why": "Promotes the moving deck card to its own layer, so the drag follows the finger on the compositor rather than at the mercy of the main thread."
+    },
+    {
+      "property": "tap-highlight-color",
+      "value": "transparent",
+      "why": "P25. Chrome paints a grey wash over whatever a tap lands on, which reads as a browser rendering a document rather than as an application answering a finger. Declared ONCE on the root because the property is INHERITED, so one declaration reaches every interactive element and no component has to remember to carry it."
     }
   ],
-  "floors_note": "`tap-highlight-color` is floored at ZERO on purpose, and it is the one entry that holds nothing: the prototype has never declared it. It stays in the watch list because it is compositor-facing and would be load-bearing the day one appears — a property with no floor and no site reads as an oversight, and a property absent from the list cannot be noticed at all."
+  "floors_note": "`tap-highlight-color` was floored at ZERO from 2026-08-24 to 2026-08-31 on purpose — the prototype had never declared it, and it stayed in the watch list because it is compositor-facing and would be load-bearing the day one appeared. **L12 is that day** (P25): it is declared once on the root, the floor is 1, and it carries a `required` entry like any other. The reasoning is kept rather than replaced because it is the argument for watching a property at zero, and the next such property should not have to be argued again. `user-select` rises 5 -> 7 and `touch-callout` 2 -> 3 in the same move. THE FIRST FIGURE WAS WRITTEN AS « 4 -> 5 » AND BOTH ENDS WERE WRONG: 4 was the stale FLOOR rather than a count — the same drift this very re-take exists to correct — and 5 was the count BEFORE the addition, not after. Measured on both sides the way this file says to measure, by raising each floor until it bites: main stands at 5 real sites and this branch at 7. A number in a note nobody re-measures is the shape of the drift being corrected two sentences above, which is why it is measured here rather than reasoned. The reason for the rise is unchanged: P26 declares the selection refusal on the surfaces that actually arm a press (`[data-panel]`, and the `.card`/`.sugwrap` containing one), which is NOT every `.card` — a resolution card carries `data-nonmedia` and arms none, and the entry above is the reason its release name must stay selectable."
 }

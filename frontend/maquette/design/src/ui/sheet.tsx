@@ -18,6 +18,7 @@
 // content after closing.
 import { useLayoutEffect, useRef, useState } from "react";
 import { useUiState } from "../lib/store-access";
+import { feedback } from "../lib/feedback";
 import { PanelContent } from "../ui/panel";
 import type { PanelDescriptor } from "../ui/panel/contract";
 import { bottomSheet, sheetDragBand, sheetGrab, sheetScrim, sheetViewport } from "./variants";
@@ -99,7 +100,11 @@ export function Sheet({
     }
     // The CSS transition carries the settle both ways: closing from here, or
     // springing back to `transform: none` when the lift was too short.
-    if (!cancelled && current.dy > CLOSE_THRESHOLD) close();
+    if (!cancelled && current.dy > CLOSE_THRESHOLD) {
+      // Through the seam, like every other gesture — one call site (D9).
+      feedback("commit", node);
+      close();
+    }
   }
 
   return (

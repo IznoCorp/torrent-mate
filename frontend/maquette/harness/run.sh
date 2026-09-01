@@ -204,6 +204,8 @@ REPOSITORY_GUARDS=(
   "scripts/check-bug-register.py"
   "scripts/check-frame-domain.py"
   "scripts/check-viewport-directives.py"
+  "scripts/check-feedback-seam.py"
+  "scripts/check-poster-box.py"
   "scripts/check-intent-map.py"
   "scripts/check-docs-cited-paths.py"
   "scripts/compare-contracts.py --check"

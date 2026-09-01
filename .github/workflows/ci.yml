@@ -106,6 +106,24 @@ jobs:
               # `IMPLEMENTATION.md` alone, and that is the guard written to
               # hold the post-merge gesture.
               - 'IMPLEMENTATION.md'
+              # AND THE GUARDS' OWN FILES, which is the third question and the
+              # one nothing had asked. The two above are about a guard's
+              # SUBJECT. This one is about the guard ITSELF: twelve of the
+              # twenty-two the contracts tier runs are invoked in no other job,
+              # so `harness-contracts` is their only home — and `scripts/**`,
+              # the glob that names them, belongs to `python`, whose jobs do not
+              # run them. A pull request that edits nothing but one of those
+              # guards ran it NOWHERE, and that is the shape a repair to a guard
+              # takes.
+              #
+              # THE CLASS IS NAMED, NOT THE INSTANCES. Every earlier case here
+              # was fixed by adding one path, and the list went stale the next
+              # time somebody wrote a guard — twice, then three more times in a
+              # single wave. A glob cannot go stale. The cost is that editing a
+              # purely-Python guard also runs the contracts tier, which is
+              # minutes, on the rare pull request that does it.
+              - 'scripts/check-*.py'
+              - 'scripts/compare-contracts.py'
               # B-142's arm reads the constitution, the clause map and the
               # plan; all three are amended by PROSE pull requests, which are
               # exactly the ones the wave gate never sees.
