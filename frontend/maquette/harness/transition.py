@@ -77,10 +77,22 @@ WATCH_VIEW_TRANSITIONS = """()=>{
   window.__called = 0;
   window.__names = [];
   const native = document.startViewTransition;
+  window.__commitAwaited = null;
   if (native) {
     document.startViewTransition = function (callback) {
       window.__called += 1;
-      return native.call(this, callback);
+      // DOES THE COMMIT HAND BACK ITS NAVIGATION? The browser captures the NEW
+      // state when the callback's returned promise settles. A callback that
+      // returns nothing is captured at the next rendering opportunity whether
+      // or not the route has committed — so with a loader or a lazy component
+      // on the arriving route, the « new » snapshot is the page being LEFT, and
+      // every hold below stays green because they all read the old side.
+      return native.call(this, () => {
+        const answer = callback();
+        window.__commitAwaited =
+          !!answer && typeof answer.then === 'function';
+        return answer;
+      });
     };
   }
   window.__watch = setInterval(() => {
@@ -140,6 +152,7 @@ async def switch_and_watch(page):
         "()=>{clearInterval(window.__watch); "
         "return {peak: window.__peak, called: window.__called, "
         "names: window.__names || [], "
+        "awaited: window.__commitAwaited, "
         "page: document.documentElement.dataset.page || ''};}")
 
 
@@ -160,6 +173,14 @@ async def hold_under(journal, browser, motion):
         f"the address stayed at {after} — a transition that prevents the "
         "navigation is worse than no transition")
 
+    journal.check(
+        f"under `{motion}`, the commit HANDS BACK its navigation",
+        reading["awaited"] is True,
+        f"the commit returned {reading['awaited']!r} rather than a promise — "
+        "the new state is captured at the next rendering opportunity whether "
+        "or not the route has committed. It is correct only while no route has "
+        "a loader; the day one does, the arrival animates the departing page "
+        "and nothing here would say so")
     journal.check(
         f"under `{motion}`, the switch goes through startViewTransition",
         reading["called"] >= 1,

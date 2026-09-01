@@ -263,9 +263,20 @@ export function installPullGesture(options: PullGestureOptions): PullGesture {
   // cancelled on it unconditionally and would have shipped that loss back.
   window.addEventListener("pointercancel", (event) => {
     if (event.pointerType !== "touch") {
-      pull = null;
-      travelled = 0;
+      // RELEASED, NOT MERELY FORGOTTEN — and the difference is visible on
+      // screen. Clearing the three variables ends the gesture's BOOKKEEPING and
+      // tells the surface nothing, so the indicator stays at the height the
+      // cancelled pull left it, with its transition suppressed and its armed
+      // state on: a mouse or a stylus cancelled mid-pull hung the indicator
+      // open until the next gesture. The engine called its release here, which
+      // is why this module claimed to carry the behaviour over verbatim and did
+      // not.
+      //
+      // Zeroing the last delta BEFORE releasing is what makes the release
+      // unarmed: a cancelled gesture is not a gesture the reader completed, so
+      // it commits nothing. `end()` clears the rest.
       lastDeltaY = 0;
+      end();
     }
   });
 

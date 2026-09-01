@@ -102,8 +102,15 @@ async def hold(journal):
                 '[data-part="tile"] img')]
                 .filter((image) => image.complete && image.naturalWidth > 0)
                 .length;
+              // THE POSTER'S OWN BOX, not the tile's. A tile carries a title
+              // and a subtitle under the picture, so its height is above zero
+              // whatever the image does — the hold below read it and would
+              // have held with the poster box deleted outright.
+              const picture = tiles[0].querySelector('img')
+                || tiles[0].querySelector('[data-part="tile/poster"]');
               return {top: last.top, count: tiles.length, landed,
-                      firstHeight: tiles[0].getBoundingClientRect().height};
+                      firstHeight: picture
+                        ? picture.getBoundingClientRect().height : 0};
             }""")
 
         before = await geometry()

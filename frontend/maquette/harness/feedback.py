@@ -106,6 +106,14 @@ async def press_and_read(page, box):
             window.__marks.push({
               marked: true,
               kind: record.target.getAttribute('data-feedback'),
+              // WHERE THE MARK LANDED, and not merely that one landed
+              // somewhere. The observer watches the whole document, so
+              // `feedback("commit", document.body)` satisfied every hold
+              // below: the seam was called, on nothing the finger touched.
+              // An acknowledgement is an answer TO A GESTURE, so the node it
+              // is written on is half of what is being held.
+              onTheTile: !!record.target.closest('[data-part="tile"]'),
+              tag: record.target.tagName.toLowerCase(),
             });
       }).observe(document.documentElement, {subtree: true, attributes: true,
                                             attributeFilter: ['data-feedback']});
@@ -132,8 +140,8 @@ async def press_and_read(page, box):
     # So the hold is that the seam was CALLED — the mark set, on the pressed
     # node, with the right kind — which a MutationObserver sees and a query
     # cannot.
-    reading = await page.evaluate("()=>window.__marks[0] || "
-                                  "{marked: false, kind: null}")
+    reading = await page.evaluate(
+        "()=>window.__marks[0] || {marked: false, kind: null, onTheTile: false}")
     await session.send("Input.dispatchTouchEvent",
                        {"type": "touchEnd", "touchPoints": []})
     return reading
@@ -155,6 +163,12 @@ async def hold_the_acknowledgement(journal, browser, motion):
         reading["marked"] and reading["kind"] == "commit",
         f"read {reading} — a gesture unacknowledged under a motion preference "
         "is a different interface, not a calmer one")
+    journal.check(
+        f"and under `{motion}` the mark lands ON THE TILE THE FINGER HELD",
+        bool(reading.get("onTheTile")),
+        f"read {reading} — the acknowledgement was written somewhere else in "
+        "the document. A seam called with the wrong element answers a gesture "
+        "the reader did not make, and every other hold here would still pass")
 
     # THE STYLESHEET'S ANSWER, on a node that survives. What invariant 14
     # governs is the DECLARATION — that `[data-feedback]` has a defined

@@ -27,7 +27,7 @@ type Router = {
     params?: Record<string, string>;
     search?: Record<string, unknown>;
     replace?: boolean;
-  }) => unknown;
+  }) => Promise<void> | void;
 };
 
 /** What `go()` needs of the history — what keeps one call, one entry. */
@@ -96,13 +96,26 @@ export function go(
     throw new Error("navigate: go() called before installNavigation()");
   const commit = () => {
     during?.();
-    void router!.navigate({
+    const navigated = router!.navigate({
       to: target.to,
       params: target.params,
       search: target.search,
       replace: target.replace ?? false,
     });
     history!.flush();
+    // THE NAVIGATION'S PROMISE IS HANDED BACK, and it is the transition that
+    // needs it. A view transition captures the NEW state when the callback's
+    // returned promise settles; discarded, the capture happens at the next
+    // rendering opportunity whether or not the route has committed, and the
+    // « new » snapshot is the page being left. That is correct today only
+    // because no route has a loader or a lazy component — the day one does, the
+    // arrival animates the departing page and R115 stays green, because it
+    // reads the OLD side.
+    //
+    // The flush stays where it was, synchronous and before the return: « one
+    // call, one entry » is about the router batching two writes in ONE task,
+    // and awaiting after the flush changes nothing about that.
+    return navigated;
   };
 
   // P5 — THE PAGE SWITCH IS A DECLARED TRANSITION, through the platform's own
@@ -129,7 +142,7 @@ export function go(
   // The capability check is a capability check and nothing more: a browser
   // without the API navigates exactly as before.
   if (!document.startViewTransition) {
-    commit();
+    void commit();
     return;
   }
   // THE COMMIT RUNS INSIDE THE CALLBACK, WHICH IS WHAT THE API IS FOR — and

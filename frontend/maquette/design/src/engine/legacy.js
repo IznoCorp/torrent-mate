@@ -32249,15 +32249,6 @@ import { icons } from "../app/icons";
     },
   });
 
-  /* The END is listened for on the window, because a mouse released outside
-     the frame never reaches a listener bound to the scrollport and the gesture
-     would hang half-done.
-
-     `pointercancel` is IGNORED for a finger, and that is the whole point: it
-     arrives as soon as the browser claims the pan — one move in — while the
-     touch stream carrying the gesture keeps running. Ending on it would undo
-     the fix one line further down. */
-
   /* 4) Sheet: dragging the handle to close moved to the shell with the layer
      itself — `src/components/sheet.tsx` owns the handle, the pointer capture
      and the dismissal threshold. Nothing binds here anymore: `#sheetgrab` does

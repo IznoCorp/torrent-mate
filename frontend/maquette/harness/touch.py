@@ -23,8 +23,15 @@ import asyncio
 from common import Journal
 from playwright.async_api import async_playwright
 
-# The prototype's own long-press delay; a probe shorter than it proves nothing.
-PRESS_MS = 480
+# HOW LONG A PRESS TAKES IS READ FROM THE PAGE, never typed here. A probe
+# shorter than the delay proves nothing, and a probe holding a number the design
+# has since moved proves nothing either — it stays green because the press never
+# arms, which is the failure that looks exactly like success (B-276). Two rules
+# were repaired for this; this was the third instance.
+PRESS_MILLISECONDS_READER = "()=>window.__gestures.press.milliseconds"
+
+# The margin the hold waits ON TOP of whatever the page answers.
+PRESS_MARGIN_MILLISECONDS = 240
 
 # The phone's OWN long press — select, copy, save — cannot be outrun by a
 # listener, and no synthetic input raises it. It is therefore asserted on the
@@ -362,7 +369,8 @@ async def main():
             await cdp.send("Input.dispatchTouchEvent",
                            {"type": "touchStart",
                             "touchPoints": [{"x": target["x"], "y": target["y"], "id": 1}]})
-            await pg.wait_for_timeout(PRESS_MS + 240)
+            press_milliseconds = await pg.evaluate(PRESS_MILLISECONDS_READER)
+            await pg.wait_for_timeout(press_milliseconds + PRESS_MARGIN_MILLISECONDS)
             during = await pg.evaluate(
                 "()=>document.querySelector('#sheet').hasAttribute('data-open')")
             await cdp.send("Input.dispatchTouchEvent",

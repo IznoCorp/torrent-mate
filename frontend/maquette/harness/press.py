@@ -522,6 +522,71 @@ async def hold_the_pull_threshold(journal, browser):
     await context.close()
 
 
+async def hold_a_cancelled_mouse_pull_is_released(journal, browser):
+    """A pull cancelled by the platform mid-gesture must put the indicator back.
+
+    `pointercancel` is IGNORED for a finger, deliberately: the browser claims
+    the pan one move in while the touch stream carrying the gesture keeps
+    running, so ending on it would undo the gesture. For a MOUSE or a stylus
+    there is no such stream, and a cancel is the platform taking the pointer
+    away for good.
+
+    THE MODULE CLEARED ITS VARIABLES AND TOLD THE SURFACE NOTHING, which ends
+    the bookkeeping and leaves the picture: the indicator hung at the height the
+    cancelled pull left it, armed, with its transition suppressed, until some
+    later gesture moved it. Nothing drove a mouse cancel, so nothing saw it.
+
+    Args:
+        journal: The rule's journal.
+        browser: A launched Playwright browser.
+    """
+    context, page = await open_page(browser)
+    await page.evaluate("(s)=>window.__go(s)", "lib-grid")
+    await page.wait_for_timeout(420)
+    port = await page.evaluate(
+        "()=>{const e=document.querySelector('#port');"
+        "const r=e.getBoundingClientRect();"
+        "return {x:r.x, y:r.y, width:r.width};}")
+    arming = (await page.evaluate("()=>window.__gestures.pull"))["armPixels"]
+
+    x = port["x"] + port["width"] / 2
+    y = port["y"] + 60
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    for step in range(1, 13):
+        await page.mouse.move(x, y + 220 * step / 12)
+        await page.wait_for_timeout(16)
+    pulled = await page.evaluate(
+        "()=>document.querySelector('#ptr').getBoundingClientRect().height")
+    journal.check(
+        "a mouse can pull the indicator open at all",
+        pulled >= arming,
+        f"the indicator stood at {pulled}px — with no pull to cancel, the hold "
+        "below decides nothing")
+
+    # THE PLATFORM TAKES THE POINTER AWAY. No driver raises a mouse
+    # `pointercancel`, so it is dispatched as the platform would: the listener
+    # reads nothing but `pointerType`, which is what makes the substitution
+    # honest rather than convenient.
+    await page.evaluate("""()=>{
+      window.dispatchEvent(new PointerEvent('pointercancel', {
+        pointerType: 'mouse', isPrimary: true, bubbles: true}));
+    }""")
+    await page.wait_for_timeout(260)
+    released = await page.evaluate(
+        "()=>{const node=document.querySelector('#ptr');"
+        " return {height: node.getBoundingClientRect().height,"
+        "         armed: node.classList.contains('armed')};}")
+    journal.check(
+        "and a cancelled mouse pull puts the indicator BACK",
+        released["height"] < arming and not released["armed"],
+        f"read {released} — the gesture's variables were cleared and the "
+        "surface was told nothing, so the indicator stays where the cancelled "
+        "pull left it")
+    await page.mouse.up()
+    await context.close()
+
+
 async def hold(journal):
     """Drives the two halves under a real finger and a real mouse."""
     errors = []
@@ -532,6 +597,7 @@ async def hold(journal):
         await hold_the_swallow_is_by_point(journal, browser)
         await hold_the_mouse_press(journal, browser)
         await hold_the_mouse_tolerance(journal, browser)
+        await hold_a_cancelled_mouse_pull_is_released(journal, browser)
         await browser.close()
     journal.summary(errors)
 
