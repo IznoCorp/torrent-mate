@@ -109,6 +109,11 @@ CANCELLING_DRIFT = 40
 # it the same drag opens it, and `pointercancel` never fires either way.
 MOUSE_DRIFT = 16
 
+# WHAT « THE INDICATOR IS GONE » MEANS, in pixels. Sub-pixel residue in a
+# settled transition, and nothing more — this is not a threshold with a meaning,
+# it is the difference between zero and a rounding.
+INDICATOR_GONE_PIXELS = 1
+
 # Where a deliberate tap lands relative to the press: well beyond the tolerance,
 # so a swallow keyed on the POINT must let it through.
 DISTANT_TAP_OFFSET = 120
@@ -483,10 +488,18 @@ async def hold_the_pull_threshold(journal, browser):
     # the gesture produces; `loading` is one styling of it.
     spun = await page.evaluate(
         "()=>document.querySelector('#ptr').getBoundingClientRect().height")
+    # THE INDICATOR IS STILL UP, which is what a refresh looks like — not
+    # « its height is at least the arming distance ». That comparison held a
+    # height the engine writes (44px, hard-coded) against a distance the gesture
+    # publishes (44px), two quantities that are equal by COINCIDENCE: move
+    # either and the hold changes meaning without changing colour. What
+    # separates an armed release from an unarmed one is that the indicator STAYS
+    # while the refresh runs and goes back at once when nothing was armed.
     journal.check("a pull past the arming distance refreshes",
-                  spun >= arming,
-                  f"the indicator stood at {spun}px — the control for the hold "
-                  "below")
+                  spun > INDICATOR_GONE_PIXELS,
+                  f"the indicator stood at {spun}px shortly after the release — "
+                  "an armed pull leaves it up while the refresh runs, and this "
+                  "is the control for the hold below")
     await page.evaluate("()=>window.__reposPTR()")
     await page.wait_for_timeout(120)
 
@@ -497,10 +510,10 @@ async def hold_the_pull_threshold(journal, browser):
     journal.check(
         f"a pull of {short_pull}px — short of the arming distance — refreshes "
         "NOTHING",
-        reading < arming,
-        f"the indicator stood at {reading}px, at or past the {arming}px "
-        "arming distance: the threshold is not applied, so every downward flick "
-        "the scrollport sees refreshes")
+        reading <= INDICATOR_GONE_PIXELS,
+        f"the indicator stood at {reading}px shortly after the release, where "
+        "an unarmed pull puts it straight back: the threshold is not applied, "
+        "so every downward flick the scrollport sees refreshes")
     await page.evaluate("()=>window.__reposPTR()")
     await page.wait_for_timeout(120)
 
@@ -516,7 +529,7 @@ async def hold_the_pull_threshold(journal, browser):
         "()=>document.querySelector('#ptr').getBoundingClientRect().height")
     journal.check(
         "a pull dragged back UP past its start refreshes NOTHING",
-        reading < arming,
+        reading <= INDICATOR_GONE_PIXELS,
         f"the indicator stood at {reading}px — the release read the deepest "
         "point the finger reached and not where it ended")
     await page.evaluate("()=>window.__reposPTR()")
@@ -582,9 +595,9 @@ async def hold_a_cancelled_mouse_pull_is_released(journal, browser):
         "()=>document.querySelector('#ptr').getBoundingClientRect().height")
     journal.check(
         "and a cancelled mouse pull puts the indicator BACK",
-        released < arming,
-        f"the indicator stood at {released}px after the cancel, at or past the "
-        f"{arming}px arming distance — the gesture's variables were cleared and "
+        released <= INDICATOR_GONE_PIXELS,
+        f"the indicator stood at {released}px after the cancel, where a release "
+        "puts it straight back — the gesture's variables were cleared and "
         "the surface was told nothing, so the indicator stays where the "
         "cancelled pull left it")
     await page.mouse.up()
