@@ -275,9 +275,11 @@ export function installPressArbitration(
     (event) => followPress({ x: event.clientX, y: event.clientY }),
     { passive: true },
   );
-  // The mark is NEVER cleared on pointerup: for a real finger the click comes
-  // 1 ms later, in a later task, so clearing there — even deferred by a
-  // macrotask — clears it before the click it exists for.
+  // THE SWALLOW MARK is never cleared on pointerup: for a real finger the click
+  // comes 1 ms later, in a later task, so clearing there — even deferred by a
+  // macrotask — clears it before the click it exists for. `cancelPress` DOES
+  // run here, and what it clears is the press itself: its timers and the
+  // pressed state. The two live in the same module and are not the same thing.
   window.addEventListener("pointerup", cancelPress);
   window.addEventListener("pointercancel", () => {
     // The compositor claimed the gesture: it is a scroll, not a press — and no

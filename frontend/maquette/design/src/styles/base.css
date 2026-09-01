@@ -845,18 +845,23 @@
    IT REPLACES THE POSTER'S FLIGHT. The carry from tile to panel was withdrawn
    after the operator watched it in slow motion — « pas fluide du tout, même
    très dérangeante » — and what it was FOR survives: binding the panel to the
-   card that summoned it. Played in place, over 480ms of arming, moving nothing
-   across the screen.
+   card that summoned it. Played in place, moving nothing across the screen.
 
    THREE MOMENTS, AND THEY DO NOT OVERLAP. `:active` below is the finger being
    down at all; `[data-feedback]` is the acknowledgement AFTER a gesture
    commits; this is the span between them — a press ARMING, marked by
    `lib/press-arbitration.ts`, which is the only thing that knows one is.
 
-   The sink runs over the arming's own duration so the tile is still settling as
-   the panel begins to rise: two halves of one gesture rather than two gestures.
-   `--duration-4` is the step nearest 480ms and it is a DRAWING the operator
-   validates on video, not a constant with a proof. */
+   WHEN IT RUNS, and it is shorter than the press: the mark is placed after the
+   compositor's settle — about 120ms in, so that a flick beginning on a tile
+   never lights it — and removed when the panel arrives, at the press delay. So
+   the sink plays over the REMAINDER of the arming, not over all of it, and the
+   return is instant because the attribute goes rather than the value: the tile
+   the panel replaces is gone by then, and on a surface it does not replace the
+   snap is what « the gesture is over » looks like.
+
+   `--duration-4` is the step the sink runs on, and it is a DRAWING the operator
+   validates on video rather than a constant with a proof. */
 @media (prefers-reduced-motion: no-preference) {
   [data-pressing] {
     transition:

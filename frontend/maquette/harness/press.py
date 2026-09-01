@@ -103,11 +103,14 @@ PRESS_HOLD_MARGIN = 260
 # dies without isolating what killed it — which is what that hold says.
 CANCELLING_DRIFT = 40
 
-# For the MOUSE exercise, where the compositor claims nothing. Past the 12px
-# tolerance and deliberately modest: this is the distance at which, measured
-# both ways, the tolerance alone decides — with it the panel stays shut, without
-# it the same drag opens it, and `pointercancel` never fires either way.
-MOUSE_DRIFT = 16
+# For the MOUSE exercise, where the compositor claims nothing. It is DERIVED
+# from the tolerance the module publishes rather than typed beside it: just past
+# it, which is the distance at which the tolerance alone decides — with it the
+# panel stays shut, without it the same drag opens it, and `pointercancel` never
+# fires either way. Typed, it was a second source of truth for the same number
+# (B-276), and the module published `tolerancePixels` « so a rule does not
+# re-type them » while this file re-typed it four lines below the sentence.
+MOUSE_DRIFT_MARGIN = 4
 
 # WHAT « THE INDICATOR IS GONE » MEANS, in pixels. Sub-pixel residue in a
 # settled transition, and nothing more — this is not a threshold with a meaning,
@@ -338,11 +341,12 @@ async def hold_the_mouse_tolerance(journal, browser):
     await page.mouse.move(box["x"], box["y"])
     await page.mouse.down()
     # The drift arrives EARLY, for the reason the touch driver gives.
-    press_milliseconds = await page.evaluate(
-        "()=>window.__gestures.press.milliseconds")
+    press = await page.evaluate("()=>window.__gestures.press")
+    press_milliseconds = press["milliseconds"]
+    drift = press["tolerancePixels"] + MOUSE_DRIFT_MARGIN
     for step in range(1, 5):
-        await page.mouse.move(box["x"] + MOUSE_DRIFT * step / 4,
-                            box["y"] + MOUSE_DRIFT * step / 4)
+        await page.mouse.move(box["x"] + drift * step / 4,
+                            box["y"] + drift * step / 4)
         await page.wait_for_timeout(30)
     # HELD PAST THE PRESS DELAY, READ RATHER THAN TYPED. This was 620 after
     # four moves of 30 — 740ms laid by hand against a delay the design draws.
@@ -360,7 +364,7 @@ async def hold_the_mouse_tolerance(journal, browser):
     # kill it — so the tolerance did. Without the second, this hold proves
     # exactly what the touch hold proves, which is less than it claims.
     journal.check(
-        f"under a real mouse, a drag of {MOUSE_DRIFT}px opens nothing",
+        f"under a real mouse, a drag of {drift}px opens nothing",
         not opened,
         "the tolerance is not applied: a mouse drag across a tile opens a panel")
     journal.check(
@@ -532,6 +536,51 @@ async def hold_the_pull_threshold(journal, browser):
         reading <= INDICATOR_GONE_PIXELS,
         f"the indicator stood at {reading}px — the release read the deepest "
         "point the finger reached and not where it ended")
+    await page.evaluate("()=>window.__reposPTR()")
+    await page.wait_for_timeout(120)
+
+    # THE CAP AND THE SETTLE ARE PUBLISHED, so they are READ. Both numbers were
+    # published « so a rule does not re-type them » and no rule read either:
+    # a number nobody reads is a number nobody notices moving, which is the
+    # other half of B-276 and the reason the sentence was written.
+    #
+    # THE CAP is what stops the indicator following the finger forever. Pulled
+    # far past it, the indicator must stand at the cap and not beyond.
+    # READ WITH THE FINGER STILL DOWN. A release puts the indicator back, so a
+    # reading taken after one measures the release and not the cap — it read
+    # 0px, and « 0 <= 72 » is a hold that cannot fail.
+    session = await page.context.new_cdp_session(page)
+    finger_x = port["x"] + port["width"] / 2
+    finger_y = port["y"] + 60
+    # TWICE THE DISTANCE THE CAP IS REACHED AT, which is far enough to prove a
+    # bound and short enough to stay on the screen: a drag that runs off the
+    # bottom edge is a drag the driver stops delivering, and the indicator then
+    # reads 0 for a reason that has nothing to do with the cap.
+    await page.evaluate("()=>{document.querySelector('#port').scrollTop = 0;}")
+    await page.wait_for_timeout(120)
+    reach = round(pull_numbers["capPixels"] / max(damping, 0.01) * 2)
+    await session.send("Input.dispatchTouchEvent", {
+        "type": "touchStart",
+        "touchPoints": [{"x": finger_x, "y": finger_y, "id": 1}]})
+    for step in range(1, 13):
+        await session.send("Input.dispatchTouchEvent", {
+            "type": "touchMove",
+            "touchPoints": [{"x": finger_x,
+                             "y": finger_y + reach * step / 12, "id": 1}]})
+        await page.wait_for_timeout(16)
+    stretched = await page.evaluate(
+        "()=>document.querySelector('#ptr').getBoundingClientRect().height")
+    await session.send("Input.dispatchTouchEvent",
+                       {"type": "touchEnd", "touchPoints": []})
+    await page.wait_for_timeout(220)
+    journal.check(
+        "a pull far past the cap stops AT the cap",
+        arming < stretched <= pull_numbers["capPixels"] + 1,
+        f"the indicator stood at {stretched}px with the finger still down, "
+        f"against a published cap of {pull_numbers['capPixels']}px and an "
+        f"arming distance of {arming}px — beyond it the damping alone does not "
+        "bound the gesture and a long drag stretches the surface as far as the "
+        "finger goes; at or under the arming distance nothing was pulled at all")
     await page.evaluate("()=>window.__reposPTR()")
     await context.close()
 

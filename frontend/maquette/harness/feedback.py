@@ -295,8 +295,23 @@ async def hold_the_press_acknowledgement(journal, browser, motion):
         ARMING_TILE)
     session = await page.context.new_cdp_session(page)
     x, y = box["x"], box["y"]
+    # THE SETTLE IS READ, not assumed. The mark is placed AFTER the compositor's
+    # settle so a flick beginning on a tile never lights it; the number is
+    # published for that reason and no rule read it, which is the half of B-276
+    # that is not a stale delay but an unread one. Held here: a tile is NOT
+    # marked before the settle has passed.
+    settle = await page.evaluate(
+        "()=>window.__gestures.press.settleMilliseconds")
     await session.send("Input.dispatchTouchEvent", {
         "type": "touchStart", "touchPoints": [{"x": x, "y": y, "id": 1}]})
+    await page.wait_for_timeout(max(settle - 60, 10))
+    too_early = await page.evaluate(READ_TILE)
+    journal.check(
+        f"under `{motion}`, the tile is NOT marked before the settle passes",
+        not too_early["mark"],
+        f"read {too_early} at {max(settle - 60, 10)}ms of a {settle}ms settle — "
+        "the mark is placed on `pointerdown` after all, which lights every "
+        "flick that begins on a tile")
     arming = None
     for step in range(11):
         await session.send("Input.dispatchTouchEvent", {

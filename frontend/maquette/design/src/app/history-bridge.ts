@@ -213,11 +213,21 @@ window.__screens = {
     // which is the gesture the delay was standing in for.
     //
     // CLOSED WITHOUT UNWINDING — `close(true)`. The panel's history entry is
-    // NOT popped, because the media screen is pushed ON TOP of it: Back then
-    // returns to the panel over the list, which is what §16 asks for and what
-    // the reversed departure animation is drawn for. The old shape popped the
-    // panel's entry and pushed the screen's, so Back landed on the bare list
-    // and the return animation had nothing to return to.
+    // NOT popped here, because the media screen is pushed on top of it.
+    //
+    // WHAT BACK DOES, MEASURED RATHER THAN PROMISED, because an earlier version
+    // of this comment promised the opposite and was wrong on the day it was
+    // written: Back from the media screen lands on the LIST, with the panel
+    // shut. The entry is left standing, the ladder's own handler steps over it,
+    // and the reader crosses two entries for one gesture — the same place the
+    // sibling actions reach by popping first and pushing after.
+    //
+    // So the OUTCOME matches its siblings and the mechanism does not, and that
+    // difference is filed rather than left for the next reader to discover:
+    // whether a layer closed inside a navigation's commit should keep its entry
+    // is the ladder's arbitration, and the ladder's handler is L13's. Nothing
+    // here counts the pops on the way back; that rule belongs with the
+    // arbitration.
     go(
       { to: "/media/$provider/$id", params: ids },
       () => {

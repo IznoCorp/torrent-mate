@@ -1549,6 +1549,13 @@ harness's driving seams (`__go`, `__states`, `__queries`, `__relay`, `__mocks`) 
 module and die at switchover with `harness.css`; the suite is green at unchanged hold counts; the
 oracle is green.
 
+**Carried here by L12, 2026-09-01 — B-290, the ladder's two shapes.** A layer closed inside a
+navigation's commit keeps its history entry, so Back from a media screen opened that way crosses TWO
+entries where every sibling action crosses one. The outcome is the same and the mechanism is not,
+and a ladder with two shapes for one gesture is a ladder nobody can reason about. **Done when** the
+arbitration is written, the two shapes are one, and a rule COUNTS the entries crossed on the way
+back — the five ladder rules count entries going FORWARD and none counts pops.
+
 **Carried here by L12, 2026-08-31 — the panel's RETURN, and B-275.** Arriving at a media screen
 from an open panel is drawn: the panel is captured leaving and its snapshot slides down
 (`::view-transition-old(leaving-panel)`). The mirror is not, and cannot be from outside this lot.

@@ -349,6 +349,7 @@ when the defect comes back.
 | B-287 | 266 maquette/harness comments name a date, a lot or a phase — the rule against it has no arm, so nothing counts them | by L12 review | `open` |
 | B-288 | The media screen's priming matches a title by PREFIX, so a medium whose title prefixes another opens with the other one's poster and year | by L12 review | `open` |
 | B-289 | `check-frame-domain`'s comment scanner opens a phantom string on a REGEX LITERAL holding a quote, and counts every comment after it as code | by L12 | `fixed #540` |
+| B-290 | A layer closed inside a navigation's commit KEEPS its history entry, so Back crosses two entries where its siblings cross one | by L12 review | `open` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -397,6 +398,24 @@ spans lines.
 
 <sub>`python3 scripts/check-frame-domain.py` → `app/ 129` (131 before, over 9 060 identifier words
 against 9 192 — the difference is the prose it was reading)</sub>
+
+**B-290 — a layer closed inside a navigation's commit keeps its history entry.**
+« Voir la fiche » closes the panel inside `go()`'s commit with `close(true)`, which does not unwind,
+and pushes the media screen on top. Back from that screen lands on the LIST with the panel shut —
+measured — because the ladder's handler steps over the standing layer entry. So the reader crosses
+TWO entries for one gesture, where every sibling action (`data-releases`, `data-profile`,
+`data-take`) reaches the same place by popping the layer's entry first and pushing 260 ms later.
+
+**The outcome matches; the mechanism does not**, and a ladder with two shapes for one gesture is a
+ladder nobody can reason about. The arbitration is not this lot's: whether a layer closed inside a
+commit should keep its entry decides §16's « one entry per arrival » for every future surface, and
+the handler that would implement either answer is **L13's**.
+
+**Done when** the arbitration is written, the two shapes are one, and a rule COUNTS the entries
+crossed on the way back — the five ladder rules count entries going forward and none counts pops.
+
+<sub>drive « Voir la fiche » from an open panel, then `page.go_back()`, and read
+`history.state.__TSR_index` before and after: 3 → 1</sub>
 
 **B-287 — the rule that maquette comments carry no date, lot or phase has no arm.**
 `CLAUDE.md` § Language: « Maquette/harness comments carry no reference to a session, a phase or a

@@ -8076,7 +8076,7 @@ import { icons } from "../app/icons";
 
   /* THE LONG PRESS — arbitrated in `lib/press-arbitration.ts`.
 
-     The arbitration MOVED there (L12): the timer, the 12px tolerance, the
+     The arbitration MOVED to that module: the timer, the 12px tolerance, the
      pointer listeners, the click swallowed by its POINT and the refusal of the
      browser's own menu are vocabulary, and vocabulary is not the engine's
      (invariant 10). What stays here is what only this surface knows — WHICH
@@ -32203,7 +32203,7 @@ import { icons } from "../app/icons";
 
   /* THE PULL — arbitrated in `lib/pull-gesture.ts`.
 
-     The GESTURE moved there (L12): the axis decision, the edge dead zone, the
+     The GESTURE moved to that module: the axis decision, the edge dead zone, the
      damping and the arming distance are vocabulary, and vocabulary is not the
      engine's (invariant 10). `MODEL.md` Part 8 places it exactly — « a gesture
      on `#port` that knows nothing of what refreshes ».
