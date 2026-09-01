@@ -7,9 +7,17 @@
 ## 1. What this wave actually produced
 
 **Not the transitions.** The transitions, the gestures and the window all work, and every one of
-them landed with a rule. But the wave's output is **six instruments that could not fail, caught
-because something forced them to**, and two blocked properties whose blockers are product decisions
-rather than technical ones.
+them landed with a rule. But the wave's output is **thirty instruments that could not
+fail, caught because something forced them to** — fifteen by the wave itself and fifteen more by a
+four-lens adversarial review of the wave's own repairs — and two blocked properties whose blockers
+are product decisions rather than technical ones.
+
+**That figure is the honest one and it grew three times.** It was written as six, then fourteen,
+then fifteen when the steward asked for one unit per line with its proof; the review then found
+that the criterion deciding the count had never been written down, and that the table already
+contradicted the criterion it implied. It is written in `BUGS.md` now, it admits BOTH signs — an
+instrument that is wrong is wrong whichever way it errs — and applying it uniformly is what took
+the wave's own count to fifteen and the whole to thirty.
 
 L11's warning was the brief's central one — ~40, 13, 7 and 0 product defects across four adversarial
 rounds under a permanently green gate — and this wave met the same shape from a different direction:
@@ -33,13 +41,16 @@ had no way to see.**
 | **P16** gestures survive the compositor | true for what was measured | extended: the tolerance, the swallow, the pull threshold | **R112** |
 | **B-252** two child nodes | open | **closed** | **R116** |
 
-**The engine shrank by subtraction and grew by nothing**: `legacy.js` 32 604 → 32 420 non-blank,
-**184 lines removed** (D5). The press arbitration and pull-to-refresh are `lib/` vocabulary now;
+**The engine shrank by subtraction and grew by nothing**: `legacy.js` 32 604 → **32 393**
+non-blank, **211 lines removed** (D5) — 68 insertions against 293 deletions by `git diff --numstat`,
+every insertion a call site or a comment where a block used to be. *(This paragraph read « 32 420 /
+184 » until 2026-09-01: it was measured once and never re-measured while the wave kept subtracting,
+which is the drift the register's own B-085 table is about, in the report that reports it.)* The press arbitration and pull-to-refresh are `lib/` vocabulary now;
 their engine-side callers stay for L19, by the brief's own boundary.
 
 ---
 
-## 3. The six instruments that could not fail
+## 3. The first fifteen instruments that could not fail
 
 **Every one was found by mutation or by another guard. None by reading.** That is the only reason
 they were cheap.
@@ -301,9 +312,10 @@ read the same before and after.
 
 ### What the wave turned out to be
 
-**B-085 recounted at fourteen**, from six at the first close. Every one of the
-eight added came out of the operator's late rounds, and none was found by
-reading. Alongside the sharpest above: a transition **degenerate for six phases**
+**B-085 recounted at THIRTY** — six at the first close, then fourteen, then
+fifteen once the itemisation was written one unit per line, and **fifteen more
+from the four-lens adversarial review**. Not one of the thirty was found by a
+gate going red. Alongside the sharpest above: a transition **degenerate for six phases**
 under a rule that counted animations rather than what they showed; a fix that
 could not work because its selector no longer matched by the time it was needed;
 a comparison whose two arms were identical; a hold driven against a read that was
@@ -313,6 +325,71 @@ rule** — hand-set delays outlived by durations that were later redrawn.
 
 **The wave's subject was transitions. Its output was an inventory of how
 instruments fail.**
+
+## 6f. The adversarial review, and what four independent lenses returned
+
+**Four readers on a gate that was green in every tier** — 86 rules, `--a11y` at 0, `make check` at
+zero, the oracle at 2 958 with no divergence — reading the wave through four lenses: the
+INSTRUMENTS, the SEAMS and the engine, conformity to the DESIGN, and the writings against the code.
+They returned two blockers, twenty-two majors and the rest minors and notes, with six findings
+recouped by two independent lenses each.
+
+**Everything the operator classed as a blocker or a major is repaired, each with its mutation seen
+red.** The three that changed the product rather than an instrument:
+
+1. **Transition A-extended painted nothing, for a day, under a green rule set.** « Voir la fiche »
+   is reached from an open panel; the engine closed the panel and waited 260 ms before opening the
+   screen, so the transition captured a state with no open panel in it and
+   `::view-transition-old(leaving-panel)` never existed. Every hold in R115 passed, because every
+   one of them reads the ROOT transition, which happens either way. A view transition captures the
+   old state at the next rendering update rather than at the call, so no ordering of two statements
+   in one task fixes it — the dismissal belongs INSIDE the commit, which is what `go()`'s `during`
+   parameter now is. The engine lost the close-and-wait entirely.
+2. **The media body's arrival had two owners.** The blocks carry an element-side entry from an
+   `@starting-style`, on the argument that an element already present when the screen mounted never
+   has a starting style. The whole screen is inserted inside the transition's callback, so every
+   block has one on the arrival itself: measured at 16 ms, `opacity` and `translate` ran from 0 and
+   16 px in the very frames `body-rise` was lifting the same snapshot 24 px. Forty pixels and a
+   double fade, in the drawing whose heading is « one entry, one owner ».
+3. **The fanart's entry faded the element that CARRIES the placeholder** — `bg-muted` is its
+   background colour and the melt is its `::after` — so at the moment the picture decoded, the
+   placeholder and the melt vanished for a frame and came back with the image. Appear, flash,
+   reappear, in miniature, inside the rule written to remove that shape from the hero. A `::before`
+   the placeholder's colour fades out now, and the element never changes opacity.
+
+**And the instruments, which is where thirteen of the fifteen were.** R115's priming hold was green
+with `placeholderData` DELETED, because it read a title the ROUTE derives. Its one-entry hold had
+never once taken the branch it was written for. R113 read a node the panel's redraw had REPLACED,
+and accepted a mark landing anywhere in the document. R112 laid 740 ms by hand against a delay the
+design draws. R118 never established that a transition was crossing when it took its « in flight »
+sample. R114 never established that a poster had landed. **Twelve** contracts-tier guards ran in no
+CI job at all when a pull request edits only the guard — B-244's third recurrence, and the two
+existing holds were both reading a guard's SUBJECT rather than the guard.
+
+**Each round found its worst finding inside the previous round's repair, and this one did too.**
+The repair for the two-owner arrival created a second owner one frame later, caught by the hold
+written for it on its first run. The hold written for `body-rise` passed with `animation: body-rise`
+deleted outright, because every view-transition pseudo-element gets the browser's own cross-fade by
+default. Widening the viewport guard to see `100lvh` and `h-screen` immediately found a real
+`46vh` in the media hero — in the wave that claims P11. And the full suite's first green run went
+RED over prose: `check-frame-domain`'s comment scanner opens a phantom string on a regex literal
+holding a quote, so it had been reading comments as code (**B-289**).
+
+**What is deferred, each with a named owner in the plan** — none of them silently:
+
+- **B-283** → **L14**: while the media sheet's read is in flight, the screen prints its unknown
+  parts as ANSWERS (§13). The maquette cannot exhibit it — its placeholder is the engine's complete
+  sheet — and the repair is a line in one of the four files L14 owns and this lot may not extend.
+- **B-275 and the panel's RETURN** → **L13**: Back lands on the list with the panel shut, measured,
+  so `::view-transition-new(leaving-panel)` had no subject and was REMOVED rather than kept. « It
+  costs nothing and is kept » is the sentence this repository has paid for twice.
+- **B-287** → the instruments' debts: 266 maquette comments name a date, a lot or a phase against
+  `CLAUDE.md` § Language, and nothing counts them. Measured, filed with the arm's shape — a per-file
+  baseline, like the two ratchets this repository already has.
+- **B-288**: the priming resolves a title by PREFIX, so a medium whose title prefixes another opens
+  with the other one's poster and year until the read lands.
+
+---
 
 ## 7. Device-only protocols — written and dated
 
@@ -355,18 +432,30 @@ taken, rather than finding it in a stylesheet and having to work out whether any
 
 ## 8. The gates
 
+**Taken after the adversarial review's repairs, on 2026-09-01, and these are the numbers that
+count** — the ones in the pull request's body and in `IMPLEMENTATION.md` say the same.
+
 | Gate | Result |
 | --- | --- |
-| `run.sh` full suite | **85 rules + 25 guards, no violation** |
-| `run.sh --a11y` | 87 states, 0 violations; light-theme debt **at its ceiling**, unmoved |
-| `harness-hold-counts.py --compare` | **6 new rules; 3 later ROSE (press +1, transition +12, virtual +1). Nothing ever lost a hold** |
-| `make check` | **10 961 passed, 4 skipped, 2 xfailed, 0 failed, 0 errors** |
-| oracle | **2 958 measurements, no divergence** |
+| `run.sh` full suite | **86 rules + 25 guards, no violation** |
+| `run.sh --a11y` | 87 states, 0 violations; light-theme debt **at its ceiling of 166**, unmoved |
+| `harness-hold-counts.py --compare` | **6 rules ROSE, none fell** — `chrome_pixels` 3→4, `feedback` 14→18, `poster` 4→5, `press` 12→14, `transition` 16→36, `virtual` 7→12 |
+| `make check` | **10 983 passed, 4 skipped, 2 xfailed, 0 failed, 0 errors** |
+| oracle | **2 958 measurements, no divergence**, reference at `39363e1d` |
 
 Every rule landed with its mutation seen red and restored.
 
-**Register 147 → 151**: B-271, B-272, B-273, B-274 filed; **B-234 and B-252 closed**.
-**B-085 recounted at six**, all six itemised in `BUGS.md`.
+**« NOTHING EVER LOST A HOLD » IS NOT WHAT THE COMPARISON SAYS, and the earlier version of this
+table claimed it while the baseline had been re-recorded inside the same pull request** — a
+comparison against a baseline taken after the change is a comparison with itself. The baseline read
+here is the one from before the adversarial round, so the six movements above are that round's, each
+of them a rise, each named. The baseline is re-recorded at the close so the NEXT wave compares
+against this one.
+
+**Register 270 → 289 rows**: B-271 to B-289 filed; **twelve closed by this branch**, B-234 and
+B-252 among them. **B-085 recounted at THIRTY** — fifteen by the wave and fifteen by the
+adversarial review — each a line in `BUGS.md` with what establishes it, and the criterion that
+decides them written there for the first time.
 
 **Not claimed**: B-268, B-269 and B-270 stay open — no phase here opened `served_copy.py`, so the
 brief's conditional did not fire.
