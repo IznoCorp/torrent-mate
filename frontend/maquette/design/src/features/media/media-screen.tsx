@@ -32,6 +32,7 @@ import { useStoreContent } from "../../lib/store-access";
 import { seasonsHeld, useMediaSeasons, useMediaSheet } from "./queries";
 import { backAction, body as bodyClass, screen, screenBar, scrollport, sectionHeading } from "../../ui/variants";
 import { Icon } from "../../ui/icon";
+import { SkeletonLine } from "../../ui/state-surfaces";
 import { MediaCast } from "./media-cast";
 import { MediaHero } from "./media-hero";
 import { MediaDetails } from "./media-details";
@@ -86,14 +87,27 @@ export function MediaScreen() {
   // FROM THE CACHE, BY ADDRESS (invariant 4, DOIT-11). The engine looked its
   // sheet up by TITLE out of a fixture keyed by title; the address is the
   // identity, and it is what the request carries.
-  const { data: answered } = useMediaSheet(provider, id);
-  const sheet = (answered ?? null) as (MediaSheet & MediaSheetFields) | null;
+  const sheetRead = useMediaSheet(provider, id);
+  const sheet = (sheetRead.data ?? null) as (MediaSheet & MediaSheetFields) | null;
+  // IN FLIGHT is two states, and reading one of them is reading half. With
+  // placeholder data the query reports `success` and `isPlaceholderData` while
+  // the read is still out; with none — an address no title answers — it
+  // reports `pending`. Either way a part the screen does not have yet is a
+  // part still to come, and the constitution refuses an answer about it
+  // (§13): a skeleton stands where the answer will go. An errored read is not
+  // in flight — it has answered, and the screen prints what it can.
+  const inFlight =
+    sheetRead.isPending || (sheetRead.isPlaceholderData && sheetRead.isFetching);
   const isFilm = sheet ? sheet.k === "movie" : false;
   /* Seasons are DERIVED from the provider catalogue crossed with the numbers
      actually owned. A hand-written table gave seasons to 10 series only, and
      none of them to the INCOMPLETE ones — the very media the question is
      about. */
-  const { data: catalogue } = useMediaSeasons(provider, id);
+  const seasonsRead = useMediaSeasons(provider, id);
+  const catalogue = seasonsRead.data;
+  // The seasons have no placeholder — nothing the tap knew says what is
+  // aired — so their flight is the plain one.
+  const seasonsInFlight = seasonsRead.isPending;
   const sorted = seasonsHeld(catalogue)
     .slice()
     .sort((slice, index) => index[0] - slice[0]);
@@ -157,12 +171,12 @@ export function MediaScreen() {
             color: "var(--color-muted-foreground)",
           }}
         >
-          {url ?? t("screens.media.unidentified")}
+          {url ?? (inFlight ? <SkeletonLine width="short" /> : t("screens.media.unidentified"))}
         </span>
       </div>
       <div className={scrollport()} data-part="viewport">
         <div className={bodyClass()} data-part="surface/body" data-region="screen-media/body">
-          <MediaHero title={title} sheet={sheet} isFilm={isFilm} artwork={artwork} trailer={trailer} />
+          <MediaHero title={title} sheet={sheet} isFilm={isFilm} artwork={artwork} trailer={trailer} inFlight={inFlight} />
 
           <div>
             <h2 className={sectionHeading()} data-part="heading" style={{ marginBottom: "6px" }}>
@@ -176,11 +190,11 @@ export function MediaScreen() {
                 color: "var(--color-muted-foreground)",
               }}
             >
-              {sheet?.ov ? sheet.ov : t("screens.media.synopsisUnknown")}
+              {sheet?.ov ? sheet.ov : inFlight ? <SkeletonLine width="full" /> : t("screens.media.synopsisUnknown")}
             </p>
           </div>
 
-          <MediaCast sheet={sheet} isFilm={isFilm} />
+          <MediaCast sheet={sheet} isFilm={isFilm} inFlight={inFlight} />
 
           <MediaLibraryFacts
             sheet={sheet}
@@ -194,9 +208,10 @@ export function MediaScreen() {
             catalog={catalog}
             catalogEp={catalogEp}
             title={title}
+            seasonsInFlight={seasonsInFlight}
           />
 
-          <MediaDetails title={title} isFilm={isFilm} owns={owns} followed={followed} follows={follows} prov={prov} />
+          <MediaDetails title={title} isFilm={isFilm} owns={owns} followed={followed} follows={follows} prov={prov} inFlight={inFlight} />
 
           <div className="note" data-part="note">
             <b>{t("screens.media.noteTitle")}</b> {t("screens.media.noteBody")}

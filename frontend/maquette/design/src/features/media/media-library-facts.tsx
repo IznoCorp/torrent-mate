@@ -3,6 +3,7 @@
 // list beneath.
 import { useTranslation } from "react-i18next";
 import { useMediaReference, type MediaSheet } from "./reference";
+import { SkeletonLine } from "../../ui/state-surfaces";
 import { SeasonList } from "./season-list";
 import type { CatalogSeason, MediaSheetFields } from "./sheet-fields";
 import { factsPanel, keyValueRow, sectionHeading, statusDot } from "../../ui/variants";
@@ -19,6 +20,7 @@ export function MediaLibraryFacts({
   catalog,
   catalogEp,
   title,
+  seasonsInFlight,
 }: {
   sheet: (MediaSheet & MediaSheetFields) | null;
   isFilm: boolean;
@@ -31,6 +33,8 @@ export function MediaLibraryFacts({
   catalog: CatalogSeason[];
   catalogEp: number;
   title: string;
+  /** Whether the seasons' read is still out — a missing count is then a skeleton, never « inconnu ». */
+  seasonsInFlight: boolean;
 }) {
   const { baseTitle } = useMediaReference();
   const { t } = useTranslation();
@@ -93,11 +97,11 @@ export function MediaLibraryFacts({
           <>
             <div className={keyValueRow()} data-part="key-value">
               <span>{t("screens.media.seasons")}</span>
-              <span>{seasons.length || t("screens.media.unknown")}</span>
+              <span>{seasons.length || (seasonsInFlight ? <SkeletonLine width="short" /> : t("screens.media.unknown"))}</span>
             </div>
             <div className={keyValueRow()} data-part="key-value">
               <span>{t("screens.media.airedEpisodes")}</span>
-              <span>{aired || t("screens.media.unknown")}</span>
+              <span>{aired || (seasonsInFlight ? <SkeletonLine width="short" /> : t("screens.media.unknown"))}</span>
             </div>
             <div className={keyValueRow()} data-part="key-value">
               <span>{t("screens.media.ownedPlural")}</span>
@@ -110,7 +114,7 @@ export function MediaLibraryFacts({
                   className={`pip ${pct === 100 ? "success" : pct === null ? "neutral" : "warning"}`} data-part="status-dot"
                 ></span>
                 {pct === null
-                  ? t("screens.media.unknownFeminine")
+                  ? seasonsInFlight ? <SkeletonLine width="short" /> : t("screens.media.unknownFeminine")
                   : pct + " %"}
               </span>
             </div>

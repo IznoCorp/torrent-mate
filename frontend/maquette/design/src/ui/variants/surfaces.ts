@@ -41,6 +41,19 @@ export const emptyNote = cva(
     "text-3 text-muted-foreground leading-[1.5]",
 );
 
+/**
+ * One line of a skeleton, standing where a sentence will go while its read is
+ * in flight. The shimmer is the residue's `sk`, with its reduced-motion guard,
+ * as every skeleton here wears it; the box — a text line's height, a width
+ * that says roughly how long the sentence will be — is the variant's.
+ */
+export const skeletonLine = cva("sk block h-4 rounded-2", {
+  variants: {
+    width: { full: "w-full", wide: "w-4/5", half: "w-1/2", short: "w-1/3" },
+  },
+  defaultVariants: { width: "wide" },
+});
+
 /** A surface in error: it names the cause and offers a retry. */
 export const surfaceError = cva(
   "surferr [border:1px_solid_color-mix(in_oklab,var(--color-danger)_45%,transparent)] " +

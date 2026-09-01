@@ -3,6 +3,7 @@
 // none. The element carrying `data-part="hero"` is this one and no other.
 import { useTranslation } from "react-i18next";
 import { Icon } from "../../ui/icon";
+import { SkeletonLine } from "../../ui/state-surfaces";
 import { useMediaReference, type MediaSheet, type Trailer } from "./reference";
 import type { MediaSheetFields } from "./sheet-fields";
 import { heroImage, heroMeta, heroNote, heroText, heroTitle, heroWrap, trailerPlay, trailerRow, trailerSource } from "./variants";
@@ -13,12 +14,15 @@ export function MediaHero({
   isFilm,
   artwork,
   trailer,
+  inFlight,
 }: {
   title: string;
   sheet: (MediaSheet & MediaSheetFields) | null;
   isFilm: boolean;
   artwork: string | null;
   trailer: Trailer | null;
+  /** Whether the sheet's read is still out — a missing part is then a skeleton, never an answer. */
+  inFlight: boolean;
 }) {
   const { icons } = useMediaReference();
   const { t } = useTranslation();
@@ -42,7 +46,7 @@ export function MediaHero({
           <p className={heroMeta()}>
             {sheet
               ? `${sheet.y || t("screens.media.yearUnknown")} · ${isFilm ? t("common.film") : t("common.series")}${sheet.duree ? ` · ${sheet.duree} ${t("screens.media.minutesShort")}` : ""}`
-              : t("screens.media.metadataUnknown")}{" "}
+              : inFlight ? <SkeletonLine width="half" /> : t("screens.media.metadataUnknown")}{" "}
             {sheet?.g ? (
               <>
                 <br />
@@ -51,7 +55,7 @@ export function MediaHero({
             ) : (
               <>
                 <br />
-                {t("screens.media.genresUnknown")}
+                {inFlight ? <SkeletonLine width="short" /> : t("screens.media.genresUnknown")}
               </>
             )}{" "}
             {sheet && !isFilm && sheet.status ? (
@@ -109,6 +113,8 @@ export function MediaHero({
             YouTube
           </span>
         </a>
+      ) : inFlight ? (
+        <p className="noinfo"><SkeletonLine width="half" /></p>
       ) : (
         <p className="noinfo" data-part="no-info">{t("screens.media.noTrailer")}</p>
       )}

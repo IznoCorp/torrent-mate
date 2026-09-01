@@ -2,6 +2,7 @@
 // delete for what is owned, follow or add for what is not.
 import { useTranslation } from "react-i18next";
 import { Icon } from "../../ui/icon";
+import { SkeletonLine } from "../../ui/state-surfaces";
 import { useMediaReference } from "./reference";
 import type { Follow } from "./sheet-fields";
 import { actionButton, factsPanel, keyValueRow, sectionHeading, sheetActions } from "../../ui/variants";
@@ -13,6 +14,7 @@ export function MediaDetails({
   followed,
   follows,
   prov,
+  inFlight,
 }: {
   title: string;
   isFilm: boolean;
@@ -20,6 +22,8 @@ export function MediaDetails({
   followed: boolean;
   follows: Follow[];
   prov: Record<string, string | number>;
+  /** Whether the sheet's read is still out — identifiers not yet known are a skeleton row, never an absence. */
+  inFlight: boolean;
 }) {
   const { icons } = useMediaReference();
   const { t } = useTranslation();
@@ -47,6 +51,12 @@ export function MediaDetails({
                 : t("screens.media.followInactive")}
             </span>
           </div>
+          {inFlight && Object.keys(prov).length === 0 ? (
+            <div className={keyValueRow()} data-part="key-value">
+              <span><SkeletonLine width="short" /></span>
+              <span><SkeletonLine width="half" /></span>
+            </div>
+          ) : null}
           {Object.entries(prov).map(([key, value]) => (
             <div className={keyValueRow()} data-part="key-value" key={key}>
               <span>{key.toUpperCase()}</span>

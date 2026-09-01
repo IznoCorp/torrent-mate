@@ -1,6 +1,7 @@
 // The people of a media sheet: the director or the creator, then the cast
 // strip — or the sentence that says the cast is unknown.
 import { useTranslation } from "react-i18next";
+import { SkeletonLine } from "../../ui/state-surfaces";
 import { useMediaReference, type MediaSheet } from "./reference";
 import type { MediaSheetFields } from "./sheet-fields";
 import { factsPanel, keyValueRow, sectionHeading } from "../../ui/variants";
@@ -9,9 +10,12 @@ import { castCaption, castFigure, castList, castPortrait } from "./variants";
 export function MediaCast({
   sheet,
   isFilm,
+  inFlight,
 }: {
   sheet: (MediaSheet & MediaSheetFields) | null;
   isFilm: boolean;
+  /** Whether the sheet's read is still out — a missing part is then a skeleton, never an answer. */
+  inFlight: boolean;
 }) {
   const { CAST, initials } = useMediaReference();
   const { t } = useTranslation();
@@ -31,7 +35,7 @@ export function MediaCast({
           </span>
           <span>
             {(isFilm ? sheet?.real : sheet?.crea) ??
-              t("screens.media.unknown")}
+              (inFlight ? <SkeletonLine width="short" /> : t("screens.media.unknown"))}
           </span>
         </div>
       </div>
@@ -64,6 +68,8 @@ export function MediaCast({
             </figure>
           ))}
         </div>
+      ) : inFlight ? (
+        <p className="noinfo"><SkeletonLine width="half" /></p>
       ) : (
         <p className="noinfo" data-part="no-info">{t("screens.media.castUnknown")}</p>
       )}

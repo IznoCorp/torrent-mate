@@ -22,7 +22,7 @@
 // same phase, because it made a component write a server-state key.
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
-import { surfaceError } from "./variants";
+import { skeletonLine, surfaceError } from "./variants";
 
 /**
  * The placeholders a surface shows while its data is in flight.
@@ -53,6 +53,24 @@ export function Skeletons({
       ))}
     </>
   );
+}
+
+/**
+ * One line of placeholder where a sentence will go, while its read is in flight.
+ *
+ * A PART, NEVER A BLOCK: it stands inside the element that will carry the
+ * answer, so the screen's blocks are the same blocks at every instant and a
+ * read that lands replaces a line, not a layout. `data-skeleton` is what the
+ * harness counts; `aria-hidden` because a placeholder says nothing a reader
+ * should hear.
+ */
+export function SkeletonLine({
+  width,
+}: {
+  /** Roughly how long the sentence will be. */
+  width?: "full" | "wide" | "half" | "short";
+}): ReactElement {
+  return <span className={skeletonLine({ width })} data-skeleton="" aria-hidden="true" />;
 }
 
 /**
