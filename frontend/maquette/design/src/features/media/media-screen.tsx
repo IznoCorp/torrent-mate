@@ -59,26 +59,7 @@ import {
   trailerRow,
   trailerSource,
 } from "./variants";
-
-// The exact shape `svgIcon(paths, strokeWidth)` produced as an HTML string —
-// rebuilt as a real element so it composes with JSX. Same helper as
-// `profile.tsx`'s, `add.tsx`'s and `panel.tsx`'s, still not shared: the
-// extraction those files' comments call for is a follow-up of its own, not a
-// silent scope add here.
-function Icon({ paths, strokeWidth }: { paths: string; strokeWidth?: number }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={strokeWidth || 2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      dangerouslySetInnerHTML={{ __html: paths }}
-    />
-  );
-}
+import { Icon } from "../../ui/icon";
 
 // The fields this screen reads off a `SHEETS_RAW` entry. The source stays
 // untyped JS and a movie and a show do not carry the same keys, so every

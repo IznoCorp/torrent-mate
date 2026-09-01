@@ -54,24 +54,7 @@ import { type QueueCard } from "../../lib/engine-queue";
 import { useStoreContent, useUiState } from "../../lib/store-access";
 import { actionButton, backAction, body, emptyNote, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, sheetActions } from "../../ui/variants";
 import { guidance } from "../../ui/variants/layout";
-
-// Same helper as `media.tsx`'s, `profile.tsx`'s, `add.tsx`'s and
-// `releases.tsx`'s, still not shared: the extraction those files' comments
-// call for is a follow-up of its own, not a silent scope add here.
-function Icon({ paths, strokeWidth }: { paths: string; strokeWidth?: number }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={strokeWidth || 2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      dangerouslySetInnerHTML={{ __html: paths }}
-    />
-  );
-}
+import { Icon } from "../../ui/icon";
 
 // A RELEASE is not a medium, and its card is deliberately a different object.
 // A release has no media sheet and no panel — it is one candidate among
