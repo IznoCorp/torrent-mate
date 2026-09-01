@@ -651,7 +651,18 @@ def check_named_attributes_have_all_their_ends() -> int:
               "« no violation » would mean nothing", file=sys.stderr)
         return 1
 
-    written = "\n".join(path.read_text(encoding="utf-8") for path in sources)
+    # COMMENTS STRIPPED, because a name in a sentence is not an end. The first
+    # version read the sources raw, so renaming `data-virtualised=` in the
+    # component left the arm green: the COMMENT three lines above still spelled
+    # the old name, and prose satisfied a hold about markup — the compositor
+    # guard's own lesson, in the arm written after it.
+    written = "\n".join(COMMENT.sub(" ", path.read_text(encoding="utf-8"))
+                        for path in sources)
+    stylesheet_text = "\n".join(
+        CSS_COMMENT.sub(" ", path.read_text(encoding="utf-8"))
+        for path in stylesheets if not str(path).endswith("harness.css"))
+    rule_text = "\n".join(COMMENT.sub(" ", path.read_text(encoding="utf-8"))
+                          for path in rules)
 
     def named_in_sources(attribute: str) -> bool:
         """Whether the design sources name this attribute, either spelling."""
@@ -697,6 +708,33 @@ def check_named_attributes_have_all_their_ends() -> int:
                       f"`{attribute}` and no design source writes that name. A "
                       "rule reading a name nothing emits reads `undefined`, "
                       "which is not a failure anywhere.", file=sys.stderr)
+
+    # AND THE OTHER DIRECTION, which is the one a rename actually breaks. The
+    # two loops above check ends against the sources; renaming the STYLESHEET's
+    # end simply removes it from their view, so nothing was checked and nothing
+    # fell — measured. An attribute a source WRITES must be drawn on or read
+    # somewhere, or the write is dead.
+    for attribute in NAMING_ATTRIBUTES:
+        property_name = re.sub(r"-(\w)", lambda m: m.group(1).upper(),
+                               attribute.removeprefix("data-"))
+        writes = (re.search(r"\bdataset\.\b" + property_name + r"\s*=", written)
+                  or re.search(re.escape(attribute) + r"\s*=", written))
+        if not writes:
+            continue
+        checked += 1
+        drawn = re.search(r"\[" + re.escape(attribute) + r"[\]=~^$*|]",
+                          stylesheet_text)
+        read = (re.search(r"dataset(?:\?)?\.\b" + property_name + r"\b", rule_text)
+                or re.search(r"\[" + re.escape(attribute) + r"[\]=~^$*|]", rule_text)
+                or re.search(r"['\"]" + re.escape(attribute) + r"['\"]", rule_text))
+        if drawn or read:
+            continue
+        violations += 1
+        print(f"  a design source writes `{attribute}` and NOTHING draws on it "
+              "or reads it — no stylesheet selector, no rule. A name written at "
+              "one end is a write nobody can see; renaming the other end is "
+              "exactly what this refuses, and it is the direction the first "
+              "version of this arm could not check.", file=sys.stderr)
 
     if violations:
         print(f"\ncheck-markup-contracts: {violations} naming attribute(s) with "
