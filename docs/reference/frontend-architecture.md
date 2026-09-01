@@ -1738,7 +1738,12 @@ gives — it is the only step of the three that cannot be done from the wave's o
 leaves the tree (`git rm -r`), and every citation of a file in it that a living document still
 needs is rewritten to `` `path@sha` `` in the same step, `sha` being `origin/main` at that moment
 (`docs/reference/documentation-model.md` § 2; the guard's history arm refuses the folder coming
-back under `docs/archive/`). A file the wave wrote that has become a durable reference — a model,
+back under `docs/archive/`). **The step is the post-merge gesture's, never the wave's own
+branch's**: the commit that holds the folder for good is the wave's SQUASH commit, which exists
+only after the merge — a wave that deleted its folder on its branch and cited its branch head
+would cite a commit the squash erases and the branch deletion loses, which is B-291's dangling
+pointer one file over, and a `path@sha` that names a dead commit reads exactly like one that
+names a live one until `git show` is asked. A file the wave wrote that has become a durable reference — a model,
 a survey, a rule — is not left in the folder as an exception: it moves to `docs/reference/` under
 a name that says what it is, with its citations (the frame's model and survey did, on
 2026-09-01: `docs/reference/frame-model.md`, `docs/reference/frame-survey.md`). Added on
