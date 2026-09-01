@@ -334,7 +334,6 @@ GRANDFATHERED = {
     "engine/states.js": "L13 — the scenario table goes with the engine it drives",
     "features/acquisition/page.tsx": "L14 — decomposition (L07 converted the surface, L09 did not shrink it)",
     "features/library/page.tsx": "L14 — decomposition (L07 converted the surface, L09 did not shrink it)",
-    "features/media/media-screen.tsx": "L14 — decomposition (L07 converted the surface, L09 did not shrink it)",
 }
 
 # A LABEL IS HELD AGAINST TWO DOCUMENTS, because since 2026-08-28 the answer

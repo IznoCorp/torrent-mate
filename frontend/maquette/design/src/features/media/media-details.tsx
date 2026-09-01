@@ -1,0 +1,114 @@
+// The identifiers of a medium and the actions a sheet offers: rescrape and
+// delete for what is owned, follow or add for what is not.
+import { useTranslation } from "react-i18next";
+import { Icon } from "../../ui/icon";
+import { useMediaReference } from "./reference";
+import type { Follow } from "./sheet-fields";
+import { actionButton, factsPanel, keyValueRow, sectionHeading, sheetActions } from "../../ui/variants";
+
+export function MediaDetails({
+  title,
+  isFilm,
+  owns,
+  followed,
+  follows,
+  prov,
+}: {
+  title: string;
+  isFilm: boolean;
+  owns: boolean;
+  followed: boolean;
+  follows: Follow[];
+  prov: Record<string, string | number>;
+}) {
+  const { icons } = useMediaReference();
+  const { t } = useTranslation();
+  return (
+    <>
+      <div>
+        <h2 className={sectionHeading()} data-part="heading" style={{ marginBottom: "6px" }}>
+          {t("screens.media.information")}
+        </h2>
+        <div className={factsPanel()} data-part="panel">
+          <div className={keyValueRow()} data-part="key-value">
+            <span>{t("screens.media.follow")}</span>
+            {/* The SECOND follow test, and the strict one: an exact title
+                match, or an exact match on the title without its year
+                suffix. The hero block above answers the same question
+                through `baseTitle` on BOTH sides — a follow recorded
+                under a different year suffix reads « actif » there and
+                « non suivi » here. Transplanted as found. */}
+            <span>
+              {follows.some(
+                (follow) =>
+                  follow.t === title || follow.t === title.split(" (")[0],
+              )
+                ? t("screens.media.followActive")
+                : t("screens.media.followInactive")}
+            </span>
+          </div>
+          {Object.entries(prov).map(([key, value]) => (
+            <div className={keyValueRow()} data-part="key-value" key={key}>
+              <span>{key.toUpperCase()}</span>
+              <span
+                style={{
+                  fontFamily: "ui-monospace,Menlo,monospace",
+                  fontSize: "11px",
+                }}
+              >
+                {String(value)}
+              </span>
+            </div>
+          ))}
+          <div className={keyValueRow()} data-part="key-value">
+            <span>{t("screens.media.metadataRefreshed")}</span>
+            <span>{t("screens.media.metadataRefreshedValue")}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className={sheetActions({ secondary: true })} data-part="sheet/actions">
+        {owns ? (
+          <>
+            <button
+              className={`sact ${actionButton()}`}
+              data-part="sheet/action"
+              data-toast={t("screens.media.rescrapeToast")}
+            >
+              <Icon paths={icons.refresh} />
+              {t("screens.media.rescrape")}
+            </button>{" "}
+            <button className={`sact danger ${actionButton()}`} data-part="sheet/action" data-tone="danger" data-del={title}>
+              <Icon paths={icons.trash} />
+              {t("screens.media.delete")}
+            </button>
+          </>
+        ) : followed ? (
+          <button className={`mediaadd done ${actionButton()}`} data-part="media/add" disabled>
+            <Icon paths={icons.check} />
+            {isFilm
+              ? t("screens.media.added")
+              : t("screens.media.followed")}
+          </button>
+        ) : (
+          // No sheet-refresh attribute: the legacy button asked the sheet to
+          // REOPEN itself so the label would flip under the finger. This
+          // screen re-renders from the store instead — the follow act
+          // bumps it, and the button becomes `mediaadd done` in place.
+          <button
+            className={`mediaadd ${actionButton()}`}
+            data-part="media/add"
+            data-follow={title}
+            // french-ok: a data-* VALUE, frozen with the DOM contract
+            data-fkind={isFilm ? "Film" : "Série"}
+          >
+            <Icon paths={icons.plus} />
+            {isFilm
+              ? t("screens.media.add")
+              : t("screens.media.followVerb")}
+          </button>
+        )}
+      </div>
+    </>
+  );
+}

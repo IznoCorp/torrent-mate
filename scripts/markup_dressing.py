@@ -218,7 +218,7 @@ BARE_ALLOWED = {
     ("ui/panel/index.tsx", "img"): (
         1, "the panel's poster, painted by `.sheetposter img` "
            "(legacy.css:1929) until L13"),
-    ("features/media/media-screen.tsx", "img"): (
+    ("features/media/media-cast.tsx", "img"): (
         1, "a cast portrait, and this one is NOT latent: `castPortrait()` "
            "constrains it with `[&_img]:w-full [&_img]:h-full "
            "[&_img]:object-cover [&_img]:block`, so the parent dresses it "
