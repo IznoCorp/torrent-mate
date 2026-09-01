@@ -813,7 +813,13 @@
    repaired under twice. The live sheet's transition is silenced for the length
    of the crossing; `panel-down` is the departure. */
 :root:active-view-transition #sheet {
-  transition: none;
+  /* ONLY THE MOVEMENT IS SILENCED — the visibility delay stays, and cutting it
+     is a regression this caught the same hour it was written. `transition: none`
+     took `visibility` with `transform`, and B-249's idiom IS the visibility
+     delay: the layer must stay hit-testable until it has finished leaving or
+     the screen behind it flashes. `exits.py` read `hidden` on every sample of a
+     leaving sheet within minutes of the shorthand landing. */
+  transition-property: visibility;
 }
 
 @keyframes panel-down {

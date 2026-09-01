@@ -702,9 +702,20 @@ async def hold_the_panel_departs(journal, browser):
       const node = document.querySelector('#sheet');
       if (!node) return null;
       const style = getComputedStyle(node);
+      // MOVEMENT ONLY. `visibility` still transitions on purpose — B-249's
+      // idiom keeps the layer hit-testable until it has finished leaving — and
+      // it moves nothing, so counting it here would make this hold refuse the
+      // very thing the layer must keep doing.
+      const moving = node.getAnimations().filter((animation) => {
+        const property = animation.transitionProperty || animation.animationName;
+        return property && property !== 'visibility';
+      });
       return {transition: style.transitionProperty,
               duration: style.transitionDuration,
-              running: node.getAnimations().length,
+              running: moving.length,
+              movingProperties: moving.map(
+                (animation) => animation.transitionProperty
+                  || animation.animationName),
               crossing: document.documentElement.matches(
                 ':active-view-transition')};
     }""")

@@ -146,7 +146,6 @@ async def hold(journal):
         settled = average_colour(
             await page.screenshot(clip=box, animations="allow"))
         await page.click(TILE)
-        await page.wait_for_timeout(MID_TRANSITION_MILLISECONDS)
         # WAS A TRANSITION ACTUALLY CROSSING WHEN THIS WAS READ? Nothing asked,
         # and a rule whose whole subject is « in flight » that never establishes
         # flight is green over the case it exists for: delete
@@ -158,19 +157,42 @@ async def hold(journal):
         # Read on BOTH sides of the capture, because a screenshot is not
         # instantaneous and a transition that ended between the flag and the
         # shutter would leave the same false reading.
-        crossing_before = await page.evaluate(
-            "()=>document.documentElement.matches(':active-view-transition')")
-        crossing = average_colour(
-            await page.screenshot(clip=box, animations="allow"))
-        crossing_after = await page.evaluate(
-            "()=>document.documentElement.matches(':active-view-transition')")
+        # RETRIED, because the capture races the transition's end under load.
+        # A screenshot is not instantaneous; on a loaded runner it can outlast
+        # the 450ms crossing, and then the flag reads True before and False
+        # after — the rule falls for the machine's reasons rather than the
+        # page's, which is B-277's species. What is NOT done is dropping the
+        # second read: a sample taken after the end is exactly the vacuity this
+        # hold exists to refuse, so the run is repeated instead, from a fresh
+        # arrival, and only a straddle EVERY time is a violation.
+        crossing = None
+        crossing_before = crossing_after = None
+        for attempt in range(3):
+            if attempt:
+                await page.go_back()
+                await page.wait_for_timeout(900)
+                await page.click(TILE)
+            await page.wait_for_timeout(MID_TRANSITION_MILLISECONDS)
+            crossing_before = await page.evaluate(
+                "()=>document.documentElement.matches(':active-view-transition')")
+            sample = average_colour(
+                await page.screenshot(clip=box, animations="allow"))
+            crossing_after = await page.evaluate(
+                "()=>document.documentElement.matches(':active-view-transition')")
+            if crossing_before and crossing_after:
+                crossing = sample
+                break
         journal.check(
             "the mid-flight read is taken WHILE a transition crosses",
-            crossing_before and crossing_after,
+            crossing is not None,
             f"`:active-view-transition` read {crossing_before} before the "
-            f"capture and {crossing_after} after it — the sample below is of a "
-            "settled bar, and comparing two settled bars proves nothing about "
-            "how one is painted under an arriving screen")
+            f"capture and {crossing_after} after it, on three arrivals — the "
+            "sample below is of a settled bar, and comparing two settled bars "
+            "proves nothing about how one is painted under an arriving screen")
+        if crossing is None:
+            await browser.close()
+            journal.summary(errors)
+            return
         await page.wait_for_timeout(1400)
         after = average_colour(
             await page.screenshot(clip=box, animations="allow"))

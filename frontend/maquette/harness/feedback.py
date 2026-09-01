@@ -32,6 +32,7 @@ it is declared rather than scripted, and that it has a defined appearance under
 both preferences.
 """
 import asyncio
+import time
 import pathlib
 import sys
 
@@ -304,21 +305,41 @@ async def hold_the_press_acknowledgement(journal, browser, motion):
         "()=>window.__gestures.press.settleMilliseconds")
     await session.send("Input.dispatchTouchEvent", {
         "type": "touchStart", "touchPoints": [{"x": x, "y": y, "id": 1}]})
-    await page.wait_for_timeout(max(settle - 60, 10))
-    too_early = await page.evaluate(READ_TILE)
-    journal.check(
-        f"under `{motion}`, the tile is NOT marked before the settle passes",
-        not too_early["mark"],
-        f"read {too_early} at {max(settle - 60, 10)}ms of a {settle}ms settle — "
-        "the mark is placed on `pointerdown` after all, which lights every "
-        "flick that begins on a tile")
-    arming = None
-    for step in range(11):
+    # SAMPLED ON EVERY STEP, and the two readings are CHOSEN from the series by
+    # the moment each one lands rather than by a step number.
+    #
+    # It used to read one fixed step, and the settle read added 60ms of dead
+    # time in front of it: under the suite's parallel load the fixed step then
+    # drifted past the press delay and the mark had already gone — the rule fell
+    # in the suite and passed alone, which is B-277's species arriving in the
+    # rule this repair touched. A moment cannot drift out of a series that
+    # records its own moments.
+    samples = []
+    began = time.monotonic()
+    for _ in range(13):
         await session.send("Input.dispatchTouchEvent", {
             "type": "touchMove", "touchPoints": [{"x": x + 2, "y": y + 2, "id": 1}]})
-        await page.wait_for_timeout(60)
-        if step == 4:
-            arming = await page.evaluate(READ_TILE)
+        await page.wait_for_timeout(50)
+        samples.append(((time.monotonic() - began) * 1000,
+                        await page.evaluate(READ_TILE)))
+    before_settle = [reading for elapsed, reading in samples if elapsed < settle]
+    press_delay = await page.evaluate(
+        "()=>window.__gestures.press.milliseconds")
+    arming_window = [reading for elapsed, reading in samples
+                     if settle + 40 < elapsed < press_delay - 40]
+    journal.check(
+        f"under `{motion}`, the tile is NOT marked before the settle passes",
+        bool(before_settle) and not any(r["mark"] for r in before_settle),
+        f"read {before_settle} inside a {settle}ms settle — the mark is placed "
+        "on `pointerdown` after all, which lights every flick that begins on a "
+        "tile")
+    journal.check(
+        f"under `{motion}`, the arming window WAS sampled",
+        bool(arming_window),
+        f"no sample landed between {settle}ms and {press_delay}ms over "
+        f"{[round(elapsed) for elapsed, _ in samples]} — the two holds below "
+        "would then read an absence")
+    arming = arming_window[-1] if arming_window else None
     await session.send("Input.dispatchTouchEvent",
                        {"type": "touchEnd", "touchPoints": []})
     await page.wait_for_timeout(600)
